@@ -200,7 +200,6 @@ namespace BuildXL.Scheduler.Cache
         /// but was a different kind, null if content was not available, or standard <see cref="Failure"/></returns>
         public virtual async Task<Possible<PipCacheDescriptorV2Metadata>> TryRetrieveMetadataAsync(
             Pip pip,
-
             // TODO: Do we need these fingerprints given that the metadata hash is provided by this interface in the first place
             WeakContentFingerprint weakFingerprint,
             StrongContentFingerprint strongFingerprint,
@@ -487,7 +486,7 @@ namespace BuildXL.Scheduler.Cache
         /// Tries to store the hash-to-hash mapping into cache
         /// </summary>
         /// <remarks>
-        /// The operation is only applicable to <see cref="HistoricMetadataCache"/>.
+        /// The operation is only applicable to <see cref="PipTwoPhaseCacheWithHashLookup"/>.
         /// </remarks>
         public virtual void TryStoreRemappedContentHash(ContentHash contentHash, ContentHash remappedContentHash)
         {
@@ -497,7 +496,7 @@ namespace BuildXL.Scheduler.Cache
         /// Given a hash, tries to get a corresponding mapped hash from cache. If the hash cannot be find, returns an invalid ContentHash.
         /// </summary>
         /// <remarks>
-        /// The operation is only applicable to <see cref="HistoricMetadataCache"/>.
+        /// The operation is only applicable to <see cref="PipTwoPhaseCacheWithHashLookup"/>.
         /// </remarks>
         public virtual ContentHash TryGetMappedContentHash(ContentHash contentHash, HashType hashType) => default;
     }

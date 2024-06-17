@@ -88,7 +88,7 @@ namespace BuildXL.Utilities.Configuration
 
             config.Logging.ReplayWarnings = false;
 
-            config.Cache.HistoricMetadataCache = true;
+            config.Cache.HistoricMetadataCache = HistoricMetadataCacheMode.HashToHashAndMetadata;
 
             config.Logging.StoreFingerprints = false;
 

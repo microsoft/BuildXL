@@ -166,7 +166,7 @@ namespace BuildXL.Scheduler
                 // cache topologies this is less noticeable, so it is just a verbose message now.
                 
                 // CompareExchange ensures that we do this check at most one time.
-                var hmc = m_pipTwoPhaseCache as HistoricMetadataCache;
+                var hmc = m_pipTwoPhaseCache as PipTwoPhaseCacheWithHashLookup;
                 // Need to make sure the loading task is complete before checking whether the cache is valid.
                 hmc?.StartLoading(waitForCompletion: true);
                 if (hmc == null || !hmc.Valid)
@@ -190,6 +190,8 @@ namespace BuildXL.Scheduler
                         manifestHashes = null;
                         return false;
                     }
+
+                    ManifestCounters.IncrementCounter(BuildManifestCounters.InternalSuccessfulHashToHashCacheReadCount);
                     manifestHashesMutable.Add(buildManifestHash);
                 }
 
@@ -929,6 +931,12 @@ namespace BuildXL.Scheduler
         /// </summary>
         [CounterType(CounterType.Numeric)]
         TotalHashFileFailures,
+
+        /// <summary>
+        /// Number of calls for obtaining hash to hash mappings from historic metadata cache for build manifest generation.
+        /// </summary>
+        [CounterType(CounterType.Numeric)]
+        InternalSuccessfulHashToHashCacheReadCount,
     }
 
     /// <summary>

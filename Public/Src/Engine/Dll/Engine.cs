@@ -841,7 +841,7 @@ namespace BuildXL.Engine
                 logging.CacheLookupFingerprintStoreLogDirectory = logging.FingerprintsLogDirectory.Combine(pathTable, Scheduler.Scheduler.FingerprintStoreDirectory + LogFileExtensions.CacheLookupFingerprintStore);
             }
 
-            if (mutableConfig.Cache.HistoricMetadataCache == true && !logging.HistoricMetadataCacheLogDirectory.IsValid)
+            if (mutableConfig.Cache.HistoricMetadataCache != HistoricMetadataCacheMode.Disable && !logging.HistoricMetadataCacheLogDirectory.IsValid)
             {
                 logging.HistoricMetadataCacheLogDirectory = logging.EngineCacheLogDirectory.Combine(pathTable, EngineSerializer.HistoricMetadataCacheLocation);
             }
@@ -1216,7 +1216,7 @@ namespace BuildXL.Engine
             // If incremental is turned off, HistoricMetadataCache should also be turned off.
             if (!mutableConfig.Cache.Incremental)
             {
-                mutableConfig.Cache.HistoricMetadataCache = false;
+                mutableConfig.Cache.HistoricMetadataCache = HistoricMetadataCacheMode.HashToHashOnly;
             }
 
             // If runtime cache miss analysis is enabled, the fingerprint store is required.

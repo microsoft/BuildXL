@@ -440,24 +440,43 @@ namespace BuildXL.Engine
             ContentFingerprint performanceDataFingerprint,
             PathExpander pathExpander)
         {
-            if (configuration.Cache.HistoricMetadataCache == true)
+            if (configuration.Cache.HistoricMetadataCache != HistoricMetadataCacheMode.Disable)
             {
                 var directoryPath = GetHistoricMetadataCacheDirectoryPath(context.PathTable, configuration.Layout, loggingContext);
                 if (directoryPath != null)
                 {
-                    var historicMetadataCache = new HistoricMetadataCache(
-                        loggingContext,
-                        cache,
-                        context,
-                        pathExpander,
-                        AbsolutePath.Create(context.PathTable, directoryPath),
-                        prepareAsync: hmc =>
-                        {
-                            return TryLoadHistoricMetadataCache(loggingContext, hmc, context, configuration, cache, performanceDataFingerprint);
-                        },
-                        logDirectoryLocation: configuration.Logging.HistoricMetadataCacheLogDirectory);
+                    Logger.Log.HistoricMetadataCacheModeInvoked(loggingContext, configuration.Cache.HistoricMetadataCache.ToString());
 
-                    return historicMetadataCache;
+                    if (configuration.Cache.HistoricMetadataCache == HistoricMetadataCacheMode.HashToHashAndMetadata)
+                    {
+                        return new HistoricMetadataCache(
+                            loggingContext,
+                            cache,
+                            context,
+                            pathExpander,
+                            AbsolutePath.Create(context.PathTable, directoryPath),
+                            prepareAsync: hmc =>
+                            {
+                                return TryLoadHistoricMetadataCache(loggingContext, hmc, context, configuration, cache, performanceDataFingerprint);
+                            },
+                            logDirectoryLocation: configuration.Logging.HistoricMetadataCacheLogDirectory);
+                    }
+                    else if (configuration.Cache.HistoricMetadataCache == HistoricMetadataCacheMode.HashToHashOnly)
+                    {
+                        return new PipTwoPhaseCacheWithHashLookup(
+                               loggingContext,
+                               cache,
+                               context,
+                               pathExpander,
+                               AbsolutePath.Create(context.PathTable, directoryPath),
+                               prepareAsync: hmc =>
+                               {
+                                   return TryLoadHistoricMetadataCache(loggingContext, hmc, context, configuration, cache, performanceDataFingerprint);
+                               },
+                               logDirectoryLocation: configuration.Logging.HistoricMetadataCacheLogDirectory);
+                    }
+
+                    Contract.Assert(false, $"Cannot init HMD for {configuration.Cache.HistoricMetadataCache} value.");
                 }
             }
 
@@ -473,7 +492,7 @@ namespace BuildXL.Engine
 
         private static async Task TryLoadHistoricMetadataCache(
             LoggingContext loggingContext,
-            HistoricMetadataCache historicMetadataCache,
+            PipTwoPhaseCacheWithHashLookup historicMetadataCache,
             EngineContext context,
             IConfiguration configuration,
             EngineCache cache,
@@ -528,9 +547,10 @@ namespace BuildXL.Engine
             EngineContext context,
             IConfiguration configuration)
         {
-            if (configuration.Cache.HistoricMetadataCache == true)
+            if (configuration.Cache.HistoricMetadataCache != HistoricMetadataCacheMode.Disable)
             {
-                var historicMetadataCache = Scheduler?.State?.Cache as HistoricMetadataCache;
+                var historicMetadataCache = Scheduler?.State?.Cache as PipTwoPhaseCacheWithHashLookup;
+                
                 if (!ShouldSerializeOptimizationDataStructurePostExecution() || historicMetadataCache == null)
                 {
                     return true;

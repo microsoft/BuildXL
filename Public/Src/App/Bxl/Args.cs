@@ -563,9 +563,9 @@ namespace BuildXL
                         OptionHandlerFactory.CreateBoolOption(
                             "interactive",
                             sign => configuration.Interactive = sign),
-                        OptionHandlerFactory.CreateBoolOption(
+                        OptionHandlerFactory.CreateBoolOptionWithValue(
                             "historicMetadataCache",
-                            sign => cacheConfiguration.HistoricMetadataCache = sign),
+                            (opt, sign) => cacheConfiguration.HistoricMetadataCache = CommandLineUtilities.ParseBoolEnumOption(opt, sign, HistoricMetadataCacheMode.HashToHashAndMetadata, HistoricMetadataCacheMode.Disable)),
                         OptionHandlerFactory.CreateBoolOption(
                             "launchDebugger",
                             sign => configuration.LaunchDebugger = sign),

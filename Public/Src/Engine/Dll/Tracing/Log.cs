@@ -2929,6 +2929,15 @@ If you can't update and need this feature after July 2018 please reach out to th
             EventOpcode = (byte)EventOpcode.Info,
             Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
         public abstract void ErrorCacheInitializationForEngineScheduleConstruction(LoggingContext context, string errorMessage);
+
+        [GeneratedEvent(
+            (int)LogEventId.HistoricMetadataCacheModeInvoked,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Storage,
+            Message = "The HistoricMetadata is invoked in {hmcMode} mode")]
+        public abstract void HistoricMetadataCacheModeInvoked(LoggingContext context, string hmcMode);
     }
 
     /// <summary>

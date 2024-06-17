@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft Corporation.
+﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
 using System;
@@ -6,20 +6,14 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Engine.Cache;
-using BuildXL.Engine.Cache.Artifacts;
 using BuildXL.Engine.Cache.Fingerprints;
-using BuildXL.Engine.Cache.Fingerprints.SinglePhase;
 using BuildXL.Engine.Cache.Fingerprints.TwoPhase;
 using BuildXL.Engine.Cache.KeyValueStores;
-using BuildXL.Native.IO;
-using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Scheduler.Tracing;
@@ -30,22 +24,20 @@ using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Tasks;
 using BuildXL.Utilities.Instrumentation.Common;
-using Google.Protobuf;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 using OperationHints = BuildXL.Cache.ContentStore.Interfaces.Sessions.OperationHints;
 
 namespace BuildXL.Scheduler.Cache
 {
     /// <summary>
-    /// PipTwoPhaseCache with historic metadata cache data
+    /// This class extends the functionality of PipTwoPhaseCacheWithHashLookup class by incorporating the metadata querying functionality.
+    /// This class provides methods for managing and querying historic metadata cache entries, including:
+    ///  - Storing and retrieving metadata and path sets.
+    ///  - Publishing and retrieving cache entries.
+    ///  - Supports remote metadata and path set reporting.
     /// </summary>
-    public class HistoricMetadataCache : PipTwoPhaseCache
+    public class HistoricMetadataCache : PipTwoPhaseCacheWithHashLookup
     {
-        /// <summary>
-        /// The version for format of <see cref="HistoricMetadataCache"/>
-        /// </summary>
-        public const int FormatVersion = 27;
-
         /// <summary>
         /// Indicates if entries should be purged as soon as there TTL reaches zero versus reaching a limit in percentage expired.
         /// </summary>
@@ -55,12 +47,7 @@ namespace BuildXL.Scheduler.Cache
         /// Default time-to-live (TTL) for new entries
         /// The TTL of an entry is the number of save / load round-trips until eviction (assuming it is not accessed within that time).
         /// </summary>
-        public static byte TimeToLive => (byte)(EngineEnvironmentSettings.HistoricMetadataCacheDefaultTimeToLive.Value ?? 5);
-
-        /// <summary>
-        /// Time-to-live for computed content hashes.
-        /// </summary>
-        public const int ComputedContentHashTimeToLive = 10;
+        private static byte TimeToLive => (byte)(EngineEnvironmentSettings.HistoricMetadataCacheDefaultTimeToLive.Value ?? 5);
 
         private static readonly Task<Possible<Unit>> s_genericSuccessTask = Task.FromResult(new Possible<Unit>(Unit.Void));
 
@@ -68,16 +55,6 @@ namespace BuildXL.Scheduler.Cache
         /// Originating cache string
         /// </summary>
         public const string OriginatingCacheId = "HistoricMetadataCache";
-
-        /// <summary>
-        /// The location of the data files for the cache
-        /// </summary>
-        public readonly string StoreLocation;
-
-        /// <summary>
-        /// The directory for log files for the cache
-        /// </summary>
-        public readonly string LogDirectoryLocation;
 
         /// <summary>
         /// PathSet or Metadata content hashes that are newly added in the current session.
@@ -118,9 +95,6 @@ namespace BuildXL.Scheduler.Cache
         /// </summary>
         private readonly ConcurrentBigMap<WeakContentFingerprint, long> m_weakFingerprintsToPipSemistableHashMap = new ConcurrentBigMap<WeakContentFingerprint, long>();
 
-        /// <summary>
-        /// Mapping from pip semistable hash to weak fingerprint for the purpose of looking up accessed paths for a pip (based on associated path sets).
-        /// </summary>
         private readonly ConcurrentBigMap<long, WeakContentFingerprint> m_pipSemistableHashToWeakFingerprintMap = new ConcurrentBigMap<long, WeakContentFingerprint>();
 
         /// <summary>
@@ -128,61 +102,9 @@ namespace BuildXL.Scheduler.Cache
         /// </summary>
         private readonly ConcurrentBigSet<ContentFingerprint> m_newFullFingerprints;
 
-        /// <summary>
-        /// The age of the historic metadata cache
-        /// </summary>
-        public int Age { get; private set; }
-
-        /// <summary>
-        /// Whether the historic metadata cache contains valid information.
-        /// This is false if the historic metadata cache version is outdated,
-        /// the backing store fails to open, or a read/write operation fails during the lifetime of the store.
-        /// </summary>
-        public bool Valid { get; private set; }
-
-        /// <summary>
-        /// Whether <see cref="CloseAsync"/> has been called.
-        /// </summary>
-        public bool Closed
-        {
-            get
-            {
-                return Volatile.Read(ref m_closed);
-            }
-            private set
-            {
-                Volatile.Write(ref m_closed, value);
-            }
-        }
-
-        private bool m_closed = false;
-
-        /// <summary>
-        /// Whether the async initialization of <see cref="m_loadTask"/> has started.
-        /// </summary>
-        private bool m_loadStarted = false;
-
-        private readonly Lazy<Task> m_loadTask;
-        private readonly TaskSourceSlim<Unit> m_prepareCompletion;
         private Task m_garbageCollectTask = Task.FromResult(0);
+
         private readonly CancellationTokenSource m_garbageCollectCancellation = new CancellationTokenSource();
-
-        private KeyValueStoreAccessor StoreAccessor
-        {
-            get
-            {
-                // If the store accessor failed during setup or has become disabled, return null
-                if (m_storeAccessor.Value == null || m_storeAccessor.Value.Disabled)
-                {
-                    return null;
-                }
-
-                return m_storeAccessor.Value;
-            }
-        }
-
-        private readonly Lazy<KeyValueStoreAccessor> m_storeAccessor;
-        private int m_activeContentHashMappingColumnIndex;
 
         /// <nodoc/>
         public HistoricMetadataCache(
@@ -191,54 +113,53 @@ namespace BuildXL.Scheduler.Cache
             PipExecutionContext context,
             PathExpander pathExpander,
             AbsolutePath storeLocation,
-            Func<HistoricMetadataCache, Task> prepareAsync = null,
+            Func<PipTwoPhaseCacheWithHashLookup, Task> prepareAsync = null,
             AbsolutePath? logDirectoryLocation = null)
-            : base(loggingContext, cache, context, pathExpander)
+            : base(
+                loggingContext,
+                cache,
+                context,
+                pathExpander,
+                storeLocation,
+                prepareAsync,
+                logDirectoryLocation)
         {
             Contract.Requires(loggingContext != null);
             Contract.Requires(cache != null);
             Contract.Requires(context != null);
             Contract.Requires(storeLocation.IsValid);
 
-            StoreLocation = storeLocation.ToString(context.PathTable);
-            LogDirectoryLocation = logDirectoryLocation.HasValue && logDirectoryLocation.Value.IsValid ? logDirectoryLocation.Value.ToString(context.PathTable) : null;
-            m_storeAccessor = new Lazy<KeyValueStoreAccessor>(OpenStore);
-            m_hashingPool = new ObjectPool<HashingHelper>(() => new HashingHelper(context.PathTable, recordFingerprintString: false), h => h.Dispose());
-            Valid = false;
-
-            m_newContentEntries = new ConcurrentBigMap<ContentHash, bool>();
-            m_newFullFingerprints = new ConcurrentBigSet<ContentFingerprint>();
             m_weakFingerprintEntries = new ConcurrentBigMap<WeakContentFingerprint, Stack<Expirable<PublishedEntry>>>();
             m_fullFingerprintEntries = new ConcurrentBigMap<ContentFingerprint, ContentHash>();
+            m_newFullFingerprints = new ConcurrentBigSet<ContentFingerprint>();
             m_retainedContentHashCodes = new ConcurrentBigSet<int>();
-
-            Age = 0;
-            m_activeContentHashMappingColumnIndex = -1;
-
-            m_prepareCompletion = TaskSourceSlim.Create<Unit>();
-            m_loadTask = new Lazy<Task>(() => ExecuteLoadTask(prepareAsync));
+            m_newContentEntries = new ConcurrentBigMap<ContentHash, bool>();
         }
 
-        private async Task ExecuteLoadTask(Func<HistoricMetadataCache, Task> prepareAsync)
+        /// <summary>
+        /// Executes the initialization tasks for loading the database. This method orchestrates the loading of cache entries,
+        /// starts the garbage collection process asynchronously.
+        /// </summary>
+        protected override async Task ExecuteLoadTask(Func<PipTwoPhaseCacheWithHashLookup, Task> prepareAsync)
         {
             // Unblock the caller
             await Task.Yield();
 
+            await base.ExecuteLoadTask(prepareAsync);
+
+            if (!Valid)
+            {
+                return;
+            }
+
             try
             {
-                var task = prepareAsync?.Invoke(this) ?? Unit.VoidTask;
-                await task;
-
-                m_prepareCompletion.TrySetResult(Unit.Void);
-
                 StoreAccessor?.Use(database =>
                 {
                     using (Counters.StartStopwatch(PipCachingCounter.HistoricDeserializationDuration))
                     {
                         LoadCacheEntries(database);
                     }
-
-                    PrepareBuildManifestColumn(database);
                 });
 
                 m_garbageCollectTask = Task.Run(() => GarbageCollect());
@@ -246,36 +167,8 @@ namespace BuildXL.Scheduler.Cache
             catch (Exception ex)
             {
                 Logger.Log.HistoricMetadataCacheLoadFailed(LoggingContext, ex.ToString());
-                m_prepareCompletion.TrySetResult(Unit.Void);
                 Valid = false;
             }
-        }
-
-        /// <summary>
-        /// Starting the loading task for the historic metadata cache
-        /// </summary>
-        public override void StartLoading(bool waitForCompletion)
-        {
-            var loadingTask = EnsureLoadedAsync();
-            if (waitForCompletion)
-            {
-                loadingTask.GetAwaiter().GetResult();
-            }
-        }
-
-        /// <summary>
-        /// Ensures that the historic metadata cache is fully loaded before queries to metadata are allowed.
-        /// </summary>
-        private Task EnsureLoadedAsync()
-        {
-            if (Closed)
-            {
-                throw new BuildXLException("Attempts to load the HistoricMetadataCache should not be made after Close is called.");
-            }
-
-            Volatile.Write(ref m_loadStarted, true);
-
-            return m_loadTask.Value;
         }
 
         /// <inheritdoc/>
@@ -474,7 +367,10 @@ namespace BuildXL.Scheduler.Cache
             return await base.TryStorePathSetContentAsync(pathSetHash, pathSetBuffer);
         }
 
-        private static ArraySegment<byte> ToStorableContent(MemoryStream pathSetBuffer)
+        /// <summary>
+        /// Converts the given MemoryStream to an ArraySegment of bytes for storage.
+        /// </summary>
+        protected static ArraySegment<byte> ToStorableContent(MemoryStream pathSetBuffer)
         {
             return new ArraySegment<byte>(pathSetBuffer.GetBuffer(), 0, (int)pathSetBuffer.Length);
         }
@@ -482,7 +378,7 @@ namespace BuildXL.Scheduler.Cache
         /// <summary>
         /// Adding cache entry
         /// </summary>
-        private bool SetMetadataEntry(
+        protected bool SetMetadataEntry(
             WeakContentFingerprint weakFingerprint,
             StrongContentFingerprint strongFingerprint,
             ContentHash pathSetHash,
@@ -525,7 +421,8 @@ namespace BuildXL.Scheduler.Cache
             return !addOrUpdateResult.IsFound;
         }
 
-        private static ContentFingerprint GetFullFingerprint(WeakContentFingerprint weakFingerprint, StrongContentFingerprint strongFingerprint)
+        /// <inheritdoc/>
+        protected static ContentFingerprint GetFullFingerprint(WeakContentFingerprint weakFingerprint, StrongContentFingerprint strongFingerprint)
         {
             Span<byte> fullFingerprintBytes = stackalloc byte[FingerprintUtilities.FingerprintLength];
             for (int i = 0; i < FingerprintUtilities.FingerprintLength; i++)
@@ -536,24 +433,17 @@ namespace BuildXL.Scheduler.Cache
             return new ContentFingerprint(new Fingerprint(new ReadOnlyFixedBytes(fullFingerprintBytes), FingerprintUtilities.FingerprintLength));
         }
 
-        /// <inheritdoc />
-        public override async Task CloseAsync()
+        /// <summary>
+        /// Closes the cache, ensuring all load tasks are complete and data is saved properly, and manages garbage collection shutdown.
+        /// </summary>
+        protected override async Task DoCloseAsync()
         {
-            // Allow Close to be called multiple times with no side effects
-            if (Closed)
-            {
-                return;
-            }
-
-            Closed = true;
-            Logger.Log.HistoricMetadataCacheCloseCalled(LoggingContext);
-
             // Only save info if historic metadata cache was accessed
-            if (Volatile.Read(ref m_loadStarted))
+            if (Volatile.Read(ref LoadStarted))
             {
                 // If a load was started, wait for full completion of the load
                 // Otherwise, close and the load initialization can run concurrently and cause race conditions
-                await m_loadTask.Value;
+                await LoadTask.Value;
 
                 Logger.Log.HistoricMetadataCacheTrace(LoggingContext, I($"Saving historic metadata cache Start"));
 
@@ -568,31 +458,9 @@ namespace BuildXL.Scheduler.Cache
                 }
 
                 Logger.Log.HistoricMetadataCacheTrace(LoggingContext, I($"Saving historic metadata cache Done"));
-                StoreAccessor?.Dispose();
-
-                // Once the store accessor has been closed, the log can be safely copied
-                if (LogDirectoryLocation != null)
-                {
-                    try
-                    {
-                        if (!FileUtilities.Exists(LogDirectoryLocation))
-                        {
-                            FileUtilities.CreateDirectory(LogDirectoryLocation);
-                        }
-
-                        await FileUtilities.CopyFileAsync(
-                            Path.Combine(StoreLocation, KeyValueStoreAccessor.LogFileName),
-                            Path.Combine(LogDirectoryLocation, KeyValueStoreAccessor.LogFileName));
-                    }
-                    catch (Exception e)
-                    {
-                        //  It's not super important that the log file is copied, so just log a message
-                        Logger.Log.HistoricMetadataCacheTrace(LoggingContext, "Failed to copy historic metadata cache log file to BuildXL logs folder:" + e.GetLogEventMessage());
-                    }
-                }
             }
 
-            await base.CloseAsync();
+            await base.DoCloseAsync();
         }
 
         private void GarbageCollect()
@@ -739,80 +607,6 @@ namespace BuildXL.Scheduler.Cache
             }
         }
 
-        /// <inheritdoc/>
-        public override void TryStoreRemappedContentHash(ContentHash contentHash, ContentHash remappedContentHash)
-        {
-            EnsureLoadedAsync().GetAwaiter().GetResult();
-
-            StoreAccessor?.Use(database =>
-            {
-                using var key = GetRemappingContentHashKey(contentHash, remappedContentHash.HashType);
-                if (!database.TryGetValue(key.Value, out var existingValue, StoreColumnNames.ContentHashMappingColumn[m_activeContentHashMappingColumnIndex]))
-                {
-                    using var value = remappedContentHash.ToPooledByteArray();
-                    // While we are checking both columns, we are storing only into the active one.
-                    database.Put(key.Value, value.Value, StoreColumnNames.ContentHashMappingColumn[m_activeContentHashMappingColumnIndex]);
-                }
-            });
-        }
-
-        private readonly ObjectPool<HashingHelper> m_hashingPool;
-
-        internal static readonly ByteArrayPool ContentMappingKeyArrayPool = new(ContentHash.SerializedLength + 1);
-
-        /// <summary>
-        /// Get key to store mapped content hash
-        /// </summary>
-        private ByteArrayPool.PoolHandle GetRemappingContentHashKey(ContentHash contentHash, HashType targetHashType)
-        {
-            var handle = ContentMappingKeyArrayPool.Get();
-            byte[] buffer = handle.Value;
-
-            // Store the hash type in the first byte
-            unchecked
-            {
-                buffer[0] = (byte)targetHashType;
-            }
-
-            contentHash.Serialize(buffer, offset: 1);
-            return handle;
-        }
-
-        /// <inheritdoc/>
-        public override ContentHash TryGetMappedContentHash(ContentHash contentHash, HashType hashType)
-        {
-            EnsureLoadedAsync().GetAwaiter().GetResult();
-
-            Contract.Assert(contentHash.IsValid, "ContentHash must be valid");
-
-            ContentHash foundHash = default;
-            StoreAccessor?.Use(database =>
-            {
-                Contract.Assert(m_activeContentHashMappingColumnIndex >= 0, "Build manifest column is not initialized");
-                using var key = GetRemappingContentHashKey(contentHash, hashType);
-                Contract.Assert(key.Value != null, "ByteArray was null for ContentHash");
-
-                // First, check the active column. If the hash is not there, check the other column.
-                if (database.TryGetValue(key.Value, out var value, StoreColumnNames.ContentHashMappingColumn[m_activeContentHashMappingColumnIndex]))
-                {
-                    foundHash = new ContentHash(value);
-                }
-                else if (database.TryGetValue(key.Value, out value, StoreColumnNames.ContentHashMappingColumn[(m_activeContentHashMappingColumnIndex + 1) % 2]))
-                {
-                    // need to update the active column
-                    database.Put(key.Value, value, StoreColumnNames.ContentHashMappingColumn[m_activeContentHashMappingColumnIndex]);
-                    foundHash = new ContentHash(value);
-                }
-            });
-
-            if (foundHash.IsValid && foundHash.HashType != hashType)
-            {
-                Contract.Assert(false, $"Mismatched hash retrieval from historic metadata cache. Req: {hashType}. Type: {foundHash.HashType}");
-            }
-
-            return foundHash;
-        }
-
         /// <summary>
         /// Adding pathset
         /// </summary>
@@ -927,7 +721,7 @@ namespace BuildXL.Scheduler.Cache
             }
         }
 
-        #region Serialization
+        #region serialization
 
         /// <summary>
         /// Loads the cache entries from the database
@@ -936,35 +730,12 @@ namespace BuildXL.Scheduler.Cache
         {
             if (store.TryGetValue(StoreKeyNames.HistoricMetadataCacheEntriesKey, out var serializedCacheEntries))
             {
-                Age = GetAge(store) + 1;
-                SetAge(store, Age);
-
                 using (var stream = new MemoryStream(serializedCacheEntries))
                 using (var reader = BuildXLReader.Create(stream, leaveOpen: true))
                 {
                     DeserializeCacheEntries(reader);
                 }
             }
-
-            m_activeContentHashMappingColumnIndex = ComputeContentHashMappingActiveColumnIndex(Age);
-            Counters.AddToCounter(PipCachingCounter.HistoricMetadataLoadedAge, Age);
-        }
-
-        private int GetAge(RocksDbStore store)
-        {
-            bool ageFound = store.TryGetValue(nameof(StoreKeyNames.Age), out var ageString);
-            if (!ageFound || !int.TryParse(ageString, out var age))
-            {
-                SetAge(store, 0);
-                return 0;
-            }
-
-            return age;
-        }
-
-        private void SetAge(RocksDbStore store, int age)
-        {
-            store.Put(nameof(StoreKeyNames.Age), age.ToString());
         }
 
         /// <summary>
@@ -972,7 +743,7 @@ namespace BuildXL.Scheduler.Cache
         /// </summary>
         private async Task StoreCacheEntriesAsync()
         {
-            Contract.Requires(m_loadTask.IsValueCreated && m_loadTask.Value.IsCompleted);
+            Contract.Requires(LoadTask.IsValueCreated && LoadTask.Value.IsCompleted);
 
             // Unblock the thread
             await Task.Yield();
@@ -1154,134 +925,29 @@ namespace BuildXL.Scheduler.Cache
             }
         }
 
-        private void PrepareBuildManifestColumn(RocksDbStore database)
-        {
-            if (m_activeContentHashMappingColumnIndex != ComputeContentHashMappingActiveColumnIndex(Age - 1))
-            {
-                // The active column has changed, need to clean it before its first use.
-                database.DropColumnFamily(StoreColumnNames.ContentHashMappingColumn[m_activeContentHashMappingColumnIndex]);
-                database.CreateColumnFamily(StoreColumnNames.ContentHashMappingColumn[m_activeContentHashMappingColumnIndex]);
-            }
-        }
-
         #endregion
 
-        private KeyValueStoreAccessor OpenStore()
-        {
-            Contract.Assert(StoreColumnNames.ContentHashMappingColumn.Length == 2);
-            Contract.Assert(m_prepareCompletion.Task.IsCompleted, "Attempted to open the store before the loading has finished.");
-
-            var keyTrackedColumns = new string[]
-            {
-                StoreColumnNames.Content
-            };
-
-            var possibleAccessor = KeyValueStoreAccessor.OpenWithVersioning(
-                StoreLocation,
-                FormatVersion,
-                additionalColumns: StoreColumnNames.ContentHashMappingColumn,
-                additionalKeyTrackedColumns: keyTrackedColumns,
-                failureHandler: (f) => HandleStoreFailure(f.Failure),
-                onFailureDeleteExistingStoreAndRetry: true,
-                onStoreReset: failure =>
-                {
-                    Logger.Log.HistoricMetadataCacheCreateFailed(LoggingContext, failure.DescribeIncludingInnerFailures(), willResetAndRetry: true);
-                });
-
-            if (possibleAccessor.Succeeded)
-            {
-                Valid = true;
-                return possibleAccessor.Result;
-            }
-
-            // If we fail when creating a new store, there will be no historic metadata cache, so log a warning
-            Logger.Log.HistoricMetadataCacheCreateFailed(LoggingContext, possibleAccessor.Failure.DescribeIncludingInnerFailures(), willResetAndRetry: false);
-            return null;
-        }
-
-        private void HandleStoreFailure(Failure failure)
-        {
-            // Conservatively assume all store failures indicate corrupted data and should not be saved
-            Valid = false;
-            KeyValueStoreUtilities.CheckAndLogRocksDbException(failure, LoggingContext);
-            // If the store fails, future performance can be impacted, so log a warning
-            Logger.Log.HistoricMetadataCacheOperationFailed(LoggingContext, failure.DescribeIncludingInnerFailures());
-
-            // Note: All operations using the store are no-ops after the first failure,
-            // but if there are concurrent operations that fail, then this may log multiple times.
-        }
-
         /// <summary>
-        /// Given the age of the cache, computes the index of the build manifest column that
-        /// should be used for storing new build manifest hashes.
-        /// 
-        /// Essentially, we alternating between two columns every <see cref="ComputedContentHashTimeToLive"/> number of builds.
+        /// Creates a new instance of the <see cref="Expirable{T}"/> struct with the specified value and time-to-live (TTL).
         /// </summary>
-        private static int ComputeContentHashMappingActiveColumnIndex(int age) => age >= 0 ? (age / ComputedContentHashTimeToLive) % 2 : 0;
-
-        private readonly struct StoreColumnNames
-        {
-            /// <summary>
-            /// The content field containing the actual payload. (This stores the
-            /// content blobs for metadata and pathsets)
-            /// </summary>
-            public static string Content = "Content";
-
-            /// <summary>
-            /// We use two columns for storing (contentHash, targetHashType) -> contentHash map. This way we don't need to track the TTL of
-            /// individual entries; instead, all entries in a column sort of share the same TTL. 
-            /// 
-            /// On look up, we check both columns. If entry is found only on the non-active column, we copy it to the active one.
-            /// Because of that, the active column always contains all entries that were accessed since it became active.
-            /// 
-            /// On active column change, we clear the new active column. So any entries that have not been accessed (i.e., copied
-            /// to the other column) will be evicted.
-            /// </summary>
-            /// <remark>
-            /// Change the column name can logically drop current columns which is bad 
-            /// TODO: rename column to be more generic when bump format version in future
-            /// </remark>
-            public static string[] ContentHashMappingColumn = { "BuildManifestHash_1", "BuildManifestHash_2" };
-        }
-
-        private static byte[] StringToBytes(string str)
-        {
-            return Encoding.UTF8.GetBytes(str);
-        }
-
-        private readonly struct StoreKeyNames
-        {
-            /// <summary>
-            /// The key for the cache entries blob
-            /// </summary>
-            public static readonly byte[] HistoricMetadataCacheEntriesKey = StringToBytes("HistoricMetadataCacheEntriesKeys");
-
-            /// <summary>
-            /// The key for the format <see cref="HistoricMetadataCache.FormatVersion"/>
-            /// used when building the cache.
-            /// </summary>
-            public const string FormatVersion = "FormatVersion";
-
-            /// <summary>
-            /// The key for the age at which the content was last accessed
-            /// </summary>
-            public const string Age = "Age";
-
-            /// <summary>
-            /// Indicates the last key where garbage collection should resume (if any)
-            /// </summary>
-            public static readonly byte[] ContentGarbageCollectCursor = StringToBytes(nameof(ContentGarbageCollectCursor));
-        }
-
         private static Expirable<T> NewExpirable<T>(T value, byte timeToLive)
         {
             return new Expirable<T>(value, timeToLive);
         }
 
+        /// <summary>
+        /// Represents a value with an associated time-to-live (TTL) indicating its expiration status.
+        /// </summary>
         private readonly record struct Expirable<T>
         {
+            /// <summary>
+            /// Gets the value stored in the expirable entry.
+            /// </summary>
             public readonly T Value;
 
+            /// <summary>
+            /// Gets the time-to-live (TTL) for the entry, representing the number of save/load cycles until eviction if not accessed.
+            /// </summary>
             public readonly byte TimeToLive;
 
             public Expirable(T value, byte timeToLive)
@@ -1309,10 +975,19 @@ namespace BuildXL.Scheduler.Cache
             }
         }
 
+        /// <summary>
+        /// Represents an entry in the historic metadata cache, consisting of a strong content fingerprint and a path set hash.
+        /// </summary>
         private struct PublishedEntry
         {
+            /// <summary>
+            /// Strong content fingerprint associated with the entry.
+            /// </summary>            
             public readonly StrongContentFingerprint StrongFingerprint;
 
+            /// <summary>
+            /// Gets the content hash of the path set associated with the entry.
+            /// </summary>
             public readonly ContentHash PathSetHash;
 
             public PublishedEntry(StrongContentFingerprint strongFingerprint, ContentHash pathSetHash)
@@ -1320,207 +995,6 @@ namespace BuildXL.Scheduler.Cache
                 StrongFingerprint = strongFingerprint;
                 PathSetHash = pathSetHash;
             }
-        }
-    }
-
-    /// <summary>
-    /// Utilities for persisting/retrieving historic metadata cache Data to/from cache
-    /// </summary>
-    public static class HistoricMetadataCacheUtilities
-    {
-        /// <summary>
-        /// The version for lookups of historic metadata cache
-        /// </summary>
-        public const int HistoricMetadataCacheLookupVersion = 1;
-
-        /// <summary>
-        /// Computes a fingerprint for looking up historic metadata cache
-        /// </summary>
-        private static ContentFingerprint ComputeFingerprint(
-            LoggingContext loggingContext,
-            PathTable pathTable,
-            IConfiguration configuration,
-            ContentFingerprint performanceDataFingerprint)
-        {
-            var extraFingerprintSalt = new ExtraFingerprintSalts(
-                configuration,
-                fingerprintSalt: EngineEnvironmentSettings.DebugHistoricMetadataCacheFingerprintSalt,
-                searchPathToolsHash: null);
-
-            using (var hasher = new HashingHelper(pathTable, recordFingerprintString: false))
-            {
-                hasher.Add("Type", "HistoricMetadataCacheFingerprint");
-                hasher.Add("FormatVersion", HistoricMetadataCache.FormatVersion);
-                hasher.Add("LookupVersion", HistoricMetadataCacheLookupVersion);
-                hasher.Add("PerformanceDataFingerprint", performanceDataFingerprint.Hash);
-                hasher.Add("ExtraFingerprintSalt", extraFingerprintSalt.CalculatedSaltsFingerprint);
-
-                var fingerprint = new ContentFingerprint(hasher.GenerateHash());
-                Logger.Log.HistoricMetadataCacheTrace(loggingContext, I($"Computed historic metadata cache fingerprint: {fingerprint}. Salt: '{EngineEnvironmentSettings.DebugHistoricMetadataCacheFingerprintSalt.Value}'"));
-                return fingerprint;
-            }
-        }
-
-        /// <summary>
-        /// Store the historic metadata cache file to the cache
-        /// </summary>
-        public static async Task<Possible<long>> TryStoreHistoricMetadataCacheAsync(
-            this EngineCache cache,
-            LoggingContext loggingContext,
-            string path,
-            PathTable pathTable,
-            IConfiguration configuration,
-            ContentFingerprint performanceDataFingerprint)
-        {
-            var fingerprint = ComputeFingerprint(loggingContext, pathTable, configuration, performanceDataFingerprint);
-            var absolutePath = AbsolutePath.Create(pathTable, path);
-
-            BoxRef<long> size = 0;
-
-            SemaphoreSlim concurrencyLimiter = new SemaphoreSlim(8);
-            var storedFiles = await Task.WhenAll(Directory.EnumerateFiles(path).Select(async file =>
-            {
-                await Task.Yield();
-                using (await concurrencyLimiter.AcquireAsync())
-                {
-                    var filePath = AbsolutePath.Create(pathTable, file);
-                    var storeResult = await cache.ArtifactContentCache.TryStoreAsync(
-                        FileRealizationMode.Copy,
-                        filePath.Expand(pathTable));
-
-                    if (storeResult.Succeeded)
-                    {
-                        Interlocked.Add(ref size.Value, new FileInfo(file).Length);
-                    }
-
-                    return storeResult.Then(result => new StringKeyedHash()
-                    {
-                        Key = absolutePath.ExpandRelative(pathTable, filePath),
-                        ContentHash = result.ToByteString()
-                    });
-                }
-            }).ToList());
-
-            var failure = storedFiles.Where(p => !p.Succeeded).Select(p => p.Failure).FirstOrDefault();
-            Logger.Log.HistoricMetadataCacheTrace(loggingContext, I($"Storing historic metadata cache to cache: Success='{failure == null}', FileCount={storedFiles.Length} Size={size.Value}"));
-            if (failure != null)
-            {
-                return failure;
-            }
-
-            PackageDownloadDescriptor descriptor = new PackageDownloadDescriptor()
-            {
-                TraceInfo = loggingContext.Session.Environment,
-                FriendlyName = nameof(HistoricMetadataCache)
-            };
-            descriptor.Contents.Add(storedFiles.Select(p => p.Result).ToList());
-
-            var storeDescriptorResult = await cache.ArtifactContentCache.TrySerializeAndStoreContent(descriptor);
-            Logger.Log.HistoricMetadataCacheTrace(loggingContext, I($"Storing historic metadata cache descriptor to cache: Success='{storeDescriptorResult.Succeeded}'"));
-            if (!storeDescriptorResult.Succeeded)
-            {
-                return storeDescriptorResult.Failure;
-            }
-
-            var associatedFileHashes = descriptor.Contents.Select(s => s.ContentHash.ToContentHash()).ToArray().ToReadOnlyArray().GetSubView(0);
-            var cacheEntry = new CacheEntry(storeDescriptorResult.Result, null, associatedFileHashes);
-
-            var publishResult = await cache.TwoPhaseFingerprintStore.TryPublishTemporalCacheEntryAsync(loggingContext, fingerprint, cacheEntry);
-            Logger.Log.HistoricMetadataCacheTrace(loggingContext, I($"Publishing historic metadata cache to cache: Fingerprint='{fingerprint}' Hash={storeDescriptorResult.Result}"));
-            return size.Value;
-        }
-
-        /// <summary>
-        /// Retrieve the running time table from the cache
-        /// </summary>
-        public static async Task<Possible<bool>> TryRetrieveHistoricMetadataCacheAsync(
-            this EngineCache cache,
-            LoggingContext loggingContext,
-            string path,
-            PathTable pathTable,
-            IConfiguration configuration,
-            ContentFingerprint performanceDataFingerprint,
-            CancellationToken cancellationToken)
-        {
-            var fingerprint = ComputeFingerprint(loggingContext, pathTable, configuration, performanceDataFingerprint);
-            var possibleCacheEntry = await cache.TwoPhaseFingerprintStore.TryGetLatestCacheEntryAsync(loggingContext, fingerprint);
-            if (!possibleCacheEntry.Succeeded)
-            {
-                Logger.Log.HistoricMetadataCacheTrace(
-                    loggingContext,
-                    I($"Failed loading historic metadata cache entry from cache: Failure:{possibleCacheEntry.Failure.DescribeIncludingInnerFailures()}"));
-                return possibleCacheEntry.Failure;
-            }
-
-            Logger.Log.HistoricMetadataCacheTrace(
-                loggingContext,
-                I($"Loaded historic metadata cache entry from cache: Fingerprint='{fingerprint}' MetadataHash={possibleCacheEntry.Result?.MetadataHash ?? ContentHashingUtilities.ZeroHash}"));
-
-            if (!possibleCacheEntry.Result.HasValue)
-            {
-                return false;
-            }
-
-            var historicMetadataCacheDescriptorHash = possibleCacheEntry.Result.Value.MetadataHash;
-
-            var absolutePath = AbsolutePath.Create(pathTable, path);
-
-            var maybePinned = await cache.ArtifactContentCache.TryLoadAvailableContentAsync(possibleCacheEntry.Result.Value.ToArray(), cancellationToken);
-
-            var result = await maybePinned.ThenAsync<Unit>(
-                async pinResult =>
-                {
-                    if (!pinResult.AllContentAvailable)
-                    {
-                        return new Failure<string>(I($"Could not pin content for historic metadata cache '{string.Join(", ", pinResult.Results.Where(r => !r.IsAvailable).Select(r => r.Hash))}'"));
-                    }
-
-                    var maybeLoadedDescriptor = await cache.ArtifactContentCache.TryLoadAndDeserializeContent<PackageDownloadDescriptor>(historicMetadataCacheDescriptorHash, cancellationToken);
-                    if (!maybeLoadedDescriptor.Succeeded)
-                    {
-                        return maybeLoadedDescriptor.Failure;
-                    }
-
-                    Logger.Log.HistoricMetadataCacheTrace(loggingContext, I($"Loaded historic metadata cache descriptor from cache: Hash='{historicMetadataCacheDescriptorHash}'"));
-
-                    PackageDownloadDescriptor descriptor = maybeLoadedDescriptor.Result;
-
-                    SemaphoreSlim concurrencyLimiter = new SemaphoreSlim(8);
-                    var materializedFiles = await Task.WhenAll(descriptor.Contents.Select(async subPathKeyedHash =>
-                    {
-                        await Task.Yield();
-                        using (await concurrencyLimiter.AcquireAsync())
-                        {
-                            var filePath = absolutePath.Combine(pathTable, subPathKeyedHash.Key);
-                            var maybeMaterialized = await cache.ArtifactContentCache.TryMaterializeAsync(
-                                FileRealizationMode.Copy,
-                                filePath.Expand(pathTable),
-                                subPathKeyedHash.ContentHash.ToContentHash(),
-                                cancellationToken);
-
-                            return maybeMaterialized;
-                        }
-                    }).ToList());
-
-                    var failure = materializedFiles.Where(p => !p.Succeeded).Select(p => p.Failure).FirstOrDefault();
-                    if (failure != null)
-                    {
-                        return failure;
-                    }
-                    return Unit.Void;
-                });
-
-            if (!result.Succeeded)
-            {
-                Logger.Log.HistoricMetadataCacheTrace(
-                    loggingContext,
-                    I($"Failed loading historic metadata cache from cache: Failure:{result.Failure.DescribeIncludingInnerFailures()}"));
-                return result.Failure;
-            }
-
-            Logger.Log.HistoricMetadataCacheTrace(loggingContext, I($"Loaded historic metadata cache from cache: Path='{path}'"));
-
-            return true;
         }
     }
 }

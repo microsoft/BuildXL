@@ -254,6 +254,7 @@ namespace BuildXL.Engine.Tracing
         SavingHistoricMetadataCacheFailed = 2942,
         HistoricMetadataCacheLoaded = 2943,
         HistoricMetadataCacheSaved = 2944,
+        HistoricMetadataCacheModeInvoked = 14541,
 
         FailedReloadPipGraph = 2986,
         InputTrackerDetectedMountChanged = 2987,

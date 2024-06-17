@@ -40,6 +40,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             MonitorAugmentedPathSets = 0;
             HonorDirectoryCasingOnDisk = false;
             AllowReuseOfWeakIdenityForSourceFiles = false;
+            HistoricMetadataCache = HistoricMetadataCacheMode.Disable;
         }
 
         /// <nodoc />
@@ -130,7 +131,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public bool ElideMinimalGraphEnumerationAbsentPathProbes { get; set; }
 
         /// <inheritdoc />
-        public bool? HistoricMetadataCache { get; set; }
+        public HistoricMetadataCacheMode HistoricMetadataCache { get; set; }
 
         /// <inheritdoc />
         public byte MinimumReplicaCountForStrongGuarantee { get; set; }

@@ -72,9 +72,9 @@ namespace BuildXL.Utilities.Configuration
         string CacheSalt { get; }
 
         /// <summary>
-        /// When enabled, metadata and pathsets are stored in a single file. Defaults to off.
+        /// Represents the operational mode of HistoricMetadataCache.
         /// </summary>
-        bool? HistoricMetadataCache { get; }
+        HistoricMetadataCacheMode HistoricMetadataCache { get; }
 
         /// <summary>
         /// The number of replicas required to guarantee that content is available. Defaults to 3. Max is 32. Requires <see cref="HistoricMetadataCache"/>=true.

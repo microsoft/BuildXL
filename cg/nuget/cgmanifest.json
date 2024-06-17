@@ -1050,7 +1050,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.ComponentDetection.Contracts",
-          "Version": "4.6.5"
+          "Version": "4.7.0"
         }
       }
     },

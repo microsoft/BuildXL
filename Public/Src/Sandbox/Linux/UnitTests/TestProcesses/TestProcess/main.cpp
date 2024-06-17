@@ -75,6 +75,22 @@ int FileDescriptorAccessesFullyResolvesPath()
     return EXIT_SUCCESS;
 }
 
+int ExecReportsCorrectExecutableAndArgumentsSuccess() {
+    char *const args[] = {"/bin/echo", "hello world", nullptr};
+    execv(args[0], args);
+
+    // execv should have succeeded and we should never hit this return statement
+    return 1;
+}
+
+int ExecReportsCorrectExecutableAndArgumentsFailed() {
+    char *const args[] = {"/bin/echooooo", "hello world", nullptr};
+    execv(args[0], args);
+
+    // expecting execv to fail here
+    return EXIT_SUCCESS;
+}
+
 
 int main(int argc, char **argv)
 {
@@ -213,6 +229,8 @@ int main(int argc, char **argv)
     IF_COMMAND(FullPathResolutionOnReports);
     IF_COMMAND(ReadlinkReportDoesNotResolveFinalComponent);
     IF_COMMAND(FileDescriptorAccessesFullyResolvesPath);
+    IF_COMMAND(ExecReportsCorrectExecutableAndArgumentsSuccess);
+    IF_COMMAND(ExecReportsCorrectExecutableAndArgumentsFailed);
 
     // Invalid command
     exit(-1);

@@ -8,14 +8,17 @@
 #include <string>
 #include <sys/stat.h>
 
+#include "FileAccessHelpers.h"
+#include "Operations.h"
+
 namespace buildxl {
 namespace linux {
 
-typedef enum SandboxEventPathType {
+enum class SandboxEventPathType {
     kAbsolutePaths,
     kRelativePaths,
     kFileDescriptors
-} SandboxEventPathType;
+};
 
 // Indicates if this event is constructed with paths that still need resolution
 typedef enum RequiredPathResolution {
@@ -30,178 +33,198 @@ typedef enum RequiredPathResolution {
     kDoNotResolve
 } RequiredPathResolution;
 
+/**
+ * Contains all of the information required to send an access report for SandboxEvent.
+*/
+struct AccessReport {
+    /** The FileOperation performed by this access report. */
+    buildxl::linux::FileOperation file_operation;
+
+    /** Relative or absolute path for the source path */
+    std::string path;
+
+    /** File descriptor to an absolute OR the root directory file descriptor for relative paths if path is not empty. */
+    int fd;
+
+    /** Access check result for provided path. */
+    AccessCheckResult access_check_result;
+
+    AccessReport() : file_operation(buildxl::linux::FileOperation::kMax), fd(-1), access_check_result(AccessCheckResult::Invalid()) {}
+
+    // Copy Constructor
+    AccessReport(const AccessReport& other) :
+        file_operation(other.file_operation),
+        path(other.path),
+        fd(other.fd),
+        access_check_result(other.access_check_result) { }
+};
+
 class SandboxEvent {
 private:
-    static inline SandboxEvent Invalid() { return SandboxEvent(); }
+    /** The system call that generated this event. */
+    const char *system_call_;
 
-    es_event_type_t event_type_;
-    // Describes the type of path that this SandboxEvent represents.
+    /** The type of event that this SandboxEvent represents. */
+    buildxl::linux::EventType event_type_;
+
+    /** Represents whether the path is a fully resolved or not. */
     SandboxEventPathType path_type_;
-    // Relative or absolute paths
-    std::string src_path_;
-    std::string dst_path_;
-    // File descriptor to src/dst paths or file descriptors for root directories for relative paths
-    int src_fd_;
-    int dst_fd_;
+
+    /** The pid of the process that generated this event. On fork/clone events, this should be set to the pid of the newly created process. */
     pid_t pid_;
-    pid_t child_pid_;
-    // Indicates if this event is constructed with paths that still need resolution
+
+    /** Parent process ID of the process that generated this event. On fork/clone events, this should be set to the pid of the caller of fork/clone. */
+    pid_t ppid_;
+
+    /** Indicates if this event is constructed with paths that still need resolution. */
     RequiredPathResolution required_path_resolution_;
+
+    /** Used only by fork/clone/exec events to include command line of processes that were created. */
+    std::string command_line_;
+
+    /** Mode for the source path */
     mode_t mode_;
+
+    /** Optional errno for the system call */
     uint error_;
+
+    /** Source Access Reports containing a path and an access check. */
+    AccessReport source_access_report_;
+
+    /** Destination Access Reports containing a path and an access check. */
+    AccessReport destination_access_report_;
+
+    /** Indicates whether this object represents a valid SandboxEvent. */
     bool is_valid_;
+
+    /** Indicates whether this event can no longer be updated. */
     bool is_sealed_;
     
-    SandboxEvent() : is_valid_(false), is_sealed_(false) { /* Empty constructor for invalid object */ }
+    /**
+     * Empty constructor for an invalid event.
+     */
+    SandboxEvent() :
+        is_valid_(false),
+        is_sealed_(false)
+    { /* Empty constructor for invalid object */ }
 
+    /**
+     * Default constructor
+     */
     SandboxEvent(
-        es_event_type_t event_type,
+        const char *system_call,
+        buildxl::linux::EventType event_type,
         const std::string& src_path,
         const std::string& dst_path,
         int src_fd,
         int dst_fd,
         pid_t pid,
-        pid_t child_pid,
+        pid_t ppid,
+        std::string command_line,
         uint error,
-        SandboxEventPathType path_type) :
-            event_type_(event_type),
-            src_path_(src_path),
-            dst_path_(dst_path),
-            src_fd_(src_fd),
-            dst_fd_(dst_fd),
-            pid_(pid),
-            child_pid_(child_pid),
-            mode_(0),
-            error_(error),
-            path_type_(path_type),
-            required_path_resolution_(RequiredPathResolution::kFullyResolve),
-            is_valid_(true),
-            is_sealed_(false) 
-            { }
+        SandboxEventPathType path_type);
 
+    /**
+     * Creates an invalid SandboxEvent.
+     */
+    static inline SandboxEvent Invalid() {
+        return SandboxEvent();
+    }
 public:
+    /**
+     * Copy Constructor
+    */
+    SandboxEvent(const SandboxEvent& other);
+    
     /**
      * SandboxEvent for a fork/clone event.
      */
-    static SandboxEvent ForkSandboxEvent(pid_t pid, pid_t child_pid, const std::string& path) {
-        return SandboxEvent(
-            /* event_type */ ES_EVENT_TYPE_NOTIFY_FORK,
-            /* src_path */ path,
-            /* dst_path */ "",
-            /* src_fd */ -1,
-            /* dst_fd */ -1,
-            /* pid */ pid,
-            /* child_pid */ child_pid,
-            /* error */ 0,
-            /* path_type */ SandboxEventPathType::kAbsolutePaths);
-    }
+    static SandboxEvent ForkSandboxEvent(const char *system_call, pid_t pid, pid_t ppid, const char *path);
+
+    /**
+     * SandboxEvent for exec events.
+     */
+    static SandboxEvent ExecSandboxEvent(const char *system_call, pid_t pid, const char *path, std::string command_line);
+
+    /**
+     * SandboxEvent for an exit event.
+     */
+    static SandboxEvent ExitSandboxEvent(const char *system_call, std::string path, pid_t pid);
 
     /**
      * SandboxEvent for paths.
      */
     static SandboxEvent AbsolutePathSandboxEvent(
-        es_event_type_t event_type,
+        const char *system_call,
+        buildxl::linux::EventType event_type,
         pid_t pid,
         uint error,
         const char *src_path,
-        const char *dst_path = "") {
-        
-        if (src_path == nullptr || dst_path == nullptr) {
-            return SandboxEvent::Invalid();
-        }
-        
-        // If the path isn't rooted, then it isn't an absolute path.
-        // We will treat this as a relative path from the current working directory.
-        // The source path cannot be empty, but the dst path can be empty if a dst path is never passed in and the default value is used.
-        bool is_src_relative = src_path[0] == '\0' || src_path[0] != '/';
-        bool is_dst_relative = dst_path[0] != '\0' && dst_path[0] != '/';
-
-        if (is_src_relative || is_dst_relative) {
-            return RelativePathSandboxEvent(
-                event_type,
-                pid,
-                error,
-                src_path,
-                is_src_relative ? AT_FDCWD : -1,
-                dst_path,
-                is_dst_relative ? AT_FDCWD : -1);
-        }
-
-        return SandboxEvent(
-            /* event_type */ event_type,
-            /* src_path */ src_path,
-            /* dst_path */ dst_path,
-            /* src_fd */ -1,
-            /* dst_fd */ -1,
-            /* pid */ pid,
-            /* child_pid */ 0,
-            /* error */ error,
-            /* path_type */ SandboxEventPathType::kAbsolutePaths);
-    }
+        const char *dst_path = "");
 
     /**
      * SandboxEvent for a paths from a file descriptor.
      */
     static SandboxEvent FileDescriptorSandboxEvent(
-        es_event_type_t event_type,
+        const char *system_call,
+        buildxl::linux::EventType event_type,
         pid_t pid,
         uint error,
         int src_fd,
-        int dst_fd = -1) {
-        return SandboxEvent(
-            /* event_type */ event_type,
-            /* src_path */ "",
-            /* dst_path */ "",
-            /* src_fd */ src_fd,
-            /* dst_fd */ dst_fd,
-            /* pid */ pid,
-            /* child_pid */ 0,
-            /* error */ error,
-            /* path_type */ SandboxEventPathType::kFileDescriptors);
-    }
+        int dst_fd = -1);
 
     /**
      * SandboxEvent for a relative paths and FDs for their root directory.
      */
     static SandboxEvent RelativePathSandboxEvent(
-        es_event_type_t event_type,
+        const char *system_call,
+        buildxl::linux::EventType event_type,
         pid_t pid,
         uint error,
-        const char* src_path,
+        const char *src_path,
         int src_fd,
-        const char* dst_path = "",
-        int dst_fd = -1) {
-        
-        if (src_path == nullptr || dst_path == nullptr) {
-            return SandboxEvent::Invalid();
-        } 
+        const char *dst_path = "",
+        int dst_fd = -1);
 
-        return SandboxEvent(
-            /* event_type */ event_type,
-            /* src_path */ src_path,
-            /* dst_path */ dst_path,
-            /* src_fd */ src_fd,
-            /* dst_fd */ dst_fd,
-            /* pid */ pid,
-            /* child_pid */ 0,
-            /* error */ error,
-            /* path_type */ SandboxEventPathType::kRelativePaths);
-    }
-
-    // Getters
+    /* Getters */
     pid_t IsValid() const { return is_valid_; }
+    const char *GetSystemCall() const { assert(is_valid_); return system_call_; }
     pid_t GetPid() const { assert(is_valid_); return pid_; }
-    pid_t GetChildPid() const { assert(is_valid_); return child_pid_; }
-    es_event_type_t GetEventType() const { assert(is_valid_); return event_type_; }
+    pid_t GetParentPid() const { assert(is_valid_); return ppid_; }
+    buildxl::linux::EventType GetEventType() const { assert(is_valid_); return event_type_; }
     mode_t GetMode() const { assert(is_valid_); return mode_; }
-    const std::string& GetSrcPath() const { assert(is_valid_); return src_path_; }
-    const std::string& GetDstPath() const { assert(is_valid_); return dst_path_; }
-    int GetSrcFd() const { assert(is_valid_); return src_fd_; }
-    int GetDstFd() const { assert(is_valid_); return dst_fd_; }
+    const std::string& GetSrcPath() const { assert(is_valid_); return source_access_report_.path; }
+    const std::string& GetDstPath() const { assert(is_valid_); return destination_access_report_.path; }
+    const std::string& GetCommandLine() const { assert(is_valid_); return command_line_; }
+    int GetSrcFd() const { assert(is_valid_); return source_access_report_.fd; }
+    int GetDstFd() const { assert(is_valid_); return destination_access_report_.fd; }
+    const AccessReport GetSourceAccessReport() const { assert(is_valid_); return source_access_report_; }
+    const AccessReport GetDestinationAccessReport() const { assert(is_valid_); return destination_access_report_; }
     uint GetError() const { assert(is_valid_); return error_; }
     SandboxEventPathType GetPathType() const { assert(is_valid_); return path_type_; }
     RequiredPathResolution GetRequiredPathResolution() const { assert(is_valid_); return required_path_resolution_; }
+    AccessCheckResult GetSourceAccessCheckResult() const { assert(is_valid_); return source_access_report_.access_check_result; }
+    AccessCheckResult GetDestinationAccessCheckResult() const { assert(is_valid_); return destination_access_report_.access_check_result; }
+
+    /* For debug logging */
+    const char *DebugGetSystemCall() const { return system_call_; }
+
+    /**
+     * This access check represents the access check for this event as a whole (rather than as two separate accesses).
+     * If a destination access check is set, then returns a combined access check, else returns the source access check.
+     */
+    AccessCheckResult GetEventAccessCheckResult() const {
+        assert(is_valid_);
+
+        if (!destination_access_report_.path.empty()) {
+            return AccessCheckResult::Combine(source_access_report_.access_check_result, destination_access_report_.access_check_result);
+        }
+
+        return source_access_report_.access_check_result;
+    }
+    
     bool IsDirectory() const { assert(is_valid_); return S_ISDIR(mode_); }
+    bool PathExists() const { assert(is_valid_); return mode_ != 0; }
 
     // Seal the event after constructing a report. This makes the event immutable.
     void Seal() { is_sealed_ = true; }
@@ -209,20 +232,21 @@ public:
     // Setters
     void SetMode(mode_t mode) { assert(is_valid_); assert(!is_sealed_); mode_ = mode; }
     void SetRequiredPathResolution(RequiredPathResolution r) { assert(is_valid_); assert(!is_sealed_); required_path_resolution_ = r; }
+    void SetSourceFileOperation(buildxl::linux::FileOperation file_operation) { assert(is_valid_); assert(!is_sealed_); source_access_report_.file_operation = file_operation; }
+    void SetDestinationFileOperation(buildxl::linux::FileOperation file_operation) { assert(is_valid_); assert(!is_sealed_); destination_access_report_.file_operation = file_operation; }
+    // SetErrno in particular does not check whether the event is sealed because the errno value is obtained after the system call is completed.
+    void SetErrno(int error) { assert(is_valid_); error_ = error; }
 
     /**
      * Updates the source and destination paths to be absolute paths.
      */
-    void SetResolvedPaths(const std::string& src_path, const std::string& dst_path) {
-        assert(is_valid_);
-        assert(!is_sealed_);
-        src_path_ = src_path;
-        dst_path_ = dst_path;
-        src_fd_ = -1;
-        dst_fd_ = -1;
-        required_path_resolution_ = RequiredPathResolution::kDoNotResolve;  // Prevent the paths from being normalized again 
-        path_type_ = SandboxEventPathType::kAbsolutePaths;
-    }
+    void SetResolvedPaths(const std::string& src_path, const std::string& dst_path);
+
+    /**
+     * Sets an access check result for the source/destination paths.
+     */
+    void SetSourceAccessCheck(AccessCheckResult check_result);
+    void SetDestinationAccessCheck(AccessCheckResult check_result);
 };
 
 } // namespace linux

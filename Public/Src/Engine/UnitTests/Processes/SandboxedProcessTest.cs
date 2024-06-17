@@ -1239,7 +1239,7 @@ namespace Test.BuildXL.Processes
 
             // We should get a report where we see the creation attemp that results in a file exists error
             result.AllUnexpectedFileAccesses.Single(fa => 
-                fa.Operation == ReportedFileOperation.KAuthCreateDir && 
+                fa.Operation == ReportedFileOperation.CreateDirectory && 
                 fa.Error == (uint) global::BuildXL.Interop.Unix.IO.Errno.EEXIST);
 
             // Now perform the same operation but in a way it should succeed
@@ -1253,7 +1253,7 @@ namespace Test.BuildXL.Processes
 
             // We should get a report where we see the creation attemp with a successful error code
             result.AllUnexpectedFileAccesses.Single(fa => 
-                fa.Operation == ReportedFileOperation.KAuthCreateDir && 
+                fa.Operation == ReportedFileOperation.CreateDirectory && 
                 fa.Error == 0);
         }
 

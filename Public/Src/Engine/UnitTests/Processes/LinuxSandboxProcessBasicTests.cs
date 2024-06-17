@@ -65,7 +65,8 @@ namespace Test.BuildXL.Processes
             var result = RunNativeTest(GetNativeTestName(MethodBase.GetCurrentMethod().Name));
             TestForFileOperation(result, ReportedFileOperation.Process, TestProcessExe, count: 4);
             AssertLogContains(caseSensitive: false, GetSyscallName(MethodBase.GetCurrentMethod().Name));
-            AssertLogContains(GetRegex("__init__", TestProcessExe));
+            AssertLogContains(GetRegex("__init__fork", TestProcessExe));
+            AssertLogContains(GetRegex("__init__exec", TestProcessExe));
         }
 
         [Fact]
@@ -74,7 +75,8 @@ namespace Test.BuildXL.Processes
             var result = RunNativeTest(GetNativeTestName(MethodBase.GetCurrentMethod().Name));
             TestForFileOperation(result, ReportedFileOperation.Process, TestProcessExe, count: 4);
             AssertLogContains(caseSensitive: false, GetSyscallName(MethodBase.GetCurrentMethod().Name));
-            AssertLogContains(GetRegex("__init__", TestProcessExe));
+            AssertLogContains(GetRegex("__init__fork", TestProcessExe));
+            AssertLogContains(GetRegex("__init__exec", TestProcessExe));
         }
 
         [Fact]
@@ -83,7 +85,8 @@ namespace Test.BuildXL.Processes
             var result = RunNativeTest(GetNativeTestName(MethodBase.GetCurrentMethod().Name));
             TestForFileOperation(result, ReportedFileOperation.Process, TestProcessExe, count: 4);
             AssertLogContains(caseSensitive: false, GetSyscallName(MethodBase.GetCurrentMethod().Name));
-            AssertLogContains(GetRegex("__init__", TestProcessExe));
+            AssertLogContains(GetRegex("__init__fork", TestProcessExe));
+            AssertLogContains(GetRegex("__init__exec", TestProcessExe));
         }
 
         [Fact]
@@ -92,7 +95,8 @@ namespace Test.BuildXL.Processes
             var result = RunNativeTest(GetNativeTestName(MethodBase.GetCurrentMethod().Name));
             TestForFileOperation(result, ReportedFileOperation.Process, TestProcessExe, count: 4);
             AssertLogContains(caseSensitive: false, GetSyscallName(MethodBase.GetCurrentMethod().Name));
-            AssertLogContains(GetRegex("__init__", TestProcessExe));
+            AssertLogContains(GetRegex("__init__fork", TestProcessExe));
+            AssertLogContains(GetRegex("__init__exec", TestProcessExe));
         }
 
         [Fact]
@@ -101,7 +105,8 @@ namespace Test.BuildXL.Processes
             var result = RunNativeTest(GetNativeTestName(MethodBase.GetCurrentMethod().Name));
             TestForFileOperation(result, ReportedFileOperation.Process, TestProcessExe, count: 4);
             AssertLogContains(caseSensitive: false, GetSyscallName(MethodBase.GetCurrentMethod().Name));
-            AssertLogContains(GetRegex("__init__", TestProcessExe));
+            AssertLogContains(GetRegex("__init__fork", TestProcessExe));
+            AssertLogContains(GetRegex("__init__exec", TestProcessExe));
         }
 
         [Fact]
@@ -110,7 +115,8 @@ namespace Test.BuildXL.Processes
             var result = RunNativeTest(GetNativeTestName(MethodBase.GetCurrentMethod().Name));
             TestForFileOperation(result, ReportedFileOperation.Process, TestProcessExe, count: 4);
             AssertLogContains(caseSensitive: false, GetSyscallName(MethodBase.GetCurrentMethod().Name));
-            AssertLogContains(GetRegex("__init__", TestProcessExe));
+            AssertLogContains(GetRegex("__init__fork", TestProcessExe));
+            AssertLogContains(GetRegex("__init__exec", TestProcessExe));
         }
 
         [Fact]
@@ -119,7 +125,8 @@ namespace Test.BuildXL.Processes
             var result = RunNativeTest(GetNativeTestName(MethodBase.GetCurrentMethod().Name));
             TestForFileOperation(result, ReportedFileOperation.Process, TestProcessExe, count: 4);
             AssertLogContains(caseSensitive: false, GetSyscallName(MethodBase.GetCurrentMethod().Name));
-            AssertLogContains(GetRegex("__init__", TestProcessExe));
+            AssertLogContains(GetRegex("__init__fork", TestProcessExe));
+            AssertLogContains(GetRegex("__init__exec", TestProcessExe));
         }
 
         [Fact]
@@ -128,7 +135,8 @@ namespace Test.BuildXL.Processes
             var result = RunNativeTest(GetNativeTestName(MethodBase.GetCurrentMethod().Name));
             TestForFileOperation(result, ReportedFileOperation.Process, TestProcessExe, count: 4);
             AssertLogContains(caseSensitive: false, GetSyscallName(MethodBase.GetCurrentMethod().Name));
-            AssertLogContains(GetRegex("__init__", TestProcessExe));
+            AssertLogContains(GetRegex("__init__fork", TestProcessExe));
+            AssertLogContains(GetRegex("__init__exec", TestProcessExe));
         }
 
         [Fact]

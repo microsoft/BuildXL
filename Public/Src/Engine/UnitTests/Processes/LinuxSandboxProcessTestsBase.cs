@@ -62,7 +62,11 @@ namespace Test.BuildXL.Processes
             return functionName.Replace("CallTest", "");
         }
 
-        protected (SandboxedProcessResult result, string rootDirectory) RunNativeTest(string testName, TempFileStorage workingDirectory = null, bool unconditionallyEnableLinuxPTraceSandbox = false)
+        protected (SandboxedProcessResult result, string rootDirectory) RunNativeTest(
+            string testName,
+            TempFileStorage workingDirectory = null,
+            bool unconditionallyEnableLinuxPTraceSandbox = false,
+            bool reportProcessArgs = false)
         {
             workingDirectory ??= new TempFileStorage(canGetFileNames: true);
             using (workingDirectory)
@@ -83,6 +87,7 @@ namespace Test.BuildXL.Processes
                 processInfo.FileAccessManifest.FailUnexpectedFileAccesses = false;
                 processInfo.FileAccessManifest.EnableLinuxSandboxLogging = true;
                 processInfo.FileAccessManifest.UnconditionallyEnableLinuxPTraceSandbox = unconditionallyEnableLinuxPTraceSandbox;
+                processInfo.FileAccessManifest.ReportProcessArgs = reportProcessArgs;
 
                 var result = RunProcess(processInfo).Result;
 

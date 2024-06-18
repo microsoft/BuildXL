@@ -1,0 +1,141 @@
+.create-or-alter function with (docstring = "BuildXLPerfInfo",folder = "perf") BuildXLPerfInfo(startDate:datetime,endDate:datetime,version:string="",infrastructure:string="",customer:string="",cbQueue:string="",buildId:string="",ignoreTwoMonthOldVersions:bool=false,ignoreCloneBuilds:bool=true,onlySuccess:bool=false) {
+// let startDate=ago(7d); 
+// let endDate=now();
+// let cbQueue="";
+// let customer="";
+// let infrastructure="";
+// let version="";
+// let buildId="";
+// let onlySuccess=true;
+// let ignoreTwoMonthOldVersions=true;
+let myround = (arg0:double) { round(arg0, 1) };
+let tonum = (arg0:string) { case(isempty(arg0), 0, tolong(arg0)) };
+let tomin = (arg0:string) { round(tonum(arg0)* 1ms/1m, 2) };
+let topercent = (arg0:double, arg1:double) { myround(100.0 * arg0 / arg1) };
+let stats = materialize(finalstatistics 
+| where EventInfo_Time between (startDate .. endDate) 
+| project toguid(RelatedSessionId), 
+        MachineName, 
+        EventInfo_Time, 
+        BuildXLDurationMs=tonum(TimeToEngineRunCompleteMs), 
+        Phase_TTFP=tomin(TimeToFirstPipMs), 
+        Phase_Execute=tomin(Execute_DurationMs),
+        ProcessHits=tonum(ProcessPipCacheHits),
+        ProcessMisses=tonum(ProcessPipCacheMisses), 
+        PipFailed=tonum(PipsFailed),
+        CpuUtilization=tonum(Execute_MachineAverageCPUTime), 
+        BuildXLRamMb=tonum(Payload['Execute_ProcessAverageWorkingSetPrivateMB']), 
+        RemoteWorkerCount=tonum(PipExecution_RemoteWorkerCount), 
+        EarlyReleaseSavingDuration=tomin(Payload['PipExecution_RemoteWorker_EarlyReleaseSavingDurationMs']), 
+        ProcessRetries=tonum(PipExecution_ProcessRetriesDueToResourceLimits),
+        TotalExecuteProcessStepDuration=tomin(tonum(PipExecution_ExecuteProcessDurationMs)),
+        TotalMaterializeOutputStepDuration=tomin(tonum(PipExecutionStep_MaterializeOutputsMs)),
+        CriticalPath_OrchestratorQueue=tomin(tonum(Payload['CriticalPath_TotalOrchestratorQueueDurationMs'])), 
+        CriticalPath_ChooseWorker=tomin(tonum(CriticalPath_ChooseWorkerDurationMs)), 
+        CriticalPath_PipDuration=tomin(tonum(CriticalPath_PipDurationMs)),
+        CriticalPath_TotalRetryDuration=tomin(tonum(Payload['CriticalPath_TotalRetryDurationMs'])),
+        CriticalPath_ExeDuration=tomin(tonum(CriticalPath_ExeDurationMs)), 
+        CriticalPath_RunFromCache=tomin(tonum(CriticalPath_RunFromCacheDurationMs)), 
+        CriticalPath_PostProcessDuration=tomin(tonum(CriticalPath_PostProcessDurationMs)),
+        CriticalPath_TotalGrpcDuration=tomin(tonum(Payload['CriticalPath_TotalGrpcDurationMs'])), 
+        CriticalPath_RemoteQueue=tomin(tonum(CriticalPath_TotalRemoteQueueDurationMs)), 
+        CriticalPath_PushOutputsToCache=tomin(tonum(Payload['CriticalPath_TotalPushOutputsToCacheDurationMs'])), 
+        CriticalPath_RetryCount=tonum(Payload['CriticalPath_TotalRetryCount']), 
+        CriticalPath_StartDuration=tomin(tonum(CriticalPath_StartDurationMs)),
+        CriticalPath_MaterializeInput=tomin(tonum(CriticalPath_MaterializeInputsDurationMs)),
+        CriticalPath_MaterializeOutput=tomin(tonum(CriticalPath_MaterializeOutputsDurationMs)),
+        CriticalPath_CacheLookup=tomin(tonum(CriticalPath_CacheLookupDurationMs)), 
+        TotalMaterializeInputDuration=tomin(tonum(PipExecutionStep_MaterializeInputsMs)),
+        TotalMaterializedInputsSize=tonum(Payload['TotalMaterializedInputsSize']),
+        CriticalPath_TotalRetry=tomin(tonum(Payload['CriticalPath_TotalRetryDurationMs'])),
+        NonCriticalPath_MaterializeOutputOverhang=tomin(tonum(Payload['CriticalPath_MaterializeOutputOverhangMs'])),
+        BuildResultsSentToOrchestrator=tonum(Payload['Distribution_BuildResultsSentToOrchestrator']),
+        IsMetaBuild=toint(PipExecutionStep_MaterializeOutputsMs) > 0,
+        ProblematicWorkers=toint(Payload['Distribution_NumProblematicWorkers']),
+        SandboxPrepareOutputs=tomin(tonum(Payload['SandboxedProcess_PrepareOutputsDurationMs'])),
+        SandboxPrepareDirectoryOutputs=tomin(tonum(Payload['SandboxedProcess_PrepareDirectoryOutputsDurationMs'])) 
+| extend CriticalPath_WaitingForResources=CriticalPath_OrchestratorQueue+CriticalPath_ChooseWorker+CriticalPath_RemoteQueue+CriticalPath_TotalRetry
+| extend CriticalPath_Total=CriticalPath_OrchestratorQueue+CriticalPath_ChooseWorker+CriticalPath_PipDuration);
+BuildXLInfo(
+    startDate=startDate,
+    endDate=endDate,
+    version=version,
+    infrastructure=infrastructure,
+    customer=customer,
+    cbQueue=cbQueue,
+    buildId=buildId,
+    ignoreTwoMonthOldVersions=ignoreTwoMonthOldVersions,
+    ignoreCbTest=true,
+    ignoreInfraErrors=true,
+    ignoreCloneBuilds=ignoreCloneBuilds,
+    onlySuccess=onlySuccess)
+| join kind=leftouter hint.shufflekey=BuildId (stats) on $left.BuildId == $right.RelatedSessionId
+| extend IsOrchestrator=MachineName == Orchestrator
+| summarize 
+    NumSessions=count(), 
+    NumOrchestratorSessions=countif(IsOrchestrator),
+    WorkerSessionsList=make_list_if(MachineName, not(IsOrchestrator)),
+    NumWorkersWithWorkDoneInLastStage=1+dcountif(MachineName, BuildResultsSentToOrchestrator > 0 and not(IsMetaBuild)), // Count the number of workers attending the productbuild and do some work
+    MachineDuration=tomin(sum(BuildXLDurationMs)),
+    MachineDuration_LastStage=tomin(sumif(BuildXLDurationMs, (BuildResultsSentToOrchestrator >= 0 and not(IsMetaBuild)) or (IsOrchestrator and RemoteWorkerCount >= 0 and not(IsMetaBuild)))),
+    CpuUtilization_Workers_LastStage=avgif(CpuUtilization, BuildResultsSentToOrchestrator >= 0 and not(IsMetaBuild)),
+    CpuUtilization_Orchestrator_LastStage=avgif(CpuUtilization, IsOrchestrator and RemoteWorkerCount >= 0),
+    ExpectedWorkerCount=max(RemoteWorkerCount)+1,
+    ProcessRetries=sum(ProcessRetries),
+    SandboxPrepareOutputs=sum(SandboxPrepareOutputs),
+    SandboxPrepareDirectoryOutputs=sum(SandboxPrepareDirectoryOutputs)
+        by BuildId, Infra, Customer, CBQueue, StartTime, CBReturnCode, Version, ABTesting, Url, AdoPipelineId, MachineCores, IsSucceeded, Orchestrator
+| mv-expand Machine=WorkerSessionsList to typeof(string)
+| summarize count() 
+    by Machine, BuildId, Infra, Customer, CBQueue, StartTime, CBReturnCode, Version, ABTesting, Url, AdoPipelineId, MachineCores, IsSucceeded, NumSessions, NumWorkersWithWorkDoneInLastStage, MachineDuration, CpuUtilization_Orchestrator_LastStage, CpuUtilization_Workers_LastStage, ExpectedWorkerCount, Orchestrator, ProcessRetries, NumOrchestratorSessions, MachineDuration_LastStage
+| summarize ConnectedWorkerCount=1+countif(count_ == NumOrchestratorSessions) 
+    by BuildId, Infra, Customer, CBQueue, StartTime, CBReturnCode, Version, ABTesting, Url, AdoPipelineId, MachineCores, IsSucceeded, NumSessions, NumWorkersWithWorkDoneInLastStage, MachineDuration, CpuUtilization_Orchestrator_LastStage, CpuUtilization_Workers_LastStage, ExpectedWorkerCount, Orchestrator, ProcessRetries, NumOrchestratorSessions, MachineDuration_LastStage
+| join kind=leftouter hint.shufflekey=BuildId (stats) on $left.BuildId == $right.RelatedSessionId
+| where isempty(Orchestrator) or Orchestrator == MachineName // We should now filter out the finalstatistics coming from the workers. 
+| extend CpuUtilization_Orchestrator_LastStage=iff(isnan(CpuUtilization_Orchestrator_LastStage), 0.0, CpuUtilization_Orchestrator_LastStage)
+| extend CpuUtilization_Workers_LastStage=iff(isnan(CpuUtilization_Workers_LastStage), 0.0, CpuUtilization_Workers_LastStage)
+| summarize 
+    Phase_BuildXL=tomin(sum(BuildXLDurationMs)), 
+    Phase_TTFP=sum(Phase_TTFP), 
+    Phase_Execute=sum(Phase_Execute),
+    EarlyReleaseSavingDuration=sum(EarlyReleaseSavingDuration),
+    ProcessHits=sum(ProcessHits), 
+    ProcessMisses=sum(ProcessMisses), 
+    PipFailed=sum(PipFailed), 
+    ProcessRetries=sum(ProcessRetries),
+    BuildXLRamMb_Orchestrator=round(avg(BuildXLRamMb)),
+    CriticalPath_OrchestratorQueue=sum(CriticalPath_OrchestratorQueue), 
+    CriticalPath_ChooseWorker=sum(CriticalPath_ChooseWorker), 
+    CriticalPath_PipDuration=sum(CriticalPath_PipDuration),
+    CriticalPath_PostProcess=sum(CriticalPath_PostProcessDuration),
+    CriticalPath_ExeDuration=sum(CriticalPath_ExeDuration), 
+    CriticalPath_StartDuration=sum(CriticalPath_StartDuration),
+    CriticalPath_TotalGrpcDuration=sum(CriticalPath_TotalGrpcDuration),
+    NonCriticalPath_MaterializeOutputOverhang=sum(NonCriticalPath_MaterializeOutputOverhang),
+    CriticalPath_RemoteQueue=sum(CriticalPath_RemoteQueue),
+    CriticalPath_TotalRetryDuration=sum(CriticalPath_TotalRetryDuration),
+    CriticalPath_Total=sum(CriticalPath_Total), 
+    CriticalPath_RunFromCache=sum(CriticalPath_RunFromCache),
+    CriticalPath_RetryCount=sum(CriticalPath_RetryCount),
+    TotalMaterializeInputDuration=sum(TotalMaterializeInputDuration),
+    TotalMaterializeOutputStepDuration=sum(TotalMaterializeOutputStepDuration),
+    CriticalPath_PushOutputsToCache=sum(CriticalPath_PushOutputsToCache),
+    CriticalPath_MaterializeInput=sum(CriticalPath_MaterializeInput), 
+    CriticalPath_CacheLookup=sum(CriticalPath_CacheLookup),
+    CriticalPath_TotalRetry=sum(CriticalPath_TotalRetry),
+    CriticalPath_WaitingForResources=sum(CriticalPath_WaitingForResources),
+    CriticalPath_MaterializeOutput=sum(CriticalPath_MaterializeOutput),
+    TotalMaterializedInputsSize=sum(TotalMaterializedInputsSize),
+    TotalExecuteProcessStepDuration=sum(TotalExecuteProcessStepDuration),
+    ProblematicWorkers=max(ProblematicWorkers),
+    SandboxPrepareOutputs=sum(SandboxPrepareOutputs),
+    SandboxPrepareDirectoryOutputs=sum(SandboxPrepareDirectoryOutputs)
+    by BuildId, Infra, Customer, CBQueue, NumSessions, CpuUtilization_Orchestrator_LastStage, CpuUtilization_Workers_LastStage, MachineDuration, ConnectedWorkerCount, ExpectedWorkerCount, Orchestrator, CBReturnCode, StartTime, Version, ABTesting, Url, AdoPipelineId, MachineCores, IsSucceeded, NumWorkersWithWorkDoneInLastStage, NumOrchestratorSessions, MachineDuration_LastStage
+| extend Processes=ProcessHits+ProcessMisses
+| extend CacheHitRate=topercent(ProcessHits, Processes)
+| extend NonCriticalPath=Phase_Execute-CriticalPath_Total
+| where Processes > 0 // ignore builds with /phase:schedule
+| where not(onlySuccess) or PipFailed == 0
+| extend ConnectedWorkerCount=max_of(ConnectedWorkerCount, NumWorkersWithWorkDoneInLastStage) // ignore some weird builds where we miss some data
+| where ExpectedWorkerCount >= ConnectedWorkerCount;  // Ignore some weird builds from Office_Git_PR. an example: https://cloudbuild.microsoft.com/build/0af29021-703f-c738-a94d-bef3d44968a5
+}

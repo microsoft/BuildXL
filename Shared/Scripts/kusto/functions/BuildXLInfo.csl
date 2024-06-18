@@ -1,0 +1,170 @@
+.create-or-alter function with (docstring = "BuildXLInfo",folder = "perf") BuildXLInfo(startDate:datetime,endDate:datetime,version:string="",infrastructure:string="",customer:string="",cbQueue:string="",cbStamp:string="",buildId:string="",bucketGroup:string="",ignoreTwoMonthOldVersions:bool=false,ignoreCbTest:bool=false,ignoreKnownCrashCauses:bool=true,ignoreInfraErrors:bool=false,ignoreCloneBuilds:bool=true,ignoreCustomBuilds:bool=true,onlySuccess:bool=false) {
+let infras=parse_csv(infrastructure);
+let customers=parse_csv(customer);
+let cbQueues=parse_csv(cbQueue);
+let cbStamps=parse_csv(cbStamp);
+let bucketGroups=parse_csv(bucketGroup);
+let buildIds=parse_csv(buildId);
+let versions=parse_csv(version);
+let endDateLater=endDate+12h;
+cluster('cbuild').database('Domino').dominoinvocation
+| where EventInfo_Time between (startDate .. endDate)
+| extend IsWorker = iff(isempty(Role), CommandLine has "distributedBuildRole:worker", Role == "Worker")
+| extend IsWorkerOrOrchestrator = iff(isempty(Role), CommandLine has "distributedBuildRole", Role != "None")  // I do not want to check twice for both distributedBuildRole:orchestrator and distributedBuildRole:master 
+| project EventInfo_Time, Environment, BuildInfo_Build, UserName = iff(UserName startswith "CBA-", "CBA-", UserName), toguid(RelatedSessionIdentifier), toguid(SessionId), MachineName, BuildInfo_IsDeveloperBuild, IsWorker, IsWorkerOrOrchestrator, MachineCores=toint(MachineInfo_ProcessorCount)
+| extend IsOrchestrator = IsWorkerOrOrchestrator and not(IsWorker)
+| where not(ignoreCustomBuilds) or BuildInfo_IsDeveloperBuild == "False" // Ignore developer builds with custom bxl changes
+| parse BuildInfo_Build with * "-" VersionDate "." VersionSuffix "]"
+| extend Version = strcat(VersionDate,".",VersionSuffix)
+| extend _versionDate = todatetime(VersionDate)
+| where isempty(buildId) or RelatedSessionIdentifier in (buildIds)
+| where isempty(version) or Version in (versions)
+| where not(ignoreTwoMonthOldVersions) or datetime_diff('day', now(), _versionDate) <= 60 // Ignore builds with old binaries (false by default)
+| parse-kv Environment as (infra: string, org: string, codebase:string, cloudBuildQueue: string) with (pair_delimiter=';', kv_delimiter='=')
+| project-rename Infra=infra, CBQueue=cloudBuildQueue
+// Perform filtering as early in the query as possible to prune data prior to subsequent joins
+| where isempty(infrastructure) or Infra in (infras)
+| where isempty(cbQueue) or CBQueue in (cbQueues)
+| extend Customer = strcat(
+    coalesce(org,
+        iff(Environment startswith "Office", "office", 
+        iff(Environment startswith "OSGTools", "microsoft",
+        iff(Environment startswith "SelfHost", "mseng",
+        iff(Environment startswith "OsgDevMachine", "microsoft",
+        iff(Environment startswith "OsgLabScript", "microsoft", "N/A" 
+        )))))),
+    "-",
+    coalesce(
+        iff(codebase in ("CIServices.Configuration", "CIServices.WindowsBuildRunner"), "os.2020", 
+        iff(codebase in ("oLoop_Empty", "BuildOrchestration", "Office"), "devmain", codebase)),
+        iff(Environment startswith "Office", "devmain", 
+        iff(Environment startswith "OSGTools", "OSGTools",
+        iff(Environment startswith "SelfHost", "BuildXL.Internal",
+        iff(Environment startswith "OsgDevMachine", "os.2020", 
+        iff(Environment startswith "OsgLabScript", "os.2020", "N/A"
+        )))))))
+| where isempty(customer) or Customer in (parse_csv(customer))
+// *********
+// 2. Join to dominocompletion and dominocatastrophicfailure to gather applicable
+//    results for the build session
+//
+| join kind=leftouter hint.shufflekey=SessionId (
+    cluster('cbuild').database('Domino').dominocompletion 
+    | where EventInfo_Time between (startDate .. endDateLater)
+    | project toguid(SessionId), ErrorBucket, ExitKind, BucketMessage, InternalWarnings=iff(InternalWarnings == "0", "", InternalWarnings))
+    on SessionId 
+| join kind=leftouter hint.shufflekey=SessionId (
+    cluster('cbuild').database('Domino').dominocatastrophicfailure
+    | where EventInfo_Time between (startDate .. endDateLater)
+    | project toguid(SessionId), CrashCause=RootCause, CrashException=Exception)
+    on SessionId 
+| extend InternalError = iff(ExitKind == "InternalError" or (Infra != "dev" and ExitKind == "InfrastructureError"), 1, 0)
+| extend NonWorkerInternalError = iff(not(IsWorker), InternalError, 0)
+| extend OrchestratorInternalError = iff(IsOrchestrator, InternalError, 0)
+| extend BucketGroup = coalesce(iff(isnotempty(CrashCause), "Crash", ""), ErrorBucket)
+| extend BucketMessage = coalesce(CrashException, BucketMessage)
+// *********
+// 3. Collapse all of the bxl.exe invocations into a single session based on RelatedSessionId. After this step
+//    There will be a single row for each logical build.
+//    This collapse covers both distribution and multi-bxl.exe invocation workflows like Office builds
+//    results for the build session. No explicit consideration is taken to ordering because results from
+//    failed builds are prioritized and we always expect them to be the last in any multi-build series.
+//
+| extend ExitKindWithTime = strcat(EventInfo_Time, ",", ExitKind)
+| summarize hint.shufflekey=RelatedSessionIdentifier
+    StartTime = min(EventInfo_Time),
+    NumMachines=dcount(MachineName),
+    NumWorkers=dcountif(MachineName, IsWorker),
+    Orchestrator=take_anyif(MachineName, IsOrchestrator),
+    NumOrchestratorOrWorkers=dcountif(MachineName, IsWorkerOrOrchestrator),
+    Environment=coalesce(take_anyif(Environment, not(IsWorker)), min(Environment)),
+    Version=coalesce(take_anyif(Version, not(IsWorker)), min(Version)),
+    VersionDate=coalesce(take_anyif(VersionDate, not(IsWorker)), min(VersionDate)), // We might use different buildxl versions in distributed builds. 
+    MachineCores=coalesce(take_anyif(MachineCores, not(IsWorker)), min(MachineCores)), 
+    // For distributed builds we only consider it an internal error if a non-worker had an internal error
+    NonWorkerInternalError = iff(sum(NonWorkerInternalError) > 0, 1, 0),
+    OrchestratorInternalError = iff(sum(OrchestratorInternalError) > 0, 1, 0),
+    // But we still track builds were a worker suffered from an internal error since these are suboptimal builds
+    // TODO - this can be simplified
+    NonFatalInternalError = iff(sum(NonWorkerInternalError) == 0 and sum(InternalError) > 0, 1, 0),
+    // Any non-worker error should be prioritized over worker errors
+    // NonWorkerInternalError condition is there to capture the bucket groups from the single machine builds.
+    BucketGroup = coalesce(take_anyif(BucketGroup, OrchestratorInternalError == 1), take_anyif(BucketGroup, NonWorkerInternalError == 1), minif(BucketGroup, InternalError == 1), min(BucketGroup)),
+    BucketMessage = coalesce(take_anyif(BucketMessage, OrchestratorInternalError == 1), take_anyif(BucketMessage, NonWorkerInternalError == 1), minif(BucketMessage, InternalError == 1), min(BucketMessage)),
+    CrashCause = coalesce(take_anyif(CrashCause, OrchestratorInternalError == 1), take_anyif(CrashCause, NonWorkerInternalError == 1), minif(CrashCause, InternalError == 1), min(CrashCause)),
+    CrashException = coalesce(take_anyif(CrashException, OrchestratorInternalError == 1), take_anyif(CrashException, NonWorkerInternalError == 1), minif(CrashException, InternalError == 1), min(CrashException)),
+    InternalWarnings = coalesce(take_anyif(InternalWarnings, IsOrchestrator), take_anyif(InternalWarnings, not(IsWorker)), min(InternalWarnings)),
+    LatestOrchestratorExitKind= parse_csv(maxif(ExitKindWithTime, IsOrchestrator))[1],
+    LatestNonWorkerExitKind = parse_csv(maxif(ExitKindWithTime, not(IsWorker)))[1], 
+    FaultingMachineName = coalesce(take_anyif(MachineName, OrchestratorInternalError == 1), take_anyif(MachineName, NonWorkerInternalError == 1), minif(MachineName, InternalError == 1)),
+    UserName = take_any(UserName)
+    by BuildId=RelatedSessionIdentifier, Infra, Customer, Org=org, CBQueue, Codebase=codebase
+| extend IsAnyOrchestrator = NumOrchestratorOrWorkers - NumWorkers > 0
+| extend InternalError = iff(IsAnyOrchestrator, OrchestratorInternalError, NonWorkerInternalError)
+| extend LatestNonWorkerExitKind = iff(IsAnyOrchestrator, LatestOrchestratorExitKind, LatestNonWorkerExitKind)
+| extend IsOrchestratorInvocationMissing = NumWorkers > 0 and not(IsAnyOrchestrator)
+| extend IsOrchestratorCompletionMissing = IsAnyOrchestrator and isempty(LatestOrchestratorExitKind) 
+| extend IsNonWorkerCompletionMissing = IsOrchestratorCompletionMissing or (not(IsAnyOrchestrator) and isempty(LatestNonWorkerExitKind))
+| where Infra == "cb" or not(IsNonWorkerCompletionMissing) // If the exit kind is empty for a dev/ADO build, the build is hard-cancelled or in-progress. TODO: Join with 1es-ado telemetry to check whether ADO builds are really cancelled or in-progress.
+| where Infra == "cb" or not(IsOrchestratorInvocationMissing) // If orchestrator is missing in ADO or dev builds, startDate and endDate do not cover the whole build; that's why, we miss some buildxl events.  TODO: Join with 1es-ado telemetry to check whether ADO builds have experienced with infra issues.
+| where not(ignoreKnownCrashCauses) or isempty(CrashCause) or CrashCause == "Unknown" // Ignore crashes with known root cause buckets (failed deployment, server mode build where client is killed, out of disk space, etc)
+// *********
+// 4. Join against CloudBuild prod and CloudBuild test data
+//
+| join kind=leftouter hint.shufflekey=BuildId (database("CloudBuildProd").BuildInfo
+    | where EndTime between (startDate .. endDateLater)
+    | project toguid(BuildId), IsClonedBuild, CBStartTime=StartTime, CBStamp=OwnerStampId, CBReturnCode=ReturnCode, CBReturnType=ReturnType, CBException=BuildException
+    | summarize arg_max(CBStartTime, *) by BuildId) on BuildId
+| join kind=leftouter hint.shufflekey=BuildId (database("CloudBuildCBTest").BuildInfo
+    | where EndTime between (startDate .. endDateLater)
+    | project toguid(BuildId), IsClonedBuild, CBStartTime=StartTime, CBStamp=OwnerStampId, CBReturnCode=ReturnCode, CBReturnType=ReturnType, CBException=BuildException
+    | summarize arg_max(CBStartTime, *) by BuildId) on BuildId
+// Merge together CloudBuild fields to present a unified view between CBProd and CBTest
+| extend CBStamp = coalesce(CBStamp, CBStamp1)
+| extend CBStartTime = coalesce(CBStartTime, CBStartTime1)
+| extend CBReturnCode = coalesce(CBReturnCode, CBReturnCode1)
+| extend CBReturnType = coalesce(CBReturnType, CBReturnType1)
+| extend CBException = coalesce(CBException, CBException1)
+| extend IsClonedBuild = coalesce(IsClonedBuild, IsClonedBuild1)
+| where Infra != "cb" or isnotempty(CBStartTime) // Ignore CB builds that are in-progress.
+| where isempty(CBReturnCode) or CBReturnCode !in ("CanceledFromADO", "CanceledByUser", "CanceledByAdmin") // Ignore cancelled CB builds. Those consists of non-gracefully terminated buildxl invocations.
+| where not(ignoreCloneBuilds) or isempty(IsClonedBuild) or IsClonedBuild  == 0 // Ignore cloned builds that are intended for validation.
+| where isempty(CBStartTime) or CBStartTime > startDate // If the given startDate does not cover the whole CB build, ignore it as it will likely miss some buildxl events.
+| extend Infra = iff(Infra == "cb" and isnotempty(CBStartTime1), "cbtest", Infra)
+| where not(ignoreCbTest) or Infra != "cbtest"
+| where isempty(infrastructure) or Infra in (infras)
+| where isempty(cbStamp) or CBStamp in (cbStamps)
+// | extend BucketGroup = iff(IsOrchestratorInvocationMissing, strcat(
+//         coalesce(NonWorkerBucketGroup,
+//                  case(CBReturnCode in ("ExceededMaxBuildTime", "CanceledFromADOTimeout"), "Timeout",
+//                       CBReturnCode == "DeadClientOrLostConnection", "DeadMachine", "CBRunnerIssue")), 
+//         "_MissingOrchestratorInvocation"), BucketGroup) 
+| extend _wbrTimeout = CBReturnCode == "MaxExternalNonRetryableError" and CBException has "timed out" // for WindowsBuildRunner builds
+| extend BucketGroup = iff(IsOrchestratorCompletionMissing, 
+        case(CBReturnCode in ("ExceededMaxBuildTime", "CanceledFromADOTimeout", "ExceededMaxBuildTimeWithInternalError"), "Timeout_MissingOrchestratorCompletion",
+             _wbrTimeout, "Timeout_MissingOrchestratorCompletion", 
+             CBReturnCode == "DeadClientOrLostConnection", "DeadMachine_MissingOrchestratorCompletion", 
+             isnotempty(BucketGroup) and InternalError == 1, strcat(BucketGroup, "_MissingOrchestratorCompletion"),
+             BucketGroup), BucketGroup)
+// strcat(
+//         coalesce(NonWorkerBucketGroup,
+//                  case(CBReturnCode in ("ExceededMaxBuildTime", "CanceledFromADOTimeout"), "Timeout",
+//                       CBReturnCode == "DeadClientOrLostConnection", "DeadMachine", 
+//                       "CBRunnerIssue")), 
+//         "_MissingOrchestratorCompletion"), BucketGroup)
+| extend InternalError = iff(IsOrchestratorCompletionMissing and (_wbrTimeout or CBReturnCode in ("ExceededMaxBuildTime", "CanceledFromADOTimeout", "ExceededMaxBuildTimeWithInternalError", "DeadClientOrLostConnection", "DeadMachine_MissingOrchestratorCompletion")), 1, InternalError)
+| extend InternalError = iff(not(IsAnyOrchestrator) and NumMachines > 1 and Infra startswith "cb" and InternalError == 1 and CBReturnCode in ("Success", "BuildOrTestFailed"), 0, InternalError) // There are lots of Office builds where we terminate before metabuild starts. In those builds, we cannot easily get the latestnonworkerexitkind because we do not know the orchestrator.
+| where isempty(bucketGroup) or BucketGroup in (bucketGroups)
+| where not(ignoreInfraErrors) or (InternalError == 0 and LatestNonWorkerExitKind in ("BuildSucceeded", "UserError")) // Filter out the builds with infra errors
+| extend IsSucceeded = LatestNonWorkerExitKind == "BuildSucceeded" and (isempty(CBReturnCode) or CBReturnCode == "Success")
+| where not(onlySuccess) or IsSucceeded
+| parse-kv Environment as (adoproject:string, pipelineid: int, adobuildid: int, adojobid:string, ABTesting:string) with (pair_delimiter=';', kv_delimiter='=')
+| extend Url = case(Infra == "cb", strcat("https://cloudbuild.microsoft.com/build/", BuildId),
+                    Infra == "cbtest", strcat("https://cbtest.microsoft.com/build/", BuildId),
+                    Infra == "ado", strcat("https://dev.azure.com/", Org, "/", adoproject, "/_build/results?view=logs&buildId=", adobuildid, "&j=", adojobid),
+                    "")
+| extend LocalStartTime = datetime_utc_to_local(StartTime, 'US/Pacific')
+| project-away IsClonedBuild1, CBReturnType1, CBReturnCode1, CBStamp1, CBStartTime1, BuildId1, BuildId2, adoproject, adobuildid, adojobid, _*
+| project-rename AdoPipelineId=pipelineid
+| where BucketGroup != "ProblematicWorkerExit.HighCountProblematicWorkers"
+}

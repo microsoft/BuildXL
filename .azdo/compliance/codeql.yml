@@ -10,8 +10,18 @@ variables:
   - name: Codeql.ExcludePathPatterns
     value: "Out/frontend/Download/YarnTool"
 
+parameters:
+  # A way to specify a custom job name.
+  # CodeQL uses job name to create a bucket for tracking of the issues identified in the build.
+  # If an issue is addressed, but there are no new builds that are in the same bucket, the issue
+  # will not be marked as resolved on CodeQL side. The job name is made configurable here mainly
+  # to help with maintenance / serviceability of CodeQL issues.
+  - name: customJobName
+    type: string
+    default: 'Codeql'
+
 jobs:
-- job: Codeql
+- job: ${{ parameters.customJobName }}
   displayName: Codeql
   timeoutInMinutes: 120
   cancelTimeoutInMinutes: 1

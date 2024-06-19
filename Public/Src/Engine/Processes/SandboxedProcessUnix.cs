@@ -247,8 +247,11 @@ namespace BuildXL.Processes
                 m_traceBuilder);
 
             var executionOptions = new ActionBlockSlimConfiguration(
-                DegreeOfParallelism: 1, // Must be one, otherwise SandboxedPipExecutor will fail asserting valid reports
-                SingleProducerConstrained: true);
+                // Must be one, otherwise SandboxedPipExecutor will fail asserting valid reports
+                DegreeOfParallelism: 1, 
+                // We could have two processing message block, one for the primary FIFO and another one for the secondary FIFO. Both
+                // will process messages concurrently and send the result to m_pendingReports. The single producer constraint cannot be guaranteed
+                SingleProducerConstrained: false);
 
             m_pendingReports = ActionBlockSlim.Create<SandboxReportLinux>(configuration: executionOptions,
                 (accessReport) =>

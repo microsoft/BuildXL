@@ -1278,12 +1278,6 @@ namespace BuildXL.Scheduler
         CancelSuspendedPipDueToNoRunningProcess,
 
         /// <summary>
-        /// Number of times ExistingFileProbe was reclassified as AbsentPathProbe due to path being both
-        /// an explicitly declared output and inside a shared opaque directory.
-        /// </summary>
-        ExistingFileProbeReclassifiedAsAbsentForNonExistentSharedOpaqueOutput,
-
-        /// <summary>
         /// Time spent computing which files must be included in a composite SOD. Includes:
         /// - getting the list of files for each directory inside of a composite SOD
         /// - deduping this list

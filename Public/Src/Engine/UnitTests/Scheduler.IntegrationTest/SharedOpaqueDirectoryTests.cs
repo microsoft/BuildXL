@@ -1714,23 +1714,37 @@ namespace IntegrationTest.BuildXL.Scheduler
                     ? proberPip.ProcessOutputs.GetOutputFiles().First()
                     : CreateSourceFile()),
 
-                // produce the file the prober probed
-                Operation.WriteFile(outFile),
+                // dynamically produce the file the prober probed
+                Operation.WriteFile(outFile, doNotInfer: true),
             });
             producerBuilder.AddOutputDirectory(sod, SealDirectoryKind.SharedOpaque);
             SchedulePipBuilder(producerBuilder);
 
-            var result = RunScheduler();
-            if (!isLazyDeletionEnabled && areDependent)
+            if (!areDependent)
             {
-                result.AssertSuccess();
-                result.AssertPipExecutorStatCounted(PipExecutorCounter.ExistingFileProbeReclassifiedAsAbsentForNonExistentSharedOpaqueOutput, 1);
+                // If the pips are not dependent, the probe on a path that is later produced will cause a DFA
+                RunScheduler().AssertFailure();
+                AssertErrorEventLogged(LogEventId.FileMonitoringError);
+                AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
             }
             else
             {
-                result.AssertFailure();
-                AssertErrorEventLogged(LogEventId.FileMonitoringError);
-                AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
+                // When a dependency is declared, a first build succeeds because the probe is just absent
+                var result = RunScheduler().AssertSuccess(); 
+
+                // The produced file is now present at the start of the build. With lazy deletion enabled, this will produce
+                // an existing probe and a DFA. With full scrubbing, then the probe is still absent (and okay)
+                result = RunScheduler();
+                if (!isLazyDeletionEnabled)
+                {
+                    result.AssertSuccess();
+                }
+                else
+                {
+                    result.AssertFailure();
+                    AssertErrorEventLogged(LogEventId.FileMonitoringError);
+                    AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
+                }
             }
         }
 

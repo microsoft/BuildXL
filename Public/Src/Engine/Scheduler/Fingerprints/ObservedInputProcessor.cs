@@ -474,32 +474,6 @@ namespace BuildXL.Scheduler.Fingerprints
                                     continue;
                                 }
                             }
-                            else if (
-                                type == ObservedInputType.ExistingFileProbe &&
-                                envAdapter?.IsLazySODeletionEnabled == false &&
-                                !FileUtilities.FileExistsNoFollow(path.ToString(pathTable)) &&
-                                envAdapter.IsPathUnderOutputDirectory(path, out var isItSharedOpaque) &&
-                                isItSharedOpaque &&
-                                envAdapter.TryGetFileProducerPip(path, out var producerPipId) &&
-                                envAdapter.IsReachableFrom(from: pip.PipId, to: producerPipId))
-                            {
-                                // reclassify ExistingFileProbe as AbsentPathProbe if
-                                //   - file doesn't actually exist on disk
-                                //   - file is under an output directory
-                                //   - lazy shared opaque output deletion is disabled
-                                //   - the declared producer of the file is a pip downstream of the prober pip
-                                // reason:
-                                //   - access was originally classified as ExistingFileProbe despite the file being absent
-                                //     because the path is a declared ouput in the pip graph
-                                //   - however, if that path is under an opaque directory and lazy deletion is disabled,
-                                //     the file will always be scrubbed before the build so to this pip it will always be absent.
-
-                                debugTrace.AppendLine($"Reclassify ExistingFileProbe as AbsentPathProbe");
-
-                                environment.Counters.IncrementCounter(PipExecutorCounter.ExistingFileProbeReclassifiedAsAbsentForNonExistentSharedOpaqueOutput);
-                                observationTypes[i] = ObservedInputType.AbsentPathProbe;
-                                continue;
-                            }
                             else if (type == ObservedInputType.FileContentRead || type == ObservedInputType.ExistingFileProbe)
                             {
                                 debugTrace.AppendLine($"type == ObservedInputType.FileContentRead || type == ObservedInputType.ExistingFileProbe");

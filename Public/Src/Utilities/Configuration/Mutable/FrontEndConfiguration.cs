@@ -73,8 +73,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
             ReleaseWorkspaceBeforeEvaluation = template.ReleaseWorkspaceBeforeEvaluation;
             UnsafeOptimizedAstConversion = template.UnsafeOptimizedAstConversion;
             AllowUnsafeAmbient = template.AllowUnsafeAmbient;
-            GenerateCgManifestForNugets = template.GenerateCgManifestForNugets;
-            ValidateCgManifestForNugets = template.ValidateCgManifestForNugets;
+            GenerateCgManifestForNugets = pathRemapper.Remap(template.GenerateCgManifestForNugets);
+            ValidateCgManifestForNugets = pathRemapper.Remap(template.ValidateCgManifestForNugets);
             AllowMissingSpecs = template.AllowMissingSpecs;
             EnableCredScan = template.EnableCredScan;
             CredScanEnvironmentVariablesAllowList = new List<string>(template.CredScanEnvironmentVariablesAllowList);

@@ -402,7 +402,7 @@ bool BxlObserver::SendReport(buildxl::linux::SandboxEvent &event, buildxl::linux
             && event.GetEventType() != buildxl::linux::EventType::kExec
             && event.GetEventType() != buildxl::linux::EventType::kExit;
 
-        return Send(buffer, report_size, /* useSecondaryPipe */ false, /* countReport */ shouldCountReportType);
+        return Send(buffer, report_size, use_secondary_pipe, /* countReport */ shouldCountReportType);
     }
 
     return true;

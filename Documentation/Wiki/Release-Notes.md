@@ -2,6 +2,13 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20240614.2  (Release [389957](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=389957))
+-	Perf improvement for BlobL3 cache
+-	Improvement for serialization of BuildXL config object
+-	Debugging improvements for Observed Input Processor
+-	Reclassify some DScript errors
+-	Support for encrypting RPC channel used by cache
+
 # 0.1.0-20240606.3 (Release [388286](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=388286))
 - Don't save fingerprint salt as part of cached graph
 - Fix CacheDump Analyzer Crashes when Trying to Dump a Failed Strong Fingerprint

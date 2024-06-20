@@ -2078,14 +2078,7 @@ namespace BuildXL
 
                 // Using a map to capture all the traceInfoProperties, which can be later used for removal of duplicates.
                 // If the user has passed a buildProperty through traceInfo flag,then that value is used to override the value to be set by the build properties methods.
-                Dictionary<string, string> traceInfoProperties = CaptureBuildInfo.CaptureTelemetryEnvProperties(configuration);
-
-                // Codebase represents the code or product being built.
-                // We use GitRemoteRepoUrl as codebase property value when we fail to obtain it from ADO predefined env variable or if not set by the user.
-                if (!traceInfoProperties.ContainsKey(CaptureBuildProperties.CodeBaseKey) && !string.IsNullOrEmpty(gitRemoteRepoUrl))
-                {
-                    traceInfoProperties.Add(CaptureBuildProperties.CodeBaseKey, gitRemoteRepoUrl);
-                }
+                Dictionary<string, string> traceInfoProperties = CaptureBuildInfo.CaptureTelemetryEnvProperties(configuration, gitRemoteRepoUrl);
 
                 foreach (KeyValuePair<string, string> traceInfo in traceInfoProperties.OrderBy(kvp => kvp.Key, StringComparer.InvariantCultureIgnoreCase))
                 {

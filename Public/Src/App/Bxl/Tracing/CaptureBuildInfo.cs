@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.RegularExpressions;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities.Configuration;
@@ -69,20 +70,25 @@ namespace BuildXL
         /// </summary>
         public const string AdoPreDefinedVariableForJobId = "SYSTEM_JOBID";
 
+        private const string ADONewUrlFormatRegex = @"(?<=dev\.azure\.com/)(.*?)(?=/)";
+
+        private const string ADOLegacyUrlFormatRegex = @"(?<=https://)(.*?)(?=\.visualstudio\.com)";
+
         /// <summary>
         /// This is the primary method in the class which is called by ComputeEnvironment(), to capture the build properties.
         /// </summary>
         /// <param name="configuration">This configuration object contains computed telemetry env properties and traceInfo flag fields.</param>
+        /// <param name="gitRemoteRepoUrl">This value is used to extract the codebase and org value when the required env vars are not available. </param>
         /// <returns>The traceInfo Dictionary with build properties for is returned </returns>        
-        public static Dictionary<string, string> CaptureTelemetryEnvProperties(IConfiguration configuration)
+        public static Dictionary<string, string> CaptureTelemetryEnvProperties(IConfiguration configuration, string gitRemoteRepoUrl = null)
         {
             var traceInfoProperties = new Dictionary<string, string>(configuration.Logging.TraceInfo, StringComparer.InvariantCultureIgnoreCase);
 
             // The organization name
-            CaptureNewProperty(traceInfoProperties, CaptureBuildProperties.OrgKey, GetOrg);
+            CaptureNewProperty(traceInfoProperties, CaptureBuildProperties.OrgKey, getOrg);
 
             // The name of the triggering repository.
-            CaptureNewPropertyFromEnvironment(traceInfoProperties, CaptureBuildProperties.CodeBaseKey, AdoPreDefinedVariableForCodebase);
+            CaptureNewProperty(traceInfoProperties, CaptureBuildProperties.CodeBaseKey, getCodebase);
 
             // The id of the pipeline that is used to build the codebase.
             CaptureNewPropertyFromEnvironment(traceInfoProperties, CaptureBuildProperties.PipelineIdKey, AdoPreDefinedVariableForPipelineId);
@@ -104,6 +110,46 @@ namespace BuildXL
             CaptureNewProperty(traceInfoProperties, CaptureBuildProperties.InfraKey, () => GetInfra(configuration));
 
             return traceInfoProperties;
+
+            // This method is used to set the 'org' property in the EnvString for telemetry purposes.
+            // This method first attempts to capture the org name from the environment variable.
+            // If the environment variable is not set or is invalid, and if the gitRemoteRepoUrl is available,
+            // the method extracts the org value from the gitRemoteRepoUrl.
+            string getOrg()
+            {
+                var orgFromEnvVar = ExtractOrgFromUrl(Environment.GetEnvironmentVariable(EnvVariableForOrg));
+                return !string.IsNullOrEmpty(orgFromEnvVar) ? orgFromEnvVar : ExtractOrgFromUrl(gitRemoteRepoUrl);
+            }
+
+            // This method is used to set the 'codebase' property in the EnvString for telemetry purposes.
+            // This method first attempts to capture the codebase value from the env var.
+            // If the env var is not set, and if the gitRemoteRepoUrl is available,
+            // the method extracts the codebase value from it.
+            string getCodebase()
+            {
+                var codeBase = Environment.GetEnvironmentVariable(AdoPreDefinedVariableForCodebase);
+
+                if (!string.IsNullOrEmpty(codeBase))
+                {
+                    return codeBase;
+                }
+
+                if (!string.IsNullOrEmpty(gitRemoteRepoUrl))
+                {
+#pragma warning disable ERP022 // Unobserved exception in generic exception handler
+                    try
+                    {
+                        var uri = new Uri(gitRemoteRepoUrl);
+                        return uri.Segments.Last();
+                    }
+                    catch (Exception)
+                    {
+                    }
+#pragma warning restore ERP022 // Unobserved exception in generic exception handler
+                }
+
+                return null;
+            }
         }
 
         /// <summary>
@@ -165,20 +211,20 @@ namespace BuildXL
         }
 
         /// <summary>
-        /// This method is used to set a property called org in the EnvString for telemetry purpose. The method parses the URL and capture the organization name.
+        /// Extracts the organization name from the given URL based on predefined domain patterns.
         /// </summary>
-        private static string GetOrg()
+        private static string ExtractOrgFromUrl(string url)
         {
-            string orgUnParsedURL = Environment.GetEnvironmentVariable(EnvVariableForOrg);
-            if (!string.IsNullOrEmpty(orgUnParsedURL))
+            if (!string.IsNullOrEmpty(url))
             {
-                // According to the AzureDevOps documentation, there are two kinds of ADO URL's
-                // New format(https://dev.azure.com/{organization}) & legacy format(https://{organization}.visualstudio.com). 
-                // Based on this information, the name of the organization is extracted using the below logic.
-                var match = Regex.Match(orgUnParsedURL, "(?<=dev\\.azure\\.com/)(.*?)(?=/)");
+                // According to the AzureDevOps documentation and telemetry observations, there are two primary formats for Azure DevOps URLs:
+                // - New format: https://dev.azure.com/{organization}
+                // - Legacy format: https://{organization}.visualstudio.com
+                // These patterns are used to extract the organization info as required.
+                var match = Regex.Match(url, ADONewUrlFormatRegex);
                 if (!match.Success)
                 {
-                    match = Regex.Match(orgUnParsedURL, "(?<=https://)(.*?)(?=\\.visualstudio\\.com)");
+                    match = Regex.Match(url, ADOLegacyUrlFormatRegex);
                     if (!match.Success)
                     {
                         return null;

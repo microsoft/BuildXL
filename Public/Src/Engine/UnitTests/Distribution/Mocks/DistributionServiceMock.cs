@@ -24,11 +24,11 @@ namespace Test.BuildXL.Distribution
 
         public override void Dispose() { }
 
-        public override Task ExitAsync(Optional<string> failure, bool isUnexpected)
+        public override Task<bool> ExitAsync(Optional<string> failure, bool isUnexpected)
         {
             ExitCalls++;
             Failure = failure;
-            return Task.CompletedTask;
+            return Task.FromResult(true);
         }
 
         public override bool Initialize()

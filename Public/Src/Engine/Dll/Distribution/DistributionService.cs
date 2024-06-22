@@ -40,7 +40,7 @@ namespace BuildXL.Engine.Distribution
         /// <summary>
         /// Exits the distribution service.
         /// </summary>
-        public abstract Task ExitAsync(Optional<string> failure, bool isUnexpected);
+        public abstract Task<bool> ExitAsync(Optional<string> failure, bool isUnexpected);
 
         /// <nodoc/>
         public abstract void Dispose();

@@ -284,12 +284,12 @@ namespace BuildXL.Engine.Distribution
         }
 
         /// <nodoc/>
-        public void Exit(Optional<string> failure = default, bool isUnexpected = false)
+        public bool Exit(Optional<string> failure = default, bool isUnexpected = false)
         {
             if (m_exitStarted)
             {
                 // We already initiated the stop for the worker.
-                return;
+                return false;
             }
 
             m_exitStarted = true;
@@ -321,6 +321,7 @@ namespace BuildXL.Engine.Distribution
             m_workerServer.ShutdownAsync().Forget();
 
             m_exitCompletion.TrySetResult(reportSuccess);
+            return true;
         }
 
         /// <summary>
@@ -452,8 +453,12 @@ namespace BuildXL.Engine.Distribution
            
             // Unblock caller to make it a fire&forget event handler.
             await Task.Yield();
-            Logger.Log.DistributionInactiveOrchestrator(m_appLoggingContext, (int)(GrpcSettings.CallTimeout.TotalMinutes * GrpcSettings.MaxAttempts));
-            ExitAsync("Connection failure", isUnexpected: true).Forget();
+
+            if (await ExitAsync("Connection failure", isUnexpected: true))
+            {
+                // Log an error only if there was no exit call before.
+                Logger.Log.DistributionInactiveOrchestrator(m_appLoggingContext, (int)(GrpcSettings.CallTimeout.TotalMinutes * GrpcSettings.MaxAttempts));
+            }
         }
 
         /// <inheritdoc />
@@ -530,10 +535,10 @@ namespace BuildXL.Engine.Distribution
         }
 
         /// <nodoc/>
-        public override async Task ExitAsync(Optional<string> failure, bool isUnexpected)
+        public override async Task<bool> ExitAsync(Optional<string> failure, bool isUnexpected)
         {
             await Task.Yield();
-            Exit(failure, isUnexpected);
+            return Exit(failure, isUnexpected);
         }
 
         /// <inheritdoc />

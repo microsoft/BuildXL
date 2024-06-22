@@ -383,7 +383,7 @@ namespace BuildXL.Engine.Distribution
         }
 
         /// We don't have exit logic for orchestrator for now -- throw to avoid unexpected usage
-        public override Task ExitAsync(Optional<string> failure, bool isUnexpected) => throw new NotImplementedException();
+        public override Task<bool> ExitAsync(Optional<string> failure, bool isUnexpected) => throw new NotImplementedException();
 
         /// <summary>
         /// A worker advertises its location during the build

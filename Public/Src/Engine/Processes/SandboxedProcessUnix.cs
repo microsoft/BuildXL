@@ -241,6 +241,7 @@ namespace BuildXL.Processes
                 info.PipSemiStableHash,
                 info.PipDescription,
                 info.LoggingContext,
+                info.FileName,
                 info.DetoursEventListener,
                 info.SidebandWriter,
                 info.FileSystemView,
@@ -251,7 +252,8 @@ namespace BuildXL.Processes
                 DegreeOfParallelism: 1, 
                 // We could have two processing message block, one for the primary FIFO and another one for the secondary FIFO. Both
                 // will process messages concurrently and send the result to m_pendingReports. The single producer constraint cannot be guaranteed
-                SingleProducerConstrained: false);
+                SingleProducerConstrained: false,
+                FailFastOnUnhandledException: true);
 
             m_pendingReports = ActionBlockSlim.Create<SandboxReportLinux>(configuration: executionOptions,
                 (accessReport) =>
@@ -904,14 +906,33 @@ namespace BuildXL.Processes
         private static readonly int s_maxRequestedAccess = Enum.GetValues(typeof(RequestedAccess)).Cast<RequestedAccess>().Max(e => (int)e);
 
         private bool ReportProvider(
-            ref SandboxReportLinux report, out uint processId, out uint id, out uint correlationId, out ReportedFileOperation operation, out RequestedAccess requestedAccess, out FileAccessStatus status,
-            out bool explicitlyReported, out uint error, out Usn usn, out DesiredAccess desiredAccess, out ShareMode shareMode, out CreationDisposition creationDisposition,
-            out FlagsAndAttributes flagsAndAttributes, out FlagsAndAttributes openedFileOrDirectoryAttributes, out AbsolutePath manifestPath, out string path, out string enumeratePattern, out string processArgs, out string errorMessage)
+            ref SandboxReportLinux report, 
+            out uint processId,
+            out uint parentProcessId,
+            out uint id, 
+            out uint correlationId, 
+            out ReportedFileOperation operation, 
+            out RequestedAccess requestedAccess, 
+            out FileAccessStatus status,
+            out bool explicitlyReported, 
+            out uint error, 
+            out Usn usn, 
+            out DesiredAccess desiredAccess, 
+            out ShareMode shareMode, 
+            out CreationDisposition creationDisposition,
+            out FlagsAndAttributes flagsAndAttributes, 
+            out FlagsAndAttributes openedFileOrDirectoryAttributes, 
+            out AbsolutePath manifestPath, 
+            out string path, 
+            out string enumeratePattern, 
+            out string processArgs, 
+            out string errorMessage)
         {
             var errorMessages = new List<string>();
             checked
             {
                 processId = report.ProcessId;
+                parentProcessId = report.ParentProcessId;
                 id = SandboxedProcessReports.FileAccessNoId;
                 correlationId = SandboxedProcessReports.FileAccessNoId;
                 operation = report.FileOperation;

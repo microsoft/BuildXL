@@ -540,6 +540,7 @@ void PTraceSandbox::ReportOpen(std::string path, int oflag, std::string syscallN
         /* system_call */   syscallName.c_str(),
         /* event_type */    eventType,
         /* pid */           m_traceePid,
+        /* ppid */          0,
         /* error */         0,
         /* src_path */      path.c_str());
     event.SetMode(pathMode);
@@ -553,8 +554,9 @@ void PTraceSandbox::ReportCreate(std::string syscallName, int dirfd, const char 
         /* system_call */   syscallName.c_str(),
         /* event_type */    buildxl::linux::EventType::kCreate,
         /* pid */           m_traceePid,
+        /* ppid */          0,
         /* error */         returnValue,
-        /* src_path */      m_bxl->normalize_path_at(dirfd, pathname, /* oflags */ 0, m_traceePid, syscallName.c_str()).c_str());
+        /* src_path */      m_bxl->normalize_path_at(dirfd, pathname, m_traceePid, /* ppid */ 0, /* oflags */ 0, syscallName.c_str()).c_str());
     event.SetMode(mode);
     
     m_bxl->CreateAndReportAccess(event, /* check_cache */ false);
@@ -592,12 +594,10 @@ void PTraceSandbox::UpdateTraceeTableForExec(std::string exePath)
         // the parent will be blocked on the child process to execve
         // and the execve on the child will be blocked by a SIGSTOP from ptrace because the child is automatically traced by ptrace
         // which ptrace can't handle because it's blocked on the waitpid for the parent.
-
-        // TODO [pgunasekara]: figure out how to get the parent process ID here.
-        auto event = buildxl::linux::SandboxEvent::ForkSandboxEvent(
+        auto event = buildxl::linux::SandboxEvent::CloneSandboxEvent(
             /* system_call */   "vfork",
             /* pid */           m_traceePid,
-            /* ppid */          m_traceePid,
+            /* ppid */          0,
             /* path */          exePath.c_str());
 
         m_bxl->CreateAndReportAccess(event, /* checkCache */ false);
@@ -615,7 +615,7 @@ HANDLER_FUNCTION(execveat)
     int flags = ReadArgumentLong(5);
 
     int oflags = (flags & AT_SYMLINK_NOFOLLOW) ? O_NOFOLLOW : 0;
-    std::string exePath = m_bxl->normalize_path_at(dirfd, pathname.c_str(), oflags, m_traceePid, SYSCALL_NAME_STRING(execveat));
+    std::string exePath = m_bxl->normalize_path_at(dirfd, pathname.c_str(), m_traceePid, /* ppid */ 0, oflags, SYSCALL_NAME_STRING(execveat));
 
     UpdateTraceeTableForExec(exePath);
 
@@ -627,6 +627,7 @@ HANDLER_FUNCTION(execveat)
     auto event = buildxl::linux::SandboxEvent::ExecSandboxEvent(
         /* system_call */   SYSCALL_NAME_STRING(execveat),
         /* pid */           m_traceePid,
+        /* ppid */          0,
         /* path */          exePath.c_str(),
         /* command_line */  args.c_str());
 
@@ -647,6 +648,7 @@ HANDLER_FUNCTION(execve)
     auto event = buildxl::linux::SandboxEvent::ExecSandboxEvent(
         /* system_call */   SYSCALL_NAME_STRING(execve),
         /* pid */           m_traceePid,
+        /* ppid */          0,
         /* path */          file.c_str(),
         /* command_line */  args.c_str());
 
@@ -660,6 +662,7 @@ HANDLER_FUNCTION(stat)
         /* system_call */   SYSCALL_NAME_STRING(stat),
         /* event_type */    buildxl::linux::EventType::kGenericProbe,
         /* pid */           m_traceePid,
+        /* ppid */          0,
         /* error */         0,
         /* src_path */      pathname.c_str());
 
@@ -673,6 +676,7 @@ HANDLER_FUNCTION(lstat)
         /* system_call */   SYSCALL_NAME_STRING(lstat),
         /* event_type */    buildxl::linux::EventType::kGenericProbe,
         /* pid */           m_traceePid,
+        /* ppid */          0,
         /* error */         0,
         /* src_path */      pathname.c_str());
 
@@ -698,6 +702,7 @@ HANDLER_FUNCTION_NEW(fstatat)
         /* system_call */   SYSCALL_NAME_STRING(fstatat),
         /* event_type */    buildxl::linux::EventType::kGenericProbe,
         /* pid */           m_traceePid,
+        /* ppid */          0,
         /* error */         0,
         /* src_path */      pathname.c_str(),
         /* src_fd */        dirfd);
@@ -712,6 +717,7 @@ HANDLER_FUNCTION(access)
         /* system_call */   SYSCALL_NAME_STRING(access),
         /* event_type */    buildxl::linux::EventType::kGenericProbe,
         /* pid */           m_traceePid,
+        /* ppid */          0,
         /* error */         0,
         /* src_path */      pathname.c_str());
 
@@ -727,6 +733,7 @@ HANDLER_FUNCTION(faccessat)
         /* system_call */   SYSCALL_NAME_STRING(faccessat),
         /* event_type */    buildxl::linux::EventType::kGenericProbe,
         /* pid */           m_traceePid,
+        /* ppid */          0,
         /* error */         0,
         /* src_path */      pathname.c_str(),
         /* src_fd */        dirfd);
@@ -736,14 +743,14 @@ HANDLER_FUNCTION(faccessat)
 
 HANDLER_FUNCTION(creat)
 {
-    auto path = m_bxl->normalize_path(ReadArgumentString(SYSCALL_NAME_STRING(creat), 1, /* nullTerminated */ true).c_str(), /* oflags */ 0, m_traceePid);
+    auto path = m_bxl->normalize_path(ReadArgumentString(SYSCALL_NAME_STRING(creat), 1, /* nullTerminated */ true).c_str(), m_traceePid, 0, /* oflags */ 0);
     auto oflag = O_CREAT | O_WRONLY | O_TRUNC;
     ReportOpen(path, oflag, SYSCALL_NAME_STRING(creat));
 }
 
 HANDLER_FUNCTION(open)
 {
-    auto path = m_bxl->normalize_path(ReadArgumentString(SYSCALL_NAME_STRING(open), 1, /* nullTerminated */ true).c_str(), /* oflags */ 0, m_traceePid);
+    auto path = m_bxl->normalize_path(ReadArgumentString(SYSCALL_NAME_STRING(open), 1, /* nullTerminated */ true).c_str(), m_traceePid, 0, /* oflags */ 0);
     auto oflag = ReadArgumentLong(2);
     ReportOpen(path, oflag, SYSCALL_NAME_STRING(open));
 }
@@ -752,7 +759,7 @@ HANDLER_FUNCTION(openat)
 {
     auto dirfd = ReadArgumentLong(1);
     auto pathName = ReadArgumentString(SYSCALL_NAME_STRING(openat), 2, /* nullTerminated */ true);
-    auto path = m_bxl->normalize_path_at(dirfd, pathName.c_str(), /* oflags */ 0, m_traceePid, SYSCALL_NAME_STRING(openat));
+    auto path = m_bxl->normalize_path_at(dirfd, pathName.c_str(), m_traceePid, /* ppid */ 0, /* oflags */ 0, SYSCALL_NAME_STRING(openat));
     auto flags = ReadArgumentLong(3);
     ReportOpen(path, flags, SYSCALL_NAME_STRING(openat));
 }
@@ -768,6 +775,7 @@ void PTraceSandbox::HandleReportAccessFd(const char *syscall, int fd, buildxl::l
             /* system_call */   syscall,
             /* event_type */    eventType,
             /* pid */           m_traceePid,
+            /* ppid */          0,
             /* error */         0,
             /* src_path */      path.c_str());
         m_bxl->CreateAndReportAccess(event);
@@ -811,6 +819,7 @@ HANDLER_FUNCTION(truncate)
         /* system_call */   SYSCALL_NAME_STRING(truncate),
         /* event_type */    buildxl::linux::EventType::kGenericWrite,
         /* pid */           m_traceePid,
+        /* ppid */          0,
         /* error */         0,
         /* src_path */      path.c_str());
 
@@ -837,6 +846,7 @@ HANDLER_FUNCTION(rmdir)
         /* system_call */   SYSCALL_NAME_STRING(rmdir),
         /* event_type */    buildxl::linux::EventType::kUnlink,
         /* pid */           m_traceePid,
+        /* ppid */          0,
         /* error */         GetErrno(),
         /* src_path */      path.c_str());
     event.SetMode(S_IFDIR);
@@ -874,8 +884,8 @@ HANDLER_FUNCTION(renameat2)
 
 void PTraceSandbox::HandleRenameGeneric(const char *syscall, int olddirfd, const char *oldpath, int newdirfd, const char *newpath)
 {
-    string oldStr = m_bxl->normalize_path_at(olddirfd, oldpath, O_NOFOLLOW, m_traceePid, syscall);
-    string newStr = m_bxl->normalize_path_at(newdirfd, newpath, O_NOFOLLOW, m_traceePid, syscall);
+    string oldStr = m_bxl->normalize_path_at(olddirfd, oldpath, m_traceePid, /* ppid */ 0, O_NOFOLLOW, syscall);
+    string newStr = m_bxl->normalize_path_at(newdirfd, newpath, m_traceePid, /* ppid */ 0, O_NOFOLLOW, syscall);
 
     mode_t mode = m_bxl->get_mode(oldStr.c_str());    
     std::vector<std::string> filesAndDirectories;
@@ -894,6 +904,7 @@ void PTraceSandbox::HandleRenameGeneric(const char *syscall, int olddirfd, const
                     /* system_call */   syscall,
                     /* event_type */    buildxl::linux::EventType::kUnlink,
                     /* pid */           m_traceePid,
+                    /* ppid */          0,
                     /* error */         mode,
                     /* src_path */      fileOrDirectory.c_str());
                 event.SetRequiredPathResolution(buildxl::linux::RequiredPathResolution::kResolveNoFollow);
@@ -913,6 +924,7 @@ void PTraceSandbox::HandleRenameGeneric(const char *syscall, int olddirfd, const
             /* system_call */   syscall,
             /* event_type */    buildxl::linux::EventType::kUnlink,
             /* pid */           m_traceePid,
+            /* ppid */          0,
             /* error */         mode,
             /* src_path */      oldStr.c_str());
         event.SetRequiredPathResolution(buildxl::linux::RequiredPathResolution::kResolveNoFollow);
@@ -931,9 +943,10 @@ HANDLER_FUNCTION(link)
         /* system_call */   SYSCALL_NAME_STRING(link),
         /* event_type */    buildxl::linux::EventType::kLink,
         /* pid */           m_traceePid,
+        /* ppid */          0,
         /* error */         0,
-        /* src_path */      m_bxl->normalize_path(oldpath.c_str(), O_NOFOLLOW, m_traceePid).c_str(),
-        /* dest_path */     m_bxl->normalize_path(newpath.c_str(), O_NOFOLLOW, m_traceePid).c_str());
+        /* src_path */      m_bxl->normalize_path(oldpath.c_str(), m_traceePid, 0, O_NOFOLLOW).c_str(),
+        /* dest_path */     m_bxl->normalize_path(newpath.c_str(), m_traceePid, 0, O_NOFOLLOW).c_str());
 
     m_bxl->CreateAndReportAccess(event);
 }
@@ -948,9 +961,10 @@ HANDLER_FUNCTION(linkat)
         /* system_call */   SYSCALL_NAME_STRING(linkat),
         /* event_type */    buildxl::linux::EventType::kLink,
         /* pid */           m_traceePid,
+        /* ppid */          0,
         /* error */         0,
-        /* src_path */      m_bxl->normalize_path_at(olddirfd, oldpath.c_str(), O_NOFOLLOW, m_traceePid, SYSCALL_NAME_STRING(linkat)).c_str(),
-        /* dest_path */     m_bxl->normalize_path_at(newdirfd, newpath.c_str(), O_NOFOLLOW, m_traceePid, SYSCALL_NAME_STRING(linkat)).c_str());
+        /* src_path */      m_bxl->normalize_path_at(olddirfd, oldpath.c_str(), m_traceePid, /* ppid */ 0, O_NOFOLLOW, SYSCALL_NAME_STRING(linkat)).c_str(),
+        /* dest_path */     m_bxl->normalize_path_at(newdirfd, newpath.c_str(), m_traceePid, /* ppid */ 0, O_NOFOLLOW, SYSCALL_NAME_STRING(linkat)).c_str());
 
     m_bxl->CreateAndReportAccess(event);
 }
@@ -965,6 +979,7 @@ HANDLER_FUNCTION(unlink)
             /* system_call */   SYSCALL_NAME_STRING(unlink),
             /* event_type */    buildxl::linux::EventType::kUnlink,
             /* pid */           m_traceePid,
+            /* ppid */          0,
             /* error */         0,
             /* src_path */      path.c_str());
         event.SetRequiredPathResolution(buildxl::linux::RequiredPathResolution::kResolveNoFollow);
@@ -986,6 +1001,7 @@ HANDLER_FUNCTION(unlinkat)
             /* system_call */   SYSCALL_NAME_STRING(unlinkat),
             /* event_type */    buildxl::linux::EventType::kUnlink,
             /* pid */           m_traceePid,
+            /* ppid */          0,
             /* error */         0,
             /* src_path */      path.c_str(),
             /* src_fd */        dirfd);
@@ -1007,8 +1023,9 @@ HANDLER_FUNCTION(symlink)
         /* system_call */   SYSCALL_NAME_STRING(symlink),
         /* event_type */    buildxl::linux::EventType::kCreate,
         /* pid */           m_traceePid,
+        /* ppid */          0,
         /* error */         0,
-        /* src_path */      m_bxl->normalize_path(linkPath.c_str(), O_NOFOLLOW, m_traceePid).c_str());
+        /* src_path */      m_bxl->normalize_path(linkPath.c_str(), m_traceePid, 0, O_NOFOLLOW).c_str());
     event.SetMode(S_IFLNK);
 
     m_bxl->CreateAndReportAccess(event);
@@ -1024,6 +1041,7 @@ HANDLER_FUNCTION(symlinkat)
         /* system_call */   SYSCALL_NAME_STRING(fstatat),
         /* event_type */    buildxl::linux::EventType::kCreate,
         /* pid */           m_traceePid,
+        /* ppid */          0,
         /* error */         0,
         /* src_path */      linkPath.c_str(),
         /* src_fd */        dirfd);
@@ -1041,6 +1059,7 @@ HANDLER_FUNCTION(readlink)
         /* system_call */   SYSCALL_NAME_STRING(readlink),
         /* event_type */    buildxl::linux::EventType::kReadLink,
         /* pid */           m_traceePid,
+        /* ppid */          0,
         /* error */         0,
         /* src_path */      path.c_str());
     event.SetRequiredPathResolution(buildxl::linux::RequiredPathResolution::kResolveNoFollow);
@@ -1058,6 +1077,7 @@ HANDLER_FUNCTION(readlinkat)
         /* system_call */   SYSCALL_NAME_STRING(readlinkat),
         /* event_type */    buildxl::linux::EventType::kReadLink,
         /* pid */           m_traceePid,
+        /* ppid */          0,
         /* error */         0,
         /* src_path */      path.c_str(),
         /* src_fd */        fd);
@@ -1073,6 +1093,7 @@ HANDLER_FUNCTION(utime)
         /* system_call */   SYSCALL_NAME_STRING(utime),
         /* event_type */    buildxl::linux::EventType::kGenericWrite,
         /* pid */           m_traceePid,
+        /* ppid */          0,
         /* error */         0,
         /* src_path */      filename.c_str());
 
@@ -1094,6 +1115,7 @@ HANDLER_FUNCTION(utimensat)
         /* system_call */   SYSCALL_NAME_STRING(utimensat),
         /* event_type */    buildxl::linux::EventType::kGenericWrite,
         /* pid */           m_traceePid,
+        /* ppid */          0,
         /* error */         0,
         /* src_path */      pathname.c_str(),
         /* src_fd */        dirfd);
@@ -1111,6 +1133,7 @@ HANDLER_FUNCTION(futimesat)
         /* system_call */   SYSCALL_NAME_STRING(futimesat),
         /* event_type */    buildxl::linux::EventType::kGenericWrite,
         /* pid */           m_traceePid,
+        /* ppid */          0,
         /* error */         0,
         /* src_path */      pathname.c_str(),
         /* src_fd */        dirfd);
@@ -1171,6 +1194,7 @@ HANDLER_FUNCTION(chmod)
         /* system_call */   SYSCALL_NAME_STRING(chmod),
         /* event_type */    buildxl::linux::EventType::kGenericWrite,
         /* pid */           m_traceePid,
+        /* ppid */          0,
         /* error */         0,
         /* src_path */      path.c_str());
 
@@ -1194,6 +1218,7 @@ HANDLER_FUNCTION(fchmodat)
         /* system_call */   SYSCALL_NAME_STRING(fchmodat),
         /* event_type */    buildxl::linux::EventType::kGenericWrite,
         /* pid */           m_traceePid,
+        /* ppid */          0,
         /* error */         0,
         /* src_path */      pathname.c_str(),
         /* src_fd */        dirfd);
@@ -1212,6 +1237,7 @@ HANDLER_FUNCTION(chown)
         /* system_call */   SYSCALL_NAME_STRING(chown),
         /* event_type */    buildxl::linux::EventType::kGenericWrite,
         /* pid */           m_traceePid,
+        /* ppid */          0,
         /* error */         0,
         /* src_path */      pathname.c_str());
     
@@ -1231,6 +1257,7 @@ HANDLER_FUNCTION(lchown)
         /* system_call */   SYSCALL_NAME_STRING(lchown),
         /* event_type */    buildxl::linux::EventType::kGenericWrite,
         /* pid */           m_traceePid,
+        /* ppid */          0,
         /* error */         0,
         /* src_path */      pathname.c_str());
     event.SetRequiredPathResolution(buildxl::linux::RequiredPathResolution::kResolveNoFollow);
@@ -1249,6 +1276,7 @@ HANDLER_FUNCTION(fchownat)
         /* system_call */   SYSCALL_NAME_STRING(fchownat),
         /* event_type */    buildxl::linux::EventType::kGenericWrite,
         /* pid */           m_traceePid,
+        /* ppid */          0,
         /* error */         0,
         /* src_path */      pathname.c_str(),
         /* src_fd */        dirfd);
@@ -1279,7 +1307,7 @@ HANDLER_FUNCTION(name_to_handle_at)
     auto flags = ReadArgumentLong(5);
 
     int oflags = (flags & AT_SYMLINK_FOLLOW) ? 0 : O_NOFOLLOW;
-    string pathStr = m_bxl->normalize_path_at(dirfd, pathname.c_str(), oflags, m_traceePid, SYSCALL_NAME_STRING(name_to_handle_at));
+    string pathStr = m_bxl->normalize_path_at(dirfd, pathname.c_str(), m_traceePid, /* ppid */ 0, oflags, SYSCALL_NAME_STRING(name_to_handle_at));
     ReportOpen(pathStr, oflags, SYSCALL_NAME_STRING(name_to_handle_at));
 }
 
@@ -1313,7 +1341,7 @@ void PTraceSandbox::HandleChildProcess(const char *syscall)
         exePath = m_bxl->GetProgramPath();
     }
     
-    auto event = buildxl::linux::SandboxEvent::ForkSandboxEvent(
+    auto event = buildxl::linux::SandboxEvent::CloneSandboxEvent(
         /* system_call */   syscall,
         /* pid */           childpid,
         /* ppid */          m_traceePid,
@@ -1345,5 +1373,5 @@ HANDLER_FUNCTION(clone3)
 
 HANDLER_FUNCTION(exit)
 {
-    m_bxl->SendExitReport(m_traceePid);
+    m_bxl->SendExitReport(m_traceePid, 0);
 }

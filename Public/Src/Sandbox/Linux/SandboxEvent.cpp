@@ -10,6 +10,9 @@
 namespace buildxl {
 namespace linux {
 
+// The parent id is sent to managed code to compensate for some missing process start events (namely clone3). Observe this is consistently
+// reported in the interpose sandbox but on in the ptrace one. PTrace doesn't suffer from the clone3 issue, and currently it is not trivial to
+// retrieve the parent process on ptrace land, so ptrace sends 0 consistently.
 SandboxEvent::SandboxEvent(
     const char *system_call,
     buildxl::linux::EventType event_type,
@@ -48,7 +51,7 @@ SandboxEvent::SandboxEvent(
         // The following events we can classify immediately.
         // Others will be classified when the access check is performed.
         switch (event_type_) {
-            case buildxl::linux::EventType::kProcess:
+            case buildxl::linux::EventType::kClone:
                 source_access_report_.file_operation = buildxl::linux::FileOperation::kProcess;
                 break;
             case buildxl::linux::EventType::kExec:
@@ -87,10 +90,10 @@ SandboxEvent::SandboxEvent(const SandboxEvent& other) :
 }
 
 // Static Constructors
-SandboxEvent SandboxEvent::ForkSandboxEvent(const char *system_call, pid_t pid, pid_t ppid, const char *path) {
+SandboxEvent SandboxEvent::CloneSandboxEvent(const char *system_call, pid_t pid, pid_t ppid, const char *path) {
     auto event = SandboxEvent(
         /* system_call */ system_call,
-        /* event_type */ buildxl::linux::EventType::kProcess,
+        /* event_type */ buildxl::linux::EventType::kClone,
         /* src_path */ path,
         /* dst_path */ "",
         /* src_fd */ -1,
@@ -105,7 +108,7 @@ SandboxEvent SandboxEvent::ForkSandboxEvent(const char *system_call, pid_t pid, 
     return event;
 }
 
-SandboxEvent SandboxEvent::ExecSandboxEvent(const char *system_call, pid_t pid, const char *path, std::string command_line) {
+SandboxEvent SandboxEvent::ExecSandboxEvent(const char *system_call, pid_t pid, pid_t ppid, const char *path, std::string command_line) {
     if (path == nullptr) {
         return SandboxEvent::Invalid();
     }
@@ -118,7 +121,7 @@ SandboxEvent SandboxEvent::ExecSandboxEvent(const char *system_call, pid_t pid, 
         /* src_fd */ -1,
         /* dst_fd */ -1,
         /* pid */ pid,
-        /* ppid */ 0,
+        /* ppid */ ppid,
         /* command_line */ command_line,
         /* error */ 0,
         /* path_type */ path[0] != '/' ? SandboxEventPathType::kRelativePaths : SandboxEventPathType::kAbsolutePaths);
@@ -127,7 +130,7 @@ SandboxEvent SandboxEvent::ExecSandboxEvent(const char *system_call, pid_t pid, 
     return event;
 }
 
-SandboxEvent SandboxEvent::ExitSandboxEvent(const char *system_call, std::string path, pid_t pid) {
+SandboxEvent SandboxEvent::ExitSandboxEvent(const char *system_call, std::string path, pid_t pid, pid_t ppid) {
     auto event = SandboxEvent(
         /* system_call */ system_call,
         /* event_type */ buildxl::linux::EventType::kExit,
@@ -136,7 +139,7 @@ SandboxEvent SandboxEvent::ExitSandboxEvent(const char *system_call, std::string
         /* src_fd */ -1,
         /* dst_fd */ -1,
         /* pid */ pid,
-        /* ppid */ pid,
+        /* ppid */ ppid,
         /* command_line */ "",
         /* error */ 0,
         /* path_type */ SandboxEventPathType::kAbsolutePaths);
@@ -150,6 +153,7 @@ SandboxEvent SandboxEvent::AbsolutePathSandboxEvent(
     const char *system_call,
     buildxl::linux::EventType event_type,
     pid_t pid,
+    pid_t ppid,
     uint error,
     const char *src_path,
     const char *dst_path) {
@@ -167,6 +171,7 @@ SandboxEvent SandboxEvent::AbsolutePathSandboxEvent(
             system_call,
             event_type,
             pid,
+            ppid,
             error,
             src_path,
             is_src_relative ? AT_FDCWD : -1,
@@ -182,7 +187,7 @@ SandboxEvent SandboxEvent::AbsolutePathSandboxEvent(
         /* src_fd */ -1,
         /* dst_fd */ -1,
         /* pid */ pid,
-        /* ppid */ 0,
+        /* ppid */ ppid,
         /* command_line */ "",
         /* error */ error,
         /* path_type */ SandboxEventPathType::kAbsolutePaths);
@@ -192,6 +197,7 @@ SandboxEvent SandboxEvent::FileDescriptorSandboxEvent(
     const char *system_call,
     buildxl::linux::EventType event_type,
     pid_t pid,
+    pid_t ppid,
     uint error,
     int src_fd,
     int dst_fd) {
@@ -203,7 +209,7 @@ SandboxEvent SandboxEvent::FileDescriptorSandboxEvent(
         /* src_fd */ src_fd,
         /* dst_fd */ dst_fd,
         /* pid */ pid,
-        /* ppid */ 0,
+        /* ppid */ ppid,
         /* command_line */ "",
         /* error */ error,
         /* path_type */ SandboxEventPathType::kFileDescriptors);
@@ -213,6 +219,7 @@ SandboxEvent SandboxEvent::RelativePathSandboxEvent(
     const char *system_call,
     buildxl::linux::EventType event_type,
     pid_t pid,
+    pid_t ppid,
     uint error,
     const char *src_path,
     int src_fd,
@@ -230,7 +237,7 @@ SandboxEvent SandboxEvent::RelativePathSandboxEvent(
         /* src_fd */ src_fd,
         /* dst_fd */ dst_fd,
         /* pid */ pid,
-        /* ppid */ 0,
+        /* ppid */ ppid,
         /* command_line */ "",
         /* error */ error,
         /* path_type */ SandboxEventPathType::kRelativePaths);

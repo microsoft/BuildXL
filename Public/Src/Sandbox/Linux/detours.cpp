@@ -39,6 +39,7 @@ INTERPOSE(int, statx, int dirfd, const char * pathname, int flags, unsigned int 
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kGenericProbe,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         0,
         /* src_path */      pathname,
         /* src_fd */        dirfd);
@@ -55,6 +56,7 @@ INTERPOSE(int, scandir, const char * dirp,
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kGenericRead,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         0,
         /* src_path */      dirp);
     bxl->CreateAccess(event);
@@ -70,6 +72,7 @@ INTERPOSE(int, scandir64, const char * dirp,
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kGenericRead,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         0,
         /* src_path */      dirp);
     bxl->CreateAccess(event);
@@ -85,6 +88,7 @@ INTERPOSE(int, scandirat, int dirfd, const char * dirp,
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kGenericRead,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         0,
         /* src_path */      dirp,
         /* src_fd */        dirfd);
@@ -101,6 +105,7 @@ INTERPOSE(int, scandirat64, int dirfd, const char * dirp,
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kGenericRead,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         0,
         /* src_path */      dirp,
         /* src_fd */        dirfd);
@@ -114,6 +119,7 @@ INTERPOSE(struct dirent *, readdir, DIR *dirp)
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kGenericRead,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         0,
         /* src_fd */        dirfd(dirp));
     bxl->CreateAccess(event);
@@ -126,6 +132,7 @@ INTERPOSE(struct dirent64 *, readdir64, DIR *dirp)
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kGenericRead,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         0,
         /* src_fd */        dirfd(dirp));
     bxl->CreateAccess(event);
@@ -138,6 +145,7 @@ INTERPOSE(int, readdir_r, DIR *dirp, struct dirent *entry, struct dirent **resul
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kGenericRead,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         0,
         /* src_fd */        dirfd(dirp));
     bxl->CreateAccess(event);
@@ -150,6 +158,7 @@ INTERPOSE(int, readdir64_r, DIR *dirp, struct dirent64 *entry, struct dirent64 *
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kGenericRead,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         0,
         /* src_fd */        dirfd(dirp));
     bxl->CreateAccess(event);
@@ -157,13 +166,13 @@ INTERPOSE(int, readdir64_r, DIR *dirp, struct dirent64 *entry, struct dirent64 *
 })
 
 INTERPOSE(void, _exit, int status)({
-    bxl->SendExitReport();
+    bxl->SendExitReport(getpid(), getppid());
     bxl->real__exit(status);
 })
 
 static void report_child_process(const char *syscall, BxlObserver *bxl, pid_t childPid, pid_t parentPid)
 {
-    auto event = buildxl::linux::SandboxEvent::ForkSandboxEvent(syscall, childPid, parentPid, bxl->GetProgramPath());
+    auto event = buildxl::linux::SandboxEvent::CloneSandboxEvent(syscall, childPid, parentPid, bxl->GetProgramPath());
     bxl->CreateAndReportAccess(event, /* check_cache */ false);
 }
 
@@ -258,6 +267,7 @@ static int handle_exec_with_ptrace(const char *file, char *const argv[], char *c
     auto event = buildxl::linux::SandboxEvent::ExecSandboxEvent(
         /* system_call */   "execve",
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* src_path */      file,
         /* command_line */  BxlObserver::GetInstance()->GetProcessCommandLine((char **)argv));
     event.SetErrno(errno);
@@ -287,6 +297,7 @@ INTERPOSE(int, fexecve, int fd, char *const argv[], char *const envp[])({
     auto event = buildxl::linux::SandboxEvent::ExecSandboxEvent(
         /* system_call */   __func__,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* src_path */      bxl->fd_to_path(fd).c_str(),
         /* command_line */  bxl->GetProcessCommandLine((char **)argv));
     event.SetErrno(result.get_errno());
@@ -310,6 +321,7 @@ INTERPOSE(int, execv, const char *file, char *const argv[])({
     auto event = buildxl::linux::SandboxEvent::ExecSandboxEvent(
         /* system_call */   __func__,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* src_path */      file,
         /* command_line */  BxlObserver::GetInstance()->GetProcessCommandLine((char **)argv));
     event.SetErrno(result.get_errno());
@@ -333,6 +345,7 @@ INTERPOSE(int, execve, const char *file, char *const argv[], char *const envp[])
     auto event = buildxl::linux::SandboxEvent::ExecSandboxEvent(
         /* system_call */   __func__,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* src_path */      file,
         /* command_line */  BxlObserver::GetInstance()->GetProcessCommandLine((char **)argv));
     event.SetErrno(result.get_errno());
@@ -362,6 +375,7 @@ INTERPOSE(int, execvp, const char *file, char *const argv[])({
         auto event = buildxl::linux::SandboxEvent::ExecSandboxEvent(
             /* system_call */   __func__,
             /* pid */           getpid(),
+            /* ppid */          getppid(),
             /* src_path */      pathname.c_str(),
             /* command_line */  BxlObserver::GetInstance()->GetProcessCommandLine((char **)argv));
         event.SetErrno(result.get_errno());
@@ -379,6 +393,7 @@ INTERPOSE(int, execvp, const char *file, char *const argv[])({
         auto event = buildxl::linux::SandboxEvent::ExecSandboxEvent(
             /* system_call */   __func__,
             /* pid */           getpid(),
+            /* ppid */          getppid(),
             /* src_path */      file,
             /* command_line */  BxlObserver::GetInstance()->GetProcessCommandLine((char **)argv));
         event.SetErrno(result.get_errno());
@@ -411,6 +426,7 @@ INTERPOSE(int, execvpe, const char *file, char *const argv[], char *const envp[]
         auto event = buildxl::linux::SandboxEvent::ExecSandboxEvent(
             /* system_call */   __func__,
             /* pid */           getpid(),
+            /* ppid */          getppid(),
             /* src_path */      pathname.c_str(),
             /* command_line */  BxlObserver::GetInstance()->GetProcessCommandLine((char **)argv));
         event.SetErrno(result.get_errno());
@@ -427,6 +443,7 @@ INTERPOSE(int, execvpe, const char *file, char *const argv[], char *const envp[]
         auto event = buildxl::linux::SandboxEvent::ExecSandboxEvent(
             /* system_call */   __func__,
             /* pid */           getpid(),
+            /* ppid */          getppid(),
             /* src_path */      file,
             /* command_line */  BxlObserver::GetInstance()->GetProcessCommandLine((char **)argv));
         event.SetErrno(result.get_errno());
@@ -464,6 +481,7 @@ INTERPOSE(int, execl, const char *pathname, const char *arg, ...)({
     auto event = buildxl::linux::SandboxEvent::ExecSandboxEvent(
         /* system_call */   __func__,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* src_path */      pathname,
         /* command_line */  BxlObserver::GetInstance()->GetProcessCommandLine((char **)argv));
     event.SetErrno(result.get_errno());
@@ -505,6 +523,7 @@ INTERPOSE(int, execlp, const char *file, const char *arg, ...)({
         auto event = buildxl::linux::SandboxEvent::ExecSandboxEvent(
             /* system_call */   __func__,
             /* pid */           getpid(),
+            /* ppid */          getppid(),
             /* src_path */      pathname.c_str(),
             /* command_line */  BxlObserver::GetInstance()->GetProcessCommandLine((char **)argv));
         event.SetErrno(result.get_errno());
@@ -521,6 +540,7 @@ INTERPOSE(int, execlp, const char *file, const char *arg, ...)({
         auto event = buildxl::linux::SandboxEvent::ExecSandboxEvent(
             /* system_call */   __func__,
             /* pid */           getpid(),
+            /* ppid */          getppid(),
             /* src_path */      file,
             /* command_line */  BxlObserver::GetInstance()->GetProcessCommandLine((char **)argv));
         event.SetErrno(result.get_errno());
@@ -560,6 +580,7 @@ INTERPOSE(int, execle, const char *pathname, const char *arg, ...)({
     auto event = buildxl::linux::SandboxEvent::ExecSandboxEvent(
         /* system_call */   __func__,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* src_path */      pathname,
         /* command_line */  BxlObserver::GetInstance()->GetProcessCommandLine((char **)argv));
     event.SetErrno(result.get_errno());
@@ -576,6 +597,7 @@ INTERPOSE(int, __fxstat, int __ver, int fd, struct stat *__stat_buf)({
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kGenericProbe,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         get_errno_from_result(result),
         /* src_fd */        fd);
     bxl->CreateAndReportAccess(event);
@@ -603,6 +625,7 @@ int __ver, int fd, struct stat64 *buf)({
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kGenericProbe,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         get_errno_from_result(result),
         /* src_fd */        fd);
     bxl->CreateAndReportAccess(event);
@@ -616,6 +639,7 @@ INTERPOSE(int, __fxstatat, int __ver, int fd, const char *pathname, struct stat 
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kGenericProbe,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         get_errno_from_result(result),
         /* src_path */      pathname,
         /* src_fd */        fd);
@@ -630,6 +654,7 @@ INTERPOSE(int, __fxstatat64, int __ver, int fd, const char *pathname, struct sta
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kGenericProbe,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         get_errno_from_result(result),
         /* src_path */      pathname,
         /* src_fd */        fd);
@@ -645,6 +670,7 @@ INTERPOSE(int, __xstat, int __ver, const char *pathname, struct stat *buf)({
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kGenericProbe,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         get_errno_from_result(result),
         /* src_path */      pathname);
     bxl->CreateAndReportAccess(event);
@@ -657,6 +683,7 @@ INTERPOSE(int, __xstat64, int __ver, const char *pathname, struct stat64 *buf)({
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kGenericProbe,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         get_errno_from_result(result),
         /* src_path */      pathname);
     bxl->CreateAndReportAccess(event);
@@ -669,6 +696,7 @@ INTERPOSE(int, __lxstat, int __ver, const char *pathname, struct stat *buf)({
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kGenericProbe,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         get_errno_from_result(result),
         /* src_path */      pathname);
     
@@ -683,6 +711,7 @@ INTERPOSE(int, __lxstat64, int __ver, const char *pathname, struct stat64 *buf)(
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kGenericProbe,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         get_errno_from_result(result),
         /* src_path */      pathname);
     
@@ -698,6 +727,7 @@ INTERPOSE(int, stat, const char *pathname, struct stat *statbuf)({
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kGenericProbe,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         get_errno_from_result(result),
         /* src_path */      pathname);
     
@@ -711,6 +741,7 @@ INTERPOSE(int, stat64, const char *pathname, struct stat64 *statbuf)({
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kGenericProbe,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         get_errno_from_result(result),
         /* src_path */      pathname);
     
@@ -724,6 +755,7 @@ INTERPOSE(int, lstat, const char *pathname, struct stat *statbuf)({
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kGenericProbe,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         get_errno_from_result(result),
         /* src_path */      pathname);
     
@@ -738,6 +770,7 @@ INTERPOSE(int, lstat64, const char *pathname, struct stat64 *statbuf)({
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kGenericProbe,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         get_errno_from_result(result),
         /* src_path */      pathname);
     
@@ -752,6 +785,7 @@ INTERPOSE(int, fstat, int fd, struct stat *statbuf)({
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kGenericProbe,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         get_errno_from_result(result),
         /* src_fd */        fd);
     bxl->CreateAndReportAccess(event);
@@ -764,6 +798,7 @@ INTERPOSE(int, fstat64, int fd, struct stat64 *statbuf)({
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kGenericProbe,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         get_errno_from_result(result),
         /* src_fd */        fd);
     bxl->CreateAndReportAccess(event);
@@ -787,6 +822,7 @@ INTERPOSE(FILE*, fdopen, int fd, const char *mode)({
         /* system_call */   __func__,
         /* event_type */    get_event_from_open_mode(mode),
         /* pid */           getpid(),
+        /* ppid */          getppid(),        
         /* error */         0,
         /* src_fd */        fd);
     bxl->CreateAccess(event);
@@ -797,7 +833,8 @@ INTERPOSE(FILE*, fopen, const char *pathname, const char *mode)({
     auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
         /* system_call */   __func__,
         /* event_type */    get_event_from_open_mode(mode),
-        /* pid */           getpid(),
+        /* pid */           getpid(),        
+        /* ppid */          getppid(),
         /* error */         0,
         /* src_path */      pathname);
     bxl->CreateAccess(event);
@@ -811,6 +848,7 @@ INTERPOSE(FILE*, fopen64, const char *pathname, const char *mode)({
         /* system_call */   __func__,
         /* event_type */    get_event_from_open_mode(mode),
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         0,
         /* src_path */      pathname);
     bxl->CreateAccess(event);
@@ -824,6 +862,7 @@ INTERPOSE(FILE*, freopen, const char *pathname, const char *mode, FILE *stream)(
         /* system_call */   __func__,
         /* event_type */    get_event_from_open_mode(mode),
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         0,
         /* src_path */      pathname);
     bxl->CreateAccess(event);
@@ -837,6 +876,7 @@ INTERPOSE(FILE*, freopen64, const char *pathname, const char *mode, FILE *stream
         /* system_call */   __func__,
         /* event_type */    get_event_from_open_mode(mode),
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         0,
         /* src_path */      pathname);
     bxl->CreateAccess(event);
@@ -857,6 +897,7 @@ INTERPOSE(size_t, fread, void *ptr, size_t size, size_t nmemb, FILE *stream)({
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kOpen,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         0,
         /* src_fd */        stream_fd);
     bxl->CreateAccess(event);
@@ -875,6 +916,7 @@ INTERPOSE(size_t, fwrite, const void *ptr, size_t size, size_t nmemb, FILE *stre
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kGenericWrite,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         0,
         /* src_fd */        stream_fd);
     bxl->CreateAccess(event);
@@ -893,6 +935,7 @@ INTERPOSE(int, fputc, int c, FILE *stream)({
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kGenericWrite,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         0,
         /* src_fd */        stream_fd);
     bxl->CreateAccess(event);
@@ -911,6 +954,7 @@ INTERPOSE(int, fputs, const char *s, FILE *stream)({
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kGenericWrite,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         0,
         /* src_fd */        stream_fd);
     bxl->CreateAccess(event);
@@ -929,6 +973,7 @@ INTERPOSE(int, putc, int c, FILE *stream)({
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kGenericWrite,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         0,
         /* src_fd */        stream_fd);
     bxl->CreateAccess(event);
@@ -940,6 +985,7 @@ INTERPOSE(int, putchar, int c)({
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kGenericWrite,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         0,
         /* src_fd */        fileno(stdout));
     bxl->CreateAccess(event);
@@ -951,6 +997,7 @@ INTERPOSE(int, puts, const char *s)({
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kGenericWrite,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         0,
         /* src_fd */        fileno(stdout));
     bxl->CreateAccess(event);
@@ -962,6 +1009,7 @@ INTERPOSE(int, access, const char *pathname, int mode)({
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kGenericProbe,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         0,
         /* src_path */      pathname);
     bxl->CreateAccess(event);
@@ -973,6 +1021,7 @@ INTERPOSE(int, faccessat, int dirfd, const char *pathname, int mode, int flags)(
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kGenericProbe,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         0,
         /* src_path */      pathname,
         /* src_fd */        dirfd);
@@ -995,6 +1044,7 @@ static buildxl::linux::SandboxEvent CreateFileOpen(BxlObserver *bxl, string &pat
         /* system_call */   __func__,
         /* event_type */    isCreate ? buildxl::linux::EventType::kCreate : isWrite ? buildxl::linux::EventType::kGenericWrite : buildxl::linux::EventType::kOpen,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         0,
         /* src_path */      pathStr.c_str());
     
@@ -1017,7 +1067,7 @@ INTERPOSE(int, open, const char *path, int oflag, ...)({
     mode_t mode = va_arg(args, mode_t);
     va_end(args);
 
-    std::string pathStr = bxl->normalize_path(path);
+    std::string pathStr = bxl->normalize_path(path, getpid(), getppid());
     auto event = CreateFileOpen(bxl, pathStr, oflag);
     return ret_fd(bxl->check_fwd_and_report_open(event, ERROR_RETURN_VALUE, path, oflag, mode), bxl);
 })
@@ -1028,7 +1078,7 @@ INTERPOSE(int, open64, const char *path, int oflag, ...)({
     mode_t mode = va_arg(args, mode_t);
     va_end(args);
 
-    std::string pathStr = bxl->normalize_path(path);
+    std::string pathStr = bxl->normalize_path(path, getpid(), getppid());
     auto event = CreateFileOpen(bxl, pathStr, oflag);
     return ret_fd(bxl->check_fwd_and_report_open64(event, ERROR_RETURN_VALUE, path, oflag, mode), bxl);
 })
@@ -1039,7 +1089,7 @@ INTERPOSE(int, openat, int dirfd, const char *pathname, int flags, ...)({
     mode_t mode = va_arg(args, mode_t);
     va_end(args);
 
-    std::string pathStr = bxl->normalize_path_at(dirfd, pathname);
+    std::string pathStr = bxl->normalize_path_at(dirfd, pathname, getpid(), getppid());
     auto event = CreateFileOpen(bxl, pathStr, flags);
     return ret_fd(bxl->check_fwd_and_report_openat(event, ERROR_RETURN_VALUE, dirfd, pathname, flags, mode), bxl);
 })
@@ -1050,7 +1100,7 @@ INTERPOSE(int, openat64, int dirfd, const char *pathname, int flags, ...)({
     mode_t mode = va_arg(args, mode_t);
     va_end(args);
 
-    std::string pathStr = bxl->normalize_path_at(dirfd, pathname);
+    std::string pathStr = bxl->normalize_path_at(dirfd, pathname, getpid(), getppid());
     auto event = CreateFileOpen(bxl, pathStr, flags);
     return ret_fd(bxl->check_fwd_and_report_openat(event, ERROR_RETURN_VALUE, dirfd, pathname, flags, mode), bxl);
 })
@@ -1064,6 +1114,7 @@ INTERPOSE(ssize_t, write, int fd, const void *buf, size_t bufsiz)({
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kGenericWrite,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         0,
         /* src_fd */        fd);
     bxl->CreateAccess(event);
@@ -1075,6 +1126,7 @@ INTERPOSE(ssize_t, pwrite, int fd, const void *buf, size_t count, off_t offset)(
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kGenericWrite,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         0,
         /* src_fd */        fd);
     bxl->CreateAccess(event);
@@ -1086,6 +1138,7 @@ INTERPOSE(ssize_t, writev, int fd, const struct iovec *iov, int iovcnt)({
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kGenericWrite,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         0,
         /* src_fd */        fd);
     bxl->CreateAccess(event);
@@ -1097,6 +1150,7 @@ INTERPOSE(ssize_t, pwritev, int fd, const struct iovec *iov, int iovcnt, off_t o
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kGenericWrite,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         0,
         /* src_fd */        fd);
     bxl->CreateAccess(event);
@@ -1108,6 +1162,7 @@ INTERPOSE(ssize_t, pwritev2, int fd, const struct iovec *iov, int iovcnt, off_t 
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kGenericWrite,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         0,
         /* src_fd */        fd);
     bxl->CreateAccess(event);
@@ -1119,6 +1174,7 @@ INTERPOSE(ssize_t, pwrite64, int fd, const void *buf, size_t count, off_t offset
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kGenericWrite,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         0,
         /* src_fd */        fd);
     bxl->CreateAccess(event);
@@ -1130,6 +1186,7 @@ INTERPOSE(int, remove, const char *pathname)({
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kUnlink,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         0,
         /* src_path */      pathname);
     event.SetRequiredPathResolution(buildxl::linux::RequiredPathResolution::kResolveNoFollow);
@@ -1142,6 +1199,7 @@ INTERPOSE(int, truncate, const char *path, off_t length)({
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kGenericWrite,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         0,
         /* src_path */      path);
     bxl->CreateAccess(event);
@@ -1153,6 +1211,7 @@ INTERPOSE(int, ftruncate, int fd, off_t length)({
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kGenericWrite,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         0,
         /* src_fd */        fd);
     bxl->CreateAccess(event);
@@ -1172,6 +1231,7 @@ INTERPOSE(int, rmdir, const char *pathname)({
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kUnlink,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         0,
         /* src_path */      pathname);
 
@@ -1182,8 +1242,8 @@ INTERPOSE(int, rmdir, const char *pathname)({
 })
 
 static AccessCheckResult handle_renameat(BxlObserver *bxl, int olddirfd, const char *oldpath, int newdirfd, const char *newpath, std::vector<buildxl::linux::SandboxEvent> &events_to_report) {
-    string old_path_normalized = bxl->normalize_path_at(olddirfd, oldpath, O_NOFOLLOW);
-    string new_path_normalized = bxl->normalize_path_at(newdirfd, newpath, O_NOFOLLOW);
+    string old_path_normalized = bxl->normalize_path_at(olddirfd, oldpath, getpid(), getppid(), O_NOFOLLOW);
+    string new_path_normalized = bxl->normalize_path_at(newdirfd, newpath, getpid(), getppid(), O_NOFOLLOW);
 
     mode_t mode = bxl->get_mode(old_path_normalized.c_str());    
     AccessCheckResult check = AccessCheckResult::Invalid();
@@ -1202,6 +1262,7 @@ static AccessCheckResult handle_renameat(BxlObserver *bxl, int olddirfd, const c
                     /* system_call */   __func__,
                     /* event_type */    buildxl::linux::EventType::kUnlink,
                     /* pid */           getpid(),
+                    /* ppid */          getppid(),
                     /* error */         0,
                     /* src_path */      file_or_directory.c_str());
                 source_event.SetRequiredPathResolution(buildxl::linux::RequiredPathResolution::kResolveNoFollow);
@@ -1227,6 +1288,7 @@ static AccessCheckResult handle_renameat(BxlObserver *bxl, int olddirfd, const c
             /* system_call */   __func__,
             /* event_type */    buildxl::linux::EventType::kUnlink,
             /* pid */           getpid(),
+            /* ppid */          getppid(),
             /* error */         0,
             /* src_path */      old_path_normalized.c_str());
         source_event.SetRequiredPathResolution(buildxl::linux::RequiredPathResolution::kResolveNoFollow);
@@ -1300,9 +1362,10 @@ INTERPOSE(int, link, const char *path1, const char *path2)({
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kLink,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         0,
-        /* src_path */      bxl->normalize_path(path1, O_NOFOLLOW).c_str(),
-        /* dst_path */      bxl->normalize_path(path2, O_NOFOLLOW).c_str());
+        /* src_path */      bxl->normalize_path(path1, getpid(), getppid(), O_NOFOLLOW).c_str(),
+        /* dst_path */      bxl->normalize_path(path2, getpid(), getppid(), O_NOFOLLOW).c_str());
     bxl->CreateAccess(event);
     return bxl->check_fwd_and_report_link(event, ERROR_RETURN_VALUE, path1, path2);
 })
@@ -1312,9 +1375,10 @@ INTERPOSE(int, linkat, int fd1, const char *name1, int fd2, const char *name2, i
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kLink,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         0,
-        /* src_path */      bxl->normalize_path_at(fd1, name1, O_NOFOLLOW).c_str(),
-        /* dst_path */      bxl->normalize_path_at(fd2, name2, O_NOFOLLOW).c_str());
+        /* src_path */      bxl->normalize_path_at(fd1, name1, getpid(), getppid(), O_NOFOLLOW).c_str(),
+        /* dst_path */      bxl->normalize_path_at(fd2, name2, getpid(), getppid(), O_NOFOLLOW).c_str());
     bxl->CreateAccess(event);
     return bxl->check_fwd_and_report_linkat(event, ERROR_RETURN_VALUE, fd1, name1, fd2, name2, flag);
 })
@@ -1329,6 +1393,7 @@ INTERPOSE(int, unlink, const char *path)({
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kUnlink,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         0,
         /* src_path */      path);
     event.SetRequiredPathResolution(buildxl::linux::RequiredPathResolution::kResolveNoFollow);
@@ -1347,6 +1412,7 @@ INTERPOSE(int, unlinkat, int dirfd, const char *path, int flags)({
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kUnlink,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         0,
         /* src_path */      path,
         /* src_fd */        dirfd);
@@ -1364,8 +1430,9 @@ INTERPOSE(int, symlink, const char *target, const char *linkPath)({
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kCreate,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         0,
-        /* src_path */      bxl->normalize_path(linkPath, O_NOFOLLOW).c_str());
+        /* src_path */      bxl->normalize_path(linkPath, getpid(), getppid(), O_NOFOLLOW).c_str());
     event.SetMode(S_IFLNK);
     bxl->CreateAccess(event);
     return bxl->check_fwd_and_report_symlink(event, ERROR_RETURN_VALUE, target, linkPath);
@@ -1376,8 +1443,9 @@ INTERPOSE(int, symlinkat, const char *target, int dirfd, const char *linkPath)({
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kCreate,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         0,
-        /* src_path */      bxl->normalize_path_at(dirfd, linkPath, O_NOFOLLOW).c_str());
+        /* src_path */      bxl->normalize_path_at(dirfd, linkPath, getpid(), getppid(), O_NOFOLLOW).c_str());
     event.SetMode(S_IFLNK);
     bxl->CreateAccess(event);
     return bxl->check_fwd_and_report_symlinkat(event, ERROR_RETURN_VALUE, target, dirfd, linkPath);
@@ -1405,6 +1473,7 @@ INTERPOSE_SOMETIMES(
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kReadLink,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         0,
         /* src_path */      path);
     event.SetRequiredPathResolution(buildxl::linux::RequiredPathResolution::kResolveNoFollow);
@@ -1417,6 +1486,7 @@ INTERPOSE(ssize_t, readlinkat, int fd, const char *path, char *buf, size_t bufsi
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kReadLink,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         0,
         /* src_path */      path,
         /* src_fd */        fd);
@@ -1455,6 +1525,7 @@ INTERPOSE(char *, realpath, const char *path, char *resolved_path)({
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kGenericProbe,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         0,
         /* src_path */      path);
     event.SetRequiredPathResolution(buildxl::linux::RequiredPathResolution::kResolveNoFollow);
@@ -1465,7 +1536,7 @@ INTERPOSE(char *, realpath, const char *path, char *resolved_path)({
         // realpath returned an error, but the original path is not null
         // Let's try to report the intermediate symlinks anyway ourselves, because
         // technically they could have been probed before any failure.
-        bxl->report_intermediate_symlinks(path, getpid());
+        bxl->report_intermediate_symlinks(path, getpid(), getppid());
         return result;
     }
 
@@ -1474,7 +1545,7 @@ INTERPOSE(char *, realpath, const char *path, char *resolved_path)({
     if (strcmp(path, result) != 0)
     {
         BXL_LOG_DEBUG(bxl, "[realpath] Resolving intermediate symlinks for '%s'", path);
-        bxl->report_intermediate_symlinks(path, getpid());
+        bxl->report_intermediate_symlinks(path, getpid(), getppid());
 
         // Report a probe on the returned path, as the success of this function
         // indicates to the caller that the path exists. 
@@ -1482,6 +1553,7 @@ INTERPOSE(char *, realpath, const char *path, char *resolved_path)({
             /* system_call */   __func__,
             /* event_type */    buildxl::linux::EventType::kGenericProbe,
             /* pid */           getpid(),
+            /* ppid */          getppid(),
             /* error */         0,
             /* src_path */      result);
         bxl->CreateAndReportAccess(event);
@@ -1499,6 +1571,7 @@ INTERPOSE(DIR*, opendir, const char *name)({
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kGenericProbe,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         0,
         /* src_path */      name);
     bxl->CreateAccess(event);
@@ -1512,6 +1585,7 @@ INTERPOSE(DIR*, fdopendir, int fd)({
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kGenericProbe,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         0,
         /* src_fd */        fd);
     bxl->CreateAccess(event);
@@ -1523,6 +1597,7 @@ INTERPOSE(int, utime, const char *filename, const struct utimbuf *times)({
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kGenericWrite,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         0,
         /* src_path */      filename);
     bxl->CreateAccess(event);
@@ -1534,6 +1609,7 @@ INTERPOSE(int, utimes, const char *filename, const struct timeval times[2])({
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kGenericWrite,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         0,
         /* src_path */      filename);
     bxl->CreateAccess(event);
@@ -1545,6 +1621,7 @@ INTERPOSE(int, utimensat, int dirfd, const char *pathname, const struct timespec
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kGenericWrite,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         0,
         /* src_path */      pathname,
         /* src_fd */        dirfd);
@@ -1557,6 +1634,7 @@ INTERPOSE(int, futimens, int fd, const struct timespec times[2])({
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kGenericWrite,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         0,
         /* src_fd */        fd);
     bxl->CreateAccess(event);
@@ -1568,6 +1646,7 @@ INTERPOSE(int, futimesat, int dirfd, const char *pathname, const struct timeval 
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kGenericWrite,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         0,
         /* src_path */      pathname,
         /* src_fd */        dirfd);
@@ -1581,8 +1660,9 @@ static buildxl::linux::SandboxEvent ReportCreate(const char *syscall, BxlObserve
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kCreate,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         0,
-        /* src_path */      bxl->normalize_path_at(dirfd, pathname).c_str());
+        /* src_path */      bxl->normalize_path_at(dirfd, pathname, getpid(), getppid()).c_str());
     event.SetMode(mode);
     bxl->CreateAccess(event, checkCache);
 
@@ -1640,6 +1720,7 @@ INTERPOSE(int, vprintf, const char *fmt, va_list args)({
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kGenericWrite,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         0,
         /* src_fd */        1);
     bxl->CreateAccess(event);
@@ -1658,6 +1739,7 @@ INTERPOSE(int, vfprintf, FILE *f, const char *fmt, va_list args)({
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kGenericWrite,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         0,
         /* src_fd */        stream_fd);
     bxl->CreateAccess(event);
@@ -1669,6 +1751,7 @@ INTERPOSE(int, vdprintf, int fd, const char *fmt, va_list args)({
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kGenericWrite,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         0,
         /* src_fd */        fd);
     bxl->CreateAccess(event);
@@ -1704,6 +1787,7 @@ INTERPOSE(int, chmod, const char *pathname, mode_t mode)({
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kGenericWrite,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         0,
         /* src_path */      pathname);
     bxl->CreateAccess(event);
@@ -1715,6 +1799,7 @@ INTERPOSE(int, fchmod, int fd, mode_t mode)({
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kGenericWrite,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         0,
         /* src_fd */        fd);
     bxl->CreateAccess(event);
@@ -1726,6 +1811,7 @@ INTERPOSE(int, fchmodat, int dirfd, const char *pathname, mode_t mode, int flags
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kGenericWrite,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         0,
         /* src_path */      pathname,
         /* src_fd */        dirfd);
@@ -1758,6 +1844,7 @@ INTERPOSE(int, chown, const char *pathname, uid_t owner, gid_t group)({
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kGenericWrite,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         0,
         /* src_path */      pathname);
     bxl->CreateAccess(event);
@@ -1769,6 +1856,7 @@ INTERPOSE(int, fchown, int fd, uid_t owner, gid_t group)({
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kGenericWrite,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         0,
         /* src_fd */        fd);
     bxl->CreateAccess(event);
@@ -1780,6 +1868,7 @@ INTERPOSE(int, lchown, const char *pathname, uid_t owner, gid_t group)({
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kGenericWrite,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         0,
         /* src_path */      pathname);
     event.SetRequiredPathResolution(buildxl::linux::RequiredPathResolution::kResolveNoFollow);
@@ -1796,6 +1885,7 @@ INTERPOSE(int, fchownat, int dirfd, const char *pathname, uid_t owner, gid_t gro
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kGenericWrite,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         0,
         /* src_path */      pathname,
         /* src_fd */        dirfd);
@@ -1812,6 +1902,7 @@ INTERPOSE(ssize_t, sendfile, int out_fd, int in_fd, off_t *offset, size_t count)
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kGenericWrite,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         0,
         /* src_fd */        out_fd);
     bxl->CreateAccess(event);
@@ -1827,6 +1918,7 @@ INTERPOSE(ssize_t, copy_file_range, int fd_in, loff_t *off_in, int fd_out, loff_
         /* system_call */   __func__,
         /* event_type */    buildxl::linux::EventType::kGenericWrite,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         0,
         /* src_fd */        fd_out);
     bxl->CreateAccess(event);
@@ -1916,7 +2008,7 @@ exit:
 
 INTERPOSE(int, name_to_handle_at, int dirfd, const char *pathname, struct file_handle *handle, int *mount_id, int flags)({
     int oflags = (flags & AT_SYMLINK_FOLLOW) ? 0 : O_NOFOLLOW;
-    string pathStr = bxl->normalize_path_at(dirfd, pathname, oflags);
+    string pathStr = bxl->normalize_path_at(dirfd, pathname, getpid(), getppid(), oflags);
     auto event = CreateFileOpen(bxl, pathStr, oflags);
 
     return ret_fd(bxl->check_fwd_and_report_name_to_handle_at(event, ERROR_RETURN_VALUE, dirfd, pathname, handle, mount_id, flags), bxl);
@@ -1965,7 +2057,7 @@ INTERPOSE(int, dup3, int oldfd, int newfd, int flags)({
 
 static void report_exit(int exitCode, void *args)
 {
-    BxlObserver::GetInstance()->SendExitReport();
+    BxlObserver::GetInstance()->SendExitReport(getpid(), getppid());
 }
 
 // invoked by the loader when our shared library is dynamically loaded into a new host process
@@ -1977,7 +2069,7 @@ void __attribute__ ((constructor)) _bxl_linux_sandbox_init(void)
     BxlObserver::GetInstance()->Init();
 
     // Report that a new process has been created
-    auto fork_event = buildxl::linux::SandboxEvent::ForkSandboxEvent(
+    auto fork_event = buildxl::linux::SandboxEvent::CloneSandboxEvent(
         /* system_call */   "__init__fork",
         /* pid */           getpid(),
         /* ppid */          getppid(),
@@ -1988,6 +2080,7 @@ void __attribute__ ((constructor)) _bxl_linux_sandbox_init(void)
     auto event = buildxl::linux::SandboxEvent::ExecSandboxEvent(
         /* system_call */   "__init__exec",
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* src_path */      BxlObserver::GetInstance()->GetProgramPath(),
         /* command_line */  BxlObserver::GetInstance()->GetProcessCommandLine(getpid()));
 

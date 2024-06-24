@@ -49,7 +49,7 @@ AccessCheckResult AccessChecker::GetAccessCheckAndSetProperties(const buildxl::c
 AccessCheckResult AccessChecker::CheckAccessAndGetReport(const buildxl::common::FileAccessManifest *fam, buildxl::linux::SandboxEvent &event) {
     switch (event.GetEventType())
     {
-        case buildxl::linux::EventType::kProcess:
+        case buildxl::linux::EventType::kClone:
             return HandleProcessCreate(fam, event);
         case buildxl::linux::EventType::kExec:
             return HandleProcessExec(fam, event);

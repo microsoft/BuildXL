@@ -67,7 +67,7 @@ public class GrpcCoreServerHost : IGrpcServerHost<GrpcCoreServerHostConfiguratio
                         }
                         else
                         {
-                            Tracer.Error(context, message: "Failed to get SSL Credentials. Not creating encrypted Grpc channel.");
+                            Tracer.Warning(context, message: "Failed to get SSL Credentials. Not creating encrypted Grpc channel.");
                             if (configuration.GrpcPort is null)
                             {
                                 throw new InvalidOperationException("Failed to get SSL credentials for establishing gRPC server. There is no unencrypted port for this, so the service can't be started up.");
@@ -76,7 +76,7 @@ public class GrpcCoreServerHost : IGrpcServerHost<GrpcCoreServerHostConfiguratio
                     }
                     catch (Exception ex)
                     {
-                        Tracer.Error(context, ex, "Creating SSL Secured Grpc Channel Failed.");
+                        Tracer.Warning(context, ex, "Creating SSL Secured Grpc Channel Failed.");
                         if (configuration.GrpcPort is null)
                         {
                             throw;
@@ -136,13 +136,13 @@ public class GrpcCoreServerHost : IGrpcServerHost<GrpcCoreServerHostConfiguratio
             }
             else
             {
-                Tracer.Error(context, message: $"Failed to get gRPC SSL credentials: {keyCertPairResult}");
+                Tracer.Warning(context, message: $"Failed to get gRPC SSL credentials: {keyCertPairResult}");
                 return null;
             }
         }
         catch (Exception ex)
         {
-            Tracer.Error(context, ex, message: $"Failed to get gRPC SSL credentials");
+            Tracer.Warning(context, ex, message: $"Failed to get gRPC SSL credentials");
             return null;
         }
     }

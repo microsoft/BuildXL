@@ -1,7 +1,5 @@
 # Pipeline to serve as canary test for 1ESPipelines.
 # This pipeline exercises the Unofficial template with the BuildXL workflow, running a distributed linux build
-variables:
-  Codeql.Enabled: false
 trigger: none  # Explicitly scheduled
 parameters:
 - name: type
@@ -26,6 +24,10 @@ extends:
         name: Windows-SDL-Agents
         image: Windows-SDL-Image
         os: windows
+      codeql:
+        compiled:
+          enabled: false
+          justificationForDisabling: 'CodeQL would not be effective on this pipeline because builds are incremental and distributed. We have a dedicated pipeline for CodeQL.'
 
     stages:
     - stage: Linux

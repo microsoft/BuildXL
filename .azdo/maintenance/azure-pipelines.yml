@@ -14,6 +14,9 @@ resources:
       name: CloudBuild
 
 variables:
+  # We have a separate pipeline that runs clean builds to get full CodeQL coverage.
+  - name: Codeql.Enabled
+    value: "false"
   # CodeQL scans for Cloudbuild repo should be performed elsewhere.
   # CB repo is checked out into $(Build.SourcesDirectory)/CloudBuild. CodeQL is using $(Build.SourcesDirectory) as a source root.
   # Add the top-level directory to the exclude list to exclude the whole CloudBuild repo.

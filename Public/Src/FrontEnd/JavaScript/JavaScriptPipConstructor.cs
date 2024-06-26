@@ -20,6 +20,7 @@ using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using static BuildXL.Utilities.Core.FormattableStringEx;
+using BuildXL.Utilities.Core.Tasks;
 
 namespace BuildXL.FrontEnd.JavaScript
 {
@@ -56,7 +57,10 @@ namespace BuildXL.FrontEnd.JavaScript
 
         private readonly ConcurrentBigMap<(JavaScriptProject, QualifierId), PipConstructionHelper> m_pipConstructionHelperPerProject = new ConcurrentBigMap<(JavaScriptProject, QualifierId), PipConstructionHelper>();
 
-        private readonly ConcurrentBigSet<AbsolutePath> m_specFilePips = new ConcurrentBigSet<AbsolutePath>();
+        /// <summary>
+        /// Used as a set. ConcurrentBigMap has a useful add factory (which the ConcurrentBigSet does not).
+        /// </summary>
+        private readonly ConcurrentBigMap<AbsolutePath, Unit> m_specFilePips = new ConcurrentBigMap<AbsolutePath, Unit>();
 
         /// <summary>
         /// Base directory where all logs are located
@@ -579,15 +583,15 @@ namespace BuildXL.FrontEnd.JavaScript
 
             // We shouldn't be adding the same spec file pip to the pip graph.
             // This can happen if the same package root is defined for multiple packages, or if different qualifiers apply to the same package.
-            var result = m_specFilePips.GetOrAdd(pathToProject);
-            if (!result.IsFound)
-            {
-                m_frontEndHost.PipGraph?.AddSpecFile(
-                    new SpecFilePip(
-                        FileArtifact.CreateSourceFile(pathToProject),
-                        new LocationData(pathToProject, 0, 0),
-                        m_moduleDefinition.Descriptor.Id));
-            }
+            m_specFilePips.GetOrAdd(pathToProject, Unit.Void, 
+                addValueFactory: (pathToProject, unit) => {
+                    m_frontEndHost.PipGraph?.AddSpecFile(
+                        new SpecFilePip(
+                            FileArtifact.CreateSourceFile(pathToProject),
+                            new LocationData(pathToProject, 0, 0),
+                            m_moduleDefinition.Descriptor.Id));
+                    return unit;
+                });
 
             Root.TryGetRelative(PathTable, pathToProject, out var specRelativePath);
             if (!PathAtom.TryCreate(m_context.StringTable, m_moduleDefinition.Descriptor.Name, out _))

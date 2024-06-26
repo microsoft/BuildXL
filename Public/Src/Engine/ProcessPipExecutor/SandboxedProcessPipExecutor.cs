@@ -3947,6 +3947,8 @@ namespace BuildXL.ProcessPipExecutor
 
             Dictionary<AbsolutePath, CompactSet<ReportedFileAccess>> accessesByPath = accessesByPathWrapper.Instance;
             var excludedToolsAndPaths = new HashSet<(AbsolutePath, AbsolutePath)>();
+            using var createdDirectoriesMutableWrapper = Pools.GetAbsolutePathSet();
+            var createdDirectoriesMutable = createdDirectoriesMutableWrapper.Instance;
 
             foreach (ReportedFileAccess reported in result.ExplicitlyReportedFileAccesses.Concat(GetEnumeratedFileAccessesForIncrementalTool(result)))
             {
@@ -3998,6 +4000,29 @@ namespace BuildXL.ProcessPipExecutor
                     }
                 }
 
+                // We want to know if a directory was created by this pip. This means the create directory operation succeeded, but also that this directory was not deleted before by the build.
+                // Directories that fall in this category were already reported in SandboxedProcessReports as report lines get received, so we only add it here if we can already find it. Consider the following cases:
+                // 1) The directory was there before the build started but some other pip deletes it first. Then it will be reported in SandboxedProcessReports as a deleted directory and won't be added as a created one here. So we won't
+                // consider it here as a created directory. This is correct since the directory is not actually created by the build.
+                // 2) Consider now that the pip that deletes the directory in 1) is a cache hit. Removed directories are not reported on cache hit (because a cache replay does not remove them). This means the directory is now present.
+                // And that means the directory cannot be effectively created by this pip (which may introduce a different behavior than the one in 1), but that's a bigger problem to solve). So we won't add it here either.
+                // 3) The directory is removed and re-created by this same pip. In that case it will be reported to the output filesystem as removed and won't be added here. Similarly to 1), this is the right behavior. On cache replay, the directory
+                // will never be removed, and the fact that it is still not considered as a created directory is sound.
+                if (m_pip.AllowUndeclaredSourceReads
+                    && reported.RequestedAccess.HasFlag(RequestedAccess.Write)
+                    && reported.IsDirectoryEffectivelyCreated()
+                    && m_fileSystemView != null // null for some tests
+                    && m_fileSystemView.ExistCreatedDirectoryInOutputFileSystem(parsedPath))
+                {
+                    createdDirectoriesMutable.Add(parsedPath);
+                }
+
+                // We should exclude writes on directory paths from the accesses constructed here, which are supposed to be inputs to the pip
+                // Note the similar logic below with respect to accesses on output files, but in the case of directories we just remove the
+                // write operations while potentially keeping some other ones (like probes) in the observed accesses - this is because typically
+                // the directories are not fully declared as outputs, so we'd rather keep track of 'input' observations on those paths.
+                shouldExclude |= reported.IsDirectoryCreationOrRemoval();
+
                 accessesByPath.TryGetValue(parsedPath, out CompactSet<ReportedFileAccess> existingAccessesToPath);
                 accessesByPath[parsedPath] = !shouldExclude ? existingAccessesToPath.Add(reported) : existingAccessesToPath;
             }
@@ -4023,10 +4048,8 @@ namespace BuildXL.ProcessPipExecutor
             using var excludedPathsWrapper = Pools.GetAbsolutePathSet();
             using var maybeUnresolvedAbsentAccessessWrapper = Pools.GetAbsolutePathSet();
             using var fileExistenceDenialsWrapper = Pools.GetAbsolutePathSet();
-            using var createdDirectoriesMutableWrapper = Pools.GetAbsolutePathSet();
 
             var fileExistenceDenials = fileExistenceDenialsWrapper.Instance;
-            var createdDirectoriesMutable = createdDirectoriesMutableWrapper.Instance;
             var maybeUnresolvedAbsentAccesses = maybeUnresolvedAbsentAccessessWrapper.Instance;
 
             // Initializes all shared directories in the pip with no accesses
@@ -4097,22 +4120,6 @@ namespace BuildXL.ProcessPipExecutor
                         access.RequestedAccess.HasFlag(RequestedAccess.Write)
                         && !access.FlagsAndAttributes.HasFlag(FlagsAndAttributes.FILE_ATTRIBUTE_DIRECTORY)
                         && !access.IsDirectoryCreationOrRemoval();
-
-                    // We want to know if a directory was created by this pip. This means the create directory operation succeeded, but also that this directory was not deleted before by the build.
-                    // Directories that fall in this category were already reported in SandboxedProcessReports as report lines get received, so we only add it here if we can already find it. Consider the following cases:
-                    // 1) The directory was there before the build started but some other pip deletes it first. Then it will be reported in SandboxedProcessReports as a deleted directory and won't be added as a created one here. So we won't
-                    // consider it here as a created directory. This is correct since the directory is not actually created by the build.
-                    // 2) Consider now that the pip that deletes the directory in 1) is a cache hit. Removed directories are not reported on cache hit (because a cache replay does not remove them). This means the directory is now present.
-                    // And that means the directory cannot be effectively created by this pip (which may introduce a different behavior than the one in 1), but that's a bigger problem to solve). So we won't add it here either.
-                    // 3) The directory is removed and re-created by this same pip. In that case it will be reported to the output filesystem as removed and won't be added here. Similarly to 1), this is the right behavior. On cache replay, the directory
-                    // will never be removed, and the fact that it is still not considered as a created directory is sound.
-                    if (m_pip.AllowUndeclaredSourceReads
-                        && access.RequestedAccess.HasFlag(RequestedAccess.Write)
-                        && access.IsDirectoryEffectivelyCreated()
-                        && m_fileSystemView.ExistCreatedDirectoryInOutputFileSystem(entry.Key))
-                    {
-                        createdDirectoriesMutable.Add(entry.Key);
-                    }
 
                     // If the access is a shared opaque candidate and it was denied based on file existence, keep track of it
                     if (isPathCandidateToBeOwnedByASharedOpaque && access.Method == FileAccessStatusMethod.FileExistenceBased && access.Status == FileAccessStatus.Denied)

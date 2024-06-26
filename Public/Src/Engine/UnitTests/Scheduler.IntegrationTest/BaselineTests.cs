@@ -1330,6 +1330,46 @@ namespace IntegrationTest.BuildXL.Scheduler
             result.AssertObservation(pip.PipId, new ObservedPathEntry(sealDirectoryPath, false, true, true, RegexDirectoryMembershipFilter.AllowAllRegex, false));
         }
 
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void DirectoryWritesNotReportedAsObservations(bool underOpaque)
+        {
+            FileOrDirectoryArtifact dirA;
+            ProcessBuilder pip1;
+            if (underOpaque)
+            {
+                // PipA creates and removes a directory
+                var sharedOpaqueDir = Path.Combine(ObjectRoot, "partialDir");
+                var sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
+                dirA = CreateOutputFileArtifact(sharedOpaqueDir);
+                pip1 = CreatePipBuilder(new Operation[]
+                                                       {
+                                                       Operation.CreateDir(dirA, doNotInfer: true),
+                                                       Operation.DeleteDir(dirA, doNotInfer: true),
+                                                       });
+                pip1.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
+            }
+            else
+            {
+                // PipA creates a directory
+                dirA = FileOrDirectoryArtifact.Create(DirectoryArtifact.CreateWithZeroPartialSealId(CreateUniquePath("outputDir", ObjectRoot)));
+                pip1 = CreatePipBuilder(new Operation[]
+                {
+                    Operation.CreateDir(dirA),
+                    Operation.WriteFile(CreateOutputFileArtifact()),
+                });
+            }
+
+            Process pip = SchedulePipBuilder(pip1).Process;
+
+            var result = RunScheduler().AssertSuccess();
+
+            var observations = result.PathSets[pip.PipId];
+            XAssert.IsTrue(observations.HasValue);
+            XAssert.IsFalse(observations.Value.Paths.Any(obs => obs.Path == dirA.Path));
+        }
+
         [Fact]
         public void ValidateCreatingDirectoryRetracksDirectoriesNeededForTrackedChildAbsentPaths()
         {

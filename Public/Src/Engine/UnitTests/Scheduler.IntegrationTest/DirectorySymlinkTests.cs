@@ -18,7 +18,7 @@ using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
-using EngineLogEventId=BuildXL.Engine.Tracing.LogEventId;
+using EngineLogEventId = BuildXL.Engine.Tracing.LogEventId;
 
 namespace IntegrationTest.BuildXL.Scheduler
 {
@@ -277,7 +277,7 @@ Versions/sym-sym-A -> sym-A/
                 .Select(spec => $"{rootDir}/{spec.Trim()}")
                 .Select(spec =>
                     spec.Contains("->") ? OpCreateSym(X(spec), spec.EndsWith("/") ? Operation.SymbolicLinkFlag.DIRECTORY : Operation.SymbolicLinkFlag.FILE) :
-                    spec.EndsWith("/")  ? OpCreateDir(X(spec)) :
+                    spec.EndsWith("/") ? OpCreateDir(X(spec)) :
                                           OpWriteFile(X(spec)));
         }
 
@@ -776,7 +776,7 @@ SubFolder/symlink -> ../../{inputDirName}/";
             RunScheduler().AssertCacheMiss(processWithOutputs.Process.PipId);
         }
 
-        [TheoryIfSupported(requiresSymlinkPermission:true)]
+        [TheoryIfSupported(requiresSymlinkPermission: true)]
         [InlineData(true)]
         [InlineData(false)]
         public void TestDeclaringDirectorySymlinkAsOutputFile(bool declareOutput)
@@ -809,7 +809,7 @@ SubFolder/symlink -> ../../{inputDirName}/";
             }
         }
 
-        [TheoryIfSupported(requiresSymlinkPermission:true)]
+        [TheoryIfSupported(requiresSymlinkPermission: true)]
         [MemberData(nameof(TruthTable.GetTable), 1, MemberType = typeof(TruthTable))]
         public void ProbingDirectorySymlinkUnderOutputDirectoryWithLazyMiminalMaterialization(bool enableLazyMinimalOutputMaterialization)
         {

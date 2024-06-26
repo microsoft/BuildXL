@@ -1104,12 +1104,9 @@ namespace Test.BuildXL.Executables.TestProcess
                 }
             }
 
-            if (FileUtilities.DirectoryExistsNoFollow(PathAsString) || FileUtilities.FileExistsNoFollow(PathAsString))
+            if (failIfExists && (FileUtilities.DirectoryExistsNoFollow(PathAsString) || FileUtilities.FileExistsNoFollow(PathAsString)))
             {
-                if (failIfExists)
-                {
-                    throw new InvalidOperationException($"Directory creation failed because '{PathAsString}' exists");
-                }
+                throw new InvalidOperationException($"Directory creation failed because '{PathAsString}' exists");
             }
 
             if (OperatingSystemHelper.IsUnixOS)

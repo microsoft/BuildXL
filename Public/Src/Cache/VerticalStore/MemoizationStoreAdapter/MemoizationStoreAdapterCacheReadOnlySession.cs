@@ -105,7 +105,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
 
             IsClosed = true;
 
-            var shutdownResult = await ReadOnlyCacheSession.ShutdownAsync(new Context(Logger)).ConfigureAwait(false);
+            var shutdownResult = await ReadOnlyCacheSession.ShutdownAsync(CreateContext(activityId, Logger)).ConfigureAwait(false);
             ReadOnlyCacheSession.Dispose();
             if (!shutdownResult.Succeeded)
             {
@@ -126,7 +126,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                 {
                     try
                     {
-                        var results = await ReadOnlyCacheSession.GetSelectors(new Context(Logger), weak.ToMemoization(), CancellationToken.None).ToListAsync();
+                        var results = await ReadOnlyCacheSession.GetSelectors(CreateContext(activityId, Logger), weak.ToMemoization(), CancellationToken.None).ToListAsync();
                         tcs.SetResult(results);
                         return results.Any() ? results.First().FromMemoization(weak, CacheId) : StrongFingerprintSentinel.Instance;
                     }
@@ -151,7 +151,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         public async Task<Possible<CasEntries, Failure>> GetCacheEntryAsync(StrongFingerprint strong, OperationHints hints, Guid activityId)
         {
             var hashListResult = await ReadOnlyCacheSession.GetContentHashListAsync(
-                new Context(Logger),
+                CreateContext(activityId, Logger),
                 new BuildXL.Cache.MemoizationStore.Interfaces.Sessions.StrongFingerprint(
                     strong.WeakFingerprint.ToMemoization(),
                     new Selector(strong.CasElement.ToMemoization(), strong.HashElement.RawHash.ToByteArray())),
@@ -177,7 +177,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         /// <inheritdoc />
         public async Task<Possible<string, Failure>> PinToCasAsync(CasHash hash, CancellationToken cancellationToken, OperationHints hints, Guid activityId)
         {
-            var result = await ReadOnlyCacheSession.PinAsync(new Context(Logger), hash.ToMemoization(), cancellationToken, hints.Urgency);
+            var result = await ReadOnlyCacheSession.PinAsync(CreateContext(activityId, Logger), hash.ToMemoization(), cancellationToken, hints.Urgency);
             return result.FromMemoization(hash, CacheId);
         }
 
@@ -185,7 +185,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         public async Task<Possible<string, Failure>[]> PinToCasAsync(CasEntries hashes, CancellationToken cancellationToken, OperationHints hints, Guid activityId)
         {
             List<ContentHash> contentHashes = hashes.Select(hash => hash.ToContentHash()).ToList();
-            IEnumerable<Task<Indexed<PinResult>>> resultSet = await ReadOnlyCacheSession.PinAsync(new Context(Logger), contentHashes, cancellationToken);
+            IEnumerable<Task<Indexed<PinResult>>> resultSet = await ReadOnlyCacheSession.PinAsync(CreateContext(activityId, Logger), contentHashes, cancellationToken);
 
             var results = new Possible<string, Failure>[contentHashes.Count];
 
@@ -209,7 +209,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             CancellationToken cancellationToken)
         {
             var result = await ReadOnlyCacheSession.PlaceFileAsync(
-                new Context(Logger),
+                CreateContext(activityId, Logger),
                 hash.ToMemoization(),
                 new BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath(filename),
                 fileState == FileState.ReadOnly ? FileAccessMode.ReadOnly : FileAccessMode.Write,
@@ -238,7 +238,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         [SuppressMessage("Microsoft.Naming", "CA2204:Literals should be spelled correctly")]
         public async Task<Possible<StreamWithLength, Failure>> GetStreamAsync(CasHash hash, OperationHints hints, Guid activityId)
         {
-            var result = await ReadOnlyCacheSession.OpenStreamAsync(new Context(Logger), hash.ToMemoization(), CancellationToken.None);
+            var result = await ReadOnlyCacheSession.OpenStreamAsync(CreateContext(activityId, Logger), hash.ToMemoization(), CancellationToken.None);
             switch (result.Code)
             {
                 case OpenStreamResult.ResultCode.Success:
@@ -260,7 +260,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         /// <inheritdoc />
         public async Task<Possible<CacheSessionStatistics[], Failure>> GetStatisticsAsync(Guid activityId)
         {
-            var cacheStats = await Cache.GetStatsAsync(new Context(activityId.ToString(), Logger)).ConfigureAwait(false);
+            var cacheStats = await Cache.GetStatsAsync(CreateContext(activityId, Logger)).ConfigureAwait(false);
             if (!cacheStats.Succeeded)
             {
                 return new Possible<CacheSessionStatistics[], Failure>(new CacheFailure(cacheStats.ErrorMessage));
@@ -280,6 +280,14 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         {
             // TODO:  Implement content validation/remediation
             return Task.FromResult(new Possible<ValidateContentStatus, Failure>(ValidateContentStatus.NotSupported));
+        }
+
+        /// <summary>
+        /// Creates a new context (optionally using the activity from the async context if <paramref name="activityId"/> is not set)
+        /// </summary>
+        protected static Context CreateContext(Guid activityId, ILogger logger)
+        {
+            return new Context(CacheActivityRegistry.GetOrNewContextActivityId(activityId), logger);
         }
     }
 }

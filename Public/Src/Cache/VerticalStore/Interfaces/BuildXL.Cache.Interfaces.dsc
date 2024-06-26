@@ -21,6 +21,8 @@ namespace Interfaces {
             importFrom("BuildXL.Utilities").Configuration.dll,
             importFrom("BuildXL.Utilities").Utilities.Core.dll,
             importFrom("Newtonsoft.Json").pkg,
+
+            ...BuildXLSdk.systemMemoryDeployment,
         ],
     });
 }

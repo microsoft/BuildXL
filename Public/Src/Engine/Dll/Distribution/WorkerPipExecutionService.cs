@@ -8,6 +8,7 @@ using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.Interfaces;
 using BuildXL.Distribution.Grpc;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Pips;
@@ -167,8 +168,8 @@ namespace BuildXL.Engine.Distribution
                 var pipType = pip.PipType;
                 var step = (PipExecutionStep)pipBuildRequest.Step;
 
-                pipCompletionData.SemiStableHash = m_pipTable.GetPipSemiStableHash(pipId);
-                pipCompletionData.PipType = m_pipTable.GetPipType(pipId);
+                pipCompletionData.SemiStableHash = pip.SemiStableHash;
+                pipCompletionData.PipType = pip.PipType;
 
                 // To preserve the path set casing is an option only available for process pips
                 pipCompletionData.PreservePathSetCasing = pip.PipType == PipType.Process && ((Process)pip).PreservePathSetCasing;
@@ -181,7 +182,7 @@ namespace BuildXL.Engine.Distribution
                 try
                 {
                     using (var operationContext = m_operationTracker.StartOperation(PipExecutorCounter.WorkerServiceHandlePipStepDuration, pipId, pipType, LoggingContext))
-                    using (operationContext.StartOperation(step))
+                    using (operationContext.StartOperation(step, pip))
                     {
                         if (step == PipExecutionStep.MaterializeOutputs && Config.Distribution.FireForgetMaterializeOutput())
                         {

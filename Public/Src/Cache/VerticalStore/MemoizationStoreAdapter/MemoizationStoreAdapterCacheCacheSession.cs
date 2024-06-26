@@ -81,7 +81,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             if (hash.HasValue)
             {
                 result = await CacheSession.PutFileAsync(
-                    new Context(Logger),
+                    CreateContext(activityId, Logger),
                     hash.Value.ToContentHash(),
                     new BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath(filename),
                     fileState.ToMemoization(),
@@ -91,7 +91,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             else
             {
                 result = await CacheSession.PutFileAsync(
-                    new Context(Logger),
+                    CreateContext(activityId, Logger),
                     ContentHashingUtilities.HashInfo.HashType,
                     new BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath(filename),
                     fileState.ToMemoization(),
@@ -125,11 +125,11 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             PutResult result;
             if (hash.HasValue)
             {
-                result = await CacheSession.PutStreamAsync(new Context(Logger), hash.Value.ToContentHash(), filestream, CancellationToken.None, urgencyHint);
+                result = await CacheSession.PutStreamAsync(CreateContext(activityId, Logger), hash.Value.ToContentHash(), filestream, CancellationToken.None, urgencyHint);
             }
             else
             {
-                result = await CacheSession.PutStreamAsync(new Context(Logger), ContentHashingUtilities.HashInfo.HashType, filestream, CancellationToken.None, urgencyHint);
+                result = await CacheSession.PutStreamAsync(CreateContext(activityId, Logger), ContentHashingUtilities.HashInfo.HashType, filestream, CancellationToken.None, urgencyHint);
             }
 
             if (result.Succeeded)
@@ -152,7 +152,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         public async Task<Possible<FullCacheRecordWithDeterminism, Failure>> AddOrGetAsync(WeakFingerprintHash weak, CasHash casElement, Hash hashElement, CasEntries hashes, UrgencyHint urgencyHint, Guid activityId)
         {
             var addResult = await CacheSession.AddOrGetContentHashListAsync(
-                new Context(Logger),
+                CreateContext(activityId, Logger),
                 new BuildXL.Cache.MemoizationStore.Interfaces.Sessions.StrongFingerprint(
                     weak.ToMemoization(),
                     new Selector(casElement.ToMemoization(), hashElement.RawHash.ToByteArray())),
@@ -200,7 +200,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
 
             BoolResult incorporateResult =
                 await CacheSession.IncorporateStrongFingerprintsAsync(
-                    new Context(Logger),
+                    CreateContext(activityId, Logger),
                     sfpList.Select(sfp => Task.FromResult(new BuildXL.Cache.MemoizationStore.Interfaces.Sessions.StrongFingerprint(
                         sfp.WeakFingerprint.ToMemoization(),
                         new Selector(sfp.CasElement.ToMemoization(), sfp.HashElement.RawHash.ToByteArray())))),

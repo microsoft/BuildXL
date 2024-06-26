@@ -3,7 +3,12 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
+using System.Linq;
+using BuildXL.Cache.Interfaces;
+using BuildXL.Pips.Operations;
+using BuildXL.Pips;
 using BuildXL.Utilities.Core;
+using BuildXL.Utilities.Serialization;
 
 #pragma warning disable SA1649 // File name must match first type name
 
@@ -390,6 +395,85 @@ namespace BuildXL.Scheduler
                 default:
                     throw Contract.AssertFailure("Invalid step:" + fromStep);
             }
+        }
+
+        /// <summary>
+        /// Registers cache activity id for pip step
+        /// </summary>
+        internal static CacheActivityRegistry.Registration RegisterPipStepCacheActivity(this PipExecutionStep step, PipSemitableHash hash)
+        {
+            return CacheActivityRegistry.Register(step.GenerateOperationId(hash));
+        }
+
+        /// <summary>
+        /// <para>
+        /// Generate an operation id with pip semistable hash and execution step code as prefix
+        /// </para>
+        /// <para>
+        /// Visual aid:
+        ///                       .. top bit is set to indicate operation id is 'rooted' (<see cref="CacheActivityRegistry.CreateNewId(Guid)"/>
+        ///                       vv--pip execution step code (<see cref="AsCode"/>) (length = 1 byte) 
+        ///   {00000000-0000-0000-80XX-XXXXXXXXXXXX}
+        ///    ^^^^^^^^-^^^^-^^^^--pip semistable hash (length = 8 bytes)
+        /// </para>
+        /// </summary>
+        internal static Guid GenerateOperationId(this PipExecutionStep step, PipSemitableHash hash)
+        {
+            var guid = Guid.NewGuid();
+            var guidString = guid.ToString("N");
+
+            var hashHex = hash.ToHex();
+            var guidSuffix = guidString.AsSpan().Slice(0, guidString.Length - (hashHex.Length + 2)).AsFormattable();
+
+            guidString = $"{hashHex}{step.AsCode():X2}{guidSuffix}";
+            Contract.Assert(guidString.Length == 32, $"Generated operation id '{guidString}' should be 32 characters");
+
+            var result = Guid.Parse(guidString);
+            CacheActivityRegistry.MarkRooted(ref result);
+            return result;
+        }
+
+        /// <summary>
+        /// Returns a stable single byte code uniquely identifying the pip execution step.
+        /// NOTE: This is different from just using the integral value for step as it may shift
+        /// if new steps are added.
+        /// <see cref="GenerateOperationId"/> for usage.
+        /// </summary>
+        public static byte AsCode(this PipExecutionStep step)
+        {
+            // Step code sets first bit. This ensures code matches
+            // when propagated cache ids marked with root bit (cache activity ids
+            // are only propagated if a specific byte has its highest bit set and other
+            // bytes are already reserved so we set the result of this method as that byte
+            // and ensure top byte is set)
+            // This isn't explicitly necessary just helpful for diagnostics.
+            return step switch
+            {
+                // Steps which should never have associated cache operations (by convention
+                // this start is hex '8'. NOTE: This has no functional side effects.)
+                PipExecutionStep.None => 0x80,
+                PipExecutionStep.Start => 0x81,
+                PipExecutionStep.Cancel => 0x82,
+                PipExecutionStep.Skip => 0x83,
+                PipExecutionStep.Done => 0x84,
+
+                // Steps which might have associated cache operations currently or in future (by convention
+                // this start is hex 'C'. NOTE: This has no functional side effects.)
+                PipExecutionStep.CheckIncrementalSkip => 0xC0,
+                PipExecutionStep.MaterializeInputs => 0xC1,
+                PipExecutionStep.MaterializeOutputs => 0xC2,
+                PipExecutionStep.ExecuteNonProcessPip => 0xC3,
+                PipExecutionStep.CacheLookup => 0xC4,
+                PipExecutionStep.RunFromCache => 0xC5,
+                PipExecutionStep.ExecuteProcess => 0xC6,
+                PipExecutionStep.PostProcess => 0xC7,
+                PipExecutionStep.HandleResult => 0xC8,
+                PipExecutionStep.ChooseWorkerCpu => 0xC9,
+                PipExecutionStep.ChooseWorkerCacheLookup => 0xCA,
+                PipExecutionStep.DelayedCacheLookup => 0xCB,
+                PipExecutionStep.ChooseWorkerIpc => 0xCC,
+                _ => throw new NotImplementedException("Unknown PipExecutionStep type: " + step)
+            };
         }
 
         /// <summary>

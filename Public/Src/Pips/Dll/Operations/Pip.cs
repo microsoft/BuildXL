@@ -124,31 +124,14 @@ namespace BuildXL.Pips.Operations
         /// Keep in sync with <see cref="s_formattedSemiStableHashRegex"/> and <see cref="TryParseSemiStableHash(string, out long)"/>
         /// CODESYNC: Make sure to update 'GetStdInFilePath' in 'SandboxedProcessUnix.cs' when this logic changes!!!
         /// </remarks>
-        public static string FormatSemiStableHash(long hash) => I($"{SemiStableHashPrefix}{hash:X16}");
+        public static string FormatSemiStableHash(long hash) => PipSemitableHash.Format(hash, includePrefix: true);
 
         /// <summary>
         /// Inverse of <see cref="FormatSemiStableHash"/>
         /// </summary>
         public static bool TryParseSemiStableHash(string formattedSemiStableHash, out long hash)
         {
-            if (!formattedSemiStableHash.StartsWith(SemiStableHashPrefix))
-            {
-                hash = -1;
-                return false;
-            }
-
-            try
-            {
-                hash = Convert.ToInt64(formattedSemiStableHash.Substring(SemiStableHashPrefix.Length), 16);
-                return true;
-            }
-            catch
-            {
-                hash = -1;
-#pragma warning disable ERP022 // Unobserved exception in generic exception handler
-                return false;
-#pragma warning restore ERP022 // Unobserved exception in generic exception handler
-            }
+            return PipSemitableHash.TryParseSemiStableHash(formattedSemiStableHash, out hash);
         }
 
         /// <summary>

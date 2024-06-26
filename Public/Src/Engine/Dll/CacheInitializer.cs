@@ -236,7 +236,8 @@ namespace BuildXL.Engine
             Contract.Requires(cache != null);
             Contract.Requires(session != null);
             m_cache = cache;
-            m_session = session;
+            // Wrap to ensure cache activity id is populated
+            m_session = new RegisteredCacheActivityCacheSession(session);
             m_rootTranslator = rootTranslator;
             m_initialStatistics = GetCacheBulkStatistics(session);
             m_replaceExistingFileOnMaterialization = replaceExistingFileOnMaterialization;

@@ -3,6 +3,8 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
+using BuildXL.Cache.Interfaces;
+using BuildXL.Pips;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
@@ -33,6 +35,11 @@ namespace BuildXL.Scheduler
         private readonly OperationTracker.Operation? m_operation;
 
         /// <summary>
+        /// The scope for an associated cache activity
+        /// </summary>
+        private readonly CacheActivityRegistry.Registration m_registration;
+
+        /// <summary>
         /// Gets the duration of the operation
         /// </summary>
         public TimeSpan? Duration => m_operation?.Duration;
@@ -49,12 +56,30 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Creates a new operation context
         /// </summary>
-        internal OperationContext(LoggingContext loggingContext, OperationTracker.Operation? operation)
+        internal OperationContext(LoggingContext loggingContext, OperationTracker.Operation? operation, CacheActivityRegistry.Registration registration = default)
         {
             Contract.Requires(loggingContext != null);
 
             LoggingContext = loggingContext;
             m_operation = operation;
+            m_registration = registration;
+        }
+
+        /// <summary>
+        /// Starts a new pip step operation (optionally as a new operation thread)
+        /// </summary>
+        public OperationContext StartOperation(PipExecutionStep step, PipSemitableHash hash)
+        {
+            var operation = Thread?.StartNestedOperation(step, default, default);
+            return new OperationContext(LoggingContext, operation, step.RegisterPipStepCacheActivity(hash));
+        }
+
+        /// <summary>
+        /// This method is added to ensure StartOperation with PipExecutionStep is always called with PipSemistableHash
+        /// </summary>
+        [Obsolete("Call StartOperation(PipExecutionStep, PipSemistableHash) instead.")]
+        public void StartOperation(PipExecutionStep step, in FileOrDirectoryArtifact artifact = default(FileOrDirectoryArtifact), string? details = null)
+        {
         }
 
         /// <summary>
@@ -95,6 +120,7 @@ namespace BuildXL.Scheduler
         /// </summary>
         public void Dispose()
         {
+            m_registration.Dispose();
             m_operation?.Complete();
         }
 

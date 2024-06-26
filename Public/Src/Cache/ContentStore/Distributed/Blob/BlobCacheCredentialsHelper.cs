@@ -96,6 +96,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blob
         /// </summary>
         /// <remarks>
         /// This code is also used in CloudBuild to support this same exact format.
+        /// CODESYNC: https://mseng.visualstudio.com/Domino/_git/CloudBuild?path=/private/Common/CloudBuild.Common.BxlUtils/src/BxlUtils.cs
         /// </remarks>
         public static Dictionary<BlobCacheStorageAccountName, IAzureStorageCredentials> ParseFromFileFormat(string credentials)
         {

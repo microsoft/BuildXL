@@ -16,7 +16,7 @@ The following commands compile the codebase in debug mode:
 
 Lower level filter for compiling a specific qualifier:
 * `.\bxl "/f:tag='targetFramework=net472'" /q:Release` to compile targeting net472 in Release mode.
-* `.\bxl "/f:tag='targetRuntime=win-x64'"` an alternative way to compile everyting targeting Windows OS.
+* `.\bxl "/f:tag='targetRuntime=win-x64'"` an alternative way to compile everything targeting Windows OS.
 * `.\bxl "/f:(tag='targetFramework=netcoreapp3.1')and(tag='targetRuntime=win-x64') -Use Dev"` to only target netcore app for Windows.
 
 ### How to run a single unit test?

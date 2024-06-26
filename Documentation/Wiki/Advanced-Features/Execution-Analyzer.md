@@ -7,7 +7,7 @@ bxlAnalayzer.exe is a tool that lives next to bxl.exe. It can provide analysis o
 The analyzer works on both on Windows and macOS (unless otherwise specified). For macOS, remove the ".exe" extension from the examples and correct the paths.
 
 ## Specifying inputs
-Most analysis modes require a pointer to an execution log from a prior BuildXL build session. This can either be specified on the command line with `/xl:[PathTo.xlg file]` or the analyzer will find the log of the last BuildXL sesison run if left blank. See the analyzer help text for more details
+Most analysis modes require a pointer to an execution log from a prior BuildXL build session. This can either be specified on the command line with `/xl:[PathTo.xlg file]` or the analyzer will find the log of the last BuildXL session run if left blank. See the analyzer help text for more details
 
 # Analysis modes
 The analyzer application has many different modes added by the BuildXL team as part of the core product as well as other consumers of BuildXL. See the help text for a full listing of the various analyzer modes: `bxlanalyzer.exe /help`. Specify the mode using the `/m:` option.

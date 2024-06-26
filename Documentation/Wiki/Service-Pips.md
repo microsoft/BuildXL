@@ -5,7 +5,7 @@
 BuildXL is a build system that manages build tasks at the process (or _pip_ for short) level.  BuildXL "expects" every process to be _short-lived_, _atomic_, and _well-defined_ (SLAWD), meaning:
 
   - _short-lived_: the process performs a single (conceptual) operation and terminates;
-  - _atomic_: once started, neither can the process receive any new commands, nor can its outputs be accessed by any of its dependants before it terminates;
+  - _atomic_: once started, neither can the process receive any new commands, nor can its outputs be accessed by any of its dependents before it terminates;
   - _well-defined_: process inputs and outputs are all statically known and fully specified.
 
 Furthermore, BuildXL enforces that the runtime behavior of each process adheres to its input/output specification.  This makes it difficult (or even impossible) to spawn and use *background* processes in a concrete build, i.e., any process that does not fit the definition above.  Both Unix daemons and Windows Services fall into this category, but any resident process may apply too.
@@ -235,7 +235,7 @@ function uploadDrop() {
 
 * Service pips should not be cached. A service starts only if some pip which requires the service needs to execute (cache miss).
 
-* Sercice pips may choose on their own accord to skip work. In the drop example described above the `dropd.exe` service pip makes sure the external service is aware of the output file but it will avoid uploading content when the remote system already has the content.
+* Service pips may choose on their own accord to skip work. In the drop example described above the `dropd.exe` service pip makes sure the external service is aware of the output file but it will avoid uploading content when the remote system already has the content.
 
 ### Sandbox Considerations
 

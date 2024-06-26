@@ -92,4 +92,4 @@ The arrows represent the data-flow.  Pip-Cons only reads `d.cpp` and `a.h` it do
 
 Note that we also track “directory enumeration” in BuildXL that might cause a pip to rerun. I.e. if we observe a process doing the equivalent of `dir`/`ls` we record this as well. If a new file is introduced between builds we will rerun the pip. Now there are some policies that we allow to be configured on a per-tool basis to restrict and not go crazy but in short you can assume BuildXL will do the right thing.
 
-We also track ‘probes’ i.e. if a process looks for the existence of a file. So if you delete a file from a sealed directory that was previously read, we will rerun the pip. If the previous run checked for the existance of `d.h` and the next run you introduce this file, we will rerun the pip.
+We also track ‘probes’ i.e. if a process looks for the existence of a file. So if you delete a file from a sealed directory that was previously read, we will rerun the pip. If the previous run checked for the existence of `d.h` and the next run you introduce this file, we will rerun the pip.

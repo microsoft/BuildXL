@@ -11,7 +11,7 @@ But this is problematic when processes enumerate directories that change as a re
 
 
 ## Virtual filesystems
-To address the mutating directory fingerprint, BuildXL only uses the actual filesystem to compute the directory fingerprints for directories under read-only mounts. For writable mounts, BuildXL doesn't always query the physical filesytem. Instead it looks at the following virtual filesystems, depending on the configuration:
+To address the mutating directory fingerprint, BuildXL only uses the actual filesystem to compute the directory fingerprints for directories under read-only mounts. For writable mounts, BuildXL doesn't always query the physical filesystem. Instead it looks at the following virtual filesystems, depending on the configuration:
 
 * Full graph based filesystem
 * Minimal Pip filesystem
@@ -36,5 +36,5 @@ The default behavior depends on whether partial evaluation is enabled (<code>/us
 
 The filesystem may be overridden by using the <code>/filesystemMode</code> option. It has the following settings:
 1. RealAndMinimalPipGraph - real filesystem for non-writable mounts, Minimal Pip filesystem for writable mounts. This is the default when partial evaluation is enabled.
-1. RealAndPipGraph - same as above, except uses the Full Graph filesystem instead of the Minimal Pip filesytem. Default when partial evaluation is disabled
-1. AlwaysMinimalGraph - Uses the Minimal Pip filesytem for writable and non-writable mounts.
+1. RealAndPipGraph - same as above, except uses the Full Graph filesystem instead of the Minimal Pip filesystem. Default when partial evaluation is disabled
+1. AlwaysMinimalGraph - Uses the Minimal Pip filesystem for writable and non-writable mounts.

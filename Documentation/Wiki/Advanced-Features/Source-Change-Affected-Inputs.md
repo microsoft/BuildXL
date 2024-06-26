@@ -15,7 +15,7 @@ When infileA was changed, the change affected input for processC is outfileB.
 The feature is currently used for changelist code coverage. BuildXL computes the source change affected input list for QTest pip. QTest will only process the file listed as affected when it computes code coverage results. This reduces the QTest's instrumentation time.
 
 ## Enabling The Feature
-BuildXL needs to know the source changes for the computation. BuildXL will only perform the compution for the process that requires to know its affected inputs by providing the path of a file that the result can be written into.
+BuildXL needs to know the source changes for the computation. BuildXL will only perform the computation for the process that requires to know its affected inputs by providing the path of a file that the result can be written into.
 
 ### Source Change Tracking
 Currently, BuildXL doesn't check the source change of the enlistment itself. It requires source change provided through the command line argument `/inputChanges:<path-to-file-containing-change-list>`. Full paths of the changed source files should be listed in this file.

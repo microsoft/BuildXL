@@ -1,5 +1,5 @@
 # Overview
-There are two variants of BuildXL development: Public (default) and Internal (for Microsoft internal developers). The difference comes down to a few dependencies which are only availably internally within Microsoft today, like the connections to an internal cache server. The aquisition path for machine prerequesites may also differ slightly. 
+There are two variants of BuildXL development: Public (default) and Internal (for Microsoft internal developers). The difference comes down to a few dependencies which are only available internally within Microsoft today, like the connections to an internal cache server. The acquisition path for machine prerequisites may also differ slightly. 
 
 If you are a Microsoft internal developer, the Internal variant is automatically selected based on your user domain on Windows. On Linux and macOS you need to specify --internal in bxl.sh.
 

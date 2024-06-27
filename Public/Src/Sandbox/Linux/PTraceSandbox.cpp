@@ -422,7 +422,19 @@ std::string PTraceSandbox::ReadArgumentStringAtAddr(char *syscall, char *addr, b
 unsigned long PTraceSandbox::ReadArgumentLong(int argumentIndex)
 {
     void *addr = GetArgumentAddr(argumentIndex);
-    return ptrace(PTRACE_PEEKUSER, m_traceePid, addr, NULL);
+
+    // PTRACE_PEEKUSER could return -1 as a valid return value.
+    // So we need to clear errno before calling it, so that we can check whether an error occurred.
+    errno = 0;
+    unsigned long returnValue = ptrace(PTRACE_PEEKUSER, m_traceePid, addr, NULL);
+
+    if (errno != 0) {
+        // Lets retry one more time to verify if something went wrong with the ptrace syscall.
+        errno = 0;
+        returnValue = ptrace(PTRACE_PEEKUSER, m_traceePid, addr, NULL);
+    }
+
+    return returnValue;
 }
 
 std::string PTraceSandbox::ReadArgumentVector(char *syscall, int argumentIndex)
@@ -757,8 +769,20 @@ HANDLER_FUNCTION(open)
 
 HANDLER_FUNCTION(openat)
 {
-    auto dirfd = ReadArgumentLong(1);
+    auto dirfd = (int)ReadArgumentLong(1);
+    auto dirfdErrno = errno;
     auto pathName = ReadArgumentString(SYSCALL_NAME_STRING(openat), 2, /* nullTerminated */ true);
+
+    // This call is known to be problematic on some javascript builds, lets verify whether the return value was valid
+    if ((dirfd < 0 && dirfd != AT_FDCWD) && (pathName.empty() || pathName[0] != '/'))
+    {
+        BXL_LOG_DEBUG(m_bxl, "[PTrace] Tracee %d failed to read or read invalid dirfd ('%d') for syscall '%s' with path '%s' and error '%s'", m_traceePid, dirfd, SYSCALL_NAME_STRING(openat), pathName.c_str(), strerror(dirfdErrno));
+
+        // The provided pathname is empty or not absolute, and the dirfd was invalid, so we cannot normalize a path to be reported
+        // In this case likely the call to openat will fail, we will skip reporting this.
+        return;
+    }
+
     auto path = m_bxl->normalize_path_at(dirfd, pathName.c_str(), m_traceePid, /* ppid */ 0, /* oflags */ 0, SYSCALL_NAME_STRING(openat));
     auto flags = ReadArgumentLong(3);
     ReportOpen(path, flags, SYSCALL_NAME_STRING(openat));

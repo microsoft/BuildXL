@@ -154,7 +154,6 @@ namespace Test.BuildXL.Processes
         [Theory]
         [InlineData(true)]
         [InlineData(false)]
-
         public void ExecReportsCorrectExecutableAndArguments(bool succeeds)
         {
             var tempFiles = new TempFileStorage(canGetFileNames : true);
@@ -171,6 +170,13 @@ namespace Test.BuildXL.Processes
             
             // TODO: [pgunasekara] args are not checked in the ReportedProcess object for now. We do report args properly, however our logic to update the ReportedProcess object is not correct.
             // XAssert.IsTrue(result.result.Processes[0].ProcessArgs ==  exepectedArgs, $"Expected \"{exepectedArgs}\", got {string.Join(" ", result.result.Processes[0].ProcessArgs)}");
+        }
+
+        [Fact]
+        public void OpenAtHandlesInvalidFd()
+        {
+            RunNativeTest("OpenAtHandlesInvalidFd", unconditionallyEnableLinuxPTraceSandbox: true);
+            AssertLogContains(caseSensitive: false, "failed to read or read invalid dirfd ('-1') for syscall 'openat' with path ''");
         }
     }
 }

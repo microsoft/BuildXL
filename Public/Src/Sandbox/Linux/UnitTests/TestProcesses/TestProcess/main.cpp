@@ -91,6 +91,13 @@ int ExecReportsCorrectExecutableAndArgumentsFailed() {
     return EXIT_SUCCESS;
 }
 
+int OpenAtHandlesInvalidFd()
+{
+    int fd = openat(-1, "", O_CREAT | O_RDWR, 0666);
+
+    // The above call should always fail, but we're testing whether the sandbox is resilient to bad inputs, so we don't care about the return value.
+    return EXIT_SUCCESS;
+}
 
 int main(int argc, char **argv)
 {
@@ -234,6 +241,7 @@ int main(int argc, char **argv)
     IF_COMMAND(FileDescriptorAccessesFullyResolvesPath);
     IF_COMMAND(ExecReportsCorrectExecutableAndArgumentsSuccess);
     IF_COMMAND(ExecReportsCorrectExecutableAndArgumentsFailed);
+    IF_COMMAND(OpenAtHandlesInvalidFd);
 
     // Invalid command
     exit(-1);

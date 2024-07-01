@@ -2,7 +2,16 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
-# 0.1.0-20240614.2  (Release [389957](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=389957))
+# 0.1.0-20240622.1 (Release [391575](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=391575))
+- Clean up IOHandler/AccessHandler code from MacOS Sandbox
+- Refactor HistoricMetadataCache to handle BlobL3 topology
+- Add BuildXLInfo and BuildXLPerfInfo
+- Linux sandbox bugs fix
+- Fix capture build properties for org and codebase
+- Update PublishSymbols pool to BuildXL-DevOpsAgents-Selfhost
+- Log error when there is no exit message from orchestrator
+
+# 0.1.0-20240614.2 (Release [389957](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=389957))
 -	Perf improvement for BlobL3 cache
 -	Improvement for serialization of BuildXL config object
 -	Debugging improvements for Observed Input Processor

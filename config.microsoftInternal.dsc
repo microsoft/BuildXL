@@ -30,7 +30,7 @@ export const pkgs = isMicrosoftInternal ? [
     { id: "Microsoft.Data.Sqlite", version: "1.1.1" },
     { id: "SQLite", version: "3.13.0" },
 
-    { id: "CB.QTest", version: "24.5.17.221805", osSkip: [ "macOS", "unix" ] },
+    { id: "CB.QTest", version: "24.6.26.153636", osSkip: [ "macOS", "unix" ] },
 
     { id: "BuildXL.Tracing.AriaTenantToken", version: "1.0.0" },
 

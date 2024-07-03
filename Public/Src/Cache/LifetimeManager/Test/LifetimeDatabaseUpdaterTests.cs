@@ -77,7 +77,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
 
                     // We add a second CHL with the same strong fingerprint. Since this is single-phase determinism, it should replace the old one.
                     var hashes2 = await session.PutRandomAsync(context, HashType.Vso0, provideHash: true, fileCount: 5, fileSize: 10, useExactSize: true);
-                    var chl2 = new ContentHashListWithDeterminism(new ContentHashList(hashes2.ToArray()), CacheDeterminism.ViaCache(Guid.NewGuid(), DateTime.MaxValue));
+                    var chl2 = new ContentHashListWithDeterminism(new ContentHashList(hashes2.ToArray()), CacheDeterminism.SinglePhaseNonDeterministic);
                     var result = await session.AddOrGetContentHashListAsync(context, strongFingerprint, chl2, context.Token).ThrowIfFailureAsync();
                     result.ContentHashListWithDeterminism.ContentHashList.Should().BeNull(); // Null indicates we replaced the old CHL.
 

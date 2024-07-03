@@ -323,7 +323,7 @@ public class BlobStorageClientAdapter
             async (context) =>
             {
                 BlobRequestConditions? accessCondition = null;
-                if (etag is null)
+                if (string.IsNullOrEmpty(etag))
                 {
                     // Perform the operation only if the the blob doesn't exist
                     accessCondition = new BlobRequestConditions() { IfNoneMatch = ETag.All };
@@ -336,7 +336,7 @@ public class BlobStorageClientAdapter
                 else
                 {
                     // Perform the operation only if the blob exists, and the ETag matches
-                    accessCondition = new BlobRequestConditions() { IfMatch = new ETag(etag) };
+                    accessCondition = new BlobRequestConditions() { IfMatch = new ETag(etag!) };
                 }
 
                 try

@@ -31,11 +31,25 @@ using BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions;
 using BuildXL.Cache.MemoizationStore.Stores;
 using ContentStoreTest.Distributed.Redis;
 using ContentStoreTest.Test;
+using FluentAssertions;
 using Xunit;
 using Xunit.Abstractions;
 
 namespace BuildXL.Cache.MemoizationStore.Test.Sessions
 {
+
+    [Trait("Category", "LongRunningTest")]
+    [Collection("Redis-based tests")]
+    public class BlobMetadataStoreTestsOptimizeWrites : BlobMetadataStoreTests
+    {
+        public BlobMetadataStoreTestsOptimizeWrites(LocalRedisFixture redis, ITestOutputHelper helper)
+            : base(redis, helper)
+        {
+        }
+
+        protected override bool OptimizeWrites => true;
+    }
+
     [Trait("Category", "LongRunningTest")]
     [Collection("Redis-based tests")]
     public class BlobMetadataStoreTests : MemoizationSessionTests
@@ -43,6 +57,8 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
         private readonly MemoryClock _clock = new MemoryClock();
         private readonly LocalRedisFixture _redis;
         private readonly ILogger _logger;
+
+        protected virtual bool OptimizeWrites => false;
 
         private readonly List<AzuriteStorageProcess> _databasesToDispose = new();
 
@@ -60,7 +76,10 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
             var conf = new Host.Configuration.MetadataStoreMemoizationDatabaseConfiguration() { DisablePreventivePinning = true };
             var database = new MetadataStoreMemoizationDatabase(store: CreateAzureBlobStorageMetadataStore(isReadonly: false), conf);
 
-            return new DatabaseMemoizationStore(database: database);
+            return new DatabaseMemoizationStore(database: database)
+            {
+                OptimizeWrites = OptimizeWrites
+            };
         }
 
         private AzureBlobStorageMetadataStore CreateAzureBlobStorageMetadataStore(bool isReadonly)
@@ -197,7 +216,8 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
                 var getResult = await database.GetContentHashListAsync(ctx, strongFingerprint, preferShared: true).ShouldBeSuccess();
 
                 // The last upload time needs to be some date time greater than 'before'
-                Assert.True(getResult.LastContentPinnedTime! > before);
+                getResult.LastContentPinnedTime.Should().NotBeNull();
+                getResult.LastContentPinnedTime.Value.Should().BeOnOrAfter(before, $"Current time: {DateTime.UtcNow:O} Fingerprint:{strongFingerprint}");
 
                 // Now retrieve it again
                 var getResultAgain = await database.GetContentHashListAsync(ctx, strongFingerprint, preferShared: true).ShouldBeSuccess();

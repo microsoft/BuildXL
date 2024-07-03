@@ -13,7 +13,7 @@ namespace BuildXL.AdoBuildRunner.Vsts
     /// <summary>
     /// Defines the interactions with the VSTS API
     /// </summary>
-    public interface IApi
+    public interface IAdoBuildRunnerService
     {
         /// <summary>
         /// VSTS BuildId. This is unique per VSTS account
@@ -85,7 +85,7 @@ namespace BuildXL.AdoBuildRunner.Vsts
         /// </summary>
         /// <returns></returns>
         Task<BuildInfo> WaitForBuildInfo(BuildContext buildContext);
-       
+
         /// <summary>
         /// Publish the orchestrator address
         /// </summary>

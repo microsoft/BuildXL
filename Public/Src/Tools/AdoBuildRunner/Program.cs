@@ -53,16 +53,16 @@ namespace BuildXL.AdoBuildRunner
 
             try
             {
-                var api = new Api(logger);
+                var adoBuildRunnerService = new AdoBuildRunnerService(logger);
 
                 IBuildExecutor executor;
                 if (args[0] == "ping")
                 {
                     // ping mode - for debugging purposes
-                    var buildContext = await api.GetBuildContextAsync("ping");
+                    var buildContext = await adoBuildRunnerService.GetBuildContextAsync("ping");
                     logger.Info("Performing connectivity test");
-                    executor = new PingExecutor(logger, api);
-                    var buildManager = new BuildManager(api, executor, buildContext, args, logger);
+                    executor = new PingExecutor(logger, adoBuildRunnerService);
+                    var buildManager = new BuildManager(adoBuildRunnerService, executor, buildContext, args, logger);
                     return await buildManager.BuildAsync(isOrchestrator: Environment.GetEnvironmentVariable(Constants.AdoBuildRunnerPipelineRole) == "Orchestrator");
                 }
                 else
@@ -93,7 +93,7 @@ namespace BuildXL.AdoBuildRunner
                     {
                         // When the build role is not specified, we assume this build is being run with the parallel strategy
                         // where the role is inferred from the ordinal position in the phase: the first agent is the orchestrator
-                        isOrchestrator = api.JobPositionInPhase == 1;
+                        isOrchestrator = adoBuildRunnerService.JobPositionInPhase == 1;
                     }
                     else
                     {
@@ -125,9 +125,9 @@ namespace BuildXL.AdoBuildRunner
                         invocationKey += $"__jobretry_{jobAttempt}";
                     }
 
-                    var buildContext = await api.GetBuildContextAsync(invocationKey);
+                    var buildContext = await adoBuildRunnerService.GetBuildContextAsync(invocationKey);
 
-                    var buildManager = new BuildManager(api, executor, buildContext, buildArgs.ToArray(), logger);
+                    var buildManager = new BuildManager(adoBuildRunnerService, executor, buildContext, buildArgs.ToArray(), logger);
                     return await buildManager.BuildAsync(isOrchestrator);
                 }
             }

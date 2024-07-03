@@ -2,18 +2,14 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Diagnostics.Contracts;
-using System.Linq;
 using System.Threading.Tasks;
+using AdoBuildRunner;
 using AdoBuildRunner.Vsts;
 using BuildXL.AdoBuildRunner.Build;
 using Microsoft.TeamFoundation.Build.WebApi;
-using Microsoft.TeamFoundation.DistributedTask.WebApi;
 using Microsoft.VisualStudio.Services.Common;
 using Microsoft.VisualStudio.Services.WebApi;
-using TimelineRecord = Microsoft.TeamFoundation.DistributedTask.WebApi.TimelineRecord;
 
 #nullable enable
 
@@ -22,7 +18,7 @@ namespace BuildXL.AdoBuildRunner.Vsts
     /// <summary>
     /// Concrete implementation of the VSTS API interface for build coordination purposes
     /// </summary>
-    public class Api : IApi
+    public class AdoBuildRunnerService : IAdoBuildRunnerService
     {
         private enum AgentType
         {
@@ -56,7 +52,7 @@ namespace BuildXL.AdoBuildRunner.Vsts
 
         /// <nodoc />
         public string AgentName { get; }
-        
+
         /// <nodoc />
         public string AgentMachineName { get; }
 
@@ -82,19 +78,18 @@ namespace BuildXL.AdoBuildRunner.Vsts
         public string CollectionUrl { get; }
 
         /// <summary>
-        /// We use bare HTTP for some methods that do not have a library interface
-        /// </summary>
-        private readonly VstsHttpRelay m_http;
-
-        /// <summary>
         /// Generate a build URL from a build id
         /// </summary>
         /// <param name="buildId"></param>
         /// <returns></returns>
         private string GetBuildLinkFromId(int buildId) => $"{CollectionUrl}/{TeamProject}/_build/results?buildid={buildId}";
 
+        private readonly AdoBuildRunnerRetryHandler m_retryHandler;
+
+        private readonly IAdoAPIService m_adoBuildService;
+
         /// <nodoc />
-        public Api(ILogger logger)
+        public AdoBuildRunnerService(ILogger logger)
         {
             m_logger = logger;
 
@@ -111,8 +106,6 @@ namespace BuildXL.AdoBuildRunner.Vsts
             PlanId = Environment.GetEnvironmentVariable(Constants.PlanIdVarName)!;
             RepositoryUrl = Environment.GetEnvironmentVariable(Constants.RepositoryUrlVariableName)!;
             CollectionUrl = Environment.GetEnvironmentVariable(Constants.CollectionUrlVariableName)!;
-
-            m_http = new VstsHttpRelay(AccessToken, logger);
 
             string jobPositionInPhase = Environment.GetEnvironmentVariable(Constants.JobsPositionInPhaseVarName)!;
 
@@ -154,21 +147,19 @@ namespace BuildXL.AdoBuildRunner.Vsts
                     m_logger.Warning($"Couldn't parse value '{userMaxWaitingTime}' for {Constants.MaximumWaitForWorkerSecondsVariableName}." +
                         $"Using the default value of {Constants.DefaultMaximumWaitForWorkerSeconds}");
                 }
-                else 
+                else
                 {
                     m_maxWaitingTimeSeconds = maxWaitingTime;
                 }
             }
-            
-            m_maxWaitingTimeSeconds =  string.IsNullOrEmpty(userMaxWaitingTime) ?
+
+            m_maxWaitingTimeSeconds = string.IsNullOrEmpty(userMaxWaitingTime) ?
                 Constants.DefaultMaximumWaitForWorkerSeconds
                 : int.Parse(userMaxWaitingTime);
-        }
 
-        private Task<PropertiesCollection> GetBuildProperties(int buildId)
-        {
-            // Get properties for this build if a build id is not specified
-            return m_buildClient.GetBuildPropertiesAsync(new Guid(TeamProjectId), buildId);
+            m_retryHandler = new AdoBuildRunnerRetryHandler(Constants.MaxApiAttempts);
+
+            m_adoBuildService = new AdoApiService(m_buildClient, m_logger, new Guid(TeamProjectId), AccessToken);
         }
 
         /// <inherit />
@@ -179,7 +170,7 @@ namespace BuildXL.AdoBuildRunner.Vsts
                 LogAndThrow($"{Constants.BuildIdVarName} is not set or cannot be parsed into an int value");
             }
 
-            var build = await m_buildClient.GetBuildAsync(new Guid(TeamProjectId), buildId);
+            var build = await m_retryHandler.ExecuteAsync(() => m_adoBuildService.GetBuildAsync(buildId), nameof(m_adoBuildService.GetBuildAsync), m_logger);
             return build.StartTime.GetValueOrDefault();
         }
 
@@ -193,7 +184,7 @@ namespace BuildXL.AdoBuildRunner.Vsts
                 { property, value }
             };
 
-            return m_buildClient.UpdateBuildPropertiesAsync(patch, new Guid(TeamProjectId), buildId);
+            return m_retryHandler.ExecuteAsync(() => m_adoBuildService.UpdateBuildPropertiesAsync(patch, buildId), nameof(m_adoBuildService.UpdateBuildPropertiesAsync), m_logger);
         }
 
         /// <inherit />
@@ -204,7 +195,7 @@ namespace BuildXL.AdoBuildRunner.Vsts
             // Note that this check is racing against a concurrent update, but this doesn't matter because
             // we expect to catch it most of times, and that's all we need for the error to be surfaced and fixed.
             var buildId = int.Parse(BuildId);
-            var properties = await GetBuildProperties(buildId);
+            var properties = await m_retryHandler.ExecuteAsync(() => m_adoBuildService.GetBuildPropertiesAsync(buildId), nameof(m_adoBuildService.GetBuildPropertiesAsync), m_logger);
             if (properties.ContainsKey(buildContext.InvocationKey))
             {
                 LogAndThrow($"A build with identifier '{buildContext.InvocationKey}' is already running in this pipeline. " +
@@ -236,8 +227,9 @@ namespace BuildXL.AdoBuildRunner.Vsts
         /// </remarks>
         private async Task VerifyWorkerCorrectness(BuildContext buildContext, int orchestratorBuildId)
         {
-            var orchestratorBuild = await m_buildClient.GetBuildAsync(TeamProject, orchestratorBuildId);
-            
+
+            var orchestratorBuild = await m_retryHandler.ExecuteAsync(() => m_adoBuildService.GetBuildAsync(orchestratorBuildId), nameof(m_adoBuildService.GetBuildAsync), m_logger);
+
             // (1) Source branch / version should match
             var localSourceBranch = Environment.GetEnvironmentVariable(Constants.SourceBranchVariableName);
             var localSourceVersion = Environment.GetEnvironmentVariable(Constants.SourceVersionVariableName);
@@ -261,7 +253,7 @@ namespace BuildXL.AdoBuildRunner.Vsts
                 return;
             }
 
-            var properties = await GetBuildProperties(orchestratorBuildId);
+            var properties = await m_retryHandler.ExecuteAsync(() => m_adoBuildService.GetBuildPropertiesAsync(orchestratorBuildId), nameof(m_adoBuildService.GetBuildPropertiesAsync), m_logger);
             var workerInvocationSentinel = $"{buildContext.InvocationKey}__workerjobid";
             if (properties.ContainsKey(workerInvocationSentinel))
             {
@@ -284,9 +276,9 @@ namespace BuildXL.AdoBuildRunner.Vsts
         /// <inherit />
         public async Task<BuildInfo> WaitForBuildInfo(BuildContext buildContext)
         {
-            var triggerInfo = await m_http.GetBuildTriggerInfoAsync();
-            if (triggerInfo == null 
-                || !triggerInfo.TryGetValue(Constants.TriggeringAdoBuildIdParameter, out string? triggeringBuildIdString) 
+            var triggerInfo = await m_retryHandler.ExecuteAsync(() => m_adoBuildService.GetBuildTriggerInfoAsync(), nameof(m_adoBuildService.GetBuildTriggerInfoAsync), m_logger);
+            if (triggerInfo == null
+                || !triggerInfo.TryGetValue(Constants.TriggeringAdoBuildIdParameter, out string? triggeringBuildIdString)
                 || !int.TryParse(triggeringBuildIdString, out int triggeringBuildId))
             {
                 m_logger.Info("Couldn't find trigger info for this build. Assuming it is being ran on the same pipeline as the orchestrator and using the current build id as the orchestrator's build id");
@@ -303,7 +295,7 @@ namespace BuildXL.AdoBuildRunner.Vsts
             m_logger.Info($"Querying the build properties of build {triggeringBuildId} for the build information");
             while (elapsedTime < m_maxWaitingTimeSeconds)
             {
-                var properties = await GetBuildProperties(triggeringBuildId);
+                var properties = await m_retryHandler.ExecuteAsync(() => m_adoBuildService.GetBuildPropertiesAsync(triggeringBuildId), nameof(m_adoBuildService.GetBuildPropertiesAsync), m_logger);
                 var maybeInfo = properties.GetValue<string?>(buildContext.InvocationKey, null);
                 if (maybeInfo != null)
                 {

@@ -14,7 +14,7 @@ namespace BuildXL.AdoBuildRunner.Build
     /// </summary>
     public class BuildManager
     {
-        private readonly IApi m_vstsApi;
+        private readonly IAdoBuildRunnerService m_adoBuildRunnerService;
 
         private readonly IBuildExecutor m_executor;
 
@@ -31,9 +31,9 @@ namespace BuildXL.AdoBuildRunner.Build
         /// <param name="args">Build CLI arguments</param>
         /// <param name="buildContext">Build context</param>
         /// <param name="logger">Interface to log build info</param>
-        public BuildManager(IApi vstsApi, IBuildExecutor executor, BuildContext buildContext, string[] args, ILogger logger)
+        public BuildManager(IAdoBuildRunnerService vstsApi, IBuildExecutor executor, BuildContext buildContext, string[] args, ILogger logger)
         {
-            m_vstsApi = vstsApi;
+            m_adoBuildRunnerService = vstsApi;
             m_executor = executor;
             m_logger = logger;
             m_buildArguments = args;
@@ -55,13 +55,13 @@ namespace BuildXL.AdoBuildRunner.Build
             {
                 // The orchestrator creates the build info and publishes it to the build properties
                 var buildInfo = new BuildInfo { RelatedSessionId = Guid.NewGuid().ToString("D"), OrchestratorLocation = m_buildContext.AgentHostName  };
-                await m_vstsApi.PublishBuildInfo(m_buildContext, buildInfo);
+                await m_adoBuildRunnerService.PublishBuildInfo(m_buildContext, buildInfo);
                 returnCode = m_executor.ExecuteDistributedBuildAsOrchestrator(m_buildContext, buildInfo.RelatedSessionId, m_buildArguments);
             }
             else
             {
                 // Get the build info from the orchestrator build
-                var buildInfo = await m_vstsApi.WaitForBuildInfo(m_buildContext);
+                var buildInfo = await m_adoBuildRunnerService.WaitForBuildInfo(m_buildContext);
                 returnCode = m_executor.ExecuteDistributedBuildAsWorker(m_buildContext, buildInfo, m_buildArguments);
             }
 

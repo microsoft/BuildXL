@@ -22,10 +22,10 @@ namespace BuildXL.AdoBuildRunner.Build
         private const int ListeningPort = 45678;
         private TcpListener m_server = null;
 
-        private IApi m_vstsApi;
+        private IAdoBuildRunnerService m_vstsApi;
 
         /// <nodoc />
-        public PingExecutor(ILogger logger, IApi vstsApi) : base(logger) { m_vstsApi = vstsApi; }
+        public PingExecutor(ILogger logger, IAdoBuildRunnerService vstsApi) : base(logger) { m_vstsApi = vstsApi; }
 
         /// <inheritdoc />
         public void PrepareBuildEnvironment(BuildContext buildContext)

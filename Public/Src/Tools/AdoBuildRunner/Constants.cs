@@ -167,5 +167,10 @@ namespace BuildXL.AdoBuildRunner
         /// The time the agent waits before re-checking if the other agents are ready
         /// </summary>
         public const int PollRetryPeriodInSeconds = 20;
+
+        /// <summary>
+        /// Specifies the maximum number of retry attempts allowed for each failed HTTP API call.
+        /// </summary>
+        public const int MaxApiAttempts = 3;
     }
 }

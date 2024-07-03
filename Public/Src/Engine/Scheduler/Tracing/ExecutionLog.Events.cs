@@ -133,6 +133,7 @@ namespace BuildXL.Scheduler.Tracing
 
     /// <summary>
     /// Event ids for execution events in execution log
+    /// Make sure event id starts from 0 because we use it as index.
     /// </summary>
     public enum ExecutionEventId : byte
     {

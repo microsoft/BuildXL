@@ -107,13 +107,13 @@ namespace BuildXL.Engine.Distribution.Grpc
             return m_connectionManager.CallAsync(func, description);
         }
 
-        public Task<RpcCallResult<Unit>> ExitAsync(BuildEndData message, CancellationToken cancellationToken = default)
+        public Task<RpcCallResult<WorkerExitResponse>> ExitAsync(BuildEndData message, CancellationToken cancellationToken = default)
         {
             Contract.Assert(m_connectionManager != null, "The worker location should be known if calling Exit");
 
             m_connectionManager.ReadyForExit();
 
-            return m_connectionManager.CallAsync(
+            return m_connectionManager.CallAsyncWithResult<WorkerExitResponse>(
                 async (callOptions) => await m_client.ExitAsync(message, options: callOptions),
                 "Exit",
                 cancellationToken);

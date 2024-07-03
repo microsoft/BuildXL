@@ -9,6 +9,7 @@ using System.Diagnostics.Tracing;
 using System.Globalization;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Service.Grpc;
@@ -634,6 +635,7 @@ namespace BuildXL.Engine.Distribution
                 m_infraFailure = $"{Name} failed to connect to the orchestrator within the timeout ({EngineEnvironmentSettings.MinimumWaitForRemoteWorker.Value.TotalMinutes} minutes), typically due to a delay between orchestrator startup and worker bxl process initiation. Such delays can be expected in certain multi-stage distributed builds.";
             }
 
+            WorkerExitResponse workerExitResponse = null;
             // If we still have a connection with the worker, we should send a message to worker to make it exit. 
             if (!m_isConnectionLost && EverConnected)
             {
@@ -645,6 +647,10 @@ namespace BuildXL.Engine.Distribution
                 if (!exitCallResult.Succeeded)
                 {
                     m_infraFailure += $" Exit call failed with {exitCallResult.LastFailure?.DescribeIncludingInnerFailures() ?? "gRPC call failed"}.";
+                }
+                else
+                {
+                    workerExitResponse = exitCallResult.Value;
                 }
             }
 
@@ -666,6 +672,8 @@ namespace BuildXL.Engine.Distribution
                 await m_buildManifestReader.FinalizeAsync();
                 await m_executionLogReader.FinalizeAsync();
             }
+
+            CompareEventStats(workerExitResponse);
 
             ChangeStatus(WorkerNodeStatus.Stopping, WorkerNodeStatus.Stopped, callerName);
         }
@@ -1334,6 +1342,52 @@ namespace BuildXL.Engine.Distribution
 
             OnStatusChanged();
             return true;
+        }
+
+        private void CompareEventStats(WorkerExitResponse workerExitResponse)
+        {
+            Logger.Log.DistributionComparingEventStats(m_appLoggingContext, Name);
+            // Exit rpc call returns a null WorkerExitResponse when failed.
+            // Don't do anything
+            if (workerExitResponse == null)
+            {
+                return;
+            }
+
+            // Event stats not found on worker when exit requested.
+            if (workerExitResponse.EventCounts.Count == 0)
+            {
+                Logger.Log.DistributionEventStatsNotFound(m_appLoggingContext, $"Worker {Name}");
+            }
+
+            long[] eventStatsOnOrchestrator = null;
+            if (ExecutionLogTarget != null)
+            {
+                var logTargets = ((MultiExecutionLogTarget)ExecutionLogTarget).LogTargets;
+                var eventStatsLogTarget = logTargets.Where(t => t is EventStatsExecutionLogTarget).FirstOrDefault();
+                eventStatsOnOrchestrator = ((EventStatsExecutionLogTarget)eventStatsLogTarget)?.EventCounts;
+            }
+
+            if (eventStatsOnOrchestrator == null)
+            {
+                Logger.Log.DistributionEventStatsNotFound(m_appLoggingContext, $"Orchestrator for {Name}");
+            }
+
+            var mismatchBuilder = new StringBuilder();
+            foreach (ExecutionEventId eventId in Enum.GetValues(typeof(ExecutionEventId)))
+            {
+                var workerCount = workerExitResponse.EventCounts[(int)eventId];
+                var orchestratorCount = eventStatsOnOrchestrator[(int)eventId];
+                if (workerCount != orchestratorCount)
+                {
+                    mismatchBuilder.AppendLine($"{eventId}: workerCount = {workerCount}, orchestratorCount = {orchestratorCount}");
+                }
+            }
+
+            if (mismatchBuilder.Length > 0)
+            {
+                Logger.Log.DistributionEventStatsNotMatch(m_appLoggingContext, Name, mismatchBuilder.ToString());
+            }
         }
 
         private void Stop()

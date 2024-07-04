@@ -34,7 +34,10 @@ namespace BuildXL.Processes
         /// Returns whether the given path represents a directory created by the build that the output file system knows about
         /// </summary>
         /// <remarks>
-        /// If true, this means the directory was non-existent before the build started, and the pip effectively created it. <see cref="ReportOutputFileSystemDirectoryCreated(AbsolutePath)"/>
+        /// If true, this means the directory was non-existent before the build started, and either pip effectively created it, 
+        /// or the engine created it for the pip's sake (e.g., as parent of an output). 
+        /// Note that these facts are only guaranteed to be reported after the pip has completed execution.
+        /// <see cref="ReportOutputFileSystemDirectoryCreated(AbsolutePath)"/>
         /// </remarks>
         public bool ExistCreatedDirectoryInOutputFileSystem(AbsolutePath path);
 

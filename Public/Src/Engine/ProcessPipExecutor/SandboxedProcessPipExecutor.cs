@@ -178,6 +178,8 @@ namespace BuildXL.ProcessPipExecutor
 
         private readonly Dictionary<AbsolutePath, AbsolutePath> m_tempFolderRedirectionForVm = new();
 
+        private readonly List<AbsolutePath> m_engineCreatedPipOutputDirectories = new();
+
         private readonly bool m_verboseProcessLoggingEnabled;
 
         /// <summary>
@@ -222,7 +224,7 @@ namespace BuildXL.ProcessPipExecutor
 
         private readonly IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> m_staleOutputsUnderSharedOpaqueDirectories;
         private readonly List<string> m_staleOutputsUnderSharedOpaqueDirectoriesToBeDeletedInVM;
-        
+
         private readonly ISandboxFileSystemView m_fileSystemView;
         private readonly IPipGraphFileSystemView m_pipGraphFileSystemView;
 
@@ -353,7 +355,7 @@ namespace BuildXL.ProcessPipExecutor
             m_semanticPathExpander = semanticPathExpander;
             m_logger = logger ?? new SandboxedProcessLogger(m_loggingContext, pip, context);
             m_disableConHostSharing = configuration.Engine.DisableConHostSharing;
-            m_shouldPreserveOutputs = 
+            m_shouldPreserveOutputs =
                 m_pip.AllowPreserveOutputs
                 && m_sandboxConfig.UnsafeSandboxConfiguration.PreserveOutputs != PreserveOutputsMode.Disabled
                 && m_sandboxConfig.UnsafeSandboxConfiguration.PreserveOutputsTrustLevel <= m_pip.PreserveOutputsTrustLevel;
@@ -415,7 +417,7 @@ namespace BuildXL.ProcessPipExecutor
             m_directorySymlinksAsDirectories = directoryTranslator == null
                 ? new HashSet<AbsolutePath>()
                 : directoryTranslator.Translations
-                    .SelectMany(translation => new AbsolutePath[] 
+                    .SelectMany(translation => new AbsolutePath[]
                         {
                             AbsolutePath.Create(m_pathTable, translation.SourcePath),
                             AbsolutePath.Create(m_pathTable, translation.TargetPath),
@@ -931,7 +933,7 @@ namespace BuildXL.ProcessPipExecutor
             // Windows only.
             && !OperatingSystemHelper.IsUnixOS;
 
-        private bool IsLazySharedOpaqueOutputDeletionEnabled 
+        private bool IsLazySharedOpaqueOutputDeletionEnabled
             => m_sidebandState?.ShouldPostponeDeletion == true && m_pip.HasSharedOpaqueDirectoryOutputs;
 
         private async Task<SandboxedProcessPipExecutionResult> RunInternalAsync(
@@ -953,7 +955,7 @@ namespace BuildXL.ProcessPipExecutor
             }
 
             using Stream standardInputStream = TryOpenStandardInputStream(out bool openStandardInputStreamSuccess);
-            
+
             if (!openStandardInputStreamSuccess)
             {
                 return SandboxedProcessPipExecutionResult.PreparationFailure();
@@ -1181,7 +1183,7 @@ namespace BuildXL.ProcessPipExecutor
         {
             Contract.Requires(SandboxedProcessShouldExecuteRemote);
             Contract.Requires(m_remoteSbDataBuilder != null);
-            
+
             m_remoteSbDataBuilder.SetProcessInfo(info);
 
             if (m_pip.TempDirectory.IsValid)
@@ -1444,7 +1446,7 @@ namespace BuildXL.ProcessPipExecutor
             reportedFileAccess = new ReportedFileAccess(
                 ReportedFileOperation.CreateFile,
                 process,
-                isRead ? RequestedAccess.Read: RequestedAccess.Write,
+                isRead ? RequestedAccess.Read : RequestedAccess.Write,
                 FileAccessStatus.Allowed,
                 explicitlyReported: reportExplicitly,
                 0,
@@ -2297,7 +2299,7 @@ namespace BuildXL.ProcessPipExecutor
                     // this doesn't point to a real path, but to align with the value used for the windows side, we will use the failures file for now for the semaphore name
                     m_detoursFailuresFile = "/" + Guid.NewGuid().ToString().Replace("-", string.Empty) + m_pip.FormattedSemiStableHash;
                 }
-                
+
                 if (allowInternalErrorsLogging)
                 {
                     m_fileAccessManifest.InternalDetoursErrorNotificationFile = m_detoursFailuresFile;
@@ -2495,7 +2497,7 @@ namespace BuildXL.ProcessPipExecutor
                         // Compute whether the output directory is under an exclusion. In that case we want to block writes, but configure the rest of the policy in the regular way so tools
                         // can operate normally as long as they don't produce any outputs under it
                         bool isUnderAnExclusion = pip.OutputDirectoryExclusions.Any(exclusion => directory.Path.IsWithin(m_pathTable, exclusion));
-                        
+
                         // We need to allow the real timestamp to be seen under a directory output (since these are outputs). If this directory output happens to share the root with
                         // a directory dependency (shared opaque case), this is overridden for specific input files when processing directory dependencies below
                         var values =
@@ -2703,7 +2705,7 @@ namespace BuildXL.ProcessPipExecutor
             AbsolutePathAncestorChecker untrackedScopeChecker)
         {
             var content = m_directoryArtifactContext.ListSealDirectoryContents(directory, out var temporaryFiles);
-            
+
             foreach (var fileArtifact in content)
             {
                 // A shared opaque might contain files that are marked as 'absent'. Essentially these are "temp" files produced by a pip in the cone
@@ -2733,7 +2735,7 @@ namespace BuildXL.ProcessPipExecutor
                 // are not allowed by construction under shared opaques.
                 // Observe that if double writes are allowed, then we can't just block writes: we need to allow them to happen and then
                 // observe the result to figure out if they conform to the double write policy
-                mask: DefaultMask & (m_pip.RewritePolicy.ImpliesDoubleWriteAllowed()? FileAccessPolicy.MaskNothing : ~FileAccessPolicy.AllowWrite));
+                mask: DefaultMask & (m_pip.RewritePolicy.ImpliesDoubleWriteAllowed() ? FileAccessPolicy.MaskNothing : ~FileAccessPolicy.AllowWrite));
 
             allInputPathsUnderSharedOpaques.Add(path);
 
@@ -3041,8 +3043,8 @@ namespace BuildXL.ProcessPipExecutor
                     environmentVariables = environmentVariables.Override(overridenEnvVars);
                 }
 
-                environmentVariables = environmentVariables.Override(new[] 
-                { 
+                environmentVariables = environmentVariables.Override(new[]
+                {
                     new KeyValuePair<string, string>(VmSpecialEnvironmentVariables.VmSharedTemp, PrepareSharedTempDirectoryForVm().ToString(m_pathTable))
                 });
             }
@@ -3069,7 +3071,7 @@ namespace BuildXL.ProcessPipExecutor
                 // Temp directories are lazily, best effort cleaned after the pip finished. The previous build may not
                 // have finished this work before exiting so we must double check.
                 PreparePathForDirectory(
-                    tempDirectoryPath.ToString(m_pathTable),
+                    new ExpandedAbsolutePath(tempDirectoryPath, m_pathTable),
                     createIfNonExistent: m_sandboxConfig.EnsureTempDirectoriesExistenceBeforePipExecution);
             }
             catch (BuildXLException ex)
@@ -3204,7 +3206,7 @@ namespace BuildXL.ProcessPipExecutor
             using var preserveOutputAllowlistWrapper = Pools.GetAbsolutePathSet();
             using var dependenciesWrapper = Pools.GetAbsolutePathSet();
             using var outputDirectoriesWrapper = Pools.GetAbsolutePathSet();
-            
+
             var preserveOutputAllowlist = preserveOutputAllowlistWrapper.Instance;
             foreach (AbsolutePath path in m_pip.PreserveOutputAllowlist)
             {
@@ -3369,6 +3371,16 @@ namespace BuildXL.ProcessPipExecutor
             }
         }
 
+        private void CreatePipOutputDirectory(ExpandedAbsolutePath path, bool knownAbsent = false)
+        {
+            if (knownAbsent || !FileUtilities.DirectoryExistsNoFollow(path.ExpandedPath))
+            {
+                m_engineCreatedPipOutputDirectories.Add(path.Path);
+            }
+
+            FileUtilities.CreateDirectory(path.ExpandedPath);
+        }
+
         private async Task<bool> PrepareDirectoryOutputsAsync(HashSet<AbsolutePath> preserveOutputAllowlist)
         {
             m_staleOutputsUnderSharedOpaqueDirectoriesToBeDeletedInVM.Clear(); // Remove any entries left over from a previous run
@@ -3377,15 +3389,15 @@ namespace BuildXL.ProcessPipExecutor
             {
                 try
                 {
-                    string directoryPathStr = directoryOutput.Path.ToString(m_pathTable);
-                    bool dirExist = FileUtilities.DirectoryExistsNoFollow(directoryPathStr);
+                    var directoryExpandedPath = new ExpandedAbsolutePath(directoryOutput.Path, m_pathTable);
+                    bool dirExist = FileUtilities.DirectoryExistsNoFollow(directoryExpandedPath.ExpandedPath);
 
                     if (directoryOutput.IsSharedOpaque)
                     {
                         // Ensure it exists.
                         if (!dirExist)
                         {
-                            FileUtilities.CreateDirectory(directoryPathStr);
+                            CreatePipOutputDirectory(directoryExpandedPath, knownAbsent: true);
                         }
                         // if the directory is present, check whether there are any known stale outputs
                         else if (m_staleOutputsUnderSharedOpaqueDirectories != null
@@ -3439,7 +3451,7 @@ namespace BuildXL.ProcessPipExecutor
                                     });
 
                                 FileUtilities.EnumerateDirectoryEntries(
-                                    directoryPathStr,
+                                    directoryExpandedPath.ExpandedPath,
                                     recursive: true,
                                     handleEntry: (currentDir, name, attributes) =>
                                     {
@@ -3453,7 +3465,7 @@ namespace BuildXL.ProcessPipExecutor
 
                                 if (failureCount > 0)
                                 {
-                                    PreparePathForDirectory(directoryPathStr, createIfNonExistent: true);
+                                    PreparePathForDirectory(directoryExpandedPath, createIfNonExistent: true, isPipOutputPath: true);
                                 }
                             }
                             else
@@ -3470,7 +3482,7 @@ namespace BuildXL.ProcessPipExecutor
                         }
                         else
                         {
-                            PreparePathForDirectory(directoryPathStr, createIfNonExistent: true);
+                            PreparePathForDirectory(directoryExpandedPath, createIfNonExistent: true, isPipOutputPath: true);
                         }
                     }
 
@@ -4011,8 +4023,8 @@ namespace BuildXL.ProcessPipExecutor
                 if (m_pip.AllowUndeclaredSourceReads
                     && reported.RequestedAccess.HasFlag(RequestedAccess.Write)
                     && reported.IsDirectoryEffectivelyCreated()
-                    && m_fileSystemView != null // null for some tests
-                    && m_fileSystemView.ExistCreatedDirectoryInOutputFileSystem(parsedPath))
+                       // m_fileSystemView can be null for some tests
+                    && m_fileSystemView?.ExistCreatedDirectoryInOutputFileSystem(parsedPath) == true)
                 {
                     createdDirectoriesMutable.Add(parsedPath);
                 }
@@ -4050,6 +4062,17 @@ namespace BuildXL.ProcessPipExecutor
             using var fileExistenceDenialsWrapper = Pools.GetAbsolutePathSet();
 
             var fileExistenceDenials = fileExistenceDenialsWrapper.Instance;
+
+            // We count outputs created by this executor as part of pip preparation 
+            // as 'created by the pip', for consistency with the output filesystem
+            // TODO: This is conditionalized by AllowUndeclaredSourceReads because
+            // today we only roundtrip created directories through the cache in that case.
+            // We need to remove this condition along with a fingerprint version bump
+            if (m_pip.AllowUndeclaredSourceReads)
+            {
+                createdDirectoriesMutable.AddRange(m_engineCreatedPipOutputDirectories);
+            }
+
             var maybeUnresolvedAbsentAccesses = maybeUnresolvedAbsentAccessessWrapper.Instance;
 
             // Initializes all shared directories in the pip with no accesses
@@ -4403,8 +4426,8 @@ namespace BuildXL.ProcessPipExecutor
         }
 
         private bool IsAccessUnderASharedOpaque(
-            ReportedFileAccess access, 
-            Dictionary<AbsolutePath, HashSet<AbsolutePath>> dynamicWriteAccesses, 
+            ReportedFileAccess access,
+            Dictionary<AbsolutePath, HashSet<AbsolutePath>> dynamicWriteAccesses,
             out AbsolutePath sharedDynamicDirectoryRoot)
         {
             sharedDynamicDirectoryRoot = AbsolutePath.Invalid;
@@ -4811,10 +4834,10 @@ namespace BuildXL.ProcessPipExecutor
                 }
 
                 Func<string[], string> pathAggregator = (paths) =>
-                    {
-                        Array.Sort(paths, OperatingSystemHelper.PathComparer);
-                        return string.Join(Environment.NewLine, paths);
-                    };
+                {
+                    Array.Sort(paths, OperatingSystemHelper.PathComparer);
+                    return string.Join(Environment.NewLine, paths);
+                };
 
                 if (expectedMissingOutputs.Count > 0)
                 {
@@ -4862,13 +4885,13 @@ namespace BuildXL.ProcessPipExecutor
         private string PreparePipTimeoutDumpDirectory(ISandboxConfiguration sandboxConfig, Process pip, PathTable pathTable)
         {
             AbsolutePath rootDirectory = sandboxConfig.TimeoutDumpDirectory.IsValid ? sandboxConfig.TimeoutDumpDirectory : pip.UniqueOutputDirectory;
-            string directory = rootDirectory.IsValid ? rootDirectory.Combine(pathTable, pip.FormattedSemiStableHash).ToString(pathTable) : null;
-            if (directory != null)
+            ExpandedAbsolutePath? directory = rootDirectory.IsValid ? new ExpandedAbsolutePath(rootDirectory.Combine(pathTable, pip.FormattedSemiStableHash), pathTable) : null;
+            if (directory.HasValue)
             {
-                PreparePathForDirectory(directory, createIfNonExistent: false);
+                PreparePathForDirectory(directory.Value, createIfNonExistent: false);
             }
 
-            return directory;
+            return directory?.ExpandedPath;
         }
 
         private void FormatOutputAndPaths(string standardOut, string standardError,
@@ -5166,7 +5189,7 @@ namespace BuildXL.ProcessPipExecutor
                 errorWasTruncated,
                 errorWasFiltered);
 
-            string optionalMessage = !allOutputsPresent 
+            string optionalMessage = !allOutputsPresent
                 ? EventConstants.PipProcessErrorMissingOutputsSuffix
                 : (failedDueToWritingToStdErr
                     ? EventConstants.PipProcessErrorWroteToStandardError
@@ -5322,7 +5345,7 @@ namespace BuildXL.ProcessPipExecutor
                 using (var wrapper = Pools.StringBuilderPool.GetInstance())
                 {
                     StringBuilder sb = wrapper.Instance;
-                    for (int i = 0; i < OutputChunkInLines; )
+                    for (int i = 0; i < OutputChunkInLines;)
                     {
                         string line = await reader.ReadLineAsync();
                         if (line == null)
@@ -5571,11 +5594,11 @@ namespace BuildXL.ProcessPipExecutor
             }
 
             AbsolutePath parentDirectory = filePath.GetParent(m_pathTable);
-            
+
             if (outputDirectories == null || outputDirectories.Add(parentDirectory))
             {
                 // Ensure parent directory exists.
-                FileUtilities.CreateDirectory(parentDirectory.ToString(m_pathTable));
+                CreatePipOutputDirectory(new ExpandedAbsolutePath(parentDirectory, m_pathTable));
             }
 
             m_remoteSbDataBuilder?.AddOutputDirectory(parentDirectory);
@@ -5583,10 +5606,11 @@ namespace BuildXL.ProcessPipExecutor
             return true;
         }
 
-        private void PreparePathForDirectory(string expandedDirectoryPath, bool createIfNonExistent)
+        private void PreparePathForDirectory(ExpandedAbsolutePath directoryPath, bool createIfNonExistent, bool isPipOutputPath = false)
         {
             bool exists = false;
-
+            var path = directoryPath.Path;
+            var expandedDirectoryPath = directoryPath.ExpandedPath;
             if (FileUtilities.DirectoryExistsNoFollow(expandedDirectoryPath))
             {
                 FileUtilities.DeleteDirectoryContents(expandedDirectoryPath, deleteRootDirectory: false, tempDirectoryCleaner: m_tempDirectoryCleaner);
@@ -5600,7 +5624,17 @@ namespace BuildXL.ProcessPipExecutor
 
             if (!exists && createIfNonExistent)
             {
-                FileUtilities.CreateDirectory(expandedDirectoryPath);
+                if (isPipOutputPath)
+                {
+                    CreatePipOutputDirectory(directoryPath, knownAbsent: true);
+                }
+                else
+                {
+                    // Directories created by this executor that do not correspond to
+                    // bona-fide outputs of the pip, namely the temporary directory for
+                    // the pip and the pip timeout dump directory.
+                    FileUtilities.CreateDirectory(expandedDirectoryPath);
+                }
             }
         }
 

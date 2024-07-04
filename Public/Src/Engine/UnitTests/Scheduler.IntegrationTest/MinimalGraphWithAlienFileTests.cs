@@ -25,8 +25,10 @@ namespace IntegrationTest.BuildXL.Scheduler
         {
         }
 
-        [Fact]
-        public void FingerprintIsStable()
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void FingerprintIsStable(bool includeSubdirectories)
         {
             var tracker = GetFileTimestampTrackerFromTomorrow();
 
@@ -43,24 +45,86 @@ namespace IntegrationTest.BuildXL.Scheduler
             var operations = new List<Operation>
             {
                 Operation.WriteFile(declaredOuput),
-                Operation.WriteFile(sharedOpaqueOutput, doNotInfer: true),
-                Operation.WriteFile(exclusiveOpaqueOutput, doNotInfer: true),
-                Operation.EnumerateDir(dirToEnumerate, doNotInfer: true),
             };
 
+            if (includeSubdirectories)
+            {
+                operations.Add(Operation.WriteFile(sharedOpaqueOutput, doNotInfer: true));
+                operations.Add(Operation.WriteFile(exclusiveOpaqueOutput, doNotInfer: true));
+            }
+
+            operations.Add(Operation.EnumerateDir(dirToEnumerate, doNotInfer: true));
+
             var builder = CreatePipBuilder(operations);
-            builder.AddOutputDirectory(sod, global::BuildXL.Pips.Operations.SealDirectoryKind.SharedOpaque);
-            builder.AddOutputDirectory(eod, global::BuildXL.Pips.Operations.SealDirectoryKind.Opaque);
+
+            if (includeSubdirectories)
+            {
+                builder.AddOutputDirectory(sod, global::BuildXL.Pips.Operations.SealDirectoryKind.SharedOpaque);
+                builder.AddOutputDirectory(eod, global::BuildXL.Pips.Operations.SealDirectoryKind.Opaque);
+            }
 
             // This makes sure we use the right file system, which is aware of alien files
             builder.Options |= global::BuildXL.Pips.Operations.Process.Options.AllowUndeclaredSourceReads;
-
             var pip = SchedulePipBuilder(builder);
 
             // Run once
             RunScheduler(fileTimestampTracker: tracker).AssertSuccess();
             // Run a second time. Nothing changed, we should get a hit
             RunScheduler(fileTimestampTracker: tracker).AssertCacheHit(pip.Process.PipId);
+        }
+
+
+        [Fact]
+        public void CreatedDirectoriesRoundtrip()
+        {
+            var tracker = GetFileTimestampTrackerFromTomorrow();
+
+            // Schedule a pip that produces the three kind of available outputs (declared, shared and exclusive opaque outputs)
+            // and make sure the fingerprint is stable when there are no changes
+            AbsolutePath dirPath = AbsolutePath.Create(Context.PathTable, Path.Combine(SourceRoot, "dir"));
+            AbsolutePath sod = dirPath.Combine(Context.PathTable, "sod");
+            AbsolutePath eod = dirPath.Combine(Context.PathTable, "eod");
+            DirectoryArtifact dirToEnumerate = DirectoryArtifact.CreateWithZeroPartialSealId(dirPath);
+            var declaredOuput = CreateOutputFileArtifact(root: dirPath);
+            var sharedOpaqueOutput = CreateOutputFileArtifact(root: sod);
+            var exclusiveOpaqueOutput = CreateOutputFileArtifact(root: eod);
+
+            var operations = new List<Operation>
+            {
+                Operation.WriteFile(declaredOuput, "stableContent"),
+                Operation.WriteFile(sharedOpaqueOutput, doNotInfer: true),
+                Operation.WriteFile(exclusiveOpaqueOutput, doNotInfer: true)
+            };
+
+            var operations2 = new List<Operation>
+            {
+                Operation.ReadFile(declaredOuput),
+                Operation.EnumerateDir(dirToEnumerate, doNotInfer: true),
+                Operation.WriteFile(CreateOutputFileArtifact())
+            };
+
+            var builder = CreatePipBuilder(operations);
+            builder.AddOutputDirectory(sod, global::BuildXL.Pips.Operations.SealDirectoryKind.SharedOpaque);
+            builder.AddOutputDirectory(eod, global::BuildXL.Pips.Operations.SealDirectoryKind.Opaque);
+            
+            // This makes sure we use the right file system, which is aware of alien files
+            builder.Options |= global::BuildXL.Pips.Operations.Process.Options.AllowUndeclaredSourceReads;
+            var pip = SchedulePipBuilder(builder);
+
+            var builder2 = CreatePipBuilder(operations2);
+            builder2.Options |= global::BuildXL.Pips.Operations.Process.Options.AllowUndeclaredSourceReads;
+            var pip2 = SchedulePipBuilder(builder2);
+
+            // Run once
+            RunScheduler(fileTimestampTracker: tracker).AssertSuccess();
+
+            // Delete the output directories - this forces us to exercise the creation of these directories
+            // due to them coming from the roundtrip throught the cache metadata
+            FileUtilities.DeleteDirectoryContents(sod.ToString(Context.PathTable), deleteRootDirectory: true);
+            FileUtilities.DeleteDirectoryContents(eod.ToString(Context.PathTable), deleteRootDirectory: true);
+
+            // Run a second time. Nothing changed, we should get a hit
+            RunScheduler(fileTimestampTracker: tracker).AssertCacheHit(pip.Process.PipId, pip2.Process.PipId);
         }
 
         [Theory]

@@ -2239,8 +2239,16 @@ namespace BuildXL.Scheduler.Fingerprints
                                     // If the entry is a directory created by other pip, even if that directory is empty, it will be
                                     // ruled out here. Observe the filesystem view is already populated with created directories coming
                                     // from this same pip for the execution case, since that's reported as soon as the sandbox report comes
-                                    // back in SandboxedProcessReports
-                                    if (FileSystemView.ExistCreatedDirectoryInOutputFileSystem(realFileEntryPath))
+                                    // back in SandboxedProcessReports.
+                                    //
+                                    // However, we don't want to rule out any directories that are in the static graph: considering these as existing is also stable
+                                    // and in back-to-back builds we might not see them as 'created directories' if they pre-exist in the filesystem.
+                                    // For example, consider a build with pips A and B, where A declares an output D1\D2\f under an opaque directory D2, and B enumerates D1
+                                    // If we don't exclude D2 here, then a first build has D2 as 'created' but a second build will not
+                                    // (because the directory exists already, when preparing to run Pip A, the engine does not effectively create it and does not mark it).
+                                    if (FileSystemView.ExistCreatedDirectoryInOutputFileSystem(realFileEntryPath) &&
+                                        FileSystemView.GetExistence(realFileEntryPath, FileSystemViewMode.FullGraph).Result == PathExistence.Nonexistent
+                                    )
                                     {
                                         continue;
                                     }

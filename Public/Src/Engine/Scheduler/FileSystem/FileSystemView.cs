@@ -151,8 +151,10 @@ namespace BuildXL.Scheduler.FileSystem
 
             // If we found an entry that is a directory created by a pip with no known output files underneath, we return nonexistent.
             // Observe in this case bxl won't replay the directory creation. So we pretend the directory is not part of the output file system to improve cache stability
-            if (existence == PathExistence.ExistsAsDirectory && 
-                entry.HasFlag(FileSystemEntryFlags.IsDirectoryCreatedByPip) && 
+            // This only applies to the Output view mode, where the IsDirectoryCreatedByPip is meaningful.
+            if (mode == FileSystemViewMode.Output &&
+                existence == PathExistence.ExistsAsDirectory && 
+                entry.HasFlag(FileSystemEntryFlags.IsDirectoryCreatedByPip) &&
                 !entry.HasFlag(FileSystemEntryFlags.DirectoryContainingFiles))
             {
                 existence = PathExistence.Nonexistent;
@@ -535,7 +537,8 @@ namespace BuildXL.Scheduler.FileSystem
                 if (artifact.FileArtifact.IsOutputFile)
                 {
                     // Only output files/directories are considered in output graph file system
-                    GetOrAddExistence(parentPath, FileSystemViewMode.Output, PathExistence.ExistsAsDirectory);
+                    // Because we are declaring them as parents of output files, we should mark them as containing files
+                    GetOrAddExistence(parentPath, FileSystemViewMode.Output, PathExistence.ExistsAsDirectory, flags: FileSystemEntryFlags.DirectoryContainingFiles);
                 }
             }
         }
@@ -674,7 +677,10 @@ namespace BuildXL.Scheduler.FileSystem
             IsRealFileSystemEnumerated = 1 << 0,
             IsDirectorySymlink = 1 << 1,
             CheckedIsDirectorySymlink = 1 << 2,
-            IsDirectoryCreatedByPip = 1 << 3, // This means the pip created a directory that was non-existent before the pip ran
+            // This means the pip created a directory that was non-existent before the pip ran
+            // The flag is present for directories that are created during pip execution and
+            // also for directories that are created by BuildXL as part of 'preparation' for the pip's outputs
+            IsDirectoryCreatedByPip = 1 << 3, 
             DirectoryContainingFiles = 1 << 4,
             OutputProducedBeforeCaching = 1 << 5,
             OutputProducedAfterCaching = 1 << 6,

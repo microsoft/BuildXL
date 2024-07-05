@@ -309,7 +309,7 @@ namespace BuildXL.Engine.Distribution.Grpc
         {
             string buildIdentityTokenLocation = EngineEnvironmentSettings.CBBuildIdentityTokenPath;
 
-            string token = GrpcEncryptionUtils.TryGetTokenBuildIdentityToken(buildIdentityTokenLocation);
+            string token = GrpcEncryptionUtils.TryGetAuthorizationToken(buildIdentityTokenLocation);
 
             if (token == null)
             {

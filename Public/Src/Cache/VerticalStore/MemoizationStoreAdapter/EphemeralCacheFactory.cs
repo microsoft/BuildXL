@@ -49,8 +49,8 @@ public class EphemeralCacheFactory : BlobCacheFactoryBase<EphemeraCacheConfig>, 
 
         ContentStore.Distributed.Ephemeral.EphemeralCacheFactory.Configuration factoryConfiguration;
 
-        var machineLocation = MachineLocation.Create(Environment.MachineName, GrpcConstants.DefaultEphemeralGrpcPort);
-        var leaderLocation = MachineLocation.Create(configuration.LeaderMachineName, GrpcConstants.DefaultEphemeralGrpcPort);
+        var machineLocation = MachineLocation.Create(Environment.MachineName, GrpcConstants.DefaultEphemeralEncryptedGrpcPort);
+        var leaderLocation = MachineLocation.Create(configuration.LeaderMachineName, GrpcConstants.DefaultEphemeralEncryptedGrpcPort);
         var rootPath = new AbsolutePath(configuration.CacheRootPath);
         context.TracingContext.Info($"Creating ephemeral cache. Root=[{rootPath}] Machine=[{machineLocation}] Leader=[{leaderLocation}] Universe=[{configuration.Universe}] Namespace=[{configuration.Namespace}] RetentionPolicyInDays=[{configuration.RetentionPolicyInDays}]", nameof(EphemeralCacheFactory));
 

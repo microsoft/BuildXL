@@ -30,7 +30,7 @@ namespace BuildXL.Engine.Distribution
             m_authenticationEnabled = GrpcSettings.AuthenticationEnabled;
             if (m_authenticationEnabled)
             {
-                m_token = GrpcEncryptionUtils.TryGetTokenBuildIdentityToken(EngineEnvironmentSettings.CBBuildIdentityTokenPath);
+                m_token = GrpcEncryptionUtils.TryGetAuthorizationToken(EngineEnvironmentSettings.CBBuildIdentityTokenPath);
             }
         }
 

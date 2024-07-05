@@ -405,9 +405,14 @@ namespace BuildXL.Utilities.Configuration
         public static readonly Setting<string> CBBuildUserCertificateName = CreateSetting("CB_BUILDUSERCERTIFICATE_NAME", value => value);
 
         /// <summary>
-        /// gRPC certificate subject name 
+        /// Environment variable for the certificate subject name used to encrypt gRPC communication for build engines and cache.
         /// </summary>
         public static readonly Setting<string> GrpcCertificateSubjectName = CreateSetting("GrpcCertificateSubjectName", value => value);
+
+        /// <summary>
+        /// Environment variable for the authorization token location used to authenticate gRPC communication for BuildXL and cache.
+        /// </summary>
+        public static readonly Setting<string> GrpcAuthorizationTokenFile = CreateSetting("GrpcAuthorizationTokenFile", value => value);
 
         /// <summary>
         /// The file containing the authority chains of the build user certificate

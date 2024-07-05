@@ -95,7 +95,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                     Tracer,
                     () =>
                     {
-                        var (certificateSubjectName, certificateChainsPath, identityTokenPath) = GrpcEncryptionUtils.GetChannelEncryptionOptions();
+                        var (certificateSubjectName, _) = GrpcEncryptionUtils.GetChannelEncryptionOptions();
                         X509Certificate2? certificate = null;
                         string error = string.Empty;
 
@@ -110,16 +110,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                         httpHandler.SslOptions.RemoteCertificateValidationCallback =
                             (requestMessage, certificate, chain, errors) =>
                             {
-                                if (certificateChainsPath != null)
-                                {
-                                    if (!GrpcEncryptionUtils.TryValidateCertificate(certificateChainsPath, chain, out string errorMessage))
-                                    {
-                                        Tracer.Error(context, $"Certificate is not validated: '{errorMessage}'.");
-                                        return false;
-                                    }
-                                }
-
-                                // If the path for the chains is not provided, we will not validate the certificate.
+                                // We do not validate the certificate as it is solely used
+                                // for encrypting communication, not for authentication.
                                 return true;
                             };
 
@@ -133,8 +125,6 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
 
         private static ChannelBase CreateGrpcChannel(OperationContext context, ChannelCreationOptions channelOptions)
         {
-            AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
-
             var grpcDotNetSpecificOptions = channelOptions.GrpcDotNetOptions ?? GrpcDotNetClientOptions.Default;
 
             var options = new GrpcChannelOptions
@@ -152,36 +142,11 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             var target = channelOptions.Location.ToGrpcHost();
             if (target.Encrypted)
             {
-                var channelEncryptionOptions = GrpcEncryptionUtils.GetChannelEncryptionOptions();
-
-                if (string.IsNullOrEmpty(channelEncryptionOptions.IdentityTokenPath))
-                {
-                    Tracer.Info(context, $"Identity token path hasn't been set by host system. Establishing encrypted connections is unsupported.");
-                }
-                else
-                {
-                    string? token = GrpcEncryptionUtils.TryGetTokenBuildIdentityToken(channelEncryptionOptions.IdentityTokenPath);
-
-                    if (token == null)
-                    {
-                        Tracer.Info(context, $"Can't obtain build identity token from identity token path '{channelEncryptionOptions.IdentityTokenPath}'.");
-                    }
-                    else
-                    {
-                        InterceptHttpsValidation(context, SocketsHttpHandler);
-                        var credentials = CallCredentials.FromInterceptor((context, metadata) =>
-                        {
-                            if (!string.IsNullOrEmpty(token))
-                            {
-                                metadata.Add("Authorization", token);
-                            }
-
-                            return Task.CompletedTask;
-                        });
-                        options.Credentials = ChannelCredentials.Create(new SslCredentials(), credentials);
-                        Tracer.Info(context, $"gRPC.NET authentication enabled");
-                    }
-                }
+                InterceptHttpsValidation(context, SocketsHttpHandler);
+            }
+            else
+            {
+                AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
             }
 
             return GrpcChannel.ForAddress(target.ToGrpcUri(), options);
@@ -283,7 +248,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 // Wrapping it into TimeoutException instead.
                 throw new GrpcConnectionTimeoutException($"Failed to connect to {location} at {timeout}.");
             }
-
+             
             throw Contract.AssertFailure($"Unknown channel type: {channel?.GetType()}");
         }
 

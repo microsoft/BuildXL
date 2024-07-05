@@ -10,6 +10,7 @@ using Grpc.Core;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using Newtonsoft.Json;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
+using BuildXL.Utilities.Configuration;
 
 #nullable enable
 
@@ -18,7 +19,7 @@ namespace BuildXL.Cache.ContentStore.Grpc
     /// <summary>
     /// Encryption options used when creating gRPC channels.
     /// </summary>
-    public record ChannelEncryptionOptions(string CertificateSubjectName, string? CertificateChainsPath, string? IdentityTokenPath);
+    public record ChannelEncryptionOptions(string CertificateSubjectName, string? AuthorizationTokenFile);
 
     /// <summary>
     /// Utility methods needed to enable encryption and authentication for gRPC-using services in CloudBuild
@@ -30,17 +31,16 @@ namespace BuildXL.Cache.ContentStore.Grpc
         /// </summary>
         public static ChannelEncryptionOptions GetChannelEncryptionOptions()
         {
-            const string CertSubjectEnvironmentVariable = "__CACHE_ENCRYPTION_CERT_SUBJECT__";
-            var encryptionCertificateName = Environment.GetEnvironmentVariable(CertSubjectEnvironmentVariable);
-            var certificateChainsPath = Environment.GetEnvironmentVariable("__CACHE_ENCRYPTION_CERT_CHAINS_PATH__");
-            var identityTokenPath = Environment.GetEnvironmentVariable("__CACHE_ENCRYPTION_IDENTITY_TOKEN_PATH__");
+            // TODO(seokur): After the service changes are rolled-out, we will only read GrpcCertificateSubjectName and GrpcAuthorizationTokenFile.
+            var encryptionCertificateName = EngineEnvironmentSettings.GrpcCertificateSubjectName.Value ?? EngineEnvironmentSettings.CBBuildUserCertificateName.Value;
+            var authorizationTokenFile = EngineEnvironmentSettings.GrpcAuthorizationTokenFile.Value ?? EngineEnvironmentSettings.CBBuildIdentityTokenPath.Value;
 
             if (encryptionCertificateName is null)
             {
-                throw new InvalidOperationException($"EncryptionCertificateName is null. The environment variable '{CertSubjectEnvironmentVariable}' is not set.");
+                throw new InvalidOperationException($"EncryptionCertificateName is null. The environment variable '{EngineEnvironmentSettings.GrpcCertificateSubjectName.Name}' is not set.");
             }
 
-            return new ChannelEncryptionOptions(encryptionCertificateName, certificateChainsPath, identityTokenPath);
+            return new ChannelEncryptionOptions(encryptionCertificateName, authorizationTokenFile);
         }
 
         /// <summary>
@@ -64,7 +64,7 @@ namespace BuildXL.Cache.ContentStore.Grpc
         /// <summary>
         /// Look up the given certificate subject name in the given Windows certificate store and return the actual certificate.
         /// </summary>
-        private static X509Certificate2? TryGetEncryptionCertificate(string certSubjectName, StoreLocation storeLocation, out string error)
+        public static X509Certificate2? TryGetEncryptionCertificate(string certSubjectName, StoreLocation storeLocation, out string error)
         {
             error = $"{nameof(TryGetEncryptionCertificate)}: ";
             if (string.IsNullOrWhiteSpace(certSubjectName))
@@ -268,12 +268,12 @@ namespace BuildXL.Cache.ContentStore.Grpc
         /// <summary>
         /// Return the decrypted contents of the build identity token in the given location
         /// </summary>
-        public static string? TryGetTokenBuildIdentityToken(string buildIdentityTokenLocation)
+        public static string? TryGetAuthorizationToken(string? authorizationTokenFile)
         {
-            if (File.Exists(buildIdentityTokenLocation))
+            if (!string.IsNullOrEmpty(authorizationTokenFile) && File.Exists(authorizationTokenFile))
             {
 #if NETCOREAPP
-                var bytes = File.ReadAllBytes(buildIdentityTokenLocation);
+                var bytes = File.ReadAllBytes(authorizationTokenFile);
                 byte[] clearText = ProtectedData.Unprotect(bytes, null, DataProtectionScope.LocalMachine);
                 var fullToken = Encoding.UTF8.GetString(clearText);
                 // Only the first part of the token matches between machines in the same build.

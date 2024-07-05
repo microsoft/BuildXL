@@ -130,9 +130,9 @@ public class GrpcCoreServerHost : IGrpcServerHost<GrpcCoreServerHostConfiguratio
             {
                 Tracer.Debug(context, $"Found gRPC Encryption Certificate.");
                 return new SslServerCredentials(
-                    new List<KeyCertificatePair> { new KeyCertificatePair(keyCertPairResult.Value.CertificateChain, keyCertPairResult.Value.PrivateKey) },
+                    new List<KeyCertificatePair> { keyCertPairResult.Value },
                     null,
-                    SslClientCertificateRequestType.DontRequest); //Since this is an internal channel, client certificate is not requested or verified.
+                    SslClientCertificateRequestType.RequestAndRequireButDontVerify); 
             }
             else
             {

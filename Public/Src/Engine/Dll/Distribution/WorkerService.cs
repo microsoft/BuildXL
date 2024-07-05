@@ -86,8 +86,8 @@ namespace BuildXL.Engine.Distribution
         /// <summary>
         /// Returns a task representing the completion of the attach operation
         /// </summary>
-        internal Task<bool> AttachCallTask => m_attachCallCompletion.Task;
-        private readonly TaskSourceSlim<bool> m_attachCallCompletion;
+        internal Task<AttachResult> AttachCallTask => m_attachCallCompletion.Task;
+        private readonly TaskSourceSlim<AttachResult> m_attachCallCompletion;
         private readonly CancellationTokenSource m_cancellationOnExit = new CancellationTokenSource();
 
         private readonly ConcurrentDictionary<(PipId, PipExecutionStep), SinglePipBuildRequest> m_pendingBuildRequests = new();
@@ -172,7 +172,7 @@ namespace BuildXL.Engine.Distribution
             m_appLoggingContext = appLoggingContext;
             m_port = config.Distribution.BuildServicePort;
             m_config = config;
-            m_attachCallCompletion = TaskSourceSlim.Create<bool>();
+            m_attachCallCompletion = TaskSourceSlim.Create<AttachResult>();
             m_exitCompletion = TaskSourceSlim.Create<bool>();
 
             m_workerServer = workerServer;
@@ -183,7 +183,7 @@ namespace BuildXL.Engine.Distribution
 
         internal void Start(EngineSchedule schedule, ExecutionResultSerializer resultSerializer)
         {
-            Contract.Assert(AttachCallTask.IsCompleted && AttachCallTask.GetAwaiter().GetResult(), "Start called before finishing attach on worker");
+            Contract.Assert(AttachCallTask.IsCompleted && AttachCallTask.GetAwaiter().GetResult() == AttachResult.Attached, "Start called before finishing attach on worker");
             m_executionLogTarget = schedule?.Scheduler.ExecutionLog;
             m_pipExecutionService.Start(schedule, BuildStartData);
             m_notificationManager.Start(m_orchestratorClient, schedule, new PipResultSerializer(resultSerializer), m_config.Logging);
@@ -194,7 +194,7 @@ namespace BuildXL.Engine.Distribution
         /// </summary>
         internal async Task<bool> WhenDoneAsync()
         {
-            Contract.Assert(AttachCallTask.IsCompleted && AttachCallTask.GetAwaiter().GetResult(), "ProcessBuildRequests called before finishing attach on worker");
+            Contract.Assert(AttachCallTask.IsCompleted && AttachCallTask.GetAwaiter().GetResult() != AttachResult.Failed, "ProcessBuildRequests called before finishing attach on worker");
 
             bool success = await CompleteAttachmentAfterProcessBuildRequestStartedAsync();
 
@@ -247,42 +247,62 @@ namespace BuildXL.Engine.Distribution
 
             return true;
         }
+        
+        /// <summary>
+        /// The result of the attachment procedure. 
+        /// The worker might be released before attachment: this is not a failed state, but we also can't proceed as if attached
+        /// </summary>
+        public enum AttachResult
+        {
+            /// <nodoc />
+            Attached = 0,
 
+            /// <nodoc />
+            Released = 1,
+
+            /// <nodoc />
+            Failed = 2
+        }
 
         /// <summary>
         /// Waits for the orchestrator to attach synchronously
         /// </summary>
-        internal bool WaitForOrchestratorAttach()
+        internal AttachResult WaitForOrchestratorAttach()
         {
-            Logger.Log.DistributionWaitingForOrchestratorAttached(m_appLoggingContext);
-            
             var timeout = GrpcSettings.WorkerAttachTimeout;
             var sw = Stopwatch.StartNew();
-            if (!AttachCallTask.Wait(timeout))
+
+            if (!AttachCallTask.IsCompleted)
             {
-                Logger.Log.DistributionWorkerTimeoutFailure(m_appLoggingContext, "waiting for attach request from orchestrator");
-                Exit(failure: $"Timed out waiting for attach request from orchestrator. Timeout: {timeout.TotalMinutes} min", isUnexpected: true);
-                return false;
+                Logger.Log.DistributionWaitingForOrchestratorAttached(m_appLoggingContext);
+                if (!AttachCallTask.Wait(timeout))
+                {
+                    Logger.Log.DistributionWorkerTimeoutFailure(m_appLoggingContext, "waiting for attach request from orchestrator");
+                    Exit(failure: $"Timed out waiting for attach request from orchestrator. Timeout: {timeout.TotalMinutes} min", isUnexpected: true);
+                    return AttachResult.Failed;
+                }
             }
 
-            if (!AttachCallTask.Result)
+            var attachResult = AttachCallTask.Result;
+
+            if (AttachCallTask.Result == AttachResult.Failed)
             {
                 if (m_isOrchestratorExited)
                 {
                     // The orchestrator can send an Exit request before attachment if early releasing this worker
                     // This is a corner case, as the orchestrator waits for the attachment to complete before doing this.
-                    // We should log an error in this case as we will fail the engine after returning false.
+                    // We treat this as an early-release
                     Logger.Log.DistributionOrchestratorExitBeforeAttachment(m_appLoggingContext, (int)sw.Elapsed.TotalMilliseconds);
+                    return AttachResult.Released;
                 }
                 else
                 {
                     Logger.Log.DistributionInactiveOrchestrator(m_appLoggingContext, (int)timeout.TotalMinutes);
+                    return AttachResult.Failed;
                 }
-
-                return false;
             }
 
-            return true;
+            return attachResult;
         }
 
         /// <nodoc/>
@@ -322,7 +342,7 @@ namespace BuildXL.Engine.Distribution
             m_notificationManager.Exit(isClean: reportSuccess && !isUnexpected);
             m_orchestratorClient.CloseAsync().GetAwaiter().GetResult();
 
-            m_attachCallCompletion.TrySetResult(false);
+            m_attachCallCompletion.TrySetResult(AttachResult.Failed);
             
             if (!reportSuccess)
             {
@@ -354,7 +374,7 @@ namespace BuildXL.Engine.Distribution
         internal bool TryGetBuildScheduleDescriptor(out PipGraphCacheDescriptor descriptor)
         {
             descriptor = null;
-            if (!AttachCallTask.Result)
+            if (AttachCallTask.Result != AttachResult.Attached)
             {
                 return false;
             }
@@ -388,6 +408,7 @@ namespace BuildXL.Engine.Distribution
 				// We should exit gracefully in these situations - this is basically the orchestrator refusing
 				// attachment, so we treat it the same as an "Exit" call, and we include the reason.
 				case HelloResponseType.Released:
+                    m_attachCallCompletion.TrySetResult(AttachResult.Released);
                     exit("Worker was early released before initiating attachment");
                     break;
     
@@ -427,7 +448,7 @@ namespace BuildXL.Engine.Distribution
 
             OrchestratorIpAddress = buildStartData.OrchestratorLocation.IpAddress;
             WorkerId = BuildStartData.WorkerId;
-            m_attachCallCompletion.TrySetResult(true);
+            m_attachCallCompletion.TrySetResult(AttachResult.Attached);
         }
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("AsyncUsage", "AsyncFixer02:MissingAsyncOpportunity")]

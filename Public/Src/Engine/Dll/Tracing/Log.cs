@@ -589,11 +589,10 @@ namespace BuildXL.Engine.Tracing
         [GeneratedEvent(
         (ushort)LogEventId.DistributionOrchestratorExitBeforeAttachment,
         EventGenerators = EventGenerators.LocalOnly,
-        EventLevel = Level.Error,
-        // Treat this as a user error instead of an internal error. The orchestrator may very well still succeed when this happens.
-        Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
+        EventLevel = Level.Verbose,
+        Keywords = (int)(Keywords.UserMessage),
         EventTask = (ushort)Tasks.Distribution,
-        Message = "The worker was exited before completing the attachment process, which was ongoing during {timeinMs} ms. This leaves the worker in an unexpected state, so the build will fail.")]
+        Message = "The worker was exited before completing the attachment process, which was ongoing during {timeinMs} ms. We consider the worker as early-released.")]
         public abstract void DistributionOrchestratorExitBeforeAttachment(LoggingContext context, int timeinMs);
 
         [GeneratedEvent(

@@ -406,7 +406,7 @@ namespace BuildXL.Engine.Distribution
                     availableWorkerSlot.Location = workerLocation;
 
                     Logger.Log.DistributionHelloReceived(m_loggingContext, workerLocation.IpAddress, workerLocation.Port, availableWorkerSlot.WorkerId);
-                    
+
                     // Indicate if it is already stopped by the scheduler due to the early worker release or scheduler completion, so the worker does not wait for the attachment.
                     return availableWorkerSlot.Status.IsStoppingOrStopped() ? HelloResponseType.Released : HelloResponseType.Ok; 
                 }

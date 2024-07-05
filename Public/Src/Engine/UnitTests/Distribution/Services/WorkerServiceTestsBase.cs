@@ -81,8 +81,8 @@ namespace Test.BuildXL.Distribution
                 WorkerService.Initialize();
 
                 // Orchestrator attaches to worker
-                bool attached = await WorkerService.AttachCallTask;
-                Assert.True(attached);
+                var attached = await WorkerService.AttachCallTask;
+                Assert.Equal(WorkerService.AttachResult.Attached, attached);
 
                 // EngineSchedule starts the service (EngineSchedule.ExecuteScheduledPips)
                 // passing null as the EngineSchedule is safe for tests
@@ -107,8 +107,8 @@ namespace Test.BuildXL.Distribution
 
             public void WaitForOrchestratorAttach(bool expectSuccess = true)
             {
-                bool attached = WorkerService.WaitForOrchestratorAttach();
-                Assert.Equal(expectSuccess, attached);
+                var attached = WorkerService.WaitForOrchestratorAttach();
+                Assert.Equal(expectSuccess ? WorkerService.AttachResult.Attached : WorkerService.AttachResult.Failed, attached);
             }
 
             public void ReceiveBuildRequest(params (uint, PipExecutionStep)[] pips) => ReceiveBuildRequest(CreateBuildRequest(pips));

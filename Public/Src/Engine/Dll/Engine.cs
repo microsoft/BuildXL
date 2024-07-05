@@ -1854,15 +1854,21 @@ namespace BuildXL.Engine
                                                 "An error should have been logged during waiting for attaching to the orchestrator.");
                                             return BuildXLEngineResult.Failed(engineState);
                                         }
-                                    } 
+                                    }
 
-                                    if (!m_workerService.WaitForOrchestratorAttach())
+                                    var attachResult = m_workerService.WaitForOrchestratorAttach();
+                                    if (attachResult == WorkerService.AttachResult.Failed)
                                     {
                                         // Worker timeout logs a warning but no error. It is not considered a failure wrt the worker
                                         Contract.Assert(
                                             engineLoggingContext.ErrorWasLogged,
                                             "An error should have been logged during waiting for attaching to the orchestrator.");
                                         return BuildXLEngineResult.Failed(engineState);
+                                    }
+                                    else if (attachResult == WorkerService.AttachResult.Released)
+                                    {
+                                        // Early released before attachment. Let's exit gracefully.
+                                        return BuildXLEngineResult.SuccessNotRun(engineState);
                                     }
 
                                     orchestratorIpAddress = m_workerService.OrchestratorIpAddress;
@@ -3555,6 +3561,18 @@ namespace BuildXL.Engine
         public static BuildXLEngineResult Failed(EngineState engineState)
         {
             return Create(false, null, previousState: engineState, newState: null, shouldDisposePreviousEngineState: true);
+        }
+
+        /// <summary>
+        /// Create a succesful EngineResult when the engine didn't run. This is possible when distributed workers are early-released
+        /// before completing the attachment process.
+        /// </summary>
+        /// <remarks>
+        /// We don't preserve the engine state, considering that the engine didn't quite run, but this is unimportant in distributed workers anyway.
+        /// </remarks>
+        public static BuildXLEngineResult SuccessNotRun(EngineState engineState)
+        {
+            return Create(true, null, previousState: engineState, newState: null, shouldDisposePreviousEngineState: true);
         }
 
         /// <summary>

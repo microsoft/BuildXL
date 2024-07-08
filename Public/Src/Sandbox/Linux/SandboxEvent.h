@@ -139,17 +139,17 @@ public:
     /**
      * SandboxEvent for a fork/clone event.
      */
-    static SandboxEvent CloneSandboxEvent(const char *system_call, pid_t pid, pid_t ppid, const char *path);
+    static SandboxEvent ForkSandboxEvent(const char *system_call, pid_t pid, pid_t ppid, const char *path);
 
     /**
      * SandboxEvent for exec events.
      */
-    static SandboxEvent ExecSandboxEvent(const char *system_call, pid_t pid, pid_t ppid, const char *path, std::string command_line);
+    static SandboxEvent ExecSandboxEvent(const char *system_call, pid_t pid, const char *path, std::string command_line);
 
     /**
      * SandboxEvent for an exit event.
      */
-    static SandboxEvent ExitSandboxEvent(const char *system_call, std::string path, pid_t pid, pid_t ppid);
+    static SandboxEvent ExitSandboxEvent(const char *system_call, std::string path, pid_t pid);
 
     /**
      * SandboxEvent for paths.
@@ -158,7 +158,6 @@ public:
         const char *system_call,
         buildxl::linux::EventType event_type,
         pid_t pid,
-        pid_t ppid,
         uint error,
         const char *src_path,
         const char *dst_path = "");
@@ -170,7 +169,6 @@ public:
         const char *system_call,
         buildxl::linux::EventType event_type,
         pid_t pid,
-        pid_t ppid,
         uint error,
         int src_fd,
         int dst_fd = -1);
@@ -182,7 +180,6 @@ public:
         const char *system_call,
         buildxl::linux::EventType event_type,
         pid_t pid,
-        pid_t ppid,
         uint error,
         const char *src_path,
         int src_fd,

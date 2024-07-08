@@ -39,7 +39,7 @@ namespace Test.BuildXL.Processes
         public void CallTestfork()
         {
             var result = RunNativeTest(GetNativeTestName(MethodBase.GetCurrentMethod().Name));
-            TestForFileOperation(result, ReportedFileOperation.Process, TestProcessExe, count: 2);
+            TestForFileOperation(result, ReportedFileOperation.Process, TestProcessExe, count: 3);
             AssertLogContains(GetRegex(GetSyscallName(MethodBase.GetCurrentMethod().Name), TestProcessExe));
         }
 
@@ -47,7 +47,7 @@ namespace Test.BuildXL.Processes
         public void CallTestvfork()
         {
             var result = RunNativeTest(GetNativeTestName(MethodBase.GetCurrentMethod().Name));
-            TestForFileOperation(result, ReportedFileOperation.Process, TestProcessExe, count: 2);
+            TestForFileOperation(result, ReportedFileOperation.Process, TestProcessExe, count: 3);
             AssertLogContains(GetRegex(GetSyscallName(MethodBase.GetCurrentMethod().Name), TestProcessExe));
         }
 
@@ -63,7 +63,7 @@ namespace Test.BuildXL.Processes
         public void CallTestfexecve()
         {
             var result = RunNativeTest(GetNativeTestName(MethodBase.GetCurrentMethod().Name));
-            TestForFileOperation(result, ReportedFileOperation.Process, TestProcessExe, count: 2);
+            TestForFileOperation(result, ReportedFileOperation.Process, TestProcessExe, count: 4);
             AssertLogContains(caseSensitive: false, GetSyscallName(MethodBase.GetCurrentMethod().Name));
             AssertLogContains(GetRegex("__init__fork", TestProcessExe));
             AssertLogContains(GetRegex("__init__exec", TestProcessExe));
@@ -73,7 +73,7 @@ namespace Test.BuildXL.Processes
         public void CallTestexecv()
         {
             var result = RunNativeTest(GetNativeTestName(MethodBase.GetCurrentMethod().Name));
-            TestForFileOperation(result, ReportedFileOperation.Process, TestProcessExe, count: 2);
+            TestForFileOperation(result, ReportedFileOperation.Process, TestProcessExe, count: 4);
             AssertLogContains(caseSensitive: false, GetSyscallName(MethodBase.GetCurrentMethod().Name));
             AssertLogContains(GetRegex("__init__fork", TestProcessExe));
             AssertLogContains(GetRegex("__init__exec", TestProcessExe));
@@ -83,7 +83,7 @@ namespace Test.BuildXL.Processes
         public void CallTestexecve()
         {
             var result = RunNativeTest(GetNativeTestName(MethodBase.GetCurrentMethod().Name));
-            TestForFileOperation(result, ReportedFileOperation.Process, TestProcessExe, count: 2);
+            TestForFileOperation(result, ReportedFileOperation.Process, TestProcessExe, count: 4);
             AssertLogContains(caseSensitive: false, GetSyscallName(MethodBase.GetCurrentMethod().Name));
             AssertLogContains(GetRegex("__init__fork", TestProcessExe));
             AssertLogContains(GetRegex("__init__exec", TestProcessExe));
@@ -93,7 +93,7 @@ namespace Test.BuildXL.Processes
         public void CallTestexecvp()
         {
             var result = RunNativeTest(GetNativeTestName(MethodBase.GetCurrentMethod().Name));
-            TestForFileOperation(result, ReportedFileOperation.Process, TestProcessExe, count: 2);
+            TestForFileOperation(result, ReportedFileOperation.Process, TestProcessExe, count: 4);
             AssertLogContains(caseSensitive: false, GetSyscallName(MethodBase.GetCurrentMethod().Name));
             AssertLogContains(GetRegex("__init__fork", TestProcessExe));
             AssertLogContains(GetRegex("__init__exec", TestProcessExe));
@@ -103,7 +103,7 @@ namespace Test.BuildXL.Processes
         public void CallTestexecvpe()
         {
             var result = RunNativeTest(GetNativeTestName(MethodBase.GetCurrentMethod().Name));
-            TestForFileOperation(result, ReportedFileOperation.Process, TestProcessExe, count: 2);
+            TestForFileOperation(result, ReportedFileOperation.Process, TestProcessExe, count: 4);
             AssertLogContains(caseSensitive: false, GetSyscallName(MethodBase.GetCurrentMethod().Name));
             AssertLogContains(GetRegex("__init__fork", TestProcessExe));
             AssertLogContains(GetRegex("__init__exec", TestProcessExe));
@@ -113,7 +113,7 @@ namespace Test.BuildXL.Processes
         public void CallTestexecl()
         {
             var result = RunNativeTest(GetNativeTestName(MethodBase.GetCurrentMethod().Name));
-            TestForFileOperation(result, ReportedFileOperation.Process, TestProcessExe, count: 2);
+            TestForFileOperation(result, ReportedFileOperation.Process, TestProcessExe, count: 4);
             AssertLogContains(caseSensitive: false, GetSyscallName(MethodBase.GetCurrentMethod().Name));
             AssertLogContains(GetRegex("__init__fork", TestProcessExe));
             AssertLogContains(GetRegex("__init__exec", TestProcessExe));
@@ -123,7 +123,7 @@ namespace Test.BuildXL.Processes
         public void CallTestexeclp()
         {
             var result = RunNativeTest(GetNativeTestName(MethodBase.GetCurrentMethod().Name));
-            TestForFileOperation(result, ReportedFileOperation.Process, TestProcessExe, count: 2);
+            TestForFileOperation(result, ReportedFileOperation.Process, TestProcessExe, count: 4);
             AssertLogContains(caseSensitive: false, GetSyscallName(MethodBase.GetCurrentMethod().Name));
             AssertLogContains(GetRegex("__init__fork", TestProcessExe));
             AssertLogContains(GetRegex("__init__exec", TestProcessExe));
@@ -133,7 +133,7 @@ namespace Test.BuildXL.Processes
         public void CallTestexecle()
         {
             var result = RunNativeTest(GetNativeTestName(MethodBase.GetCurrentMethod().Name));
-            TestForFileOperation(result, ReportedFileOperation.Process, TestProcessExe, count: 2);
+            TestForFileOperation(result, ReportedFileOperation.Process, TestProcessExe, count: 4);
             AssertLogContains(caseSensitive: false, GetSyscallName(MethodBase.GetCurrentMethod().Name));
             AssertLogContains(GetRegex("__init__fork", TestProcessExe));
             AssertLogContains(GetRegex("__init__exec", TestProcessExe));
@@ -878,79 +878,6 @@ namespace Test.BuildXL.Processes
             {
                 var result = RunNativeTest(GetNativeTestName(MethodBase.GetCurrentMethod().Name), unconditionallyEnableLinuxPTraceSandbox: true);
                 AssertLogContains(GetRegex(GetSyscallName(MethodBase.GetCurrentMethod().Name), TestProcessExe));
-            }
-        }
-
-        [Fact]
-        public void CallTestclone3WithProbe()
-        {
-            // clone3 was introduced in Linux kernel 5.3
-            if (OperatingSystemHelperExtension.IsLinuxKernelVersionSameOrNewer(5, 3, 0))
-            {
-                // We use the pip main executable as a fallback when we couldn't resolve the case of missing process start events properly
-                // So let's wrap in bash the test, so we can then verify we actually resolved this scenario
-                var result = RunNativeTest(GetNativeTestName(MethodBase.GetCurrentMethod().Name), wrapInBash: true);
-
-                // Retrieve the absent probe that happened under clone3
-                var probe = result.result.FileAccesses.Single(
-                    access => access.Operation == ReportedFileOperation.UnixAbsentProbe && access.GetPath(Context.PathTable).EndsWith("absentFile"));
-
-                // The probe should get assigned the parent process path
-                Assert.Equal(TestProcessExe, probe.Process.Path);
-
-                // Just being defensive: the spawned process that ran the probe was created via clone3, and therefore we shouldn't have seen
-                // the process start for it
-                Assert.False(result.result.AllUnexpectedFileAccesses.Any(
-                    access => access.Operation == ReportedFileOperation.Process && access.Process.ProcessId == probe.Process.ProcessId));
-
-                // We shouldn't get an unknown pid report
-                AssertVerboseEventLogged(global::BuildXL.Processes.Tracing.LogEventId.ReceivedReportFromUnknownPid, 0);
-            }
-        }
-
-        [Fact]
-        public void CallTestclone3Nested()
-        {
-            // clone3 was introduced in Linux kernel 5.3
-            if (OperatingSystemHelperExtension.IsLinuxKernelVersionSameOrNewer(5, 3, 0))
-            {
-                var result = RunNativeTest(GetNativeTestName(MethodBase.GetCurrentMethod().Name), wrapInBash: true);
-
-                // Retrieve the directory probe that happened under the (nested) clone3
-                var probe = result.result.FileAccesses.Single(
-                    access => access.Operation == ReportedFileOperation.UnixAbsentProbe && access.GetPath(Context.PathTable).EndsWith("absentFile"));
-
-                // The probe should get assigned the ancestor process path
-                Assert.Equal(TestProcessExe, probe.Process.Path);
-
-                // Just being defensive: the spawned processes were created via clone3, and therefore we shouldn't have seen
-                // the process start for them
-                Assert.False(result.result.AllUnexpectedFileAccesses.Any(
-                    access => access.Operation == ReportedFileOperation.Process && access.Process.ProcessId == probe.Process.ProcessId));
-
-                // We shouldn't get an unknown pid report
-                AssertVerboseEventLogged(global::BuildXL.Processes.Tracing.LogEventId.ReceivedReportFromUnknownPid, 0);
-            }
-        }
-
-        [Fact]
-        public void CallTestclone3NestedAndExec()
-        {
-            // clone3 was introduced in Linux kernel 5.3
-            if (OperatingSystemHelperExtension.IsLinuxKernelVersionSameOrNewer(5, 3, 0))
-            {
-                var result = RunNativeTest(GetNativeTestName(MethodBase.GetCurrentMethod().Name), wrapInBash: true);
-
-                // Retrieve the exec echo that happened under the (nested) clone3. This exec is such that it is the first report
-                // that happens with a given pid (for which we missed the process start for)
-                var exec = result.result.FileAccesses.Single(
-                    access => access.Operation == ReportedFileOperation.Process && access.GetPath(Context.PathTable).EndsWith("echo"));
-
-                // The exec process should get the right path assigned to.
-                Assert.EndsWith("echo", exec.Process.Path);
-
-                // We shouldn't get an unknown pid report
-                AssertVerboseEventLogged(global::BuildXL.Processes.Tracing.LogEventId.ReceivedReportFromUnknownPid, 0);
             }
         }
     }

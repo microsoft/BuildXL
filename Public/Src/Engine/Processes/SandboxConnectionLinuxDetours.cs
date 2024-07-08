@@ -109,8 +109,7 @@ namespace BuildXL.Processes
 
                     m_processingBlock = ActionBlockSlim.Create<(ReportProcessor reportProcessor, PooledObjectWrapper<byte[]> wrapper, int length)>(degreeOfParallelism: 1,
                         Info.ProcessBytes,
-                        singleProducedConstrained: true, // Only m_workerThread posts to the action block
-                        failFastOnUnhandledException: true
+                        singleProducedConstrained: true // Only m_workerThread posts to the action block
                     );
 
                     IsPrimaryFifoProcessor = m_fifoWriteHandle == info.m_lazyWriteHandle;

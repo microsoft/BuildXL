@@ -133,7 +133,6 @@ namespace BuildXL.Processes
                     info.PipSemiStableHash,
                     info.PipDescription,
                     info.LoggingContext,
-                    info.FileName,
                     info.DetoursEventListener,
                     info.SidebandWriter,
                     info.FileSystemView,

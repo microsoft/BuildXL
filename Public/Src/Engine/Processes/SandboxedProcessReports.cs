@@ -86,18 +86,6 @@ namespace BuildXL.Processes
         private readonly ConcurrentDictionary<uint, ReportedProcess> m_activeProcesses = new();
         private readonly ConcurrentDictionary<uint, ReportedProcess> m_processesExits = new();
 
-        /// <summary>
-        /// Synthetic processes that were created when an access arrived with a process id and a parent process id that were
-        /// unknown to the sandbox.
-        /// </summary>
-        /// <remarks>
-        /// The dictionary is indexed by parent id.  
-        /// When the parent process is determined (based on subsequent accesses, as the callstack unfolds), children information is completed based on it
-        /// and the element is moved out from this dictionary. Once the pip has exited, this dictionary should be empty.
-        /// Observe this collection is not exposed outside of this class. Reports are received sequentially, so there is no need for synchronization.
-        /// </remarks>
-        private readonly Dictionary<uint, HashSet<ReportedProcess>> m_unknownProcessesByParent = new();
-
         private readonly Dictionary<string, string> m_pathCache = new(OperatingSystemHelper.PathComparer);
         private readonly Dictionary<AbsolutePath, bool> m_overrideAllowedWritePaths = new();
 
@@ -189,7 +177,7 @@ namespace BuildXL.Processes
         private readonly SandboxedProcessTraceBuilder m_traceBuilder;
 
         private readonly List<AbsolutePath> m_processesRequiringPTrace;
-        private readonly string m_fileName;
+
         private int m_receivedReportCount = 0;
 
         public SandboxedProcessReports(
@@ -198,7 +186,6 @@ namespace BuildXL.Processes
             long pipSemiStableHash,
             string pipDescription,
             LoggingContext loggingContext,
-            string fileName,
             [MaybeNull] IDetoursEventListener detoursEventListener,
             [MaybeNull] SidebandWriter sharedOpaqueOutputLogger,
             [MaybeNull] ISandboxFileSystemView fileSystemView,
@@ -221,7 +208,6 @@ namespace BuildXL.Processes
             m_fileSystemView = fileSystemView;
             m_traceBuilder = traceBuilder;
             m_processesRequiringPTrace = OperatingSystemHelper.IsLinuxOS ? new List<AbsolutePath>() : null;
-            m_fileName = fileName;
         }
 
         /// <summary>ReportArgsMismatch
@@ -247,19 +233,6 @@ namespace BuildXL.Processes
                     Tracing.Logger.Log.LinuxSandboxReportedBinaryRequiringPTrace(m_loggingContext, PipDescription, exePath);
                 }
             }
-
-            if (m_unknownProcessesByParent.Count > 0)
-            {
-                // We shouldn't hit this case. We should always have the parent process tracked.
-                // This is just an info message for debugging purposes. We are interested in spotting reports without an associated process
-                // because it means that the process creation message was not received.
-                // The practical consequence of not having this process properly registered is that downstream allowlists may try to use the image name for matching. So accesses
-                // associated to this untracked process may cause a DFA. All considerations given, this is not a critical issue so we allow the build to move on.
-                foreach (var process in m_unknownProcessesByParent.Values.SelectMany(reportedProcess => reportedProcess))
-                {
-                    Tracing.Logger.Log.ReceivedReportFromUnknownPid(m_loggingContext, PipDescription, process.ProcessId.ToString());
-                }
-            }
         }
 
         /// <summary>
@@ -278,7 +251,6 @@ namespace BuildXL.Processes
         public delegate bool FileAccessReportProvider<T>(
             ref T data,
             out uint processId,
-            out uint parentProcessId,
             out uint id,
             out uint correlationId,
             out ReportedFileOperation operation,
@@ -697,7 +669,6 @@ namespace BuildXL.Processes
         private bool TryParseAugmentedFileAccess(
             ref string data,
             out uint processId,
-            out uint parentProcessId,
             out uint id,
             out uint correlationId,
             out ReportedFileOperation operation,
@@ -722,7 +693,6 @@ namespace BuildXL.Processes
             var result = FileAccessReportLine.TryParse(
                 ref data,
                 out processId,
-                out parentProcessId,
                 out id,
                 out correlationId,
                 out operation,
@@ -783,7 +753,6 @@ namespace BuildXL.Processes
             if (!parser(
                 ref data,
                 out var processId,
-                out var parentProcessId,
                 out var id,
                 out var correlationId,
                 out var operation,
@@ -845,6 +814,24 @@ namespace BuildXL.Processes
                 });
             }
 
+            // This is a special Linux-specific report, it contains a path and the command line arguments passed to an exec call on a process ID that already exists in our table.
+            // If the error value was not 0, that means the exec failed and therefore we should not update the path/args
+            if (operation == ReportedFileOperation.ProcessExec && error == 0)
+            {
+                // This should always return something valid because the Process report comes in before the ProcessExec report
+                var matchingProcess = Processes.FirstOrDefault(p => p.ProcessId == processId);
+                if (matchingProcess == default)
+                {
+                    // This should not happen unless a report came out of order for some reason, we will log, but we don't need to fail the build.
+                    Tracing.Logger.Log.ReportArgsMismatch(m_loggingContext, PipDescription, $"{processId}");
+                }
+                else
+                {
+                    matchingProcess.UpdateOnPathAndArgsOnExec(path, processArgs);
+                    m_traceBuilder?.UpdateProcessArgs(matchingProcess, path, processArgs);
+                }
+            }
+
             // If there is a listener registered that disables the collection of data in the collections, just exit.
             if (m_detoursEventListener != null && (m_detoursEventListener.GetMessageHandlingFlags() & MessageHandlingFlags.FileAccessCollect) == 0)
             {
@@ -870,94 +857,48 @@ namespace BuildXL.Processes
             // For the purposes of event correlation, m_activeProcesses keeps track which process id maps to which process a the current time.
             // We also record all processes in a list. Because process create and exit messages can arrive out of order on macOS when multiple queues
             // are used, we have to keep track of the reported exits using the m_processesExits dictionary.
-            m_activeProcesses.TryGetValue(processId, out var process);
-            
-            if (operation == ReportedFileOperation.Process && process == null)
+            ReportedProcess process;
+            if (operation == ReportedFileOperation.Process)
             {
-                // We are seeing this process id for the first time. Track it.
-                // Observe that we send 2 process start reports for each clone/fork (on the parent and on the child process). So this check will also
-                // make sure that we only create one instance of a reported process for it. This avoids duplicated processes, but also makes sure that
-                // whenever an 'exec' for this process comes, we update the single instance for it wrt path and arguments.
-                process = new ReportedProcess(processId, parentProcessId, path, processArgs);
-
-                TrackProcessCreated(process);
+                process = new ReportedProcess(processId, path, processArgs);
+                m_activeProcesses[processId] = process;
+                Processes.Add(process);
+                m_traceBuilder?.ReportProcess(process);
             }
-
-            // The associated process can be null for Unix systems. E.g. clone3 does not have a libc implementation and we will miss it.
-            Contract.Assert(OperatingSystemHelper.IsUnixOS || process != null, "Should see a process creation before its accesses (malformed report)");
-
-            // If no active ReportedProcess is found (e.g., because it already completed but we are still processing its access reports),
-            // try to see the latest exiting process with the same process id.
-            if (operation != ReportedFileOperation.ProcessRequiresPTrace &&
-                operation != ReportedFileOperation.FirstAllowWriteCheckInProcess &&
-                process == null && (!m_processesExits.TryGetValue(processId, out process) || process == null))
+            else
             {
-                Tracing.Logger.Log.LogDetoursDebugMessage(m_loggingContext, PipSemiStableHash, $"No process start found for {processId}");
-                // This is a case where we could have missed the process start event (e.g. check clone3 comment above)
-                // On Unix systems, a process start event is associated with a fork/clone. This means that we can reuse the parent process information regarding paths, arguments, etc for the current
-                // process, as long as we preserve the process id.
-                if (!TryGetProcessStartedOrExited(parentProcessId, out var parentProcess))
+                m_activeProcesses.TryGetValue(processId, out process);
+
+                if (operation == ReportedFileOperation.ProcessExit)
                 {
-                    // If we hit this case, it means that we have a process that has a parent process we don't know about. The known case that causes this is when nesting multiple clone3 calls.
-                    // However, we should be able to reconstruct the process tree as the callstack unfolds (at the very least we should eventually see the corresponding process exit events). 
-                    // We create for now a synthetic process using the pip main executable as the path for this process. And we will update it whenever we get the missing information.
-                    // If for any reason we never see this missing piece of info, the pip main executable will remain as the process path. We don't really have a better option here,
-                    // and not setting a path is problematic downstream. We will log a message for debugging purposes later if this happens to be the case.
-                    process = new ReportedProcess(processId, parentProcessId, m_fileName, string.Empty);
-                    
-                    // Let's keep track of this process so that we can update it later if we get the missing information
-                    if (m_unknownProcessesByParent.TryGetValue(parentProcessId, out var processes))
+                    AddLookupEntryForProcessExit(processId, process);
+                    if (process != null)
                     {
-                        processes.Add(process);
+                        m_activeProcesses.TryRemove(processId, out _);
+                        path = process.Path;
                     }
                     else
                     {
-                        m_unknownProcessesByParent[parentProcessId] = new HashSet<ReportedProcess>() {process};
+                        // no process to remove;
+                        return true;
                     }
                 }
-                else
-                {
-                    // We found the parent process. Let's create a synthetic process for the current process id based on the parent process information
-                    // This is accurate on Linux: we missed a fork/clone, so the parent process shares executable path and arguments with its child
-                    process = new ReportedProcess(processId, parentProcessId, parentProcess.Path, parentProcess.ProcessArgs);
-                }
-
-                // Let's treat it as if the process was just created
-                // This allows potential children of this process (for which their process start event might be missing) to be associated with the correct process.
-                TrackProcessCreated(process);
             }
 
-            // Now that we have compensated for a potential missing process start, the associated process shouldn't be null, even for the Linux case
-            // The only exception are the special internal messages for which we don't care about compensating for missing process starts
+            // This assertion doesn't have to hold when using /sandboxKind:macOsKext because some messages may come out of order
+            Contract.Assert(OperatingSystemHelper.IsUnixOS || process != null, "Should see a process creation before its accesses (malformed report)");
+
+            // If no active ReportedProcess is found (e.g., because it already completed but we are still processing its access reports),
+            // try to see the latest exiting process with the same process id. Otherwise, it's ok to just create an unnamed one since ReportedProcess is used for descriptive purposes only
+            // Operations like ProcessRequiresPTrace and FirstAllowWriteCheckInProcess are sometimes sent before the corresponding process creation message, so we don't want to log those.
             if (operation != ReportedFileOperation.ProcessRequiresPTrace &&
                 operation != ReportedFileOperation.FirstAllowWriteCheckInProcess &&
-                process == null)
+                (process == null && (!m_processesExits.TryGetValue(processId, out process) || process == null)))
             {
-                Contract.Assert(false, $"Process shouldn't be null for access [{processId}]:{operation}:'{path}'");
-            }
-
-            // This is a special Linux-specific report, it contains a path and the command line arguments passed to an exec call on a process ID that already exists in our table.
-            // If the error value was not 0, that means the exec failed and therefore we should not update the path/args
-            if (operation == ReportedFileOperation.ProcessExec && error == 0)
-            {
-                process.UpdateOnPathAndArgsOnExec(path, processArgs);
-                m_traceBuilder?.UpdateProcessArgs(process, path, processArgs);
-
-                // if this process exec has an associated report with missing information, we can already populate it and we don't need to wait for an ancestor with that info (and it would be 
-                // wrong to do so)
-                if (m_unknownProcessesByParent.TryGetValue(process.ParentProcessId, out var processes))
-                {
-                    processes.Remove(process);
-                }
-            }
-
-            // Now take care of the case where the report was an exit
-            if (operation == ReportedFileOperation.ProcessExit)
-            {
-                AddLookupEntryForProcessExit(processId, process);
-
-                m_activeProcesses.TryRemove(processId, out _);
-                path = process.Path;
+                // This is just an info message for debugging purposes. We are interested in spotting reports without an associated process
+                // because it means that the process creation message was not received.
+                Tracing.Logger.Log.ReceivedReportFromUnknownPid(m_loggingContext, PipDescription, processId.ToString(), $"[{operation}-{requestedAccess}]{path}");
+                process = new ReportedProcess(processId, string.Empty, string.Empty);
             }
 
             // For exact matches (i.e., not a scope rule), the manifest path is the same as the full path.
@@ -1111,70 +1052,6 @@ namespace BuildXL.Processes
             HandleReportedAccess(finalPath, reportedAccess);
 
             return true;
-        }
-
-        /// <summary>
-        /// Updates all the structures that track active/created processes
-        /// </summary>
-        /// <remarks>
-        /// It also makes sure that if there is any unknown process <see cref="m_unknownProcessesByParent"/> that has the just created process as a parent,
-        /// it get properly updated
-        /// </remarks>
-        private void TrackProcessCreated(ReportedProcess process)
-        {
-            m_activeProcesses[process.ProcessId] = process;
-            Processes.Add(process);
-            m_traceBuilder?.ReportProcess(process);
-
-            // We may have unknown processes that are children of this process. Let's update them with the correct path and args
-            UpdateUnkownProcessesWithParent(process);
-        }
-
-        /// <summary>
-        /// Updates all the process tree that belong to <see cref="m_unknownProcessesByParent"/> that has the given process as ancestor 
-        /// </summary>
-        /// <remarks>
-        /// After updating a process with the ancestor information, the process is not unknown anymore and therefore it is removed from the collection
-        /// </remarks>
-        private void UpdateUnkownProcessesWithParent(ReportedProcess parentProcess)
-        {
-            // No unknown processes for this parent
-            if (!m_unknownProcessesByParent.TryGetValue(parentProcess.ProcessId, out var unknownProcesses))
-            {
-                return;
-            }
-
-            // Update the path and args for all unknown processes (recursively)
-            foreach (var unknownProcess in unknownProcesses)
-            {
-                UpdateUnkownProcessesWithParent(unknownProcess);
-                unknownProcess.UpdateOnPathAndArgsOnExec(parentProcess.Path, parentProcess.ProcessArgs);
-                m_traceBuilder?.UpdateProcessArgs(unknownProcess, parentProcess.Path, parentProcess.ProcessArgs);
-            }
-            
-            // We updated all unknown processes for this parent, so we can remove them from the dictionary
-            m_unknownProcessesByParent.Remove(parentProcess.ProcessId);
-        }
-
-        /// <summary>
-        /// Tries to find the given process id within the active processes or the processes that have exited.
-        /// </summary>
-        /// <remarks>
-        /// Consider that a process id may be reused after a process has exited. This method looks first for an active
-        /// process with that id, and if it doesn't find it, it looks for a process that has exited. We only keep the last
-        /// process that has exited with a given id.
-        /// </remarks>
-        private bool TryGetProcessStartedOrExited(uint processId, out ReportedProcess reportedProcess)
-        {
-            if (m_activeProcesses.TryGetValue(processId, out reportedProcess) || 
-                m_processesExits.TryGetValue(processId, out reportedProcess)
-            )
-            {
-                return true;
-            }
-            
-            reportedProcess = null;
-            return false;
         }
 
         private void HandleReportedAccess(AbsolutePath finalPath, ReportedFileAccess access)

@@ -25,7 +25,7 @@ namespace Test.BuildXL.Processes
         {
             var line = "Process:1|1|0|0|1|1|1|1|1|1|1|1|1|1|1";
             XAssert.AreEqual(15, line.Split('|').Length);
-            var ok = FileAccessReportLine.TryParse(ref line, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out string error);
+            var ok = FileAccessReportLine.TryParse(ref line, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out string error);
             XAssert.IsTrue(ok, error);
         }
 
@@ -33,7 +33,7 @@ namespace Test.BuildXL.Processes
         public void TestRealCase()
         {
             var line = @"GetFileAttributes:15b8|453|0|4|1|1|3|ffffffffffffffff|80000000|1|3|8100000|ffffffff|1000c868|D:\a\_work\1\s\Out\Objects\nuget\Microsoft.Net.Compilers.4.0.1\tools\en\AsyncFixer.resources.dll|";
-            var ok = FileAccessReportLine.TryParse(ref line, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out string error);
+            var ok = FileAccessReportLine.TryParse(ref line, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out string error);
             XAssert.IsTrue(ok, error);
         }
         
@@ -42,7 +42,7 @@ namespace Test.BuildXL.Processes
         {
             // The status (the fifth element) is invalid here.
             var line = "Process:1|2|3|0|10|1|1|1|1|1|1|1|1|1|1";
-            var ok = FileAccessReportLine.TryParse(ref line, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out string error);
+            var ok = FileAccessReportLine.TryParse(ref line, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out string error);
             XAssert.IsFalse(ok, error);
         }
         
@@ -51,7 +51,7 @@ namespace Test.BuildXL.Processes
         {
             // The status (the fifth element) is invalid here.
             var line = "Process:1|2|3|12312|1|1|1|1|1|1|1|1|1|1|1";
-            var ok = FileAccessReportLine.TryParse(ref line, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out string error);
+            var ok = FileAccessReportLine.TryParse(ref line, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out string error);
             XAssert.IsFalse(ok, error);
         }
         
@@ -61,7 +61,7 @@ namespace Test.BuildXL.Processes
             // There was a bug in the old implementation that was causing IndexOutOfRange error on the input with exactly 14 elements.
             // (the min number of items is 15).
             var line = "Process:1|1|0|0|1|1|1|1|1|1|1|1|1|1";
-            var ok = FileAccessReportLine.TryParse(ref line, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out string error);
+            var ok = FileAccessReportLine.TryParse(ref line, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out string error);
             XAssert.IsFalse(ok);
             XAssert.IsNotNull(error);
         }
@@ -71,7 +71,7 @@ namespace Test.BuildXL.Processes
         public void ParseFailsWithLackOfData(int items)
         {
             var line = $"Process:{string.Join("|", Enumerable.Range(1, items))}";
-            var ok = FileAccessReportLine.TryParse(ref line, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out string error);
+            var ok = FileAccessReportLine.TryParse(ref line, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out string error);
             XAssert.IsFalse(ok);
             XAssert.IsNotNull(error);
         }
@@ -110,7 +110,6 @@ namespace Test.BuildXL.Processes
             var ok = FileAccessReportLine.TryParse(
                 ref line,
                 out var processId,
-                out var parentProcessId,
                 out var id,
                 out var correlationId,
                 out var operation,
@@ -134,7 +133,6 @@ namespace Test.BuildXL.Processes
 
             XAssert.AreEqual(ReportedFileOperation.Process, operation);
             XAssert.AreEqual(1234u, processId);
-            XAssert.AreEqual(0u, parentProcessId);
             XAssert.AreEqual(SandboxedProcessReports.FileAccessNoId, id);
             XAssert.AreEqual(SandboxedProcessReports.FileAccessNoId, correlationId);
             XAssert.AreEqual(RequestedAccess.Enumerate, requestedAccess);

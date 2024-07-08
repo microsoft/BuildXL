@@ -14,7 +14,7 @@ namespace BuildXL.Processes
     /// <remarks>
     /// An instance of this class uniquely identifies a particular instance of a process
     /// </remarks>
-    public sealed class ReportedProcess : IEquatable<ReportedProcess>
+    public sealed class ReportedProcess
     {
         /// <summary>
         /// The path of the executable file of the process.
@@ -71,37 +71,24 @@ namespace BuildXL.Processes
         /// </summary>
         /// <param name="processId">The process ID of the reported process.</param>
         /// <param name="path">The full path and file name of the reported process.</param>
-        public ReportedProcess(uint processId, string path)
-            : this(processId, path, string.Empty)
-        {
-        }
-
-        /// <summary>
-        /// Creates an instance of this class.
-        /// </summary>
-        /// <param name="processId">The process ID of the reported process.</param>
-        /// <param name="path">The full path and file name of the reported process.</param>
         /// <param name="args">The command line arguments of the reported process.</param>
-        public ReportedProcess(uint processId, string path, string args) 
-            : this(processId, 0, path, args) 
-        {
-        }
-
-        /// <summary>
-        /// Creates an instance of this class.
-        /// </summary>
-        /// <param name="processId">The process ID of the reported process.</param>
-        /// <param name="parentProcessId">The parent process ID of the reported process</param>
-        /// <param name="path">The full path and file name of the reported process.</param>
-        /// <param name="args">The command line arguments of the reported process.</param>
-        public ReportedProcess(uint processId, uint parentProcessId, string path, string args)
+        public ReportedProcess(uint processId, string path, string args)
         {
             Contract.Requires(path != null);
             ProcessId = processId;
-            ParentProcessId = parentProcessId;
             ProcessArgs = args;
             Path = path;
             ExitCode = ExitCodes.UninitializedProcessExitCode;
+        }
+
+        /// <summary>
+        /// Creates an instance of this class.
+        /// </summary>
+        /// <param name="processId">The process ID of the reported process.</param>
+        /// <param name="path">The full path and file name of the reported process.</param>
+        public ReportedProcess(uint processId, string path)
+            : this(processId, path, string.Empty)
+        {
         }
 
         /// <summary>
@@ -153,27 +140,5 @@ namespace BuildXL.Processes
 
             return reportedProcess;
         }
-
-        /// <nodoc />
-        public bool Equals(ReportedProcess other)
-        {
-            return other != null &&
-                ProcessId == other.ProcessId &&
-                Path == other.Path &&
-                ProcessArgs == other.ProcessArgs &&
-                CreationTime == other.CreationTime &&
-                ExitTime == other.ExitTime &&
-                KernelTime == other.KernelTime &&
-                UserTime == other.UserTime &&
-                IOCounters == other.IOCounters &&
-                ExitCode == other.ExitCode &&
-                ParentProcessId == other.ParentProcessId;
-        }
-
-        /// <nodoc />
-        public override int GetHashCode() => (int) ProcessId;
-                
-        /// <nodoc />
-        public override bool Equals(object obj) => obj as ReportedProcess is var reportedProcess && reportedProcess != null && Equals(reportedProcess);
     }
 }

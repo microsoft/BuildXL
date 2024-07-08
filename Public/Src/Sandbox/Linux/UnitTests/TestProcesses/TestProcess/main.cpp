@@ -126,9 +126,6 @@ int main(int argc, char **argv)
     IF_COMMAND_STR(vfork);
     IF_COMMAND_STR(clone);
     IF_COMMAND_STR(clone3);
-    IF_COMMAND_STR(clone3WithProbe);
-    IF_COMMAND_STR(clone3Nested);
-    IF_COMMAND_STR(clone3NestedAndExec);
     IF_COMMAND_STR(fexecve);
     IF_COMMAND_STR(execv);
     IF_COMMAND_STR(execve);

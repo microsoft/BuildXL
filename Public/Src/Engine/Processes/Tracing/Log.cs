@@ -1270,8 +1270,8 @@ namespace BuildXL.Processes.Tracing
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Scheduler,
-            Message = "[{pipDescription}] Received report from unknown pid: {pid}")]
-        internal abstract void ReceivedReportFromUnknownPid(LoggingContext loggingContext, string pipDescription, string pid);
+            Message = "[{pipDescription}] [Warning] received report from unknown pid: {pid} - {reportDetail}")]
+        internal abstract void ReceivedReportFromUnknownPid(LoggingContext loggingContext, string pipDescription, string pid, string reportDetail);
 
         [GeneratedEvent(
             (ushort)LogEventId.ReceivedFileAccessReportBeforeSemaphoreInit,
@@ -1281,5 +1281,7 @@ namespace BuildXL.Processes.Tracing
             EventTask = (ushort)Tasks.Scheduler,
             Message = "The following file access occurred before the BxlObserver was able to complete initialization '{path}'")]
         internal abstract void ReceivedFileAccessReportBeforeSemaphoreInit(LoggingContext loggingContext, string path);
+
+        
     }
 }

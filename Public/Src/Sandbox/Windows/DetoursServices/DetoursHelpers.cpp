@@ -632,6 +632,8 @@ static SubstituteProcessExecutionPluginFunc GetSubstituteProcessExecutionPluginF
 static void LoadSubstituteProcessExecutionPluginDll()
 {
     assert(g_SubstituteProcessExecutionPluginDllPath != nullptr);
+    // Since we call LoadLibrary with this path, we need to ensure that it is a full path.
+    assert(GetRootLength(g_SubstituteProcessExecutionPluginDllPath) > 0);
 
     Dbg(L"Loading substitute process plugin DLL at '%s'", g_SubstituteProcessExecutionPluginDllPath);
 

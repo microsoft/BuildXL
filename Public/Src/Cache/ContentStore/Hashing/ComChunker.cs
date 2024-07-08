@@ -4,6 +4,7 @@
 using System;
 using System.ComponentModel;
 using System.Diagnostics.ContractsLight;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
 using Microsoft.DataDeduplication.Interop;
@@ -256,13 +257,19 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
             private static IntPtr LoadNativeLibrary(string libraryName)
             {
-                // First, try to load from the system directory or the folder this library is in.
-                // See https://docs.microsoft.com/en-us/windows/win32/dlls/dynamic-link-library-search-order
-                IntPtr hLib = LoadLibrary(libraryName);
+                // First, try to load from the system directory
+                IntPtr hLib = LoadLibrary(Path.Combine(Environment.SystemDirectory, libraryName));
+
+                if (hLib == IntPtr.Zero)
+                {
+                    // Next try the the folder this library is in.
+                    hLib = LoadLibrary(Path.Combine(Directory.GetCurrentDirectory(), libraryName));
+                }
+
                 if (hLib == IntPtr.Zero)
                 {
                     // If not there, we carry a copy with us in the x64 folder.
-                    hLib = LoadLibrary($"x64\\{libraryName}");
+                    hLib = LoadLibrary(Path.Combine(Directory.GetCurrentDirectory(), "x64", libraryName));
                     if (hLib == IntPtr.Zero)
                     {
                         throw new Win32Exception($"Could not load {libraryName}' on {Environment.OSVersion}: {Marshal.GetLastWin32Error()}");

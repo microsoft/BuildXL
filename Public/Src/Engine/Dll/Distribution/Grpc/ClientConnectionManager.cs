@@ -544,13 +544,8 @@ namespace BuildXL.Engine.Distribution.Grpc
 
         public void OnAttachmentCompleted() => m_attached = true;
 
-        /// <summary>
-        /// CallAsync wrapper with result return from rpc call
-        /// </summary>
-        /// <typeparam name="T">Type of the result returned from rpc call</typeparam>
-        /// <returns></returns>
-        public async Task<RpcCallResult<T>> CallAsyncWithResult<T>(
-            Func<CallOptions, Task<T>> func,
+        public async Task<RpcCallResult<Unit>> CallAsync(
+            Func<CallOptions, Task> func,
             string operation,
             CancellationToken cancellationToken = default(CancellationToken),
             bool waitForConnection = false,
@@ -569,7 +564,7 @@ namespace BuildXL.Engine.Distribution.Grpc
 
                 if (!connectionSucceeded)
                 {
-                    return new RpcCallResult<T>(RpcCallResultState.Cancelled, attempts: 1, duration: TimeSpan.Zero, waitForConnectionDuration);
+                    return new RpcCallResult<Unit>(RpcCallResultState.Cancelled, attempts: 1, duration: TimeSpan.Zero, waitForConnectionDuration);
                 }
             }
 
@@ -581,7 +576,6 @@ namespace BuildXL.Engine.Distribution.Grpc
 
             uint numTry = 0;
             var timeouts = 0;
-            T result = default;
             while (numTry < GrpcSettings.MaxAttempts)
             {
                 numTry++;
@@ -595,7 +589,7 @@ namespace BuildXL.Engine.Distribution.Grpc
                         headers: headerResult.headers).WithWaitForReady();
 
                     Logger.Log.GrpcTrace(m_loggingContext, m_ipAddress, GenerateLog(traceId, "Call", numTry, operation));
-                    result = await func(callOptions);
+                    await func(callOptions);
                     Logger.Log.GrpcTrace(m_loggingContext, m_ipAddress, GenerateLog(traceId, "Sent", numTry, string.Empty));
 
                     state = RpcCallResultState.Succeeded;
@@ -652,7 +646,7 @@ namespace BuildXL.Engine.Distribution.Grpc
 
             if (state == RpcCallResultState.Succeeded)
             {
-                return new RpcCallResult<T>(result, attempts: numTry, duration: totalCallDuration, waitForConnectionDuration: waitForConnectionDuration);
+                return new RpcCallResult<Unit>(Unit.Void, attempts: numTry, duration: totalCallDuration, waitForConnectionDuration: waitForConnectionDuration);
             }
             else if (m_attached && timeouts == GrpcSettings.MaxAttempts)
             {
@@ -662,30 +656,13 @@ namespace BuildXL.Engine.Distribution.Grpc
                     $"Timed out on a call to the worker. Assuming the worker is dead. Call timeout: {GrpcSettings.CallTimeout.TotalMinutes} min. Retries: {GrpcSettings.MaxAttempts}"));
             }
 
-            return new RpcCallResult<T>(
+            return new RpcCallResult<Unit>(
                 state,
                 attempts: numTry,
                 duration: totalCallDuration,
                 waitForConnectionDuration: waitForConnectionDuration,
                 lastFailure: failure);
         }
-
-        public Task<RpcCallResult<Unit>> CallAsync(
-            Func<CallOptions, Task> func,
-            string operation,
-            CancellationToken cancellationToken = default(CancellationToken),
-            bool waitForConnection = false,
-            bool doNotRetry = false,
-            TimeSpan? timeout = null) => CallAsyncWithResult<Unit>(
-                async callOptions => 
-                { 
-                    await func(callOptions); 
-                    return Unit.Void; 
-                },
-                operation,
-                cancellationToken,
-                waitForConnection,
-                doNotRetry);
 
         public Task<RpcCallResult<Unit>> FinalizeStreamAsync<TRequest>(AsyncClientStreamingCall<TRequest, RpcResponse> stream) => CallAsync(
                     async (_) =>

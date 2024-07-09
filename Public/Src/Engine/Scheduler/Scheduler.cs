@@ -1472,8 +1472,6 @@ namespace BuildXL.Scheduler
                 }
             }
 
-            m_eventStatsExecutionLogTarget = new EventStatsExecutionLogTarget();
-
             m_multiExecutionLogTarget = MultiExecutionLogTarget.CombineTargets(
                 m_executionLogFileTarget,
                 m_fingerprintStoreTarget,
@@ -1482,8 +1480,7 @@ namespace BuildXL.Scheduler
                 m_manifestExecutionLog,
                 fingerprintAugmentationTarget,
                 m_dumpPipLiteExecutionLogTarget,
-                m_packedExecutionExporter,
-                m_eventStatsExecutionLogTarget);
+                m_packedExecutionExporter);
 
             // Things that use execution log targets
             m_directoryMembershipFingerprinter = new DirectoryMembershipFingerprinter(
@@ -6146,7 +6143,6 @@ namespace BuildXL.Scheduler
         private readonly BuildManifestGenerator m_buildManifestGenerator;
         private ExecutionLogTargetBase m_manifestExecutionLog;
         private readonly DumpPipLiteExecutionLogTarget m_dumpPipLiteExecutionLogTarget;
-        private readonly EventStatsExecutionLogTarget m_eventStatsExecutionLogTarget;
 
         /// <inheritdoc/>
         [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]

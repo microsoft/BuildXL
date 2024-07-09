@@ -42,7 +42,7 @@ service Worker
     rpc StreamExecutePips(stream PipBuildRequest) returns (RpcResponse) {}
 
     // Signals that build is finished and that worker should exit
-    rpc Exit(BuildEndData) returns (WorkerExitResponse) {}
+    rpc Exit(BuildEndData) returns (RpcResponse) {}
 
     // Heartbeat
     rpc Heartbeat(RpcResponse) returns (RpcResponse) {}
@@ -62,12 +62,6 @@ message HelloResponse
 
     // Result
     HelloResponseType Message = 1;
-}
-
-// Workers return eventstats collected by EventStatsExecutionLogTarget when exit
-message WorkerExitResponse
-{
-    repeated int64 EventCounts = 1;
 }
 
 // The response from an Attach event

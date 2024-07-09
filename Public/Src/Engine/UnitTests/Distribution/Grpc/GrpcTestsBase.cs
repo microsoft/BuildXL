@@ -175,11 +175,6 @@ namespace Test.BuildXL.Distribution
                 Delay();
                 return Task.FromResult(true);
             }
-            
-            public long[] RetrieveWorkerEventStats()
-            {
-                return Array.Empty<long>();
-            }
 
             #endregion
         }
@@ -303,7 +298,7 @@ namespace Test.BuildXL.Distribution
                 return WorkerClient.ExecutePipsAsync(pipRequest, string.Empty);
             }
 
-            public async Task<RpcCallResult<WorkerExitResponse>> ExitAsync(bool exitWithFailure = false)
+            public async Task<RpcCallResult<Unit>> ExitAsync(bool exitWithFailure = false)
             {
                 var buildEndData = new BuildEndData()
                 {

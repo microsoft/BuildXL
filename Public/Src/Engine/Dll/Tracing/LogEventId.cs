@@ -418,11 +418,6 @@ namespace BuildXL.Engine.Tracing
 
         ErrorCacheInitializationForEngineScheduleConstruction = 7136,
         DistributionExecutePipFailedDistributionFailureWarning = 7137,
-
-        DistributionEventStatsNotMatch = 7138,
-        DistributionCompareEventStats = 7139,
-        DistributionEventStatsNotFound = 7140,
-        DistributionReportExecutionLogFailed = 7141,
         // max 7200
     }
 }

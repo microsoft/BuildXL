@@ -64,16 +64,11 @@ namespace BuildXL.Engine.Distribution.Grpc
 #pragma warning restore 1998
 
         /// <inheritdoc/>
-        public override Task<WorkerExitResponse> Exit(BuildEndData message, ServerCallContext context)
+        public override Task<RpcResponse> Exit(BuildEndData message, ServerCallContext context)
         {
             var failure = string.IsNullOrEmpty(message.Failure) ? Optional<string>.Empty : message.Failure;
-
-            var eventStats = m_workerService.RetrieveWorkerEventStats();
-            m_workerService.ExitRequested($"Received exit call from the orchestrator: {message.Failure}", failure);       
-            WorkerExitResponse workerExitResponse = new WorkerExitResponse();
-            workerExitResponse.EventCounts.AddRange(eventStats);
-
-            return Task.FromResult(workerExitResponse);
+            m_workerService.ExitRequested($"Received exit call from the orchestrator: {message.Failure}", failure);
+            return GrpcUtils.EmptyResponseTask;
         }
     }
 }

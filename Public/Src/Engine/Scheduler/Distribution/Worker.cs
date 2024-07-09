@@ -72,11 +72,6 @@ namespace BuildXL.Scheduler.Distribution
         private OperationContext m_currentStatusOperation;
 
         /// <summary>
-        /// ExecutionLogTarget used to retrieve EventStats at the end of build
-        /// </summary>
-        protected IExecutionLogTarget ExecutionLogTarget;
-
-        /// <summary>
         /// Whether the worker has finished all pending requests after stop is initiated.
         /// </summary>
         public readonly TaskSourceSlim<bool> DrainCompletion;
@@ -399,7 +394,6 @@ namespace BuildXL.Scheduler.Distribution
             m_isContentTrackingEnabled = config.Schedule.EnableSetupCostWhenChoosingWorker;
             m_availableContent = new ContentTrackingSet(pipGraph);
             m_availableHashes = new ContentTrackingSet(pipGraph);
-            ExecutionLogTarget = executionLogTarget;
         }
 
         /// <summary>

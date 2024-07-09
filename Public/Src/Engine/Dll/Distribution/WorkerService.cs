@@ -5,6 +5,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
+using System.Linq;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
@@ -14,6 +15,7 @@ using BuildXL.Engine.Tracing;
 using BuildXL.Pips;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Distribution;
+using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
@@ -23,6 +25,7 @@ using BuildXL.Utilities.Instrumentation.Common;
 using static BuildXL.Distribution.Grpc.HelloResponse.Types;
 using static BuildXL.Engine.Distribution.Grpc.ClientConnectionManager;
 using PipGraphCacheDescriptor = BuildXL.Engine.Cache.Fingerprints.PipGraphCacheDescriptor;
+using Logger = BuildXL.Engine.Tracing.Logger;
 
 namespace BuildXL.Engine.Distribution
 {
@@ -57,6 +60,11 @@ namespace BuildXL.Engine.Distribution
         /// <param name="failure">If present, the build will be considered a failure</param>
         /// <param name="exitMessage">Details of the operation to log on exit</param>
         void ExitRequested(string exitMessage, Optional<string> failure);
+
+        /// <summary>
+        /// Retrieve the EventStats from remote worker
+        /// </summary>
+        long[] RetrieveWorkerEventStats();
     }
 
     /// <summary>
@@ -117,6 +125,7 @@ namespace BuildXL.Engine.Distribution
         
         private readonly IOrchestratorClient m_orchestratorClient;
         private readonly IServer m_workerServer;
+        private IExecutionLogTarget m_executionLogTarget;
 
         /// <summary>
         /// Class constructor
@@ -175,6 +184,7 @@ namespace BuildXL.Engine.Distribution
         internal void Start(EngineSchedule schedule, ExecutionResultSerializer resultSerializer)
         {
             Contract.Assert(AttachCallTask.IsCompleted && AttachCallTask.GetAwaiter().GetResult() == AttachResult.Attached, "Start called before finishing attach on worker");
+            m_executionLogTarget = schedule?.Scheduler.ExecutionLog;
             m_pipExecutionService.Start(schedule, BuildStartData);
             m_notificationManager.Start(m_orchestratorClient, schedule, new PipResultSerializer(resultSerializer), m_config.Logging);
         }
@@ -301,6 +311,19 @@ namespace BuildXL.Engine.Distribution
             m_isOrchestratorExited = true;
             Logger.Log.DistributionExitReceived(m_appLoggingContext, exitMessage);
             Exit(failure);
+        }
+
+        /// <nodoc/>
+        public long[] RetrieveWorkerEventStats()
+        {
+            if (m_executionLogTarget != null)
+            {
+                var logTargets = ((MultiExecutionLogTarget)m_executionLogTarget).LogTargets;
+                var eventStatsLogTarget = logTargets.Where(target => target.GetType().Equals(typeof(EventStatsExecutionLogTarget))).FirstOrDefault();
+                return ((EventStatsExecutionLogTarget)eventStatsLogTarget)?.EventCounts;
+            }
+
+            return Array.Empty<long>();
         }
 
         /// <nodoc/>

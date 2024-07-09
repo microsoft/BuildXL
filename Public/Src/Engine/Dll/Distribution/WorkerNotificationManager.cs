@@ -113,6 +113,7 @@ namespace BuildXL.Engine.Distribution
                 {
                     if (!ReportExecutionLog(stream))
                     {
+                        Tracing.Logger.Log.DistributionReportExecutionLogFailed(m_loggingContext);
                         m_executionLogTarget.Deactivate();
                     }
                 },

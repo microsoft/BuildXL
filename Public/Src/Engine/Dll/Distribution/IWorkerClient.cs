@@ -16,7 +16,7 @@ namespace BuildXL.Engine.Distribution
 
         Task<RpcCallResult<Unit>> ExecutePipsAsync(PipBuildRequest input, string description, CancellationToken cancellationToken = default);
 
-        Task<RpcCallResult<Unit>> ExitAsync(BuildEndData buildEndData, CancellationToken cancellationToken = default);
+        Task<RpcCallResult<WorkerExitResponse>> ExitAsync(BuildEndData buildEndData, CancellationToken cancellationToken = default);
 
         void SetWorkerLocation(ServiceLocation serviceLocation);
 

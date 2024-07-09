@@ -51,7 +51,6 @@ namespace BuildXL.Scheduler.Tracing
 
         #region PipExecutor
 
-
         [GeneratedEvent(
             (ushort)LogEventId.PipWriteFileFailed,
             EventGenerators = EventGenerators.LocalOnly,

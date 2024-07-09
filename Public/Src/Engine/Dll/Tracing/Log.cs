@@ -675,7 +675,7 @@ namespace BuildXL.Engine.Tracing
             EventTask = (ushort)Tasks.Distribution,
             Message = "Received Hello from a worker. Location: {ip}:{port}. Worker was assigned id #{workerId}")]
         public abstract void DistributionHelloReceived(LoggingContext context, string ip, int port, uint workerId);
-   
+
         [GeneratedEvent(
             (ushort)LogEventId.DistributionHelloNoSlot,
             EventGenerators = EventGenerators.LocalOnly,
@@ -755,6 +755,46 @@ namespace BuildXL.Engine.Tracing
             EventOpcode = (byte)EventOpcode.Info,
             Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
         public abstract void DistributionTryMaterializeInputsSuccessfulRetry(LoggingContext context, long pipSemiStableHash, string pipDescription, int numberOfFailedAttempts);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.DistributionReportExecutionLogFailed,
+            EventGenerators = EventGenerators.LocalOnly,
+            Message = "Failed to reported execution log to orchestrator. Will deactivate execution log targets on this worker. This means the orchestrator's execution log will be incomplete.",
+            EventLevel = Level.Verbose,
+            EventTask = (ushort)Tasks.Distribution,
+            EventOpcode = (byte)EventOpcode.Info,
+            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
+        public abstract void DistributionReportExecutionLogFailed(LoggingContext loggingContext);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.DistributionCompareEventStats,
+            EventGenerators = EventGenerators.LocalOnly,
+            Message = "Comparing EventStats on orchestrator for worker {name}",
+            EventLevel = Level.Verbose,
+            EventTask = (ushort)Tasks.Distribution,
+            EventOpcode = (byte)EventOpcode.Info,
+            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
+        public abstract void DistributionComparingEventStats(LoggingContext context, string name);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.DistributionEventStatsNotMatch,
+            EventGenerators = EventGenerators.LocalOnly,
+            Message = "Found mismatched event stats worker {workerName}:\n {message}",
+            EventLevel = Level.Verbose,
+            EventTask = (ushort)Tasks.Distribution,
+            EventOpcode = (byte)EventOpcode.Info,
+            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
+        public abstract void DistributionEventStatsNotMatch(LoggingContext context, string workerName, string message);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.DistributionEventStatsNotFound,
+            EventGenerators = EventGenerators.LocalOnly,
+            Message = "Event stats not found on {message}",
+            EventLevel = Level.Verbose,
+            EventTask = (ushort)Tasks.Distribution,
+            EventOpcode = (byte)EventOpcode.Info,
+            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
+        public abstract void DistributionEventStatsNotFound(LoggingContext context, string message);
 
         [GeneratedEvent(
             (ushort)LogEventId.ErrorUnableToCacheGraphDistributedBuild,

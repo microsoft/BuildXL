@@ -527,7 +527,9 @@ namespace BuildXL.Scheduler.Tracing
         CreationTimeNotSupported = 14537,
         FailedLoggingExecutionLogEventData = 14538,
         CompositeSharedOpaqueRegexTimeout = 14539,
-        SchedulerComplete = 14540
+        SchedulerComplete = 14540,
+
+        EventStatsLogUnhandleEvent = 14600,
 
         // was DependencyViolationGenericWithRelatedPip_AsError = 25000,
         // was DependencyViolationGeneric_AsError = 25001,

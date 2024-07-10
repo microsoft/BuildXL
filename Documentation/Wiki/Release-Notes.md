@@ -2,6 +2,16 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20240705.2.2 (Release [394871](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=394871))
+- Gracefully exit workers when released before attachment.
+- Enable encryption for ephemeral cache.
+- Added retry mechanism for handling transient errors in ADO build runner.
+- Bump CB.QTest to 24.6.26.153636
+- Added special handling for openat calls in ptrace sandbox.
+- Track output directories created by the engine for the pip in the Output filesystem view.
+- Filter out directory writes for observations passed to observed input processor.
+- Docs are spelled checked.
+
 # 0.1.0-20240622.1 (Release [391575](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=391575))
 - Clean up IOHandler/AccessHandler code from MacOS Sandbox
 - Refactor HistoricMetadataCache to handle BlobL3 topology

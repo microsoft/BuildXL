@@ -71,15 +71,17 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         }
 
         /// <inheritdoc />
-        public override Task<BoolResult> IncorporateStrongFingerprintsAsync(OperationContext context, IEnumerable<Task<StrongFingerprint>> strongFingerprints)
+        public override async Task<BoolResult> IncorporateStrongFingerprintsAsync(OperationContext context, IEnumerable<Task<StrongFingerprint>> strongFingerprints)
         {
             // Ugly hack to workaround GCS dependency on IMetadataStore
             if (_store is IMetadataStoreWithIncorporation store)
             {
-                return store.IncorporateStrongFingerprintsAsync(context, strongFingerprints);
+                // As it stands, propagating errors from incorporate has little utility
+                // so we ignore here.
+                await store.IncorporateStrongFingerprintsAsync(context, strongFingerprints).IgnoreFailure();
             }
 
-            return BoolResult.SuccessTask;
+            return BoolResult.Success;
         }
 
         /// <inheritdoc/>

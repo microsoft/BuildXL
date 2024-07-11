@@ -689,7 +689,27 @@ namespace BuildXL.FrontEnd.MsBuild
             // Global properties on the project are turned into build parameters
             foreach(var kvp in project.GlobalProperties)
             {
-                AddMsBuildProperty(pipDataBuilder, kvp.Key, kvp.Value);
+                string key = kvp.Key;
+                string value = kvp.Value;
+
+                if (string.Equals(key, "CurrentSolutionConfigurationContents", StringComparison.OrdinalIgnoreCase))
+                {
+                    // Solution configuration contents contains characters that are not allowed in process arguments, e.g., < or >.
+                    continue;
+                }
+
+                if (isValidRootedPath(value)) 
+                { 
+                    // There's a bug in MSBuild when interpreting path ending with backslash, e.g., /p:SolutionDir="C:\ABC\DEF\", that the end quote becomes
+                    // part of the path. To work around this, we replace backslashes with forward slashes.
+                    // This bug appears when MSBuild is invoked from command line, but not from PowerShell.
+                    if (value.EndsWith("\\", OperatingSystemHelper.PathComparison))
+                    {
+                        value = value.Replace("\\", "/");
+                    }
+                }
+
+                AddMsBuildProperty(pipDataBuilder, key, value);
             }
 
             // Configure binary logger if specified
@@ -729,6 +749,22 @@ namespace BuildXL.FrontEnd.MsBuild
 
             failureDetail = string.Empty;
             return true;
+
+            static bool isValidRootedPath(string maybePath)
+            {
+                try
+                {
+                    string fullPath = System.IO.Path.GetFullPath(maybePath);
+                    return System.IO.Path.IsPathRooted(maybePath);
+                }
+                catch (Exception)
+                {
+                    // GetFullPath can throw exceptions if the path is invalid
+#pragma warning disable ERP022 // Unobserved exception in a generic exception handler
+                    return false;
+#pragma warning restore ERP022 // Unobserved exception in a generic exception handler
+                }
+            }
         }
 
         private static bool TryGetLogVerbosity(string logVerbosity, out string result)
@@ -837,6 +873,16 @@ namespace BuildXL.FrontEnd.MsBuild
             if (values.Count > 0)
             {
                 var valueIdentifier = string.Join("-", values);
+
+                if (valueIdentifier.Length > 200)
+                {
+                    // In Windows, even though long path is enabled, the segment name is still limited to 260 characters.
+                    // To avoid hitting this limit, we hash the value identifier, and to be more defensive, we use 200 as a limit.
+                    var configuration = deltaGlobalProperties.TryGetValue("Configuration", out var configurationValue) ? configurationValue : string.Empty;
+                    var platform = deltaGlobalProperties.TryGetValue("Platform", out var platformValue) ? platformValue : string.Empty;
+                    valueIdentifier = $"{configuration}_{platform}_{PipConstructionUtilities.ComputeSha256(valueIdentifier)}";
+                }
+
                 result = result.Combine(PathTable, valueIdentifier);
             }
 

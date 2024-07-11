@@ -124,6 +124,31 @@ namespace DeploymentHelpers {
         /** The symbol create result */
         export const createResult = enabled ? runner.createSymbol(settings) : undefined;
 
+        /** List of filename prefixes that define files that should be sent for symbol publishing. */
+        function includeInSymbolRequest(fileName: string) : boolean {
+            return fileName.startsWith("bxl")
+                || fileName.startsWith("Bxl")
+                || fileName.startsWith("BuildXL")
+                || fileName.startsWith("AdoBuildRunner")
+                || fileName.startsWith("CacheService")
+                || fileName.startsWith("ContentStoreApp")
+                || fileName.startsWith("DetoursServices")
+                || fileName.startsWith("DistributedBuildRunner")
+                || fileName.startsWith("Downloader")
+                || fileName.startsWith("DropDaemon")
+                || fileName.startsWith("Extractor")
+                || fileName.startsWith("MaterializationDaemon")
+                || fileName.startsWith("NinjaGraphBuilder")
+                || fileName.startsWith("NugetDownloader")
+                || fileName.startsWith("ReportAccesses")
+                || fileName.startsWith("ReportProcesses")
+                || fileName.startsWith("RunInSubst")
+                || fileName.startsWith("SandboxedProcessExecutor")
+                || fileName.startsWith("SymbolDaemon")
+                || fileName.startsWith("Tool.ServicePipDaemon")
+                ;
+        }
+
         export function indexAndPublishSymbols(
             runner : SymbolDaemon.SymbolRunner,
             createResult : SymbolDaemon.SymbolCreateResult,
@@ -133,7 +158,7 @@ namespace DeploymentHelpers {
         {
             const flattenedResult = Deployment.flatten(deployment, undefined, deploymentOptions);
 
-            const filesToAdd = flattenedResult.flattenedFiles.forEach(kvp => kvp[1].file);
+            const filesToAdd = flattenedResult.flattenedFiles.forEach(kvp => kvp[1].file).filter(f => includeInSymbolRequest(f.name.toString()));;
             const result = runner.addFilesToSymbol(createResult, args, filesToAdd);            
         }
     }

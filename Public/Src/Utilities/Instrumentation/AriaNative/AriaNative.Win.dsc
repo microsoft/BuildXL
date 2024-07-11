@@ -43,42 +43,44 @@ namespace AriaNative {
     };
 
     @@public
-    export const dll = !needNativeAria ? undefined : native.Dll.build(nativeDllBuilderDefaultValue.merge<Native.Dll.Arguments>({
-        outputFileName: a`BuildXLAria.dll`,
-        preprocessorSymbols: [
-            ...addIf(BuildXLSdk.Flags.isMicrosoftInternal,
-                {name: "MICROSOFT_INTERNAL"}
-            )
-        ],
+    export const dll = !needNativeAria ? undefined : BuildXLSdk.Native.withQualifier({platform: platform}).library(
+        nativeDllBuilderDefaultValue.merge<Native.Dll.Arguments>({
+            outputFileName: a`BuildXLAria.dll`,
+            preprocessorSymbols: [
+                ...addIf(BuildXLSdk.Flags.isMicrosoftInternal,
+                    {name: "MICROSOFT_INTERNAL"}
+                )
+            ],
 
-        sources: [
-            f`lib/AriaLogger.cpp`
-        ],
+            sources: [
+                f`lib/AriaLogger.cpp`
+            ],
 
-        includes: [
-            f`lib/AriaLogger.hpp`,
-            ariaWinIncludeDir,
-            WindowsSdk.UM.include,
-            WindowsSdk.Shared.include,
-            WindowsSdk.Ucrt.include,
-            VisualCpp.include,
-        ],
+            includes: [
+                f`lib/AriaLogger.hpp`,
+                ariaWinIncludeDir,
+                WindowsSdk.UM.include,
+                WindowsSdk.Shared.include,
+                WindowsSdk.Ucrt.include,
+                VisualCpp.include,
+            ],
 
-        exports: [
-            {name: "DllMain"},
-            {name: "CreateAriaLogger"},
-            {name: "DisposeAriaLogger"},
-            {name: "LogEvent"},
-        ],
+            exports: [
+                {name: "DllMain"},
+                {name: "CreateAriaLogger"},
+                {name: "DisposeAriaLogger"},
+                {name: "LogEvent"},
+            ],
 
-        libraries: [
-            AriaPkgContents,
-            AriaPkgContents.getFile(r`win-x64/tools/${qualifier.configuration}/ClientTelemetry.lib`),
-            VisualCpp.lib,
-            WindowsSdk.Ucrt.lib,
-            ...WindowsSdk.UM.standardLibs,
-        ],
-    }));
+            libraries: [
+                AriaPkgContents,
+                AriaPkgContents.getFile(r`win-x64/tools/${qualifier.configuration}/ClientTelemetry.lib`),
+                VisualCpp.lib,
+                WindowsSdk.Ucrt.lib,
+                ...WindowsSdk.UM.standardLibs,
+            ],
+        })
+    );
 
     @@public
     export const deployment: Deployment.Definition = !needNativeAria ? undefined : {

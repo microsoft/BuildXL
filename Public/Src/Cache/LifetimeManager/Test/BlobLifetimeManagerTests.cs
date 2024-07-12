@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using Azure;
 using Azure.Core;
 using Azure.Storage.Blobs.ChangeFeed;
+using BuildXL.Cache.BuildCacheResource.Model;
 using BuildXL.Cache.BlobLifetimeManager.Library;
 using BuildXL.Cache.ContentStore.Distributed.Blob;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
@@ -93,6 +94,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
                             contentDegreeOfParallelism: 1,
                             fingerprintDegreeOfParallelism: 1,
                             cacheInstance: "testCache",
+                            buildCacheConfiguration: null,
                             dryRun: false);
                     }
                 });
@@ -114,7 +116,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
                 var putResult = await session.PutRandomAsync(context, HashType.Vso0, provideHash: false, size: contentSize, CancellationToken.None).ThrowIfFailure();
                 hashes[i] = putResult.ContentHash;
 
-                var (blobClient, _) = await topology.GetBlobClientAsync(context, putResult.ContentHash);
+                var (blobClient, _) = await topology.GetContentBlobClientAsync(context, putResult.ContentHash);
                 var fullName = $"/blobServices/default/containers/{blobClient.BlobContainerName}/blobs/{blobClient.Name}";
 
                 var change = new MockChange()
@@ -156,17 +158,18 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
             public TestBlobLifetimeManager(List<Page<IBlobChangeFeedEvent>> pages) => _pages = pages;
 
             protected override AzureStorageChangeFeedEventDispatcher CreateDispatcher(
-                IBlobCacheSecretsProvider secretsProvider,
+                IBlobCacheAccountSecretsProvider secretsProvider,
                 IReadOnlyList<BlobCacheStorageAccountName> accountNames,
                 string metadataMatrix,
                 string contentMatrix,
                 RocksDbLifetimeDatabase db,
                 LifetimeDatabaseUpdater updater,
                 IClock clock,
-                CheckpointManager checkpointManager,
-                int? changeFeedPageSize)
+                CheckpointManager checkpointManager, 
+                int? changeFeedPageSize,
+                BuildCacheConfiguration? buildCacheConfiguration)
             {
-                return TestDispatcher = new TestDispatcher(secretsProvider, accountNames, updater, db, clock, metadataMatrix, contentMatrix, _pages, checkpointManager, changeFeedPageSize);
+                return TestDispatcher = new TestDispatcher(secretsProvider, accountNames, updater, db, clock, metadataMatrix, contentMatrix, _pages, checkpointManager, changeFeedPageSize, buildCacheConfiguration);
             }
         }
 
@@ -175,7 +178,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
             public readonly List<Page<IBlobChangeFeedEvent>> Pages;
 
             public TestDispatcher(
-                IBlobCacheSecretsProvider secretsProvider,
+                IBlobCacheAccountSecretsProvider secretsProvider,
                 IReadOnlyList<BlobCacheStorageAccountName> accounts,
                 LifetimeDatabaseUpdater updater,
                 RocksDbLifetimeDatabase db,
@@ -184,8 +187,9 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
                 string contentMatrix,
                 List<Page<IBlobChangeFeedEvent>> pages,
                 CheckpointManager checkpointManager,
-                int? changeFeedPageSize)
-                : base(secretsProvider, accounts, updater, checkpointManager, db, clock, metadataMatrix, contentMatrix, changeFeedPageSize)
+                int? changeFeedPageSize,
+                BuildCacheConfiguration? buildCacheConfiguration)
+                : base(secretsProvider, accounts, updater, checkpointManager, db, clock, metadataMatrix, contentMatrix, changeFeedPageSize, buildCacheConfiguration)
                 => Pages = pages;
 
             internal override IChangeFeedClient CreateChangeFeedClient(IAzureStorageCredentials creds)

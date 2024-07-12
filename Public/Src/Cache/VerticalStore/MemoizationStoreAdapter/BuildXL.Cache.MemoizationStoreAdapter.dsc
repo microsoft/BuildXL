@@ -10,6 +10,7 @@ namespace MemoizationStoreAdapter {
         sources: globR(d`.`, "*.cs"),
         references: [
             Interfaces.dll,
+            importFrom("BuildXL.Cache.BuildCacheResource").Helper.dll,
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Branding.dll,
             importFrom("BuildXL.Utilities").Configuration.dll,

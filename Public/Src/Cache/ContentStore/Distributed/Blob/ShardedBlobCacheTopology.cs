@@ -10,11 +10,15 @@ using System.Threading;
 using System.Threading.Tasks;
 using Azure;
 using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Models;
+using BuildXL.Cache.BuildCacheResource.Model;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Synchronization;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Utilities.Core.Tasks;
+using BuildXL.Utilities.ParallelAlgorithms;
 
 #nullable enable
 
@@ -43,12 +47,15 @@ public class ShardedBlobCacheTopology : IBlobCacheTopology
     }
 
     public record Configuration(
+        BuildCacheConfiguration? BuildCacheConfiguration,
         ShardingScheme ShardingScheme,
-        IBlobCacheSecretsProvider SecretsProvider,
+        IBlobCacheContainerSecretsProvider SecretsProvider,
         string Universe,
         string Namespace,
         BlobRetryPolicy BlobRetryPolicy,
-        TimeSpan? ClientCreationTimeout = null);
+        TimeSpan? ClientCreationTimeout = null)
+    {
+    }
 
     private readonly Configuration _configuration;
 
@@ -58,7 +65,7 @@ public class ShardedBlobCacheTopology : IBlobCacheTopology
     /// Holds pre-allocated container names to avoid allocating strings every time we want to get the container for a
     /// given key.
     /// </summary>
-    private readonly BlobCacheContainerName[] _containers;
+    private readonly IReadOnlyDictionary<BlobCacheStorageAccountName, BlobCacheContainerName[]> _containerMapping;
     private readonly IShardingScheme<int, BlobCacheStorageAccountName> _scheme;
 
     /// <summary>
@@ -89,33 +96,12 @@ public class ShardedBlobCacheTopology : IBlobCacheTopology
             }
         };
         _scheme = _configuration.ShardingScheme.Create();
-        _containers = GenerateContainerNames(_configuration.Universe, _configuration.Namespace, _configuration.ShardingScheme);
-    }
 
-    internal static BlobCacheContainerName[] GenerateContainerNames(string universe, string @namespace, ShardingScheme scheme)
-    {
-        var matrices = scheme.GenerateMatrix();
-        return Enum.GetValues(typeof(BlobCacheContainerPurpose)).Cast<BlobCacheContainerPurpose>().Select(
-            purpose =>
-            {
-                // Different matrix implies different containers, and therefore different universes.
-                var matrix = purpose switch
-                {
-                    BlobCacheContainerPurpose.Content => matrices.Content,
-                    BlobCacheContainerPurpose.Metadata => matrices.Metadata,
-                    _ => throw new ArgumentOutOfRangeException(
-                        nameof(purpose),
-                        purpose,
-                        $"Unknown value for {nameof(BlobCacheContainerPurpose)}: {purpose}"),
-                };
+        ContainerNamingScheme namingScheme = _configuration.BuildCacheConfiguration == null
+           ? new LegacyContainerNamingScheme(_configuration.ShardingScheme, _configuration.Universe, _configuration.Namespace)
+           : new BuildCacheContainerNamingScheme(_configuration.BuildCacheConfiguration);
 
-                return new BlobCacheContainerName(
-                    BlobCacheVersion.V0,
-                    purpose,
-                    matrix,
-                    universe,
-                    @namespace);
-            }).ToArray();
+        _containerMapping = namingScheme.GenerateContainerNameMapping();
     }
 
     public async Task<(BlobContainerClient Client, AbsoluteContainerPath Path)> GetContainerClientAsync(OperationContext context, BlobCacheShardingKey key)
@@ -124,7 +110,7 @@ public class ShardedBlobCacheTopology : IBlobCacheTopology
         Contract.Assert(account is not null, $"Attempt to determine account for key `{key}` failed");
 
         // _containers is created with this same enum, so this index access is safe.
-        var container = _containers[(int)key.Purpose];
+        var container = _containerMapping[account][(int)key.Purpose];
 
         var path = new AbsoluteContainerPath(account, container);
 
@@ -158,9 +144,9 @@ public class ShardedBlobCacheTopology : IBlobCacheTopology
 
     public IEnumerable<AbsoluteContainerPath> EnumerateContainers(OperationContext context, BlobCacheContainerPurpose purpose)
     {
-        var container = _containers[(int)purpose];
         foreach (var account in _configuration.ShardingScheme.Accounts)
         {
+            var container = _containerMapping[account][(int)purpose];
             yield return new AbsoluteContainerPath(account, container);
         }
     }
@@ -182,37 +168,90 @@ public class ShardedBlobCacheTopology : IBlobCacheTopology
             Tracer,
             async () =>
             {
-                await foreach (var containerClient in EnumerateClientsAsync(context))
-                {
-                    try
+                // We process the creation of containers in parallel because there can be quite a few of them. It's
+                // 2*numShards (so 20 in most cases, but can be much higher).
+
+                await ParallelAlgorithms.WhenDoneAsync(
+                    items: EnumerateContainers(context, BlobCacheContainerPurpose.Content).Concat(EnumerateContainers(context, BlobCacheContainerPurpose.Metadata)),
+                    degreeOfParallelism: Environment.ProcessorCount,
+                    cancellationToken: context.Token,
+                    action: async (scheduleItem, containerPath) =>
                     {
-                        await containerClient.CreateIfNotExistsAsync(
-                                Azure.Storage.Blobs.Models.PublicAccessType.None,
-                                null,
-                                null,
-                                cancellationToken: context.Token);
-                    }
-                    catch (RequestFailedException exception)
-                    {
-                        // It's possible that we failed because we have read-only permissions. If container already exists, we shouldn't fail.
-                        if (!await containerClient.ExistsAsync(context.Token))
+                        var containerClient = await GetOrCreateClientAsync(context, containerPath);
+
+                        // There's a set of fallback options here, because we want to be able to handle different
+                        // levels of permissions being granted to the storage credentials we're using. We may have
+                        // credentials that allow:
+                        //
+                        // 1. Actually creating containers and listing them.
+                        // 2. Listing containers but not creating them.
+                        // 3. Not listing containers, but still using them.
+                        //
+                        // The fallbacks here allow all of these options to go through. In some cases, the containers
+                        // will actually not exist and we're expected to create them, so we do need to try to.
+                        //
+                        // REMARK: everything is logged as INFO to prevent QuickBuild from showing these logs in the
+                        // console output and confusing DRIs when there's a failed build.
+
+                        try
                         {
-                            return new BoolResult(exception, $"Container `{containerClient.Name}` does not exist in account `{containerClient.AccountName}` and could not be created");
+                            if (await containerClient.ExistsAsync(context.Token))
+                            {
+                                return;
+                            }
                         }
-                    }
-                }
+                        catch (Exception exception)
+                        {
+                            Tracer.Info(context, exception, $"Failed to check if container `{containerClient.Name}` exists in account `{containerClient.AccountName}`");
+                        }
+
+                        try
+                        {
+                            // There is a CreateIfNotExistsAsync API, but it doesn't work in practice against the Azure
+                            // Storage emulator.
+                            await containerClient.CreateAsync(
+                                publicAccessType: PublicAccessType.None,
+                                cancellationToken: context.Token);
+
+                            return;
+                        }
+                        catch (RequestFailedException exception) when (exception.ErrorCode == "ContainerAlreadyExists")
+                        {
+                            return;
+                        }
+                        catch (Exception exception)
+                        {
+                            Tracer.Info(context, exception, $"Failed to create container `{containerClient.Name}` in account `{containerClient.AccountName}`");
+                        }
+
+                        try
+                        {
+                            await foreach (var entry in containerClient.GetBlobsAsync(BlobTraits.None, BlobStates.None, prefix: null, cancellationToken: context.Token))
+                            {
+                                // Because this is an IAsyncEnumerable, we just fetched the first page here.
+                                break;
+                            }
+
+                            return;
+                        }
+                        catch (RequestFailedException exception) when (exception.ErrorCode == "ContainerNotFound")
+                        {
+                            // This can happen at a high volume, no need to print anything, as it's expected.
+                        }
+                        catch (Exception exception)
+                        {
+                            Tracer.Info(context, exception, $"Failed to check if container `{containerClient.Name}` exists in account `{containerClient.AccountName}`");
+                        }
+
+                        // We throw an exception here so the WhenDoneAsync bubbles it up.
+                        throw new InvalidOperationException($"Container `{containerClient.Name}` in account `{containerClient.AccountName}` does not exist and could not be created");
+                    });
 
                 return BoolResult.Success;
             });
     }
 
-    private IAsyncEnumerable<BlobContainerClient> EnumerateClientsAsync(OperationContext context)
-    {
-        return EnumerateClientsAsync(context, BlobCacheContainerPurpose.Content)
-            .Concat(EnumerateClientsAsync(context, BlobCacheContainerPurpose.Metadata));
-    }
-
-    public async Task<(BlobClient Client, AbsoluteBlobPath Path)> GetBlobClientAsync(OperationContext context, ContentHash contentHash)
+    public async Task<(BlobClient Client, AbsoluteBlobPath Path)> GetContentBlobClientAsync(OperationContext context, ContentHash contentHash)
     {
         var (container, containerPath) = await GetContainerClientAsync(context, BlobCacheShardingKey.FromContentHash(contentHash));
         var blobPath = BlobPath.CreateAbsolute($"{contentHash}.blob");
@@ -227,7 +266,7 @@ public class ShardedBlobCacheTopology : IBlobCacheTopology
             Tracer,
             async context =>
             {
-                var credentials = await _configuration.SecretsProvider.RetrieveBlobCredentialsAsync(context, account);
+                var credentials = await _configuration.SecretsProvider.RetrieveContainerCredentialsAsync(context, account, container);
                 var containerClient = credentials.CreateContainerClient(container.ContainerName, _blobClientOptions);
 
                 return Result.Success(containerClient);

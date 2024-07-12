@@ -23,6 +23,7 @@ namespace Library {
             
             ...importFrom("BuildXL.Cache.ContentStore").getAzureBlobStorageSdkPackages(true),
             ...importFrom("Sdk.Selfhost.RocksDbSharp").pkgs,
+            importFrom("BuildXL.Cache.BuildCacheResource").Helper.dll,
         ],
         skipDocumentationGeneration: true,
         nullable: true,

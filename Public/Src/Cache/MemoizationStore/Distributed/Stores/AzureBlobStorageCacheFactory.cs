@@ -3,6 +3,7 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
+using BuildXL.Cache.BuildCacheResource.Model;
 using BuildXL.Cache.ContentStore.Distributed.Blob;
 using BuildXL.Cache.ContentStore.Distributed.Ephemeral;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
@@ -48,6 +49,11 @@ public static class AzureBlobStorageCacheFactory
         /// The default namespace.
         /// </summary>
         public static readonly string DefaultNamespace = "default";
+
+        /// <summary>
+        /// In the case the cache configuration comes from 1ESHP, the 1ES build cache resource configuration that acts as the backing blob
+        /// </summary>
+        public BuildCacheConfiguration? BuildCacheConfiguration { get; init; }
 
         /// <summary>
         /// Maximum amount of time we're willing to wait for any operation against storage.
@@ -110,7 +116,7 @@ public static class AzureBlobStorageCacheFactory
     }
 
     /// <nodoc />
-    public static CreateResult Create(OperationContext context, Configuration configuration, IBlobCacheSecretsProvider secretsProvider)
+    public static CreateResult Create(OperationContext context, Configuration configuration, IBlobCacheContainerSecretsProvider secretsProvider)
     {
         context.TracingContext.Debug($"Creating cache with BuildXL version {Branding.Version}", nameof(AzureBlobStorageCacheFactory));
 
@@ -124,7 +130,11 @@ public static class AzureBlobStorageCacheFactory
             configuration = configuration with { Namespace = Configuration.DefaultNamespace };
         }
 
-        BlobCacheContainerName.CheckValidUniverseAndNamespace(configuration.Universe, configuration.Namespace);
+        // Universe/namespace validation happens only when using the legacy naming scheme
+        if (configuration.BuildCacheConfiguration == null)
+        {
+            LegacyBlobCacheContainerName.CheckValidUniverseAndNamespace(configuration.Universe, configuration.Namespace);
+        }
 
         IBlobCacheTopology topology = CreateTopology(configuration, secretsProvider);
 
@@ -155,10 +165,11 @@ public static class AzureBlobStorageCacheFactory
                         ));
     }
 
-    private static IBlobCacheTopology CreateTopology(Configuration configuration, IBlobCacheSecretsProvider secretsProvider)
+    private static IBlobCacheTopology CreateTopology(Configuration configuration, IBlobCacheContainerSecretsProvider secretsProvider)
     {
         return new ShardedBlobCacheTopology(
             new ShardedBlobCacheTopology.Configuration(
+                BuildCacheConfiguration: configuration.BuildCacheConfiguration,
                 ShardingScheme: configuration.ShardingScheme,
                 SecretsProvider: secretsProvider,
                 Universe: configuration.Universe,

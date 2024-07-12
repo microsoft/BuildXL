@@ -6,6 +6,8 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading.Tasks;
+using BuildXL.Cache.BuildCacheResource.Helper;
+using BuildXL.Cache.BuildCacheResource.Model;
 using BuildXL.Cache.ContentStore.Distributed.Blob;
 using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
@@ -40,18 +42,48 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             var tracingContext = new Context(logger);
             var context = new OperationContext(tracingContext);
 
-            context.TracingContext.Info($"Creating blob cache. Universe=[{configuration.Universe}] Namespace=[{configuration.Namespace}] RetentionPolicyInDays=[{configuration.RetentionPolicyInDays}]", nameof(BlobCacheFactory));
-            
-            var credentials = LoadAzureCredentials(configuration, context);
+            // Case where an ADO build cache resource is configured
+            if (configuration.HostedPoolBuildCacheConfigurationFile != null)
+            {
+                var hostedPoolBuildCacheConfiguration = BuildCacheResourceHelper.LoadFromJSONAsync(configuration.HostedPoolBuildCacheConfigurationFile).GetAwaiter().GetResult();
 
-            var factoryConfiguration = new AzureBlobStorageCacheFactory.Configuration(
-                ShardingScheme: new ShardingScheme(ShardingAlgorithm.JumpHash, credentials.Keys.ToList()),
-                Universe: configuration.Universe,
-                Namespace: configuration.Namespace,
-                RetentionPolicyInDays: configuration.RetentionPolicyInDays <= 0 ? null : configuration.RetentionPolicyInDays,
-                IsReadOnly: configuration.IsReadOnly);
+                if (!hostedPoolBuildCacheConfiguration.TrySelectBuildCache(configuration.HostedPoolActiveBuildCacheName, out var selectedBuildCacheConfiguration))
+                {
+                    throw new InvalidOperationException($"Cache resource with name '{configuration.HostedPoolActiveBuildCacheName}' was selected, but none of the available caches match. " +
+                        $"Available cache names are: {string.Join(",", hostedPoolBuildCacheConfiguration.AssociatedBuildCaches.Select(buildCacheConfig => buildCacheConfig.Name))}");
+                }
 
-            return AzureBlobStorageCacheFactory.Create(context, factoryConfiguration, new StaticBlobCacheSecretsProvider(credentials));
+                context.TracingContext.Info($"Selecting 1ES Build cache resource with name {selectedBuildCacheConfiguration.Name}", nameof(BlobCacheFactory));
+
+                var factoryConfiguration = new AzureBlobStorageCacheFactory.Configuration(
+                    ShardingScheme: new ShardingScheme(
+                        ShardingAlgorithm.JumpHash,
+                        selectedBuildCacheConfiguration.Shards.Select(shard => new BlobCacheStorageNonShardingAccountName(shard.StorageUri.AbsoluteUri)).ToList()),
+                    Universe: configuration.Universe,
+                    Namespace: configuration.Namespace,
+                    RetentionPolicyInDays: selectedBuildCacheConfiguration.RetentionPolicyInDays,
+                    IsReadOnly: configuration.IsReadOnly)
+                {
+                    BuildCacheConfiguration = selectedBuildCacheConfiguration
+                };
+
+                return AzureBlobStorageCacheFactory.Create(context, factoryConfiguration, new AzureBuildCacheSecretsProvider(selectedBuildCacheConfiguration));
+            }
+            else
+            {
+                context.TracingContext.Info($"Creating blob cache. Universe=[{configuration.Universe}] Namespace=[{configuration.Namespace}] RetentionPolicyInDays=[{configuration.RetentionPolicyInDays}]", nameof(BlobCacheFactory));
+
+                var credentials = LoadAzureCredentials(configuration, context);
+
+                var factoryConfiguration = new AzureBlobStorageCacheFactory.Configuration(
+                    ShardingScheme: new ShardingScheme(ShardingAlgorithm.JumpHash, credentials.Keys.ToList()),
+                    Universe: configuration.Universe,
+                    Namespace: configuration.Namespace,
+                    RetentionPolicyInDays: configuration.RetentionPolicyInDays <= 0 ? null : configuration.RetentionPolicyInDays,
+                    IsReadOnly: configuration.IsReadOnly);
+
+                return AzureBlobStorageCacheFactory.Create(context, factoryConfiguration, new StaticBlobCacheSecretsProvider(credentials));
+            }
         }
 
         /// <nodoc />

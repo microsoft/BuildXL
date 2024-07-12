@@ -8,7 +8,10 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.BuildCacheResource.Model;
 using BuildXL.Cache.ContentStore.Distributed.Blob;
+using BuildXL.Cache.ContentStore.Distributed.Test;
+using BuildXL.Cache.ContentStore.Distributed.Test.Stores;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
@@ -50,6 +53,24 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
         protected override bool OptimizeWrites => true;
     }
 
+    public class BuildCacheBlobMetadataStoreSasTokensTest : BlobMetadataStoreTests
+    {
+        protected override bool UseBuildCacheConfiguration => true;
+
+        public BuildCacheBlobMetadataStoreSasTokensTest(LocalRedisFixture redis, ITestOutputHelper helper) : base(redis, helper)
+        {
+        }
+    }
+
+    public class BlobMetadataStoreLegacySasTokensTest : BlobMetadataStoreTests
+    {
+        protected override bool UseBuildCacheConfiguration => false;
+
+        public BlobMetadataStoreLegacySasTokensTest(LocalRedisFixture redis, ITestOutputHelper helper) : base(redis, helper)
+        {
+        }
+    }
+
     [Trait("Category", "LongRunningTest")]
     [Collection("Redis-based tests")]
     public class BlobMetadataStoreTests : MemoizationSessionTests
@@ -61,6 +82,8 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
         protected virtual bool OptimizeWrites => false;
 
         private readonly List<AzuriteStorageProcess> _databasesToDispose = new();
+
+        protected virtual bool UseBuildCacheConfiguration => false;
 
         public BlobMetadataStoreTests(LocalRedisFixture redis, ITestOutputHelper helper)
             : base(() => new PassThroughFileSystem(TestGlobal.Logger), TestGlobal.Logger, helper)
@@ -95,22 +118,31 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
                 accounts: shards.Select(account => account.AccountName).ToList());
             _databasesToDispose.Add(process);
 
-            var credentials = shards.Select(
-                account =>
-                {
-                    var connectionString = process.ConnectionString.Replace("devstoreaccount1", account.AccountName);
-                    IAzureStorageCredentials credentials = new SecretBasedAzureStorageCredentials(connectionString);
-                    Contract.Assert(credentials.GetAccountName() == account.AccountName);
-                    return (Account: account, Credentials: credentials);
-                }).ToDictionary(kvp => kvp.Account, kvp => kvp.Credentials);
+            BuildCacheConfiguration buildCacheConfiguration;
+            IBlobCacheContainerSecretsProvider secretsProvider;
+            if (UseBuildCacheConfiguration)
+            {
+                buildCacheConfiguration = BuildCacheConfigurationSecretGenerator.GenerateConfigurationFrom(cacheName: "MyCache", process, shards);
+                secretsProvider = new AzureBuildCacheSecretsProvider(buildCacheConfiguration);
+                // Under the build cache scenario, the account names are created using the corresponding URIs directly. So let's keep that in sync and use those
+                shards = buildCacheConfiguration.Shards.Select(shard => (BlobCacheStorageAccountName) new BlobCacheStorageNonShardingAccountName(shard.StorageUri.AbsoluteUri)).ToList();
+            }
+            else
+            {
+                buildCacheConfiguration = null;
+                secretsProvider = new ConnectionStringSecretsProvider(process, shards);
+            }
 
             var topology = new ShardedBlobCacheTopology(
                 new ShardedBlobCacheTopology.Configuration(
-                    new ShardingScheme(ShardingAlgorithm.JumpHash, credentials.Keys.ToList()),
-                    SecretsProvider: new StaticBlobCacheSecretsProvider(credentials),
+                    BuildCacheConfiguration: buildCacheConfiguration,
+                    new ShardingScheme(ShardingAlgorithm.JumpHash, shards),
+                    SecretsProvider: secretsProvider,
                     Universe: ThreadSafeRandom.LowercaseAlphanumeric(10),
                     Namespace: "default",
-                    BlobRetryPolicy: new ShardedBlobCacheTopology.BlobRetryPolicy()));
+                    BlobRetryPolicy: new ShardedBlobCacheTopology.BlobRetryPolicy())
+                {
+                });
             var config = new BlobMetadataStoreConfiguration
             {
                 Topology = topology,

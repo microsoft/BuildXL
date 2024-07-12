@@ -26,6 +26,7 @@ namespace Distributed {
             ...BuildXLSdk.bclAsyncPackages,
             ...importFrom("BuildXL.Cache.ContentStore").getProtobufNetPackages(true),
             ...importFrom("BuildXL.Cache.ContentStore").getSerializationPackages(true),
+            importFrom("BuildXL.Cache.BuildCacheResource").Helper.dll,
         ],
         allowUnsafeBlocks: true,
         internalsVisibleTo: [

@@ -43,6 +43,7 @@ namespace DistributedTest {
 
             ...BuildXLSdk.fluentAssertionsWorkaround,
             ...BuildXLSdk.bclAsyncPackages,
+            importFrom("BuildXL.Cache.BuildCacheResource").Helper.dll,
         ],
     });
 }

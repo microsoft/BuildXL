@@ -173,7 +173,7 @@ public abstract class EphemeralCacheTestsBase : TestWithOutput
 
         var accounts = Enumerable.Range(0, 10).Select(idx => new BlobCacheStorageShardingAccountName(RunId, idx, "test"))
             .Cast<BlobCacheStorageAccountName>().ToList();
-        var (process, secretsProvider) = AzureBlobStorageContentSessionTests.CreateTestTopology(_fixture, accounts);
+        var (process, secretsProvider, _) = AzureBlobStorageContentSessionTests.CreateTestTopology(_fixture, accounts);
         using var _ = process;
 
         var blobCacheConfiguration = new AzureBlobStorageCacheFactory.Configuration(
@@ -288,12 +288,12 @@ public abstract class EphemeralCacheTestsBase : TestWithOutput
         public DisposableDirectory TestDirectory { get; }
 
         private readonly AzureBlobStorageCacheFactory.Configuration _blobCacheConfiguration;
-        private readonly IBlobCacheSecretsProvider _secretsProvider;
+        private readonly IBlobCacheContainerSecretsProvider _secretsProvider;
         private readonly IAzureStorageCredentials? _ephemeralManagementStorageCredentials;
 
         private readonly string _universe;
 
-        public TestInstance(AzureBlobStorageCacheFactory.Configuration blobCacheConfiguration, IBlobCacheSecretsProvider secretsProvider, IAzureStorageCredentials? ephemeralManagementStorageCredentials, string universe)
+        public TestInstance(AzureBlobStorageCacheFactory.Configuration blobCacheConfiguration, IBlobCacheContainerSecretsProvider secretsProvider, IAzureStorageCredentials? ephemeralManagementStorageCredentials, string universe)
         {
             GrpcEnvironment.Initialize();
             var fileSystem = PassThroughFileSystem.Default;

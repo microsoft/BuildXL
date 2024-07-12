@@ -3,6 +3,8 @@
 
 #nullable enable
 
+using System;
+
 namespace BuildXL.Cache.ContentStore.Distributed.Blob;
 
 /// <summary>

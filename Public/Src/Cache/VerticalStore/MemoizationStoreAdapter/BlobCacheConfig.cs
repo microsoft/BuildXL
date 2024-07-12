@@ -178,6 +178,20 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         public bool IsReadOnly { get; set; }
 
         /// <summary>
+        /// When not null, we are running on the context of 1ESHP and a set of cache resources are associated to the pool. The value of this string points
+        /// to the JSON file describing this topology.
+        /// </summary>
+        [DefaultValue(null)]
+        public string HostedPoolBuildCacheConfigurationFile { get; set; }
+
+        /// <summary>
+        /// Only relevant when <see cref="HostedPoolBuildCacheConfigurationFile"/> is provided. When not null, the cache name (from the set of cache resources associated to the running pool)
+        /// to use for this build
+        /// </summary>
+        [DefaultValue(null)]
+        public string HostedPoolActiveBuildCacheName { get; set; }
+
+        /// <summary>
         /// This configuration needs the role, activity id and the kusto logging info coming from the engine configuration object
         /// </summary>
         public bool TryPopulateFrom(Guid activityId, IConfiguration configuration, PathTable pathTable, out Failure failure)

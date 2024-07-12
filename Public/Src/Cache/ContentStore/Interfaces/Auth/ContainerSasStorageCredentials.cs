@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Text.RegularExpressions;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.ChangeFeed;
 
@@ -11,12 +10,12 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Auth
     /// <summary>
     /// Provides Azure Storage authentication options based on a preauthenticated URI (URI with SAS token)
     /// </summary>
-    public class PreauthenticatedUriStorageCredentials : IAzureStorageCredentials
+    public class ContainerSasStorageCredentials : IAzureStorageCredentials
     {
         private readonly Uri _preauthenticatedUri;
 
         /// <nodoc />
-        public PreauthenticatedUriStorageCredentials(Uri preauthenticatedUri)
+        public ContainerSasStorageCredentials(Uri preauthenticatedUri)
         {
             _preauthenticatedUri = preauthenticatedUri;
         }
@@ -24,29 +23,27 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Auth
         /// <nodoc />
         public BlobChangeFeedClient CreateBlobChangeFeedClient(BlobClientOptions? blobClientOptions = null, BlobChangeFeedClientOptions? changeFeedClientOptions = null)
         {
-            blobClientOptions = BlobClientOptionsFactory.CreateOrOverride(blobClientOptions);
-            changeFeedClientOptions ??= new BlobChangeFeedClientOptions();
-            return new BlobChangeFeedClient(_preauthenticatedUri, blobClientOptions, changeFeedClientOptions);
+            throw new NotImplementedException("This operation is unsupported when using container-level credentials.");
         }
 
         /// <nodoc />
         public BlobServiceClient CreateBlobServiceClient(BlobClientOptions? blobClientOptions = null)
         {
-            blobClientOptions = BlobClientOptionsFactory.CreateOrOverride(blobClientOptions);
-            return new BlobServiceClient(_preauthenticatedUri, blobClientOptions);
+            throw new NotImplementedException("This operation is unsupported when using container-level credentials.");
         }
 
         /// <nodoc />
         public BlobContainerClient CreateContainerClient(string containerName, BlobClientOptions? blobClientOptions = null)
         {
-            var serviceClient = CreateBlobServiceClient(blobClientOptions);
-            return serviceClient.GetBlobContainerClient(containerName);
+            blobClientOptions = BlobClientOptionsFactory.CreateOrOverride(blobClientOptions);
+            return new BlobContainerClient(_preauthenticatedUri, blobClientOptions);
         }
 
         /// <nodoc />
         public string GetAccountName()
         {
-            var serviceClient = CreateBlobServiceClient();
+            // We're doing this because we want to rely on Storage's SDK logic for parsing out the storage account name.
+            var serviceClient = CreateContainerClient("dummy");
             return serviceClient.AccountName;
         }
     }

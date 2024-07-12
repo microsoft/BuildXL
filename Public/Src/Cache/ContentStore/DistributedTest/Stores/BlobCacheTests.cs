@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
+using BuildXL.Cache.BuildCacheResource.Model;
 using BuildXL.Cache.ContentStore.Distributed.Blob;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Hashing;
@@ -149,53 +150,104 @@ public class BlobCacheTests : TestWithOutput
 
     [Fact]
     [Trait("DisableFailFast", "true")]
-    public void BlobContainerNameTests()
+    public void LegacyBlobContainerNameTests()
     {
-        var container = new BlobCacheContainerName(BlobCacheVersion.V0, BlobCacheContainerPurpose.Content, "default", "universe123", "namespace123");
+        var container = new LegacyBlobCacheContainerName(BlobCacheContainerPurpose.Content, "default", "universe123", "namespace123");
         container.ContainerName.Should().BeEquivalentTo("contentv0-default-universe123-namespace123");
-        var parsed = BlobCacheContainerName.Parse(container.ContainerName);
+        var parsed = LegacyBlobCacheContainerName.Parse(container.ContainerName);
         parsed.Should().BeEquivalentTo(container);
 
         Assert.Throws<FormatException>(
             () =>
             {
-                var _ = new BlobCacheContainerName(BlobCacheVersion.V0, BlobCacheContainerPurpose.Metadata, "default", "UPPERCASE", "namespace");
+                var _ = new LegacyBlobCacheContainerName(BlobCacheContainerPurpose.Metadata, "default", "UPPERCASE", "namespace");
             });
 
         Assert.Throws<FormatException>(
             () =>
             {
-                var _ = new BlobCacheContainerName(BlobCacheVersion.V0, BlobCacheContainerPurpose.Metadata, "default", "good", "Bad");
+                var _ = new LegacyBlobCacheContainerName(BlobCacheContainerPurpose.Metadata, "default", "good", "Bad");
             });
 
         Assert.Throws<FormatException>(
             () =>
             {
-                var _ = new BlobCacheContainerName(BlobCacheVersion.V0, BlobCacheContainerPurpose.Metadata, "default", "waaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaayyyyyy", "tooooooooooooooooloopooooooooooooooooooooooooooooooooooooooooooooooooooong");
+                var _ = new LegacyBlobCacheContainerName(BlobCacheContainerPurpose.Metadata, "default", "waaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaayyyyyy", "tooooooooooooooooloopooooooooooooooooooooooooooooooooooooooooooooooooooong");
             });
 
         Assert.Throws<ContractException>(
             () =>
             {
-                var _ = new BlobCacheContainerName(BlobCacheVersion.V0, BlobCacheContainerPurpose.Metadata, "defaultooooo", "wupp", "wopp");
+                var _ = new LegacyBlobCacheContainerName(BlobCacheContainerPurpose.Metadata, "defaultooooo", "wupp", "wopp");
             });
     }
 
     [Fact]
-    public void MalyTest()
+    public void AdoBuildCacheBlobContainerNameTests()
+    {
+        var container = new FixedCacheBlobContainerName("arbitrary-content", BlobCacheContainerPurpose.Content);
+
+        container.Universe.Should().Be("default");
+        container.Namespace.Should().Be("default");
+        container.Matrix.Should().Be("default");
+        container.ContainerName.Should().BeEquivalentTo("arbitrary-content");
+
+        var container2 = new FixedCacheBlobContainerName("arbitrary-metadata", BlobCacheContainerPurpose.Metadata);
+
+        container2.Universe.Should().Be("default");
+        container2.Namespace.Should().Be("default");
+        container2.Matrix.Should().Be("default");
+        container2.ContainerName.Should().BeEquivalentTo("arbitrary-metadata");
+    }
+
+    [Fact]
+    public void SimpleMatrixTest()
     {
         var account = "malystgacctfortesting";
         var universe = "playground";
         var @namespace = "default";
 
+        var blobCacheStorageAccountName = BlobCacheStorageAccountName.Parse(account);
+
+        var scheme = new ShardingScheme(
+            ShardingAlgorithm.SingleShard,
+            new List<BlobCacheStorageAccountName>() { blobCacheStorageAccountName });
+        var matrix = scheme.GenerateMatrix();
+        var naming = new LegacyContainerNamingScheme(scheme, universe, @namespace);
+        var containerSelector = naming.GenerateContainerNameMapping();
+
+        matrix.Content.Should().Be("4752270493");
+        matrix.Metadata.Should().Be("4752270493");
+        containerSelector[blobCacheStorageAccountName].Length.Should().Be(2);
+
+        containerSelector[blobCacheStorageAccountName][0].ContainerName.Should().BeEquivalentTo("contentv0-4752270493-playground-default");
+        containerSelector[blobCacheStorageAccountName][1].ContainerName.Should().BeEquivalentTo("metadatav0-4752270493-playground-default");
+    }
+
+    [Fact]
+    public void BuildCacheContainerNamingTest()
+    {
+        var account = "http://malystgacctfortesting/";
+
+        var blobCacheStorageAccountName = BlobCacheStorageAccountName.Parse(account);
+
         var scheme = new ShardingScheme(
             ShardingAlgorithm.SingleShard,
             new List<BlobCacheStorageAccountName>() { BlobCacheStorageAccountName.Parse(account) });
-        var matrix = scheme.GenerateMatrix();
-        var containers = ShardedBlobCacheTopology.GenerateContainerNames(universe, @namespace, scheme);
-        matrix.Content.Should().Be("4752270493");
-        matrix.Metadata.Should().Be("4752270493");
-        containers.Length.Should().Be(2);
+
+        var content = new BuildCacheContainer() { Name = "content", SasUrl = new Uri("https://foo"), Type = BuildCacheContainerType.Content };
+        var metadata = new BuildCacheContainer() { Name = "metadata", SasUrl = new Uri("https://foo"), Type = BuildCacheContainerType.Metadata };
+        var checkpoint = new BuildCacheContainer() { Name = "checkpoint", SasUrl = new Uri("https://foo"), Type = BuildCacheContainerType.Checkpoint };
+
+        var shard = new BuildCacheShard() { StorageUri = new Uri(account), Containers = new List<BuildCacheContainer> { content, metadata, checkpoint } };
+        BuildCacheConfiguration buildCacheConfiguration = new BuildCacheConfiguration() { Name = "MyCache", RetentionPolicyInDays = 5, Shards = new List<BuildCacheShard> { shard } };
+
+        var naming = new BuildCacheContainerNamingScheme(buildCacheConfiguration);
+        var containerSelector = naming.GenerateContainerNameMapping();
+
+        containerSelector[blobCacheStorageAccountName].Length.Should().Be(2);
+        containerSelector[blobCacheStorageAccountName][0].ContainerName.Should().BeEquivalentTo("content");
+        containerSelector[blobCacheStorageAccountName][1].ContainerName.Should().BeEquivalentTo("metadata");
     }
 
     [Fact]

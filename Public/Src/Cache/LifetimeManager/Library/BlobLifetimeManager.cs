@@ -7,6 +7,7 @@ using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.BuildCacheResource.Model;
 using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Distributed.Blob;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
@@ -31,19 +32,20 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             OperationContext context,
             BlobQuotaKeeperConfig config,
             IAbsFileSystem fileSystem,
-            IBlobCacheSecretsProvider secretsProvider,
+            IBlobCacheAccountSecretsProvider secretsProvider,
             IReadOnlyList<BlobCacheStorageAccountName> accountNames,
             IClock clock,
             string runId,
             int contentDegreeOfParallelism,
             int fingerprintDegreeOfParallelism,
             string cacheInstance,
+            BuildCacheConfiguration? buildCacheConfiguration,
             bool dryRun)
         {
             var extraMessage = $"CacheInstance=[{cacheInstance}] RunId=[{runId}]";
             return context.PerformOperationAsync(
                 Tracer,
-                () => RunCoreAsync(context, config, fileSystem, secretsProvider, accountNames, clock, runId, contentDegreeOfParallelism, fingerprintDegreeOfParallelism, dryRun, cacheInstance),
+                () => RunCoreAsync(context, config, fileSystem, secretsProvider, accountNames, clock, runId, contentDegreeOfParallelism, fingerprintDegreeOfParallelism, dryRun, cacheInstance, buildCacheConfiguration),
                 extraStartMessage: extraMessage,
                 extraEndMessage: _ => extraMessage,
                 pendingOperationTracingInterval: TimeSpan.FromHours(1));
@@ -53,14 +55,15 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             OperationContext context,
             BlobQuotaKeeperConfig config,
             IAbsFileSystem fileSystem,
-            IBlobCacheSecretsProvider secretsProvider,
+            IBlobCacheAccountSecretsProvider secretsProvider,
             IReadOnlyList<BlobCacheStorageAccountName> accountNames,
             IClock clock,
             string runId,
             int contentDegreeOfParallelism,
             int fingerprintDegreeOfParallelism,
             bool dryRun,
-            string cacheInstance)
+            string cacheInstance,
+            BuildCacheConfiguration? buildCacheConfiguration)
         {
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(context.Token);
             context = context.WithCancellationToken(cts.Token);
@@ -78,6 +81,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                 n => n,
                 n => (IBlobCacheTopology)new ShardedBlobCacheTopology(
                     new ShardedBlobCacheTopology.Configuration(
+                        buildCacheConfiguration,
                         shardingScheme,
                         secretsProvider,
                         n.Universe,
@@ -95,7 +99,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             var checkpointManagerStorageAccount = ShardingScheme.SortAccounts(accountNames).First();
             Contract.Assert(checkpointManagerStorageAccount is not null);
 
-            var checkpointManagerStorageCreds = await secretsProvider.RetrieveBlobCredentialsAsync(context, checkpointManagerStorageAccount);
+            var checkpointManagerStorageCreds = await secretsProvider.RetrieveAccountCredentialsAsync(context, checkpointManagerStorageAccount);
 
             var machineLocation = MachineLocation.Parse(runId);
 
@@ -191,12 +195,12 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                             // Only get updates from Azure if the database already existed
                             var updater = new LifetimeDatabaseUpdater(topologies, accessors, clock, fingerprintDegreeOfParallelism);
                             AzureStorageChangeFeedEventDispatcher dispatcher =
-                                CreateDispatcher(secretsProvider, accountNames, metadataMatrix, contentMatrix, db, updater, clock, checkpointManager, config.ChangeFeedPageSize);
+                                CreateDispatcher(secretsProvider, accountNames, metadataMatrix, contentMatrix, db, updater, clock, checkpointManager, config.ChangeFeedPageSize, buildCacheConfiguration);
 
                             await dispatcher.ConsumeNewChangesAsync(context, config.CheckpointCreationInterval).ThrowIfFailure();
 
                             await BlobLifetimeManagerHelpers.HandleConfigAndAccountDifferencesAsync(
-                                context, db, secretsProvider, accountNames, config, metadataMatrix, contentMatrix, clock);
+                                context, db, secretsProvider, accountNames, config, metadataMatrix, contentMatrix, clock, buildCacheConfiguration);
                         }
 
                         // TODO: consider doing this in parallel, although it could be argued that if each of these calls
@@ -241,7 +245,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
         }
 
         protected virtual AzureStorageChangeFeedEventDispatcher CreateDispatcher(
-            IBlobCacheSecretsProvider secretsProvider,
+            IBlobCacheAccountSecretsProvider secretsProvider,
             IReadOnlyList<BlobCacheStorageAccountName> accountNames,
             string metadataMatrix,
             string contentMatrix,
@@ -249,9 +253,10 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             LifetimeDatabaseUpdater updater,
             IClock clock,
             CheckpointManager checkpointManager,
-            int? changeFeedPageSize)
+            int? changeFeedPageSize,
+            BuildCacheConfiguration? buildCacheConfiguration)
         {
-            return new AzureStorageChangeFeedEventDispatcher(secretsProvider, accountNames, updater, checkpointManager, db, clock, metadataMatrix, contentMatrix, changeFeedPageSize);
+            return new AzureStorageChangeFeedEventDispatcher(secretsProvider, accountNames, updater, checkpointManager, db, clock, metadataMatrix, contentMatrix, changeFeedPageSize, buildCacheConfiguration);
         }
 
         private static async Task RunWithLeaseAsync(

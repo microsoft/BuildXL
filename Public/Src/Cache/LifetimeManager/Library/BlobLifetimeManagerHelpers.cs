@@ -9,7 +9,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
+using BuildXL.Cache.BuildCacheResource.Model;
 using BuildXL.Cache.BlobLifetimeManager.Library;
+using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Distributed.Blob;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
@@ -23,12 +25,13 @@ internal static class BlobLifetimeManagerHelpers
     public static async Task HandleConfigAndAccountDifferencesAsync(
         OperationContext context,
         RocksDbLifetimeDatabase db,
-        IBlobCacheSecretsProvider secretsProvider,
+        IBlobCacheAccountSecretsProvider secretsProvider,
         IReadOnlyList<BlobCacheStorageAccountName> accounts,
         BlobQuotaKeeperConfig config,
         string metadataMatrix,
         string contentMatrix,
-        IClock clock)
+        IClock clock,
+        BuildCacheConfiguration? buildCacheConfiguration)
     {
         var configuredNamespaces = config.Namespaces.Select(config => (config.Universe, config.Namespace)).ToHashSet();
         var enumeratedNamespaces = new HashSet<(string Universe, string Namespace)>();
@@ -36,7 +39,7 @@ internal static class BlobLifetimeManagerHelpers
         // Start by enumerating all accounts and their containers, attempting to parse their namespaces.
         foreach (var account in accounts)
         {
-            var cred = await secretsProvider.RetrieveBlobCredentialsAsync(context, account);
+            var cred = await secretsProvider.RetrieveAccountCredentialsAsync(context, account);
             var client = cred.CreateBlobServiceClient();
 
             DateTime? deletionThreshold = config.UntrackedNamespaceDeletionThreshold is null
@@ -56,7 +59,28 @@ internal static class BlobLifetimeManagerHelpers
                         continue;
                     }
 
-                    var name = BlobCacheContainerName.Parse(container.Name);
+                    BlobCacheContainerName name;
+                    // No build cache configuration means we use the legacy inference to get a container name
+                    if (buildCacheConfiguration == null)
+                    {
+                        name = LegacyBlobCacheContainerName.Parse(container.Name);
+                    }
+                    else
+                    {
+                        var containerConfiguration = buildCacheConfiguration
+                            .Shards.FirstOrDefault(shard => shard.StorageUri.AbsoluteUri == account.AccountName)?
+                            .Containers.FirstOrDefault(cont => cont.Name == container.Name);
+
+                        if (containerConfiguration == null)
+                        {
+                            throw new Exception($"Account {account.AccountName} and container name '{container.Name}' are not present in the build cache resource configuration file");
+                        }
+
+                        name = new FixedCacheBlobContainerName(
+                            containerConfiguration.Name,
+                            containerConfiguration.Type.ToContainerPurpose());
+                    }
+
                     var namespaceId = new BlobNamespaceId(name.Universe, name.Namespace);
 
                     if (!configuredNamespaces.Contains((name.Universe, name.Namespace)))

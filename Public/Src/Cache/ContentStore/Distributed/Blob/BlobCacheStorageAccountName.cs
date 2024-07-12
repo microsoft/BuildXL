@@ -79,7 +79,7 @@ public sealed record BlobCacheStorageShardingAccountName : BlobCacheStorageAccou
             throw new FormatException(message: "Unique token should be of length 10");
         }
 
-        if (!BlobCacheContainerName.LowercaseAlphanumericRegex.IsMatch(unique))
+        if (!LegacyBlobCacheContainerName.LowercaseAlphanumericRegex.IsMatch(unique))
         {
             throw new FormatException(message: "Unique token should be composed of lower case numbers and letters");
         }
@@ -94,7 +94,7 @@ public sealed record BlobCacheStorageShardingAccountName : BlobCacheStorageAccou
             throw new FormatException(message: "Purpose's length must be in (0, 9]");
         }
 
-        if (!BlobCacheContainerName.LowercaseAlphanumericRegex.IsMatch(purpose))
+        if (!LegacyBlobCacheContainerName.LowercaseAlphanumericRegex.IsMatch(purpose))
         {
             throw new FormatException(message: "Unique token should be composed of lower case numbers and letters");
         }

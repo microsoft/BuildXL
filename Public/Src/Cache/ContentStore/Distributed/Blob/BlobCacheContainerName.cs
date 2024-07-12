@@ -15,17 +15,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blob;
 /// want to separate content and metadata containers from each other, users from each other, and may have extra
 /// criteria that's easier to express here.
 /// </summary>
-[JsonConverter(typeof(BlobCacheContainerNameJsonConverter))]
-public record BlobCacheContainerName
+public abstract record BlobCacheContainerName
 {
-    internal static readonly Regex LowercaseAlphanumericRegex = new(@"^[0-9a-z]+$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
-
-    public const int StorageContainerNameMaximumLength = 63;
     public const int VersionReservedLength = 3;
     public const int PurposeReservedLength = 10;
-    public const int MatrixReservedLength = 10;
-    public const int DelimitersReservedLength = 3;
-    public const int UniverseNamespaceReservedLength = StorageContainerNameMaximumLength - (VersionReservedLength + PurposeReservedLength + MatrixReservedLength + DelimitersReservedLength);
 
     /// <summary>
     /// Current version of the cache. See: <see cref="BlobCacheVersion"/>.
@@ -35,13 +28,13 @@ public record BlobCacheContainerName
     /// <summary>
     /// Purpose of the container. See: <see cref="BlobCacheContainerPurpose"/>.
     /// </summary>
-    public BlobCacheContainerPurpose Purpose { get; }
+    public abstract BlobCacheContainerPurpose Purpose { get; }
 
     /// <summary>
     /// The matrix is an internal parameter used to enforce a cache miss in specific circumstances, such as when
     /// sharding scheme changes.
     /// </summary>
-    public string Matrix { get; }
+    public abstract string Matrix { get; }
 
     /// <summary>
     /// Identifies which cache is being used. The Universe is the unit of isolation.
@@ -49,7 +42,7 @@ public record BlobCacheContainerName
     /// <remarks>
     /// Universe is customer-controlled.
     /// </remarks>
-    public string Universe { get; }
+    public abstract string Universe { get; }
 
     /// <summary>
     /// Namespaces within a given universe can get cache hits from a namespace hierarchy, but can't get cache hits
@@ -61,15 +54,96 @@ public record BlobCacheContainerName
     /// <remarks>
     /// Namespace is customer-controlled.
     /// </remarks>
-    public string Namespace { get; }
+    public abstract string Namespace { get; }
 
     /// <summary>
     /// The full container name. This is equivalent to calling <see cref="ToString"/>.
     /// </summary>
-    public string ContainerName { get; }
+    public abstract string ContainerName { get; }
 
-    public BlobCacheContainerName(
-        BlobCacheVersion version,
+    /// <inheritdoc/>
+    public override int GetHashCode()
+    {
+        return ContainerName.GetHashCode();
+    }
+
+    /// <inheritdoc/>
+    public override string ToString()
+    {
+        return ContainerName;
+    }
+}
+
+
+/// <summary>
+/// This class allows for arbitrary container names, provided the purpose is known.
+/// </summary>
+/// <remarks>
+/// Used in the context of the 1ES Build Cache resource, where the cache topology is provided in a configuration file
+/// </remarks>
+public sealed record FixedCacheBlobContainerName : BlobCacheContainerName
+{
+    public override BlobCacheContainerPurpose Purpose { get; }
+
+    public override string Matrix => "default";
+
+    public override string Universe => "default";
+
+    public override string Namespace => "default";
+
+    public override string ContainerName { get; }
+
+    public FixedCacheBlobContainerName(string containerName, BlobCacheContainerPurpose purpose)
+    {
+        Purpose = purpose;
+        ContainerName = containerName;
+    }
+
+    /// <inheritdoc/>
+    public override int GetHashCode()
+    {
+        return ContainerName.GetHashCode();
+    }
+
+    /// <inheritdoc/>
+    public override string ToString()
+    {
+        return ContainerName;
+    }
+
+}
+
+/// <summary>
+/// This class imposes a naming scheme on storage containers that are used for sharding. The reason for it is that we
+/// want to separate content and metadata containers from each other, users from each other, and may have extra
+/// criteria that's easier to express here.
+/// </summary>
+public sealed record LegacyBlobCacheContainerName : BlobCacheContainerName
+{
+    internal static readonly Regex LowercaseAlphanumericRegex = new(@"^[0-9a-z]+$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
+    public const int StorageContainerNameMaximumLength = 63;
+    public const int MatrixReservedLength = 10;
+    public const int DelimitersReservedLength = 3;
+    public const int UniverseNamespaceReservedLength = StorageContainerNameMaximumLength - (VersionReservedLength + PurposeReservedLength + MatrixReservedLength + DelimitersReservedLength);
+
+    /// <inheritdoc />
+    public override BlobCacheContainerPurpose Purpose { get; }
+
+    /// <inheritdoc />
+    public override string Matrix { get; }
+
+    /// <inheritdoc />
+    public override string Universe { get; }
+
+    /// <inheritdoc />
+    public override string Namespace { get; }
+
+    /// <inheritdoc />
+    public override string ContainerName { get; }
+
+
+    public LegacyBlobCacheContainerName(
         BlobCacheContainerPurpose purpose,
         string matrix,
         string universe,
@@ -83,7 +157,6 @@ public record BlobCacheContainerName
 
         CheckValidUniverseAndNamespace(universe, @namespace);
 
-        Version = version;
         Purpose = purpose;
         Matrix = matrix;
         Universe = universe;
@@ -158,6 +231,11 @@ public record BlobCacheContainerName
             throw new FormatException(message: $"Failed to parse version {versionMatch} into {nameof(BlobCacheVersion)}");
         }
 
+        if (version != BlobCacheVersion.V0)
+        {
+            throw new FormatException(message: $"Attempt to parse {version} with {nameof(LegacyBlobCacheContainerName)}, which is not supported");
+        }
+
         var purposeMatch = match.Groups["purpose"].Value;
         if (!Enum.TryParse<BlobCacheContainerPurpose>(purposeMatch, ignoreCase: true, out var purpose))
         {
@@ -168,16 +246,20 @@ public record BlobCacheContainerName
         var universe = match.Groups["universe"].Value;
         var @namespace = match.Groups["namespace"].Value;
 
-        return new BlobCacheContainerName(version, purpose, matrix, universe, @namespace);
+        return new LegacyBlobCacheContainerName(purpose, matrix, universe, @namespace);
     }
 
+    /// <inheritdoc/>
     public override int GetHashCode()
     {
         return ContainerName.GetHashCode();
     }
 
+    /// <inheritdoc/>
     public override string ToString()
     {
         return ContainerName;
     }
+
 }
+

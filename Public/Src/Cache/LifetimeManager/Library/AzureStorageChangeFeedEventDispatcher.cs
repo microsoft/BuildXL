@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Azure;
 using Azure.Storage.Blobs.ChangeFeed;
+using BuildXL.Cache.BuildCacheResource.Model;
 using BuildXL.Cache.ContentStore.Distributed.Blob;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming;
@@ -52,19 +53,20 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
     {
         private static readonly Tracer Tracer = new(nameof(AzureStorageChangeFeedEventDispatcher));
 
-        private readonly IBlobCacheSecretsProvider _secretsProvider;
+        private readonly IBlobCacheAccountSecretsProvider _secretsProvider;
         private readonly IReadOnlyList<BlobCacheStorageAccountName> _accounts;
         private readonly LifetimeDatabaseUpdater _updater;
         private readonly RocksDbLifetimeDatabase _db;
         private readonly IClock _clock;
         private readonly CheckpointManager _checkpointManager;
         private readonly int? _changeFeedPageSize;
+        private readonly IReadOnlyDictionary<string, BuildCacheShard>? _buildCacheShardMapping;
 
         private readonly string _metadataMatrix;
         private readonly string _contentMatrix;
 
         public AzureStorageChangeFeedEventDispatcher(
-            IBlobCacheSecretsProvider secretsProvider,
+            IBlobCacheAccountSecretsProvider secretsProvider,
             IReadOnlyList<BlobCacheStorageAccountName> accounts,
             LifetimeDatabaseUpdater updater,
             CheckpointManager checkpointManager,
@@ -72,7 +74,8 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             IClock clock,
             string metadataMatrix,
             string contentMatrix,
-            int? changeFeedPageSize)
+            int? changeFeedPageSize,
+            BuildCacheConfiguration? buildCacheConfiguration)
         {
             _secretsProvider = secretsProvider;
             _checkpointManager = checkpointManager;
@@ -84,6 +87,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             _metadataMatrix = metadataMatrix;
             _contentMatrix = contentMatrix;
             _changeFeedPageSize = changeFeedPageSize;
+            _buildCacheShardMapping = buildCacheConfiguration?.Shards.ToDictionary(shard => shard.StorageUri.AbsoluteUri, shard => shard);
         }
 
         public Task<BoolResult> ConsumeNewChangesAsync(OperationContext context, TimeSpan checkpointCreationInterval)
@@ -108,7 +112,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                     {
                         return Task.Run(async () =>
                         {
-                            var creds = await _secretsProvider.RetrieveBlobCredentialsAsync(context, accountName);
+                            var creds = await _secretsProvider.RetrieveAccountCredentialsAsync(context, accountName);
                             return await ConsumeAccountChanges(context, now, cts, accountName, creds, acquirer.Locks[i]);
                         });
                     }).ToArray();
@@ -306,7 +310,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                         AbsoluteBlobPath blobPath;
                         try
                         {
-                            blobPath = AbsoluteBlobPath.ParseFromChangeEventSubject(accountName, change.Subject);
+                            blobPath = AbsoluteBlobPath.ParseFromChangeEventSubject(_buildCacheShardMapping, accountName, change.Subject);
                         }
                         catch (Exception e)
                         {

@@ -1,0 +1,74 @@
+[
+  {
+    "Name": "MyCache",
+    "RetentionDays": 7,
+    "Shards": [
+      {
+        "StorageUrl": "https://nonexistent.storage.account",
+        "Containers": [
+          {
+            "Name": "MyMetadata",
+            "Type": "Metadata",
+            "SasUrl": "http://aSASUrl1"
+          },
+          {
+            "Name": "MyContent",
+            "Type": "Content",
+            "SasUrl": "http://aSASUrl2"
+          },
+          {
+            "Name": "MyCheckPoint",
+            "Type": "Checkpoint",
+            "SasUrl": "http://aSASUrl3"
+          }
+        ]
+      },
+      {
+        "StorageUrl": "https://nonexistent2.storage.account",
+        "Containers": [
+          {
+            "Name": "MyMetadata2",
+            "Type": "Metadata",
+            "SasUrl": "http://aSASUrl4"
+          },
+          {
+            "Name": "MyContent2",
+            "Type": "Content",
+            "SasUrl": "http://aSASUrl5"
+          },
+          {
+            "Name": "MyCheckPoint2",
+            "Type": "Checkpoint",
+            "SasUrl": "http://aSASUrl6"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "Name": "MyOtherCache",
+    "RetentionDays": 8,
+    "Shards": [
+      {
+        "StorageUrl": "https://nonexistent3.storage.account",
+        "Containers": [
+          {
+            "Name": "MyMetadata3",
+            "Type": "Metadata",
+            "SasUrl": "http://aSASUrl7"
+          },
+          {
+            "Name": "MyContent3",
+            "Type": "Content",
+            "SasUrl": "http://aSASUrl8"
+          },
+          {
+            "Name": "MyCheckPoint3",
+            "Type": "Checkpoint",
+            "SasUrl": "http://aSASUrl9"
+          }
+        ]
+      }
+    ]
+  }
+]

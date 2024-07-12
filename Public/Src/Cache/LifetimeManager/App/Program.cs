@@ -17,6 +17,9 @@ using BuildXL.Utilities;
 using CLAP;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.FileSystem;
+using BuildXL.Cache.BuildCacheResource.Model;
+using BuildXL.Cache.BuildCacheResource.Helper;
+using System.Linq;
 
 namespace BuildXL.Cache.BlobLifetimeManager
 {
@@ -66,9 +69,28 @@ namespace BuildXL.Cache.BlobLifetimeManager
             [DefaultValue("")]
             string cacheInstance,
 
+            [Description("When provided, we are running on the context of 1ESHP and a set of cache resources are associated to the pool. The value of this string points to the JSON file describing this topology.")]
+            [DefaultValue(null)]
+            string hostedPoolBuildCacheConfigurationFile,
+
+            [Description("Only relevant when hostedPoolBuildCacheConfigurationFile is provided. When not null, the cache name (from the set of cache resources associated to the running pool) to use for this build")]
+            [DefaultValue(null)]
+            string hostedPoolActiveBuildCacheName,
+
             bool debug)
         {
-            RunCoreAsync(configPath, dryRun, contentDegreeOfParallelism, fingerprintDegreeOfParallelism, runId, logSeverity, enableFileLogging, cacheInstance, debug).GetAwaiter().GetResult();
+            RunCoreAsync(
+                configPath,
+                dryRun,
+                contentDegreeOfParallelism,
+                fingerprintDegreeOfParallelism,
+                runId,
+                logSeverity,
+                enableFileLogging,
+                cacheInstance,
+                hostedPoolBuildCacheConfigurationFile,
+                hostedPoolActiveBuildCacheName,
+                debug).GetAwaiter().GetResult();
         }
 
         public static async Task RunCoreAsync(
@@ -80,6 +102,8 @@ namespace BuildXL.Cache.BlobLifetimeManager
             Severity logSeverity,
             bool enableFileLogging,
             string cacheInstance,
+            string hostedPoolBuildCacheConfigurationFile,
+            string hostedPoolActiveBuildCacheName,
             bool debug)
         {
             if (debug)
@@ -103,6 +127,25 @@ namespace BuildXL.Cache.BlobLifetimeManager
             {
                 Console.WriteLine($"Failed to read configuration file {configPath}: {e}");
                 return;
+            }
+
+            BuildCacheConfiguration? buildCacheConfiguration = null;
+            if (!string.IsNullOrEmpty(hostedPoolBuildCacheConfigurationFile))
+            {
+                try
+                {
+                    var hostedPoolBuildCacheConfiguration = await BuildCacheResource.Helper.BuildCacheResourceHelper.LoadFromJSONAsync(hostedPoolBuildCacheConfigurationFile);
+                    if (!hostedPoolBuildCacheConfiguration.TrySelectBuildCache(hostedPoolActiveBuildCacheName, out buildCacheConfiguration))
+                    {
+                        Console.WriteLine($"Cache resource with name '{hostedPoolActiveBuildCacheName}' was selected, but none of the available caches match. " +
+                        $"Available cache names are: {string.Join(",", hostedPoolBuildCacheConfiguration.AssociatedBuildCaches.Select(buildCacheConfig => buildCacheConfig.Name))}");
+                    }
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine($"Failed to interpret configuration file for the specified build cache resources {hostedPoolBuildCacheConfigurationFile}: {e}");
+                    return;
+                }
             }
 
             if (config.LastAccessTimeDeletionThreshold < TimeSpan.FromDays(1))
@@ -138,6 +181,7 @@ namespace BuildXL.Cache.BlobLifetimeManager
                 contentDegreeOfParallelism,
                 fingerprintDegreeOfParallelism,
                 cacheInstance,
+                buildCacheConfiguration,
                 dryRun);
         }
     }

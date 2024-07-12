@@ -14,7 +14,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blob;
 /// <summary>
 /// Convenience class for users to provide credentials from memory.
 /// </summary>
-public class StaticBlobCacheSecretsProvider : IBlobCacheSecretsProvider
+public class StaticBlobCacheSecretsProvider : IBlobCacheAccountSecretsProvider
 {
     protected static Tracer Tracer { get; } = new(nameof(StaticBlobCacheSecretsProvider));
 
@@ -37,7 +37,7 @@ public class StaticBlobCacheSecretsProvider : IBlobCacheSecretsProvider
         _accounts = _credentials.Keys.ToArray();
     }
 
-    public Task<IAzureStorageCredentials> RetrieveBlobCredentialsAsync(OperationContext context, BlobCacheStorageAccountName account)
+    public Task<IAzureStorageCredentials> RetrieveAccountCredentialsAsync(OperationContext context, BlobCacheStorageAccountName account)
     {
         Tracer.Info(context, $"Fetching credentials. Account=[{account}]");
 
@@ -53,4 +53,14 @@ public class StaticBlobCacheSecretsProvider : IBlobCacheSecretsProvider
 
         throw new KeyNotFoundException($"Credentials are unavailable for storage account {account}");
     }
+
+    public Task<IAzureStorageCredentials> RetrieveContainerCredentialsAsync(
+        OperationContext context,
+        BlobCacheStorageAccountName account,
+        BlobCacheContainerName container)
+    {
+        // Account credentials are sufficient to access containers, but the other way around isn't true.
+        return RetrieveAccountCredentialsAsync(context, account);
+    }
+
 }

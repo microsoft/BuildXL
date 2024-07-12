@@ -325,7 +325,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
 
         private async Task<bool> TryDeleteContentAsync(OperationContext context, ContentHash contentHash, bool dryRun, long contentSize, DateTime startTime)
         {
-            var (client, _) = await _topology.GetBlobClientAsync(context, contentHash);
+            var (client, _) = await _topology.GetContentBlobClientAsync(context, contentHash);
 
             // It's possible that a fingerprint is currently being created that references this piece of content. This means there's a race condition that we need to account for.
             // Because of this, the current design is that clients will update the last access time of a blob when they get a content cache hit when ulpoading the contents of a new strong fingerprint.

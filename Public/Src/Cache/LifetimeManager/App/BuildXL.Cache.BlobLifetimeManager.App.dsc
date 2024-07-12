@@ -17,6 +17,7 @@ namespace App {
             importFrom("BuildXL.Utilities").dll,
             
             ...importFrom("BuildXL.Cache.ContentStore").getAzureBlobStorageSdkPackages(true),
+            importFrom("BuildXL.Cache.BuildCacheResource").Helper.dll,
         ],
         tools: {
             csc: {

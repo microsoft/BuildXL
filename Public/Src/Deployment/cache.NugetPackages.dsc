@@ -211,6 +211,15 @@ namespace Cache.NugetPackages {
         importFrom("BuildXL.Cache.BlobLifetimeManager").Library.withQualifier({ targetFramework: "net6.0", targetRuntime: "win-x64" }).dll,
     ];
 
+    // BuildCacheResourceHelper
+    export const buildCacheResourceHelper : Managed.Assembly[] = [
+        importFrom("BuildXL.Cache.BuildCacheResource").Helper.withQualifier({ targetFramework: "net472", targetRuntime: "win-x64" }).dll,
+        importFrom("BuildXL.Cache.BuildCacheResource").Helper.withQualifier({ targetFramework: "netstandard2.0", targetRuntime: "win-x64" }).dll,
+        importFrom("BuildXL.Cache.BuildCacheResource").Helper.withQualifier({ targetFramework: "net6.0", targetRuntime: "win-x64" }).dll,
+        importFrom("BuildXL.Cache.BuildCacheResource").Helper.withQualifier({ targetFramework: "net7.0", targetRuntime: "win-x64" }).dll,
+        importFrom("BuildXL.Cache.BuildCacheResource").Helper.withQualifier({ targetFramework: "net8.0", targetRuntime: "win-x64" }).dll,
+    ];
+
     // Old cache package deployments to be replaced by the ones above
     export const libraries : Deployment.Definition = {
         contents: [

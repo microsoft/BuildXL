@@ -22,6 +22,7 @@ namespace Distributed {
         importFrom("Microsoft.Azure.Amqp").pkg,
         importFrom("System.Memory.Data").pkg,
         importFrom("System.Security.Cryptography.ProtectedData").pkg,
+        importFrom("BuildXL.Cache.BuildCacheResource").Helper.dll,
     ];
 
     @@public

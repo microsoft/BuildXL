@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading.Tasks;
 using Azure.Storage.Blobs.ChangeFeed;
+using BuildXL.Cache.BuildCacheResource.Model;
 using BuildXL.Cache.ContentStore.Distributed.Blob;
 using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using Xunit;
@@ -26,7 +27,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
             {
                 try
                 {
-                    var blobPath = AbsoluteBlobPath.ParseFromChangeEventSubject(new BlobCacheStorageNonShardingAccountName("Doesn't matter"), change.Subject);
+                    var blobPath = AbsoluteBlobPath.ParseFromChangeEventSubject(buildCacheShardMapping: null, new BlobCacheStorageNonShardingAccountName("Doesn't matter"), change.Subject);
                     if (blobPath.Path.Path == blob)
                     {
                         changes.Add(change);

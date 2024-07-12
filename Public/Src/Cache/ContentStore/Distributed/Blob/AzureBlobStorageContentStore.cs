@@ -155,6 +155,6 @@ public class AzureBlobStorageContentStore : StartupShutdownComponentBase, IConte
 
     internal Task<(BlobClient Client, AbsoluteBlobPath Path)> GetBlobClientAsync(OperationContext context, ContentHash contentHash)
     {
-        return _configuration.Topology.GetBlobClientAsync(context, contentHash);
+        return _configuration.Topology.GetContentBlobClientAsync(context, contentHash);
     }
 }

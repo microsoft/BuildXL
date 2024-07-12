@@ -2,7 +2,10 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Text.RegularExpressions;
+using BuildXL.Cache.BuildCacheResource.Model;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Blob
 {
@@ -17,7 +20,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blob
 
         public BlobCacheContainerName Container => ContainerPath.Container;
 
-        public static AbsoluteBlobPath ParseFromChangeEventSubject(BlobCacheStorageAccountName account, string subject)
+        public static AbsoluteBlobPath ParseFromChangeEventSubject(IReadOnlyDictionary<string, BuildCacheShard> buildCacheShardMapping, BlobCacheStorageAccountName account, string subject)
         {
             var match = BlobChangeFeedEventSubjectRegex.Match(subject);
             if (!match.Success)
@@ -25,7 +28,30 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blob
                 throw new ArgumentException($"Failed to match {nameof(BlobChangeFeedEventSubjectRegex)} to {subject}", nameof(subject));
             }
 
-            var container = BlobCacheContainerName.Parse(match.Groups["container"].Value);
+            var matchedContainerName = match.Groups["container"].Value;
+
+            BlobCacheContainerName container;
+            if (buildCacheShardMapping == null)
+            {
+                container = LegacyBlobCacheContainerName.Parse(matchedContainerName);
+            }
+            else
+            {
+                // For the build cache resource case, match the account and container name to retrieve name and purpose
+                if (!buildCacheShardMapping.TryGetValue(account.AccountName, out var shard))
+                {
+                    throw new InvalidOperationException($"Failed to match account name {account.AccountName} to the build cache resource configuration");
+                }
+
+                var buildCacheContainer = shard.Containers.FirstOrDefault(container => container.Name == matchedContainerName);
+                if (buildCacheContainer == null)
+                {
+                    throw new InvalidOperationException($"Failed to match container name {matchedContainerName} to the build cache resource configuration");
+                }
+
+                container = new FixedCacheBlobContainerName(buildCacheContainer.Name, buildCacheContainer.Type.ToContainerPurpose());
+            }
+            
             var path = new BlobPath(match.Groups["path"].Value, relative: false);
 
             return new(new(Account: account, Container: container), Path: path);

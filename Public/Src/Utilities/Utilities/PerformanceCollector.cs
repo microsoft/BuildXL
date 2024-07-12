@@ -1139,7 +1139,19 @@ namespace BuildXL.Utilities
                 public Aggregation ReadTime = new Aggregation();
 
                 /// <nodoc/>
+                public Aggregation ReadCount = new Aggregation();
+
+                /// <nodoc/>
                 public Aggregation WriteTime = new Aggregation();
+
+                /// <nodoc/>
+                public Aggregation WriteCount = new Aggregation();
+
+                /// <nodoc/>
+                public Aggregation BytesRead = new Aggregation();
+
+                /// <nodoc/>
+                public Aggregation BytesWritten = new Aggregation();
 
                 /// <nodoc/>
                 public Aggregation AvailableSpaceGb = new Aggregation();
@@ -1442,7 +1454,11 @@ namespace BuildXL.Utilities
                     {
                         m_diskStats[i].AvailableSpaceGb.RegisterSample(machineDiskStats[i].AvailableSpaceGb);
                         m_diskStats[i].ReadTime.RegisterSample(machineDiskStats[i].DiskPerformance.ReadTime);
+                        m_diskStats[i].ReadCount.RegisterSample(machineDiskStats[i].DiskPerformance.ReadCount);
                         m_diskStats[i].WriteTime.RegisterSample(machineDiskStats[i].DiskPerformance.WriteTime);
+                        m_diskStats[i].WriteCount.RegisterSample(machineDiskStats[i].DiskPerformance.WriteCount);
+                        m_diskStats[i].BytesRead.RegisterSample(machineDiskStats[i].DiskPerformance.BytesRead);
+                        m_diskStats[i].BytesWritten.RegisterSample(machineDiskStats[i].DiskPerformance.BytesWritten);
                         m_diskStats[i].IdleTime.RegisterSample(machineDiskStats[i].DiskPerformance.IdleTime);
                         m_diskStats[i].QueueDepth.RegisterSample(machineDiskStats[i].DiskPerformance.QueueDepth);
                     }

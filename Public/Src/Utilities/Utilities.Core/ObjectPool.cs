@@ -35,14 +35,17 @@ namespace BuildXL.Utilities.Core
         // Number of times an instance was obtained from the pool (the counter is incremented when regardless whether the was created or not).
         private long m_useCount;
 
-        private int m_objectsInPool;
-
         private readonly int m_size;
 
         // Storage for the pool objects. The first item is stored in a dedicated field because we
         // expect to be able to satisfy most requests from it.
         private T m_firstItem;
         private readonly ConcurrentStack<T> m_items;
+
+        // Track the approximate length of the backing set separately since getting the length of the
+        // ConcurrentStack will result in enumerating the stack. This is used to keep a rough target size
+        // of the backing set. Accuracy is not important.
+        private int m_stackLength;
 
         // creator is stored for the lifetime of the pool. We will call this only when pool needs to
         // expand. compared to "new T()", Func gives more flexibility to implementers and faster
@@ -143,7 +146,6 @@ namespace BuildXL.Utilities.Core
             else
             {
                 // Got an element from the first element.
-                Interlocked.Decrement(ref m_objectsInPool);
             }
 
             Interlocked.Increment(ref m_useCount);
@@ -168,7 +170,7 @@ namespace BuildXL.Utilities.Core
         /// <summary>
         /// Gets the number of objects that are currently available in the pool.
         /// </summary>
-        public int ObjectsInPool => m_objectsInPool;
+        public int ObjectsInPool => (m_firstItem != null ? 1 : 0) + m_stackLength;
 
         /// <summary>
         /// Gets the number of times a factory method was called.
@@ -179,7 +181,7 @@ namespace BuildXL.Utilities.Core
         {
             if (m_items.TryPop(out T inst))
             {
-                Interlocked.Decrement(ref m_objectsInPool);
+                Interlocked.Decrement(ref m_stackLength);
                 return inst;
             }
 
@@ -209,10 +211,6 @@ namespace BuildXL.Utilities.Core
             {
                 FreeSlow(obj);
             }
-            else
-            {
-                Interlocked.Increment(ref m_objectsInPool);
-            }
         }
 
         /// <summary>
@@ -226,20 +224,16 @@ namespace BuildXL.Utilities.Core
             {
                 FreeSlow(obj);
             }
-            else
-            {
-                Interlocked.Increment(ref m_objectsInPool);
-            }
         }
 
         private void FreeSlow(T obj)
         {
-            if (m_items.Count < m_size)
+            if (m_stackLength < m_size)
             {
                 // Using "m_size" to limit the number of items in the pool.
                 // Using "m_size" is just a best effort.
                 m_items.Push(obj);
-                Interlocked.Increment(ref m_objectsInPool);
+                Interlocked.Increment(ref m_stackLength);
             }
         }
 

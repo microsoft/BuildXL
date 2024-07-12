@@ -69,13 +69,14 @@ namespace BuildXL.Engine.Cache.Tracing
         public abstract void FailedOpenHandleToGetKnownHashDuringMaterialization(LoggingContext context, string path, string message);
 
         [GeneratedEvent(
-            (int)LogEventId.TimeoutOpeningFileForHashing,
+            (int)LogEventId.OpeningFileFailedForHashing,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Storage,
-            Message = "The path '{0}' could not be opened for hashing because the filesystem returned ERROR_TIMEOUT.")]
-        public abstract void TimeoutOpeningFileForHashing(LoggingContext context, string path);
+            Message = "The path '{0}' could not be opened for hashing because the filesystem returned {error}.")]
+        public abstract void OpeningFileFailedForHashing(LoggingContext context, string path, string error);
+
 
         [GeneratedEvent(
             (int)LogEventId.HashedReparsePointAsTargetPath,

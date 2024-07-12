@@ -34,6 +34,8 @@ namespace BuildXL.Native.IO.Windows
 
         private static readonly SecurityIdentifier s_worldSid = new SecurityIdentifier(WellKnownSidType.WorldSid, null);
 
+        private static readonly int s_currentBxlPid = Process.GetCurrentProcess().Id;
+
         /// <inheritdoc />
         public PosixDeleteMode PosixDeleteMode { get; set; }
 
@@ -2112,6 +2114,10 @@ namespace BuildXL.Native.IO.Windows
                             Process process = Process.GetProcessById(pid);
 
                             builder.AppendFormat("Handle was used by '{0}' with PID '{1}'.", process.ProcessName, pid);
+                            if (process.ProcessName.Equals("bxl"))
+                            {
+                                builder.AppendFormat(" bxl is holding the handle. Current bxl process PID is {0}.", s_currentBxlPid);
+                            }
                             builder.AppendLine();
                         }
                         catch (Exception ex)

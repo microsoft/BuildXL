@@ -454,7 +454,7 @@ namespace BuildXL.Engine.Cache.Artifacts
                         if (openResult.Status == OpenFileStatus.Timeout ||
                             openResult.Status == OpenFileStatus.SharingViolation)
                         {
-                            Tracing.Logger.Log.TimeoutOpeningFileForHashing(m_loggingContext, expandedPath);
+                            Tracing.Logger.Log.OpeningFileFailedForHashing(m_loggingContext, expandedPath, openResult.Status.ToString());
                             return false; // returning "not done", i.e., do retry
                         }
                         else

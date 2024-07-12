@@ -29,7 +29,7 @@ namespace BuildXL.Engine.Cache.Tracing
 
         RetryOnLoadingAndDeserializingMetadata = 746,
 
-        TimeoutOpeningFileForHashing = 748,
+        OpeningFileFailedForHashing = 748,
 
         TemporalCacheEntryTrace = 2733,
     }

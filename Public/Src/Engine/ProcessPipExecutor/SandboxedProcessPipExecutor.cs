@@ -1527,11 +1527,7 @@ namespace BuildXL.ProcessPipExecutor
                                 lastMessageCount,
                                 lastConfirmedMessageCount);
 
-                            // TODO [pgunasekara]: for Linux we want to get more testing with production builds before allowing it to fail builds.
-                            if (OperatingSystemHelper.IsWindowsOS)
-                            {
-                                return SandboxedProcessPipExecutionResult.MismatchedMessageCountFailure(result);
-                            }
+                            return SandboxedProcessPipExecutionResult.MismatchedMessageCountFailure(result);
                         }
 
                         Logger.Log.LogMismatchedDetoursCount(

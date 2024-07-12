@@ -566,7 +566,7 @@ namespace BuildXL.App.Tracing
             (ushort)LogEventId.IncompatibleLinuxDistroVersionDetected,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
-            Message = "Current Linux distro version: {linuxDistroVersion}. BuildXL supports only Ubuntu version 20.04 LTS. Please update to version 20.04 LTS to ensure compatibility.",
+            Message = "Current Linux distro version: {linuxDistroVersion}. BuildXL supports only Ubuntu version 20.04 LTS and 22.04 LTS. Please update to ensure compatibility.",
             Keywords = (int)Keywords.UserMessage)]
         public abstract void IncompatibleLinuxDistroVersionDetected(LoggingContext context, string linuxDistroVersion);
 

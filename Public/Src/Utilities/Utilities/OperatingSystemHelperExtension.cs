@@ -7,9 +7,9 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.Versioning;
 using System.Xml.Linq;
-using Microsoft.Win32;
 using BuildXL.Interop.Unix;
 using BuildXL.Utilities.Core;
+using Microsoft.Win32;
 using static BuildXL.Interop.Windows.Memory;
 
 #pragma warning disable IDE1006 // Naming rule violation
@@ -36,9 +36,9 @@ namespace BuildXL.Utilities
         private const int ProcessTimeoutMilliseconds = 1000;
 
         /// <summary>
-        /// Currently supported Linux distro version by BuildXL.
+        /// Current Linux distro versions supported by BuildXL.
         /// </summary>
-        private static readonly Version m_supportedLinuxDistroVersionId = new Version("20.04");
+        private static readonly Version[] m_supportedLinuxDistroVersionIds = { new Version("20.04"), new Version("22.04") };
 
         /// <summary>
         /// Operating system id.
@@ -363,9 +363,19 @@ namespace BuildXL.Utilities
         {
             var linuxDistroInfo = LinuxSystemInfo.GetLinuxDistroInfo();
 
-            return linuxDistroInfo.distroName == SupportedLinuxDistributionName &&
-                   linuxDistroInfo.distroVersionId.Major == m_supportedLinuxDistroVersionId.Major &&
-                   linuxDistroInfo.distroVersionId.Minor == m_supportedLinuxDistroVersionId.Minor;
+            if (linuxDistroInfo.distroName == SupportedLinuxDistributionName)
+            {
+                foreach (var supportedVersion in m_supportedLinuxDistroVersionIds)
+                {
+                    if (linuxDistroInfo.distroVersionId.Major == supportedVersion.Major &&
+                       linuxDistroInfo.distroVersionId.Minor == supportedVersion.Minor)
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
         }
 
         /// <summary>

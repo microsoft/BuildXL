@@ -254,7 +254,7 @@ export const pkgs = [
     { id: "System.Threading", version: pkgVersion },
     { id: "System.Threading.Overlapped", version: pkgVersion },
     { id: "System.Threading.Tasks", version: pkgVersion },
-    { id: "System.Formats.Asn1", version: "7.0.0"},
+    { id: "System.Formats.Asn1", version: "8.0.1"},
     
     { id: "System.Threading.Tasks.Parallel", version: pkgVersion },
     { id: "System.Threading.Thread", version: pkgVersion },
@@ -275,7 +275,7 @@ export const pkgs = [
     { id: "System.Security.AccessControl", version: pkgVersion6 },
     { id: "System.Security.Principal.Windows", version: pkgVersion6Preview },
     
-    { id: "System.Text.Json", version: "7.0.3" },
+    { id: "System.Text.Json", version: "8.0.4" },
     { id: "System.Threading.AccessControl", version: pkgVersionNext },
 
     // Non-standard version ones
@@ -284,7 +284,7 @@ export const pkgs = [
     { id: "System.Threading.Tasks.Extensions", version: "4.5.4" }, // If you change this version, please change cacheBindingRedirects in BuildXLSdk.dsc
 
     { id: "System.Security.Cryptography.OpenSsl", version: "4.4.0" },
-    { id: "System.Collections.Immutable", version: "7.0.0" },
+    { id: "System.Collections.Immutable", version: "8.0.0" },
 ];
 
 

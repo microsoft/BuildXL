@@ -108,14 +108,14 @@ export interface Net8Qualifier extends Qualifier {
 }
 
 /**
- * Having a net7 specific qualifier (without net 6) for some specific tests that only
- * work in net 7.
- * TODO: This should be consolidated with DefaultQualifier when we stop compiling for net6
+ * Having a net8 specific qualifier (without net6/net7) for some specific tests that only
+ * work in net 8.
+ * TODO: This should be consolidated with DefaultQualifier when we stop compiling for net6/net7.
  */
 @@public
-export interface Net7QualifierWithNet472 extends Qualifier {
+export interface Net8QualifierWithNet472 extends Qualifier {
     configuration: "debug" | "release";
-    targetFramework: "net7.0" | "net472";
+    targetFramework: "net8.0" | "net472";
     targetRuntime: "win-x64" | "osx-x64" | "linux-x64";
 }
 

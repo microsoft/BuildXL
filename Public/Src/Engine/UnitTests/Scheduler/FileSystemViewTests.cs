@@ -348,6 +348,11 @@ namespace Test.BuildXL.Scheduler
             {
                 return CollectionUtilities.EmptySet<FileArtifact>();
             }
+
+            public global::BuildXL.Utilities.Optional<(AbsolutePath path, bool isShared)> TryGetParentOutputDirectory(AbsolutePath path)
+            {
+                return default;
+            }
         }
 
         private static void AssertSuccess<T>(Possible<T> possible)

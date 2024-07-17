@@ -3156,6 +3156,107 @@ namespace IntegrationTest.BuildXL.Scheduler
             }
         }
 
+        [Theory]
+        [InlineData(RequiredOutputMaterialization.Minimal, true)]
+        [InlineData(RequiredOutputMaterialization.Minimal, false)]
+        [InlineData(RequiredOutputMaterialization.Explicit, true)]
+        [InlineData(RequiredOutputMaterialization.Explicit, false)]
+        public void StaleOutputsFromLazyMaterializationDoNotCreateSpuriousViolations(RequiredOutputMaterialization lazyMaterializationType, bool nested)
+        {
+            // See work items #2185423, #2185421
+
+            // Essential to the repro is that there are stale opaque outputs that will be 
+            // deleted on a dependency-materialization and not produced again, but are present
+            // during cache lookup
+            Configuration.Schedule.EnableLazyOutputMaterialization = true;
+            Configuration.Schedule.RequiredOutputMaterialization = lazyMaterializationType;
+
+            // Pip has opaqueDir as an output
+            AbsolutePath opaqueDirPath = AbsolutePath.Create(Context.PathTable, Path.Combine(ObjectRoot, "opaquedir"));
+
+            // Let's make the pip produce one of two outputs "non-deterministically":
+            var parent = nested ? opaqueDirPath : AbsolutePath.Create(Context.PathTable, Path.Combine(opaqueDirPath.ToString(Context.PathTable), "opaquesubdir"));
+            var fileA = CreateOutputFileArtifact(parent, prefix: "A");
+            var fileB = CreateOutputFileArtifact(parent, prefix: "B");
+            // We will control the pip non-determinism with this file
+            string nonDetSource = Path.Combine(ObjectRoot, "nonDetSource.txt");
+
+            var builderA = CreatePipBuilder(new Operation[]
+            {
+                Operation.Probe(fileA, doNotInfer:true),
+                Operation.Probe(fileB, doNotInfer:true),
+
+                Operation.WriteFileIfInputEqual(fileA, nonDetSource, "A", content: "A"), // Scenario A
+                Operation.WriteFileIfInputEqual(fileB, nonDetSource, "B", content: "B"), // Scenario B
+            });
+
+            builderA.AddOutputDirectory(opaqueDirPath, SealDirectoryKind.Opaque);
+            
+            if (nested)
+            {
+                // Add the nested directory also as output directory.
+                // We shouldn't support nested ODs but this seems to be
+                // possible anyways? - but this makes the test more robust,
+                // because the downstream pip will take a dependency not 
+                // on the immediate parent of the output, and we should
+                // catch that anyway.
+                builderA.AddOutputDirectory(parent, SealDirectoryKind.Opaque);
+            }
+            
+            builderA.AddInputFile(AbsolutePath.Create(Context.PathTable, nonDetSource));
+
+            var builderConsumer = CreatePipBuilder(new Operation[] {
+                Operation.Probe(fileA, doNotInfer:true),
+                Operation.Probe(fileB, doNotInfer:true),
+                Operation.WriteFile(CreateOutputFileArtifact())
+            });
+            builderConsumer.AddTags(Context.StringTable, "consumer");
+            Configuration.Filter = "tag='consumer'";
+
+            var pipA = SchedulePipBuilder(builderA);
+
+            // PipConsumer depends on the opaque
+            builderConsumer.AddInputDirectory(pipA.ProcessOutputs.GetOpaqueDirectory(opaqueDirPath));
+            var pipB = SchedulePipBuilder(builderConsumer);
+
+            // First build (full build):
+            //      PipA : Produces OD\A
+            //      PipConsumer: Probes A and B [Pathset:  { (A, absent probe), (B: probe)} ]
+            File.WriteAllText(nonDetSource, "A");
+            RunScheduler().AssertSuccess();
+
+            // Second build (simulates a filter on PipA, so PipConsumer doesn't run):
+            //      PipA [cache miss]: Produces OD\B
+            File.WriteAllText(nonDetSource, "B");
+            ResetPipGraphBuilder();
+			Configuration.Filter = null;
+
+			SchedulePipBuilder(builderA);
+            RunScheduler().AssertSuccess().AssertCacheMiss(pipA.Process.PipId);
+            XAssert.IsTrue(File.Exists(fileB.Path.ToString(Context.PathTable)));
+
+            // Now a third (full) build runs where PipA is a cache hit with the fingerprint of the first build (which would produce A).
+            // Because of lazy materialization, OD is not materialized at cache-lookup time of PipConsumer.
+            // This means there is a discrepancy between the real file system (which has B) and the outputs for the running build (A).
+            // If, when processing the pathset, we cache the real existences, we will cache "B => ExistsAsFile".
+            // This means that when we process the observations on PipB, we see an existing probe on B, which is not part of the
+            // opaque in this build. This causes a violation, but note that if lazy materialization was disabled this would never be a violation,
+            // because the view of OD would always coincide with the real filesystem.
+            File.WriteAllText(nonDetSource, "A");
+            ResetPipGraphBuilder();
+            pipA = SchedulePipBuilder(builderA);
+
+            // pipB depends on the opaque
+            builderConsumer.AddInputDirectory(pipA.ProcessOutputs.GetOpaqueDirectory(opaqueDirPath));
+            pipB = SchedulePipBuilder(builderConsumer);
+
+            // Make sure lazy materialization is active
+            Configuration.Filter = "tag='consumer'";
+            RunScheduler()
+                .AssertSuccess()
+                .AssertCacheHit(pipA.Process.PipId);    // OD was lazily materialized - the stale output was there
+        }
+
         private string ToString(AbsolutePath path) => path.ToString(Context.PathTable);
     }
 }

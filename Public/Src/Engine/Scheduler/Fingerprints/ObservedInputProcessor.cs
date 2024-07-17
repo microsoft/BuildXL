@@ -336,6 +336,7 @@ namespace BuildXL.Scheduler.Fingerprints
                         FileArtifact fakeArtifact = FileArtifact.CreateSourceFile(path);
                         FileMaterializationInfo? fileMaterializationInfo;
                         FileContentInfo? pathContentInfo;
+                        HashSet<AbsolutePath> directoryDependenciesLookup = null;
                         var debugTrace = debugTraces[i];
 
                         debugTrace.AppendLine($"Starting second pass for {path.ToString(pathTable)}. ObservationFlags = {observationFlags}");
@@ -411,12 +412,52 @@ namespace BuildXL.Scheduler.Fingerprints
                             Possible<PathExistence> maybeType;
                             using (operationContext.StartOperation(PipExecutorCounter.ObservedInputProcessorTryProbeForExistenceDuration, fakeArtifact))
                             {
+                                var cachePathExistence = trackFileChanges;
+
+                                // We shouldn't cache the path existence when the path might be under a still-not-scrubbed 
+                                // exclusive opaque, because the existence might change after the directory is materialized.
+                                // This might be the case during cache lookup of a pip when lazy materialization is enabled,
+                                // when considering the paths under the opaque directories that are depdendencies of the pip
+                                // (and thus potentially not materialized yet).
+                                //
+                                // For a concrete example (see test: StaleOutputsFromLazyMaterializationDoNotCreateSpuriousViolations)
+                                // Consider a graph PipA <--- PipB where PipA produces different contents under an opaque OD.
+                                // First build (full build):
+                                //      PipA : Produces OD\file1.txt
+                                //      PipB: Probes file1.txt and file2.txt   [Pathset:  { (file1.txt, absent probe), (file2.txt: probe)} ]
+                                // Second build (filter: PipA):
+                                //      PipA [cache miss]: Produces OD\file2.txt
+                                //
+                                // Now a third build runs where PipA is a cache hit with the fingerprint of the first build (which would produce file1.txt).
+                                // Because of lazy materialization, OD is not materialized at cache-lookup time of PipB.
+                                // This means there is now a discrepancy between the real file system (which has file2.txt) and the outputs for the running build (file1.txt).
+                                // If, when processing the pathset, we cache the real existences, we will cache "file2.txt => ExistsAsFile",
+                                // which would not be true if lazy materialization were disabled.
+                                // This means that when we process the observations on PipB, we see an existing probe on file2.txt, which is not part of the
+                                // opaque in this build. This causes a violation, but note that if lazy materialization was disabled this would never be a violation,
+                                // because the 'output' view of OD would always coincide with the real filesystem (because it was materialized with the correct contents).
+                                //
+                                // Similar scenarios would cause cache misses instead of violations. The point is that we need to avoid caching existences under opaques
+                                // that might still need scrubbing. Note the similarity with the lazy shared opaque scrubbing correction we do in TryProbeAndTrackForExistence
+                                // under the condition if (IsRecordedDynamicOutputForPip()) { ... }.
+                                if (trackFileChanges
+                                    && isCacheLookup
+                                    && envAdapter.RequiredOutputMaterialization != RequiredOutputMaterialization.All)
+                                {
+                                    var maybeOpaqueParent = envAdapter.TryGetParentOutputDirectory(path);
+                                    if (maybeOpaqueParent.HasValue && !maybeOpaqueParent.Value.IsItSharedOpaque)
+                                    {
+                                        directoryDependenciesLookup ??= new HashSet<AbsolutePath>(pip.DirectoryDependencies.Select(d => d.Path));
+                                        cachePathExistence = !directoryDependenciesLookup.Contains(maybeOpaqueParent.Value.Parent);
+                                    }
+                                }
+
                                 maybeType = environment.TryProbeAndTrackForExistence(
                                     path,
                                     pip,
                                     observationFlags,
                                     isReadOnly: observationsUnderSourceSealDirectories.Contains(i),
-                                    trackPathExistence: trackFileChanges,
+                                    cachePathExistence,
                                     debugTrace);
                             }
 
@@ -1313,7 +1354,7 @@ namespace BuildXL.Scheduler.Fingerprints
         /// <summary>
         /// Probes a path for existence
         /// </summary>
-        Possible<PathExistence> TryProbeAndTrackForExistence(AbsolutePath path, CacheablePipInfo pipInfo, ObservationFlags flags, bool isReadOnly, bool trackPathExistence, DebugTrace trace = default);
+        Possible<PathExistence> TryProbeAndTrackForExistence(AbsolutePath path, CacheablePipInfo pipInfo, ObservationFlags flags, bool isReadOnly, bool cachePathExistence, DebugTrace trace = default);
 
         /// <summary>
         /// Gets the fingerprint of a directory
@@ -1680,6 +1721,8 @@ namespace BuildXL.Scheduler.Fingerprints
 
         public PipSpecificPropertiesConfig PipProperties => m_env.PipSpecificPropertiesConfig;
 
+        public RequiredOutputMaterialization RequiredOutputMaterialization => m_env.Configuration.Schedule.RequiredOutputMaterialization;
+
         public ObservedInputProcessingEnvironmentAdapter(
             IPipExecutionEnvironment environment,
             PipExecutionState.PipScopeState state)
@@ -1695,7 +1738,7 @@ namespace BuildXL.Scheduler.Fingerprints
             m_pooledPipFileSystem?.Dispose();
         }
 
-        public Possible<PathExistence> TryProbeAndTrackForExistence(AbsolutePath path, CacheablePipInfo pipInfo, ObservationFlags flags, bool isReadOnly, bool trackPathExistence = true, DebugTrace trace = default)
+        public Possible<PathExistence> TryProbeAndTrackForExistence(AbsolutePath path, CacheablePipInfo pipInfo, ObservationFlags flags, bool isReadOnly, bool cachePathExistence = true, DebugTrace trace = default)
         {
             // ****************** CAUTION *********************
             // The logic below is replicated conservatively in IncrementalSchedulingState.ProcessNewlyPresentPath.
@@ -1763,7 +1806,7 @@ namespace BuildXL.Scheduler.Fingerprints
             bool hasBuildOutputs = mountInfo.HasPotentialBuildOutputs && !isReadOnly;
 
             // If path is not eventually produced, query real file system
-            existence = FileSystemView.GetExistence(path, FileSystemViewMode.Real, isReadOnly: !hasBuildOutputs, cachePathExistence: trackPathExistence);
+            existence = FileSystemView.GetExistence(path, FileSystemViewMode.Real, isReadOnly: !hasBuildOutputs, cachePathExistence: cachePathExistence);
 
             if (existence.Succeeded && (existence.Result == PathExistence.Nonexistent || existence.Result == PathExistence.ExistsAsDirectory) && hasBuildOutputs)
             {
@@ -1860,6 +1903,14 @@ namespace BuildXL.Scheduler.Fingerprints
         internal bool IsPathUnderOutputDirectory(AbsolutePath path, out bool isItSharedOpaque)
         {
             return m_env.PipGraphView.IsPathUnderOutputDirectory(path, out isItSharedOpaque);
+        }
+
+        /// <summary>
+        /// <see cref="Pips.Graph.IPipGraphFileSystemView.TryGetParentOutputDirectory(AbsolutePath)"/>
+        /// </summary>
+        internal Optional<(AbsolutePath Parent, bool IsItSharedOpaque)> TryGetParentOutputDirectory(AbsolutePath path)
+        {
+            return m_env.PipGraphView.TryGetParentOutputDirectory(path);
         }
 
         /// <summary>

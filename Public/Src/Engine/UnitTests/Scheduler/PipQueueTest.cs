@@ -822,5 +822,10 @@ namespace Test.BuildXL.Scheduler
             Contract.Requires(path.IsValid);
             return FileArtifact.Invalid;
         }
+
+        public Optional<(AbsolutePath path, bool isShared)> TryGetParentOutputDirectory(AbsolutePath path)
+        {
+            return default;
+        }
     }
 }

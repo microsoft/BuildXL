@@ -299,7 +299,7 @@ namespace BuildXL.Pips.Graph
         /// If exists, returns a path to a declared output directory containing <paramref name="path"/> and
         /// an indicator of whether that output directory is shared or exclusive.
         /// </summary>
-        private Optional<(AbsolutePath path, bool isShared)> TryGetParentOutputDirectory(AbsolutePath path)
+        public Optional<(AbsolutePath path, bool isShared)> TryGetParentOutputDirectory(AbsolutePath path)
         {
             // If there are no output directories, shortcut the search
             if (OutputDirectoryRoots.Count == 0)

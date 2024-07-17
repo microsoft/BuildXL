@@ -1282,6 +1282,14 @@ namespace BuildXL.Processes.Tracing
             Message = "The following file access occurred before the BxlObserver was able to complete initialization '{path}'")]
         internal abstract void ReceivedFileAccessReportBeforeSemaphoreInit(LoggingContext loggingContext, string path);
 
+        [GeneratedEvent(
+            (ushort)LogEventId.EnvironmentPreparationError,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Plugin,
+            Message = "Could not prepare environment variables. Error: {error}")]
+        public abstract void EnvironmentPreparationFailed(LoggingContext logging, string error);
         
     }
 }

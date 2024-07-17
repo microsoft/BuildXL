@@ -114,7 +114,7 @@ namespace BuildXL.Plugin
         public HashSet<PluginMessageType> GetSupportedMessageTypesOfLoadedPlugins()
         {
             //Ensure all plugin handles are created
-            m_pluginsLoadedTask.GetAwaiter().GetResult();
+            m_pluginsLoadedTask.WithTimeoutAsync(TimeSpan.FromMinutes(10)).GetAwaiter().GetResult();
 
             HashSet<PluginMessageType> result = new HashSet<PluginMessageType>();
             if (PluginHandlersCount > 0)

@@ -795,8 +795,14 @@ namespace BuildXL.ProcessPipExecutor
                     return SandboxedProcessPipExecutionResult.PreparationFailure();
                 }
 
-                var environmentVariables = PrepareEnvironmentVariables();
+                var possibleEnvironmentVariables = PrepareEnvironmentVariables();
+                if (!possibleEnvironmentVariables.Succeeded)
+                {
+                    Logger.Log.EnvironmentPreparationFailed(m_loggingContext, possibleEnvironmentVariables.Failure.Describe());
+                    return SandboxedProcessPipExecutionResult.PreparationFailure();
+                }
 
+                var environmentVariables = possibleEnvironmentVariables.Result;
                 if (!PrepareTempDirectory(ref environmentVariables))
                 {
                     return SandboxedProcessPipExecutionResult.FailureButRetryAble(
@@ -2884,7 +2890,7 @@ namespace BuildXL.ProcessPipExecutor
             return true;
         }
 
-        private IBuildParameters PrepareEnvironmentVariables()
+        private Possible<IBuildParameters> PrepareEnvironmentVariables()
         {
             var environmentVariables = m_pipEnvironment.GetEffectiveEnvironmentVariables(
                 m_pip,
@@ -2952,15 +2958,22 @@ namespace BuildXL.ProcessPipExecutor
 
             if (m_pluginEP != null)
             {
-                environmentVariables = environmentVariables.Override(
-                [
-                    new KeyValuePair<string, string>(
-                        PluginConstants.PluginCapabilitiesEnvVar,
-                        string.Join(",", m_pluginEP.LoadedPluginSupportedMessageTypes.Select(m => m.ToString())))
-                ]);
+                try
+                {
+                    environmentVariables = environmentVariables.Override(
+                    [
+                        new KeyValuePair<string, string>(
+                            PluginConstants.PluginCapabilitiesEnvVar,
+                            string.Join(",", m_pluginEP.LoadedPluginSupportedMessageTypes.Select(m => m.ToString())))
+                    ]);
+                }
+                catch (TimeoutException)
+                {
+                    return new Possible<IBuildParameters>(new Failure<string>("Plugin initionalization timeout"));
+                }
             }
 
-            return environmentVariables;
+            return new Possible<IBuildParameters>(environmentVariables);
         }
 
         /// <summary>

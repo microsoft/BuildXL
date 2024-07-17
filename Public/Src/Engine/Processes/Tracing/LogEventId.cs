@@ -175,5 +175,7 @@ namespace BuildXL.Processes.Tracing
         PipProcessToolErrorDueToHandleToFileBeingUsed = 14300,
 
         LogMismatchedDetoursCount = 14301,
+
+        EnvironmentPreparationError = 14302,
     }
 }

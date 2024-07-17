@@ -10,6 +10,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Tasks;
+using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 using Xunit.Sdk;
@@ -134,7 +135,7 @@ namespace Test.BuildXL.TestUtilities.XUnit.Extensions
                             Aggregator,
                             CancellationTokenSource);
 
-                        bool runInMtaThread = testCase.GetType().Name == "MtaTestCase";
+                        bool runInMtaThread = testCase.Traits.ContainsKey(MtaTraitAttribute.MtaTrait);
 
                         result = await RunInMtaThreadIfNeededAsync(
                             func: () => runner.RunAsync().WithTimeoutAsync(TimeSpan.FromMinutes(5)),

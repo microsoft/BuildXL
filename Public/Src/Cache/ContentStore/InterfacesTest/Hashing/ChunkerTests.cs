@@ -8,6 +8,7 @@ using System.Linq;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Test;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
+using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 
 namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
@@ -41,7 +42,8 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
             }
         }
 
-        [MtaFact]
+        [Fact]
+        [MtaTrait]
         [Trait("Category", "WindowsOSOnly")]
         public void ChunksEnumeratedAsFileIsReadCOM()
         {

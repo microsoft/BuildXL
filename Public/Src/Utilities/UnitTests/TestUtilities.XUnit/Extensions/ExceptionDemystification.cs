@@ -157,7 +157,7 @@ namespace Test.BuildXL.TestUtilities.XUnit.Extensions
             // In this case we'll try to run this is 'Fact' even though the original test runner won't run it at all.
             // But this is better option compared to the others like checking the attributes (like Fact, Theory) because
             // there are custom attributes like 'FactIfSupported' that this place doesn't know about.
-            bool isTheory = testCase.Method.GetParameters().Any();
+            bool isTheory = testCase is XunitTheoryTestCase;
             logger.LogVerbose($"Running {testCase.DisplayName} as {(isTheory ? "Theory" : "Fact")}.");
             
             if (isTheory)

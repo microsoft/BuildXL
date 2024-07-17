@@ -10,6 +10,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Test;
 using BuildXL.Cache.ContentStore.Vsts;
 using FluentAssertions;
 using Microsoft.VisualStudio.Services.Content.Common;
+using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 
 namespace BuildXL.Cache.MemoizationStore.Vsts.Test
@@ -48,7 +49,8 @@ namespace BuildXL.Cache.MemoizationStore.Vsts.Test
            }
         }
 
-        [MtaFact]
+        [Fact]
+        [MtaTrait]
         public void ComChunkerWorksOnThreading()
         {
             Thread.CurrentThread.GetApartmentState().Should().Be(ApartmentState.MTA);

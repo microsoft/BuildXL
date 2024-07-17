@@ -9,15 +9,10 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Test;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
+using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using System.IO;
 using System.Threading;
-
-// VS Test Explorer can't find Mta*, so change the false to true to run the tests in VS.
-#if false
-using MtaFact = Xunit.FactAttribute;
-using MtaTheory = Xunit.TheoryAttribute;
-#endif
 
 namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
 {
@@ -128,7 +123,8 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
 
     public class DedupContentHasherTestsSimple : DedupContentHasherTestsBase
     {
-        [MtaFact]
+        [Fact]
+        [MtaTrait]
         public void PublicConstructor()
         {
             using (var hasher = new ContentHasher<DedupNodeOrChunkHashAlgorithm>(DedupNode64KHashInfo.Instance))
@@ -137,7 +133,8 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
             }
         }
 
-        [MtaFact]
+        [Fact]
+        [MtaTrait]
         public void IsComChunkerSupported()
         {
             Assert.Equal(
@@ -187,7 +184,8 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
             }
         }
 
-        [MtaTheory]                                                                     // avg chnk   | total bytes
+        [Theory]
+        [MtaTrait]                                                                     // avg chnk   | total bytes
         [InlineData(HashType.Dedup64K, 2 * DedupNode.MaxDirectChildrenPerNode, 1, 1)]    // 64K        | 1024 * 64 K            64MB
         [InlineData(HashType.Dedup64K, DedupNode.MaxDirectChildrenPerNode / 2, 16, 1)]   // 1MB        | 256 * 16 * 64 K        256MB
         [InlineData(HashType.Dedup1024K, DedupNode.MaxDirectChildrenPerNode / 2, 1, 1)]  // 1MB        | 256 * 1024 K           256MB
@@ -206,7 +204,8 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
             }
         }
 
-        [MtaTheory]                                                                        // avg chnk   | total bytes
+        [Theory]
+        [MtaTrait]                                                                        // avg chnk   | total bytes
         [InlineData(HashType.Dedup64K, 2 * DedupNode.MaxDirectChildrenPerNode, 1, 2)]      // 32K        | 1024 * 32K           32MB
         [InlineData(HashType.Dedup64K, 2 * DedupNode.MaxDirectChildrenPerNode, 2, 1)]      // 128K       | 1024 * 128K         128MB
         [InlineData(HashType.Dedup64K, 2 * DedupNode.MaxDirectChildrenPerNode, 4, 1)]      // 256K       | 1024 * 256K         256MB
@@ -235,7 +234,8 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
             }
         }
 
-        [MtaFact]
+        [Fact]
+        [MtaTrait]
         public void TestMismatch()
         {
             // ManagedChunker = 3C46AECFB2872004ADA998A1DAB7D03FB13E9B1A2D316B230EB673B8D8839CAB
@@ -243,7 +243,8 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
             HashIsStable(HashType.Dedup64K, 1254972, "DDD18C25F8EDE1AA79CB3401560764470316F4CA52167CD529B6E58726800255", seed: 69519);
         }
 
-        [MtaFact]
+        [Fact]
+        [MtaTrait]
         public void CanCreateMultipleLayersOfNodes()
         {
             const int FullLayer = DedupNode.MaxDirectChildrenPerNode;
@@ -325,7 +326,8 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
 
     public class DedupContentHasherTestsBasic64KChunkerSizes : DedupContentHasherTestsBase
     {
-        [MtaTheory]
+        [Theory]
+        [MtaTrait]
         // Special cases
         [InlineData(0, "CF83E1357EEFB8BDF1542850D66D8007D620E4050B5715DC83F4A921D36CE9CE")]
         [InlineData(1, "E8D0F119F2C42791C1B61150F68CC305B4054F21189F7940482F0AEDBCB28605")]
@@ -361,7 +363,8 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
 
     public class DedupContentHasherTestsBasic1024KChunkerSizes : DedupContentHasherTestsBase
     {
-        [MtaTheory]
+        [Theory]
+        [MtaTrait]
         // Special cases
         [InlineData(0, "CF83E1357EEFB8BDF1542850D66D8007D620E4050B5715DC83F4A921D36CE9CE")]
         [InlineData(1, "E8D0F119F2C42791C1B61150F68CC305B4054F21189F7940482F0AEDBCB28605")]
@@ -393,7 +396,8 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
 
     public class DedupContentHasherTestsBasic64KSizesZeros : DedupContentHasherTestsBase
     {
-        [MtaTheory]
+        [Theory]
+        [MtaTrait]
         [InlineData(0, "CF83E1357EEFB8BDF1542850D66D8007D620E4050B5715DC83F4A921D36CE9CE")]
         [InlineData(1, "B8244D028981D693AF7B456AF8EFA4CAD63D282E19FF14942C246E50D9351D22")]
         [InlineData(32 * 1024 - 1, "874EFDBEF5CC034B716636A5B2173B9D5B50BF08648AA36CF1477EA7A6C1FD03")]
@@ -422,7 +426,8 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
     
     public class DedupContentHasherTestsBasic1024KSizesZeros : DedupContentHasherTestsBase
     {
-        [MtaTheory]
+        [Theory]
+        [MtaTrait]
         // Special cases
         [InlineData(0, "CF83E1357EEFB8BDF1542850D66D8007D620E4050B5715DC83F4A921D36CE9CE")]
         [InlineData(1, "B8244D028981D693AF7B456AF8EFA4CAD63D282E19FF14942C246E50D9351D22")]
@@ -519,7 +524,8 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
         
     public class DedupContentHasherTestsCanChunkLargeFiles : DedupContentHasherTestsCanChunkLargeFilesBase
     {
-        [MtaFact]
+        [Fact]
+        [MtaTrait]
         public void CanChunkLargeFiles()
         {
             var hashTypes = Enum.GetValues(typeof(HashType)).Cast<HashType>();
@@ -543,7 +549,8 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
         
     public class DedupContentHasherTestsCan64KChunkReallyLargeFiles : DedupContentHasherTestsCanChunkLargeFilesBase
     {
-        [MtaFact]
+        [Fact]
+        [MtaTrait]
         [Trait("Category", "Integration")]
         public void Can64KChunkReallyLargeFiles()
         {
@@ -581,7 +588,8 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
         
     public class DedupContentHasherTestsCan1024KChunkReallyLargeFiles : DedupContentHasherTestsCanChunkLargeFilesBase
     {
-        [MtaFact]
+        [Fact]
+        [MtaTrait]
         [Trait("Category", "Integration2")] // Using a different category name to allow all integration tests to run in parallel.
         public void Can1024KChunkReallyLargeFiles()
         {

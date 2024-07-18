@@ -2,6 +2,14 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20240712.10 (Release [395776](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=395776))
+- Fix msbuild frontend when building solution
+- Don't warn OS compatibility for Ubuntu 22.04
+- Speed up ObjectPool
+- Convert detours message count mismatch into an error on Linux Builds
+- Log more information when bxl failed to open a file for hashing
+- [Cache] Support per-container SAS tokens
+
 # 0.1.0-20240705.2.2 (Release [394871](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=394871))
 - Gracefully exit workers when released before attachment.
 - Enable encryption for ephemeral cache.

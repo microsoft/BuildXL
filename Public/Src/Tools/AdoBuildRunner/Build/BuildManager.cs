@@ -26,14 +26,14 @@ namespace BuildXL.AdoBuildRunner.Build
         /// Initializes the build manager with a concrete VSTS API implementation and all parameters necessary
         /// to orchestrate a distributed build
         /// </summary>
-        /// <param name="vstsApi">Interface to interact with VSTS API</param>
+        /// <param name="adoBuildRunnerService">Interface to interact with VSTS API</param>
         /// <param name="executor">Interface to execute the build engine</param>
         /// <param name="args">Build CLI arguments</param>
         /// <param name="buildContext">Build context</param>
         /// <param name="logger">Interface to log build info</param>
-        public BuildManager(IAdoBuildRunnerService vstsApi, IBuildExecutor executor, BuildContext buildContext, string[] args, ILogger logger)
+        public BuildManager(IAdoBuildRunnerService adoBuildRunnerService, IBuildExecutor executor, BuildContext buildContext, string[] args, ILogger logger)
         {
-            m_adoBuildRunnerService = vstsApi;
+            m_adoBuildRunnerService = adoBuildRunnerService;
             m_executor = executor;
             m_logger = logger;
             m_buildArguments = args;
@@ -44,39 +44,14 @@ namespace BuildXL.AdoBuildRunner.Build
         /// Executes a build depending on orchestrator / worker context
         /// </summary>
         /// <returns>The exit code returned by the worker process</returns>
-        public async Task<int> BuildAsync(bool isOrchestrator)
+        public async Task<int> BuildAsync()
         {
             // Possibly extend context with additional info that can influence the build environment as needed
             m_executor.PrepareBuildEnvironment(m_buildContext);
 
-            int returnCode;
-
-            if (isOrchestrator)
-            {
-                // The orchestrator creates the build info and publishes it to the build properties
-                var buildInfo = new BuildInfo { RelatedSessionId = Guid.NewGuid().ToString("D"), OrchestratorLocation = m_buildContext.AgentHostName  };
-                await m_adoBuildRunnerService.PublishBuildInfo(m_buildContext, buildInfo);
-                returnCode = m_executor.ExecuteDistributedBuildAsOrchestrator(m_buildContext, buildInfo.RelatedSessionId, m_buildArguments);
-            }
-            else
-            {
-                // Get the build info from the orchestrator build
-                var buildInfo = await m_adoBuildRunnerService.WaitForBuildInfo(m_buildContext);
-                returnCode = m_executor.ExecuteDistributedBuildAsWorker(m_buildContext, buildInfo, m_buildArguments);
-            }
+            var returnCode = await m_executor.ExecuteDistributedBuild(m_buildContext, m_buildArguments);
 
             LogExitCode(returnCode);
-
-            if (!isOrchestrator 
-                && Environment.GetEnvironmentVariable(Constants.WorkerAlwaysSucceeds) == "true" 
-                && returnCode != 0)
-            {
-                // If the orchestrator succeeds, then we don't want to make the pipeline fail
-                // just because of this worker's failure. Log the failure but make the task succeed
-                m_logger.Error($"The build finished with errors in this worker (exit code: {returnCode}).");
-                m_logger.Warning("Marking this task as successful so the build pipeline won't fail");
-                returnCode = 0;
-            }
 
             return returnCode;
         }

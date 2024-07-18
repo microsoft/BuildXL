@@ -1,9 +1,9 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using AdoBuildRunner;
 using BuildXL.AdoBuildRunner.Build;
 
 #nullable enable
@@ -16,64 +16,14 @@ namespace BuildXL.AdoBuildRunner.Vsts
     public interface IAdoBuildRunnerService
     {
         /// <summary>
-        /// VSTS BuildId. This is unique per VSTS account
+        /// AdoEnvironment object to access the various env vars used by AdoBuildRunner.
         /// </summary>
-        string BuildId { get; }
+        IAdoEnvironment AdoEnvironment { get; }
 
         /// <summary>
-        /// Team project that the build definition belongs to
+        /// AdoBuildRunnerConfig object to access the user defined config values used by AdoBuildRunner.
         /// </summary>
-        string TeamProject { get; }
-
-        /// <summary>
-        /// The id of the team project the build definition belongs to
-        /// </summary>
-        string TeamProjectId { get; }
-
-        /// <summary>
-        /// Uri of the VSTS server that kicked off the build
-        /// </summary>
-        string ServerUri { get; }
-
-        /// <summary>
-        /// PAT token used to authenticate with VSTS
-        /// </summary>
-        string AccessToken { get; }
-
-        /// <summary>
-        /// Used to uniquely identify a VSTS Agent in each phase. Each Agent has consecutive number starting from 1.
-        /// </summary>
-        int JobPositionInPhase { get; }
-
-        /// <summary>
-        /// The total number of agents being requested to run the build in the given phase
-        /// </summary>
-        int TotalJobsInPhase { get; }
-
-        /// <summary>
-        /// Name of the Agent running the build
-        /// </summary>
-        string AgentName { get; }
-
-        /// <summary>
-        /// Folder where the sources are being built from
-        /// </summary>
-        string SourcesDirectory { get; }
-
-        /// <summary>
-        /// Id of the timeline of the build
-        /// </summary>
-        string TimelineId { get; }
-
-        /// <summary>
-        /// Id of the plan of the build
-        /// </summary>
-        string PlanId { get; }
-
-        /// <summary>
-        /// Url of the build repository
-        /// </summary>
-        string RepositoryUrl { get; }
+        IAdoBuildRunnerConfig Config { get; }
 
         /// <summary>
         /// Gets the build context from the ADO build run information
@@ -83,13 +33,29 @@ namespace BuildXL.AdoBuildRunner.Vsts
         /// <summary>
         /// Wait until the orchestrator is ready and return its address
         /// </summary>
-        /// <returns></returns>
         Task<BuildInfo> WaitForBuildInfo(BuildContext buildContext);
 
         /// <summary>
         /// Publish the orchestrator address
         /// </summary>
-        /// <returns></returns>
         Task PublishBuildInfo(BuildContext buildContext, BuildInfo buildInfo);
+
+        /// <summary>
+        /// Retrieves role of the machine.
+        /// </summary>
+        MachineRole GetRole();
+
+        /// <summary>
+        /// Retrieved the InvocationKey for invoking specific AdoBuildRunner logic.
+        /// A build key has to be specified to disambiguate between multiple builds
+        /// running as part of the same pipeline. This value is used to communicate
+        /// the build information (orchestrator location, session id) to the workers. 
+        /// </summary>
+        string GetInvocationKey();
+
+        /// <summary>
+        /// Generates the CacheConfig file.
+        /// </summary>
+        Task GenerateCacheConfigFileIfNeededAsync(Logger logger, IAdoBuildRunnerConfiguration configuration, List<string> buildArgs);
     }
 }

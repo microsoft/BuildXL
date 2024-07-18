@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using BuildXL.AdoBuildRunner.Vsts;
 using Microsoft.TeamFoundation.Build.WebApi;
+using Microsoft.VisualStudio.Services.Common;
 using Microsoft.VisualStudio.Services.WebApi;
 
 namespace AdoBuildRunner
@@ -27,12 +28,14 @@ namespace AdoBuildRunner
         private readonly VstsHttpRelay m_http;
 
         /// <nodoc />
-        public AdoApiService(BuildHttpClient buildClient, ILogger logger, Guid projectId, string accessToken)
+        public AdoApiService(ILogger logger, IAdoEnvironment adoBuildRunnerEnvConfig, IAdoBuildRunnerConfig adoBuildRunnerUserConfig)
         {
-            m_buildClient = buildClient;
             m_logger = logger;
-            m_projectId = projectId;
-            m_http = new VstsHttpRelay(accessToken, logger);
+            m_projectId = new Guid(adoBuildRunnerEnvConfig.TeamProjectId);
+            m_http = new VstsHttpRelay(adoBuildRunnerEnvConfig, adoBuildRunnerUserConfig, logger);
+            var server = new Uri(adoBuildRunnerEnvConfig.ServerUri);
+            var cred = new VssBasicCredential(string.Empty, adoBuildRunnerUserConfig.AccessToken);
+            m_buildClient = new BuildHttpClient(server, cred);
         }
 
         /// <inheritdoc />

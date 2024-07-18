@@ -1,14 +1,16 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Net.Http.Headers;
-using System.Net.Http;
-using System.Threading.Tasks;
 using System;
-using AdoBuildRunner.Vsts;
 using System.Collections.Generic;
+using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Threading.Tasks;
+using AdoBuildRunner.Vsts;
+using IAdoEnvironment = AdoBuildRunner.IAdoEnvironment;
+using IAdoBuildRunnerConfig = AdoBuildRunner.IAdoBuildRunnerConfig;
 
 #nullable enable
 
@@ -19,24 +21,21 @@ namespace BuildXL.AdoBuildRunner.Vsts
     /// </summary>
     public class VstsHttpRelay
     {
-        private readonly string m_accessToken;
         private readonly ILogger m_logger;
         private HttpClient Client => (m_httpClient ??= GetClient());
         private HttpClient? m_httpClient;
         private readonly static JsonSerializerOptions s_jsonSerializerOptions = new() { PropertyNameCaseInsensitive = true };
-        private readonly static string s_endpoint = $"build/builds/{Environment.GetEnvironmentVariable(Constants.BuildIdVarName)}";
+        private readonly string m_endpoint;
+        private readonly IAdoEnvironment m_adoBuildRunnerEnvConfig;
+        private readonly IAdoBuildRunnerConfig m_adoBuildRunnerUserConfig;
 
         /// <nodoc />
-        private static string GetVstsCollectionUri() => Environment.GetEnvironmentVariable("SYSTEM_COLLECTIONURI")!;
-
-        /// <nodoc />
-        private static string GetProject() => Environment.GetEnvironmentVariable("SYSTEM_TEAMPROJECT")!;
-
-        /// <nodoc />
-        public VstsHttpRelay(string accessToken, ILogger logger)
+        public VstsHttpRelay(IAdoEnvironment adoBuildRunnerEnvConfig, IAdoBuildRunnerConfig adoBuildRunnerUserConfig, ILogger logger)
         {
-            m_accessToken = accessToken;
+            m_adoBuildRunnerEnvConfig = adoBuildRunnerEnvConfig;
+            m_adoBuildRunnerUserConfig = adoBuildRunnerUserConfig;
             m_logger = logger;
+            m_endpoint = $"build/builds/{adoBuildRunnerEnvConfig.BuildId}";
         }
 
         /// <summary>
@@ -48,8 +47,8 @@ namespace BuildXL.AdoBuildRunner.Vsts
         {
             try
             {
-                var vstsUri = GetVstsCollectionUri();
-                var uri = $"{vstsUri}{GetProject()}/_apis/{s_endpoint}?api-version=7.1-preview.7";
+                var vstsUri = m_adoBuildRunnerEnvConfig.CollectionUrl;
+                var uri = $"{vstsUri}{m_adoBuildRunnerEnvConfig.TeamProject}/_apis/{m_endpoint}?api-version=7.1-preview.7";
                 var res = await Client.GetAsync(uri);
 
                 if (!res.IsSuccessStatusCode)
@@ -74,7 +73,7 @@ namespace BuildXL.AdoBuildRunner.Vsts
                 new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
             client.DefaultRequestHeaders.Authorization =
                 new AuthenticationHeaderValue("Basic",
-                    Convert.ToBase64String(System.Text.ASCIIEncoding.ASCII.GetBytes(string.Format("{0}:{1}", "", m_accessToken))));
+                    Convert.ToBase64String(System.Text.ASCIIEncoding.ASCII.GetBytes(string.Format("{0}:{1}", "", m_adoBuildRunnerUserConfig.AccessToken))));
 
             return client;
         }

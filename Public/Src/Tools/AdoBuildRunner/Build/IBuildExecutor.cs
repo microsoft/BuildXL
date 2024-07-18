@@ -1,7 +1,7 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace BuildXL.AdoBuildRunner.Build
 {
@@ -25,28 +25,19 @@ namespace BuildXL.AdoBuildRunner.Build
         int ExecuteSingleMachineBuild(BuildContext buildContext, string[] buildArguments);
 
         /// <summary>
-        /// Execute a build with a given context and arguments as orchestrator
+        /// Execute a build with a given context and arguments either as an orchstrator or a worker.
         /// </summary>
         /// <param name="buildContext">Information about the build setup</param>
-        /// <param name="relatedSessionId">The related session id for this build</param>
         /// <param name="buildArguments">Arguments to be executed when synchronization succeeds</param>
-        /// <returns>Status code of the build argument execution</returns>
-        int ExecuteDistributedBuildAsOrchestrator(BuildContext buildContext, string relatedSessionId, string[] buildArguments);
+        Task<int> ExecuteDistributedBuild(BuildContext buildContext, string[] buildArguments);
 
         /// <summary>
-        /// Perfrorm any work before setting the machine "ready" to build
-        /// </summary>
-        /// <param name="buildContext">The build context</param>
-        /// <param name="buildArguments">Arguments to be executed when synchronization succeeds</param>
-        void InitializeAsWorker(BuildContext buildContext, string[] buildArguments);
-
-        /// <summary>
-        ///  Execute a build with a given context and arguments as worker
+        /// Define the arguments required by the build machine.
         /// </summary>
         /// <param name="buildContext">The build context</param>
         /// <param name="buildInfo">The distributed build session information</param>
         /// <param name="buildArguments">Arguments to be executed when synchronization succeeds</param>
-        /// <returns>Status code of the build argument execution</returns>
-        int ExecuteDistributedBuildAsWorker(BuildContext buildContext, BuildInfo buildInfo, string[] buildArguments);
+        /// <returns></returns>
+        string[] ConstructArguments(BuildContext buildContext, BuildInfo buildInfo, string[] buildArguments);
     }
 }

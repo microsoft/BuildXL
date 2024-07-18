@@ -3,7 +3,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Net.Http;
 using System.Threading.Tasks;
 using AdoBuildRunner;
 using Microsoft.TeamFoundation.Build.WebApi;
@@ -19,6 +18,8 @@ namespace Test.Tool.AdoBuildRunner
         private readonly Dictionary<int, PropertiesCollection> m_adoBuildProperties = new Dictionary<int, PropertiesCollection>();
 
         private readonly Dictionary<int, Build> m_adoBuilds = new Dictionary<int, Build>();
+
+        private readonly Dictionary<string, string> m_buildTriggerProperties = new Dictionary<string, string>();
 
         private readonly bool m_mockApiException;
 
@@ -87,7 +88,11 @@ namespace Test.Tool.AdoBuildRunner
                 throw new Exception($"Build properties not found for the: {buildId}");
             }
 
-            m_adoBuildProperties[buildId] = properties;
+            foreach (var property in properties)
+            {
+                m_adoBuildProperties[buildId][property.Key] = property.Value;
+            }
+
             return Task.CompletedTask;
         }
 
@@ -101,12 +106,7 @@ namespace Test.Tool.AdoBuildRunner
                 throw new Exception("Failed to extract build information");
             }
 
-            var info = new Dictionary<string, string>()
-            {
-                { "DummyTrigger", "ForTest" }
-            };
-
-            return Task.FromResult(info);
+            return Task.FromResult(m_buildTriggerProperties);
         }
 
         /// <summary>
@@ -123,6 +123,14 @@ namespace Test.Tool.AdoBuildRunner
         public void AddBuildId(int buildId, Build build)
         {
             m_adoBuilds[buildId] = build;
+        }
+
+        /// <summary>
+        /// Adds or updates a buildProperties in the mock service for a specified property.
+        /// </summary>
+        public void AddBuildTriggerProperties(string  triggerIdProperty, string triggerIdValue)
+        {
+            m_buildTriggerProperties[triggerIdProperty] = triggerIdValue;
         }
     }
 }

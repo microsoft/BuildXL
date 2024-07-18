@@ -5,9 +5,9 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 using BuildXL.AdoBuildRunner.Vsts;
 
 #nullable enable
@@ -17,22 +17,27 @@ namespace BuildXL.AdoBuildRunner.Build
     /// <summary>
     /// A build executor that can execute a build engine depending on agent status and build arguments
     /// </summary>
-    public class BuildExecutor : BuildExecutorBase, IBuildExecutor
+    public abstract class BuildExecutor : IBuildExecutor
     {
         private readonly string m_bxlExeLocation;
+        /// <nodoc />
+        protected readonly IAdoBuildRunnerService AdoBuildRunnerService;
+        /// <nodoc />
+        protected readonly ILogger Logger;
 
         /// <nodoc />
-        public BuildExecutor(ILogger logger) : base(logger)
+        public BuildExecutor(ILogger logger, IAdoBuildRunnerService adoBuildRunnerService)
         {
             // Resolve the bxl executable location
             var exeName = RuntimeInformation.IsOSPlatform(OSPlatform.Linux) ? "bxl" : "bxl.exe";
             m_bxlExeLocation = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!, exeName);
+            AdoBuildRunnerService = adoBuildRunnerService;
+            Logger = logger;
         }
 
-        private int ExecuteBuild(BuildContext buildContext, IEnumerable<string> arguments, string buildSourcesDirectory)
+        /// <nodoc />
+        protected int ExecuteBuild(BuildContext buildContext, IEnumerable<string> fullArguments, string buildSourceDirectory)
         {
-            var fullArguments = SetDefaultArguments(buildContext, arguments);
-
             var process = new Process()
             {
                 StartInfo =
@@ -70,110 +75,61 @@ namespace BuildXL.AdoBuildRunner.Build
             process.WaitForExit();
 
             return process.ExitCode;
-        }
+        } 
 
-        private void SetEnvVars(BuildContext buildContext)
-        {
-            // Extend this eventually, with the context needed for the builds
-        }
-
+        /// <nodoc />
         private static string ExtractAndEscapeCommandLineArguments(IEnumerable<string> args) => string.Join(' ', args);
 
-        /// <inherit />
+        /// <inheritdoc />
         public void PrepareBuildEnvironment(BuildContext buildContext)
         {
             if (buildContext == null)
             {
                 throw new ArgumentNullException(nameof(buildContext));
             }
-
-            SetEnvVars(buildContext);
-        }
-
-        /// <inherit />
-        public int ExecuteSingleMachineBuild(BuildContext buildContext, string[] buildArguments)
-        {
-            Logger.Info($@"Launching single machine build");
-            return ExecuteBuild(buildContext,buildArguments, buildContext.SourcesDirectory);
-        }
-
-        /// <inherit />
-        public int ExecuteDistributedBuildAsOrchestrator(BuildContext buildContext, string relatedSessionId, string[] buildArguments)
-        {
-            Logger.Info($@"Launching distributed build as orchestrator");
-            return ExecuteBuild(
-                buildContext,
-                GetDefaultArguments().
-                Concat(buildArguments)
-                .Concat(
-                [
-                    $"/distributedBuildRole:orchestrator",
-                    $"/distributedBuildServicePort:{Constants.MachineGrpcPort}",
-                    $"/relatedActivityId:{relatedSessionId}"
-                ]),
-                buildContext.SourcesDirectory
-            );
-        }
-
-        /// <inherit />
-        public int ExecuteDistributedBuildAsWorker(BuildContext buildContext, BuildInfo buildInfo, string[] buildArguments)
-        {
-            Logger.Info($@"Launching distributed build as worker");
-            return ExecuteBuild(
-                buildContext,
-                // (defaults are placed in front of user-provided arguments).
-                GetDefaultArguments()
-                .Concat(buildArguments)
-                .Concat(
-                [
-                    $"/distributedBuildRole:worker",
-                    $"/distributedBuildServicePort:{Constants.MachineGrpcPort}",
-                    $"/distributedBuildOrchestratorLocation:{buildInfo.OrchestratorLocation}:{Constants.MachineGrpcPort}",
-                    $"/relatedActivityId:{buildInfo.RelatedSessionId}"
-                ]),
-                buildContext.SourcesDirectory
-            );
-        }
-
-        private string[] GetDefaultArguments()
-        {
-            var invocationKey = Environment.GetEnvironmentVariable(Constants.AdoBuildRunnerInvocationKey);
-            var cacheMissOption = string.IsNullOrEmpty(invocationKey) ? "/cacheMiss+" : $"/cacheMiss:{invocationKey}";
-
-            return [
-                // By default, set the timeout to 20min in the workers to avoid unnecessary waiting upon connection failures
-                "/p:BuildXLWorkerAttachTimeoutMin=20",
-                // By default, enable cache miss analysis and pass the invocation key as a prefix
-                cacheMissOption
-                ];
         }
 
         /// <inheritdoc />
-        public void InitializeAsWorker(BuildContext buildContext, string[] buildArguments)
+        public int ExecuteSingleMachineBuild(BuildContext buildContext, string[] buildArguments)
         {
-            // No prep work to do
+            Logger.Info($@"Launching single machine build");
+            return ExecuteBuild(buildContext, buildArguments, buildContext.SourcesDirectory);
         }
 
-        private static IEnumerable<string> SetDefaultArguments(BuildContext buildContext, IEnumerable<string> arguments)
+        /// <inheritdoc />
+        public abstract Task<int> ExecuteDistributedBuild(BuildContext buildContext, string[] buildArguments);
+
+        /// <inheritdoc />
+        public abstract string[] ConstructArguments(BuildContext buildContext, BuildInfo buildInfo, string[] buildArguments);
+
+        /// <summary>
+        /// Set arguments common to the worker and the orchestrator.
+        /// </summary>
+        protected string[] SetDefaultArguments(BuildContext buildContext)
         {
             // The default values are added to the start of command line string.
             // This way, user-provided arguments will be able to override the defaults.
             // If there is a need for a new default argument that's not specific to ADO-runner,
             // it should be added to ConfigurationProvider.GetAdoConfig().
             var defaultArguments = new List<string>() {
-                $"/machineHostName:{buildContext.AgentHostName}"
+                $"/machineHostName:{buildContext.AgentHostName}",
+                // By default, set the timeout to 20min in the workers to avoid unnecessary waiting upon connection failures
+                "/p:BuildXLWorkerAttachTimeoutMin=20"
             };
 
             // Enable gRPC encryption
-            if (!(Environment.GetEnvironmentVariable(Constants.DisableEncryptionVariableName) == "1"))
+            if (!AdoBuildRunnerService.Config.DisableEncryption)
             {
                 defaultArguments.Add("/p:GrpcCertificateSubjectName=CN=1es-hostedpools.default.microsoft.com");
             }
 
-            // add specified arguments
-            defaultArguments.AddRange(arguments);
+            // By default, enable cache miss analysis and pass the invocation key as a prefix
+            var invocationKey = AdoBuildRunnerService.Config.AdoBuildRunnerInvocationKey;
+            var cacheMissOption = string.IsNullOrEmpty(invocationKey) ? "/cacheMiss+" : $"/cacheMiss:{invocationKey}";
 
-            return defaultArguments;
+            defaultArguments.Add(cacheMissOption);
+
+            return defaultArguments.ToArray();
         }
     }
 }

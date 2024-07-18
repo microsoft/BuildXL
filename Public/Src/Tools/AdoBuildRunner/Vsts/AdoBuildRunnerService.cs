@@ -2,13 +2,13 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.IO;
 using System.Threading.Tasks;
 using AdoBuildRunner;
 using AdoBuildRunner.Vsts;
 using BuildXL.AdoBuildRunner.Build;
-using Microsoft.TeamFoundation.Build.WebApi;
-using Microsoft.VisualStudio.Services.Common;
 using Microsoft.VisualStudio.Services.WebApi;
 
 #nullable enable
@@ -20,160 +20,72 @@ namespace BuildXL.AdoBuildRunner.Vsts
     /// </summary>
     public class AdoBuildRunnerService : IAdoBuildRunnerService
     {
+        /// <inheritdoc />
+        public IAdoEnvironment AdoEnvironment { get; }
+
+        /// <inheritdoc />
+        public IAdoBuildRunnerConfig Config { get; }
+
+        /// <nodoc />
+        private int TotalJobsInPhase { get; }
+
+        /// <nodoc />
+        private int JobPositionInPhase { get; }
+
         private enum AgentType
         {
             Orchestrator,
             Worker
         }
 
-        private readonly BuildHttpClient m_buildClient;
         private readonly ILogger m_logger;
-
-        // Timeouts
-        private readonly int m_maxWaitingTimeSeconds;
-
-        /// <nodoc />
-        public string BuildId { get; }
-
-        /// <nodoc />
-        public string TeamProject { get; }
-
-        /// <nodoc />
-        public string ServerUri { get; }
-
-        /// <nodoc />
-        public string AccessToken { get; }
-
-        /// <nodoc />
-        public int JobPositionInPhase { get; }
-
-        /// <nodoc />
-        public string JobId { get; }
-
-        /// <nodoc />
-        public string AgentName { get; }
-
-        /// <nodoc />
-        public string AgentMachineName { get; }
-
-        /// <nodoc />
-        public string SourcesDirectory { get; }
-
-        /// <nodoc />
-        public string TeamProjectId { get; }
-
-        /// <nodoc />
-        public int TotalJobsInPhase { get; }
-
-        /// <nodoc />
-        public string TimelineId { get; }
-
-        /// <nodoc />
-        public string PlanId { get; }
-
-        /// <nodoc />
-        public string RepositoryUrl { get; }
-
-        /// <nodoc />
-        public string CollectionUrl { get; }
 
         /// <summary>
         /// Generate a build URL from a build id
         /// </summary>
-        /// <param name="buildId"></param>
-        /// <returns></returns>
-        private string GetBuildLinkFromId(int buildId) => $"{CollectionUrl}/{TeamProject}/_build/results?buildid={buildId}";
+        private string GetBuildLinkFromId(int buildId) => $"{AdoEnvironment.CollectionUrl}/{AdoEnvironment.TeamProject}/_build/results?buildid={buildId}";
 
         private readonly AdoBuildRunnerRetryHandler m_retryHandler;
 
-        private readonly IAdoAPIService m_adoBuildService;
+        private readonly IAdoAPIService m_adoAPIService;
 
         /// <nodoc />
         public AdoBuildRunnerService(ILogger logger)
         {
             m_logger = logger;
-
-            BuildId = Environment.GetEnvironmentVariable(Constants.BuildIdVarName)!;
-            TeamProject = Environment.GetEnvironmentVariable(Constants.TeamProjectVarName)!;
-            ServerUri = Environment.GetEnvironmentVariable(Constants.ServerUriVarName)!;
-            AccessToken = Environment.GetEnvironmentVariable(Constants.AccessTokenVarName)!;
-            AgentName = Environment.GetEnvironmentVariable(Constants.AgentNameVarName)!;
-            AgentMachineName = Environment.GetEnvironmentVariable(Constants.AgentMachineNameVarName)!;
-            SourcesDirectory = Environment.GetEnvironmentVariable(Constants.SourcesDirectoryVarName)!;
-            TeamProjectId = Environment.GetEnvironmentVariable(Constants.TeamProjectIdVarName)!;
-            TimelineId = Environment.GetEnvironmentVariable(Constants.TimelineIdVarName)!;
-            JobId = Environment.GetEnvironmentVariable(Constants.JobIdVariableName)!;
-            PlanId = Environment.GetEnvironmentVariable(Constants.PlanIdVarName)!;
-            RepositoryUrl = Environment.GetEnvironmentVariable(Constants.RepositoryUrlVariableName)!;
-            CollectionUrl = Environment.GetEnvironmentVariable(Constants.CollectionUrlVariableName)!;
-
-            string jobPositionInPhase = Environment.GetEnvironmentVariable(Constants.JobsPositionInPhaseVarName)!;
-
-            if (string.IsNullOrWhiteSpace(jobPositionInPhase))
-            {
-                m_logger.Info("The job position in the build phase could not be determined. Therefore it must be a single machine build");
-                JobPositionInPhase = 1;
-                TotalJobsInPhase = 1;
-            }
-            else
-            {
-                if (!int.TryParse(jobPositionInPhase, out int position))
-                {
-                    LogAndThrow($"The env var {Constants.JobsPositionInPhaseVarName} contains a value that cannot be parsed to int");
-                }
-
-                JobPositionInPhase = position;
-                string totalJobsInPhase = Environment.GetEnvironmentVariable(Constants.TotalJobsInPhaseVarName)!;
-
-                if (!int.TryParse(totalJobsInPhase, out int totalJobs))
-                {
-                    LogAndThrow($"The env var {Constants.TotalJobsInPhaseVarName} contains a value that cannot be parsed to int");
-                }
-
-                TotalJobsInPhase = totalJobs;
-            }
-
-            var server = new Uri(ServerUri);
-            var cred = new VssBasicCredential(string.Empty, AccessToken);
-
-            m_buildClient = new BuildHttpClient(server, cred);
-
-            m_maxWaitingTimeSeconds = Constants.DefaultMaximumWaitForWorkerSeconds;
-            var userMaxWaitingTime = Environment.GetEnvironmentVariable(Constants.MaximumWaitForWorkerSecondsVariableName);
-            if (!string.IsNullOrEmpty(userMaxWaitingTime))
-            {
-                if (!int.TryParse(userMaxWaitingTime, out var maxWaitingTime))
-                {
-                    m_logger.Warning($"Couldn't parse value '{userMaxWaitingTime}' for {Constants.MaximumWaitForWorkerSecondsVariableName}." +
-                        $"Using the default value of {Constants.DefaultMaximumWaitForWorkerSeconds}");
-                }
-                else
-                {
-                    m_maxWaitingTimeSeconds = maxWaitingTime;
-                }
-            }
-
-            m_maxWaitingTimeSeconds = string.IsNullOrEmpty(userMaxWaitingTime) ?
-                Constants.DefaultMaximumWaitForWorkerSeconds
-                : int.Parse(userMaxWaitingTime);
-
+            AdoEnvironment = new AdoEnvironment(m_logger);
+            Config = new AdoBuildRunnerConfig(m_logger);
             m_retryHandler = new AdoBuildRunnerRetryHandler(Constants.MaxApiAttempts);
-
-            m_adoBuildService = new AdoApiService(m_buildClient, m_logger, new Guid(TeamProjectId), AccessToken);
+            m_adoAPIService = new AdoApiService(m_logger, AdoEnvironment, Config);
         }
 
-        /// <inherit />
+        /// <summary>
+        /// Constructor for testing purpose.
+        /// </summary>
+        public AdoBuildRunnerService(ILogger logger, IAdoEnvironment adoBuildRunnerEnvConfig, IAdoAPIService adoAPIService, IAdoBuildRunnerConfig adoBuildRunnerUserConfig)
+        {
+            AdoEnvironment = adoBuildRunnerEnvConfig;
+            m_logger = logger;
+            m_adoAPIService = adoAPIService;
+            m_retryHandler = new AdoBuildRunnerRetryHandler(Constants.MaxApiAttempts);
+            Config = adoBuildRunnerUserConfig;
+        }
+
+        /// <inheritdoc />
         private async Task<DateTime> GetBuildStartTimeAsync()
         {
-            if (!int.TryParse(BuildId, out int buildId))
+            if (AdoEnvironment.BuildId <= 0)
             {
                 LogAndThrow($"{Constants.BuildIdVarName} is not set or cannot be parsed into an int value");
             }
 
-            var build = await m_retryHandler.ExecuteAsync(() => m_adoBuildService.GetBuildAsync(buildId), nameof(m_adoBuildService.GetBuildAsync), m_logger);
+            var build = await m_retryHandler.ExecuteAsync(() => m_adoAPIService.GetBuildAsync(AdoEnvironment.BuildId), nameof(m_adoAPIService.GetBuildAsync), m_logger);
             return build.StartTime.GetValueOrDefault();
         }
 
+        /// <summary>
+        /// Adds or updates build properties atomically for the specifies build id.
+        /// </summary>
         private Task AddBuildProperty(int buildId, string property, string value)
         {
             // UpdateBuildProperties is ultimately an HTTP PATCH: the new properties specified will be added to the existing ones
@@ -184,18 +96,17 @@ namespace BuildXL.AdoBuildRunner.Vsts
                 { property, value }
             };
 
-            return m_retryHandler.ExecuteAsync(() => m_adoBuildService.UpdateBuildPropertiesAsync(patch, buildId), nameof(m_adoBuildService.UpdateBuildPropertiesAsync), m_logger);
+            return m_retryHandler.ExecuteAsync(() => m_adoAPIService.UpdateBuildPropertiesAsync(patch, buildId), nameof(m_adoAPIService.UpdateBuildPropertiesAsync), m_logger);
         }
 
-        /// <inherit />
+        /// <inheritdoc />
         public async Task PublishBuildInfo(BuildContext buildContext, BuildInfo buildInfo)
         {
             // Check that the build identifier was not used before - this is to catch user specification errors 
             // where some pipeline uses the same identifier for two different BuildXL invocations.
             // Note that this check is racing against a concurrent update, but this doesn't matter because
-            // we expect to catch it most of times, and that's all we need for the error to be surfaced and fixed.
-            var buildId = int.Parse(BuildId);
-            var properties = await m_retryHandler.ExecuteAsync(() => m_adoBuildService.GetBuildPropertiesAsync(buildId), nameof(m_adoBuildService.GetBuildPropertiesAsync), m_logger);
+            // we expect to catch it most of times, and that's all we need for the error to be surfaced and fixed.            
+            var properties = await m_retryHandler.ExecuteAsync(() => m_adoAPIService.GetBuildPropertiesAsync(AdoEnvironment.BuildId), nameof(m_adoAPIService.GetBuildPropertiesAsync), m_logger);
             if (properties.ContainsKey(buildContext.InvocationKey))
             {
                 LogAndThrow($"A build with identifier '{buildContext.InvocationKey}' is already running in this pipeline. " +
@@ -203,7 +114,7 @@ namespace BuildXL.AdoBuildRunner.Vsts
                     $" for invocations within the same ADO Build.");
             }
 
-            await AddBuildProperty(buildId, buildContext.InvocationKey, buildInfo.Serialize());
+            await AddBuildProperty(AdoEnvironment.BuildId, buildContext.InvocationKey, buildInfo.Serialize());
         }
 
         /// <summary>
@@ -227,16 +138,13 @@ namespace BuildXL.AdoBuildRunner.Vsts
         /// </remarks>
         private async Task VerifyWorkerCorrectness(BuildContext buildContext, int orchestratorBuildId)
         {
-
-            var orchestratorBuild = await m_retryHandler.ExecuteAsync(() => m_adoBuildService.GetBuildAsync(orchestratorBuildId), nameof(m_adoBuildService.GetBuildAsync), m_logger);
+            var orchestratorBuild = await m_retryHandler.ExecuteAsync(() => m_adoAPIService.GetBuildAsync(orchestratorBuildId), nameof(m_adoAPIService.GetBuildAsync), m_logger);
 
             // (1) Source branch / version should match
-            var localSourceBranch = Environment.GetEnvironmentVariable(Constants.SourceBranchVariableName);
-            var localSourceVersion = Environment.GetEnvironmentVariable(Constants.SourceVersionVariableName);
-            if (orchestratorBuild.SourceBranch != localSourceBranch || orchestratorBuild.SourceVersion != localSourceVersion)
+            if (orchestratorBuild.SourceBranch != AdoEnvironment.LocalSourceBranch || orchestratorBuild.SourceVersion != AdoEnvironment.LocalSourceVersion)
             {
                 LogAndThrow($"Version control mismatch between the orchestrator build. Ensure the worker pipeline is triggered with the same sources as the orchestrator pipeline." + Environment.NewLine
-                            + $"This build: SourceBranch='{localSourceBranch}', SourceVersion='{localSourceVersion}'" + Environment.NewLine
+                            + $"This build: SourceBranch='{AdoEnvironment.LocalSourceBranch}', SourceVersion='{AdoEnvironment.LocalSourceVersion}'" + Environment.NewLine
                             + $"Orchestrator build (id={orchestratorBuildId}): SourceBranch='{orchestratorBuild.SourceBranch}', SourceVersion='{orchestratorBuild.SourceVersion}'");
             }
 
@@ -253,12 +161,12 @@ namespace BuildXL.AdoBuildRunner.Vsts
                 return;
             }
 
-            var properties = await m_retryHandler.ExecuteAsync(() => m_adoBuildService.GetBuildPropertiesAsync(orchestratorBuildId), nameof(m_adoBuildService.GetBuildPropertiesAsync), m_logger);
+            var properties = await m_retryHandler.ExecuteAsync(() => m_adoAPIService.GetBuildPropertiesAsync(orchestratorBuildId), nameof(m_adoAPIService.GetBuildPropertiesAsync), m_logger);
             var workerInvocationSentinel = $"{buildContext.InvocationKey}__workerjobid";
             if (properties.ContainsKey(workerInvocationSentinel))
             {
                 var value = properties.GetValue(workerInvocationSentinel, string.Empty);
-                if (value != JobId)
+                if (value != AdoEnvironment.JobId)
                 {
                     LogAndThrow($"All workers participating in the build '{buildContext.InvocationKey}' must originate from the same parallel job. This failure probably means that some pipeline specification is duplicating invocation keys");
                 }
@@ -273,16 +181,16 @@ namespace BuildXL.AdoBuildRunner.Vsts
             await AddBuildProperty(orchestratorBuildId, workerInvocationSentinel, "1");
         }
 
-        /// <inherit />
+        /// <inheritdoc />
         public async Task<BuildInfo> WaitForBuildInfo(BuildContext buildContext)
         {
-            var triggerInfo = await m_retryHandler.ExecuteAsync(() => m_adoBuildService.GetBuildTriggerInfoAsync(), nameof(m_adoBuildService.GetBuildTriggerInfoAsync), m_logger);
+            var triggerInfo = await m_retryHandler.ExecuteAsync(() => m_adoAPIService.GetBuildTriggerInfoAsync(), nameof(m_adoAPIService.GetBuildTriggerInfoAsync), m_logger);
             if (triggerInfo == null
                 || !triggerInfo.TryGetValue(Constants.TriggeringAdoBuildIdParameter, out string? triggeringBuildIdString)
                 || !int.TryParse(triggeringBuildIdString, out int triggeringBuildId))
             {
                 m_logger.Info("Couldn't find trigger info for this build. Assuming it is being ran on the same pipeline as the orchestrator and using the current build id as the orchestrator's build id");
-                triggeringBuildId = int.Parse(BuildId);
+                triggeringBuildId = AdoEnvironment.BuildId;
             }
 
             var elapsedTime = 0;
@@ -293,9 +201,9 @@ namespace BuildXL.AdoBuildRunner.Vsts
             await VerifyWorkerCorrectness(buildContext, triggeringBuildId);
 
             m_logger.Info($"Querying the build properties of build {triggeringBuildId} for the build information");
-            while (elapsedTime < m_maxWaitingTimeSeconds)
+            while (elapsedTime < Config.MaximumWaitForWorkerSeconds)
             {
-                var properties = await m_retryHandler.ExecuteAsync(() => m_adoBuildService.GetBuildPropertiesAsync(triggeringBuildId), nameof(m_adoBuildService.GetBuildPropertiesAsync), m_logger);
+                var properties = await m_retryHandler.ExecuteAsync(() => m_adoAPIService.GetBuildPropertiesAsync(triggeringBuildId), nameof(m_adoAPIService.GetBuildPropertiesAsync), m_logger);
                 var maybeInfo = properties.GetValue<string?>(buildContext.InvocationKey, null);
                 if (maybeInfo != null)
                 {
@@ -307,7 +215,7 @@ namespace BuildXL.AdoBuildRunner.Vsts
                 elapsedTime += Constants.PollRetryPeriodInSeconds;
             }
 
-            LogAndThrow($"Waiting for orchestrator address failed after {m_maxWaitingTimeSeconds} seconds. Aborting...");
+            LogAndThrow($"Waiting for orchestrator address failed after {Config.MaximumWaitForWorkerSeconds} seconds. Aborting...");
             return null;
         }
 
@@ -320,23 +228,101 @@ namespace BuildXL.AdoBuildRunner.Vsts
         /// <summary>
         /// Gets the build context from the parameters and environment of this 
         /// </summary>
-        /// <returns></returns>
         public async Task<BuildContext> GetBuildContextAsync(string invocationId)
         {
             var buildContext = new BuildContext()
             {
                 InvocationKey = invocationId,
                 StartTime = await GetBuildStartTimeAsync(),
-                BuildId = BuildId,
-                AgentMachineName = AgentMachineName,
-                AgentHostName = $"{AgentMachineName}.internal.cloudapp.net",  // see https://learn.microsoft.com/en-us/azure/virtual-network/virtual-networks-name-resolution-for-vms-and-role-instances
-                SourcesDirectory = SourcesDirectory,
-                RepositoryUrl = RepositoryUrl,
-                ServerUrl = ServerUri,
-                TeamProjectId = TeamProjectId,
+                BuildId = AdoEnvironment.BuildId,
+                AgentMachineName = AdoEnvironment.AgentMachineName,
+                AgentHostName = $"{AdoEnvironment.AgentMachineName}.internal.cloudapp.net",  // see https://learn.microsoft.com/en-us/azure/virtual-network/virtual-networks-name-resolution-for-vms-and-role-instances
+                SourcesDirectory = AdoEnvironment.SourcesDirectory,
+                RepositoryUrl = AdoEnvironment.RepositoryUrl,
+                ServerUrl = AdoEnvironment.ServerUri,
+                TeamProjectId = AdoEnvironment.TeamProjectId,
             };
 
             return buildContext;
+        }
+
+        /// <inheritdoc />
+        public MachineRole GetRole() 
+        {
+            // For now, we explicitly mark the role with an environment
+            // variable. When we discontinue the "non-worker-pipeline" approach, we can
+            // infer the role from the parameters, but for now there is no easy way
+            // to distinguish runs using the "worker-pipeline" model from ones who don't
+            // When the build role is not specified, we assume this build is being run with the parallel strategy
+            // where the role is inferred from the ordinal position in the phase: the first agent is the orchestrator
+            var role = Config.AdoBuildRunnerPipelineRole;
+
+            if (string.IsNullOrEmpty(role) && JobPositionInPhase == 1)
+            {
+                return MachineRole.Orchestrator;
+            }
+            else if (Enum.TryParse(role, true, out MachineRole machineRole))
+            {
+                if (machineRole == MachineRole.Orchestrator || machineRole == MachineRole.Worker)
+                {
+                    return machineRole;
+                }
+                else
+                {
+                    throw new CoordinationException($"{Constants.AdoBuildRunnerPipelineRole} must be 'Worker' or 'Orchestrator'");
+                }
+            }
+            else
+            {
+                throw new CoordinationException($"{Constants.AdoBuildRunnerPipelineRole} is invalid.");
+            }
+        }
+
+        /// <inheritdoc />
+        public string GetInvocationKey()
+        {
+            var invocationKey = Config.AdoBuildRunnerInvocationKey;
+
+            if (string.IsNullOrEmpty(invocationKey))
+            {
+                throw new CoordinationException($"The environment variable {Constants.AdoBuildRunnerInvocationKey} must be set (to a value that is unique within a particular pipeline run): " +
+                    $"it is used to disambiguate between multiple builds running as part of the same pipeline (e.g.: debug, ship, test...) " +
+                    $"and to communicate the build information to the worker pipeline");
+            }
+
+            if (AdoEnvironment.JobAttemptNumber > 1)
+            {
+                // The job was rerun. Let's change the invocation key to reflect that
+                // so we don't conflict with the first run.
+                invocationKey += $"__jobretry_{AdoEnvironment.JobAttemptNumber}";
+            }
+
+            return invocationKey;
+        }
+
+        /// <inheritdoc />
+        public async Task GenerateCacheConfigFileIfNeededAsync(Logger logger, IAdoBuildRunnerConfiguration configuration, List<string> buildArgs)
+        {
+            // If the storage account endpoint was provided, that is taken as an indicator that the cache config needs to be generated
+            if (configuration.CacheConfigGenerationConfiguration.StorageAccountEndpoint == null)
+            {
+                return;
+            }
+
+            string cacheConfigContent = CacheConfigGenerator.GenerateCacheConfig(configuration.CacheConfigGenerationConfiguration);
+            string cacheConfigFilePath = Path.GetTempFileName();
+
+            await File.WriteAllTextAsync(cacheConfigFilePath, cacheConfigContent);
+            logger.Info($"Cache config file generated at '{cacheConfigFilePath}'");
+
+            if (configuration.CacheConfigGenerationConfiguration.LogGeneratedConfiguration())
+            {
+                logger.Info($"Generated cache config file: {cacheConfigContent}");
+            }
+
+            // Inject the cache config file path as the first argument in the build arguments. This is so if there is any user override pointing to another
+            // cache config file, that will be honored
+            buildArgs.Insert(0, $"/cacheConfigFilePath:{cacheConfigFilePath}");
         }
     }
 }

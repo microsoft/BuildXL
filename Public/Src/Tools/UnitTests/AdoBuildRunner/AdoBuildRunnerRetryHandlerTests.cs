@@ -108,6 +108,7 @@ namespace Test.Tool.AdoBuildRunner
             {
                 mockAdoAPIService.AddBuildId(buildID, new Build());
                 mockAdoAPIService.AddBuildProperties(buildID, new Microsoft.VisualStudio.Services.WebApi.PropertiesCollection());
+                mockAdoAPIService.AddBuildTriggerProperties("DummyTriggerId", "1256");
             }
 
             adoBuildRunnerRetryHandler = new AdoBuildRunnerRetryHandler(MaxRetryAttempts);

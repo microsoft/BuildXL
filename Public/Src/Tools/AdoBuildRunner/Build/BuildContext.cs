@@ -21,7 +21,7 @@ namespace BuildXL.AdoBuildRunner.Build
         public required DateTime StartTime { get; init; }
 
         /// <nodoc />
-        public required string BuildId { get; init; }
+        public required int BuildId { get; init; }
 
         /// <nodoc />
         public required string AgentMachineName { get; init; }

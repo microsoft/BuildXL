@@ -131,7 +131,7 @@ public class EphemeralContentSession : ContentSessionBase
             tempLocation,
             FileAccess.Read,
             FileMode.Open,
-            FileShare.Delete);
+            FileShare.Read | FileShare.Delete);
 
         return new OpenStreamResult(stream);
     }

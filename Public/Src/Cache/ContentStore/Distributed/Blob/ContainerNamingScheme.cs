@@ -43,6 +43,7 @@ public abstract class ContainerNamingSchemeBase<TKey> : ContainerNamingScheme
                     {
                         BlobCacheContainerPurpose.Content => GetContainerName(key, purpose),
                         BlobCacheContainerPurpose.Metadata => GetContainerName(key, purpose),
+                        BlobCacheContainerPurpose.Checkpoint => GetContainerName(key, purpose),
                         _ => throw new ArgumentOutOfRangeException(
                             nameof(purpose),
                             purpose,
@@ -78,6 +79,7 @@ public class LegacyContainerNamingScheme : ContainerNamingSchemeBase<(string met
             purpose switch {
                 BlobCacheContainerPurpose.Content => matrices.content,
                 BlobCacheContainerPurpose.Metadata => matrices.metadata,
+                BlobCacheContainerPurpose.Checkpoint => "checkpoint",
                 _ => throw new ArgumentOutOfRangeException(
                             nameof(purpose),
                             purpose,
@@ -96,7 +98,7 @@ public class BuildCacheContainerNamingScheme : ContainerNamingSchemeBase<BuildCa
     {
         _shardsPerAccountName = new ReadOnlyDictionary<BlobCacheStorageAccountName, BlobCacheContainerName[]>(
             buildCacheConfiguration.Shards.ToDictionary(
-                shard => (BlobCacheStorageAccountName) new BlobCacheStorageNonShardingAccountName(shard.StorageUri.AbsoluteUri),
+                shard => shard.GetAccountName(),
                 shard => GetContainers(shard)));
     }
 
@@ -109,6 +111,7 @@ public class BuildCacheContainerNamingScheme : ContainerNamingSchemeBase<BuildCa
             {
                 BlobCacheContainerPurpose.Content => shard.ContentContainer.Name,
                 BlobCacheContainerPurpose.Metadata => shard.MetadataContainer.Name,
+                BlobCacheContainerPurpose.Checkpoint => shard.CheckpointContainer.Name,
                 _ => throw new ArgumentOutOfRangeException(
                             nameof(purpose),
                             purpose,

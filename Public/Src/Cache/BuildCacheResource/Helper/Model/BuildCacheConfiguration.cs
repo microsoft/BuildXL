@@ -12,7 +12,7 @@ namespace BuildXL.Cache.BuildCacheResource.Model
     /// </summary>
     public record BuildCacheConfiguration
     {
-        private readonly int _retentionPolicyInDays;
+        private readonly int? _retentionPolicyInDays;
         private readonly IReadOnlyCollection<BuildCacheShard>? _shards;
 
         /// <summary>
@@ -27,14 +27,12 @@ namespace BuildXL.Cache.BuildCacheResource.Model
         /// This property may become optional in the future
         /// </remarks>
         [JsonPropertyName("RetentionDays")]
-        public required int RetentionPolicyInDays
+        public required int? RetentionPolicyInDays
         {
             get => _retentionPolicyInDays;
             init
             {
-                // This restriction may be lifted in the future. The current version of the cache resource will use service-less GC and is expected
-                // to always communicate a positive value for the retention policy
-                if (value! <= 0)
+                if (value is not null && value <= 0)
                 {
                     throw new ArgumentException($"The retention policy for the cache must be a positive value.", nameof(RetentionPolicyInDays));
                 }

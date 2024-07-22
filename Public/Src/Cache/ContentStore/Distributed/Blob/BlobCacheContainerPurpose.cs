@@ -19,4 +19,5 @@ public enum BlobCacheContainerPurpose
 {
     Content,
     Metadata,
+    Checkpoint,
 }

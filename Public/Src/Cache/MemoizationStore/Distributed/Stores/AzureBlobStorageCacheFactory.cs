@@ -80,13 +80,13 @@ public static class AzureBlobStorageCacheFactory
     public record struct CreateResult
     {
         /// <nodoc />
-        internal Configuration Configuration { get; }
+        public Configuration Configuration { get; }
 
         /// <nodoc />
         public IFullCache Cache { get; }
 
         /// <nodoc />
-        internal IBlobCacheTopology Topology { get; }
+        public IBlobCacheTopology Topology { get; }
 
         /// <nodoc />
         internal IContentStore ContentStore { get; }
@@ -98,13 +98,17 @@ public static class AzureBlobStorageCacheFactory
         internal RemoteNotificationDispatch Announcer { get; }
 
         /// <nodoc />
+        public IBlobCacheContainerSecretsProvider SecretsProvider { get; }
+
+        /// <nodoc />
         internal CreateResult(
             Configuration configuration,
             IFullCache cache,
             IBlobCacheTopology topology,
             IContentStore contentStore,
             IMemoizationStore memoizationStore,
-            RemoteNotificationDispatch announcer)
+            RemoteNotificationDispatch announcer,
+            IBlobCacheContainerSecretsProvider secretsProvider)
         {
             Configuration = configuration;
             Cache = cache;
@@ -112,6 +116,7 @@ public static class AzureBlobStorageCacheFactory
             ContentStore = contentStore;
             MemoizationStore = memoizationStore;
             Announcer = announcer;
+            SecretsProvider = secretsProvider;
         }
     }
 
@@ -150,7 +155,7 @@ public static class AzureBlobStorageCacheFactory
 
         var cache = CreateCache(configuration, contentStore, memoizationStore);
 
-        return new CreateResult(configuration, cache, topology, contentStore, memoizationStore, announcer);
+        return new CreateResult(configuration, cache, topology, contentStore, memoizationStore, announcer, secretsProvider);
     }
 
     private static IFullCache CreateCache(Configuration configuration, IContentStore contentStore, IMemoizationStore memoizationStore)

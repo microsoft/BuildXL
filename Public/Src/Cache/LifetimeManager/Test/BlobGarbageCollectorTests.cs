@@ -36,7 +36,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
         public Task GcToZero()
         {
             var context = new OperationContext(new Context(TestGlobal.Logger));
-            return RunTest(context,
+            return RunTestAsync(context,
                 async (topology, session, namespaceId, _) =>
                 {
                     var putResult = await session.PutRandomAsync(context, HashType.Vso0, provideHash: false, size: 1, CancellationToken.None).ThrowIfFailure();
@@ -100,7 +100,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
         public Task GcToNonZero()
         {
             var context = new OperationContext(new Context(TestGlobal.Logger));
-            return RunTest(context,
+            return RunTestAsync(context,
                 async (topology, session, namespaceId, secretsProvider) =>
                 {
                     // Because the LRU ordering isn't expected to be perfect because we're only calculating rough quantile estimates,

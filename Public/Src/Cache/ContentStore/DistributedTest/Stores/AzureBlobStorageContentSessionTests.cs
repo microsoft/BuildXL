@@ -384,7 +384,7 @@ public class AzureBlobStorageContentSessionTests : ContentSessionTests
         // Under the build cache scenario, the account names are created using the corresponding URIs directly. So let's keep that in sync and use those
         if (buildCacheConfiguration != null)
         {
-            shards = buildCacheConfiguration.Shards.Select(shard => (BlobCacheStorageAccountName)new BlobCacheStorageNonShardingAccountName(shard.StorageUri.AbsoluteUri)).ToList();
+            shards = buildCacheConfiguration.Shards.Select(shard => shard.GetAccountName()).ToList();
         }
 
         var configuration = new AzureBlobStorageContentStoreConfiguration()

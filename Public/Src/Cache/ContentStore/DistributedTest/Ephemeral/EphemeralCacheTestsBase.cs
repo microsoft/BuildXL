@@ -4,6 +4,7 @@
 #nullable enable
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading.Tasks;
@@ -173,7 +174,7 @@ public abstract class EphemeralCacheTestsBase : TestWithOutput
 
         var accounts = Enumerable.Range(0, 10).Select(idx => new BlobCacheStorageShardingAccountName(RunId, idx, "test"))
             .Cast<BlobCacheStorageAccountName>().ToList();
-        var (process, secretsProvider, _) = AzureBlobStorageContentSessionTests.CreateTestTopology(_fixture, accounts);
+        var (process, secretsProvider, buildCacheConfiguration) = AzureBlobStorageContentSessionTests.CreateTestTopology(_fixture, accounts, usePreauthenticatedUris: true);
         using var _ = process;
 
         var blobCacheConfiguration = new AzureBlobStorageCacheFactory.Configuration(
@@ -181,14 +182,16 @@ public abstract class EphemeralCacheTestsBase : TestWithOutput
             Universe: RunId,
             Namespace: "test",
             RetentionPolicyInDays: null,
-            IsReadOnly: false);
+            IsReadOnly: false)
+        {
+            BuildCacheConfiguration = buildCacheConfiguration
+        };
 
-        var ephemeralManagementStorageCredentials = TestMode == Mode.DatacenterWide ? new SecretBasedAzureStorageCredentials(process.ConnectionString) : null;
         var host = new TestInstance(
             blobCacheConfiguration,
             secretsProvider,
-            ephemeralManagementStorageCredentials,
-            universe: RunId);
+            universe: RunId,
+            datacenterWide: TestMode == Mode.DatacenterWide);
 
         var silentTracingContext = new Context(NullLogger.Instance);
         var silentContext = new OperationContext(silentTracingContext, context.Token);
@@ -289,11 +292,11 @@ public abstract class EphemeralCacheTestsBase : TestWithOutput
 
         private readonly AzureBlobStorageCacheFactory.Configuration _blobCacheConfiguration;
         private readonly IBlobCacheContainerSecretsProvider _secretsProvider;
-        private readonly IAzureStorageCredentials? _ephemeralManagementStorageCredentials;
 
         private readonly string _universe;
+        private readonly bool _datacenterWide;
 
-        public TestInstance(AzureBlobStorageCacheFactory.Configuration blobCacheConfiguration, IBlobCacheContainerSecretsProvider secretsProvider, IAzureStorageCredentials? ephemeralManagementStorageCredentials, string universe)
+        public TestInstance(AzureBlobStorageCacheFactory.Configuration blobCacheConfiguration, IBlobCacheContainerSecretsProvider secretsProvider, string universe, bool datacenterWide)
         {
             GrpcEnvironment.Initialize();
             var fileSystem = PassThroughFileSystem.Default;
@@ -301,8 +304,8 @@ public abstract class EphemeralCacheTestsBase : TestWithOutput
             TestDirectory = new DisposableDirectory(fileSystem);
             _blobCacheConfiguration = blobCacheConfiguration;
             _secretsProvider = secretsProvider;
-            _ephemeralManagementStorageCredentials = ephemeralManagementStorageCredentials;
             _universe = universe;
+            _datacenterWide = datacenterWide;
         }
 
         protected override async Task<BoolResult> ShutdownComponentAsync(OperationContext context)
@@ -491,14 +494,13 @@ public abstract class EphemeralCacheTestsBase : TestWithOutput
             Contract.Assert(persistentCache != null);
 
             EphemeralCacheFactory.Configuration? factoryConfiguration;
-            if (_ephemeralManagementStorageCredentials is not null)
+            if (_datacenterWide)
             {
                 factoryConfiguration = new EphemeralCacheFactory.DatacenterWideCacheConfiguration
                 {
                     RootPath = TestDirectory.CreateRandomFileName(),
                     Location = location,
                     Leader = leader,
-                    StorageCredentials = _ephemeralManagementStorageCredentials,
                     MaxCacheSizeMb = 1024,
                     Universe = _universe,
                 };

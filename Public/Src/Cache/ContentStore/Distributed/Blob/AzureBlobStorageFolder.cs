@@ -36,8 +36,12 @@ public class AzureBlobStorageFolder
 
     public BlobContainerClient GetContainerClient(BlobServiceClient? client = null)
     {
-        client ??= GetServiceClient();
-        return client.GetBlobContainerClient(_configuration.ContainerName);
+        if (client is not null)
+        {
+            return client.GetBlobContainerClient(_configuration.ContainerName);
+        }
+
+        return _configuration.Credentials.CreateContainerClient(_configuration.ContainerName);
     }
 
     public BlobClient GetBlobClient(BlobServiceClient client, BlobPath path)

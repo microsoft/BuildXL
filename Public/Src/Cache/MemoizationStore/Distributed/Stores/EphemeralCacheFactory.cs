@@ -141,11 +141,6 @@ public static class EphemeralCacheFactory
         public required string Universe { get; init; } = DefaultUniverse;
 
         /// <summary>
-        /// Credentials for the storage account we use to store metadata about the cluster.
-        /// </summary>
-        public required IAzureStorageCredentials StorageCredentials { get; init; }
-
-        /// <summary>
         /// Maximum timeout for storage operations
         /// </summary>
         public TimeSpan StorageInteractionTimeout { get; set; }
@@ -239,7 +234,7 @@ public static class EphemeralCacheFactory
         return hash.ToString("X16");
     }
 
-    private static Task<CreateResult> CreateDatacenterWideCacheAsync(
+    private static async Task<CreateResult> CreateDatacenterWideCacheAsync(
         OperationContext context,
         DatacenterWideCacheConfiguration configuration,
         AzureBlobStorageCacheFactory.CreateResult persistentCache,
@@ -250,9 +245,12 @@ public static class EphemeralCacheFactory
             configuration = configuration with { Universe = DatacenterWideCacheConfiguration.DefaultUniverse };
         }
 
+        var clusterStateContainer = persistentCache.Topology.EnumerateContainers(context, BlobCacheContainerPurpose.Checkpoint).First();
+        var clusterStateCredentials = await persistentCache.SecretsProvider.RetrieveContainerCredentialsAsync(context, clusterStateContainer.Account, clusterStateContainer.Container);
+
         var blobClusterStateStorageConfiguration = new BlobClusterStateStorageConfiguration()
         {
-            Storage = new BlobClusterStateStorageConfiguration.StorageSettings(configuration.StorageCredentials, ContainerName: "ephemeral", FolderName: "clusterState"),
+            Storage = new BlobClusterStateStorageConfiguration.StorageSettings(clusterStateCredentials, ContainerName: clusterStateContainer.ToString(), FolderName: "clusterState"),
             BlobFolderStorageConfiguration = new()
             {
                 StorageInteractionTimeout = configuration.StorageInteractionTimeout,
@@ -265,7 +263,7 @@ public static class EphemeralCacheFactory
         var clusterStateStorage = new BlobClusterStateStorage(blobClusterStateStorageConfiguration, clock);
 
         var masterElectionMechanism = CreateMasterElectionMechanism(configuration.Location, configuration.Leader);
-        return CreateInternalAsync(
+        return await CreateInternalAsync(
             context,
             configuration,
             masterElectionMechanism,

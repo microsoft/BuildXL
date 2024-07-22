@@ -43,7 +43,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
         public Task BlobLifetimeManagerTest()
         {
             var context = new OperationContext(new Context(TestGlobal.Logger));
-            return RunTest(context,
+            return RunTestAsync(context,
                 async (topology, session, namespaceId, secretsProvider) =>
                 {
                     var cycles = 10;

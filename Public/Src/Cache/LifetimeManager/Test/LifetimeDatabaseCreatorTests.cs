@@ -34,7 +34,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
         public Task CreateDb()
         {
             var context = new OperationContext(new Context(TestGlobal.Logger));
-            return RunTest(context,
+            return RunTestAsync(context,
                 async (topology, session, namespaceId, secretsProvider) =>
                 {
                     // Add content/fingerprints to the L3

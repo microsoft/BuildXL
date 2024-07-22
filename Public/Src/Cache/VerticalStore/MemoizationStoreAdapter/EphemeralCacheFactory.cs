@@ -54,18 +54,15 @@ public class EphemeralCacheFactory : BlobCacheFactoryBase<EphemeraCacheConfig>, 
         var rootPath = new AbsolutePath(configuration.CacheRootPath);
         context.TracingContext.Info($"Creating ephemeral cache. Root=[{rootPath}] Machine=[{machineLocation}] Leader=[{leaderLocation}] Universe=[{configuration.Universe}] Namespace=[{configuration.Namespace}] RetentionPolicyInDays=[{configuration.RetentionPolicyInDays}]", nameof(EphemeralCacheFactory));
 
+        var persistentCache = BlobCacheFactory.CreateCache(logger, configuration);
+
         if (configuration.DatacenterWide)
         {
-            var accounts = BlobCacheFactory.LoadAzureCredentials(configuration, context);
-            var sorted = ShardingScheme.SortAccounts(accounts.Keys.ToList());
-            var credentials = accounts[sorted.First()];
-
             factoryConfiguration = new ContentStore.Distributed.Ephemeral.EphemeralCacheFactory.DatacenterWideCacheConfiguration()
             {
                 Location = machineLocation,
                 Leader = leaderLocation,
                 RootPath = rootPath,
-                StorageCredentials = credentials,
                 MaxCacheSizeMb = configuration.CacheSizeMb,
                 Universe = configuration.Universe,
             };
@@ -81,7 +78,6 @@ public class EphemeralCacheFactory : BlobCacheFactoryBase<EphemeraCacheConfig>, 
             };
         }
 
-        var persistentCache = BlobCacheFactory.CreateCache(logger, configuration);
         return (await ContentStore.Distributed.Ephemeral.EphemeralCacheFactory.CreateAsync(context, factoryConfiguration, persistentCache)).Cache;
     }
 

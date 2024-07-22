@@ -125,7 +125,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
                 buildCacheConfiguration = BuildCacheConfigurationSecretGenerator.GenerateConfigurationFrom(cacheName: "MyCache", process, shards);
                 secretsProvider = new AzureBuildCacheSecretsProvider(buildCacheConfiguration);
                 // Under the build cache scenario, the account names are created using the corresponding URIs directly. So let's keep that in sync and use those
-                shards = buildCacheConfiguration.Shards.Select(shard => (BlobCacheStorageAccountName) new BlobCacheStorageNonShardingAccountName(shard.StorageUri.AbsoluteUri)).ToList();
+                shards = buildCacheConfiguration.Shards.Select(shard => shard.GetAccountName()).ToList();
             }
             else
             {

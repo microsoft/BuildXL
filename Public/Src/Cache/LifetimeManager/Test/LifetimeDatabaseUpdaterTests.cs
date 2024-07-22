@@ -39,7 +39,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
         public Task DoubleCreateUpdatesHashList()
         {
             var context = new OperationContext(new Context(TestGlobal.Logger));
-            return RunTest(context,
+            return RunTestAsync(context,
                 async (topology, session, namespaceId, secretsProvider) =>
                 {
                     using var temp = new DisposableDirectory(PassThroughFileSystem.Default);

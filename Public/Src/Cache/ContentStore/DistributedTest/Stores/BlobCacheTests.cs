@@ -9,6 +9,7 @@ using BuildXL.Cache.BuildCacheResource.Model;
 using BuildXL.Cache.ContentStore.Distributed.Blob;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using BuildXL.Cache.ContentStore.InterfacesTest;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
@@ -169,7 +170,7 @@ public class BlobCacheTests : TestWithOutput
                 var _ = new LegacyBlobCacheContainerName(BlobCacheContainerPurpose.Metadata, "default", "good", "Bad");
             });
 
-        Assert.Throws<FormatException>(
+        Assert.Throws<ContractException>(
             () =>
             {
                 var _ = new LegacyBlobCacheContainerName(BlobCacheContainerPurpose.Metadata, "default", "waaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaayyyyyy", "tooooooooooooooooloopooooooooooooooooooooooooooooooooooooooooooooooooooong");
@@ -218,36 +219,47 @@ public class BlobCacheTests : TestWithOutput
 
         matrix.Content.Should().Be("4752270493");
         matrix.Metadata.Should().Be("4752270493");
-        containerSelector[blobCacheStorageAccountName].Length.Should().Be(2);
+        containerSelector[blobCacheStorageAccountName].Length.Should().Be(3);
 
         containerSelector[blobCacheStorageAccountName][0].ContainerName.Should().BeEquivalentTo("contentv0-4752270493-playground-default");
         containerSelector[blobCacheStorageAccountName][1].ContainerName.Should().BeEquivalentTo("metadatav0-4752270493-playground-default");
+        containerSelector[blobCacheStorageAccountName][2].ContainerName.Should().BeEquivalentTo("checkpointv0-checkpoint-playground-default");
+    }
+
+    [Theory]
+    [InlineData("https://dhtqcftmrg00000test.blob.core.windows.net/", "dhtqcftmrg00000test")]
+    [InlineData("https://dhtqcftmrg00000test.z3221.blob.core.windows.net/", "dhtqcftmrg00000test")]
+    [InlineData("http://127.0.0.1:1099/dhtqcftmrg00000test", "dhtqcftmrg00000test")]
+    public void CanParseUrls(string uri, string accountName)
+    {
+        AzureStorageUtilities.GetAccountName(new Uri(uri)).Should().Be(accountName);
     }
 
     [Fact]
     public void BuildCacheContainerNamingTest()
     {
-        var account = "http://malystgacctfortesting/";
+        var account = new Uri("https://foo.blob.core.windows.net/");
 
-        var blobCacheStorageAccountName = BlobCacheStorageAccountName.Parse(account);
+        var blobCacheStorageAccountName = BlobCacheStorageAccountName.Parse(AzureStorageUtilities.GetAccountName(account));
 
         var scheme = new ShardingScheme(
             ShardingAlgorithm.SingleShard,
-            new List<BlobCacheStorageAccountName>() { BlobCacheStorageAccountName.Parse(account) });
+            new List<BlobCacheStorageAccountName>() { blobCacheStorageAccountName });
 
-        var content = new BuildCacheContainer() { Name = "content", SasUrl = new Uri("https://foo"), Type = BuildCacheContainerType.Content };
-        var metadata = new BuildCacheContainer() { Name = "metadata", SasUrl = new Uri("https://foo"), Type = BuildCacheContainerType.Metadata };
-        var checkpoint = new BuildCacheContainer() { Name = "checkpoint", SasUrl = new Uri("https://foo"), Type = BuildCacheContainerType.Checkpoint };
+        var content = new BuildCacheContainer() { Name = "content", SasUrl = new Uri("https://foo.blob.core.windows.net/content"), Type = BuildCacheContainerType.Content };
+        var metadata = new BuildCacheContainer() { Name = "metadata", SasUrl = new Uri("https://foo.blob.core.windows.net/metadata"), Type = BuildCacheContainerType.Metadata };
+        var checkpoint = new BuildCacheContainer() { Name = "checkpoint", SasUrl = new Uri("https://foo.blob.core.windows.net/checkpoint"), Type = BuildCacheContainerType.Checkpoint };
 
-        var shard = new BuildCacheShard() { StorageUri = new Uri(account), Containers = new List<BuildCacheContainer> { content, metadata, checkpoint } };
+        var shard = new BuildCacheShard() { StorageUri = account, Containers = new List<BuildCacheContainer> { content, metadata, checkpoint } };
         BuildCacheConfiguration buildCacheConfiguration = new BuildCacheConfiguration() { Name = "MyCache", RetentionPolicyInDays = 5, Shards = new List<BuildCacheShard> { shard } };
 
         var naming = new BuildCacheContainerNamingScheme(buildCacheConfiguration);
         var containerSelector = naming.GenerateContainerNameMapping();
 
-        containerSelector[blobCacheStorageAccountName].Length.Should().Be(2);
+        containerSelector[blobCacheStorageAccountName].Length.Should().Be(3);
         containerSelector[blobCacheStorageAccountName][0].ContainerName.Should().BeEquivalentTo("content");
         containerSelector[blobCacheStorageAccountName][1].ContainerName.Should().BeEquivalentTo("metadata");
+        containerSelector[blobCacheStorageAccountName][2].ContainerName.Should().BeEquivalentTo("checkpoint");
     }
 
     [Fact]
@@ -255,8 +267,8 @@ public class BlobCacheTests : TestWithOutput
     {
         var secrets = new Dictionary<string, string>
                       {
-                          { "someName", "someSecret" },
-                          { "someName2", "someSecret2" }
+                          { "somename", "someSecret" },
+                          { "somename2", "someSecret2" }
                       };
 
 

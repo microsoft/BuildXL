@@ -68,7 +68,7 @@ internal static class BlobLifetimeManagerHelpers
                     else
                     {
                         var containerConfiguration = buildCacheConfiguration
-                            .Shards.FirstOrDefault(shard => shard.StorageUri.AbsoluteUri == account.AccountName)?
+                            .Shards.FirstOrDefault(shard => shard.GetAccountName() == account)?
                             .Containers.FirstOrDefault(cont => cont.Name == container.Name);
 
                         if (containerConfiguration == null)

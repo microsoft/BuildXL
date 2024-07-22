@@ -14,8 +14,6 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Auth;
 /// </summary>
 public abstract class AzureStorageCredentialsBase : IAzureStorageCredentials
 {
-    private static readonly Regex StorageAccountNameRegex = new("https://(?<accountName>[^\\.]+)\\.blob\\..*", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-
     private readonly Uri _blobUri;
 
     /// <summary>
@@ -32,14 +30,7 @@ public abstract class AzureStorageCredentialsBase : IAzureStorageCredentials
     /// <inheritdoc />
     public string GetAccountName()
     {
-        var match = StorageAccountNameRegex.Match(_blobUri.ToString());
-
-        if (match.Success)
-        {
-            return match.Groups["accountName"].Value;
-        }
-
-        throw new InvalidOperationException($"The provided URI is malformed and the account name could not be retrieved.");
+        return AzureStorageUtilities.GetAccountName(_blobUri);
     }
 
     /// <inheritdoc />

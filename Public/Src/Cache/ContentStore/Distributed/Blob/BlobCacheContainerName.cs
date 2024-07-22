@@ -5,7 +5,6 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
-using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Blob;
@@ -15,7 +14,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blob;
 /// want to separate content and metadata containers from each other, users from each other, and may have extra
 /// criteria that's easier to express here.
 /// </summary>
-public abstract record BlobCacheContainerName
+public abstract class BlobCacheContainerName
 {
     public const int VersionReservedLength = 3;
     public const int PurposeReservedLength = 10;
@@ -28,13 +27,13 @@ public abstract record BlobCacheContainerName
     /// <summary>
     /// Purpose of the container. See: <see cref="BlobCacheContainerPurpose"/>.
     /// </summary>
-    public abstract BlobCacheContainerPurpose Purpose { get; }
+    public BlobCacheContainerPurpose Purpose { get; }
 
     /// <summary>
     /// The matrix is an internal parameter used to enforce a cache miss in specific circumstances, such as when
     /// sharding scheme changes.
     /// </summary>
-    public abstract string Matrix { get; }
+    public string Matrix { get; }
 
     /// <summary>
     /// Identifies which cache is being used. The Universe is the unit of isolation.
@@ -42,7 +41,7 @@ public abstract record BlobCacheContainerName
     /// <remarks>
     /// Universe is customer-controlled.
     /// </remarks>
-    public abstract string Universe { get; }
+    public string Universe { get; }
 
     /// <summary>
     /// Namespaces within a given universe can get cache hits from a namespace hierarchy, but can't get cache hits
@@ -54,48 +53,40 @@ public abstract record BlobCacheContainerName
     /// <remarks>
     /// Namespace is customer-controlled.
     /// </remarks>
-    public abstract string Namespace { get; }
+    public string Namespace { get; }
 
     /// <summary>
     /// The full container name. This is equivalent to calling <see cref="ToString"/>.
     /// </summary>
-    public abstract string ContainerName { get; }
+    public string ContainerName { get; }
 
-    /// <inheritdoc/>
-    public override int GetHashCode()
+    public BlobCacheContainerName(BlobCacheVersion version, BlobCacheContainerPurpose purpose, string matrix, string universe, string @namespace, string containerName)
     {
-        return ContainerName.GetHashCode();
-    }
+        if (!LegacyBlobCacheContainerName.LowercaseAlphanumericRegex.IsMatch(matrix))
+        {
+            throw new FormatException(
+                $"{nameof(matrix)} should be non-empty and composed of numbers and lower case letters. Matrix=[{matrix}]");
+        }
 
-    /// <inheritdoc/>
-    public override string ToString()
-    {
-        return ContainerName;
-    }
-}
+        LegacyBlobCacheContainerName.CheckValidUniverseAndNamespace(universe, @namespace);
 
+        if (!LegacyBlobCacheContainerName.ContainerNameRegex.IsMatch(containerName))
+        {
+            throw new FormatException(
+                $"{nameof(containerName)} should be non-empty and composed of numbers, lower case letters, and dashes. ContainerName=[{containerName}]");
+        }
 
-/// <summary>
-/// This class allows for arbitrary container names, provided the purpose is known.
-/// </summary>
-/// <remarks>
-/// Used in the context of the 1ES Build Cache resource, where the cache topology is provided in a configuration file
-/// </remarks>
-public sealed record FixedCacheBlobContainerName : BlobCacheContainerName
-{
-    public override BlobCacheContainerPurpose Purpose { get; }
+        if (containerName.Length > LegacyBlobCacheContainerName.StorageContainerNameMaximumLength)
+        {
+            throw new FormatException(
+                $"{nameof(containerName)} should be less than or equal to {LegacyBlobCacheContainerName.StorageContainerNameMaximumLength} characters. ContainerName=[{containerName}]");
+        }
 
-    public override string Matrix => "default";
-
-    public override string Universe => "default";
-
-    public override string Namespace => "default";
-
-    public override string ContainerName { get; }
-
-    public FixedCacheBlobContainerName(string containerName, BlobCacheContainerPurpose purpose)
-    {
+        Version = version;
         Purpose = purpose;
+        Matrix = matrix;
+        Universe = universe;
+        Namespace = @namespace;
         ContainerName = containerName;
     }
 
@@ -111,6 +102,42 @@ public sealed record FixedCacheBlobContainerName : BlobCacheContainerName
         return ContainerName;
     }
 
+    // Implement equals using only ContainerName and case invariant
+
+    public override bool Equals(object? obj)
+    {
+        if (obj is BlobCacheContainerName other)
+        {
+            return string.Equals(ContainerName, other.ContainerName, StringComparison.OrdinalIgnoreCase);
+        }
+
+        return false;
+    }
+
+    public static bool operator ==(BlobCacheContainerName? left, BlobCacheContainerName? right)
+    {
+        return Equals(left, right);
+    }
+
+    public static bool operator !=(BlobCacheContainerName? left, BlobCacheContainerName? right)
+    {
+        return !Equals(left, right);
+    }
+}
+
+
+/// <summary>
+/// This class allows for arbitrary container names, provided the purpose is known.
+/// </summary>
+/// <remarks>
+/// Used in the context of the 1ES Build Cache resource, where the cache topology is provided in a configuration file
+/// </remarks>
+public sealed class FixedCacheBlobContainerName : BlobCacheContainerName
+{
+    public FixedCacheBlobContainerName(string containerName, BlobCacheContainerPurpose purpose)
+        : base(BlobCacheVersion.V0, purpose, "default", "default", "default", containerName)
+    {
+    }
 }
 
 /// <summary>
@@ -118,51 +145,23 @@ public sealed record FixedCacheBlobContainerName : BlobCacheContainerName
 /// want to separate content and metadata containers from each other, users from each other, and may have extra
 /// criteria that's easier to express here.
 /// </summary>
-public sealed record LegacyBlobCacheContainerName : BlobCacheContainerName
+public sealed class LegacyBlobCacheContainerName : BlobCacheContainerName
 {
     internal static readonly Regex LowercaseAlphanumericRegex = new(@"^[0-9a-z]+$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    internal static readonly Regex ContainerNameRegex = new(@"^[0-9a-z-]+$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     public const int StorageContainerNameMaximumLength = 63;
     public const int MatrixReservedLength = 10;
     public const int DelimitersReservedLength = 3;
     public const int UniverseNamespaceReservedLength = StorageContainerNameMaximumLength - (VersionReservedLength + PurposeReservedLength + MatrixReservedLength + DelimitersReservedLength);
 
-    /// <inheritdoc />
-    public override BlobCacheContainerPurpose Purpose { get; }
-
-    /// <inheritdoc />
-    public override string Matrix { get; }
-
-    /// <inheritdoc />
-    public override string Universe { get; }
-
-    /// <inheritdoc />
-    public override string Namespace { get; }
-
-    /// <inheritdoc />
-    public override string ContainerName { get; }
-
-
     public LegacyBlobCacheContainerName(
         BlobCacheContainerPurpose purpose,
         string matrix,
         string universe,
         string @namespace)
+        : base(BlobCacheVersion.V0, purpose, matrix, universe, @namespace, CreateName(BlobCacheVersion.V0, purpose, matrix, universe, @namespace))
     {
-        if (!LowercaseAlphanumericRegex.IsMatch(matrix))
-        {
-            throw new FormatException(
-                $"{nameof(matrix)} should be non-empty and composed of numbers and lower case letters. Matrix=[{matrix}]");
-        }
-
-        CheckValidUniverseAndNamespace(universe, @namespace);
-
-        Purpose = purpose;
-        Matrix = matrix;
-        Universe = universe;
-        Namespace = @namespace;
-
-        ContainerName = CreateName();
     }
 
     public static void CheckValidUniverseAndNamespace(string universe, string @namespace)
@@ -191,23 +190,23 @@ public sealed record LegacyBlobCacheContainerName : BlobCacheContainerName
     ///  - metadatav0u[universe]-[namespace]
     /// </summary>
     private static readonly Regex NameFormatRegex = new Regex(
-        @"^(?<purpose>content|metadata)(?<version>v[0-9]+)-(?<matrix>[a-z0-9]+)-(?<universe>[a-z0-9]+)-(?<namespace>[a-z0-9]+)$",
+        @"^(?<purpose>content|metadata|checkpoint)(?<version>v[0-9]+)-(?<matrix>[a-z0-9]+)-(?<universe>[a-z0-9]+)-(?<namespace>[a-z0-9]+)$",
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
-    private string CreateName()
+    private static string CreateName(BlobCacheVersion version, BlobCacheContainerPurpose purpose, string matrix, string universe, string @namespace)
     {
         // Purpose has 10 characters reserved
-        var purpose = Purpose.ToString().ToLowerInvariant();
-        Contract.Assert(purpose.Length <= PurposeReservedLength, $"Purpose ({nameof(BlobCacheContainerPurpose)}) exceeds the maximum length ({PurposeReservedLength}) allowed for {nameof(BlobCacheContainerName)}");
+        var purposeStr = purpose.ToString().ToLowerInvariant();
+        Contract.Assert(purposeStr.Length <= PurposeReservedLength, $"Purpose ({nameof(BlobCacheContainerPurpose)}) exceeds the maximum length ({PurposeReservedLength}) allowed for {nameof(BlobCacheContainerName)}");
 
         // Version has 3 characters reserved
-        var version = Version.ToString().ToLowerInvariant();
-        Contract.Assert(version.Length is >= 1 and <= VersionReservedLength, $"Version ({nameof(BlobCacheVersion)}) exceeds the maximum length ({VersionReservedLength}) allowed for {nameof(BlobCacheContainerName)}");
+        var versionStr = version.ToString().ToLowerInvariant();
+        Contract.Assert(versionStr.Length is >= 1 and <= VersionReservedLength, $"Version ({nameof(BlobCacheVersion)}) exceeds the maximum length ({VersionReservedLength}) allowed for {nameof(BlobCacheContainerName)}");
 
-        var matrix = Matrix.ToLowerInvariant();
-        Contract.Assert(matrix.Length <= MatrixReservedLength, $"Matrix exceeds the maximum length ({MatrixReservedLength}) allowed for {nameof(BlobCacheContainerName)}");
+        var matrixStr = matrix.ToLowerInvariant();
+        Contract.Assert(matrixStr.Length <= MatrixReservedLength, $"Matrix exceeds the maximum length ({MatrixReservedLength}) allowed for {nameof(BlobCacheContainerName)}");
 
-        var name = $"{purpose}{version}-{Matrix}-{Universe}-{Namespace}";
+        var name = $"{purposeStr}{versionStr}-{matrix}-{universe}-{@namespace}";
 
         // See: https://learn.microsoft.com/en-us/rest/api/storageservices/naming-and-referencing-containers--blobs--and-metadata#container-names
         Contract.Assert(
@@ -248,18 +247,5 @@ public sealed record LegacyBlobCacheContainerName : BlobCacheContainerName
 
         return new LegacyBlobCacheContainerName(purpose, matrix, universe, @namespace);
     }
-
-    /// <inheritdoc/>
-    public override int GetHashCode()
-    {
-        return ContainerName.GetHashCode();
-    }
-
-    /// <inheritdoc/>
-    public override string ToString()
-    {
-        return ContainerName;
-    }
-
 }
 

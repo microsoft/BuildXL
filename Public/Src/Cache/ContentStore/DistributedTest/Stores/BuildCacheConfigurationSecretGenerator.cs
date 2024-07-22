@@ -11,6 +11,7 @@ using Azure.Storage.Blobs.Models;
 using Azure.Storage.Sas;
 using BuildXL.Cache.BuildCacheResource.Model;
 using BuildXL.Cache.ContentStore.Distributed.Blob;
+using BuildXL.Cache.ContentStore.UtilitiesCore;
 using ContentStoreTest.Distributed.Redis;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Test.Stores
@@ -39,10 +40,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.Stores
         {
             Contract.Assert(blobClient.CanGenerateAccountSasUri);
 
+            // We use randomized container names to ensure nothing's hard-coded
+            var contentName = ThreadSafeRandom.LowercaseAlphanumeric(10);
+            var metadataName = ThreadSafeRandom.LowercaseAlphanumeric(10);
+            var checkpointName = ThreadSafeRandom.LowercaseAlphanumeric(10);
+            Contract.Assert(contentName != metadataName && contentName != checkpointName && metadataName != checkpointName);
+
             return new BuildCacheShard() { StorageUri = blobClient.Uri, Containers = new List<BuildCacheContainer> {
-                GenerateContainer(blobClient, "content", BuildCacheContainerType.Content),
-                GenerateContainer(blobClient, "metadata", BuildCacheContainerType.Metadata),
-                GenerateContainer(blobClient, "checkpoint", BuildCacheContainerType.Checkpoint)} };
+                GenerateContainer(blobClient, contentName, BuildCacheContainerType.Content),
+                GenerateContainer(blobClient, metadataName, BuildCacheContainerType.Metadata),
+                GenerateContainer(blobClient, checkpointName, BuildCacheContainerType.Checkpoint)} };
         }
 
         private static BuildCacheContainer GenerateContainer(BlobServiceClient client, string name, BuildCacheContainerType type)

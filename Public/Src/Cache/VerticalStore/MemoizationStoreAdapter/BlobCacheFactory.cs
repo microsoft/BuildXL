@@ -58,7 +58,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                 var factoryConfiguration = new AzureBlobStorageCacheFactory.Configuration(
                     ShardingScheme: new ShardingScheme(
                         ShardingAlgorithm.JumpHash,
-                        selectedBuildCacheConfiguration.Shards.Select(shard => new BlobCacheStorageNonShardingAccountName(shard.StorageUri.AbsoluteUri)).ToList()),
+                        selectedBuildCacheConfiguration.Shards.Select(shard => shard.GetAccountName()).ToList()),
                     Universe: configuration.Universe,
                     Namespace: configuration.Namespace,
                     RetentionPolicyInDays: selectedBuildCacheConfiguration.RetentionPolicyInDays,

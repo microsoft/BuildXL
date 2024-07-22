@@ -16,7 +16,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blob;
 /// </summary>
 public class AzureBuildCacheSecretsProvider : IBlobCacheContainerSecretsProvider
 {
-    private readonly ConcurrentDictionary<(string accountName, string containerName), IAzureStorageCredentials> _credentials = new();
+    private readonly ConcurrentDictionary<(BlobCacheStorageAccountName accountName, string containerName), IAzureStorageCredentials> _credentials = new();
 
     /// <nodoc/>
     public AzureBuildCacheSecretsProvider(BuildCacheConfiguration buildCacheConfiguration)
@@ -24,19 +24,17 @@ public class AzureBuildCacheSecretsProvider : IBlobCacheContainerSecretsProvider
         // Let's create all the secrets upfront. Each shard contains two relevant containers (content and metadata - we can ignore checkpoint for this)
         foreach (var shard in buildCacheConfiguration.Shards)
         {
-            var contentContainer = shard.ContentContainer;
-            var metadataContainer = shard.MetadataContainer;
-
-            
-            _credentials.TryAdd((shard.StorageUri.AbsoluteUri, contentContainer.Name), new ContainerSasStorageCredentials(contentContainer.SasUrl));
-            _credentials.TryAdd((shard.StorageUri.AbsoluteUri, metadataContainer.Name), new ContainerSasStorageCredentials(metadataContainer.SasUrl));
+            var accountName = shard.GetAccountName();
+            _credentials.TryAdd((accountName, shard.ContentContainer.Name), new ContainerSasStorageCredentials(shard.ContentContainer.SasUrl));
+            _credentials.TryAdd((accountName, shard.MetadataContainer.Name), new ContainerSasStorageCredentials(shard.MetadataContainer.SasUrl));
+            _credentials.TryAdd((accountName, shard.CheckpointContainer.Name), new ContainerSasStorageCredentials(shard.CheckpointContainer.SasUrl));
         }
     }
 
     /// <inheritdoc/>
     public Task<IAzureStorageCredentials> RetrieveContainerCredentialsAsync(OperationContext context, BlobCacheStorageAccountName account, BlobCacheContainerName container)
     {
-        if (!_credentials.TryGetValue((account.AccountName, container.ContainerName), out var credentials))
+        if (!_credentials.TryGetValue((account, container.ContainerName), out var credentials))
         {
             Contract.Assert(false, $"Could not find a credential for {account.AccountName} and {container.ContainerName}");
         }

@@ -20,7 +20,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blob
 
         public BlobCacheContainerName Container => ContainerPath.Container;
 
-        public static AbsoluteBlobPath ParseFromChangeEventSubject(IReadOnlyDictionary<string, BuildCacheShard> buildCacheShardMapping, BlobCacheStorageAccountName account, string subject)
+        public static AbsoluteBlobPath ParseFromChangeEventSubject(IReadOnlyDictionary<BlobCacheStorageAccountName, BuildCacheShard> buildCacheShardMapping, BlobCacheStorageAccountName account, string subject)
         {
             var match = BlobChangeFeedEventSubjectRegex.Match(subject);
             if (!match.Success)
@@ -38,9 +38,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blob
             else
             {
                 // For the build cache resource case, match the account and container name to retrieve name and purpose
-                if (!buildCacheShardMapping.TryGetValue(account.AccountName, out var shard))
+                if (!buildCacheShardMapping.TryGetValue(account, out var shard))
                 {
-                    throw new InvalidOperationException($"Failed to match account name {account.AccountName} to the build cache resource configuration");
+                    throw new InvalidOperationException($"Failed to match account name {account} to the build cache resource configuration");
                 }
 
                 var buildCacheContainer = shard.Containers.FirstOrDefault(container => container.Name == matchedContainerName);

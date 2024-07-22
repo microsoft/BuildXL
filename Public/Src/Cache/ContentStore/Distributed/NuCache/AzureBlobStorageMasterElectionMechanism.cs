@@ -76,8 +76,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             _storageClientAdapter = new BlobStorageClientAdapter(Tracer, _configuration.BlobFolderStorageConfiguration);
 
             var storageFolder = _configuration.Storage.Create();
-            var serviceClient = storageFolder.GetServiceClient();
-            _client = storageFolder.GetBlobClient(serviceClient, new BlobPath(_configuration.FileName, relative: true));
+            _client = storageFolder.GetBlobClient(new BlobPath(_configuration.FileName, relative: true));
         }
 
         public MachineLocation Master => _lastElection.Master;

@@ -60,7 +60,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
         private readonly IClock _clock;
         private readonly CheckpointManager _checkpointManager;
         private readonly int? _changeFeedPageSize;
-        private readonly IReadOnlyDictionary<string, BuildCacheShard>? _buildCacheShardMapping;
+        private readonly IReadOnlyDictionary<BlobCacheStorageAccountName, BuildCacheShard>? _buildCacheShardMapping;
 
         private readonly string _metadataMatrix;
         private readonly string _contentMatrix;
@@ -87,7 +87,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             _metadataMatrix = metadataMatrix;
             _contentMatrix = contentMatrix;
             _changeFeedPageSize = changeFeedPageSize;
-            _buildCacheShardMapping = buildCacheConfiguration?.Shards.ToDictionary(shard => shard.StorageUri.AbsoluteUri, shard => shard);
+            _buildCacheShardMapping = buildCacheConfiguration?.Shards.ToDictionary(shard => shard.GetAccountName(), shard => shard);
         }
 
         public Task<BoolResult> ConsumeNewChangesAsync(OperationContext context, TimeSpan checkpointCreationInterval)
@@ -354,6 +354,9 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
 
                                 break;
                             }
+                            case BlobCacheContainerPurpose.Checkpoint:
+                                // Avoiding on purpose.
+                                break;
                             default:
                                 throw new NotSupportedException($"{blobPath.Container.Purpose} is not a supported purpose");
                         }

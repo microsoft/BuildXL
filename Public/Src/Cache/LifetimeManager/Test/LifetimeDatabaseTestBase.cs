@@ -40,7 +40,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
         public LifetimeDatabaseTestBase(LocalRedisFixture redis, ITestOutputHelper output)
             : base(output) => _fixture = redis;
 
-        protected async Task RunTest(OperationContext context, Func<IBlobCacheTopology, ICacheSession, BlobNamespaceId, IBlobCacheAccountSecretsProvider, Task> run)
+        protected async Task RunTestAsync(OperationContext context, Func<IBlobCacheTopology, ICacheSession, BlobNamespaceId, IBlobCacheAccountSecretsProvider, Task> run)
         {
             var shards = Enumerable.Range(0, 10).Select(shard => (BlobCacheStorageAccountName)new BlobCacheStorageShardingAccountName("0123456789", shard, "testing")).ToList();
 

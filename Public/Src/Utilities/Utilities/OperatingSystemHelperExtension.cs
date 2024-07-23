@@ -167,6 +167,10 @@ namespace BuildXL.Utilities
                             sb.Append(currentVersion.GetValue("ProductName"));
                             sb.Append(' ');
                             sb.Append(currentVersion.GetValue("BuildLabEx"));
+                            sb.Append(' ');
+                            sb.Append(currentVersion.GetValue("CurrentBuild"));
+                            sb.Append('.');
+                            sb.Append(currentVersion.GetValue("UBR"));
                         }
                     }
 

@@ -75,7 +75,7 @@ export const pkgs = isMicrosoftInternal ? [
     { id: "Microsoft.Parsers.ManifestGenerator", version: "3.8.11", dependentPackageIdsToIgnore: ["BuildXL.Cache.Hashing"] },
     { id: "Microsoft.Sbom.Parsers.Spdx22SbomParser", version: "2.2.6" },
     { id: "Microsoft.Sbom.Adapters", version: "2.2.6" },
-    { id: "Microsoft.ComponentDetection.Contracts", version: "4.8.1" },
+    { id: "Microsoft.ComponentDetection.Contracts", version: "4.8.9" },
     { id: "Microsoft.Sbom.Contracts", version: "2.2.6" },
     { id: "Microsoft.Sbom.Extensions", version: "2.2.6" },
     { id: "Microsoft.Bcl.HashCode", version: "1.1.1" },

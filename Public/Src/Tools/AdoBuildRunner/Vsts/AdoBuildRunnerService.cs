@@ -26,12 +26,6 @@ namespace BuildXL.AdoBuildRunner.Vsts
         /// <inheritdoc />
         public IAdoBuildRunnerConfig Config { get; }
 
-        /// <nodoc />
-        private int TotalJobsInPhase { get; }
-
-        /// <nodoc />
-        private int JobPositionInPhase { get; }
-
         private enum AgentType
         {
             Orchestrator,
@@ -149,7 +143,7 @@ namespace BuildXL.AdoBuildRunner.Vsts
             }
 
             // (2) One-to-one correspondence between a jobs in a worker pipeline, and an orchestrator
-            if (JobPositionInPhase != TotalJobsInPhase)
+            if (AdoEnvironment.JobPositionInPhase != AdoEnvironment.TotalJobsInPhase)
             {
                 // Only do this once per 'parallel group', i.e., only for the last agent in a parallel strategy context
                 // (this means only one worker per distributed build). This is because there is no value that we can
@@ -247,7 +241,7 @@ namespace BuildXL.AdoBuildRunner.Vsts
         }
 
         /// <inheritdoc />
-        public MachineRole GetRole() 
+        public MachineRole GetRole()
         {
             // For now, we explicitly mark the role with an environment
             // variable. When we discontinue the "non-worker-pipeline" approach, we can
@@ -257,24 +251,17 @@ namespace BuildXL.AdoBuildRunner.Vsts
             // where the role is inferred from the ordinal position in the phase: the first agent is the orchestrator
             var role = Config.AdoBuildRunnerPipelineRole;
 
-            if (string.IsNullOrEmpty(role) && JobPositionInPhase == 1)
+            if (string.IsNullOrEmpty(role) && AdoEnvironment.JobPositionInPhase == 1)
             {
                 return MachineRole.Orchestrator;
             }
             else if (Enum.TryParse(role, true, out MachineRole machineRole))
             {
-                if (machineRole == MachineRole.Orchestrator || machineRole == MachineRole.Worker)
-                {
-                    return machineRole;
-                }
-                else
-                {
-                    throw new CoordinationException($"{Constants.AdoBuildRunnerPipelineRole} must be 'Worker' or 'Orchestrator'");
-                }
+                return machineRole;
             }
             else
             {
-                throw new CoordinationException($"{Constants.AdoBuildRunnerPipelineRole} is invalid.");
+                throw new CoordinationException($"{Constants.AdoBuildRunnerPipelineRole} has an invalid value '{role}'. It should be '{MachineRole.Orchestrator}' or '{MachineRole.Worker}.");
             }
         }
 

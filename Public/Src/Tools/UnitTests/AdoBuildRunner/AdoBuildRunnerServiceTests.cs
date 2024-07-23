@@ -33,16 +33,19 @@ namespace Test.Tool.AdoBuildRunner
         /// Also checks for the condition when the role is Invalid.
         /// </summary>
         [Theory]
-        [InlineData("Orchestrator")]
-        [InlineData("Worker")]
-        [InlineData("Invalid")]
-        public void GetRoleTest(string expectedRole)
+        [InlineData("Orchestrator", MachineRole.Orchestrator)]
+        [InlineData("Worker", MachineRole.Worker)]
+        [InlineData("sdkjskd", null)]
+        [InlineData("", MachineRole.Orchestrator)]
+        [InlineData(null, MachineRole.Orchestrator)]
+        public void GetRoleTest(string variableValue, MachineRole? expectedRole)
         {
             var exceptionThrown = false;
-            MachineRole machineRole = MachineRole.Invalid;
+            MachineRole? machineRole = default;
 
             // Initialize the ADO Build Runner service and other mock services.
-            MockConfig.AdoBuildRunnerPipelineRole = expectedRole;
+            MockConfig.AdoBuildRunnerPipelineRole = variableValue;
+            MockAdoEnvironment.JobPositionInPhase = 1;
             var adoBuildRunnerService = CreateAdoBuildRunnerService();
 
             try
@@ -53,18 +56,15 @@ namespace Test.Tool.AdoBuildRunner
             {
                 // An exception is expected to be thrown if an invalid role is assigned.
                 exceptionThrown = true;
-                XAssert.Contains(ex.ToString(), "must be 'Worker' or 'Orchestrator'");
+                XAssert.IsTrue(ex.ToString().Contains($"It should be '{MachineRole.Orchestrator}' or '{MachineRole.Worker}."));
             }
 
-            if (machineRole == MachineRole.Orchestrator || (machineRole == MachineRole.Worker))
-            {
-                XAssert.AreEqual(machineRole.ToString(), expectedRole);
-                XAssert.IsFalse(exceptionThrown);
-            }
-            else if (machineRole == MachineRole.Invalid)
+            if (expectedRole == null)
             {
                 XAssert.IsTrue(exceptionThrown);
             }
+
+            XAssert.AreEqual(expectedRole, machineRole);
         }
 
         /// <summary>
@@ -317,6 +317,65 @@ namespace Test.Tool.AdoBuildRunner
             {
                 XAssert.IsTrue(exceptionThrown);
             }
+        }
+
+        /// <summary>
+        /// This test verifies the case where we have two workers and both the workers with the same JobId, SourceBranch and SourceVersion should be able to retrieve the buildInfo.
+        /// </summary>
+        [Fact]
+        public async Task TestWaitForBuildInfoForMultipleWorkers()
+        {
+            var exceptionThrown = false;
+            var buildId = 7890;
+            // Orchestrator source branch and source version.
+            var orchestratorSourceBranch = "currentBranch";
+            var orchestratorSourceVersion = "version1.0";
+
+            // Create a mock orchestrator build with the specified source branch and version.
+            var orchestratorBuild = CreateTestBuild(orchestratorSourceBranch, orchestratorSourceVersion, s_orchestratorId);
+
+            // Initialize the ADO Build Runner service and mock services using the helper method.
+            MockAdoEnvironment.LocalSourceBranch = "currentBranch";
+            MockAdoEnvironment.LocalSourceVersion = "version1.0";
+            MockAdoEnvironment.TotalJobsInPhase = 2;
+            MockAdoEnvironment.JobId = "10009";
+            var adoBuildRunnerService = CreateAdoBuildRunnerService();
+
+            // Add the orchestrator build to the mock ADO API service.
+            MockAdoApiService.AddBuildId(int.Parse((string)s_orchestratorId), orchestratorBuild);
+
+            // Add the orchestrator's build ID to the mock ADO API services to indicate it is triggering the worker.
+            MockAdoApiService.AddBuildTriggerProperties(Constants.TriggeringAdoBuildIdParameter, s_orchestratorId);
+
+            // Add orchestrator's mock build properties for testing purpose.
+            // When testing for duplicate invocationKey's, we add the invocationKey with different jobId.
+            PropertiesCollection orchestratorProperties;
+            // We assume that the orchestrator has successfully published its address.
+            // Hence we map the invocationKey with the below value.
+            orchestratorProperties = new()
+            {
+                 { s_invocationKey, $"{s_testRelatedSessionId};{s_testOrchestratorLocation}" }
+            };
+
+            MockAdoApiService.AddBuildProperties(int.Parse((string)s_orchestratorId), orchestratorProperties);
+
+            try
+            {
+                // Create the build context for the worker1 and worker 2
+                MockAdoEnvironment.JobPositionInPhase = 2;
+                var buildContext2 = CreateTestBuildContext(buildId, s_invocationKey);
+                var worker2BuildInfo = await adoBuildRunnerService.WaitForBuildInfo(buildContext2);
+
+                var buildContext1 = CreateTestBuildContext(buildId, s_invocationKey);
+                MockAdoEnvironment.JobPositionInPhase = 1;
+                var worker1BuildInfo = await adoBuildRunnerService.WaitForBuildInfo(buildContext1);
+            }
+            catch (Exception ex)
+            {
+                exceptionThrown = true;
+                XAssert.Contains(ex.ToString(), "All workers participating in the build");
+            }
+            XAssert.IsFalse(exceptionThrown);
         }
 
         /// <summary>

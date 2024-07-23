@@ -18,11 +18,6 @@ namespace AdoBuildRunner
         Orchestrator,
 
         /// <nodoc />
-        Worker,
-
-        /// <summary>
-        /// The MachineRole in an ADO env should be either an Orchestrator or the Worker.
-        /// </summary>
-        Invalid
+        Worker
     }
 }

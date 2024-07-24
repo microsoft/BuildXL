@@ -2,6 +2,11 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20240719.2.1 (Release [397894](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=397894))
+- Fix theory detection in XUnit SDK
+- Plugin initialization timeout fails the build
+- Various improvements for AdoBuildRunner
+
 # 0.1.0-20240712.10 (Release [395776](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=395776))
 - Fix msbuild frontend when building solution
 - Don't warn OS compatibility for Ubuntu 22.04

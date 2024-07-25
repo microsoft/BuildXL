@@ -78,5 +78,6 @@ namespace BuildXL.App.Tracing
         IncompatibleLinuxDistroVersionDetected = 15010,
         FailedToObtainLinuxDistroInfo = 15011,
         RecoverableConsoleError = 15012,
+        Username = 15013,
     }
 }

@@ -83,6 +83,13 @@ namespace BuildXL.App.Tracing
             Message = "{ShortProductName} Startup Current Directory: '{0}'")]
         public abstract void StartupCurrentDirectory(LoggingContext context, string startupDirectory);
 
+        [GeneratedEvent(
+            (ushort)LogEventId.Username,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Message = "{ShortProductName} Username: {0}, IsElevated: {1}")]
+        public abstract void Username(LoggingContext context, string username, bool isElevated);
+
         /// <summary>
         /// CAUTION!!
         ///

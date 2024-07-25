@@ -317,6 +317,7 @@ namespace BuildXL
                         (int)SharedLogEventId.DominoInvocation,
                         (int)AppLogEventId.StartupTimestamp,
                         (int)AppLogEventId.StartupCurrentDirectory,
+                        (int)AppLogEventId.Username,
                         (int)AppLogEventId.DominoCompletion,
                         (int)AppLogEventId.DominoPerformanceSummary,
                         (int)AppLogEventId.DominoCatastrophicFailure,
@@ -1074,6 +1075,9 @@ namespace BuildXL
                         utcNow.ToString("o", CultureInfo.InvariantCulture),
                         localNow.ToString("o", CultureInfo.InvariantCulture));
                     Logger.Log.StartupCurrentDirectory(loggingContext, currentDirectory);
+
+                    Logger.Log.Username(loggingContext, Environment.UserName, CurrentProcess.IsElevated);
+
                     DetectProcessorGroupMisconfiguration(loggingContext, s_machineInfo);
                 },
                 (loggingContext) =>

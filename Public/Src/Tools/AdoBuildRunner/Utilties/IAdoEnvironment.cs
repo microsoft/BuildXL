@@ -96,5 +96,10 @@ namespace AdoBuildRunner
         /// Variable indicating the current attempt number of the job
         /// </summary>
         public int JobAttemptNumber { get; }
+
+        /// <summary>
+        /// PAT Token used to authenticate with VSTS.
+        /// </summary>
+        public string AccessToken { get; }
     }
 }

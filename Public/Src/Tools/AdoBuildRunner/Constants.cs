@@ -156,12 +156,12 @@ namespace BuildXL.AdoBuildRunner
         /// Indicates the distributed build role taken by the build runner
         /// Should be either "Orchestrator" or "Worker"
         /// </summary>
-        public const string AdoBuildRunnerPipelineRole = "AdoBuildRunnerWorkerPipelineRole";
+        public const string PipelineRole = "AdoBuildRunnerWorkerPipelineRole";
 
         /// <summary>
         /// Disambiguates builds that might run as part of the same pipeline
         /// </summary>
-        public const string AdoBuildRunnerInvocationKey = "AdoBuildRunnerInvocationKey";
+        public const string InvocationKey = "AdoBuildRunnerInvocationKey";
 
         /// <summary>
         /// The time the agent waits before re-checking if the other agents are ready

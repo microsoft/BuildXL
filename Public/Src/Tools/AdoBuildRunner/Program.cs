@@ -5,6 +5,7 @@ using System;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
+using AdoBuildRunner;
 using AdoBuildRunner.Vsts;
 using BuildXL.AdoBuildRunner.Build;
 using BuildXL.AdoBuildRunner.Vsts;
@@ -59,22 +60,20 @@ namespace BuildXL.AdoBuildRunner
 
             try
             {
-                var adoBuildRunnerService = new AdoBuildRunnerService(logger);
-
                 logger.Info($"Trying to coordinate build for command: {string.Join(" ", args)}");
-
+                IAdoEnvironment adoEnvironment = new AdoEnvironment(logger);
                 // TODO: There are currently many arguments that are passed to the runner via environment variables. Fold them into
                 // the configuration object and add explicit CLI arguments for them.
-                if (!Args.TryParseArguments(logger, args, out var configuration, out var forwardingArguments))
+                if (!Args.TryParseArguments(logger, args, adoEnvironment, out var configuration, out var forwardingArguments))
                 {
                     throw new InvalidArgumentException("Invalid command line option");
                 }
-
                 var buildArgs = forwardingArguments.ToList();
+
+                var adoBuildRunnerService = new AdoBuildRunnerService(configuration, adoEnvironment, logger);
                 await adoBuildRunnerService.GenerateCacheConfigFileIfNeededAsync(logger, configuration, buildArgs);
                 var buildContext = await adoBuildRunnerService.GetBuildContextAsync(adoBuildRunnerService.GetInvocationKey());
-                var machineRole = adoBuildRunnerService.GetRole();
-                IBuildExecutor buildExecutor = machineRole switch
+                IBuildExecutor buildExecutor = adoBuildRunnerService.Config.PipelineRole switch
                 {
                     MachineRole.Orchestrator => new OrchestratorBuildExecutor(logger, adoBuildRunnerService),
                     MachineRole.Worker => new WorkerBuildExecutor(logger, adoBuildRunnerService),

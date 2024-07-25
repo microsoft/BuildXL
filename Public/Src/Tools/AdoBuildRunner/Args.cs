@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using AdoBuildRunner;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities.Core;
 
@@ -23,10 +24,10 @@ namespace BuildXL.AdoBuildRunner
         }
 
         /// <nodoc />
-        public static bool TryParseArguments(Vsts.Logger logger, string[] args, out IAdoBuildRunnerConfiguration configuration, out IReadOnlyCollection<string> forwardingArguments)
+        public static bool TryParseArguments(Vsts.Logger logger, string[] args, IAdoEnvironment adoEnvironment, out IAdoBuildRunnerConfiguration configuration, out IReadOnlyCollection<string> forwardingArguments)
         {
             var argsParser = new Args(logger);
-            return argsParser.TryParse(args, out configuration, out forwardingArguments);
+            return argsParser.TryParse(args, adoEnvironment, out configuration, out forwardingArguments);
         }
 
         /// <summary>
@@ -35,7 +36,7 @@ namespace BuildXL.AdoBuildRunner
         /// <remarks>
         /// Only <see cref="ArgumentOption.CallerArguments"/> are parsed. The <see cref="ArgumentOption.ForwardingArguments"/> are returned in <paramref name="forwardingArguments"/>
         /// </remarks>
-        public bool TryParse(string[] args, out IAdoBuildRunnerConfiguration configuration, out IReadOnlyCollection<string> forwardingArguments)
+        public bool TryParse(string[] args, IAdoEnvironment adoEnvironment, out IAdoBuildRunnerConfiguration configuration, out IReadOnlyCollection<string> forwardingArguments)
         {
             try
             {
@@ -46,6 +47,15 @@ namespace BuildXL.AdoBuildRunner
 
                 OptionHandler[] handlers = new [] 
                 {
+                    OptionHandlerFactory.CreateOption(
+                            "pipelineRole",
+                            opt => mutableConfig.PipelineRole = CommandLineUtilities.ParseEnumOption<MachineRole>(opt)),
+                    OptionHandlerFactory.CreateOption(
+                            "invocationKey",
+                            opt => mutableConfig.InvocationKey = CommandLineUtilities.ParseStringOption(opt)),
+                    OptionHandlerFactory.CreateBoolOption(
+                            "disableEncryption",
+                            sign => mutableConfig.DisableEncryption = sign),
                     OptionHandlerFactory.CreateOption(
                             "cacheConfigCacheSizeInMB",
                             opt => cacheConfigGenerationConfiguration.CacheSizeInMB = CommandLineUtilities.ParseInt32Option(opt, 0, int.MaxValue)),
@@ -67,10 +77,17 @@ namespace BuildXL.AdoBuildRunner
                     OptionHandlerFactory.CreateOption(
                             "cacheConfigUniverse",
                             opt => cacheConfigGenerationConfiguration.Universe = opt.Value),
+                    OptionHandlerFactory.CreateOption(
+                            "maximumWaitForWorkerSeconds",
+                            opt => mutableConfig.MaximumWaitForWorkerSeconds = CommandLineUtilities.ParseInt32Option(opt, 0, int.MaxValue)),
+                    OptionHandlerFactory.CreateBoolOption(
+                            "workerAlwaysSucceeds",
+                            sign => mutableConfig.WorkerAlwaysSucceeds = sign),
                 }.SelectMany(x => x)
                  .OrderBy(opt => opt.OptionName, StringComparer.OrdinalIgnoreCase)
                  .ToArray();
 
+                mutableConfig.PopulateFromEnvVars(adoEnvironment, m_logger);
                 configuration = mutableConfig;
 
                 // TODO: remove this once all the arguments that are now passed via environment variables are moved to be command line arguments and all callers are updated. After that 

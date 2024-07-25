@@ -66,6 +66,9 @@ namespace Test.Tool.AdoBuildRunner
         /// <inheritdoc />
         public int JobAttemptNumber { get; set; }
 
+        /// <inheritdoc />
+        public string AccessToken { get; set; }
+
         /// <nodoc />
         public MockAdoEnvironment()
         {
@@ -87,6 +90,7 @@ namespace Test.Tool.AdoBuildRunner
             JobAttemptNumber = 1;
             JobPositionInPhase = 1;
             TotalJobsInPhase = 1;
+            AccessToken = "MockAccessToken";
         }
     }
 }

@@ -21,9 +21,9 @@ namespace BuildXL.AdoBuildRunner.Vsts
         IAdoEnvironment AdoEnvironment { get; }
 
         /// <summary>
-        /// AdoBuildRunnerConfig object to access the user defined config values used by AdoBuildRunner.
+        /// IAdoBuildRunnerConfiguration object to access the user defined config values used by AdoBuildRunner.
         /// </summary>
-        IAdoBuildRunnerConfig Config { get; }
+        IAdoBuildRunnerConfiguration Config { get; }
 
         /// <summary>
         /// Gets the build context from the ADO build run information
@@ -39,11 +39,6 @@ namespace BuildXL.AdoBuildRunner.Vsts
         /// Publish the orchestrator address
         /// </summary>
         Task PublishBuildInfo(BuildContext buildContext, BuildInfo buildInfo);
-
-        /// <summary>
-        /// Retrieves role of the machine.
-        /// </summary>
-        MachineRole GetRole();
 
         /// <summary>
         /// Retrieved the InvocationKey for invoking specific AdoBuildRunner logic.

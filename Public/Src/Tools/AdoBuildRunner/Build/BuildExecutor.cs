@@ -124,7 +124,7 @@ namespace BuildXL.AdoBuildRunner.Build
             }
 
             // By default, enable cache miss analysis and pass the invocation key as a prefix
-            var invocationKey = AdoBuildRunnerService.Config.AdoBuildRunnerInvocationKey;
+            var invocationKey = AdoBuildRunnerService.Config.InvocationKey;
             var cacheMissOption = string.IsNullOrEmpty(invocationKey) ? "/cacheMiss+" : $"/cacheMiss:{invocationKey}";
 
             defaultArguments.Add(cacheMissOption);

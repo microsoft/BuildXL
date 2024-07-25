@@ -1,26 +1,22 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System;
-using System.Collections.Generic;
-using System.Reflection;
+using System.Reflection.PortableExecutable;
 using AdoBuildRunner;
+using BuildXL.AdoBuildRunner;
 
 namespace Test.Tool.AdoBuildRunner
 {
     /// <summary>
     /// Mock implementation of IAdoBuildRunnerConfig for testing purpose.
     /// </summary>
-    public class MockAdoBuildRunnerConfig : IAdoBuildRunnerConfig
+    public class MockAdoBuildRunnerConfig : IAdoBuildRunnerConfiguration
     {
         /// <inheritdoc />
-        public string AccessToken { get; set; }
+        public MachineRole PipelineRole { get; set; }
 
         /// <inheritdoc />
-        public string AdoBuildRunnerPipelineRole { get; set; }
-
-        /// <inheritdoc />
-        public string AdoBuildRunnerInvocationKey { get; set; }
+        public string InvocationKey { get; set; }
 
         /// <inheritdoc />
         public int MaximumWaitForWorkerSeconds { get; set; }
@@ -31,15 +27,17 @@ namespace Test.Tool.AdoBuildRunner
         /// <inheritdoc />
         public bool WorkerAlwaysSucceeds { get; set; }
 
+        public ICacheConfigGenerationConfiguration CacheConfigGenerationConfiguration { get; set; }
+
         /// <nodoc />
         public MockAdoBuildRunnerConfig()
         {
-            AccessToken = "MockAccessToken";
-            AdoBuildRunnerPipelineRole = "Orchestrator";
-            AdoBuildRunnerInvocationKey = "MockInvocationKey";
+            PipelineRole = MachineRole.Orchestrator;
+            InvocationKey = "MockInvocationKey";
             WorkerAlwaysSucceeds = true;
             DisableEncryption = true;
             MaximumWaitForWorkerSeconds = int.MaxValue;
+            CacheConfigGenerationConfiguration = new MockCacheConfigGeneration();
         }
     }
 }

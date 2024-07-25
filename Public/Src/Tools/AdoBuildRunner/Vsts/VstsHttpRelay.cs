@@ -10,7 +10,6 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using AdoBuildRunner.Vsts;
 using IAdoEnvironment = AdoBuildRunner.IAdoEnvironment;
-using IAdoBuildRunnerConfig = AdoBuildRunner.IAdoBuildRunnerConfig;
 
 #nullable enable
 
@@ -26,16 +25,14 @@ namespace BuildXL.AdoBuildRunner.Vsts
         private HttpClient? m_httpClient;
         private readonly static JsonSerializerOptions s_jsonSerializerOptions = new() { PropertyNameCaseInsensitive = true };
         private readonly string m_endpoint;
-        private readonly IAdoEnvironment m_adoBuildRunnerEnvConfig;
-        private readonly IAdoBuildRunnerConfig m_adoBuildRunnerUserConfig;
+        private readonly IAdoEnvironment m_adoBuildRunnerEnv;
 
         /// <nodoc />
-        public VstsHttpRelay(IAdoEnvironment adoBuildRunnerEnvConfig, IAdoBuildRunnerConfig adoBuildRunnerUserConfig, ILogger logger)
+        public VstsHttpRelay(IAdoEnvironment adoBuildRunnerEnv, ILogger logger)
         {
-            m_adoBuildRunnerEnvConfig = adoBuildRunnerEnvConfig;
-            m_adoBuildRunnerUserConfig = adoBuildRunnerUserConfig;
+            m_adoBuildRunnerEnv = adoBuildRunnerEnv;
             m_logger = logger;
-            m_endpoint = $"build/builds/{adoBuildRunnerEnvConfig.BuildId}";
+            m_endpoint = $"build/builds/{adoBuildRunnerEnv.BuildId}";
         }
 
         /// <summary>
@@ -47,8 +44,8 @@ namespace BuildXL.AdoBuildRunner.Vsts
         {
             try
             {
-                var vstsUri = m_adoBuildRunnerEnvConfig.CollectionUrl;
-                var uri = $"{vstsUri}{m_adoBuildRunnerEnvConfig.TeamProject}/_apis/{m_endpoint}?api-version=7.1-preview.7";
+                var vstsUri = m_adoBuildRunnerEnv.CollectionUrl;
+                var uri = $"{vstsUri}{m_adoBuildRunnerEnv.TeamProject}/_apis/{m_endpoint}?api-version=7.1-preview.7";
                 var res = await Client.GetAsync(uri);
 
                 if (!res.IsSuccessStatusCode)
@@ -73,7 +70,7 @@ namespace BuildXL.AdoBuildRunner.Vsts
                 new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
             client.DefaultRequestHeaders.Authorization =
                 new AuthenticationHeaderValue("Basic",
-                    Convert.ToBase64String(System.Text.ASCIIEncoding.ASCII.GetBytes(string.Format("{0}:{1}", "", m_adoBuildRunnerUserConfig.AccessToken))));
+                    Convert.ToBase64String(System.Text.ASCIIEncoding.ASCII.GetBytes(string.Format("{0}:{1}", "", m_adoBuildRunnerEnv.AccessToken))));
 
             return client;
         }

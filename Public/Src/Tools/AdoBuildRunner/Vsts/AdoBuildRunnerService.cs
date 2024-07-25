@@ -24,13 +24,7 @@ namespace BuildXL.AdoBuildRunner.Vsts
         public IAdoEnvironment AdoEnvironment { get; }
 
         /// <inheritdoc />
-        public IAdoBuildRunnerConfig Config { get; }
-
-        private enum AgentType
-        {
-            Orchestrator,
-            Worker
-        }
+        public IAdoBuildRunnerConfiguration Config { get; }
 
         private readonly ILogger m_logger;
 
@@ -44,19 +38,19 @@ namespace BuildXL.AdoBuildRunner.Vsts
         private readonly IAdoAPIService m_adoAPIService;
 
         /// <nodoc />
-        public AdoBuildRunnerService(ILogger logger)
+        public AdoBuildRunnerService(IAdoBuildRunnerConfiguration config, IAdoEnvironment adoEnvironment, ILogger logger)
         {
+            Config = config;
             m_logger = logger;
-            AdoEnvironment = new AdoEnvironment(m_logger);
-            Config = new AdoBuildRunnerConfig(m_logger);
+            AdoEnvironment = adoEnvironment;
             m_retryHandler = new AdoBuildRunnerRetryHandler(Constants.MaxApiAttempts);
-            m_adoAPIService = new AdoApiService(m_logger, AdoEnvironment, Config);
+            m_adoAPIService = new AdoApiService(AdoEnvironment, m_logger);
         }
 
         /// <summary>
         /// Constructor for testing purpose.
         /// </summary>
-        public AdoBuildRunnerService(ILogger logger, IAdoEnvironment adoBuildRunnerEnvConfig, IAdoAPIService adoAPIService, IAdoBuildRunnerConfig adoBuildRunnerUserConfig)
+        public AdoBuildRunnerService(ILogger logger, IAdoEnvironment adoBuildRunnerEnvConfig, IAdoAPIService adoAPIService, IAdoBuildRunnerConfiguration adoBuildRunnerUserConfig)
         {
             AdoEnvironment = adoBuildRunnerEnvConfig;
             m_logger = logger;
@@ -104,7 +98,7 @@ namespace BuildXL.AdoBuildRunner.Vsts
             if (properties.ContainsKey(buildContext.InvocationKey))
             {
                 LogAndThrow($"A build with identifier '{buildContext.InvocationKey}' is already running in this pipeline. " +
-                    $"Identifiers (set through the environment variable '{Constants.AdoBuildRunnerInvocationKey}') should be unique" +
+                    $"Identifiers (set through the environment variable '{Constants.InvocationKey}') should be unique" +
                     $" for invocations within the same ADO Build.");
             }
 
@@ -241,38 +235,13 @@ namespace BuildXL.AdoBuildRunner.Vsts
         }
 
         /// <inheritdoc />
-        public MachineRole GetRole()
-        {
-            // For now, we explicitly mark the role with an environment
-            // variable. When we discontinue the "non-worker-pipeline" approach, we can
-            // infer the role from the parameters, but for now there is no easy way
-            // to distinguish runs using the "worker-pipeline" model from ones who don't
-            // When the build role is not specified, we assume this build is being run with the parallel strategy
-            // where the role is inferred from the ordinal position in the phase: the first agent is the orchestrator
-            var role = Config.AdoBuildRunnerPipelineRole;
-
-            if (string.IsNullOrEmpty(role) && AdoEnvironment.JobPositionInPhase == 1)
-            {
-                return MachineRole.Orchestrator;
-            }
-            else if (Enum.TryParse(role, true, out MachineRole machineRole))
-            {
-                return machineRole;
-            }
-            else
-            {
-                throw new CoordinationException($"{Constants.AdoBuildRunnerPipelineRole} has an invalid value '{role}'. It should be '{MachineRole.Orchestrator}' or '{MachineRole.Worker}.");
-            }
-        }
-
-        /// <inheritdoc />
         public string GetInvocationKey()
         {
-            var invocationKey = Config.AdoBuildRunnerInvocationKey;
+            var invocationKey = Config.InvocationKey;
 
             if (string.IsNullOrEmpty(invocationKey))
             {
-                throw new CoordinationException($"The environment variable {Constants.AdoBuildRunnerInvocationKey} must be set (to a value that is unique within a particular pipeline run): " +
+                throw new CoordinationException($"The environment variable {Constants.InvocationKey} must be set (to a value that is unique within a particular pipeline run): " +
                     $"it is used to disambiguate between multiple builds running as part of the same pipeline (e.g.: debug, ship, test...) " +
                     $"and to communicate the build information to the worker pipeline");
             }

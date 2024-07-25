@@ -2,9 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Collections.Generic;
 using System.Threading.Tasks;
-using AdoBuildRunner;
 using BuildXL.AdoBuildRunner;
 using BuildXL.AdoBuildRunner.Build;
 using Microsoft.TeamFoundation.Build.WebApi;
@@ -29,49 +27,10 @@ namespace Test.Tool.AdoBuildRunner
         private static readonly string[] s_defaultArgs = { "arg1", "arg2", "arg3" };
 
         /// <summary>
-        /// Test to ensure that the expected role is assigned to the machine based on the AdoBuildRunnerPipelineRole value.
-        /// Also checks for the condition when the role is Invalid.
-        /// </summary>
-        [Theory]
-        [InlineData("Orchestrator", MachineRole.Orchestrator)]
-        [InlineData("Worker", MachineRole.Worker)]
-        [InlineData("sdkjskd", null)]
-        [InlineData("", MachineRole.Orchestrator)]
-        [InlineData(null, MachineRole.Orchestrator)]
-        public void GetRoleTest(string variableValue, MachineRole? expectedRole)
-        {
-            var exceptionThrown = false;
-            MachineRole? machineRole = default;
-
-            // Initialize the ADO Build Runner service and other mock services.
-            MockConfig.AdoBuildRunnerPipelineRole = variableValue;
-            MockAdoEnvironment.JobPositionInPhase = 1;
-            var adoBuildRunnerService = CreateAdoBuildRunnerService();
-
-            try
-            {
-                machineRole = adoBuildRunnerService.GetRole();
-            }
-            catch (Exception ex)
-            {
-                // An exception is expected to be thrown if an invalid role is assigned.
-                exceptionThrown = true;
-                XAssert.IsTrue(ex.ToString().Contains($"It should be '{MachineRole.Orchestrator}' or '{MachineRole.Worker}."));
-            }
-
-            if (expectedRole == null)
-            {
-                XAssert.IsTrue(exceptionThrown);
-            }
-
-            XAssert.AreEqual(expectedRole, machineRole);
-        }
-
-        /// <summary>
         /// Tests that the correct invocation key is retrieved for the build.
         /// </summary>
         /// <remarks>
-        /// Case 1: The invocation key should be obtained from the AdoBuildRunnerInvocationKey environment variable, the job is run only once.
+        /// Case 1: The invocation key should be obtained from the InvocationKey environment variable, the job is run only once.
         /// Case 2: If the job is rerun, the invocation key should be modified to avoid conflicts with the previous run.
         /// Case 3: If the environment variable value cannot be retrieved, an exception should be thrown and handled gracefully.
         /// </remarks>
@@ -87,7 +46,7 @@ namespace Test.Tool.AdoBuildRunner
 
             // Initialize the ADO Build Runner service and other mock services.
             MockAdoEnvironment.JobAttemptNumber = jobAttemptVariableName;
-            MockConfig.AdoBuildRunnerInvocationKey = expectedInvocationKey;
+            MockConfig.InvocationKey = expectedInvocationKey;
             var adoBuildRunnerService = CreateAdoBuildRunnerService();
 
             string invocationKey = null;
@@ -424,7 +383,7 @@ namespace Test.Tool.AdoBuildRunner
 
             // Initialize the ADO Build Runner service and mock services using the helper method.
             var adoBuildRunnerService = CreateAdoBuildRunnerService();
-            MockConfig.AdoBuildRunnerInvocationKey = s_invocationKey;
+            MockConfig.InvocationKey = s_invocationKey;
 
             IBuildExecutor buildExecutor;
             // Create the build executor.

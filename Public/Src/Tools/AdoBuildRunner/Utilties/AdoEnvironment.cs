@@ -15,6 +15,9 @@ namespace AdoBuildRunner
     public class AdoEnvironment : IAdoEnvironment
     {
         /// <inheritdoc />
+        public string AccessToken { get; }
+       
+        /// <inheritdoc />
         public int BuildId { get; }
 
         /// <inheritdoc />
@@ -119,6 +122,13 @@ namespace AdoBuildRunner
 
                 TotalJobsInPhase = totalJobs;
             }
+
+            var accessToken = Environment.GetEnvironmentVariable(Constants.AccessTokenVarName);
+            if (string.IsNullOrEmpty(accessToken))
+            {
+                CoordinationException.LogAndThrow(logger, $"AdoBuildRunner requires the access token for the build to be visible to the process. Please set the SYSTEM_ACCESSTOKEN environment variable to $(System.AccessToken). More info: [https://learn.microsoft.com/en-us/azure/devops/pipelines/build/variables?view=azure-devops&tabs=yaml#systemaccesstoken](https://learn.microsoft.com/en-us/azure/devops/pipelines/build/variables?view=azure-devops&tabs=yaml#systemaccesstoken)");
+            }
+            AccessToken = accessToken;
         }
     }
 }

@@ -3042,7 +3042,8 @@ namespace BuildXL.Engine
                         var availableEnvVars = frontEndEngineAbstraction.GetAllEnvironmentVariables();
 
                         // Disable caching graph in the unit tests which do not set the app deployment.
-                        if (TestHooks == null || TestHooks.AppDeployment != null)
+                        // Disable caching graph when InputTracker is disabled.
+                        if ((TestHooks == null || TestHooks.AppDeployment != null) && inputTrackerForGraphConstruction.IsEnabled)
                         {
                             m_graphCacheContentCachePut = CacheEngineScheduleStateAsync(
                                 loggingContext,

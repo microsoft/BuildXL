@@ -3,20 +3,25 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Azure.Identity;
+using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Models;
+using Azure.Storage.Sas;
 using BuildXL.Cache.BuildCacheResource.Model;
 using BuildXL.Cache.ContentStore.Distributed.Blob;
 using BuildXL.Cache.ContentStore.Distributed.Test.Stores;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
-using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.InterfacesTest.Sessions;
@@ -24,7 +29,6 @@ using BuildXL.Cache.ContentStore.Sessions.Internal;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils;
-using BuildXL.Native.Processes;
 using ContentStoreTest.Distributed.Redis;
 using ContentStoreTest.Test;
 using FluentAssertions;
@@ -371,20 +375,55 @@ public class AzureBlobStorageContentSessionTests : ContentSessionTests
 
     internal string? OverrideFolderName { get; set; }
 
-    private IDisposable CreateBlobContentStore(out AzureBlobStorageContentStore store)
+    private IDisposable? CreateBlobContentStore(out AzureBlobStorageContentStore store)
     {
-        var shards = Enumerable.Range(0, 10)
-            .Select(shard => (BlobCacheStorageAccountName) new BlobCacheStorageShardingAccountName("0123456789", shard, "testing")).ToList();
+        AzuriteStorageProcess? process;
+        IBlobCacheContainerSecretsProvider secretsProvider;
+        BuildCacheConfiguration? buildCacheConfiguration;
+        List<BlobCacheStorageAccountName> shards;
 
-        // Force it to use a non-sharding account
-        shards.Add(new BlobCacheStorageNonShardingAccountName("devstoreaccount1"));
-
-        var (process, secretsProvider, buildCacheConfiguration) = CreateTestTopology(_fixture, shards, UseBuildCacheConfiguration);
-
-        // Under the build cache scenario, the account names are created using the corresponding URIs directly. So let's keep that in sync and use those
-        if (buildCacheConfiguration != null)
+        // Set the storageAccount below to a storage endpoint's URI to use a real storage account, authenticate using
+        // Entra ID, and emit User-Delegation SAS tokens for all normal operation. This is useful to test the real way
+        // in which the system will interact with Azure Storage.
+        string? storageAccount = null;
+        if (!string.IsNullOrEmpty(storageAccount))
         {
-            shards = buildCacheConfiguration.Shards.Select(shard => shard.GetAccountName()).ToList();
+            process = null;
+
+            var accountUri = new Uri(storageAccount);
+            var accountName = AzureStorageUtilities.GetAccountName(accountUri);
+            shards = new List<BlobCacheStorageAccountName>
+            {
+                new BlobCacheStorageNonShardingAccountName(accountName)
+            };
+
+            buildCacheConfiguration = new BuildCacheConfiguration()
+            {
+                Name = "MyCache",
+                RetentionPolicyInDays = null,
+                Shards = shards.Select(shard => new BuildCacheShard()
+                {
+                    StorageUri = accountUri,
+                    Containers = CreateContainersAsync(accountUri).GetAwaiter().GetResult(),
+                }).ToList()
+            };
+
+            secretsProvider = new AzureBuildCacheSecretsProvider(buildCacheConfiguration);
+        }
+        else
+        {
+            shards = Enumerable.Range(0, 10)
+               .Select(shard => (BlobCacheStorageAccountName)new BlobCacheStorageShardingAccountName("0123456789", shard, "testing")).ToList();
+
+            // Force it to use a non-sharding account
+            shards.Add(new BlobCacheStorageNonShardingAccountName("devstoreaccount1"));
+            (process, secretsProvider, buildCacheConfiguration) = CreateTestTopology(_fixture, shards, UseBuildCacheConfiguration);
+
+            // Under the build cache scenario, the account names are created using the corresponding URIs directly. So let's keep that in sync and use those
+            if (buildCacheConfiguration != null)
+            {
+                shards = buildCacheConfiguration.Shards.Select(shard => shard.GetAccountName()).ToList();
+            }
         }
 
         var configuration = new AzureBlobStorageContentStoreConfiguration()
@@ -404,6 +443,57 @@ public class AzureBlobStorageContentSessionTests : ContentSessionTests
         store = new AzureBlobStorageContentStore(configuration);
 
         return process;
+    }
+
+    private async static Task<List<BuildCacheContainer>> CreateContainersAsync(Uri accountUri)
+    {
+        var credentials = new InteractiveBrowserCredential();
+        var client = new BlobServiceClient(accountUri, credentials);
+        var startsOn = DateTime.UtcNow - TimeSpan.FromMinutes(5);
+        var expiresOn = DateTime.UtcNow + TimeSpan.FromDays(7);
+
+        var userDelegationKey = await client.GetUserDelegationKeyAsync(startsOn: startsOn, expiresOn: expiresOn);
+
+        var contentContainer = await createContainerAsync("content", BuildCacheContainerType.Content);
+        var metadataContainer = await createContainerAsync("metadata", BuildCacheContainerType.Metadata);
+        var checkpointContainer = await createContainerAsync("checkpoint", BuildCacheContainerType.Checkpoint);
+
+        return new List<BuildCacheContainer>()
+                    {
+                        contentContainer,
+                        metadataContainer,
+                        checkpointContainer
+                    };
+
+        async Task<BuildCacheContainer> createContainerAsync(string name, BuildCacheContainerType purpose)
+        {
+            try
+            {
+                await client.CreateBlobContainerAsync(name, PublicAccessType.None);
+            }
+            catch
+#pragma warning disable ERP022 // Unobserved exception in a generic exception handler
+            {
+                // Ignore if the container already exists
+            }
+#pragma warning restore ERP022 // Unobserved exception in a generic exception handler
+
+            var sasBuilder = new BlobSasBuilder(BlobSasPermissions.All, expiresOn)
+            {
+                StartsOn = startsOn,
+                ExpiresOn = expiresOn,
+                BlobContainerName = name,
+            };
+
+            var sasQueryParameters = sasBuilder.ToSasQueryParameters(userDelegationKey, client.AccountName);
+
+            return new BuildCacheContainer()
+            {
+                Name = name,
+                Type = purpose,
+                Signature = sasQueryParameters.ToString(),
+            };
+        }
     }
 
     public static (AzuriteStorageProcess Process, IBlobCacheContainerSecretsProvider secretsProvider, BuildCacheConfiguration? buildCacheConfiguration) CreateTestTopology(

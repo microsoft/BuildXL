@@ -5,6 +5,7 @@
 using System.Collections.Concurrent;
 using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
+using Azure;
 using BuildXL.Cache.BuildCacheResource.Model;
 using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
@@ -25,9 +26,15 @@ public class AzureBuildCacheSecretsProvider : IBlobCacheContainerSecretsProvider
         foreach (var shard in buildCacheConfiguration.Shards)
         {
             var accountName = shard.GetAccountName();
-            _credentials.TryAdd((accountName, shard.ContentContainer.Name), new ContainerSasStorageCredentials(shard.ContentContainer.SasUrl));
-            _credentials.TryAdd((accountName, shard.MetadataContainer.Name), new ContainerSasStorageCredentials(shard.MetadataContainer.SasUrl));
-            _credentials.TryAdd((accountName, shard.CheckpointContainer.Name), new ContainerSasStorageCredentials(shard.CheckpointContainer.SasUrl));
+            addContainer(shard, accountName, shard.ContentContainer);
+            addContainer(shard, accountName, shard.MetadataContainer);
+            addContainer(shard, accountName, shard.CheckpointContainer);
+        }
+
+        void addContainer(BuildCacheShard shard, BlobCacheStorageAccountName accountName, BuildCacheContainer container)
+        {
+            var sasCredential = new AzureSasCredential(container.Signature);
+            _credentials.TryAdd((accountName, container.Name), new ContainerSasStorageCredentials(shard.StorageUri, container.Name, sasCredential));
         }
     }
 

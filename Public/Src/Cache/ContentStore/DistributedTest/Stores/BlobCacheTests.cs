@@ -230,6 +230,7 @@ public class BlobCacheTests : TestWithOutput
     [InlineData("https://dhtqcftmrg00000test.blob.core.windows.net/", "dhtqcftmrg00000test")]
     [InlineData("https://dhtqcftmrg00000test.z3221.blob.core.windows.net/", "dhtqcftmrg00000test")]
     [InlineData("http://127.0.0.1:1099/dhtqcftmrg00000test", "dhtqcftmrg00000test")]
+    [InlineData("https://skbf6flucp00000blobl3.z25.blob.storage.azure.net/", "skbf6flucp00000blobl3")]
     public void CanParseUrls(string uri, string accountName)
     {
         AzureStorageUtilities.GetAccountName(new Uri(uri)).Should().Be(accountName);
@@ -246,9 +247,9 @@ public class BlobCacheTests : TestWithOutput
             ShardingAlgorithm.SingleShard,
             new List<BlobCacheStorageAccountName>() { blobCacheStorageAccountName });
 
-        var content = new BuildCacheContainer() { Name = "content", SasUrl = new Uri("https://foo.blob.core.windows.net/content"), Type = BuildCacheContainerType.Content };
-        var metadata = new BuildCacheContainer() { Name = "metadata", SasUrl = new Uri("https://foo.blob.core.windows.net/metadata"), Type = BuildCacheContainerType.Metadata };
-        var checkpoint = new BuildCacheContainer() { Name = "checkpoint", SasUrl = new Uri("https://foo.blob.core.windows.net/checkpoint"), Type = BuildCacheContainerType.Checkpoint };
+        var content = new BuildCacheContainer() { Name = "content", Signature = "?this=is&some=signature", Type = BuildCacheContainerType.Content };
+        var metadata = new BuildCacheContainer() { Name = "metadata", Signature = "?this=is&some=signature", Type = BuildCacheContainerType.Metadata };
+        var checkpoint = new BuildCacheContainer() { Name = "checkpoint", Signature = "?this=is&some=signature", Type = BuildCacheContainerType.Checkpoint };
 
         var shard = new BuildCacheShard() { StorageUri = account, Containers = new List<BuildCacheContainer> { content, metadata, checkpoint } };
         BuildCacheConfiguration buildCacheConfiguration = new BuildCacheConfiguration() { Name = "MyCache", RetentionPolicyInDays = 5, Shards = new List<BuildCacheShard> { shard } };

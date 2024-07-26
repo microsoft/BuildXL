@@ -57,17 +57,17 @@ namespace BuildXL.Cache.BuildCacheResource.Helper.UnitTests
         {
           ""Name"": ""MyMetadata"",
           ""Type"": ""Metadata"",
-          ""SasUrl"": ""http://aSASUrl1""
+          ""Signature"": ""?signature=is&valid=true""
         },
         {
           ""Name"": ""MyContent"",
           ""Type"": ""Content"",
-          ""SasUrl"": ""http://aSASUrl2""
+          ""Signature"": ""?this=is=some=signature""
         },
         {
           ""Name"": ""MyCheckPoint"",
           ""Type"": ""Checkpoint"",
-          ""SasUrl"": ""http://aSASUrl3""
+          ""Signature"": ""?yet=another&signature=true""
         }
       ]
     }
@@ -120,7 +120,7 @@ namespace BuildXL.Cache.BuildCacheResource.Helper.UnitTests
         {
           ""Name"": ""MyMetadata"",
           ""Type"": ""Metadata"",
-          ""SasUrl"": ""http://aSASUrl1""
+          ""Signature"": ""?signature=is&valid=true""
         }
       ]
     }
@@ -152,17 +152,17 @@ namespace BuildXL.Cache.BuildCacheResource.Helper.UnitTests
         {
           ""Name"": ""MyMetadata"",
           ""Type"": ""Metadata"",
-          ""SasUrl"": ""http://aSASUrl1""
+          ""Signature"": ""?signature=is&valid=true""
         },
         {
           ""Name"": ""MyContent"",
           ""Type"": ""Metadata"",
-          ""SasUrl"": ""http://aSASUrl2""
+          ""Signature"": ""?this=is=some=signature""
         },
         {
           ""Name"": ""MyCheckPoint"",
           ""Type"": ""Checkpoint"",
-          ""SasUrl"": ""http://aSASUrl3""
+          ""Signature"": ""?yet=another&signature=true""
         }
       ]
     }

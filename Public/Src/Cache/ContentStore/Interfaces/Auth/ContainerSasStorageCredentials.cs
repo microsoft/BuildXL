@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using Azure;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.ChangeFeed;
 
@@ -12,12 +13,16 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Auth
     /// </summary>
     public class ContainerSasStorageCredentials : IAzureStorageCredentials
     {
-        private readonly Uri _preauthenticatedUri;
+        private readonly Uri _accountUri;
+        private readonly string _containerName;
+        private readonly AzureSasCredential _azureSasCredential;
 
         /// <nodoc />
-        public ContainerSasStorageCredentials(Uri preauthenticatedUri)
+        public ContainerSasStorageCredentials(Uri accountUri, string containerName, AzureSasCredential azureSasCredential)
         {
-            _preauthenticatedUri = preauthenticatedUri;
+            _accountUri = accountUri;
+            _containerName = containerName;
+            _azureSasCredential = azureSasCredential;
         }
 
         /// <nodoc />
@@ -35,8 +40,28 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Auth
         /// <nodoc />
         public BlobContainerClient CreateContainerClient(string containerName, BlobClientOptions? blobClientOptions = null)
         {
+            if (containerName != _containerName)
+            {
+                throw new ArgumentException($"The provided container name ({containerName}) does not match the container name for which the credentials were created ({_containerName}).");
+            }
+
             blobClientOptions = BlobClientOptionsFactory.CreateOrOverride(blobClientOptions);
-            return new BlobContainerClient(_preauthenticatedUri, blobClientOptions);
+
+            Uri blobContainerUri;
+            if (_accountUri.LocalPath == "/")
+            {
+                // This happens in the normal use-case, where the storage URI is something like
+                // https://account.blob.core.windows.net/, we just append the container name at the end.
+                blobContainerUri = new Uri(_accountUri, $"{containerName}");
+            }
+            else
+            {
+                // This happens when using the Azure Storage Emulator, where the storage URI looks like
+                // http://localhost:2134/accountName, we need to append the container name after the account name.
+                blobContainerUri = new Uri(_accountUri, $"{_accountUri.LocalPath}/{containerName}");
+            }
+
+            return new BlobContainerClient(blobContainerUri, _azureSasCredential, blobClientOptions);
         }
 
         /// <nodoc />

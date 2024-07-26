@@ -62,6 +62,26 @@ public abstract class BlobCacheContainerName
 
     public BlobCacheContainerName(BlobCacheVersion version, BlobCacheContainerPurpose purpose, string matrix, string universe, string @namespace, string containerName)
     {
+        if (string.IsNullOrEmpty(matrix))
+        {
+            throw new ArgumentException($"{nameof(matrix)} should be non-empty. Matrix=[{matrix}]");
+        }
+
+        if (string.IsNullOrEmpty(universe))
+        {
+            throw new ArgumentException($"{nameof(universe)} should be non-empty. Universe=[{universe}]");
+        }
+
+        if (string.IsNullOrEmpty(@namespace))
+        {
+            throw new ArgumentException($"{nameof(@namespace)} should be non-empty. Namespace=[{@namespace}]");
+        }
+
+        if (string.IsNullOrEmpty(containerName))
+        {
+            throw new ArgumentException($"{nameof(containerName)} should be non-empty. ContainerName=[{containerName}]");
+        }
+
         if (!LegacyBlobCacheContainerName.LowercaseAlphanumericRegex.IsMatch(matrix))
         {
             throw new FormatException(

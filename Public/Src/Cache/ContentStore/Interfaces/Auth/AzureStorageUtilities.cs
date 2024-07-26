@@ -16,7 +16,7 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Auth
         {
             var uriHost = uri.Host;
 
-            if (uriHost.EndsWith(".blob.core.windows.net", StringComparison.InvariantCultureIgnoreCase))
+            if (uriHost.EndsWith(".blob.core.windows.net", StringComparison.InvariantCultureIgnoreCase) || uriHost.EndsWith(".blob.storage.azure.net", StringComparison.InvariantCultureIgnoreCase))
             {
                 accountName = uriHost.Split('.')[0];
                 return true;

@@ -9,17 +9,17 @@
           {
             "Name": "MyMetadata",
             "Type": "Metadata",
-            "SasUrl": "http://aSASUrl1"
+            "Signature": "?some=random&signature=is&supposed=to&be=here"
           },
           {
             "Name": "MyContent",
             "Type": "Content",
-            "SasUrl": "http://aSASUrl2"
+            "Signature": "?some=random&signature=is&supposed=to&be=here"
           },
           {
             "Name": "MyCheckPoint",
             "Type": "Checkpoint",
-            "SasUrl": "http://aSASUrl3"
+            "Signature": "?some=random&signature=is&supposed=to&be=here"
           }
         ]
       },
@@ -29,17 +29,17 @@
           {
             "Name": "MyMetadata2",
             "Type": "Metadata",
-            "SasUrl": "http://aSASUrl4"
+            "Signature": "?some=random&signature=is&supposed=to&be=here"
           },
           {
             "Name": "MyContent2",
             "Type": "Content",
-            "SasUrl": "http://aSASUrl5"
+            "Signature": "?some=random&signature=is&supposed=to&be=here"
           },
           {
             "Name": "MyCheckPoint2",
             "Type": "Checkpoint",
-            "SasUrl": "http://aSASUrl6"
+            "Signature": "?some=random&signature=is&supposed=to&be=here"
           }
         ]
       }
@@ -55,17 +55,17 @@
           {
             "Name": "MyMetadata3",
             "Type": "Metadata",
-            "SasUrl": "http://aSASUrl7"
+            "Signature": "?some=random&signature=is&supposed=to&be=here"
           },
           {
             "Name": "MyContent3",
             "Type": "Content",
-            "SasUrl": "http://aSASUrl8"
+            "Signature": "?some=random&signature=is&supposed=to&be=here"
           },
           {
             "Name": "MyCheckPoint3",
             "Type": "Checkpoint",
-            "SasUrl": "http://aSASUrl9"
+            "Signature": "?some=random&signature=is&supposed=to&be=here"
           }
         ]
       }

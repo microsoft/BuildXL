@@ -202,7 +202,7 @@ public class ShardedBlobCacheTopology : IBlobCacheTopology
                         }
                         catch (Exception exception)
                         {
-                            Tracer.Info(context, exception, $"Failed to check if container `{containerClient.Name}` exists in account `{containerClient.AccountName}`");
+                            Tracer.Info(context, exception, $"Failed to check if container `{containerClient.Name}` exists in account `{containerClient.AccountName}` (path: {containerPath})");
                         }
 
                         try
@@ -221,7 +221,7 @@ public class ShardedBlobCacheTopology : IBlobCacheTopology
                         }
                         catch (Exception exception)
                         {
-                            Tracer.Info(context, exception, $"Failed to create container `{containerClient.Name}` in account `{containerClient.AccountName}`");
+                            Tracer.Info(context, exception, $"Failed to create container `{containerClient.Name}` in account `{containerClient.AccountName}` (path: {containerPath})");
                         }
 
                         try
@@ -240,11 +240,11 @@ public class ShardedBlobCacheTopology : IBlobCacheTopology
                         }
                         catch (Exception exception)
                         {
-                            Tracer.Info(context, exception, $"Failed to check if container `{containerClient.Name}` exists in account `{containerClient.AccountName}`");
+                            Tracer.Info(context, exception, $"Failed to check if container `{containerClient.Name}` exists in account `{containerClient.AccountName}` (path: {containerPath})");
                         }
 
                         // We throw an exception here so the WhenDoneAsync bubbles it up.
-                        throw new InvalidOperationException($"Container `{containerClient.Name}` in account `{containerClient.AccountName}` does not exist and could not be created");
+                        throw new InvalidOperationException($"Container `{containerClient.Name}` in account `{containerClient.AccountName}` does not exist and could not be created (path: {containerPath})");
                     });
 
                 return BoolResult.Success;

@@ -33,7 +33,6 @@ namespace BuildXL.Cache.BuildCacheResource.Model
         public required BuildCacheContainerType Type { get; init; }
 
         /// <nodoc/>
-        [JsonConverter(typeof(JsonUriConverter))]
-        public required Uri SasUrl { get; init; }
+        public required string Signature { get; init; }
     }
 }

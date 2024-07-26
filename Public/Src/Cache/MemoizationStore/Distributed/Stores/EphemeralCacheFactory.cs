@@ -250,7 +250,7 @@ public static class EphemeralCacheFactory
 
         var blobClusterStateStorageConfiguration = new BlobClusterStateStorageConfiguration()
         {
-            Storage = new BlobClusterStateStorageConfiguration.StorageSettings(clusterStateCredentials, ContainerName: clusterStateContainer.ToString(), FolderName: "clusterState"),
+            Storage = new BlobClusterStateStorageConfiguration.StorageSettings(clusterStateCredentials, ContainerName: clusterStateContainer.Container.ToString(), FolderName: "clusterState"),
             BlobFolderStorageConfiguration = new()
             {
                 StorageInteractionTimeout = configuration.StorageInteractionTimeout,

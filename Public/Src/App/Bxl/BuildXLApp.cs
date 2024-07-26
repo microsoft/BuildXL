@@ -2695,12 +2695,12 @@ namespace BuildXL
                     LogPerfSmell(context, () => Logger.Log.NoSourceFilesUnchanged(context));
                 }
 
-                if (!perfInfo.ServerModeEnabled)
+                if (!perfInfo.ServerModeEnabled && config.Infra == Infra.Developer && OperatingSystemHelper.IsWindowsOS)
                 {
                     LogPerfSmell(context, () => Logger.Log.ServerModeDisabled(context));
                 }
 
-                if (!perfInfo.EnginePerformanceInfo.GraphCacheCheckJournalEnabled)
+                if (!perfInfo.EnginePerformanceInfo.GraphCacheCheckJournalEnabled && config.Infra == Infra.Developer && OperatingSystemHelper.IsWindowsOS)
                 {
                     LogPerfSmell(context, () => Logger.Log.GraphCacheCheckJournalDisabled(context));
                 }

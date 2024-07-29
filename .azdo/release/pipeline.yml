@@ -21,3 +21,6 @@ resources:
 
 extends:
   template: /pipelines/release/pipeline.yml@DominoReleaseManagement
+  parameters:
+    # The name must match the name in the 'repositories' block.
+    DominoRMResourceName: DominoReleaseManagement

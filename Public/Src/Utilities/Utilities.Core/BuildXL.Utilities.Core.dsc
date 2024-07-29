@@ -8,7 +8,6 @@ namespace Utilities.Core {
         allowUnsafeBlocks: true,
         sources: [
             ...globR(d`.`, "*.cs"),
-            Interop.opNamesAutoGen
         ],
         addNotNullAttributeFile: true,
         references: [

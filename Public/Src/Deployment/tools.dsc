@@ -37,24 +37,6 @@ namespace Tools {
         });
     }
 
-    namespace CoreDumpTester {
-
-        export declare const qualifier: BuildXLSdk.NetCoreAppQualifier;
-
-        export const deployment : Deployment.Definition = {
-            contents: [
-                MacServices.Deployment.interopLibrary,
-                MacServices.Deployment.coreDumpTester
-            ],
-        };
-
-        // Only used for internal macOS runtime publishing
-        const deployed = !BuildXLSdk.Flags.isMicrosoftInternal ? undefined : BuildXLSdk.DeploymentHelpers.deploy({
-            definition: deployment,
-            targetLocation: Helpers.getTargetLocation("CoreDumpTester"),
-        });
-    }
-
     namespace DistributedBuildRunner {
         export declare const qualifier: BuildXLSdk.DefaultQualifierWithNet472;
 

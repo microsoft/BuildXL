@@ -543,14 +543,6 @@ namespace BuildXL.Processes
             m_pendingReports.Post(report, throwOnFullOrComplete: true);
         }
 
-        /// <summary>
-        /// TODO: Remove this placeholder function when cleaning up macos code.
-        /// </summary>
-        internal void PostAccessReport(AccessReport report)
-        {
-            throw new NotSupportedException();
-        }
-
         private static string? EnsureQuoted(string? cmdLineArgs)
         {
 #if NETCOREAPP

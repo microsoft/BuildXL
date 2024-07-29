@@ -173,60 +173,11 @@ namespace Test.BuildXL.Processes
             }
         }
 
-
         /// <summary>
         /// Sends a signal to a processes identified by pid
         /// </summary>
         [DllImport("libc", SetLastError = true, EntryPoint = "kill")]
         private static extern unsafe int SendSignal(int pid, int signal);
-
-        private const int SIG_ILL = 4;
-
-        // TODO: Expand this test to also require super user privileges and and make sure the core dump utilities wrote both,
-        //       the thread tid mappings and the core dump file to the system location specified
-        [FactIfSupported(requiresMacOperatingSystem: true)]
-        public void CoreDumpTest()
-        {
-            string dumpPath = Path.Combine(TemporaryDirectory, "core_dumps");
-            Directory.CreateDirectory(dumpPath);
-
-            var testBinRoot = Path.GetDirectoryName(AssemblyHelper.GetAssemblyLocation(System.Reflection.Assembly.GetExecutingAssembly()));
-            string testProcessFolder = Path.Combine(testBinRoot, "TestProcess");
-            string platformDir = Dispatch.CurrentOS().ToString();
-            string exe = Path.Combine(testProcessFolder, platformDir, "CoreDumpTester");
-
-            var info = new ProcessStartInfo(exe)
-            {
-                WorkingDirectory = Path.GetDirectoryName(exe),
-                RedirectStandardOutput = true,
-                Arguments = dumpPath,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-            };
-
-            using (var process = Process.Start(info))
-            {
-                process.OutputDataReceived += new DataReceivedEventHandler((object sendingProcess, DataReceivedEventArgs outLine) =>
-                {
-                    var p = (Process)sendingProcess;
-                    p.CancelOutputRead();
-
-                    SendSignal(process.Id, SIG_ILL);
-                });
-
-                process.BeginOutputReadLine();
-                process.WaitForExit();
-
-                XAssert.IsTrue(process.HasExited);
-
-                var pathToTidMappings = Path.Combine(dumpPath, "thread_tids");
-                bool tidMappingsExist = File.Exists(pathToTidMappings);
-                XAssert.IsTrue(tidMappingsExist);
-
-                var tidMappingsNotEmpty = new FileInfo(pathToTidMappings).Length > 0;
-                XAssert.IsTrue(tidMappingsNotEmpty);
-            }
-        }
 
         /// <summary>
         /// Exception for test failure that allows test to be retried

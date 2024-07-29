@@ -76,65 +76,8 @@ namespace Sandbox {
 
     const isMacOs = Context.getCurrentHost().os === "macOS";
 
-    const bxlAppXcodeproj = Transformer.sealDirectory({
-        root: d`App/BuildXL.xcodeproj`,
-        files: globR(d`App/BuildXL.xcodeproj`, "*")
-    });
-
-    const detoursXcodeproj = Transformer.sealDirectory({
-        root: d`Detours/Detours.xcodeproj`,
-        files: globR(d`Detours/Detours.xcodeproj`, "*")
-    });
-
     const interopXcodeproj = Transformer.sealDirectory({
         root: d`Interop/Interop.xcodeproj`,
         files: globR(d`Interop/Interop.xcodeproj`, "*")
     });
-
-    const sandboxXcodeproj = Transformer.sealDirectory({
-        root: d`Sandbox/Sandbox.xcodeproj`,
-        files: globR(d`Sandbox/Sandbox.xcodeproj`, "*")
-    });
-
-    @@public
-    export const bxlESDaemon = isMacOs && build({
-        project: bxlAppXcodeproj,
-        scheme: "BuildXLSandboxDaemon",
-        outFiles: [
-            a`BuildXLSandboxDaemon`,
-            a`com.microsoft.buildxl.sandbox.plist`
-        ],
-        xcconfig: bundleInfoXCConfig
-    }).outFiles;
-
-    @@public
-    export const libInterop = isMacOs && build({
-        project: interopXcodeproj,
-        scheme: "InteropLibrary",
-        outFiles: [ a`libBuildXLInterop.dylib` ],
-        xcconfig: bundleInfoXCConfig
-    }).outFiles[0];
-
-    @@public
-    export const libDetours = isMacOs && build({
-        project: detoursXcodeproj,
-        scheme: "DetoursLibrary",
-        outFiles: [ a`libBuildXLDetours.dylib` ],
-        xcconfig: bundleInfoXCConfig
-    }).outFiles[0];
-
-    @@public
-    export const coreDumpTester = isMacOs && build({
-        project: interopXcodeproj,
-        scheme: "CoreDumpTester",
-        outFiles: [ a`CoreDumpTester` ]
-    }).outFiles[0];
-
-    @@public
-    export const monitor = isMacOs && build({
-        project: sandboxXcodeproj,
-        scheme: "SandboxMonitor",
-        outFiles: [ a`SandboxMonitor` ],
-        xcconfig: bundleInfoXCConfig
-    }).outFiles[0];
 }

@@ -34,14 +34,6 @@ namespace Native {
     ];
 
     @@public
-    export const nativeMac = [
-        ...addIfLazy(MacServices.Deployment.macBinaryUsage !== "none" && BuildXLSdk.isTargetRuntimeOsx, () =>
-        [
-            MacServices.Deployment.interopLibrary,
-        ]),
-    ];
-
-    @@public
     export const nativeLinux = [
         ...addIfLazy(BuildXLSdk.isTargetRuntimeLinux && BuildXLSdk.isHostOsLinux, () => [
             importFrom("BuildXL.Sandbox.Linux").Deployment.natives
@@ -63,7 +55,6 @@ namespace Native {
             Utilities.Core.dll,
         ],
         runtimeContent: [
-            ...nativeMac,
             ...nativeWin,
             ...nativeLinux,
         ],

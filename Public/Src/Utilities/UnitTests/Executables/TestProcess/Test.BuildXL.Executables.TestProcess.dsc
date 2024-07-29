@@ -20,49 +20,44 @@ namespace TestProcess {
 
     @@public
     export const deploymentDefinition: Deployment.Definition = {
-        contents: [
-            qualifier.targetRuntime === "win-x64"
-                ? {
-                    subfolder: r`TestProcess/Win`,
-                    contents: [
-                        $.withQualifier({
-                            targetFramework: "net8.0",
-                            targetRuntime: "win-x64"
-                        }).testProcessExe
-                    ]
-                }
-                :
-            qualifier.targetRuntime === "osx-x64"
-                ? {
-                    subfolder: r`TestProcess/MacOs`,
-                    contents: [
-                        $.withQualifier({
-                            targetFramework: "net8.0",
-                            targetRuntime: "osx-x64"
-                        }).testProcessExe,
-
-                        ...addIfLazy(MacServices.Deployment.macBinaryUsage !== "none", () => [
-                            MacServices.Deployment.coreDumpTester
-                        ]),
-                    ]
-                }
-                :
-            qualifier.targetRuntime === "linux-x64"
-                ? {
-                    subfolder: r`TestProcess/Unix`,
-                    contents: [
-                        $.withQualifier({
-                            targetFramework: "net8.0",
-                            targetRuntime: "linux-x64"
-                        }).testProcessExe,
-                        // CODESYNC: Public\Src\Utilities\UnitTests\Executables\TestProcess\Operation.cs
-                        VFork.withQualifier({
-                            targetFramework: "net8.0",
-                            targetRuntime: "linux-x64"
-                        }).exe
-                    ]
-                }
-                : Contract.fail("Unknown target runtime: " + qualifier.targetRuntime)
-        ]
+        contents: getDeploymentContents()
     };
+
+    export function getDeploymentContents() : Deployment.DeployableItem[] {
+        switch (qualifier.targetRuntime) {
+            case "win-x64":
+                return [
+                    {
+                        subfolder: r`TestProcess/Win`,
+                        contents: [
+                            $.withQualifier({
+                                targetFramework: "net8.0",
+                                targetRuntime: "win-x64"
+                            }).testProcessExe
+                        ]
+                    }
+                ];
+            case "osx-x64":
+                return [];
+            case "linux-x64":
+                return [
+                    {
+                        subfolder: r`TestProcess/Unix`,
+                        contents: [
+                            $.withQualifier({
+                                targetFramework: "net8.0",
+                                targetRuntime: "linux-x64"
+                            }).testProcessExe,
+                            // CODESYNC: Public\Src\Utilities\UnitTests\Executables\TestProcess\Operation.cs
+                            VFork.withQualifier({
+                                targetFramework: "net8.0",
+                                targetRuntime: "linux-x64"
+                            }).exe
+                        ]
+                    }
+                ];
+            default:
+            Contract.fail("Unknown target runtime: " + qualifier.targetRuntime);
+        }
+    }
 }

@@ -52,13 +52,6 @@ namespace Processes {
             ...addIfLazy(Context.getCurrentHost().os === "win" && qualifier.targetRuntime === "win-x64", () => [
                 importFrom("BuildXL.Sandbox.Windows").Deployment.detours,
             ]),
-            ...addIfLazy(Context.getCurrentHost().os === "macOS" && qualifier.targetRuntime === "osx-x64", () => [
-                MacServices.Deployment.bxlESDaemon,
-            ]),
-            ...addIfLazy(MacServices.Deployment.macBinaryUsage !== "none" && qualifier.targetRuntime === "osx-x64", () => [
-                MacServices.Deployment.sandboxMonitor,
-                MacServices.Deployment.sandboxLoadScripts
-            ]),
             ...addIfLazy(Context.getCurrentHost().os === "unix" && qualifier.targetRuntime === "linux-x64", () => [
                 importFrom("BuildXL.Sandbox.Linux").Deployment.natives,
             ]),

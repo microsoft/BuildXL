@@ -19,8 +19,6 @@ using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Tracing;
 using Xunit.Abstractions;
 
-using static BuildXL.Interop.Unix.Sandbox;
-
 namespace Test.BuildXL.TestUtilities.Xunit
 {
     /// <summary>

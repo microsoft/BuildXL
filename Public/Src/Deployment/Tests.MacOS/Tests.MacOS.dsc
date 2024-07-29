@@ -14,11 +14,14 @@ namespace Tests.MacOS {
 
     function createAllDefs() : TestDeploymentDefinition[] {
         return [
+            // NOTE: the commented tests below are explicitly disabled because they don't support arm64 on macOS.
             // Utilities
             createDef(importFrom("BuildXL.Utilities.Instrumentation.UnitTests").Core.withQualifier({ targetFramework: defaultTargetFramework }).dll, true),
             createDef(importFrom("BuildXL.Utilities.UnitTests").Collections.withQualifier({ targetFramework: defaultTargetFramework }).dll, true),
             createDef(importFrom("BuildXL.Utilities.UnitTests").Configuration.withQualifier({ targetFramework: defaultTargetFramework }).dll, true),
-            createDef(importFrom("BuildXL.Utilities.UnitTests").Ipc.withQualifier({ targetFramework: defaultTargetFramework }).dll, true),
+            // Depends on Grpc.Core which is not supported on arm64
+            // Once we move to grpc-dotnet, this can be re-enabled
+            // createDef(importFrom("BuildXL.Utilities.UnitTests").Ipc.withQualifier({ targetFramework: defaultTargetFramework }).dll, true),
             createDef(importFrom("BuildXL.Utilities.UnitTests").KeyValueStoreTests.withQualifier({ targetFramework: defaultTargetFramework }).dll, true),
             createDef(importFrom("BuildXL.Utilities.UnitTests").Storage.withQualifier({ targetFramework: defaultTargetFramework }).dll, true),
             createDef(importFrom("BuildXL.Utilities.UnitTests").Storage.Untracked.withQualifier({ targetFramework: defaultTargetFramework }).dll, true),
@@ -27,13 +30,17 @@ namespace Tests.MacOS {
 
             // Cache
             createDef(importFrom("BuildXL.Cache.ContentStore").Test.withQualifier({ targetFramework: defaultTargetFramework }).dll, true),
-            createDef(importFrom("BuildXL.Cache.ContentStore").GrpcTest.withQualifier({ targetFramework: defaultTargetFramework }).dll, true),
+            // Depends on grpc.Core which is not supported on arm64
+            // createDef(importFrom("BuildXL.Cache.ContentStore").GrpcTest.withQualifier({ targetFramework: defaultTargetFramework }).dll, true),
             createDef(importFrom("BuildXL.Cache.ContentStore").InterfacesTest.withQualifier({ targetFramework: defaultTargetFramework }).dll, true),
-            createDef(importFrom("BuildXL.Cache.ContentStore").DistributedTest.withQualifier({ targetFramework: defaultTargetFramework }).dll, true),
-            createDef(importFrom("BuildXL.Cache.MemoizationStore").Test.withQualifier({ targetFramework: defaultTargetFramework }).dll, true),
+            // Depends on grpc.Core which is not supported on arm64
+            // createDef(importFrom("BuildXL.Cache.ContentStore").DistributedTest.withQualifier({ targetFramework: defaultTargetFramework }).dll, true),
+            // Depends on grpc.Core which is not supported on arm64
+            // createDef(importFrom("BuildXL.Cache.MemoizationStore").Test.withQualifier({ targetFramework: defaultTargetFramework }).dll, true),
             createDef(importFrom("BuildXL.Cache.MemoizationStore").InterfacesTest.withQualifier({ targetFramework: defaultTargetFramework }).dll, true),
             createDef(importFrom("BuildXL.Cache.DistributedCache.Host").Test.withQualifier({ targetFramework: defaultTargetFramework }).dll, true),
-            createDef(importFrom("BuildXL.Cache.Core.UnitTests").Analyzer.withQualifier({ targetFramework: defaultTargetFramework }).dll, true),
+            // The BuildXL dotnet SDK does not properly support arm64 yet, so this test will be disabled.
+            // createDef(importFrom("BuildXL.Cache.Core.UnitTests").Analyzer.withQualifier({ targetFramework: defaultTargetFramework }).dll, true),
             createDef(importFrom("BuildXL.Cache.Core.UnitTests").BasicFilesystem.withQualifier({ targetFramework: defaultTargetFramework }).dll, true),
             createDef(importFrom("BuildXL.Cache.Core.UnitTests").InputListFilter.withQualifier({ targetFramework: defaultTargetFramework }).dll, true),
             createDef(importFrom("BuildXL.Cache.Core.UnitTests").Interfaces.withQualifier({ targetFramework: defaultTargetFramework }).dll, true),
@@ -42,7 +49,6 @@ namespace Tests.MacOS {
             ...addIfLazy(BuildXLSdk.Flags.isMicrosoftInternal, () => [
                 createDef(importFrom("BuildXL.Cache.Logging").Test.withQualifier({ targetFramework: defaultTargetFramework }).dll, true) 
             ]),
-            createDef(importFrom("BuildXL.Cache.MemoizationStore").Test.withQualifier({ targetFramework: defaultTargetFramework }).dll, true)
         ];
     }
 

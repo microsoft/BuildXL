@@ -16,6 +16,8 @@ using static Test.BuildXL.Executables.AsyncMutexClient.Program;
 
 namespace Test.BuildXL.Utilities
 {
+    // [pgunasekara]: Temporarily disabled temporarily on macOS due to missing arm64 support on the test executable used for these tests.
+    [TestClassIfSupported(requiresWindowsOrLinuxOperatingSystem: true)]
     public class AsyncMutexTests : TemporaryStorageTestBase
     {
         private readonly string m_asyncMutexClient;

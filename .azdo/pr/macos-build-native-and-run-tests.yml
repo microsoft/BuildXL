@@ -1,0 +1,66 @@
+# Copyright (c) Microsoft. All rights reserved.
+# Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
+parameters:
+- name: platform
+  type: string
+  default: x64
+
+jobs:
+- job: runTests_${{ parameters.platform }}
+  dependsOn: buildTests
+  displayName: Run Unit Tests with XUnit on MacOS ${{ parameters.platform }}
+  pool:
+    ${{ if eq(parameters['platform'], 'x64') }}:
+      vmImage: macos-latest
+    ${{ else }}:
+      vmImage: macos-14-arm64
+  steps:
+  - checkout: self
+  
+  - task: DownloadBuildArtifacts@1
+    displayName: Download Test Binaries
+    inputs:
+      buildType: 'current'
+      downloadType: 'single'
+      artifactName: 'macos-tests-$(Build.BuildId)'
+      downloadPath: '$(System.ArtifactsDirectory)/tests'
+      cleanDestinationFolder: true
+
+  - task: Bash@3
+    displayName: Prepare Intermediate Directories
+    inputs:
+      targetType: 'inline'
+      script: |
+        mkdir -p $(Agent.TempDirectory)/BuildXLMacOS/InteropLibrary
+        rm -rf $(Agent.TempDirectory)/BuildXLMacOS/InteropLibrary/*
+      workingDirectory: '$(Agent.TempDirectory)'
+
+  - task: Bash@3
+    displayName: Build Debug libBuildXLInterop.dylib
+    inputs:
+      filePath: '$(Build.SourcesDirectory)/Private/macOS/xcodebuild.sh'
+      arguments: '--projectPath $(Build.SourcesDirectory)/Public/Src/Sandbox/MacOs/Interop/Interop.xcodeproj --scheme InteropLibrary --configuration debug --outputDirectory $(Agent.TempDirectory)/BuildXLMacOS/InteropLibrary --bundlePath $(Build.SourcesDirectory)/Public/Src/Sandbox/MacOs/BundleInfo.xcconfig'
+      workingDirectory: '$(Agent.TempDirectory)/BuildXLMacOS'
+
+  - task: Bash@3
+    displayName: Copy libBuildXLInterop.dylib to test directory
+    inputs:
+      targetType: 'inline'
+      script: 'cp $(Agent.TempDirectory)/BuildXLMacOS/InteropLibrary/Build/Products/debug/libBuildXLInterop.dylib $(System.ArtifactsDirectory)/tests/macos-tests-$(Build.BuildId)/osx-x64/tests/sharedbin/libBuildXLInterop.dylib'
+      workingDirectory: '$(Agent.TempDirectory)/BuildXLMacOS/InteropLibrary'
+
+  - task: Bash@3
+    displayName: Run Tests
+    inputs:
+      filePath: '$(System.ArtifactsDirectory)/tests/macos-tests-$(Build.BuildId)/osx-x64/bashrunner.sh'
+      workingDirectory: '$(System.ArtifactsDirectory)/tests/macos-tests-$(Build.BuildId)/osx-x64'
+      failOnStderr: true
+  
+  - task: PublishBuildArtifacts@1
+    displayName: Publish Test Logs on Failure
+    condition: failed() 
+    inputs:
+      PathtoPublish: '$(System.ArtifactsDirectory)/tests/macos-tests-$(Build.BuildId)/osx-x64/tests/sharedbin/XunitLogs'
+      ArtifactName: 'macos-tests-xunit-logs-$(Build.BuildId)-${{ parameters.platform }}'
+      publishLocation: 'Container'

@@ -1,0 +1,23 @@
+parameters:
+- name: rmBranch
+  type: string
+
+resources:
+  repositories:
+  - repository: DominoReleaseManagement
+    type: git
+    name: Domino.ReleaseManagement
+    ref: ${{ parameters.rmBranch }}
+  
+  pipelines:
+  - pipeline: BxlRollingPipeline
+    source: '\BuildXL\BuildXL Rolling'
+    trigger:
+      branches:
+        include:
+          - main
+  - pipeline: CloudBuild
+    source: 'CloudBuild\ReleaseBuilds\CloudBuild Deploy QBits (YML)'
+
+extends:
+  template: /pipelines/release/pipeline.yml@DominoReleaseManagement

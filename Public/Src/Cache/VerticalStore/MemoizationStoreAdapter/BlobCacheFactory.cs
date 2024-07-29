@@ -43,9 +43,15 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             var context = new OperationContext(tracingContext);
 
             // Case where an ADO build cache resource is configured
-            if (configuration.HostedPoolBuildCacheConfigurationFile != null)
+            var hostedPoolConfigurationFilePath = configuration.HostedPoolBuildCacheConfigurationFile;
+            if (string.IsNullOrEmpty(hostedPoolConfigurationFilePath) && !string.IsNullOrEmpty(configuration.HostedPoolBuildCacheConfigurationFileEnvironmentVariableName))
             {
-                var hostedPoolBuildCacheConfiguration = BuildCacheResourceHelper.LoadFromJSONAsync(configuration.HostedPoolBuildCacheConfigurationFile).GetAwaiter().GetResult();
+                hostedPoolConfigurationFilePath = Environment.GetEnvironmentVariable(configuration.HostedPoolBuildCacheConfigurationFileEnvironmentVariableName);
+            }
+
+            if (!string.IsNullOrEmpty(hostedPoolConfigurationFilePath))
+            {
+                var hostedPoolBuildCacheConfiguration = BuildCacheResourceHelper.LoadFromJSONAsync(hostedPoolConfigurationFilePath).GetAwaiter().GetResult();
 
                 if (!hostedPoolBuildCacheConfiguration.TrySelectBuildCache(configuration.HostedPoolActiveBuildCacheName, out var selectedBuildCacheConfiguration))
                 {

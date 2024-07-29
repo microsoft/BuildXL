@@ -41,9 +41,7 @@ namespace BuildXL.Cache.BuildCacheResource.Helper
                 throw new ArgumentNullException(nameof(content), "The containing JSON is null");
             }
 
-            var hostedPoolBuildCacheConfiguration = new HostedPoolBuildCacheConfiguration { AssociatedBuildCaches = buildCaches! };
-
-            return hostedPoolBuildCacheConfiguration;
+            return new HostedPoolBuildCacheConfiguration { AssociatedBuildCaches = buildCaches! };
         }
 
         /// <summary>
@@ -53,7 +51,7 @@ namespace BuildXL.Cache.BuildCacheResource.Helper
         public static bool TrySelectBuildCache(this HostedPoolBuildCacheConfiguration hostedPoolBuildCacheConfiguration, string? hostedPoolActiveBuildCacheName, out BuildCacheConfiguration? buildCacheConfiguration)
         {
             // If an active cache is not provided, the first one in the collection of associated caches is the default
-            if (hostedPoolBuildCacheConfiguration is null)
+            if (string.IsNullOrEmpty(hostedPoolActiveBuildCacheName))
             {
                 buildCacheConfiguration = hostedPoolBuildCacheConfiguration!.AssociatedBuildCaches.First();
                 return true;

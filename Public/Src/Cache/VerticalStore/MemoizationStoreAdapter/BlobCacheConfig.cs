@@ -178,6 +178,18 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         public bool IsReadOnly { get; set; }
 
         /// <summary>
+        /// Authenticate by using a file that contains a <see cref="HostedPoolBuildCacheConfigurationFile"/>
+        /// </summary>
+        /// <remarks>
+        /// The preferred authentication method is to use a managed identity (<see cref="StorageAccountEndpoint"/>
+        /// and <see cref="ManagedIdentityId"/>). However, this is unsupported for sharded scenarios and isn't
+        /// available outside of Azure. Use <see cref="ConnectionStringFileEnvironmentVariableName"/> if that's
+        /// your use-case.
+        /// </remarks>
+        [DefaultValue("BlobCacheFactoryHostedPoolConfigurationFile")]
+        public string HostedPoolBuildCacheConfigurationFileEnvironmentVariableName { get; set; }
+
+        /// <summary>
         /// When not null, we are running on the context of 1ESHP and a set of cache resources are associated to the pool. The value of this string points
         /// to the JSON file describing this topology.
         /// </summary>

@@ -3,11 +3,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
-using System.Reflection;
-using System.Runtime.InteropServices;
 using System.Threading.Tasks;
+using AdoBuildRunner;
 using BuildXL.AdoBuildRunner.Vsts;
 
 #nullable enable
@@ -19,94 +16,55 @@ namespace BuildXL.AdoBuildRunner.Build
     /// </summary>
     public abstract class BuildExecutor : IBuildExecutor
     {
-        private readonly string m_bxlExeLocation;
         /// <nodoc />
         protected readonly IAdoBuildRunnerService AdoBuildRunnerService;
         /// <nodoc />
         protected readonly ILogger Logger;
+        private readonly IBuildXLLauncher m_bxlLauncher;
 
         /// <nodoc />
-        public BuildExecutor(ILogger logger, IAdoBuildRunnerService adoBuildRunnerService)
+        public BuildExecutor(IBuildXLLauncher buildXLLauncher, IAdoBuildRunnerService adoBuildRunnerService, ILogger logger)
         {
-            // Resolve the bxl executable location
-            var exeName = RuntimeInformation.IsOSPlatform(OSPlatform.Linux) ? "bxl" : "bxl.exe";
-            m_bxlExeLocation = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!, exeName);
             AdoBuildRunnerService = adoBuildRunnerService;
             Logger = logger;
+            m_bxlLauncher = buildXLLauncher;
         }
 
         /// <nodoc />
-        protected int ExecuteBuild(BuildContext buildContext, IEnumerable<string> fullArguments, string buildSourceDirectory)
+        protected Task<int> ExecuteBuild(IEnumerable<string> fullArguments, string buildSourceDirectory)
         {
-            var process = new Process()
-            {
-                StartInfo =
-                {
-                    FileName = m_bxlExeLocation,
-                    Arguments = ExtractAndEscapeCommandLineArguments(fullArguments),
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true
-                },
-            };
-
-            process.OutputDataReceived += ((sender, e) =>
-            {
-                if (!string.IsNullOrEmpty(e.Data))
-                {
-                    Logger.Info(e.Data);
-                }
-            });
-
-            process.ErrorDataReceived += ((sender, e) =>
-            {
-                if (!string.IsNullOrEmpty(e.Data))
-                {
-                    Logger.Warning(e.Data);
-                }
-            });
-
-            Logger.Info($"Launching File: {process.StartInfo.FileName} with Arguments: {process.StartInfo.Arguments}");
-
-            process.StartInfo.CreateNoWindow = true;
-            process.StartInfo.UseShellExecute = false;
-            process.Start();
-            process.BeginOutputReadLine();
-            process.BeginErrorReadLine();
-            process.WaitForExit();
-
-            return process.ExitCode;
-        } 
+            var arguments = ExtractAndEscapeCommandLineArguments(fullArguments);
+			Logger.Info($"Launching BuildXL with Arguments: {arguments}");
+            return m_bxlLauncher.LaunchAsync(arguments, Logger.Info, Logger.Warning);
+        }
 
         /// <nodoc />
         private static string ExtractAndEscapeCommandLineArguments(IEnumerable<string> args) => string.Join(' ', args);
 
         /// <inheritdoc />
-        public void PrepareBuildEnvironment(BuildContext buildContext)
+        public void PrepareBuildEnvironment()
         {
-            if (buildContext == null)
-            {
-                throw new ArgumentNullException(nameof(buildContext));
-            }
         }
 
         /// <inheritdoc />
-        public int ExecuteSingleMachineBuild(BuildContext buildContext, string[] buildArguments)
+        public Task<int> ExecuteSingleMachineBuild(string[] buildArguments)
         {
             Logger.Info($@"Launching single machine build");
-            return ExecuteBuild(buildContext, buildArguments, buildContext.SourcesDirectory);
+            return ExecuteBuild(buildArguments, AdoBuildRunnerService.BuildContext.SourcesDirectory);
         }
 
         /// <inheritdoc />
-        public abstract Task<int> ExecuteDistributedBuild(BuildContext buildContext, string[] buildArguments);
+        public abstract Task<int> ExecuteDistributedBuild(string[] buildArguments);
 
         /// <inheritdoc />
-        public abstract string[] ConstructArguments(BuildContext buildContext, BuildInfo buildInfo, string[] buildArguments);
+        public abstract string[] ConstructArguments(BuildInfo buildInfo, string[] buildArguments);
 
         /// <summary>
         /// Set arguments common to the worker and the orchestrator.
         /// </summary>
-        protected string[] SetDefaultArguments(BuildContext buildContext)
+        protected string[] SetDefaultArguments()
         {
+            var buildContext = AdoBuildRunnerService.BuildContext;
             // The default values are added to the start of command line string.
             // This way, user-provided arguments will be able to override the defaults.
             // If there is a need for a new default argument that's not specific to ADO-runner,

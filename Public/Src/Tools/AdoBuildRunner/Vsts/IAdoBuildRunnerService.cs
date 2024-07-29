@@ -28,17 +28,27 @@ namespace BuildXL.AdoBuildRunner.Vsts
         /// <summary>
         /// Gets the build context from the ADO build run information
         /// </summary>
-        Task<BuildContext> GetBuildContextAsync(string buildKey);
+        BuildContext BuildContext { get; }
 
         /// <summary>
         /// Wait until the orchestrator is ready and return its address
         /// </summary>
-        Task<BuildInfo> WaitForBuildInfo(BuildContext buildContext);
+        Task<BuildInfo> WaitForBuildInfo();
 
         /// <summary>
         /// Publish the orchestrator address
         /// </summary>
-        Task PublishBuildInfo(BuildContext buildContext, BuildInfo buildInfo);
+        Task PublishBuildInfo( BuildInfo buildInfo);
+
+        /// <summary>
+        /// Gets a value associated to the key propertyName in the context of this build session
+        /// </summary>
+        Task<string?> GetBuildProperty(string propertyName);
+
+        /// <summary>
+        /// Sets a value associated to the key propertyName in the context of this build session
+        /// </summary>
+        Task PublishBuildProperty(string propertyName, string value);
 
         /// <summary>
         /// Retrieved the InvocationKey for invoking specific AdoBuildRunner logic.

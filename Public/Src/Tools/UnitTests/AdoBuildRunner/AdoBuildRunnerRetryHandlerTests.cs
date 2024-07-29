@@ -19,7 +19,7 @@ namespace Test.Tool.AdoBuildRunner
         private readonly List<int> m_expectedBuildIds = new List<int> { 1234, 234, 456 };
 
         /// <summary>
-        /// Api methods from the MockAdoApiService which are to be tested.
+        /// Api methods from the MockApiService which are to be tested.
         /// </summary>
         public enum ApiMethod
         {
@@ -45,12 +45,13 @@ namespace Test.Tool.AdoBuildRunner
             var exceptionThrown = false;
             RetryHandlerHelper(mockAPIException: mockAPIException, out AdoBuildRunnerRetryHandler adoBuildRunnerRetryHandler, out MockLogger mockLogger, out MockAdoAPIService mockAdoAPIService);
 
+            IAdoAPIService service = mockAdoAPIService;
             Task taskToBeAwaited = apiMethod switch
             {
-                ApiMethod.GetBuildAsync => adoBuildRunnerRetryHandler.ExecuteAsync(() => mockAdoAPIService.GetBuildAsync(faultyBuildId), nameof(mockAdoAPIService.GetBuildAsync), mockLogger),
-                ApiMethod.GetBuildPropertiesAsync => adoBuildRunnerRetryHandler.ExecuteAsync(() => mockAdoAPIService.GetBuildPropertiesAsync(faultyBuildId), nameof(mockAdoAPIService.GetBuildPropertiesAsync), mockLogger),
-                ApiMethod.UpdateBuildPropertiesAsync => adoBuildRunnerRetryHandler.ExecuteAsync(() => mockAdoAPIService.UpdateBuildPropertiesAsync(new Microsoft.VisualStudio.Services.WebApi.PropertiesCollection(), faultyBuildId), nameof(mockAdoAPIService.UpdateBuildPropertiesAsync), mockLogger),
-                ApiMethod.GetBuildTriggerInfoAsync => adoBuildRunnerRetryHandler.ExecuteAsync(() => mockAdoAPIService.GetBuildTriggerInfoAsync(), nameof(mockAdoAPIService.GetBuildTriggerInfoAsync), mockLogger),
+                ApiMethod.GetBuildAsync => adoBuildRunnerRetryHandler.ExecuteAsync(() => service.GetBuildAsync(faultyBuildId), nameof(service.GetBuildAsync), mockLogger),
+                ApiMethod.GetBuildPropertiesAsync => adoBuildRunnerRetryHandler.ExecuteAsync(() => service.GetBuildPropertiesAsync(faultyBuildId), nameof(service.GetBuildPropertiesAsync), mockLogger),
+                ApiMethod.UpdateBuildPropertiesAsync => adoBuildRunnerRetryHandler.ExecuteAsync(() => service.UpdateBuildPropertiesAsync(new Microsoft.VisualStudio.Services.WebApi.PropertiesCollection(), faultyBuildId), nameof(service.UpdateBuildPropertiesAsync), mockLogger),
+                ApiMethod.GetBuildTriggerInfoAsync => adoBuildRunnerRetryHandler.ExecuteAsync(() => service.GetBuildTriggerInfoAsync(), nameof(service.GetBuildTriggerInfoAsync), mockLogger),
                 _ => throw new ArgumentException("Invalid API method")
             };
 
@@ -106,7 +107,7 @@ namespace Test.Tool.AdoBuildRunner
             mockAdoAPIService = new MockAdoAPIService(mockAPIException);
             foreach (var buildID in m_expectedBuildIds)
             {
-                mockAdoAPIService.AddBuildId(buildID, new Build());
+                mockAdoAPIService.AddBuild(buildID, new Build());
                 mockAdoAPIService.AddBuildProperties(buildID, new Microsoft.VisualStudio.Services.WebApi.PropertiesCollection());
                 mockAdoAPIService.AddBuildTriggerProperties("DummyTriggerId", "1256");
             }

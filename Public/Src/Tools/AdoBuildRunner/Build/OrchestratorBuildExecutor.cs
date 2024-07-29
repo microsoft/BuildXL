@@ -4,42 +4,55 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using AdoBuildRunner;
 using BuildXL.AdoBuildRunner.Vsts;
 
 namespace BuildXL.AdoBuildRunner.Build
 {
     /// <summary>
-    /// Execute the build as an orchestrator
+    /// Launch the build as an orchestrator
     /// </summary>
     public class OrchestratorBuildExecutor : BuildExecutor
     {
         /// <nodoc />
-        public OrchestratorBuildExecutor(ILogger logger, IAdoBuildRunnerService adoBuildRunnerService) : base(logger, adoBuildRunnerService)
+        public OrchestratorBuildExecutor(IBuildXLLauncher buildXLLauncher, IAdoBuildRunnerService adoBuildRunnerService, ILogger logger) : base(buildXLLauncher, adoBuildRunnerService, logger)
         {
         }
 
         /// <summary>
-        /// Execute a build with a given context and arguments as orchestrator
+        /// Launch a build with a given context and arguments as orchestrator
         /// </summary>
-        public override async Task<int> ExecuteDistributedBuild(BuildContext buildContext, string[] buildArguments)
+        public override async Task<int> ExecuteDistributedBuild(string[] buildArguments)
         {
             // The orchestrator creates the build info and publishes it to the build properties
+            var buildContext = AdoBuildRunnerService.BuildContext;
             var buildInfo = new BuildInfo { RelatedSessionId = Guid.NewGuid().ToString("D"), OrchestratorLocation = buildContext.AgentHostName };
-            await AdoBuildRunnerService.PublishBuildInfo(buildContext, buildInfo);
+            await AdoBuildRunnerService.PublishBuildInfo(buildInfo);
             Logger.Info($@"Launching distributed build as orchestrator");
-            return ExecuteBuild(
-                buildContext,
-                ConstructArguments(buildContext, buildInfo, buildArguments),
+            var returnCode = await ExecuteBuild(
+                ConstructArguments(buildInfo, buildArguments),
                 buildContext.SourcesDirectory
             );
+
+            try
+            {
+                await AdoBuildRunnerService.PublishBuildProperty(Constants.AdoBuildRunnerOrchestratorExitCode, returnCode.ToString());
+            }
+            catch (Exception ex) 
+            {
+                // No need to fail here. Worst case scenario this means that the worker will be idle until it times out.
+                Logger.Info($"Non-fatal failure while publishing orchestrator exit code after the build is done: {ex}.");
+            }
+
+            return returnCode;
         }
 
         /// <summary>
         /// Constructs build arguments for the orchestrator
         /// </summary>
-        public override string[] ConstructArguments(BuildContext buildContext, BuildInfo buildInfo, string[] buildArguments)
+        public override string[] ConstructArguments(BuildInfo buildInfo, string[] buildArguments)
         {
-            return SetDefaultArguments(buildContext).
+            return SetDefaultArguments().
                 Concat(buildArguments)
                 .Concat(
                 [

@@ -172,5 +172,10 @@ namespace BuildXL.AdoBuildRunner
         /// Specifies the maximum number of retry attempts allowed for each failed HTTP API call.
         /// </summary>
         public const int MaxApiAttempts = 3;
+
+        /// <summary>
+        /// Key for orchestrator runner to communicate that the build is done (to avoid launching late workers)
+        /// </summary>
+        public const string AdoBuildRunnerOrchestratorExitCode = "AdoBuildRunnerOrchestratorExitCode";
     }
 }

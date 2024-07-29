@@ -18,9 +18,6 @@ namespace BuildXL.AdoBuildRunner.Build
         public required string InvocationKey { get; init; }
 
         /// <nodoc />
-        public required DateTime StartTime { get; init; }
-
-        /// <nodoc />
         public required int BuildId { get; init; }
 
         /// <nodoc />

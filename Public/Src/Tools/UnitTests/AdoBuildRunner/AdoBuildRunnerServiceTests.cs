@@ -3,8 +3,9 @@
 
 using System;
 using System.Threading.Tasks;
+using AdoBuildRunner;
+using AdoBuildRunner.Vsts;
 using BuildXL.AdoBuildRunner;
-using BuildXL.AdoBuildRunner.Build;
 using Microsoft.TeamFoundation.Build.WebApi;
 using Microsoft.VisualStudio.Services.WebApi;
 using Test.BuildXL.TestUtilities.Xunit;
@@ -14,18 +15,6 @@ namespace Test.Tool.AdoBuildRunner
 {
     public class AdoBuildRunnerServiceTests : AdoBuildRunnerTestBase
     {
-        private static readonly string s_testRelatedSessionId = "testId123";
-
-        private static readonly string s_testOrchestratorLocation = "testLocation";
-
-        private static readonly string s_invocationKey = "testKey";
-
-        private static readonly string s_orchestratorId = "12345";
-
-        private static readonly int s_workerId = 789;
-
-        private static readonly string[] s_defaultArgs = { "arg1", "arg2", "arg3" };
-
         /// <summary>
         /// Tests that the correct invocation key is retrieved for the build.
         /// </summary>
@@ -37,23 +26,27 @@ namespace Test.Tool.AdoBuildRunner
         /// <param name="expectedInvocationKey">Represents the invocation key</param>
         /// <param name="jobAttemptVariableName"> Represents the job attempt number</param>
         [Theory]
-        [InlineData("testKey1", 1)]
-        [InlineData("testKey2", 2)]
-        [InlineData(null, 1)]
-        public void GetInvocationKeyTest(string expectedInvocationKey, int jobAttemptVariableName)
+        [InlineData(true, false, 1)]
+        [InlineData(false, false, 1)]
+        [InlineData(true, false, 2)]
+        [InlineData(false, false, 2)]
+        public void GetInvocationKeyTest(bool isWorker, bool undefined, int attemptNumber)
         {
             var exceptionThrown = false;
 
             // Initialize the ADO Build Runner service and other mock services.
-            MockAdoEnvironment.JobAttemptNumber = jobAttemptVariableName;
-            MockConfig.InvocationKey = expectedInvocationKey;
-            var adoBuildRunnerService = CreateAdoBuildRunnerService();
+            var harness = CreateAgent(isWorker); 
+            harness.AdoEnvironment.JobAttemptNumber = attemptNumber;
+            var specifiedKey = "testKey";
+            harness.Config.InvocationKey = specifiedKey;
+            harness.Initialize();
+            var adoBuildRunnerService = harness.RunnerService;
 
-            string invocationKey = null;
+            string chosenInvocationKey = null;
 
             try
             {
-                invocationKey = adoBuildRunnerService.GetInvocationKey();
+                chosenInvocationKey = adoBuildRunnerService.GetInvocationKey();
             }
             catch (Exception ex)
             {
@@ -62,20 +55,21 @@ namespace Test.Tool.AdoBuildRunner
                 XAssert.Contains(ex.ToString(), "it is used to disambiguate between multiple builds running as part of the same pipeline");
             }
 
-            if (expectedInvocationKey == "testKey1")
-            {
-                XAssert.AreEqual(expectedInvocationKey, invocationKey);
-                XAssert.IsFalse(exceptionThrown);
-            }
-            else if (expectedInvocationKey == "testKey2")
-            {
-                // Since the job is rerun we expect the invocation key to be modified.
-                XAssert.Contains(invocationKey, "jobretry");
-                XAssert.IsFalse(exceptionThrown);
-            }
-            else if (string.IsNullOrEmpty(invocationKey))
+            if (undefined)
             {
                 XAssert.IsTrue(exceptionThrown);
+            }
+            else if (attemptNumber == 1)
+            {
+                XAssert.AreEqual(specifiedKey, chosenInvocationKey);
+                XAssert.IsFalse(exceptionThrown);
+            }
+            else 
+            {
+                // Since the job is rerun we expect the invocation key to be modified.
+                XAssert.AreNotEqual(specifiedKey, chosenInvocationKey);
+                XAssert.Contains(chosenInvocationKey, "jobretry");
+                XAssert.IsFalse(exceptionThrown);
             }
         }
 
@@ -87,55 +81,52 @@ namespace Test.Tool.AdoBuildRunner
         /// Case 2: When the build identifier has been used before, an exception should be thrown to indicate a conflict.
         /// </remarks>
         [Theory]
-        [InlineData(12345)]
-        [InlineData(789)]
-        public async Task TestPublishBuildInfo(int orchestratorBuildId)
+        [InlineData(false)]
+        [InlineData(true)]
+        public async Task TestPublishBuildInfo(bool encounterConflict)
         {
+            var orchestratorBuildId = 12345;
             var exceptionThrown = false;
 
             // Initialize the ADO Build Runner service and other mock services.
-            MockAdoEnvironment.BuildId = orchestratorBuildId;
-            var adoBuildRunnerService = CreateAdoBuildRunnerService();
+            var harness = CreateWorker();
+            harness.AdoEnvironment.BuildId = orchestratorBuildId;
+            harness.Initialize();
+            var adoBuildRunnerService = harness.RunnerService;
 
             // Add the orchestrator parsedOrchestratorBuildId and its properties to the mockServices.
-            MockAdoApiService.AddBuildId(orchestratorBuildId, new Build());
+            MockApiService.AddBuild(orchestratorBuildId, new Build());
 
-            PropertiesCollection buildProperties;
-            if (orchestratorBuildId == 12345)
+            if (encounterConflict)
             {
-                buildProperties = new Microsoft.VisualStudio.Services.WebApi.PropertiesCollection();
-            }
-            else
-            {
-                // Adding the invocationKey as a property for the corresponding parsedOrchestratorBuildId to intentionally create a conflict for the second test case.
-                // This creates the scenario where the invocationKey has already been used, causing PublishBuildInfo method to throw an exception.
-                buildProperties = new()
+                // Adding the invocation key as a property for the corresponding parsedOrchestratorBuildId to intentionally create a conflict for the second test case.
+                // This creates the scenario where the invocation key has already been used, causing PublishBuildInfo method to throw an exception.
+                MockApiService.AddBuildProperties(orchestratorBuildId, new PropertiesCollection()
                 {
-                    {s_invocationKey, "duplicateInvocationKey" }
-                };
+                    { harness.RunnerService.BuildContext.InvocationKey, "duplicateInvocationKey" }
+                });
             }
-            MockAdoApiService.AddBuildProperties(orchestratorBuildId, buildProperties);
 
             try
             {
                 // Attempt to publish build info using the ADO Build Runner service.
                 // This should succeed for unique build IDs and fail for duplicate invocation keys.
-                await adoBuildRunnerService.PublishBuildInfo(CreateTestBuildContext(orchestratorBuildId, s_invocationKey), CreateTestBuildInfo());
+                await adoBuildRunnerService.PublishBuildInfo(CreateTestBuildInfo());
             }
-            catch (Exception ex)
+            catch (CoordinationException ex)
             {
                 // Expect an exception for conflicting build IDs
                 exceptionThrown = true;
                 XAssert.Contains(ex.ToString(), "Identifiers (set through the environment variable");
             }
 
-            if (orchestratorBuildId == 12345)
+            if (!encounterConflict)
             {
                 // Verify that no exception was thrown.
                 XAssert.IsFalse(exceptionThrown);
                 // Check if the build properties contain the serialized orchestrator data.
-                var properties = await MockAdoApiService.GetBuildPropertiesAsync(orchestratorBuildId);
-                XAssert.IsTrue(properties.ContainsValue($"{s_testRelatedSessionId};{s_testOrchestratorLocation}"));
+                var properties = await ((IAdoAPIService)MockApiService).GetBuildPropertiesAsync(orchestratorBuildId);
+                XAssert.IsTrue(properties.ContainsValue($"{TestRelatedSessionId};{TestOrchestratorLocation}"));
             }
             else
             {
@@ -152,40 +143,41 @@ namespace Test.Tool.AdoBuildRunner
             var exceptionThrown = false;
 
             // Orchestrator source branch and source version.
-            var orchestratorSourceBranch = "currentBranch";
-            var orchestratorSourceVersion = "version1.0";
-
-            // Create a mock orchestrator build with the specified source branch and version.
-            var orchestratorBuild = CreateTestBuild(orchestratorSourceBranch, orchestratorSourceVersion, s_orchestratorId);
+            var orchHarness = CreateOrchestrator();
+            orchHarness.AdoEnvironment.LocalSourceVersion = "version1.0";
+            orchHarness.AdoEnvironment.LocalSourceBranch = "currentBranch";
+            orchHarness.Initialize();
 
             // Initialize the ADO Build Runner service and mock services using the helper method.
-            MockAdoEnvironment.LocalSourceBranch = "unexpectedBranch";
-            MockAdoEnvironment.LocalSourceVersion = "version2.0";
-            MockAdoEnvironment.JobId = "10009";
-            var adoBuildRunnerService = CreateAdoBuildRunnerService();
+            var harness = CreateWorker();
+            harness.AdoEnvironment.LocalSourceBranch = "unexpectedBranch";
+            harness.AdoEnvironment.LocalSourceVersion = "version2.0";
+            harness.AdoEnvironment.JobId = "10009";
 
-            // Create the build context for the worker.
-            var buildContext = CreateTestBuildContext(s_workerId, s_invocationKey);
+            harness.Initialize();
+            var adoBuildRunnerService = harness.RunnerService;
 
             // Add the orchestrator build to the mock ADO API service.
-            MockAdoApiService.AddBuildId(int.Parse(s_orchestratorId), orchestratorBuild);
+            // Create a mock orchestrator build with the specified source branch and version.
+            var orchestratorBuild = CreateTestBuild(orchHarness.AdoEnvironment);
+            MockApiService.AddBuild(TestOrchestratorId, orchestratorBuild);
 
             // Add the orchestrator's build ID to the mock ADO API services to indicate it is triggering the worker.
-            MockAdoApiService.AddBuildTriggerProperties(Constants.TriggeringAdoBuildIdParameter, s_orchestratorId);
+            MockApiService.AddBuildTriggerProperties(Constants.TriggeringAdoBuildIdParameter, TestOrchestratorId.ToString());
 
             // Add orchestrator's mock build properties for testing purpose.
             var orchestratorProperties = new PropertiesCollection
             {
-                { s_invocationKey, $"{s_testRelatedSessionId};{s_testOrchestratorLocation}" }
+                { orchHarness.RunnerService.BuildContext.InvocationKey, $"{TestRelatedSessionId};{TestOrchestratorLocation}" }
             };
 
-            MockAdoApiService.AddBuildProperties(int.Parse(s_orchestratorId), orchestratorProperties);
+            MockApiService.AddBuildProperties(TestOrchestratorId, orchestratorProperties);
 
             try
             {
-                var result = await adoBuildRunnerService.WaitForBuildInfo(buildContext);
+                var result = await adoBuildRunnerService.WaitForBuildInfo();
             }
-            catch (Exception ex)
+            catch (CoordinationException ex)
             {
                 // Expect an exception to be thrown.
                 exceptionThrown = true;
@@ -211,51 +203,52 @@ namespace Test.Tool.AdoBuildRunner
             var exceptionThrown = false;
 
             // Orchestrator source branch and source version.
-            var orchestratorSourceBranch = "currentBranch";
-            var orchestratorSourceVersion = "version1.0";
-
-            // Create a mock orchestrator build with the specified source branch and version.
-            var orchestratorBuild = CreateTestBuild(orchestratorSourceBranch, orchestratorSourceVersion, s_orchestratorId);
+            var orchHarness = CreateOrchestrator();
+            orchHarness.AdoEnvironment.LocalSourceBranch = "currentBranch";
+            orchHarness.AdoEnvironment.LocalSourceVersion = "version1.0";
+            orchHarness.Initialize();
 
             // Initialize the ADO Build Runner service and mock services using the helper method.
-            MockAdoEnvironment.LocalSourceBranch = "currentBranch";
-            MockAdoEnvironment.LocalSourceVersion = "version1.0";
-            MockAdoEnvironment.JobId = jobId;
-            var adoBuildRunnerService = CreateAdoBuildRunnerService();
+            var harness = CreateWorker();
+            harness.AdoEnvironment.LocalSourceBranch = orchHarness.AdoEnvironment.LocalSourceBranch;
+            harness.AdoEnvironment.LocalSourceVersion = orchHarness.AdoEnvironment.LocalSourceVersion;
+            harness.AdoEnvironment.JobId = jobId;
+            harness.Initialize();
+            var adoBuildRunnerService = harness.RunnerService;
 
-            // Create the build context for the worker.
-            var buildContext = CreateTestBuildContext(s_workerId, s_invocationKey);
 
+            // Create a mock orchestrator build with the specified source branch and version.
+            var orchestratorBuild = CreateTestBuild(orchHarness.AdoEnvironment);
             // Add the orchestrator build to the mock ADO API service.
-            MockAdoApiService.AddBuildId(int.Parse((string)s_orchestratorId), orchestratorBuild);
+            MockApiService.AddBuild(TestOrchestratorId, orchestratorBuild);
 
             // Add the orchestrator's build ID to the mock ADO API services to indicate it is triggering the worker.
-            MockAdoApiService.AddBuildTriggerProperties(Constants.TriggeringAdoBuildIdParameter, s_orchestratorId);
+            MockApiService.AddBuildTriggerProperties(Constants.TriggeringAdoBuildIdParameter, TestOrchestratorId.ToString());
 
             // Add orchestrator's mock build properties for testing purpose.
-            // When testing for duplicate invocationKey's, we add the invocationKey with different jobId.
+            // When testing for duplicate chosenInvocationKey's, we add the chosenInvocationKey with different jobId.
             PropertiesCollection orchestratorProperties;
             if (!shouldSucceed)
             {
                 orchestratorProperties = new()
                 {
-                    { s_invocationKey + "__workerjobid", "10009" }
+                    { orchHarness.RunnerService.BuildContext.InvocationKey + "__workerjobid", "10009" }
                 };
             }
             else
             {
                 // We assume that the orchestrator has successfully published its address.
-                // Hence we map the invocationKey with the below value.
+                // Hence we map the chosenInvocationKey with the below value.
                 orchestratorProperties = new()
                 {
-                    { s_invocationKey, $"{s_testRelatedSessionId};{s_testOrchestratorLocation}" }
+                    { orchHarness.RunnerService.BuildContext.InvocationKey, $"{TestRelatedSessionId};{TestOrchestratorLocation}" }
                 };
             }
-            MockAdoApiService.AddBuildProperties(int.Parse((string)s_orchestratorId), orchestratorProperties);
+            MockApiService.AddBuildProperties(TestOrchestratorId, orchestratorProperties);
 
             try
             {
-                var result = await adoBuildRunnerService.WaitForBuildInfo(buildContext);
+                var result = await adoBuildRunnerService.WaitForBuildInfo();
             }
             catch (Exception ex)
             {
@@ -284,57 +277,49 @@ namespace Test.Tool.AdoBuildRunner
         [Fact]
         public async Task TestWaitForBuildInfoForMultipleWorkers()
         {
-            var exceptionThrown = false;
-            var buildId = 7890;
             // Orchestrator source branch and source version.
-            var orchestratorSourceBranch = "currentBranch";
-            var orchestratorSourceVersion = "version1.0";
-
-            // Create a mock orchestrator build with the specified source branch and version.
-            var orchestratorBuild = CreateTestBuild(orchestratorSourceBranch, orchestratorSourceVersion, s_orchestratorId);
+            var orchHarness = CreateOrchestrator();
+            orchHarness.AdoEnvironment.LocalSourceBranch = "currentBranch";
+            orchHarness.AdoEnvironment.LocalSourceVersion = "version1.0";
+            orchHarness.Initialize();
 
             // Initialize the ADO Build Runner service and mock services using the helper method.
-            MockAdoEnvironment.LocalSourceBranch = "currentBranch";
-            MockAdoEnvironment.LocalSourceVersion = "version1.0";
-            MockAdoEnvironment.TotalJobsInPhase = 2;
-            MockAdoEnvironment.JobId = "10009";
-            var adoBuildRunnerService = CreateAdoBuildRunnerService();
+            var worker1 = CreateWorker(position: 1, totalWorkers: 2);
+            var worker2 = CreateWorker(position: 2, totalWorkers: 2);
+
+            var i = 1;
+            foreach (var worker in new[] { worker1, worker2 }) 
+            {
+                worker.AdoEnvironment.LocalSourceBranch = orchHarness.AdoEnvironment.LocalSourceBranch;
+                worker.AdoEnvironment.LocalSourceVersion = orchHarness.AdoEnvironment.LocalSourceVersion;
+                worker.AdoEnvironment.JobPositionInPhase = i++;
+                worker.AdoEnvironment.TotalJobsInPhase = 2;
+                worker.AdoEnvironment.JobId = "10009";
+                worker.Initialize();
+            }
 
             // Add the orchestrator build to the mock ADO API service.
-            MockAdoApiService.AddBuildId(int.Parse((string)s_orchestratorId), orchestratorBuild);
+            // Create a mock orchestrator build with the specified source branch and version.
+            var orchestratorBuild = CreateTestBuild(orchHarness.AdoEnvironment);
+            MockApiService.AddBuild(TestOrchestratorId, orchestratorBuild);
 
             // Add the orchestrator's build ID to the mock ADO API services to indicate it is triggering the worker.
-            MockAdoApiService.AddBuildTriggerProperties(Constants.TriggeringAdoBuildIdParameter, s_orchestratorId);
+            MockApiService.AddBuildTriggerProperties(Constants.TriggeringAdoBuildIdParameter, TestOrchestratorId.ToString());
 
             // Add orchestrator's mock build properties for testing purpose.
-            // When testing for duplicate invocationKey's, we add the invocationKey with different jobId.
+            // When testing for duplicate chosenInvocationKey's, we add the chosenInvocationKey with different jobId.
             PropertiesCollection orchestratorProperties;
             // We assume that the orchestrator has successfully published its address.
-            // Hence we map the invocationKey with the below value.
+            // Hence we map the chosenInvocationKey with the below value.
             orchestratorProperties = new()
             {
-                 { s_invocationKey, $"{s_testRelatedSessionId};{s_testOrchestratorLocation}" }
+                 { orchHarness.RunnerService.BuildContext.InvocationKey, $"{TestRelatedSessionId};{TestOrchestratorLocation}" }
             };
 
-            MockAdoApiService.AddBuildProperties(int.Parse((string)s_orchestratorId), orchestratorProperties);
+            MockApiService.AddBuildProperties(TestOrchestratorId, orchestratorProperties);
 
-            try
-            {
-                // Create the build context for the worker1 and worker 2
-                MockAdoEnvironment.JobPositionInPhase = 2;
-                var buildContext2 = CreateTestBuildContext(buildId, s_invocationKey);
-                var worker2BuildInfo = await adoBuildRunnerService.WaitForBuildInfo(buildContext2);
-
-                var buildContext1 = CreateTestBuildContext(buildId, s_invocationKey);
-                MockAdoEnvironment.JobPositionInPhase = 1;
-                var worker1BuildInfo = await adoBuildRunnerService.WaitForBuildInfo(buildContext1);
-            }
-            catch (Exception ex)
-            {
-                exceptionThrown = true;
-                XAssert.Contains(ex.ToString(), "All workers participating in the build");
-            }
-            XAssert.IsFalse(exceptionThrown);
+            var worker2BuildInfo = await worker2.RunnerService.WaitForBuildInfo();
+            var worker1BuildInfo = await worker1.RunnerService.WaitForBuildInfo();
         }
 
         /// <summary>
@@ -347,6 +332,10 @@ namespace Test.Tool.AdoBuildRunner
         {
             // Create build info for the test.
             var buildInfo = CreateTestBuildInfo();
+            var harness = CreateAgent(!isOrchestrator);
+            // Initialize the ADO Build Runner service and mock services using the helper method.
+            harness.Config.InvocationKey = "invocationKey";
+            harness.Initialize();
 
             // Initialize the expected arguments based on whether it's an orchestrator or a worker
             string[] expectedArgs;
@@ -356,10 +345,10 @@ namespace Test.Tool.AdoBuildRunner
                 expectedArgs = new string[]
                 {
                             "/p:BuildXLWorkerAttachTimeoutMin=20",
-                            $"/cacheMiss:{s_invocationKey}",
+                            $"/cacheMiss:{harness.RunnerService.BuildContext.InvocationKey}",
                             "/distributedBuildRole:orchestrator",
                             $"/distributedBuildServicePort:{Constants.MachineGrpcPort}",
-                            $"/relatedActivityId:{s_testRelatedSessionId}",
+                            $"/relatedActivityId:{TestRelatedSessionId}",
                             "arg1",
                             "arg2",
                             "arg3"
@@ -370,7 +359,7 @@ namespace Test.Tool.AdoBuildRunner
                 expectedArgs = new string[]
                 {
                             "/p:BuildXLWorkerAttachTimeoutMin=20",
-                            $"/cacheMiss:{s_invocationKey}",
+                            $"/cacheMiss:{harness.RunnerService.BuildContext.InvocationKey}",
                             $"/distributedBuildRole:worker",
                             $"/distributedBuildServicePort:{Constants.MachineGrpcPort}",
                             $"/distributedBuildOrchestratorLocation:{buildInfo.OrchestratorLocation}:{Constants.MachineGrpcPort}",
@@ -381,80 +370,9 @@ namespace Test.Tool.AdoBuildRunner
                 };
             }
 
-            // Initialize the ADO Build Runner service and mock services using the helper method.
-            var adoBuildRunnerService = CreateAdoBuildRunnerService();
-            MockConfig.InvocationKey = s_invocationKey;
-
-            IBuildExecutor buildExecutor;
-            // Create the build executor.
-            if (isOrchestrator)
-            {
-                buildExecutor = new OrchestratorBuildExecutor(MockLogger, adoBuildRunnerService);
-            }
-            else
-            {
-                buildExecutor = new WorkerBuildExecutor(MockLogger, adoBuildRunnerService);
-            }
-
-            var buildContext = CreateTestBuildContext(123, s_invocationKey);
-
-            if (isOrchestrator)
-            {
-                var orchestratorArgs = buildExecutor.ConstructArguments(buildContext, buildInfo, s_defaultArgs);
-                XAssert.Contains(orchestratorArgs, expectedArgs);
-            }
-            else
-            {
-                var workerArgs = buildExecutor.ConstructArguments(buildContext, buildInfo, s_defaultArgs);
-                XAssert.Contains(workerArgs, expectedArgs);
-            }
+            var adoBuildRunnerService = harness.RunnerService;
+            var args = harness.BuildExecutor.ConstructArguments(buildInfo, TestDefaultArgs);
+            XAssert.Contains(args, expectedArgs);
         }
-
-        /// <summary>
-        /// Creates BuildContext for testing purpose.
-        /// </summary>
-        public BuildContext CreateTestBuildContext(int buildId, string invocationKey)
-        {
-            var buildContext = new BuildContext()
-            {
-                InvocationKey = invocationKey,
-                StartTime = DateTime.UtcNow,
-                BuildId = buildId,
-                AgentMachineName = "testAgentMachine",
-                AgentHostName = $"testAgentMachine.internal.cloudapp.net",
-                SourcesDirectory = "testSourceDir",
-                RepositoryUrl = "testUrl",
-                ServerUrl = "testServerUri",
-                TeamProjectId = "teamProjectId",
-            };
-            return buildContext;
-        }
-
-        /// <summary>
-        /// Creates BuildInfo for testing purpose.
-        /// </summary>
-        public BuildInfo CreateTestBuildInfo()
-        {
-            var buildInfo = new BuildInfo()
-            {
-                RelatedSessionId = s_testRelatedSessionId,
-                OrchestratorLocation = s_testOrchestratorLocation
-            };
-
-            return buildInfo;
-        }
-
-        /// <summary>
-        /// Create Build for testing purpose
-        /// </summary>
-        public Build CreateTestBuild(string sourceBranch, string sourceVersion, string buildId)
-        {
-            Build build = new Build();
-            build.SourceBranch = sourceBranch;
-            build.SourceVersion = sourceVersion;
-            build.Id = int.Parse((string)buildId);
-            return build;
-        }
-
     }
 }

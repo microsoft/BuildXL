@@ -19,7 +19,6 @@ namespace BuildXL.AdoBuildRunner.Build
         private readonly IBuildExecutor m_executor;
 
         private readonly string[] m_buildArguments;
-        private readonly BuildContext m_buildContext;
         private readonly ILogger m_logger;
 
         /// <summary>
@@ -29,15 +28,13 @@ namespace BuildXL.AdoBuildRunner.Build
         /// <param name="adoBuildRunnerService">Interface to interact with VSTS API</param>
         /// <param name="executor">Interface to execute the build engine</param>
         /// <param name="args">Build CLI arguments</param>
-        /// <param name="buildContext">Build context</param>
         /// <param name="logger">Interface to log build info</param>
-        public BuildManager(IAdoBuildRunnerService adoBuildRunnerService, IBuildExecutor executor, BuildContext buildContext, string[] args, ILogger logger)
+        public BuildManager(IAdoBuildRunnerService adoBuildRunnerService, IBuildExecutor executor, string[] args, ILogger logger)
         {
             m_adoBuildRunnerService = adoBuildRunnerService;
             m_executor = executor;
             m_logger = logger;
             m_buildArguments = args;
-            m_buildContext = buildContext;
         }
 
         /// <summary>
@@ -47,9 +44,8 @@ namespace BuildXL.AdoBuildRunner.Build
         public async Task<int> BuildAsync()
         {
             // Possibly extend context with additional info that can influence the build environment as needed
-            m_executor.PrepareBuildEnvironment(m_buildContext);
-
-            var returnCode = await m_executor.ExecuteDistributedBuild(m_buildContext, m_buildArguments);
+            m_executor.PrepareBuildEnvironment();
+            var returnCode = await m_executor.ExecuteDistributedBuild(m_buildArguments);
 
             LogExitCode(returnCode);
 

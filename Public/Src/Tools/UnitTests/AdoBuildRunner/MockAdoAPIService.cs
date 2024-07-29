@@ -15,7 +15,7 @@ namespace Test.Tool.AdoBuildRunner
     /// </summary>
     public class MockAdoAPIService : IAdoAPIService
     {
-        private readonly Dictionary<int, PropertiesCollection> m_adoBuildProperties = new Dictionary<int, PropertiesCollection>();
+        public readonly Dictionary<int, PropertiesCollection> BuildProperties = new Dictionary<int, PropertiesCollection>();
 
         private readonly Dictionary<int, Build> m_adoBuilds = new Dictionary<int, Build>();
 
@@ -40,25 +40,25 @@ namespace Test.Tool.AdoBuildRunner
         /// <summary>
         /// Retrieves the build properties for the specificied buildId and throws if buildId does not exist.
         /// </summary>
-        public Task<PropertiesCollection> GetBuildPropertiesAsync(int buildId)
+        Task<PropertiesCollection> IAdoAPIService.GetBuildPropertiesAsync(int buildId)
         {
             if (m_mockApiException)
             {
                 throw new Exception("Failed to extract build information");
             }
 
-            if (m_adoBuildProperties.ContainsKey(buildId))
+            if (BuildProperties.ContainsKey(buildId))
             {
-                return Task.FromResult(m_adoBuildProperties[buildId]);
+                return Task.FromResult(BuildProperties[buildId]);
             }
 
-            throw new Exception($"Build properties not found for the: {buildId}");
+            throw new Exception($"Build properties not found for the build with id {buildId}");
         }
 
         /// <summary>
         /// Retrieves a build for the specified buildId and throws if the buildId does not exist.
         /// </summary>
-        public Task<Build> GetBuildAsync(int buildId)
+        Task<Build> IAdoAPIService.GetBuildAsync(int buildId)
         {
             if (m_mockApiException)
             {
@@ -70,27 +70,27 @@ namespace Test.Tool.AdoBuildRunner
                 return Task.FromResult(m_adoBuilds[buildId]);
             }
 
-            throw new Exception($"Build not found for the: {buildId}");
+            throw new Exception($"Build not found for the build: {buildId}");
         }
 
         /// <summary>
         /// Updates the build properties for the specified buildId and throws an exception if the buildId does not exist.
         /// </summary>
-        public Task UpdateBuildPropertiesAsync(PropertiesCollection properties, int buildId)
+        Task IAdoAPIService.UpdateBuildPropertiesAsync(PropertiesCollection properties, int buildId)
         {
             if (m_mockApiException)
             {
                 throw new Exception("Failed to extract build information");
             }
 
-            if (!m_adoBuildProperties.ContainsKey(buildId))
+            if (!BuildProperties.ContainsKey(buildId))
             {
                 throw new Exception($"Build properties not found for the: {buildId}");
             }
 
             foreach (var property in properties)
             {
-                m_adoBuildProperties[buildId][property.Key] = property.Value;
+                BuildProperties[buildId][property.Key] = property.Value;
             }
 
             return Task.CompletedTask;
@@ -99,7 +99,7 @@ namespace Test.Tool.AdoBuildRunner
         /// <summary>
         /// Retrieves build trigger information. Simulates an API exception if configured to do so.
         /// </summary>
-        public Task<Dictionary<string, string>> GetBuildTriggerInfoAsync()
+        Task<Dictionary<string, string>> IAdoAPIService.GetBuildTriggerInfoAsync()
         {
             if (m_mockApiException)
             {
@@ -114,21 +114,30 @@ namespace Test.Tool.AdoBuildRunner
         /// </summary>
         public void AddBuildProperties(int buildId, PropertiesCollection properties)
         {
-            m_adoBuildProperties[buildId] = properties;
+            if (!BuildProperties.ContainsKey(buildId))
+            {
+                BuildProperties[buildId] = [];
+            }
+
+            foreach (var kvp in properties)
+            {
+                BuildProperties[buildId].Add(kvp.Key, kvp.Value);
+            }
         }
 
         /// <summary>
         /// Adds or updates a build in the mock service for a specified buildId.
         /// </summary>
-        public void AddBuildId(int buildId, Build build)
+        public void AddBuild(int buildId, Build build)
         {
             m_adoBuilds[buildId] = build;
+            AddBuildProperties(buildId, []); // Any known build has properties, even if empty
         }
 
         /// <summary>
         /// Adds or updates a buildProperties in the mock service for a specified property.
         /// </summary>
-        public void AddBuildTriggerProperties(string  triggerIdProperty, string triggerIdValue)
+        public void AddBuildTriggerProperties(string triggerIdProperty, string triggerIdValue)
         {
             m_buildTriggerProperties[triggerIdProperty] = triggerIdValue;
         }

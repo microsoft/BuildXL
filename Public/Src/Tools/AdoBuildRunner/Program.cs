@@ -72,14 +72,15 @@ namespace BuildXL.AdoBuildRunner
 
                 var adoBuildRunnerService = new AdoBuildRunnerService(configuration, adoEnvironment, logger);
                 await adoBuildRunnerService.GenerateCacheConfigFileIfNeededAsync(logger, configuration, buildArgs);
-                var buildContext = await adoBuildRunnerService.GetBuildContextAsync(adoBuildRunnerService.GetInvocationKey());
+                
+                var buildXLLauncher = new BuildXLLauncher();
                 IBuildExecutor buildExecutor = adoBuildRunnerService.Config.PipelineRole switch
                 {
-                    MachineRole.Orchestrator => new OrchestratorBuildExecutor(logger, adoBuildRunnerService),
-                    MachineRole.Worker => new WorkerBuildExecutor(logger, adoBuildRunnerService),
+                    MachineRole.Orchestrator => new OrchestratorBuildExecutor(buildXLLauncher, adoBuildRunnerService, logger),
+                    MachineRole.Worker => new WorkerBuildExecutor(buildXLLauncher, adoBuildRunnerService, logger),
                     _ => throw new InvalidOperationException($"Invalid Machine Role")
                 };
-                var buildManager = new BuildManager(adoBuildRunnerService, buildExecutor, buildContext, buildArgs.ToArray(), logger);
+                var buildManager = new BuildManager(adoBuildRunnerService, buildExecutor, buildArgs.ToArray(), logger);
                 return await buildManager.BuildAsync();
             }
             catch (CoordinationException e)

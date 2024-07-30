@@ -51,7 +51,12 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
 
             if (!string.IsNullOrEmpty(hostedPoolConfigurationFilePath))
             {
-                var hostedPoolBuildCacheConfiguration = BuildCacheResourceHelper.LoadFromJSONAsync(hostedPoolConfigurationFilePath).GetAwaiter().GetResult();
+                var encryption = configuration.ConnectionStringFileDataProtectionEncrypted
+                    ? BlobCacheCredentialsHelper.FileEncryption.Dpapi
+                    : BlobCacheCredentialsHelper.FileEncryption.None;
+                var credentials = BlobCacheCredentialsHelper.ReadCredentials(new AbsolutePath(hostedPoolConfigurationFilePath), encryption);
+
+                var hostedPoolBuildCacheConfiguration = BuildCacheResourceHelper.LoadFromString(credentials);
 
                 if (!hostedPoolBuildCacheConfiguration.TrySelectBuildCache(configuration.HostedPoolActiveBuildCacheName, out var selectedBuildCacheConfiguration))
                 {

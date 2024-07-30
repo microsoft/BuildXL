@@ -11,7 +11,6 @@ using System.Text;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
-using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Utilities.Collections;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Blob
@@ -24,10 +23,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blob
             Dpapi,
         }
 
-        /// <summary>
-        /// Load credentials from a file.
-        /// </summary>
-        public static Dictionary<BlobCacheStorageAccountName, IAzureStorageCredentials> Load(AbsolutePath path, FileEncryption encryption)
+        public static string ReadCredentials(AbsolutePath path, FileEncryption encryption)
         {
             string credentials;
             switch (encryption)
@@ -39,7 +35,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blob
 #if NET5_0_OR_GREATER
                     if (!OperatingSystem.IsWindows())
                     {
-                        throw new NotSupportedException("Encrypted credentials are only supported on Windows");
+                        throw new NotSupportedException("DPAPI encrypted credentials are only supported on Windows");
                     }
 
                     var bytes = File.ReadAllBytes(path.Path);
@@ -55,9 +51,19 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blob
                     throw new ArgumentOutOfRangeException(nameof(encryption), encryption, null);
             }
             Contract.Assert(!string.IsNullOrEmpty(credentials));
+            return credentials;
+        }
+
+        /// <summary>
+        /// Load credentials from a file.
+        /// </summary>
+        public static Dictionary<BlobCacheStorageAccountName, IAzureStorageCredentials> Load(AbsolutePath path, FileEncryption encryption)
+        {
+            string credentials = ReadCredentials(path, encryption);
 
             return ParseFromFileFormat(credentials);
         }
+
 
         public static Dictionary<BlobCacheStorageAccountName, IAzureStorageCredentials> ParseFromEnvironmentFormat(string environmentVariableContents)
         {

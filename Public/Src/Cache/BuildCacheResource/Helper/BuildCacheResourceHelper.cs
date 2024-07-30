@@ -45,6 +45,21 @@ namespace BuildXL.Cache.BuildCacheResource.Helper
         }
 
         /// <summary>
+        /// <see cref="LoadFromJSONAsync(string)"/>
+        /// </summary>
+        public static HostedPoolBuildCacheConfiguration LoadFromString(string content)
+        {
+            var buildCaches = JsonSerializer.Deserialize<IReadOnlyCollection<BuildCacheConfiguration>>(content);
+
+            if (buildCaches is null)
+            {
+                throw new ArgumentNullException(nameof(content), "The containing JSON is null");
+            }
+
+            return new HostedPoolBuildCacheConfiguration { AssociatedBuildCaches = buildCaches! };
+        }
+
+        /// <summary>
         /// Given a <paramref name="hostedPoolBuildCacheConfiguration"/>, selects the first cache in the collection if <paramref name="hostedPoolActiveBuildCacheName"/> is null. Otherwise, tries to match the given active build
         /// container name against the cache configuration to retrieve the explicitly selected one.
         /// </summary>

@@ -186,7 +186,8 @@ void PTraceSandbox::AttachToProcess(pid_t traceePid, std::string exe, std::strin
     // PTRACE_O_TRACESECCOMP: Enables ptrace events from seccomp on the child
     // PTRACE_O_TRACECLONE/FORK/VFORK: Ptrace will signal on clone/fork/vfork before the syscall returns back to the caller
     // PTRACE_O_TRACEEXIT: ptrace will signal before exit() returns back to the caller.
-    unsigned long options = PTRACE_O_TRACESYSGOOD | PTRACE_O_TRACESECCOMP | PTRACE_O_TRACECLONE | PTRACE_O_TRACEFORK | PTRACE_O_TRACEVFORK | PTRACE_O_TRACEEXIT;
+    // PTRACE_O_EXITKILL: Send a SIGKILL signal to the tracee if the tracer exits to ensure that tracees do not hang if a tracer process dies.
+    unsigned long options = PTRACE_O_TRACESYSGOOD | PTRACE_O_TRACESECCOMP | PTRACE_O_TRACECLONE | PTRACE_O_TRACEFORK | PTRACE_O_TRACEVFORK | PTRACE_O_TRACEEXIT | PTRACE_O_EXITKILL;
 
     int status;
     if (ptrace(PTRACE_SEIZE, traceePid, 0L, options) == -1)

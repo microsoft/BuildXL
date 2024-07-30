@@ -1,3 +1,5 @@
+trigger: none # Triggered only by the rolling pipeline
+
 parameters:
 - name: rmBranch
   type: string

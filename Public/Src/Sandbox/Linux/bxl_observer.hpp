@@ -314,7 +314,7 @@ private:
     }
 
     void relative_to_absolute(const char *pathname, int dirfd, int associatedPid, char *fullPath, const char *systemcall = "");
-    void resolve_path(char *fullpath, bool followFinalSymlink, pid_t associatedPid);
+    void resolve_path(char *fullpath, bool followFinalSymlink, pid_t associatedPid, pid_t associatedParentPid);
     
     /**
      * If possible, resolves relative or file descriptor paths to absolute paths in a SandboxEvent, and returns true. 
@@ -358,7 +358,7 @@ public:
     // Specialization for the exit report event. 
     // We may need to send an exit report on exit handlers after destructors
     // have been called. This method avoids accessing shared structures.
-    bool SendExitReport(pid_t pid = 0);
+    bool SendExitReport(pid_t pid, pid_t ppid);
     char** ensureEnvs(char *const envp[]);
 
     const char* GetProgramPath() { return progFullPath_; }
@@ -368,7 +368,7 @@ public:
 
     bool IsReportingProcessArgs() const { return !fam_ || CheckReportProcessArgs(fam_->GetFlags()); }
 
-    void report_intermediate_symlinks(const char *pathname, pid_t associatedPid);
+    void report_intermediate_symlinks(const char *pathname, pid_t associatedPid, pid_t associatedParentPid);
 
     // Removes detours path from LD_PRELOAD from the given environment and returns the modified environment
     inline char** RemoveLDPreloadFromEnv(char *const envp[])
@@ -437,7 +437,7 @@ public:
     // table properly for the case of pipes when we miss a close.
     std::string fd_to_path(int fd, pid_t associatedPid = 0);
     
-    std::string normalize_path_at(int dirfd, const char *pathname, int oflags = 0, pid_t associatedPid = 0, const char *systemcall = "");
+    std::string normalize_path_at(int dirfd, const char *pathname, pid_t associatedPid, pid_t associatedParentPid, int oflags = 0, const char *systemcall = "");
 
     // Whether the given descriptor is a non-file (e.g., a pipe, or socket, etc.)
     static bool is_non_file(const mode_t mode);
@@ -506,14 +506,14 @@ public:
         }
     }
 
-    std::string normalize_path(const char *pathname, int oflags = 0, pid_t associatedPid = 0)
+    std::string normalize_path(const char *pathname, pid_t associatedPid, pid_t associatedParentPid, int oflags = 0)
     {
         if (pathname == nullptr)
         {
             return empty_str_;
         }
 
-        return normalize_path_at(AT_FDCWD, pathname, oflags, associatedPid);
+        return normalize_path_at(AT_FDCWD, pathname, associatedPid, associatedParentPid, oflags);
     }
 
     bool IsFailingUnexpectedAccesses()

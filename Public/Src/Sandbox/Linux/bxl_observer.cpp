@@ -331,10 +331,10 @@ void BxlObserver::ResolveEventPaths(buildxl::linux::SandboxEvent& event, char *s
     auto requiredResolution = event.GetRequiredPathResolution();
     if (requiredResolution != buildxl::linux::RequiredPathResolution::kDoNotResolve) {
         bool follow_symlink = (requiredResolution == buildxl::linux::RequiredPathResolution::kFullyResolve);
-        resolve_path(src_path, follow_symlink, event.GetPid());
+        resolve_path(src_path, follow_symlink, event.GetPid(), event.GetParentPid());
 
         if (!event.GetDstPath().empty()) {
-            resolve_path(dst_path, follow_symlink, event.GetPid());
+            resolve_path(dst_path, follow_symlink, event.GetPid(), event.GetParentPid());
         }
 
         event.SetResolvedPaths(src_path, dst_path);
@@ -398,7 +398,7 @@ bool BxlObserver::SendReport(buildxl::linux::SandboxEvent &event, buildxl::linux
         }
 
         // CODESYNC: Public/Src/Engine/Processes/SandboxedProcessUnix.cs
-        bool shouldCountReportType = event.GetEventType() != buildxl::linux::EventType::kProcess
+        bool shouldCountReportType = event.GetEventType() != buildxl::linux::EventType::kClone
             && event.GetEventType() != buildxl::linux::EventType::kExec
             && event.GetEventType() != buildxl::linux::EventType::kExit;
 
@@ -491,7 +491,7 @@ bool BxlObserver::IsCacheHit(buildxl::linux::EventType event, const string &path
     // (2) never cache FORK, EXEC, EXIT and events that take 2 paths
     if (disposed_ ||
         secondPath.length() > 0 ||
-        event == buildxl::linux::EventType::kProcess ||
+        event == buildxl::linux::EventType::kClone ||
         event == buildxl::linux::EventType::kExec ||
         event == buildxl::linux::EventType::kExit)
     {
@@ -554,7 +554,7 @@ bool BxlObserver::Send(const char *buf, size_t bufsiz, bool useSecondaryPipe, bo
     return true;
 }
 
-bool BxlObserver::SendExitReport(pid_t pid)
+bool BxlObserver::SendExitReport(pid_t pid, pid_t ppid)
 {
     if (!IsEnabled(pid))
     {
@@ -562,7 +562,7 @@ bool BxlObserver::SendExitReport(pid_t pid)
         return true;
     }
 
-    auto event = buildxl::linux::SandboxEvent::ExitSandboxEvent("exit", GetProgramPath(), pid == 0 ? getpid() : pid);
+    auto event = buildxl::linux::SandboxEvent::ExitSandboxEvent("exit", GetProgramPath(), pid, ppid);
     event.SetSourceAccessCheck(AccessCheckResult(RequestedAccess::Read, ResultAction::Allow, ReportLevel::Report));
 
     return SendReport(event);
@@ -640,6 +640,7 @@ void BxlObserver::report_firstAllowWriteCheck(const char *full_path)
         /* system_call */   "firstAllowWriteCheckInProcess",
         /* event_type */    buildxl::linux::EventType::kFirstAllowWriteCheckInProcess,
         /* pid */           getpid(),
+        /* ppid */          getppid(),
         /* error */         0,
         /* src_path */      full_path);
 
@@ -684,6 +685,7 @@ bool BxlObserver::check_and_report_process_requires_ptrace(const char *path)
             /* system_call */   "ptrace",
             /* event_type */    buildxl::linux::EventType::kPTrace,
             /* pid */           getpid(),
+            /* ppid */          getppid(),
             /* error */         0,
             /* src_path */      path);
         event.SetSourceAccessCheck(AccessCheckResult(RequestedAccess::None, ResultAction::Allow, ReportLevel::Report));
@@ -733,6 +735,7 @@ bool BxlObserver::check_and_report_process_requires_ptrace(const char *path)
             /* system_call */   "ptrace",
             /* event_type */    buildxl::linux::EventType::kPTrace,
             /* pid */           getpid(),
+            /* ppid */          getppid(),
             /* error */         0,
             /* src_path */      path);
         event.SetSourceAccessCheck(AccessCheckResult(RequestedAccess::None, ResultAction::Allow, ReportLevel::Report));
@@ -912,7 +915,7 @@ std::string BxlObserver::fd_to_path(int fd, pid_t associatedPid)
     return path;
 }
 
-void BxlObserver::report_intermediate_symlinks(const char *pathname, pid_t associatedPid)
+void BxlObserver::report_intermediate_symlinks(const char *pathname, pid_t associatedPid, pid_t associatedParentPid)
 {
     if (pathname == nullptr)
     {
@@ -926,10 +929,10 @@ void BxlObserver::report_intermediate_symlinks(const char *pathname, pid_t assoc
     relative_to_absolute(pathname, AT_FDCWD, /* associatedPid */ 0, fullPath); 
 
     // This will report all intermediate symlinks in the path
-    resolve_path(fullPath, /* followFinalSymlink */ true, associatedPid);
+    resolve_path(fullPath, /* followFinalSymlink */ true, associatedPid, associatedParentPid);
 }
 
-std::string BxlObserver::normalize_path_at(int dirfd, const char *pathname, int oflags, pid_t associatedPid, const char *systemcall)
+std::string BxlObserver::normalize_path_at(int dirfd, const char *pathname, pid_t associatedPid, pid_t associatedParentPid, int oflags, const char *systemcall)
 {
     // Observe that dirfd is assumed to point to a directory file descriptor. Under that assumption, it is safe to call fd_to_path for it.
     // TODO: If we wanted to be very defensive, we could also consider the case of some tool invoking any of the *at(... dirfd ...) family with a 
@@ -946,7 +949,7 @@ std::string BxlObserver::normalize_path_at(int dirfd, const char *pathname, int 
     relative_to_absolute(pathname, dirfd, associatedPid, fullPath, systemcall);    
 
     bool followFinalSymlink = (oflags & O_NOFOLLOW) == 0;
-    resolve_path(fullPath, followFinalSymlink, associatedPid);
+    resolve_path(fullPath, followFinalSymlink, associatedPid, associatedParentPid);
 
     return fullPath;
 }
@@ -1005,7 +1008,7 @@ static char* find_prev_slash(char *pStr)
 }
 
 // resolve any intermediate directory symlinks
-void BxlObserver::resolve_path(char *fullpath, bool followFinalSymlink, pid_t associatedPid)
+void BxlObserver::resolve_path(char *fullpath, bool followFinalSymlink, pid_t associatedPid, pid_t associatedParentPid)
 {
     if (fullpath == nullptr || fullpath[0] != '/')
     {
@@ -1090,6 +1093,7 @@ void BxlObserver::resolve_path(char *fullpath, bool followFinalSymlink, pid_t as
             /* system_call */   "_readlink",
             /* event_type */    buildxl::linux::EventType::kReadLink,
             /* pid */           associatedPid,
+            /* ppid */          associatedParentPid,
             /* error */         0,
             /* src_path */      fullpath);
 

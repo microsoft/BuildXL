@@ -11,7 +11,7 @@ namespace linux {
  * Represents the type of event that was intercepted by the sandbox.
  */
 enum class EventType {
-    kProcess = 0,
+    kClone = 0,
     kPTrace,
     kFirstAllowWriteCheckInProcess,
     kExec,

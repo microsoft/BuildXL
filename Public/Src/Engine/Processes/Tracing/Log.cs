@@ -1270,8 +1270,8 @@ namespace BuildXL.Processes.Tracing
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Scheduler,
-            Message = "[{pipDescription}] [Warning] received report from unknown pid: {pid} - {reportDetail}")]
-        internal abstract void ReceivedReportFromUnknownPid(LoggingContext loggingContext, string pipDescription, string pid, string reportDetail);
+            Message = "[{pipDescription}] Received report from unknown pid: {pid}")]
+        internal abstract void ReceivedReportFromUnknownPid(LoggingContext loggingContext, string pipDescription, string pid);
 
         [GeneratedEvent(
             (ushort)LogEventId.ReceivedFileAccessReportBeforeSemaphoreInit,

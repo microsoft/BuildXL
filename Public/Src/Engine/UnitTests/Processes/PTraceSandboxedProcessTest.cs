@@ -87,15 +87,18 @@ namespace Test.BuildXL.Processes
                 .Intersect(expectedAccesses)
                 .ToList();
 
+            // Observe the report path for process start events reflect the path that was there when the report was sent. On Linux, calling exec replaces the image path without changing the process id,
+            // which means that a process start path might differ from the process exit path if an exec happened in between. On the other hand, we make sure that the reported process object (associated
+            // with each report) always reflects the latest path. So let's look at the reported process path to pair start and exit events
             var forksAndExits = result.FileAccesses.ToList()
-                .Where(i => (i.Operation == ReportedFileOperation.Process || i.Operation == ReportedFileOperation.ProcessExit) && i.GetPath(Context.PathTable) == staticProcessArtifact.Path.ToString(Context.PathTable))
-                .Select(i => $"{i.Operation}: '{i.GetPath(Context.PathTable)}'")
+                .Where(i => (i.Operation == ReportedFileOperation.Process || i.Operation == ReportedFileOperation.ProcessExit) && i.Process.Path == staticProcessArtifact.Path.ToString(Context.PathTable))
+                .Select(i => $"{i.Operation}[{i.Process.ProcessId}]: '{i.GetPath(Context.PathTable)}'")
                 .ToList();
 
-            // 4 fork calls inside the statically linked process, and 4 matching exits
-            var expectedForkAndExitCount = 8;
+            // 5 fork calls inside the statically linked process, and 5 matching exits
+            var expectedForkAndExitCount = 10;
 
-            XAssert.IsTrue(forksAndExits.Count() == expectedForkAndExitCount, $"Mismatch in the number of process creations and exits. Expected {expectedForkAndExitCount}, got {forksAndExits.Count()}. Process creations and exits:\n{string.Join("\n", forksAndExits)}");
+            XAssert.IsTrue(forksAndExits.Count() == expectedForkAndExitCount, $"Mismatch in the number of process creations and exits. Expected {expectedForkAndExitCount}, got {forksAndExits.Count()}. Process creations and exits:\n{string.Join("\n", forksAndExits)}.");
             XAssert.IsTrue(intersection.Count == expectedAccesses.Count, $"Ptrace sandbox did not report the following accesses: {string.Join("\n", expectedAccesses.Except(intersection).ToList())}");
         }
 

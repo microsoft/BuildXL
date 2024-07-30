@@ -29,21 +29,49 @@
 #define CHECK_RESULT(res, sys) if (res < 0) { perror(#sys); return EXIT_FAILURE; }
 #define CHECK_RESULT_NULL(res, sys) if (res == nullptr) { perror(#sys); return EXIT_FAILURE; }
 
-int HandleChild(pid_t pid)
+typedef int (* action)();
+
+pid_t clone3()
+{
+    // Example source: https://lkml.org/lkml/2019/10/25/184
+    int pidfd = -1;
+	pid_t parent_tid = -1, pid = -1;
+	struct clone_args args = {0};
+
+	args.parent_tid = ((__u64)((uintptr_t)(&parent_tid))); /* CLONE_PARENT_SETTID */
+	args.pidfd = ((__u64)((uintptr_t)(&pidfd))); /* CLONE_PIDFD */
+	args.flags = CLONE_PIDFD | CLONE_PARENT_SETTID;
+	args.exit_signal = SIGCHLD;
+
+    return syscall(SYS_clone3, &args, sizeof(struct clone_args));
+}
+
+// Takes the pid produced by a clone/fork and waits for the child process to exit. If an exec action is provided, calls the action on the
+// child process, otherwise just makes the child process exit
+int HandleChild(pid_t pid, action exec = nullptr)
 {
     if (pid == 0)
     {
-        exit(EXIT_SUCCESS);
+        if (exec != nullptr)
+        {
+            return exec();
+        }
+        else
+        {
+            return EXIT_SUCCESS;
+        }
     }
     else if (pid == -1)
     {
         return EXIT_FAILURE;
     }
+    else 
+    {
+        int status;
+        waitpid(pid, &status, 0);
 
-    int status;
-    waitpid(pid, &status, 0);
-
-    return EXIT_SUCCESS;
+        return EXIT_SUCCESS;
+    }
 }
 
 GEN_TEST_FN(fork)
@@ -71,17 +99,58 @@ GEN_TEST_FN(clone)
 
 GEN_TEST_FN(clone3)
 {
-    // Example source: https://lkml.org/lkml/2019/10/25/184
-    int pidfd = -1;
-	pid_t parent_tid = -1, pid = -1;
-	struct clone_args args = {0};
+    return HandleChild(clone3());
+}
 
-	args.parent_tid = ((__u64)((uintptr_t)(&parent_tid))); /* CLONE_PARENT_SETTID */
-	args.pidfd = ((__u64)((uintptr_t)(&pidfd))); /* CLONE_PIDFD */
-	args.flags = CLONE_PIDFD | CLONE_PARENT_SETTID;
-	args.exit_signal = SIGCHLD;
+// Probes an absent file in a child process spawned via clone3
+GEN_TEST_FN(clone3WithProbe)
+{
+    auto absentProbe = []()
+    {
+        struct stat stat;
+        lstat("absentFile", &stat);
+        return 0;
+    };
 
-    return HandleChild(syscall(SYS_clone3, &args, sizeof(struct clone_args)));
+    return HandleChild(clone3(), absentProbe);
+}
+
+// Spawns two nested child processes via clone3 and probes an absent file in the most nested one
+GEN_TEST_FN(clone3Nested)
+{
+    auto clone3AndProbe = []() 
+    { 
+        auto absentProbe = []()
+        {
+            struct stat stat;
+            lstat("absentFile", &stat);
+            return 0;
+        };
+
+        return HandleChild(clone3(), absentProbe);
+    };
+
+    return HandleChild(clone3(), clone3AndProbe);
+}
+
+// Spawns two nested child processes via clone3 and do an exec 'echo' in the most nested one
+GEN_TEST_FN(clone3NestedAndExec)
+{
+    auto clone3AndExec = []() 
+    { 
+        auto exec = []()
+        {
+            char buf[PATH_MAX] = "/usr/bin/echo";
+            static char *argv[] = { NULL };
+            execv(buf, argv);
+            
+            return 0;
+        };
+
+        return HandleChild(clone3(), exec);
+    };
+
+    return HandleChild(clone3(), clone3AndExec);
 }
 
 int GetCurrentExe(char *buf, int bufsize)

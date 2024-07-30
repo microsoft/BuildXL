@@ -128,9 +128,13 @@ namespace BuildXL.Processes
         /// <summary>
         /// Parses a string representing a file access
         /// </summary>
+        /// <remarks>
+        /// The parent process id is always set to zero for Windows. For Linux we send out the ppid for making up for some potential missing process start events
+        /// </remarks>
         public static bool TryParse(
             ref string line,
             out uint processId,
+            out uint parentProcessId,
             out uint id,
             out uint correlationId,
             out ReportedFileOperation operation,
@@ -155,7 +159,7 @@ namespace BuildXL.Processes
             operation = ReportedFileOperation.Unknown;
             requestedAccess = RequestedAccess.None;
             status = FileAccessStatus.None;
-            processId = error = 0;
+            processId = parentProcessId = error = 0;
             id = correlationId = 0;
             usn = default;
             explicitlyReported = false;

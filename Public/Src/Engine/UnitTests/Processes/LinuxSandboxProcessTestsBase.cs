@@ -8,6 +8,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
+using BuildXL.Interop.Unix;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
@@ -66,7 +67,8 @@ namespace Test.BuildXL.Processes
             string testName,
             TempFileStorage workingDirectory = null,
             bool unconditionallyEnableLinuxPTraceSandbox = false,
-            bool reportProcessArgs = false)
+            bool reportProcessArgs = false,
+            bool wrapInBash = false)
         {
             workingDirectory ??= new TempFileStorage(canGetFileNames: true);
             using (workingDirectory)
@@ -79,7 +81,8 @@ namespace Test.BuildXL.Processes
                     inputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
                     outputFiles: ReadOnlyArray<FileArtifactWithAttributes>.Empty,
                     outputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
-                    untrackedScopes: ReadOnlyArray<AbsolutePath>.Empty);
+                    untrackedScopes: ReadOnlyArray<AbsolutePath>.Empty,
+                    wrapInBash);
 
                 var processInfo = ToProcessInfo(process, workingDirectory: workingDirectory.RootDirectory);
                 processInfo.FileAccessManifest.ReportFileAccesses = true;
@@ -98,7 +101,7 @@ namespace Test.BuildXL.Processes
             }
         }
 
-        protected Process CreateTestProcess(
+        protected global::BuildXL.Pips.Operations.Process CreateTestProcess(
             PathTable pathTable,
             TempFileStorage tempFileStorage,
             string testName,
@@ -106,7 +109,8 @@ namespace Test.BuildXL.Processes
             ReadOnlyArray<DirectoryArtifact> inputDirectories,
             ReadOnlyArray<FileArtifactWithAttributes> outputFiles,
             ReadOnlyArray<DirectoryArtifact> outputDirectories,
-            ReadOnlyArray<AbsolutePath> untrackedScopes)
+            ReadOnlyArray<AbsolutePath> untrackedScopes,
+            bool wrapInBash = false)
         {
             Contract.Requires(pathTable != null);
             Contract.Requires(tempFileStorage != null);
@@ -119,18 +123,39 @@ namespace Test.BuildXL.Processes
             XAssert.IsTrue(File.Exists(TestProcessExe));
 
             FileArtifact executableFileArtifact = FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, TestProcessExe));
+            FileArtifact bashFileArtifact = FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, UnixPaths.BinBash));
+
             var untrackedList = new List<AbsolutePath>(CmdHelper.GetCmdDependencies(pathTable));
             var allUntrackedScopes = new List<AbsolutePath>(untrackedScopes);
             allUntrackedScopes.AddRange(CmdHelper.GetCmdDependencyScopes(pathTable));
 
-            var inputFilesWithExecutable = new List<FileArtifact>(inputFiles) { executableFileArtifact };
-
+            var inputFilesWithExecutable = new List<FileArtifact>(inputFiles) { executableFileArtifact, bashFileArtifact };
             var arguments = new PipDataBuilder(pathTable.StringTable);
-            arguments.Add("-t");
-            arguments.Add(testName);
+            
+            if (wrapInBash)
+            {
+                using (arguments.StartFragment(PipDataFragmentEscaping.CRuntimeArgumentRules, " "))
+                {
+                    arguments.Add("-c");
+                    
+                    using (arguments.StartFragment(PipDataFragmentEscaping.NoEscaping, " "))
+                    {
+                        arguments.Add(PipDataAtom.FromString("\""));
+                        arguments.Add(executableFileArtifact);
+                        arguments.Add("-t");
+                        arguments.Add(testName);
+                        arguments.Add(PipDataAtom.FromString("\""));
+                    }
+                }
+            }
+            else
+            {
+                arguments.Add("-t");
+                arguments.Add(testName);
+            }
 
-            return new Process(
-                executableFileArtifact,
+            return new global::BuildXL.Pips.Operations.Process(
+                wrapInBash ? bashFileArtifact : executableFileArtifact,
                 AbsolutePath.Create(pathTable, tempFileStorage.RootDirectory),
                 arguments.ToPipData(" ", PipDataFragmentEscaping.NoEscaping),
                 FileArtifact.Invalid,
@@ -169,7 +194,7 @@ namespace Test.BuildXL.Processes
             }
 
             XAssert.IsTrue(matches.ToList().Count == count,
-                $"Did not find expected count ({count}) of file access '{assertString}'{Environment.NewLine}Reported Accesses:{Environment.NewLine}{string.Join(Environment.NewLine, result.result.FileAccesses.Select(fa => $"{fa.Operation}:{fa.ManifestPath.ToString(Context.PathTable)}").ToList())}");
+                $"Did not find expected count ({count}) of file access '{assertString}'{Environment.NewLine}Reported Accesses:{Environment.NewLine}{string.Join(Environment.NewLine, result.result.FileAccesses.Select(fa => $"[{fa.Process.ProcessId}]{fa.Operation}:{fa.ManifestPath.ToString(Context.PathTable)}").ToList())}");
         }
 
         protected Regex GetRegex(string fileOperation, string path) => new Regex($@".*\(\( *{fileOperation}: *[0-9]* *\)\).*{Regex.Escape(path)}.*", RegexOptions.IgnoreCase);

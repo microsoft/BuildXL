@@ -103,14 +103,17 @@ function getMsvcPackage() : StaticDirectory {
 
         const buildToolsDirectories = [
             d`${Context.getMount("ProgramFilesX86").path}/Microsoft Visual Studio/2019/Enterprise/VC/Tools/MSVC`,
+			d`${Context.getMount("ProgramFilesX86").path}/Microsoft Visual Studio/2019/Professional/VC/Tools/MSVC`,
             d`${Context.getMount("ProgramFilesX86").path}/Microsoft Visual Studio/2019/BuildTools/VC/Tools/MSVC`,
             d`${Context.getMount("ProgramFilesX86").path}/Microsoft Visual Studio/2019/Community/VC/Tools/MSVC`,
             d`${Context.getMount("ProgramFilesX86").path}/Microsoft Visual Studio/2019/Preview/VC/Tools/MSVC`,
             d`${Context.getMount("ProgramFilesX86").path}/Microsoft Visual Studio/2022/Enterprise/VC/Tools/MSVC`,
+			d`${Context.getMount("ProgramFilesX86").path}/Microsoft Visual Studio/2022/Professional/VC/Tools/MSVC`,
             d`${Context.getMount("ProgramFilesX86").path}/Microsoft Visual Studio/2022/BuildTools/VC/Tools/MSVC`,
             d`${Context.getMount("ProgramFilesX86").path}/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC`,
             d`${Context.getMount("ProgramFilesX86").path}/Microsoft Visual Studio/2022/Preview/VC/Tools/MSVC`,
             d`${Context.getMount("ProgramFiles").path}/Microsoft Visual Studio/2022/Enterprise/VC/Tools/MSVC`,
+			d`${Context.getMount("ProgramFiles").path}/Microsoft Visual Studio/2022/Professional/VC/Tools/MSVC`,
             d`${Context.getMount("ProgramFiles").path}/Microsoft Visual Studio/2022/BuildTools/VC/Tools/MSVC`,
             d`${Context.getMount("ProgramFiles").path}/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC`,
             d`${Context.getMount("ProgramFiles").path}/Microsoft Visual Studio/2022/Preview/VC/Tools/MSVC`,

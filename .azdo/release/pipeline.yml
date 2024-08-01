@@ -3,6 +3,14 @@ trigger: none # Triggered only by the rolling pipeline
 parameters:
 - name: rmBranch
   type: string
+- name: EnablePublishing
+  type: boolean
+  default: false
+
+variables:
+# The internal YAMLs use this value to skip publishing tasks
+- name: EnablePublishing
+  value: ${{ parameters.EnablePublishing }}
 
 resources:
   repositories:

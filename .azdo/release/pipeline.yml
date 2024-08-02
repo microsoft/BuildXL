@@ -14,6 +14,9 @@ variables:
 
 resources:
   repositories:
+  # CODESYNC:
+  #  [IMPORTANT!] This value (DominoReleaseManagement) must not be changed without
+  #               updating all the references to it in the pipeline templates in the RM repository.
   - repository: DominoReleaseManagement
     type: git
     name: Domino.ReleaseManagement
@@ -31,6 +34,3 @@ resources:
 
 extends:
   template: /pipelines/release/pipeline.yml@DominoReleaseManagement
-  parameters:
-    # The name must match the name in the 'repositories' block.
-    DominoRMResourceName: DominoReleaseManagement

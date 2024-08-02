@@ -3,9 +3,10 @@ trigger: none # Triggered only by the rolling pipeline
 parameters:
 - name: rmBranch
   type: string
+  default: master
 - name: EnablePublishing
   type: boolean
-  default: false
+  default: true
 
 variables:
 # The internal YAMLs use this value to skip publishing tasks

@@ -196,8 +196,19 @@ namespace BuildXL.Scheduler.Cache
         /// <summary>
         /// Ensures that the historic metadata cache is fully loaded before queries to metadata are allowed.
         /// </summary>
-        protected Task EnsureLoadedAsync()
+        /// <returns>
+        /// Return false if cancellation has been requested.
+        /// Throw an exception if HistoricMetadataCache is closed and build is not cancelled.
+        /// Otherwise return true after cache is fully loaded
+        /// </returns>
+        /// <exception cref="BuildXLException"></exception>
+        protected async Task<bool> EnsureLoadedAsync()
         {
+            if (Context.CancellationToken.IsCancellationRequested)
+            {
+                return false;
+            }
+
             if (Closed)
             {
                 throw new BuildXLException("Attempts to load the HistoricMetadataCache should not be made after Close is called.");
@@ -205,7 +216,8 @@ namespace BuildXL.Scheduler.Cache
 
             Volatile.Write(ref LoadStarted, true);
 
-            return LoadTask.Value ?? Task.CompletedTask;
+            await (LoadTask.Value ?? Task.CompletedTask);
+            return true;
         }
 
         /// <inheritdoc />
@@ -265,7 +277,10 @@ namespace BuildXL.Scheduler.Cache
         /// <inheritdoc/>
         public override void TryStoreRemappedContentHash(ContentHash contentHash, ContentHash remappedContentHash)
         {
-            EnsureLoadedAsync().GetAwaiter().GetResult();
+            if(!EnsureLoadedAsync().GetAwaiter().GetResult())
+            {
+                return;
+            }
 
             StoreAccessor?.Use(database =>
             {
@@ -300,7 +315,10 @@ namespace BuildXL.Scheduler.Cache
         /// <inheritdoc/>
         public override ContentHash TryGetMappedContentHash(ContentHash contentHash, HashType hashType)
         {
-            EnsureLoadedAsync().GetAwaiter().GetResult();
+            if (!EnsureLoadedAsync().GetAwaiter().GetResult())
+            {
+                return new ContentHash(HashType.Unknown);
+            }
 
             Contract.Assert(contentHash.IsValid, "ContentHash must be valid");
 

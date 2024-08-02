@@ -19,6 +19,7 @@ using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Storage;
 using BuildXL.Storage.Fingerprints;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Core;
@@ -177,7 +178,12 @@ namespace BuildXL.Scheduler.Cache
             WeakContentFingerprint weak,
             OperationHints hints = default)
         {
-            EnsureLoadedAsync().GetAwaiter().GetResult();
+            if (!EnsureLoadedAsync().GetAwaiter().GetResult())
+            {
+                yield return Task.FromResult(
+                    new Possible<PublishedEntryRef, Failure>(
+                        Context.CancellationToken.CreateFailure()));
+            }
 
             Counters.IncrementCounter(PipCachingCounter.HistoricWeakFingerprintHits);
 
@@ -220,7 +226,10 @@ namespace BuildXL.Scheduler.Cache
             StrongContentFingerprint strongFingerprint,
             OperationHints hints)
         {
-            await EnsureLoadedAsync();
+            if (!await EnsureLoadedAsync())
+            {
+                return new Possible<CacheEntry?, Failure>(Context.CancellationToken.CreateFailure());
+            }
 
             var fullFingerprint = GetFullFingerprint(weakFingerprint, strongFingerprint);
             ContentHash metadataHash;
@@ -281,7 +290,10 @@ namespace BuildXL.Scheduler.Cache
             ContentHash metadataHash,
             ContentHash pathSetHash)
         {
-            await EnsureLoadedAsync();
+            if(!await EnsureLoadedAsync())
+            {
+                new Possible<PipCacheDescriptorV2Metadata>(Context.CancellationToken.CreateFailure());
+            }
 
             if (TryGetContent(metadataHash, out var content))
             {
@@ -308,7 +320,10 @@ namespace BuildXL.Scheduler.Cache
             var possiblyStored = await base.TryStoreMetadataAsync(metadata);
             if (possiblyStored.Succeeded)
             {
-                await EnsureLoadedAsync();
+                if (!await EnsureLoadedAsync())
+                {
+                    return new Possible<ContentHash>(Context.CancellationToken.CreateFailure());
+                }
 
                 var metadataHash = possiblyStored.Result;
                 TryAdd(metadataHash, metadata);
@@ -320,7 +335,10 @@ namespace BuildXL.Scheduler.Cache
         /// <inheritdoc/>
         protected override async Task<Possible<StreamWithLength>> TryLoadAndOpenPathSetStreamAsync(ContentHash pathSetHash, bool avoidRemoteLookups = false)
         {
-            await EnsureLoadedAsync();
+            if (!await EnsureLoadedAsync())
+            {
+                return new Possible<StreamWithLength>(Context.CancellationToken.CreateFailure());
+            }
 
             if (TryGetContent(pathSetHash, out var content))
             {
@@ -361,7 +379,10 @@ namespace BuildXL.Scheduler.Cache
         /// <inheritdoc/>
         protected override async Task<Possible<Unit>> TryStorePathSetContentAsync(ContentHash pathSetHash, MemoryStream pathSetBuffer)
         {
-            await EnsureLoadedAsync();
+            if (!await EnsureLoadedAsync())
+            {
+                new Possible<Unit>(Context.CancellationToken.CreateFailure());
+            }
 
             this.TryAddContent(pathSetHash, ToStorableContent(pathSetBuffer));
             return await base.TryStorePathSetContentAsync(pathSetHash, pathSetBuffer);
@@ -539,7 +560,12 @@ namespace BuildXL.Scheduler.Cache
             bool isExecution,
             bool preservePathCasing)
         {
-            EnsureLoadedAsync().GetAwaiter().GetResult();
+
+            if (!EnsureLoadedAsync().GetAwaiter().GetResult())
+            {
+                return;
+            }
+
             Counters.IncrementCounter(PipCachingCounter.ReportRemoteMetadataCalls);
 
             if (metadata != null && metadataHash.HasValue)
@@ -612,7 +638,10 @@ namespace BuildXL.Scheduler.Cache
         /// </summary>
         private bool TryAdd(ContentHash hash, in ObservedPathSet pathSet, bool preservePathCasing)
         {
-            EnsureLoadedAsync().GetAwaiter().GetResult();
+            if (!EnsureLoadedAsync().GetAwaiter().GetResult())
+            {
+                return false;
+            }
 
             using (Counters.StartStopwatch(PipCachingCounter.HistoricTryAddPathSetDuration))
             {

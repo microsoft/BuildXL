@@ -1076,12 +1076,10 @@ namespace BuildXL.Processes
                     enumeratePattern,
                     method);
 
-            // By reporting created directories as soon as possible we minimize the chance of a race for
-            // long running processes, where a produced directory is already created but the output file
-            // system is notified of this only when the pip finishes
-            // The output file system is eventually notified of this as part of the regular flow under PipExecutor,
-            // this is an optimization to minimize cache misses when MinimalGraphWithAlienFiles is used to
-            // compute the directory enumeration fingerprint, since created directories matter for it.
+            // We need to track directories effectively created by pips. In order to do that, we need to interpret access reports in order,
+            // since we want to understand if the first thing that happened to a directory was a creation or a deletion. We cannot
+            // do this post-pip execution, since structures at that point contain sets (unordered collections) of accesses. So we do it here, as soon
+            // as accesses arrive.
             if (finalPath.IsValid && m_fileSystemView != null)
             {
                 // We want to be sure this is the first time the directory is created (to rule out cases where a pip removes a directory

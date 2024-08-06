@@ -251,8 +251,8 @@ public class BlobCacheTests : TestWithOutput
         var metadata = new BuildCacheContainer() { Name = "metadata", Signature = "?this=is&some=signature", Type = BuildCacheContainerType.Metadata };
         var checkpoint = new BuildCacheContainer() { Name = "checkpoint", Signature = "?this=is&some=signature", Type = BuildCacheContainerType.Checkpoint };
 
-        var shard = new BuildCacheShard() { StorageUri = account, Containers = new List<BuildCacheContainer> { content, metadata, checkpoint } };
-        BuildCacheConfiguration buildCacheConfiguration = new BuildCacheConfiguration() { Name = "MyCache", RetentionPolicyInDays = 5, Shards = new List<BuildCacheShard> { shard } };
+        var shard = new BuildCacheShard() { StorageUrl = account, Containers = new List<BuildCacheContainer> { content, metadata, checkpoint } };
+        BuildCacheConfiguration buildCacheConfiguration = new BuildCacheConfiguration() { Name = "MyCache", RetentionDays = 5, Shards = new List<BuildCacheShard> { shard } };
 
         var naming = new BuildCacheContainerNamingScheme(buildCacheConfiguration);
         var containerSelector = naming.GenerateContainerNameMapping();

@@ -24,11 +24,11 @@ namespace BuildXL.Cache.BuildCacheResource.Helper.UnitTests
             Assert.Equal(2, caches.Count);
 
             Assert.Equal("MyCache", caches[0].Name);
-            Assert.Equal(7, caches[0].RetentionPolicyInDays);
+            Assert.Equal(7, caches[0].RetentionDays);
 
             var shards = caches[0].Shards.ToList();
             Assert.Equal(2, shards.Count);
-            Assert.Equal(new Uri("https://nonexistent.storage.account"), shards[0].StorageUri);
+            Assert.Equal(new Uri("https://nonexistent.storage.account"), shards[0].StorageUrl);
 
             var metadataContainer = shards[0].MetadataContainer;
             var contentContainer = shards[0].ContentContainer;

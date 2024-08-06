@@ -37,7 +37,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
                 var content = new BuildCacheContainer() { Name = "content", Signature = "?some=signature&with=some&random=data", Type = BuildCacheContainerType.Content };
                 var metadata = new BuildCacheContainer() { Name = "metadata", Signature = "?some=signature&with=some&random=data", Type = BuildCacheContainerType.Metadata };
                 var checkpoint = new BuildCacheContainer() { Name = "checkpoint", Signature = "?some=signature&with=some&random=data", Type = BuildCacheContainerType.Checkpoint };
-                var shard = new BuildCacheShard() { Containers = new List<BuildCacheContainer>() { content, metadata, checkpoint }, StorageUri = accountUri };
+                var shard = new BuildCacheShard() { Containers = new List<BuildCacheContainer>() { content, metadata, checkpoint }, StorageUrl = accountUri };
 
                 buildCacheShardMapping = new Dictionary<BlobCacheStorageAccountName, BuildCacheShard>() { { shard.GetAccountName(), shard } };
             }

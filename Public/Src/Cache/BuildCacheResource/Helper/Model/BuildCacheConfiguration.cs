@@ -26,15 +26,14 @@ namespace BuildXL.Cache.BuildCacheResource.Model
         /// <remarks>
         /// This property may become optional in the future
         /// </remarks>
-        [JsonPropertyName("RetentionDays")]
-        public required int? RetentionPolicyInDays
+        public required int? RetentionDays
         {
             get => _retentionPolicyInDays;
             init
             {
                 if (value is not null && value <= 0)
                 {
-                    throw new ArgumentException($"The retention policy for the cache must be a positive value.", nameof(RetentionPolicyInDays));
+                    throw new ArgumentException($"The retention policy for the cache must be a positive value.", nameof(RetentionDays));
                 }
 
                 _retentionPolicyInDays = value;

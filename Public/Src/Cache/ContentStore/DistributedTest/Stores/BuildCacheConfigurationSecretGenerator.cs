@@ -33,7 +33,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.Stores
                 return shard;
             }).ToList();
 
-            return new BuildCacheConfiguration() { Name = cacheName, RetentionPolicyInDays = null, Shards = shards.ToList() };
+            return new BuildCacheConfiguration() { Name = cacheName, RetentionDays = null, Shards = shards.ToList() };
         }
 
         private static BuildCacheShard GenerateShard(BlobServiceClient serviceClient)
@@ -48,7 +48,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test.Stores
 
             return new BuildCacheShard()
             {
-                StorageUri = serviceClient.Uri,
+                StorageUrl = serviceClient.Uri,
                 Containers = new List<BuildCacheContainer> {
                 GenerateContainer(serviceClient, contentName, BuildCacheContainerType.Content),
                 GenerateContainer(serviceClient, metadataName, BuildCacheContainerType.Metadata),

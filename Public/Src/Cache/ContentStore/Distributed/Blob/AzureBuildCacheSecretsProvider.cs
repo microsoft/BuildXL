@@ -34,7 +34,7 @@ public class AzureBuildCacheSecretsProvider : IBlobCacheContainerSecretsProvider
         void addContainer(BuildCacheShard shard, BlobCacheStorageAccountName accountName, BuildCacheContainer container)
         {
             var sasCredential = new AzureSasCredential(container.Signature);
-            _credentials.TryAdd((accountName, container.Name), new ContainerSasStorageCredentials(shard.StorageUri, container.Name, sasCredential));
+            _credentials.TryAdd((accountName, container.Name), new ContainerSasStorageCredentials(shard.StorageUrl, container.Name, sasCredential));
         }
     }
 

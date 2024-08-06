@@ -13,7 +13,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blob
     {
         public static bool TryGetAccountName(this BuildCacheShard shard, [NotNullWhen(true)] out BlobCacheStorageAccountName? accountName)
         {
-            if (AzureStorageUtilities.TryGetAccountName(shard.StorageUri, out var rawAccountName))
+            if (AzureStorageUtilities.TryGetAccountName(shard.StorageUrl, out var rawAccountName))
             {
                 accountName = BlobCacheStorageAccountName.Parse(rawAccountName);
                 return true;
@@ -25,7 +25,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blob
 
         public static BlobCacheStorageAccountName GetAccountName(this BuildCacheShard shard)
         {
-            return BlobCacheStorageAccountName.Parse(AzureStorageUtilities.GetAccountName(shard.StorageUri));
+            return BlobCacheStorageAccountName.Parse(AzureStorageUtilities.GetAccountName(shard.StorageUrl));
         }
     }
 }

@@ -72,7 +72,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                         selectedBuildCacheConfiguration.Shards.Select(shard => shard.GetAccountName()).ToList()),
                     Universe: configuration.Universe,
                     Namespace: configuration.Namespace,
-                    RetentionPolicyInDays: selectedBuildCacheConfiguration.RetentionPolicyInDays,
+                    RetentionPolicyInDays: selectedBuildCacheConfiguration.RetentionDays,
                     IsReadOnly: configuration.IsReadOnly)
                 {
                     BuildCacheConfiguration = selectedBuildCacheConfiguration

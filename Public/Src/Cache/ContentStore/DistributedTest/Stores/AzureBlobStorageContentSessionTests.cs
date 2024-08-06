@@ -400,10 +400,10 @@ public class AzureBlobStorageContentSessionTests : ContentSessionTests
             buildCacheConfiguration = new BuildCacheConfiguration()
             {
                 Name = "MyCache",
-                RetentionPolicyInDays = null,
+                RetentionDays = null,
                 Shards = shards.Select(shard => new BuildCacheShard()
                 {
-                    StorageUri = accountUri,
+                    StorageUrl = accountUri,
                     Containers = CreateContainersAsync(accountUri).GetAwaiter().GetResult(),
                 }).ToList()
             };

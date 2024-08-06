@@ -16,8 +16,7 @@ namespace BuildXL.Cache.BuildCacheResource.Model
         private readonly IReadOnlyCollection<BuildCacheContainer>? _containers;
 
         /// <nodoc/>
-        [JsonPropertyName("StorageUrl")]
-        public required Uri StorageUri { get; init; }
+        public required Uri StorageUrl { get; init; }
 
         /// <summary>
         /// The set of active containers under this storage account
@@ -53,13 +52,17 @@ namespace BuildXL.Cache.BuildCacheResource.Model
         }
 
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
+
         /// <nodoc/>
+        [JsonIgnore]
         public BuildCacheContainer MetadataContainer { get; private set; }
 
         /// <nodoc/>
+        [JsonIgnore]
         public BuildCacheContainer ContentContainer { get; private set; }
 
         /// <nodoc/>
+        [JsonIgnore]
         public BuildCacheContainer CheckpointContainer { get; private set; }
 
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.

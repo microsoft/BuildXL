@@ -605,11 +605,11 @@ namespace BuildXL
 
             hw.WriteOption(
                 "/pipDefaultTimeout:<ms>",
-                Strings.HelpText_DisplayHelp_PipTimeout);
+                Strings.HelpText_DisplayHelp_PipDefaultTimeout);
 
             hw.WriteOption(
                 "/pipDefaultWarningTimeout:<ms>",
-                Strings.HelpText_DisplayHelp_PipWarningTimeout);
+                Strings.HelpText_DisplayHelp_PipDefaultWarningTimeout);
 
             hw.WriteOption(
                 "/pipTimeoutMultiplier:<float>",

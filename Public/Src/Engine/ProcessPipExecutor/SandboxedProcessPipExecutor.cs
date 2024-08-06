@@ -4107,17 +4107,6 @@ namespace BuildXL.ProcessPipExecutor
                 // the same for all of them. We only need to query one of them.
                 ReportedFileAccess firstAccess = entry.Value.First();
 
-                // Discard entries that have a single UnixAbsentProbe report on a path that contains an intermediate directory symlink.
-                // Reason: observed accesses computed here should only contain fully expanded paths to avoid ambiguity;
-                //         on Mac, all access reports except for UnixAbsentProbe report fully expanded paths, so only UnixAbsentProbe paths need to be curated.
-                if (entry.Value.Count == 1
-                    && firstAccess.Operation == ReportedFileOperation.UnixAbsentProbe
-                    && firstAccess.ManifestPath.IsValid
-                    && CheckIfPathContainsSymlinks(firstAccess.ManifestPath.GetParent(m_context.PathTable)))
-                {
-                    Counters.IncrementCounter(SandboxedProcessCounters.DirectorySymlinkPathsDiscardedCount);
-                    continue;
-                }
 
                 bool isPathCandidateToBeOwnedByASharedOpaque = false;
 
@@ -4207,7 +4196,7 @@ namespace BuildXL.ProcessPipExecutor
                 // Absent accesses may still contain reparse points. If we are fully resolving them, keep track of them for further processing
                 if (!hasEnumeration
                     && EnableFullReparsePointResolving(m_configuration, m_pip)
-                    && entry.Value.All(fa => fa.Error == NativeIOConstants.ErrorPathNotFound))
+                    && entry.Value.All(fa => (fa.Error == NativeIOConstants.ErrorPathNotFound || fa.Error == NativeIOConstants.ErrorFileNotFound)))
                 {
                     maybeUnresolvedAbsentAccesses.Add(entry.Key);
                 }

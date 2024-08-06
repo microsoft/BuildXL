@@ -54,7 +54,6 @@ enum class FileOperation {
     kRemoveDirectory,
     kClose,
     kProbe,
-    kUnixAbsentProbe, // This operation is something leftover from macOS previously named MacLookup that needs to be cleaned up in the future, but is a bit complicated
     kMax,
 };
 

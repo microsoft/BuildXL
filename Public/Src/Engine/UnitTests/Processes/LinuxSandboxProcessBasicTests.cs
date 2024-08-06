@@ -893,7 +893,7 @@ namespace Test.BuildXL.Processes
 
                 // Retrieve the absent probe that happened under clone3
                 var probe = result.result.FileAccesses.Single(
-                    access => access.Operation == ReportedFileOperation.UnixAbsentProbe && access.GetPath(Context.PathTable).EndsWith("absentFile"));
+                    access => access.Operation == ReportedFileOperation.Probe && access.GetPath(Context.PathTable).EndsWith("absentFile"));
 
                 // The probe should get assigned the parent process path
                 Assert.Equal(TestProcessExe, probe.Process.Path);
@@ -918,7 +918,7 @@ namespace Test.BuildXL.Processes
 
                 // Retrieve the directory probe that happened under the (nested) clone3
                 var probe = result.result.FileAccesses.Single(
-                    access => access.Operation == ReportedFileOperation.UnixAbsentProbe && access.GetPath(Context.PathTable).EndsWith("absentFile"));
+                    access => access.Operation == ReportedFileOperation.Probe && access.GetPath(Context.PathTable).EndsWith("absentFile"));
 
                 // The probe should get assigned the ancestor process path
                 Assert.Equal(TestProcessExe, probe.Process.Path);

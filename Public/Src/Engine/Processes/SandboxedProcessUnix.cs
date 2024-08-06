@@ -801,21 +801,6 @@ namespace BuildXL.Processes
                             m_processExitReceived = true;
                         }
 
-                        // special handling for UnixAbsentProbe:
-                        //   - don't report for existent paths (because for those paths other reports will follow)
-                        //   - otherwise, set report.RequestAccess to Probe (because the Sandbox reports 'AbsentProbe', but BXL expects 'Probe'),
-                        if (report.FileOperation == ReportedFileOperation.UnixAbsentProbe)
-                        {
-                            if (FileUtilities.Exists(reportPath))
-                            {
-                                return;
-                            }
-                            else
-                            {
-                                report.RequestedAccess = RequestedAccess.Probe;
-                            }
-                        }
-
                         if (report.FileOperation == ReportedFileOperation.ProcessTreeCompletedAck)
                         {
                             m_pendingReports.Complete();

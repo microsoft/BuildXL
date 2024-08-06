@@ -291,7 +291,7 @@ namespace Test.BuildXL.Processes
                     ? new[] { ReportedFileOperation.CreateFile }
                     : expected.Exists
                         ? new[] { ReportedFileOperation.ReadFile }
-                        : new[] { ReportedFileOperation.UnixAbsentProbe };
+                        : new[] { ReportedFileOperation.Probe };
 
                 XAssert.Contains(allowedOperations, actualReport.Operation);
             }

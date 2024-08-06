@@ -86,13 +86,6 @@ namespace BuildXL.Processes
             /// </summary>
             Probe,
             /// <summary>
-            /// Represents a read operation for a file that does not exist.
-            /// </summary>
-            /// <remarks>
-            /// This is a special case that was leftover from the macOS sandbox implementation.
-            /// </remarks>
-            UnixAbsentProbe,
-            /// <summary>
             /// Maximum value of the enum.
             /// </summary>
             Max,
@@ -122,7 +115,6 @@ namespace BuildXL.Processes
                 Operations.RemoveDirectory => ReportedFileOperation.RemoveDirectory,
                 Operations.Close => ReportedFileOperation.Close,
                 Operations.Probe => ReportedFileOperation.Probe,
-                Operations.UnixAbsentProbe => ReportedFileOperation.UnixAbsentProbe,
                 _ => throw new Exception($"Unsupported operation {op}"),
             };
         }

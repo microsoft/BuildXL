@@ -38,9 +38,6 @@ namespace BuildXL.Utilities.Configuration
         /// <summary>
         /// Whether <see cref="IUnsafeSandboxConfiguration.EnableFullReparsePointResolving"/> is enabled and we are in a Windows-based OS
         /// </summary>
-        /// <remarks>
-        /// Mac already resolves all reparse point in its sandbox, and doesn't need post-processing since MacLookup operations are just ignored.
-        /// </remarks>
         public static bool EnableFullReparsePointResolving(this IUnsafeSandboxConfiguration configuration) =>
             ((configuration.EnableFullReparsePointResolving ?? DefaultEnableFullReparsePointResolving) || !configuration.IgnoreFullReparsePointResolving);
 

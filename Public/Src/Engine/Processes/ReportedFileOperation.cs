@@ -283,13 +283,5 @@ namespace BuildXL.Processes
         /// Generic probe file system call.
         /// </summary>
         Probe,
-
-        /// <summary>
-        /// Represents a read operation for a file that does not exist.
-        /// </summary>
-        /// <remarks>
-        /// Previously named MacLookup.
-        /// </remarks>
-        UnixAbsentProbe,
     }
 }

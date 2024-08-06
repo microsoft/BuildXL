@@ -68,12 +68,6 @@ namespace BuildXL.Processes
             DirectorySymlinkPathsCheckedCount,
 
             /// <summary>
-            /// Number of paths with directory symlinks that were discarded
-            /// </summary>
-            [CounterType(CounterType.Numeric)]
-            DirectorySymlinkPathsDiscardedCount,
-
-            /// <summary>
             /// Duration of lazily deleting shared opaque outputs (when enabled)
             /// </summary>
             [CounterType(CounterType.Stopwatch)]

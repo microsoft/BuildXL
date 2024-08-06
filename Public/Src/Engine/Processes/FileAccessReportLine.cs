@@ -102,8 +102,7 @@ namespace BuildXL.Processes
                 { FileOperationLinux.Operations.CreateHardlinkDest.ToString(), ReportedFileOperation.CreateHardlinkDest },
                 { FileOperationLinux.Operations.OpenDirectory.ToString(), ReportedFileOperation.OpenDirectory },
                 { FileOperationLinux.Operations.Close.ToString(), ReportedFileOperation.Close },
-                { FileOperationLinux.Operations.Probe.ToString(), ReportedFileOperation.Probe },
-                { FileOperationLinux.Operations.UnixAbsentProbe.ToString(), ReportedFileOperation.UnixAbsentProbe }
+                { FileOperationLinux.Operations.Probe.ToString(), ReportedFileOperation.Probe }
             };
 
         private static readonly Dictionary<MemoryString, ReportedFileOperation> s_memoryStringBasedOperations = 

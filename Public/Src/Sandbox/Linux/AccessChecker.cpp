@@ -31,17 +31,17 @@ PolicySearchCursor AccessChecker::FindManifestRecord(const buildxl::common::File
     return FindFileAccessPolicyInTreeEx(fam->GetUnixManifestTreeRoot(), path_without_root_sentinel, len);
 }
 
-std::tuple<AccessCheckResult, PolicyResult> AccessChecker::GetResult(const buildxl::common::FileAccessManifest *fam, CheckerType checker, const char* path, bool is_directory) {
+std::tuple<AccessCheckResult, PolicyResult> AccessChecker::GetResult(const buildxl::common::FileAccessManifest *fam, CheckerType checker, const char* path, bool is_directory, bool exists) {
     auto policy = PolicyForPath(fam, path);
     AccessCheckResult result = AccessCheckResult::Invalid();
 
-    PerformAccessCheck(checker, policy, is_directory, &result);
+    PerformAccessCheck(checker, policy, is_directory, exists, &result);
 
     return { result, policy };
 }
 
 AccessCheckResult AccessChecker::GetAccessCheckAndSetProperties(const buildxl::common::FileAccessManifest *fam, buildxl::linux::SandboxEvent &event, CheckerType checker) {
-    auto [result, policy] = GetResult(fam, checker, event.GetSrcPath().c_str(), event.IsDirectory());
+    auto [result, policy] = GetResult(fam, checker, event.GetSrcPath().c_str(), event.IsDirectory(), event.PathExists());
     event.SetSourceAccessCheck(result);
     return result;
 }
@@ -104,14 +104,14 @@ AccessCheckResult AccessChecker::HandleProcessExit(const buildxl::common::FileAc
 AccessCheckResult AccessChecker::HandleOpen(const buildxl::common::FileAccessManifest *fam, buildxl::linux::SandboxEvent &event) {
     CheckerType checker = event.PathExists()
         ? event.IsDirectory() ? CheckerType::kEnumerateDir : CheckerType::kRead
-        : CheckerType::kUnixAbsentProbe;
+        : CheckerType::kProbe;
 
     event.SetSourceFileOperation(
         event.PathExists()
         ? event.IsDirectory()
             ? buildxl::linux::FileOperation::kOpenDirectory
             : buildxl::linux::FileOperation::kReadFile
-        : buildxl::linux::FileOperation::kUnixAbsentProbe
+        : buildxl::linux::FileOperation::kProbe
     );
 
     return GetAccessCheckAndSetProperties(fam, event, checker);
@@ -147,8 +147,8 @@ AccessCheckResult AccessChecker::HandleLink(const buildxl::common::FileAccessMan
     event.SetSourceFileOperation(buildxl::linux::FileOperation::kCreateHardlinkSource);
     event.SetDestinationFileOperation(buildxl::linux::FileOperation::kCreateHardlinkDest);
 
-    auto source = GetResult(fam, CheckerType::kRead, event.GetSrcPath().c_str(), event.IsDirectory());
-    auto destination = GetResult(fam, CheckerType::kWrite, event.GetDstPath().c_str(), event.IsDirectory());
+    auto source = GetResult(fam, CheckerType::kRead, event.GetSrcPath().c_str(), event.IsDirectory(), event.PathExists());
+    auto destination = GetResult(fam, CheckerType::kWrite, event.GetDstPath().c_str(), event.IsDirectory(), event.PathExists());
     auto combined_access_check = AccessCheckResult::Combine(std::get<0>(source), std::get<0>(destination));
     
     event.SetSourceAccessCheck(std::get<0>(source));
@@ -165,8 +165,8 @@ AccessCheckResult AccessChecker::HandleUnlink(const buildxl::common::FileAccessM
 }
 
 AccessCheckResult AccessChecker::HandleReadlink(const buildxl::common::FileAccessManifest *fam, buildxl::linux::SandboxEvent &event) {
-    event.SetSourceFileOperation(event.PathExists() ? buildxl::linux::FileOperation::kReadlink : buildxl::linux::FileOperation::kUnixAbsentProbe);
-    return GetAccessCheckAndSetProperties(fam, event, event.PathExists() ? CheckerType::kRead : CheckerType::kUnixAbsentProbe);
+    event.SetSourceFileOperation(event.PathExists() ? buildxl::linux::FileOperation::kReadlink : buildxl::linux::FileOperation::kProbe);
+    return GetAccessCheckAndSetProperties(fam, event, event.PathExists() ? CheckerType::kRead : CheckerType::kProbe);
 }
 
 AccessCheckResult AccessChecker::HandleRename(const buildxl::common::FileAccessManifest *fam, buildxl::linux::SandboxEvent &event) {
@@ -179,8 +179,8 @@ AccessCheckResult AccessChecker::HandleRename(const buildxl::common::FileAccessM
         event.SetDestinationFileOperation(buildxl::linux::FileOperation::kCreateFile);
     }
 
-    auto source = GetResult(fam, CheckerType::kWrite, event.GetSrcPath().c_str(), event.IsDirectory());
-    auto destination = GetResult(fam, CheckerType::kWrite, event.GetDstPath().c_str(), event.IsDirectory());
+    auto source = GetResult(fam, CheckerType::kWrite, event.GetSrcPath().c_str(), event.IsDirectory(), event.PathExists());
+    auto destination = GetResult(fam, CheckerType::kWrite, event.GetDstPath().c_str(), event.IsDirectory(), event.PathExists());
     auto combined_access_check = AccessCheckResult::Combine(std::get<0>(source), std::get<0>(destination));
 
     event.SetSourceAccessCheck(std::get<0>(source));
@@ -195,19 +195,19 @@ AccessCheckResult AccessChecker::HandleGenericWrite(const buildxl::common::FileA
 }
 
 AccessCheckResult AccessChecker::HandleGenericRead(const buildxl::common::FileAccessManifest *fam, buildxl::linux::SandboxEvent &event) {
-    event.SetSourceFileOperation(event.PathExists() ? buildxl::linux::FileOperation::kReadFile : buildxl::linux::FileOperation::kUnixAbsentProbe);
-    return GetAccessCheckAndSetProperties(fam, event, event.PathExists() ? CheckerType::kRead : CheckerType::kUnixAbsentProbe);
+    event.SetSourceFileOperation(event.PathExists() ? buildxl::linux::FileOperation::kReadFile : buildxl::linux::FileOperation::kProbe);
+    return GetAccessCheckAndSetProperties(fam, event, event.PathExists() ? CheckerType::kRead : CheckerType::kProbe);
 }
 
 AccessCheckResult AccessChecker::HandleGenericProbe(const buildxl::common::FileAccessManifest *fam, buildxl::linux::SandboxEvent &event) {
-    event.SetSourceFileOperation(event.PathExists() ? buildxl::linux::FileOperation::kProbe : buildxl::linux::FileOperation::kUnixAbsentProbe);
-    return GetAccessCheckAndSetProperties(fam, event, event.PathExists() ? CheckerType::kProbe : CheckerType::kUnixAbsentProbe);
+    event.SetSourceFileOperation(event.PathExists() ? buildxl::linux::FileOperation::kProbe : buildxl::linux::FileOperation::kProbe);
+    return GetAccessCheckAndSetProperties(fam, event, event.PathExists() ? CheckerType::kProbe : CheckerType::kProbe);
 }
 
 /**
  * Checker Functions
  */
-void AccessChecker::PerformAccessCheck(CheckerType type, PolicyResult policy, bool is_dir, AccessCheckResult *check_result) {
+void AccessChecker::PerformAccessCheck(CheckerType type, PolicyResult policy, bool is_dir, bool exists, AccessCheckResult *check_result) {
     switch(type) {
         case CheckerType::kExecute:
             CheckExecute(policy, is_dir, check_result);
@@ -219,10 +219,7 @@ void AccessChecker::PerformAccessCheck(CheckerType type, PolicyResult policy, bo
             CheckWrite(policy, is_dir, check_result);
             break;
         case CheckerType::kProbe:
-            CheckProbe(policy, is_dir, check_result);
-            break;
-        case CheckerType::kUnixAbsentProbe:
-            CheckUnixAbsentProbe(policy, is_dir, check_result);
+            CheckProbe(policy, is_dir, exists, check_result);
             break;
         case CheckerType::kEnumerateDir:
             CheckEnumerateDir(policy, is_dir, check_result);
@@ -234,7 +231,7 @@ void AccessChecker::PerformAccessCheck(CheckerType type, PolicyResult policy, bo
             CheckCreateDirectory(policy, is_dir, check_result);
             break;
         case CheckerType::kCreateDirectoryNoEnforcement:
-            CheckCreateDirectoryNoEnforcement(policy, is_dir, check_result);
+            CheckCreateDirectoryNoEnforcement(policy, is_dir, exists, check_result);
             break;
         default:
             assert(false && "Invalid CheckerType");
@@ -250,13 +247,10 @@ void AccessChecker::CheckExecute(PolicyResult policy, bool is_dir, AccessCheckRe
     *check_result = policy.CheckReadAccess(requestedAccess, FileReadContext(FileExistence::Existent, is_dir));
 }
 
-void AccessChecker::CheckProbe(PolicyResult policy, bool is_dir, AccessCheckResult *check_result) {
-    *check_result = policy.CheckReadAccess(RequestedReadAccess::Probe, FileReadContext(FileExistence::Existent, is_dir));
-}
-
-void AccessChecker::CheckUnixAbsentProbe(PolicyResult policy, bool is_dir, AccessCheckResult *check_result) {
-    *check_result = policy.CheckReadAccess(RequestedReadAccess::Probe, FileReadContext(FileExistence::Nonexistent));
-    check_result->Access = RequestedAccess::Lookup;
+void AccessChecker::CheckProbe(PolicyResult policy, bool is_dir, bool exists, AccessCheckResult *check_result) {
+    *check_result = policy.CheckReadAccess(
+        RequestedReadAccess::Probe, 
+        exists ? FileReadContext(FileExistence::Existent, is_dir) : FileReadContext(FileExistence::Nonexistent));
 }
 
 void AccessChecker::CheckRead(PolicyResult policy, bool is_dir, AccessCheckResult *check_result) {
@@ -289,11 +283,11 @@ void AccessChecker::CheckCreateDirectory(PolicyResult policy, bool is_dir, Acces
     *check_result = policy.CheckCreateDirectoryAccess();
 }
 
-void AccessChecker::CheckCreateDirectoryNoEnforcement(PolicyResult policy, bool is_dir, AccessCheckResult *check_result) {
+void AccessChecker::CheckCreateDirectoryNoEnforcement(PolicyResult policy, bool is_dir, bool exists, AccessCheckResult *check_result) {
     // CODESYNC: CreateDirectoryW in DetouredFunctions.cpp
     *check_result = policy.CheckCreateDirectoryAccess();
     if (check_result->ShouldDenyAccess()) {
-        CheckProbe(policy, is_dir, check_result);
+        CheckProbe(policy, is_dir, exists, check_result);
     }
 }
 

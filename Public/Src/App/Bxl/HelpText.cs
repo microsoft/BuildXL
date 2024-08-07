@@ -42,7 +42,7 @@ namespace BuildXL
             #region Build
             hw.WriteOption(
                 "/config:<file>",
-                Strings.HelpText_DisplayHelp_ConfigFile);
+                Strings.HelpText_DisplayHelp_Config);
 
             hw.WriteOption(
                 "/additionalConfigFile:<file>*",
@@ -51,11 +51,11 @@ namespace BuildXL
 
             hw.WriteOption(
                 "/qualifier:<qualifier list>",
-                Strings.HelpText_DisplayHelp_Qualifiers);
+                Strings.HelpText_DisplayHelp_Qualifier);
 
             hw.WriteOption(
                 "/objectDirectory:<output directory>",
-                Strings.HelpText_DisplayHelp_Obj);
+                Strings.HelpText_DisplayHelp_ObjectDirectory);
 
             hw.WriteOption(
                 "/tempDirectory:<temp directory>",
@@ -255,12 +255,12 @@ namespace BuildXL
 
             hw.WriteOption(
                 "/logFileAccessTables[+|-]",
-                Strings.HelpText_DisplayHelp_LogFileEnforcementTables,
+                Strings.HelpText_DisplayHelp_LogFileAccessTables,
                 HelpLevel.Verbose);
 
             hw.WriteOption(
                 "/logObservedFileAccesses[+|-]",
-                Strings.HelpText_DisplayHelp_LogObservedAccesses,
+                Strings.HelpText_DisplayHelp_LogObservedFileAccesses,
                 HelpLevel.Verbose);
 
             hw.WriteOption(
@@ -480,11 +480,6 @@ namespace BuildXL
                 HelpLevel.Verbose);
 
             hw.WriteOption(
-                "/determinismProbe[+|-]",
-                Strings.HelpText_DisplayHelp_DeterminismProbeUsage,
-                HelpLevel.Verbose);
-
-            hw.WriteOption(
                 "/engineCacheDirectory:<engine cache directory>",
                 Strings.HelpText_DisplayHelp_EngineCacheDirectory,
                 HelpLevel.Verbose);
@@ -575,7 +570,7 @@ namespace BuildXL
             #region ExecutionControl
             hw.WriteOption(
                 "/unsafe_AllowDuplicateTemporaryDirectory[+|-]",
-                Strings.HelpText_DisplayHelp_AllowDuplicateTemporaryDirectory);
+                Strings.HelpText_DisplayHelp_Unsafe_AllowDuplicateTemporaryDirectory);
 
             hw.WriteOption(
                 "/incremental[+|-]",
@@ -684,7 +679,7 @@ namespace BuildXL
 
             hw.WriteOption(
                 "/minAvailableRamMb:<number>",
-                Strings.HelpText_DisplayHelp_MinAvailableRam,
+                Strings.HelpText_DisplayHelp_MinAvailableRamMb,
                 HelpLevel.Verbose);
 
             hw.WriteOption(
@@ -782,7 +777,7 @@ namespace BuildXL
 
             hw.WriteOption(
                 "/unsafe_forceSkipDeps[+|-]",
-                Strings.HelpText_DisplayHelp_ForceSkipDependencies,
+                Strings.HelpText_DisplayHelp_Unsafe_ForceSkipDeps,
                 HelpLevel.Verbose);
 
             hw.WriteOption(
@@ -812,7 +807,7 @@ namespace BuildXL
 
             hw.WriteOption(
                 "/unsafe_AllowCopySymlink[+|-]",
-                Strings.HelpText_DisplayHelp_AllowCopySymlink,
+                Strings.HelpText_DisplayHelp_Unsafe_AllowCopySymlink,
                 HelpLevel.Verbose);
 
             hw.WriteOption(
@@ -969,7 +964,7 @@ namespace BuildXL
 
             hw.WriteOption(
                 "/enableWorkerSourceFileMaterialization[+|-]",
-                Strings.HelpText_DisplayHelp_DistributedBuildWorkerSourceMaterialization,
+                Strings.HelpText_DisplayHelp_EnableWorkerSourceFileMaterialization,
                 HelpLevel.Verbose);
 
             hw.WriteOption(
@@ -1039,57 +1034,52 @@ namespace BuildXL
                 HelpLevel.Verbose);
 
             hw.WriteOption(
-                "/unsafe_AllowMissingOutput:<filename>",
-                Strings.HelpText_DisplayHelp_AllowMissingOutputs,
-                HelpLevel.Verbose);
-
-            hw.WriteOption(
                 "/TranslateDirectory:<fromPath>::<toPath>",
                 Strings.HelpText_DisplayHelp_TranslateDirectory,
                 HelpLevel.Verbose);
 
             hw.WriteOption(
                 "/unsafe_MonitorFileAccesses[+|-]",
-                Strings.HelpText_DisplayHelp_EnforceFileAccesses);
+                Strings.HelpText_DisplayHelp_Unsafe_MonitorFileAccesses);
 
             hw.WriteOption(
                 "/unsafe_IgnoreZwRenameFileInformation[+|-]",
-                Strings.HelpText_DisplayHelp_IgnoreZwRenameFileInformation,
+                Strings.HelpText_DisplayHelp_Unsafe_IgnoreZwRenameFileInformation,
                 HelpLevel.Verbose);
 
             hw.WriteOption(
                 "/unsafe_IgnoreZwOtherFileInformation[+|-]",
-                Strings.HelpText_DisplayHelp_IgnoreZwOtherFileInformation,
+                Strings.HelpText_DisplayHelp_Unsafe_IgnoreZwOtherFileInformation,
                 HelpLevel.Verbose);
 
             hw.WriteOption(
                 "/unsafe_IgnoreNonCreateFileReparsePoints[+|-]",
-                Strings.HelpText_DisplayHelp_IgnoreNonCreateFileReparsePoints,
+                Strings.HelpText_DisplayHelp_Unsafe_IgnoreNonCreateFileReparsePoints,
                 HelpLevel.Verbose);
 
             hw.WriteOption(
                 "/unsafe_IgnoreSetFileInformationByHandle[+|-]",
-                Strings.HelpText_DisplayHelp_IgnoreSetFileInformationByHandle,
+                Strings.HelpText_DisplayHelp_Unsafe_IgnoreSetFileInformationByHandle,
                 HelpLevel.Verbose);
 
             hw.WriteOption(
                 "/unsafe_IgnoreReparsePoints[+|-]",
-                Strings.HelpText_DisplayHelp_IgnoreReparsePoints,
+                Strings.HelpText_DisplayHelp_Unsafe_IgnoreReparsePoints,
                 HelpLevel.Verbose);
 
             hw.WriteOption(
                 "/unsafe_IgnoreFullReparsePointResolving[+|-]",
-                Strings.HelpText_DisplayHelp_IgnoreFullReparsePointResolving,
+                Strings.HelpText_DisplayHelp_Unsafe_IgnoreFullReparsePointResolving,
                 HelpLevel.Verbose);
 
             hw.WriteOption(
                 "/unsafe_IgnorePreloadedDlls[+|-]",
-                Strings.HelpText_DisplayHelp_IgnorePreloadedDlls,
+                Strings.HelpText_DisplayHelp_Unsafe_IgnorePreloadedDlls,
                 HelpLevel.Verbose);
 
             hw.WriteOption(
                 "/unsafe_IgnoreDynamicWritesOnAbsentProbes[+|-|:IgnoreNothing|:IgnoreDirectoryProbes|:IgnoreFileProbes|:IgnoreAll]",
-                Strings.HelpText_DisplayHelp_IgnoreDynamicWritesOnAbsentProbes,
+                Strings.HelpText_DisplayHelp_Unsafe_IgnoreDynamicWritesOnAbsentProbes,
                 HelpLevel.Verbose);
 
             hw.WriteOption(
@@ -1099,7 +1089,7 @@ namespace BuildXL
 
             hw.WriteOption(
                 "/unsafe_DisableDetours[+|-]",
-                Strings.HelpText_DisplayHelp_DisableDetours,
+                Strings.HelpText_DisplayHelp_Unsafe_DisableDetours,
                 HelpLevel.Verbose);
 
             hw.WriteOption(
@@ -1124,42 +1114,42 @@ namespace BuildXL
 
             hw.WriteOption(
                 "/unsafe_ExistingDirectoryProbesAsEnumerations[+|-]",
-                Strings.HelpText_DisplayHelp_ExistingDirectoryProbesAsEnumerations,
+                Strings.HelpText_DisplayHelp_Unsafe_ExistingDirectoryProbesAsEnumerations,
                 HelpLevel.Verbose);
 
             hw.WriteOption(
                 "/unsafe_ignoreGetFinalPathNameByHandle[+|-]",
-                Strings.HelpText_DisplayHelp_IgnoreGetFinalPathNameByHandle,
+                Strings.HelpText_DisplayHelp_Unsafe_IgnoreGetFinalPathNameByHandle,
                 HelpLevel.Verbose);
 
             hw.WriteOption(
                 "/unsafe_IgnoreNtCreateFile[+|-]",
-                Strings.HelpText_DisplayHelp_IgnoreNtCreateFile,
+                Strings.HelpText_DisplayHelp_Unsafe_IgnoreNtCreateFile,
                 HelpLevel.Verbose);
 
             hw.WriteOption(
                 "/unsafe_IgnoreZwCreateOpenQueryFamily[+|-]",
-                Strings.HelpText_DisplayHelp_IgnoreZwCreateOpenQueryFamily,
+                Strings.HelpText_DisplayHelp_Unsafe_IgnoreZwCreateOpenQueryFamily,
                 HelpLevel.Verbose);
 
             hw.WriteOption(
                 "/unsafe_OptimizedAstConversion[+|-]",
-                Strings.HelpText_DisplayHelp_OptimizedAstConversion,
+                Strings.HelpText_DisplayHelp_Unsafe_OptimizedAstConversion,
                 HelpLevel.Verbose);
 
             hw.WriteOption(
                 "/unsafe_PreserveOutputs[+|-|:Reset]",
-                Strings.HelpText_DisplayHelp_PreserveOutputs,
+                Strings.HelpText_DisplayHelp_Unsafe_PreserveOutputs,
                 HelpLevel.Verbose);
 
             hw.WriteOption(
                 "/unsafe_UnexpectedFileAccessesAreErrors[+|-]",
-                Strings.HelpText_DisplayHelp_UnexpectedFileAccessesAreErrors,
+                Strings.HelpText_DisplayHelp_Unsafe_UnexpectedFileAccessesAreErrors,
                 HelpLevel.Verbose);
 
             hw.WriteOption(
                 "/debug_LoadGraph:<fingerprint | path | name>",
-                Strings.HelpText_DisplayHelp_LoadGraph,
+                Strings.HelpText_DisplayHelp_Debug_LoadGraph,
                 HelpLevel.Verbose);
 
             hw.WriteOption(
@@ -1173,17 +1163,17 @@ namespace BuildXL
             #region DScript
             hw.WriteOption(
                 "/debugScript[+|-]",
-                Strings.HelpText_DisplayHelp_ScriptDebugScript);
+                Strings.HelpText_DisplayHelp_DebugScript);
             hw.WriteOption(
                 "/debuggerBreakOnExit[+|-]",
-                Strings.HelpText_DisplayHelp_ScriptDebugScriptBreakOnExit);
+                Strings.HelpText_DisplayHelp_DebuggerBreakOnExit);
             hw.WriteOption(
                 "/debuggerPort",
-                Strings.HelpText_DisplayHelp_ScriptDebugScriptPort);
+                Strings.HelpText_DisplayHelp_DebuggerPort);
 
             hw.WriteOption(
                 "/unsafe_disableCycleDetection[+|-]",
-                Strings.HelpText_DisplayHelp_DisableCycleDetection);
+                Strings.HelpText_DisplayHelp_Unsafe_DisableCycleDetection);
 
             hw.WriteOption(
                 "/maxFrontEndConcurrency:<number of processes>",
@@ -1296,7 +1286,7 @@ namespace BuildXL
 
             hw.WriteOption(
                 "/unsafe_DisableGraphPostValidation[+|-]",
-                Strings.HelpText_DisplayHelp_DisableGraphPostValidation);
+                Strings.HelpText_DisplayHelp_Unsafe_DisableGraphPostValidation);
 
             hw.WriteOption(
                 "/logPipStaticFingerprintTexts[+|-]",
@@ -1307,10 +1297,10 @@ namespace BuildXL
                 Strings.HelpText_DisplayHelp_PosixDeleteMode);
 
             hw.WriteOption("/minimumDiskSpaceForPipsGb:<int representing disk space in Gigabyte>",
-                Strings.HelpText_DisplayHelp_DiskSpaceForPip);
+                Strings.HelpText_DisplayHelp_MinimumDiskSpaceForPipsGb);
 
             hw.WriteOption("/numRetryFailedPipsOnAnotherWorker:<int>",
-               Strings.HelpText_DisplayHelp_NumberofFailedPipRetry);
+               Strings.HelpText_DisplayHelp_NumRetryFailedPipsOnAnotherWorker);
 
             hw.WriteOption("/enablePlugins[+|-]",
                Strings.HelpText_DisplayHelp_EnablePlugins,
@@ -1330,7 +1320,7 @@ namespace BuildXL
 
             hw.WriteOption(
                 "/unsafe_AssumeCleanOutputs[+|-]",
-                Strings.HelpText_DisplayHelp_AssumeCleanOutputs,
+                Strings.HelpText_DisplayHelp_Unsafe_AssumeCleanOutputs,
                 HelpLevel.Verbose);
 
             hw.WriteOption(

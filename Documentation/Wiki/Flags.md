@@ -7,15 +7,11 @@ This page lists flags that can be used to configure BuildXL.
 | AdditionalConfigFile | Additional configuration files that can contain module definitions (short form: /ac) |
 | AdminRequiredProcessExecutionMode | Mode for running processes that required admin privilege. Allowed values are 'Internal' (BuildXL starts the process as an immediate child process), 'ExternalTool' (BuildXL starts a sandboxed process executor tool as a child process, and in turn the tool starts the admin-required process as its child process), 'ExternalVM' (BuildXL sends command to VM to execute a sandboxed process executor tool in VM, and in turn the tool starts the admin-required process as its child process) . For Internal and ExternalTool, the process will be run with the same elevation level as BuildXL. For ExternalVM, the process will be run with the elevation level in the VM. Defaults to 'Internal'. |
 | AdoConsoleMaxIssuesToLog | Specifies the maximum number of issues(errors and warnings) in the ADO console. |
-| AllowCopySymlink | When enabled, allow copying symlink. Defaults to true. |
-| AllowDuplicateTemporaryDirectory | When enabled, pips with duplicate temporary directories are allowed. Defaults to false. |
 | AllowFetchingCachedGraphFromContentCache | Allow fetching cached graph from content cache. Defaults to on. |
 | AllowInternalDetoursErrorNotificationFile | When enabled, the detoured processes will store internal errors in a special file. If this file contains data at the end of pip execution, the pip (build) will fail. Defaults to on. |
-| AllowMissingOutputs | When specified, suppresses errors for specified-but-not-produced outputs with the given name. May be specified more than once. Using this option results in an unsafe configuration (for diagnostic purposes only). Defaults to false. |
 | AllowMissingSpecs | When enabled, missing module and spec files will be logged as verbose events rather than errors during workspace generation. |
 | AlwaysRemoteInjectDetoursFrom32BitProcess | Always use remote detours injection when launching processes from a 32-bit process. Defaults to true. |
 | AnalyzeDependencyViolations | When enabled, file monitoring violations will be analyzed to emit additional warnings about high-level dependency problems (examples include double-writes and read-write races). Defaults to on. |
-| AssumeCleanOutputs | When enabled, BuildXL assumes there are no stale outputs from previous builds. |
 | AugmentingPathSetCommonalityFactor | Used to compute the number of times (i.e. {augmentingPathSetCommonalityFactor} * {pathSetThreshold}) an entry must appear among paths in the observed path set in order to be included in the common path set. Value must be (0, 1] |
 | BreakOnUnexpectedFileAccess | Break into the debugger when {ShortProductName} detects that a tool accesses a file that was not declared in the specification dependencies. This option is useful when developing a new tool or SDKs using these tools. Defaults to off. |
 | BuildLockPolling | Number of seconds to wait for an executing build to finish before polling again for completion. Defaults to 15 sec. |
@@ -36,23 +32,21 @@ This page lists flags that can be used to configure BuildXL.
 | CleanTempDirectories | Cleans per pip temp directories after the pip successfully exits to save disk space. Defaults to on. |
 | Color | Use colors for warnings and errors. Defaults to using colors. |
 | CompressGraphFiles | When enabled, graph files are compressed. |
-| ConfigFile | Configuration file that determines {ShortProductName}'s behavior (short form: /c) |
+| Config | Configuration file that determines {ShortProductName}'s behavior (short form: /c) |
 | ConsoleVerbosity | Sets the console logging verbosity. Allowed values are 'Off', 'Error', 'Warning', 'Informational' and 'Verbose', and the single-character prefixes of those values. Defaults to Informational. (short form: /cv) |
 | CustomLog | Sets a custom log file for a specific set of event IDs. Event list should be comma separated integers excluding the DX prefix. |
+| Debug_LoadGraph | Loads a cached build graph stored under the given fingerprint (40 digit hex string, no delimiters), path to cached graph directory, or canonical name. |
+| DebuggerBreakOnExit | Whether to break at the end of the evaluation phase. Defaults to off. |
+| DebuggerPort | TCP/IP port for the {ShortScriptName} debugger to listen on. Defaults to 41177. |
 | DebugIgnoreChangeJournal | If disabled, {ShortProductName} will not use the NTFS / ReFS change journal for caching or incremental builds. This is an unsafe configuration (for diagnostic purposes only). Defaults to on. |
+| DebugScript | Whether to launch {ShortScriptName} debugger on start.  Intended to be used by IDEs only (if you pass this option when running form command line, {ShortScriptName} evaluator will just wait forever).  Defaults to off. |
 | DependencySelection | Specifies additional pips to run based on dependency information of pips matched in filter. May be: empty (all dependencies) or "+" (dependencies and dependents). |
-| DeterminismProbeUsage | DeterminismProbe feature was removed, this option will do nothing |
 | Diagnostic | Enables diagnostic logging for a functional area. This option may be specified multiple times. Areas: Scheduler, Parser, Storage, Transformers, Engine, Viewer, PipExecutor, PipInputAssertions, ChangeJournalService, HostApplication, CommonInfrastructure, CacheInteraction, HybridInterop. (short form: /diag) |
 | DisableConHostSharing | Disables sharing of the Windows ConHost process between pips. Defaults to sharing enabled. |
-| DisableCycleDetection | Disables cycle detection during evaluation. Defaults to off. |
-| DisableDetours | When enabled, {ShortProductName} will not detour any processes. This might lead to incorrect builds because any file accesses will not be enforced. |
-| DisableGraphPostValidation | Disables post validation of graph construction. Defaults to on. |
-| DiskSpaceForPip | Specify the required minimum available disk space in Gigabytes. Default value set to 0GB (disabled). Pips will fail if the specified amount of disk space in unavailable. |
 | DistributedBuildOrchestratorLocation | Specifies the IP address or host name and TCP port of the orchestrator machine to which a worker will connect to join a build session.  This argument is redundant if the orchestratro is invoked with /distributedBuildWorker specified for this worker. (short form: /dbo) |
 | DistributedBuildRole | Specifies the role the node plays in the distributed build: None, Orchestrator, or Worker. This argument is required for executing a distributed build. (short form: /dbr) |
 | DistributedBuildServicePort | Specifies the TCP port of a locally running distributed build service (orchestrator or worker) which peers can connect to during a distributed build. This argument is required for executing a distributed build.  (short form: /dbsp) |
 | DistributedBuildWorker | Specifies the IP address or host name and TCP port of remote worker build services which this process can dispatch work to during a distributed build (can specify multiple). This argument is redundant if the corresponding worker is invoked with /distributedBuildOrchestratorLocation specified. (short form: /dbw) |
-| DistributedBuildWorkerSourceMaterialization | Enables materialization of source files on distributed workers. NOTE: Source files are required to be present in the worker's remote or local cache. |
 | DumpFailedPips | When enabled, the runtime dump pip lite analyzer will log information regarding failed pips under Out/Logs/FailedPips for debugging. |
 | DumpFailedPipsLogLimit | Sets the maximum number of log files that are allowed to be generated by the dump pip lite analyzer (default 50). |
 | DumpFailedPipsWithDynamicData | Enable this option to dump observed file accesses and processes with the dump pip lite analyzer (requires /logObservedFileAccesses+ and/or /logProcesses+ to be set as well). |
@@ -64,12 +58,11 @@ This page lists flags that can be used to configure BuildXL.
 | EnableLinuxPTraceSandbox | Enables the ptrace sandbox on Linux when a statically linked binary is detected. Note that this will have a negative impact on performance, but is necessary to ensure correctness on some Linux builds. |
 | EnablePlugins | When enabled, plugins are allowed to be loaded. Defaults to off. |
 | EnableProcessRemoting | Enable process remoting via AnyBuild. Defaults to off. |
+| EnableWorkerSourceFileMaterialization | Enables materialization of source files on distributed workers. NOTE: Source files are required to be present in the worker's remote or local cache. |
 | EnforceAccessPoliciesOnDirectoryCreation | Indicates whether {ShortProductName} should enforce access policies on CreateDirectory for paths under writable mounts as well as the cases when the directory already exists. Defaults to off. |
-| EnforceFileAccesses | Whether {ShortProductName} is to monitor file accesses of individual tools at all. Disabling monitoring results in an unsafe configuration (for diagnostic purposes only). Defaults to on. |
 | EnforceFullReparsePointsUnderPath | Enforce that files accessed which begin with the given path will enforce reparse points underneath said path. All transitive reparse points encountered after enforcing and resolving the first one are also enforced, regardless of path. |
 | EngineCacheDirectory | Allows overriding where engine state will be cached. If unset, it will be stored in a subdirectory of the artifact cache. |
 | Environment | Environment build is running in. Allowed values '{0}'. |
-| ExistingDirectoryProbesAsEnumerations | When enabled, {ShortProductName} will report existing directory probes as enumerations. This might lead to cases where pips will be executed even when there is no need for it. |
 | ExitOnNewGraph | When enabled, exit early if a new graph needs to be created.  This differs from phase:schedule because it doesn't actually create the graph. |
 | Experimental__0 | Enables an experimental feature (short form: /exp). Available experimental features: {0} |
 | ExplicitlyReportDirectoryProbes | When enabled, detours will explicitly report directory probes. Note that this may result in an increased amount of DFAs. |
@@ -88,24 +81,12 @@ This page lists flags that can be used to configure BuildXL.
 | FingerprintSalt | Salts fingerprints used for caching. May be specified multiple times and values concatenate with delimiter. Empty value clears previous values. '*' is unique each run. |
 | FlushPageCacheToFileSystemOnStoringOutputsToCache | Flush page cache to file system on storing outputs to cache. Defaults to off. |
 | ForceAddExecutionPermission | When set to true, it enables the execution permission for the root process of process pips in Linux builds. Defaults to true. |
-| ForceSkipDependencies | Specifies that dependencies of processes requested in the filter should be skipped as long as all the inputs are present. |
 | ForwardWorkerLog | Configure additional verbose event IDs that workers will forward to the orchestrator, in addition to warnings and errors (which are always forwarded).  |
 | GenerateCgManifest | Generates a cgmanifest.json file at the specified path. This file contains the names and versions for all Nuget packages used within BuildXL, and is used for Component Governance during CloudBuild. |
 | HardExitOnErrorInDetours | When enabled, detours will exit the process on Detours error with a special exit code. Defaults to on. |
 | Help | Display this usage message (Short form: /?). See verbose help with /help:verbose. See DX code specific help with /help:1234. |
 | HonorDirectoryCasingOnDisk | When true, casing of directories for dynamic outputs will match the ones found on disk when a pip is done executing (as opposed to using the casing of the first time the path is mentioned in the build). Useful on Windows when tools are case sensitive. Defaults to false. |
-| IgnoreDynamicWritesOnAbsentProbes | When enabled, {ShortProductName} will not flag as violations absent path probes that coexist with writes under output directories for those same paths. |
-| IgnoreFullReparsePointResolving | When enabled, {ShortProductName} will not fully resolve paths containing any sort of reparse point. This might lead to incorrect builds because some file accesses will not be enforced or tracked at all. |
-| IgnoreGetFinalPathNameByHandle | When enabled, {ShortProductName} will not intercept GetFinalPathNameByHandle calls. This may lead to failures when using subst because non-subst paths will be used. Defaults to off. |
-| IgnoreNonCreateFileReparsePoints | When enabled, {ShortProductName} will not follow symlinks for access validation and reporting for API's outisde of CreateFile, NtCreate, and OpenFile. This might lead to incorrect builds because some file accesses will not be enforced. Defaults to off. |
 | IgnoreNonExistentProbes | When enabled, {ShortProductName} will not report non existent probes, that are not in sealed directories. This might lead to incorrect builds because some file accesses will not be enforced and validated. Certain calls to GetFileAttribute method for non existing files will not be reported to {ShortProductName}. |
-| IgnoreNtCreateFile | When enabled, {ShortProductName} will not intercept NtCreateFile calls. This might lead to incorrect builds because some file accesses will not be enforced. |
-| IgnorePreloadedDlls | When enabled, {ShortProductName} will not report Dlls loaded before Detours was started. This might lead to incorrect builds because some file accesses will not be enforced. |
-| IgnoreReparsePoints | When enabled, {ShortProductName} will not track reparse points. This might lead to incorrect builds because some file accesses will not be enforced. Any reparse points (symlinks and mount points) will not be followed. |
-| IgnoreSetFileInformationByHandle | When enabled, {ShortProductName} will not detour the SetFileInformationByHandle API. This might lead to incorrect builds because some file accesses will not be enforced. |
-| IgnoreZwCreateOpenQueryFamily | When enabled, {ShortProductName} will not intercept ZwCreateFile, ZwOpenFile, and ZwQueryDirectoryFile calls. This might lead to incorrect builds because some file accesses will not be enforced. This flag is off by default. |
-| IgnoreZwOtherFileInformation | When enabled, {ShortProductName} will not detour the ZwLinkFileInformation, ZwFileNameFileInformation, ZwDispositionFileInformation, ZwModeFileInformation APIs. This might lead to incorrect builds because some file accesses will not be enforced. Defaults to off - the functions are detoured. |
-| IgnoreZwRenameFileInformation | When enabled, {ShortProductName} will not detour the ZwRenameFileInformation API. This might lead to incorrect builds because some file accesses will not be enforced. |
 | Incremental | When enabled, artifacts are built incrementally based on which source files have changed. Defaults to on. |
 | IncrementalScheduling | When enabled, scheduling is performed incrementally. Defaults to off. |
 | InferNonExistenceBasedOnParentPathInRealFileSystem | Infers the non-existence of a path based on the parent path when checking the real file system in file system view. Defaults to on. |
@@ -114,13 +95,12 @@ This page lists flags that can be used to configure BuildXL.
 | Interactive | When enabled indicates that {ShortProductName} is allowed to interact with the user either via console or popups. A common use case is to allow front ends like nuget to display authentication prompts in case the user is not authenticated. |
 | LaunchDebugger | Launches the debugger during boot (in the server process if applicable). |
 | LimitPathSetsOnCacheLookup | Limits the number of path sets to be checked during cache lookup. Once the limit is reached, the pip is determined to have a cache miss. Defaults to off. The number of path sets can also be set. Defaults to 0 (off). |
-| LoadGraph | Loads a cached build graph stored under the given fingerprint (40 digit hex string, no delimiters), path to cached graph directory, or canonical name. |
 | LogCatalog | Records the set of spec files added to the catalog. Defaults to off. |
 | LogCounters | Collects various performance counters and logs phase specific aggregations. Defaults to on. |
 | LogExecution | Logs an execution trace to the default trace file in the same folder as the main log file. Defaults to on. |
-| LogFileEnforcementTables | Records the file enforcement access tables for individual pips to the log. Defaults to off. |
+| LogFileAccessTables | Records the file enforcement access tables for individual pips to the log. Defaults to off. |
 | LogMemory | Collects actual memory usage when collection performance counters. This has a negaitve performance impact and should only be used when analyzing memory consumption. Defaults to off. |
-| LogObservedAccesses | Records the files observed to be accessed by individual pips to the log. Defaults to off. |
+| LogObservedFileAccesses | Records the files observed to be accessed by individual pips to the log. Defaults to off. |
 | LogOutput | Specifies how process standard error and standard output should be reported. Allowed values are 'TruncatedOutputOnError', 'FullOutputAlways', 'FullOutputOnError', 'FullOutputOnWarningOrError'. Default is 'TruncatedOutputOnError'. |
 | LogPipStaticFingerprintTexts | Log pip static fingerprint texts. Defaults to off. |
 | LogPrefix | The prefix to add to all log file names (default: {ShortProductName}) |
@@ -153,7 +133,8 @@ This page lists flags that can be used to configure BuildXL.
 | MaxRamUtilizationPercentage | Specifies the maximum machine wide RAM utilization allowed before the scheduler will stop scheduling more work to allow resources to be freed. Defaults to 85%. |
 | MaxRelativeOutputDirectoryLength | Directories under the object directory root will get shortened to avoid too long path names. Defaults to 64 characters for relative output directories. |
 | MaxTypeCheckingConcurrency | Specifies the maximum concurrency level type checking phase. Defaults to /maxFrontEndConcurrency - 25% more than the total number of processors in the current machine. |
-| MinAvailableRam | This flag is deprecated. |
+| MinAvailableRamMb | This flag is deprecated. |
+| MinimumDiskSpaceForPipsGb | Specify the required minimum available disk space in Gigabytes. Default value set to 0GB (disabled). Pips will fail if the specified amount of disk space in unavailable. |
 | MsBuild_EnableBinLogTracing | Controls whether MSBuild binlog tracing should be enabled for the build. The binlog is placed in the logs directory for each MSBuild project as 'msbuild.binlog'. WARNING: This option increases build I/O and should only be used temporarily to avoid increased build times. |
 | MsBuild_EnableEngineTracing | Controls whether MSBuild engine/scheduler tracing should be enabled for the build. WARNING: Use this option only temporarily as it will significantly increase build times. |
 | MsBuild_LogVerbosity | Activates MSBuild file logging for each MSBuild project file to 'msbuild.log' in the log directory, using the specified MSBuild log verbosity. WARNING: This option adds I/O overhead to your build, since MSBuild console logging is already enabled and captured, and use of Detailed or Diagnostic levels should only be used temporarily to avoid significantly increased build times. |
@@ -162,10 +143,9 @@ This page lists flags that can be used to configure BuildXL.
 | NoLogo | Suppress copyright message |
 | NormalizeReadTimestamps | When enabled, all file reads seen by processes will have normalized timestamps across builds. When disabled, the actual timestamps will be allowed to flow through to processes, so long as they are newer than the static timestamp used to enforce rewrite ordering (2002). Defaults to on. |
 | NoWarn | Disable specific warning messages. These messages will still be logged in the main log file. |
-| NumberofFailedPipRetry | Specify the number of times a pip failing due to worker failures, should be retried on another worker. Default value set to 0 (disabled). |
 | NumRemoteAgentLeases | Static number of remote agent leases. Only applicable when /enableProcessRemoting is set to true. Defaults to 2 * /maxProc. |
-| Obj | Specifies the root directory for primary build outputs (short form: /o) |
-| OptimizedAstConversion | When enabled, optimized AST conversion by disabling some analyses and skipping some AST constructs. By disabling analyses linter policies are not enforced. The types in the resulting AST are stripped away as they are not needed for evaluation. Defauts to off. |
+| NumRetryFailedPipsOnAnotherWorker | Specify the number of times a pip failing due to worker failures, should be retried on another worker. Default value set to 0 (disabled). |
+| ObjectDirectory | Specifies the root directory for primary build outputs (short form: /o) |
 | OrchestratorCpuMultiplier | Specifies the cpu queue limit in terms of a multiplier of the normal limit when at least one remote worker gets connected. Defaults to 0. |
 | OutputMaterializationExclusionRoot | Specifies one or more roots to be excluded from output materialization. NOTE: Files needed for execution are always materialized even if under this root. |
 | Paths | Paths to output files or spec files which determine what gets built. This is a shorthand for a full filter expression. |
@@ -180,14 +160,13 @@ This page lists flags that can be used to configure BuildXL.
 | PipWarningTimeoutMultiplier | Multiplier applied to the warning timeout for individual processes. Setting a multiplier greater than one will increase the warning timeout accordingly for all pips, even those with an explicit non-default warning timeout set. |
 | PluginPaths | Specify a list of plugin paths that be loaded -  each path is seperated by ";'. Defaults to empty list |
 | PosixDeleteMode | Controls the applicability of file/directory deletion using POSIX delete. Allowed values are NoRun, RunFirst, and RunLast. Defaults for Windows is RunLast, and for Unix is RunFirst |
-| PreserveOutputs | When enabled, {ShortProductName} will preserve the existing state of Process pip output files instead of deleting them before starting the process. This may lead to incorrect builds depending on how the process behaves when prior outputs are present. Specify "/unsafe_preserveOutputs:Reset" to reset the salt added to cached processes run with preserved outputs. |
 | ProcessCanRunRemoteTags | Tags for processes that can run remotely when process remoting is enabled. When unspecified, every process can be remoted, unless it has a tag specified in /processMustRunLocalTags.  |
 | ProcessMustRunLocalTags | Tags for processes that must run locally when process remoting is enabled. When unspecified, it is assumed to be empty. |
 | ProcessRetries | Number of retries for process execution if the process exits with exit codes that allow for retries. Defaults to 0. |
 | ProfileReportDestination | Destination file of the profiling report. Default is '{0}' and it is generated in the current directory. Only considered if /profileScript is specified. |
 | ProfileScript | Runs a profiler for {ShortScriptName} evaluation, generating a TSV file with profiling information. |
 | Property | Specifies a property that overrides an allowed environment variable (short form: /p) |
-| Qualifiers | Qualifiers controlling what flavor to build (short form: /q) |
+| Qualifier | Qualifiers controlling what flavor to build (short form: /q) |
 | RelatedActivityId | An external related ETW activity identifier. The top level {ShortProductName} activity will be logged as a child of this one. |
 | RemoteAgentWaitTimeSec | The amount of wait time in seconds for getting a remote agent to execute process pip remotely when /enableProcessRemoting is set to true. Defaults to 2s. |
 | RemoteTelemetry | When enabled, sends telemetry information for remote collection. Defaults to off. |
@@ -201,9 +180,6 @@ This page lists flags that can be used to configure BuildXL.
 | SandboxKind | Specifies the sandbox kind. Allowed values are 'None' (no sandboxing), 'Default' (default sandboxing), 'WinDetours', 'MacOsKext'. Default is 'Default'. |
 | ScanChangeJournal | Scans volume change journals to determine spec file changes for graph reuse check. Defaults to on. |
 | ScanChangeJournalTimeLimitInSec | Time limit in second for scanning volume change journal. Set to -1 for no limit. Defaults to 30 seconds. |
-| ScriptDebugScript | Whether to launch {ShortScriptName} debugger on start.  Intended to be used by IDEs only (if you pass this option when running form command line, {ShortScriptName} evaluator will just wait forever).  Defaults to off. |
-| ScriptDebugScriptBreakOnExit | Whether to break at the end of the evaluation phase. Defaults to off. |
-| ScriptDebugScriptPort | TCP/IP port for the {ShortScriptName} debugger to listen on. Defaults to 41177. |
 | ScriptShowLargest | Indicates whether {ShortProductName} should log information about the largest {ShortScriptName} files. Defaults to off. |
 | ScriptShowSlowest | Indicates whether {ShortProductName} should log information about the slowest {ShortScriptName} elements by phase. Defaults to off. |
 | ScriptTypeCheck | Type checks specifications. Defaults to on. |
@@ -232,7 +208,29 @@ This page lists flags that can be used to configure BuildXL.
 | TranslateDirectory | Specify translation of directories before access policy is applied - the fromPath is replaced with toPath in the names of paths accessed. Make sure to add the trailing path separators. Valid from/to path separators are '<' and ' and '::'. Recommended separator is '::'. Defaults to no directory translation is done. |
 | TreatAbsentDirectoryAsExistentUnderOpaque | Treats absent directory as existent when it is probed and the path is under an opaque directory. Defaults to true.  |
 | TreatDirectoryAsAbsentFileOnHashingInputContent | Treats directory as absent file on hashing the content of input |
-| UnexpectedFileAccessesAreErrors | When enabled, if {ShortProductName} detects that a tool accesses a file that was not declared in the specification dependencies, it is treated as an error instead of a warning. Turning this option off results in an unsafe configuration (for diagnostic purposes only). Defaults to on. |
+| Unsafe_AllowCopySymlink | When enabled, allow copying symlink. Defaults to true. |
+| Unsafe_AllowDuplicateTemporaryDirectory | When enabled, pips with duplicate temporary directories are allowed. Defaults to false. |
+| Unsafe_AssumeCleanOutputs | When enabled, BuildXL assumes there are no stale outputs from previous builds. |
+| Unsafe_DisableCycleDetection | Disables cycle detection during evaluation. Defaults to off. |
+| Unsafe_DisableDetours | When enabled, {ShortProductName} will not detour any processes. This might lead to incorrect builds because any file accesses will not be enforced. |
+| Unsafe_DisableGraphPostValidation | Disables post validation of graph construction. Defaults to on. |
+| Unsafe_ExistingDirectoryProbesAsEnumerations | When enabled, {ShortProductName} will report existing directory probes as enumerations. This might lead to cases where pips will be executed even when there is no need for it. |
+| Unsafe_ForceSkipDeps | Specifies that dependencies of processes requested in the filter should be skipped as long as all the inputs are present. |
+| Unsafe_IgnoreDynamicWritesOnAbsentProbes | When enabled, {ShortProductName} will not flag as violations absent path probes that coexist with writes under output directories for those same paths. |
+| Unsafe_IgnoreFullReparsePointResolving | When enabled, {ShortProductName} will not fully resolve paths containing any sort of reparse point. This might lead to incorrect builds because some file accesses will not be enforced or tracked at all. |
+| Unsafe_IgnoreGetFinalPathNameByHandle | When enabled, {ShortProductName} will not intercept GetFinalPathNameByHandle calls. This may lead to failures when using subst because non-subst paths will be used. Defaults to off. |
+| Unsafe_IgnoreNonCreateFileReparsePoints | When enabled, {ShortProductName} will not follow symlinks for access validation and reporting for API's outisde of CreateFile, NtCreate, and OpenFile. This might lead to incorrect builds because some file accesses will not be enforced. Defaults to off. |
+| Unsafe_IgnoreNtCreateFile | When enabled, {ShortProductName} will not intercept NtCreateFile calls. This might lead to incorrect builds because some file accesses will not be enforced. |
+| Unsafe_IgnorePreloadedDlls | When enabled, {ShortProductName} will not report Dlls loaded before Detours was started. This might lead to incorrect builds because some file accesses will not be enforced. |
+| Unsafe_IgnoreReparsePoints | When enabled, {ShortProductName} will not track reparse points. This might lead to incorrect builds because some file accesses will not be enforced. Any reparse points (symlinks and mount points) will not be followed. |
+| Unsafe_IgnoreSetFileInformationByHandle | When enabled, {ShortProductName} will not detour the SetFileInformationByHandle API. This might lead to incorrect builds because some file accesses will not be enforced. |
+| Unsafe_IgnoreZwCreateOpenQueryFamily | When enabled, {ShortProductName} will not intercept ZwCreateFile, ZwOpenFile, and ZwQueryDirectoryFile calls. This might lead to incorrect builds because some file accesses will not be enforced. This flag is off by default. |
+| Unsafe_IgnoreZwOtherFileInformation | When enabled, {ShortProductName} will not detour the ZwLinkFileInformation, ZwFileNameFileInformation, ZwDispositionFileInformation, ZwModeFileInformation APIs. This might lead to incorrect builds because some file accesses will not be enforced. Defaults to off - the functions are detoured. |
+| Unsafe_IgnoreZwRenameFileInformation | When enabled, {ShortProductName} will not detour the ZwRenameFileInformation API. This might lead to incorrect builds because some file accesses will not be enforced. |
+| Unsafe_MonitorFileAccesses | Whether {ShortProductName} is to monitor file accesses of individual tools at all. Disabling monitoring results in an unsafe configuration (for diagnostic purposes only). Defaults to on. |
+| Unsafe_OptimizedAstConversion | When enabled, optimized AST conversion by disabling some analyses and skipping some AST constructs. By disabling analyses linter policies are not enforced. The types in the resulting AST are stripped away as they are not needed for evaluation. Defauts to off. |
+| Unsafe_PreserveOutputs | When enabled, {ShortProductName} will preserve the existing state of Process pip output files instead of deleting them before starting the process. This may lead to incorrect builds depending on how the process behaves when prior outputs are present. Specify "/unsafe_preserveOutputs:Reset" to reset the salt added to cached processes run with preserved outputs. |
+| Unsafe_UnexpectedFileAccessesAreErrors | When enabled, if {ShortProductName} detects that a tool accesses a file that was not declared in the specification dependencies, it is treated as an error instead of a warning. Turning this option off results in an unsafe configuration (for diagnostic purposes only). Defaults to on. |
 | UpdateFileContentTableByScanningChangeJournal | When enabled, file content table is updated during the scanning of change journal. Defaults to on. |
 | UseCustomPipDescriptionOnConsole | Indicates whether pip descriptions should be shortened to (semi-stable hash, customer-supplied pip description) when reporting errors and warnings on the console. Defaults to on. |
 | UseExtraThreadToDrainNtClose | When enabled, the draining of the {ShortProductName} handle cache happens on a different thread than the one that called the NtClose. Handles to be cleaned are collected in a thread safe, non-locking list and removed from the cache usinga different thread. Defaults to on. |

@@ -11,6 +11,8 @@ variables:
     value: Release
   - name: Codeql.Enabled
     value: false
+  - name: ServiceConnection.ID
+    value: f8d656f9-65f2-4c67-93ba-fb4ec491e20e
 
 jobs:
 - job: APIScan
@@ -81,9 +83,9 @@ jobs:
     failOnStderr: true
     displayName: 'Prepare binary and symbol file'
     continueOnError: false
-
+  
   - task: AzureCLI@2
-    displayName: 'Get token'
+    displayName: 'Get service connection details'
     inputs:
       azureSubscription: 'BuildXL - APIScan'
       addSpnToEnvironment: true
@@ -92,26 +94,19 @@ jobs:
       inlineScript: |
         echo "##vso[task.setvariable variable=APIScan-clientId;]$servicePrincipalId"
         echo "##vso[task.setvariable variable=APIScan-tenantId;]$tenantId"
-        echo "##vso[task.setsecret]$idToken"
-        echo "##vso[task.setvariable variable=APIScan-idToken;]$idToken"
 
-  - task: CmdLine@2
-    inputs:
-      script: 'az login --service-principal -u $(APIScan-clientId) --tenant $(APIScan-tenantId) --allow-no-subscriptions --federated-token $(APIScan-idToken)'
-        
   - task: APIScan@2
     displayName: 'Run APIScan via Guardian'
     env:
-        AzureServicesAuthConnectionString: RunAs=Developer;DeveloperTool=AzureCli
+      AzureServicesAuthConnectionString: RunAs=App;AppId=$(APIScan-clientId);TenantId=$(APIScan-tenantId);ServiceConnectionId=$(ServiceConnection.ID);
+      SYSTEM_ACCESSTOKEN: $(System.AccessToken)
     inputs:
-      targetMode: 'binarysym'
+      softwareFolder: '$(Agent.TempDirectory)\APIScan\Binaries'
       softwareName: 'BuildXL'
       softwareVersionNum: '$(BuildXL.SemanticVersion)'
       softwareBuildNum: '$(Build.BuildId)'
-      softwareFolder: $(Agent.TempDirectory)\APIScan\Binaries
-      symbolsFolder: 'SRV*http://symweb;$(Agent.TempDirectory)\APIScan\Symbols'
-      modeType: 'prerelease'
-      toolVersion: 'Latest'
+      symbolsFolder: 'SRV*https://symweb.azurefd.net;$(Agent.TempDirectory)\APIScan\Symbols'
+      azureSubscription: 'BuildXL - APIScan'
   
   - task: PostAnalysis@2
     continueOnError: true

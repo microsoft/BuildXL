@@ -376,7 +376,7 @@ namespace BuildXL.Engine.Tracing
         SuccessfulMarkFailure = 7113,
 
         ScrubbingSharedOpaquesStarted = 7114,
-        EmitSpotlightIndexingWarning = 7115,
+        // was: EmitSpotlightIndexingWarning = 7115,
         FailedToAcquireDirectoryLock = 7116,
         UsingRedirectedUserProfile = 7117,
         FailedToRedirectUserProfile = 7118,

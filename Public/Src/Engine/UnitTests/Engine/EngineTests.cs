@@ -440,24 +440,6 @@ namespace Test.BuildXL.EngineTests
         }
 
         /// <summary>
-        /// Spotlight is the macOS search indexer. This test validates whether a warning is emitted if the build is under an indexed
-        /// location. It is a macOS specific test.
-        /// </summary>
-        [FactIfSupported(requiresMacOperatingSystem: true, Skip = "While this tests succeeds with a debugger attached, it fails when ran through BuildXL on macOS")]
-        public void TestSpotlightCheck()
-        {
-            PathTable pt = new PathTable();
-            AbsolutePath trailingNoindex = AbsolutePath.Create(pt, Path.Combine(TestRoot, ".noindex"));
-            AbsolutePath intermediateNoindex = AbsolutePath.Create(pt, Path.Combine(TestRoot, ".noindex", "subdirectory"));
-            BuildXLEngine.CheckArtifactFolersAndEmitNoIndexWarning(pt, LoggingContext, trailingNoindex, intermediateNoindex);
-            XAssert.AreEqual(0, EventListener.GetEventCount((int)LogEventId.EmitSpotlightIndexingWarning), "No warning should be logged for either path containing noindex");
-
-            AbsolutePath indexablePath = AbsolutePath.Create(pt, Path.Combine(TestRoot, "subdirectory"));
-            BuildXLEngine.CheckArtifactFolersAndEmitNoIndexWarning(pt, LoggingContext, indexablePath);
-            AssertWarningEventLogged(LogEventId.EmitSpotlightIndexingWarning);
-        }
-
-        /// <summary>
         /// Tests the allow missing specs flag to ensure that the engine doesn't throw an error when an empty module
         /// or spec file is provided.
         /// </summary>

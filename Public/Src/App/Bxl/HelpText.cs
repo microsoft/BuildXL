@@ -746,11 +746,6 @@ namespace BuildXL
                 HelpLevel.Verbose);
 
             hw.WriteOption(
-                "/emitSpotlightIndexingWarning[+|-]",
-                Strings.HelpText_DisplayHelp_EmitSpotlightIndexingWarning,
-                HelpLevel.Verbose);
-
-            hw.WriteOption(
                 "/disableConHostSharing[+|-]",
                 Strings.HelpText_DisplayHelp_DisableConHostSharing,
                 HelpLevel.Verbose);

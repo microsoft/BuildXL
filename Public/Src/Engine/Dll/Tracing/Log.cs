@@ -2627,15 +2627,6 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void VirusScanEnabledForPath(LoggingContext context, string path);
 
         [GeneratedEvent(
-            (int)LogEventId.EmitSpotlightIndexingWarning,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Warning,
-            Keywords = (int)Keywords.UserMessage,
-            EventTask = (int)Tasks.Engine,
-            Message = "Spotlight indexing for artifact directories [ {directories} ] has not been disabled, consider adding the '.noindex' suffix to the specified directories. Build performance may be impacted!")]
-        public abstract void EmitSpotlightIndexingWarningForArtifactDirectory(LoggingContext context, string directories);
-
-        [GeneratedEvent(
             (ushort)LogEventId.PreserveOutputsNotAllowedInDistributedBuild,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,

@@ -36,7 +36,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
             IncrementalSchedulingStateFile = pathRemapper.Remap(template.IncrementalSchedulingStateFile);
             FingerprintStoreDirectory = pathRemapper.Remap(template.FingerprintStoreDirectory);
             SharedOpaqueSidebandDirectory = pathRemapper.Remap(template.SharedOpaqueSidebandDirectory);
-            EmitSpotlightIndexingWarning = template.EmitSpotlightIndexingWarning;
             RedirectedUserProfileJunctionRoot = pathRemapper.Remap(template.RedirectedUserProfileJunctionRoot);
             ExternalSandboxedProcessDirectory = pathRemapper.Remap(template.ExternalSandboxedProcessDirectory);
         }
@@ -88,9 +87,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public AbsolutePath SharedOpaqueSidebandDirectory { get; set; }
-
-        /// <inheritdoc />
-        public bool EmitSpotlightIndexingWarning { get; set; } = true;
 
         /// <inheritdoc />
         public AbsolutePath RedirectedUserProfileJunctionRoot { get; set; }

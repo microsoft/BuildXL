@@ -1703,17 +1703,6 @@ namespace BuildXL.Engine
             }
             else
             {
-                if (OperatingSystemHelper.IsMacOS && Configuration.Layout.EmitSpotlightIndexingWarning)
-                {
-                    CheckArtifactFolersAndEmitNoIndexWarning(
-                        Context.PathTable,
-                        loggingContext,
-                        Configuration.Layout.ObjectDirectory,
-                        Configuration.Layout.CacheDirectory,
-                        Configuration.Layout.FrontEndDirectory,
-                        Configuration.Layout.EngineCacheDirectory);
-                }
-
                 // Make sure we are running on a case-insensitive file system in the macOS/Unix case for the time being
                 if (FileUtilities.IsFileSystemCaseSensitive())
                 {
@@ -2253,15 +2242,6 @@ namespace BuildXL.Engine
 
             Logger.Log.EngineLoadedFileContentTable(engineLoggingContext, type.ToString(), sw.ElapsedMilliseconds);
             return fct;
-        }
-
-        internal static void CheckArtifactFolersAndEmitNoIndexWarning(PathTable pathTable, LoggingContext loggingContext, params AbsolutePath[] paths)
-        {
-            var directories = paths.Select(p => p.ToString(pathTable).ToUpperInvariant()).Where(p => !p.EndsWith(Strings.Layout_DefaultNoIndexSuffix.ToUpperInvariant()) && !p.Contains(Strings.Layout_DefaultNoIndexSuffix.ToUpperInvariant() + Path.DirectorySeparatorChar));
-            if (directories.Count() > 0)
-            {
-                Logger.Log.EmitSpotlightIndexingWarningForArtifactDirectory(loggingContext, string.Join(", ", directories));
-            }
         }
 
         private static bool ShouldUpgradeFileAccessWarningsToHighLevelError(IConfiguration configuration)

@@ -337,9 +337,6 @@ namespace BuildXL
                             "elideMinimalGraphEnumerationAbsentPathProbes",
                             sign => cacheConfiguration.ElideMinimalGraphEnumerationAbsentPathProbes = sign),
                         OptionHandlerFactory.CreateBoolOption(
-                            "emitSpotlightIndexingWarning",
-                            sign => layoutConfiguration.EmitSpotlightIndexingWarning = sign),
-                        OptionHandlerFactory.CreateBoolOption(
                             "enableAsyncLogging",
                             sign => loggingConfiguration.EnableAsyncLogging = sign),
                         OptionHandlerFactory.CreateBoolOption(

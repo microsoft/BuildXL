@@ -145,11 +145,7 @@ namespace Test.BuildXL.Engine
 
         private void AssertDependencyViolationMissingSourceDependency(int count = 1)
         {
-            // TODO: figure out why this check is flaky on macOS after OssRename
-            if (!OperatingSystemHelper.IsUnixOS)
-            {
-                AssertVerboseEventLogged(LogEventId.DependencyViolationMissingSourceDependency, count, allowMore: true);
-            }
+            AssertVerboseEventLogged(LogEventId.DependencyViolationMissingSourceDependency, count, allowMore: true);
         }
 
         /// <summary>

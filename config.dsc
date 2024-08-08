@@ -222,6 +222,15 @@ config({
                 { id: "xunit.runner.reporters", version: "2.5.3" },
                 { id: "Microsoft.DotNet.XUnitConsoleRunner", version: "2.5.1-beta.19270.4" },
 
+                // SQL
+                { id: "Microsoft.Data.SqlClient", version: "5.1.5" },
+                { id: "Microsoft.Data.SqlClient.SNI", version: "5.1.1" },
+                { id: "Microsoft.Data.SqlClient.SNI.runtime", version: "5.1.1" },
+                { id: "Microsoft.IdentityModel.Protocols.OpenIdConnect", version: "6.35.0" },
+                { id: "Microsoft.IdentityModel.Protocols", version: "6.35.0" },
+                { id: "Microsoft.SqlServer.Server", version: "1.0.0" },
+                { id: "System.Runtime.Caching", version: "6.0.0" },
+
                 // microsoft test platform
                 { id: "Microsoft.TestPlatform.TestHost", version: "16.4.0"},
                 { id: "Microsoft.TestPlatform.ObjectModel", version: "16.4.0"},

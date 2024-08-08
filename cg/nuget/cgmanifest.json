@@ -33,7 +33,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "ArtifactServices.App.Shared",
-          "Version": "19.238.34809-buildid27706596"
+          "Version": "19.244.35206-buildid28914915"
         }
       }
     },
@@ -42,7 +42,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "ArtifactServices.App.Shared.Cache",
-          "Version": "19.238.34809-buildid27706596"
+          "Version": "19.244.35206-buildid28914915"
         }
       }
     },
@@ -285,7 +285,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Drop.App.Core",
-          "Version": "19.238.34809-buildid27706596"
+          "Version": "19.244.35206-buildid28914915"
         }
       }
     },
@@ -294,7 +294,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Drop.Client",
-          "Version": "19.238.34809-buildid27706596"
+          "Version": "19.244.35206-buildid28914915"
         }
       }
     },
@@ -447,7 +447,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "ItemStore.Shared",
-          "Version": "19.238.34809-buildid27706596"
+          "Version": "19.244.35206-buildid28914915"
         }
       }
     },
@@ -1067,6 +1067,33 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "Microsoft.Data.SqlClient",
+          "Version": "5.1.5"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Data.SqlClient.SNI",
+          "Version": "5.1.1"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Data.SqlClient.SNI.runtime",
+          "Version": "5.1.1"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "Microsoft.Data.Sqlite",
           "Version": "1.1.1"
         }
@@ -1312,6 +1339,24 @@
         "NuGet": {
           "Name": "Microsoft.IdentityModel.Logging",
           "Version": "7.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.IdentityModel.Protocols",
+          "Version": "6.35.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.IdentityModel.Protocols.OpenIdConnect",
+          "Version": "6.35.0"
         }
       }
     },
@@ -1886,6 +1931,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "Microsoft.SqlServer.Server",
+          "Version": "1.0.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "Microsoft.TeamFoundation.DistributedTask.Common.Contracts",
           "Version": "16.170.0"
         }
@@ -2094,7 +2148,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.VisualStudio.Services.ArtifactServices.Shared",
-          "Version": "19.238.34809-buildid27706596"
+          "Version": "19.244.35206-buildid28914915"
         }
       }
     },
@@ -2103,7 +2157,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.VisualStudio.Services.BlobStore.Client",
-          "Version": "19.238.34809-buildid27706596"
+          "Version": "19.244.35206-buildid28914915"
         }
       }
     },
@@ -2112,7 +2166,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.VisualStudio.Services.BlobStore.Client.Cache",
-          "Version": "19.238.34809-buildid27706596"
+          "Version": "19.244.35206-buildid28914915"
         }
       }
     },
@@ -2121,7 +2175,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.VisualStudio.Services.Client",
-          "Version": "19.238.0-internal202404091"
+          "Version": "19.244.0-internal202408064"
         }
       }
     },
@@ -2130,7 +2184,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.VisualStudio.Services.InteractiveClient",
-          "Version": "19.238.0-internal202404091"
+          "Version": "19.244.0-internal202408064"
         }
       }
     },
@@ -2724,7 +2778,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Symbol.App.Core",
-          "Version": "19.238.34809-buildid27706596"
+          "Version": "19.244.35206-buildid28914915"
         }
       }
     },
@@ -2733,7 +2787,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Symbol.Client",
-          "Version": "19.238.34809-buildid27706596"
+          "Version": "19.244.35206-buildid28914915"
         }
       }
     },
@@ -3643,6 +3697,15 @@
         "NuGet": {
           "Name": "System.Runtime.Analyzers",
           "Version": "1.0.1"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Runtime.Caching",
+          "Version": "6.0.0"
         }
       }
     },

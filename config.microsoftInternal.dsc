@@ -3,8 +3,8 @@
 
 const isMicrosoftInternal = Environment.getFlag("[Sdk.BuildXL]microsoftInternal");
 
-const artifactNugetVersion = "19.238.34809-buildid27706596";
-const azureDevopsNugetVersion = "19.238.0-internal202404091";
+const artifactNugetVersion = "19.244.35206-buildid28914915";
+const azureDevopsNugetVersion = "19.244.0-internal202408064";
 
 // These packages are Microsoft internal packages.
 // These consist of internally repackaged products that we can't push to a public feed and have to rely on users installing locally.
@@ -44,7 +44,7 @@ export const pkgs = isMicrosoftInternal ? [
         "Mono.Unix",
         "Microsoft.Identity.Client.Desktop" ] },
     { id: "Microsoft.VisualStudio.Services.BlobStore.Client", version: artifactNugetVersion, dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["Microsoft.BuildXL.Cache.Hashing", "Microsoft.BuildXL.Cache.Interfaces", "DotNetFxRefAssemblies.Corext"] },
-    { id: "Microsoft.VisualStudio.Services.Client", version: azureDevopsNugetVersion, dependentPackageIdsToSkip: [ "Microsoft.Net.Http", "Microsoft.AspNet.WebApi.Client", "System.Security.Cryptography.OpenSsl", "System.Security.Principal.Windows" ] },
+    { id: "Microsoft.VisualStudio.Services.Client", version: azureDevopsNugetVersion, dependentPackageIdsToSkip: [ "Microsoft.Net.Http", "Microsoft.AspNet.WebApi.Client", "Microsoft.Data.SqlClient", "System.Security.Cryptography.OpenSsl", "System.Security.Principal.Windows" ] },
     { id: "Microsoft.VisualStudio.Services.InteractiveClient", version: azureDevopsNugetVersion, dependentPackageIdsToSkip: [ "Ben.Demystifier" ], dependentPackageIdsToIgnore: [ "Ben.Demystifier" ] },
     { id: "Microsoft.Azure.Storage.Common", version: "11.2.3" },
     { id: "System.ServiceProcess.ServiceController", version: "6.0.1" },
@@ -106,7 +106,7 @@ export const pkgs = isMicrosoftInternal ? [
 ] : [
 
     // Artifact packages and dependencies in OSS
-    { id: "Microsoft.VisualStudio.Services.Client", version: "16.148.0-preview", dependentPackageIdsToSkip: [ "Microsoft.Net.Http", "Microsoft.AspNet.WebApi.Client", "System.Security.Cryptography.OpenSsl", "System.Security.Principal.Windows" ] },
+    { id: "Microsoft.VisualStudio.Services.Client", version: "16.148.0-preview", dependentPackageIdsToSkip: [ "Microsoft.Data.SqlClient", "Microsoft.Net.Http", "Microsoft.AspNet.WebApi.Client", "System.Security.Cryptography.OpenSsl", "Microsoft.Data.SqlClient", "System.Security.Principal.Windows" ] },
 
 ];
 

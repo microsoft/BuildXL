@@ -7,8 +7,8 @@ $source = 'https://pkgs.dev.azure.com/mseng/_packaging/VSOnline-Internal/nuget/v
 $tempDirectory = Join-Path $env:TEMP "adoUpdateTemp"
 New-Item -Path $tempDirectory -ItemType Directory -Force
 
-$artifactVersion = '19.238.34809-buildid27706596'
-$adoVersion = '19.238.0-internal202404091'
+$artifactVersion = '19.244.35206-buildid28914915'
+$adoVersion = '19.244.0-internal202408064'
 
 $adoPackages = @(
     'Microsoft.VisualStudio.Services.Client'

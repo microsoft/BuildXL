@@ -2,6 +2,17 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20240802.2 (Release [400113](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=400113))
+- Disable caching graph when InputTracker is not enabled.
+- \[AdoBuildRunner\] Don't launch worker if the orchestrator build is over.
+- Allow loading hosted pool cache configuration file from env variables.
+- Add support for macOS arm64 to interop library.
+- Kill tracees if tracer dies under ptrace in Linux.
+- Add support for clone3 in the Linux sandbox.
+- Update rocksdbsharp to include macos arm64 support.
+- Avoid crashing build when attempt to load HistoricMetaDataCache after cancellation is requested.
+- Assume blob cache credentials are DPAPI encrypted by default.
+
 # 0.1.0-20240719.2.1 (Release [397894](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=397894))
 - Fix theory detection in XUnit SDK
 - Plugin initialization timeout fails the build

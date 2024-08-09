@@ -135,15 +135,15 @@ export namespace DropDaemon {
                 name: "System.Text.Json",
                 publicKeyToken: "cc7b13ffcd2ddd51",
                 culture: "neutral",
-                oldVersion: "0.0.0.0-7.0.0.0",
-                newVersion: "7.0.0.0"
+                oldVersion: "0.0.0.0-8.0.0.0",
+                newVersion: "8.0.0.0"
             },
             {
                 name: "System.Text.Encodings.Web",
                 publicKeyToken: "cc7b13ffcd2ddd51",
                 culture: "neutral",
-                oldVersion: "0.0.0.0-7.0.0.0",
-                newVersion: "7.0.0.0"
+                oldVersion: "0.0.0.0-8.0.0.0",
+                newVersion: "8.0.0.0"
             }
         ];
     }

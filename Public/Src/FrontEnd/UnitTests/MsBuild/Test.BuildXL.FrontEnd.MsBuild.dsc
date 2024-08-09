@@ -59,7 +59,7 @@ namespace Test.MsBuild {
                 subfolder: a`tools`,
                 // For the dotnet case, we are only deploying the tool for net8
                 // TODO: Remove condition when we stop building for net6.0/net7.0
-                contents: [qualifier.targetFramework === "net6.0" || qualifier.targetFramework === "net7.0"
+                contents: [qualifier.targetFramework === "net6.0"
                     ? importFrom("BuildXL.Tools").MsBuildGraphBuilder.withQualifier({targetFramework: "net8.0"}).deployment
                     : importFrom("BuildXL.Tools").MsBuildGraphBuilder.deployment]
             },

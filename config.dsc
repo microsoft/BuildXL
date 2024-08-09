@@ -369,7 +369,6 @@ config({
 
         // .NET Runtimes.
         { kind: "SourceResolver", modules: [f`Public\Sdk\SelfHost\Libraries\Dotnet-Runtime-6-External\module.config.dsc`] },
-        { kind: "SourceResolver", modules: [f`Public\Sdk\SelfHost\Libraries\Dotnet-Runtime-7-External\module.config.dsc`] },
         { kind: "SourceResolver", modules: [f`Public\Sdk\SelfHost\Libraries\Dotnet-Runtime-8-External\module.config.dsc`] },
 
         {
@@ -401,26 +400,6 @@ config({
                     moduleName: "DotNet-Runtime.linux-x64.8.0",
                     url: "https://download.visualstudio.microsoft.com/download/pr/cf3418ca-0e14-4b76-b615-ac2f2497f8ec/2583028ea52460cb1534d929dc7970fe/dotnet-runtime-8.0.7-linux-x64.tar.gz",
                     hash: "VSO0:A739C69C2F8EEF5A32C1F623174AD58E968C2173855DEB0B2D1A0971D47A620000",
-                    archiveType: "tgz",
-                },
-
-                // DotNet Core Runtime 7.0.20
-                {
-                    moduleName: "DotNet-Runtime.win-x64.7.0", 
-                    url: "https://download.visualstudio.microsoft.com/download/pr/990ff1f7-b5df-4a80-a65e-7cff3a1a263c/f1a2f3cab0d1787618f7d8043e3a6827/dotnet-runtime-7.0.20-win-x64.zip",
-                    hash: "VSO0:3BF65B86D8811BA2E65D53DED1EE0DF2BF49A195ED81F4A1324C9C06E8B14DAA00",
-                    archiveType: "zip",
-                },
-                {
-                    moduleName: "DotNet-Runtime.osx-x64.7.0",
-                    url: "https://download.visualstudio.microsoft.com/download/pr/cbade9d9-be1e-46c0-9f90-13ba882965dc/31c86e8f4beaf0e5ad9ad35a408be7de/dotnet-runtime-7.0.20-osx-x64.tar.gz",
-                    hash: "VSO0:B0D4908FCBC1E9AEF32E887E004B344E7034966BF10291CC8237A683B5FB986100",
-                    archiveType: "tgz",
-                },
-                {
-                    moduleName: "DotNet-Runtime.linux-x64.7.0",
-                    url: "https://download.visualstudio.microsoft.com/download/pr/2c5981ff-0f0c-47ab-bff4-0ea4919b395b/cbfdfa7f35d133b0bdef87fa3830bfa0/dotnet-runtime-7.0.20-linux-x64.tar.gz",
-                    hash: "VSO0:1ED0D63277280A7F9F26011CDF0A2040BE46787031BB0375D49547AD7833FF5800",
                     archiveType: "tgz",
                 },
 
@@ -510,11 +489,6 @@ config({
                 targetFramework: "net8.0",
                 targetRuntime: "win-x64",
             },
-            DebugNet7: {
-                configuration: "debug",
-                targetFramework: "net7.0",
-                targetRuntime: "win-x64",
-            },
             DebugDotNet6: {
                 configuration: "debug",
                 targetFramework: "net6.0",
@@ -554,11 +528,6 @@ config({
             ReleaseNet8: {
                 configuration: "release",
                 targetFramework: "net8.0",
-                targetRuntime: "win-x64",
-            },
-            ReleaseNet7: {
-                configuration: "release",
-                targetFramework: "net7.0",
                 targetRuntime: "win-x64",
             },
             ReleaseDotNet6: {

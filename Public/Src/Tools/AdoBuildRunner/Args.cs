@@ -78,6 +78,9 @@ namespace BuildXL.AdoBuildRunner
                             "cacheConfigUniverse",
                             opt => cacheConfigGenerationConfiguration.Universe = opt.Value),
                     OptionHandlerFactory.CreateOption(
+                            "hostedPoolActiveBuildCacheName",
+                            opt => cacheConfigGenerationConfiguration.HostedPoolActiveBuildCacheName = CommandLineUtilities.ParseStringOption(opt)),
+                    OptionHandlerFactory.CreateOption(
                             "maximumWaitForWorkerSeconds",
                             opt => mutableConfig.MaximumWaitForWorkerSeconds = CommandLineUtilities.ParseInt32Option(opt, 0, int.MaxValue)),
                     OptionHandlerFactory.CreateBoolOption(

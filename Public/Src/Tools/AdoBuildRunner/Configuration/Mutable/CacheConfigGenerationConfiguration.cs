@@ -34,5 +34,17 @@ namespace BuildXL.AdoBuildRunner
 
         /// <nodoc/>
         public bool? LogGeneratedConfiguration { get; set; }
+
+        /// <nodoc/>
+        public string HostedPoolActiveBuildCacheName { get; set; }
+
+        /// <nodoc/>
+        public string HostedPoolBuildCacheConfigurationFile { get; set; }
+
+        /// <nodoc/>
+        public CacheConfigGenerationConfiguration()
+        {
+            HostedPoolBuildCacheConfigurationFile = CacheConfigGenerationConfigurationDefaults.GetHostedPoolBuildCacheConfigurationFile();
+        }
     }
 }

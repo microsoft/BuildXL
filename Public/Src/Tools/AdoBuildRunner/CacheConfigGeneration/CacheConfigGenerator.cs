@@ -1,8 +1,10 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using BuildXL.ToolSupport;
+using Newtonsoft.Json;
 
 namespace BuildXL.AdoBuildRunner
 {
@@ -35,55 +37,87 @@ namespace BuildXL.AdoBuildRunner
         {
             Contract.Requires(configuration.CacheType() == CacheType.EphemeralDatacenterWide || configuration.CacheType() == CacheType.EphemeralBuildWide);
 
-            return @$"
-{{
-  ""Type"": ""BuildXL.Cache.MemoizationStoreAdapter.EphemeralCacheFactory"",
-  ""Assembly"": ""BuildXL.Cache.MemoizationStoreAdapter"",
-  ""CacheId"": ""{configuration.CacheId()}"",
-  ""CacheLogPath"": ""[BuildXLSelectedLogPath].Ephemeral.log"",
-  ""CacheRootPath"": ""[BuildXLSelectedRootPath]"",
-  ""Universe"": ""{configuration.Universe()}"",
-  ""LeaderMachineName"": ""[BuildXLSelectedLeader]"",
-  ""DatacenterWide"": {(configuration.CacheType() == CacheType.EphemeralDatacenterWide? "true" : "false")},
-  ""CacheSizeMb"": {configuration.CacheSizeInMB()},
-  ""RetentionPolicyInDays"": {configuration.RetentionPolicyInDays()},
-  ""StorageAccountEndpoint"": ""{configuration.StorageAccountEndpoint.AbsoluteUri}"",
-  ""ManagedIdentityId"": ""{configuration.ManagedIdentityId}""
-}}";
+            var ephemeralCacheConfigDict = new Dictionary<string, object>
+            {
+                { "Type", "BuildXL.Cache.MemoizationStoreAdapter.EphemeralCacheFactory" },
+                { "Assembly", "BuildXL.Cache.MemoizationStoreAdapter" },
+                { "CacheId", configuration.CacheId() },
+                { "CacheLogPath", "[BuildXLSelectedLogPath].Ephemeral.log" },
+                { "CacheRootPath", "[BuildXLSelectedRootPath]"},
+                { "LeaderMachineName", "[BuildXLSelectedLeader]" },
+                { "DatacenterWide",  (configuration.CacheType() == CacheType.EphemeralDatacenterWide ? "true" : "false")},
+                { "CacheSizeMb", configuration.CacheSizeInMB() }
+            };
+
+            if (string.IsNullOrEmpty(configuration.HostedPoolBuildCacheConfigurationFile))
+            {
+                ephemeralCacheConfigDict.Add("Universe", configuration.Universe());
+                ephemeralCacheConfigDict.Add("RetentionPolicyInDays", configuration.RetentionPolicyInDays());
+                ephemeralCacheConfigDict.Add("StorageAccountEndpoint", configuration.StorageAccountEndpoint.AbsoluteUri);
+                ephemeralCacheConfigDict.Add("ManagedIdentityId", configuration.ManagedIdentityId);
+            }
+            else
+            {
+                ephemeralCacheConfigDict.Add("HostedPoolBuildCacheConfigurationFile", configuration.HostedPoolBuildCacheConfigurationFile);
+                if (!string.IsNullOrEmpty(configuration.HostedPoolActiveBuildCacheName))
+                {
+                    ephemeralCacheConfigDict.Add("HostedPoolActiveBuildCacheName", configuration.HostedPoolActiveBuildCacheName());
+                }
+            }
+
+            return JsonConvert.SerializeObject(ephemeralCacheConfigDict, Formatting.Indented);
         }
 
         private static string GenerateBlobCacheConfig(ICacheConfigGenerationConfiguration configuration)
         {
-            return @$"
-{{
-  ""RemoteIsReadOnly"": false,
-  ""SkipDeterminismRecovery"": true,
-  ""WriteThroughCasData"": true,
-  ""FailIfRemoteFails"": true,
-  ""RemoteConstructionTimeoutMilliseconds"": 30000,
-  ""Assembly"": ""BuildXL.Cache.VerticalAggregator"",
-  ""Type"": ""BuildXL.Cache.VerticalAggregator.VerticalCacheAggregatorFactory"",
-  ""RemoteCache"": {{
-    ""Assembly"": ""BuildXL.Cache.MemoizationStoreAdapter"",
-    ""CacheLogPath"": ""[BuildXLSelectedLogPath].Remote.log"",
-    ""Type"": ""BuildXL.Cache.MemoizationStoreAdapter.BlobCacheFactory"",
-    ""CacheId"": ""{configuration.CacheId()}Remote"",
-    ""Universe"": ""{configuration.Universe()}"",
-    ""RetentionPolicyInDays"": {configuration.RetentionPolicyInDays()},
-    ""StorageAccountEndpoint"": ""{configuration.StorageAccountEndpoint.AbsoluteUri}"",
-    ""ManagedIdentityId"": ""{configuration.ManagedIdentityId}""
-  }},
-  ""LocalCache"": {{
-    ""MaxCacheSizeInMB"": {configuration.CacheSizeInMB()},
-    ""Assembly"": ""BuildXL.Cache.MemoizationStoreAdapter"",
-    ""UseStreamCAS"": false,
-    ""Type"": ""BuildXL.Cache.MemoizationStoreAdapter.MemoizationStoreCacheFactory"",
-    ""CacheLogPath"": ""[BuildXLSelectedLogPath]"",
-    ""CacheRootPath"": ""[BuildXLSelectedRootPath]"",
-    ""CacheId"": ""{configuration.CacheId()}Local"",
-    ""ImplicitPin"": 0
-  }}
-}}";
+            var configDict = new Dictionary<string, object>
+            {
+                { "RemoteIsReadOnly", false },
+                { "SkipDeterminismRecovery", true },
+                { "WriteThroughCasData", true },
+                { "FailIfRemoteFails", true },
+                { "RemoteConstructionTimeoutMilliseconds", 30000 },
+                { "Assembly", "BuildXL.Cache.VerticalAggregator" },
+                { "Type", "BuildXL.Cache.VerticalAggregator.VerticalCacheAggregatorFactory" },
+            };
+
+            var remoteCacheDict = new Dictionary<string, object> {
+                { "Assembly", "BuildXL.Cache.MemoizationStoreAdapter" },
+                { "CacheLogPath", "[BuildXLSelectedLogPath].Remote.log" },
+                { "Type", "BuildXL.Cache.MemoizationStoreAdapter.BlobCacheFactory" },
+                { "CacheId", $"{configuration.CacheId()}Remote" },
+            };
+
+            if (string.IsNullOrEmpty(configuration.HostedPoolBuildCacheConfigurationFile))
+            {
+                remoteCacheDict.Add("Universe", configuration.Universe());
+                remoteCacheDict.Add("RetentionPolicyInDays", configuration.RetentionPolicyInDays());
+                remoteCacheDict.Add("StorageAccountEndpoint", configuration.StorageAccountEndpoint.AbsoluteUri);
+                remoteCacheDict.Add("ManagedIdentityId", configuration.ManagedIdentityId);
+            }
+            else
+            {
+                remoteCacheDict.Add("HostedPoolBuildCacheConfigurationFile", configuration.HostedPoolBuildCacheConfigurationFile);
+                if (!string.IsNullOrEmpty(configuration.HostedPoolActiveBuildCacheName))
+                {
+                    remoteCacheDict.Add("HostedPoolActiveBuildCacheName", configuration.HostedPoolActiveBuildCacheName());
+                }
+            }
+
+            var localCacheDict = new Dictionary<string, object> {
+                { "MaxCacheSizeInMB", configuration.CacheSizeInMB() },
+                { "Assembly", "BuildXL.Cache.MemoizationStoreAdapter" },
+                { "UseStreamCAS", false },
+                { "Type", "BuildXL.Cache.MemoizationStoreAdapter.MemoizationStoreCacheFactory" },
+                { "CacheLogPath", "[BuildXLSelectedLogPath]" },
+                { "CacheRootPath", "[BuildXLSelectedRootPath]" },
+                { "CacheId", $"{configuration.CacheId()}Local" },
+                { "ImplicitPin", 0 }
+            };
+
+            configDict["RemoteCache"] = remoteCacheDict;
+            configDict["LocalCache"] = localCacheDict;
+            return JsonConvert.SerializeObject(configDict, Formatting.Indented);
         }
     }
 }

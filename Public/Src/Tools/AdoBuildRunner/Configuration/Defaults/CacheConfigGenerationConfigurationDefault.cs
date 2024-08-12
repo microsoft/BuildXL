@@ -1,11 +1,26 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using BuildXL.Utilities.Core;
+using System.IO;
+
 namespace BuildXL.AdoBuildRunner
 {
     /// <nodoc/>
     public static class CacheConfigGenerationConfigurationDefaults
     {
+        /// <summary>
+        /// Predefined location, based on the contract between BuildXL and 1ESHP for the hosted pool cache config file in Windows.
+        /// Where a pool with a set a cache resources associated to it is guaranteed to put this file on every agent at this location.
+        /// </summary>
+        private const string HostedPoolBuildCacheConfigurationFileForWindows = $@"C:\buildcacheconfig.json";
+
+        /// <summary>
+        /// Predefined location, based on the contract between BuildXL and 1ESHP for the hosted pool cache config file in Linux.
+        /// Where a pool with a set a cache resources associated to it is guaranteed to put this file on every agent at this location.
+        /// </summary>
+        private const string HostedPoolBuildCacheConfigurationFileForLinux = $@"/buildcacheconfig.json";
+
         /// <summary>
         /// 6 days proved to be a good default for the retention policy (and avoids the weekend lump issue)
         /// </summary>
@@ -47,5 +62,20 @@ namespace BuildXL.AdoBuildRunner
 
         /// <nodoc/>
         public static bool LogGeneratedConfiguration(this ICacheConfigGenerationConfiguration config) => config.LogGeneratedConfiguration ?? DefaultLogGeneratedConfiguration;
+
+        /// <nodoc/>
+        public static string HostedPoolActiveBuildCacheName(this ICacheConfigGenerationConfiguration config) => config.HostedPoolActiveBuildCacheName ?? string.Empty;
+
+        /// <summary>
+        /// Gets the path of the cache configuration file produced by Hosted Pool
+        /// </summary>
+        /// <returns>
+        /// Absolute path of the cache configuration file if found, otherwise null
+        /// </returns>
+        public static string GetHostedPoolBuildCacheConfigurationFile()
+        {
+            var filePath = (OperatingSystemHelper.IsWindowsOS) ? HostedPoolBuildCacheConfigurationFileForWindows : HostedPoolBuildCacheConfigurationFileForLinux;
+            return File.Exists(filePath) ? filePath : null;
+        }
     }
 }

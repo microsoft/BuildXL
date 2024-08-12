@@ -47,6 +47,12 @@ namespace BuildXL.AdoBuildRunner
 
         /// <nodoc/>
         public bool? LogGeneratedConfiguration { get; }
+
+        /// <nodoc/>
+        public string HostedPoolActiveBuildCacheName { get; }
+
+        /// <nodoc/>
+        public string HostedPoolBuildCacheConfigurationFile { get; }
     }
 
     /// <nodoc/>
@@ -81,6 +87,11 @@ namespace BuildXL.AdoBuildRunner
             if (cacheConfigGenerationConfiguration?.CacheSizeInMB <= 0)
             {
                 throw new ArgumentException("CacheSizeInMB must be a positive integer.");
+            }
+
+            if (!string.IsNullOrEmpty(cacheConfigGenerationConfiguration.HostedPoolBuildCacheConfigurationFile) && !string.IsNullOrEmpty(cacheConfigGenerationConfiguration.Universe))
+            {
+                throw new ArgumentException($"Setting a specific 'Universe' is not supported by 1ES hosted pool cache.");
             }
         }
     }

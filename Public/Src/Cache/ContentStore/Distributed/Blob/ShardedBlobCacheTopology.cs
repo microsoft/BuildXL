@@ -178,73 +178,7 @@ public class ShardedBlobCacheTopology : IBlobCacheTopology
                     action: async (scheduleItem, containerPath) =>
                     {
                         var containerClient = await GetOrCreateClientAsync(context, containerPath);
-
-                        // There's a set of fallback options here, because we want to be able to handle different
-                        // levels of permissions being granted to the storage credentials we're using. We may have
-                        // credentials that allow:
-                        //
-                        // 1. Actually creating containers and listing them.
-                        // 2. Listing containers but not creating them.
-                        // 3. Not listing containers, but still using them.
-                        //
-                        // The fallbacks here allow all of these options to go through. In some cases, the containers
-                        // will actually not exist and we're expected to create them, so we do need to try to.
-                        //
-                        // REMARK: everything is logged as INFO to prevent QuickBuild from showing these logs in the
-                        // console output and confusing DRIs when there's a failed build.
-
-                        try
-                        {
-                            if (await containerClient.ExistsAsync(context.Token))
-                            {
-                                return;
-                            }
-                        }
-                        catch (Exception exception)
-                        {
-                            Tracer.Info(context, exception, $"Failed to check if container `{containerClient.Name}` exists in account `{containerClient.AccountName}` (path: {containerPath})");
-                        }
-
-                        try
-                        {
-                            // There is a CreateIfNotExistsAsync API, but it doesn't work in practice against the Azure
-                            // Storage emulator.
-                            await containerClient.CreateAsync(
-                                publicAccessType: PublicAccessType.None,
-                                cancellationToken: context.Token);
-
-                            return;
-                        }
-                        catch (RequestFailedException exception) when (exception.ErrorCode == "ContainerAlreadyExists")
-                        {
-                            return;
-                        }
-                        catch (Exception exception)
-                        {
-                            Tracer.Info(context, exception, $"Failed to create container `{containerClient.Name}` in account `{containerClient.AccountName}` (path: {containerPath})");
-                        }
-
-                        try
-                        {
-                            await foreach (var entry in containerClient.GetBlobsAsync(BlobTraits.None, BlobStates.None, prefix: null, cancellationToken: context.Token))
-                            {
-                                // Because this is an IAsyncEnumerable, we just fetched the first page here.
-                                break;
-                            }
-
-                            return;
-                        }
-                        catch (RequestFailedException exception) when (exception.ErrorCode == "ContainerNotFound")
-                        {
-                            // This can happen at a high volume, no need to print anything, as it's expected.
-                        }
-                        catch (Exception exception)
-                        {
-                            Tracer.Info(context, exception, $"Failed to check if container `{containerClient.Name}` exists in account `{containerClient.AccountName}` (path: {containerPath})");
-                        }
-
-                        // We throw an exception here so the WhenDoneAsync bubbles it up.
-                        throw new InvalidOperationException($"Container `{containerClient.Name}` in account `{containerClient.AccountName}` does not exist and could not be created (path: {containerPath})");
+                        await StorageClientExtensions.EnsureContainerExistsAsync(Tracer, context, containerClient, _configuration.ClientCreationTimeout ?? Timeout.InfiniteTimeSpan).ThrowIfFailureAsync();
                     });
 
                 return BoolResult.Success;

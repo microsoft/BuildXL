@@ -55,43 +55,6 @@ public class BlobStorageClientAdapter
         _retryPolicy = _configuration.RetryPolicy.Create();
     }
 
-    public Task<Result<bool>> EnsureContainerExists(OperationContext context, BlobContainerClient client)
-    {
-        return context.PerformOperationWithTimeoutAsync(
-            Tracer,
-            async context =>
-            {
-                var created = true;
-                try
-                {
-                    // There is a CreateIfNotExistsAsync API, but it doesn't work in practice against the Azure
-                    // Storage emulator.
-                    await client.CreateAsync(
-                        publicAccessType: PublicAccessType.None,
-                        cancellationToken: context.Token);
-                }
-                catch (RequestFailedException exception) when (exception.ErrorCode == "ContainerAlreadyExists")
-                {
-                    created = false;
-                }
-
-                return Result.Success(created);
-            },
-            traceOperationStarted: false,
-            extraEndMessage: r =>
-                             {
-                                 var msg = $"Container=[{client.Name}]";
-
-                                 if (!r.Succeeded)
-                                 {
-                                     return msg;
-                                 }
-
-                                 return $"{msg} Created=[{r.Value}]";
-                             },
-            timeout: _configuration.StorageInteractionTimeout);
-    }
-
     /// <summary>
     /// WARNING: ETag here is a string instead of the ETag type to allow users not in this assembly not to directly
     /// reference the Storage SDK.
@@ -116,6 +79,11 @@ public class BlobStorageClientAdapter
                 return (result.NextState, result.Result, Updated: !ReferenceEquals(current, result.NextState));
             },
             () => new TState());
+    }
+
+    public Task<Result<bool>> EnsureContainerExists(OperationContext context, BlobContainerClient client)
+    {
+        return StorageClientExtensions.EnsureContainerExistsAsync(Tracer, context, client, _configuration.StorageInteractionTimeout);
     }
 
     /// <summary>

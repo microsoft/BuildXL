@@ -2,6 +2,10 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20240809.1 (Release [401607](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=401607))
+- Remove net7 qualifier
+- Minor tweaks and improvements
+
 # 0.1.0-20240802.2 (Release [400113](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=400113))
 - Disable caching graph when InputTracker is not enabled.
 - \[AdoBuildRunner\] Don't launch worker if the orchestrator build is over.

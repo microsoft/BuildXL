@@ -7,6 +7,7 @@ BuildXL.Utilities
 BuildXL.Utilities.Core
 BuildXL.Native
 BuildXL.Processes
+BuildXL.Cache.BuildCacheResource.Helper
 BuildXL.Cache.Hashing
 BuildXL.Cache.Interfaces
 BuildXL.Cache.Libraries

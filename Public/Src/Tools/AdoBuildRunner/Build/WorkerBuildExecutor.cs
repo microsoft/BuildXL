@@ -15,7 +15,7 @@ namespace BuildXL.AdoBuildRunner.Build
     public class WorkerBuildExecutor : BuildExecutor
     {
         /// <nodoc />
-        public WorkerBuildExecutor(IBuildXLLauncher buildXLLauncher, IAdoBuildRunnerService adoBuildRunnerService, ILogger logger) : base(buildXLLauncher, adoBuildRunnerService, logger)
+        public WorkerBuildExecutor(IBuildXLLauncher buildXLLauncher, AdoBuildRunnerService adoBuildRunnerService, ILogger logger) : base(buildXLLauncher, adoBuildRunnerService, logger)
         {
         }
 

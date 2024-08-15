@@ -15,7 +15,7 @@ namespace BuildXL.AdoBuildRunner.Build
     public class OrchestratorBuildExecutor : BuildExecutor
     {
         /// <nodoc />
-        public OrchestratorBuildExecutor(IBuildXLLauncher buildXLLauncher, IAdoBuildRunnerService adoBuildRunnerService, ILogger logger) : base(buildXLLauncher, adoBuildRunnerService, logger)
+        public OrchestratorBuildExecutor(IBuildXLLauncher buildXLLauncher, AdoBuildRunnerService adoBuildRunnerService, ILogger logger) : base(buildXLLauncher, adoBuildRunnerService, logger)
         {
         }
 

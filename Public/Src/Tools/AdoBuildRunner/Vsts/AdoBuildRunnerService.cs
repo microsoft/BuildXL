@@ -18,7 +18,7 @@ namespace BuildXL.AdoBuildRunner.Vsts
     /// <summary>
     /// Concrete implementation of the VSTS API interface for build coordination purposes
     /// </summary>
-    public class AdoBuildRunnerService : IAdoBuildRunnerService
+    public class AdoBuildRunnerService
     {
         /// <inheritdoc />
         public IAdoEnvironment AdoEnvironment { get; }
@@ -253,21 +253,20 @@ namespace BuildXL.AdoBuildRunner.Vsts
         }
 
         /// <inheritdoc />
-        public async Task GenerateCacheConfigFileIfNeededAsync(Logger logger, IAdoBuildRunnerConfiguration configuration, List<string> buildArgs)
+        public static async Task GenerateCacheConfigFileIfNeededAsync(Logger logger, ICacheConfigGenerationConfiguration configuration, List<string> buildArgs, string? tempFileName = null)
         {
-            // If the storage account endpoint was provided, that is taken as an indicator that the cache config needs to be generated
-            if (configuration.CacheConfigGenerationConfiguration.StorageAccountEndpoint == null)
+            if (!configuration.ShouldGenerateCacheConfigurationFile())
             {
                 return;
             }
 
-            string cacheConfigContent = CacheConfigGenerator.GenerateCacheConfig(configuration.CacheConfigGenerationConfiguration);
-            string cacheConfigFilePath = Path.GetTempFileName();
+            string cacheConfigContent = CacheConfigGenerator.GenerateCacheConfig(configuration);
+            string cacheConfigFilePath = tempFileName ?? Path.GetTempFileName();
 
             await File.WriteAllTextAsync(cacheConfigFilePath, cacheConfigContent);
             logger.Info($"Cache config file generated at '{cacheConfigFilePath}'");
 
-            if (configuration.CacheConfigGenerationConfiguration.LogGeneratedConfiguration())
+            if (configuration.LogGeneratedConfiguration())
             {
                 logger.Info($"Generated cache config file: {cacheConfigContent}");
             }

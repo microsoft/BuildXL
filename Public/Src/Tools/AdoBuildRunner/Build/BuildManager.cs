@@ -14,7 +14,7 @@ namespace BuildXL.AdoBuildRunner.Build
     /// </summary>
     public class BuildManager
     {
-        private readonly IAdoBuildRunnerService m_adoBuildRunnerService;
+        private readonly AdoBuildRunnerService m_adoBuildRunnerService;
 
         private readonly IBuildExecutor m_executor;
 
@@ -29,7 +29,7 @@ namespace BuildXL.AdoBuildRunner.Build
         /// <param name="executor">Interface to execute the build engine</param>
         /// <param name="args">Build CLI arguments</param>
         /// <param name="logger">Interface to log build info</param>
-        public BuildManager(IAdoBuildRunnerService adoBuildRunnerService, IBuildExecutor executor, string[] args, ILogger logger)
+        public BuildManager(AdoBuildRunnerService adoBuildRunnerService, IBuildExecutor executor, string[] args, ILogger logger)
         {
             m_adoBuildRunnerService = adoBuildRunnerService;
             m_executor = executor;

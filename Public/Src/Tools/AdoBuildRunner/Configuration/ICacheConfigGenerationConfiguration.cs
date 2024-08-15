@@ -89,10 +89,28 @@ namespace BuildXL.AdoBuildRunner
                 throw new ArgumentException("CacheSizeInMB must be a positive integer.");
             }
 
-            if (!string.IsNullOrEmpty(cacheConfigGenerationConfiguration.HostedPoolBuildCacheConfigurationFile) && !string.IsNullOrEmpty(cacheConfigGenerationConfiguration.Universe))
+            if (cacheConfigGenerationConfiguration.HonorBuildCacheConfigurationFile() && !string.IsNullOrEmpty(cacheConfigGenerationConfiguration.Universe))
             {
                 throw new ArgumentException($"Setting a specific 'Universe' is not supported by 1ES hosted pool cache.");
             }
         }
+
+        /// <summary>
+        /// If the storage account endpoint was provided, that is taken as an indicator that the cache config needs to be generated.
+        /// Likewise, if we find a hosted pool build cache configuration file, we'll generate a cache config that honors it.
+        /// False otherwise
+        /// </summary>
+        public static bool ShouldGenerateCacheConfigurationFile(this ICacheConfigGenerationConfiguration cacheConfigGenerationConfiguration) =>
+            cacheConfigGenerationConfiguration.StorageAccountEndpoint != null || cacheConfigGenerationConfiguration.HostedPoolBuildCacheConfigurationFile != null;
+
+        /// <summary>
+        /// We honor the build cache configuration file when it is present and the storage account endpoint is not provided
+        /// </summary>
+        /// <remarks>
+        /// Providing an explicit storage account endpoint is left as a servicing option to override a configured build cache resource and allow a build
+        /// to point to a specific blob account directly. It is also left as a back-compat mechanism.
+        /// </remarks>
+        public static bool HonorBuildCacheConfigurationFile(this ICacheConfigGenerationConfiguration cacheConfigGenerationConfiguration) =>
+            cacheConfigGenerationConfiguration.HostedPoolBuildCacheConfigurationFile != null && cacheConfigGenerationConfiguration.StorageAccountEndpoint == null;
     }
 }

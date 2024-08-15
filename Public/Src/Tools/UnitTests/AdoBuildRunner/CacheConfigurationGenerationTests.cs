@@ -1,8 +1,11 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
+using System.Collections.Generic;
 using System.IO;
 using BuildXL.AdoBuildRunner;
+using BuildXL.AdoBuildRunner.Vsts;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 
@@ -24,6 +27,7 @@ namespace Test.Tool.AdoBuildRunner
         public void GenerateCacheConfigTestWithCacheResource(CacheType cacheType, string expectedCacheConfigResult, string cacheResourceName)
         {
             var cacheConfiguration = new MockCacheConfigGeneration();
+            cacheConfiguration.StorageAccountEndpoint = null;
             cacheConfiguration.CacheType = cacheType;
             cacheConfiguration.HostedPoolActiveBuildCacheName = cacheResourceName;
 
@@ -54,8 +58,55 @@ namespace Test.Tool.AdoBuildRunner
         public void GenerateCacheConfigTestWithoutCacheResource(CacheType cacheType, string expectedCacheConfigResult)
         {
             var cacheConfiguration = new MockCacheConfigGeneration();
+            cacheConfiguration.HostedPoolBuildCacheConfigurationFile = null;
             cacheConfiguration.CacheType = cacheType;
             XAssert.AreEqual(expectedCacheConfigResult.Replace("\r\n", "\n").Trim(), CacheConfigGenerator.GenerateCacheConfig(cacheConfiguration).Replace("\r\n", "\n").Trim());
+        }
+
+        [Theory]
+        [InlineData("https://contoso.com", true, true)]
+        [InlineData("https://contoso.com", false, true)]
+        [InlineData(null, true, true)]
+        [InlineData(null, false, false)]
+        public void TestShouldGenerateCacheConfig(string storageAccountEndpoint, bool hostedPoolBuildCacheConfigurationFilePathIsPresent, bool expectCacheConfigIsGenerated)
+        {
+            var cacheConfiguration = new MockCacheConfigGeneration();
+            cacheConfiguration.StorageAccountEndpoint = storageAccountEndpoint == null ? null : new System.Uri(storageAccountEndpoint);
+            
+            if (hostedPoolBuildCacheConfigurationFilePathIsPresent)
+            {
+                var hostedPoolBuildCacheConfigurationFilePath = Path.Combine(TemporaryDirectory, "buildCacheConfig.json");
+                File.WriteAllText(hostedPoolBuildCacheConfigurationFilePath, "mock file");
+                cacheConfiguration.HostedPoolBuildCacheConfigurationFile = hostedPoolBuildCacheConfigurationFilePath;
+            }
+            else
+            {
+                cacheConfiguration.HostedPoolBuildCacheConfigurationFile = null;
+            }
+
+            var args = new List<string>();
+            var logger = new Logger();
+
+            AdoBuildRunnerService.GenerateCacheConfigFileIfNeededAsync(logger, cacheConfiguration, args, Path.Combine(TemporaryDirectory, "cacheConfig.json")).GetAwaiter().GetResult();
+
+            // If the cache config is generated the corresponding argument is injected, so we check for that
+            XAssert.AreEqual(expectCacheConfigIsGenerated, args.Count > 0);
+        }
+
+        [Fact]
+        public void TestStorageAccountEndpointTrumpsHostedPoolBuildCache()
+        {
+            var cacheConfiguration = new MockCacheConfigGeneration();
+            
+            // Set both the storage account endpoint and the path to the hosted pool build cache file. The account endpoint should win.
+            cacheConfiguration.StorageAccountEndpoint = new Uri("https://test.cacheresource.com");
+            cacheConfiguration.HostedPoolBuildCacheConfigurationFile = Path.Combine(TemporaryDirectory, "buildCacheConfig.json");
+
+            var generatedConfig = CacheConfigGenerator.GenerateCacheConfig(cacheConfiguration);
+
+            // The generated config should contain the storage account endpoint but not the hosted pool cache file
+            XAssert.ContainsNot(generatedConfig, "HostedPoolBuildCacheConfigurationFile");
+            XAssert.Contains(generatedConfig, "StorageAccountEndpoint");
         }
 
         /// <summary>

@@ -49,7 +49,7 @@ namespace BuildXL.AdoBuildRunner
                 { "CacheSizeMb", configuration.CacheSizeInMB() }
             };
 
-            if (string.IsNullOrEmpty(configuration.HostedPoolBuildCacheConfigurationFile))
+            if (!configuration.HonorBuildCacheConfigurationFile())
             {
                 ephemeralCacheConfigDict.Add("Universe", configuration.Universe());
                 ephemeralCacheConfigDict.Add("RetentionPolicyInDays", configuration.RetentionPolicyInDays());
@@ -88,7 +88,7 @@ namespace BuildXL.AdoBuildRunner
                 { "CacheId", $"{configuration.CacheId()}Remote" },
             };
 
-            if (string.IsNullOrEmpty(configuration.HostedPoolBuildCacheConfigurationFile))
+            if (!configuration.HonorBuildCacheConfigurationFile())
             {
                 remoteCacheDict.Add("Universe", configuration.Universe());
                 remoteCacheDict.Add("RetentionPolicyInDays", configuration.RetentionPolicyInDays());

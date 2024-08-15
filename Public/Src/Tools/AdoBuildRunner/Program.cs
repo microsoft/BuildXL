@@ -71,7 +71,7 @@ namespace BuildXL.AdoBuildRunner
                 var buildArgs = forwardingArguments.ToList();
 
                 var adoBuildRunnerService = new AdoBuildRunnerService(configuration, adoEnvironment, logger);
-                await adoBuildRunnerService.GenerateCacheConfigFileIfNeededAsync(logger, configuration, buildArgs);
+                await AdoBuildRunnerService.GenerateCacheConfigFileIfNeededAsync(logger, configuration.CacheConfigGenerationConfiguration, buildArgs);
                 
                 var buildXLLauncher = new BuildXLLauncher();
                 IBuildExecutor buildExecutor = adoBuildRunnerService.Config.PipelineRole switch

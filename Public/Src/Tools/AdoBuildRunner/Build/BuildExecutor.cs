@@ -17,13 +17,13 @@ namespace BuildXL.AdoBuildRunner.Build
     public abstract class BuildExecutor : IBuildExecutor
     {
         /// <nodoc />
-        protected readonly IAdoBuildRunnerService AdoBuildRunnerService;
+        protected readonly AdoBuildRunnerService AdoBuildRunnerService;
         /// <nodoc />
         protected readonly ILogger Logger;
         private readonly IBuildXLLauncher m_bxlLauncher;
 
         /// <nodoc />
-        public BuildExecutor(IBuildXLLauncher buildXLLauncher, IAdoBuildRunnerService adoBuildRunnerService, ILogger logger)
+        public BuildExecutor(IBuildXLLauncher buildXLLauncher, AdoBuildRunnerService adoBuildRunnerService, ILogger logger)
         {
             AdoBuildRunnerService = adoBuildRunnerService;
             Logger = logger;

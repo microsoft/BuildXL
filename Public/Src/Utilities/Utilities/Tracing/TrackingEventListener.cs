@@ -329,7 +329,7 @@ namespace BuildXL.Utilities.Tracing
         }
 
         /// <summary>
-        /// Buckets and tracks an error into user, infrastrucure, internal
+        /// Buckets and tracks an error into user, infrastructure, internal
         /// </summary>
         /// <returns>True if the error is an internal or infrastructure error</returns>
         private bool BucketError(long keywords, string eventName, string errorMessage)

@@ -1746,7 +1746,7 @@ namespace BuildXL.Scheduler
                     Logger.Log.TopPipsPerformanceInfo(m_loggingContext, processPipPerf);
                 }
 
-                var shutdownServicesSucceeded = await m_serviceManager.ShutdownStartedServices(Context.CancellationToken.IsCancellationRequested);
+                var shutdownServicesSucceeded = await m_serviceManager.ShutdownStartedServices(Context.CancellationToken.IsCancellationRequested || m_schedulerCancellationTokenSource.Token.IsCancellationRequested);
                 Contract.Assert(
                     shutdownServicesSucceeded || m_executePhaseLoggingContext.ErrorWasLogged,
                     "ServiceManager encountered errors during shutdown, but none were logged.");

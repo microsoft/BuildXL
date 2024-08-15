@@ -63,6 +63,8 @@ namespace BuildXL.AdoBuildRunner
                 {
                     ephemeralCacheConfigDict.Add("HostedPoolActiveBuildCacheName", configuration.HostedPoolActiveBuildCacheName());
                 }
+                // For now the 1ESHP build cache file is not encrypted
+                ephemeralCacheConfigDict.Add("ConnectionStringFileDataProtectionEncrypted", "false");
             }
 
             return JsonConvert.SerializeObject(ephemeralCacheConfigDict, Formatting.Indented);
@@ -102,6 +104,8 @@ namespace BuildXL.AdoBuildRunner
                 {
                     remoteCacheDict.Add("HostedPoolActiveBuildCacheName", configuration.HostedPoolActiveBuildCacheName());
                 }
+                // For now the 1ESHP build cache file is not encrypted
+                remoteCacheDict.Add("ConnectionStringFileDataProtectionEncrypted", "false");
             }
 
             var localCacheDict = new Dictionary<string, object> {

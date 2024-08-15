@@ -158,7 +158,8 @@ namespace Test.Tool.AdoBuildRunner
     ""CacheLogPath"": ""[BuildXLSelectedLogPath].Remote.log"",
     ""Type"": ""BuildXL.Cache.MemoizationStoreAdapter.BlobCacheFactory"",
     ""CacheId"": ""12345Remote"",
-    ""HostedPoolBuildCacheConfigurationFile"": ""{File_path}""
+    ""HostedPoolBuildCacheConfigurationFile"": ""{File_path}"",
+    ""ConnectionStringFileDataProtectionEncrypted"": ""false""
   },
   ""LocalCache"": {
     ""MaxCacheSizeInMB"": 200,
@@ -186,7 +187,8 @@ namespace Test.Tool.AdoBuildRunner
     ""Type"": ""BuildXL.Cache.MemoizationStoreAdapter.BlobCacheFactory"",
     ""CacheId"": ""12345Remote"",
     ""HostedPoolBuildCacheConfigurationFile"": ""{File_path}"",
-    ""HostedPoolActiveBuildCacheName"": ""MyCacheResource""
+    ""HostedPoolActiveBuildCacheName"": ""MyCacheResource"",
+    ""ConnectionStringFileDataProtectionEncrypted"": ""false""
   },
   ""LocalCache"": {
     ""MaxCacheSizeInMB"": 200,
@@ -224,7 +226,8 @@ namespace Test.Tool.AdoBuildRunner
   ""LeaderMachineName"": ""[BuildXLSelectedLeader]"",
   ""DatacenterWide"": ""false"",
   ""CacheSizeMb"": 200,
-  ""HostedPoolBuildCacheConfigurationFile"": ""{File_path}""
+  ""HostedPoolBuildCacheConfigurationFile"": ""{File_path}"",
+  ""ConnectionStringFileDataProtectionEncrypted"": ""false""
 }";
 
             public const string EphemeralCacheConfigWithCacheResourceAndCacheResourceName = @"{
@@ -237,7 +240,8 @@ namespace Test.Tool.AdoBuildRunner
   ""DatacenterWide"": ""false"",
   ""CacheSizeMb"": 200,
   ""HostedPoolBuildCacheConfigurationFile"": ""{File_path}"",
-  ""HostedPoolActiveBuildCacheName"": ""MyCacheResource""
+  ""HostedPoolActiveBuildCacheName"": ""MyCacheResource"",
+  ""ConnectionStringFileDataProtectionEncrypted"": ""false""
 }";
         }
     }

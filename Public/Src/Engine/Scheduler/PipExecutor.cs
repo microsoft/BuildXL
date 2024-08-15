@@ -366,7 +366,9 @@ namespace BuildXL.Scheduler
                 {
                     var possiblyTracked = await environment.LocalDiskContentStore.TryTrackAsync(
                         FileArtifact.CreateSourceFile(chainElement),
-                        environment.Configuration.Sandbox.FlushPageCacheToFileSystemOnStoringOutputsToCache,
+                        // This chain corresponds to the source of the copy file pip, and therefore not an output file. Flushing is intended to happen
+                        // for just-produced outputs.
+                        tryFlushPageCacheToFileSystem: false,
                         // Tracking symlinks happen in the context of a non-process pip, so this is never a dynamic output
                         outputDirectoryRoot: AbsolutePath.Invalid,
                         ignoreKnownContentHashOnDiscoveringContent: true,

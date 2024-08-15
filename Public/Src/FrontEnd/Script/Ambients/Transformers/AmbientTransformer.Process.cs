@@ -20,7 +20,6 @@ using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using static BuildXL.Utilities.Core.FormattableStringEx;
-using Type = System.Type;
 
 namespace BuildXL.FrontEnd.Script.Ambients.Transformers
 {
@@ -91,6 +90,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         private SymbolAtom m_executeTraceFile;
         private SymbolAtom m_executeEnvironmentVariables;
         private SymbolAtom m_executeAcquireSemaphores;
+        private SymbolAtom m_executeReclassificationRules;
         private SymbolAtom m_executeAcquireMutexes;
         private SymbolAtom m_executeSuccessExitCodes;
         private SymbolAtom m_executeRetryExitCodes;
@@ -182,6 +182,10 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         private SymbolAtom m_semaphoreInfoLimit;
         private SymbolAtom m_semaphoreInfoName;
         private SymbolAtom m_semaphoreInfoIncrementBy;
+        private SymbolAtom m_reclassificationRuleName;
+        private SymbolAtom m_reclassificationRulePathRegex;
+        private SymbolAtom m_reclassificationRuleResolvedObservationTypes;
+        private SymbolAtom m_reclassificationRuleReclassifyTo;
         // Explicitly not exposed in DScript since bypassing the salts is not officially supported, and only used for internally scheduled pips
         private SymbolAtom m_unsafeBypassFingerprintSalt;
 
@@ -236,6 +240,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             m_executeTraceFile = Symbol("fileAccessTraceFile");
             m_executeEnvironmentVariables = Symbol("environmentVariables");
             m_executeAcquireSemaphores = Symbol("acquireSemaphores");
+            m_executeReclassificationRules = Symbol("reclassificationRules");
             m_executeAcquireMutexes = Symbol("acquireMutexes");
             m_executeSuccessExitCodes = Symbol("successExitCodes");
             m_executeRetryExitCodes = Symbol("retryExitCodes");
@@ -341,6 +346,12 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             m_semaphoreInfoLimit = Symbol("limit");
             m_semaphoreInfoName = Symbol("name");
             m_semaphoreInfoIncrementBy = Symbol("incrementBy");
+
+            // Reclassification rules
+            m_reclassificationRuleName = Symbol("name");
+            m_reclassificationRulePathRegex = Symbol("pathRegex");
+            m_reclassificationRuleResolvedObservationTypes = Symbol("resolvedObservationTypes");
+            m_reclassificationRuleReclassifyTo = Symbol("reclassifyTo");
         }
 
         private bool TryScheduleProcessPip(Context context, ObjectLiteral obj, ServicePipKind serviceKind, out ProcessOutputs processOutputs, out Process pip)
@@ -1096,6 +1107,25 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             return ReadOnlyArray<int>.Empty;
         }
 
+        private static ReadOnlyArray<string> ProcessOptionalStringArray(ObjectLiteral obj, SymbolAtom fieldName)
+        {
+            var array = Converter.ExtractArrayLiteral(obj, fieldName, allowUndefined: true);
+            if (array != null && array.Length > 0)
+            {
+                var items = new string[array.Length];
+
+                for (var i = 0; i < array.Length; i++)
+                {
+                    var value = Converter.ExpectString(array[i], context: new ConversionContext(pos: i, objectCtx: array, name: fieldName));
+                    items[i] = value;
+                }
+
+                return ReadOnlyArray<string>.FromWithoutCopy(items);
+            }
+
+            return ReadOnlyArray<string>.Empty;
+        }
+
         private static ReadOnlyArray<T> ProcessOptionalValueArray<T>(ObjectLiteral obj, SymbolAtom fieldName, bool skipUndefined) where T : struct
         {
             var array = Converter.ExtractArrayLiteral(obj, fieldName, allowUndefined: true);
@@ -1408,6 +1438,12 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
 
             processBuilder.PreserveOutputAllowlist = ProcessOptionalPathArray(unsafeOptionsObjLit, m_unsafePreserveOutputAllowlist, strict: false, skipUndefined: true);
 
+            var reclassificationRules = Converter.ExtractArrayLiteral(unsafeOptionsObjLit, m_executeReclassificationRules, allowUndefined: true);
+            if (reclassificationRules != null)
+            {
+                ProcessReclassificationRules(context, processBuilder, reclassificationRules);
+            }
+
             // UnsafeExecuteArguments.childProcessesToBreakawayFromSandbox
             processBuilder.ChildProcessesToBreakawayFromSandbox = ProcessOptionalValueArray<PathAtom>(unsafeOptionsObjLit, m_unsafeChildProcessesToBreakawayFromSandbox, skipUndefined: true);
 
@@ -1434,6 +1470,51 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             {
                 processBuilder.Options |= Process.Options.BypassFingerprintSalt;
             }
+        }
+
+        private void ProcessReclassificationRules(Context context, ProcessBuilder processBuilder, ArrayLiteral reclassificationRules)
+        {
+            var rules = new ReclassificationRule[reclassificationRules.Length];
+            for (var i = 0; i < reclassificationRules.Length; ++i)
+            {
+                var rule = Converter.ExpectObjectLiteral(reclassificationRules[i], new ConversionContext(pos: i, objectCtx: reclassificationRules, name: m_executeReclassificationRules));
+                var name = Converter.ExtractString(rule, m_reclassificationRuleName, allowUndefined: true);
+                var pathRegex = Converter.ExtractString(rule, m_reclassificationRulePathRegex, allowUndefined: true);
+                var resolvedObservationTypes = Converter.ExtractArrayLiteral(rule, m_reclassificationRuleResolvedObservationTypes, allowUndefined: true);
+                var resolvedTypes = resolvedObservationTypes == null ? null : new ObservationType[resolvedObservationTypes.Length];
+                if (resolvedObservationTypes != null)
+                {
+                    for (int j = 0; j < resolvedObservationTypes.Length; j++)
+                    {
+                        resolvedTypes[j] = (ObservationType)Enum.Parse(typeof(ObservationType), Converter.ExpectString(resolvedObservationTypes[j]));
+                    }
+                }
+
+                DiscriminatingUnion<ObservationType,UnitValue> reclassifyTo = null;
+
+                var reclassifyToVal = rule[m_reclassificationRuleReclassifyTo];
+                if (!reclassifyToVal.IsUndefined)
+                {
+                    if (reclassifyToVal.Value is string enumAsString)
+                    {
+                        reclassifyTo = new DiscriminatingUnion<ObservationType,UnitValue>((ObservationType)Enum.Parse(typeof(ObservationType), enumAsString));
+                    }
+                    else // it's Unit
+                    {
+                        reclassifyTo = new DiscriminatingUnion<ObservationType, UnitValue>(UnitValue.Unit);
+                    }
+                }
+
+                rules[i] = new ReclassificationRule()
+                {
+                    Name = name,
+                    ReclassifyTo = reclassifyTo,
+                    PathRegex = pathRegex,
+                    ResolvedObservationTypes = resolvedTypes
+                };
+            }
+
+            processBuilder.ReclassificationRules = rules;
         }
 
         private PipId InterpretFinalizationPipArguments(Context context, ObjectLiteral obj)

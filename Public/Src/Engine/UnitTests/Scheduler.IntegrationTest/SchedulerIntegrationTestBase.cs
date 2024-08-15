@@ -479,6 +479,9 @@ namespace Test.BuildXL.Scheduler
             FileAccessAllowlist allowlist = new FileAccessAllowlist(Context);
             allowlist.Initialize(config);
 
+            ObservationReclassifier reclassifier = new ObservationReclassifier();
+            reclassifier.Initialize(config.GlobalReclassificationRules.Select(r => r.GetRule()).ToList());
+
             IReadOnlyList<string> junctionRoots = Configuration.Engine.DirectoriesToTranslate?.Select(a => a.ToPath.ToString(Context.PathTable)).ToList();
 
             var map = JournalUtils.TryCreateMapOfAllLocalVolumes(localLoggingContext, junctionRoots);
@@ -550,7 +553,9 @@ namespace Test.BuildXL.Scheduler
                 testHooks: testHooks,
                 performanceCollector: performanceCollector,
                 fileTimestampTracker: fileTimestampTracker,
-                pipSpecificPropertiesConfig: PipSpecificPropertiesConfig))
+                pipSpecificPropertiesConfig: PipSpecificPropertiesConfig,
+                globalReclassificationRules: reclassifier
+                ))
             {
                 CancellableTimedAction updateStatusAction = null;
 

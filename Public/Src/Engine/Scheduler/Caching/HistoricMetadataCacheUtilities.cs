@@ -47,7 +47,8 @@ namespace BuildXL.Scheduler.Cache
             var extraFingerprintSalt = new ExtraFingerprintSalts(
                 configuration,
                 fingerprintSalt: EngineEnvironmentSettings.DebugHistoricMetadataCacheFingerprintSalt,
-                searchPathToolsHash: null);
+                searchPathToolsHash: null,
+                observationReclassificationRulesHash: null);
 
             using (var hasher = new HashingHelper(pathTable, recordFingerprintString: false))
             {

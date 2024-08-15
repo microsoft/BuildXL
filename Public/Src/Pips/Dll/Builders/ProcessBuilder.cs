@@ -13,6 +13,7 @@ using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using static BuildXL.Pips.Operations.Process;
+using BuildXL.Utilities.Configuration.Mutable;
 
 namespace BuildXL.Pips.Builders
 {
@@ -143,6 +144,9 @@ namespace BuildXL.Pips.Builders
 
         /// <nodoc />
         public ReadOnlyArray<AbsolutePath> PreserveOutputAllowlist { get; set; } = ReadOnlyArray<AbsolutePath>.Empty;
+
+        /// <nodoc />
+        public ReadOnlyArray<IReclassificationRule> ReclassificationRules { get; set; } = ReadOnlyArray<IReclassificationRule>.Empty;
 
         /// <summary>
         /// <see cref="RewritePolicy"/>. 
@@ -742,7 +746,8 @@ namespace BuildXL.Pips.Builders
                 childProcessesToBreakawayFromSandbox: ChildProcessesToBreakawayFromSandbox,
                 outputDirectoryExclusions: ReadOnlyArray<AbsolutePath>.From(outputDirectoryExclusions),
                 processRetries: m_processRetries,
-                retryAttemptEnvironmentVariable: m_retryAttemptEnvironmentVariable
+                retryAttemptEnvironmentVariable: m_retryAttemptEnvironmentVariable,
+                reclassificationRules: ReclassificationRules
                 );
 
             m_credentialScanner.PostEnvVarsForProcessing(process, process.EnvironmentVariables);

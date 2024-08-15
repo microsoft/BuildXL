@@ -960,6 +960,7 @@ namespace BuildXL.Scheduler
         /// when computing directory fingerprints in <see cref="ObservedInputProcessor"/>
         /// </summary>
         private readonly FileTimestampTracker m_fileTimestampTracker;
+        private readonly ObservationReclassifier m_globalReclassificationRules;
 
         /// <summary>
         /// Whether diagnostics events are enabled to be logged.
@@ -1212,7 +1213,8 @@ namespace BuildXL.Scheduler
             SchedulerTestHooks testHooks = null,
             FileTimestampTracker fileTimestampTracker = null,
             bool isTestScheduler = false,
-            PipSpecificPropertiesConfig pipSpecificPropertiesConfig = null)
+            PipSpecificPropertiesConfig pipSpecificPropertiesConfig = null,
+            ObservationReclassifier globalReclassificationRules = null)
         {
             Contract.Requires(graph != null);
             Contract.Requires(pipQueue != null);
@@ -1237,7 +1239,8 @@ namespace BuildXL.Scheduler
             var extraFingerprintSalts = new ExtraFingerprintSalts(
                     configuration,
                     fingerprintSalt,
-                    searchPathToolsHash: directoryMembershipFingerprinterRules?.ComputeSearchPathToolsHash());
+                    searchPathToolsHash: directoryMembershipFingerprinterRules?.ComputeSearchPathToolsHash(),
+                    observationReclassificationRulesHash: ObservationReclassifier.ComputeObservationReclassificationRulesHash(configuration));
 
             Logger.Log.PipFingerprintData(loggingContext, fingerprintVersion: (int)fingerprintVersion, fingerprintSalt: extraFingerprintSalts.FingerprintSalt);
 
@@ -1528,6 +1531,16 @@ namespace BuildXL.Scheduler
             m_chooseWorkerCacheLookup = new ChooseWorkerCacheLookup(m_workers);
             m_chooseWorkerIpc = new ChooseWorkerIpc(m_workers, m_moduleWorkerMapping);
             m_fileTimestampTracker = fileTimestampTracker ?? new FileTimestampTracker(DateTime.UtcNow, context.PathTable);
+            m_globalReclassificationRules = globalReclassificationRules ?? new ObservationReclassifier();
+            try
+            {
+                m_globalReclassificationRules.Initialize(configuration.GlobalReclassificationRules.Select(rc => rc.GetRule()).ToList(), PipExecutionCounters);
+            }
+            catch (BuildXLException ex)
+            {
+                Logger.Log.FailedToInitalizeReclassificationRules(loggingContext, ex.Message);
+                throw;
+            }
 
             if (!m_fileTimestampTracker.IsFileCreationTrackingSupported)
             {
@@ -6402,7 +6415,8 @@ namespace BuildXL.Scheduler
                     sidebandState: m_sidebandState,
                     serviceManager: m_serviceManager,
                     alienFileEnumerationCache: m_alienFileEnumerationCache,
-                    fileTimestampTracker: m_fileTimestampTracker);
+                    fileTimestampTracker: m_fileTimestampTracker,
+                    globalReclassificationRules: m_globalReclassificationRules);
 
                 if (m_scheduleConfiguration.EnableProcessRemoting)
                 {

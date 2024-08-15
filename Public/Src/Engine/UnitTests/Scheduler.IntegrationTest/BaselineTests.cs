@@ -2591,6 +2591,53 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertCacheHit(pip.PipId);
         }
 
+        [Theory]
+        [InlineData(true, true)]
+        [InlineData(true, false)]
+        [InlineData(false, true)]
+        [InlineData(false, false)]
+        public void ProbeOnOutputOfNonOrderedPip(bool isDirectoryProbe, bool invertExecutionOrder)
+        {
+            // A pip probes a path that is produced by another pip that is not ordered w/r to the prober.
+            // We should flag this as a violation. Note that we treat directory accesses differently,
+            // so in that case a violation is not flagged.
+            string dir = Path.Combine(SourceRoot, "dir");
+            AbsolutePath dirPath = AbsolutePath.Create(Context.PathTable, dir);
+            DirectoryArtifact dirToProbe = DirectoryArtifact.CreateWithZeroPartialSealId(dirPath);
+            var outputUnderDirectory = CreateOutputFileArtifact(dirPath, prefix: "probed_");
+
+            var operationsA = new List<Operation>
+            {
+                isDirectoryProbe ? Operation.DirProbe(dirToProbe) : Operation.Probe(outputUnderDirectory, doNotInfer:true),
+                Operation.WriteFile(CreateOutputFileArtifact())
+            };
+
+            var operationsB = new List<Operation>
+            {
+                Operation.WriteFile(outputUnderDirectory)
+            };
+
+            var builderA = CreatePipBuilder(operationsA);
+            var pipA = SchedulePipBuilder(builderA);
+            var builderB = CreatePipBuilder(operationsB);
+            var pipB = SchedulePipBuilder(builderB);
+
+            var runResult = RunScheduler(constraintExecutionOrder:
+                                new List<(Pip, Pip)>() { invertExecutionOrder ? (pipB.Process, pipA.Process) : (pipA.Process, pipB.Process) });
+
+            if (isDirectoryProbe)
+            {
+                // When the probe is on a directory, we don't detect violations
+                runResult.AssertSuccess();
+            }
+            else
+            {
+                runResult.AssertFailure();
+                AllowWarningEventMaybeLogged(global::BuildXL.Scheduler.Tracing.LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
+                AssertErrorEventLogged(global::BuildXL.Scheduler.Tracing.LogEventId.FileMonitoringError);
+            }
+        }
+
         /// <summary>
         /// A special use case where the salt value is "*" in this case it generates a random salt value everytime we pass this value.
         /// </summary>

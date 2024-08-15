@@ -79,17 +79,14 @@ namespace BuildXL.Pips.Graph
         /// 102: Add dynamic absent path probe observations to incremental scheduling state
         /// 103: Add apply-allow-list logic on dynamic (shared opaque) outputs.
         /// 104: Migrate Bond to Google.Protobuf
+        /// 105: Add observation reclassification rules
         /// </remarks>
-        TwoPhaseV2 = 104,
+        TwoPhaseV2 = 105,
 
         /* 
          * We do not want to bump the fingerprint version more than needed, so we will accumulate the tasks to do when we really need to bump the fingerprint version:
          ************ TODOs ******************
-         * 1) Remove UnsafeConfiguration.SkipFlaggingSharedOpaqueOutputs from the list of unsafe options that participate in the fingerprint.
-         *    Approximate location: UnsafeOptions.cs -> Line 168. 
-         * 2) Remove the 2 lines around TODO in PipFingerprinter.cs ~line 318.
-         * 3) Remove RequiredKextVersionNumber from ExtraFingerprintSalts
-         * 4) 
+         * 1)
          */
     }
 }

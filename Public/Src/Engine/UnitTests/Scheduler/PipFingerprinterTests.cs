@@ -673,7 +673,7 @@ namespace Test.BuildXL.Scheduler
                 Sandbox = sandboxConfig
             };
 
-            var nonDefaultSalts = new ExtraFingerprintSalts(configuration, null, null);
+            var nonDefaultSalts = new ExtraFingerprintSalts(configuration, null, null, null);
 
             var nonDefaultFingerprinter = new PipContentFingerprinter(
                 m_context.PathTable,
@@ -1059,7 +1059,8 @@ namespace Test.BuildXL.Scheduler
                 changeAffectedInputListWrittenFile: changeAffectedInputListWrittenFile,
                 outputDirectoryExclusions: ReadOnlyArray<AbsolutePath>.From(source.Vary(p => p.OutputDirectoryExclusions)),
                 retryAttemptEnvironmentVariable: source.Vary(p => p.RetryAttemptEnvironmentVariable),
-                traceFile: traceFile);
+                traceFile: traceFile,
+                reclassificationRules: source.Vary(p => p.ReclassificationRules));
         }
 
         private CopyFile CreateCopyFileVariant(VariationSource<CopyFile> source)
@@ -1262,8 +1263,8 @@ namespace Test.BuildXL.Scheduler
                        new FingerprintingTypeDescriptor<AbsolutePath>(AbsolutePath.Invalid, paths),
                        new FingerprintingTypeDescriptor<DirectoryArtifact>(
                            DirectoryArtifact.Invalid,
-                           role => 
-                               (independentFingerprint 
+                           role =>
+                               (independentFingerprint
                                 ? GenerateMutuallyExclusiveDirectoryArtifactEquivalenceClassesForIndependentFingerprint(pathTable, paths, role, fingerprinterTestKind)
                                 : GenerateMutuallyExclusiveDirectoryArtifactEquivalenceClasses(pathTable, paths, role, fingerprinterTestKind))
                                .SelectMany(mutex => mutex)),
@@ -1294,11 +1295,11 @@ namespace Test.BuildXL.Scheduler
                            WriteFileEncoding.Ascii),
 
                        new FingerprintingTypeDescriptor<SealDirectoryKind>(
-                           SealDirectoryKind.Full, 
-                           SealDirectoryKind.Partial, 
-                           SealDirectoryKind.SourceAllDirectories, 
-                           SealDirectoryKind.SourceTopDirectoryOnly, 
-                           SealDirectoryKind.Opaque, 
+                           SealDirectoryKind.Full,
+                           SealDirectoryKind.Partial,
+                           SealDirectoryKind.SourceAllDirectories,
+                           SealDirectoryKind.SourceTopDirectoryOnly,
+                           SealDirectoryKind.Opaque,
                            SealDirectoryKind.SharedOpaque),
 
                        // File artifact arrays are special relative to other arrays due to a need for mutual-exclusion (the same file artifact cannot appear in an array with e.g. different content hashes).
@@ -1307,9 +1308,9 @@ namespace Test.BuildXL.Scheduler
                            role => GenerateArrayVariants<FileArtifact>(
                                role,
                                GenerateMutuallyExclusiveFileArtifactEquivalenceClasses(
-                                   pathTable, 
-                                   paths, 
-                                   role, 
+                                   pathTable,
+                                   paths,
+                                   role,
                                    fingerprinterTestKind).ToArray()).Select(ec => ec.Cast<ReadOnlyArray<FileArtifact>>())),
 
                        // Directory artifact arrays are special relative to other arrays due to a need for mutual-exclusion (the same directory artifact cannot appear in an array with e.g. fingerprints).
@@ -1324,9 +1325,9 @@ namespace Test.BuildXL.Scheduler
                                     role,
                                     fingerprinterTestKind)
                                 : GenerateMutuallyExclusiveDirectoryArtifactEquivalenceClasses(
-                                    pathTable, 
-                                    paths, 
-                                    role, 
+                                    pathTable,
+                                    paths,
+                                    role,
                                     fingerprinterTestKind)).ToArray()).Select(ec => ec.Cast<ReadOnlyArray<DirectoryArtifact>>())),
                        new FingerprintingTypeDescriptor<RewritePolicy>(RewritePolicy.DoubleWritesAreErrors, RewritePolicy.UnsafeFirstDoubleWriteWins),
 
@@ -1338,7 +1339,39 @@ namespace Test.BuildXL.Scheduler
                        new FingerprintingTypeDescriptor<SealDirectoryCompositionActionKind>(
                            SealDirectoryCompositionActionKind.None,
                            SealDirectoryCompositionActionKind.WidenDirectoryCone,
-                           SealDirectoryCompositionActionKind.NarrowDirectoryCone)
+                           SealDirectoryCompositionActionKind.NarrowDirectoryCone),
+
+                       new FingerprintingTypeDescriptor<IReclassificationRule>(
+                           new ReclassificationRule()
+                           {
+                               Name = "A",
+                               PathRegex = ".*",
+                               ReclassifyTo = new DiscriminatingUnion<ObservationType, UnitValue>(ObservationType.AbsentPathProbe),
+                               ResolvedObservationTypes = [ObservationType.ExistingFileProbe]
+                           },
+                           new ReclassificationRule()
+                           {
+                               PathRegex = ".*",
+                               ReclassifyTo = new DiscriminatingUnion<ObservationType, UnitValue>(ObservationType.AbsentPathProbe),
+                               ResolvedObservationTypes = [ObservationType.ExistingFileProbe]
+                           },
+                           new ReclassificationRule()
+                           {
+                               PathRegex = ".*",
+                               ReclassifyTo = new DiscriminatingUnion<ObservationType, UnitValue>(UnitValue.Unit),
+                               ResolvedObservationTypes = [ObservationType.ExistingFileProbe]
+                           },
+                           new ReclassificationRule()
+                           {
+                               Name = "A",
+                               PathRegex = ".*",
+                               ResolvedObservationTypes = [ObservationType.ExistingFileProbe]
+                           },
+                           new ReclassificationRule()
+                           {
+                               PathRegex = ".*",
+                               ResolvedObservationTypes = [ObservationType.ExistingFileProbe]
+                           })
                    };
         }
 
@@ -1828,6 +1861,13 @@ namespace Test.BuildXL.Scheduler
                             .CloneAndSort(arr, OrdinalDirectoryArtifactComparer.Instance)),
                         ec.ContentHashOverlays,
                         ec.FingerprintOverlays)));
+            }
+
+            if (type == typeof(ReadOnlyArray<IReclassificationRule>))
+            {
+                return new FingerprintingTypeDescriptor<ReadOnlyArray<IReclassificationRule>>(
+                    baseVal: ReadOnlyArray<IReclassificationRule>.Empty,
+                    generateClasses: role => GenerateArrayVariants<IReclassificationRule>(descriptors, role));
             }
 
             IFingerprintingTypeDescriptor typeDescriptor = descriptors.SingleOrDefault(td => type.IsAssignableFrom(td.ValueType));

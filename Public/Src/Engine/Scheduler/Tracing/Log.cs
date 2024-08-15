@@ -4115,6 +4115,33 @@ namespace BuildXL.Scheduler.Tracing
             EventTask = (ushort)Tasks.Scheduler,
             Message = "Failed logging execution log event data '{eventId}'. This does not impact build correctness but will cause the execution log to be incomplete (or corrupted) for post-build analysis. Failure reason: {error}")]
         internal abstract void FailedLoggingExecutionLogEventData(LoggingContext loggingContext, string eventId, string error);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.FailedToInitalizeReclassificationRules,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
+            EventTask = (ushort)Tasks.Scheduler,
+            Message = "Failed to initialize the observation reclassification rules: {error}")]
+        internal abstract void FailedToInitalizeReclassificationRules(LoggingContext loggingContext, string error);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.ObservationReclassified,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.PipExecutor,
+            Message = "[{pipDescription}] Observation on path {path} reclassified by rule '{rule}' from {from} to {to}. isCacheLookup: {isCacheLookup}")]
+        internal abstract void ObservationReclassified(LoggingContext loggingContext, string pipDescription, string path, string rule, string from, string to, bool isCacheLookup);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.ObservationIgnored,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.PipExecutor,
+            Message = "[{pipDescription}] Observation on path {path} marked as ignored by rule '{rule}' from type {from}. isCacheLookup: {isCacheLookup}")]
+        internal abstract void ObservationIgnored(LoggingContext loggingContext, string pipDescription, string path, string rule, string from, bool isCacheLookup);
     }
 }
 #pragma warning restore CA1823 // Unused field

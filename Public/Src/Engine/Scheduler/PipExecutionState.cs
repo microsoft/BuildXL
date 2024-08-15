@@ -119,6 +119,8 @@ namespace BuildXL.Scheduler
 
         public SidebandState SidebandState { get; }
 
+        public ObservationReclassifier GlobalReclassificationRules { get; }
+
         /// <summary>
         /// Class constructor
         /// </summary>
@@ -138,7 +140,8 @@ namespace BuildXL.Scheduler
             ConcurrentBigMap<AbsolutePath, IReadOnlyList<(AbsolutePath, string)>> alienFileEnumerationCache,
             FileTimestampTracker fileTimestampTracker,
             ServiceManager serviceManager = null,
-            SidebandState sidebandState = null)
+            SidebandState sidebandState = null,
+            ObservationReclassifier globalReclassificationRules = null)
         {
             Contract.Requires(fileContentManager != null);
             Contract.Requires(directoryMembershipFingerprinter != null);
@@ -163,6 +166,7 @@ namespace BuildXL.Scheduler
             AlienFileEnumerationCache = alienFileEnumerationCache;
             SidebandState = sidebandState;
             FileTimestampTracker = fileTimestampTracker;
+            GlobalReclassificationRules = globalReclassificationRules;
 
             if (fileSystemView != null)
             {

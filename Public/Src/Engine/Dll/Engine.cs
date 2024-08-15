@@ -55,6 +55,7 @@ using static BuildXL.Utilities.Core.BuildParameters;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 using IOneBuildModuleConfiguration = BuildXL.Utilities.Configuration.IModuleConfiguration;
 using Logger = BuildXL.Engine.Tracing.Logger;
+using BuildXL.Cache.ContentStore.Hashing;
 
 namespace BuildXL.Engine
 {

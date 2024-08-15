@@ -34,6 +34,7 @@ namespace BuildXL.Pips.Graph
                         monitorZwCreateOpenQueryFile: false, // TODO:  Change this value when the default value for monitorZwCreateOpenQueryFile changes.
                         fingerprintVersion: PipFingerprintingVersion.TwoPhaseV2,
                         fingerprintSalt: null,
+                        observationReclassificationRulesHash: null,
                         searchPathToolsHash: null,
                         monitorFileAccesses: true,
                         unexpectedFileAccessesAreErrors: true,
@@ -61,10 +62,12 @@ namespace BuildXL.Pips.Graph
         /// <param name="config"> Configuration.</param>
         /// <param name="fingerprintSalt">The extra, optional fingerprint salt.</param>
         /// <param name="searchPathToolsHash">The extra, optional salt of path fragments of tool locations for tools using search path enumeration.</param>
+        /// <param name="observationReclassificationRulesHash">The extra, optional salt of the user-provided reclassification rules.</param>
         public ExtraFingerprintSalts(
             IConfiguration config,
             string fingerprintSalt,
-            ContentHash? searchPathToolsHash)
+            ContentHash? searchPathToolsHash,
+            ContentHash? observationReclassificationRulesHash)
             : this(
                 config.Sandbox.UnsafeSandboxConfiguration.IgnoreSetFileInformationByHandle,
                 config.Sandbox.UnsafeSandboxConfiguration.IgnoreZwRenameFileInformation,
@@ -87,6 +90,7 @@ namespace BuildXL.Pips.Graph
                 PipFingerprintingVersion.TwoPhaseV2,
                 fingerprintSalt,
                 searchPathToolsHash,
+                observationReclassificationRulesHash,
                 config.Sandbox.ExplicitlyReportDirectoryProbes,
                 config.Sandbox.IgnoreDeviceIoControlGetReparsePoint,
                 config.Cache.HonorDirectoryCasingOnDisk
@@ -130,6 +134,7 @@ namespace BuildXL.Pips.Graph
         /// <param name="fingerprintVersion">The fingerprint version.</param>
         /// <param name="fingerprintSalt">The extra, optional fingerprint salt.</param>
         /// <param name="searchPathToolsHash">The extra, optional salt of path fragments of tool locations for tools using search path enumeration.</param>
+        /// <param name="observationReclassificationRulesHash">The extra, optional salt of the user-provided reclassification rules.</param>
         /// <param name="explicitlyReportDirectoryProbes">Whether /unsafe_explicitlyReportDirectoryProbes was passed to BuildXL.</param>
         /// <param name="ignoreDeviceIoControlGetReparsePoint">Whether /ignoreDeviceIoControlGetReparsePoint was passed to BuildXL.</param>
         /// <param name="honorDirectoryCasingOnDisk">Whether /honorDirectoryCasingOnDisk was passed to BuildXL.</param>
@@ -155,6 +160,7 @@ namespace BuildXL.Pips.Graph
             PipFingerprintingVersion fingerprintVersion,
             string fingerprintSalt,
             ContentHash? searchPathToolsHash,
+            ContentHash? observationReclassificationRulesHash,
             bool explicitlyReportDirectoryProbes,
             bool ignoreDeviceIoControlGetReparsePoint,
             bool honorDirectoryCasingOnDisk
@@ -179,6 +185,7 @@ namespace BuildXL.Pips.Graph
             FingerprintVersion = fingerprintVersion;
             FingerprintSalt = fingerprintSalt + EngineEnvironmentSettings.DebugFingerprintSalt;
             SearchPathToolsHash = searchPathToolsHash;
+            GlobalObservationReclassificationRulesHash = observationReclassificationRulesHash;
             IgnoreGetFinalPathNameByHandle = ignoreGetFinalPathNameByHandle;
             PipWarningsPromotedToErrors = pipWarningsPromotedToErrors;
             m_calculatedSaltsFingerprint = null;
@@ -291,6 +298,11 @@ namespace BuildXL.Pips.Graph
         /// The hash of all the configured search path tools
         /// </summary>
         public ContentHash? SearchPathToolsHash { get; }
+        
+        /// <summary>
+        /// The hash of all the global observation reclassifications
+        /// </summary>
+        public ContentHash? GlobalObservationReclassificationRulesHash { get; }
 
         /// <summary>
         /// Whether warnings from process stderr or stdout are promoted to errors.
@@ -300,12 +312,6 @@ namespace BuildXL.Pips.Graph
         /// switches the value to promote the warning to an error, the pip needs to rerun. This is for the same reason
         /// that we don't cache pips that are errors.</remarks>
         public bool PipWarningsPromotedToErrors { get; }
-
-        /// <summary>
-        /// This value was meant to change for different kernel extensions for macOS. 
-        /// We removed support for the kext macOS sandbox but we are keeping this value in the fingerprint to not perturb it unnecessarily.
-        /// </summary>
-        private readonly string RequiredKextVersionNumber => "0";
 
         /// <summary>
         /// Whether /unsafe_explicitlyReportDirectoryProbes flag was passed to BuildXL. (disabled by default)
@@ -361,6 +367,8 @@ namespace BuildXL.Pips.Graph
                 && other.FingerprintSalt.Equals(FingerprintSalt)
                 && (other.SearchPathToolsHash.HasValue == SearchPathToolsHash.HasValue)
                 && SearchPathToolsHash.Value.Equals(SearchPathToolsHash.Value)
+                && (other.GlobalObservationReclassificationRulesHash.HasValue == SearchPathToolsHash.HasValue)
+                && GlobalObservationReclassificationRulesHash.Value.Equals(GlobalObservationReclassificationRulesHash.Value)
                 && other.PipWarningsPromotedToErrors == PipWarningsPromotedToErrors
                 && other.ValidateDistribution == ValidateDistribution
                 && other.ExplicitlyReportDirectoryProbes.Equals(ExplicitlyReportDirectoryProbes)
@@ -393,6 +401,7 @@ namespace BuildXL.Pips.Graph
                 hashCode = (hashCode * 397) ^ (int)FingerprintVersion;
                 hashCode = (hashCode * 397) ^ (FingerprintSalt?.GetHashCode() ?? 0);
                 hashCode = (hashCode * 397) ^ SearchPathToolsHash.GetHashCode();
+                hashCode = (hashCode * 397) ^ GlobalObservationReclassificationRulesHash.GetHashCode();
                 hashCode = (hashCode * 397) ^ MonitorFileAccesses.GetHashCode();
                 hashCode = (hashCode * 397) ^ UnexpectedFileAccessesAreErrors.GetHashCode();
                 hashCode = (hashCode * 397) ^ MaskUntrackedAccesses.GetHashCode();
@@ -437,6 +446,11 @@ namespace BuildXL.Pips.Graph
                 fingerprinter.Add(nameof(SearchPathToolsHash), SearchPathToolsHash.Value);
             }
 
+            if (GlobalObservationReclassificationRulesHash.HasValue)
+            {
+                fingerprinter.Add(nameof(GlobalObservationReclassificationRulesHash), GlobalObservationReclassificationRulesHash.Value);
+            }
+
             if (!MaskUntrackedAccesses)
             {
                 fingerprinter.Add(nameof(MaskUntrackedAccesses), -1);
@@ -456,8 +470,6 @@ namespace BuildXL.Pips.Graph
             {
                 fingerprinter.Add(nameof(ValidateDistribution), 1);
             }
-
-            fingerprinter.Add(nameof(RequiredKextVersionNumber), RequiredKextVersionNumber);
 
             if (ExplicitlyReportDirectoryProbes)
             {

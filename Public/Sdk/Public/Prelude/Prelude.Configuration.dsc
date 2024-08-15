@@ -37,6 +37,34 @@ interface Mount {
 //=============================================================================
 //  Configuration
 //=============================================================================
+/** Observation types to define reclassification rules. The special value 'All' will match against any observation type */
+export type ObservationType = "AbsentPathProbe" | "FileContentRead" | "DirectoryEnumeration" | "ExistingDirectoryProbe" | "ExistingFileProbe" | "All";
+
+/**
+ * Reclassification rules are applied to observations that are to be included
+ * in the strong fingerprint computation for a pip. These allow for fine-grained
+ * control of what is included in the fingerprint.
+ */
+interface ReclassificationRule 
+{ 
+    /** An optional name, for display purposes */
+    name?: string; 
+
+    /** Pattern to match against accessed paths. Mandatory. */ 
+    pathRegex: string;
+
+    /** 
+     * The rule matches if the observation is resolved to any of these types.
+    */ 
+    resolvedObservationTypes: ObservationType[];
+ 
+    /** 
+     *  When this rule applies, the observation is reclassified to this type 
+     *  Leaving this undefined will make the reclassification a no-op. 
+    */
+    reclassifyTo?: ObservationType | Unit;
+}
+
 interface FileAccessAllowlistEntry {
     /** Name of the allowlist exception rule. */
     name?: string;
@@ -484,6 +512,13 @@ interface Configuration {
      */
     cacheableFileAccessAllowlist?: FileAccessAllowlistEntry[];
 	cacheableFileAccessWhitelist?: FileAccessWhitelistEntry[]; // compatibility
+
+    /** 
+     *  Reclassification rules that will be applied to all pips in the build.
+     *  These rules are traversed in order and the first matching rule is applied.
+     *  Rules defined here are checked only after the rules defined for a pip individually.
+    */
+    globalReclassificationRules?: ReclassificationRule[];
 
     /** List of file access exception rules. */
 	fileAccessAllowList?: FileAccessAllowlistEntry[];

@@ -42,6 +42,13 @@ namespace BuildXL.Utilities.Configuration
         IReadOnlyList<IFileAccessAllowlistEntry> CacheableFileAccessAllowList { get; }
 
         /// <summary>
+        /// Reclassification rules are applied to observations that are to be included in the strong fingerprint computation for a pip.
+        /// These allow for fine-grained control of what is included in the fingerprint.
+        /// </summary>
+        [NotNull]
+        IReadOnlyList<IReclassificationRuleConfig> GlobalReclassificationRules { get; }
+
+        /// <summary>
         /// Exceptions for computing directory membership fingerprints
         /// </summary>
         [NotNull]

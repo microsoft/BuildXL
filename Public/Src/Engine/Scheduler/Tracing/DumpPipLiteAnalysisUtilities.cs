@@ -16,6 +16,8 @@ using BuildXL.Native.IO;
 using BuildXL.Pips.Graph;
 using BuildXL.Processes;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities;
 
 namespace BuildXL.Scheduler.Tracing
 {
@@ -304,7 +306,37 @@ namespace BuildXL.Scheduler.Tracing
                 ProcessOptions = pip.ProcessOptions.ToString(),
                 RetryExitCodes = pip.RetryExitCodes.IsValid ? GetJsonFriendlyList(pip.RetryExitCodes) : null,
                 ProcessRetries = pip.ProcessRetries,
+                ReclassificationRules = GetJsonFriendlyList(pip.ReclassificationRules.Select((r, i) => CreateReclassificationRules(i,r))) 
             };
+        }
+
+        private static ReclassificationRuleJson CreateReclassificationRules(int index, IReclassificationRule r)
+        {
+            return new ReclassificationRuleJson
+            {
+                Index = index,
+                Name = r.Name,
+                PathRegex = r.PathRegex,
+                ResolvedInputTypes = r.ResolvedObservationTypes.OrderBy(r => (int)r).Select(s => s.ToString()).ToList(),
+                ReclassifyTo = GetReclassifyValue(r.ReclassifyTo)
+            };
+        }
+
+        /// <nodoc/>
+        public static string GetReclassifyValue(DiscriminatingUnion<ObservationType, UnitValue> reclassifyTo)
+        {
+            if (reclassifyTo == null)
+            {
+                return "<NO RECLASSIFICATION>";
+            }
+
+            if (reclassifyTo.GetValue() is ObservationType t)
+            {
+                return t.ToString();
+            }
+
+            // UnitValue means ignore
+            return "<IGNORE>";
         }
 
         private static ProcessInputOutput CreateProcessInputOutput(Process pip, PathTable pathTable, PipGraph pipGraph)

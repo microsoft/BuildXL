@@ -250,6 +250,8 @@ namespace BuildXL.Engine
                 return null;
             }
 
+            ObservationReclassifier globalReclassifier = new ObservationReclassifier();
+
             var moduleConfigurations = new List<IModuleConfiguration> { configuration };
             moduleConfigurations.AddRange(configuration.ModulePolicies.Values);
 
@@ -257,7 +259,8 @@ namespace BuildXL.Engine
                                                     allowList,
                                                     configuration.Engine.DefaultFilter,
                                                     directoryMembershipFingerprinterRules,
-                                                    moduleConfigurations);
+                                                    moduleConfigurations,
+                                                    globalReclassifier);
 
             PreserveOutputsInfo? previousOutputsSalt = PreparePreviousOutputsSalt(loggingContext, context.PathTable, configuration);
             if (!previousOutputsSalt.HasValue)
@@ -309,7 +312,8 @@ namespace BuildXL.Engine
                         message => Logger.Log.EndInitializingVm(loggingContext, message),
                         message => Logger.Log.InitializingVm(loggingContext, message)),
                     testHooks: testHooks,
-                    pipSpecificPropertiesConfig: pipSpecificPropertiesConfig);
+                    pipSpecificPropertiesConfig: pipSpecificPropertiesConfig,
+                    globalReclassificationRules: globalReclassifier);
 
             }
             catch (BuildXLException e)
@@ -1720,6 +1724,7 @@ namespace BuildXL.Engine
                         journalState: journalState,
                         loggingContext: loggingContext,
                         fileAccessAllowlist: configFileState.FileAccessAllowlist,
+                        globalReclassificationRules: configFileState.GlobalReclassificationRules,
                         directoryMembershipFingerprinterRules: configFileState.DirectoryMembershipFingerprinterRules,
                         runningTimeTable: runningTimeTable,
                         tempCleaner: tempCleaner,

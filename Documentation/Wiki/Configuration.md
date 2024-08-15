@@ -59,6 +59,14 @@ interface Configuration {
     /** List of file access exception rules. */
     fileAccessAllowList?: FileAccessAllowlistEntry[];
 
+    /** 
+     *  Reclassification rules that will be applied to all pips in the build.
+     *  These rules are traversed in order and the first matching rule is applied.
+     *  Rules defined here are checked only after the rules defined for a pip individually.
+     */
+    globalReclassificationRules?: ReclassificationRule[];
+
+
     /** List of rules for the directory membership fingerprinter to use */
     directoryMembershipFingerprinterRules?: DirectoryMembershipFingerprinterRule[];
 
@@ -171,40 +179,8 @@ interface NuGetResolver {
 It is best to specify all file accesses. This way BuildXL tracks those files can can provide correct caching. On rare occasion some files may need to be untracked. For example when a process consumes system files that are known to be inconsequential to the build and there may be some variability in the content of those files across machines which would prevent cross machine caching.
 
 On an even rarer occasion, it may not be possible to predict the path of files that you desire to untrack. They may be nondeterministic. Allowlists exist for this last resort. **Use of allowlists is untracked and unsafe. They should be reserved as a last resort.**  
-There are 2 types of allowlists:
-1. cacheableFileAccessAllowlist - BuildXL completely ignores accesses to these files and caches pips as though the access didn't happen. The state of the files is not checked on future cache checks.
-1. fileAccessAllowlist - BuildXL ignores the access to the file but does not add the pip to the cache. The cache will be a miss for future builds until it stops accessing the allowlisted files.
 
-Here is an example allowlist entry to allow accesses to vsjitdebugger.exe. There are 3 fields to set on the allowlist object:
-1. Name - this is a name for the allowlist entry. It is used for instrumentation to know which allowlist(s) were in use. It must be unique across all allowlist entries
-1. toolpath - the full path to the tool performing the file access. This is specific within the process tree. For example, if the parent pip of the process tree is cmd.exe, but the tool performing the access to the allowlisted file is cl.exe, you must specify cl.exe for the tool path.
-1. pathRegex - A regular expression describing the path that should be allowed.
-
-```ts
-    cacheableFileAccessAllowlist:
-    [
-        // Allow the debugger to be able to be launched from BuildXL Builds
-        {
-            name: "JitDebugger",
-            toolPath: f`${Environment.getDirectoryValue("SystemRoot")}/system32/vsjitdebugger.exe`,
-            pathRegex: `.*${Environment.getStringValue("CommonProgramFiles").replace("\\", "\\\\")}\\\\Microsoft Shared\\\\VS7Debug\\\\.*`
-        }
-    ]
-```
-
-1. We can also specify an allowlist entry without the toolPath or valuePath as follows:
-In this case any tool that accesses the path which matches with the pathRegex is allowed.
-
-```ts
-    cacheableFileAccessAllowlist:
-    [
-        // Allow the debugger to be able to be launched from BuildXL Builds
-        {
-            name: "JitDebugger",
-            pathRegex: `.*${Environment.getStringValue("CommonProgramFiles").replace("\\", "\\\\")}\\\\Microsoft Shared\\\\VS7Debug\\\\.*`
-        }
-    ]
-```
+For information on how to specify allowlists [click here](./Advanced-Features/Observation-Reclassification.md#file-access-allowlists) 
 
 # Example
 When deciding how to organize a build (and all of its modules and projects), the most relevant configuration fields are `modules` and `resolvers`.  In this example, let's assume the build consists of 3 modules, defined in files `NodPublishers/module.config.bm`, `ReleCloud/module.config.bm`, and `WingtipToys/module.config.bm`.  To be included in a BuildXL build, they should be listed under the `modules` field:

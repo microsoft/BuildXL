@@ -178,6 +178,7 @@ namespace BuildXL.Pips.Graph
                 SemanticPathExpander semanticPathExpander,
                 string fingerprintSalt = null,
                 ContentHash? searchPathToolsHash = null,
+                ContentHash? observationReclassificationRulesHash = null,
                 PipSpecificPropertiesConfig pipSpecificPropertiesConfig = null)
                 : base(pipTable, context, semanticPathExpander, new MutableDirectedGraph())
             {
@@ -216,7 +217,8 @@ namespace BuildXL.Pips.Graph
                 var extraFingerprintSalts = new ExtraFingerprintSalts(
                     configuration,
                     fingerprintSalt ?? string.Empty,
-                    searchPathToolsHash: searchPathToolsHash);
+                    searchPathToolsHash: searchPathToolsHash,
+                    observationReclassificationRulesHash: observationReclassificationRulesHash);
 
                 m_pipStaticFingerprinter = new PipStaticFingerprinter(
                     context.PathTable,

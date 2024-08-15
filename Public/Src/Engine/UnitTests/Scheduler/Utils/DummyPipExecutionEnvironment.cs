@@ -124,7 +124,7 @@ namespace Test.BuildXL.Scheduler.Utils
             ContentFingerprinter = new PipContentFingerprinter(
                 Context.PathTable,
                 artifact => State.FileContentManager.GetInputContent(artifact).FileContentInfo,
-                new ExtraFingerprintSalts(config, fingerprintSalt: null, searchPathToolsHash: null),
+                new ExtraFingerprintSalts(config, fingerprintSalt: null, searchPathToolsHash: null, observationReclassificationRulesHash: null),
                 pathExpander: PathExpander,
                 pipDataLookup: pipDataLookup);
             PipFragmentRenderer = this.CreatePipFragmentRenderer();
@@ -171,7 +171,8 @@ namespace Test.BuildXL.Scheduler.Utils
                 serviceManager: new DummyServiceManager(),
                 sidebandState: null,
                 alienFileEnumerationCache: new ConcurrentBigMap<AbsolutePath, IReadOnlyList<(AbsolutePath, string)>>(),
-                fileTimestampTracker: new FileTimestampTracker(DateTime.UtcNow, context.PathTable));
+                fileTimestampTracker: new FileTimestampTracker(DateTime.UtcNow, context.PathTable),
+                globalReclassificationRules: new ObservationReclassifier());
 
             m_sealContentsById = new ConcurrentBigMap<DirectoryArtifact, int[]>();
             

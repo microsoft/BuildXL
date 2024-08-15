@@ -37,6 +37,29 @@ interface Mount {
 //=============================================================================
 //  Configuration
 //=============================================================================
+type ObservationType = "AbsentPathProbe" | "FileContentRead" | "DirectoryEnumeration" | "ExistingDirectoryProbe" | "ExistingFileProbe" | "All";
+        
+interface ReclassificationRule 
+{ 
+    /** An optional name, for display purposes */
+    name?: string; 
+
+    /** Pattern to match against accessed paths. Mandatory. */ 
+    pathRegex: string;
+
+    /** The rule matches if the observation is resolved to any of these types
+        If this field is not, this rule will match against any type. 
+    */ 
+    resolvedObservationTypes: ObservationType[];
+
+    /** 
+     *  When this rule applies, the observation is reclassified to this type
+     *  A value of Unit means 'ignore this observation'.
+     *  Leaving this undefined will make the reclassification a no-op. 
+    */
+    reclassifyTo?: ObservationType | Unit;
+}
+
 interface FileAccessAllowlistEntry {
     /** Name of the allowlist exception rule. */
     name?: string;
@@ -53,7 +76,7 @@ interface FileAccessAllowlistEntry {
     /** Fragment of a path to match. */
     pathFragment?: string;
 }
-
+        
 interface DirectoryMembershipFingerprinterRule {
     /** Name of the exception */
     name?: string;

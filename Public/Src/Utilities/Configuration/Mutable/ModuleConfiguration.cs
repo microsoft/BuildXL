@@ -18,6 +18,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             ModuleId = ModuleId.Invalid;
             FileAccessAllowList = new List<IFileAccessAllowlistEntry>();
             CacheableFileAccessAllowlist = new List<IFileAccessAllowlistEntry>();
+            GlobalReclassificationRules = new List<IReclassificationRuleConfig>();
             DirectoryMembershipFingerprinterRules = new List<IDirectoryMembershipFingerprinterRule>();
             Mounts = new List<IMount>();
         }
@@ -35,6 +36,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             CacheableFileAccessAllowlist = new List<IFileAccessAllowlistEntry>(template.CacheableFileAccessAllowList.Select(entry => new FileAccessAllowlistEntry(entry, pathRemapper)));
             DirectoryMembershipFingerprinterRules = new List<IDirectoryMembershipFingerprinterRule>(template.DirectoryMembershipFingerprinterRules.Select(rule => new DirectoryMembershipFingerprinterRule(rule, pathRemapper)));
             Mounts = new List<IMount>(template.Mounts.Select(mount => new Mount(mount, pathRemapper)));
+            GlobalReclassificationRules = new List<IReclassificationRuleConfig>(template.GlobalReclassificationRules);
         }
 
         /// <inheritdoc />
@@ -57,6 +59,12 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         IReadOnlyList<IFileAccessAllowlistEntry> IModuleConfiguration.CacheableFileAccessAllowList => CacheableFileAccessAllowlist;
+
+        /// <inheritdoc />
+        IReadOnlyList<IReclassificationRuleConfig> IModuleConfiguration.GlobalReclassificationRules => GlobalReclassificationRules;
+        
+        /// <nodoc />
+        public List<IReclassificationRuleConfig> GlobalReclassificationRules { get; set; }
 
         /// <nodoc />
         [SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]

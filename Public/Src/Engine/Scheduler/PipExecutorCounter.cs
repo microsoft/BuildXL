@@ -1350,6 +1350,16 @@ namespace BuildXL.Scheduler
         /// <nodoc/>
         [CounterType(CounterType.Stopwatch)]
         CompleteAndWaitPathSetReportDuration,
+
+        /// <nodoc />
+        NumReclassifiedObservations,
+
+        /// <nodoc />
+        NumRegexMatchForReclassificationRules,
+
+        /// <nodoc />
+        [CounterType(CounterType.Stopwatch)]
+        RegexMatchForReclassificationRulesDuration,
     }
 
     /// <summary>

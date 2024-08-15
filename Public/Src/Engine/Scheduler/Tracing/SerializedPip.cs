@@ -163,6 +163,8 @@ namespace BuildXL.Scheduler.Tracing
         public List<int> RetryExitCodes { get; set; }
         [JsonPropertyName("Process Retries")]
         public int? ProcessRetries { get; set; }
+        [JsonPropertyName("Reclassification rules")]
+        public List<ReclassificationRuleJson> ReclassificationRules { get; set; }
     }
 
     /// <nodoc/>
@@ -182,6 +184,25 @@ namespace BuildXL.Scheduler.Tracing
         public List<string> UntrackedPaths { get; set; }
         [JsonPropertyName("Untracked Scopes")]
         public List<string> UntrackedScopes { get; set; }
+    }
+    
+    /// <nodoc/>
+    public class ReclassificationRuleJson
+    {
+        [JsonPropertyName("Index")]
+        public int Index { get; set; }
+
+        [JsonPropertyName("Name")]
+        public string Name { get; set; }
+
+        [JsonPropertyName("Path Regex")]
+        public string PathRegex { get; set; }
+
+        [JsonPropertyName("Resolved types")]
+        public List<string> ResolvedInputTypes { get; set; }
+
+        [JsonPropertyName("Reclassify to")]
+        public string ReclassifyTo { get; set; }
     }
 
     /// <nodoc/>

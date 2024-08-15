@@ -59,7 +59,8 @@ namespace Test.BuildXL.Scheduler
             VmInitializer vmInitializer = null,
             SchedulerTestHooks testHooks = null,
             FileTimestampTracker fileTimestampTracker = null,
-            PipSpecificPropertiesConfig pipSpecificPropertiesConfig = null) : base(graph, pipQueue, context, fileContentTable, cache,
+            PipSpecificPropertiesConfig pipSpecificPropertiesConfig = null,
+            ObservationReclassifier globalReclassificationRules = null) : base(graph, pipQueue, context, fileContentTable, cache,
                 configuration, fileAccessAllowlist, loggingContext, null, directoryMembershipFingerprinterRules,
                 tempCleaner, AsyncLazy<HistoricPerfDataTable>.FromResult(runningTimeTable), performanceCollector, fingerprintSalt, previousInputsSalt,
                 ipcProvider: ipcProvider, 
@@ -69,7 +70,8 @@ namespace Test.BuildXL.Scheduler
                 testHooks: testHooks,
                 fileTimestampTracker: fileTimestampTracker,
                 isTestScheduler: true,
-                pipSpecificPropertiesConfig: pipSpecificPropertiesConfig)
+                pipSpecificPropertiesConfig: pipSpecificPropertiesConfig,
+                globalReclassificationRules: globalReclassificationRules)
         {
             m_testPipQueue = pipQueue;
 

@@ -10,6 +10,7 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Configuration.Mutable;
 
 namespace BuildXL.Pips.Operations
 {
@@ -431,6 +432,7 @@ namespace BuildXL.Pips.Operations
             int? preserveOutputsTrustLevel = null,
             ReadOnlyArray<PathAtom>? childProcessesToBreakawayFromSandbox = null,
             ReadOnlyArray<AbsolutePath>? outputDirectoryExclusions = null,
+            ReadOnlyArray<IReclassificationRule>? reclassificationRules = null,
             int? processRetries = null,
             StringId retryAttemptEnvironmentVariable = default,
             FileArtifact traceFile = default)
@@ -546,6 +548,7 @@ namespace BuildXL.Pips.Operations
             PreserveOutputsTrustLevel = preserveOutputsTrustLevel ?? (int)PreserveOutputsTrustValue.Lowest;
             ChildProcessesToBreakawayFromSandbox = childProcessesToBreakawayFromSandbox ?? ReadOnlyArray<PathAtom>.Empty;
             OutputDirectoryExclusions = outputDirectoryExclusions ?? ReadOnlyArray<AbsolutePath>.Empty;
+            ReclassificationRules = reclassificationRules ?? ReadOnlyArray<IReclassificationRule>.Empty;
             ProcessRetries = processRetries;
             RetryAttemptEnvironmentVariable = retryAttemptEnvironmentVariable;
             TraceFile = traceFile;
@@ -762,6 +765,10 @@ namespace BuildXL.Pips.Operations
         /// </summary>
         public ReadOnlyArray<PathAtom> AllowedSurvivingChildProcessNames { get; }
 
+        /// <summary>
+        /// </summary>
+        [PipCaching(FingerprintingRole = FingerprintingRole.Semantic)]
+        public ReadOnlyArray<IReclassificationRule> ReclassificationRules { get; }
 
         /// <summary>
         /// Process names that will break away from the sandbox when spawned by the main process
@@ -959,6 +966,7 @@ namespace BuildXL.Pips.Operations
                 preserveOutputsTrustLevel: reader.ReadInt32(),
                 childProcessesToBreakawayFromSandbox: reader.ReadReadOnlyArray(reader1 => reader1.ReadPathAtom()),
                 outputDirectoryExclusions: reader.ReadReadOnlyArray(reader1 => reader1.ReadAbsolutePath()),
+                reclassificationRules: reader.ReadReadOnlyArray(reader1 => ReclassificationRule.Deserialize(reader1)),
                 processRetries: reader.ReadBoolean() ? (int?)reader.ReadInt32Compact() : null,
                 retryAttemptEnvironmentVariable: reader.ReadStringId(),
                 succeedFastExitCodes: reader.ReadReadOnlyArray(r => r.ReadInt32()),
@@ -1012,6 +1020,7 @@ namespace BuildXL.Pips.Operations
             writer.Write(PreserveOutputsTrustLevel);
             writer.Write(ChildProcessesToBreakawayFromSandbox, (w, v) => w.Write(v));
             writer.Write(OutputDirectoryExclusions, (w, v) => w.Write(v));
+            writer.Write(ReclassificationRules, (w, v) => v.Serialize(w));
             writer.Write(ProcessRetries.HasValue);
             if (ProcessRetries.HasValue)
             {

@@ -17,6 +17,7 @@ using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using System.Diagnostics.CodeAnalysis;
+using BuildXL.Scheduler.Fingerprints;
 
 namespace BuildXL.Scheduler.Graph
 {
@@ -79,7 +80,8 @@ namespace BuildXL.Scheduler.Graph
                 var extraFingerprintSalts = new ExtraFingerprintSalts(
                     configuration,
                     configuration.Cache.CacheSalt,
-                    new DirectoryMembershipFingerprinterRuleSet(configuration, pipExecutionContext.StringTable).ComputeSearchPathToolsHash());
+                    new DirectoryMembershipFingerprinterRuleSet(configuration, pipExecutionContext.StringTable).ComputeSearchPathToolsHash(),
+                    ObservationReclassifier.ComputeObservationReclassificationRulesHash(Configuration));
                 var pipSpecificPropertiesConfig = new PipSpecificPropertiesConfig(configuration.Engine.PipSpecificPropertyAndValues);
 
                 m_pipStaticFingerprinter = new PipStaticFingerprinter(

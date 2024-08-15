@@ -14,6 +14,7 @@ using BuildXL.Utilities.Core;
 
 namespace BuildXL.Scheduler.Fingerprints
 {
+    // CODESYNC: BuildXL.Utilities.Configuration.ObservationType
     /// <summary>
     /// Type of <see cref="ObservedInput" />.
     /// </summary>

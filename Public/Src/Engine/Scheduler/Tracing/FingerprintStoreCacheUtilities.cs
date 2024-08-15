@@ -45,6 +45,7 @@ namespace BuildXL.Scheduler.Tracing
             var extraFingerprintSalts = new ExtraFingerprintSalts(
                 configuration,
                 configuration.Cache.CacheSalt,
+                null,
                 null);
 
             using (var hasher = new BasicHashingHelper(recordFingerprintString: false))

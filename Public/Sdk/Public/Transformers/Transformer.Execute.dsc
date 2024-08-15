@@ -315,6 +315,15 @@ namespace Transformer {
         preserveOutputWhitelist?: (File | Directory)[]; // compatibility
         incrementalTool?: boolean;
 
+        /** 
+         *  Reclassification rules applied to this pip.
+         *  These rules are traversed in order and the first matching rule is applied.
+         *  Rules defined here are matched before the globally defined rules
+         *  in the main configuration file, so a match on these rules overrides
+         *  any other matches. 
+        */
+        reclassificationRules?: ReclassificationRule[];
+
         /**
          * Pull unsafe_GlobalPassthroughEnvVars and unsafe_GlobalUntrackedScopes for this process.
          */

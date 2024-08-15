@@ -225,6 +225,7 @@ namespace Transformer {
             allowPreservedOutputs?: boolean | number;
             passThroughEnvironmentVariables?: string[];
             preserveOutputAllowlist?: (File | Directory)[];
+            reclassificationRules?: ReclassificationRule[];
         }
 
         /**

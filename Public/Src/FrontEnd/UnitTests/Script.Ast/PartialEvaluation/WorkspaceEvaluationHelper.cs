@@ -256,6 +256,9 @@ namespace Test.DScript.Ast.PartialEvaluation
                     File.ReadAllText("Libs/Prelude.IO.ts"),
                     File.ReadAllText("Libs/Prelude.Unsafe.ts"),
                     File.ReadAllText("Libs/Prelude.Context.ts"),
+                    File.ReadAllText("Libs/Prelude.Collections.ts"),
+                    File.ReadAllText("Libs/Prelude.Configuration.ts"),
+                    File.ReadAllText("Libs/Prelude.Configuration.Resolvers.ts"),
                     File.ReadAllText("Libs/Prelude.Contract.ts"),
                     File.ReadAllText("Libs/Prelude.Transformer.Arguments.ts"))
                 .AddContent(

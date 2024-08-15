@@ -10,6 +10,7 @@ using BuildXL.Scheduler;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.Scheduler.Fingerprints;
 
 namespace BuildXL.Engine
 {
@@ -34,6 +35,11 @@ namespace BuildXL.Engine
         public readonly FileAccessAllowlist FileAccessAllowlist;
 
         /// <summary>
+        /// Reclassification rules
+        /// </summary>
+        public readonly ObservationReclassifier GlobalReclassificationRules;
+
+        /// <summary>
         /// Directory enumeration fingerprinter exceptions from the config
         /// </summary>
         public readonly DirectoryMembershipFingerprinterRuleSet DirectoryMembershipFingerprinterRules;
@@ -50,12 +56,14 @@ namespace BuildXL.Engine
             FileAccessAllowlist fileAccessAllowlist,
             string defaultPipFilter,
             DirectoryMembershipFingerprinterRuleSet directoryMembershipFingerprinterRules,
-            IList<IModuleConfiguration> moduleConfigurations)
+            IList<IModuleConfiguration> moduleConfigurations,
+            ObservationReclassifier globalReclassificationRules)
         {
             FileAccessAllowlist = fileAccessAllowlist;
             DefaultPipFilter = defaultPipFilter ?? string.Empty;
             DirectoryMembershipFingerprinterRules = directoryMembershipFingerprinterRules;
             ModuleConfigurations = moduleConfigurations;
+            GlobalReclassificationRules = globalReclassificationRules;
         }
 
         /// <summary>
@@ -66,6 +74,7 @@ namespace BuildXL.Engine
             Contract.Requires(writer != null);
 
             FileAccessAllowlist.Serialize(writer);
+            GlobalReclassificationRules.Serialize(writer);
             writer.Write(DefaultPipFilter);
             DirectoryMembershipFingerprinterRules.Serialize(writer);
 
@@ -91,6 +100,7 @@ namespace BuildXL.Engine
             Contract.Requires(contextTask != null);
 
             FileAccessAllowlist allowlist = await FileAccessAllowlist.DeserializeAsync(reader, contextTask);
+            var reclassificationRules = ObservationReclassifier.Deserialize(reader);
             string defaultFilter = reader.ReadString();
             DirectoryMembershipFingerprinterRuleSet ruleSet = DirectoryMembershipFingerprinterRuleSet.Deserialize(reader);
 
@@ -108,7 +118,7 @@ namespace BuildXL.Engine
             }
 
             // TODO: Read everything else instead of doing it in many different places?
-            return new ConfigFileState(allowlist, defaultFilter, ruleSet, moduleConfigurations);
+            return new ConfigFileState(allowlist, defaultFilter, ruleSet, moduleConfigurations, reclassificationRules);
         }
 
         /// <summary>

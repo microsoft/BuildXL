@@ -30,13 +30,15 @@ namespace BuildXL.Scheduler.IncrementalScheduling
         private readonly string m_substSource;
         private readonly string m_substTarget;
         private readonly PreserveOutputsInfo m_preserveOutputSalt;
+        private readonly string m_observationRulesSalt;
         private readonly int m_hashCode;
 
         private GraphAgnosticIncrementalSchedulingStateId(
             string machineName,
             string substSource,
             string substTarget,
-            PreserveOutputsInfo preserveOutputSalt)
+            PreserveOutputsInfo preserveOutputSalt,
+            string observationRulesHash)
         {
             Contract.Requires(machineName != null);
 
@@ -44,6 +46,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
             m_substSource = substSource;
             m_substTarget = substTarget;
             m_preserveOutputSalt = preserveOutputSalt;
+            m_observationRulesSalt = observationRulesHash;
             m_hashCode = ComputeHashCode();
         }
 
@@ -65,6 +68,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
         private bool EqualsModuloPreserveOutputSalt(GraphAgnosticIncrementalSchedulingStateId otherId)
         {
             return otherId != null
+                && otherId.m_observationRulesSalt == m_observationRulesSalt
                 && string.Equals(m_machineName, otherId.m_machineName, StringComparison.Ordinal)
                 && string.Equals(m_substSource, otherId.m_substSource, OperatingSystemHelper.PathComparison)
                 && string.Equals(m_substTarget, otherId.m_substTarget, OperatingSystemHelper.PathComparison);
@@ -79,7 +83,8 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                 Environment.MachineName,
                 configuration.Logging.SubstSource.ToString(pathTable).ToCanonicalizedPath(),
                 configuration.Logging.SubstTarget.ToString(pathTable).ToCanonicalizedPath(),
-                preserveOutputSalt);
+                preserveOutputSalt,
+                ObservationReclassifier.ComputeObservationReclassificationRulesHash(configuration).ToString());
         }
 
         /// <inheritdoc />
@@ -94,7 +99,8 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                 m_machineName.GetHashCode(),
                 m_substSource.GetHashCode(),
                 m_substTarget.GetHashCode(),
-                m_preserveOutputSalt.GetHashCode());
+                m_preserveOutputSalt.GetHashCode(),
+                m_observationRulesSalt.GetHashCode());
         }
 
         /// <summary>
@@ -108,6 +114,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
             writer.Write(m_substSource);
             writer.Write(m_substTarget);
             m_preserveOutputSalt.Serialize(writer);
+            writer.Write(m_observationRulesSalt);
         }
 
         /// <summary>
@@ -121,12 +128,14 @@ namespace BuildXL.Scheduler.IncrementalScheduling
             var substSource = reader.ReadString();
             var substTarget = reader.ReadString();
             var preserveOutputSalt = new PreserveOutputsInfo(reader);
+            var reclassificationRulesSalt = reader.ReadString();
 
             return new GraphAgnosticIncrementalSchedulingStateId(
                 machineName,
                 substSource,
                 substTarget,
-                preserveOutputSalt);
+                preserveOutputSalt,
+                reclassificationRulesSalt);
         }
 
         /// <summary>
@@ -140,6 +149,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
             stringBuilder.AppendLine(I($"\tSubst source         : {m_substSource}"));
             stringBuilder.AppendLine(I($"\tSubst target         : {m_substTarget}"));
             stringBuilder.AppendLine(I($"\tPreserve output salt : {m_preserveOutputSalt.ToString()}"));
+            stringBuilder.AppendLine(I($"\tObservation rules salt : {m_observationRulesSalt.ToString()}"));
             stringBuilder.AppendLine("]");
 
             return stringBuilder.ToString();

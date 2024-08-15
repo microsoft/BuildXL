@@ -11,6 +11,7 @@ using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Pips.Filter;
 using BuildXL.Pips.Graph;
+using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Storage;
 using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
@@ -214,7 +215,8 @@ namespace BuildXL.Engine
                         var extraFingerprintSalts = new ExtraFingerprintSalts(
                             config,
                             config.Cache.CacheSalt ?? string.Empty,
-                            new Scheduler.DirectoryMembershipFingerprinterRuleSet(config, pathTable.StringTable).ComputeSearchPathToolsHash());
+                            new Scheduler.DirectoryMembershipFingerprinterRuleSet(config, pathTable.StringTable).ComputeSearchPathToolsHash(),
+                            ObservationReclassifier.ComputeObservationReclassificationRulesHash(config));
 
                         AddFingerprint(topLevelHasher, "ExtraFingerprintSalts", extraFingerprintSalts.CalculatedSaltsFingerprint);
 

@@ -450,6 +450,11 @@ namespace BuildXL.Scheduler.Tracing
         public ContentHash? SearchPathToolsHash;
 
         /// <summary>
+        /// Gets the hash of the search path tools configured
+        /// </summary>
+        public ContentHash? ObservationReclassificationRulesHash;
+
+        /// <summary>
         /// Whether /unsafe_unexpectedFileAccessesAreErrors was passed to BuildXL
         /// </summary>
         public bool UnexpectedFileAccessesAreErrors;
@@ -518,6 +523,7 @@ namespace BuildXL.Scheduler.Tracing
             FingerprintVersion = salts.FingerprintVersion;
             FingerprintSalt = salts.FingerprintSalt;
             SearchPathToolsHash = salts.SearchPathToolsHash;
+            ObservationReclassificationRulesHash = salts.GlobalObservationReclassificationRulesHash;
             UnexpectedFileAccessesAreErrors = salts.UnexpectedFileAccessesAreErrors;
             MonitorFileAccesses = salts.MonitorFileAccesses;
             MaskUntrackedAccesses = salts.MaskUntrackedAccesses;
@@ -553,6 +559,7 @@ namespace BuildXL.Scheduler.Tracing
                        fingerprintVersion: FingerprintVersion,
                        fingerprintSalt: FingerprintSalt,
                        searchPathToolsHash: SearchPathToolsHash,
+                       observationReclassificationRulesHash: ObservationReclassificationRulesHash, 
                        monitorFileAccesses: MonitorFileAccesses,
                        unexpectedFileAccessesAreErrors: UnexpectedFileAccessesAreErrors,
                        maskUntrackedAccesses: MaskUntrackedAccesses,
@@ -590,6 +597,7 @@ namespace BuildXL.Scheduler.Tracing
             writer.Write((int)FingerprintVersion);
             writer.Write(FingerprintSalt);
             writer.Write(SearchPathToolsHash, (w, h) => h.SerializeHashBytes(w));
+            writer.Write(ObservationReclassificationRulesHash, (w, h) => h.SerializeHashBytes(w));
             writer.Write(MonitorFileAccesses);
             writer.Write(UnexpectedFileAccessesAreErrors);
             writer.Write(MaskUntrackedAccesses);
@@ -620,6 +628,7 @@ namespace BuildXL.Scheduler.Tracing
             FingerprintVersion = (PipFingerprintingVersion)reader.ReadInt32();
             FingerprintSalt = reader.ReadString();
             SearchPathToolsHash = reader.ReadNullableStruct(r => ContentHashingUtilities.CreateFrom(r));
+            ObservationReclassificationRulesHash = reader.ReadNullableStruct(r => ContentHashingUtilities.CreateFrom(r));
             MonitorFileAccesses = reader.ReadBoolean();
             UnexpectedFileAccessesAreErrors = reader.ReadBoolean();
             MaskUntrackedAccesses = reader.ReadBoolean();

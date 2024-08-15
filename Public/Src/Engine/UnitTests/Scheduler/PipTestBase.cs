@@ -34,6 +34,7 @@ using Xunit.Abstractions;
 
 using Process = BuildXL.Pips.Operations.Process;
 using BuildXL.Utilities;
+using BuildXL.Scheduler.Fingerprints;
 
 namespace Test.BuildXL.Scheduler
 {
@@ -409,6 +410,7 @@ namespace Test.BuildXL.Scheduler
                 Expander,
                 fingerprintSalt: configuration.Cache.CacheSalt,
                 searchPathToolsHash: searchPathToolsHash,
+                observationReclassificationRulesHash: ObservationReclassifier.ComputeObservationReclassificationRulesHash(configuration),
                 pipSpecificPropertiesConfig);
 
             ReadonlyRoot = Path.Combine(ObjectRoot, "readonly");

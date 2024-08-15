@@ -25,6 +25,9 @@ namespace BuildXL.Pips.Graph
 
             /// <nodoc/>
             public const string ProcessSpecificFingerprintSalt = nameof(ProcessSpecificFingerprintSalt);
+
+            /// <nodoc/>
+            public const string ReclassificationRulesSalt = nameof(ReclassificationRulesSalt);
         }
 
         /// <nodoc/>

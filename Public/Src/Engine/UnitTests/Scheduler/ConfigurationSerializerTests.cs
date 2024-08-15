@@ -325,6 +325,9 @@ namespace Test.BuildXL.Scheduler
             [JsonIgnore]
             public Infra Infra => throw new System.NotImplementedException();
 
+            [JsonIgnore]
+            public IReadOnlyList<IReclassificationRuleConfig> GlobalReclassificationRules => throw new System.NotImplementedException();
+
             public void MarkIConfigurationMembersInvalid() => throw new System.NotImplementedException();
 
             #endregion

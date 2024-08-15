@@ -17,6 +17,7 @@ using BuildXL.ToolSupport;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Configuration;
 
 namespace BuildXL.Execution.Analyzer
 {
@@ -585,6 +586,7 @@ namespace BuildXL.Execution.Analyzer
                     m_html.CreateRow("ProcessOptions", pip.ProcessOptions.ToString()),
                     m_html.CreateRow("RewritePolicy", pip.RewritePolicy.ToString()),
                     m_html.CreateRow("RetryExitCodes", string.Join(",", pip.RetryExitCodes)),
+                    GetReclassificationRulesDetails(pip.ReclassificationRules),
                     (pip.ProcessRetries != null ? m_html.CreateRow("ProcessRetries", pip.ProcessRetries.Value) : null)),
 
                 m_html.CreateBlock(
@@ -610,6 +612,25 @@ namespace BuildXL.Execution.Analyzer
                     m_html.CreateRow("ShutdownProcessPipId", pip.ShutdownProcessPipId),
                     m_html.CreateRow("ServicePipDependencies", pip.ServicePipDependencies),
                     m_html.CreateRow("IsStartOrShutdownKind", pip.IsStartOrShutdownKind)));
+        }
+
+        private XElement GetReclassificationRulesDetails(ReadOnlyArray<IReclassificationRule> reclassificationRules)
+        {
+            return m_html.CreateRow(
+                "Reclassification rules",
+                new XElement(
+                    "div",
+                    reclassificationRules.Select(
+                        (r, i) =>
+                            new XElement(
+                                "div",
+                                new XAttribute("class", "miniGroup"),
+                                    m_html.CreateRow("Index", i),
+                                    m_html.CreateRow("Name", r.Name),
+                                    m_html.CreateRow("Path Regex", r.PathRegex),
+                                    m_html.CreateRow("Resolved types", "[ " + string.Join(",", (r.ResolvedObservationTypes?.Select(o => o.ToString()) ?? Array.Empty<string>())) + " ]"),
+                                    m_html.CreateRow("Reclassify to", DumpPipLiteAnalysisUtilities.GetReclassifyValue(r.ReclassifyTo))
+                            ))));
         }
 
         private string CreateSemaphore(ProcessSemaphoreInfo semaphore)

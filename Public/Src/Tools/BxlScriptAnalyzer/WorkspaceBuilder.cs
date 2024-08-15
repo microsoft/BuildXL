@@ -34,6 +34,7 @@ using TypeScript.Net.Scanning;
 using TypeScript.Net.Types;
 using CancellationToken = System.Threading.CancellationToken;
 using Diagnostic = TypeScript.Net.Diagnostics.Diagnostic;
+using BuildXL.Scheduler.Fingerprints;
 
 namespace BuildXL.FrontEnd.Script.Analyzer
 {
@@ -249,7 +250,8 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                             config,
                             mountsTable.MountPathExpander,
                             fingerprintSalt: config.Cache.CacheSalt,
-                            searchPathToolsHash: searchPathToolsHash);
+                            searchPathToolsHash: searchPathToolsHash,
+                            observationReclassificationRulesHash: ObservationReclassifier.ComputeObservationReclassificationRulesHash(config));
 
                         // Observe mount table is completed during workspace construction
                         AddConfigurationMounts(config, mountsTable);

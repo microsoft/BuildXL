@@ -2702,7 +2702,7 @@ If you can't update and need this feature after July 2018 please reach out to th
             (ushort)LogEventId.ForceSkipDependenciesOrDistributedBuildOverrideIncrementalScheduling,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.UserMessage,
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
             EventTask = (ushort)Tasks.Scheduler,
             Message = "Incremental scheduling is disabled because /unsafe_forceSkipDeps or distributed build is enabled")]
         internal abstract void ForceSkipDependenciesOrDistributedBuildOverrideIncrementalScheduling(LoggingContext loggingContext);

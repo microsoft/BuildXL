@@ -122,7 +122,6 @@ namespace BuildXL.Scheduler.Tracing
         InvalidMetadataStaticOutputNotFound = 368,
         InvalidMetadataRequiredOutputIsAbsent = 369,
 
-
         FileMonitoringError = 500,
         FileMonitoringWarning = 501,
         StorageCacheContentHitSources = 503,
@@ -530,6 +529,9 @@ namespace BuildXL.Scheduler.Tracing
         SchedulerComplete = 14540,
 
         EventStatsLogUnhandleEvent = 14600,
+        ObservationReclassified = 14601,
+        ObservationIgnored = 14602,
+        FailedToInitalizeReclassificationRules = 14603,
 
         // was DependencyViolationGenericWithRelatedPip_AsError = 25000,
         // was DependencyViolationGeneric_AsError = 25001,

@@ -62,8 +62,16 @@ namespace BuildXL.Utilities.Configuration
                     return true;
                 }
             }
-            else
+            else 
             {
+                // We allow conversion between DScript strings and enum types, as they are represented in DScript by
+                // a union type of strings.
+                if (allowedType.IsEnum && targetType == typeof(string) && Enum.IsDefined(allowedType, targetValue))
+                {
+                    liftedTargetValue = Enum.Parse(allowedType, targetValue as string);
+                    return true;
+                }
+
                 return allowedType.IsAssignableFrom(targetType);
             }
 

@@ -533,7 +533,7 @@ namespace Test.BuildXL.Scheduler
                     ReadOnlyArray<DirectoryArtifact>.From(directoryDependencies),
                     m_fileDependencies.ToArray());
 
-                var result = ObservedInputProcessor.ProcessInternalAsync(
+                var maybeResult = ObservedInputProcessor.ProcessInternalAsync(
                     OperationContext.CreateUntracked(loggingContext),
                     new Environment(this, loggingContext),
                     new AssertingTarget(this, Context, (target, topOnly) => handled.Add(new Tuple<TestObservation, bool>(target, topOnly))),
@@ -541,7 +541,9 @@ namespace Test.BuildXL.Scheduler
                     ReadOnlyArray<TestObservation>.From(observations),
                     unPopulatedSharedOpaqueOutputs: null,
                     default(SortedReadOnlyArray<StringId, CaseInsensitiveStringIdComparer>),
-                    isCacheLookup: false).Result;
+                    isCacheLookup: false);
+                
+                var result = maybeResult.Result;
 
                 XAssert.AreEqual(expectedStatus, result.Status);
 
@@ -754,7 +756,8 @@ namespace Test.BuildXL.Scheduler
                             preserveOutputsSalt: default,
                             fileSystemView: null,
                             new ConcurrentBigMap<AbsolutePath, IReadOnlyList<(AbsolutePath, string)>>(),
-                            new FileTimestampTracker(DateTime.Now, context.PathTable)),
+                            new FileTimestampTracker(DateTime.Now, context.PathTable),
+                            globalReclassificationRules: new ObservationReclassifier()),
                         moduleId: ModuleId.UnsafeCreate(2, "Test"),
                         ifPreserveOutputs: false);
                 }
@@ -768,6 +771,8 @@ namespace Test.BuildXL.Scheduler
                 public SemanticPathExpander PathExpander { get; }
 
                 public PipSpecificPropertiesConfig PipProperties => new(new List<PipSpecificPropertyAndValue>());
+
+                public ObservationReclassifier GlobalReclassificationRules => new ObservationReclassifier();
 
                 public DirectoryFingerprint? TryQueryDirectoryFingerprint(
                     AbsolutePath directoryPath,
@@ -1312,7 +1317,8 @@ namespace Test.BuildXL.Scheduler
                 directoryMembershipFinterprinterRuleSet: parentRuleSet,
                 sidebandState: null, 
                 alienFileEnumerationCache: new ConcurrentBigMap<AbsolutePath, IReadOnlyList<(AbsolutePath, string)>>(),
-                fileTimestampTracker: new FileTimestampTracker(DateTime.UtcNow, context.PathTable));
+                fileTimestampTracker: new FileTimestampTracker(DateTime.UtcNow, context.PathTable),
+                globalReclassificationRules: new ObservationReclassifier());
             PipExecutionState.PipScopeState state = new PipExecutionState.PipScopeState(pes, testModule, ifPreserveOutputs: false);
 
             var adapter = new ObservedInputProcessingEnvironmentAdapter(dummy, state);

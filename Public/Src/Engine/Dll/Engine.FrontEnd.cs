@@ -25,6 +25,8 @@ using BuildXL.Utilities.Instrumentation.Common;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 using Logger = BuildXL.Engine.Tracing.Logger;
 using Pure = System.Diagnostics.Contracts.PureAttribute;
+using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Scheduler.Fingerprints;
 
 namespace BuildXL.Engine
 {
@@ -135,6 +137,7 @@ namespace BuildXL.Engine
             [AllowNull] PipSpecificPropertiesConfig pipSpecificPropertiesConfig)
         {
             var searchPathToolsHash = new Scheduler.DirectoryMembershipFingerprinterRuleSet(Configuration, Context.StringTable).ComputeSearchPathToolsHash();
+            ContentHash? observationReclassificationRulesHash = ObservationReclassifier.ComputeObservationReclassificationRulesHash(Configuration);
             var builder = new PipGraph.Builder(
                 EngineSchedule.CreateEmptyPipTable(Context),
                 Context,
@@ -144,6 +147,7 @@ namespace BuildXL.Engine
                 mountsTable.MountPathExpander,
                 fingerprintSalt: Configuration.Cache.CacheSalt,
                 searchPathToolsHash: searchPathToolsHash,
+                observationReclassificationRulesHash: observationReclassificationRulesHash,
                 pipSpecificPropertiesConfig: pipSpecificPropertiesConfig);
 
             PatchablePipGraph patchableGraph = null;

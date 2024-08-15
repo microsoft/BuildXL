@@ -26,6 +26,7 @@ using static BuildXL.Utilities.Core.FormattableStringEx;
 using System.Diagnostics.CodeAnalysis;
 using BuildXL.Utilities.Debugging;
 using BuildXL.Utilities;
+using BuildXL.Pips.Operations;
 
 #pragma warning disable 1591 // disabling warning about missing API documentation; TODO: Remove this line and write documentation!
 
@@ -592,6 +593,11 @@ namespace BuildXL.Scheduler.Fingerprints
                     AbsolutePath lastAbsentPath = AbsolutePath.Invalid;
 
                     // Third and final pass
+                    // Initialize the observation reclassifier for this pip, which will apply to all observations
+                    var reclassificationRules = ((Process)pip.UnderlyingPip).ReclassificationRules; // yuck! but adding a field in the Pip itself (to avoid casting) is just as ugly
+                    var reclassifierForPip = new ObservationReclassifier();
+                    reclassifierForPip.Initialize(reclassificationRules, environment.Counters);
+
                     for (int i = 0; i < observations.Length; i++)
                     {
                         var debugTrace = debugTraces[i];
@@ -624,6 +630,39 @@ namespace BuildXL.Scheduler.Fingerprints
                             {
                                 numAbsentPathsEliminated++;
                                 continue;
+                            }
+                        }
+
+                        // Reclassify the observation if the user specified some matching rule
+                        if (reclassifierForPip.TryReclassify(path, pathTable, type, out var reclassification)
+                            || environment.GlobalReclassificationRules.TryReclassify(path, pathTable, type, out reclassification))
+                        {
+                            if (!reclassification.ReclassifyTo.HasValue)
+                            {
+                                // Observation must be ignored
+                                Logger.Log.ObservationIgnored(
+                                    operationContext,
+                                    pip.Description,
+                                    path.ToString(pathTable),
+                                    reclassification.AppliedRuleName,
+                                    type.ToString(),
+                                    isCacheLookup);
+
+                                continue;
+                            }
+                            else
+                            {
+                                // Observation must be reclassified
+                                Logger.Log.ObservationReclassified(
+                                    operationContext,
+                                    pip.Description,
+                                    path.ToString(pathTable),
+                                    reclassification.AppliedRuleName,
+                                    type.ToString(),
+                                    reclassification.ToString(),
+                                    isCacheLookup);
+
+                                type = reclassification.ReclassifyTo.Value;
                             }
                         }
 
@@ -782,7 +821,6 @@ namespace BuildXL.Scheduler.Fingerprints
 
                             // This no longer has any function other than being a test hook;
                             target.CheckProposedObservedInput(observation, proposed);
-
                             observedInputs[valid++] = proposed;
 
                             if (!proposed.Path.IsValid)
@@ -1352,6 +1390,11 @@ namespace BuildXL.Scheduler.Fingerprints
         PipSpecificPropertiesConfig PipProperties { get;  }
 
         /// <summary>
+        /// The reclassifier that applies globally-defined reclassification rules, i.e., rules that are applied to all pips.
+        /// </summary>
+        ObservationReclassifier GlobalReclassificationRules { get; }
+
+        /// <summary>
         /// Probes a path for existence
         /// </summary>
         Possible<PathExistence> TryProbeAndTrackForExistence(AbsolutePath path, CacheablePipInfo pipInfo, ObservationFlags flags, bool isReadOnly, bool cachePathExistence, DebugTrace trace = default);
@@ -1722,6 +1765,8 @@ namespace BuildXL.Scheduler.Fingerprints
         public PipSpecificPropertiesConfig PipProperties => m_env.PipSpecificPropertiesConfig;
 
         public RequiredOutputMaterialization RequiredOutputMaterialization => m_env.Configuration.Schedule.RequiredOutputMaterialization;
+
+        public ObservationReclassifier GlobalReclassificationRules => m_env.State.GlobalReclassificationRules;
 
         public ObservedInputProcessingEnvironmentAdapter(
             IPipExecutionEnvironment environment,

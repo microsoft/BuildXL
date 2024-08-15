@@ -11,8 +11,7 @@ using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using static BuildXL.Utilities.Core.FormattableStringEx;
-using BuildXL.Utilities;
-using System.Diagnostics.CodeAnalysis;
+using BuildXL.Utilities.Configuration;
 
 namespace BuildXL.Pips.Graph
 {
@@ -325,10 +324,6 @@ namespace BuildXL.Pips.Graph
                 fingerprinter.Add(nameof(Process.RequiresAdmin), 1);
             }
 
-            // TODO: Remove on next bump of version number in PipFingerprintingVersion.
-            fingerprinter.Add("NeedsToRunInContainer", 0);
-            fingerprinter.Add("ContainerIsolationLevel", 0);
-
             AddPipData(fingerprinter, nameof(Process.Arguments), process.Arguments);
             if (process.ResponseFileData.IsValid)
             {
@@ -398,7 +393,7 @@ namespace BuildXL.Pips.Graph
             {
                 fingerprinter.Add(nameof(Process.RequireGlobalDependencies), 0);
             }
-
+       
             AddProcessSpecificFingerprintSalt(fingerprinter, process);
         }
 
@@ -414,6 +409,13 @@ namespace BuildXL.Pips.Graph
                 fingerprinter.Add(
                     PipFingerprintField.Process.ProcessSpecificFingerprintSalt,
                     pipFingerprintSaltValue == "*" ? Guid.NewGuid().ToString() : pipFingerprintSaltValue);
+            }
+
+            // If the pip has reclassification rules, we consider them as part of the fingerprint salt,
+            // so we mark the pip as dirty both with and without incremental scheduling enabled if these rules change
+            if (process.ReclassificationRules.Length > 0)
+            {
+                fingerprinter.AddCollection<IReclassificationRule, ReadOnlyArray<IReclassificationRule>>(nameof(Process.ReclassificationRules), process.ReclassificationRules, (fp, v) => fp.Add(v.Descriptor()));
             }
         }
 

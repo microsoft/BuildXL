@@ -346,7 +346,8 @@ namespace Test.BuildXL.Scheduler
                     directoryMembershipFinterprinterRuleSet: null,
                     sidebandState: null,
                     alienFileEnumerationCache: new ConcurrentBigMap<AbsolutePath, IReadOnlyList<(AbsolutePath, string)>>(),
-                    fileTimestampTracker: new FileTimestampTracker(DateTime.UtcNow, context.PathTable));
+                    fileTimestampTracker: new FileTimestampTracker(DateTime.UtcNow, context.PathTable),
+                    globalReclassificationRules: new ObservationReclassifier());
 
                 DirectoryTranslator = new DirectoryTranslator();
                 foreach (var directoryToTranslate in configuration.Engine.DirectoriesToTranslate)

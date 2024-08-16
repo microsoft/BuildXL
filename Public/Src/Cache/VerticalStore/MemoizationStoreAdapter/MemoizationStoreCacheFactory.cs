@@ -146,6 +146,11 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             [DefaultValue(false)]
             public bool IsReadOnly { get; set; }
 
+            /// <summary>
+            /// If true, use local CAS backed by client cas
+            /// </summary>
+            public bool UseTieredCas { get; set; }
+
             /// <nodoc />
             public Config()
             {
@@ -371,7 +376,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             ServiceClientContentStoreConfiguration serviceClientContentStoreConfiguration = null;
             if (config.EnableContentServer)
             {
-                new ServiceClientContentStoreConfiguration(config.CacheName, serviceClientRpcConfiguration, config.ScenarioName)
+                serviceClientContentStoreConfiguration = new ServiceClientContentStoreConfiguration(config.CacheName, serviceClientRpcConfiguration, config.ScenarioName)
                 {
                     RetryIntervalSeconds = (uint)config.RetryIntervalSeconds,
                     RetryCount = (uint)config.RetryCount,
@@ -395,7 +400,8 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                     new LocalCacheConfiguration(serviceClientContentStoreConfiguration),
                     configurationModel: CreateConfigurationModel(GetCasConfig(config)),
                     clock: null,
-                    checkLocalFiles: config.CheckLocalFiles);
+                    checkLocalFiles: config.CheckLocalFiles,
+                    stackLocalAndClientContentStore: config.UseTieredCas);
             }
 
         }

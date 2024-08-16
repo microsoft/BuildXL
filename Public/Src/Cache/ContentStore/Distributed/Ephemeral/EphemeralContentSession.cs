@@ -58,8 +58,8 @@ public class EphemeralContentSession : ContentSessionBase
     public EphemeralContentSession(string name, ITrustedContentSession local, ITrustedContentSession persistent, EphemeralHost ephemeralHost)
         : base(name, counterTracker: null)
     {
-        _local = local;
-        _persistent = persistent;
+        _local = Link(local);
+        _persistent = Link(persistent);
         _ephemeralHost = ephemeralHost;
         _contentCopierAdapter = new DistributedContentCopierAdapter { WorkingFolder = _ephemeralHost.Configuration.Workspace };
     }

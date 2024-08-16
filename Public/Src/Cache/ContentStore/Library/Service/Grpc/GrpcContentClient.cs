@@ -299,7 +299,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             ContentHash contentHash,
             AbsolutePath path,
             FileRealizationMode realizationMode,
-            UrgencyHint urgencyHint = UrgencyHint.Nominal)
+            UrgencyHint urgencyHint = UrgencyHint.Nominal,
+            long? trustedContentSize = null)
         {
             var sessionContext = await CreateSessionContextAsync(context);
 
@@ -308,7 +309,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 return new PutResult(sessionContext, contentHash);
             }
 
-            return await PutFileAsync(context, sessionContext.Value, contentHash, path, realizationMode, urgencyHint);
+            return await PutFileAsync(context, sessionContext.Value, contentHash, path, realizationMode, urgencyHint, trustedContentSize);
         }
 
         private Task<PutResult> PutFileAsync(
@@ -317,20 +318,31 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             ContentHash contentHash,
             AbsolutePath path,
             FileRealizationMode realizationMode,
-            UrgencyHint urgencyHint)
+            UrgencyHint urgencyHint,
+            long? trustedContentSize = null)
         {
             return PerformOperationAsync(
                 context,
-                sessionContext => Client.PutFileAsync(
-                    new PutFileRequest
+                sessionContext =>
+                {
+                    var request = new PutFileRequest
                     {
                         Header = sessionContext.CreateHeader(urgencyHint),
                         ContentHash = contentHash.ToByteString(),
                         HashType = (int)contentHash.HashType,
                         FileRealizationMode = (int)realizationMode,
-                        Path = path.Path
-                    },
-                    options: GetCallOptions(Configuration.Deadline, operationContext.Token)),
+                        Path = path.Path,
+                    };
+
+                    if (trustedContentSize.HasValue)
+                    {
+                        request.TrustedContentSize = trustedContentSize.Value;
+                    }
+
+                    return Client.PutFileAsync(
+                        request,
+                        options: GetCallOptions(Configuration.Deadline, operationContext.Token));
+                },
                 response =>
                 {
                     if (!response.Header.Succeeded)

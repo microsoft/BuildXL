@@ -91,11 +91,17 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
         public static implicit operator Context(OperationContext context) => context.TracingContext;
 
         /// <nodoc />
-        public Task<T> PerformInitializationAsync<T>(Tracer operationTracer, Func<Task<T>> operation, Counter? counter = default, Func<T, string>? endMessageFactory = null, [CallerMemberName]string? caller = null)
+        public Task<T> PerformInitializationAsync<T>(
+            Tracer operationTracer,
+            Func<Task<T>> operation,
+            Counter? counter = default,
+            Func<T, string>? endMessageFactory = null,
+            bool traceOperationFinished = true,
+            [CallerMemberName] string? caller = null)
             where T : ResultBase
         {
             return this.CreateInitializationOperation(operationTracer, operation)
-                .WithOptions(counter, traceErrorsOnly: false, traceOperationStarted: false, traceOperationFinished: true, extraStartMessage: null, endMessageFactory: endMessageFactory, caller: caller)
+                .WithOptions(counter, traceErrorsOnly: false, traceOperationStarted: false, traceOperationFinished: traceOperationFinished, extraStartMessage: null, endMessageFactory: endMessageFactory, caller: caller)
                 .RunAsync(caller);
         }
 

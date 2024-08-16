@@ -79,7 +79,8 @@ namespace BuildXL.Cache.ContentStore.Service
             ContentHash contentHash,
             AbsolutePath path,
             FileRealizationMode realizationMode,
-            UrgencyHint urgencyHint = UrgencyHint.Nominal);
+            UrgencyHint urgencyHint = UrgencyHint.Nominal,
+            long? trustedContentSize = null);
 
         /// <summary>
         /// Remove given content from all sessions.

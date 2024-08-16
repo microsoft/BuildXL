@@ -26,7 +26,7 @@ using BuildXL.Cache.MemoizationStore.Sessions;
 namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
 {
     /// <nodoc />
-    public class OneLevelCacheSession : ICacheSessionWithLevelSelectors, IHibernateCacheSession, ITrustedContentSession
+    public class OneLevelCacheSession : ICacheSessionWithLevelSelectors, IHibernateCacheSession, ITrustedContentSession, ILocalContentSessionProvider
     {
         /// <summary>
         ///     Auto-pinning behavior configuration.
@@ -507,6 +507,12 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
             }
 
             throw new NotImplementedException();
+        }
+
+        /// <inheritdoc />
+        public IContentSession? TryGetLocalContentSession()
+        {
+            return (ContentSession as ILocalContentSessionProvider)?.TryGetLocalContentSession();
         }
     }
 }

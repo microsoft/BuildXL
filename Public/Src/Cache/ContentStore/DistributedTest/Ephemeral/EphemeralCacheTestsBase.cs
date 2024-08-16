@@ -5,6 +5,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading.Tasks;
@@ -165,6 +166,12 @@ public abstract class EphemeralCacheTestsBase : TestWithOutput
                       });
     }
 
+    protected virtual IDisposable? CreateBackingContentStore(out IContentStore? backingContentStore)
+    {
+        backingContentStore = default;
+        return null;
+    }
+
     protected async Task RunTestAsync(Func<OperationContext, OperationContext, TestInstance, Task> runTest, int numRings = 1, int instancesPerRing = 2, TestInstance.ConfigurationModifier? modifier = null)
     {
         Contract.Requires(numRings > 0);
@@ -187,11 +194,14 @@ public abstract class EphemeralCacheTestsBase : TestWithOutput
             BuildCacheConfiguration = buildCacheConfiguration
         };
 
+        using var _1 = CreateBackingContentStore(out var backingContentStore);
+
         var host = new TestInstance(
             blobCacheConfiguration,
             secretsProvider,
             universe: RunId,
-            datacenterWide: TestMode == Mode.DatacenterWide);
+            datacenterWide: TestMode == Mode.DatacenterWide,
+            backingContentStore);
 
         var silentTracingContext = new Context(NullLogger.Instance);
         var silentContext = new OperationContext(silentTracingContext, context.Token);
@@ -265,7 +275,7 @@ public abstract class EphemeralCacheTestsBase : TestWithOutput
         protected override Task<BoolResult> StartupComponentAsync(OperationContext context)
         {
             Session = ((ICache)Cache).CreateSession(context, "test", ImplicitPin.None).ThrowIfFailure().Session;
-            return BoolResult.SuccessTask;
+            return Session!.StartupAsync(context);
         }
 
         protected override async Task<BoolResult> ShutdownComponentAsync(OperationContext context)
@@ -295,8 +305,14 @@ public abstract class EphemeralCacheTestsBase : TestWithOutput
 
         private readonly string _universe;
         private readonly bool _datacenterWide;
+        private readonly IContentStore? _backingContentStore;
 
-        public TestInstance(AzureBlobStorageCacheFactory.Configuration blobCacheConfiguration, IBlobCacheContainerSecretsProvider secretsProvider, string universe, bool datacenterWide)
+        public TestInstance(
+            AzureBlobStorageCacheFactory.Configuration blobCacheConfiguration,
+            IBlobCacheContainerSecretsProvider secretsProvider,
+            string universe,
+            bool datacenterWide,
+            IContentStore? backingContentStore)
         {
             GrpcEnvironment.Initialize();
             var fileSystem = PassThroughFileSystem.Default;
@@ -306,6 +322,7 @@ public abstract class EphemeralCacheTestsBase : TestWithOutput
             _secretsProvider = secretsProvider;
             _universe = universe;
             _datacenterWide = datacenterWide;
+            _backingContentStore = backingContentStore;
         }
 
         protected override async Task<BoolResult> ShutdownComponentAsync(OperationContext context)
@@ -543,7 +560,8 @@ public abstract class EphemeralCacheTestsBase : TestWithOutput
             var result = await EphemeralCacheFactory.CreateAsync(
                 context,
                 factoryConfiguration,
-                persistentResult);
+                persistentResult,
+                backingLocalContentStore: _backingContentStore);
 
             return (result.Host, result.Cache);
         }

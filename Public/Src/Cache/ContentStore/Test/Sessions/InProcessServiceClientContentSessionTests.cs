@@ -11,6 +11,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Time;
 using ContentStoreTest.Extensions;
 using ContentStoreTest.Stores;
 using Xunit;
+using BuildXL.Utilities;
 
 #pragma warning disable SA1402 // File may only contain a single class
 #pragma warning disable IDE0040 // Accessibility modifiers required
@@ -19,11 +20,27 @@ namespace ContentStoreTest.Sessions
 {
     [Trait("Category", "Integration1")]
     [Trait("Category", "QTestSkip")]
-    /*public*/ class InProcessServiceClientContentSessionTests : ServiceClientContentSessionTests
+    public class InProcessServiceClientContentSessionTests : ServiceClientContentSessionTests
     {
         public InProcessServiceClientContentSessionTests()
             : base(nameof(InProcessServiceClientContentSessionTests))
         {
+        }
+
+        public bool LocalOnlyClient { get; set; }
+
+        public static IDisposable CreateBackingContentStore(out IContentStore backingContentStore, bool localOnlyClient = false)
+        {
+            var tests = new InProcessServiceClientContentSessionTests()
+            {
+                LocalOnlyClient = localOnlyClient
+            };
+
+            var directory = new DisposableDirectory(tests.FileSystem);
+
+            backingContentStore = tests.CreateStore(directory, tests.CreateStoreConfiguration());
+
+            return Disposable.Create(tests, directory);
         }
 
         protected override IContentStore CreateStore(DisposableDirectory testDirectory, ContentStoreConfiguration configuration)
@@ -46,7 +63,8 @@ namespace ContentStoreTest.Sessions
                 CacheName,
                 Scenario,
                 null,
-                serviceConfiguration
+                serviceConfiguration,
+                localOnly: LocalOnlyClient
                 );
         }
 

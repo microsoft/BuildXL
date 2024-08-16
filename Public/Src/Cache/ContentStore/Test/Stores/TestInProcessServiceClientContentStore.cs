@@ -37,12 +37,16 @@ namespace ContentStoreTest.Stores
             string cacheName,
             string scenario,
             ServiceConfiguration serviceConfiguration,
-            uint retryIntervalSeconds = DefaultRetryIntervalSeconds,
-            uint retryCount = DefaultRetryCount)
+            uint retryIntervalSeconds,
+            uint retryCount,
+            bool localOnly)
         {
             return new ServiceClientContentStoreConfiguration(
                        cacheName,
-                       new ServiceClientRpcConfiguration((int)serviceConfiguration.GrpcPort),
+                       new ServiceClientRpcConfiguration((int)serviceConfiguration.GrpcPort)
+                       {
+                           UseLocalOnlyCasOperations = localOnly
+                       },
                        scenario)
                    {
                         RetryCount = retryCount,
@@ -60,8 +64,9 @@ namespace ContentStoreTest.Stores
             uint retryIntervalSeconds = DefaultRetryIntervalSeconds,
             uint retryCount = DefaultRetryCount,
             LocalServerConfiguration localContentServerConfiguration = null,
-            Func<AbsolutePath, IContentStore> contentStoreFactory = null)
-            : base(logger, fileSystem, CreateConfiguration(cacheName, scenario + TestBase.ScenarioSuffix, serviceConfiguration, retryIntervalSeconds, retryCount))
+            Func<AbsolutePath, IContentStore> contentStoreFactory = null,
+            bool localOnly = false)
+            : base(logger, fileSystem, CreateConfiguration(cacheName, scenario + TestBase.ScenarioSuffix, serviceConfiguration, retryIntervalSeconds, retryCount, localOnly))
         {
             _fileSystem = fileSystem;
             _logger = logger;
@@ -186,7 +191,7 @@ namespace ContentStoreTest.Stores
                     Configuration.Scenario,
                     this,
                     SessionTracer,
-                    GetRpcConfig());
+                    Configuration.RpcConfiguration ?? GetRpcConfig());
                 return new CreateSessionResult<IContentSession>(session);
             });
         }

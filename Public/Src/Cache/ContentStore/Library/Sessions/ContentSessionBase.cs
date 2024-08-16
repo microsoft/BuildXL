@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
@@ -17,7 +18,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
-using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Cache.ContentStore.Utils.Internal;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Tasks;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
@@ -33,7 +34,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
     /// It is possible that subclasses may be able to implement some of the methods more efficiently, which is why the
     /// methods are often marked as virtual.
     /// </summary>
-    public abstract class ContentSessionBase : StartupShutdownBase, IContentSession
+    public abstract class ContentSessionBase : StartupShutdownComponentBaseShim, IContentSession
     {
         /// <nodoc />
         protected readonly CounterCollection<ContentSessionBaseCounters> BaseCounters;
@@ -418,6 +419,31 @@ namespace BuildXL.Cache.ContentStore.Sessions
             CancellationToken token,
             UrgencyHint urgencyHint)
         {
+            return PerformPutFileOperationAsync(
+                context,
+                contentHash,
+                path,
+                realizationMode,
+                token,
+                operationContext => PutFileCoreAsync(
+                    operationContext,
+                    contentHash,
+                    path,
+                    realizationMode,
+                    urgencyHint,
+                    BaseCounters[ContentSessionBaseCounters.PutFileRetries]),
+                trusted: false);
+        }
+
+        protected Task<PutResult> PerformPutFileOperationAsync(
+            Context context,
+            ContentHash contentHash,
+            AbsolutePath path,
+            FileRealizationMode realizationMode,
+            CancellationToken token,
+            Func<OperationContext, Task<PutResult>> putFileAsync,
+            bool trusted = false)
+        {
             return WithOperationContext(
                 context,
                 token,
@@ -430,26 +456,20 @@ namespace BuildXL.Cache.ContentStore.Sessions
                             return Task.FromResult(new PutResult(contentHash, contentSize: 0, contentAlreadyExistsInCache: true));
                         }
 
-                        return PutFileCoreAsync(
-                            operationContext,
-                            contentHash,
-                            path,
-                            realizationMode,
-                            urgencyHint,
-                            BaseCounters[ContentSessionBaseCounters.PutFileRetries]);
+                        return putFileAsync(operationContext);
                     },
-                    extraStartMessage: $"({contentHash.ToShortString()},{path},{realizationMode}) trusted=false",
+                    extraStartMessage: $"({contentHash.ToShortString()},{path},{realizationMode}) trusted={trusted.ToString().ToLowerInvariant()}",
                     traceOperationStarted: TraceOperationStarted,
                     extraEndMessage: result =>
-                                     {
-                                         var message = $"({contentHash.ToShortString()},{path},{realizationMode}) trusted=false";
-                                         if (result.MetaData == null)
-                                         {
-                                             return message;
-                                         }
+                    {
+                        var message = $"({contentHash.ToShortString()},{path},{realizationMode}) trusted={trusted.ToString().ToLowerInvariant()}";
+                        if (result.MetaData == null)
+                        {
+                            return message;
+                        }
 
-                                         return message + $" Gate.OccupiedCount={result.MetaData.GateOccupiedCount} Gate.Wait={result.MetaData.GateWaitTime.TotalMilliseconds}ms";
-                                     },
+                        return message + $" Gate.OccupiedCount={result.MetaData.GateOccupiedCount} Gate.Wait={result.MetaData.GateWaitTime.TotalMilliseconds}ms";
+                    },
                     traceErrorsOnly: TraceErrorsOnly,
                     counter: BaseCounters[ContentSessionBaseCounters.PutFile]));
         }

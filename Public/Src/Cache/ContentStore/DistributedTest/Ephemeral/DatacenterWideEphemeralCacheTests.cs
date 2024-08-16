@@ -1,13 +1,16 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.Ephemeral;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
+using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using ContentStoreTest.Distributed.Redis;
+using ContentStoreTest.Sessions;
 using FluentAssertions;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
@@ -16,6 +19,17 @@ using Xunit.Abstractions;
 #nullable enable
 
 namespace BuildXL.Cache.ContentStore.Distributed.Test.Ephemeral;
+
+[TestClassIfSupported(requiresWindowsOrLinuxOperatingSystem: true)]
+[Collection("Redis-based tests")]
+public class DatacenterWideEphemeralCacheTestsWithService(LocalRedisFixture fixture, ITestOutputHelper output)
+    : DatacenterWideEphemeralCacheTests(fixture, output)
+{
+    protected override IDisposable? CreateBackingContentStore(out IContentStore? backingContentStore)
+    {
+        return InProcessServiceClientContentSessionTests.CreateBackingContentStore(out backingContentStore, localOnlyClient: true);
+    }
+}
 
 [TestClassIfSupported(requiresWindowsOrLinuxOperatingSystem: true)]
 [Collection("Redis-based tests")]

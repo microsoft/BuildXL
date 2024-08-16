@@ -109,9 +109,14 @@ namespace BuildXL.Cache.ContentStore.Stores
         }
 
         /// <inheritdoc />
-        protected override Task<BoolResult> ShutdownCoreAsync(OperationContext context)
+        protected override async Task<BoolResult> ShutdownCoreAsync(OperationContext context)
         {
-            return Store.ShutdownAsync(context);
+            var result = await Store.ShutdownAsync(context);
+            _directoryLock.Dispose();
+
+            Store.PostShutdown(context).IgnoreFailure();
+
+            return result;
         }
 
         /// <inheritdoc />

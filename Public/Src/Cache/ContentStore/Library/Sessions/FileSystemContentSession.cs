@@ -22,7 +22,7 @@ using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePa
 
 namespace BuildXL.Cache.ContentStore.Sessions
 {
-    public class FileSystemContentSession : ContentSessionBase, ITrustedContentSession, IHibernateContentSession, IContentNotFoundRegistration
+    public class FileSystemContentSession : ContentSessionBase, ITrustedContentSession, IHibernateContentSession, IContentNotFoundRegistration, ILocalContentSessionProvider
     {
         /// <summary>
         ///     The internal content store backing the session.
@@ -262,6 +262,12 @@ namespace BuildXL.Cache.ContentStore.Sessions
         public AbsolutePath TryGetWorkingDirectory(AbsolutePath? pathHint)
         {
             return Store.TempFolder;
+        }
+
+        /// <inheritdoc />
+        public IContentSession? TryGetLocalContentSession()
+        {
+            return this;
         }
 
         /// <inheritdoc/>

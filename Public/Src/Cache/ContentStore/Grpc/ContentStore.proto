@@ -154,6 +154,9 @@ message PutFileRequest {
     bytes ContentHash = 3;
     string Path = 4;
     int32 FileRealizationMode = 5;
+
+    // When specified, this indicates a PutTrustedFile operation
+    optional int64 TrustedContentSize = 6;
 }
 
 message PutFileResponse {

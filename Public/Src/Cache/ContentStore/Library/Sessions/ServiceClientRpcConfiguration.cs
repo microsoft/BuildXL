@@ -23,6 +23,12 @@ namespace BuildXL.Cache.ContentStore.Sessions
         public MachineLocation Location { get; set; } = MachineLocation.UnencryptedLocalCacheService;
 
         /// <summary>
+        /// Indicates whether to open sessions which strictly interact with local content store
+        /// (i.e. no distributed or remote operations)
+        /// </summary>
+        public bool UseLocalOnlyCasOperations { get; set; }
+
+        /// <summary>
         /// The period of time between heartbeats.
         /// </summary>
         public TimeSpan HeartbeatInterval { get; set; } = TimeSpan.FromMinutes(1);

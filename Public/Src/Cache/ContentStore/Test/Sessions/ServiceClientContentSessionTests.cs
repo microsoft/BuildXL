@@ -42,7 +42,7 @@ namespace ContentStoreTest.Sessions
         {
             Contract.Requires(scenario != null);
 
-            Scenario = scenario + TestBase.ScenarioSuffix;
+            Scenario = $"{scenario}_{Guid.NewGuid():N}_{TestBase.ScenarioSuffix}";
             _context = new Context(Logger);
         }
 

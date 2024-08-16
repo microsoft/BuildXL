@@ -28,6 +28,16 @@ namespace BuildXL.Cache.ContentStore.Utils
         public override bool AllowMultipleStartupAndShutdowns => true;
 
         /// <summary>
+        /// Specifies if disposable nested components should be disposed if they were started
+        /// </summary>
+        public virtual bool DisposeStartedNestedComponents => false;
+
+        /// <summary>
+        /// Specifies if disposable nested components should be disposed even if they were not started
+        /// </summary>
+        public virtual bool DisposeAllNestedComponents => false;
+
+        /// <summary>
         /// A list of nested components eligible for shutdown
         /// (i.e. the components for which StartupAsync method was called regardless of the result of that call).
         /// </summary>
@@ -123,6 +133,21 @@ namespace BuildXL.Cache.ContentStore.Utils
             }
 
             return success;
+        }
+
+        protected override void DisposeCore()
+        {
+            if (DisposeAllNestedComponents || DisposeStartedNestedComponents)
+            {
+                var nestedComponents = DisposeAllNestedComponents
+                    ? _nestedComponents.AsEnumerable()
+                    : _shutdownEligibleComponents;
+
+                foreach (var nestedComponent in nestedComponents.OfType<IDisposable>())
+                {
+                    nestedComponent.Dispose();
+                }
+            }
         }
 
         /// <summary>

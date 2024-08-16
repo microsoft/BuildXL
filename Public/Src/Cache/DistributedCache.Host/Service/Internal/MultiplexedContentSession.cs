@@ -22,7 +22,7 @@ using BuildXL.Cache.ContentStore.Utils;
 
 namespace BuildXL.Cache.Host.Service.Internal
 {
-    public class MultiplexedContentSession : StartupShutdownBase, IContentSession, ITrustedContentSession, IHibernateContentSession
+    public class MultiplexedContentSession : StartupShutdownBase, IContentSession, ITrustedContentSession, IHibernateContentSession, ILocalContentSessionProvider
     {
         /// <nodoc />
         public readonly IContentSession PreferredContentSession;
@@ -483,6 +483,12 @@ namespace BuildXL.Cache.Host.Service.Internal
         {
             var session = GetCache<IContentSession>(pathHint);
             return (session as ITrustedContentSession)?.TryGetWorkingDirectory(pathHint);
+        }
+
+        /// <inheritdoc />
+        public IContentSession TryGetLocalContentSession()
+        {
+            return this;
         }
     }
 }

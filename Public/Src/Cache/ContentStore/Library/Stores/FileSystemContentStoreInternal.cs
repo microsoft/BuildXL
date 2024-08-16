@@ -31,6 +31,7 @@ using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.UtilitiesCore.Internal;
 using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Native.IO;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Tasks;
@@ -958,6 +959,22 @@ namespace BuildXL.Cache.ContentStore.Stores
         {
             return new FileSystemContentStoreValidator(Tracer, FileSystem, _applyDenyWriteAttributesOnContent, ContentDirectory, Clock, EnumerateBlobPathsFromDisk)
                 .ValidateAsync(context);
+        }
+
+        internal BoolResult PostShutdown(OperationContext context)
+        {
+            if (_settings.DeleteOnShutdown)
+            {
+                return context.PerformOperation(Tracer,
+                    () =>
+                    {
+                        FileUtilities.DeleteDirectoryContents(RootPath.Path);
+                        return BoolResult.Success;
+                    },
+                    caller: "DeleteOnShutdown");
+            }
+
+            return BoolResult.Success;
         }
 
         /// <summary>

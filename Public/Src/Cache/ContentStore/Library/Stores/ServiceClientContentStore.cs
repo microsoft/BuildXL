@@ -26,6 +26,8 @@ namespace BuildXL.Cache.ContentStore.Stores
     /// </summary>
     public class ServiceClientContentStore : StartupShutdownBase, IContentStore
     {
+        public override bool AllowMultipleStartupAndShutdowns => true;
+
         /// <summary>
         ///     Default interval, in seconds, between client retries.
         /// </summary>

@@ -27,6 +27,11 @@ namespace BuildXL.Cache.ContentStore.Stores
         public bool UseRedundantPutFileShortcut { get; set; } = true;
 
         /// <summary>
+        /// Indicates whether to delete the contents of the store on shutdown
+        /// </summary>
+        public bool DeleteOnShutdown { get; set; } = false;
+
+        /// <summary>
         /// Whether the shortcuts for empty files are used.
         /// </summary>
         public bool UseEmptyContentShortcut { get; set; } = true;

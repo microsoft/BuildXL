@@ -3,15 +3,21 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Distributed.Blob;
 using BuildXL.Cache.ContentStore.Grpc;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
+using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
+using BuildXL.Cache.ContentStore.Service.Grpc;
+using BuildXL.Cache.ContentStore.Sessions;
+using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.Interfaces;
+using BuildXL.Cache.MemoizationStore.Sessions;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Core;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
@@ -22,12 +28,12 @@ namespace BuildXL.Cache.MemoizationStoreAdapter;
 /// <summary>
 /// Cache factory for a ephemeral cache.
 /// </summary>
-public class EphemeralCacheFactory : BlobCacheFactoryBase<EphemeraCacheConfig>, ICacheFactory
+public class EphemeralCacheFactory : BlobCacheFactoryBase<EphemeralCacheConfig>, ICacheFactory
 {
     private const string ReadOnlyModeError = "Ephemeral cache factory does not support read-only mode.";
 
     /// <inheritdoc/>
-    public override Task<Possible<ICache, Failure>> InitializeCacheAsync(EphemeraCacheConfig configuration)
+    public override Task<Possible<ICache, Failure>> InitializeCacheAsync(EphemeralCacheConfig configuration)
     {
         // TODO: The ephemeral factory does not support read-only mode, but this could be added in the future.
         // Ideally we shouldn't have this option in the ephemeral configuration object at all, but today there is a subclass relationship
@@ -42,7 +48,7 @@ public class EphemeralCacheFactory : BlobCacheFactoryBase<EphemeraCacheConfig>, 
         return base.InitializeCacheAsync(configuration);
     }
 
-    internal override async Task<MemoizationStore.Interfaces.Caches.ICache> CreateCacheAsync(ILogger logger, EphemeraCacheConfig configuration)
+    internal override async Task<MemoizationStore.Interfaces.Caches.ICache> CreateCacheAsync(ILogger logger, EphemeralCacheConfig configuration)
     {
         var tracingContext = new Context(logger);
         var context = new OperationContext(tracingContext);
@@ -51,8 +57,9 @@ public class EphemeralCacheFactory : BlobCacheFactoryBase<EphemeraCacheConfig>, 
 
         var machineLocation = MachineLocation.Create(Environment.MachineName, GrpcConstants.DefaultEphemeralEncryptedGrpcPort);
         var leaderLocation = MachineLocation.Create(configuration.LeaderMachineName, GrpcConstants.DefaultEphemeralEncryptedGrpcPort);
+
         var rootPath = new AbsolutePath(configuration.CacheRootPath);
-        context.TracingContext.Info($"Creating ephemeral cache. Root=[{rootPath}] Machine=[{machineLocation}] Leader=[{leaderLocation}] Universe=[{configuration.Universe}] Namespace=[{configuration.Namespace}] RetentionPolicyInDays=[{configuration.RetentionPolicyInDays}]", nameof(EphemeralCacheFactory));
+        context.TracingContext.Info($"Creating ephemeral cache. DatacenterWide=[{configuration.DatacenterWide}] Root=[{rootPath}] Machine=[{machineLocation}] Leader=[{leaderLocation}] Universe=[{configuration.Universe}] Namespace=[{configuration.Namespace}] RetentionPolicyInDays=[{configuration.RetentionPolicyInDays}] UseContentServer=[{configuration.UseContentServer}] ContentServerPort=[{configuration.GrpcPort}]", nameof(EphemeralCacheFactory));
 
         var persistentCache = BlobCacheFactory.CreateCache(logger, configuration);
 
@@ -78,13 +85,46 @@ public class EphemeralCacheFactory : BlobCacheFactoryBase<EphemeraCacheConfig>, 
             };
         }
 
-        return (await ContentStore.Distributed.Ephemeral.EphemeralCacheFactory.CreateAsync(context, factoryConfiguration, persistentCache)).Cache;
+        factoryConfiguration.DeleteLocalOnShutdown = configuration.DeleteOnClose;
+
+        var backingContentStore = configuration.UseContentServer
+            ? CreateGrpcContentStore(configuration, logger)
+            : null;
+
+        return (await ContentStore.Distributed.Ephemeral.EphemeralCacheFactory.CreateAsync(context, factoryConfiguration, persistentCache, backingLocalContentStore: backingContentStore)).Cache;
+    }
+
+    private static IContentStore CreateGrpcContentStore(EphemeralCacheConfig configuration, ILogger logger)
+    {
+        var grpcPort = (int)configuration.GrpcPort;
+        if (grpcPort <= 0)
+        {
+            var factory = new MemoryMappedFileGrpcPortSharingFactory(logger, configuration.GrpcPortFileName);
+            var portReader = factory.GetPortReader();
+            grpcPort = portReader.ReadPort();
+        }
+
+        var rpcConfiguration = new ServiceClientRpcConfiguration(grpcPort)
+        {
+            GrpcCoreClientOptions = configuration.GrpcCoreClientOptions,
+            UseLocalOnlyCasOperations = configuration.UseContentServerLocalCas,
+        };
+
+        ServiceClientContentStoreConfiguration serviceClientContentStoreConfiguration = new ServiceClientContentStoreConfiguration(configuration.CacheName, rpcConfiguration, configuration.ScenarioName)
+        {
+            RetryCount = configuration.ConnectionRetryCount,
+            RetryIntervalSeconds = configuration.ConnectionRetryIntervalSeconds,
+            TraceOperationStarted = configuration.GrpcTraceOperationStarted,
+            GrpcEnvironmentOptions = configuration.GrpcEnvironmentOptions,
+        };
+
+        return LocalCache.CreateRpcContentStore(logger, serviceClientContentStoreConfiguration);
     }
 
     /// <inheritdoc />
     public IEnumerable<Failure> ValidateConfiguration(ICacheConfigData cacheData)
     {
-        return CacheConfigDataValidator.ValidateConfiguration<EphemeraCacheConfig>(
+        return CacheConfigDataValidator.ValidateConfiguration<EphemeralCacheConfig>(
             cacheData,
             cacheConfig =>
             {

@@ -40,7 +40,7 @@ using ResultsExtensions = BuildXL.Cache.ContentStore.Interfaces.Results.ResultsE
 
 namespace BuildXL.Cache.ContentStore.Distributed.Sessions
 {
-    public class DistributedContentSession : ContentSessionBase, IContentSession, IHibernateContentSession
+    public class DistributedContentSession : ContentSessionBase, IContentSession, IHibernateContentSession, ILocalContentSessionProvider
     {
         internal enum Counters
         {
@@ -1854,6 +1854,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Sessions
         private bool ShouldRegister(UrgencyHint urgencyHint)
         {
             return !Settings.RespectSkipRegisterContentHint || urgencyHint != UrgencyHint.SkipRegisterContent;
+        }
+
+        public IContentSession TryGetLocalContentSession()
+        {
+            return (Inner as ILocalContentSessionProvider)?.TryGetLocalContentSession();
         }
     }
 }

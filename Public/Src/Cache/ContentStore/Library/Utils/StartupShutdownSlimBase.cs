@@ -44,6 +44,11 @@ namespace BuildXL.Cache.ContentStore.Utils
         /// </summary>
         public virtual bool TraceShutdown => true;
 
+        /// <summary>
+        /// Indicates whether the startups should be traced or not.
+        /// </summary>
+        public virtual bool TraceStartup => true;
+
         private int _refCount = 0;
         private Lazy<Task<BoolResult>>? _lazyStartupTask;
 
@@ -122,7 +127,8 @@ namespace BuildXL.Cache.ContentStore.Utils
                     var result = await operationContext.PerformInitializationAsync(
                         Tracer,
                         () => StartupCoreAsync(operationContext),
-                        endMessageFactory: r => GetComponentMessage());
+                        endMessageFactory: r => GetComponentMessage(),
+                        traceOperationFinished: TraceStartup);
                     StartupCompleted = true;
 
                     return result;

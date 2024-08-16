@@ -17,8 +17,10 @@ using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
+using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Service;
 using BuildXL.Cache.ContentStore.Service.Grpc;
+using BuildXL.Cache.ContentStore.Sessions.Internal;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
@@ -29,7 +31,7 @@ using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePa
 
 namespace BuildXL.Cache.ContentStore.Sessions
 {
-    public class ServiceClientContentSession : ContentSessionBase, IContentSession
+    public class ServiceClientContentSession : ContentSessionBase, IContentSession, ITrustedContentSession
     {
         /// <summary>
         ///     The filesystem backing the session.
@@ -367,6 +369,28 @@ namespace BuildXL.Cache.ContentStore.Sessions
                 operationContext,
                 () => RpcClient.PutFileAsync(operationContext, contentHash, path, realizationMode, urgencyHint),
                 retryCounter: retryCounter);
+        }
+
+
+
+        Task<PutResult> ITrustedContentSession.PutTrustedFileAsync(Context context, ContentHashWithSize contentHashWithSize, AbsolutePath path, FileRealizationMode realizationMode, CancellationToken cts, UrgencyHint urgencyHint)
+        {
+            return PerformPutFileOperationAsync(
+                context,
+                contentHashWithSize.Hash,
+                path,
+                realizationMode,
+                cts,
+                operationContext => PerformRetries(
+                    operationContext,
+                    () => RpcClient.PutFileAsync(operationContext, contentHashWithSize.Hash, path, realizationMode, urgencyHint, trustedContentSize: contentHashWithSize.Size),
+                    retryCounter: BaseCounters[ContentSessionBaseCounters.PutFileRetries]),
+                trusted: true);
+        }
+
+        AbsolutePath? ITrustedContentSession.TryGetWorkingDirectory(AbsolutePath? pathHint)
+        {
+            return null;
         }
     }
 }

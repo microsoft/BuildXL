@@ -52,7 +52,8 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
             ConfigurationModel configurationModel = null,
             IClock clock = null,
             bool checkLocalFiles = true,
-            bool assumeCallerCreatesDirectoryForPlace = false)
+            bool assumeCallerCreatesDirectoryForPlace = false,
+            bool stackLocalAndClientContentStore = false)
         {
             clock ??= SystemClock.Instance;
 
@@ -65,18 +66,41 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
 
             Func<IContentStore> contentStoreFactory = () =>
             {
-                if (localCacheConfiguration.ServiceClientContentStoreConfiguration != null)
+                IContentStore getClientContentStore()
                 {
-                    return new ServiceClientContentStore(logger, fileSystem, localCacheConfiguration.ServiceClientContentStoreConfiguration);
+                    if (localCacheConfiguration.ServiceClientContentStoreConfiguration != null)
+                    {
+                        return new ServiceClientContentStore(logger, fileSystem, localCacheConfiguration.ServiceClientContentStoreConfiguration);
+                    }
+
+                    return null;
+                };
+
+                IContentStore clientContentStore = getClientContentStore();
+                if (clientContentStore != null && !stackLocalAndClientContentStore)
+                {
+                    return clientContentStore;
                 }
                 else
                 {
-                    return new FileSystemContentStore(
+                    var localContentStore = new FileSystemContentStore(
                                     fileSystem,
                                     clock,
                                     rootPath,
                                     configurationModel: configurationModel,
                                     settings: contentStoreSettings);
+
+                    if (clientContentStore == null)
+                    {
+                        return localContentStore;
+                    }
+                    else
+                    {
+                        return new BackedFileSystemContentStore(
+                            fileSystem,
+                            localContentStore,
+                            clientContentStore);
+                    }
                 }
             };
 
@@ -122,6 +146,17 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
         {
             var fileSystem = new PassThroughFileSystem(logger);
             return new ServiceClientCache(logger, fileSystem, serviceClientCacheConfiguration);
+        }
+
+        /// <summary>
+        ///     Content store backed by an out-of-proc cache.
+        /// </summary>
+        public static IContentStore  CreateRpcContentStore(
+            ILogger logger,
+            ServiceClientContentStoreConfiguration serviceClientCacheConfiguration)
+        {
+            var fileSystem = new PassThroughFileSystem(logger);
+            return new ServiceClientContentStore(logger, fileSystem, serviceClientCacheConfiguration);
         }
 
         private LocalCache(IAbsFileSystem fileSystem, Func<IContentStore> contentStoreFunc, Func<IMemoizationStore> memoizationStoreFunc, Guid id)

@@ -356,7 +356,8 @@ namespace BuildXL.FrontEnd.Nuget
                 partialPackage.Dispose();
             }
 
-            return NugetFailure.CreateNugetInvocationFailure(identity, $"Cannot inspect package layout: {response.RequestMessage} ");
+            // Only log the RequestUri because the headers may contain auth information
+            return NugetFailure.CreateNugetInvocationFailure(identity, $"Cannot inspect package layout: {response.RequestMessage.RequestUri} ");
         }
 
         private async Task<MemoryStream> PrependToStreamAsync(Stream prefix, MemoryStream stream)

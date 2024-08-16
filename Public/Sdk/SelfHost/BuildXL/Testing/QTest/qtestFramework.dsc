@@ -9,31 +9,9 @@ import * as Qtest        from "BuildXL.Tools.QTest";
 export declare const qualifier : Managed.TargetFrameworks.All;
 const qTestContents = importFrom("CB.QTest").Contents.all;
 
-// const isDotNetCore = Shared.isDotNetCore(qualifier.targetFramework); // qualifier.targetFramework.startsWith("netcoreapp");
 
 @@public
-export const qTestTool: Transformer.ToolDefinition = Context.getCurrentHost().os === "win" && {
-    exe: qTestContents.getFile(r`tools/DBS.QTest.exe`),
-    description: "SelfHost Dev Build QTest",
-    runtimeDirectoryDependencies: [
-        qTestContents
-    ],
-    untrackedDirectoryScopes: addIfLazy(Context.getCurrentHost().os === "win", () => [
-        d`${Context.getMount("ProgramFiles").path}`,
-        d`${Context.getMount("ProgramFilesX86").path}`,
-        d`${Context.getMount("ProgramData").path}`,
-        d`${Context.getMount("AppData").path}`,
-        d`${Context.getMount("LocalAppData").path}`,
-        d`${Context.getMount("UserProfile").path}`,
-        // To ensure that dmps are generated during crashes, QTest now includes procdmp.exe
-        // However, this tool reads dbghelp.dll located in the following directory in CloudBuild machines
-        d`C:/Debuggers`
-    ]),
-    dependsOnWindowsDirectories: true,
-    dependsOnAppDataDirectory: true,
-    prepareTempDirectory: true,
-    timeoutInMilliseconds: Qtest.qtestDefaultTimeoutInMilliseconds
-};
+export const qTestTool: Transformer.ToolDefinition = importFrom("Sdk.QTest").qTestTool;
 
 @@public
 export interface TestRunArguments extends Managed.TestRunArguments, Qtest.QTestArguments {

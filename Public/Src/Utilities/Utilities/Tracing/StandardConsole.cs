@@ -121,6 +121,19 @@ namespace BuildXL.Utilities.Tracing
             }
         }
 
+        /// <inheritdoc/>
+        public void WriteHyperlink(MessageLevel messageLevel, string text, string target)
+        {
+            const string Esc = "\x1b";
+            WriteOutput(messageLevel, $@"{Esc}]8;;{target}{Esc}\{text}{Esc}]8;;{Esc}\");
+        }
+
+        /// <inheritdoc/>
+        public void WriteOutput(MessageLevel messageLevel, string text)
+        {
+            Console.Write(text);
+        }
+
         public static int GetConsoleWidth()
         {
             // Not all consoles have a width defined, therefore return 150 which is a reasonable default on Developer boxes.

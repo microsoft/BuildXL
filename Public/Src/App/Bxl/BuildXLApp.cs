@@ -169,6 +169,8 @@ namespace BuildXL
 
         private TimeSpan TelemetryFlushTimeout => m_configuration.Logging.RemoteTelemetryFlushTimeout ?? AriaV2StaticState.DefaultShutdownTimeout;
 
+        private static readonly Lazy<bool> m_isSShSession = new Lazy<bool>(() => Environment.GetEnvironmentVariable("SSH_CLIENT") != null);
+
         /// <nodoc />
         [SuppressMessage("Microsoft.Reliability", "CA2000:DisposeObjectsBeforeLosingScope")]
         public BuildXLApp(
@@ -716,16 +718,16 @@ namespace BuildXL
                             try
                             {
                                 string filePath = buildSummary.RenderMarkdown();
-                                WriteToConsole("##vso[task.uploadsummary]" + filePath);
+                                WriteLineToConsole("##vso[task.uploadsummary]" + filePath);
                             }
                             catch (IOException e)
                             {
-                                WriteErrorToConsole(Strings.App_Main_FailedToWriteSummary, e.Message);
+                                WriteErrorLineToConsole(Strings.App_Main_FailedToWriteSummary, e.Message);
                                 // No need to change exit code, only behavior is lack of log in the extensions page.
                             }
                             catch (UnauthorizedAccessException e)
                             {
-                                WriteErrorToConsole(Strings.App_Main_FailedToWriteSummary, e.Message);
+                                WriteErrorLineToConsole(Strings.App_Main_FailedToWriteSummary, e.Message);
                                 // No need to change exit code, only behavior is lack of log in the extensions page.
                             }
                         }
@@ -735,7 +737,7 @@ namespace BuildXL
 
                         if (appLoggers.TrackingEventListener.HasFailures)
                         {
-                            WriteErrorToConsoleWithDefaultColor(Strings.App_Main_BuildFailed);
+                            WriteErrorLineToConsoleWithDefaultColor(Strings.App_Main_BuildFailed);
 
                             LogGeneratedFiles(pm.LoggingContext, appLoggers.TrackingEventListener, translator: appLoggers.PathTranslatorForLogging);
 
@@ -749,7 +751,7 @@ namespace BuildXL
                                 internalWarnings: internalWarnings);
                         }
 
-                        WriteToConsole(Strings.App_Main_BuildSucceeded);
+                        WriteLineToConsole(Strings.App_Main_BuildSucceeded);
 
                         LogGeneratedFiles(pm.LoggingContext, appLoggers.TrackingEventListener, translator: appLoggers.PathTranslatorForLogging);
 
@@ -758,17 +760,13 @@ namespace BuildXL
                             var translator = appLoggers.PathTranslatorForLogging;
                             var configFile = m_initialConfiguration.Startup.ConfigFile;
                             IdeGenerator.WriteCmd(GetExpandedCmdLine(m_commandLineArguments), m_configuration.Ide, configFile, m_pathTable, translator);
-                            var solutionFile = IdeGenerator.GetSolutionPath(m_configuration.Ide, m_pathTable).ToString(m_pathTable);
-                            if (translator != null)
-                            {
-                                solutionFile = translator.Translate(solutionFile);
-                            }
 
-                            WriteToConsole(Strings.App_Vs_SolutionFile, solutionFile);
+                            WriteToConsole(Strings.App_Vs_SolutionFile);
+                            WritePathLineAsLinkToConsole(IdeGenerator.GetSolutionPath(m_configuration.Ide, m_pathTable).ToString(m_pathTable), translator);
                             var vsVersions = IdeGenerator.GetVersionsNotHavingLatestPlugin();
                             if (vsVersions != null)
                             {
-                                WriteWarningToConsole(Strings.App_Vs_InstallPlugin, vsVersions, IdeGenerator.LatestPluginVersion);
+                                WriteWarningLineToConsole(Strings.App_Vs_InstallPlugin, vsVersions, IdeGenerator.LatestPluginVersion);
                             }
                         }
 
@@ -909,7 +907,8 @@ namespace BuildXL
             if (m_configuration.Logging.LogsDirectory.IsValid)
             {
                 // When using the new style logging configuration, just show the path to the logs directory
-                WriteToConsole(Strings.App_LogsDirectory, m_configuration.Logging.LogsDirectory.ToString(m_pathTable));
+                WriteToConsole(Strings.App_LogsDirectory);
+                WritePathLineAsLinkToConsole(m_configuration.Logging.LogsDirectory.ToString(m_pathTable), translator);
             }
             else
             {
@@ -931,11 +930,11 @@ namespace BuildXL
                             {
                                 if (trackingListener.HasFailures)
                                 {
-                                    WriteToConsole(message, path);
+                                    WriteLineToConsole(message, path);
                                 }
                                 else
                                 {
-                                    WriteErrorToConsoleWithDefaultColor(message, path);
+                                    WriteErrorLineToConsoleWithDefaultColor(message, path);
                                 }
                             }
                         }
@@ -1333,7 +1332,7 @@ namespace BuildXL
                     }
                     catch (Exception ex)
                     {
-                        WriteErrorToConsole(
+                        WriteErrorLineToConsole(
                             Strings.App_RootMapping_CantCreateDirectory,
                             mapping.Value,
                             mapping.Key,
@@ -1347,7 +1346,7 @@ namespace BuildXL
                     !ProcessNativeMethods.ApplyDriveMappings(
                         rootMappings.Select(kvp => new PathMapping(kvp.Key[0], kvp.Value.ToString(m_pathTable))).ToArray()))
                 {
-                    WriteErrorToConsole(Strings.App_RootMapping_CantApplyRootMappings);
+                    WriteErrorLineToConsole(Strings.App_RootMapping_CantApplyRootMappings);
                     return false;
                 }
             }
@@ -2297,8 +2296,9 @@ namespace BuildXL
                         break;
                     default:
                         Logger.Log.CatastrophicFailure(pm.LoggingContext, failureMessage, s_buildInfo?.CommitId ?? string.Empty, s_buildInfo?.Build ?? string.Empty);
-                        WriteToConsole(Strings.App_LogsDirectory, loggers.RootLogDirectory);
-                        WriteToConsole("Collecting some information about this crash...");
+                        WriteToConsole(Strings.App_LogsDirectory);
+                        WritePathLineAsLinkToConsole(loggers.RootLogDirectory, GetPathTranslator(m_configuration.Logging, m_pathTable));
+                        WriteLineToConsole("Collecting some information about this crash...");
                         break;
                 }
 
@@ -2380,8 +2380,8 @@ namespace BuildXL
             catch (Exception ex)
             {
                 // Oh my, this isn't going very well.
-                WriteErrorToConsole("Unhandled exception in exception handler");
-                WriteErrorToConsole(ex.DemystifyToString());
+                WriteErrorLineToConsole("Unhandled exception in exception handler");
+                WriteErrorLineToConsole(ex.DemystifyToString());
             }
 #pragma warning restore ERP022 // Unobserved exception in generic exception handler
             finally
@@ -2848,22 +2848,44 @@ namespace BuildXL
             return new StandardConsole(loggingConfiguration.Color, loggingConfiguration.AnimateTaskbar, loggingConfiguration.FancyConsole, translator);
         }
 
-        private void WriteToConsole(string format, params object[] args)
+        private void WriteToConsole(string text)
+        {
+            m_console.WriteOutput(MessageLevel.Info, text);
+        }
+
+        private void WritePathLineAsLinkToConsole(string path, PathTranslator translator)
+        {
+            path = translator?.Translate(path) ?? path;
+
+            // Don't make the path a hyperlink if running in an SSH session since that link won't
+            // be opened reasonably on the client of that SSH session.
+            if (m_configuration.Logging.FancyConsole && !m_isSShSession.Value)
+            {
+                m_console.WriteHyperlink(MessageLevel.Info, path, @"file://" + path.TrimStart('/'));
+                WriteLineToConsole(string.Empty);
+            }
+            else
+            {
+                WriteLineToConsole(path);
+            }            
+        }
+
+        private void WriteLineToConsole(string format, params object[] args)
         {
             m_console.WriteOutputLine(MessageLevel.Info, string.Format(CultureInfo.InvariantCulture, format, args));
         }
 
-        private void WriteWarningToConsole(string format, params object[] args)
+        private void WriteWarningLineToConsole(string format, params object[] args)
         {
             m_console.WriteOutputLine(MessageLevel.Warning, string.Format(CultureInfo.InvariantCulture, format, args));
         }
 
-        private void WriteErrorToConsole(string format, params object[] args)
+        private void WriteErrorLineToConsole(string format, params object[] args)
         {
             m_console.WriteOutputLine(MessageLevel.Error, string.Format(CultureInfo.InvariantCulture, format, args));
         }
 
-        private void WriteErrorToConsoleWithDefaultColor(string format, params object[] args)
+        private void WriteErrorLineToConsoleWithDefaultColor(string format, params object[] args)
         {
             m_console.WriteOutputLine(MessageLevel.ErrorNoColor, string.Format(CultureInfo.InvariantCulture, format, args));
         }

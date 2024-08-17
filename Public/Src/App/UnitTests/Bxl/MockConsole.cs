@@ -138,5 +138,17 @@ namespace Test.BuildXL
         {
             throw new NotImplementedException();
         }
+
+        /// <inheritdoc/>
+        public void WriteHyperlink(MessageLevel messageLevel, string text, string target)
+        {
+            throw new NotImplementedException();
+        }
+
+        /// <inheritdoc/>
+        public void WriteOutput(MessageLevel messageLevel, string text)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

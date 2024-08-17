@@ -686,10 +686,10 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
     <value>Standard help shown. For complete help options, use /help:verbose</value>
   </data>
   <data name="App_Vs_SolutionFile" xml:space="preserve">
-    <value>    VS Solution File: {0}</value>
+    <value>    VS Solution File: </value>
   </data>
   <data name="App_LogsDirectory" xml:space="preserve">
-    <value>    Log Directory: {0}</value>
+    <value>    Log Directory: </value>
   </data>
   <data name="HelpText_DisplayHelp_SubstSource" xml:space="preserve">
     <value>Path of the original root that has been substituted to another. Log messages will be converted back to this path root. Must be specified with /substTarget.</value>

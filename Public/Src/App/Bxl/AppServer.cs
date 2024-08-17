@@ -55,10 +55,12 @@ namespace BuildXL
 
         // Message prefixes for the app-server protocol.
         private const byte ServerHelloMessage = 0xD0;
-        private const byte ConsoleOutputMessage = 0xC0;
+        private const byte ConsoleOutputLine = 0xC0;
         private const byte ConsoleProgressMessage = 0xC1;
         private const byte ConsoleTemporaryMessage = 0xC2;
         private const byte ConsoleTemporaryOnlyMessage = 0xC3;
+        private const byte ConsoleOutput = 0xC4;
+        private const byte ConsoleHyperlink = 0xC5;
         private const byte ExitCodeMessage = 0xEC;
         private const byte CancelMessage = 0xCD;
         private const byte TerminateMessage = 0xCE;
@@ -432,7 +434,7 @@ namespace BuildXL
             {
                 WriteMessage(() =>
                 {
-                    m_writer.Write(ConsoleOutputMessage);
+                    m_writer.Write(ConsoleOutputLine);
                     m_writer.Write((byte)messageLevel);
                     m_writer.Write(line);
                 });
@@ -528,10 +530,31 @@ namespace BuildXL
                 });
             }
 
+            public void WriteHyperlink(MessageLevel messageLevel, string text, string target)
+            {
+                WriteMessage(() =>
+                {
+                    m_writer.Write(ConsoleHyperlink);
+                    m_writer.Write((byte)messageLevel);
+                    m_writer.Write(text);
+                    m_writer.Write(target);
+                });
+            }
+
             /// <inheritdoc/>
             public void SetRecoverableErrorAction(Action<Exception> errorAction)
             {
                 // noop
+            }
+
+            public void WriteOutput(MessageLevel messageLevel, string text)
+            {
+                WriteMessage(() =>
+                {
+                    m_writer.Write(ConsoleOutput);
+                    m_writer.Write((byte)messageLevel);
+                    m_writer.Write(text);
+                });
             }
         }
 
@@ -970,7 +993,7 @@ namespace BuildXL
 
                                                 switch (messageId)
                                                 {
-                                                    case ConsoleOutputMessage:
+                                                    case ConsoleOutputLine:
                                                         ReadAndForwardConsoleMessage(reader);
                                                         break;
                                                     case ConsoleProgressMessage:
@@ -981,6 +1004,12 @@ namespace BuildXL
                                                         break;
                                                     case ConsoleTemporaryOnlyMessage:
                                                         ReadAndForwardTemporaryOnlyMessage(reader);
+                                                        break;
+                                                    case ConsoleOutput:
+                                                        ReadAndForwardConsoleOutput(reader);
+                                                        break;
+                                                    case ConsoleHyperlink:
+                                                        ReadAndForwardHyperlink(reader);
                                                         break;
                                                     case ExitCodeMessage:
                                                         ExitKind exit;
@@ -1019,27 +1048,30 @@ namespace BuildXL
 
             private void ReadAndForwardConsoleMessage(BinaryReader reader)
             {
-                MessageLevel messageLevel;
-                if (!EnumTraits<MessageLevel>.TryConvert(reader.ReadByte(), out messageLevel))
-                {
-                    throw new BuildXLException("Unknown console message level received from app server");
-                }
-
-                m_console.WriteOutputLine(messageLevel, reader.ReadString());
+                m_console.WriteOutputLine(ReadMessageLevel(reader), reader.ReadString());
             }
 
             private void ReadAndForwardTemporaryMessage(BinaryReader reader)
             {
-                MessageLevel messageLevel;
-                if (!EnumTraits<MessageLevel>.TryConvert(reader.ReadByte(), out messageLevel))
-                {
-                    throw new BuildXLException("Unknown console message level received from app server");
-                }
-
-                m_console.WriteOverwritableOutputLine(messageLevel, reader.ReadString(), reader.ReadString());
+                m_console.WriteOverwritableOutputLine(ReadMessageLevel(reader), reader.ReadString(), reader.ReadString());
             }
 
             private void ReadAndForwardTemporaryOnlyMessage(BinaryReader reader)
+            {
+                m_console.WriteOverwritableOutputLineOnlyIfSupported(ReadMessageLevel(reader), reader.ReadString(), reader.ReadString());
+            }
+
+            private void ReadAndForwardConsoleOutput(BinaryReader reader)
+            {
+                m_console.WriteOutput(ReadMessageLevel(reader), reader.ReadString());
+            }
+
+            private void ReadAndForwardHyperlink(BinaryReader reader)
+            {
+                m_console.WriteHyperlink(ReadMessageLevel(reader), reader.ReadString(), reader.ReadString());
+            }
+
+            private static MessageLevel ReadMessageLevel(BinaryReader reader)
             {
                 MessageLevel messageLevel;
                 if (!EnumTraits<MessageLevel>.TryConvert(reader.ReadByte(), out messageLevel))
@@ -1047,7 +1079,7 @@ namespace BuildXL
                     throw new BuildXLException("Unknown console message level received from app server");
                 }
 
-                m_console.WriteOverwritableOutputLineOnlyIfSupported(messageLevel, reader.ReadString(), reader.ReadString());
+                return messageLevel;
             }
 
             private void ReadAndForwardProgress(BinaryReader reader)

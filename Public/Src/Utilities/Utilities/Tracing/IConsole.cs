@@ -47,6 +47,16 @@ namespace BuildXL.Utilities.Tracing
         bool UpdatingConsole { get; }
 
         /// <summary>
+        /// Writes a hyperlink with the given message level.
+        /// </summary>
+        void WriteHyperlink(MessageLevel messageLevel, string text, string target);
+
+        /// <summary>
+        /// Writes output with the given message level.
+        /// </summary>
+        void WriteOutput(MessageLevel messageLevel, string text);
+
+        /// <summary>
         /// Writes a line with the given message level.
         /// </summary>
         void WriteOutputLine(MessageLevel messageLevel, string line);

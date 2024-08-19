@@ -71,7 +71,6 @@ jobs:
         /historicMetadataCache-
         /p:ENABLE_ESRP=0
         /unsafe_AssumeCleanOutputs-
-        /p:BUILDXL_FINGERPRINT_SALT=casingPR
         /p:BUILDXL_DROP_ENABLED=false
       genericRunnerOptions: '{ "ContentWriteMode": "WriteThrough" }'
       toolPaths: '{ "DominoEngine": "https://cloudbuild.artifacts.visualstudio.com/DefaultCollection/_apis/drop/drops/$(BuildXL.Candidate.DropName)?root=release/win-x64" }'

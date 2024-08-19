@@ -63,7 +63,7 @@ Uses the Dev deployment to update the Dev deployment
 param(
     [switch]$SelfhostHelp,
 
-    [ValidateSet("LKG", "Dev", "RunCheckinTests", "RunCheckinTestSamples", "ChangeJournalService")]
+    [ValidateSet("LKG", "Dev", "RunCheckinTests", "RunCheckinTestSamples")]
     [string]$Use = "LKG",
 
     [Parameter(Mandatory = $false)]
@@ -79,7 +79,7 @@ param(
     [string]$DominoDeploymentRoot = "Out\Bin",
 
     [Parameter(Mandatory = $false)]
-    [ValidateSet("Dev", "RunCheckinTests", "RunCheckinTestSamples", "ChangeJournalService")]
+    [ValidateSet("Dev", "RunCheckinTests", "RunCheckinTestSamples")]
     [string]$Deploy,
 
     [Parameter(Mandatory = $false)]
@@ -190,10 +190,6 @@ $tfBuild = [Environment]::GetEnvironmentVariable("TF_BUILD")
 
 # These are the options added unless -Vanilla is specified.
 $NonVanillaOptions = @("/IncrementalScheduling", "/nowarn:909 /nowarn:11318 /nowarn:11319 /unsafe_IgnorePreloadedDlls- /historicMetadataCache+");
-# Add the new-cache options including a unique build session name
-$NonVanillaOptions += @(
-    '/cacheSessionName:{0:yyyyMMdd_HHmmssff}-{1}@{2}' -f ((Get-Date), [System.Security.Principal.WindowsIdentity]::GetCurrent().Name.Replace(' ', '-').Replace('\', '-'), [System.Net.Dns]::GetHostName())
-);
 
 if ($SelfhostHelp) {
     Get-Help -Detailed $PSCommandPath;
@@ -297,11 +293,6 @@ if (($DominoArguments -match "/c(onfig)?:.*").Length -eq 0) {
     }
 }
 
-if (($DominoArguments -match "/p:BUILDXL_FINGERPRINT_SALT.*").Length -eq 0) {
-    # A casing related PR polluted the cache, so let's force a salt. This could be removed after the poisoned content gets evicted.
-    $AdditionalBuildXLArguments += "/p:BUILDXL_FINGERPRINT_SALT=casingPR";
-}
-
 if (! $Vanilla) {
     $AdditionalBuildXLArguments += $NonVanillaOptions;
 }
@@ -329,7 +320,6 @@ if ($Vs -or $VsAll) {
 # Various tools consume language pack files under this path if they are installed. Untrack them to prevent DFAs in local builds
 $AdditionalBuildXLArguments += @("/unsafe_GlobalUntrackedScopes:""C:\Program Files\WindowsApps""");
 
-# WARNING: CloudBuild selfhost builds do NOT use this script file. When adding a new argument below, we should add the argument to selfhost queues in CloudBuild. Please contact bxl team. 
 $AdditionalBuildXLArguments += @("/remotetelemetry", "/reuseOutputsOnDisk+", "/enableEvaluationThrottling");
 
 # Lazy shared opaque deletion is an experimental feature. We want to turn it on only for internal builds and when this script is not 
@@ -492,19 +482,6 @@ function Get-CacheConfig {
     return $resultCache;
 }
 
-function Call-Subst {
-    $s = subst @args;
-    if ($LastExitCode -ne 0) {
-        throw "Subst $args failed with exit code $LastExitCode : $s";
-    }
-
-    if ($s -eq $null) {
-        return @("");
-    }
-
-    return @($s);
-}
-
 function Remap-PathToNormalizedDrive {
     param([string[]]$paths);
 
@@ -579,7 +556,6 @@ $deployments = @{
     Dev                   = New-Deployment -Root $enlistmentRoot -Name "Dev" -Description "dev (locally-built)" -TelemetryEnvironment "SelfHostPrivateBuild" -Dir $DevRoot -EnableServerMode $false -DeploymentRoot $DominoDeploymentRoot;
     RunCheckinTests       = New-Deployment -Root $enlistmentRoot -Name "RunCheckinTests" -Description "checkin-validation"  -TelemetryEnvironment "SelfHostPrivateBuild" -EnableServerMode $true -DeploymentRoot $DominoDeploymentRoot;
     RunCheckinTestSamples = New-Deployment -Root $enlistmentRoot -Name "RunCheckinTestSamples" -Description "checkin-validation-samples"  -TelemetryEnvironment "SelfHostPrivateBuild" -DeploymentRoot $DominoDeploymentRoot;
-    ChangeJournalService  = New-Deployment -Root $enlistmentRoot -Name "ChangeJournalService" -Description "change journal service"  -TelemetryEnvironment "SelfHostPrivateBuild" -DeploymentRoot $DominoDeploymentRoot;
 };
 
 $shouldDeploy = $Deploy -ne $null -and $Deploy -ne "";

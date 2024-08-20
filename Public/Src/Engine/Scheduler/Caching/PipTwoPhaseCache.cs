@@ -20,10 +20,10 @@ using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Core.Tasks;
-using BuildXL.Utilities.Tracing;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 using static BuildXL.Tracing.Diagnostics;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
+using System.Threading;
 
 namespace BuildXL.Scheduler.Cache
 {
@@ -65,6 +65,12 @@ namespace BuildXL.Scheduler.Cache
         protected readonly PipExecutionContext Context;
 
         private readonly PathExpander m_pathExpander;
+
+        /// <summary>
+        /// Cancellation token that used to shutdown the scheduler.
+        /// Different from <see cref="PipExecutionContext.CancellationToken"/> which is used for terminating the entire application like ctrl-c.
+        /// </summary>
+        public CancellationToken SchedulerCancellationToken { get; set; }
 
         /// <nodoc />
         public PipTwoPhaseCache(LoggingContext loggingContext, EngineCache cache, PipExecutionContext context, PathExpander pathExpander)

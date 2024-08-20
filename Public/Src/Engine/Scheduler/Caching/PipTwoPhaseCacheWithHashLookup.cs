@@ -204,7 +204,7 @@ namespace BuildXL.Scheduler.Cache
         /// <exception cref="BuildXLException"></exception>
         protected async Task<bool> EnsureLoadedAsync()
         {
-            if (Context.CancellationToken.IsCancellationRequested)
+            if (Context.CancellationToken.IsCancellationRequested || SchedulerCancellationToken.IsCancellationRequested)
             {
                 return false;
             }

@@ -1370,6 +1370,7 @@ namespace BuildXL.Scheduler
                 configuration.Logging.GetTimerUpdatePeriodInMs();
             m_previousStatusLogTimeUtc = DateTime.UtcNow.AddMilliseconds(-1 * m_loggingIntervalPeriodMs); // Reducing by loggingIntervalPeriodMs to enable logging in the first call to UpdateStatus
             m_pipTwoPhaseCache = pipTwoPhaseCache ?? new PipTwoPhaseCache(loggingContext, cache, context, m_semanticPathExpander);
+            m_pipTwoPhaseCache.SchedulerCancellationToken = m_schedulerCancellationTokenSource.Token;
             m_runnablePipPerformance = new ConcurrentDictionary<PipId, RunnablePipPerformanceInfo>();
 
             m_fileChangeTrackerFile = m_configuration.Layout.SchedulerFileChangeTrackerFile;

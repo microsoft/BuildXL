@@ -48,7 +48,7 @@ public class EphemeralCacheFactory : BlobCacheFactoryBase<EphemeralCacheConfig>,
         return base.InitializeCacheAsync(configuration);
     }
 
-    internal override async Task<MemoizationStore.Interfaces.Caches.ICache> CreateCacheAsync(ILogger logger, EphemeralCacheConfig configuration)
+    internal override async Task<MemoizationStore.Interfaces.Caches.ICache> CreateInnerCacheAsync(ILogger logger, EphemeralCacheConfig configuration)
     {
         var tracingContext = new Context(logger);
         var context = new OperationContext(tracingContext);
@@ -131,14 +131,6 @@ public class EphemeralCacheFactory : BlobCacheFactoryBase<EphemeralCacheConfig>,
                 var failures = new List<Failure>();
                 failures.AddFailureIfNullOrWhitespace(cacheConfig.CacheLogPath, nameof(cacheConfig.CacheLogPath));
                 failures.AddFailureIfNullOrWhitespace(cacheConfig.CacheId, nameof(cacheConfig.CacheId));
-                failures.AddFailureIfNullOrWhitespace(
-                    cacheConfig.ConnectionStringEnvironmentVariableName,
-                    nameof(cacheConfig.ConnectionStringEnvironmentVariableName));
-                failures.AddFailureIfNullOrWhitespace(
-                    cacheConfig.ConnectionStringFileEnvironmentVariableName,
-                    nameof(cacheConfig.ConnectionStringFileEnvironmentVariableName));
-                failures.AddFailureIfNullOrWhitespace(cacheConfig.Universe, nameof(cacheConfig.Universe));
-                failures.AddFailureIfNullOrWhitespace(cacheConfig.Namespace, nameof(cacheConfig.Namespace));
                 if (cacheConfig.IsReadOnly)
                 {
                     failures.Add(new Failure<string>(ReadOnlyModeError));

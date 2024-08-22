@@ -32,7 +32,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
     /// </remarks>
     public class BlobCacheFactory : BlobCacheFactoryBase<BlobCacheConfig>, ICacheFactory
     {
-        internal override Task<MemoizationStore.Interfaces.Caches.ICache> CreateCacheAsync(ILogger logger, BlobCacheConfig configuration)
+        internal override Task<MemoizationStore.Interfaces.Caches.ICache> CreateInnerCacheAsync(ILogger logger, BlobCacheConfig configuration)
         {
             return Task.FromResult((MemoizationStore.Interfaces.Caches.ICache)CreateCache(logger, configuration).Cache);
         }
@@ -194,10 +194,6 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                 var failures = new List<Failure>();
                 failures.AddFailureIfNullOrWhitespace(cacheConfig.CacheLogPath, nameof(cacheConfig.CacheLogPath));
                 failures.AddFailureIfNullOrWhitespace(cacheConfig.CacheId, nameof(cacheConfig.CacheId));
-                failures.AddFailureIfNullOrWhitespace(cacheConfig.ConnectionStringEnvironmentVariableName, nameof(cacheConfig.ConnectionStringEnvironmentVariableName));
-                failures.AddFailureIfNullOrWhitespace(cacheConfig.ConnectionStringFileEnvironmentVariableName, nameof(cacheConfig.ConnectionStringFileEnvironmentVariableName));
-                failures.AddFailureIfNullOrWhitespace(cacheConfig.Universe, nameof(cacheConfig.Universe));
-                failures.AddFailureIfNullOrWhitespace(cacheConfig.Namespace, nameof(cacheConfig.Namespace));
                 return failures;
             });
         }

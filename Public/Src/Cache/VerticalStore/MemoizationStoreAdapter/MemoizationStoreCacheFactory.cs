@@ -8,6 +8,7 @@ using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Grpc;
+using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Stores;
@@ -269,9 +270,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                 var logPath = new AbsolutePath(cacheConfig.CacheLogPath);
                 var logger = new DisposeLogger(() => new EtwFileLog(logPath.Path, cacheConfig.CacheId), cacheConfig.LogFlushIntervalSeconds);
 
-                var localCache = cacheConfig.UseStreamCAS
-                    ? CreateLocalCacheWithStreamPathCas(cacheConfig, logger)
-                    : CreateGrpcCache(cacheConfig, logger);
+                var localCache = CreateInnerCache(logger, cacheConfig);
 
                 var statsFilePath = new AbsolutePath(logPath.Path + ".stats");
 
@@ -296,6 +295,13 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             {
                 return new CacheConstructionFailure(cacheConfig.CacheId, e);
             }
+        }
+
+        internal MemoizationStore.Interfaces.Caches.ICache CreateInnerCache(ILogger logger, Config cacheConfig)
+        {
+            return cacheConfig.UseStreamCAS
+                    ? CreateLocalCacheWithStreamPathCas(cacheConfig, logger)
+                    : CreateGrpcCache(cacheConfig, logger);
         }
 
         private static CasConfig GetCasConfig(Config config)
@@ -359,7 +365,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             };
         }
 
-        private static MemoizationStore.Interfaces.Caches.ICache CreateGrpcCache(Config config, DisposeLogger logger)
+        private static MemoizationStore.Interfaces.Caches.ICache CreateGrpcCache(Config config, ILogger logger)
         {
             Contract.Requires(config.RetryIntervalSeconds >= 0);
             Contract.Requires(config.RetryCount >= 0);
@@ -406,7 +412,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
 
         }
 
-        private static LocalCache CreateLocalCacheWithStreamPathCas(Config config, DisposeLogger logger)
+        private static LocalCache CreateLocalCacheWithStreamPathCas(Config config, ILogger logger)
         {
             Contract.Requires(config.UseStreamCAS);
 

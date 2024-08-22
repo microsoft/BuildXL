@@ -43,6 +43,12 @@ jobs:
       artifact: buildxl-external.pkgs.$(Build.BuildNumber)
       targetPath: $(Build.SourcesDirectory)\Out\Bin\release\public\pkgs
 
+    - output: pipelineArtifact
+      displayName: Upload VS Code extension
+      continueOnError: True
+      artifact: buildxl-external.vscode.$(Build.BuildNumber)
+      targetPath: $(Build.SourcesDirectory)\Out\Bin\release\ide
+
   steps:
   - checkout: self
     fetchDepth: 1
@@ -69,20 +75,17 @@ jobs:
       packageList: 'packages'
 
   - task: CmdLine@1
-    displayName: Run bxl.cmd
+    displayName: Build external packages and VSCode extension
     inputs:
       filename: bxl.cmd
       arguments: >-
-        /f:$(PackagesFilter)
-        /q:Release
+        /f:$(PackagesFilter)oroutput='Out\Bin\release\ide\*'
+        /q:Release /q:ReleaseLinux
         /p:[BuildXL.Branding]SemanticVersion=$(BuildXL.SemanticVersion)
         /p:[BuildXL.Branding]PrereleaseTag=$(BuildXL.PreReleaseTag)
         /p:[BuildXL.Branding]SourceIdentification=$(Branding_SourceIdentification)
         /logOutput:FullOutputOnWarningOrError
         /p:[Sdk.BuildXL]microsoftInternal=0
-        /processRetries:3
-        /nowarn:2841 /scrubDirectory:$(Build.SourcesDirectory)\Out\Objects
-
   - template: /.azdo/common/extract-nupkg-packages.yml
     parameters:
       SourceDirectory: $(Build.SourcesDirectory)\Out\Bin\release\public\pkgs

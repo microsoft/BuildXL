@@ -37,7 +37,7 @@ namespace Test.BuildXL.Scheduler
         /// This test validates the behaviour of HistoricMetadataCache in HashToHashAndMetadata mode.
         /// In this mode we will not be able to retrieve any of the HistoricMetadataCacheEntries.
         /// </summary>
-        [Fact(Skip = "Flaky: https://dev.azure.com/mseng/1ES/_workitems/edit/2191478")]
+        [Fact]
         public async Task TestHistoricMetadataPathStringRoundtrip()
         {
             LoggingContext loggingContext = CreateLoggingContextForTest();
@@ -104,6 +104,11 @@ namespace Test.BuildXL.Scheduler
                 var maybeLoadedPathSet1 = await retrievePathSet1Task;
                 var maybeLoadedMetadata1 = await retrievdMetadata1Task;
                 var maybeLoadedCacheEntry1 = await getCacheEntry1Task;
+
+                // Ref: "Flaky: https://dev.azure.com/mseng/1ES/_workitems/edit/2191478"
+                // Adding these checks to confirm if TryGetCacheEntryAsync is unable to find the fingerprint, returning a null cacheEntry causing a null reference exception.
+                XAssert.IsTrue(maybeLoadedCacheEntry1.Succeeded);
+                XAssert.IsNotNull(maybeLoadedCacheEntry1.Result);
 
                 Assert.Equal(storedMetadata1.Result, maybeLoadedCacheEntry1.Result.Value.MetadataHash);
 

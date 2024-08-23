@@ -953,13 +953,6 @@ namespace BuildXL
                         OptionHandlerFactory.CreateBoolOption(
                             "scheduleMetaPips",
                             sign => schedulingConfiguration.ScheduleMetaPips = sign),
-                        OptionHandlerFactory.CreateOption2(
-                            "scriptFile",
-                            "s",
-                            opt =>
-                            {
-                                throw CommandLineUtilities.Error(Strings.Args_ScriptFile_Deprecated, CommandLineUtilities.ParseStringOption(opt));
-                            }),
                         OptionHandlerFactory.CreateBoolOption(
                             "scriptShowLargest",
                             opt => frontEndConfiguration.ShowLargestFilesStatistics = opt),

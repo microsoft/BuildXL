@@ -31,8 +31,6 @@ namespace BuildXL
             hw.WriteLine();
         }
 
-        // BUG: should display list of available qualifiers
-        // BUG: should display list of available filter tags
         public static void DisplayHelp(HelpLevel helpLevel)
         {
             var hw = new HelpWriter(helpLevel);
@@ -176,9 +174,6 @@ namespace BuildXL
                 "/canonicalizeFilterOutputs[+|-]",
                 Strings.HelpText_DisplayHelp_CanonicalizeFilterOutputs);
 
-            // TODO: This option is DScript only. It isn't shown in the help text because we have the goal of
-            // removing it and unifying it with the standard filtering above.
-            // hw.WriteOption("scriptFile"
             #endregion
 
             hw.WriteBanner(Strings.HelpText_DisplayHelp_LoggingBanner);

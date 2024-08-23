@@ -255,9 +255,6 @@
   <data name="HelpText_DisplayHelp_Incremental" xml:space="preserve">
     <value>When enabled, artifacts are built incrementally based on which source files have changed. Defaults to on.</value>
   </data>
-  <data name="Args_ScriptFile_Deprecated" xml:space="preserve">
-    <value>Error: /scriptfile: and /s: have been deprecated so instead of using /s:{0} you can use /filter:spec=’{0}’ or just {0} without the /s: prefix.</value>
-  </data>
   <data name="App_Main_Log" xml:space="preserve">
     <value>    Log: {0}</value>
   </data>

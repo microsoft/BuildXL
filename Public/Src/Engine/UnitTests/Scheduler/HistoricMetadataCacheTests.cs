@@ -37,7 +37,7 @@ namespace Test.BuildXL.Scheduler
         /// This test validates the behaviour of HistoricMetadataCache in HashToHashAndMetadata mode.
         /// In this mode we will not be able to retrieve any of the HistoricMetadataCacheEntries.
         /// </summary>
-        [Fact]
+        [Fact(Skip = "Flaky: https://dev.azure.com/mseng/1ES/_workitems/edit/2191478")]
         public async Task TestHistoricMetadataPathStringRoundtrip()
         {
             LoggingContext loggingContext = CreateLoggingContextForTest();

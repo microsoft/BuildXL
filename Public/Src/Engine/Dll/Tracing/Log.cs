@@ -2924,6 +2924,15 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void ConfigIncompatibleOptionIgnorePreserveOutputsPrivatization(LoggingContext context);
 
         [GeneratedEvent(
+           (ushort)LogEventId.ConfigIncompatibleOptionBuildTimeoutMinsAndCbTimeout,
+           EventGenerators = EventGenerators.LocalOnly,
+           EventLevel = Level.Error,
+           Keywords = (int)Keywords.UserMessage,
+           EventTask = (int)Tasks.Engine,
+           Message = "A build timeout was specified simultaneously with /buildTimeoutMins CLI and by setting BuildXL_CbTimeoutUtcTicks environment variable. Both options cannot be set at the same time.")]
+        public abstract void ConfigIncompatibleOptionBuildTimeoutMinsAndCbTimeout(LoggingContext context);
+
+        [GeneratedEvent(
             (ushort)LogEventId.PipTimedOutRemotely,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,

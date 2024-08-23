@@ -67,10 +67,10 @@ namespace BuildXL.App.Tracing
         // ProblematicWorkerExitError = 14013,
 
         PerformanceCollectorInitializationFailed = 15000,
-        CbTimeoutReached = SharedLogEventId.CbTimeoutReached,
-        CbTimeoutTooLow = SharedLogEventId.CbTimeoutTooLow,
-        CbTimeoutInvalid = 15003,
-        CbTimeoutInfo = 15004,
+        TimeoutReached = SharedLogEventId.TimeoutReached,
+        TimeoutTooLow = SharedLogEventId.TimeoutTooLow,
+        TimeoutInvalid = 15003,
+        TimeoutInfo = 15004,
         PerformanceCollectorCollectionFailed = 15005,
         // Capture Git remote info
         FailedToGetGitRemoteRepoInfo = 15007,

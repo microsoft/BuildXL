@@ -174,8 +174,8 @@ namespace BuildXL
                             "buildManifestVerifyFileContentOnHashComputation",
                             opt => engineConfiguration.VerifyFileContentOnBuildManifestHashComputation = opt),
                         OptionHandlerFactory.CreateOption(
-                            "buildWaitTimeout",
-                            opt => engineConfiguration.BuildLockWaitTimeoutMins = CommandLineUtilities.ParseInt32Option(opt, 0, int.MaxValue)),
+                            "buildTimeoutMins",
+                            opt => engineConfiguration.BuildTimeoutMins = CommandLineUtilities.ParseInt32Option(opt, 0, int.MaxValue)),
                         OptionHandlerFactory.CreateOption(
                             "cacheConfigFilePath",
                             opt => cacheConfiguration.CacheConfigFile = CommandLineUtilities.ParsePathOption(opt, pathTable)),

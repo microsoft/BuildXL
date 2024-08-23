@@ -147,6 +147,14 @@ namespace BuildXL.Utilities.Configuration
         int BuildLockWaitTimeoutMins { get; }
 
         /// <summary>
+        /// Specifies the time (in minutes) an external entity will terminate the build since BuildXL was launched
+        /// </summary>
+        /// <remarks>
+        /// This gives the engine the chance to properly shutdown before a hard termination arrives
+        /// </remarks>
+        int? BuildTimeoutMins { get; }
+
+        /// <summary>
         /// Whether this build is explicitly requesting convergence with remote caches. This will disable features that
         /// may interrupt this.
         /// </summary>

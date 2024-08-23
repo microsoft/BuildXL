@@ -295,7 +295,7 @@ namespace BuildXL.Utilities.Tracing
                 if (wasInfrastructureOrInternal &&
                     // These timeout errors are infrastrucure errors but also trigger a shutdown. So do not re-trigger another
                     // internal error early shutdown. Doing so would create confusion in logging
-                    eventData.EventId != (int)SharedLogEventId.CbTimeoutReached && eventData.EventId != (int)SharedLogEventId.CbTimeoutTooLow)
+                    eventData.EventId != (int)SharedLogEventId.TimeoutReached && eventData.EventId != (int)SharedLogEventId.TimeoutTooLow)
                 {
                     TriggerInternalErrorAction();
                 }

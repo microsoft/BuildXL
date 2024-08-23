@@ -120,12 +120,6 @@
   <data name="HelpText_DisplayHelp_BuildBanner" xml:space="preserve">
     <value>BUILD</value>
   </data>
-  <data name="HelpText_DisplayHelp_Config" xml:space="preserve">
-    <value>Configuration file that determines {ShortProductName}'s behavior (short form: /c)</value>
-  </data>
-  <data name="HelpText_DisplayHelp_Qualifier" xml:space="preserve">
-    <value>Qualifiers controlling what flavor to build (short form: /q)</value>
-  </data>
   <data name="HelpText_DisplayHelp_Paths" xml:space="preserve">
     <value>Paths to output files or spec files which determine what gets built. This is a shorthand for a full filter expression.</value>
   </data>
@@ -222,9 +216,6 @@
   <data name="Args_ParseWarningList_ExpectingValidWarningNumbers" xml:space="preserve">
     <value>Expecting valid warning numbers for the /{0} argument but was given '{1}'.</value>
   </data>
-  <data name="HelpText_DisplayHelp_ObjectDirectory" xml:space="preserve">
-    <value>Specifies the root directory for primary build outputs (short form: /o)</value>
-  </data>
   <data name="HelpText_DisplayHelp_Property" xml:space="preserve">
     <value>Specifies a property that overrides an allowed environment variable (short form: /p)</value>
   </data>
@@ -249,9 +240,6 @@
   <data name="HelpText_DisplayHelp_CacheDirectory" xml:space="preserve">
     <value>Specifies the root directory for the incremental artifact cache (short form: /cd)</value>
   </data>
-  <data name="HelpText_DisplayHelp_Unsafe_AllowDuplicateTemporaryDirectory" xml:space="preserve">
-    <value>When enabled, pips with duplicate temporary directories are allowed. Defaults to false.</value>
-  </data>
   <data name="HelpText_DisplayHelp_Incremental" xml:space="preserve">
     <value>When enabled, artifacts are built incrementally based on which source files have changed. Defaults to on.</value>
   </data>
@@ -264,56 +252,14 @@
   <data name="App_Main_Snapshot" xml:space="preserve">
     <value>    Snapshot: {0}</value>
   </data>
-  <data name="HelpText_DisplayHelp_LogObservedFileAccesses" xml:space="preserve">
-    <value>Records the files observed to be accessed by individual pips to the log. Defaults to off.</value>
-  </data>
-  <data name="HelpText_DisplayHelp_LogFileAccessTables" xml:space="preserve">
-    <value>Records the file enforcement access tables for individual pips to the log. Defaults to off.</value>
-  </data>
-  <data name="HelpText_DisplayHelp_Unsafe_UnexpectedFileAccessesAreErrors" xml:space="preserve">
-    <value>When enabled, if {ShortProductName} detects that a tool accesses a file that was not declared in the specification dependencies, it is treated as an error instead of a warning. Turning this option off results in an unsafe configuration (for diagnostic purposes only). Defaults to on.</value>
-  </data>
-  <data name="HelpText_DisplayHelp_Unsafe_IgnoreZwRenameFileInformation" xml:space="preserve">
-    <value>When enabled, {ShortProductName} will not detour the ZwRenameFileInformation API. This might lead to incorrect builds because some file accesses will not be enforced.</value>
-  </data>
-  <data name="HelpText_DisplayHelp_Unsafe_IgnoreZwOtherFileInformation" xml:space="preserve">
-    <value>When enabled, {ShortProductName} will not detour the ZwLinkFileInformation, ZwFileNameFileInformation, ZwDispositionFileInformation, ZwModeFileInformation APIs. This might lead to incorrect builds because some file accesses will not be enforced. Defaults to off - the functions are detoured.</value>
-  </data>
-  <data name="HelpText_DisplayHelp_Unsafe_IgnoreNonCreateFileReparsePoints" xml:space="preserve">
-    <value>When enabled, {ShortProductName} will not follow symlinks for access validation and reporting for API's outisde of CreateFile, NtCreate, and OpenFile. This might lead to incorrect builds because some file accesses will not be enforced. Defaults to off.</value>
-  </data>
-  <data name="HelpText_DisplayHelp_Unsafe_IgnoreSetFileInformationByHandle" xml:space="preserve">
-    <value>When enabled, {ShortProductName} will not detour the SetFileInformationByHandle API. This might lead to incorrect builds because some file accesses will not be enforced.</value>
-  </data>
-  <data name="HelpText_DisplayHelp_Unsafe_IgnoreReparsePoints" xml:space="preserve">
-    <value>When enabled, {ShortProductName} will not track reparse points. This might lead to incorrect builds because some file accesses will not be enforced. Any reparse points (symlinks and mount points) will not be followed.</value>
-  </data>
-  <data name="HelpText_DisplayHelp_Unsafe_IgnoreFullReparsePointResolving" xml:space="preserve">
-    <value>When enabled, {ShortProductName} will not fully resolve paths containing any sort of reparse point. This might lead to incorrect builds because some file accesses will not be enforced or tracked at all.</value>
-  </data>
-  <data name="HelpText_DisplayHelp_Unsafe_IgnorePreloadedDlls" xml:space="preserve">
-    <value>When enabled, {ShortProductName} will not report Dlls loaded before Detours was started. This might lead to incorrect builds because some file accesses will not be enforced.</value>
-  </data>
   <data name="Args_SandboxKind_WrongPlatform" xml:space="preserve">
     <value>Sandbox kind '{0}' cannot be used on '{1}' operating system</value>
   </data>
   <data name="HelpText_DisplayHelp_SandboxKind" xml:space="preserve">
     <value>Specifies the sandbox kind. Allowed values are 'None' (no sandboxing), 'Default' (default sandboxing), 'WinDetours', 'MacOsKext'. Default is 'Default'.</value>
   </data>
-  <data name="HelpText_DisplayHelp_Unsafe_DisableDetours" xml:space="preserve">
-    <value>When enabled, {ShortProductName} will not detour any processes. This might lead to incorrect builds because any file accesses will not be enforced.</value>
-  </data>
   <data name="HelpText_DisplayHelp_IgnoreNonExistentProbes" xml:space="preserve">
     <value>When enabled, {ShortProductName} will not report non existent probes, that are not in sealed directories. This might lead to incorrect builds because some file accesses will not be enforced and validated. Certain calls to GetFileAttribute method for non existing files will not be reported to {ShortProductName}.</value>
-  </data>
-  <data name="HelpText_DisplayHelp_Unsafe_ExistingDirectoryProbesAsEnumerations" xml:space="preserve">
-    <value>When enabled, {ShortProductName} will report existing directory probes as enumerations. This might lead to cases where pips will be executed even when there is no need for it.</value>
-  </data>
-  <data name="HelpText_DisplayHelp_Unsafe_IgnoreNtCreateFile" xml:space="preserve">
-    <value>When enabled, {ShortProductName} will not intercept NtCreateFile calls. This might lead to incorrect builds because some file accesses will not be enforced.</value>
-  </data>
-  <data name="HelpText_DisplayHelp_Unsafe_IgnoreZwCreateOpenQueryFamily" xml:space="preserve">
-    <value>When enabled, {ShortProductName} will not intercept ZwCreateFile, ZwOpenFile, and ZwQueryDirectoryFile calls. This might lead to incorrect builds because some file accesses will not be enforced. This flag is off by default.</value>
   </data>
   <data name="App_Main_Cache" xml:space="preserve">
     <value>Cache</value>
@@ -345,12 +291,6 @@
   <data name="HelpText_DisplayHelp_StopOnFirstError" xml:space="preserve">
     <value>Stops the build engine the first time an error is generated by either {ShortProductName} or one of the tool it runs. Defaults to off.</value>
   </data>
-  <data name="HelpText_DisplayHelp_PipDefaultTimeout" xml:space="preserve">
-    <value>How long to wait before terminating individual processes, in milliseconds. Setting this value will only have an effect if no other timeout is specified for a process.</value>
-  </data>
-  <data name="HelpText_DisplayHelp_PipDefaultWarningTimeout" xml:space="preserve">
-    <value>After how much time to issue a warning that an individual process runs too long, in milliseconds. Setting this value will only have an effect if no other timeout is specified for a process.</value>
-  </data>
   <data name="HelpText_DisplayHelp_DiagBanner" xml:space="preserve">
     <value>DIAGNOSTICS</value>
   </data>
@@ -380,9 +320,6 @@
   </data>
   <data name="HelpText_DisplayHelp_BuildLockPolling" xml:space="preserve">
     <value>Number of seconds to wait for an executing build to finish before polling again for completion. Defaults to 15 sec.</value>
-  </data>
-  <data name="HelpText_DisplayHelp_BuildWaitTimeout" xml:space="preserve">
-    <value>Number minutes to wait for an executing build to finish before failing the current one. Defaults to 0 minute.</value>
   </data>
   <data name="HelpText_DisplayHelp_EnableLazyOutputs" xml:space="preserve">
     <value>Enables lazy materialization (deployment) of pips' outputs from local cache. Defaults to on.</value>
@@ -601,9 +538,6 @@
     <value>Invalid graph identifier '{0}' specified. Graph identifier must be a 40 digit hex string (no delimiters).
 Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   </data>
-  <data name="HelpText_DisplayHelp_Debug_LoadGraph" xml:space="preserve">
-    <value>Loads a cached build graph stored under the given fingerprint (40 digit hex string, no delimiters), path to cached graph directory, or canonical name.</value>
-  </data>
   <data name="HelpText_DisplayHelp_EngineCacheDirectory" xml:space="preserve">
     <value>Allows overriding where engine state will be cached. If unset, it will be stored in a subdirectory of the artifact cache.</value>
   </data>
@@ -649,15 +583,6 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   <data name="HelpText_DisplayHelp_ScriptBanner" xml:space="preserve">
     <value>{ShortScriptName}</value>
   </data>
-  <data name="HelpText_DisplayHelp_DebugScript" xml:space="preserve">
-    <value>Whether to launch {ShortScriptName} debugger on start.  Intended to be used by IDEs only (if you pass this option when running form command line, {ShortScriptName} evaluator will just wait forever).  Defaults to off.</value>
-  </data>
-  <data name="HelpText_DisplayHelp_DebuggerBreakOnExit" xml:space="preserve">
-    <value>Whether to break at the end of the evaluation phase. Defaults to off.</value>
-  </data>
-  <data name="HelpText_DisplayHelp_DebuggerPort" xml:space="preserve">
-    <value>TCP/IP port for the {ShortScriptName} debugger to listen on. Defaults to 41177.</value>
-  </data>
   <data name="HelpText_DisplayHelp_ScriptTypeCheck" xml:space="preserve">
     <value>Type checks specifications. Defaults to on.</value>
   </data>
@@ -700,12 +625,6 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   <data name="App_Vs_InstallPlugin" xml:space="preserve">
     <value>{0} does not have the latest {ShortProductName} plugin installed. Before opening VS, please install the latest version ({1}) per the {ShortProductName} wiki</value>
   </data>
-  <data name="HelpText_DisplayHelp_Unsafe_ForceSkipDeps" xml:space="preserve">
-    <value>Specifies that dependencies of processes requested in the filter should be skipped as long as all the inputs are present.</value>
-  </data>
-  <data name="HelpText_DisplayHelp_Unsafe_PreserveOutputs" xml:space="preserve">
-    <value>When enabled, {ShortProductName} will preserve the existing state of Process pip output files instead of deleting them before starting the process. This may lead to incorrect builds depending on how the process behaves when prior outputs are present. Specify "/unsafe_preserveOutputs:Reset" to reset the salt added to cached processes run with preserved outputs.</value>
-  </data>
   <data name="HelpText_DisplayHelp_NormalizeReadTimestamps" xml:space="preserve">
     <value>When enabled, all file reads seen by processes will have normalized timestamps across builds. When disabled, the actual timestamps will be allowed to flow through to processes, so long as they are newer than the static timestamp used to enforce rewrite ordering (2002). Defaults to on.</value>
   </data>
@@ -724,12 +643,6 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   <data name="HelpText_DisplayHelp_TreatDirectoryAsAbsentFileOnHashingInputContent" xml:space="preserve">
     <value>Treats directory as absent file on hashing the content of input</value>
   </data>
-  <data name="HelpText_DisplayHelp_Unsafe_DisableCycleDetection" xml:space="preserve">
-    <value>Disables cycle detection during evaluation. Defaults to off.</value>
-  </data>
-  <data name="HelpText_DisplayHelp_Unsafe_MonitorFileAccesses" xml:space="preserve">
-    <value>Whether {ShortProductName} is to monitor file accesses of individual tools at all. Disabling monitoring results in an unsafe configuration (for diagnostic purposes only). Defaults to on.</value>
-  </data>
   <data name="HelpText_DisplayHelp_VS" xml:space="preserve">
     <value>Generates a VS solution file and MSBuild files for C# and C++ projects. Defaults to off.</value>
   </data>
@@ -744,9 +657,6 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   </data>
   <data name="HelpText_DisplayHelp_MaxRamUtilizationPercentage" xml:space="preserve">
     <value>Specifies the maximum machine wide RAM utilization allowed before the scheduler will stop scheduling more work to allow resources to be freed. Defaults to 85%.</value>
-  </data>
-  <data name="HelpText_DisplayHelp_MinAvailableRamMb" xml:space="preserve">
-    <value>This flag is deprecated.</value>
   </data>
   <data name="App_ServerKilled" xml:space="preserve">
     <value>Killing associated server mode process. No build will be performed.</value>
@@ -784,9 +694,6 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   <data name="HelpText_DisplayHelp_FancyConsoleMaxStatusPips" xml:space="preserve">
     <value>Maximum number of concurrently executing pips to render in Fancy Console view. Defaults to 5.</value>
   </data>
-  <data name="HelpText_DisplayHelp_Unsafe_AllowCopySymlink" xml:space="preserve">
-    <value>When enabled, allow copying symlink. Defaults to true.</value>
-  </data>
   <data name="Args_Malformed_RelatedActivityGuid" xml:space="preserve">
     <value>The specified related activity guid is not a well-formed GUID</value>
   </data>
@@ -805,9 +712,6 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   <data name="HelpText_DisplayHelp_ProfileScript" xml:space="preserve">
     <value>Runs a profiler for {ShortScriptName} evaluation, generating a TSV file with profiling information.</value>
   </data>
-  <data name="HelpText_DisplayHelp_EnableWorkerSourceFileMaterialization" xml:space="preserve">
-    <value>Enables materialization of source files on distributed workers. NOTE: Source files are required to be present in the worker's remote or local cache.</value>
-  </data>
   <data name="HelpText_DisplayHelp_ValidateDistribution" xml:space="preserve">
     <value>Performs validations to ensure the build can be distributed. Defaults to on for distributed builds, disabled in single machine builds.</value>
   </data>
@@ -816,9 +720,6 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   </data>
   <data name="HelpText_DisplayHelp_MaxTypeCheckingConcurrency" xml:space="preserve">
     <value>Specifies the maximum concurrency level type checking phase. Defaults to /maxFrontEndConcurrency - 25% more than the total number of processors in the current machine.</value>
-  </data>
-  <data name="HelpText_DisplayHelp_Unsafe_IgnoreGetFinalPathNameByHandle" xml:space="preserve">
-    <value>When enabled, {ShortProductName} will not intercept GetFinalPathNameByHandle calls. This may lead to failures when using subst because non-subst paths will be used. Defaults to off.</value>
   </data>
   <data name="HelpText_DisplayHelp_LogProcessDetouringStatus" xml:space="preserve">
     <value>When enabled, store the Detouring Status messages in the Execution log. Defaults to off.</value>
@@ -873,9 +774,6 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   </data>
   <data name="HelpText_DisplayHelp_UseFileContentTablePathMappings" xml:space="preserve">
     <value>Use file content table path mappings to avoid opening handles for hashing files already in the table. Defaults to off.</value>
-  </data>
-  <data name="HelpText_DisplayHelp_Unsafe_DisableGraphPostValidation" xml:space="preserve">
-    <value>Disables post validation of graph construction. Defaults to on.</value>
   </data>
   <data name="DX_Help_Link_Prefix" xml:space="preserve">
     <value>For help with {ShortProductName} warnings or errors, see: </value>
@@ -943,9 +841,6 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   <data name="HelpText_DisplayHelp_LaunchDebugger" xml:space="preserve">
     <value>Launches the debugger during boot (in the server process if applicable).</value>
   </data>
-  <data name="HelpText_DisplayHelp_Unsafe_IgnoreDynamicWritesOnAbsentProbes" xml:space="preserve">
-    <value>When enabled, {ShortProductName} will not flag as violations absent path probes that coexist with writes under output directories for those same paths.</value>
-  </data>
   <data name="HelpText_DisplayHelp_StoreFingerprintsWithMode" xml:space="preserve">
     <value>Stores fingerprint computation information for each pip seen in the build in a peristent key-value store that can be accessed from the logs. "Default" mode will check for pre-existing entries before overwriting entries. "ExecutionFingerprintsOnly" mode will only store fingerprints computed when a pip executes. On strong fingerprint cache misses, setting this will SKIP storing fingerprints computed at cache lookup time, which are useful for analyzing strong fingerprint misses. "IgnoreExistingEntries" mode will overwrite entries without doing any (random) reads, this is only recommended on spin drives experiencing slowdowns. </value>
   </data>
@@ -966,9 +861,6 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   </data>
   <data name="Args_AdminRequiredProcessExecutionMode_NotSupportedOnNonWindows" xml:space="preserve">
     <value>Admin-required process execution mode '{0}' is not supported on non-Windows OS</value>
-  </data>
-  <data name="HelpText_DisplayHelp_Unsafe_OptimizedAstConversion" xml:space="preserve">
-    <value>When enabled, optimized AST conversion by disabling some analyses and skipping some AST constructs. By disabling analyses linter policies are not enforced. The types in the resulting AST are stripped away as they are not needed for evaluation. Defauts to off.</value>
   </data>
   <data name="HelpText_DisplayHelp_Interactive" xml:space="preserve">
     <value>When enabled indicates that {ShortProductName} is allowed to interact with the user either via console or popups. A common use case is to allow front ends like nuget to display authentication prompts in case the user is not authenticated.</value>
@@ -991,17 +883,11 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   <data name="HelpText_DisplayHelp_ValidateCgManifest" xml:space="preserve">
     <value>Validates the cgmanifest.json file at the specified path. This file should contain up-to-date names and versions of all Nuget packages used within BuildXL for Component Governance. Any mismatch will cause the Build to fail. Updated file can be created using the /generateCgManifestForNugets:&lt;path&gt;</value>
   </data>
-  <data name="HelpText_DisplayHelp_MinimumDiskSpaceForPipsGb" xml:space="preserve">
-    <value>Specify the required minimum available disk space in Gigabytes. Default value set to 0GB (disabled). Pips will fail if the specified amount of disk space in unavailable.</value>
-  </data>
   <data name="HelpText_DisplayHelp_CacheMissDiffFormat" xml:space="preserve">
     <value>Diff format for cache miss analysis. Allowed values are CustomJsonDiff and JsonPatchDiff. Defaults to CustomJsonDiff</value>
   </data>
   <data name="HelpText_DisplayHelp_CacheOnly" xml:space="preserve">
     <value>Only processes cache hits. Any pips that are cache misses will skip execution. Skipped pips will not cause the build session to fail.</value>
-  </data>
-  <data name="HelpText_DisplayHelp_NumRetryFailedPipsOnAnotherWorker" xml:space="preserve">
-    <value>Specify the number of times a pip failing due to worker failures, should be retried on another worker. Default value set to 0 (disabled).</value>
   </data>
   <data name="HelpText_DisplayHelp_PathSetAugmentationMonitoring" xml:space="preserve">
     <value>Check that the paths used in creating an augmented pathset/weak fingerprint are used during the execution of a pip. If a path is not used it's logged together with its hash. The argument controls the max number of paths logged per executed pip. If the value is set to 0, the monitoring is disabled.</value>
@@ -1089,9 +975,6 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   </data>
   <data name="HelpText_DisplayHelp_StopOnFirstInternalError" xml:space="preserve">
     <value>Stops the build engine the first time an internal error is generated by {ShortProductName}. Defaults to off for single machine builds.</value>
-  </data>
-  <data name="HelpText_DisplayHelp_Unsafe_AssumeCleanOutputs" xml:space="preserve">
-    <value>When enabled, BuildXL assumes there are no stale outputs from previous builds.</value>
   </data>
   <data name="HelpText_DisplayHelp_EnableLinuxPTraceSandbox" xml:space="preserve">
     <value>Enables the ptrace sandbox on Linux when a statically linked binary is detected. Note that this will have a negative impact on performance, but is necessary to ensure correctness on some Linux builds.</value>
@@ -1185,5 +1068,122 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   </data>
   <data name="Args_EnginePhases_UnsupportedPhase" xml:space="preserve">
     <value>phase:Evaluate is not supported, please use /phase:Schedule</value>
+  </data>
+  <data name="HelpText_DisplayHelp_Config" xml:space="preserve">
+    <value>Configuration file that determines {ShortProductName}'s behavior (short form: /c)</value>
+  </data>
+  <data name="HelpText_DisplayHelp_Qualifier" xml:space="preserve">
+    <value>Qualifiers controlling what flavor to build (short form: /q)</value>
+  </data>
+  <data name="HelpText_DisplayHelp_ObjectDirectory" xml:space="preserve">
+    <value>Specifies the root directory for primary build outputs (short form: /o)</value>
+  </data>
+  <data name="HelpText_DisplayHelp_Unsafe_AllowDuplicateTemporaryDirectory" xml:space="preserve">
+    <value>When enabled, pips with duplicate temporary directories are allowed. Defaults to false.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_LogObservedFileAccesses" xml:space="preserve">
+    <value>Records the files observed to be accessed by individual pips to the log. Defaults to off.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_LogFileAccessTables" xml:space="preserve">
+    <value>Records the file enforcement access tables for individual pips to the log. Defaults to off.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_Unsafe_UnexpectedFileAccessesAreErrors" xml:space="preserve">
+    <value>When enabled, if {ShortProductName} detects that a tool accesses a file that was not declared in the specification dependencies, it is treated as an error instead of a warning. Turning this option off results in an unsafe configuration (for diagnostic purposes only). Defaults to on.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_Unsafe_IgnoreZwRenameFileInformation" xml:space="preserve">
+    <value>When enabled, {ShortProductName} will not detour the ZwRenameFileInformation API. This might lead to incorrect builds because some file accesses will not be enforced.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_Unsafe_IgnoreZwOtherFileInformation" xml:space="preserve">
+    <value>When enabled, {ShortProductName} will not detour the ZwLinkFileInformation, ZwFileNameFileInformation, ZwDispositionFileInformation, ZwModeFileInformation APIs. This might lead to incorrect builds because some file accesses will not be enforced. Defaults to off - the functions are detoured.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_Unsafe_IgnoreNonCreateFileReparsePoints" xml:space="preserve">
+    <value>When enabled, {ShortProductName} will not follow symlinks for access validation and reporting for API's outisde of CreateFile, NtCreate, and OpenFile. This might lead to incorrect builds because some file accesses will not be enforced. Defaults to off.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_Unsafe_IgnoreSetFileInformationByHandle" xml:space="preserve">
+    <value>When enabled, {ShortProductName} will not detour the SetFileInformationByHandle API. This might lead to incorrect builds because some file accesses will not be enforced.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_Unsafe_IgnoreReparsePoints" xml:space="preserve">
+    <value>When enabled, {ShortProductName} will not track reparse points. This might lead to incorrect builds because some file accesses will not be enforced. Any reparse points (symlinks and mount points) will not be followed.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_Unsafe_IgnoreFullReparsePointResolving" xml:space="preserve">
+    <value>When enabled, {ShortProductName} will not fully resolve paths containing any sort of reparse point. This might lead to incorrect builds because some file accesses will not be enforced or tracked at all.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_Unsafe_IgnorePreloadedDlls" xml:space="preserve">
+    <value>When enabled, {ShortProductName} will not report Dlls loaded before Detours was started. This might lead to incorrect builds because some file accesses will not be enforced.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_Unsafe_DisableDetours" xml:space="preserve">
+    <value>When enabled, {ShortProductName} will not detour any processes. This might lead to incorrect builds because any file accesses will not be enforced.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_Unsafe_ExistingDirectoryProbesAsEnumerations" xml:space="preserve">
+    <value>When enabled, {ShortProductName} will report existing directory probes as enumerations. This might lead to cases where pips will be executed even when there is no need for it.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_Unsafe_IgnoreNtCreateFile" xml:space="preserve">
+    <value>When enabled, {ShortProductName} will not intercept NtCreateFile calls. This might lead to incorrect builds because some file accesses will not be enforced.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_Unsafe_IgnoreZwCreateOpenQueryFamily" xml:space="preserve">
+    <value>When enabled, {ShortProductName} will not intercept ZwCreateFile, ZwOpenFile, and ZwQueryDirectoryFile calls. This might lead to incorrect builds because some file accesses will not be enforced. This flag is off by default.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_PipDefaultTimeout" xml:space="preserve">
+    <value>How long to wait before terminating individual processes, in milliseconds. Setting this value will only have an effect if no other timeout is specified for a process.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_PipDefaultWarningTimeout" xml:space="preserve">
+    <value>After how much time to issue a warning that an individual process runs too long, in milliseconds. Setting this value will only have an effect if no other timeout is specified for a process.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_Debug_LoadGraph" xml:space="preserve">
+    <value>Loads a cached build graph stored under the given fingerprint (40 digit hex string, no delimiters), path to cached graph directory, or canonical name.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_DebugScript" xml:space="preserve">
+    <value>Whether to launch {ShortScriptName} debugger on start.  Intended to be used by IDEs only (if you pass this option when running form command line, {ShortScriptName} evaluator will just wait forever).  Defaults to off.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_DebuggerBreakOnExit" xml:space="preserve">
+    <value>Whether to break at the end of the evaluation phase. Defaults to off.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_DebuggerPort" xml:space="preserve">
+    <value>TCP/IP port for the {ShortScriptName} debugger to listen on. Defaults to 41177.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_Unsafe_ForceSkipDeps" xml:space="preserve">
+    <value>Specifies that dependencies of processes requested in the filter should be skipped as long as all the inputs are present.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_Unsafe_PreserveOutputs" xml:space="preserve">
+    <value>When enabled, {ShortProductName} will preserve the existing state of Process pip output files instead of deleting them before starting the process. This may lead to incorrect builds depending on how the process behaves when prior outputs are present. Specify "/unsafe_preserveOutputs:Reset" to reset the salt added to cached processes run with preserved outputs.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_Unsafe_DisableCycleDetection" xml:space="preserve">
+    <value>Disables cycle detection during evaluation. Defaults to off.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_Unsafe_MonitorFileAccesses" xml:space="preserve">
+    <value>Whether {ShortProductName} is to monitor file accesses of individual tools at all. Disabling monitoring results in an unsafe configuration (for diagnostic purposes only). Defaults to on.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_MinAvailableRamMb" xml:space="preserve">
+    <value>This flag is deprecated.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_Unsafe_AllowCopySymlink" xml:space="preserve">
+    <value>When enabled, allow copying symlink. Defaults to true.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_EnableWorkerSourceFileMaterialization" xml:space="preserve">
+    <value>Enables materialization of source files on distributed workers. NOTE: Source files are required to be present in the worker's remote or local cache.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_Unsafe_IgnoreGetFinalPathNameByHandle" xml:space="preserve">
+    <value>When enabled, {ShortProductName} will not intercept GetFinalPathNameByHandle calls. This may lead to failures when using subst because non-subst paths will be used. Defaults to off.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_Unsafe_DisableGraphPostValidation" xml:space="preserve">
+    <value>Disables post validation of graph construction. Defaults to on.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_Unsafe_IgnoreDynamicWritesOnAbsentProbes" xml:space="preserve">
+    <value>When enabled, {ShortProductName} will not flag as violations absent path probes that coexist with writes under output directories for those same paths.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_Unsafe_OptimizedAstConversion" xml:space="preserve">
+    <value>When enabled, optimized AST conversion by disabling some analyses and skipping some AST constructs. By disabling analyses linter policies are not enforced. The types in the resulting AST are stripped away as they are not needed for evaluation. Defauts to off.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_MinimumDiskSpaceForPipsGb" xml:space="preserve">
+    <value>Specify the required minimum available disk space in Gigabytes. Default value set to 0GB (disabled). Pips will fail if the specified amount of disk space in unavailable.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_NumRetryFailedPipsOnAnotherWorker" xml:space="preserve">
+    <value>Specify the number of times a pip failing due to worker failures, should be retried on another worker. Default value set to 0 (disabled).</value>
+  </data>
+  <data name="HelpText_DisplayHelp_Unsafe_AssumeCleanOutputs" xml:space="preserve">
+    <value>When enabled, BuildXL assumes there are no stale outputs from previous builds.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_BuildTimeoutMins" xml:space="preserve">
+    <value>The time elapsed (in minutes) since BuildXL is launched when an external entity will terminate the build. BuildXL will fail the build and shutdown gracefully an epsilon before the specified timeout to avoid an ungraceful exit. The epsilon is variable and is computed as a small percentage of the length of the specified timeout.</value>
   </data>
 </root>

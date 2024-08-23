@@ -518,40 +518,40 @@ namespace BuildXL.App.Tracing
         public abstract void PerformanceCollectorCollectionFailed(LoggingContext context, string exception);
 
         [GeneratedEvent(
-            (int)LogEventId.CbTimeoutReached,
+            (int)LogEventId.TimeoutReached,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Scheduler,
             Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureIssue),
-            Message = "Build Termination started {timeoutMins} mins before CB timeout for clean exit. BuildXL had a total of {availableMins} mins to complete the build.")]
-        public abstract void CbTimeoutReached(LoggingContext context, int timeoutMins, int availableMins);
+            Message = "Build termination started {timeoutMins} mins before timeout for clean exit. BuildXL had a total of {availableMins} mins to complete the build.")]
+        public abstract void TimeoutReached(LoggingContext context, int timeoutMins, int availableMins);
 
         [GeneratedEvent(
-            (int)LogEventId.CbTimeoutTooLow,
+            (int)LogEventId.TimeoutTooLow,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             EventTask = (ushort)Tasks.Scheduler,
             Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureIssue),
-            Message = "Build Terminated immediately since CB timeout is less than {mins} mins, please increase the CB timeout in your queue config")]
-        public abstract void CbTimeoutTooLow(LoggingContext context, int mins);
+            Message = "Build terminated immediately since specified timeout is less than {mins} mins.")]
+        public abstract void TimeoutTooLow(LoggingContext context, int mins);
 
         [GeneratedEvent(
-            (int)LogEventId.CbTimeoutInvalid,
+            (int)LogEventId.TimeoutInvalid,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
             EventTask = (ushort)Tasks.Scheduler,
             Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureIssue),
-            Message = "BuildXL received invalid CB Timeout information. Current Time UTC ticks: {utcTicksNow}. Timeout UTC ticks received from CB: {utcTicksCbTimeout}.")]
-        public abstract void CbTimeoutInvalid(LoggingContext context, string utcTicksNow, string utcTicksCbTimeout);
+            Message = "BuildXL received invalid timeout information. Current Time UTC ticks: {utcTicksNow}. Timeout UTC ticks received: {utcTicksTimeout}.")]
+        public abstract void TimeoutInvalid(LoggingContext context, string utcTicksNow, string utcTicksTimeout);
 
         [GeneratedEvent(
-            (int)LogEventId.CbTimeoutInfo,
+            (int)LogEventId.TimeoutInfo,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Scheduler,
             Keywords = (int)(Keywords.UserMessage),
-            Message = "{ShortProductName} will terminate if build exceeds {allowedRemainingMinutes} minutes ({minutesBeforeQueueTimeout} minutes before timeout specified in CloudBuild Queue configuration).")]
-        public abstract void CbTimeoutInfo(LoggingContext context, int minutesBeforeQueueTimeout, int allowedRemainingMinutes);
+            Message = "{ShortProductName} will terminate if build exceeds {allowedRemainingMinutes} minutes ({minutesBeforeQueueTimeout} minutes before timeout specified).")]
+        public abstract void TimeoutInfo(LoggingContext context, int minutesBeforeQueueTimeout, int allowedRemainingMinutes);
 
         [GeneratedEvent(
             (ushort)LogEventId.FailedToGetGitRemoteRepoInfo,

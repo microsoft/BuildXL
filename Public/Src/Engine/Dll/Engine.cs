@@ -1251,6 +1251,13 @@ namespace BuildXL.Engine
                 Logger.Log.RequiredToolsNotInstalled(loggingContext, error);
             }
 
+            // The build timeout set from CB via env var cannot coexist with the equivalent command line flag
+            if (mutableConfig.Engine.BuildTimeoutMins != null && EngineEnvironmentSettings.CbUtcTimeoutTicks.Value != null)
+            {
+                Logger.Log.ConfigIncompatibleOptionBuildTimeoutMinsAndCbTimeout(loggingContext);
+                success = false;
+            }
+
             return success;
         }
 

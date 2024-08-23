@@ -490,6 +490,7 @@ namespace BuildXL.Utilities.Configuration
         /// <summary>
         /// Specifies the UTC time when CB will terminate the build due to timeout
         /// </summary>
+        /// <remarks>This setting is currently used by the CB runner. Please see /buildTimeoutMins CLI for any non-CB scenario. /></remarks>
         public static readonly Setting<long?> CbUtcTimeoutTicks = CreateSetting("BuildXL_CbTimeoutUtcTicks", value => value == null ? (long?)null : long.Parse(value));
 
         /// <summary>

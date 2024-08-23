@@ -16,7 +16,7 @@ This page lists flags that can be used to configure BuildXL.
 | BreakOnUnexpectedFileAccess | Break into the debugger when {ShortProductName} detects that a tool accesses a file that was not declared in the specification dependencies. This option is useful when developing a new tool or SDKs using these tools. Defaults to off. |
 | BuildLockPolling | Number of seconds to wait for an executing build to finish before polling again for completion. Defaults to 15 sec. |
 | BuildManifestVerifyFileContentOnHashComputation | When enabled, ensures that file's content matches the hash provided by the engine before proceeding to compute a build manifest hash for that file. |
-| BuildWaitTimeout | Number minutes to wait for an executing build to finish before failing the current one. Defaults to 0 minute. |
+| BuildTimeoutMins | The time elapsed (in minutes) since BuildXL is launched when an external entity will terminate the build. BuildXL will fail the build and shutdown gracefully an epsilon before the specified timeout to avoid an ungraceful exit. The epsilon is variable and is computed as a small percentage of the length of the specified timeout. |
 | CacheConfigFilePath | Path to cache config file. |
 | CacheDirectory | Specifies the root directory for the incremental artifact cache (short form: /cd) |
 | CacheGraph | Caches the build graph between runs, avoiding the parse and evaluation phases when no graph inputs have changed. Defaults to on. |

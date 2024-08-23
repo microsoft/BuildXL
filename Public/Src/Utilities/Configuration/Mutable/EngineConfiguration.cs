@@ -87,6 +87,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             PipSpecificPropertyAndValues = template.PipSpecificPropertyAndValues.Select(
                                                p => new PipSpecificPropertyAndValue(p.PropertyName, p.PipSemiStableHash, p.PropertyValue)).ToList();
             VerifyJunctionsDoNotConflictWithDirectoryTranslations = template.VerifyJunctionsDoNotConflictWithDirectoryTranslations;
+            BuildTimeoutMins = template.BuildTimeoutMins;
         }
 
         /// <inheritdoc />
@@ -197,5 +198,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool VerifyJunctionsDoNotConflictWithDirectoryTranslations { get; set; }
+
+        /// <inheritdoc/>
+        public int? BuildTimeoutMins { get; set; }
     }
 }

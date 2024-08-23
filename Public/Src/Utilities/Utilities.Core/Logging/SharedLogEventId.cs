@@ -42,8 +42,8 @@ namespace BuildXL.Utilities.Instrumentation.Common
         StoppedDistributionWorkerForwardedError = 7046,
         DistributionWorkerForwardedEvent = 7066,
         GrpcEventHandlerExceptionOccurred = 7067,
-        CbTimeoutReached = 15001,
-        CbTimeoutTooLow = 15002,
+        TimeoutReached = 15001,
+        TimeoutTooLow = 15002,
 
         // Moved from BuildXL.Scheduler.Tracing.LogEventId
         PipIpcFailed = 5,

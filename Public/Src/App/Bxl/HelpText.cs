@@ -697,8 +697,8 @@ namespace BuildXL
                 HelpLevel.Verbose);
 
             hw.WriteOption(
-                "/buildWaitTimeout:<minutes>",
-                Strings.HelpText_DisplayHelp_BuildWaitTimeout,
+                "/buildTimeoutMins:<minutes>",
+                Strings.HelpText_DisplayHelp_BuildTimeoutMins,
                 HelpLevel.Verbose);
 
             hw.WriteOption(

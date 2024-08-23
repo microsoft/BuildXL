@@ -94,6 +94,11 @@ namespace BuildXL.Execution.Analyzer
             new Dictionary<PipId, ProcessPipExecutionPerformance>();
 
         private readonly Dictionary<PipId, TimeSpan> m_cpuStepDurations = new Dictionary<PipId, TimeSpan>();
+        private readonly Dictionary<PipId, TimeSpan> m_cacheLookupDurations = new Dictionary<PipId, TimeSpan>();
+        private readonly Dictionary<PipId, TimeSpan> m_postProcessDurations = new Dictionary<PipId, TimeSpan>();
+        private readonly Dictionary<PipId, TimeSpan> m_pipExecutionDurations = new Dictionary<PipId, TimeSpan>();
+        private readonly Dictionary<PipId, TimeSpan> m_chooseWorkerCPUDurations = new Dictionary<PipId, TimeSpan>();
+        private readonly Dictionary<PipId, TimeSpan> m_chooseWorkerCacheLookupDurations = new Dictionary<PipId, TimeSpan>();
         private readonly Dictionary<PipId, IReadOnlyCollection<Processes.ReportedProcess>> m_reportedProcesses = new Dictionary<PipId, IReadOnlyCollection<Processes.ReportedProcess>>();
 
         private string m_indent = string.Empty;
@@ -192,9 +197,36 @@ namespace BuildXL.Execution.Analyzer
                 WriteLineIndented(I($"\"stop\" : \"{performance.ExecutionStop}\","));
                 WriteLineIndented(I($"\"result\" : \"{performance.ExecutionLevel}\","));
                 WriteLineIndented(I($"\"executionTimeInMs\" : {performance.ProcessExecutionTime.TotalMilliseconds},"));
+                
+                if (m_pipExecutionDurations.TryGetValue(processIdAndExecutionPerformance.Key, out TimeSpan pipExecutionDuration))
+                {
+                    WriteLineIndented(I($"\"pipExecutionTimeInMs\" : {pipExecutionDuration.TotalMilliseconds},"));
+                }
+                
                 WriteLineIndented(I($"\"userExecutionTimeInMs\" : {performance.UserTime.TotalMilliseconds},"));
                 WriteLineIndented(I($"\"kernelExecutionTimeInMs\" : {performance.KernelTime.TotalMilliseconds},"));
                 WriteLineIndented(I($"\"peakMemoryUsageInMb\" : {performance.MemoryCounters.PeakWorkingSetMb},"));
+                WriteLineIndented(I($"\"pushOutputsToCacheDurationMs\" : {performance.PushOutputsToCacheDurationMs},"));
+
+                if (m_chooseWorkerCacheLookupDurations.TryGetValue(processIdAndExecutionPerformance.Key, out TimeSpan cacheLookupQueueMs))
+                {
+                    WriteLineIndented(I($"\"cacheLookupQueueMs\" : {cacheLookupQueueMs.TotalMilliseconds},"));
+                }
+
+                if (m_cacheLookupDurations.TryGetValue(processIdAndExecutionPerformance.Key, out TimeSpan cacheLookupDuration))
+                {
+                    WriteLineIndented(I($"\"cacheLookupDurationMs\" : {cacheLookupDuration.TotalMilliseconds},"));
+                }
+
+                if (m_postProcessDurations.TryGetValue(processIdAndExecutionPerformance.Key, out TimeSpan postProcessDurationMs))
+                {
+                    WriteLineIndented(I($"\"postProcessDurationMs\" : {postProcessDurationMs.TotalMilliseconds},"));
+                }
+
+                if (m_chooseWorkerCPUDurations.TryGetValue(processIdAndExecutionPerformance.Key, out TimeSpan chooseWorkerCPUMs))
+                {
+                    WriteLineIndented(I($"\"chooseWorkerQueueMs\" : {chooseWorkerCPUMs.TotalMilliseconds},"));
+                }
 
                 WriteIOData(performance.IO);
 
@@ -383,6 +415,28 @@ namespace BuildXL.Execution.Analyzer
                 {
                     m_cpuStepDurations[data.PipId] = data.Duration;
                 }
+                
+                m_pipExecutionDurations[data.PipId] = data.Duration;
+            }
+
+            if (data.Step == Scheduler.PipExecutionStep.CacheLookup)
+            {
+                m_cacheLookupDurations[data.PipId] = data.Duration;
+            }
+
+            if (data.Step == Scheduler.PipExecutionStep.PostProcess)
+            {
+                m_postProcessDurations[data.PipId] = data.Duration;
+            }
+
+            if (data.Step == Scheduler.PipExecutionStep.ChooseWorkerCacheLookup)
+            {
+                m_chooseWorkerCacheLookupDurations[data.PipId] = data.Duration;
+            }
+
+            if (data.Step == Scheduler.PipExecutionStep.ChooseWorkerCpu)
+            {
+                m_chooseWorkerCPUDurations[data.PipId] = data.Duration;
             }
         }
 

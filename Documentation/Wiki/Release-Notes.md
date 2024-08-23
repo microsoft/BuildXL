@@ -2,6 +2,13 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20240816.4 (Release [403518](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=403518))
+-	Tighter integration with 1ES Hosted Pool integrated cache resource
+-	Correct dependency consistency of external packages
+-	User configurable observed input type reclassifications
+-	Error classification improvements for service pips
+-	Address file locking issue when hashing inputs
+
 # 0.1.0-20240809.1 (Release [401607](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=401607))
 - Remove net7 qualifier
 - Minor tweaks and improvements

@@ -238,7 +238,7 @@ namespace BuildXL.FrontEnd.Script.Ambients
         private static EvaluationResult GetUserHomeDirectory(Context context, ModuleLiteral env, EvaluationStackFrame args)
         {
             string homePath = Host.Current.CurrentOS == BuildXL.Interop.OperatingSystem.Win
-                ? I($"{Environment.GetEnvironmentVariable(")HOMEDRIVE") ?? "C:"}{Path.DirectorySeparatorChar}{Environment.GetEnvironmentVariable("HOMEPATH") ?? "Users"}")
+                ? I($"{Environment.GetEnvironmentVariable("HOMEDRIVE") ?? "C:"}{Path.DirectorySeparatorChar}{Environment.GetEnvironmentVariable("HOMEPATH") ?? "Users"}")
                 : Environment.GetEnvironmentVariable("HOME");
 
             var directoryPath = AbsolutePath.Create(context.FrontEndContext.PathTable, homePath);

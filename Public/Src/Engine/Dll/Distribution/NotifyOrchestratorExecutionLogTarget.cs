@@ -20,8 +20,6 @@ namespace BuildXL.Engine.Distribution
         private readonly BinaryLogger m_logger;
         private readonly Scheduler.Scheduler m_scheduler;
 
-        internal long TotalSize => (long)NotifyStream.EventDataSizeThreshold * m_notifyStream.NumFlushes;
-
         internal NotifyOrchestratorExecutionLogTarget(Action<MemoryStream> notifyAction, EngineSchedule engineSchedule, bool flushIfNeeded)
             : this(new NotifyStream(notifyAction), flushIfNeeded, engineSchedule.Context, engineSchedule.Scheduler.PipGraph.GraphId, engineSchedule.Scheduler.PipGraph.MaxAbsolutePathIndex)
         {
@@ -62,13 +60,22 @@ namespace BuildXL.Engine.Distribution
             return m_logger.FlushAsync();
         }
 
-        internal void Deactivate()
+        internal void StopObservingEvents()
         {
-            m_notifyStream.Deactivate();
-
             // Remove target to ensure no further events are sent
             // Otherwise, the events that are sent to a disposed target would cause crashes.
             m_scheduler?.RemoveExecutionLogTarget(this);
+        }
+
+        /// <summary>
+        /// Deactivates the stream and cancels the notify action.
+        /// Call Deactivate() to remove the target from the scheduler.
+        /// </summary>
+        internal void DeactivateAndCancel()
+        {
+            m_notifyStream.Deactivate();
+
+            StopObservingEvents();
         }
 
         /// <inheritdoc />
@@ -78,6 +85,12 @@ namespace BuildXL.Engine.Distribution
             {
                 m_isDisposed = true;
                 base.Dispose();
+            }
+
+            // Log remaining events count if any
+            if (m_logger.PendingEventCount > 0)
+            {
+                m_scheduler.LogPendingEventsRemaingAfterDispose(m_logger.PendingEventCount);
             }
         }
 
@@ -90,6 +103,14 @@ namespace BuildXL.Engine.Distribution
             }
 
             base.ReportUnhandledEvent(data);
+        }
+
+        /// <inhret />
+        public override void PopulateStats()
+        {
+            Counters.AddToCounter(ExecutionLogCounters.MaxPendingEvents, m_logger.MaxPendingEventsCount);
+            Counters.AddToCounter(ExecutionLogCounters.EventWriterFactoryCalls, m_logger.EventWriterFactoryCalls);
+            Counters.AddToCounter(ExecutionLogCounters.RemaingPendingEvents, m_logger.PendingEventCount);
         }
 
         private class NotifyStream : Stream

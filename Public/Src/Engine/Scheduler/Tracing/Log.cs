@@ -4142,6 +4142,15 @@ namespace BuildXL.Scheduler.Tracing
             EventTask = (ushort)Tasks.PipExecutor,
             Message = "[{pipDescription}] Observation on path {path} marked as ignored by rule '{rule}' from type {from}. isCacheLookup: {isCacheLookup}")]
         internal abstract void ObservationIgnored(LoggingContext loggingContext, string pipDescription, string path, string rule, string from, bool isCacheLookup);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.PendingEventsRemaingAfterDisposed,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Scheduler,
+            Message = "There are still {count} pending events not been processed after NotifyOrchestratorExecutionLogTarget disposed.")]
+        public abstract void PendingEventsRemaingAfterDisposed(LoggingContext loggingContext, long count);
     }
 }
 #pragma warning restore CA1823 // Unused field

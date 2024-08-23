@@ -256,6 +256,9 @@ namespace BuildXL.Scheduler.Tracing
                 m_disabledEvents[i] = true;
             }
         }
+
+        /// <nodoc />
+        public virtual void PopulateStats() { }
     }
 
     /// <summary>
@@ -446,7 +449,7 @@ namespace BuildXL.Scheduler.Tracing
         /// <summary>
         /// Populates stats.
         /// </summary>
-        public void PopulateStats()
+        public override void PopulateStats()
         {
             Counters.AddToCounter(ExecutionLogCounters.MaxPendingEvents, m_logFile.MaxPendingEventsCount);
             Counters.AddToCounter(ExecutionLogCounters.EventWriterFactoryCalls, m_logFile.EventWriterFactoryCalls);

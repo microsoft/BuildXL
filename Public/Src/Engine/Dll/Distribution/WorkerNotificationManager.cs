@@ -11,16 +11,14 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
+using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Distribution.Grpc;
 using BuildXL.Engine.Distribution.Grpc;
 using BuildXL.Pips.Operations;
-using BuildXL.Scheduler;
-using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
-using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Tasks;
-using Google.Protobuf;
-using Grpc.Core;
+using BuildXL.Utilities.Instrumentation.Common;
 
 namespace BuildXL.Engine.Distribution
 {
@@ -78,6 +76,7 @@ namespace BuildXL.Engine.Distribution
         private NotifyOrchestratorExecutionLogTarget m_manifestExecutionLog;
 
         private readonly MemoryStream m_flushedManifestEvents = new MemoryStream();
+        private readonly MemoryStream m_flushedExecutionLog = new MemoryStream();
 
         /// Notification sending
         private IOrchestratorClient m_orchestratorClient;
@@ -109,23 +108,16 @@ namespace BuildXL.Engine.Distribution
             m_orchestratorClient = orchestratorClient;
 
             m_executionLogTarget = new NotifyOrchestratorExecutionLogTarget(
-                notifyAction: (stream) =>
-                {
-                    if (!ReportExecutionLog(stream))
-                    {
-                        Tracing.Logger.Log.DistributionReportExecutionLogFailed(m_loggingContext);
-                        m_executionLogTarget.Deactivate();
-                    }
-                },
+                notifyAction: ReportExecutionLog,
                 flushIfNeeded: true,
                 engineSchedule: schedule);
-            schedule.Scheduler.AddExecutionLogTarget(m_executionLogTarget);
+            schedule.Scheduler.AddReportExecutionLogTargetForWorker(m_executionLogTarget);
 
             m_manifestExecutionLog = new NotifyOrchestratorExecutionLogTarget(
                 notifyAction: FlushManifestEvents,
                 flushIfNeeded: false,
                 engineSchedule: schedule);
-            schedule.Scheduler.SetManifestExecutionLog(m_manifestExecutionLog);
+            schedule.Scheduler.SetManifestExecutionLogForWorker(m_manifestExecutionLog);
 
             m_forwardingEventListener = new ForwardingEventListener(this, loggingConfig.ForwardableWorkerEvents);
             m_pipResultListener = new PipResultListener(this, serializer);
@@ -154,8 +146,8 @@ namespace BuildXL.Engine.Distribution
             m_forwardingEventListener.Cancel();
 
             // The execution log target can be null if the worker failed to attach to the orchestrator
-            m_executionLogTarget?.Deactivate();
-            m_manifestExecutionLog?.Deactivate();
+            m_executionLogTarget?.StopObservingEvents();
+            m_manifestExecutionLog?.StopObservingEvents();
 
             if (m_sendThread.IsAlive)
             {
@@ -172,8 +164,6 @@ namespace BuildXL.Engine.Distribution
             {
                 Tracing.Logger.Log.DistributionStreamingNetworkFailure(m_loggingContext, "localhost");
             }
-
-            DistributionService.Counters.AddToCounter(DistributionCounter.ExecutionLogSentSize, m_executionLogTarget?.TotalSize ?? 0);
         }
 
         /// <inheritdoc/>
@@ -182,8 +172,8 @@ namespace BuildXL.Engine.Distribution
             m_uncleanExit = true;
             if (m_started)
             {
-                m_executionLogTarget?.Deactivate();
-                m_manifestExecutionLog?.Deactivate();
+                m_executionLogTarget?.DeactivateAndCancel();
+                m_manifestExecutionLog?.DeactivateAndCancel();
                 m_pipResultListener.Cancel();
                 m_forwardingEventListener.Cancel();
                 m_sendCancellationSource.Cancel();
@@ -449,8 +439,8 @@ namespace BuildXL.Engine.Distribution
                 {
                     // Fire-forget exit call with failure.
                     // If we fail to send notification to orchestrator and we were not cancelled, the worker should fail.
-                    m_executionLogTarget?.Deactivate();
-                    m_manifestExecutionLog?.Deactivate();
+                    m_executionLogTarget?.DeactivateAndCancel();
+                    m_manifestExecutionLog?.DeactivateAndCancel();
                     m_uncleanExit = true;
                     DistributionService.ExitAsync(failure: "Notify event failed to send to orchestrator", isUnexpected: true).Forget();
                     break;
@@ -498,22 +488,41 @@ namespace BuildXL.Engine.Distribution
             DistributionService.Counters.AddToCounter(DistributionCounter.BuildResultsSentToOrchestrator, m_numResultsSent);
         }
 
-        private bool ReportExecutionLog(MemoryStream memoryStream)
+        private void ReportExecutionLog(MemoryStream listenerStream)
         {
-            var message = new ExecutionLogInfo()
-            {
-                WorkerId = ExecutionService.WorkerId,
-                Events = new ExecutionLogData()
-                {
-                    DataBlob = memoryStream.AsByteString(),
-                    SequenceNumber = m_executionLogSequenceNumber++
-                }
-            };
+            // Same as FlushManifestEvents, the execution log target fills its own buffer in a different thread
+            // Copy the memory stream to a separate buffer to send the static data blob
+            listenerStream.WriteTo(m_flushedExecutionLog);
 
-            using (DistributionService.Counters.StartStopwatch(DistributionCounter.ReportExecutionLogDuration))
+            if (m_flushedExecutionLog.Length > 0)
             {
-                // Send event data to orchestrator synchronously. This will only block the dedicated thread used by the binary logger.
-                return m_orchestratorClient.ReportExecutionLogAsync(message).GetAwaiter().GetResult().Succeeded;
+                var message = new ExecutionLogInfo()
+                {
+                    WorkerId = ExecutionService.WorkerId,
+                    Events = new ExecutionLogData()
+                    {
+                        DataBlob = m_flushedExecutionLog.AsByteString(),
+                        SequenceNumber = m_executionLogSequenceNumber++
+                    }
+                };
+
+                using (DistributionService.Counters.StartStopwatch(DistributionCounter.ReportExecutionLogDuration))
+                {
+                    // Send event data to orchestrator synchronously. This will only block the dedicated thread used by the binary logger.
+                    if (m_orchestratorClient.ReportExecutionLogAsync(message).GetAwaiter().GetResult().Succeeded)
+                    {
+                        // Add the sent size to the counter
+                        DistributionService.Counters.AddToCounter(DistributionCounter.ExecutionLogSentSize, message.Events.DataBlob.Count());
+                    }
+                    else
+                    {
+                        // Log report execution log failure and deactive the log target
+                        Tracing.Logger.Log.DistributionReportExecutionLogFailed(m_loggingContext);
+                        m_executionLogTarget.StopObservingEvents();
+                    }
+                }
+
+                m_flushedExecutionLog.SetLength(0);
             }
         }
 

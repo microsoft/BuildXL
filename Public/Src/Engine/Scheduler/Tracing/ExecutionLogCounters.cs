@@ -25,5 +25,10 @@ namespace BuildXL.Scheduler.Tracing
         /// Number of event writer creations.
         /// </summary>
         EventWriterFactoryCalls,
+
+        /// <summary>
+        /// Remaing pending events after execution log disposed.
+        /// </summary>
+        RemaingPendingEvents,
     }
 }

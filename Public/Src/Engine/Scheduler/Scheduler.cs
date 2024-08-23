@@ -2212,6 +2212,14 @@ namespace BuildXL.Scheduler
             m_pipExecutionStepCounters.LogAsStatistics("PipExecutionStep", loggingContext);
             m_executionLogFileTarget?.PopulateStats();
             m_executionLogFileTarget?.Counters.LogAsStatistics("ExecutionLogFileTarget", loggingContext);
+            if (IsDistributedWorker)
+            {
+                // Log the NotifyOrchestratorExecutionLogTarget stats for the distributed worker
+                m_workerManifestExecutionLogTarget?.PopulateStats();
+                m_workerManifestExecutionLogTarget?.Counters.LogAsStatistics("ManifestExecutionLog", loggingContext);
+                m_reportExecutionLogTarget?.PopulateStats();
+                m_reportExecutionLogTarget?.Counters.LogAsStatistics("ReportExecutionLog", loggingContext);
+            }
             SandboxedProcessFactory.Counters.LogAsStatistics("SandboxedProcess", loggingContext);
             BuildManifestGenerator.Counters.LogAsStatistics("BuildManifestGenerator", loggingContext);
             statistics.AddRange(ContentHashingUtilities.GetContentHasher(ContentHashingUtilities.HashInfo.HashType).GetCounters().ToDictionaryIntegral());
@@ -6159,6 +6167,8 @@ namespace BuildXL.Scheduler
         private readonly MultiExecutionLogTarget m_multiExecutionLogTarget;
         private readonly BuildManifestGenerator m_buildManifestGenerator;
         private ExecutionLogTargetBase m_manifestExecutionLog;
+        private ExecutionLogFileTarget m_reportExecutionLogTarget;
+        private ExecutionLogFileTarget m_workerManifestExecutionLogTarget;
         private readonly DumpPipLiteExecutionLogTarget m_dumpPipLiteExecutionLogTarget;
         private readonly EventStatsExecutionLogTarget m_eventStatsExecutionLogTarget;
 
@@ -8245,9 +8255,30 @@ namespace BuildXL.Scheduler
             m_sidebandState = sidebandState;
         }
 
-        internal void SetManifestExecutionLog(ExecutionLogTargetBase manifestExecutionLog)
+        /// <summary>
+        /// Combine with EventStatsExecutionLogTarget to track manifest event count for worker.
+        /// </summary>
+        internal void SetManifestExecutionLogForWorker(ExecutionLogFileTarget manifestExecutionLog)
         {
-            m_manifestExecutionLog = manifestExecutionLog;
+            m_workerManifestExecutionLogTarget = manifestExecutionLog;
+            m_manifestExecutionLog = MultiExecutionLogTarget.CombineTargets(m_workerManifestExecutionLogTarget, m_eventStatsExecutionLogTarget);
+        }
+
+        /// <summary>
+        /// Set the report execution log LogTarget and add it into multiple execution log targets.
+        /// </summary>
+        internal void AddReportExecutionLogTargetForWorker(ExecutionLogFileTarget reportExecutionLogTarget)
+        {
+            m_reportExecutionLogTarget = reportExecutionLogTarget;
+            AddExecutionLogTarget(m_reportExecutionLogTarget);
+        }
+
+        /// <summary>
+        /// Log the number of pending events remaining after the execution log is disposed.
+        /// </summary>
+        public void LogPendingEventsRemaingAfterDispose(long pendingEvents)
+        {
+            Logger.Log.PendingEventsRemaingAfterDisposed(m_loggingContext, pendingEvents);
         }
     }
 }

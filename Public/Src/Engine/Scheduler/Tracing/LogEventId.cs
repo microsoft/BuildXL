@@ -533,6 +533,8 @@ namespace BuildXL.Scheduler.Tracing
         ObservationIgnored = 14602,
         FailedToInitalizeReclassificationRules = 14603,
 
+        PendingEventsRemaingAfterDisposed = 14604,
+
         // was DependencyViolationGenericWithRelatedPip_AsError = 25000,
         // was DependencyViolationGeneric_AsError = 25001,
         // was DependencyViolationDoubleWrite_AsError = 25002,

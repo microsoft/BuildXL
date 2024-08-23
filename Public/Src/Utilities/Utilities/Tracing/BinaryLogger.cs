@@ -62,6 +62,11 @@ namespace BuildXL.Utilities.Tracing
         public long MaxPendingEventsCount => Volatile.Read(ref m_maxPendingEventsCount);
 
         /// <summary>
+        /// Current pending events in the binary logger.
+        /// </summary>
+        public long PendingEventCount => Volatile.Read(ref m_pendingEventsCount);
+
+        /// <summary>
         /// Number of event writer creations.
         /// </summary>
         public long EventWriterFactoryCalls => m_writerPool.FactoryCalls;
@@ -127,7 +132,7 @@ namespace BuildXL.Utilities.Tracing
         }
 
         /// <summary>
-        /// Waits for flush of all pending events to the underlying stream
+        /// Queue a flush underlying stream action, it will be executed when all pending events are processed.
         /// </summary>
         public Task FlushAsync()
         {

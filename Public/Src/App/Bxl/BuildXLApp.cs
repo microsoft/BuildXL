@@ -169,7 +169,7 @@ namespace BuildXL
 
         private TimeSpan TelemetryFlushTimeout => m_configuration.Logging.RemoteTelemetryFlushTimeout ?? AriaV2StaticState.DefaultShutdownTimeout;
 
-        private static readonly Lazy<bool> m_isSShSession = new Lazy<bool>(() => Environment.GetEnvironmentVariable("SSH_CLIENT") != null);
+        private static readonly Lazy<bool> s_isSShSession = new Lazy<bool>(() => Environment.GetEnvironmentVariable("SSH_CLIENT") != null);
 
         /// <nodoc />
         [SuppressMessage("Microsoft.Reliability", "CA2000:DisposeObjectsBeforeLosingScope")]
@@ -2865,7 +2865,7 @@ namespace BuildXL
 
             // Don't make the path a hyperlink if running in an SSH session since that link won't
             // be opened reasonably on the client of that SSH session.
-            if (m_configuration.Logging.FancyConsole && !m_isSShSession.Value)
+            if (m_configuration.Infra == Infra.Developer && m_configuration.Logging.FancyConsole && !s_isSShSession.Value)
             {
                 m_console.WriteHyperlink(MessageLevel.Info, path, @"file://" + path.TrimStart('/'));
                 WriteLineToConsole(string.Empty);

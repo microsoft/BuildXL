@@ -383,43 +383,43 @@ config({
                     archiveType: "tgz",
                 },
 
-                // DotNet Core Runtime 8.0.7
+                // DotNet Core Runtime 8.0.8
                 {
                     moduleName: "DotNet-Runtime.win-x64.8.0", 
-                    url: "https://download.visualstudio.microsoft.com/download/pr/0f2e2c47-3e38-45be-aa3b-f382c5e73ff8/c7890b45dbd8306b4d89daa55abe49f6/dotnet-runtime-8.0.7-win-x64.zip",
-                    hash: "VSO0:39A512EC2E0881BF1FF1239FDD21605AE7EEC2066720A999DC9CFC192E23DAF800",
+                    url: "https://download.visualstudio.microsoft.com/download/pr/d9d43c59-b9f4-47b7-a520-da3a7fa255dc/95b26e342a1ecfa29c527faebdc272e4/dotnet-runtime-8.0.8-win-x64.zip",
+                    hash: "VSO0:5666D527C8650888563201DAE8E631203BAC9BB20E9FB4EA5D0C9CDB3C8097C500",
                     archiveType: "zip",
                 },
                 {
                     moduleName: "DotNet-Runtime.osx-x64.8.0",
-                    url: "https://download.visualstudio.microsoft.com/download/pr/c0e3a3f4-d235-4531-a1f2-1ff969cac1ab/837430d708532d74b7296108a681b9bb/dotnet-runtime-8.0.7-osx-x64.tar.gz",
-                    hash: "VSO0:0C59652D14B25D9CCBAAB9F59EF9CB7286AC4D5FBB669D7DB8153E0CE56FA03D00",
+                    url: "https://download.visualstudio.microsoft.com/download/pr/0159972b-a4d6-4683-b32a-9da824d5689e/ffb0784119abf49015be375b5a016413/dotnet-runtime-8.0.8-osx-x64.tar.gz",
+                    hash: "VSO0:FC1B70F4959FBEB214B957E97B9484F5CD057F5D0292C4B5AC2D8BDC252CC04800",
                     archiveType: "tgz",
                 },
                 {
                     moduleName: "DotNet-Runtime.linux-x64.8.0",
-                    url: "https://download.visualstudio.microsoft.com/download/pr/cf3418ca-0e14-4b76-b615-ac2f2497f8ec/2583028ea52460cb1534d929dc7970fe/dotnet-runtime-8.0.7-linux-x64.tar.gz",
-                    hash: "VSO0:A739C69C2F8EEF5A32C1F623174AD58E968C2173855DEB0B2D1A0971D47A620000",
+                    url: "https://download.visualstudio.microsoft.com/download/pr/68c87f8a-862c-4870-a792-9c89b3c8aa2d/2319ebfb46d3a903341966586e8b0898/dotnet-runtime-8.0.8-linux-x64.tar.gz",
+                    hash: "VSO0:B089DD0ECC3F0E968F2906A981E2D3BF0B812AADD511CE7EC6EAF43CF878468900",
                     archiveType: "tgz",
                 },
 
-                // DotNet Core Runtime 6.0.32
+                // DotNet Core Runtime 6.0.33
                 {
-                    moduleName: "DotNet-Runtime.win-x64.6.0.201", 
-                    url: "https://download.visualstudio.microsoft.com/download/pr/a36df873-9d55-4697-a598-01ccd758365f/1f82e260f2d18ee644768b07f2eee343/dotnet-runtime-6.0.32-win-x64.zip",
-                    hash: "VSO0:04524FA5FDC3DF3FD7180D7062DF9208A7B9D0D31D93ECF534FD230FBAE93AB900",
+                    moduleName: "DotNet-Runtime.win-x64.6.0", 
+                    url: "https://download.visualstudio.microsoft.com/download/pr/1f5fc2af-aa55-4360-9485-3188cd62998e/fd8028bddf0a715ef74f6c8423c5b401/dotnet-runtime-6.0.33-win-x64.zip",
+                    hash: "VSO0:1E9971E41719E3D62ED0D608461ACEC432B668FA7E936B62B3336B974C5EB9A500",
                     archiveType: "zip",
                 },
                 {
-                    moduleName: "DotNet-Runtime.osx-x64.6.0.201",
-                    url: "https://download.visualstudio.microsoft.com/download/pr/7ff71c2f-9fc9-402a-b88b-e85510530744/4fe521036c2d271ed8247fd5b761af1d/dotnet-runtime-6.0.32-osx-x64.tar.gz",
-                    hash: "VSO0:DDA8152F41FC13C9BEC671D4B7C3B23F6634F85DDF7DFCF001F4F6D12AD9435000",
+                    moduleName: "DotNet-Runtime.osx-x64.6.0",
+                    url: "https://download.visualstudio.microsoft.com/download/pr/82217487-71ef-43cb-8678-d293b802b5a6/cfe49dd7b7e0e3040d4fdc9258c61dde/dotnet-runtime-6.0.33-osx-x64.tar.gz",
+                    hash: "VSO0:16EA53283DB3A22FE851DC99F2C8F5E845704A3C09EAD6391CBAC9462202649500",
                     archiveType: "tgz",
                 },
                 {
-                    moduleName: "DotNet-Runtime.linux-x64.6.0.201",
-                    url: "https://download.visualstudio.microsoft.com/download/pr/37d9269f-d651-4248-beae-ccfbf4dc34fc/17809ba306015df6406cf4338b5cc576/dotnet-runtime-6.0.32-linux-x64.tar.gz",
-                    hash: "VSO0:B302F527FFF576C3ACA7DBD351EACBAF30EC8D836D289080D22B64EA4D34DAA100",
+                    moduleName: "DotNet-Runtime.linux-x64.6.0",
+                    url: "https://download.visualstudio.microsoft.com/download/pr/250c78ac-a53f-4679-ad2a-cc31fa4c4001/204b39eb9634a8dd9f39cbcaf56030f2/dotnet-runtime-6.0.33-linux-x64.tar.gz",
+                    hash: "VSO0:02D131CD9B1DC5E7C1FA2B5923039AB34F6CDDAAED0DC1E47382F6DB97C2345F00",
                     archiveType: "tgz",
                 },
 

@@ -136,17 +136,20 @@ namespace BuildXL.Utilities.Tracing
 
         public static int GetConsoleWidth()
         {
-            // Not all consoles have a width defined, therefore return 150 which is a reasonable default on Developer boxes.
+            // Not all consoles have a width defined, therefore return 150 which is a reasonable default
             int defaultWidth = 150;
 
+            int width = 0;
             try
             {
-                return Console.BufferWidth;
+                width = Console.BufferWidth;
             }
             catch (IOException)
             {
-                return defaultWidth;
+                // The console width cannot always be retrieved
             }
+
+            return width != 0 ? width : defaultWidth;
         }
 
         private void WriteOutputLine(MessageLevel messageLevel, string line, bool overwritable)

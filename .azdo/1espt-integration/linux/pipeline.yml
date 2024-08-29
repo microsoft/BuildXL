@@ -11,7 +11,7 @@ parameters:
 
 resources:
   repositories:
-  - repository: 1ESPipelines
+  - repository: 1esPipelines
     type: git
     name: 1ESPipelineTemplates/1ESPipelineTemplates
     ref: refs/tags/release

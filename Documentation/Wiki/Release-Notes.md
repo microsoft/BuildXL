@@ -2,6 +2,13 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20240825.1 (Release [28989861](https://dev.azure.com/mseng/Domino/_build/results?buildId=28989861&view=results))
+- Check if scheduler has been cancelled when ensure historic metadata cache loaded
+- Add cache factory to construct a local cache with a remote blob cache
+- Correct HOMEDRIVE env name in AmbienContext
+- Let users specify the total build timeout using a CLI arg
+- Add additional perf data to the result of PipExecutionPerformanceAnalyzer
+
 # 0.1.0-20240816.4 (Release [403518](https://dev.azure.com/mseng/Domino/_releaseProgress?_a=release-pipeline-progress&releaseId=403518))
 -	Tighter integration with 1ES Hosted Pool integrated cache resource
 -	Correct dependency consistency of external packages

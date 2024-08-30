@@ -63,4 +63,9 @@ stages:
   jobs:
   - template: /.azdo/linux/job-distributed-1espt.yml@self
     parameters:
-      pool: ${{ parameters.pool }}
+      pool:
+        # This stage expects a pool with a build cache configured, so harcoding that one
+        ${{ each kvp in parameters.pool }}:
+          ${{ if not(in(kvp.key, 'name')) }}:
+            ${{ kvp.key }}: ${{ kvp.value }}
+        name: BuildXL-DevOpsAgents-Selfhost-BuildCache

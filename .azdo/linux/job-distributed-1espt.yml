@@ -1,8 +1,9 @@
 parameters:
+# The provided pool is expected to have at least one build cache associated to it
 - name: pool
   type: object
   default:
-    name: BuildXL-DevOpsAgents-Selfhost
+    name: BuildXL-DevOpsAgents-Selfhost-BuildCache
     image: linux-PME-GPT
     os: linux
 
@@ -24,11 +25,10 @@ jobs:
       enabled: true
       workerCount: 1
     cache:
-      storageAccountEndpoint: https://l3bxlselfhost.blob.core.windows.net
-      managedIdentityClientId: eb694749-b1d6-45bc-b7af-2bd81603968a
-      cacheType: EphemeralDatacenterWide
+      # No cache configuration is needed (besides logging the generated conf for debugging purposes).
+      # The pool running this job is expected to have at least one build cache associated to it, so
+      # unless specified otherwise, this build will be using it by default
       logGeneratedConfiguration: true
-      # retentionPolicyInDays: {default}
     sdl:
       credscan:
         enabled: false

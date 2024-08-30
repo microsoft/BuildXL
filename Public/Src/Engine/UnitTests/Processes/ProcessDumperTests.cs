@@ -174,12 +174,6 @@ namespace Test.BuildXL.Processes
         }
 
         /// <summary>
-        /// Sends a signal to a processes identified by pid
-        /// </summary>
-        [DllImport("libc", SetLastError = true, EntryPoint = "kill")]
-        private static extern unsafe int SendSignal(int pid, int signal);
-
-        /// <summary>
         /// Exception for test failure that allows test to be retried
         /// </summary>
         public class TestRetryException : Exception

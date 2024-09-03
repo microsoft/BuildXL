@@ -107,6 +107,12 @@ namespace BuildXL.Scheduler.Cache
 
         private readonly CancellationTokenSource m_garbageCollectCancellation = new CancellationTokenSource();
 
+        /// <summary>
+        /// When true, on closing the cache, we wait for the completion of the garbage collection task without sending a cancellation signal to that task beforehand.
+        /// This can surely slow down the closing of the cache.
+        /// </summary>
+        private readonly bool m_waitForGCOnClose;
+
         /// <nodoc/>
         public HistoricMetadataCache(
             LoggingContext loggingContext,
@@ -115,7 +121,8 @@ namespace BuildXL.Scheduler.Cache
             PathExpander pathExpander,
             AbsolutePath storeLocation,
             Func<PipTwoPhaseCacheWithHashLookup, Task> prepareAsync = null,
-            AbsolutePath? logDirectoryLocation = null)
+            AbsolutePath? logDirectoryLocation = null,
+            bool waitForGCOnClose = false)
             : base(
                 loggingContext,
                 cache,
@@ -135,6 +142,7 @@ namespace BuildXL.Scheduler.Cache
             m_newFullFingerprints = new ConcurrentBigSet<ContentFingerprint>();
             m_retainedContentHashCodes = new ConcurrentBigSet<int>();
             m_newContentEntries = new ConcurrentBigMap<ContentHash, bool>();
+            m_waitForGCOnClose = waitForGCOnClose;
         }
 
         /// <summary>
@@ -470,8 +478,14 @@ namespace BuildXL.Scheduler.Cache
 
                 if (StoreAccessor != null)
                 {
-                    // Stop garbage collection
-                    await m_garbageCollectCancellation.CancelTokenAsyncIfSupported();
+                    // This flag ensures that garbage collection fully completes before proceeding,
+                    // preventing issues caused by incomplete entry populations during cache operations.
+                    if (m_waitForGCOnClose)
+                    {
+                        // Stop garbage collection
+                        await m_garbageCollectCancellation.CancelTokenAsyncIfSupported();
+                    }
+
                     // Wait for garbage collection to complete
                     await m_garbageCollectTask;
 

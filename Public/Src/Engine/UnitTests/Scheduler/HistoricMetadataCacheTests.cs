@@ -37,7 +37,7 @@ namespace Test.BuildXL.Scheduler
         /// This test validates the behaviour of HistoricMetadataCache in HashToHashAndMetadata mode.
         /// In this mode we will not be able to retrieve any of the HistoricMetadataCacheEntries.
         /// </summary>
-        [Fact(Skip = "Flaky: https://dev.azure.com/mseng/1ES/_workitems/edit/2191478")]
+        [Fact]
         public async Task TestHistoricMetadataPathStringRoundtrip()
         {
             LoggingContext loggingContext = CreateLoggingContextForTest();
@@ -49,8 +49,14 @@ namespace Test.BuildXL.Scheduler
                 PipExecutionContext context = BuildXLContext.CreateInstanceForTesting();
                 PipTwoPhaseCache cache = null;
 
-                CreateHistoricCache(loggingContext, hmcFolderName, HistoricMetadataCacheMode.HashToHashAndMetadata, context, out cache, out var memoryArtifactCache);
-
+                // We pass the flag "waitForGCOnClose" to HistoricMetadataCache constructor as we want to skip the passing of CancellationToken to GarbageCollector.
+                // If we pass the cancellationToken to the garbageCollect before it completes, it may not finish the population of m_exisitingContentEntries.
+                // This incomplete state leads to a situation where, during the cache reload process,
+                // the expected entries may be missing, causing a null reference exception when we attempt to retrieve them.
+                // By skipping this stage, we ensure that the garbage collection process fully completes before the cache is loaded/reloaded,
+                // and ensuring that all necessary entries are properly added and available during the subsequent operations.
+                CreateHistoricCache(loggingContext, hmcFolderName, HistoricMetadataCacheMode.HashToHashAndMetadata, context, out cache, out var memoryArtifactCache, waitForGCOnClose: true);
+ 
                 var cacheConfigData = CreateCacheConfigData(context, cache, memoryArtifactCache);
 
                 var storedPathSet1 = await cache.TryStorePathSetAsync(cacheConfigData.PathSet1, preservePathCasing: false);
@@ -70,7 +76,7 @@ namespace Test.BuildXL.Scheduler
                 TaskSourceSlim<bool> loadCompletionSource = TaskSourceSlim.Create<bool>();
                 TaskSourceSlim<bool> loadCalled = TaskSourceSlim.Create<bool>();
 
-                CreateHistoricCache(loggingContext, "hmc", HistoricMetadataCacheMode.HashToHashAndMetadata, context, out loadedCache, out memoryArtifactCache, loadTask: async hmc =>
+                CreateHistoricCache(loggingContext, "hmc", HistoricMetadataCacheMode.HashToHashAndMetadata, context, out loadedCache, out memoryArtifactCache, waitForGCOnClose: true, loadTask: async hmc =>
                 {
                     loadCalled.SetResult(true);
                     await loadCompletionSource.Task;
@@ -247,6 +253,7 @@ namespace Test.BuildXL.Scheduler
             PipExecutionContext context,
             out PipTwoPhaseCache cache,
             out InMemoryArtifactContentCache memoryCache,
+            bool waitForGCOnClose = false,
             Func<PipTwoPhaseCacheWithHashLookup, Task> loadTask = null)
         {
             memoryCache = new InMemoryArtifactContentCache();
@@ -261,7 +268,8 @@ namespace Test.BuildXL.Scheduler
                     context,
                     new PathExpander(),
                     AbsolutePath.Create(context.PathTable, Path.Combine(TemporaryDirectory, locationName)),
-                    loadTask);
+                    loadTask,
+                    waitForGCOnClose: waitForGCOnClose);
             }
             else if (cacheMode == HistoricMetadataCacheMode.HashToHashOnly)
             {

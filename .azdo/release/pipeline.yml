@@ -7,11 +7,19 @@ parameters:
 - name: EnablePublishing
   type: boolean
   default: true
+- name: EnableCherryPicking
+  type: boolean
+  default: false
 
 variables:
 # The internal YAMLs use this value to skip publishing tasks
 - name: EnablePublishing
   value: ${{ parameters.EnablePublishing }}
+# The internal YAMLs use this value to enable arbitrary stages without worrying about
+# specific stage conditions. Useful for cherry-picking stages when creating a new release and
+# using 'Stages to run'
+- name: EnableCherryPicking
+  value: ${{ parameters.EnableCherryPicking }}
 
 resources:
   repositories:

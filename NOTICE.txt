@@ -8542,7 +8542,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ---------------------------------------------------------
 
-Microsoft.AspNetCore.App.Ref 6.0.32 - MIT
+Microsoft.AspNetCore.App.Ref 6.0.33 - MIT
 
 
 (c) Microsoft Corporation
@@ -8573,7 +8573,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ---------------------------------------------------------
 
-Microsoft.AspNetCore.App.Ref 8.0.7 - MIT
+Microsoft.AspNetCore.App.Ref 8.0.8 - MIT
 
 
 Copyright 2019 The gRPC
@@ -8623,7 +8623,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ---------------------------------------------------------
 
-Microsoft.AspNetCore.App.Runtime.linux-x64 6.0.32 - MIT
+Microsoft.AspNetCore.App.Runtime.linux-x64 6.0.33 - MIT
 
 
 (c) Microsoft Corporation
@@ -8654,7 +8654,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ---------------------------------------------------------
 
-Microsoft.AspNetCore.App.Runtime.linux-x64 8.0.7 - MIT
+Microsoft.AspNetCore.App.Runtime.linux-x64 8.0.8 - MIT
 
 
 Copyright 2019 The gRPC
@@ -8704,7 +8704,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ---------------------------------------------------------
 
-Microsoft.AspNetCore.App.Runtime.osx-x64 6.0.32 - MIT
+Microsoft.AspNetCore.App.Runtime.osx-x64 6.0.33 - MIT
 
 
 (c) Microsoft Corporation
@@ -8735,7 +8735,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ---------------------------------------------------------
 
-Microsoft.AspNetCore.App.Runtime.osx-x64 8.0.7 - MIT
+Microsoft.AspNetCore.App.Runtime.osx-x64 8.0.8 - MIT
 
 
 Copyright 2019 The gRPC
@@ -8785,7 +8785,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ---------------------------------------------------------
 
-Microsoft.AspNetCore.App.Runtime.win-x64 6.0.32 - MIT
+Microsoft.AspNetCore.App.Runtime.win-x64 6.0.33 - MIT
 
 
 (c) Microsoft Corporation
@@ -8816,7 +8816,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ---------------------------------------------------------
 
-Microsoft.AspNetCore.App.Runtime.win-x64 8.0.7 - MIT
+Microsoft.AspNetCore.App.Runtime.win-x64 8.0.8 - MIT
 
 
 Copyright 2019 The gRPC
@@ -9440,7 +9440,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ---------------------------------------------------------
 
-Microsoft.ComponentDetection.Contracts 4.9.3 - MIT
+Microsoft.ComponentDetection.Contracts 4.9.6 - MIT
 
 
 (c) Microsoft Corporation
@@ -10696,7 +10696,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ---------------------------------------------------------
 
-Microsoft.NETCore.App.Host.linux-x64 6.0.32 - MIT
+Microsoft.NETCore.App.Host.linux-x64 6.0.33 - MIT
 
 
 (c) Microsoft Corporation
@@ -10771,7 +10771,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-Microsoft.NETCore.App.Host.linux-x64 8.0.7 - MIT
+Microsoft.NETCore.App.Host.linux-x64 8.0.8 - MIT
 
 
 Copyright (c) Six Labors
@@ -10857,7 +10857,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-Microsoft.NETCore.App.Host.osx-x64 6.0.32 - MIT
+Microsoft.NETCore.App.Host.osx-x64 6.0.33 - MIT
 
 
 (c) Microsoft Corporation
@@ -10932,7 +10932,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-Microsoft.NETCore.App.Host.osx-x64 8.0.7 - MIT
+Microsoft.NETCore.App.Host.osx-x64 8.0.8 - MIT
 
 
 Copyright (c) Six Labors
@@ -11018,7 +11018,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-Microsoft.NETCore.App.Host.win-x64 6.0.32 - MIT
+Microsoft.NETCore.App.Host.win-x64 6.0.33 - MIT
 
 
 (c) Microsoft Corporation
@@ -11093,7 +11093,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-Microsoft.NETCore.App.Host.win-x64 8.0.7 - MIT
+Microsoft.NETCore.App.Host.win-x64 8.0.8 - MIT
 
 
 Copyright (c) Six Labors
@@ -11240,7 +11240,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-Microsoft.NETCore.App.Ref 6.0.32 - MIT
+Microsoft.NETCore.App.Ref 6.0.33 - MIT
 
 
 (c) Microsoft Corporation
@@ -11316,7 +11316,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-Microsoft.NETCore.App.Ref 8.0.7 - MIT
+Microsoft.NETCore.App.Ref 8.0.8 - MIT
 
 
 Copyright (c) Six Labors
@@ -11404,7 +11404,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-Microsoft.NETCore.App.Runtime.linux-x64 6.0.32 - MIT
+Microsoft.NETCore.App.Runtime.linux-x64 6.0.33 - MIT
 
 
 (c) Microsoft Corporation
@@ -11480,7 +11480,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-Microsoft.NETCore.App.Runtime.linux-x64 8.0.7 - MIT
+Microsoft.NETCore.App.Runtime.linux-x64 8.0.8 - MIT
 
 
 Copyright (c) Six Labors
@@ -11567,7 +11567,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-Microsoft.NETCore.App.Runtime.osx-x64 6.0.32 - MIT
+Microsoft.NETCore.App.Runtime.osx-x64 6.0.33 - MIT
 
 
 (c) Microsoft Corporation
@@ -11643,7 +11643,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-Microsoft.NETCore.App.Runtime.osx-x64 8.0.7 - MIT
+Microsoft.NETCore.App.Runtime.osx-x64 8.0.8 - MIT
 
 
 Copyright (c) Six Labors
@@ -11730,7 +11730,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-Microsoft.NETCore.App.Runtime.win-x64 6.0.32 - MIT
+Microsoft.NETCore.App.Runtime.win-x64 6.0.33 - MIT
 
 
 (c) Microsoft Corporation
@@ -11807,7 +11807,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-Microsoft.NETCore.App.Runtime.win-x64 8.0.7 - MIT
+Microsoft.NETCore.App.Runtime.win-x64 8.0.8 - MIT
 
 
 Copyright (c) Six Labors
@@ -11983,7 +11983,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-Microsoft.NETCore.DotNetAppHost 6.0.32 - MIT
+Microsoft.NETCore.DotNetAppHost 6.0.33 - MIT
 
 
 (c) Microsoft Corporation
@@ -12058,7 +12058,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-Microsoft.NETCore.DotNetAppHost 8.0.7 - MIT
+Microsoft.NETCore.DotNetAppHost 8.0.8 - MIT
 
 
 Copyright (c) Six Labors
@@ -12204,7 +12204,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-Microsoft.NETCore.DotNetHostPolicy 6.0.32 - MIT
+Microsoft.NETCore.DotNetHostPolicy 6.0.33 - MIT
 
 
 (c) Microsoft Corporation
@@ -12279,7 +12279,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-Microsoft.NETCore.DotNetHostPolicy 8.0.7 - MIT
+Microsoft.NETCore.DotNetHostPolicy 8.0.8 - MIT
 
 
 Copyright (c) Six Labors
@@ -12425,7 +12425,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-Microsoft.NETCore.DotNetHostResolver 6.0.32 - MIT
+Microsoft.NETCore.DotNetHostResolver 6.0.33 - MIT
 
 
 (c) Microsoft Corporation
@@ -12500,7 +12500,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-Microsoft.NETCore.DotNetHostResolver 8.0.7 - MIT
+Microsoft.NETCore.DotNetHostResolver 8.0.8 - MIT
 
 
 Copyright (c) Six Labors
@@ -13529,7 +13529,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ---------------------------------------------------------
 
-runtime.linux-x64.Microsoft.NETCore.DotNetHostPolicy 6.0.32 - MIT
+runtime.linux-x64.Microsoft.NETCore.DotNetHostPolicy 6.0.33 - MIT
 
 
 (c) Microsoft Corporation
@@ -13604,7 +13604,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-runtime.linux-x64.Microsoft.NETCore.DotNetHostPolicy 8.0.7 - MIT
+runtime.linux-x64.Microsoft.NETCore.DotNetHostPolicy 8.0.8 - MIT
 
 
 Copyright (c) Six Labors
@@ -13690,7 +13690,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-runtime.linux-x64.Microsoft.NETCore.DotNetHostResolver 6.0.32 - MIT
+runtime.linux-x64.Microsoft.NETCore.DotNetHostResolver 6.0.33 - MIT
 
 
 (c) Microsoft Corporation
@@ -13765,7 +13765,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-runtime.linux-x64.Microsoft.NETCore.DotNetHostResolver 8.0.7 - MIT
+runtime.linux-x64.Microsoft.NETCore.DotNetHostResolver 8.0.8 - MIT
 
 
 Copyright (c) Six Labors
@@ -13851,7 +13851,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-runtime.osx-x64.Microsoft.NETCore.DotNetHostPolicy 6.0.32 - MIT
+runtime.osx-x64.Microsoft.NETCore.DotNetHostPolicy 6.0.33 - MIT
 
 
 (c) Microsoft Corporation
@@ -13926,7 +13926,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-runtime.osx-x64.Microsoft.NETCore.DotNetHostPolicy 8.0.7 - MIT
+runtime.osx-x64.Microsoft.NETCore.DotNetHostPolicy 8.0.8 - MIT
 
 
 Copyright (c) Six Labors
@@ -14012,7 +14012,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-runtime.osx-x64.Microsoft.NETCore.DotNetHostResolver 6.0.32 - MIT
+runtime.osx-x64.Microsoft.NETCore.DotNetHostResolver 6.0.33 - MIT
 
 
 (c) Microsoft Corporation
@@ -14087,7 +14087,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-runtime.osx-x64.Microsoft.NETCore.DotNetHostResolver 8.0.7 - MIT
+runtime.osx-x64.Microsoft.NETCore.DotNetHostResolver 8.0.8 - MIT
 
 
 Copyright (c) Six Labors
@@ -14173,7 +14173,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy 6.0.32 - MIT
+runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy 6.0.33 - MIT
 
 
 (c) Microsoft Corporation
@@ -14248,7 +14248,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy 8.0.7 - MIT
+runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy 8.0.8 - MIT
 
 
 Copyright (c) Six Labors
@@ -14334,7 +14334,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-runtime.win-x64.Microsoft.NETCore.DotNetHostResolver 6.0.32 - MIT
+runtime.win-x64.Microsoft.NETCore.DotNetHostResolver 6.0.33 - MIT
 
 
 (c) Microsoft Corporation
@@ -14409,7 +14409,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-runtime.win-x64.Microsoft.NETCore.DotNetHostResolver 8.0.7 - MIT
+runtime.win-x64.Microsoft.NETCore.DotNetHostResolver 8.0.8 - MIT
 
 
 Copyright (c) Six Labors

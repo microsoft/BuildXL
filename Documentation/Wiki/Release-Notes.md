@@ -2,6 +2,9 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20240830.2 ((Release [29011861](https://dev.azure.com/mseng/Domino/_build/results?buildId=29011861&view=results))
+-	Improve hyperlinks handling on the console
+-	Bug fixes
 # 0.1.0-20240825.1 (Release [28989861](https://dev.azure.com/mseng/Domino/_build/results?buildId=28989861&view=results))
 - Check if scheduler has been cancelled when ensure historic metadata cache loaded
 - Add cache factory to construct a local cache with a remote blob cache

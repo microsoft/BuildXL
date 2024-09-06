@@ -16,10 +16,13 @@ using BuildXL.Pips.Operations;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Core.Tasks;
+using BuildXL.Scheduler.Tracing;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.Scheduler;
 using Xunit;
 using Xunit.Abstractions;
+using BuildXLConfiguration = BuildXL.Utilities.Configuration;
+using Test.BuildXL.TestUtilities.Xunit;
 
 namespace IntegrationTest.BuildXL.Scheduler
 {
@@ -147,33 +150,71 @@ namespace IntegrationTest.BuildXL.Scheduler
             }
         }
 
-        [Fact]
-        public void RemoteCacheShortCircuit()
+        [Theory]
+        // Pip C and Pip D's cache lookups should be marked with the hint.
+        // Because none of the pips are uncacheable, the hint should be set to false on second run.
+        [InlineData(false, false, false, false, 2, 2, 0, 0)]
+        // Only Pip D's cache lookups should be marked with the hint because its UpstreamCacheMissLongestChain is 2.
+        [InlineData(true, false, false, false, 1, 1, 0, 0)]
+        // Pip C and Pip D's cache lookups should be marked with avoidRemoteCacheLookUp
+        // But only Pip D has marked with avoidLookupWhileListWeakFingerprints hints. 
+        // ListPublishedEntriesByWeakFingerprint won't be called for uncacheable pips.
+        [InlineData(false, false, true, false, 1, 2, 0, 0)]
+        [InlineData(true, true, false, false, 0, 0, 0, 0)]
+        [InlineData(false, true, false, false, 1, 1, 0, 0)]
+        // Pip D is makred as avoidRemoteCacheLookup, but no avoidLookupWhileListWeakFingerprints hints because it's uncacheable.
+        [InlineData(false, true, false, true, 0, 1, 0, 0)]
+        public void RemoteCacheShortCircuitWithPossiblyUncacheablePipDependents(
+            bool isPipAUncacheable,
+            bool isPipBUncacheable,
+            bool isPipCUncacheable,
+            bool isPipDUncacheable,
+            int expectedAvoidLookupWhileListWeakFingerprints,
+            int expectedAvoidRemoteCacheLookup,
+            int expectedAvoidLookupWhileListWeakFingerprintsAfterSecondRun,
+            int expectedAvoidRemoteCacheLookupAfterSecondRun)
         {
             var outDir = CreateOutputDirectoryArtifact();
             var outDirStr = ArtifactToString(outDir);
             Directory.CreateDirectory(outDirStr);
 
-            // Create a chain PipA <- PipB <- PipC 
+            // Create a chain PipA <- PipB <- PipC <- PipD
+            FileArtifact fileA = CreateSourceFile();
             var outA = CreateOutputFileArtifact(outDirStr);
-            Process pipA = CreateAndSchedulePipBuilder(new Operation[]
-            {
-                Operation.WriteFile(outA, "contentsA")
-            }).Process;
+            var builderA = CreatePipBuilder(
+            [
+                Operation.ReadFile(fileA),
+                Operation.WriteFile(outA, "constantA")
+            ]);
+            builderA.Options |= (isPipAUncacheable ? Process.Options.DisableCacheLookup : Process.Options.None);
+            Process pipA = SchedulePipBuilder(builderA).Process;
 
             var outB = CreateOutputFileArtifact(outDirStr);
-            Process pipB = CreateAndSchedulePipBuilder(new Operation[]
-            {
+            var builderB = CreatePipBuilder(
+            [
                 Operation.ReadFile(outA),
-                Operation.WriteFile(outB, "contentsB")
-            }).Process;
+                Operation.WriteFile(outB, "constantB")
+            ]);
+            builderB.Options |= (isPipBUncacheable ? Process.Options.DisableCacheLookup : Process.Options.None);
+            Process pipB = SchedulePipBuilder(builderB).Process;
 
             var outC = CreateOutputFileArtifact(outDirStr);
-            Process pipC = CreateAndSchedulePipBuilder(new Operation[]
-            {
+            var builderC = CreatePipBuilder(
+            [
                 Operation.ReadFile(outB),
-                Operation.WriteFile(outC)
-            }).Process;
+                Operation.WriteFile(outC, "constantC")
+            ]);
+            builderC.Options |= (isPipCUncacheable ? Process.Options.DisableCacheLookup : Process.Options.None);
+            Process pipC = SchedulePipBuilder(builderC).Process;
+
+            var outD = CreateOutputFileArtifact(outDirStr);
+            var builderD = CreatePipBuilder(
+            [
+                Operation.ReadFile(outC),
+                Operation.WriteFile(outD, "constantD")
+            ]);
+            builderD.Options |= (isPipDUncacheable ? Process.Options.DisableCacheLookup : Process.Options.None);
+            Process pipD = SchedulePipBuilder(builderD).Process;
 
             // Count the number of times the hint is set to true
             int avoidLookupWhileListWeakFingerprints = 0;
@@ -186,19 +227,41 @@ namespace IntegrationTest.BuildXL.Scheduler
                 }
             };
 
-            var result = RunScheduler().AssertCacheMiss(pipA.PipId, pipB.PipId, pipC.PipId);
+            var result = RunScheduler().AssertCacheMiss(pipA.PipId, pipB.PipId, pipC.PipId, pipD.PipId);
 
-            // PipC's cache lookup was marked with the hint
-            Assert.Equal(1, avoidLookupWhileListWeakFingerprints);
-            Assert.Equal(1, result.PipExecutorCounters.GetCounterValue(global::BuildXL.Scheduler.PipExecutorCounter.TotalCacheLookupsAvoidingRemote));
+            //avoidLookupWhileListWeakFingerprints is different with avoidRemoteCacheLookup. 
+            //avoidRemoteCacheLookup is set when scheduling the pips.
+            //avoidLookupWhileListWeakFingerprints is incremented while ListPublishedEntriesByWeakFingerprint is called, which is not called for uncacheable pips 
+            XAssert.AreEqual(expectedAvoidLookupWhileListWeakFingerprints, avoidLookupWhileListWeakFingerprints);
+            XAssert.AreEqual(
+                expectedAvoidRemoteCacheLookup,
+                result.PipExecutorCounters.GetCounterValue(global::BuildXL.Scheduler.PipExecutorCounter.TotalCacheLookupsAvoidingRemote));
 
-            // Run again. We should get cache hits so the hint is always false
+            // Run again
             avoidLookupWhileListWeakFingerprints = 0;
-            result = RunScheduler().AssertCacheHit(pipA.PipId, pipB.PipId, pipC.PipId);
-            Assert.Equal(0, avoidLookupWhileListWeakFingerprints);
-            Assert.Equal(0, result.PipExecutorCounters.GetCounterValue(global::BuildXL.Scheduler.PipExecutorCounter.TotalCacheLookupsAvoidingRemote));
-        }
+            result = RunScheduler();
+            AssertPipRunAfterSecondRun(result, isPipAUncacheable, pipA);
+            AssertPipRunAfterSecondRun(result, isPipBUncacheable, pipB);
+            AssertPipRunAfterSecondRun(result, isPipCUncacheable, pipC);
+            AssertPipRunAfterSecondRun(result, isPipDUncacheable, pipD);
 
+            XAssert.AreEqual(expectedAvoidLookupWhileListWeakFingerprintsAfterSecondRun, avoidLookupWhileListWeakFingerprints);
+            XAssert.AreEqual(
+                expectedAvoidRemoteCacheLookupAfterSecondRun,
+                result.PipExecutorCounters.GetCounterValue(global::BuildXL.Scheduler.PipExecutorCounter.TotalCacheLookupsAvoidingRemote));
+
+            static void AssertPipRunAfterSecondRun(ScheduleRunResult result, bool isPipUncacheable, Pip pip)
+            {
+                if (isPipUncacheable)
+                {
+                    result.AssertCacheMiss(pip.PipId);
+                }
+                else
+                {
+                    result.AssertCacheHit(pip.PipId);
+                }
+            }
+        }
 
 
         [Fact]

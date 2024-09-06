@@ -3789,8 +3789,15 @@ namespace BuildXL.Scheduler
                 }
                 else if (pipRuntimeInfo.Result == PipExecutionLevel.Executed)
                 {
-                    // A cache-miss process pip increments the length
-                    dependentPipRuntimeInfo.InformDependencyCacheMissChain(pipRuntimeInfo.UpstreamCacheMissLongestChain + 1);
+                    if (((Process)runnablePip.Pip).DisableCacheLookup)
+                    {
+                        // Do not increment length for pips that depends on disable cache lookup
+                        dependentPipRuntimeInfo.InformDependencyCacheMissChain(pipRuntimeInfo.UpstreamCacheMissLongestChain);
+                    }
+                    else
+                    {
+                        dependentPipRuntimeInfo.InformDependencyCacheMissChain(pipRuntimeInfo.UpstreamCacheMissLongestChain + 1);
+                    }
                 }
 
                 // Decrement reference count and possibly queue the pip (even if it is doomed to be skipped).

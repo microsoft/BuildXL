@@ -480,7 +480,7 @@ namespace BuildXL.Scheduler.Cache
                 {
                     // This flag ensures that garbage collection fully completes before proceeding,
                     // preventing issues caused by incomplete entry populations during cache operations.
-                    if (m_waitForGCOnClose)
+                    if (!m_waitForGCOnClose)
                     {
                         // Stop garbage collection
                         await m_garbageCollectCancellation.CancelTokenAsyncIfSupported();

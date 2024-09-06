@@ -2863,6 +2863,9 @@ namespace BuildXL
         {
             path = translator?.Translate(path) ?? path;
 
+            WriteLineToConsole(path);
+
+            /* TODO - BUG 2211824. Hyperlinks aren't rendering correctly in office dev builds. Disabling hyperlink functionality for now
             // Don't make the path a hyperlink if running in an SSH session since that link won't
             // be opened reasonably on the client of that SSH session.
             if (m_configuration.Infra == Infra.Developer && m_configuration.Logging.FancyConsole && !s_isSShSession.Value)
@@ -2873,7 +2876,7 @@ namespace BuildXL
             else
             {
                 WriteLineToConsole(path);
-            }            
+            }*/
         }
 
         private void WriteLineToConsole(string format, params object[] args)

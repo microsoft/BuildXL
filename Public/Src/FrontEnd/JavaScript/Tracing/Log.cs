@@ -224,5 +224,14 @@ namespace BuildXL.FrontEnd.JavaScript.Tracing
             EventOpcode = (byte)Tasks.Parser,
             Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
         public abstract void IgnoredDependency(LoggingContext context, Location location, string dependency, string project);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.CannotCopySerializedGraphFile,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            EventTask = (ushort)Tasks.Parser,
+            Message = EventConstants.LabeledProvenancePrefix + "Cannot copy file '{file}' containing the serialized graph. Details: {message}",
+            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
+        public abstract void CannotCopySerializedGraphFile(LoggingContext context, Location location, string file, string message);
     }
 }

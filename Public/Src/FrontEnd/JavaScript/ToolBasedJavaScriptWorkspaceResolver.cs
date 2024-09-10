@@ -36,7 +36,7 @@ namespace BuildXL.FrontEnd.JavaScript
         /// <summary>
         /// Some graph construction tools produce an error file. The convention is to append a .err to the output file name.
         /// </summary>
-        private static string GetErrorFile(AbsolutePath outputFile, PathTable pathTable) => outputFile.ChangeExtension(pathTable, PathAtom.Create(pathTable.StringTable, ".err")).ToString(pathTable); 
+        private static AbsolutePath GetErrorFile(AbsolutePath outputFile, PathTable pathTable) => outputFile.ChangeExtension(pathTable, PathAtom.Create(pathTable.StringTable, ".err")); 
         
         /// <summary>
         /// The BuildXL tool relative location that is used to construct the graph 
@@ -105,8 +105,8 @@ namespace BuildXL.FrontEnd.JavaScript
             }
             else
             {
-                // Graph-related files are requested to be left on disk. Let's print a message with their location.
-                Tracing.Logger.Log.GraphBuilderFilesAreNotRemoved(Context.LoggingContext, outputFile.ToString(Context.PathTable));
+                // Graph-related files are requested to be left on disk. Copy them to the output directory to facilitate log uploads.
+                await CopyGraphBuilderRelatedFilesToOutputDirectoryAsync(outputFile, Configuration.Logging.LogsDirectory);
             }
 
             return maybeResult;
@@ -190,7 +190,7 @@ namespace BuildXL.FrontEnd.JavaScript
             string standardError = result.StandardError.CreateReader().ReadToEndAsync().GetAwaiter().GetResult();
             
             // Check whether the graph construction tool produced an error file, and in that case attach it to the standard error.
-            string errorFile = GetErrorFile(outputFile, Context.PathTable);
+            string errorFile = GetErrorFile(outputFile, Context.PathTable).ToString(Context.PathTable);
             if (FileUtilities.Exists(errorFile) && await File.ReadAllTextAsync(errorFile) is var errorText && !string.IsNullOrEmpty(errorText))
             {
                 standardError += Environment.NewLine + errorText;
@@ -412,12 +412,40 @@ namespace BuildXL.FrontEnd.JavaScript
             {
                 FileUtilities.DeleteFile(outputFile.ToString(Context.PathTable));
                 // The error file may not always be present, but we want to delete it if that's the case.
-                FileUtilities.DeleteFile(GetErrorFile(outputFile, Context.PathTable));
+                FileUtilities.DeleteFile(GetErrorFile(outputFile, Context.PathTable).ToString(Context.PathTable));
             }
             catch (BuildXLException ex)
             {
                 Tracing.Logger.Log.CannotDeleteSerializedGraphFile(Context.LoggingContext, ResolverSettings.Location(Context.PathTable), outputFile.ToString(Context.PathTable), ex.Message);
             }
+        }
+
+        private async Task CopyGraphBuilderRelatedFilesToOutputDirectoryAsync(AbsolutePath outputFile, AbsolutePath outputDirectory)
+        {
+            // Copy the file with the serialized graph to the output directory. Log uploads are usually done on the whole output directory, so this makes it easier for people to find the
+            // serialized graph on a lab build
+            // If there is a problem copying this file, log as a warning and move on, this is not a blocking problem
+            var destinationFile = outputDirectory.Combine(Context.PathTable, outputFile.GetName(Context.PathTable)).ToString(Context.PathTable);
+            try
+            {
+                await FileUtilities.CopyFileAsync(outputFile.ToString(Context.PathTable), destinationFile);
+                
+                // The error file may not always be present, but we want to copy it if that's the case.
+                var errorFile = GetErrorFile(outputFile, Context.PathTable);
+                var errorFileAsString = errorFile.ToString(Context.PathTable);
+
+                if (FileUtilities.Exists(errorFileAsString))
+                {
+                    await FileUtilities.CopyFileAsync(errorFileAsString, outputDirectory.Combine(Context.PathTable, errorFile.GetName(Context.PathTable)).ToString(Context.PathTable));
+                }
+            }
+            catch (BuildXLException ex)
+            {
+                Tracing.Logger.Log.CannotCopySerializedGraphFile(Context.LoggingContext, ResolverSettings.Location(Context.PathTable), outputFile.ToString(Context.PathTable), ex.Message);
+            }
+
+            // Graph-related files are requested to be left on disk. Let's print a message with their location.
+            Tracing.Logger.Log.GraphBuilderFilesAreNotRemoved(Context.LoggingContext, destinationFile);
         }
     }
 }

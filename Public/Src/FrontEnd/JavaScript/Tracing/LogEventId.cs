@@ -37,5 +37,6 @@ namespace BuildXL.FrontEnd.JavaScript.Tracing
         CannotLoadScriptsFromJsonFile = 11920,
         InvalidRegexInProjectSelector = 11921,
         IgnoredDependency = 11922,
+        CannotCopySerializedGraphFile = 11923,
     }
 }

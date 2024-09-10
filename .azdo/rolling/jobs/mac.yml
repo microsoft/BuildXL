@@ -19,7 +19,7 @@ jobs:
       dropServiceURI: https://mseng.artifacts.visualstudio.com/DefaultCollection
       buildNumber: BuildXL/MacOS/Internal/Intermediate/$(Build.BuildNumber)/$(Build.BuildId)
       sourcePath: $(Agent.TempDirectory)/BuildXLMacOS/Out
-      retentionDays: 1
+      retentionDays: 5
       dropMetadataContainerName: DropMetadata-MacOS-Intermediate
 
     - output: pipelineArtifact

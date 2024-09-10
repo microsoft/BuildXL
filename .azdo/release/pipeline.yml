@@ -7,6 +7,9 @@ parameters:
 - name: EnablePublishing
   type: boolean
   default: true
+  # The internal YAMLs use this parameter to enable arbitrary stages via manual approvals without 
+  # worrying aboutspecific stage conditions. Useful for cherry-picking stages when creating a new
+  # release and using 'Stages to run'
 - name: EnableCherryPicking
   type: boolean
   default: false
@@ -15,11 +18,6 @@ variables:
 # The internal YAMLs use this value to skip publishing tasks
 - name: EnablePublishing
   value: ${{ parameters.EnablePublishing }}
-# The internal YAMLs use this value to enable arbitrary stages without worrying about
-# specific stage conditions. Useful for cherry-picking stages when creating a new release and
-# using 'Stages to run'
-- name: EnableCherryPicking
-  value: ${{ parameters.EnableCherryPicking }}
 
 resources:
   repositories:
@@ -43,3 +41,5 @@ resources:
 
 extends:
   template: /pipelines/release/pipeline.yml@DominoReleaseManagement
+  parameters:
+    enableCherryPicking: ${{ parameters.EnableCherryPicking }}

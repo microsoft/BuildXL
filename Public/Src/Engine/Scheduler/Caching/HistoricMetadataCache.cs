@@ -190,7 +190,7 @@ namespace BuildXL.Scheduler.Cache
             {
                 yield return Task.FromResult(
                     new Possible<PublishedEntryRef, Failure>(
-                        Context.CancellationToken.CreateFailure()));
+                        new CancellationFailure()));
             }
 
             Counters.IncrementCounter(PipCachingCounter.HistoricWeakFingerprintHits);
@@ -236,7 +236,7 @@ namespace BuildXL.Scheduler.Cache
         {
             if (!await EnsureLoadedAsync())
             {
-                return new Possible<CacheEntry?, Failure>(Context.CancellationToken.CreateFailure());
+                return new Possible<CacheEntry?, Failure>(new CancellationFailure());
             }
 
             var fullFingerprint = GetFullFingerprint(weakFingerprint, strongFingerprint);
@@ -300,7 +300,7 @@ namespace BuildXL.Scheduler.Cache
         {
             if(!await EnsureLoadedAsync())
             {
-                new Possible<PipCacheDescriptorV2Metadata>(Context.CancellationToken.CreateFailure());
+                new Possible<PipCacheDescriptorV2Metadata>(new CancellationFailure());
             }
 
             if (TryGetContent(metadataHash, out var content))
@@ -330,7 +330,7 @@ namespace BuildXL.Scheduler.Cache
             {
                 if (!await EnsureLoadedAsync())
                 {
-                    return new Possible<ContentHash>(Context.CancellationToken.CreateFailure());
+                    return new Possible<ContentHash>(new CancellationFailure());
                 }
 
                 var metadataHash = possiblyStored.Result;
@@ -345,7 +345,7 @@ namespace BuildXL.Scheduler.Cache
         {
             if (!await EnsureLoadedAsync())
             {
-                return new Possible<StreamWithLength>(Context.CancellationToken.CreateFailure());
+                return new Possible<StreamWithLength>(new CancellationFailure());
             }
 
             if (TryGetContent(pathSetHash, out var content))
@@ -389,7 +389,7 @@ namespace BuildXL.Scheduler.Cache
         {
             if (!await EnsureLoadedAsync())
             {
-                new Possible<Unit>(Context.CancellationToken.CreateFailure());
+                new Possible<Unit>(new CancellationFailure());
             }
 
             this.TryAddContent(pathSetHash, ToStorableContent(pathSetBuffer));

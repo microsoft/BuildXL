@@ -15999,7 +15999,7 @@ namespace TypeScript.Net.TypeChecking
         {
             var savedContextualType = GetContextualTypeOrDefault(node);
 
-            // If current contextual type and a given contextual type are both null, then nothing special needs to be done.
+            // If current contextual type and a given contextual type are both null, then there is nothing special that needs to be done.
             if (contextualType == null && savedContextualType == null)
             {
                 return CheckExpression(node, contextualMapper);

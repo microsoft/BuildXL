@@ -4902,7 +4902,7 @@ namespace BuildXL.Scheduler
 
                             if (worker.IsLocal)
                             {
-                                // Because the scheduler will re-run this pip, we have to nuke all outputs created under shared opaque directories
+                                // Because the scheduler will re-run this pip, we have to clean all outputs created under shared opaque directories
                                 var sharedOpaqueOutputs = FlagAndReturnScrubbableSharedOpaqueOutputs(environment, processRunnable);
                                 if (!ScrubSharedOpaqueOutputs(operationContext, m_pipTable.GetPipSemiStableHash(pipId), sharedOpaqueOutputs))
                                 {

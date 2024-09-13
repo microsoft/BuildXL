@@ -155,6 +155,7 @@ namespace BuildXL.Engine.Distribution
                 m_sendThread.Join();
             }
 
+            m_executionLogTarget?.FlushAsync().Wait();
             m_executionLogTarget?.Dispose();
             m_manifestExecutionLog?.Dispose();
             m_forwardingEventListener?.Dispose();

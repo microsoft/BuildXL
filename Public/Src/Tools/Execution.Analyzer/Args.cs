@@ -368,6 +368,9 @@ namespace BuildXL.Execution.Analyzer
                 case AnalysisMode.ConcurrentPipsAnalyzer:
                     m_analyzer = InitializeConcurrentPipsAnalyzer();
                     break;
+                case AnalysisMode.LinuxPipDebug:
+                    m_analyzer = InitializeLinuxPipDebugAnalyzer();
+                    break;
                 default:
                     Contract.Assert(false, "Unhandled analysis mode");
                     break;
@@ -682,6 +685,9 @@ namespace BuildXL.Execution.Analyzer
 
             writer.WriteLine("");
             WriteConcurrentPipsAnalyzerHelp(writer);
+
+            writer.WriteLine("");
+            WriteLinuxPipDebugAnalyzerHelp(writer);
         }
 
         public void LogEventSummary()

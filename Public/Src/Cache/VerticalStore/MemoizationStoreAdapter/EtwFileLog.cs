@@ -23,6 +23,11 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         public static bool EnableEtwLogging { get; set; }
 
         /// <summary>
+        /// Controls whether this instance sends messages to the ETW logger.
+        /// </summary>
+        public bool DisableEtwLogging { get; set; }
+
+        /// <summary>
         /// Class constructor
         /// </summary>
         public EtwFileLog(string logFilePath, string logKind)
@@ -37,7 +42,11 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         /// <inheritdoc />
         public override void WriteLine(Severity severity, string severityName, string message)
         {
-            m_logger?.TextLogEtwOnly((int)SharedLogEventId.CacheFileLog, severityName, message);
+            if (!DisableEtwLogging)
+            {
+                m_logger?.TextLogEtwOnly((int)SharedLogEventId.CacheFileLog, severityName, message);
+            }
+
             base.WriteLine(severity, severityName, message);
         }
     }

@@ -3,9 +3,10 @@
 
 using System;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
-using BuildXL.Cache.Host.Configuration;
 
-namespace BuildXL.Cache.Host.Service
+#nullable disable
+
+namespace BuildXL.Cache.Host.Configuration
 {
     /// <summary>
     /// Telemetry fields provider based on <see cref="HostParameters"/>

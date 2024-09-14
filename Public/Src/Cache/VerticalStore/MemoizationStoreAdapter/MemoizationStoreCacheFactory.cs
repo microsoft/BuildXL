@@ -268,7 +268,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             try
             {
                 var logPath = new AbsolutePath(cacheConfig.CacheLogPath);
-                var logger = new DisposeLogger(() => new EtwFileLog(logPath.Path, cacheConfig.CacheId), cacheConfig.LogFlushIntervalSeconds);
+                var logger = new DisposeLogger(new EtwFileLog(logPath.Path, cacheConfig.CacheId), cacheConfig.LogFlushIntervalSeconds);
 
                 var localCache = CreateInnerCache(logger, cacheConfig);
 

@@ -32,8 +32,9 @@ namespace BuildXL.Cache.Host.Configuration
         /// <summary>
         /// Creates and instance of <see cref="HostParameters"/> from the environment variables (unless <paramref name="testEnvironment"/> is not null, then this dictionary is used as a storage of environment variables).
         /// </summary>
-        public static HostParameters FromEnvironment(IDictionary<string, string> testEnvironment = null)
+        public static HostParameters FromEnvironment(IDictionary<string, string> testEnvironment = null, string prefix = HostPrefix)
         {
+            prefix ??= string.Empty;
             var result = new HostParameters()
             {
                 ServiceDir = getValueOrDefault(nameof(ServiceDir)),
@@ -62,11 +63,11 @@ namespace BuildXL.Cache.Host.Configuration
                 string value;
                 if (testEnvironment is not null)
                 {
-                    testEnvironment.TryGetValue(HostPrefix + name, out value);
+                    testEnvironment.TryGetValue(prefix + name, out value);
                 }
                 else
                 {
-                    value = System.Environment.GetEnvironmentVariable(HostPrefix + name);
+                    value = System.Environment.GetEnvironmentVariable(prefix + name);
                 }
 
                 return string.IsNullOrEmpty(value) ? null : value;

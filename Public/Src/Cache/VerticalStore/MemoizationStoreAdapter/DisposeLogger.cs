@@ -19,13 +19,13 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         /// <summary>
         /// Creates a new of <see cref="DisposeLogger"/>
         /// </summary>
-        /// <param name="logFunc">Log function</param>
+        /// <param name="log">Log</param>
         /// <param name="flushIntervalSeconds">Upper bound on how soon the logger will automatically flush if idle</param>
-        public DisposeLogger(Func<ILog> logFunc, uint flushIntervalSeconds)
+        public DisposeLogger(ILog log, uint flushIntervalSeconds)
         {
-            Contract.Requires(logFunc != null);
+            Contract.Requires(log != null);
 
-            m_log = logFunc();
+            m_log = log;
             m_logger = flushIntervalSeconds > 0 ? new Logger(TimeSpan.FromSeconds(flushIntervalSeconds), m_log) : new Logger(m_log);
             m_logger.Info($"Started logger with flushIntervalSeconds value {flushIntervalSeconds}");
         }

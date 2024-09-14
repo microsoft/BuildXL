@@ -109,10 +109,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             {
                 context.TracingContext.Info("Authenticating with a connection string (file)", nameof(BlobCacheFactory));
 
-                var encryption = configuration.ConnectionStringFileDataProtectionEncrypted
-                    ? BlobCacheCredentialsHelper.FileEncryption.Dpapi
-                    : BlobCacheCredentialsHelper.FileEncryption.None;
-                credentials = BlobCacheCredentialsHelper.Load(new AbsolutePath(connectionStringFile), encryption);
+                credentials = BlobCacheCredentialsHelper.Load(new AbsolutePath(connectionStringFile), configuration.ConnectionStringFileDataProtectionEncrypted);
             }
 
             // Search for a connection string provided via an environment variable

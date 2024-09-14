@@ -293,10 +293,20 @@ namespace BuildXL.Engine
             //       But for now we just modify the config text before passing it along to the cache.
             string cacheConfigContent = maybeConfigData.Result;
 
-            cacheConfigContent = cacheConfigContent.Replace("[DominoSelectedLogPath]", config.CacheLogFilePath.ToString(pathTable).Replace(@"\", @"\\"));// Escape path separation chars to json format
-            cacheConfigContent = cacheConfigContent.Replace("[BuildXLSelectedLogPath]", config.CacheLogFilePath.ToString(pathTable).Replace(@"\", @"\\"));// Escape path separation chars to json format
-            cacheConfigContent = cacheConfigContent.Replace("[DominoSelectedRootPath]", cacheDirectory.Replace(@"\", @"\\"));
-            cacheConfigContent = cacheConfigContent.Replace("[BuildXLSelectedRootPath]", cacheDirectory.Replace(@"\", @"\\"));
+            static string replacePathToken(string content, string token, string unescapedPath)
+            {
+                // Escape path separation chars to json format
+                return content.Replace(token, unescapedPath.Replace(@"\", @"\\"));
+            }
+
+            var translatedCacheDirectory = rootTranslator?.Translate(cacheDirectory) ?? cacheDirectory;
+
+            cacheConfigContent = replacePathToken(cacheConfigContent, "[DominoSelectedLogPath]", config.CacheLogFilePath.ToString(pathTable));
+            cacheConfigContent = replacePathToken(cacheConfigContent, "[BuildXLSelectedLogPath]", config.CacheLogFilePath.ToString(pathTable));
+            cacheConfigContent = replacePathToken(cacheConfigContent, "[DominoSelectedRootPath]", cacheDirectory);
+            cacheConfigContent = replacePathToken(cacheConfigContent, "[BuildXLSelectedRootPath]", cacheDirectory);
+            cacheConfigContent = replacePathToken(cacheConfigContent, "[BuildXLSelectedResolvedRootPath]", translatedCacheDirectory);
+
             cacheConfigContent = cacheConfigContent.Replace("[UseDedupStore]", config.UseDedupStore.ToString());
             cacheConfigContent = cacheConfigContent.Replace("[ReplaceExistingFileOnMaterialization]", config.ReplaceExistingFileOnMaterialization.ToString());
 
@@ -320,10 +330,7 @@ namespace BuildXL.Engine
                 vfsCasRoot = rootTranslator.Translate(vfsCasRoot);
             }
 
-            // Escape path separation chars to json format
-            vfsCasRoot = vfsCasRoot.Replace(@"\", @"\\");
-
-            cacheConfigContent = cacheConfigContent.Replace("[VfsCasRoot]", vfsCasRoot);
+            cacheConfigContent = replacePathToken(cacheConfigContent, "[VfsCasRoot]", vfsCasRoot);
 
             ICacheConfigData cacheConfigData;
             Exception exception;

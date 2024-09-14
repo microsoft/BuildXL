@@ -76,6 +76,9 @@ namespace BuildXL.Cache.Logging
         public TimeSpan BlobUploadAttemptTracePeriod { get; set; } = TimeSpan.FromMinutes(1);
 
         /// <nodoc />
+        public bool LogUploads { get; set; } = false;
+
+        /// <nodoc />
         public AzureBlobStorageLogConfiguration(AbsolutePath workspace)
         {
             WorkspaceFolderPath = workspace;

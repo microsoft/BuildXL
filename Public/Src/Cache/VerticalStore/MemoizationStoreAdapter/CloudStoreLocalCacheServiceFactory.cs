@@ -113,7 +113,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             {
                 Contract.Assert(cacheConfig.CacheName != null);
                 var logPath = new AbsolutePath(cacheConfig.MetadataLogPath);
-                var logger = new DisposeLogger(() => new EtwFileLog(logPath.Path, cacheConfig.CacheId), cacheConfig.LogFlushIntervalSeconds);
+                var logger = new DisposeLogger(new EtwFileLog(logPath.Path, cacheConfig.CacheId), cacheConfig.LogFlushIntervalSeconds);
 
                 logger.Debug($"Creating CASaaS backed LocalCache using cache name: {cacheConfig.CacheName}");
 

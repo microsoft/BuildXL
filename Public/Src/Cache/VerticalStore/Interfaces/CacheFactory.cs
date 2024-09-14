@@ -325,6 +325,11 @@ namespace BuildXL.Cache.Interfaces
                         {
                             propertyInfo.SetValue(target, nestedValue);
                         }
+                        else if (propertyInfo.PropertyType == typeof(Dictionary<string, string>))
+                        {
+                            var map = nestedValue.ToDictionary(e => e.Key, e => e.Value?.ToString());
+                            propertyInfo.SetValue(target, map);
+                        }
                         else
                         {
                             var nestedTarget = nestedValue.ConvertTo(propertyInfo.PropertyType, configName);

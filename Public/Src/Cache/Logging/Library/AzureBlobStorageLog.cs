@@ -18,6 +18,7 @@ using Azure.Core.Pipeline;
 using Azure.Identity;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
+using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
@@ -102,6 +103,37 @@ namespace BuildXL.Cache.Logging
         /// because all the traces goes through this instance and the shutdown itself cleans up the resources.
         /// </summary>
         public override bool TraceShutdown => false;
+
+        /// <summary>
+        /// Creates an instance of this class using the provided credentials as the authentication mechanism.
+        /// </summary>
+        public static AzureBlobStorageLog CreateWithCredentials(
+            ILogger logger,
+            IAzureStorageCredentials credentials,
+            string uploadWorkspacePath,
+            ITelemetryFieldsProvider telemetryFieldsProvider,
+            CancellationToken cancellationToken,
+            IReadOnlyDictionary<string, string>? additionalBlobMetadata = null)
+        {
+            var azureBlobStorageLog = new AzureBlobStorageLog(
+                configuration: new AzureBlobStorageLogConfiguration(new AbsolutePath(uploadWorkspacePath))
+                {
+                    // Make sure the upload queue always get drained on shutdown, since after the build is done we won't have the opportunity to do it again
+                    DrainUploadsOnShutdown = true,
+                },
+                context: new OperationContext(new ContentStore.Interfaces.Tracing.Context(logger), cancellationToken),
+                clock: SystemClock.Instance,
+                fileSystem: new PassThroughFileSystem(),
+                telemetryFieldsProvider,
+                credentials: credentials,
+                additionalBlobMetadata: additionalBlobMetadata ?? new Dictionary<string, string>()
+                {
+                    { "kustoTable", "CloudCacheLogEvent" },
+                    { "kustoIngestionMappingReference", "Ingestion" },
+                });
+
+            return azureBlobStorageLog;
+        }
 
         /// <summary>
         /// Creates an instance of this class using the provided managed identity as the authentication mechanism
@@ -233,6 +265,8 @@ namespace BuildXL.Cache.Logging
         /// <inheritdoc />
         protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
         {
+            Tracer.Debug(_context, $"Creating container '{_container.Name}' in storage account '{_container.AccountName}'");
+
             await _container.CreateIfNotExistsAsync(
                 PublicAccessType.None,
                 metadata: null,

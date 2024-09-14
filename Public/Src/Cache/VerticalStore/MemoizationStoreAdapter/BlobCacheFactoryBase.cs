@@ -5,11 +5,15 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Distributed.Blob;
+using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
+using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Cache.Logging;
 using BuildXL.Cache.Logging.External;
@@ -97,23 +101,58 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             ILogger logger;
 
             // Logging always happens to a file (and ETW)
-            var etwFileLogger = new DisposeLogger(() => new EtwFileLog(logPath.Path, configuration.CacheId), configuration.LogFlushIntervalSeconds);
+            var etwFileLog = new EtwFileLog(logPath.Path, configuration.CacheId);
+            var etwFileLogger = new DisposeLogger(etwFileLog, configuration.LogFlushIntervalSeconds);
+            etwFileLogger.Debug($"Start logging at '{logPath}', Kusto logging enabled = {configuration.LogToKusto}");
             if (configuration.LogToKusto)
             {
-                var workspacePath = Path.Combine(Path.GetTempPath(), $"{configuration.CacheId}Upload");
+                HostParameters hostParameters = HostParameters.FromEnvironment(configuration.LogParameters ?? new(), prefix: null);
+                hostParameters.ServiceVersion ??= Utilities.Branding.Version;
+                hostParameters.MachineFunction ??= configuration.Role;
+                var telemetryFieldsProvider = new HostTelemetryFieldsProvider(hostParameters)
+                {
+                    ServiceName = "BuildXL",
+                    BuildId = configuration.BuildId,
+                };
+
+                var workspacePath = Path.Combine(logPath.Parent?.Path ?? Path.GetTempPath(), $"{configuration.CacheId}Upload");
                 Directory.CreateDirectory(workspacePath);
 
-                var storageLog = AzureBlobStorageLog.CreateWithManagedIdentity(
-                    etwFileLogger, configuration.LogToKustoIdentityId, configuration.LogToKustoBlobUri, workspacePath, CancellationToken.None);
+                AzureBlobStorageLog storageLog;
+                etwFileLogger.Debug($"Kusto logging identity = {configuration.LogToKustoIdentityId}");
+                if (!string.IsNullOrEmpty(configuration.LogToKustoIdentityId))
+                {
+                    storageLog = AzureBlobStorageLog.CreateWithManagedIdentity(
+                        etwFileLogger, configuration.LogToKustoIdentityId, configuration.LogToKustoBlobUri, workspacePath, CancellationToken.None);
+                }
+                else
+                {
+                    var file = Environment.GetEnvironmentVariable(configuration.LogToKustoConnectionStringFileEnvironmentVariableName);
+                    etwFileLogger.Debug($"Kusto logging connection string file = '{file}'");
+
+                    var credentials = BlobCacheCredentialsHelper.Load(new AbsolutePath(file), configuration.ConnectionStringFileDataProtectionEncrypted);
+
+                    storageLog = AzureBlobStorageLog.CreateWithCredentials(
+                        etwFileLogger,
+                        credentials: credentials.Values.First(),
+                        uploadWorkspacePath: workspacePath,
+                        telemetryFieldsProvider: telemetryFieldsProvider,
+                        CancellationToken.None);
+                }
 
                 await storageLog.StartupAsync().ThrowIfFailure();
 
+                etwFileLogger.Debug($"Created storage logger.");
+
                 var nLogger = await NLogAdapterHelper.CreateAdapterForCacheClientAsync(
                     etwFileLogger,
-                    new BasicTelemetryFieldsProvider(configuration.BuildId),
+                    telemetryFieldsProvider,
                     configuration.Role,
                     new Dictionary<string, string>(),
                     storageLog);
+
+                // Disable the ETW logging and just retain file logging
+                etwFileLog.DisableEtwLogging = true;
 
                 // We want the blob upload to happen in addition to the regular etw/file logging, so let's compose both
                 logger = new CompositeLogger(etwFileLogger, nLogger);

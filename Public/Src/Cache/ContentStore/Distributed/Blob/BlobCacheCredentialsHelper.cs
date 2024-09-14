@@ -8,6 +8,7 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+using Azure.Storage.Blobs;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
@@ -52,6 +53,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blob
             }
             Contract.Assert(!string.IsNullOrEmpty(credentials));
             return credentials;
+        }
+
+        /// <summary>
+        /// Load credentials from a file.
+        /// </summary>
+        public static Dictionary<BlobCacheStorageAccountName, IAzureStorageCredentials> Load(AbsolutePath path, bool dpApiEncrypted)
+        {
+            string credentials = ReadCredentials(path, dpApiEncrypted ? FileEncryption.Dpapi : FileEncryption.None);
+
+            return ParseFromFileFormat(credentials);
         }
 
         /// <summary>
@@ -107,6 +118,20 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blob
         {
             try
             {
+                // Handle case where credentials are a raw storage connection string.
+                if (credentials.StartsWith("DefaultEndpointsProtocol"))
+                {
+                    var blobService = new BlobServiceClient(credentials);
+
+                    return new()
+                    {
+                        {
+                            BlobCacheStorageAccountName.Parse(blobService.AccountName),
+                            new SecretBasedAzureStorageCredentials(new PlainTextSecret(credentials))
+                        }
+                    };
+                }
+
                 return JsonUtilities.JsonDeserialize<Dictionary<string, string>>(credentials).ToDictionary(
                     kv => BlobCacheStorageAccountName.Parse(kv.Key),
                     kv => (IAzureStorageCredentials)new SecretBasedAzureStorageCredentials(

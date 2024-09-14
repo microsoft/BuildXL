@@ -2,8 +2,10 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
+using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Core;
@@ -154,10 +156,28 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         public string LogToKustoIdentityId { get; set; }
 
         /// <summary>
+        /// Authenticate to log storage by using a file that contains a single or an array of connection strings.
+        /// </summary>
+        /// <remarks>
+        /// The preferred authentication method is to use a managed identity (<see cref="StorageAccountEndpoint"/>
+        /// and <see cref="ManagedIdentityId"/>). However, this is unsupported for sharded scenarios and isn't
+        /// available outside of Azure. Use <see cref="LogToKustoConnectionStringFileEnvironmentVariableName"/> if that's
+        /// your use-case.
+        /// </remarks>
+        [DefaultValue("CacheLogConnectionStringFile")]
+        public string LogToKustoConnectionStringFileEnvironmentVariableName { get; set; }
+
+        /// <summary>
         /// Whether to upload cache logs to Kusto
         /// </summary>
         [DefaultValue(false)]
         public bool LogToKusto { get; set; }
+
+        /// <summary>
+        /// Host parameters for logging
+        /// </summary>
+        [DefaultValue(null)]
+        public Dictionary<string, string> LogParameters { get; set; }
 
         /// <summary>
         /// The role this machine has in the build (Coordinator/Worker)
@@ -208,7 +228,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         /// </summary>
         public bool TryPopulateFrom(Guid activityId, IConfiguration configuration, PathTable pathTable, out Failure failure)
         {
-            LogToKusto = configuration.Logging.LogToKusto;
+            var logToKusto = configuration.Logging.LogToKusto;
             // For legacy reasons, cache logs require 'Master' when the build role is orchestrator
             Role = configuration.Distribution.BuildRole.IsOrchestrator() ? "Master" : configuration.Distribution.BuildRole.ToString();
             BuildId = activityId.ToString();
@@ -218,7 +238,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             // This should be enough to offer persistence/silent authentication for local builds
             InteractiveAuthTokenDirectory = configuration.Layout.EngineCacheDirectory.ToString(pathTable);
 
-            if (!LogToKusto)
+            if (!logToKusto)
             {
                 failure = null;
                 return true;
@@ -241,6 +261,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
 
             LogToKustoBlobUri = new Uri($"https://{uri.Host}/{containerName}");
             LogToKustoIdentityId = configuration.Logging.LogToKustoIdentityId;
+            LogToKusto = true;
 
             failure = null;
 

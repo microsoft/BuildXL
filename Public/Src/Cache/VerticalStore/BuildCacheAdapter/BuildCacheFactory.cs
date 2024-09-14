@@ -78,7 +78,7 @@ namespace BuildXL.Cache.BuildCacheAdapter
            try
            {
                 var logPath = new AbsolutePath(cacheConfig.CacheLogPath);
-                var logger = new DisposeLogger(() => new EtwFileLog(logPath.Path, cacheConfig.CacheId), cacheConfig.LogFlushIntervalSeconds);
+                var logger = new DisposeLogger(new EtwFileLog(logPath.Path, cacheConfig.CacheId), cacheConfig.LogFlushIntervalSeconds);
 
                 var vstsCache = BuildCacheUtils.CreateBuildCacheCache(cacheConfig, logger, Environment.GetEnvironmentVariable("VSTSPERSONALACCESSTOKEN"), activityId);
                 

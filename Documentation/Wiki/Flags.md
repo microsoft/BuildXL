@@ -116,20 +116,20 @@ This page lists flags that can be used to configure BuildXL.
 | MachineHostName | Specifies the host name where the machine running the build can be reached. This value should only be overriden by build runners, never by a user. In particular, we need it to be overriddable because on ADO networks the machines are not reachable in the hostname that GetHostName returns, and we need a special suffix that is appended by the AdoBuildRunner. |
 | ManageMemoryMode | Specifies the mode to manage memory under pressure. Defaults to CancellationRam where {ShortProductName} attemps to cancel processes. EmptyWorkingSet mode will empty working set of processes instead of cancellation. Suspend mode will suspend processes to free memory. |
 | MaskUntrackedAccesses | When enabled, {ShortProductName} does not consider any access under untracked paths or scopes for sake of cache lookup. Defaults to on. |
-| MaxCacheLookup | Specifies the maximum number of cache lookups that {ShortProductName} will launch at one time. The default value is three times the number of processors in the current machine. |
+| MaxCacheLookup | Specifies the maximum number of cache lookups that {ShortProductName} will launch at one time. The default value is the number of processors in the current machine. |
 | MaxChooseWorker | Specifies the maximum number of choose worker operations that {ShortProductName} will launch at one time for distributed builds. The default value is 1/4 of the number of processors in the current machine, but at least 1. |
 | MaxChooseWorkerCacheLookup | Specifies the maximum number of choose worker cache lookup operations that {ShortProductName} will launch at one time for distributed builds. The default is 1. |
 | MaxChooseWorkerLight | Specifies the maximum number of choose worker operations that {ShortProductName} will launch at one time for light pips in distributed builds. The default is 1. |
 | MaxCommitUtilizationPercentage | Specifies the maximum machine wide commit utilization allowed before the scheduler will stop scheduling more work to allow resources to be freed. Defaults to 95%. |
 | MaxFrontEndConcurrency | Specifies the maximum concurrency level for constructing the pip graph in the FrontEnd. The default value is 25% more than the total number of processors in the current machine. (short form: /mf) |
-| MaxIO | Specifies the maximum number of I/O operations that {ShortProductName} will launch at one time. The default value is 1/4 of the number of processors in the current machine, but at least 1. |
-| MaxIOMultiplier | Specifies maxIO in terms of a multiplier of the machine's processor count. Defaults to 0.25. |
+| MaxIO | Specifies the maximum number of I/O operations that {ShortProductName} will launch at one time. The default value is the number of processors in the current machine. |
+| MaxIOMultiplier | Specifies maxIO in terms of a multiplier of the machine's processor count. |
 | MaxLightProc | Specifies the maximum number of "light" processes that {ShortProductName} will launch at one time. Build specs can mark certain processes as "light" to indicate that they won't use much CPU time. Defaults to 0. |
-| MaxMaterialize | Specifies the maximum number of materialize operations that {ShortProductName} will launch at one time. Defaults to twice the number of processors in the current machine. |
+| MaxMaterialize | Specifies the maximum number of materialize operations that {ShortProductName} will launch at one time. Defaults to the number of processors in the current machine. |
 | MaxNumPipTelemetryBatches | Specifies the maximum number of batched messages to be sent to telemetry, default set to 10 messages. |
-| MaxProc | Specifies the maximum number of processes that {ShortProductName} will launch at one time. Defaults to 25% more than the total number of processors in the current machine. |
-| MaxProcMultiplier | Specifies maxProc in terms of a multiplier of the machine's processor count. Defaults to 1.25. |
-| MaxRamUtilizationPercentage | Specifies the maximum machine wide RAM utilization allowed before the scheduler will stop scheduling more work to allow resources to be freed. Defaults to 85%. |
+| MaxProc | Specifies the maximum number of processes that {ShortProductName} will launch at one time. Defaults to 0.9 times the total number of processors in the current machine. |
+| MaxProcMultiplier | Specifies maxProc in terms of a multiplier of the machine's processor count. |
+| MaxRamUtilizationPercentage | Specifies the maximum machine wide RAM utilization allowed before the scheduler will stop scheduling more work to allow resources to be freed. Defaults to 90%. |
 | MaxRelativeOutputDirectoryLength | Directories under the object directory root will get shortened to avoid too long path names. Defaults to 64 characters for relative output directories. |
 | MaxTypeCheckingConcurrency | Specifies the maximum concurrency level type checking phase. Defaults to /maxFrontEndConcurrency - 25% more than the total number of processors in the current machine. |
 | MinAvailableRamMb | This flag is deprecated. |

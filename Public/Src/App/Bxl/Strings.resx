@@ -139,13 +139,13 @@
     <value>LOGGING</value>
   </data>
   <data name="HelpText_DisplayHelp_MaxProc" xml:space="preserve">
-    <value>Specifies the maximum number of processes that {ShortProductName} will launch at one time. Defaults to 25% more than the total number of processors in the current machine.</value>
+    <value>Specifies the maximum number of processes that {ShortProductName} will launch at one time. Defaults to 0.9 times the total number of processors in the current machine.</value>
   </data>
   <data name="HelpText_DisplayHelp_MaxLightProc" xml:space="preserve">
     <value>Specifies the maximum number of "light" processes that {ShortProductName} will launch at one time. Build specs can mark certain processes as "light" to indicate that they won't use much CPU time. Defaults to 0.</value>
   </data>
   <data name="HelpText_DisplayHelp_MaxIO" xml:space="preserve">
-    <value>Specifies the maximum number of I/O operations that {ShortProductName} will launch at one time. The default value is 1/4 of the number of processors in the current machine, but at least 1.</value>
+    <value>Specifies the maximum number of I/O operations that {ShortProductName} will launch at one time. The default value is the number of processors in the current machine.</value>
   </data>
   <data name="HelpText_DisplayHelp_NoLogo" xml:space="preserve">
     <value>Suppress copyright message</value>
@@ -529,10 +529,10 @@
     <value>When enabled, file monitoring violations will be analyzed to emit additional warnings about high-level dependency problems (examples include double-writes and read-write races). Defaults to on.</value>
   </data>
   <data name="HelpText_DisplayHelp_MaxIOMultiplier" xml:space="preserve">
-    <value>Specifies maxIO in terms of a multiplier of the machine's processor count. Defaults to 0.25.</value>
+    <value>Specifies maxIO in terms of a multiplier of the machine's processor count.</value>
   </data>
   <data name="HelpText_DisplayHelp_MaxProcMultiplier" xml:space="preserve">
-    <value>Specifies maxProc in terms of a multiplier of the machine's processor count. Defaults to 1.25.</value>
+    <value>Specifies maxProc in terms of a multiplier of the machine's processor count.</value>
   </data>
   <data name="Args_Error_InvalidGraphId" xml:space="preserve">
     <value>Invalid graph identifier '{0}' specified. Graph identifier must be a 40 digit hex string (no delimiters).
@@ -656,7 +656,7 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
     <value>Similar to the basic spec filter, but transitively includes specs of pips referenced by pips in target spec(s) of the filter.</value>
   </data>
   <data name="HelpText_DisplayHelp_MaxRamUtilizationPercentage" xml:space="preserve">
-    <value>Specifies the maximum machine wide RAM utilization allowed before the scheduler will stop scheduling more work to allow resources to be freed. Defaults to 85%.</value>
+    <value>Specifies the maximum machine wide RAM utilization allowed before the scheduler will stop scheduling more work to allow resources to be freed. Defaults to 90%.</value>
   </data>
   <data name="App_ServerKilled" xml:space="preserve">
     <value>Killing associated server mode process. No build will be performed.</value>
@@ -671,7 +671,7 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
     <value>Include outputs of transitive closure of inner filter dependents in the filter (e.g. 'dpt(tag='test')' to include all dependents of pips tagged with the test tag)</value>
   </data>
   <data name="HelpText_DisplayHelp_MaxCacheLookup" xml:space="preserve">
-    <value>Specifies the maximum number of cache lookups that {ShortProductName} will launch at one time. The default value is three times the number of processors in the current machine.</value>
+    <value>Specifies the maximum number of cache lookups that {ShortProductName} will launch at one time. The default value is the number of processors in the current machine.</value>
   </data>
   <data name="HelpText_DisplayHelp_MaxChooseWorker" xml:space="preserve">
     <value>Specifies the maximum number of choose worker operations that {ShortProductName} will launch at one time for distributed builds. The default value is 1/4 of the number of processors in the current machine, but at least 1.</value>
@@ -683,7 +683,7 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
     <value>Specifies the maximum number of choose worker operations that {ShortProductName} will launch at one time for light pips in distributed builds. The default is 1.</value>
   </data>
   <data name="HelpText_DisplayHelp_MaxMaterialize" xml:space="preserve">
-    <value>Specifies the maximum number of materialize operations that {ShortProductName} will launch at one time. Defaults to twice the number of processors in the current machine.</value>
+    <value>Specifies the maximum number of materialize operations that {ShortProductName} will launch at one time. Defaults to the number of processors in the current machine.</value>
   </data>
   <data name="HelpText_DisplayHelp_MaskUntrackedAccesses" xml:space="preserve">
     <value>When enabled, {ShortProductName} does not consider any access under untracked paths or scopes for sake of cache lookup. Defaults to on.</value>

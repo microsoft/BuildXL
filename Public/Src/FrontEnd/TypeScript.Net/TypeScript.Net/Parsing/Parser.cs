@@ -2078,7 +2078,7 @@ namespace TypeScript.Net.Parsing
         private IExpression ParseArgumentOrArrayLiteralElement()
         {
             return m_token == SyntaxKind.DotDotDotToken ? ParseSpreadElement() :
-                m_token == SyntaxKind.CommaToken ? CreateNode<Expression>(SyntaxKind.OmittedExpression) :
+                m_token == SyntaxKind.CommaToken ? CreateNode<OmittedExpression>(SyntaxKind.OmittedExpression) :
                     ParseAssignmentExpressionOrHigher();
         }
 

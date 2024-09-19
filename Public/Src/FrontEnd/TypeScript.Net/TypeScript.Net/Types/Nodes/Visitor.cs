@@ -121,6 +121,9 @@ namespace TypeScript.Net.Types
         void VisitExpression(Expression node);
 
         /// <nodoc />
+        void VisitOmittedExpression(OmittedExpression node);
+
+        /// <nodoc />
         void VisitPrefixUnaryExpression(PrefixUnaryExpression node);
 
         /// <nodoc />
@@ -465,6 +468,9 @@ namespace TypeScript.Net.Types
 
         /// <nodoc />
         TResult VisitExpression(Expression node);
+
+        /// <nodoc />
+        TResult VisitOmittedExpression(OmittedExpression node);
 
         /// <nodoc />
         TResult VisitPrefixUnaryExpression(PrefixUnaryExpression node);
@@ -1350,6 +1356,21 @@ namespace TypeScript.Net.Types
         internal override TResult Accept<TResult>(INodeVisitor<TResult> visitor)
         {
             return visitor.VisitExpression(this);
+        }
+    }
+
+    partial class OmittedExpression
+    {
+        /// <inheritdoc />
+        internal override void Accept(INodeVisitor visitor)
+        {
+            visitor.VisitOmittedExpression(this);
+        }
+
+        /// <inheritdoc />
+        internal override TResult Accept<TResult>(INodeVisitor<TResult> visitor)
+        {
+            return visitor.VisitOmittedExpression(this);
         }
     }
 

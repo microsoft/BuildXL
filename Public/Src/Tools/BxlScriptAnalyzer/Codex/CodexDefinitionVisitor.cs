@@ -106,6 +106,11 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Codex
                     // Do not need to filter out injected nodes.
                     switch (node.Kind)
                     {
+                        // Registering the source file as a definition is useful for some cases where a span references a module (which the go-to helper
+                        // translates into a reference to the first position of a file
+                        case TypeScript.Net.Types.SyntaxKind.SourceFile:
+                            m_nodeNames[node] = RegisterDefinitionName(node, node, System.IO.Path.GetFileName(node.Cast<ISourceFile>().Path.AbsolutePath));
+                            break;
                         case TypeScript.Net.Types.SyntaxKind.PropertyAssignment:
                         case TypeScript.Net.Types.SyntaxKind.ShorthandPropertyAssignment:
                             m_nodeNames[node] = RegisterDefinitionName(GetNamedParent(node), node, node.Cast<IObjectLiteralElement>().Name.Text);
@@ -127,7 +132,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Codex
                             m_nodeNames[node] = RegisterDefinitionName(node, node.As<IDeclarationStatement>()?.Name ?? node);
                             break;
 
-                        // Need to explicitely register export {name}; and import * as FooBar from 'blah'.
+                        // Need to explicitly register export {name}; and import * as FooBar from 'blah'.
                         case TypeScript.Net.Types.SyntaxKind.NamespaceImport:
                         {
                             var name = node.Cast<IDeclaration>()?.Name;
@@ -148,7 +153,6 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Codex
                     switch (node.Kind)
                     {
                         case TypeScript.Net.Types.SyntaxKind.ObjectLiteralExpression:
-                            return !HasExplicitType(node.Cast<IObjectLiteralExpression>());
                         case TypeScript.Net.Types.SyntaxKind.SourceFile:
                         case TypeScript.Net.Types.SyntaxKind.ModuleDeclaration:
                         case TypeScript.Net.Types.SyntaxKind.VariableDeclaration:
@@ -157,15 +161,30 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Codex
                         case TypeScript.Net.Types.SyntaxKind.ModuleBlock:
                         case TypeScript.Net.Types.SyntaxKind.VariableDeclarationList:
                         case TypeScript.Net.Types.SyntaxKind.VariableStatement:
-                        
                         case TypeScript.Net.Types.SyntaxKind.PropertyAssignment:
-
+                        case TypeScript.Net.Types.SyntaxKind.PropertySignature:
+                        case TypeScript.Net.Types.SyntaxKind.TypeLiteral:
+                        case TypeScript.Net.Types.SyntaxKind.ArrayType:
+                        case TypeScript.Net.Types.SyntaxKind.FunctionType:
+                        case TypeScript.Net.Types.SyntaxKind.UnionType:
+                        case TypeScript.Net.Types.SyntaxKind.TypeReference:
                         case TypeScript.Net.Types.SyntaxKind.ExportDeclaration:
+                        case TypeScript.Net.Types.SyntaxKind.Parameter:
                         case TypeScript.Net.Types.SyntaxKind.NamedExports:
                         case TypeScript.Net.Types.SyntaxKind.NamedImports:
-                            return true;
+                        case TypeScript.Net.Types.SyntaxKind.MethodSignature:
+                        case TypeScript.Net.Types.SyntaxKind.FunctionDeclaration:
+                        case TypeScript.Net.Types.SyntaxKind.ArrowFunction:
                         case TypeScript.Net.Types.SyntaxKind.ImportDeclaration:
                         case TypeScript.Net.Types.SyntaxKind.ImportClause:
+                        case TypeScript.Net.Types.SyntaxKind.Block:
+                        case TypeScript.Net.Types.SyntaxKind.ArrayLiteralExpression:
+                        case TypeScript.Net.Types.SyntaxKind.SpreadElementExpression:
+                        case TypeScript.Net.Types.SyntaxKind.CallExpression:
+                        case TypeScript.Net.Types.SyntaxKind.ExpressionStatement:
+                        case TypeScript.Net.Types.SyntaxKind.BinaryExpression:
+                        case TypeScript.Net.Types.SyntaxKind.PropertyAccessExpression:
+                        case TypeScript.Net.Types.SyntaxKind.ReturnStatement:
                             return true;
                         default:
                             return false;

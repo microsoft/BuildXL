@@ -283,7 +283,9 @@ namespace Codex.Analysis.External
             foreach (var span in Spans)
             {
                 // Check if span fits in file;
-                Contract.Assert(span.Start + span.Length < Length, "Span would fall outside of the file.");
+                // The scanner returns a 1-off in length for the last token, so the out of file check should
+                // be inclusive
+                Contract.Assert(span.Start + span.Length <= Length, "Span would fall outside of the file.");
                 Contract.Assert(span.Length > 0, "Can't have empty spans...");
 
                 span.Write(writer);

@@ -7,6 +7,7 @@ using System.Linq;
 using BuildXL.FrontEnd.Workspaces.Core;
 using Codex.Analysis.External;
 using TypeScript.Net.DScript;
+using TypeScript.Net.Scanning;
 using TypeScript.Net.Types;
 
 namespace BuildXL.FrontEnd.Script.Analyzer.Codex
@@ -45,11 +46,15 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Codex
         private readonly CodexId<CodexClassification>[] m_classificationsBySyntaxKind;
 
         private readonly GotoDefinitionHelper m_gotoDefinitionHelper;
+        private readonly Workspace m_workspace;
+        private readonly BuildXL.Utilities.Core.PathTable m_pathTable;
 
-        public CodexContext(CodexSemanticStore store, Workspace workspace)
+        public CodexContext(CodexSemanticStore store, Workspace workspace, BuildXL.Utilities.Core.PathTable pathTable)
         {
             Store = store;
 
+            m_workspace = workspace;
+            m_pathTable = pathTable;
             m_classificationsBySyntaxKind = GetClassificationsBySyntaxKind();
             m_gotoDefinitionHelper = new GotoDefinitionHelper(workspace.GetSemanticModel().TypeChecker);
 
@@ -134,9 +139,44 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Codex
                 return false;
             }
 
+            // The go-to-definition helper does not handle the module specifier for import declarations (i.e. import {blah} from "module specified")
+            // Let's make it point to the module definition file
+            if (node.Parent != null && 
+                node.Parent.Kind == TypeScript.Net.Types.SyntaxKind.ImportDeclaration && 
+                node.Parent.As<IImportDeclaration>().ModuleSpecifier == node)
+            {
+                var symbol = m_workspace.GetSemanticModel()?.GetSymbolAtLocation(node) ?? node.Symbol ?? node.ResolvedSymbol;
+                if (symbol != null && symbol.IsBuildXLModule)
+                {
+                    // Let's find the module and retrieve its spec
+                    var module = m_workspace.Modules.FirstOrDefault(module => module.Descriptor.Name == symbol.Name);
+                    if (module != null)
+                    {
+                        var moduleConfigFile = m_workspace.GetEffectiveModuleConfigPath(module, m_pathTable);
+                        // Some generated module configuration files are not really part of the workspace (e.g. what the nuget resolver generates),
+                        // so let's make sure
+                        if (m_workspace.ConfigurationModule.Specs.ContainsKey(moduleConfigFile))
+                        {
+                            m_spanToDefinitionMap[referencingSpan] = (path: moduleConfigFile.ToString(m_pathTable), position: 0);
+                        }
+
+                        return true;
+                    }
+                }
+            }
+
             var locations = m_gotoDefinitionHelper.GetDefinitionAtPosition(node);
             if (locations.Succeeded && locations.Result.Count != 0)
             {
+                // If any of the node go-to locations points to the node itself, this is the indication of anonymous literals
+                // that are not actually definitions. This triggers a bunch of spurious unresolved spans and the definition is not
+                // really useful anyway
+                if (locations.Result.Any(location => location.Path == node.GetSourceFile().Path.AbsolutePath && 
+                    location.Range.Start == node.GetNodeStartPositionWithoutTrivia()))
+                {
+                    return false;
+                }
+
                 var location = locations.Result[0];
                 if (location.Symbol != null && !referencingSpan.Classification.IsValid)
                 {
@@ -177,7 +217,9 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Codex
                 }
                 else
                 {
-                    Console.WriteLine($"Span defined at '{definitionLocation.path}:{definitionLocation.position}' is not resolved.");
+                    var sourceFile = m_workspace.GetSourceFile(BuildXL.Utilities.Core.AbsolutePath.Create(m_pathTable, spanAndDefinitionLocation.Value.path));
+                    var lineAndColumn = Scanner.GetLineAndCharacterOfPosition(sourceFile, spanAndDefinitionLocation.Value.position);
+                    Console.WriteLine($"Span defined at '{definitionLocation.path} ({lineAndColumn.Line}, {lineAndColumn.Character})[Pos:{definitionLocation.position}]' is not resolved.");
                 }
             }
         }

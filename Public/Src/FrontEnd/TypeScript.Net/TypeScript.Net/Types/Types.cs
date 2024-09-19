@@ -3270,6 +3270,12 @@ namespace TypeScript.Net.Types
         {
             return (x > y) || (x == y);
         }
+
+        /// <nodoc/>
+        public override string ToString()
+        {
+            return $"({Line}, {Character})";
+        }
     }
 
     /// <nodoc/>

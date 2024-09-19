@@ -443,6 +443,11 @@ namespace TypeScript.Net.Reformatter
         }
 
         /// <nodoc />
+        public virtual void VisitOmittedExpression(OmittedExpression node)
+        {
+        }
+
+        /// <nodoc />
         public virtual void VisitExpressionStatement(ExpressionStatement node)
         {
             AppendNode(node.Expression);

@@ -2,15 +2,17 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
+using System.IO;
 using System.Linq;
-using BuildXL.Utilities.Core;
+using BuildXL.FrontEnd.Script.Constants;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Core;
 using TypeScript.Net.Diagnostics;
 using TypeScript.Net.Types;
 using static BuildXL.Utilities.Core.FormattableStringEx;
-using System.Diagnostics.CodeAnalysis;
 
 namespace BuildXL.FrontEnd.Workspaces.Core
 {
@@ -412,6 +414,34 @@ namespace BuildXL.FrontEnd.Workspaces.Core
             return false;
         }
 
+        /// <summary>
+        /// Returns the effective module config path of a given module, as it is on disk
+        /// </summary>
+        /// <remarks>
+        /// In V2 the module config file is not a precise indicator of the actual module file.
+        /// </remarks>
+        public AbsolutePath GetEffectiveModuleConfigPath(ParsedModule module, PathTable pathTable)
+        {
+            var moduleRoot = module.Definition.ModuleConfigFile.GetParent(pathTable);
+            AbsolutePath moduleConfigFile = AbsolutePath.Invalid;
+            // Look for the 3 potential names (sigh)
+            foreach (var moduleFileName in new[] { Names.PackageConfigDsc, Names.ModuleConfigBm, Names.ModuleConfigDsc })
+            {
+                var packageCandidate = moduleRoot.Combine(pathTable, moduleFileName);
+                if (File.Exists(packageCandidate.ToString(pathTable)))
+                {
+                    moduleConfigFile = packageCandidate;
+                }
+            }
+
+            // The last option is that this is an inlined module, so point to the main config file in that case
+            if (!moduleConfigFile.IsValid)
+            {
+                moduleConfigFile = ConfigurationModule.Definition.MainFile;
+            }
+
+            return moduleConfigFile;
+        }
         private static Dictionary<AbsolutePath, SpecFileWithMetadata> CreateSpecsForPreludeAndConfiguration(ParsedModule preludeModule, ParsedModule configurationModule)
         {
             // The prelude module used for configuration parsing and the prelude module used for regular spec parsing may be the same

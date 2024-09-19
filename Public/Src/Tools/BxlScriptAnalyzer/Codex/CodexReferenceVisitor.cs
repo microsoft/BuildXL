@@ -59,6 +59,14 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Codex
         }
 
         /// <inheritdoc />
+        public override void VisitArrowFunction(IArrowFunction node)
+        {
+            m_currentReferenceKinds.Push(m_codex.FunctionScopedVariable);
+            base.VisitArrowFunction(node);
+            m_currentReferenceKinds.Pop();
+        }
+
+        /// <inheritdoc />
         public override void VisitParameterDeclaration(IParameterDeclaration node)
         {
             RegisterLocalSymbolDefinition(node);
@@ -104,6 +112,18 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Codex
             base.VisitTypeReference(node);
         }
 
+        /// <inheritdoc />
+        public override void VisitImportDeclaration(IImportDeclaration node)
+        {
+            var moduleSpecifier = node.ModuleSpecifier.As<ILiteralExpression>();
+            if (moduleSpecifier != null)
+            {
+                CreateAndRegisterReferenceSpan(moduleSpecifier, moduleSpecifier);
+            }
+
+            base.VisitImportDeclaration(node);
+        }
+        
         private void RegisterLocalSymbolDefinition(IDeclaration bindableNode, CodexId<CodexClassification> classification = default)
         {
             if (bindableNode.IsInjectedForDScript())

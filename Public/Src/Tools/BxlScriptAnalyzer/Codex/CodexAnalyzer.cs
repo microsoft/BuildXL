@@ -37,7 +37,7 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Analyzers
         public override bool Initialize()
         {
             var store = new CodexSemanticStore(m_outputDirectory);
-            m_codex = new CodexContext(store, Workspace);
+            m_codex = new CodexContext(store, Workspace, PathTable);
 
             if (!TryPrepareOutputFolder(m_outputDirectory, cleanOutputFolder: true))
             {
@@ -94,7 +94,10 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Analyzers
             {
                 Name = $@"DominoScript_{moduleName}",
                 Directory = parsedModule.Definition.Root.ToString(PathTable),
-                PrimaryFile = parsedModule.Definition.MainFile.ToString(PathTable),
+                // Module configuration files do not have a main file set, but indicate that in their module config file
+                PrimaryFile = parsedModule.Definition.MainFile.IsValid
+                    ? parsedModule.Definition.MainFile.ToString(PathTable)
+                    : parsedModule.Definition.ModuleConfigFile.ToString(PathTable),
             });
 
             var semanticModel = workspace.GetSemanticModel();

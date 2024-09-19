@@ -1622,6 +1622,13 @@ namespace TypeScript.Net.Types
     }
 
     /// <nodoc/>
+    public sealed partial class OmittedExpression : NodeBase<NodeExtraState>, IOmittedExpression
+    {
+        /// <inheritdoc/>
+        public override SyntaxKind Kind { get { return m_kind; } set { m_kind = value; } }
+    }
+
+    /// <nodoc/>
     public sealed partial class ArrayLiteralExpression : NodeBase<NodeExtraState>, IArrayLiteralExpression
     {
         /// <inheritdoc />

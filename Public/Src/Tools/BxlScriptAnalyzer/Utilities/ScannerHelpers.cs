@@ -15,13 +15,13 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Utilities
             TypeScript.Net.Types.SyntaxKind tokenKind = TypeScript.Net.Types.SyntaxKind.Unknown;
             TypeScript.Net.Types.SyntaxKind lastTokenKind = TypeScript.Net.Types.SyntaxKind.Unknown;
 
-            bool backtickFound = false;
+            int backtickCount = 0;
             bool backslashesAreAllowed = false;
             string previousIdentifierText = null;
 
             while ((tokenKind = scanner.Scan()) != TypeScript.Net.Types.SyntaxKind.EndOfFileToken)
             {
-                if (tokenKind == TypeScript.Net.Types.SyntaxKind.CloseBraceToken && backtickFound)
+                if (tokenKind == TypeScript.Net.Types.SyntaxKind.CloseBraceToken && backtickCount > 0)
                 {
                     yield return (scanner.TokenPos, scanner.TextPos, tokenKind);
 
@@ -31,12 +31,12 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Utilities
 
                 if (tokenKind == TypeScript.Net.Types.SyntaxKind.TemplateHead)
                 {
-                    backtickFound = true;
+                    backtickCount++;
                     backslashesAreAllowed = sourceFile.BackslashesAllowedInPathInterpolation && Scanner.IsPathLikeInterpolationFactory(previousIdentifierText);
                 }
                 else if (tokenKind == TypeScript.Net.Types.SyntaxKind.TemplateTail)
                 {
-                    backtickFound = false;
+                    backtickCount--;
                 }
 
                 yield return GetStartAndEndPositions(scanner, tokenKind, lastTokenKind);

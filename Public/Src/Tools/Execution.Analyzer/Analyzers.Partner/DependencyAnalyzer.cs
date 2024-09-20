@@ -413,7 +413,7 @@ namespace BuildXL.Execution.Analyzer
                 m_nodesWithObservedInputs.Add(data.PipId.ToNodeId());
                 m_fingerprintComputations[data.PipId.Value] = lastStrongFingerprintComputation
                     .ObservedInputs
-                    .Where(x => x.Type == ObservedInputType.FileContentRead)
+                    .Where(x => x.Type == ObservedInputType.FileContentRead || x.Type == ObservedInputType.ExistingFileProbe)
                     .Select(observedInput => observedInput.Path)
                     .ToList();
             }

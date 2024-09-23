@@ -60,7 +60,7 @@ This is the primary documentation for BuildXL (Microsoft Build Accelerator). If 
 * [Pip requested file materialization](Wiki/External-OnDemand-File-Materialization-API.md)
 * [Pip Weight](Wiki/Advanced-Features/Pip-Weight.md)
 * [Preserve Outputs](Wiki/Advanced-Features/Preserving-outputs.md)
-* [Process Timeouts](Wiki/Advanced-Features/Process-Timeouts.md
+* [Process Timeouts](Wiki/Advanced-Features/Process-Timeouts.md)
 * [Sandboxing](Specs/Sandboxing.md)
 * [Scheduler Prioritization](Wiki/Advanced-Features/Scheduler-Prioritization.md)
 * [Sealed Directories](Wiki/Advanced-Features/Sealed-Directories.md)

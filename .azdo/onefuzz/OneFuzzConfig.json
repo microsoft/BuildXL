@@ -1,0 +1,34 @@
+{
+    "ConfigVersion": 3,
+    "Entries": [
+      {
+        "JobNotificationEmail": "domdev@microsoft.com",
+        "Skip": false,
+        "Fuzzer": {
+          "$type": "libfuzzerDotNet",
+          "Dll": "BuildXL.App.Fuzzing.dll",
+          "Class": "BuildXL.App.Fuzzing.FuzzableCode",
+          "Method": "FuzzTargetMethod"
+        },
+        "OneFuzzJobs": [
+          {
+            "ProjectName": "BuildXL",
+            "TargetName": "BuildXL.App.Fuzzing"
+          }
+        ],
+        "AdoTemplate": {
+          "Org": "mseng",
+          "Project": "1ES",
+          "AssignedTo": "domdev@microsoft.com",
+          "AreaPath": "1ES\\Engines\\MichaelP - Team",
+          "IterationPath": "1ES\\zHistory\\FY22\\Q1-FY22"
+        },
+        "PreservePathsJobDependenciesStartingFrom": "",
+        "PreservePathsJobDependencies": [
+          "*.dll"
+        ]
+      }
+    ]
+  }
+  
+  

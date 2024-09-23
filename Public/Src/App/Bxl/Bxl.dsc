@@ -71,6 +71,7 @@ namespace Main {
         internalsVisibleTo: [
             "IntegrationTest.BuildXL.Scheduler",
             "Test.Bxl",
+            "BuildXL.App.Fuzzing"
         ],
     });
 }

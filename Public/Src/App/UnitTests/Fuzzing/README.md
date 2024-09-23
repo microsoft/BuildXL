@@ -1,0 +1,3 @@
+For information on how to gain access to the OneFuzz service, see instructions [here](https://eng.ms/docs/cloud-ai-platform/azure-edge-platform-aep/aep-security/epsf-edge-and-platform-security-fundamentals/the-onefuzz-service/onefuzz/faq/onefuzz/onefuzz_access).
+
+For more information on fuzzing dotnet code, see [OneFuzz dotnet documentation](https://eng.ms/docs/cloud-ai-platform/azure-edge-platform-aep/aep-security/epsf-edge-and-platform-security-fundamentals/the-onefuzz-service/onefuzz/howto/fuzzing-dotnet-code).

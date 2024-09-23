@@ -1,0 +1,1 @@
+For more information on generating config files, see [OneFuzz documentation](https://eng.ms/docs/cloud-ai-platform/azure-edge-platform-aep/aep-security/epsf-edge-and-platform-security-fundamentals/the-onefuzz-service/onefuzz/continousfuzzing/overview).

@@ -1716,7 +1716,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Sbom.Adapters",
-          "Version": "2.2.8"
+          "Version": "2.2.9"
         }
       }
     },
@@ -1725,7 +1725,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Sbom.Contracts",
-          "Version": "2.2.8"
+          "Version": "2.2.9"
         }
       }
     },
@@ -1734,7 +1734,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Sbom.Extensions",
-          "Version": "2.2.8"
+          "Version": "2.2.9"
         }
       }
     },
@@ -1743,7 +1743,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Sbom.Parsers.Spdx22SbomParser",
-          "Version": "2.2.8"
+          "Version": "2.2.9"
         }
       }
     },

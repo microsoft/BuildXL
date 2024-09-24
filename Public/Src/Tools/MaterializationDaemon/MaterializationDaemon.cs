@@ -12,13 +12,12 @@ using System.Threading.Tasks;
 using BuildXL.Ipc.Common;
 using BuildXL.Ipc.ExternalApi;
 using BuildXL.Ipc.Interfaces;
-using BuildXL.Utilities;
-using BuildXL.Utilities.Core;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities.CLI;
 using BuildXL.Utilities.Collections;
-using BuildXL.Utilities.ParallelAlgorithms;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Tasks;
-using BuildXL.Utilities.Tracing;
+using BuildXL.Utilities.ParallelAlgorithms;
 using MaterializationDaemon;
 using Newtonsoft.Json;
 using Tool.ServicePipDaemon;
@@ -311,7 +310,7 @@ namespace Tool.MaterializationDaemon
                         {
                             m_counters.AddToCounter(MaterializationDaemonCounter.RegisterManifestFileMaterializationQueueDuration, sw.ElapsedMilliseconds);
                             await MaterializeFileAsync(manifest.Artifact, manifest.FileName, ignoreMaterializationFailures: false);
-                        }); 
+                        });
                 }
 
                 Possible<List<string>> possibleFiles;
@@ -344,7 +343,7 @@ namespace Tool.MaterializationDaemon
                             // the appropriate error events and failing the build.
                             m_counters.AddToCounter(MaterializationDaemonCounter.RegisterManifestReferencedFileMaterializationQueueDuration, sw.ElapsedMilliseconds);
                             await MaterializeFileAsync(FileArtifact.Invalid, file, ignoreMaterializationFailures: true);
-                        }); 
+                        });
                 }
             }
             catch (Exception e)
@@ -401,7 +400,8 @@ namespace Tool.MaterializationDaemon
                 return new IpcResult(IpcResultStatus.ExecutionError, possibleFiles.Failure.Describe());
             }
 
-            var filesToMaterialize = possibleFiles.Result;
+            // Directories might contain "absent" files. There is no content to materialize for such files, so remove them from the list.
+            var filesToMaterialize = possibleFiles.Result.Where(static f => !WellKnownContentHashUtilities.IsAbsentFileHash(f.ContentInfo.Hash)).ToList();
             var sw = Stopwatch.StartNew();
             using (m_counters.StartStopwatch(MaterializationDaemonCounter.MaterializeDirectoriesOuterMaterializationDuration))
             {
@@ -732,7 +732,6 @@ namespace Tool.MaterializationDaemon
                     m_logger.Warning("Reporting stats to BuildXL failed. " + errorDescription);
                 }
             }
-            
         }
 
         private enum FilterKind : byte

@@ -1,0 +1,45 @@
+trigger: none
+
+schedules:
+- cron: "0 0 * * *"
+  displayName: Daily fuzzing submission
+  branches:
+    include:
+    - main
+  always: true
+
+pool:
+  name: BuildXL-DevOpsAgents-Selfhost
+  os: windows
+
+variables:
+  # We have a separate pipeline that runs clean builds to get full CodeQL coverage.
+  - name: Codeql.Enabled
+    value: "false"
+
+resources:
+  pipelines:
+  - pipeline: BxlRollingPipeline
+    source: '\BuildXL\BuildXL Rolling'
+    branch: 'main'
+
+stages:
+- stage:
+  jobs:
+    - job: RunOneFuzz
+      displayName: "Submit latest rolling release to onefuzz"
+      steps:
+      - task: artifactDropDownloadTask@1
+        displayName: "Download BuildXL drop"
+        inputs:
+          dropMetadataContainerName: 'SecondBuildFull'
+          dropMetadataContainerBuild: '$(resources.pipeline.BxlRollingPipeline.runID)'
+          destinationPath: '$(System.DefaultWorkingDirectory)\drop'
+          entraServiceConnection: 'mseng-Domino-BuildXL-Pipelines'
+      - task: onefuzz-task@0
+        displayName: "Submit to OneFuzz Service"
+        inputs:
+          onefuzzOSes: 'Windows'
+        env:
+          onefuzzDropDirectory: $(System.DefaultWorkingDirectory)/drop/debug/onefuzz
+          SYSTEM_ACCESSTOKEN: $(System.AccessToken)

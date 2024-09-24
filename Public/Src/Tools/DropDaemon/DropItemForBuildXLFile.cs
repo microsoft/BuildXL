@@ -113,6 +113,6 @@ namespace Tool.DropDaemon
         }
 
         /// <nodoc/>
-        public override string ToString() => FileId.ToString(m_file);
+        public override string ToString() => $"{FullFilePath} ({FileId.ToString(m_file)})";
     }
 }

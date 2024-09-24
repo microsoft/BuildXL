@@ -567,7 +567,7 @@ namespace Tool.DropDaemon
                 var daemon = dropDaemon as DropDaemon;
                 var dropConfig = CreateDropConfig(conf);
                 var logger = daemon.GetDropSpecificLogger(dropConfig);
-                logger.Verbose("[ADDFILE] Started");
+                logger.Info("[ADDFILE] Started");
                 string filePath = conf.Get(File);
                 string hashValue = conf.Get(HashOptional);
                 var contentInfo = string.IsNullOrEmpty(hashValue) ? null : (FileContentInfo?)FileContentInfo.Parse(hashValue);
@@ -575,7 +575,7 @@ namespace Tool.DropDaemon
                 IIpcResult result = System.IO.File.Exists(filePath)
                     ? await daemon.AddFileAsync(dropItem)
                     : new IpcResult(IpcResultStatus.InvalidInput, "file '" + filePath + "' does not exist");
-                LogIpcResult(logger, LogLevel.Verbose, "[ADDFILE] ", result);
+                LogIpcResult(logger, LogLevel.Info, "[ADDFILE] ", result);
                 return result;
             });
 
@@ -590,12 +590,12 @@ namespace Tool.DropDaemon
                 var dropConfig = CreateDropConfig(conf);
                 var logger = daemon.GetDropSpecificLogger(dropConfig);
                 var commandId = Guid.NewGuid();
-                logger.Verbose($"{commandId} [ADDARTIFACTS] Started");
+                logger.Info($"[command:{commandId}] [ADDARTIFACTS] Started");
                 daemon.EnsureVsoClientIsCreated(dropConfig);
 
                 var result = await AddArtifactsToDropInternalAsync(conf, daemon, logger, commandId);
 
-                LogIpcResult(logger, LogLevel.Verbose, $"{commandId} [ADDARTIFACTS]: ", result);
+                LogIpcResult(logger, LogLevel.Info, $"[command:{commandId}] [ADDARTIFACTS]: ", result);
                 // Trim the payload before sending the result.
                 return SuccessOrFirstError(result);
             });
@@ -902,10 +902,10 @@ namespace Tool.DropDaemon
                 }
 
                 var packages = maybePackages.Result;
-                logger.Verbose("Starting SBOM Generation");
+                logger.Info("Starting SBOM Generation");
                 var specs = new List<SbomSpecification>() { new("SPDX", "2.2") };
                 var result = await m_sbomGenerator.GenerateSbomAsync(sbomGenerationRootDirectory, manifestFileList, packages, metadata, specs);
-                logger.Verbose("Finished SBOM Generation");
+                logger.Info("Finished SBOM Generation");
 
                 if (!result.IsSuccessful)
                 {
@@ -1562,7 +1562,7 @@ namespace Tool.DropDaemon
             using (var pooledSb = Pools.GetStringBuilder())
             {
                 var sb = pooledSb.Instance;
-                sb.AppendLine($"{commandId} Payload:");
+                sb.AppendLine($"[command:{commandId}] Payload:");
                 for (int i = 0; i < files.Length; i++)
                 {
                     sb.AppendFormat("{0}|{1}|{2}|{3}{4}", files[i], fileIds[i], hashes[i], dropPaths[i], Environment.NewLine);
@@ -1723,7 +1723,7 @@ namespace Tool.DropDaemon
             var directoryContent = maybeResult.Result;
             logger.Log(
                 LogLevel.Verbose,
-                $"{commandId} (dirPath'{directoryPath}', dirId='{directoryId}') contains '{directoryContent.Count}' files:",
+                $"[command:{commandId}] (dirPath'{directoryPath}', dirId='{directoryId}') contains '{directoryContent.Count}' files:",
                 directoryContent.SelectMany(f => f.RenderContent().Append(Environment.NewLine)),
                 placeItemsOnSeparateLines: false);
 

@@ -239,7 +239,7 @@ namespace Tool.SymbolDaemon
                 return AddDebugEntryResult.NoSymbolData;
             }
 
-            m_logger.Verbose($"Queued file '{symbolFile}'");
+            m_logger.Verbose($"Queued file '{symbolFile.ToString(verbose: true)}'");
             var batchedFile = new BatchedSymbolFile(symbolFile);
             m_nagleQueue.Enqueue(batchedFile);
             return await batchedFile.ResultTaskSource.Task;
@@ -252,7 +252,7 @@ namespace Tool.SymbolDaemon
 
             try
             {
-                m_logger.Info($"Started processing batch #{batchNumber} ({batch.Count} files).");
+                m_logger.Info($"Started processing batch #{batchNumber} ({batch.Count} files, total size: {batch.Sum(static f => f.File.FileLength)}).");
 
                 await EnsureRequestIdAndDomainIdAreInitalizedAsync();
 
@@ -262,7 +262,7 @@ namespace Tool.SymbolDaemon
 
                 // Make the first call (aka 'associate') to the endpoint. Some entries might not be added if the endpoint does not have content associated with them.
                 var resultOfAssociateCall = await AssociateAsync(debugEntriesToAssociate);
-                var entriesWithMissingBlobs = resultOfAssociateCall.Where(e => e.Status == DebugEntryStatus.BlobMissing).ToList();
+                var entriesWithMissingBlobs = resultOfAssociateCall.Where(static e => e.Status == DebugEntryStatus.BlobMissing).ToList();
                 (Dictionary<BlobIdentifier, BatchedSymbolFile> missingBlobsMap, List<BatchedSymbolFile> pendingFiles) missingBlobsAndPendingFiles = SetResultForAssociatedFiles(batch, entriesWithMissingBlobs, localCounters);
 
                 // Materialize all files that we need to upload.

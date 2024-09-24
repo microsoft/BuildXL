@@ -424,7 +424,7 @@ namespace Tool.ServicePipDaemon
             if (ApiClient != null)
             {
                 var process = Process.GetCurrentProcess();
-                m_logger.Verbose($"Reporting to BuildXL that the service is ready (pid: {process.Id}, processName: '{process.ProcessName}', newConnectionString: {connectionString ?? "null"})");
+                m_logger.Info($"Reporting to BuildXL that the service is ready (pid: {process.Id}, processName: '{process.ProcessName}', newConnectionString: {connectionString ?? "null"})");
                 var possibleResult = ApiClient.ReportServicePipIsReady(process.Id, process.ProcessName, connectionString).GetAwaiter().GetResult();
                 if (!possibleResult.Succeeded)
                 {
@@ -432,7 +432,7 @@ namespace Tool.ServicePipDaemon
                 }
                 else
                 {
-                    m_logger.Verbose("Successfully notified BuildXL that the service is ready.");
+                    m_logger.Info("Successfully notified BuildXL that the service is ready.");
                 }
             }
 

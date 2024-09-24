@@ -158,7 +158,7 @@ namespace Tool.SymbolDaemon
         public string ToString(bool verbose)
         {
             return verbose
-                ? $"Path: {FullFilePath}{Environment.NewLine}"
+                ? $"Path: {FullFilePath} ({FileId.ToString(m_file)}), DebugEntries.Count: {DebugEntries.Count}{Environment.NewLine}"
                   + $"{string.Join(Environment.NewLine, DebugEntries.Select(a => $"   BlobId:{a.BlobIdentifier} - ClientKey:{a.ClientKey} - InfoLevel:{a.InformationLevel}"))}"
                 : FileId.ToString(m_file);
         }

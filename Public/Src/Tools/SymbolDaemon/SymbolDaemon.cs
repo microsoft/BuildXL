@@ -421,7 +421,7 @@ namespace Tool.SymbolDaemon
                 Contract.Assert(directoryRoots != null, "directoryRoots can't be null");
 
                 if (directoryReplacementForClientKeys.Length > 0)
-                { 
+                {
                     Contract.Assert(directoryReplacementForClientKeys.Length == directoryRoots.Length, "length of directoryReplacementForClientKeys should match directoryRoots");
                 }
 
@@ -522,7 +522,7 @@ namespace Tool.SymbolDaemon
                         // Index the file. It might not contain any symbol data. In this case, we will have an empty set.
                         debugEntries = indexer.GetDebugEntries(new System.IO.FileInfo(files[i]), calculateBlobId: false);
                     }
-                    
+
                     symbols.UnionWith(debugEntries);
                 }
             }
@@ -668,7 +668,7 @@ namespace Tool.SymbolDaemon
                 .SelectMany(l =>
                 {
                     var lines = l.Select(file => $"{file.FileName.ToCanonicalizedPath()}{s_debugEntryDataFieldSeparator}{file.ContentInfo.Render()}").OrderBy(s => s);
-                    
+
                     // add a line as directory separation
                     return lines.Concat(new[] { s_getDirectoriesContentSeparationForDirectory });
                 })
@@ -747,7 +747,7 @@ namespace Tool.SymbolDaemon
             List<SymbolFile> symbolFiles = new List<SymbolFile>(files.Length);
 
             // customClientKeyPrefixEnvVariable is the env name that used to specify the prefix key to be prepended to the key from symbol metadata file
-            // Its value is changing over builds and it will cause unwanted cachmiss if it is passed to a non-ipc pip.
+            // Its value is changing over builds and it will cause unwanted cachemiss if it is passed to a non-ipc pip.
             string customClientKeyPrefix = string.Empty;
             if (!string.IsNullOrEmpty(customClientKeyPrefixEnvVariable))
             {

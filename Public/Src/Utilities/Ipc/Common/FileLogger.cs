@@ -20,7 +20,7 @@ namespace BuildXL.Ipc.Common
         private const int LogFileBufferSize = 24 * 1024;
 
         // flush the log every ten minutes
-        private static readonly TimeSpan s_flushInterval = TimeSpan.FromMinutes(10);
+        private static readonly TimeSpan s_flushInterval = TimeSpan.FromMinutes(1);
 
         /// <summary>
         /// The writer is not synchronized, so all operations must be under a lock. 

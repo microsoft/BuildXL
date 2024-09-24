@@ -38,7 +38,8 @@ namespace Tool.ServicePipDaemon
             // Total just over 1 minute.
         };
 
-        private readonly IIpcLogger m_logger;
+        /// <nodoc />
+        protected readonly IIpcLogger m_logger;
         private readonly TimeSpan m_operationTimeout;
         private readonly IEnumerable<TimeSpan> m_retryIntervals;
         private readonly HashSet<Type> m_nonRetriableExceptions;
@@ -77,7 +78,8 @@ namespace Tool.ServicePipDaemon
             CancellationToken cancellationToken,
             IEnumerator<TimeSpan> retryIntervalEnumerator = null,
             bool reloadFirst = false,
-            Guid? operationId = null)
+            Guid? operationId = null,
+            Action<Exception, Guid> callbackOnFirstRetriableFailure = null)
         {
             operationId = operationId ?? Guid.NewGuid();
             retryIntervalEnumerator = retryIntervalEnumerator ?? m_retryIntervals.GetEnumerator();
@@ -90,11 +92,11 @@ namespace Tool.ServicePipDaemon
                     if (reloadFirst)
                     {
                         var reloaded = Reloader.Reload(Reloader.CurrentVersion);
-                        m_logger.Warning("[{2}] Service client reloaded; new instance created: {0}, new client version: {1}", reloaded, Reloader.CurrentVersionedValue.Version, operationId.Value);
+                        m_logger.Warning("[operation:{2}] Service client reloaded; new instance created: {0}, new client version: {1}", reloaded, Reloader.CurrentVersionedValue.Version, operationId.Value);
                     }
 
                     var instance = GetCurrentVersionedValue();
-                    m_logger.Verbose("[{2}] Invoking '{0}' against instance version {1}", operationName, instance.Version, operationId.Value);
+                    m_logger.Verbose("[operation:{2}] Invoking '{0}' against instance version {1}", operationName, instance.Version, operationId.Value);
                     return await WithTimeoutAsync(fn(instance.Value, innerCancellationSource.Token), m_operationTimeout, timeoutCancellationSource);
                 }
             }
@@ -107,18 +109,20 @@ namespace Tool.ServicePipDaemon
             {
                 if (e is TimeoutException)
                 {
-                    m_logger.Warning("[{2}] Timeout ({0}sec) happened while waiting {1}.", m_operationTimeout.TotalSeconds, operationName, operationId.Value);
+                    m_logger.Warning("[operation:{2}] Timeout ({0}sec) happened while waiting {1}.", m_operationTimeout.TotalSeconds, operationName, operationId.Value);
                 }
 
                 if (retryIntervalEnumerator.MoveNext())
                 {
-                    m_logger.Warning(@"[{2}] Waiting {1:hh\:mm\:ss\:fff} before retrying on exception: {0}", e.ToString(), retryIntervalEnumerator.Current, operationId.Value);
+                    m_logger.Warning(@"[operation:{2}] Waiting {1:hh\:mm\:ss\:fff} before retrying on exception: {0}", e.ToString(), retryIntervalEnumerator.Current, operationId.Value);
                     await Task.Delay(retryIntervalEnumerator.Current);
+                    callbackOnFirstRetriableFailure?.Invoke(e, operationId.Value);
+                    // Don't pass the callback into future attempts, so it won't be called.
                     return await RetryAsync(operationName, fn, cancellationToken, retryIntervalEnumerator, reloadFirst: true, operationId: operationId);
                 }
                 else
                 {
-                    m_logger.Error("[{1}] Failing because number of retries were exhausted.  Final exception: {0};", e.ToString(), operationId.Value);
+                    m_logger.Error("[operation:{1}] Failing because number of retries were exhausted.  Final exception: {0};", e.ToString(), operationId.Value);
                     throw;
                 }
             }
@@ -127,7 +131,7 @@ namespace Tool.ServicePipDaemon
         /// <summary>
         /// Executes and, if necessary, retries an operation 
         /// </summary>
-        protected Task RetryAsync(string operationName, Func<T, CancellationToken, Task> fn, CancellationToken token)
+        protected Task RetryAsync(string operationName, Func<T, CancellationToken, Task> fn, CancellationToken token, Action<Exception, Guid> callbackOnFirstRetriableFailure = null)
         {
             return RetryAsync(
                 operationName,
@@ -136,7 +140,8 @@ namespace Tool.ServicePipDaemon
                     await fn(client, t);
                     return Unit.Void;
                 },
-                token);
+                token,
+                callbackOnFirstRetriableFailure: callbackOnFirstRetriableFailure);
         }
 
         private static async Task<U> WithTimeoutAsync<U>(Task<U> task, TimeSpan timeout, CancellationTokenSource timeoutToken)

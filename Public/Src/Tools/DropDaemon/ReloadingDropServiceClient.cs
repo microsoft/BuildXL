@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Ipc.Common;
 using BuildXL.Ipc.Interfaces;
 using Microsoft.VisualStudio.Services.BlobStore.Common;
 using Microsoft.VisualStudio.Services.BlobStore.WebApi;
@@ -51,7 +52,12 @@ namespace Tool.ServicePipDaemon
             return RetryAsync(
                 nameof(IDropServiceClient.AssociateAsync),
                 (client, ct) => client.AssociateAsync(dropName, preComputedBlobIds, abortIfAlreadyExists, ct),
-                cancellationToken);
+                cancellationToken,
+                callbackOnFirstRetriableFailure: (exception, guid) =>
+                {
+                    m_logger.Verbose($"[operation:{guid}] Arguments of a failed '{nameof(IDropServiceClient.AssociateAsync)} call:'{Environment.NewLine}"
+                        + string.Join(Environment.NewLine, preComputedBlobIds));
+                });
         }
 
         /// <inheritdoc />
@@ -132,7 +138,12 @@ namespace Tool.ServicePipDaemon
             return RetryAsync(
                 nameof(IDropServiceClient.UploadAndAssociateAsync),
                 (client, ct) => client.UploadAndAssociateAsync(dropName, preComputedBlobIds, abortIfAlreadyExists, firstAssociationStatus, ct),
-                cancellationToken);
+                cancellationToken,
+                callbackOnFirstRetriableFailure: (exception, guid) =>
+                {
+                    m_logger.Verbose($"[operation:{guid}] Arguments of a failed '{nameof(IDropServiceClient.UploadAndAssociateAsync)} call:'{Environment.NewLine}"
+                        + string.Join(Environment.NewLine, preComputedBlobIds));
+                });
         }
 
         /// <inheritdoc />
@@ -205,17 +216,15 @@ namespace Tool.ServicePipDaemon
                 cancellationToken);
         }
 
-        #endregion
-
         /// <inheritdoc />
         public Task<IEnumerable<DropItem>> ListAsync(
-            string dropNamePrefix, 
-            PathOptions pathOptions, 
-            bool includeNonFinalizedDrops, 
-            CancellationToken cancellationToken, 
+            string dropNamePrefix,
+            PathOptions pathOptions,
+            bool includeNonFinalizedDrops,
+            CancellationToken cancellationToken,
             RetrievalOptions retrievalOptions,
-            SizeOptions sizeOptions, 
-            ExpirationDateOptions expirationDateOptions, 
+            SizeOptions sizeOptions,
+            ExpirationDateOptions expirationDateOptions,
             IDomainId domainId,
             int pageSize = -1,
             string continueFromDropName = null)
@@ -287,6 +296,8 @@ namespace Tool.ServicePipDaemon
                 (client, ct) => client.TryGetDropSettingsAsync(cancellationToken),
                 cancellationToken);
         }
+
+        #endregion
 
         /// <inheritdoc />
         public uint AttemptNumber

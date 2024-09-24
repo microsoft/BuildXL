@@ -286,7 +286,7 @@ namespace Tool.DropDaemon
                 { addPrefix("Endpoint"), ServiceEndpoint.ToString() },
                 { addPrefix("DropName"), DropName},
             };
-            
+
             if (m_dropCreatedAtUtc.HasValue)
             {
                 dropInfo.Add(addPrefix("CreatedAtUtc"), m_dropCreatedAtUtc.Value.ToString("s", CultureInfo.InvariantCulture));
@@ -305,7 +305,7 @@ namespace Tool.DropDaemon
             m_logger.Info($"Statistics:{Environment.NewLine}{serializedDropStats}");
 
             return await m_bxlApiClient.ReportDaemonTelemetry(daemonName, serializedDropStats, serializedDropInfo);
-            
+
             static string addPrefix(string name) => $"DropDaemon.{name}";
         }
 
@@ -356,15 +356,15 @@ namespace Tool.DropDaemon
             {
                 m_counters.IncrementCounter(DropClientCounter.NumberOfIncompleteBatches);
             }
-            
+
             FileBlobDescriptor[] blobsForAssociate = [];
             AddFileItem[] dedupedBatch = [];
-            var logGuid = Guid.NewGuid();
+            var batchLogGuid = Guid.NewGuid();
             try
             {
                 dedupedBatch = SkipFilesWithTheSameDropPathAndContent(batch);
                 var numSkipped = batch.Count - dedupedBatch.Length;
-                m_logger.Info($"[{logGuid}] Processing a deduped batch of {dedupedBatch.Length} drop files after skipping {numSkipped} files.");
+                m_logger.Info($"[batch:{batchLogGuid}] Processing a deduped batch of {dedupedBatch.Length} drop files after skipping {numSkipped} files.");
 
                 Task<HashSet<string>> registerFilesForBuildManifestTask = null;
                 // Register files for Build Manifest
@@ -389,7 +389,7 @@ namespace Tool.DropDaemon
                 }
 
                 // run 'Associate' on all items from the batch; the result will indicate which files were associated and which need to be uploaded
-                AssociationsStatus associateStatus = await AssociateAsync(blobsForAssociate, logGuid);
+                AssociationsStatus associateStatus = await AssociateAsync(blobsForAssociate, batchLogGuid);
                 IReadOnlyList<AddFileItem> itemsLeftToUpload = await SetResultForAssociatedNonMissingItemsAsync(dedupedBatch, associateStatus, m_config.EnableChunkDedup, Token);
 
                 // compute blobs for upload
@@ -401,7 +401,7 @@ namespace Tool.DropDaemon
                 }
 
                 // run 'UploadAndAssociate' for the missing files.
-                await UploadAndAssociateAsync(associateStatus, blobsForUpload, logGuid);
+                await UploadAndAssociateAsync(associateStatus, blobsForUpload, batchLogGuid);
                 SetResultForUploadedMissingItems(itemsLeftToUpload);
                 m_counters.AddToCounter(DropClientCounter.TotalUploadSizeBytes, blobsForUpload.Sum(b => b.FileSize ?? 0));
 
@@ -419,22 +419,23 @@ namespace Tool.DropDaemon
                         if (result == RegisterFileForBuildManifestResult.Failed)
                         {
                             m_counters.IncrementCounter(DropClientCounter.TotalBuildManifestRegistrationFailures);
-                            m_logger.Info($"[{logGuid}] Build Manifest File registration failed for file at RelativePath '{file.RelativeDropFilePath}' with VSO '{file.BlobIdentifier.AlgorithmResultString}'.");
+                            m_logger.Warning($"[batch:{batchLogGuid}] Build Manifest File registration failed for file at RelativePath '{file.RelativeDropFilePath}' with VSO '{file.BlobIdentifier.AlgorithmResultString}'.");
                         }
                     }
                 }
 
-                m_logger.Info($"[{logGuid}] Done processing AddFile batch.");
+                m_logger.Info($"[batch:{batchLogGuid}] Done processing AddFile batch.");
             }
             catch (Exception e)
             {
-                m_logger.Verbose($"[{logGuid}] Failed ProcessAddFilesAsync (blobsForAssociate size:{blobsForAssociate.Length}){Environment.NewLine}"
+                m_logger.Error($"[batch:{batchLogGuid}] Failed ProcessAddFilesAsync (blobsForAssociate size:{blobsForAssociate.Length}){Environment.NewLine}"
                     + string.Join(
                         Environment.NewLine,
-                        dedupedBatch.Select(item => $"[{logGuid}] '{item.FullFilePath}', '{item.RelativeDropFilePath}', Hash: '{item.ContentHash?.ToString() ?? ""}', BlobId:'{item.BlobIdentifier?.ToString() ?? ""}', Size: {item.PrecomputedFileLength}, Task.IsCompleted:{item.DropResultTaskSource.Task.IsCompleted}")));
+                        dedupedBatch.Select(item => $"'{item.FullFilePath}', '{item.RelativeDropFilePath}', Hash: '{item.ContentHash?.ToString() ?? ""}', BlobId:'{item.BlobIdentifier?.ToString() ?? ""}', Size: {item.PrecomputedFileLength}, Task.IsCompleted:{item.DropResultTaskSource.Task.IsCompleted}")));
 
                 foreach (AddFileItem item in batch)
                 {
+                    // Some files might be 'completed' at this point (e.g., files that were successfully associated), so such files should be skipped.
                     if (!item.DropResultTaskSource.Task.IsCompleted)
                     {
                         item.DropResultTaskSource.SetException(e);
@@ -486,7 +487,7 @@ namespace Tool.DropDaemon
 
         private async Task<AssociationsStatus> AssociateAsync(FileBlobDescriptor[] blobsForAssociate, Guid logGuid)
         {
-            m_logger.Info($"[{logGuid}] AssociateAsync: Running associate on {blobsForAssociate.Length} files.");
+            m_logger.Verbose($"[batch:{logGuid}] AssociateAsync: Running associate on {blobsForAssociate.Length} files.");
 
             Tuple<IEnumerable<BlobIdentifier>, AssociationsStatus> associateResult;
             using (m_counters.StartStopwatch(DropClientCounter.TotalAssociateTime))
@@ -504,7 +505,7 @@ namespace Tool.DropDaemon
                     cancellationToken: Token).ConfigureAwait(false);
             }
 
-            m_logger.Info($"[{logGuid}] AssociateAsync: Completed running associate.");
+            m_logger.Verbose($"[batch:{logGuid}] AssociateAsync: Completed running associate.");
 
             var result = associateResult.Item2;
             var missingBlobIdsCount = associateResult.Item1.Count();
@@ -513,7 +514,7 @@ namespace Tool.DropDaemon
 
             if (missingBlobIdsCount != associationsStatusMissingBlobsCount)
             {
-                m_logger.Verbose($"[{logGuid}] Mismatch in the number of missing files during Associate call -- missingBlobIdsCount={missingBlobIdsCount}, associationsStatusMissingBlobsCount={associationsStatusMissingBlobsCount}");
+                m_logger.Warning($"[batch:{logGuid}] Mismatch in the number of missing files during Associate call -- missingBlobIdsCount={missingBlobIdsCount}, associationsStatusMissingBlobsCount={associationsStatusMissingBlobsCount}");
 
                 if (missingBlobIdsCount < associationsStatusMissingBlobsCount)
                 {
@@ -531,7 +532,7 @@ namespace Tool.DropDaemon
         private async Task UploadAndAssociateAsync(AssociationsStatus associateStatus, FileBlobDescriptor[] blobsForUpload, Guid logGuid)
         {
             int numMissing = associateStatus.Missing.Count();
-            m_logger.Info($"[{logGuid}] UploadAndAssociateAsync: Uploading {numMissing} missing files with total file size {blobsForUpload.Sum(b => b.FileSize.GetValueOrDefault())}.");
+            m_logger.Verbose($"[batch:{logGuid}] UploadAndAssociateAsync: Uploading {numMissing} missing files with total file size {blobsForUpload.Sum(b => b.FileSize.GetValueOrDefault())}.");
 
 #if DEBUG
             // check that missing hashes reported in associateStatus match those provided in blobsForUpload
@@ -553,7 +554,7 @@ namespace Tool.DropDaemon
                     cancellationToken: Token).ConfigureAwait(false);
             }
 
-            m_logger.Info($"[{logGuid}] UploadAndAssociateAsync: Completed upload.");
+            m_logger.Verbose($"[batch:{logGuid}] UploadAndAssociateAsync: Completed upload.");
 
             m_counters.AddToCounter(DropClientCounter.NumberOfFilesUploaded, numMissing);
         }

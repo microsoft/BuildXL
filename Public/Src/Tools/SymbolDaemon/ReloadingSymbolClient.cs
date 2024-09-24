@@ -3,10 +3,12 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Ipc.Interfaces;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Ipc.Common;
+using BuildXL.Ipc.Interfaces;
 using Microsoft.VisualStudio.Services.BlobStore.Common;
 using Microsoft.VisualStudio.Services.Content.Common;
 using Microsoft.VisualStudio.Services.Symbol.App.Core;
@@ -46,7 +48,22 @@ namespace Tool.ServicePipDaemon
             return RetryAsync(
                 nameof(ISymbolServiceClient.CreateRequestDebugEntriesAsync),
                 (client, ct) => client.CreateRequestDebugEntriesAsync(requestId, entries, createBehavior, ct),
-                cancellationToken);
+                cancellationToken,
+                callbackOnFirstRetriableFailure: (exception, guid) =>
+                {
+                    // DebugEntryExistsException is essentially a user error, so we can skip the logging.
+                    if (exception is not DebugEntryExistsException)
+                    {
+                        if (!entries.TryGetNonEnumeratedCount(out var cnt))
+                        {
+                            // This should never happen since we always pass a real collection from the client.
+                            cnt = entries.Count();
+                        }
+
+                        m_logger.Verbose($"[operation:{guid}] Arguments of a failed '{nameof(ISymbolServiceClient.CreateRequestDebugEntriesAsync)}' call -- createBehavior: {createBehavior}, entries.Count: {cnt}{Environment.NewLine}"
+                            + string.Join(Environment.NewLine, entries.Select(e => $"BlobIdentifier: {e.BlobIdentifier}, Size: {e.Size}, ClientKey: {e.ClientKey}, InformationLevel: {e.InformationLevel}")));
+                    }
+                });
         }
 
         /// <inheritdoc />
@@ -160,7 +177,7 @@ namespace Tool.ServicePipDaemon
 
         /// <inheritdoc />
         public Task<IEnumerable<Request>> GetRequestPaginatedAsync(
-            String continueFromRequestId,
+            string continueFromRequestId,
             int pageSize,
             CancellationToken cancellationToken,
             SizeOptions sizeOptions = null,
@@ -199,7 +216,11 @@ namespace Tool.ServicePipDaemon
             return RetryAsync(
                nameof(ISymbolServiceClient.UploadFileAsync),
                (client, ct) => client.UploadFileAsync(domainId, blobStoreUri, requestId, filename, blobIdentifier, ct),
-               cancellationToken);
+               cancellationToken,
+               callbackOnFirstRetriableFailure: (exception, guid) =>
+               {
+                   m_logger.Verbose($"[operation:{guid}] Arguments of a failed '{nameof(ISymbolServiceClient.UploadFileAsync)}' call -- filename: '{filename}', blobStoreUri: {blobStoreUri}, blobIdentifier: {blobIdentifier}, domainId: {domainId}");
+               });
         }
 
         #endregion

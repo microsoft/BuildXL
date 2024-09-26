@@ -16,12 +16,13 @@ using BuildXL.Engine.Cache.Artifacts;
 using BuildXL.Engine.Tracing;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.Native.IO;
+using BuildXL.ProcessPipExecutor;
 using BuildXL.Storage;
-using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Core;
+using BuildXL.Utilities.Core.Tasks;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.ParallelAlgorithms;
-using BuildXL.Utilities.Core.Tasks;
 using static BuildXL.Utilities.Core.BuildParameters;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 
@@ -95,6 +96,8 @@ namespace BuildXL.Engine
 
         private readonly LoggingContext m_loggingContext;
         private readonly DirectoryTranslator m_directoryTranslator;
+
+        private readonly ReparsePointResolver m_reparsePointResolver;
 
         /// <summary>
         /// Creates an instance of <see cref="FrontEndEngineImplementation"/>.
@@ -186,6 +189,8 @@ namespace BuildXL.Engine
                         requestCompletionSource.SetException(e);
                     }
                 });
+            
+            m_reparsePointResolver = new ReparsePointResolver(pathTable, m_directoryTranslator);
         }
 
         /// <inheritdoc/>
@@ -921,6 +926,10 @@ namespace BuildXL.Engine
 
             return entries;
         }
+
+        /// <inheritdoc/>
+        public override IEnumerable<AbsolutePath> GetAllIntermediateReparsePoints(AbsolutePath path) 
+            => m_reparsePointResolver.GetAllReparsePointsInChains(path);
 
         private readonly struct MaterializeFileRequest
         {

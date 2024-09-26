@@ -394,6 +394,16 @@ namespace BuildXL.Pips.Graph
                 fingerprinter.Add(nameof(Process.RequireGlobalDependencies), 0);
             }
        
+            if (process.AllowedUndeclaredSourceReadScopes.Length > 0)
+            {
+                fingerprinter.AddOrderIndependentCollection<AbsolutePath, ReadOnlyArray<AbsolutePath>>(nameof(Process.AllowedUndeclaredSourceReadScopes), process.AllowedUndeclaredSourceReadScopes, (h, p) => h.Add(p), m_pathTable.ExpandedPathComparer);
+            }
+
+            if (process.AllowedUndeclaredSourceReadPaths.Length > 0)
+            {
+                fingerprinter.AddOrderIndependentCollection<AbsolutePath, ReadOnlyArray<AbsolutePath>>(nameof(Process.AllowedUndeclaredSourceReadPaths), process.AllowedUndeclaredSourceReadPaths, (h, p) => h.Add(p), m_pathTable.ExpandedPathComparer);
+            }
+
             AddProcessSpecificFingerprintSalt(fingerprinter, process);
         }
 

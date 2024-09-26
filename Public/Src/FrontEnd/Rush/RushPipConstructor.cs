@@ -13,6 +13,7 @@ using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
+using System.Linq;
 
 namespace BuildXL.FrontEnd.Rush
 {
@@ -65,9 +66,10 @@ namespace BuildXL.FrontEnd.Rush
         /// <inheritdoc/>
         protected override void ProcessInputs(
             JavaScriptProject project,
-            ProcessBuilder processBuilder)
+            ProcessBuilder processBuilder,
+            IReadOnlySet<JavaScriptProject> transitiveDependencies)
         {
-            base.ProcessInputs(project, processBuilder);
+            base.ProcessInputs(project, processBuilder, transitiveDependencies);
             
             // If dependencies should be tracked via the project-level shrinkwrap-deps file, then force an input
             // dependency on it
@@ -78,9 +80,12 @@ namespace BuildXL.FrontEnd.Rush
         }
 
         /// <inheritdoc/>
-        protected override void ProcessOutputs(JavaScriptProject project, ProcessBuilder processBuilder)
+        protected override void ProcessOutputs(
+            JavaScriptProject project, 
+            ProcessBuilder processBuilder, 
+            IReadOnlySet<JavaScriptProject> transitiveDependencies)
         {
-            base.ProcessOutputs(project, processBuilder);
+            base.ProcessOutputs(project, processBuilder, transitiveDependencies);
             
             // This makes sure the folder the user profile is pointing to gets actually created
             processBuilder.AddOutputDirectory(DirectoryArtifact.CreateWithZeroPartialSealId(UserProfile(project, PathTable)), SealDirectoryKind.SharedOpaque);
@@ -89,9 +94,10 @@ namespace BuildXL.FrontEnd.Rush
         /// <inheritdoc/>
         protected override void ConfigureProcessBuilder(
             ProcessBuilder processBuilder,
-            JavaScriptProject project)
+            JavaScriptProject project,
+            IReadOnlySet<JavaScriptProject> transitiveDependencies)
         {
-            base.ConfigureProcessBuilder(processBuilder, project);
+            base.ConfigureProcessBuilder(processBuilder, project, transitiveDependencies);
 
             // If dependencies are tracked with the shrinkwrap-deps file, then untrack everything under the Rush common temp folder, where all package
             // dependencies are placed
@@ -99,6 +105,19 @@ namespace BuildXL.FrontEnd.Rush
             {
                 processBuilder.AddUntrackedDirectoryScope(DirectoryArtifact.CreateWithZeroPartialSealId(m_rushConfiguration.CommonTempFolder));
             }
+        }
+
+        /// <inheritdoc/>
+        protected override IEnumerable<AbsolutePath> GetResolverSpecificAllowedSourceReadsScopes()
+        {
+            var allowedScopes = base.GetResolverSpecificAllowedSourceReadsScopes();
+            
+            if (m_resolverSettings.RushLocation is null)
+            {
+                return allowedScopes;
+            }
+
+            return allowedScopes.Append(m_resolverSettings.RushLocation.Value.Path.GetParent(PathTable));
         }
     }
 }

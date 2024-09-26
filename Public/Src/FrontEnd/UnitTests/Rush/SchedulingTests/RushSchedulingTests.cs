@@ -2,12 +2,17 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using BuildXL.FrontEnd.Rush;
 using BuildXL.FrontEnd.Utilities;
 using BuildXL.FrontEnd.Workspaces.Core;
-using BuildXL.Utilities.Core;
+using BuildXL.Native.IO;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
+using BuildXL.Utilities.Core;
+using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
@@ -107,14 +112,14 @@ namespace Test.BuildXL.FrontEnd.Rush
                 .Add(project1)
                 .Add(project2)
                 .ScheduleAll();
-                
+
             var dependencies = result.RetrieveSuccessfulProcess(project2).Dependencies;
-                
+
             // None of the dependencies should be under the log directory
-            XAssert.IsTrue(dependencies.All(dep => 
+            XAssert.IsTrue(dependencies.All(dep =>
                 !dep.Path.IsWithin(PathTable, RushPipConstructor.LogDirectoryBase(
-                    result.Configuration, 
-                    PathTable, 
+                    result.Configuration,
+                    PathTable,
                     KnownResolverKind.RushResolverKind))));
         }
 
@@ -129,7 +134,7 @@ namespace Test.BuildXL.FrontEnd.Rush
                 .RetrieveSuccessfulProcess(project)
                 .DirectoryOutputs;
 
-            XAssert.IsTrue(processOutputDirectories.Any(outputDirectory => RushPipConstructor.UserProfile(project, PathTable) ==  outputDirectory.Path));
+            XAssert.IsTrue(processOutputDirectories.Any(outputDirectory => RushPipConstructor.UserProfile(project, PathTable) == outputDirectory.Path));
         }
 
         [Theory]
@@ -138,7 +143,7 @@ namespace Test.BuildXL.FrontEnd.Rush
         [InlineData("[]{};'<>/_+bxl")]
         public void RedirectedUserProfileSanitizesScriptCommandName(string scriptCommandName)
         {
-            var project = CreateRushProject(scriptCommandName : scriptCommandName);
+            var project = CreateRushProject(scriptCommandName: scriptCommandName);
             var processOutputDirectories = Start()
                 .Add(project)
                 .ScheduleAll()
@@ -163,7 +168,7 @@ namespace Test.BuildXL.FrontEnd.Rush
                 .RetrieveSuccessfulProcess(project)
                 .OutputDirectoryExclusions;
 
-            XAssert.AreEqual(blockWritesUnderNodeModules? 1 : 0, exclusions.Length);
+            XAssert.AreEqual(blockWritesUnderNodeModules ? 1 : 0, exclusions.Length);
         }
 
         [Fact]
@@ -175,9 +180,9 @@ namespace Test.BuildXL.FrontEnd.Rush
             var relativeScopeToUntrack = RelativePath.Create(StringTable, @"untracked\scope");
 
             var untrackedScopes = Start(new RushResolverSettings
-                {
-                    UntrackedGlobalDirectoryScopes = new[] { relativeScopeToUntrack }
-                })
+            {
+                UntrackedGlobalDirectoryScopes = new[] { relativeScopeToUntrack }
+            })
                 .Add(projectB)
                 .Add(projectA)
                 .ScheduleAll()
@@ -284,6 +289,105 @@ namespace Test.BuildXL.FrontEnd.Rush
                 .NestedProcessTerminationTimeout;
 
             XAssert.AreEqual(nestedProcessTerminationTimeout, TimeSpan.FromMilliseconds(42));
+        }
+
+        [Fact]
+        public void UndeclaredReadEnforcementIsHonored()
+        {
+            // Make a project chain such that C -> B -> A
+            var projectA = CreateRushProject("@ms/A");
+            var projectB = CreateRushProject("@ms/B", dependencies: new[] { projectA });
+            var projectC = CreateRushProject("@ms/C", dependencies: new[] { projectB });
+
+            var additionalSourceReadScope = AbsolutePath.Create(PathTable, TestRoot).Combine(PathTable, "additional-source-dir");
+
+            // Turn on source read scope enforcement and add an additional source read scope to all pips
+            var result = Start(new RushResolverSettings
+            {
+                EnforceSourceReadsUnderPackageRoots = true,
+                AdditionalSourceReadsScopes = new List<DirectoryArtifact>()
+                        { DirectoryArtifact.CreateWithZeroPartialSealId(additionalSourceReadScope) },
+            })
+                .Add(projectA)
+                .Add(projectB)
+                .Add(projectC)
+                .ScheduleAll();
+
+            // Project A should be able to read from its own project folder and the additional scope
+            var processA = result.RetrieveSuccessfulProcess(projectA);
+            XAssert.Contains(
+                processA.AllowedUndeclaredSourceReadScopes,
+                projectA.ProjectFolder, 
+                additionalSourceReadScope);
+
+            // Same for project B, plus being able to read from A's project folder
+            var processB = result.RetrieveSuccessfulProcess(projectB);
+            XAssert.Contains(
+                processB.AllowedUndeclaredSourceReadScopes,
+                projectB.ProjectFolder, 
+                projectA.ProjectFolder, 
+                additionalSourceReadScope);
+
+            // Same for project C, plus A and B project folder (the transitive closure)
+            var processC = result.RetrieveSuccessfulProcess(projectC);
+            XAssert.Contains(
+                processC.AllowedUndeclaredSourceReadScopes,
+                projectC.ProjectFolder, 
+                projectB.ProjectFolder, 
+                projectA.ProjectFolder, 
+                additionalSourceReadScope);
+        }
+
+        /// <summary>
+        /// There is nothing Linux-specific with this test, but under CloudBuild we run with additional directory
+        /// translations (e.g. Out folder is usually a reparse point) that this test infra is not aware of, so paths
+        /// are not properly translated
+        /// </summary>
+        [FactIfSupported(requiresLinuxBasedOperatingSystem: true)]
+        public void UndeclaredReadReparsePointsAreAutomaticallyIncluded()
+        {
+            using (var tempStorage = new TempFileStorage(canGetFileNames: true, rootPath: TestRoot))
+            {
+                var root = tempStorage.GetUniqueDirectory("repo-root");
+
+                // Create a project folder for project A, plus two symlinks such that project-A-symlink-symlink -> project-A-symlink -> project-A
+                var projectFolderString = Path.Combine(root, "project-A");
+                Directory.CreateDirectory(projectFolderString);
+
+                var projectFolderSymlinkedString = Path.Combine(root, "project-A-symlink");
+                var createResult = FileUtilities.TryCreateSymbolicLink(projectFolderSymlinkedString, projectFolderString, isTargetFile: false);
+                XAssert.IsTrue(createResult.Succeeded, !createResult.Succeeded ? createResult.Failure.Describe() : string.Empty);
+
+                var projectFolderSymlinked2String = Path.Combine(root, "project-A-symlink-symlink");
+                createResult = FileUtilities.TryCreateSymbolicLink(projectFolderSymlinked2String, projectFolderSymlinkedString, isTargetFile: false);
+                XAssert.IsTrue(createResult.Succeeded, !createResult.Succeeded ? createResult.Failure.Describe() : string.Empty);
+
+                var projectFolder = AbsolutePath.Create(PathTable, projectFolderString);
+                var projectFolderSymlinked = AbsolutePath.Create(PathTable, projectFolderSymlinkedString);
+                var projectFolderSymlinked2 = AbsolutePath.Create(PathTable, projectFolderSymlinked2String);
+
+                // The project folder is project-A-symlink-symlink
+                var projectA = CreateRushProject("@ms/A", projectFolder: projectFolderSymlinked2);
+
+                // Turn on source read scope enforcement and turn on full reparse point resolution
+                var result = Start(new RushResolverSettings
+                {
+                    Root = AbsolutePath.Create(PathTable, root),
+                    EnforceSourceReadsUnderPackageRoots = true,
+                },
+                    sandboxConfiguration: new SandboxConfiguration() { UnsafeSandboxConfiguration = new UnsafeSandboxConfiguration() { EnableFullReparsePointResolving = true } }
+                    )
+                    .Add(projectA)
+                    .ScheduleAll();
+
+                // Project A should have the original scope (project-A-symlink-symlink) plus the fully resolved scope
+                var processA = result.RetrieveSuccessfulProcess(projectA);
+                // Project A should be able to read from the point symlinked locations that is needed to reach the fully resolved path
+                XAssert.Contains(
+                    processA.AllowedUndeclaredSourceReadPaths,
+                    projectFolderSymlinked2,
+                    projectFolderSymlinked);
+            }
         }
     }
 }

@@ -47,6 +47,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
             ProcessRetries = resolverSettings.ProcessRetries;
             AdditionalDependencies = resolverSettings.AdditionalDependencies?.Select(additionalDependency => new JavaScriptDependency(additionalDependency, pathRemapper))?.ToList();
             NestedProcessTerminationTimeoutMs = resolverSettings.NestedProcessTerminationTimeoutMs;
+            EnforceSourceReadsUnderPackageRoots = resolverSettings.EnforceSourceReadsUnderPackageRoots;
+            AdditionalSourceReadsScopes = resolverSettings.AdditionalSourceReadsScopes;
         }
 
         /// <inheritdoc/>
@@ -77,7 +79,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public IReadOnlyList<IJavaScriptExport> Exports { get; set; }
 
         /// <inheritdoc/>
-        public bool? WritingToStandardErrorFailsExecution { get; set;  }
+        public bool? WritingToStandardErrorFailsExecution { get; set; }
 
         /// <inheritdoc/>
         public bool? BlockWritesUnderNodeModules { get; set; }
@@ -105,5 +107,11 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc/>
         public int? NestedProcessTerminationTimeoutMs { get; set; }
+
+        /// <inheritdoc/>
+        public bool? EnforceSourceReadsUnderPackageRoots { get; set; }
+
+        /// <inheritdoc/>
+        public IReadOnlyList<DirectoryArtifact> AdditionalSourceReadsScopes { get; set; }
     }
 }

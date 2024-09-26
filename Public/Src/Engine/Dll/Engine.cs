@@ -1454,7 +1454,10 @@ namespace BuildXL.Engine
             return true;
         }
 
-        private static List<DirectoryTranslator.RawInputTranslation> JoinSubstAndDirectoryTranslation(IConfiguration config, PathTable pathTable)
+        /// <summary>
+        /// Return the translations associated to subst use and other potential translations specified
+        /// </summary>
+        internal static List<DirectoryTranslator.RawInputTranslation> JoinSubstAndDirectoryTranslation(IConfiguration config, PathTable pathTable)
         {
             var translations = new List<DirectoryTranslator.RawInputTranslation>();
 

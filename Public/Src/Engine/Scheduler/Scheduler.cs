@@ -1515,7 +1515,7 @@ namespace BuildXL.Scheduler
             RemoteProcessManager = RemoteProcessManagerFactory.Create(loggingContext, Context, configuration, new RemoteFilePredictor(this, this, loggingContext), Counters);
             m_perPipPerformanceInfoStore = new PerProcessPipPerformanceInformationStore(configuration.Logging.MaxNumPipTelemetryBatches, configuration.Logging.AriaIndividualMessageSizeLimitBytes);
 
-            ReparsePointAccessResolver = new ReparsePointResolver(context, directoryTranslator);
+            ReparsePointAccessResolver = new ReparsePointResolver(context.PathTable, directoryTranslator);
 
             m_alienFileEnumerationCache = new ConcurrentBigMap<AbsolutePath, IReadOnlyList<DirectoryMemberEntry>>();
 

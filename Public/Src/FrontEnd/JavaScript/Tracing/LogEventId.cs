@@ -38,5 +38,6 @@ namespace BuildXL.FrontEnd.JavaScript.Tracing
         InvalidRegexInProjectSelector = 11921,
         IgnoredDependency = 11922,
         CannotCopySerializedGraphFile = 11923,
+        CannotGetFinalPathForPath = 11924,
     }
 }

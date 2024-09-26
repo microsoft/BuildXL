@@ -55,7 +55,8 @@ namespace Test.BuildXL.FrontEnd.MsBuild.Infrastructure
         public override ProjectBuilder<ProjectWithPredictions, MsBuildResolverSettings> Start(
             MsBuildResolverSettings resolverSettings = null, 
             QualifierId currentQualifier = default, 
-            QualifierId[] requestedQualifiers = default)
+            QualifierId[] requestedQualifiers = default,
+            SandboxConfiguration sandboxConfiguration = null)
         {
             var settings = resolverSettings ?? new MsBuildResolverSettings();
             // Make sure the Root is set
@@ -64,7 +65,7 @@ namespace Test.BuildXL.FrontEnd.MsBuild.Infrastructure
                 settings.Root = AbsolutePath.Create(PathTable, TestRoot);
             }
 
-            return base.Start(settings, currentQualifier, requestedQualifiers);
+            return base.Start(settings, currentQualifier, requestedQualifiers, sandboxConfiguration);
         }
 
         /// <summary>
@@ -124,7 +125,8 @@ namespace Test.BuildXL.FrontEnd.MsBuild.Infrastructure
             MsBuildResolverSettings resolverSettings,
             IEnumerable<ProjectWithPredictions> projects,
             QualifierId currentQualifier,
-            QualifierId[] requestedQualifiers)
+            QualifierId[] requestedQualifiers,
+            SandboxConfiguration sandboxConfiguration = null)
         {
             foreach(var project in projects)
             {
@@ -135,7 +137,7 @@ namespace Test.BuildXL.FrontEnd.MsBuild.Infrastructure
                 }
             }
 
-            return base.ScheduleAll(resolverSettings, projects, currentQualifier, requestedQualifiers);
+            return base.ScheduleAll(resolverSettings, projects, currentQualifier, requestedQualifiers, sandboxConfiguration);
         }
     }
 }

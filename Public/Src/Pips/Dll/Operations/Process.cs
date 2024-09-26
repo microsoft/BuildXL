@@ -383,6 +383,32 @@ namespace BuildXL.Pips.Operations
         public ReadOnlyArray<AbsolutePath> PreserveOutputAllowlist { get; }
 
         /// <summary>
+        /// Directory scopes under which the pip is allowed to perform undeclared source reads (if <see cref="Options.AllowUndeclaredSourceReads"/> is enabled)
+        /// </summary>
+        /// <remarks>
+        /// If the list and <see cref="AllowedUndeclaredSourceReadPaths"/> are empty, the pip can perform unrestricted undeclared reads. Otherwise, undeclared reads can happen under the listed scopes
+        /// </remarks>
+        [SuppressMessage("Microsoft.Performance", "CA1819:PropertiesShouldNotReturnArrays")]
+        [PipCaching(FingerprintingRole = FingerprintingRole.Semantic)]
+        public ReadOnlyArray<AbsolutePath> AllowedUndeclaredSourceReadScopes { get; }
+
+        /// <summary>
+        /// Paths  which the pip is allowed to perform undeclared source reads (if <see cref="Options.AllowUndeclaredSourceReads"/> is enabled)
+        /// </summary>
+        /// <remarks>
+        /// If the list and <see cref="AllowedUndeclaredSourceReadScopes"/> are empty, the pip can perform unrestricted undeclared reads. Otherwise, undeclared reads can happen under the listed scopes
+        /// </remarks>
+        [SuppressMessage("Microsoft.Performance", "CA1819:PropertiesShouldNotReturnArrays")]
+        [PipCaching(FingerprintingRole = FingerprintingRole.Semantic)]
+        public ReadOnlyArray<AbsolutePath> AllowedUndeclaredSourceReadPaths { get; }
+
+        /// <summary>
+        /// Whether the process can perform unrestricted undeclared source reads, or should follow honor <see cref="AllowedUndeclaredSourceReadScopes"/>
+        /// and <see cref="AllowedUndeclaredSourceReadPaths"/>
+        /// </summary>
+        public bool AreUndeclaredSourceReadsRestricted => AllowedUndeclaredSourceReadScopes.Length > 0 || AllowedUndeclaredSourceReadPaths.Length > 0;
+
+        /// <summary>
         /// Class constructor
         /// </summary>
         public Process(
@@ -435,7 +461,9 @@ namespace BuildXL.Pips.Operations
             ReadOnlyArray<IReclassificationRule>? reclassificationRules = null,
             int? processRetries = null,
             StringId retryAttemptEnvironmentVariable = default,
-            FileArtifact traceFile = default)
+            FileArtifact traceFile = default,
+            ReadOnlyArray<AbsolutePath>? allowedUndeclareSourceReadScopes = null,
+            ReadOnlyArray<AbsolutePath>? allowedUndeclareSourceReadPaths = null)
         {
             Contract.Requires(executable.IsValid);
             Contract.Requires(workingDirectory.IsValid);
@@ -552,6 +580,13 @@ namespace BuildXL.Pips.Operations
             ProcessRetries = processRetries;
             RetryAttemptEnvironmentVariable = retryAttemptEnvironmentVariable;
             TraceFile = traceFile;
+            AllowedUndeclaredSourceReadScopes = allowedUndeclareSourceReadScopes ?? ReadOnlyArray<AbsolutePath>.Empty;
+            AllowedUndeclaredSourceReadPaths = allowedUndeclareSourceReadPaths ?? ReadOnlyArray<AbsolutePath>.Empty;
+            // If AllowedUndeclaredSourceReadScopes/Paths are non-empty lists, that implicitly enables allowed undeclared source reads
+            if (AreUndeclaredSourceReadsRestricted)
+            {
+                options |= Options.AllowUndeclaredSourceReads;
+            }
         }
 
         /// <summary>
@@ -970,7 +1005,9 @@ namespace BuildXL.Pips.Operations
                 processRetries: reader.ReadBoolean() ? (int?)reader.ReadInt32Compact() : null,
                 retryAttemptEnvironmentVariable: reader.ReadStringId(),
                 succeedFastExitCodes: reader.ReadReadOnlyArray(r => r.ReadInt32()),
-                traceFile: reader.ReadFileArtifact());
+                traceFile: reader.ReadFileArtifact(),
+                allowedUndeclareSourceReadScopes: reader.ReadReadOnlyArray(reader1 => reader1.ReadAbsolutePath()),
+                allowedUndeclareSourceReadPaths: reader.ReadReadOnlyArray(reader1 => reader1.ReadAbsolutePath()));
         }
 
         /// <inheritdoc />
@@ -1029,6 +1066,8 @@ namespace BuildXL.Pips.Operations
             writer.Write(RetryAttemptEnvironmentVariable);
             writer.Write(SucceedFastExitCodes, (w, v) => w.Write(v));
             writer.Write(TraceFile);
+            writer.Write(AllowedUndeclaredSourceReadScopes, (w, v) => w.Write(v));
+            writer.Write(AllowedUndeclaredSourceReadPaths, (w, v) => w.Write(v));
         }
         #endregion
     }

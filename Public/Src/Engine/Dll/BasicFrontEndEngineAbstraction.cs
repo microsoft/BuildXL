@@ -8,6 +8,7 @@ using BuildXL.FrontEnd.Sdk.FileSystem;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.ProcessPipExecutor;
 
 namespace BuildXL.Engine
 {
@@ -17,10 +18,24 @@ namespace BuildXL.Engine
     /// </summary>
     public class BasicFrontEndEngineAbstraction : SimpleFrontEndEngineAbstraction
     {
+        private readonly ReparsePointResolver m_reparsePointResolver;
+        private readonly DirectoryTranslator m_directoryTranslator;
+
         /// <nodoc />
         public BasicFrontEndEngineAbstraction(PathTable pathTable, IFileSystem fileSystem, IConfiguration configuration = null)
             : base(pathTable, fileSystem, configuration)
         {
+            m_directoryTranslator = new DirectoryTranslator();
+
+            if (configuration != null)
+            {
+                var translations = BuildXLEngine.JoinSubstAndDirectoryTranslation(configuration, pathTable);
+                m_directoryTranslator.AddTranslations(translations, pathTable);
+            }
+
+            m_directoryTranslator.Seal();
+
+            m_reparsePointResolver = new ReparsePointResolver(pathTable, m_directoryTranslator);
         }
 
         /// <summary>
@@ -59,5 +74,13 @@ namespace BuildXL.Engine
 
             return true;
         }
+
+        /// <inheritdoc />
+        public override IEnumerable<AbsolutePath> GetAllIntermediateReparsePoints(AbsolutePath path) 
+            => m_reparsePointResolver.GetAllReparsePointsInChains(path);
+
+        /// <inheritdoc />
+        public override AbsolutePath Translate(AbsolutePath path) 
+            => m_directoryTranslator.Translate(path, m_pathTable);
     }
 }

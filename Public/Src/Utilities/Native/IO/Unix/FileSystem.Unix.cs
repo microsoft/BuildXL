@@ -848,38 +848,55 @@ namespace BuildXL.Native.IO.Unix
         }
 
         /// <inheritdoc />
-        public void GetChainOfReparsePoints(SafeFileHandle handle, string sourcePath, IList<string> chainOfReparsePoints)
+        public string GetChainOfReparsePoints(SafeFileHandle handle, string sourcePath, IList<string> chainOfReparsePoints, bool includeOnlyReparsePoints = true)
+        { 
+            return GetChainOfReparsePoints(sourcePath, chainOfReparsePoints, includeOnlyReparsePoints);
+        }
+
+        /// <inheritdoc />
+        public string GetChainOfReparsePoints(string sourcePath, IList<string> chainOfReparsePoints, bool includeOnlyReparsePoints = false)
         {
             Contract.Requires(!string.IsNullOrWhiteSpace(sourcePath));
             Contract.Requires(chainOfReparsePoints != null);
 
-            do
+            if (!includeOnlyReparsePoints)
             {
                 chainOfReparsePoints.Add(sourcePath);
+            }
 
+            do
+            {
                 var possibleReparsePointType = TryGetReparsePointType(sourcePath);
                 if (!possibleReparsePointType.Succeeded || !possibleReparsePointType.Result.IsActionable())
                 {
-                    return;
+                    return possibleReparsePointType.Succeeded ? sourcePath : null;
                 }
 
-                var possibleTarget = TryGetReparsePointTarget(handle, sourcePath);
+                var possibleTarget = TryGetReparsePointTarget(sourcePath);
                 if (!possibleTarget.Succeeded)
                 {
-                    return;
+                    return null;
                 }
 
                 var maybeResolvedTarget = FileUtilities.ResolveSymlinkTarget(sourcePath, possibleTarget.Result);
 
                 if (!maybeResolvedTarget.Succeeded)
                 {
-                    return;
+                    return null;
+                }
+
+                if (includeOnlyReparsePoints)
+                {
+                    chainOfReparsePoints.Add(sourcePath);
                 }
 
                 sourcePath = maybeResolvedTarget.Result;
 
+                if (!includeOnlyReparsePoints)
+                {
+                    chainOfReparsePoints.Add(sourcePath);
+                }
             } while (true);
-
         }
 
         /// <inheritdoc />

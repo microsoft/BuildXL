@@ -201,6 +201,12 @@ namespace BuildXL.Pips.Builders
 
         private int? m_processRetries;
 
+        /// <nodoc/>
+        public ReadOnlyArray<AbsolutePath> AllowedUndeclareSourceReadScopes { get; set; } = ReadOnlyArray<AbsolutePath>.Empty;
+
+        /// <nodoc/>
+        public ReadOnlyArray<AbsolutePath> AllowedUndeclareSourceReadPaths { get; set; } = ReadOnlyArray<AbsolutePath>.Empty;
+
         // CredScan
         private readonly IBuildXLCredentialScanner m_credentialScanner;
         private readonly LoggingContext m_loggingContext;
@@ -747,8 +753,9 @@ namespace BuildXL.Pips.Builders
                 outputDirectoryExclusions: ReadOnlyArray<AbsolutePath>.From(outputDirectoryExclusions),
                 processRetries: m_processRetries,
                 retryAttemptEnvironmentVariable: m_retryAttemptEnvironmentVariable,
-                reclassificationRules: ReclassificationRules
-                );
+                reclassificationRules: ReclassificationRules,
+                allowedUndeclareSourceReadScopes: AllowedUndeclareSourceReadScopes,
+                allowedUndeclareSourceReadPaths: AllowedUndeclareSourceReadPaths);
 
             m_credentialScanner.PostEnvVarsForProcessing(process, process.EnvironmentVariables);
 

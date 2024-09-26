@@ -338,6 +338,7 @@ namespace BuildXL.Scheduler.Tracing
 
         DependencyViolationTheSameTempFileProducedByIndependentPips = 5032,
         DependencyViolationWriteInStaticallyDeclaredSourceFile = 5033,
+        DependencyViolationDisallowedUndeclaredSourceRead = 5034,
 
         MovingCorruptFile = 5040,
         FailedToMoveCorruptFile = 5041,

@@ -115,7 +115,8 @@ namespace Test.BuildXL.FrontEnd.Rush
             string additionalOutputDirectories = null,
             bool? enableFullReparsePointResolving = null,
             string nodeExeLocation = null,
-            string rushLocation = null)
+            string rushLocation = null,
+            bool? enforceSourceReadsUnderPackageRoots = null)
         {
             environment ??= new Dictionary<string, string> { 
                 ["PATH"] = PathToNodeFolder,
@@ -137,7 +138,8 @@ namespace Test.BuildXL.FrontEnd.Rush
                 additionalOutputDirectories,
                 enableFullReparsePointResolving,
                 nodeExeLocation,
-                rushLocation);
+                rushLocation,
+                enforceSourceReadsUnderPackageRoots);
         }
 
         /// <inheritdoc/>
@@ -156,7 +158,8 @@ namespace Test.BuildXL.FrontEnd.Rush
             string additionalOutputDirectories = null,
             bool? enableFullReparsePointResolving = null,
             string nodeExeLocation = null,
-            string rushLocation = null)
+            string rushLocation = null,
+            bool? enforceSourceReadsUnderPackageRoots = null)
         {
             environment ??= new Dictionary<string, DiscriminatingUnion<string, UnitValue>> { 
                 ["PATH"] = new DiscriminatingUnion<string, UnitValue>(PathToNodeFolder),
@@ -194,7 +197,8 @@ namespace Test.BuildXL.FrontEnd.Rush
                     additionalOutputDirectories,
                     enableFullReparsePointResolving,
                     nodeExeLocation,
-                    rushLocation));
+                    rushLocation,
+                    enforceSourceReadsUnderPackageRoots));
         }
 
         protected BuildXLEngineResult RunRushProjects(
@@ -301,7 +305,8 @@ namespace Test.BuildXL.FrontEnd.Rush
             string additionalOutputDirectories,
             bool? enableFullReparsePointResolving = null,
             string nodeExeLocation = null,
-            string rushLocation = null) => $@"
+            string rushLocation = null,
+            bool? enforceSourceReadsUnderPackageRoots = null) => $@"
 config({{
     resolvers: [
         {{
@@ -319,7 +324,8 @@ config({{
             {(customScripts != null ? $"customScripts: {customScripts}," : string.Empty)}
             {(additionalDependencies != null ? $"additionalDependencies: {additionalDependencies}," : string.Empty)}
             {(additionalOutputDirectories != null ? $"additionalOutputDirectories: {additionalOutputDirectories}," : string.Empty)}
-            {(rushLocation != null ? $"rushLocation: f`{rushLocation}`," : string.Empty)}        
+            {(rushLocation != null ? $"rushLocation: f`{rushLocation}`," : string.Empty)}
+            {(enforceSourceReadsUnderPackageRoots != null ? $"enforceSourceReadsUnderPackageRoots: {enforceSourceReadsUnderPackageRoots.Value.ToString().ToLowerInvariant()}," : string.Empty)}
         }},
         {(addDScriptResolver? "{kind: 'DScript', modules: [f`module.config.dsc`, f`${Context.getBuildEngineDirectory()}/Sdk/Sdk.Transformers/package.config.dsc`]}" : string.Empty)}
     ],

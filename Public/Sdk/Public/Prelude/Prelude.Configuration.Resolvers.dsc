@@ -573,6 +573,21 @@ interface JavaScriptResolver extends ResolverBase, UntrackingSettings {
      * A process returning an exit code specified in 'retryExitCodes' will be retried at most the specified number of times.
      */
     processRetries?: number;
+
+    /**
+     * When enabled, pips are only allowed to read sources under package roots to which there is an explicitly dependency declared (or is in its transitive closure)
+     * Defaults to false.
+     * When a pip reads a source file outside of the allowed scopes, a read DFA will be issued.
+     * Additional read scopes can be configured with additionalSourceReadsScopes
+     */
+    enforceSourceReadsUnderPackageRoots?: boolean;
+
+    /**
+     * When enforceSourceReadsUnderPackageRoots is enabled, a collection of additional scopes (directories and its recursive content)
+     * are added to all pips, where source reads are allowed.
+     * When enforceSourceReadsUnderPackageRoots is disabled, this option has no effect.
+     */
+    additionalSourceReadsScopes?: Directory[];
 }
 
 /**

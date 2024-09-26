@@ -15,7 +15,7 @@ namespace BuildXL.Utilities.Configuration
         /// The path to node.exe to use for discovering the JavaScript graph
         /// </summary>
         /// <remarks>
-        /// Alternatively to a path, a collection of directories to seach for node.exe can be provided.
+        /// Alternatively to a path, a collection of directories to search for node.exe can be provided.
         /// If not provided, node.exe will be looked in PATH
         /// </remarks>
         DiscriminatingUnion<FileArtifact, IReadOnlyList<DirectoryArtifact>> NodeExeLocation { get; }
@@ -29,7 +29,7 @@ namespace BuildXL.Utilities.Configuration
         IReadOnlyList<IJavaScriptDependency> AdditionalDependencies { get; }
 
         /// <summary>
-        /// A collection of script commands to execute, where depedencies on other commands can be explicitly provided
+        /// A collection of script commands to execute, where dependencies on other commands can be explicitly provided
         /// E.g. {command: "test", dependsOn: {kind: "local", command: "build"}}
         /// makes the 'test' script depend on the 'build' script of the same project.
         /// Dependencies on other commands of direct dependencies can be specified as well.For example:
@@ -127,6 +127,25 @@ namespace BuildXL.Utilities.Configuration
         /// The timeout in milliseconds that the execution sandbox waits for child processes started by the top-level process to exit after the top-level process exits.
         /// </summary>
         int? NestedProcessTerminationTimeoutMs { get; }
+
+        /// <summary>
+        /// When enabled, pips are only allowed to read sources under package roots to which there is an explicitly dependency declared (or is in its transitive closure)
+        /// </summary>
+        /// <remarks>
+        /// Defaults to false.
+        /// When a pip reads a source file outside of the allowed scopes, a read DFA will be issued.
+        /// Additional read scopes can be configured with <see cref="AdditionalSourceReadsScopes"/>
+        /// </remarks>
+        bool? EnforceSourceReadsUnderPackageRoots { get; }
+
+        /// <summary>
+        /// When <see cref="EnforceSourceReadsUnderPackageRoots"/> is enabled, a collection of additional scopes (directories and its recursive content)
+        /// where source reads are allowed.
+        /// </summary>
+        /// <remarks>
+        /// When <see cref="EnforceSourceReadsUnderPackageRoots"/> is disabled, this option has no effect.
+        /// </remarks>
+        IReadOnlyList<DirectoryArtifact> AdditionalSourceReadsScopes { get; }
     }
 
     /// <nodoc/>

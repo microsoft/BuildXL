@@ -72,7 +72,7 @@ namespace Test.DScript.Ast.Scheduling
         /// Starts the addition of projects
         /// </summary>
         /// <returns></returns>
-        public virtual ProjectBuilder<TProject, TResolverSettings> Start(TResolverSettings resolverSettings, QualifierId currentQualifier = default, QualifierId[] requestedQualifiers = default)
+        public virtual ProjectBuilder<TProject, TResolverSettings> Start(TResolverSettings resolverSettings, QualifierId currentQualifier = default, QualifierId[] requestedQualifiers = default, SandboxConfiguration sandboxConfiguration = null)
         {
             Contract.RequiresNotNull(resolverSettings);
 
@@ -91,18 +91,18 @@ namespace Test.DScript.Ast.Scheduling
                 resolverSettings.SetName(resolverSettings.Kind ?? "test resolver");
             }
 
-            return new ProjectBuilder<TProject, TResolverSettings>(this, resolverSettings, currentQualifier, requestedQualifiers);
+            return new ProjectBuilder<TProject, TResolverSettings>(this, resolverSettings, currentQualifier, requestedQualifiers, sandboxConfiguration);
         }
 
         /// <summary>
         /// Uses <see cref="CreateProjectToPipConstructor(FrontEndContext, FrontEndHost, ModuleDefinition, TResolverSettings, IEnumerable{KeyValuePair{string, string}}, IEnumerable{string})"/> 
         /// to schedule the specified projects and retrieves the result
-        protected internal virtual SchedulingResult<TProject> ScheduleAll(TResolverSettings resolverSettings, IEnumerable<TProject> projects, QualifierId currentQualifier, QualifierId[] requestedQualifiers)
+        protected internal virtual SchedulingResult<TProject> ScheduleAll(TResolverSettings resolverSettings, IEnumerable<TProject> projects, QualifierId currentQualifier, QualifierId[] requestedQualifiers, SandboxConfiguration sandboxConfiguration = null)
         {
             var moduleRegistry = new ModuleRegistry(FrontEndContext.SymbolTable);
             var frontEndFactory = CreateFrontEndFactoryForEvaluation(ParseAndEvaluateLogger);
 
-            using (var controller = CreateFrontEndHost(GetDefaultCommandLine(), frontEndFactory, moduleRegistry, AbsolutePath.Invalid, out _, out _, requestedQualifiers))
+            using (var controller = CreateFrontEndHost(GetDefaultCommandLine(sandboxConfiguration), frontEndFactory, moduleRegistry, AbsolutePath.Invalid, out _, out _, requestedQualifiers))
             {
                 resolverSettings.ComputeEnvironment(FrontEndContext.PathTable, out var trackedEnv, out var passthroughVars, out _);
 
@@ -155,7 +155,7 @@ namespace Test.DScript.Ast.Scheduling
             FileSystem.WriteAllText(preludeDir.Combine(PathTable, "Prelude.dsc"), SpecEvaluationBuilder.FullPreludeContent);
         }
 
-        private CommandLineConfiguration GetDefaultCommandLine()
+        private CommandLineConfiguration GetDefaultCommandLine(SandboxConfiguration sandboxConfiguration)
         {
             return new CommandLineConfiguration
             {
@@ -192,7 +192,8 @@ namespace Test.DScript.Ast.Scheduling
                     {
                         LogsDirectory = m_configFilePath.GetParent(PathTable).GetParent(PathTable).Combine(PathTable, "Out").Combine(PathTable, "Logs"),
                         RedirectedLogsDirectory = m_configFilePath.GetParent(PathTable).GetParent(PathTable).Combine(PathTable, "Out").Combine(PathTable, "Logs")
-                    }
+                    },
+                Sandbox = sandboxConfiguration ?? new SandboxConfiguration(),
             };
         }
     }

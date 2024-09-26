@@ -37,3 +37,6 @@ Exit codes that cause BuildXL to retry the pip. By default this value is empty. 
 
 ### processRetries: number
 Maximum number of retries for processes. A process returning an exit code specified in 'retryExitCodes' will be retried at most the specified number of times. By default this value is not specified, in which case the build global max retry configuration defines this value (configured via command line arguments with /processRetries:n). If the global configuration is not specified, the default is 0, which implies that no retries will be attempted.
+
+### enforceSourceReadsUnderPackageRoots: boolean
+By default JavaScript projects can liberally read any source file on disk. BuildXL will only make sure these files are not treated in a racy manner (e.g. they are both rewritten and read by different pips in a non-deterministic order). By enabling this setting, pips are only allowed to read sources under package roots to which there is an explicitly dependency declared (or is in its transitive closure). When a pip reads a source file outside of the allowed scopes, a read DFA will be issued. Additional read scopes can be configured with `additionalSourceReadsScopes`. Defaults to false.

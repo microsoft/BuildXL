@@ -2414,6 +2414,20 @@ namespace BuildXL.Scheduler.Tracing
             string pipDescription,
             string path);
 
+        [GeneratedEvent(
+            (ushort)LogEventId.DependencyViolationDisallowedUndeclaredSourceRead,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Scheduler,
+            Message =
+                PipDependencyAnalysisPrefix +
+                "This pip reads from source '{path}'. However, reads are restricted to happen under specific directories, and none of the configured ones contains this path.")]
+        public abstract void DependencyViolationDisallowedUndeclaredSourceRead(
+            LoggingContext context,
+            long pipSemiStableHash,
+            string pipDescription,
+            string path);
         #endregion
 
         [GeneratedEvent(

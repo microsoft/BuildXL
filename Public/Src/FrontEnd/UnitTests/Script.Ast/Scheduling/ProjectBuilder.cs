@@ -6,6 +6,7 @@ using System.Diagnostics.ContractsLight;
 using BuildXL.FrontEnd.Sdk.ProjectGraph;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Configuration.Mutable;
 
 namespace Test.DScript.Ast.Scheduling
 {
@@ -21,9 +22,10 @@ namespace Test.DScript.Ast.Scheduling
         private readonly TResolverSettings m_resolverSettings;
         private readonly QualifierId m_qualifierId;
         private readonly QualifierId[] m_requestedQualifiers;
+        private readonly SandboxConfiguration m_sandboxConfiguration;
 
         /// <nodoc/>
-        public ProjectBuilder(PipSchedulingTestBase<TProject, TResolverSettings> testBase, TResolverSettings resolverSettings, QualifierId currentQualifier, QualifierId[] requestedQualifiers)
+        public ProjectBuilder(PipSchedulingTestBase<TProject, TResolverSettings> testBase, TResolverSettings resolverSettings, QualifierId currentQualifier, QualifierId[] requestedQualifiers, SandboxConfiguration sandboxConfiguration = null)
         {
             Contract.Requires(testBase != null);
             Contract.Requires(resolverSettings != null);
@@ -35,6 +37,7 @@ namespace Test.DScript.Ast.Scheduling
             m_resolverSettings = resolverSettings;
             m_qualifierId = currentQualifier;
             m_requestedQualifiers = requestedQualifiers;
+            m_sandboxConfiguration = sandboxConfiguration;
         }
 
         /// <summary>
@@ -50,7 +53,7 @@ namespace Test.DScript.Ast.Scheduling
         /// <nodoc/>
         public SchedulingResult<TProject> ScheduleAll()
         {
-            return m_testBase.ScheduleAll(m_resolverSettings, m_projects, m_qualifierId, m_requestedQualifiers);
+            return m_testBase.ScheduleAll(m_resolverSettings, m_projects, m_qualifierId, m_requestedQualifiers, m_sandboxConfiguration);
         }
     }
 }

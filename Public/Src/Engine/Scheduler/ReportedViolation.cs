@@ -64,6 +64,7 @@ namespace BuildXL.Scheduler
                     case DependencyViolationType.MissingSourceDependency:
                     case DependencyViolationType.UndeclaredReadCycle:
                     case DependencyViolationType.ReadUndeclaredOutput:
+                    case DependencyViolationType.DisallowedUndeclaredSourceRead:
                         return SimplifiedViolationType.Read;
                     case DependencyViolationType.UndeclaredOutput:
                     case DependencyViolationType.WriteInSourceSealDirectory:

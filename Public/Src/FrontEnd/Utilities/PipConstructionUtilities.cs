@@ -148,7 +148,11 @@ namespace BuildXL.FrontEnd.Utilities
             }
         }
 
-        private static DirectoryArtifact ResolveAbsoluteOrRelativeDirectory(PathTable pathTable, DiscriminatingUnion<DirectoryArtifact, RelativePath> absoluteOrRelativeUnion, AbsolutePath root)
+        /// <summary>
+        /// Resolves a discriminating union of <see cref="DirectoryArtifact"/> and <see cref="RelativePath"/>
+        /// against the given root
+        /// </summary>
+        public static DirectoryArtifact ResolveAbsoluteOrRelativeDirectory(PathTable pathTable, DiscriminatingUnion<DirectoryArtifact, RelativePath> absoluteOrRelativeUnion, AbsolutePath root)
         {
             var absoluteOrRelative = absoluteOrRelativeUnion.GetValue();
             if (absoluteOrRelative is DirectoryArtifact directory)

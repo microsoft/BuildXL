@@ -38,10 +38,11 @@ namespace Test.BuildXL.FrontEnd.Rush
             AbsolutePath commonTempFolder,
             RushResolverSettings resolverSettings = null,
             QualifierId currentQualifier = default,
-            QualifierId[] requestedQualifiers = default)
+            QualifierId[] requestedQualifiers = default,
+            SandboxConfiguration sandboxConfiguration = null)
         {
             m_commonTempFolder = commonTempFolder;
-            return Start(resolverSettings, currentQualifier, requestedQualifiers);
+            return Start(resolverSettings, currentQualifier, requestedQualifiers, sandboxConfiguration);
         }
 
         /// <summary>
@@ -50,7 +51,8 @@ namespace Test.BuildXL.FrontEnd.Rush
         public override ProjectBuilder<JavaScriptProject, RushResolverSettings> Start(
             RushResolverSettings resolverSettings = null, 
             QualifierId currentQualifier = default, 
-            QualifierId[] requestedQualifiers = default)
+            QualifierId[] requestedQualifiers = default,
+            SandboxConfiguration sandboxConfiguration = null)
         {
             var settings = resolverSettings ?? new RushResolverSettings();
             
@@ -66,7 +68,7 @@ namespace Test.BuildXL.FrontEnd.Rush
                 m_commonTempFolder = settings.Root.Combine(PathTable, RelativePath.Create(StringTable, "common/temp"));
             }
 
-            return base.Start(settings, currentQualifier, requestedQualifiers);
+            return base.Start(settings, currentQualifier, requestedQualifiers, sandboxConfiguration);
         }
 
         /// <summary>
@@ -80,14 +82,15 @@ namespace Test.BuildXL.FrontEnd.Rush
             IReadOnlyCollection<AbsolutePath> outputDirectories = null,
             IReadOnlyCollection<FileArtifact> inputFiles = null,
             IReadOnlyCollection<JavaScriptProject> dependencies = null,
-            IReadOnlyCollection<DirectoryArtifact> inputDirectories = null)
+            IReadOnlyCollection<DirectoryArtifact> inputDirectories = null,
+            AbsolutePath? projectFolder = null)
         {
             projectName ??= "@ms/rush-proj";
 
             var tempDirectory = tempFolder.HasValue ? tempFolder.Value : AbsolutePath.Create(PathTable, GetTempDir());
             var rushProject = new JavaScriptProject(
                 projectName,
-                TestPath.Combine(PathTable, RelativePath.Create(StringTable, projectName)),
+                projectFolder ?? TestPath.Combine(PathTable, RelativePath.Create(StringTable, projectName)),
                 scriptCommandName ?? "build",
                 scriptCommand ?? "node ./main.js",
                 tempDirectory,

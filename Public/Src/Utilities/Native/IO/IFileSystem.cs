@@ -375,10 +375,17 @@ namespace BuildXL.Native.IO
         /// <param name="handle">File handle.</param>
         /// <param name="sourcePath">Source path.</param>
         /// <param name="chainOfReparsePoints">List representing chain of reparse points.</param>
+        /// <param name="includeOnlyReparsePoints">When false, the result includes the original source path, intermediate reparse points and fully resolved paths. 
+        /// Otherwise, only intermediate reparse points (that is, the given source path won't be included)</param>
         /// <remarks>
-        /// The list <paramref name="chainOfReparsePoints"/> includes the source path.
+        /// The list <paramref name="chainOfReparsePoints"/> includes the source path and fully resolved paths unless <paramref name="includeOnlyReparsePoints"/> is true.
         /// </remarks>
-        void GetChainOfReparsePoints(SafeFileHandle handle, string sourcePath, IList<string> chainOfReparsePoints);
+        string GetChainOfReparsePoints(SafeFileHandle handle, string sourcePath, IList<string> chainOfReparsePoints, bool includeOnlyReparsePoints = false);
+
+        /// <summary>
+        /// <see cref="GetChainOfReparsePoints(SafeFileHandle, string, IList{string}, bool)"/>>
+        /// </summary>
+        string GetChainOfReparsePoints(string sourcePath, IList<string> chainOfReparsePoints, bool includeOnlyReparsePoints = false);
 
         /// <summary>
         /// Tries to get reparse point target.

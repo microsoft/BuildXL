@@ -233,5 +233,14 @@ namespace BuildXL.FrontEnd.JavaScript.Tracing
             Message = EventConstants.LabeledProvenancePrefix + "Cannot copy file '{file}' containing the serialized graph. Details: {message}",
             Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
         public abstract void CannotCopySerializedGraphFile(LoggingContext context, Location location, string file, string message);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.CannotGetFinalPathForPath,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            EventTask = (ushort)Tasks.Parser,
+            Message = EventConstants.LabeledProvenancePrefix + "Failed to inspect path '{path}' for reparse points. Details: {error}",
+            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
+        public abstract void CannotGetFinalPathForPath(LoggingContext context, Location location, string path, int error);
     }
 }

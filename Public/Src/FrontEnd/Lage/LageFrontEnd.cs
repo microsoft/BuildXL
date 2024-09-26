@@ -2,11 +2,8 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
-using BuildXL.FrontEnd.JavaScript;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Workspaces.Core;
-using BuildXL.FrontEnd.Lage.ProjectGraph;
-using BuildXL.Utilities.Configuration;
 
 namespace BuildXL.FrontEnd.Lage
 {
@@ -27,7 +24,7 @@ namespace BuildXL.FrontEnd.Lage
         /// <inheritdoc/>
         public override IResolver CreateResolver(string kind)
         {
-            return new JavaScriptResolver<LageConfiguration, ILageResolverSettings>(Host, Context, Name);
+            return new LageResolver(Host, Context, Name);
         }
     }
 }

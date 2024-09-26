@@ -10,6 +10,7 @@ using BuildXL.FrontEnd.Lage.ProjectGraph;
 using BuildXL.FrontEnd.Utilities;
 using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Core;
 
 namespace BuildXL.FrontEnd.Lage
@@ -17,7 +18,7 @@ namespace BuildXL.FrontEnd.Lage
     /// <summary>
     /// Workspace resolver for Lage
     /// </summary>
-    public class LageWorkspaceResolver : ToolBasedJavaScriptWorkspaceResolver<LageConfiguration, ILageResolverSettings>
+    public class LageWorkspaceResolver : ToolBasedJavaScriptWorkspaceResolver<LageConfiguration, LageResolverSettings>
     {
         private bool m_useNpmLocation = true;
 
@@ -37,7 +38,7 @@ namespace BuildXL.FrontEnd.Lage
         }
 
         /// <inheritdoc/>
-        protected override bool TryFindGraphBuilderToolLocation(ILageResolverSettings resolverSettings, BuildParameters.IBuildParameters buildParameters, out AbsolutePath toolLocation, out string failure)
+        protected override bool TryFindGraphBuilderToolLocation(LageResolverSettings resolverSettings, BuildParameters.IBuildParameters buildParameters, out AbsolutePath toolLocation, out string failure)
         {
             if (resolverSettings.NpmLocation.HasValue && resolverSettings.LageLocation.HasValue)
             {

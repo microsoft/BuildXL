@@ -21,6 +21,7 @@ using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 using BuildXL.Utilities.Core.Tasks;
+using BuildXL.Native.IO;
 
 namespace BuildXL.FrontEnd.JavaScript
 {
@@ -29,8 +30,9 @@ namespace BuildXL.FrontEnd.JavaScript
     /// </summary>
     /// <remarks>
     /// Allows to extend its behavior for other JavaScript-based coordinators by 
-    /// * extending how inputs and outputs: <see cref="ProcessInputs(JavaScriptProject, ProcessBuilder)"/>, <see cref="ProcessOutputs(JavaScriptProject, ProcessBuilder)"/>
-    /// * extending how the process builder is configured and arguments are built: <see cref="ConfigureProcessBuilder(ProcessBuilder, JavaScriptProject)"/>
+    /// * extending how inputs and outputs: <see cref="ProcessInputs(JavaScriptProject, ProcessBuilder, IReadOnlySet{JavaScriptProject})"/>, 
+    ///   <see cref="ProcessOutputs(JavaScriptProject, ProcessBuilder, IReadOnlySet{JavaScriptProject})"/>
+    /// * extending how the process builder is configured and arguments are built: <see cref="ConfigureProcessBuilder(ProcessBuilder, JavaScriptProject, IReadOnlySet{JavaScriptProject})"/>
     /// * and by extending how the environment for each pip is created: <see cref="DoCreateEnvironment(JavaScriptProject)"/>
     /// </remarks>
     public class JavaScriptPipConstructor : IProjectToPipConstructor<JavaScriptProject> 
@@ -239,12 +241,16 @@ namespace BuildXL.FrontEnd.JavaScript
                 m_context.CredentialScanner,
                 m_context.LoggingContext))
             {
+                using var transitiveDependenciesWrapper = JavaScriptPools.JavaScriptProjectSet.GetInstance();
+                var transitiveDependencies = transitiveDependenciesWrapper.Instance;
+                ComputeTransitiveDependenciesFor(project, transitiveDependencies);
+
                 // Configure the process to add an assortment of settings: arguments, response file, etc.
-                ConfigureProcessBuilder(processBuilder, project);
+                ConfigureProcessBuilder(processBuilder, project, transitiveDependencies);
 
                 // Process all predicted outputs and inputs, including the predicted project dependencies
-                ProcessInputs(project, processBuilder);
-                ProcessOutputs(project, processBuilder);
+                ProcessInputs(project, processBuilder, transitiveDependencies);
+                ProcessOutputs(project, processBuilder, transitiveDependencies);
 
                 // Try to create the process pip
                 if (!pipConstructionHelper.TryFinishProcessApplyingOSDefaults(processBuilder, out processOutputs, out process))
@@ -268,7 +274,8 @@ namespace BuildXL.FrontEnd.JavaScript
         /// </remarks>
         protected virtual void ProcessInputs(
             JavaScriptProject project,
-            ProcessBuilder processBuilder)
+            ProcessBuilder processBuilder,
+            IReadOnlySet<JavaScriptProject> transitiveDependencies)
         {
             // Add all explicitly declared input files and directories
             foreach (FileArtifact inputFile in project.InputFiles)
@@ -286,11 +293,7 @@ namespace BuildXL.FrontEnd.JavaScript
 
             // In this case all the transitive closure is automatically exposed to the project as direct references. This is standard for
             // JavaScript projects.
-            var transitiveReferences = new HashSet<JavaScriptProject>();
-            ComputeTransitiveDependenciesFor(project, transitiveReferences);
-            IEnumerable<JavaScriptProject> references = transitiveReferences;
-
-            foreach (JavaScriptProject projectReference in references)
+            foreach (JavaScriptProject projectReference in transitiveDependencies)
             {
                 // If the project is referencing something that was not scheduled, just skip it
                 if (!projectReference.CanBeScheduled())
@@ -323,7 +326,7 @@ namespace BuildXL.FrontEnd.JavaScript
         /// <remarks>
         /// The project root (excluding node_modules) is always considered an output directory
         /// </remarks>
-        protected virtual void ProcessOutputs(JavaScriptProject project, ProcessBuilder processBuilder)
+        protected virtual void ProcessOutputs(JavaScriptProject project, ProcessBuilder processBuilder, IReadOnlySet<JavaScriptProject> transitiveDependencies)
         {
             // Each project is automatically allowed to write anything under its project root
             processBuilder.AddOutputDirectory(DirectoryArtifact.CreateWithZeroPartialSealId(project.ProjectFolder), SealDirectoryKind.SharedOpaque);
@@ -374,7 +377,8 @@ namespace BuildXL.FrontEnd.JavaScript
         /// </summary>
         protected virtual void ConfigureProcessBuilder(
             ProcessBuilder processBuilder,
-            JavaScriptProject project)
+            JavaScriptProject project,
+            IReadOnlySet<JavaScriptProject> transitiveDependencies)
         {
             SetPipDescriptions(processBuilder, project);
             SetCmdTool(processBuilder, project);
@@ -384,6 +388,77 @@ namespace BuildXL.FrontEnd.JavaScript
 
             // We allow undeclared inputs to be read
             processBuilder.Options |= Process.Options.AllowUndeclaredSourceReads;
+
+            if (m_resolverSettings.EnforceSourceReadsUnderPackageRoots == true)
+            {
+                using var sourceReadsScopesWrapper = Pools.AbsolutePathSetPool.GetInstance();
+                var sourceReadsScopes = sourceReadsScopesWrapper.Instance;
+
+                using var sourceReadsPathsWrapper = Pools.AbsolutePathSetPool.GetInstance();
+                var sourceReadsPaths = sourceReadsPathsWrapper.Instance;
+
+                // The current project is allowed to read under the project folder of every dependency
+                sourceReadsScopes.AddRange(transitiveDependencies.Select(dependency => dependency.ProjectFolder));
+
+                // It is also allowed to read under its own project folder
+                sourceReadsScopes.Add(project.ProjectFolder);
+
+                // Add all resolver-specific allowed scopes
+                sourceReadsScopes.AddRange(GetResolverSpecificAllowedSourceReadsScopes());
+
+                // If full reparse point resolving is enabled, then we also implicitly add the final paths (in the case reparse points are present) and intermediate reparse points
+                // of all project folder related paths. This naturally matches the expectation for this resolver specific behavior, since read accesses are going to
+                // get fully resolved when checking them against scopes.
+                // Observe that for explicit user-specified paths (below), we stick to the ones the user provided, even if there are reparse points in them. This matches
+                // the behavior wrt reparse points for all user-specified paths, where users need to be explicit about them.
+                if (m_frontEndHost.Configuration.EnableFullReparsePointResolving())
+                {
+                    // Resolving reparse points for specified scopes happens in a best effort basis, so in case of an error we just log that as info and move on
+                    // The final outcome if a scope/path is under a reparse point and it cannot be resolved is that a read access will become a DFA
+                    var additionalReparsePointScopes = new HashSet<AbsolutePath>();
+                    var additionalReparsePointPaths = new HashSet<AbsolutePath>();
+
+                    foreach (var sourceReadScope in sourceReadsScopes)
+                    {
+                        // Let's resolve the scope
+                        if (!FileUtilities.TryGetFinalPathNameByPath(sourceReadScope.ToString(PathTable), out string finalPath, out int error))
+                        {
+                            // Just verbose log, this is not a blocker
+                            Tracing.Logger.Log.CannotGetFinalPathForPath(
+                                m_context.LoggingContext, 
+                                Location.FromFile(project.ProjectFolder.ToString(PathTable)), 
+                                sourceReadScope.ToString(PathTable), error);
+                            
+                            continue;
+                        }
+
+                        // If the final path is not the same as the original one, that means there were reparse points involved, so let's add the final one
+                        if (AbsolutePath.TryCreate(PathTable, finalPath, out var finalAbsolutePath) && sourceReadScope != finalAbsolutePath)
+                        {
+                            additionalReparsePointScopes.Add(m_frontEndHost.Engine.Translate(finalAbsolutePath));
+
+                            // Considering the final path was different, this means there are reparse points involved. We want to add those
+                            // as individual paths that the pip can also read
+                            additionalReparsePointPaths.AddRange(m_frontEndHost.Engine.GetAllIntermediateReparsePoints(sourceReadScope));
+                        }
+                    }
+
+                    sourceReadsScopes.AddRange(additionalReparsePointScopes);
+                    sourceReadsPaths.AddRange(additionalReparsePointPaths);
+                }
+
+                // If additional scopes for source reads are configured, add them here
+                if (m_resolverSettings.AdditionalSourceReadsScopes != null)
+                {
+                    sourceReadsScopes.AddRange(
+                        m_resolverSettings.AdditionalSourceReadsScopes
+                            .Select(directory => directory.Path)
+                    );
+                }
+
+                processBuilder.AllowedUndeclareSourceReadScopes = sourceReadsScopes.ToArray();
+                processBuilder.AllowedUndeclareSourceReadPaths = sourceReadsPaths.ToArray();
+            }
 
             // We want to enforce the use of weak fingerprint augmentation since input predictions could be not complete/sufficient
             // to avoid a large number of path sets
@@ -481,6 +556,44 @@ namespace BuildXL.FrontEnd.JavaScript
                 }
             }
             FrontEndUtilities.SetProcessEnvironmentVariables(CreateEnvironment(project), m_userDefinedPassthroughVariables, processBuilder, m_context.PathTable);
+        }
+
+        /// <summary>
+        /// Returns the location (or search locations) for node.exe, which is typically read by most JS pips
+        /// </summary>
+        /// <remarks>
+        /// More specific pip constructors may expand on this collection
+        /// </remarks>
+        protected virtual IEnumerable<AbsolutePath> GetResolverSpecificAllowedSourceReadsScopes()
+        {
+            var scopes = new List<AbsolutePath>();
+
+            // The node directory is a very common location that JS pips read from.
+            if (m_resolverSettings.NodeExeLocation is not null)
+            {
+                switch (m_resolverSettings.NodeExeLocation.GetValue())
+                {
+                    case FileArtifact fileArtifact:
+                        // If the precise node location was specified, we return the parent directory
+                        scopes.Add(fileArtifact.Path.GetParent(PathTable));
+                        break;
+                    case IReadOnlyList<DirectoryArtifact> directories:
+                        scopes.AddRange(directories.Select(d => d.Path));
+                        break;
+                    default:
+                        throw new InvalidOperationException($"Unexpected value with type {m_resolverSettings.NodeExeLocation.GetValue().GetType()}");
+                };
+            }
+
+            // On Windows, ProgramFiles is also a very common location that is read (on Linux the equivalent already falls under untracked directories
+            // injected by the OS defaults
+            if (OperatingSystemHelper.IsWindowsOS) 
+            {
+                scopes.Add(AbsolutePath.Create(PathTable, Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles)));
+                scopes.Add(AbsolutePath.Create(PathTable, Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86)));
+            }
+
+            return scopes;
         }
 
         private void SetPipDescriptions(ProcessBuilder processBuilder, JavaScriptProject project)

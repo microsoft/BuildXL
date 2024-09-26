@@ -898,10 +898,17 @@ namespace BuildXL.Native.IO
             return OsFileSystem.IsWciTombstoneFile(path);
         }
 
-        /// <see cref="IFileSystem.GetChainOfReparsePoints(SafeFileHandle, string, IList{string})"/>
+        /// <see cref="IFileSystem.GetChainOfReparsePoints(SafeFileHandle, string, IList{string}, bool)"/>
         public static void GetChainOfReparsePoints(SafeFileHandle handle, string sourcePath, IList<string> chainOfReparsePoints)
         {
             OsFileSystem.GetChainOfReparsePoints(handle, sourcePath, chainOfReparsePoints);
+        }
+
+        /// <see cref="IFileSystem.GetChainOfReparsePoints(string, IList{string}, bool)"/>
+        /// <returns>The final fully resolved path. Null if any errors occur</returns>
+        public static string GetChainOfReparsePoints(string sourcePath, IList<string> chainOfReparsePoints, bool includeOnlyReparsePoints = false)
+        {
+            return OsFileSystem.GetChainOfReparsePoints(sourcePath, chainOfReparsePoints, includeOnlyReparsePoints);
         }
 
         /// <see cref="IFileSystem.TryGetReparsePointTarget(SafeFileHandle, string)"/>

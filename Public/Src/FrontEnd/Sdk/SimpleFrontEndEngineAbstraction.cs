@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -10,13 +11,12 @@ using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Engine.Cache.Artifacts;
 using BuildXL.Native.IO;
 using BuildXL.Storage;
-using BuildXL.Utilities;
-using BuildXL.Utilities.Core;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
+using BuildXL.Utilities.Core;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 using IFileSystem = BuildXL.FrontEnd.Sdk.FileSystem.IFileSystem;
-using System.Diagnostics.CodeAnalysis;
 
 namespace BuildXL.FrontEnd.Sdk
 {
@@ -70,6 +70,12 @@ namespace BuildXL.FrontEnd.Sdk
         public override AbsolutePath Translate(AbsolutePath path)
         {
             return path;
+        }
+
+        /// <inheritdoc />
+        public override IEnumerable<AbsolutePath> GetAllIntermediateReparsePoints(AbsolutePath path)
+        {
+            return CollectionUtilities.EmptyArray<AbsolutePath>();
         }
 
         /// <summary>

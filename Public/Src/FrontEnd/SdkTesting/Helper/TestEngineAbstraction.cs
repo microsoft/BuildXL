@@ -7,11 +7,12 @@ using System.IO;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Engine.Cache.Artifacts;
+using BuildXL.FrontEnd.Sdk;
 using BuildXL.Native.IO;
-using BuildXL.Utilities.Core;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
-using BuildXL.FrontEnd.Sdk;
+using BuildXL.Utilities.Core;
 using IFileSystem = global::BuildXL.FrontEnd.Sdk.FileSystem.IFileSystem;
 
 namespace BuildXL.FrontEnd.Script.Testing.Helper
@@ -232,5 +233,11 @@ namespace BuildXL.FrontEnd.Script.Testing.Helper
 
         /// <inheritdoc />
         public override void AddResolvedModuleDefinedMount(IMount mount, LocationData? mountLocation = null) => m_mounts.Add(mount.Name.ToString(m_stringTable), mount);
+
+        /// <inheritdoc />
+        public override IEnumerable<AbsolutePath> GetAllIntermediateReparsePoints(AbsolutePath path)
+        {
+            return CollectionUtilities.EmptyArray<AbsolutePath>();
+        }
     }
 }

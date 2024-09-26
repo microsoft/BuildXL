@@ -228,6 +228,13 @@ namespace BuildXL.FrontEnd.Sdk
         public abstract AbsolutePath Translate(AbsolutePath path);
 
         /// <summary>
+        /// Returns all intermediate reparse points contained in the given path, including all reparse point chains.
+        /// The result represents all the read operations on intermediate reparse points that the OS would perform if
+        /// the given path was fully resolved
+        /// </summary>
+        public abstract IEnumerable<AbsolutePath> GetAllIntermediateReparsePoints(AbsolutePath path);
+
+        /// <summary>
         /// A simple IO based file system entry enumeration helper 
         /// </summary>
         protected static IEnumerable<AbsolutePath> EnumerateEntriesHelper(PathTable pathTable, AbsolutePath path, string pattern, bool recursive, bool directories, IFileSystem fileSystem)

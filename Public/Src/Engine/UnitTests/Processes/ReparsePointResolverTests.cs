@@ -15,7 +15,7 @@ namespace Test.BuildXL.Processes
     {
         private ReparsePointResolver ReparsePointResolver { get; }
 
-        public ReparsePointResolverTests(ITestOutputHelper output) : base(output) 
+        public ReparsePointResolverTests(ITestOutputHelper output) : base(output)
         {
             var directoryTranslator = new DirectoryTranslator();
 
@@ -26,7 +26,7 @@ namespace Test.BuildXL.Processes
 
             directoryTranslator.Seal();
 
-            ReparsePointResolver = new ReparsePointResolver(Context, directoryTranslator);
+            ReparsePointResolver = new ReparsePointResolver(Context.PathTable, directoryTranslator);
         }
 
         [FactIfSupported(requiresSymlinkPermission: true)]
@@ -76,6 +76,56 @@ namespace Test.BuildXL.Processes
 
             // Both directory symlinks should be resolved
             XAssert.AreEqual(AbsolutePath.Create(Context.PathTable, symlinkFile), result);
+        }
+
+        [FactIfSupported(requiresSymlinkPermission: true)]
+        public void TestGetAllReparsePointChains()
+        {
+            // Create the following layout
+            // A
+            // |- B-symlink
+            // |- B-symlik-again
+            //    |- D-symlink
+            //
+            // B
+            // |- D-symlink
+            //
+            // D
+            // |- file.txt
+            //
+            // B-symlink       -> B
+            // B-symlink-again -> B-symlink
+            // D-symlink       -> D
+            //
+            // And get all reparse points involved in resolving A/B-symlink-again/D-symlink/file.txt
+
+            var aFolder = Path.Combine(TemporaryDirectory, "A");
+            var bFolder = Path.Combine(TemporaryDirectory, "B");
+            var dFolder = Path.Combine(TemporaryDirectory, "D");
+            FileUtilities.CreateDirectory(aFolder);
+            FileUtilities.CreateDirectory(bFolder);
+            FileUtilities.CreateDirectory(dFolder);
+
+            var file = Path.Combine(dFolder, "file.txt");
+            File.WriteAllText(file, "content");
+
+            var bSymlinked = Path.Combine(aFolder, "B-symlink");
+            var _ = FileUtilities.TryCreateSymbolicLink(bSymlinked, bFolder, isTargetFile: false);
+
+            var bSymlinkedAgain = Path.Combine(aFolder, "B-symlink-again");
+            _ = FileUtilities.TryCreateSymbolicLink(bSymlinkedAgain, bSymlinked, isTargetFile: false);
+
+            var dSymlinked = Path.Combine(bSymlinkedAgain, "D-symlink");
+            _ = FileUtilities.TryCreateSymbolicLink(dSymlinked, dFolder, isTargetFile: false);
+
+            var result = ReparsePointResolver.GetAllReparsePointsInChains(AbsolutePath.Create(Context.PathTable, Path.Combine(dSymlinked, "file.txt")));
+
+            // We should get a path for each created symlink (and for each symlink all its preceding atoms should be fully resolved)
+            // We do 'Contains' instead of asserting the complete set because in CB there might be other reparse points involved (e.g. Out directory)
+            XAssert.Contains(result,
+                    AbsolutePath.Create(Context.PathTable, Path.Combine(TemporaryDirectory, "A", "B-symlink")),
+                    AbsolutePath.Create(Context.PathTable, Path.Combine(TemporaryDirectory, "A", "B-symlink-again")),
+                    AbsolutePath.Create(Context.PathTable, Path.Combine(TemporaryDirectory, "B", "D-symlink")));
         }
     }
 }

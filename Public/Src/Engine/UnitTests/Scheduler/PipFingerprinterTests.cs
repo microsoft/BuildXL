@@ -964,6 +964,8 @@ namespace Test.BuildXL.Scheduler
             bool disableFullReparsePointResolving = source.Vary(p => p.DisableFullReparsePointResolving);
             bool bypassFingerprintSalt = source.Vary(p => p.BypassFingerprintSalt);
             bool requireGlobalDependencies = source.Vary(p => p.RequireGlobalDependencies);
+            var allowedUndeclaredSourceReadScopes = source.Vary(p => p.AllowedUndeclaredSourceReadScopes);
+            var allowedUndeclaredSourceReadPaths = source.Vary(p => p.AllowedUndeclaredSourceReadPaths);
 
             Process.Options options = Process.Options.None;
             if (hasUntrackedChildProcesses)
@@ -1060,7 +1062,9 @@ namespace Test.BuildXL.Scheduler
                 outputDirectoryExclusions: ReadOnlyArray<AbsolutePath>.From(source.Vary(p => p.OutputDirectoryExclusions)),
                 retryAttemptEnvironmentVariable: source.Vary(p => p.RetryAttemptEnvironmentVariable),
                 traceFile: traceFile,
-                reclassificationRules: source.Vary(p => p.ReclassificationRules));
+                reclassificationRules: source.Vary(p => p.ReclassificationRules),
+                allowedUndeclareSourceReadScopes: allowedUndeclaredSourceReadScopes,
+                allowedUndeclareSourceReadPaths: allowedUndeclaredSourceReadPaths);
         }
 
         private CopyFile CreateCopyFileVariant(VariationSource<CopyFile> source)

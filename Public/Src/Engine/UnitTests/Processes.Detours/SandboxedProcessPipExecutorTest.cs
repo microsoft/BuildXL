@@ -2244,7 +2244,7 @@ namespace Test.BuildXL.Processes.Detours
                     new TestDirectoryArtifactContext(
                             SealDirectoryKind.SharedOpaque,
                             new FileArtifact[] { FileArtifact.CreateOutputFile(inputUnderSharedOpaqueAbsolutePath) }),
-                    reparsePointResolver: new ReparsePointResolver(context, translator));
+                    reparsePointResolver: new ReparsePointResolver(context.PathTable, translator));
 
                 var allReportedFileAccesses = result.ObservedFileAccesses.SelectMany(fa => fa.Accesses).ToList();
                 allReportedFileAccesses.AddRange(result.UnexpectedFileAccesses.FileAccessViolationsNotAllowlisted);

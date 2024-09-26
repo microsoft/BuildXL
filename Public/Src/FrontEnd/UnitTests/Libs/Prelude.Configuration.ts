@@ -325,6 +325,20 @@ interface EngineConfiguration {
     defaultFilter?: string;
 }
 
+interface SandboxConfiguration {
+    unsafeSandboxConfiguration?: UnsafeSandboxConfiguration;
+}
+
+interface UnsafeSandboxConfiguration {
+    /**
+     * If enabled, resolves every observed path in the process sandbox before reporting it. The
+     * resolving process refers to removing and replacing reparse points with their final targets. By
+     * default this is disabled. Only has an effect on Windows-based OS. Mac sandbox already
+     * processes reparse points correctly.
+     */
+    enableFullReparsePointResolving? : boolean;
+}
+
 /** The information needed to generate msbuild files */
 interface VsDominoConfiguration {
     /** Whether VsDomino is enabled or not. */
@@ -390,6 +404,9 @@ interface Configuration {
 
     /** BuildXL engine configuration. */
     engine?: EngineConfiguration;
+
+    /** BuildXL sandbox configuration */
+    sandbox?: SandboxConfiguration;
 
     searchPathEnumerationTools?: RelativePath[];
 

@@ -2597,14 +2597,42 @@ namespace BuildXL.Native.IO.Windows
         private const int SYMLINK_FLAG_RELATIVE = 0x1;
 
         /// <inheritdoc />
-        public void GetChainOfReparsePoints(SafeFileHandle handle, string sourcePath, IList<string> chainOfReparsePoints)
+        public string GetChainOfReparsePoints(string sourcePath, IList<string> chainOfReparsePoints, bool includeOnlyReparsePoints = false)
+        {
+            Contract.Requires(!string.IsNullOrWhiteSpace(sourcePath));
+            Contract.Requires(chainOfReparsePoints != null);
+
+            var openResult = TryOpenDirectory(
+                        sourcePath,
+                        FileDesiredAccess.GenericRead,
+                        FileShare.ReadWrite | FileShare.Delete,
+                        FileFlagsAndAttributes.FileFlagOverlapped | FileFlagsAndAttributes.FileFlagOpenReparsePoint,
+                        out SafeFileHandle handle);
+
+            if (!openResult.Succeeded)
+            {
+                return null;
+            }
+
+            var result = GetChainOfReparsePoints(handle, sourcePath, chainOfReparsePoints, includeOnlyReparsePoints);
+            handle.Dispose();
+
+            return result;
+        }
+
+        /// <inheritdoc />
+        public string GetChainOfReparsePoints(SafeFileHandle handle, string sourcePath, IList<string> chainOfReparsePoints, bool includeOnlyReparsePoints = false)
         {
             Contract.Requires(!handle.IsInvalid);
             Contract.Requires(!string.IsNullOrWhiteSpace(sourcePath));
             Contract.Requires(chainOfReparsePoints != null);
 
             SafeFileHandle originalHandle = handle;
-            chainOfReparsePoints.Add(sourcePath);
+
+            if (!includeOnlyReparsePoints)
+            {
+                chainOfReparsePoints.Add(sourcePath);
+            }
 
             do
             {
@@ -2615,7 +2643,7 @@ namespace BuildXL.Native.IO.Windows
                         handle.Dispose();
                     }
 
-                    return;
+                    return null;
                 }
 
                 if ((attributes & FileAttributes.ReparsePoint) == 0)
@@ -2625,7 +2653,7 @@ namespace BuildXL.Native.IO.Windows
                         handle.Dispose();
                     }
 
-                    return;
+                    return sourcePath;
                 }
 
                 var possibleNextTarget = TryGetReparsePointTarget(handle, sourcePath);
@@ -2637,7 +2665,7 @@ namespace BuildXL.Native.IO.Windows
                         handle.Dispose();
                     }
 
-                    return;
+                    return null;
                 }
 
                 if (handle != originalHandle)
@@ -2649,11 +2677,20 @@ namespace BuildXL.Native.IO.Windows
 
                 if (!maybeResolvedTarget.Succeeded)
                 {
-                    return;
+                    return null;
+                }
+
+                if (includeOnlyReparsePoints)
+                {
+                    chainOfReparsePoints.Add(sourcePath);
                 }
 
                 sourcePath = maybeResolvedTarget.Result;
-                chainOfReparsePoints.Add(sourcePath);
+                
+                if (!includeOnlyReparsePoints)
+                {
+                    chainOfReparsePoints.Add(sourcePath);
+                }
 
                 var openResult = TryOpenDirectory(
                         sourcePath,
@@ -2664,10 +2701,12 @@ namespace BuildXL.Native.IO.Windows
 
                 if (!openResult.Succeeded)
                 {
-                    return;
+                    return null;
                 }
 
             } while (!handle.IsInvalid);
+
+            return sourcePath;
         }
 
         /// <inheritdoc />

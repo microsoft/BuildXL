@@ -220,6 +220,11 @@ namespace BuildXL.Scheduler
             /// violation at graph construction time.
             /// </remarks>
             WriteInStaticallyDeclaredSourceFile,
+
+            /// <summary>
+            /// An undeclared read occurred in a pip that restricts undeclared reads to happen under a given collection of scopes
+            /// </summary>
+            DisallowedUndeclaredSourceRead,
         }
 
         /// <summary>
@@ -1337,6 +1342,29 @@ namespace BuildXL.Scheduler
             List<ReportedViolation> reportedViolations,
             [AllowNull] Dictionary<FileArtifact, (FileMaterializationInfo fileMaterializationInfo, ReportedViolation reportedViolation)> allowedDoubleWriteViolations)
         {
+            // If undeclared reads are restricted, let's build the collection of allowed scopes and paths for this pip
+            // In addition to the explicit allowed scopes/paths configured on the pip, any untracked file or directory naturally applies to the allow list
+            using var allowedScopesWrapper = pip.AreUndeclaredSourceReadsRestricted
+                ? (PooledObjectWrapper<List<AbsolutePath>>?) Pools.AbsolutePathListPool.GetInstance() 
+                : null;
+            var allowedScopes = allowedScopesWrapper?.Instance;
+            if (pip.AreUndeclaredSourceReadsRestricted)
+            {
+                allowedScopes.AddRange(pip.AllowedUndeclaredSourceReadScopes);
+                allowedScopes.AddRange(pip.UntrackedScopes);
+            }
+
+            using var allowedPathsWrapper = pip.AreUndeclaredSourceReadsRestricted
+                ? (PooledObjectWrapper<List<AbsolutePath>>?)Pools.AbsolutePathListPool.GetInstance()
+                : null;
+            var allowedPaths = allowedPathsWrapper?.Instance;
+            if (pip.AreUndeclaredSourceReadsRestricted)
+            {
+                allowedPaths.AddRange(pip.AllowedUndeclaredSourceReadPaths);
+                allowedPaths.AddRange(pip.UntrackedPaths);
+            }
+
+
             foreach (var undeclaredRead in allowedUndeclaredReads)
             {
                 // We look for a static writer of the file. Any pip statically producing this file, regardless of the scheduled order,
@@ -1413,6 +1441,35 @@ namespace BuildXL.Scheduler
                             related: pip,
                             // we don't have the path of the process that caused the file access violation, so 'blame' the main process (i.e., the current pip) instead
                             pip.Executable.Path));
+                }
+
+                if (pip.AreUndeclaredSourceReadsRestricted)
+                {
+                    // If undeclared reads are restricted, let's see whether the undeclared read falls under any of the allowed scopes
+                    var validUndeclaredScope = allowedScopes.FirstOrDefault(allowedUndeclaredSourceReadScope 
+                        => undeclaredRead.IsWithin(Context.PathTable, allowedUndeclaredSourceReadScope));
+
+                    // If no valid scope was found, check equivalently for allowed paths
+                    if (!validUndeclaredScope.Value.IsValid)
+                    {
+                        validUndeclaredScope = allowedPaths.FirstOrDefault(allowedUndeclaredSourceReadPath
+                            => undeclaredRead == allowedUndeclaredSourceReadPath);
+                    }
+
+                    // If we didn't find any valid scope/path, this is a violation
+                    if (!validUndeclaredScope.Value.IsValid)
+                    {
+                        reportedViolations.Add(
+                            HandleDependencyViolation(
+                                DependencyViolationType.DisallowedUndeclaredSourceRead,
+                                AccessLevel.Read,
+                                undeclaredRead,
+                                pip,
+                                isAllowlistedViolation: false,
+                                related: null,
+                                // we don't have the path of the process that caused the file access violation, so 'blame' the main process (i.e., the current pip) instead
+                                pip.Executable.Path));
+                    }
                 }
             }
         }
@@ -2131,7 +2188,16 @@ namespace BuildXL.Scheduler
                             violator.GetDescription(Context),
                             path.ToString(Context.PathTable));
                     }
-
+                    break;
+                case DependencyViolationType.DisallowedUndeclaredSourceRead:
+                    if (isError)
+                    {
+                        Logger.Log.DependencyViolationDisallowedUndeclaredSourceRead(
+                            LoggingContext,
+                            violator.SemiStableHash,
+                            violator.GetDescription(Context),
+                            path.ToString(Context.PathTable));
+                    }
                     break;
                 default:
 

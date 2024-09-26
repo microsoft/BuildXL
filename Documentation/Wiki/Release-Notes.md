@@ -2,9 +2,23 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20240920.2 ((Release [29106031](https://dev.azure.com/mseng/Domino/_build/results?buildId=29106031&view=results))
+-	Various tweaks for Codex analyzer
+-	Fix flushing the xlg data on workers
+-	Send cache logs to Kusto
+-	Dependency Analyzer includes the file probes in observed inputs
+
+# 0.1.0-20240906.8.1 ((Release [29053112](https://dev.azure.com/mseng/Domino/_build/results?buildId=29053112&view=results))
+-	Fix ContractException when return failure result if historic meta data is called after cancellation has been requested
+-	Disable support for console hyperlinks
+-	Conditionalize Windows specific perf stats based on OS
+-	Demote Create Historic Metadata Cache Failure to Verbose from Warning.
+-	Don't increment UpstreamCacheMissLongestChain length for pip that depends on a cache disabled pip
+
 # 0.1.0-20240830.2 ((Release [29011861](https://dev.azure.com/mseng/Domino/_build/results?buildId=29011861&view=results))
 -	Improve hyperlinks handling on the console
 -	Bug fixes
+
 # 0.1.0-20240825.1 (Release [28989861](https://dev.azure.com/mseng/Domino/_build/results?buildId=28989861&view=results))
 - Check if scheduler has been cancelled when ensure historic metadata cache loaded
 - Add cache factory to construct a local cache with a remote blob cache

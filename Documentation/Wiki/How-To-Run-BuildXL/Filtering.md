@@ -153,7 +153,7 @@ binaryOperator = "and" | "or" ;
 filterFunction = "~"   | (*negation*)
                  "dpt" | (*all transitive dependents*)
                  "dpc" ; (*all transitive dependencies*)
-filterType = "id"  |               (*Unique identifier given to a pip*)
+filterType = "id"  |               (*Unique identifier given to a Process, WriteFile, or CopyFile pip*)
              "input" |             (*Any input file of the pip*)
              "output" |            (*Any outputut file of the pip*)
              "spec" |              (*The spec file producing the pip*)

@@ -359,6 +359,64 @@ namespace Test.BuildXL.Scheduler
         }
 
         [Fact]
+        public void TestOpaqueProducersAndNegatedIdFilter()
+        {
+            // p0 -> opaque0
+            // p1 -> opaque1
+            // p1 -> opaque2
+
+            var opaque0 = CreateUniqueObjPath("o0");
+            var opaque1 = CreateUniqueObjPath("o1");
+            var opaque2 = CreateUniqueObjPath("o2");
+            Process p0 = CreateAndScheduleProcess(
+                dependencies: [CreateSourceFile()],
+                outputDirectoryPaths: [opaque0],
+                outputs: [CreateOutputFileArtifact()],
+                provenance: CreateProvenance());
+            Process p1 = CreateAndScheduleProcess(
+                dependencies: [CreateSourceFile()],
+                outputDirectoryPaths: [opaque1],
+                outputs: [CreateOutputFileArtifact()],
+                provenance: CreateProvenance());
+            Process p2 = CreateAndScheduleProcess(
+                dependencies: [CreateSourceFile()],
+                outputDirectoryPaths: [opaque2],
+                outputs: [CreateOutputFileArtifact()],
+                provenance: CreateProvenance());
+            var graph = PipGraphBuilder.Build();
+
+            // Negation filter for !p0. This should match opaque1 and opaque2
+            AssertFilteredOutputs(graph, $"~(id='{p0.FormattedSemiStableHash}')", expectedMatching: [opaque1, opaque2], expectedNotMatching: [opaque0]);
+
+            // These filters should be equivalent and only match on opaque2
+            AssertFilteredOutputs(graph, $"~(id='{p0.FormattedSemiStableHash}' or id='{p1.FormattedSemiStableHash}')", expectedMatching: [opaque2], expectedNotMatching: [opaque0, opaque1]);
+            AssertFilteredOutputs(graph, $"~(id='{p0.FormattedSemiStableHash}') and ~(id='{p1.FormattedSemiStableHash}')", expectedMatching: [opaque2], expectedNotMatching: [opaque0, opaque1]);
+        }
+
+        private void AssertFilteredOutputs(PipGraph graph, string filter, AbsolutePath[] expectedMatching, AbsolutePath[] expectedNotMatching)
+        {
+            FilterParser parser = new FilterParser(Context, getPathByMountName, filter);
+            Assert.True(parser.TryParse(out var rootFilter, out var pathFilter));
+            var outputs = graph.FilterOutputs(rootFilter);
+
+            foreach (var match in expectedMatching)
+            {
+                Assert.True(outputs.Contains(new DirectoryArtifact(match, 0)), $"Expected to find {match.ToString(Context.PathTable)}");
+            }
+
+            foreach (var noMatch in expectedNotMatching)
+            {
+                Assert.False(outputs.Contains(new DirectoryArtifact(noMatch, 0)), $"Did not expect to find {noMatch.ToString(Context.PathTable)}");
+            }
+
+            static bool getPathByMountName(string mountName, out AbsolutePath path)
+            {
+                path = AbsolutePath.Invalid;
+                return false;
+            }
+        }
+
+        [Fact]
         public void TestDependenciesFilter()
         {
             // P0 -> P1 -> P2 -> Seal -> P3

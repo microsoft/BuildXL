@@ -52,9 +52,23 @@ namespace BuildXL.Pips.Filter
                 context,
                 (pipId, localOutputs) =>
                 {
-                    if ((context.GetSemiStableHash(pipId) == m_semiStableHash) ^ negate)
+                    // Only allow this filter to match on a few specific pip types. This prevents some unintended
+                    // consequences like negated pip id filters matching all sealed directory pips.
+                    //
+                    // Note: this does not completely eliminate sealed directory pips from slipping into filtering since
+                    // other filter groups may end up including them. This special case primarily guards against unintended
+                    // pip inclusion via sealed directory pips in simple filters like ~(id='pip12345'), which could end
+                    // up including pip12345 anyway since that filter would still match on an opaque directory produced
+                    // by that pip.
+                    var pipType = context.GetPipType(pipId);
+                    if (pipType == Operations.PipType.Process || 
+                        pipType == Operations.PipType.WriteFile || 
+                        pipType == Operations.PipType.CopyFile)
                     {
-                        AddOutputs(context, pipId, localOutputs);
+                        if ((context.GetSemiStableHash(pipId) == m_semiStableHash) ^ negate)
+                        {
+                            AddOutputs(context, pipId, localOutputs);
+                        }
                     }
                 },
                 constrainingPips);

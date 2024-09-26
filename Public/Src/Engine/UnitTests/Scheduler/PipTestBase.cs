@@ -169,6 +169,8 @@ namespace Test.BuildXL.Scheduler
 
         protected static long GetNextPipId() { return Interlocked.Increment(ref s_pipIdCounter); }
 
+        private static long s_semistableHashCounter = 0;
+
         /// <summary>
         /// The pip graph builder.
         /// </summary>
@@ -317,6 +319,7 @@ namespace Test.BuildXL.Scheduler
         {
             BaseSetup(configuration);
             m_pipConstructionHelper = null;
+            s_semistableHashCounter = 0;
         }
 
         protected PipTestBase(ITestOutputHelper output) : base(output)
@@ -814,7 +817,7 @@ namespace Test.BuildXL.Scheduler
             var moduleNameId = StringId.Create(context.StringTable, moduleName);
 
             var provenance = new PipProvenance(
-                0,
+                Interlocked.Increment(ref s_semistableHashCounter),
                 ModuleId.Create(moduleNameId),
                 moduleNameId,
                 FullSymbol.Create(context.SymbolTable, valueName),

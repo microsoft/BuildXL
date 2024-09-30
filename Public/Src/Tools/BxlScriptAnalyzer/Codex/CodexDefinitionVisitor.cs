@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
@@ -113,7 +114,17 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Codex
                             break;
                         case TypeScript.Net.Types.SyntaxKind.PropertyAssignment:
                         case TypeScript.Net.Types.SyntaxKind.ShorthandPropertyAssignment:
-                            m_nodeNames[node] = RegisterDefinitionName(GetNamedParent(node), node, node.Cast<IObjectLiteralElement>().Name.Text);
+                            // Usually a property assignment doesn't represent a definition. However, in the case where
+                            // the property doesn't point to a definition (e.g. an untyped object literal), it is useful
+                            // to interpret it as a definition so references can be pointed to it. E.g.
+                            // const a = {field: "hello"};
+                            // const b = a.field;
+                            // In this case the 'field' projection on 'a' will point to the 'field' assignment.
+                            if (!m_codex.TryGetGoToDefinition(node.As<IObjectLiteralElement>().Name, out var definition))
+                            {
+                                m_nodeNames[node] = RegisterDefinitionName(node, node, node.Cast<IObjectLiteralElement>().Name.Text);
+                            }
+                            
                             break;
                         case TypeScript.Net.Types.SyntaxKind.FunctionDeclaration:
                         case TypeScript.Net.Types.SyntaxKind.ModuleDeclaration:

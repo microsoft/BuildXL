@@ -7,6 +7,7 @@ using System.Linq;
 using BuildXL.FrontEnd.Workspaces.Core;
 using Codex.Analysis.External;
 using TypeScript.Net.DScript;
+using TypeScript.Net.Parsing;
 using TypeScript.Net.Scanning;
 using TypeScript.Net.Types;
 
@@ -139,27 +140,48 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Codex
                 return false;
             }
 
+            if (!TryGetGoToDefinition(node, out var definitionLocation))
+            {
+                return false;
+            }
+            
+            if (definitionLocation.symbolLocation != null && !referencingSpan.Classification.IsValid)
+            {
+                var classification = GetClassificationForSymbol(definitionLocation.symbolLocation.Symbol);
+                referencingSpan.Classification = classification;
+            }
+
+            m_spanToDefinitionMap[referencingSpan] = (definitionLocation.path, definitionLocation.position);
+            return true;
+        }
+
+        public bool TryGetGoToDefinition(INode node, out (string path, int position, SymbolLocation symbolLocation) definitionLocation)
+        {
             // The go-to-definition helper does not handle the module specifier for import declarations (i.e. import {blah} from "module specified")
             // Let's make it point to the module definition file
-            if (node.Parent != null && 
-                node.Parent.Kind == TypeScript.Net.Types.SyntaxKind.ImportDeclaration && 
-                node.Parent.As<IImportDeclaration>().ModuleSpecifier == node)
+            if (node.Parent != null &&
+                 node.Parent.Kind == TypeScript.Net.Types.SyntaxKind.ImportDeclaration &&
+                 node.Parent.As<IImportDeclaration>().ModuleSpecifier == node)
             {
-                var symbol = m_workspace.GetSemanticModel()?.GetSymbolAtLocation(node) ?? node.Symbol ?? node.ResolvedSymbol;
-                if (symbol != null && symbol.IsBuildXLModule)
+                if (TryGetModuleSourceFile(node, out var moduleSourceFile))
                 {
-                    // Let's find the module and retrieve its spec
-                    var module = m_workspace.Modules.FirstOrDefault(module => module.Descriptor.Name == symbol.Name);
-                    if (module != null)
-                    {
-                        var moduleConfigFile = m_workspace.GetEffectiveModuleConfigPath(module, m_pathTable);
-                        // Some generated module configuration files are not really part of the workspace (e.g. what the nuget resolver generates),
-                        // so let's make sure
-                        if (m_workspace.ConfigurationModule.Specs.ContainsKey(moduleConfigFile))
-                        {
-                            m_spanToDefinitionMap[referencingSpan] = (path: moduleConfigFile.ToString(m_pathTable), position: 0);
-                        }
+                    definitionLocation = (path: moduleSourceFile.Path.AbsolutePath, position: 0, symbolLocation: GotoDefinitionHelper.GetLocationFromNode(moduleSourceFile, moduleSourceFile.Symbol));
+                    return true;
+                }
+            }
 
+            // Similarly to import declarations, importFrom is not handled by the go-to-definition helper. Treat that explicitly here
+            if (node.IsImportFrom())
+            {
+                var module = m_workspace.Modules.FirstOrDefault(module => module.Descriptor.Name == node.GetSpecifierInImportFrom().Text);
+                if (module != null)
+                {
+                    var moduleConfigFile = m_workspace.GetEffectiveModuleConfigPath(module, m_pathTable);
+                    // Some generated module configuration files are not really part of the workspace (e.g. what the nuget resolver generates),
+                    // so let's make sure
+                    if (m_workspace.ConfigurationModule.Specs.TryGetValue(moduleConfigFile, out var moduleSourceFile))
+                    {
+                        definitionLocation = (path: moduleSourceFile.Path.AbsolutePath, position: 0, symbolLocation: GotoDefinitionHelper.GetLocationFromNode(moduleSourceFile, moduleSourceFile.Symbol));
                         return true;
                     }
                 }
@@ -171,23 +193,43 @@ namespace BuildXL.FrontEnd.Script.Analyzer.Codex
                 // If any of the node go-to locations points to the node itself, this is the indication of anonymous literals
                 // that are not actually definitions. This triggers a bunch of spurious unresolved spans and the definition is not
                 // really useful anyway
-                if (locations.Result.Any(location => location.Path == node.GetSourceFile().Path.AbsolutePath && 
+                if (locations.Result.Any(location => location.Path == node.GetSourceFile().Path.AbsolutePath &&
                     location.Range.Start == node.GetNodeStartPositionWithoutTrivia()))
                 {
+                    definitionLocation = default;
                     return false;
                 }
 
                 var location = locations.Result[0];
-                if (location.Symbol != null && !referencingSpan.Classification.IsValid)
-                {
-                    var classification = GetClassificationForSymbol(location.Symbol);
-                    referencingSpan.Classification = classification;
-                }
 
-                m_spanToDefinitionMap[referencingSpan] = (path: location.Path, location.Range.Start);
+                definitionLocation = (path: location.Path, location.Range.Start, symbolLocation: location);
                 return true;
             }
 
+            definitionLocation = default;
+            return false;
+        }
+
+        private bool TryGetModuleSourceFile(INode node, out ISourceFile moduleSourceFile)
+        {
+            var symbol = m_workspace.GetSemanticModel()?.GetSymbolAtLocation(node) ?? node.Symbol ?? node.ResolvedSymbol;
+            if (symbol != null && symbol.IsBuildXLModule)
+            {
+                // Let's find the module and retrieve its spec
+                var module = m_workspace.Modules.FirstOrDefault(module => module.Descriptor.Name == symbol.Name);
+                if (module != null)
+                {
+                    var moduleConfigFile = m_workspace.GetEffectiveModuleConfigPath(module, m_pathTable);
+                    // Some generated module configuration files are not really part of the workspace (e.g. what the nuget resolver generates),
+                    // so let's make sure
+                    if (m_workspace.ConfigurationModule.Specs.TryGetValue(moduleConfigFile, out moduleSourceFile))
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            moduleSourceFile = default;
             return false;
         }
 

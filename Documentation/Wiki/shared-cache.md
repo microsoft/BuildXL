@@ -21,33 +21,24 @@ A cache configuration file should be provided to BuildXL so a blob-based cache i
 
 ```json
 {
-  "SkipDeterminismRecovery": true,
-  "WriteThroughCasData": true,
-  "FailIfRemoteFails": true,
-  "RemoteConstructionTimeoutMilliseconds": 30000,
-  "Assembly": "BuildXL.Cache.VerticalAggregator",
-  "Type": "BuildXL.Cache.VerticalAggregator.VerticalCacheAggregatorFactory",
+  "Assembly": "BuildXL.Cache.MemoizationStoreAdapter",
+  "Type": "BuildXL.Cache.MemoizationStoreAdapter.BlobWithLocalCacheFactory",
   "RemoteCache": {
-    "Assembly": "BuildXL.Cache.MemoizationStoreAdapter",
-    "CacheLogPath": "[BuildXLSelectedLogPath].Remote.log",
-    "Type": "BuildXL.Cache.MemoizationStoreAdapter.BlobCacheFactory",
     "CacheId": "remoteexamplecache",
-    "Universe": "exampleuniverse",
+    "CacheLogPath": "[BuildXLSelectedLogPath].log",
+    "Universe": "default",
     "RetentionPolicyInDays": 6
   },
   "LocalCache": {
+    "CacheId": "localexamplecache",
     "MaxCacheSizeInMB": 40480,
-    "Assembly": "BuildXL.Cache.MemoizationStoreAdapter",
-    "Type": "BuildXL.Cache.MemoizationStoreAdapter.MemoizationStoreCacheFactory",
-    "CacheLogPath": "[BuildXLSelectedLogPath]",
+    "CacheLogPath": "[BuildXLSelectedLogPath].local.log",
     "CacheRootPath": "[BuildXLSelectedRootPath]",
-    "CacheId": "localexamplecache"
   }
 }
 ```
 
 The relevant fields for the `RemoteCache` sections are:
-* The `Type`, which tells BuildXL this is a blob-based cache.
 * The `CacheId`, used for logging/error reporting to identify the cache in question.
 * The `Universe`, which defines the cache universe: builds sharing the same cache universe can actually interchange information.
 * The `RetentionPolicyInDays`. This is the retention policy configured in the section above. The above provisioning script defines 6 days of retention. It is important to keep this value in sync with the management policies of the blob account, if they were to be changed. A blob retention policy lower than the value specified here can cause build failures.
@@ -66,9 +57,7 @@ The proper credentials need to be provided in order for the BuildXL cache to sto
 
  ```json
  "RemoteCache": {
-    "Assembly": "BuildXL.Cache.MemoizationStoreAdapter",
-    "CacheLogPath": "[BuildXLSelectedLogPath].Remote.log",
-    "Type": "BuildXL.Cache.MemoizationStoreAdapter.BlobCacheFactory",
+    "CacheLogPath": "[BuildXLSelectedLogPath].log",
     "CacheId": "remoteexamplecache",
     "Universe": "exampleuniverse",
     "RetentionPolicyInDays": 6,
@@ -98,9 +87,7 @@ On the developer side, the cache configuration file needs to specify the same `S
 
 ```json
  "RemoteCache": {
-    "Assembly": "BuildXL.Cache.MemoizationStoreAdapter",
     "CacheLogPath": "[BuildXLSelectedLogPath].Remote.log",
-    "Type": "BuildXL.Cache.MemoizationStoreAdapter.BlobCacheFactory",
     "StorageAccountEndpoint": "https://exampleblobstorage.blob.core.windows.net",
     "IsReadOnly": true
  }

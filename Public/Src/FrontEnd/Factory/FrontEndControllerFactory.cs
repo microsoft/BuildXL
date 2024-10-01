@@ -57,7 +57,7 @@ namespace BuildXL.FrontEnd.Factory
         public PerformanceCollector Collector { get; }
 
         /// <nodoc />
-        public static IEnumerable<EventSource> GeneratedEventSources => 
+        public static IEnumerable<EventSource> GeneratedEventSources =>
             new EventSource[]
             {
                 global::BuildXL.FrontEnd.Factory.ETWLogger.Log,
@@ -77,7 +77,7 @@ namespace BuildXL.FrontEnd.Factory
             };
 
         /// <nodoc />
-        public static int[] DevLogEvents => 
+        public static int[] DevLogEvents =>
             new int[]
             {
                 (int)BuildXL.FrontEnd.Core.Tracing.LogEventId.FrontEndInitializeResolversPhaseStart,
@@ -153,7 +153,7 @@ namespace BuildXL.FrontEnd.Factory
             {
                 var entries = profilerDecorator.GetProfiledEntries();
                 var materializer = new ProfilerMaterializer(pathTable);
-                var reportDestination = Configuration.FrontEnd.ProfileReportDestination(pathTable);
+                var reportDestination = Configuration.FrontEnd.ProfileReportDestination(pathTable, Configuration.Logging);
 
                 Logger.Log.MaterializingProfilerReport(LoggingContext, reportDestination.ToString(pathTable));
 

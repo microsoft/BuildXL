@@ -50,7 +50,7 @@ namespace BuildXL.Utilities.Configuration
 
         /// <nodoc/>
         public const bool DefaultDisableIsObsoleteCheckDuringConversion = false;
-        
+
         /// <nodoc/>
         public const bool DefaultPreserveFullNames = false;
 
@@ -91,7 +91,7 @@ namespace BuildXL.Utilities.Configuration
         public const bool DefaultEnableCyclicalFriendModules = false;
 
         /// <nodoc/>
-        public static AbsolutePath DefaultProfileReportDestination(PathTable pathTable) => AbsolutePath.Create(pathTable, Environment.CurrentDirectory).Combine(pathTable, DefaultProfileReportFilename);
+        public static AbsolutePath DefaultProfileReportDestination(PathTable pathTable, ILoggingConfiguration configuration) => configuration.LogsDirectory.Combine(pathTable, DefaultProfileReportFilename);
 
         /// <nodoc/>
         public static readonly int DefaultMaxFrontEndConcurrency = Math.Max(Environment.ProcessorCount, 256 / Environment.ProcessorCount); // the more cores, the lower the threshold.
@@ -118,15 +118,15 @@ namespace BuildXL.Utilities.Configuration
         /// <nodoc/>
         public static bool DefaultAllowMissingSpecs = false;
 
-    // Extension methods
+        // Extension methods
 
-    /// <nodoc/>
-    public static bool ProfileScript(this IFrontEndConfiguration configuration) => 
+        /// <nodoc/>
+        public static bool ProfileScript(this IFrontEndConfiguration configuration) =>
             configuration.ProfileScript ?? DefaultProfileScript;
 
         /// <nodoc/>
-        public static AbsolutePath ProfileReportDestination(this IFrontEndConfiguration configuration, PathTable pathTable) => 
-            configuration.ProfileReportDestination ?? DefaultProfileReportDestination(pathTable);
+        public static AbsolutePath ProfileReportDestination(this IFrontEndConfiguration configuration, PathTable pathTable, ILoggingConfiguration loggingConfig) =>
+            configuration.ProfileReportDestination ?? DefaultProfileReportDestination(pathTable, loggingConfig);
 
         /// <nodoc/>
         public static FrontEndMode FrontEndMode(this IFrontEndConfiguration configuration)
@@ -145,19 +145,19 @@ namespace BuildXL.Utilities.Configuration
         }
 
         /// <nodoc/>
-        public static bool DebugScript(this IFrontEndConfiguration configuration) => 
+        public static bool DebugScript(this IFrontEndConfiguration configuration) =>
             configuration.DebugScript ?? DefaultDebugScript;
 
         /// <nodoc/>
-        public static bool ForcePopulatePackageCache(this IFrontEndConfiguration configuration) => 
+        public static bool ForcePopulatePackageCache(this IFrontEndConfiguration configuration) =>
             configuration.ForcePopulatePackageCache ?? DefaultForcePopulatePackageCache;
 
         /// <nodoc/>
-        public static bool UsePackagesFromFileSystem(this IFrontEndConfiguration configuration) => 
+        public static bool UsePackagesFromFileSystem(this IFrontEndConfiguration configuration) =>
             configuration.UsePackagesFromFileSystem ?? false;
 
         /// <nodoc/>
-        public static bool RespectWeakFingerprintForNugetUpToDateCheck(this IFrontEndConfiguration configuration) => 
+        public static bool RespectWeakFingerprintForNugetUpToDateCheck(this IFrontEndConfiguration configuration) =>
             configuration.RespectWeakFingerprintForNugetUpToDateCheck ?? DefaultRespectWeakFingerprint;
 
         /// <nodoc/>
@@ -165,15 +165,15 @@ namespace BuildXL.Utilities.Configuration
             configuration.ForceGenerateNuGetSpecs ?? DefaultForceGenerateNuGetSpecs;
 
         /// <nodoc/>
-        public static bool DebuggerBreakOnExit(this IFrontEndConfiguration configuration) => 
+        public static bool DebuggerBreakOnExit(this IFrontEndConfiguration configuration) =>
             configuration.DebuggerBreakOnExit ?? DefaultDebuggerBreakOnExit;
 
         /// <nodoc/>
-        public static int DebuggerPort(this IFrontEndConfiguration configuration) => 
+        public static int DebuggerPort(this IFrontEndConfiguration configuration) =>
             configuration.DebuggerPort ?? DefaultDebuggerPort;
 
         /// <nodoc/>
-        public static int MaxFrontEndConcurrency(this IFrontEndConfiguration configuration) => 
+        public static int MaxFrontEndConcurrency(this IFrontEndConfiguration configuration) =>
             configuration.MaxFrontEndConcurrency ?? DefaultMaxFrontEndConcurrency;
 
         /// <nodoc/>
@@ -181,19 +181,19 @@ namespace BuildXL.Utilities.Configuration
             configuration.EnableEvaluationThrottling ?? DefaultEnableEvaluationThrottling;
 
         /// <nodoc/>
-        public static int MaxRestoreNugetConcurrency(this IFrontEndConfiguration configuration) => 
+        public static int MaxRestoreNugetConcurrency(this IFrontEndConfiguration configuration) =>
             configuration.MaxRestoreNugetConcurrency ?? MaxFrontEndConcurrency(configuration);
 
         /// <nodoc/>
-        public static int ThreadPoolMinThreadCountMultiplier(this IFrontEndConfiguration configuration)
-            => configuration.ThreadPoolMinThreadCountMultiplier ?? DefaultintThreadPoolMinThreadCountMultiplier;
+        public static int ThreadPoolMinThreadCountMultiplier(this IFrontEndConfiguration configuration) =>
+            configuration.ThreadPoolMinThreadCountMultiplier ?? DefaultintThreadPoolMinThreadCountMultiplier;
 
         /// <nodoc/>
-        public static int MaxTypeCheckingConcurrency(this IFrontEndConfiguration configuration) => 
+        public static int MaxTypeCheckingConcurrency(this IFrontEndConfiguration configuration) =>
             configuration.MaxTypeCheckingConcurrency ?? configuration.MaxFrontEndConcurrency();
 
         /// <nodoc/>
-        public static bool UsePartialEvaluation(this IFrontEndConfiguration configuration) => 
+        public static bool UsePartialEvaluation(this IFrontEndConfiguration configuration) =>
             configuration.UsePartialEvaluation ?? true;
 
         /// <nodoc />
@@ -243,11 +243,11 @@ namespace BuildXL.Utilities.Configuration
         }
 
         /// <nodoc/>
-        public static bool DisableLanguagePolicyAnalysis(this IFrontEndConfiguration configuration) => 
+        public static bool DisableLanguagePolicyAnalysis(this IFrontEndConfiguration configuration) =>
             configuration.DisableLanguagePolicyAnalysis ?? DefaultDisableLanguagePolicyAnalysis;
 
         /// <nodoc/>
-        public static bool DisableIsObsoleteCheckDuringConversion(this IFrontEndConfiguration configuration) => 
+        public static bool DisableIsObsoleteCheckDuringConversion(this IFrontEndConfiguration configuration) =>
             configuration.DisableIsObsoleteCheckDuringConversion ?? DefaultDisableIsObsoleteCheckDuringConversion;
 
         /// <nodoc/>
@@ -267,7 +267,7 @@ namespace BuildXL.Utilities.Configuration
             configuration.PreserveTrivia ?? DefaultPreserveTrivia;
 
         /// <nodoc />
-        public static int ErrorLimit(this IFrontEndConfiguration configuration) => 
+        public static int ErrorLimit(this IFrontEndConfiguration configuration) =>
             configuration.ErrorLimit ?? DefaultErrorLimit;
 
         /// <nodoc />

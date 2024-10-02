@@ -274,7 +274,7 @@ function setAuthenticationTokenInNpmrc() {
 
     # output is in the format '{"Username":"VssSessionToken","Password":"token"}'
     token=$(echo $credProviderOutput | sed -E -e 's/.*\{"Username":"[a-zA-Z0-9]*","Password":"([a-zA-Z0-9]*)"\}.*/\1/')
-    b64token=$(echo -ne "$token" | base64)
+    b64token=$(echo -ne "$token" | base64 -w 0)
 
     # write new token to file
     echo "" >> "$HOME/.npmrc"

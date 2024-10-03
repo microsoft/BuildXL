@@ -3,6 +3,7 @@
 
 using BuildXL.Utilities.Configuration;
 using Test.BuildXL.FrontEnd.Core;
+using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -19,7 +20,10 @@ namespace Test.BuildXL.FrontEnd.Rush.IntegrationTests
         // We need to execute in order to verify the presence of DFAs
         protected override EnginePhases Phase => EnginePhases.Execute;
 
-        [Theory]
+        /// There is nothing Linux-specific with this test, but under CloudBuild we run with additional directory
+        /// translations (e.g. Out folder is usually a reparse point) that this test infra is not aware of, so paths
+        /// are not properly translated
+        [TheoryIfSupported(requiresLinuxBasedOperatingSystem: true)]
         [InlineData(true)]
         [InlineData(false)]
         public void ReadOutOfAllowedUndeclaredReadsConeIsFlagged(bool declareDependency)

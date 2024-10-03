@@ -2,6 +2,8 @@
 // Licensed under the MIT License.
 
 using System.IO;
+using System.Linq;
+using System.Text;
 using BuildXL.Native.IO;
 using BuildXL.ProcessPipExecutor;
 using BuildXL.Utilities.Core;
@@ -78,7 +80,10 @@ namespace Test.BuildXL.Processes
             XAssert.AreEqual(AbsolutePath.Create(Context.PathTable, symlinkFile), result);
         }
 
-        [FactIfSupported(requiresSymlinkPermission: true)]
+        /// There is nothing Linux-specific with this test, but under CloudBuild we run with additional directory
+        /// translations (e.g. Out folder is usually a reparse point) that this test infra is not aware of, so paths
+        /// are not properly translated
+        [FactIfSupported(requiresSymlinkPermission: true, requiresLinuxBasedOperatingSystem: true)]
         public void TestGetAllReparsePointChains()
         {
             // Create the following layout
@@ -122,10 +127,24 @@ namespace Test.BuildXL.Processes
 
             // We should get a path for each created symlink (and for each symlink all its preceding atoms should be fully resolved)
             // We do 'Contains' instead of asserting the complete set because in CB there might be other reparse points involved (e.g. Out directory)
-            XAssert.Contains(result,
-                    AbsolutePath.Create(Context.PathTable, Path.Combine(TemporaryDirectory, "A", "B-symlink")),
-                    AbsolutePath.Create(Context.PathTable, Path.Combine(TemporaryDirectory, "A", "B-symlink-again")),
-                    AbsolutePath.Create(Context.PathTable, Path.Combine(TemporaryDirectory, "B", "D-symlink")));
+            AbsolutePath[] shouldContain = [
+                AbsolutePath.Create(Context.PathTable, Path.Combine(TemporaryDirectory, "A", "B-symlink")),
+                AbsolutePath.Create(Context.PathTable, Path.Combine(TemporaryDirectory, "A", "B-symlink-again")),
+                AbsolutePath.Create(Context.PathTable, Path.Combine(TemporaryDirectory, "B", "D-symlink"))
+            ];
+
+            if (shouldContain.Any(p => !result.Contains(p))) 
+            {
+                var sb = new StringBuilder();
+                sb.AppendLine("[");
+                foreach (var p in result)
+                {
+                    sb.AppendLine("    " + p.ToString(Context.PathTable));
+                }
+                sb.AppendLine("]");
+                var failedPath = shouldContain.First(p => !result.Contains(p)).ToString(Context.PathTable);
+                XAssert.Fail($"A path {failedPath} is not contained in the collection {sb}");
+            }
         }
     }
 }

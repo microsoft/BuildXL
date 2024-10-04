@@ -1358,8 +1358,8 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.PipExecutor,
-            Message = "[{pipDescription}] Cancelled process execution due to {reason}. Elapsed execution time: {elapsedMs} ms. Peak memory: {peakMemoryMb} MB. Expected memory: {expectedMemoryMb} MB. Peak commit memory: {peakCommitMb} MB. Expected commit memory: {expectedCommitMb} MB. Cancel time (ms): {cancelMilliseconds}")]
-        internal abstract void CancellingProcessPipExecutionDueToResourceExhaustion(LoggingContext loggingContext, string pipDescription, string reason, long elapsedMs, int peakMemoryMb, int expectedMemoryMb, int peakCommitMb, int expectedCommitMb, int cancelMilliseconds);
+            Message = "[{pipDescription}] Cancelled process execution due to {reason}. Elapsed execution time: {elapsedMs} ms. Peak memory: {peakMemoryMb} MB. Expected memory: {expectedMemoryMb} MB. Cancel time (ms): {cancelMilliseconds}")]
+        internal abstract void CancellingProcessPipExecutionDueToResourceExhaustion(LoggingContext loggingContext, string pipDescription, string reason, long elapsedMs, int peakMemoryMb, int expectedMemoryMb, int cancelMilliseconds);
 
         [GeneratedEvent(
             (ushort)LogEventId.StartCancellingProcessPipExecutionDueToResourceExhaustion,
@@ -1367,8 +1367,8 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.PipExecutor,
-            Message = "[{pipDescription}] Attempting to cancel process execution due to {reason}. ScopeId: {scopeId}. Elapsed execution time: {elapsedMs} ms. ExpectedPeakWorkingSet: {expectedPeakWorkingSetMb} MB, PeakWorkingSet: {peakWorkingSetMb} MB, LastWorkingSet: {lastWorkingSetMb} MB, LastCommitSize: {lastCommitSizeMb} MB.")]
-        internal abstract void StartCancellingProcessPipExecutionDueToResourceExhaustion(LoggingContext loggingContext, string pipDescription, string reason, int scopeId, long elapsedMs, int expectedPeakWorkingSetMb, int peakWorkingSetMb, int lastWorkingSetMb, int lastCommitSizeMb);
+            Message = "[{pipDescription}] Attempting to cancel process execution due to {reason}. ScopeId: {scopeId}. Elapsed execution time: {elapsedMs} ms. ExpectedPeakWorkingSet: {expectedPeakWorkingSetMb} MB, PeakWorkingSet: {peakWorkingSetMb} MB, LastWorkingSet: {lastWorkingSetMb} MB.")]
+        internal abstract void StartCancellingProcessPipExecutionDueToResourceExhaustion(LoggingContext loggingContext, string pipDescription, string reason, int scopeId, long elapsedMs, int expectedPeakWorkingSetMb, int peakWorkingSetMb, int lastWorkingSetMb);
 
         [GeneratedEvent(
             (int)LogEventId.LogMismatchedDetoursErrorCount,
@@ -3780,8 +3780,6 @@ namespace BuildXL.Scheduler.Tracing
                 "DefaultWorkingSetMb: {defaultWorkingSetMb}, " +
                 "ExpectedPeakWorkingSetMb: {expectedPeakWorkingSetMb}, PeakWorkingSetMb: {peakWorkingSetMb}, " +
                 "ExpectedAverageWorkingSetMb: {expectedAverageWorkingSetMb}, AverageWorkingSetMb: {averageWorkingSetMb}, " +
-                "ExpectedPeakCommitSizeMb: {expectedPeakCommitSizeMb}, PeakCommitSizeMb: {peakCommitSizeMb}, " +
-                "ExpectedAverageCommitSizeMb: {expectedAverageCommitSizeMb}, AverageCommitSizeMb: {averageCommitSizeMb}, " +
                 "ExpectedDiskIOInMB: {expectedDiskIOInMB}, ActualDiskIOInMB: {actualDiskIOInMB}.")]
         internal abstract void ProcessPipExecutionInfo(
             LoggingContext loggingContext,
@@ -3796,10 +3794,6 @@ namespace BuildXL.Scheduler.Tracing
             int peakWorkingSetMb,
             int expectedAverageWorkingSetMb,
             int averageWorkingSetMb,
-            int expectedPeakCommitSizeMb,
-            int peakCommitSizeMb,
-            int expectedAverageCommitSizeMb,
-            int averageCommitSizeMb,
             int expectedDiskIOInMB,
             int actualDiskIOInMB,
             double maxExpectedDurationSec);
@@ -3882,8 +3876,8 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Warning,
             Keywords = (int)(Keywords.UserMessage),
             EventTask = (ushort)Tasks.PipExecutor,
-            Message = "[{pipDescription}] Pip will be retried due to Low Memory. DefaultWorkingSetUsage: {defaultWorkingSetUsage}, ExpectedWorkingSetUsage: {expectedWorkingSetUsage}, ActualWorkingSetUsage: {actualWorkingSetUsage}")]
-        internal abstract void PipRetryDueToLowMemory(LoggingContext loggingContext, string pipDescription, int defaultWorkingSetUsage, int expectedWorkingSetUsage, int actualWorkingSetUsage);
+            Message = "[{pipDescription}] Pip will be retried due to Low Memory. Worker: {workerName}, DefaultWorkingSetUsage: {defaultWorkingSetUsage}, ExpectedWorkingSetUsage: {expectedWorkingSetUsage}, ActualWorkingSetUsage: {actualWorkingSetUsage}")]
+        internal abstract void PipRetryDueToLowMemory(LoggingContext loggingContext, string pipDescription, string workerName, int defaultWorkingSetUsage, int expectedWorkingSetUsage, int actualWorkingSetUsage);
 
         [GeneratedEvent(
             (ushort)LogEventId.PipRetryDueToRetryableFailures,
@@ -3900,8 +3894,8 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.PipExecutor,
-            Message = "[{pipSemiStableHash}] Pip emptied working set. IsSuspendEnabled: {isSuspend}, Result: {result}, ExpectedPeakWorkingSet: {expectedPeakWorkingSet}, ExpectedAverageWorkingSet: {expectedAverageWorkingSet}, BeforePeakWorkingSet: {beforePeakWorkingSet}, BeforeWorkingSet: {beforeWorkingSet}, BeforeAverageWorkingSet: {beforeAverageWorkingSet}, BeforeCommitSize: {beforeCommitSize}, AfterWorkingSet: {afterWorkingSet}")]
-        internal abstract void EmptyWorkingSet(LoggingContext loggingContext, string pipSemiStableHash, bool isSuspend, string result, int expectedPeakWorkingSet, int expectedAverageWorkingSet, int beforePeakWorkingSet, int beforeWorkingSet, int beforeAverageWorkingSet, int beforeCommitSize, int afterWorkingSet);
+            Message = "[{pipSemiStableHash}] Pip emptied working set. IsSuspendEnabled: {isSuspend}, Result: {result}, ExpectedPeakWorkingSet: {expectedPeakWorkingSet}, ExpectedAverageWorkingSet: {expectedAverageWorkingSet}, BeforePeakWorkingSet: {beforePeakWorkingSet}, BeforeWorkingSet: {beforeWorkingSet}, BeforeAverageWorkingSet: {beforeAverageWorkingSet}, AfterWorkingSet: {afterWorkingSet}")]
+        internal abstract void EmptyWorkingSet(LoggingContext loggingContext, string pipSemiStableHash, bool isSuspend, string result, int expectedPeakWorkingSet, int expectedAverageWorkingSet, int beforePeakWorkingSet, int beforeWorkingSet, int beforeAverageWorkingSet, int afterWorkingSet);
 
         [GeneratedEvent(
             (ushort)LogEventId.ResumeProcess,
@@ -3909,8 +3903,8 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.PipExecutor,
-            Message = "[{pipSemiStableHash}] Pip resumed. Result: {result}, BeforeWorkingSetUsage: {beforeWorkingSetUsage}, BeforeCommitSize: {beforeCommitSize}, RamMbNeededForResume: {ramMbNeededForResume}")]
-        internal abstract void ResumeProcess(LoggingContext loggingContext, string pipSemiStableHash, bool result, int beforeWorkingSetUsage, int beforeCommitSize, int ramMbNeededForResume);
+            Message = "[{pipSemiStableHash}] Pip resumed. Result: {result}, BeforeWorkingSetUsage: {beforeWorkingSetUsage}, RamMbNeededForResume: {ramMbNeededForResume}")]
+        internal abstract void ResumeProcess(LoggingContext loggingContext, string pipSemiStableHash, bool result, int beforeWorkingSetUsage, int ramMbNeededForResume);
 
         [GeneratedEvent(
             (ushort)LogEventId.CompositeSharedOpaqueContentDetermined,
@@ -4165,6 +4159,24 @@ namespace BuildXL.Scheduler.Tracing
             EventTask = (ushort)Tasks.Scheduler,
             Message = "There are still {count} pending events not been processed after NotifyOrchestratorExecutionLogTarget disposed.")]
         public abstract void PendingEventsRemaingAfterDisposed(LoggingContext loggingContext, long count);
+
+        [GeneratedEvent(
+            (int)LogEventId.DynamicRamDetected,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = "{workerName} has a dynamic RAM (initial RAM size: {oldRamMb}, current RAM size: {newRamMb}). Memory-based scheduler throttling will not work with the dynamic RAM in VMs.")]
+        public abstract void DynamicRamDetected(LoggingContext context, string workerName, int oldRamMb, int newRamMb);
+
+        [GeneratedEvent(
+            (int)LogEventId.RamProjectionDisabled,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = "The RAM size could not be measured, so the RAM projection feature has been disabled.")]
+        public abstract void RamProjectionDisabled(LoggingContext context);
     }
 }
 #pragma warning restore CA1823 // Unused field

@@ -70,18 +70,10 @@ namespace BuildXL.Scheduler
         private static readonly IComparer<ResourceScope> s_largestWorkingSetFirstComparer =
             Comparer<ResourceScope>.Create((s1, s2) => -s1.MemoryCounters.LastWorkingSetMb.CompareTo(s2.MemoryCounters.LastWorkingSetMb));
 
-        private static readonly IComparer<ResourceScope> s_largestCommitSizeFirstComparer =
-            Comparer<ResourceScope>.Create((s1, s2) => -s1.MemoryCounters.LastCommitSizeMb.CompareTo(s2.MemoryCounters.LastCommitSizeMb));
-
         /// This comparer considers suspended scopes as less-than non-suspended ones. 
         /// If both are suspended or non-suspended they are considered equal
         private static readonly IComparer<ResourceScope> s_suspendedFirstComparer =
             Comparer<ResourceScope>.Create((s1, s2) => (s1.IsSuspended == s2.IsSuspended) ? 0 : s1.IsSuspended ? -1 : 1);
-
-        /// <summary>
-        /// Comparer used to get pips in largest-commit-size-first order, but with all suspended pips coming before non-suspended pips
-        /// </summary>
-        private static readonly IComparer<ResourceScope> s_largestCommitSuspendedFirstComparer = s_suspendedFirstComparer.AndThen(s_largestCommitSizeFirstComparer);
 
         /// <nodoc />
         public long TotalUsedWorkingSet { get; private set; }
@@ -180,8 +172,8 @@ namespace BuildXL.Scheduler
                 {
                     case ManageMemoryMode.CancelSuspendedFirst:
                         isEligible = (scope) => scope.CanCancel;
-                        // Cancel by largest commit size, prioritizing suspended processes
-                        comparer = s_largestCommitSuspendedFirstComparer;
+                        // Cancel suspended first
+                        comparer = s_suspendedFirstComparer;
                         break;
 
                     case ManageMemoryMode.CancellationRam:
@@ -243,7 +235,7 @@ namespace BuildXL.Scheduler
                     case ManageMemoryMode.CancellationCommit:
                     case ManageMemoryMode.CancelSuspendedFirst:
                     {
-                        sizeMb = mode == ManageMemoryMode.CancellationRam ? scope.MemoryCounters.LastWorkingSetMb : scope.MemoryCounters.LastCommitSizeMb;
+                        sizeMb = scope.MemoryCounters.LastWorkingSetMb;
 
                         scope.CancelAsync(ResourceScopeCancellationReason.ResourceLimits).Forget();
                         break;
@@ -551,7 +543,7 @@ namespace BuildXL.Scheduler
                 int workingSetAfter = MemoryCounters.LastWorkingSetMb;
                 int savedSizeMb = memoryCountersBefore.LastWorkingSetMb - workingSetAfter;
 
-                Tracing.Logger.Log.EmptyWorkingSet(loggingContext, PipSemiStableHash, isSuspend, result.ToString(), ExpectedMemoryCounters.PeakWorkingSetMb, ExpectedMemoryCounters.AverageWorkingSetMb, memoryCountersBefore.PeakWorkingSetMb, memoryCountersBefore.LastWorkingSetMb, memoryCountersBefore.AverageWorkingSetMb, memoryCountersBefore.LastCommitSizeMb, workingSetAfter);
+                Tracing.Logger.Log.EmptyWorkingSet(loggingContext, PipSemiStableHash, isSuspend, result.ToString(), ExpectedMemoryCounters.PeakWorkingSetMb, ExpectedMemoryCounters.AverageWorkingSetMb, memoryCountersBefore.PeakWorkingSetMb, memoryCountersBefore.LastWorkingSetMb, memoryCountersBefore.AverageWorkingSetMb, workingSetAfter);
 
                 if (isSuspend)
                 {
@@ -577,11 +569,9 @@ namespace BuildXL.Scheduler
                 Contract.Requires(m_resumeProcess != null, "Scope has called ResumeProcess which was not registered.");
 
                 int workingSetBefore = MemoryCounters.LastWorkingSetMb;
-                int commitSizeBefore = MemoryCounters.LastCommitSizeMb;
-
                 bool result = m_resumeProcess.Invoke();
 
-                Tracing.Logger.Log.ResumeProcess(loggingContext, PipSemiStableHash, result, workingSetBefore, commitSizeBefore, RamMbNeededForResume);
+                Tracing.Logger.Log.ResumeProcess(loggingContext, PipSemiStableHash, result, workingSetBefore, RamMbNeededForResume);
 
                 if (!result)
                 {

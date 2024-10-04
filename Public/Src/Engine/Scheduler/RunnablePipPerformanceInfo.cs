@@ -57,10 +57,6 @@ namespace BuildXL.Scheduler
 
         internal bool IsExecuted { get; private set; }
 
-        internal long InputMaterializationCostMbForBestWorker { get; private set; }
-
-        internal long InputMaterializationCostMbForChosenWorker { get; private set; }
-
         internal long PushOutputsToCacheDurationMs { get; private set; }
 
         /// <summary>
@@ -231,12 +227,6 @@ namespace BuildXL.Scheduler
         internal long CalculateQueueDurationMs()
         {
             return QueueDurations.Values.Sum(a => (long)a.TotalMilliseconds);
-        }
-
-        internal void SetInputMaterializationCost(long costMbForBestWorker, long costMbForChosenWorker)
-        {
-            InputMaterializationCostMbForBestWorker = costMbForBestWorker;
-            InputMaterializationCostMbForChosenWorker = costMbForChosenWorker;
         }
     }
 }

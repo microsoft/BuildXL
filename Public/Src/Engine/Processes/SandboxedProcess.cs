@@ -74,8 +74,6 @@ namespace BuildXL.Processes
 
         private readonly Aggregation m_peakWorkingSet = new();
         private readonly Aggregation m_workingSet = new();
-        private readonly Aggregation m_peakCommitSize = new();
-        private readonly Aggregation m_commitSize = new();
 
         internal SandboxedProcess(SandboxedProcessInfo info)
         {
@@ -312,9 +310,7 @@ namespace BuildXL.Processes
                 }
 
                 ulong lastPeakWorkingSet = 0;
-                ulong lastPeakCommitSize = 0;
                 ulong lastWorkingSet = 0;
-                ulong lastCommitSize = 0;
                 bool isCollectedData = false;
 
                 var visitResult = TryVisitJobObjectProcesses((processHandle, _) =>
@@ -324,9 +320,7 @@ namespace BuildXL.Processes
                     {
                         isCollectedData = true;
                         lastPeakWorkingSet += memoryUsage.PeakWorkingSetSize;
-                        lastPeakCommitSize += memoryUsage.PeakPagefileUsage;
                         lastWorkingSet += memoryUsage.WorkingSetSize;
-                        lastCommitSize += memoryUsage.PagefileUsage;
                     }
                 });
 
@@ -338,18 +332,13 @@ namespace BuildXL.Processes
                 if (isCollectedData)
                 {
                     m_peakWorkingSet.RegisterSample(lastPeakWorkingSet);
-                    m_peakCommitSize.RegisterSample(lastPeakCommitSize);
-
                     m_workingSet.RegisterSample(lastWorkingSet);
-                    m_commitSize.RegisterSample(lastCommitSize);
                 }
 
                 return ProcessMemoryCountersSnapshot.CreateFromBytes(
                     lastPeakWorkingSet,
                     lastWorkingSet,
-                    Convert.ToUInt64(m_workingSet.Average),
-                    lastPeakCommitSize,
-                    lastCommitSize);
+                    Convert.ToUInt64(m_workingSet.Average));
             }
             catch (NullReferenceException)
             {
@@ -651,13 +640,11 @@ namespace BuildXL.Processes
                 // Only overwrite memory counters if <see cref="GetMemoryCountersSnapshot"/> did get triggered previously. This isn't the case if the
                 // detours sandbox is used outside of BuildXL (currently only the scheduler calls this). The <see cref="JobObject.GetAccountingInformation"/>
                 // function does populate memory counters for the process tree if possible, so don't overwrite them with empty aggregator values.
-                if (m_peakWorkingSet.Count > 0 || m_workingSet.Count > 0 || m_peakCommitSize.Count > 0 || m_commitSize.Count > 0)
+                if (m_peakWorkingSet.Count > 0 || m_workingSet.Count > 0)
                 {
                     accountingInfo.MemoryCounters = Pips.ProcessMemoryCounters.CreateFromBytes(
                         peakWorkingSet: Convert.ToUInt64(m_peakWorkingSet.Maximum),
-                        averageWorkingSet: Convert.ToUInt64(m_workingSet.Average),
-                        peakCommitSize: Convert.ToUInt64(m_peakCommitSize.Maximum),
-                        averageCommitSize: Convert.ToUInt64(m_commitSize.Average));
+                        averageWorkingSet: Convert.ToUInt64(m_workingSet.Average));
                 }
 
                 jobAccountingInformation = accountingInfo;

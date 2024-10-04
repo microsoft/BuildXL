@@ -454,15 +454,6 @@ namespace BuildXL.Engine.Tracing
         #region Distribution
 
         [GeneratedEvent(
-            (ushort)LogEventId.WorkerTotalRamMb,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.UserMessage,
-            EventTask = (ushort)Tasks.Scheduler,
-            Message = "{worker} could not send available ram to orchestrator. Orchestrator used the default limit in MB: {defaultRamMb}. Available Commit in MB: {commitMb}")]
-        public abstract void WorkerTotalRamMb(LoggingContext context, string worker, int defaultRamMb, int commitMb);
-
-        [GeneratedEvent(
             (ushort)LogEventId.DistributionHostLog,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,

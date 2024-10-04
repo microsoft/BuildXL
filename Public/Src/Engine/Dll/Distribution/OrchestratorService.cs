@@ -75,24 +75,25 @@ namespace BuildXL.Engine.Distribution
         /// Class constructor
         /// </summary>
         [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope", Justification = "RemoteWorker disposes the workerClient")]
-        public OrchestratorService(IDistributionConfiguration config, LoggingContext loggingContext, DistributedInvocationId invocationId, PipExecutionContext context) : base(invocationId)
+        public OrchestratorService(IConfiguration config, LoggingContext loggingContext, DistributedInvocationId invocationId, PipExecutionContext context) : base(invocationId)
         {
-            Contract.Requires(config != null && config.BuildRole.IsOrchestrator());
+            Contract.Requires(config != null && config.Distribution.BuildRole.IsOrchestrator());
 
-            Hostname = config.MachineHostName;
+            var distributionConfig = config.Distribution;
+            Hostname = distributionConfig.MachineHostName;
 
             // Create all remote workers
-            m_buildServicePort = config.BuildServicePort;
-            m_remoteWorkers = new RemoteWorker[config.RemoteWorkerCount];
+            m_buildServicePort = distributionConfig.BuildServicePort;
+            m_remoteWorkers = new RemoteWorker[distributionConfig.RemoteWorkerCount];
 
             m_loggingContext = loggingContext;
 
-            for (int i = 0; i < config.RemoteWorkerCount; i++)
+            for (int i = 0; i < distributionConfig.RemoteWorkerCount; i++)
             {
                 ServiceLocation serviceLocation = null;
-                if (i < config.BuildWorkers.Count)
+                if (i < distributionConfig.BuildWorkers.Count)
                 {
-                    var configWorker = config.BuildWorkers[i];
+                    var configWorker = distributionConfig.BuildWorkers[i];
                     serviceLocation = new ServiceLocation { IpAddress = configWorker.IpAddress, Port = configWorker.BuildServicePort };
                 }
                 else
@@ -103,7 +104,7 @@ namespace BuildXL.Engine.Distribution
                 }
 
                 var workerId = i + 1; // 0 represents the local worker.
-                m_remoteWorkers[i] = new RemoteWorker(loggingContext, (uint)workerId, this, serviceLocation, context);
+                m_remoteWorkers[i] = new RemoteWorker(loggingContext, (uint)workerId, this, serviceLocation, context, config.Schedule);
             }
 
             m_orchestratorServer = new Grpc.GrpcOrchestratorServer(loggingContext, this, invocationId);

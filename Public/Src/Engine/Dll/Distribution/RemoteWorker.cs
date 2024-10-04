@@ -147,8 +147,9 @@ namespace BuildXL.Engine.Distribution
             uint workerId,
             OrchestratorService orchestratorService,
             ServiceLocation serviceLocation,
-            PipExecutionContext context)
-            : base(workerId, context: context)
+            PipExecutionContext context,
+            IScheduleConfiguration scheduleConfig)
+            : base(workerId, context, scheduleConfig)
         {
             m_appLoggingContext = appLoggingContext;
             m_orchestratorService = orchestratorService;
@@ -824,8 +825,6 @@ namespace BuildXL.Engine.Distribution
                 Step = (int)runnable.Step,
                 ExpectedPeakWorkingSetMb = processRunnable?.ExpectedMemoryCounters?.PeakWorkingSetMb ?? 0,
                 ExpectedAverageWorkingSetMb = processRunnable?.ExpectedMemoryCounters?.AverageWorkingSetMb ?? 0,
-                ExpectedPeakCommitSizeMb = processRunnable?.ExpectedMemoryCounters?.PeakCommitSizeMb ?? 0,
-                ExpectedAverageCommitSizeMb = processRunnable?.ExpectedMemoryCounters?.AverageCommitSizeMb ?? 0,
                 SequenceNumber = Interlocked.Increment(ref m_nextSequenceNumber),
             };
 
@@ -1200,20 +1199,18 @@ namespace BuildXL.Engine.Distribution
             TotalMaterializeInputSlots = attachCompletionInfo.MaxMaterialize;
             TotalLightProcessSlots = attachCompletionInfo.MaxLightProcesses;
             TotalIpcSlots = attachCompletionInfo.MaxLightProcesses;
-            TotalRamMb = attachCompletionInfo.AvailableRamMb;
-            TotalCommitMb = attachCompletionInfo.AvailableCommitMb;
 
-            if (TotalRamMb == 0)
+            int? availableRamMb = attachCompletionInfo.AvailableRamMb;
+            int? totalRamMb = attachCompletionInfo.TotalRamMb;
+
+            if (totalRamMb == 0 || availableRamMb == 0)
             {
-                // If BuildXL did not properly retrieve the available ram, then we use the default: 100gb
-                TotalRamMb = 100000;
-                Logger.Log.WorkerTotalRamMb(m_appLoggingContext, Name, TotalRamMb.Value, TotalCommitMb.Value);
+                // If the worker could not measure the ram size, we should use the orchestrator's ram counters.
+                totalRamMb = Environment.LocalWorker.TotalRamMb;
+                availableRamMb = Environment.LocalWorker.AvailableRamMb;
             }
 
-            if (TotalCommitMb == 0)
-            {
-                TotalCommitMb = (int)(TotalRamMb * 1.5);
-            }
+            UpdateRamCounters(m_appLoggingContext, totalRamMb, availableRamMb);
 
             // There is a nearly impossible race condition where the node may still be
             // in the Starting state (i.e. waiting for ACK of Attach call) so we try to transition

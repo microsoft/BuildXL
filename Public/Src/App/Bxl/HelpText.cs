@@ -658,9 +658,13 @@ namespace BuildXL
                 Strings.HelpText_DisplayHelp_LowPriority);
 
             hw.WriteOption(
-                "/enableHistoricCommitMemoryProjection[+|-]",
-                Strings.HelpText_DisplayHelp_EnableHistoricCommitMemoryProjection,
+                "/ramSemaphoreMultiplier:<double>",
+                Strings.HelpText_DisplayHelp_RamSemaphoreMultiplier,
                 HelpLevel.Verbose);
+
+            hw.WriteOption(
+                "/deprioritizeOnSemaphoreConstraints[+|-]",
+                Strings.HelpText_DisplayHelp_DeprioritizeOnSemaphoreConstraints);
 
             hw.WriteOption(
                 "/maxCommitUtilizationPercentage:<number>",

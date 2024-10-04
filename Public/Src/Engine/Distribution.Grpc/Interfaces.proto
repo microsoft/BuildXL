@@ -91,8 +91,8 @@ message AttachCompletionInfo
     // The available RAM on the worker
     int32 AvailableRamMb = 6;
 
-    // The available commit on the worker
-    int32 AvailableCommitMb = 7;
+    // The total RAM on the worker
+    int32 TotalRamMb = 7;
 }
 
 // Defines information about a completed pip and its outputs
@@ -269,14 +269,8 @@ message SinglePipBuildRequest
     // The expected average working set of the pip
     int32 ExpectedAverageWorkingSetMb = 7;
 
-    // The expected peak commit size of the pip
-    int32 ExpectedPeakCommitSizeMb = 8;
-
-    // The expected average commit size of the pip
-    int32 ExpectedAverageCommitSizeMb = 9;
-
     // Sequence number for deduplicating worker calls
-    int32 SequenceNumber = 10;
+    int32 SequenceNumber = 8;
 }
 
 message FileArtifactKeyedHash

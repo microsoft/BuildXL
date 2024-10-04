@@ -267,6 +267,9 @@ namespace BuildXL
                             "debug_LoadGraph",
                             opt => HandleLoadGraphOption(opt, pathTable, cacheConfiguration)),
                         OptionHandlerFactory.CreateBoolOption(
+                            "deprioritizeOnSemaphoreConstraints",
+                            opt => schedulingConfiguration.DeprioritizeOnSemaphoreConstraints = opt),
+                        OptionHandlerFactory.CreateBoolOption(
                             "determinismProbe",
                             sign =>
                             {
@@ -350,7 +353,10 @@ namespace BuildXL
                             sign => frontEndConfiguration.EnableEvaluationThrottling = sign),
                         OptionHandlerFactory.CreateBoolOption(
                             "enableHistoricCommitMemoryProjection",
-                            sign => schedulingConfiguration.EnableHistoricCommitMemoryProjection = sign),
+                            sign => 
+                            {
+                                // Noop for legacy command line compatibility
+                            }),
                         OptionHandlerFactory.CreateBoolOption(
                             "enableGrpc",
                             sign =>
@@ -365,7 +371,7 @@ namespace BuildXL
                             (opt, sign) => HandleLazyOutputMaterializationOption(opt, sign, schedulingConfiguration)),
                         OptionHandlerFactory.CreateBoolOption(
                             "enableLessAggresiveMemoryProjection",
-                            sign => schedulingConfiguration.EnableLessAggresiveMemoryProjection = sign),
+                            sign => schedulingConfiguration.EnableLessAggressiveMemoryProjection = sign),
                         OptionHandlerFactory.CreateBoolOption(
                             "enablePlugins",
                             sign => schedulingConfiguration.EnablePlugin = sign),
@@ -872,6 +878,10 @@ namespace BuildXL
                             "qualifier",
                             "q",
                             opt => ParseStringOption(opt, startupConfiguration.QualifierIdentifiers)),
+                        OptionHandlerFactory.CreateOption(
+                            "ramSemaphoreMultiplier",
+                            opt =>
+                            schedulingConfiguration.RamSemaphoreMultiplier = CommandLineUtilities.ParseDoubleOption(opt, 0, 1)),
                         OptionHandlerFactory.CreateBoolOption(
                             "redirectUserProfile",
                             opt => enableProfileRedirect = opt),

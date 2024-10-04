@@ -285,6 +285,8 @@ namespace BuildXL.Utilities
 
                 DiskStats[] diskStats = null;
 
+                TryGetMemoryCounters(out machineTotalPhysicalBytes, out machineAvailablePhysicalBytes);
+
                 if (!OperatingSystemHelper.IsUnixOS)
                 {
                     machineCpu = GetMachineCpu();
@@ -292,13 +294,6 @@ namespace BuildXL.Utilities
                     var buildXlJobObjectInfo = m_queryJobObject?.Invoke();
                     jobObjectProcesses = buildXlJobObjectInfo?.NumProcesses;
                     jobObjectCpu = GetJobObjectCpu(buildXlJobObjectInfo?.UserTime, buildXlJobObjectInfo?.KernelTime);
-
-                    MEMORYSTATUSEX memoryStatusEx = new MEMORYSTATUSEX();
-                    if (GlobalMemoryStatusEx(memoryStatusEx))
-                    {
-                        machineAvailablePhysicalBytes = memoryStatusEx.ullAvailPhys;
-                        machineTotalPhysicalBytes = memoryStatusEx.ullTotalPhys;
-                    }
 
                     PERFORMANCE_INFORMATION performanceInfo = PERFORMANCE_INFORMATION.CreatePerfInfo();
                     if (GetPerformanceInfo(out performanceInfo, performanceInfo.cb))
@@ -317,13 +312,6 @@ namespace BuildXL.Utilities
                 {
                     diskStats = GetDiskCountersUnix();
                     machineCpu = GetMachineCpuUnix();
-
-                    RamUsageInfo ramUsageInfo = new RamUsageInfo();
-                    if (GetRamUsageInfo(ref ramUsageInfo) == MACOS_INTEROP_SUCCESS)
-                    {
-                        machineAvailablePhysicalBytes = ramUsageInfo.FreeBytes;
-                        machineTotalPhysicalBytes = ramUsageInfo.TotalBytes;
-                    }
                 }
 
                 // stop network monitor measurement and gather data
@@ -378,6 +366,53 @@ namespace BuildXL.Utilities
                 // restart network monitor to start new measurement
                 m_networkMonitor?.StartMeasurement();
             }
+        }
+
+        private static bool TryGetMemoryCounters(out double? machineTotalPhysicalBytes, out double? machineAvailablePhysicalBytes)
+        {
+            machineTotalPhysicalBytes = null;
+            machineAvailablePhysicalBytes = null;
+
+            if (!OperatingSystemHelper.IsUnixOS)
+            {
+                MEMORYSTATUSEX memoryStatusEx = new MEMORYSTATUSEX();
+                if (GlobalMemoryStatusEx(memoryStatusEx))
+                {
+                    machineAvailablePhysicalBytes = memoryStatusEx.ullAvailPhys;
+                    machineTotalPhysicalBytes = memoryStatusEx.ullTotalPhys;
+                    return true;
+                }
+            }
+            else
+            {
+                RamUsageInfo ramUsageInfo = new RamUsageInfo();
+                if (GetRamUsageInfo(ref ramUsageInfo) == MACOS_INTEROP_SUCCESS)
+                {
+                    machineAvailablePhysicalBytes = ramUsageInfo.FreeBytes;
+                    machineTotalPhysicalBytes = ramUsageInfo.TotalBytes;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Get machine memory counters
+        /// </summary>
+        public static bool TryGetMemoryCountersMb(out int? machineTotalPhysicalMb, out int? machineAvailablePhysicalMb)
+        {
+            machineTotalPhysicalMb = null;
+            machineAvailablePhysicalMb = null;
+
+            if (TryGetMemoryCounters(out double? machineTotalPhysicalBytes, out double? machineAvailablePhysicalBytes))
+            {
+                machineTotalPhysicalMb = (int)Aggregator.BytesToMB(machineTotalPhysicalBytes);
+                machineAvailablePhysicalMb = (int)Aggregator.BytesToMB(machineAvailablePhysicalBytes);
+                return true;
+            }
+
+            return false;
         }
 
         private void TryGetModifiedPagelistSizeAsync()
@@ -1465,7 +1500,7 @@ namespace BuildXL.Utilities
                 }
             }
 
-            private static double? BytesToMB(double? bytes)
+            internal static double? BytesToMB(double? bytes)
             {
                 if (bytes.HasValue)
                 {

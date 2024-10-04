@@ -51,7 +51,7 @@ namespace Test.BuildXL.Scheduler
                     default(IOCounters),
                     TimeSpan.FromMinutes(3),
                     TimeSpan.FromMinutes(3),
-                    ProcessMemoryCounters.CreateFromBytes(12324, 12325, 12326, 12326),
+                    ProcessMemoryCounters.CreateFromBytes(12324, 12325),
                     33,
                     7,
                     0,
@@ -138,8 +138,6 @@ namespace Test.BuildXL.Scheduler
                 r => r.PerformanceInformation.KernelTime,
                 r => r.PerformanceInformation.MemoryCounters.PeakWorkingSetMb,
                 r => r.PerformanceInformation.MemoryCounters.AverageWorkingSetMb,
-                r => r.PerformanceInformation.MemoryCounters.PeakCommitSizeMb,
-                r => r.PerformanceInformation.MemoryCounters.AverageCommitSizeMb,
                 r => r.PerformanceInformation.PushOutputsToCacheDurationMs,
 
                 r => r.PerformanceInformation.NumberOfProcesses,

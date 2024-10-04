@@ -334,7 +334,7 @@ namespace BuildXL.Engine
 
             if (IsDistributedOrchestrator)
             {
-                m_orchestratorService = new OrchestratorService(Configuration.Distribution, loggingContext, distributedInvocationId, Context);
+                m_orchestratorService = new OrchestratorService(Configuration, loggingContext, distributedInvocationId, Context);
                 m_distributionService = m_orchestratorService;
             }
             else if (IsDistributedWorker)
@@ -1256,6 +1256,11 @@ namespace BuildXL.Engine
             {
                 Logger.Log.ConfigIncompatibleOptionBuildTimeoutMinsAndCbTimeout(loggingContext);
                 success = false;
+            }
+
+            if (mutableConfig.Schedule.DeprioritizeOnSemaphoreConstraints)
+            {
+                mutableConfig.Schedule.MaxChooseWorkerCpu = 1;
             }
 
             return success;

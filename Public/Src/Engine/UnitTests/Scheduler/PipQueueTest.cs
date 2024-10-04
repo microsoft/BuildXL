@@ -50,6 +50,7 @@ using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
+using BuildXL.Scheduler.Distribution;
 
 namespace Test.BuildXL.Scheduler
 {
@@ -689,6 +690,10 @@ namespace Test.BuildXL.Scheduler
             public SchedulerTestHooks SchedulerTestHooks { get; }
 
             public bool HasFailed => throw new NotImplementedException();
+
+            public bool IsRamProjectionActive => true;
+
+            public LocalWorker LocalWorker { get; }
         }
     }
 

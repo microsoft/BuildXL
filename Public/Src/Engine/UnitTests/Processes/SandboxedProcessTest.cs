@@ -395,7 +395,6 @@ namespace Test.BuildXL.Processes
 
                 XAssert.AreNotEqual(0UL, accounting.MemoryCounters.PeakWorkingSet, "Expecting non-zero memory usage");
                 XAssert.AreEqual(0UL, accounting.MemoryCounters.AverageWorkingSet, "Expecting zero memory usage");
-                XAssert.AreEqual(0UL, accounting.MemoryCounters.PeakCommitSize, "Expecting zero pagefile usage");
 
                 // AverageCommitSize can be 0, so it's not verified to be non-zero.
 

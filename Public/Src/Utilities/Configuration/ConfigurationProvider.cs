@@ -118,11 +118,15 @@ namespace BuildXL.Utilities.Configuration
             config.Logging.OptimizeConsoleOutputForAzureDevOps = true;
             config.Logging.StoreFingerprints = true;
             config.Sandbox.TimeoutMultiplier = 3;
-            config.Schedule.UseHistoricalCpuUsageInfo = true;
-            config.Schedule.UseHistoricalRamUsageInfo = false;
             config.FrontEnd.EnableCredScan = true;
             config.Sandbox.RetryOnAzureWatsonExitCode = true;
             config.Server = ServerMode.Disabled;
+
+            config.Schedule.UseHistoricalCpuUsageInfo = false;
+            config.Schedule.UseHistoricalRamUsageInfo = true;
+            config.Schedule.EnableLessAggressiveMemoryProjection = true;
+            config.Schedule.MaximumRamUtilizationPercentage = 98;
+            config.Schedule.DeprioritizeOnSemaphoreConstraints = true;
 
             return config;
         }

@@ -58,6 +58,11 @@ namespace BuildXL.Scheduler
         public int Priority { get; private set; }
 
         /// <summary>
+        /// Initial priority
+        /// </summary>
+        public int? InitialPriority { get; private set; }
+
+        /// <summary>
         /// Execution environment
         /// </summary>
         public IPipExecutionEnvironment Environment { get; }
@@ -288,7 +293,18 @@ namespace BuildXL.Scheduler
         /// </summary>
         public void ChangePriority(int priority)
         {
+            if (InitialPriority == null)
+            {
+                InitialPriority = Priority;
+            }
+
             Priority = priority;
+
+            if (priority != 0)
+            {
+                // Priority cannot be lower than 1% of the initial priority
+                Priority = (int)Math.Max(priority, InitialPriority.Value * 0.01);
+            }
         }
 
         /// <summary>
@@ -624,7 +640,7 @@ namespace BuildXL.Scheduler
                             ioCounters: default(IOCounters),
                             userTime: TimeSpan.Zero,
                             kernelTime: TimeSpan.Zero,
-                            memoryCounters: ProcessMemoryCounters.CreateFromMb(0, 0, 0, 0),
+                            memoryCounters: ProcessMemoryCounters.CreateFromMb(0, 0),
                             numberOfProcesses: 0,
                             workerId: 0,
                             suspendedDurationMs: 0,

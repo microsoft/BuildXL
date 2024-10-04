@@ -101,7 +101,7 @@ namespace Test.BuildXL.Distribution
                 MaxProcesses = 2,
                 MaxMaterialize = 3,
                 AvailableRamMb = 100000,
-                AvailableCommitMb = 200000,
+                TotalRamMb = 100000,
             };
 
         void IWorkerPipExecutionService.Start(EngineSchedule schedule, BuildStartData buildStartData)

@@ -109,7 +109,7 @@ namespace Test.BuildXL.Scheduler
                 estimatedRamUsage, 
                 allowCancellation)
             { 
-                RamUsage = ProcessMemoryCountersSnapshot.CreateFromMB(reportedRamUsage, reportedRamUsage, reportedRamUsage, reportedRamUsage, reportedRamUsage)
+                RamUsage = ProcessMemoryCountersSnapshot.CreateFromMB(reportedRamUsage, reportedRamUsage, reportedRamUsage)
             };
         }
 
@@ -125,7 +125,7 @@ namespace Test.BuildXL.Scheduler
             public Task<int> ExecutionTask { get; private set; }
             private readonly Func<Task<int>> m_execute;
 
-            public ProcessMemoryCountersSnapshot RamUsage = ProcessMemoryCountersSnapshot.CreateFromMB(1, 1, 1, 1, 1);
+            public ProcessMemoryCountersSnapshot RamUsage = ProcessMemoryCountersSnapshot.CreateFromMB(1, 1, 1);
 
             public ResourceManagerWorkItemTracker(LoggingContext loggingContext, ProcessResourceManager resourceManager, uint id, int estimatedRamUsage, bool allowCancellation)
             {
@@ -135,7 +135,7 @@ namespace Test.BuildXL.Scheduler
                 m_execute = () => ExecutionTask = resourceManager.ExecuteWithResourcesAsync(
                     OperationContext.CreateUntracked(loggingContext),
                     SchedulerTest.CreateDummyProcess(context, new PipId(id)),
-                    ProcessMemoryCounters.CreateFromMb(estimatedRamUsage, estimatedRamUsage, estimatedRamUsage, estimatedRamUsage),
+                    ProcessMemoryCounters.CreateFromMb(estimatedRamUsage, estimatedRamUsage),
                     allowCancellation,
                     async (resourceScope) =>
                 {

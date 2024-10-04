@@ -23,29 +23,15 @@ namespace BuildXL.Interop
         /// </summary>
         public readonly int AverageWorkingSetMb;
 
-        /// <summary>
-        /// Peak commit size (in MB) considering all processes (highest point-in-time sum of the memory usage of the process tree).
-        /// </summary>
-        public readonly int PeakCommitSizeMb;
-
-        /// <summary>
-        /// Current commit size (in MB) considering all processes.
-        /// </summary>
-        public readonly int LastCommitSizeMb;
-
         /// <nodoc />
         private ProcessMemoryCountersSnapshot(
             int peakWorkingSetMb,
             int lastWorkingSetMb,
-            int averageWorkingSetMb,
-            int peakCommitSizeMb,
-            int lastCommitSizeMb)
+            int averageWorkingSetMb)
         {
             PeakWorkingSetMb = peakWorkingSetMb;
             LastWorkingSetMb = lastWorkingSetMb;
             AverageWorkingSetMb = averageWorkingSetMb;
-            PeakCommitSizeMb = peakCommitSizeMb;
-            LastCommitSizeMb = lastCommitSizeMb;
         }
 
         /// <summary>
@@ -54,16 +40,12 @@ namespace BuildXL.Interop
         public static ProcessMemoryCountersSnapshot CreateFromBytes(
             ulong peakWorkingSet,
             ulong lastWorkingSet,
-            ulong averageWorkingSet,
-            ulong peakCommitSize,
-            ulong lastCommitSize)
+            ulong averageWorkingSet)
         {
             return new ProcessMemoryCountersSnapshot(
                 ToMegabytes(peakWorkingSet),
                 ToMegabytes(lastWorkingSet),
-                ToMegabytes(averageWorkingSet),
-                ToMegabytes(peakCommitSize),
-                ToMegabytes(lastCommitSize));
+                ToMegabytes(averageWorkingSet));
         }
 
         /// <summary>
@@ -72,16 +54,12 @@ namespace BuildXL.Interop
         public static ProcessMemoryCountersSnapshot CreateFromMB(
             int peakWorkingSetMb,
             int lastWorkingSetMb,
-            int averageWorkingSetMb,
-            int peakCommitSizeMb,
-            int lastCommitSizeMb)
+            int averageWorkingSetMb)
         {
             return new ProcessMemoryCountersSnapshot(
                 peakWorkingSetMb,
                 lastWorkingSetMb,
-                averageWorkingSetMb,
-                peakCommitSizeMb,
-                lastCommitSizeMb);
+                averageWorkingSetMb);
         }
 
         private static int ToMegabytes(ulong bytes)

@@ -645,8 +645,7 @@ namespace BuildXL.Processes
 
                     memoryCounters = ProcessMemoryCounters.CreateFromBytes(
                         m_processResourceUsage.Aggregate(0UL, (acc, usage) => acc + usage.Value.PeakWorkingSetSize),
-                        m_processResourceUsage.Aggregate(0UL, (acc, usage) => acc + usage.Value.WorkingSetSize),
-                        0, 0);
+                        m_processResourceUsage.Aggregate(0UL, (acc, usage) => acc + usage.Value.WorkingSetSize));
 
                     childProcesses = m_processResourceUsage.Keys.Count > 0 ? (uint)(m_processResourceUsage.Keys.Count - 1) : 0; // Exclude the root process from the child count
                 }
@@ -662,7 +661,7 @@ namespace BuildXL.Processes
                         WriteTransferCount = 0
                     });
 
-                    memoryCounters = ProcessMemoryCounters.CreateFromBytes(0, 0, 0, 0);
+                    memoryCounters = ProcessMemoryCounters.CreateFromBytes(0, 0);
                 }
 
                 return new JobObject.AccountingInformation

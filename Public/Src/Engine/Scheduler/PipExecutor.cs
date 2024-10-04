@@ -2000,8 +2000,7 @@ namespace BuildXL.Scheduler
                             (long)(counter.Duration?.TotalMilliseconds ?? -1),
                             expectedMemoryCounters.PeakWorkingSetMb,
                             lastObservedMemoryCounters.PeakWorkingSetMb,
-                            lastObservedMemoryCounters.LastWorkingSetMb,
-                            lastObservedMemoryCounters.LastCommitSizeMb);
+                            lastObservedMemoryCounters.LastWorkingSetMb);
 
                         using (operationContext.StartAsyncOperation(PipExecutorCounter.ResourceLimitCancelProcessDuration))
                         {
@@ -2262,8 +2261,6 @@ namespace BuildXL.Scheduler
                             (long)(operationContext.Duration?.TotalMilliseconds ?? -1),
                             peakMemoryMb: result.JobAccountingInformation?.MemoryCounters.PeakWorkingSetMb ?? 0,
                             expectedMemoryMb: expectedMemoryCounters.PeakWorkingSetMb,
-                            peakCommitMb: result.JobAccountingInformation?.MemoryCounters.PeakCommitSizeMb ?? 0,
-                            expectedCommitMb: expectedMemoryCounters.PeakCommitSizeMb,
                             cancelMilliseconds: (int)(cancelTime?.TotalMilliseconds ?? 0));
                     }
                     else if (environment.SchedulerCancellationToken.IsCancellationRequested

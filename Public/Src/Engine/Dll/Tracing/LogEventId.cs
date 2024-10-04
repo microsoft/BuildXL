@@ -332,7 +332,6 @@ namespace BuildXL.Engine.Tracing
 
         DistributionDebugMessage = 7042,
         DistributionServiceInitializationError = 7043,
-        WorkerTotalRamMb = 7044,
 
         //RemoteWorkerProcessedExecutionBlob = 7045,
         // 7046 in use by SharedLogEventId

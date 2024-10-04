@@ -87,7 +87,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             UpdateFileContentTableByScanningChangeJournal = true;
 
             EnableSetupCostWhenChoosingWorker = false;
-            EnableLessAggresiveMemoryProjection = false;
+            EnableLessAggressiveMemoryProjection = false;
             MaxRetriesDueToRetryableFailures = 5;
             MaxRetriesDueToLowMemory = 20; // Based on telemetry, p99 of the retries due to the low memory is 14. 
 
@@ -111,6 +111,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
             // in a dependency chain
             RemoteCacheCutoff = true;
             RemoteCacheCutoffLength = 2;
+
+            // The default value is 0.9, meaning the RAM semaphore limit is set to 90% of the available RAM.
+            RamSemaphoreMultiplier = 0.9;
         }
 
         /// <nodoc />
@@ -180,14 +183,13 @@ namespace BuildXL.Utilities.Configuration.Mutable
             UpdateFileContentTableByScanningChangeJournal = template.UpdateFileContentTableByScanningChangeJournal;
             CacheOnly = template.CacheOnly;
             EnableSetupCostWhenChoosingWorker = template.EnableSetupCostWhenChoosingWorker;
-            EnableHistoricCommitMemoryProjection = template.EnableHistoricCommitMemoryProjection;
             MaximumCommitUtilizationPercentage = template.MaximumCommitUtilizationPercentage;
             CriticalCommitUtilizationPercentage = template.CriticalCommitUtilizationPercentage;
             DelayedCacheLookupMinMultiplier = template.DelayedCacheLookupMinMultiplier;
             DelayedCacheLookupMaxMultiplier = template.DelayedCacheLookupMaxMultiplier;
             MaxRetriesDueToLowMemory = template.MaxRetriesDueToLowMemory;
             MaxRetriesDueToRetryableFailures = template.MaxRetriesDueToRetryableFailures;
-            EnableLessAggresiveMemoryProjection = template.EnableLessAggresiveMemoryProjection;
+            EnableLessAggressiveMemoryProjection = template.EnableLessAggressiveMemoryProjection;
             ManageMemoryMode = template.ManageMemoryMode;
             EnablePlugin = template.EnablePlugin;
             PluginLocations = pathRemapper.Remap(template.PluginLocations);
@@ -208,6 +210,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
             RemoteCacheCutoff = template.RemoteCacheCutoff;
             RemoteCacheCutoffLength = template.RemoteCacheCutoffLength;
+
+            DeprioritizeOnSemaphoreConstraints = template.DeprioritizeOnSemaphoreConstraints;
+            RamSemaphoreMultiplier = template.RamSemaphoreMultiplier;
         }
 
         /// <inheritdoc />
@@ -287,7 +292,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public bool ForceUseEngineInfoFromCache { get; set; }
         
         /// <inheritdoc />
-        public bool? UseHistoricalRamUsageInfo { get; set; }
+        public bool UseHistoricalRamUsageInfo { get; set; }
 
         /// <inheritdoc />
         public RequiredOutputMaterialization RequiredOutputMaterialization { get; set; }
@@ -414,9 +419,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public bool EnableSetupCostWhenChoosingWorker { get; set;  }
 
         /// <inheritdoc />
-        public bool EnableHistoricCommitMemoryProjection { get; set; }
-
-        /// <inheritdoc />
         public int MaximumCommitUtilizationPercentage { get; set; }
 
         /// <inheritdoc />
@@ -429,7 +431,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public double? DelayedCacheLookupMaxMultiplier { get; set; }
 
         /// <inheritdoc />
-        public bool EnableLessAggresiveMemoryProjection { get; set; }
+        public bool EnableLessAggressiveMemoryProjection { get; set; }
 
         /// <inheritdoc />
         public bool EnableEmptyingWorkingSet { get; set; }
@@ -499,5 +501,11 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool CpuResourceAware { get; set; }
+
+        /// <inheritdoc />
+        public bool DeprioritizeOnSemaphoreConstraints { get; set; }
+
+        /// <inheritdoc />
+        public double RamSemaphoreMultiplier { get; set; }
     }
 }

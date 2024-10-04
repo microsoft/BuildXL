@@ -88,7 +88,7 @@ namespace BuildXL.Scheduler.Distribution
         /// Constructor
         /// </summary>
         public LocalWorker(IScheduleConfiguration scheduleConfig, IPipQueue pipQueue, IDetoursEventListener detoursListener, PipExecutionContext context)
-            : base(workerId: 0, context: context)
+            : base(workerId: 0, context, scheduleConfig)
         {
             Name = "#0 (Local)";
             WorkerIpAddress = MachineName;
@@ -295,5 +295,6 @@ namespace BuildXL.Scheduler.Distribution
             m_pipsSourceHashed.Add(runnable.PipId);
             return true;
         }
+
     }
 }

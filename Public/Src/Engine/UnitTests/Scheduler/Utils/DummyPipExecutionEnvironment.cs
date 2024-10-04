@@ -40,6 +40,7 @@ using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Core.Tasks;
 using BuildXL.Utilities.Tracing;
 using Test.BuildXL.TestUtilities;
+using BuildXL.Scheduler.Distribution;
 
 namespace Test.BuildXL.Scheduler.Utils
 {
@@ -659,6 +660,10 @@ namespace Test.BuildXL.Scheduler.Utils
         public PipSpecificPropertiesConfig PipSpecificPropertiesConfig { get; set; }
 
         public bool HasFailed => throw new NotImplementedException();
+
+        public bool IsRamProjectionActive => true;
+
+        public LocalWorker LocalWorker { get; }
 
         public SealDirectoryKind GetSealDirectoryKind(DirectoryArtifact directory)
         {

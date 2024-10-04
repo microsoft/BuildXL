@@ -23,16 +23,6 @@ namespace BuildXL.Pips
         public readonly int AverageWorkingSetMb => unchecked((int)ByteSizeFormatter.BytesToMegabytes(AverageWorkingSet));
 
         /// <summary>
-        /// Peak commit size (in MB) considering all processes (highest point-in-time sum of the memory usage of the process tree).
-        /// </summary>
-        public readonly int PeakCommitSizeMb => unchecked((int)ByteSizeFormatter.BytesToMegabytes(PeakCommitSize));
-
-        /// <summary>
-        /// Average commit size (in MB) considering all processes.
-        /// </summary>
-        public readonly int AverageCommitSizeMb => unchecked((int)ByteSizeFormatter.BytesToMegabytes(AverageCommitSize));
-
-        /// <summary>
         /// Peak working set (in bytes) considering all processes (highest point-in-time sum of the memory usage of the process tree).
         /// </summary>
         public readonly ulong PeakWorkingSet;
@@ -42,27 +32,13 @@ namespace BuildXL.Pips
         /// </summary>
         public readonly ulong AverageWorkingSet;
 
-        /// <summary>
-        /// Peak commit size (in bytes) considering all processes (highest point-in-time sum of the memory usage of the process tree).
-        /// </summary>
-        public readonly ulong PeakCommitSize;
-
-        /// <summary>
-        /// Average commit size (in bytes) considering all processes.
-        /// </summary>
-        public readonly ulong AverageCommitSize;
-
         /// <nodoc />
         private ProcessMemoryCounters(
             ulong peakWorkingSet,
-            ulong averageWorkingSet,
-            ulong peakCommitSize,
-            ulong averageCommitSize)
+            ulong averageWorkingSet)
         {
             PeakWorkingSet = peakWorkingSet;
             AverageWorkingSet = averageWorkingSet;
-            PeakCommitSize = peakCommitSize;
-            AverageCommitSize = averageCommitSize;
         }
 
         /// <summary>
@@ -70,30 +46,22 @@ namespace BuildXL.Pips
         /// </summary>
         public static ProcessMemoryCounters CreateFromBytes(
             ulong peakWorkingSet,
-            ulong averageWorkingSet,
-            ulong peakCommitSize,
-            ulong averageCommitSize) => new(peakWorkingSet, averageWorkingSet, peakCommitSize, averageCommitSize);
+            ulong averageWorkingSet) => new(peakWorkingSet, averageWorkingSet);
 
         /// <summary>
         /// Create one with memory counters in megabytes
         /// </summary>
         public static ProcessMemoryCounters CreateFromMb(
             int peakWorkingSetMb,
-            int averageWorkingSetMb,
-            int peakCommitSizeMb,
-            int averageCommitSizeMb) => new(
+            int averageWorkingSetMb) => new(
                 ByteSizeFormatter.MegabytesToBytes((ulong)peakWorkingSetMb),
-                ByteSizeFormatter.MegabytesToBytes((ulong)averageWorkingSetMb),
-                ByteSizeFormatter.MegabytesToBytes((ulong)peakCommitSizeMb),
-                ByteSizeFormatter.MegabytesToBytes((ulong)averageCommitSizeMb));
+                ByteSizeFormatter.MegabytesToBytes((ulong)averageWorkingSetMb));
 
         /// <nodoc />
         public void Serialize(BuildXLWriter writer)
         {
             writer.Write(PeakWorkingSet);
             writer.Write(AverageWorkingSet);
-            writer.Write(PeakCommitSize);
-            writer.Write(AverageCommitSize);
         }
 
         /// <nodoc />
@@ -101,10 +69,8 @@ namespace BuildXL.Pips
         {
             ulong peakWorkingSet = reader.ReadUInt64();
             ulong averageWorkingSet = reader.ReadUInt64();
-            ulong peakCommitSize = reader.ReadUInt64();
-            ulong averageCommitSize = reader.ReadUInt64();
 
-            return new ProcessMemoryCounters(peakWorkingSet, averageWorkingSet, peakCommitSize, averageCommitSize);
+            return new ProcessMemoryCounters(peakWorkingSet, averageWorkingSet);
         }
 
 
@@ -115,18 +81,14 @@ namespace BuildXL.Pips
             {
                 return (int)HashCodeHelper.Combine(
                     (long)PeakWorkingSet,
-                    (long)AverageWorkingSet,
-                    (long)PeakCommitSize,
-                    (long)AverageCommitSize);
+                    (long)AverageWorkingSet);
             }
         }
 
         /// <inherit />
         public bool Equals(ProcessMemoryCounters other) =>
             PeakWorkingSet == other.PeakWorkingSet
-            && AverageWorkingSet == other.AverageWorkingSet
-            && PeakCommitSize == other.PeakCommitSize
-            && AverageCommitSize == other.AverageCommitSize;
+            && AverageWorkingSet == other.AverageWorkingSet;
 
         /// <inherit />
         public override bool Equals(object obj) => StructUtilities.Equals(this, obj);

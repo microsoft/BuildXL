@@ -154,8 +154,8 @@ namespace BuildXL.Engine.Distribution
                         MaxMaterialize = Config.Schedule.MaxMaterialize,
                         MaxCacheLookup = Config.Schedule.MaxCacheLookup,
                         MaxLightProcesses = Config.Schedule.MaxLight,
-                        AvailableRamMb = m_scheduler.LocalWorker.TotalRamMb ?? 0,
-                        AvailableCommitMb = m_scheduler.LocalWorker.TotalCommitMb ?? 0,
+                        AvailableRamMb = (m_scheduler.LocalWorker.TotalRamMb - m_scheduler.LocalWorker.UsedRamMb) ?? 0,
+                        TotalRamMb = m_scheduler.LocalWorker.TotalRamMb ?? 0,
                     };
 
             /// <inheritdoc/>
@@ -372,9 +372,7 @@ namespace BuildXL.Engine.Distribution
 
                             processRunnable.ExpectedMemoryCounters = ProcessMemoryCounters.CreateFromMb(
                                 peakWorkingSetMb: pipBuildRequest.ExpectedPeakWorkingSetMb,
-                                averageWorkingSetMb: pipBuildRequest.ExpectedAverageWorkingSetMb,
-                                peakCommitSizeMb: pipBuildRequest.ExpectedPeakCommitSizeMb,
-                                averageCommitSizeMb: pipBuildRequest.ExpectedAverageCommitSizeMb);
+                                averageWorkingSetMb: pipBuildRequest.ExpectedAverageWorkingSetMb);
                         }
 
                         break;

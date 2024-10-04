@@ -452,16 +452,18 @@ namespace BuildXL.Scheduler
             int targetProcessSlots = m_scheduleConfiguration.EffectiveMaxProcesses;
             int newProcessSlots;
 
-            if (availableRemoteWorkersCount < 3)
+            if (availableRemoteWorkersCount < 5)
             {
-                // If there are less than 3 remote workers, the process slots for the orchestrator is not affected. 
+                // If there are less than 5 remote workers, the process slots for the orchestrator is not affected. 
                 // The distribution overhead is negligible in those builds. 
                 newProcessSlots = targetProcessSlots;
             }
             else
             {
-                // In the distributed builds, the burden on the orchestrator machine increases with the number of available
-                // remote workers, especially after 5. 
+                // In the distributed builds, the burden on the orchestrator machine increases with the number of available workers.
+                // We saw blue screen errors, or missing/terminated orchestrator errors in CloudBuild due to high CPU usage. 
+                // To prevent this, we reduce the process slots for the orchestrator machine based on the number of available remote workers.
+                // We chose 5 because almost all official CB builds use 5 or more workers. ADO builds use less, and they are not affected by this change.
 
                 double defaultMultiplier = Math.Max(0.1, 1 - (availableRemoteWorkersCount / 10.0));
 
@@ -986,9 +988,6 @@ namespace BuildXL.Scheduler
 
         private ulong m_totalPeakWorkingSetMb;
         private ulong m_totalAverageWorkingSetMb;
-
-        private ulong m_totalPeakCommitSizeMb;
-        private ulong m_totalAverageCommitSizeMb;
 
         private readonly object m_statusLock = new object();
 
@@ -1678,6 +1677,30 @@ namespace BuildXL.Scheduler
 
             m_drainThread = new Thread(PipQueue.DrainQueues);
 
+            // Before we start the scheduler, we should inquiry the memory
+            if (m_scheduleConfiguration.UseHistoricalRamUsageInfo)
+            {
+                m_perfInfo = m_performanceAggregator?.ComputeMachinePerfInfo() ??
+                    (m_testHooks?.GenerateSyntheticMachinePerfInfo != null ? m_testHooks?.GenerateSyntheticMachinePerfInfo(m_executePhaseLoggingContext, this) : null) ??
+                    default(PerformanceCollector.MachinePerfInfo);
+
+                int? totalRamMb = m_perfInfo.TotalRamMb;
+                int? availableRamMb = m_perfInfo.AvailableRamMb;
+
+                if (totalRamMb != null || 
+                    (m_testHooks == null && PerformanceCollector.TryGetMemoryCountersMb(out totalRamMb, out availableRamMb)))
+                {
+                    LocalWorker.UpdateRamCounters(m_loggingContext, totalRamMb, availableRamMb);
+                    IsRamProjectionActive = true;
+                }
+
+                if (totalRamMb == null)
+                {
+                    // Log an event that ram-based scheduler will not work.
+                    Logger.Log.RamProjectionDisabled(m_loggingContext);
+                }
+            }
+
             if (!m_scheduleTerminating)
             {
                 // UpdateStatus() checks if all writable drives have specified disk space available and calls RequestTermination for low disk space
@@ -2130,6 +2153,9 @@ namespace BuildXL.Scheduler
                 statistics.Add("RetriedDueToLowMemory_" + current.Key, current.Value);
             }
 
+            statistics.Add("TotalExpectedAverageWorkingSetMb", m_totalExpectedAverageWorkingSetMb);
+            statistics.Add("TotalActualAverageWorkingSetMb", m_totalActualAverageWorkingSetMb);
+
             Logger.Log.CacheFingerprintHitSources(loggingContext, m_cacheIdHits);
 
             List<PipCachePerfInfo> cacheLookupPerfInfos = m_runnablePipPerformance.Values.Where(a => a.CacheLookupPerfInfo != null).Select(a => a.CacheLookupPerfInfo).ToList();
@@ -2282,8 +2308,6 @@ namespace BuildXL.Scheduler
 
             statistics.Add("TotalPeakWorkingSetMb", (long)m_totalPeakWorkingSetMb);
             statistics.Add("TotalAverageWorkingSetMb", (long)m_totalAverageWorkingSetMb);
-            statistics.Add("TotalPeakCommitSizeMb", (long)m_totalPeakCommitSizeMb);
-            statistics.Add("TotalAverageCommitSizeMb", (long)m_totalAverageCommitSizeMb);
 
             if (m_pluginManager != null)
             {
@@ -2293,6 +2317,14 @@ namespace BuildXL.Scheduler
                 statistics.Add(Statistics.PluginLoadedFailureCounts, (long)m_pluginManager.PluginLoadedFailureCount);
                 statistics.Add(Statistics.PluginProcessedRequestCounts, (long)m_pluginManager.PluginProcessedRequestCounts);
                 statistics.Add(Statistics.PluginUnregisteredCounts, (long)m_pluginManager.PluginProcessedRequestCounts);
+            }
+
+            if (!IsDistributedWorker)
+            {
+                statistics.Add("SchedulerType.ModuleAffinity", IsDistributedBuild && m_configuration.Schedule.ModuleAffinityEnabled() ? 1 : 0);
+                statistics.Add("SchedulerType.RamProjection", IsRamProjectionActive ? 1 : 0);
+                statistics.Add("SchedulerType.DeprioritizeOnSemaphore", m_configuration.Schedule.DeprioritizeOnSemaphoreConstraints ? 1 : 0);
+                statistics.Add("SchedulerType.InputCost", m_configuration.Schedule.EnableSetupCostWhenChoosingWorker ? 1 : 0);
             }
 
             m_chooseWorkerCpu.LogStats(statistics);
@@ -2364,6 +2396,7 @@ namespace BuildXL.Scheduler
                 { "Processes (WMI)", data => m_perfInfo.Processes , OperatingSystemHelper.IsWindowsOS},
 
                 { "BuildXL Cpu Percent", data => m_perfInfo.ProcessCpuPercentage },
+                { "BuildXL Ram Mb", data => m_perfInfo.ProcessWorkingSetMB },
                 { "JobObject Cpu Percent", data => m_perfInfo.JobObjectCpu, OperatingSystemHelper.IsWindowsOS },
                 { "JobObject Processes", data => m_perfInfo.JobObjectProcesses, OperatingSystemHelper.IsWindowsOS },
                 { "Ram Percent", data => data.RamPercent },
@@ -2382,6 +2415,7 @@ namespace BuildXL.Scheduler
                 { "DispatchMs", data => (long)(OptionalPipQueueImpl?.DispatcherLoopTime.TotalMilliseconds ?? 0) },
                 { "ChooseQueueFastNextCount", data => OptionalPipQueueImpl?.ChooseQueueFastNextCount ?? 0 },
                 { "ChooseQueueRunTimeMs", data => OptionalPipQueueImpl?.ChooseQueueRunTime.TotalMilliseconds ?? 0 },
+                { "ChooseWorkerCpuIterations", data => m_chooseWorkerCpu.NumIterations },
                 { "LastSchedulerConcurrencyLimiter", data => m_chooseWorkerCpu.LastConcurrencyLimiter?.Name ?? "N/A" },
                 { "LimitingResource", data => data.LimitingResource},
                 { "MemoryResourceAvailability", data => LocalWorker.MemoryResource.ToString().Replace(',', '-')},
@@ -2495,11 +2529,8 @@ namespace BuildXL.Scheduler
                         rows.Add(I($"W{worker.WorkerId} Waiting BuildRequests Count"), _ => worker.WaitingBuildRequestsCount, includeInSnapshot: false);
                         rows.Add(I($"W{worker.WorkerId} BatchSize Count"), _ => worker.CurrentBatchSize, includeInSnapshot: false);
                         rows.Add(I($"W{worker.WorkerId} Total Ram Mb"), _ => worker.TotalRamMb ?? 0, includeInSnapshot: false);
-                        rows.Add(I($"W{worker.WorkerId} Estimated Free Ram Mb"), _ => worker.EstimatedFreeRamMb, includeInSnapshot: false);
-                        rows.Add(I($"W{worker.WorkerId} Actual Free Ram Mb"), _ => worker.ActualFreeMemoryMb ?? 0, includeInSnapshot: false);
-                        rows.Add(I($"W{worker.WorkerId} Total Commit Mb"), _ => worker.TotalCommitMb ?? 0, includeInSnapshot: false);
-                        rows.Add(I($"W{worker.WorkerId} Estimated Free Commit Mb"), _ => worker.EstimatedFreeCommitMb, includeInSnapshot: false);
-                        rows.Add(I($"W{worker.WorkerId} Actual Free Commit Mb"), _ => worker.ActualFreeCommitMb ?? 0, includeInSnapshot: false);
+                        rows.Add(I($"W{worker.WorkerId} Projected Pips Ram Mb"), _ => worker.ProjectedPipsRamUsageMb, includeInSnapshot: false);
+                        rows.Add(I($"W{worker.WorkerId} Used Ram Mb"), _ => worker.UsedRamMb ?? 0, includeInSnapshot: false);
                         rows.Add(I($"W{worker.WorkerId} Status"), _ => worker.Status, includeInSnapshot: false);
                     }
                 },
@@ -2985,28 +3016,14 @@ namespace BuildXL.Scheduler
             var resourceManager = State.ResourceManager;
             resourceManager.RefreshMemoryCounters();
 
+            LocalWorker.UpdateRamCounters(m_loggingContext, m_perfInfo.TotalRamMb, m_perfInfo.AvailableRamMb);
+
             ManageMemoryMode defaultManageMemoryMode = m_scheduleConfiguration.GetManageMemoryMode();
             MemoryResource memoryResource = MemoryResource.Available;
 
             // RAM (WORKINGSET) USAGE.
             // If ram resources are not available, the scheduler is throttled (effectiveprocessslots becoming 1) and
             // we cancel the running ones.
-
-            if (LocalWorker.TotalRamMb == null && m_perfInfo.AvailableRamMb.HasValue)
-            {
-                // TotalRam represent the available size at the beginning of the build.
-                // Because graph construction can consume a large memory as a part of BuildXL process,
-                // we add ProcessWorkingSetMb to the current available ram.
-                LocalWorker.TotalRamMb = m_perfInfo.AvailableRamMb + m_perfInfo.ProcessWorkingSetMB;
-            }
-
-            // Allow increases to the worker's total installed ram over the course of the build. This may happen if the build
-            // is running on a virtual machine with dynamic memory. We do not model shrinking of installed ram during the build
-            // because that will interfere with the process working set adjustment above.
-            if (m_perfInfo.TotalRamMb.HasValue && LocalWorker.TotalRamMb.HasValue && LocalWorker.TotalRamMb.Value < m_perfInfo.TotalRamMb.Value)
-            {
-                LocalWorker.TotalRamMb = m_perfInfo.TotalRamMb;
-            }
 
             if (perfInfo.RamUsagePercentage != null)
             {
@@ -3053,16 +3070,6 @@ namespace BuildXL.Scheduler
              */
 
             // If commit memory usage is high, the scheduler is throttled without cancelling any pips.
-            if (m_perfInfo.CommitLimitMb.HasValue)
-            {
-                LocalWorker.TotalCommitMb = m_perfInfo.CommitLimitMb.Value;
-            }
-            else if (LocalWorker.TotalCommitMb == null)
-            {
-                // If we cannot get commit usage for Windows, or it is the MacOS, we do not track of swap file usage.
-                // That's why, we set it to very high number to disable throttling.
-                LocalWorker.TotalCommitMb = int.MaxValue;
-            }
 
             bool isCommitCriticalLevel = false;
             if (perfInfo.CommitUsagePercentage != null)
@@ -4921,9 +4928,7 @@ namespace BuildXL.Scheduler
 
                                     processRunnable.ExpectedMemoryCounters = ProcessMemoryCounters.CreateFromMb(
                                         peakWorkingSetMb: Math.Max((int)(expectedCounters.PeakWorkingSetMb * 1.25), actualCounters?.PeakWorkingSetMb ?? 0),
-                                        averageWorkingSetMb: Math.Max((int)(expectedCounters.AverageWorkingSetMb * 1.25), actualCounters?.AverageWorkingSetMb ?? 0),
-                                        peakCommitSizeMb: Math.Max((int)(expectedCounters.PeakCommitSizeMb * 1.25), actualCounters?.PeakCommitSizeMb ?? 0),
-                                        averageCommitSizeMb: Math.Max((int)(expectedCounters.AverageCommitSizeMb * 1.25), actualCounters?.AverageCommitSizeMb ?? 0));
+                                        averageWorkingSetMb: Math.Max((int)(expectedCounters.AverageWorkingSetMb * 1.25), actualCounters?.AverageWorkingSetMb ?? 0));
 
                                     if (processRunnable.Performance.RetryCountDueToLowMemory == m_scheduleConfiguration.MaxRetriesDueToLowMemory)
                                     {
@@ -4932,7 +4937,7 @@ namespace BuildXL.Scheduler
                                     }
                                     else
                                     {
-                                        Logger.Log.PipRetryDueToLowMemory(operationContext, processRunnable.Description, worker.DefaultWorkingSetMbPerProcess, expectedCounters.PeakWorkingSetMb, actualCounters?.PeakWorkingSetMb ?? 0);
+                                        Logger.Log.PipRetryDueToLowMemory(operationContext, processRunnable.Description, worker.Name, worker.DefaultWorkingSetMbPerProcess, expectedCounters.PeakWorkingSetMb, actualCounters?.PeakWorkingSetMb ?? 0);
                                     }
                                 }
                                 else if (retryReason.IsPreProcessExecOrRemotingInfraFailure())
@@ -5015,8 +5020,12 @@ namespace BuildXL.Scheduler
 
                             int peakWorkingSetMb = executionResult.PerformanceInformation?.MemoryCounters.PeakWorkingSetMb ?? 0;
                             int averageWorkingSetMb = executionResult.PerformanceInformation?.MemoryCounters.AverageWorkingSetMb ?? 0;
-                            int peakCommitSizeMb = executionResult.PerformanceInformation?.MemoryCounters.PeakCommitSizeMb ?? 0;
-                            int averageCommitSizeMb = executionResult.PerformanceInformation?.MemoryCounters.AverageCommitSizeMb ?? 0;
+
+                            if (expectedMemoryCounters.AverageWorkingSetMb > 0)
+                            {
+                                m_totalExpectedAverageWorkingSetMb += expectedMemoryCounters.AverageWorkingSetMb;
+                                m_totalActualAverageWorkingSetMb += averageWorkingSetMb;
+                            }
 
                             try
                             {
@@ -5033,19 +5042,12 @@ namespace BuildXL.Scheduler
                                     peakWorkingSetMb,
                                     expectedMemoryCounters.AverageWorkingSetMb,
                                     averageWorkingSetMb,
-                                    expectedMemoryCounters.PeakCommitSizeMb,
-                                    peakCommitSizeMb,
-                                    expectedMemoryCounters.AverageCommitSizeMb,
-                                    averageCommitSizeMb,
                                     (int)(processRunnable.HistoricPerfData?.DiskIOInMB ?? 0),
                                     (int)ByteSizeFormatter.BytesToMegabytes(executionResult.PerformanceInformation?.IO.GetAggregateIO().TransferCount ?? 0),
                                     (processRunnable.HistoricPerfData?.MaxExeDurationInMs ?? 0) / 1000.0);
 
                                 m_totalPeakWorkingSetMb += (ulong)peakWorkingSetMb;
                                 m_totalAverageWorkingSetMb += (ulong)averageWorkingSetMb;
-
-                                m_totalPeakCommitSizeMb += (ulong)peakCommitSizeMb;
-                                m_totalAverageCommitSizeMb += (ulong)averageCommitSizeMb;
                             }
                             catch (OverflowException ex)
                             {
@@ -5995,9 +5997,6 @@ namespace BuildXL.Scheduler
 
                 if (stepDuration != 0 && step == PipExecutionStep.ExecuteProcess)
                 {
-                    long inputMaterializationExtraCostMbDueToUnavailability = performanceInfo.InputMaterializationCostMbForChosenWorker - performanceInfo.InputMaterializationCostMbForBestWorker;
-                    stringBuilder.AppendLine(I($"\t\t  {"InputMaterializationExtraCostMbDueToUnavailability",-88}: {inputMaterializationExtraCostMbDueToUnavailability,10}"));
-                    stringBuilder.AppendLine(I($"\t\t  {"InputMaterializationCostMbForChosenWorker",-88}: {performanceInfo.InputMaterializationCostMbForChosenWorker,10}"));
                     stringBuilder.AppendLine(I($"\t\t  {"PushOutputsToCacheDurationMs",-88}: {performanceInfo.PushOutputsToCacheDurationMs,10}"));
 
                     if (performanceInfo.CacheMissAnalysisDuration.TotalMilliseconds != 0)
@@ -6249,6 +6248,8 @@ namespace BuildXL.Scheduler
                 {
                     StartWorkers(loggingContext);
                 }
+
+                m_chooseWorkerCpu.SetUpWorkerResourceListeners();
 
                 PrioritizeAndSchedule(pm.LoggingContext, nodesToSchedule);
 
@@ -7950,6 +7951,9 @@ namespace BuildXL.Scheduler
         /// <inheritdoc/>
         public ReparsePointResolver ReparsePointAccessResolver { get; }
 
+        /// <inheritdoc/>
+        public bool IsRamProjectionActive { get; private set; }
+
         private long m_maxExternalProcessesRan;
 
         private bool m_materializeOutputsQueued;
@@ -7960,6 +7964,7 @@ namespace BuildXL.Scheduler
 
         private DateTime m_schedulerDoneTimeUtc;
         private DateTime m_schedulerStartedTimeUtc;
+        private int m_totalExpectedAverageWorkingSetMb, m_totalActualAverageWorkingSetMb;
 
         /// <inheritdoc/>
         public void SetMaxExternalProcessRan()

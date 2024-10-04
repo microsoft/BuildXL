@@ -238,9 +238,7 @@ namespace BuildXL.Scheduler
         {
             return ProcessMemoryCounters.CreateFromMb(
                 (int)GetMergeResult((uint)oldData.PeakWorkingSetMb, (uint)newData.PeakWorkingSetMb),
-                (int)GetMergeResult((uint)oldData.AverageWorkingSetMb, (uint)newData.AverageWorkingSetMb),
-                (int)GetMergeResult((uint)oldData.PeakCommitSizeMb, (uint)newData.PeakCommitSizeMb),
-                (int)GetMergeResult((uint)oldData.AverageCommitSizeMb, (uint)newData.AverageCommitSizeMb));
+                (int)GetMergeResult((uint)oldData.AverageWorkingSetMb, (uint)newData.AverageWorkingSetMb));
         }
     }
 }

@@ -26,7 +26,7 @@ namespace BuildXL.Scheduler
         /// </summary>
         private readonly Dictionary<DispatcherKind, DispatcherQueue> m_queuesByKind;
 
-        private readonly ChooseWorkerQueue m_chooseWorkerCpuQueue;
+        private readonly DispatcherQueue m_chooseWorkerCpuQueue;
 
         /// <summary>
         /// Task completion source that completes whenever there are applicable changes which require another dispatching iteration.
@@ -113,12 +113,12 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// See <see cref="ChooseWorkerQueue.FastChooseNextCount"/>
         /// </summary>
-        internal long ChooseQueueFastNextCount => m_chooseWorkerCpuQueue.FastChooseNextCount;
+        internal long ChooseQueueFastNextCount => (m_chooseWorkerCpuQueue is ChooseWorkerQueue queue) ? queue.FastChooseNextCount : 0;
 
         /// <summary>
         /// Run time of tasks in choose worker queue
         /// </summary>
-        internal TimeSpan ChooseQueueRunTime => m_chooseWorkerCpuQueue.RunTime;
+        internal TimeSpan ChooseQueueRunTime => (m_chooseWorkerCpuQueue is ChooseWorkerQueue queue) ? queue.RunTime : default;
 
         private long m_triggerDispatcherCount;
         private long m_dispatcherLoopCount;
@@ -172,9 +172,28 @@ namespace BuildXL.Scheduler
             // If adaptive IO is enabled, then start with the half of the maxIO.
             var ioLimit = m_scheduleConfig.AdaptiveIO ? (m_scheduleConfig.MaxIO + 1) / 2 : m_scheduleConfig.MaxIO;
 
-            m_chooseWorkerCpuQueue = m_scheduleConfig.ModuleAffinityEnabled() ?
-                new NestedChooseWorkerQueue(this, m_scheduleConfig.MaxChooseWorkerCpu, config.Distribution.RemoteWorkerCount + 1) :
-                new ChooseWorkerQueue(this, m_scheduleConfig.MaxChooseWorkerCpu);
+            if (m_scheduleConfig.ModuleAffinityEnabled())
+            {
+                // When module affinity is enabled, we assign a separate priority queue to each worker.
+                // This ensures that pips from different modules do not block each other
+                // if their designated worker is unavailable.
+                m_chooseWorkerCpuQueue = new NestedChooseWorkerQueue(this, m_scheduleConfig.MaxChooseWorkerCpu, config.Distribution.RemoteWorkerCount + 1);
+            }
+            else if (m_scheduleConfig.DeprioritizeOnSemaphoreConstraints)
+            {
+                // When deprioritization is enabled, the highest-priority pip waiting for resources will not block other items in the queue.
+                // Pips waiting for resources are deprioritized, allowing the ChooseWorker logic to proceed with other items.
+                // Therefore, we do not need concurrency within ChooseWorkerCpu and intentionally set the maximum degree of parallelism to 1.
+                m_chooseWorkerCpuQueue = new DispatcherQueue(this, 1);
+            }
+            else
+            {
+                // When deprioritization is disabled, the highest-priority pip can block other items in the queue.
+                // To mitigate this impact, we allow concurrency within ChooseWorkerCpu (default is 5),
+                // enabling the ChooseWorker logic to execute for up to 5 pips simultaneously.
+                // However, if all 5 pips are waiting for semaphores, other pips in the queue will still be blocked.
+                m_chooseWorkerCpuQueue = new ChooseWorkerQueue(this, m_scheduleConfig.MaxChooseWorkerCpu);
+            }
 
             m_queuesByKind = new Dictionary<DispatcherKind, DispatcherQueue>()
                              {

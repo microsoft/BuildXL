@@ -535,6 +535,8 @@ namespace BuildXL.Scheduler.Tracing
         FailedToInitalizeReclassificationRules = 14603,
 
         PendingEventsRemaingAfterDisposed = 14604,
+        DynamicRamDetected = 14605,
+        RamProjectionDisabled = 14606,
 
         // was DependencyViolationGenericWithRelatedPip_AsError = 25000,
         // was DependencyViolationGeneric_AsError = 25001,

@@ -97,9 +97,7 @@ namespace BuildXL.Interop
                             return ProcessMemoryCountersSnapshot.CreateFromBytes(
                                 counters.PeakWorkingSetSize,
                                 counters.WorkingSetSize,
-                                (counters.WorkingSetSize + counters.PeakWorkingSetSize) / 2,
-                                counters.PeakPagefileUsage,
-                                counters.PagefileUsage);
+                                (counters.WorkingSetSize + counters.PeakWorkingSetSize) / 2);
                         }
 
                         return null;
@@ -112,9 +110,7 @@ namespace BuildXL.Interop
                             return ProcessMemoryCountersSnapshot.CreateFromBytes(
                                 usage.PeakWorkingSetSize,
                                 usage.WorkingSetSize,
-                                (usage.WorkingSetSize + usage.PeakWorkingSetSize) / 2,
-                                peakCommitSize: 0,
-                                lastCommitSize: 0);
+                                (usage.WorkingSetSize + usage.PeakWorkingSetSize) / 2);
                         }
 
                         return null;

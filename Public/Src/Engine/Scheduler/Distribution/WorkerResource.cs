@@ -37,14 +37,9 @@ namespace BuildXL.Scheduler.Distribution
         public static readonly WorkerResource AvailableMaterializeInputSlots = new WorkerResource(nameof(AvailableMaterializeInputSlots), Precedence.AvailableMaterializeInputSlots);
 
         /// <summary>
-        /// See <see cref="Worker.TotalRamMb"/>
+        /// See <see cref="Worker.AvailableRamMb"/>
         /// </summary>
-        public static readonly WorkerResource AvailableMemoryMb = new WorkerResource(nameof(AvailableMemoryMb), Precedence.AvailableMemoryMb);
-
-        /// <summary>
-        /// See <see cref="Worker.TotalCommitMb"/>
-        /// </summary>
-        public static readonly WorkerResource AvailableCommitMb = new WorkerResource(nameof(AvailableCommitMb), Precedence.AvailableCommitMb);
+        public static readonly WorkerResource AvailableMemoryMb = new WorkerResource(nameof(AvailableMemoryMb), Precedence.SemaphorePrecedence);
 
         /// <summary>
         /// See <see cref="LocalWorker.MemoryResourceAvailable"/>
@@ -125,8 +120,6 @@ namespace BuildXL.Scheduler.Distribution
             TotalProcessSlots,
             AvailableCacheLookupSlots,
             AvailableProcessSlots,
-            AvailableMemoryMb,
-            AvailableCommitMb,
             MemoryResourceAvailable,
             AvailableMaterializeInputSlots,
             ModuleAffinity,

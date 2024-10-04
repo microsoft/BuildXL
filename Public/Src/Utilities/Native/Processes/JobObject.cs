@@ -386,7 +386,7 @@ namespace BuildXL.Processes
                 (uint)Marshal.SizeOf(limitInfo),
                 out _))
             {
-                memoryCounters = ProcessMemoryCounters.CreateFromBytes((ulong)limitInfo.PeakJobMemoryUsed, 0, 0, 0);
+                memoryCounters = ProcessMemoryCounters.CreateFromBytes((ulong)limitInfo.PeakJobMemoryUsed, 0);
             }
 
             return new AccountingInformation()

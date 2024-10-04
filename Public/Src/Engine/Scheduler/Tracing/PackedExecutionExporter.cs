@@ -476,9 +476,7 @@ namespace BuildXL.Scheduler.Tracing
                             processPerformance.IO.OtherCounters.TransferCount),
                         processPerformance.KernelTime,
                         new MemoryCounters(
-                            processPerformance.MemoryCounters.AverageCommitSizeMb,
                             processPerformance.MemoryCounters.AverageWorkingSetMb,
-                            processPerformance.MemoryCounters.PeakCommitSizeMb,
                             processPerformance.MemoryCounters.PeakWorkingSetMb),
                         processPerformance.NumberOfProcesses,
                         processPerformance.ProcessExecutionTime,

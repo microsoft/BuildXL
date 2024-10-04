@@ -20,6 +20,7 @@ using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities;
+using BuildXL.Scheduler.Distribution;
 
 namespace BuildXL.Scheduler
 {
@@ -266,6 +267,14 @@ namespace BuildXL.Scheduler
         /// If the pip queue is empty and the scheduler has failed, then the final value of this flag is known.
         /// </summary>
         public bool HasFailed { get; }
+
+        /// <summary>
+        /// Indicates if the scheduler uses memory projection and throttles the number of pips executed in parallel based on memory usage.
+        /// </summary>
+        bool IsRamProjectionActive { get; }
+
+        /// <nodoc/>
+        LocalWorker LocalWorker { get; }
     }
 
     /// <summary>

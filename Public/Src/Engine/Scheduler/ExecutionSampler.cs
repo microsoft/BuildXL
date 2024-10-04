@@ -71,7 +71,7 @@ namespace BuildXL.Scheduler
 
                 // The scheduler has backed off on executing additional process pips because of projected memory usage,
                 // even though the graph and concurrency configuration would allow it
-                if (lastConcurrencyLimiter.Value == WorkerResource.AvailableMemoryMb || lastConcurrencyLimiter.Value == WorkerResource.AvailableCommitMb)
+                if (lastConcurrencyLimiter.Value == WorkerResource.AvailableMemoryMb)
                 {
                     return LimitingResource.ProjectedMemory;
                 }

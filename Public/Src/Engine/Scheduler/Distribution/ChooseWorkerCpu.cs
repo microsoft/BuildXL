@@ -19,6 +19,7 @@ using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Threading;
+using System.Runtime.CompilerServices;
 
 namespace BuildXL.Scheduler.Distribution
 {
@@ -39,8 +40,19 @@ namespace BuildXL.Scheduler.Distribution
         /// </summary>
         private int m_workerEnableSequenceNumber = 0;
 
-        private double MaxLoadFactor => m_moduleAffinityEnabled ? m_scheduleConfig.ModuleAffinityLoadFactor.Value : 2;
-        private readonly ReadOnlyArray<double> m_workerBalancedLoadFactors;
+        /// <summary>
+        /// Determines the maximum load factor for oversubscribing workers. Allows extra pips to be assigned to workers. 
+        /// These extra pips can materialize inputs while waiting in the CPU dispatcher for available slots in the assigned worker.
+        /// If `DeprioritizeOnSemaphoreConstraints` is enabled, we set `MaxLoadFactor` to 1. This is because we do not want to lower the priority of pips when they are throttled by memory constraints.
+        /// When oversubscribing is allowed (i.e., `MaxLoadFactor` > 1), the limiting resource becomes memory or other semaphores rather than the available worker slots.
+        /// 
+        /// **Note:** If module affinity is enabled, `MaxLoadFactor` can be set to a custom value defined in `ModuleAffinityLoadFactor`. Otherwise, it defaults to 2.
+        /// In the builds where module affinity is enabled, the materialization cost is high, so oversubscribing the workers helps the scheduler utilize the workers more efficiently.
+        /// </summary>
+        private double MaxLoadFactor =>
+            m_scheduleConfig.DeprioritizeOnSemaphoreConstraints ? 1 :
+            (m_moduleAffinityEnabled ? m_scheduleConfig.ModuleAffinityLoadFactor.Value : 2);
+
         private readonly FileContentManager m_fileContentManager;
         private readonly PipTable m_pipTable;
         private readonly ObjectPool<PipSetupCosts> m_pipSetupCostPool;
@@ -70,11 +82,18 @@ namespace BuildXL.Scheduler.Distribution
         public WorkerResource? LastConcurrencyLimiter { get; set; }
 
         /// <summary>
+        /// Number of iterations that ChooseWorker logic is run
+        /// </summary>
+        public int NumIterations => m_numIterations;
+
+        private int m_numIterations;
+
+        /// <summary>
         /// Constructor
         /// </summary>
         public ChooseWorkerCpu(
             LoggingContext loggingContext,
-            IScheduleConfiguration config,
+            IScheduleConfiguration scheduleConfig,
             IReadOnlyList<Worker> workers,
             IPipQueue pipQueue,
             PipGraph pipGraph,
@@ -87,27 +106,26 @@ namespace BuildXL.Scheduler.Distribution
                 () => new PipSetupCosts(this),
                 costs => costs);
 
-            m_scheduleConfig = config;
+            m_scheduleConfig = scheduleConfig;
             m_workers = workers;
             m_pipQueue = pipQueue;
             m_localWorker = (LocalWorker)workers[0];
             m_loggingContext = loggingContext;
-            m_maxParallelDegree = config.MaxChooseWorkerCpu;
-            m_moduleAffinityEnabled = config.ModuleAffinityEnabled();
+            m_maxParallelDegree = scheduleConfig.MaxChooseWorkerCpu;
+            m_moduleAffinityEnabled = scheduleConfig.ModuleAffinityEnabled();
 
+            if (scheduleConfig.ModuleAffinityEnabled())
+            {
+                m_moduleWorkerMapping = moduleWorkerMapping;
+            }
+        }
+
+        public void SetUpWorkerResourceListeners()
+        {
             foreach (var worker in m_workers)
             {
                 worker.ResourcesChanged += OnWorkerResourcesChanged;
             }
-
-            if (config.ModuleAffinityEnabled())
-            {
-                m_moduleWorkerMapping = moduleWorkerMapping;
-            }
-
-            // Workers are given progressively heavier loads when acquiring resources
-            // in order to load balance between workers by
-            m_workerBalancedLoadFactors = ReadOnlyArray<double>.FromWithoutCopy(0.25, 0.5, 1, 1.5, MaxLoadFactor);
         }
 
         public Worker ChooseWorker(ProcessRunnablePip runnablePip)
@@ -115,6 +133,8 @@ namespace BuildXL.Scheduler.Distribution
             Worker chosenWorker = null;
             WorkerResource? limitingResource = null;
             var moduleId = runnablePip.Pip.Provenance.ModuleId;
+
+            Interlocked.Increment(ref m_numIterations);
 
             if (!IsOrchestrator || runnablePip.MustRunOnOrchestrator)
             {
@@ -130,7 +150,7 @@ namespace BuildXL.Scheduler.Distribution
                 using (var pooledPipSetupCost = m_pipSetupCostPool.GetInstance())
                 {
                     var pipSetupCost = pooledPipSetupCost.Instance;
-                    pipSetupCost.EstimateAndSortSetupCostPerWorker(runnablePip, m_scheduleConfig.EnableSetupCostWhenChoosingWorker);
+                    pipSetupCost.CalculateSetupCostPerWorker(runnablePip, m_scheduleConfig);
                     chosenWorker = ChooseWorkerWithSetupCost(runnablePip, pipSetupCost.WorkerSetupCosts, out limitingResource);
                 }
             }
@@ -145,6 +165,18 @@ namespace BuildXL.Scheduler.Distribution
 
                 runnablePip.IsWaitingForWorker = true;
                 m_lastIterationBlockedPip = runnablePip;
+
+                if (m_scheduleConfig.DeprioritizeOnSemaphoreConstraints && limitingResource.Value.PrecedenceType == WorkerResource.Precedence.SemaphorePrecedence)
+                {
+                    // Scheduling dilemma: prioritization conflicts with resource constraints.
+                    // When a pip can't be assigned to any worker due to semaphore constraints,
+                    // we lower its priority so that other pips without semaphore requirements can be scheduled.
+                    runnablePip.ChangePriority((int)Math.Round(runnablePip.Priority * 0.9));
+
+                    // With this feature, we do not block ChooseWorkerCpu if the limiting resource is a custom resource: semaphore.
+                    return null;
+                }
+
                 TogglePauseChooseWorkerQueue(pause: true, blockedPip: runnablePip);
             }
             else
@@ -164,15 +196,12 @@ namespace BuildXL.Scheduler.Distribution
         {
             limitingResource = null;
 
-            foreach (var loadFactor in m_workerBalancedLoadFactors)
+            foreach (var workerSetupCost in workerSetupCosts)
             {
-                foreach (var workerSetupCost in workerSetupCosts)
+                var worker = workerSetupCost.Worker;
+                if (worker.TryAcquireProcess(runnablePip, out limitingResource, loadFactor: MaxLoadFactor))
                 {
-                    var worker = workerSetupCost.Worker;
-                    if (worker.TryAcquireProcess(runnablePip, out limitingResource, loadFactor: loadFactor))
-                    {
-                        return worker;
-                    }
+                    return worker;
                 }
             }
 
@@ -319,15 +348,33 @@ namespace BuildXL.Scheduler.Distribution
             }
 
             /// <summary>
-            /// The result contains estimated amount of work for each worker
+            /// Calculates the execution cost of the given pip on each worker.
+            /// 
+            /// The cost calculation considers several factors:
+            /// *Worker Load*: The number of pips already assigned to the worker or the projected RAM usage.
+            ///   - If RAM projection is active, the cost increases with higher projected RAM usage (`ProjectedPipsRamUsageMb`).
+            ///   - If RAM projection is not active, the cost increases with more acquired process slots (`AcquiredProcessSlots`).
+            /// *Setup Cost*: If `EnableSetupCostWhenChoosingWorker` is enabled in the schedule configuration,
+            ///   the cost increases for workers where the pip's inputs are not yet materialized.
+            ///   - This involves calculating the additional data that needs to be transferred to the worker (setup bytes).
+            /// 
+            /// The method sorts the workers based on the calculated costs, which helps in deciding the most efficient
+            /// worker to execute the pip.
             /// </summary>
-            public void EstimateAndSortSetupCostPerWorker(RunnablePip runnablePip, bool enableInputCost)
+            internal void CalculateSetupCostPerWorker(RunnablePip runnablePip, IScheduleConfiguration scheduleConfig)
             {
                 var pip = runnablePip.Pip;
 
-                InitializeWorkerSetupCost(runnablePip);
+                if (runnablePip.Environment.IsRamProjectionActive)
+                {
+                    InitializeWorkerSetupCost((w) => w.ProjectedPipsRamUsageMb);
+                }
+                else
+                {
+                    InitializeWorkerSetupCost((w) => w.AcquiredProcessSlots);
+                }
 
-                if (enableInputCost)
+                if (scheduleConfig.EnableSetupCostWhenChoosingWorker)
                 {
                     // The block below collects process input file artifacts and hashes
                     // Currently there is no logic to keep from sending the same hashes twice
@@ -375,7 +422,7 @@ namespace BuildXL.Scheduler.Distribution
                 Array.Sort(WorkerSetupCosts);
             }
 
-            public void InitializeWorkerSetupCost(RunnablePip runnable)
+            public void InitializeWorkerSetupCost(Func<Worker, int> calculateCost)
             {
                 for (int i = 0; i < m_context.m_workers.Count; i++)
                 {
@@ -383,7 +430,7 @@ namespace BuildXL.Scheduler.Distribution
                     WorkerSetupCosts[i] = new WorkerSetupCost()
                     {
                         Worker = worker,
-                        AcquiredSlots = worker.AcquiredProcessSlots
+                        Cost = calculateCost(worker)
                     };
                 }
             }
@@ -405,15 +452,15 @@ namespace BuildXL.Scheduler.Distribution
             public Worker Worker { get; set; }
 
             /// <summary>
-            /// Number of acquired slots
+            /// Cost
             /// </summary>
-            public int AcquiredSlots { get; set; }
+            public int Cost { get; set; }
 
             /// <inheritdoc />
             public int CompareTo(WorkerSetupCost other)
             {
                 var result = SetupBytes.CompareTo(other.SetupBytes);
-                return result == 0 ? AcquiredSlots.CompareTo(other.AcquiredSlots) : result;
+                return result == 0 ? Cost.CompareTo(other.Cost) : result;
             }
         }
     }

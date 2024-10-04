@@ -141,7 +141,12 @@ namespace BuildXL.Utilities.Configuration
         /// Indicates whether historic perf information should be used to speculatively limit the RAM utilization
         /// of launched processes
         /// </summary>
-        bool? UseHistoricalRamUsageInfo { get; }
+        bool UseHistoricalRamUsageInfo { get; }
+
+        /// <summary>
+        /// Enables the de-prioritization when there is a semaphore constraint, so that other lower-priority pips can be scheduled.
+        /// </summary>
+        bool DeprioritizeOnSemaphoreConstraints { get; }
 
         /// <summary>
         /// Specifies the set of outputs which must be materialized
@@ -360,11 +365,6 @@ namespace BuildXL.Utilities.Configuration
         bool EnableSetupCostWhenChoosingWorker { get; }
 
         /// <summary>
-        /// Enable memory projection based on historic commit memory usage.
-        /// </summary>
-        bool EnableHistoricCommitMemoryProjection { get; }
-
-        /// <summary>
         /// Specifies the maximum amount of commit memory which makes scheduler stop executing more pips.
         /// </summary>
         int MaximumCommitUtilizationPercentage { get; }
@@ -394,7 +394,7 @@ namespace BuildXL.Utilities.Configuration
         /// <summary>
         /// Enable less aggresive memory projection by using average memory usage instead of peak usage
         /// </summary>
-        bool EnableLessAggresiveMemoryProjection { get; }
+        bool EnableLessAggressiveMemoryProjection { get; }
 
         /// <summary>
         /// Mode for managing memory during builds
@@ -528,5 +528,10 @@ namespace BuildXL.Utilities.Configuration
         /// Number of consecutive cache misses in a dependency chain before avoiding the remote cache
         /// </summary>
         public int RemoteCacheCutoffLength { get; set; }
+
+        /// <summary>
+        /// Represents the RAM semaphore limit as a multiplier of the available RAM at the start of the build.
+        /// </summary>
+        double RamSemaphoreMultiplier { get; }
     }
 }

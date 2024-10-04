@@ -49,7 +49,7 @@ namespace Test.BuildXL.Distribution
                 MaxProcesses = 100,
                 MaxMaterialize = 100,
                 AvailableRamMb = 100000,
-                AvailableCommitMb = 100000,
+                TotalRamMb = 100000,
             };
 
 

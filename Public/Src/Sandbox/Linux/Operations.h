@@ -26,6 +26,7 @@ enum class EventType {
     kReadLink,
     kLink,
     kUnlink,
+    kBreakAway,
     kMax // Not a valid event type
 };
 
@@ -54,6 +55,7 @@ enum class FileOperation {
     kRemoveDirectory,
     kClose,
     kProbe,
+    kProcessBreakaway,
     kMax,
 };
 

@@ -86,6 +86,10 @@ namespace BuildXL.Processes
             /// </summary>
             Probe,
             /// <summary>
+            /// Pseudo operation to indicate that the process breaks away from the sandbox.
+            /// </summary>
+            ProcessBreakaway,
+            /// <summary>
             /// Maximum value of the enum.
             /// </summary>
             Max,
@@ -115,6 +119,7 @@ namespace BuildXL.Processes
                 Operations.RemoveDirectory => ReportedFileOperation.RemoveDirectory,
                 Operations.Close => ReportedFileOperation.Close,
                 Operations.Probe => ReportedFileOperation.Probe,
+                Operations.ProcessBreakaway => ReportedFileOperation.ProcessBreakaway,
                 _ => throw new Exception($"Unsupported operation {op}"),
             };
         }

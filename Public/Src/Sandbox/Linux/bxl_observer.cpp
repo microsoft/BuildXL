@@ -186,7 +186,7 @@ AccessCheckResult BxlObserver::CreateAccess(buildxl::linux::SandboxEvent& event,
     auto result = sNotChecked;
     auto access_should_be_blocked = false;
 
-    if (IsEnabled(event.GetPid())) {
+    if (IsValid()) {
         result = buildxl::linux::AccessChecker::CheckAccessAndGetReport(fam_, event);
         access_should_be_blocked = result.ShouldDenyAccess() && IsFailingUnexpectedAccesses();
 
@@ -556,12 +556,6 @@ bool BxlObserver::Send(const char *buf, size_t bufsiz, bool useSecondaryPipe, bo
 
 bool BxlObserver::SendExitReport(pid_t pid, pid_t ppid)
 {
-    if (!IsEnabled(pid))
-    {
-        // This process is a breakaway process, we don't need to report an exit for it because we never sent a process start report.
-        return true;
-    }
-
     auto event = buildxl::linux::SandboxEvent::ExitSandboxEvent("exit", GetProgramPath(), pid, ppid);
     event.SetSourceAccessCheck(AccessCheckResult(RequestedAccess::Read, ResultAction::Allow, ReportLevel::Report));
 
@@ -788,6 +782,37 @@ bool BxlObserver::contains_capabilities(const char *path)
     std::string result = execute_and_pipe_stdout(path, "/usr/sbin/getcap", args);
 
     return !result.empty();
+}
+
+bool BxlObserver::should_breakaway(int fd, char *const argv[])
+{
+    return should_breakaway(fd_to_path(fd).c_str(), argv);
+}
+
+bool BxlObserver::should_breakaway(const char *path, char *const argv[])
+{
+    bool result = fam_->ShouldBreakaway(path, argv);
+
+    if (result)
+    {
+        // Send a "process is about to break away" report so that the managed side can track it.
+        auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
+            /* system_call */   "breakaway",
+            /* event_type */    buildxl::linux::EventType::kBreakAway,
+            /* pid */           getpid(),
+            /* ppid */          getppid(),
+            /* error */         0,
+            /* src_path */      path);
+        event.SetSourceAccessCheck(AccessCheckResult(RequestedAccess::None, ResultAction::Allow, ReportLevel::Report));
+        
+        // It should be fine to use the primary pipe, a delay in reporting the breakaway can at most cost that we wait a little
+        // longer to tear down the sandbox if the message arrives after the main process has exited (since we'll wait for this process
+        // until it is identified as a breakaway). Today the secondary pipe is created only when ptrace is enabled, and unconditionally
+        // creating it for this case sounds like a waste.
+        SendReport(event, /* use_secondary_pipe */ false);
+    }
+
+    return result;
 }
 
 std::string BxlObserver::execute_and_pipe_stdout(const char *path, const char *process, char *const args[])
@@ -1133,17 +1158,22 @@ char** BxlObserver::ensure_env_value_with_log(char *const envp[], char const *en
     return newEnvp;
 }
 
+char** BxlObserver::removeEnvs(char *const envp[])
+{
+    char **newEnvp = remove_path_from_LDPRELOAD(envp, detoursLibFullPath_);
+    newEnvp = ensure_env_value(newEnvp, BxlEnvFamPath, "");
+    newEnvp = ensure_env_value(newEnvp, BxlEnvDetoursPath, "");
+    newEnvp = ensure_env_value(newEnvp, BxlEnvRootPid, "");
+    newEnvp = ensure_env_value(newEnvp, BxlPTraceForcedProcessNames, "");
+    return newEnvp;
+}
+
 // Propagate the environment needed for sandbox initialization
 char** BxlObserver::ensureEnvs(char *const envp[])
 {
     if (!IsMonitoringChildProcesses())
     {
-        char **newEnvp = remove_path_from_LDPRELOAD(envp, detoursLibFullPath_);
-        newEnvp = ensure_env_value(newEnvp, BxlEnvFamPath, "");
-        newEnvp = ensure_env_value(newEnvp, BxlEnvDetoursPath, "");
-        newEnvp = ensure_env_value(newEnvp, BxlEnvRootPid, "");
-        newEnvp = ensure_env_value(newEnvp, BxlPTraceForcedProcessNames, "");
-        return newEnvp;
+        return removeEnvs(envp);
     }
     else
     {
@@ -1153,6 +1183,7 @@ char** BxlObserver::ensureEnvs(char *const envp[])
             LOG_DEBUG("envp has been modified with %s added to %s", detoursLibFullPath_, "LD_PRELOAD");
         }
 
+        // Keep in sync with removeEnvs above.
         newEnvp = ensure_env_value_with_log(newEnvp, BxlEnvFamPath, famPath_);
         newEnvp = ensure_env_value_with_log(newEnvp, BxlEnvDetoursPath, detoursLibFullPath_);
         newEnvp = ensure_env_value(newEnvp, BxlEnvRootPid, "");

@@ -89,6 +89,7 @@ namespace BuildXL.Processes
                 { "ChangedReadWriteToReadAccess", ReportedFileOperation.ChangedReadWriteToReadAccess },
                 { "FirstAllowWriteCheckInProcess", ReportedFileOperation.FirstAllowWriteCheckInProcess },
                 { "ProcessRequiresPtrace", ReportedFileOperation.ProcessRequiresPTrace },
+                { "ProcessBreakaway", ReportedFileOperation.ProcessBreakaway },
                 { "MoveFileWithProgress_Source", ReportedFileOperation.MoveFileWithProgressSource },
                 { "MoveFileWithProgress_Dest", ReportedFileOperation.MoveFileWithProgressDest },
                 { "MultipleOperations", ReportedFileOperation.MultipleOperations },

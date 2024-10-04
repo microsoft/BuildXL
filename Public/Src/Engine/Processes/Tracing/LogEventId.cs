@@ -177,5 +177,6 @@ namespace BuildXL.Processes.Tracing
         LogMismatchedDetoursCount = 14301,
 
         EnvironmentPreparationError = 14302,
+        ProcessBreakaway = 14303,
     }
 }

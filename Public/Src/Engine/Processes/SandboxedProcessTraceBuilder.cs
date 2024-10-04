@@ -147,6 +147,7 @@ namespace BuildXL.Processes
                 case ReportedFileOperation.ChangedReadWriteToReadAccess:
                 case ReportedFileOperation.FirstAllowWriteCheckInProcess:
                 case ReportedFileOperation.ProcessRequiresPTrace:
+                case ReportedFileOperation.ProcessBreakaway:
                     return true;
                 default:
                     return false;

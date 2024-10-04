@@ -20,15 +20,27 @@ namespace IntegrationTest.BuildXL.Scheduler
 {
     [Trait("Category", "SharedOpaqueDirectoryTests")]
     [Feature(Features.SharedOpaqueDirectory)]
-    // Breakaway/Augmented accesses feature not supported on Linux yet
-    [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)]
     public class ProcessBreakawayTests : SchedulerIntegrationTestBase
     {
+        private readonly FileArtifact m_testProcessAlternative;
+
         public ProcessBreakawayTests(ITestOutputHelper output) : base(output)
         {
+            // Expose a test process runner with an alternative exe name.
+            // This allows us to distinguish runners based on image name for
+            // breakaway purposes
+            var testProcessAlternativeName = TestProcessExecutable.Path.GetParent(Context.PathTable).Combine(Context.PathTable, "Test.BuildXL.Executables.TestProcessAlternative");
+            var testProcessWithCapabilitiesString = testProcessAlternativeName.ToString(Context.PathTable);
+            if (!File.Exists(testProcessWithCapabilitiesString))
+            {
+                File.Copy(TestProcessExecutable.Path.ToString(Context.PathTable), testProcessWithCapabilitiesString, overwrite: false);
+            }
+
+            m_testProcessAlternative = FileArtifact.CreateSourceFile(testProcessAlternativeName);
         }
 
-        [Fact]
+        // Augmented accesses feature not supported on Linux yet
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public void BreakawayProcessCompensatesWithAugmentedAccesses()
         {
             string sharedOpaqueDir = Path.Combine(ObjectRoot, "partialDir");
@@ -63,7 +75,8 @@ namespace IntegrationTest.BuildXL.Scheduler
             XAssert.IsTrue(File.Exists(ArtifactToString(outputInSharedOpaque)));
          }
 
-        [Fact]
+        // Augmented accesses feature not supported on Linux yet
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public void TrustedAccessesOnProcessBreakawayAreProperlyReported()
         {
             // One (mandatory) output and one optional output
@@ -113,17 +126,21 @@ namespace IntegrationTest.BuildXL.Scheduler
             var outerOutputFile = CreateOutputFileArtifact(ObjectRoot, prefix: $"{nameof(BreakawayProcessesAreUntracked)}-outer-out");
             var innerOutputFile = CreateOutputFileArtifact(ObjectRoot, prefix: $"{nameof(BreakawayProcessesAreUntracked)}-inner-out");
 
+            // On Linux breakaway processes include the root process (just because there is
+            // always a bxl-env as the root process), which means breakaway settings can affect the 'main' executable.
+            // Use two different executables for the outer process vs the inner process, so we can breakaway the inner one only
             var builder = CreatePipBuilder(new Operation[]
             {
                 Operation.ReadFile(outerSourceFile),
                 Operation.WriteFile(outerOutputFile),
 
-                Operation.Spawn(Context.PathTable, waitToFinish: true, 
+                Operation.SpawnWithExecutable(Context.PathTable, waitToFinish: true, executable: TestProcessExecutable, 
                     Operation.WriteFile(innerOutputFile, doNotInfer: true),
                     Operation.ReadFile(innerSourceFile, doNotInfer: true))
-            });
+            },
+            testProcessExecutable: m_testProcessAlternative);
 
-            // Configure the test process itself to escape the sandbox
+            // Configure the spawned test process itself to escape the sandbox
             builder.ChildProcessesToBreakawayFromSandbox = ReadOnlyArray<PathAtom>.FromWithoutCopy(new[] { PathAtom.Create(Context.StringTable, TestProcessToolName) });
 
             var pip = SchedulePipBuilder(builder);
@@ -151,14 +168,20 @@ namespace IntegrationTest.BuildXL.Scheduler
         [Fact]
         public void BreakawayProcessesCanOutliveThePip()
         {
+            // On Linux breakaway processes include the root process (just because there is
+            // always a bxl-env as the root process), which means breakaway settings can affect the 'main' executable.
+            // Use two different executables for the outer process vs the inner process, so we can breakaway the inner one only
             var pidFile = CreateOutputFileArtifact(ObjectRoot, prefix: $"{nameof(BreakawayProcessesCanOutliveThePip)}.pid");
             var builder = CreatePipBuilder(new Operation[]
             {
-                Operation.SpawnAndWritePidFile(Context.PathTable, waitToFinish: false, pidFile: pidFile, doNotInfer: false,
+                // Dummy output
+                Operation.WriteFile(CreateOutputFileArtifact()),
+                Operation.SpawnAndWritePidFile(Context.PathTable, waitToFinish: false, pidFile: pidFile, doNotInfer: false, executable: TestProcessExecutable,
                     Operation.Block())
-            });
+            },
+            testProcessExecutable: m_testProcessAlternative);
 
-            // Configure the test process itself to escape the sandbox
+            // Configure the spawned test process itself to escape the sandbox
             builder.ChildProcessesToBreakawayFromSandbox = ReadOnlyArray<PathAtom>.FromWithoutCopy(new[] { PathAtom.Create(Context.StringTable, TestProcessToolName) });
 
             var pip = SchedulePipBuilder(builder);
@@ -176,7 +199,8 @@ namespace IntegrationTest.BuildXL.Scheduler
             proc.Kill();
         }
 
-        [Fact]
+        // Augmented accesses feature not supported on Linux yet
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
         public void AllowedTrustedAccessesTrumpFileBasedExistenceDenials()
         {
             string sharedOpaqueDir = Path.Combine(ObjectRoot, "partialDir");
@@ -214,7 +238,6 @@ namespace IntegrationTest.BuildXL.Scheduler
             // No violations should occur
             RunScheduler().AssertSuccess();
         }
-
 
         private System.Diagnostics.Process TryGetProcessById(int pid)
         {

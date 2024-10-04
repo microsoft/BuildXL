@@ -283,5 +283,10 @@ namespace BuildXL.Processes
         /// Generic probe file system call.
         /// </summary>
         Probe,
+
+        /// <summary>
+        /// This operation is used to indicate to the engine by the Linux sandbox that a process is about to breakaway
+        /// </summary>
+        ProcessBreakaway,
     }
 }

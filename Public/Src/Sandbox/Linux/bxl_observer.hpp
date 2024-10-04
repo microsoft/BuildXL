@@ -282,14 +282,6 @@ private:
     bool IsPTraceForced(const char *path);
 
     inline bool IsValid() const             { return fam_ != NULL; }
-    inline bool IsEnabled(pid_t pid) const
-    {
-        return
-            // successfully initialized
-            IsValid() &&
-            // NOT (child processes should break away AND this is a child process)
-            !(fam_->AllowChildProcessesToBreakAway() && pid != rootPid_);
-    }
 
     void PrintArgs(std::stringstream& str, bool isFirst)
     {
@@ -360,6 +352,7 @@ public:
     // have been called. This method avoids accessing shared structures.
     bool SendExitReport(pid_t pid, pid_t ppid);
     char** ensureEnvs(char *const envp[]);
+    char** removeEnvs(char *const envp[]);
 
     const char* GetProgramPath() { return progFullPath_; }
     const char* GetReportsPath() { int len; return IsValid() ? fam_->GetReportsPath(&len) : NULL; }
@@ -421,6 +414,10 @@ public:
     bool contains_capabilities(const char *path);
     std::string execute_and_pipe_stdout(const char *path, const char *process, char *const args[]);
     void set_ptrace_permissions();
+    // Checks against the breakaway list to see whether there is a match
+    // TODO: implement breakaway handling for ptrace
+    bool should_breakaway(const char *path, char *const argv[]);
+    bool should_breakaway(int fd, char *const argv[]);
 
     // Clears the specified entry on the file descriptor table
     void reset_fd_table_entry(int fd);
@@ -531,7 +528,7 @@ public:
     bool should_deny(AccessCheckResult &check)
     {
         // getpid() can be used for IsEnabled() here because this function will not be called for the ptrace sandbox
-        return IsEnabled(getpid()) && check.ShouldDenyAccess() && IsFailingUnexpectedAccesses();
+        return IsValid() && check.ShouldDenyAccess() && IsFailingUnexpectedAccesses();
     }
 
     /**

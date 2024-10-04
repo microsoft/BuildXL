@@ -779,7 +779,8 @@ namespace BuildXL.Processes
                             && report.FileOperation != ReportedFileOperation.ProcessExec
                             && report.FileOperation != ReportedFileOperation.ProcessExit
                             && report.FileOperation != ReportedFileOperation.ProcessTreeCompletedAck
-                            && report.FileOperation != ReportedFileOperation.ProcessRequiresPTrace)
+                            && report.FileOperation != ReportedFileOperation.ProcessRequiresPTrace
+                            && report.FileOperation != ReportedFileOperation.ProcessBreakaway)
                         {
                             // check the path cache (only when the message is not about process tree)
                             if (GetOrCreateCacheRecord(reportPath).CheckCacheHitAndUpdate(report.RequestedAccess))

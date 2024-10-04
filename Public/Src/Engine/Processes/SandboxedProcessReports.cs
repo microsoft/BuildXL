@@ -892,6 +892,7 @@ namespace BuildXL.Processes
             // If no active ReportedProcess is found (e.g., because it already completed but we are still processing its access reports),
             // try to see the latest exiting process with the same process id.
             if (operation != ReportedFileOperation.ProcessRequiresPTrace &&
+                operation != ReportedFileOperation.ProcessBreakaway &&
                 operation != ReportedFileOperation.FirstAllowWriteCheckInProcess &&
                 process == null && (!m_processesExits.TryGetValue(processId, out process) || process == null))
             {
@@ -934,6 +935,7 @@ namespace BuildXL.Processes
             // The only exception are the special internal messages for which we don't care about compensating for missing process starts
             if (operation != ReportedFileOperation.ProcessRequiresPTrace &&
                 operation != ReportedFileOperation.FirstAllowWriteCheckInProcess &&
+                operation != ReportedFileOperation.ProcessBreakaway &&
                 process == null)
             {
                 Contract.Assert(false, $"Process shouldn't be null for access [{processId}]:{operation}:'{path}'");
@@ -1024,6 +1026,18 @@ namespace BuildXL.Processes
             {
                 // The sandbox should automatically filter out duplicate process names
                 m_processesRequiringPTrace.Add(finalPath);
+                return true;
+            }
+
+            if (operation == ReportedFileOperation.ProcessBreakaway)
+            {
+                Tracing.Logger.Log.ProcessBreakaway(m_loggingContext, PipDescription, finalPath.ToString(m_pathTable), process.ProcessId);
+
+                // We'll never see the process exit for a breakaway process, so remove it
+                // from the active processes
+                AddLookupEntryForProcessExit(processId, process);
+                m_activeProcesses.TryRemove(processId, out _);
+
                 return true;
             }
 

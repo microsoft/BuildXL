@@ -442,12 +442,14 @@ namespace Test.BuildXL.Processes
                     waitToFinish: false,
                     pidFile: FileArtifact.CreateOutputFile(AbsolutePath.Create(Context.PathTable, childAPidFile)),
                     doNotInfer: false,
+                    executable: null,
                     Operation.Block()),
                 Operation.SpawnAndWritePidFile(
                     Context.PathTable,
                     waitToFinish: false,
                     pidFile: FileArtifact.CreateOutputFile(AbsolutePath.Create(Context.PathTable, childBPidFile)),
                     doNotInfer: false,
+                    executable: null,
                     Operation.Block())));
             info.SurvivingPipProcessChildrenDumpDirectory = dumpDirectory;
 
@@ -506,7 +508,8 @@ namespace Test.BuildXL.Processes
                     waitToFinish: false,
                     pidFile: FileArtifact.CreateOutputFile(AbsolutePath.Create(Context.PathTable, childAPidFile)),
                     doNotInfer: false,
-                    Operation.SpawnAndWritePidFile(Context.PathTable, waitToFinish: false, pidFile: FileArtifact.CreateOutputFile(AbsolutePath.Create(Context.PathTable, childCPidFile)), doNotInfer: false, Operation.Block()) 
+                    executable: null,
+                    Operation.SpawnAndWritePidFile(Context.PathTable, waitToFinish: false, pidFile: FileArtifact.CreateOutputFile(AbsolutePath.Create(Context.PathTable, childCPidFile)), doNotInfer: false, executable: null, Operation.Block()) 
                     )));
 
             info.SurvivingPipProcessChildrenDumpDirectory = dumpDirectory;

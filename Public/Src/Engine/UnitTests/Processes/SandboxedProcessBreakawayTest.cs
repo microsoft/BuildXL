@@ -26,14 +26,14 @@ namespace Test.BuildXL.Processes
         {
             yield return Array.Empty<object[]>();
             yield return new object[] { new FileAccessManifest.BreakawayChildProcess(InfiniteWaiterToolName) };
-            yield return new object[] { new FileAccessManifest.BreakawayChildProcess(InfiniteWaiterToolName.ToUpper()) };
-        }
+         }
 
         private static IEnumerable<object[]> WindowsChildBreakawayData()
         {
             yield return new object[] { new FileAccessManifest.BreakawayChildProcess(InfiniteWaiterToolName, "foo", CommandLineArgsSubstringContainmentIgnoreCase: false), "foo bar baz" };
             yield return new object[] { new FileAccessManifest.BreakawayChildProcess(InfiniteWaiterToolName, "foo", CommandLineArgsSubstringContainmentIgnoreCase: true), "bar FOO baz" };
             yield return new object[] { new FileAccessManifest.BreakawayChildProcess(InfiniteWaiterToolName, "foo", CommandLineArgsSubstringContainmentIgnoreCase: false), "bar FOO baz" };
+            yield return new object[] { new FileAccessManifest.BreakawayChildProcess(InfiniteWaiterToolName.ToUpper(), "foo", CommandLineArgsSubstringContainmentIgnoreCase: false), "bar FOO baz" };
         }
 
         [Theory]

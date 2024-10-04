@@ -229,5 +229,31 @@ inline BYTE FileAccessManifest::ParseByte(size_t& offset) {
     return b;
 }
 
+bool FileAccessManifest::ShouldBreakaway(const PathChar *path, const PathChar *const argv[])
+{
+    if (breakaway_child_processes_.empty() || path == nullptr)
+    {
+        return false;
+    }
+
+    // Retrieve the image name (last component of the path)
+    auto imageName = std::basic_string(basename(path));
+
+    for(auto it = breakaway_child_processes_.begin(); it != breakaway_child_processes_.end(); it++)
+    {
+        // TODO: matching required arguments is missing. Implement.
+        if (imageName.compare(it->GetExecutable()) == 0)
+        {
+            // If the image name matched and there are no required args, this is a breakaway
+            if (it->GetRequiredArgs().empty())
+            {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
 } // namespace common
 } // namespace buildxl

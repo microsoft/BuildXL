@@ -416,6 +416,15 @@ bool IsPathToNamedStream(PCPathChar const path, size_t pathLength) noexcept {
     }
 }
 
+bool AreEqualCaseInsensitively(const std::basic_string<PathChar>& s1, const std::basic_string<PathChar>& s2)
+{
+    return s1.size() == s2.size() && std::equal(s1.begin(), s1.end(), s2.begin(),
+        [](wchar_t a, wchar_t b) {
+            return std::towlower(a) == std::towlower(b);
+        }
+    );
+}
+
 #if _WIN32
 
 size_t GetRootLength(PCPathChar path) noexcept
@@ -477,15 +486,6 @@ size_t GetRootLength(PCPathChar path) noexcept
     }
 
     return i;
-}
-
-bool AreEqualCaseInsensitively(const std::wstring& s1, const std::wstring& s2)
-{
-    return s1.size() == s2.size() && std::equal(s1.begin(), s1.end(), s2.begin(),
-        [](wchar_t a, wchar_t b) {
-            return std::towlower(a) == std::towlower(b);
-        }
-    );
 }
 
 PCPathChar GetPathWithoutPrefix(PCPathChar path) noexcept

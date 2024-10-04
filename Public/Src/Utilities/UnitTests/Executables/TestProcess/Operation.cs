@@ -902,19 +902,24 @@ namespace Test.BuildXL.Executables.TestProcess
         /// <param name="pidFile">If valid, file to which to write spawned process id</param>
         /// <param name="doNotInfer">Whether or not to infer dependencies</param>
         /// <param name="childOperations">Definition of the child process</param>
-        public static Operation SpawnAndWritePidFile(PathTable pathTable, bool waitToFinish, FileOrDirectoryArtifact? pidFile, bool doNotInfer = false, params Operation[] childOperations)
+        /// <param name="executable">The executable to use to spawn the process. If not provided, the same executable as the parent process is used</param>
+        public static Operation SpawnAndWritePidFile(PathTable pathTable, bool waitToFinish, FileOrDirectoryArtifact? pidFile, bool doNotInfer = false, FileArtifact? executable = null, params Operation[] childOperations)
         {
             var args = childOperations.Select(o => (o.ToCommandLine(pathTable, escapeResult: true))).ToArray();
-            return new Operation(Type.Spawn, path: pidFile, content: EncodeList(args), additionalArgs: waitToFinish ? WaitToFinishMoniker : null, doNotInfer: doNotInfer);
+            var additionalArgs = EncodeSpawnAdditionalArgs(pathTable, executable, waitToFinish);
+            
+            return new Operation(Type.Spawn, path: pidFile, content: EncodeList(args), additionalArgs: additionalArgs, doNotInfer: doNotInfer);
         }
 
         /// <summary>
         /// Like <see cref="SpawnAndWritePidFile"/> except it sets the given environment variables.
         /// </summary>
-        public static Operation SpawnAndWritePidFileWithEnvs(PathTable pathTable, bool waitToFinish, Operation[] childOperations, FileOrDirectoryArtifact? pidFile, bool doNotInfer = false, string envs = null)
+        public static Operation SpawnAndWritePidFileWithEnvs(PathTable pathTable, bool waitToFinish, Operation[] childOperations, FileOrDirectoryArtifact? pidFile, bool doNotInfer = false, string envs = null, FileArtifact? executable = null)
         {
             var args = childOperations.Select(o => (o.ToCommandLine(pathTable, escapeResult: true))).ToArray();
-            return new Operation(Type.Spawn, path: pidFile, content: EncodeList(args), additionalArgs: waitToFinish ? WaitToFinishMoniker : null, doNotInfer: doNotInfer, environmentVariablesToSet: envs);
+            var additionalArgs = EncodeSpawnAdditionalArgs(pathTable, executable, waitToFinish);
+            
+            return new Operation(Type.Spawn, path: pidFile, content: EncodeList(args), additionalArgs: additionalArgs, doNotInfer: doNotInfer, environmentVariablesToSet: envs);
         }
 
         /// <summary>
@@ -922,7 +927,22 @@ namespace Test.BuildXL.Executables.TestProcess
         /// </summary>
         public static Operation Spawn(PathTable pathTable, bool waitToFinish, params Operation[] childOperations)
         {
-            return SpawnAndWritePidFile(pathTable, waitToFinish, pidFile: null, doNotInfer: false, childOperations);
+            return SpawnAndWritePidFile(pathTable, waitToFinish, pidFile: null, doNotInfer: false, executable: null, childOperations);
+        }
+
+        /// <summary>
+        /// Like <see cref="Spawn"/> but allows to specify the executable to use to spawn the new process.
+        /// </summary>
+        public static Operation SpawnWithExecutable(PathTable pathTable, bool waitToFinish, FileArtifact executable, params Operation[] childOperations)
+        {
+            return SpawnAndWritePidFile(pathTable, waitToFinish, pidFile: null, doNotInfer: false, executable: executable, childOperations);
+        }
+
+        private static string EncodeSpawnAdditionalArgs(PathTable pathTable, FileArtifact? executable, bool waitToFinish)
+        {
+            var waitToFinishArg = waitToFinish ? WaitToFinishMoniker : string.Empty;
+            var executableArg = executable == null? string.Empty : executable.Value.Path.ToString(pathTable);
+            return EncodeList(waitToFinishArg, executableArg);
         }
 
         /// <summary>
@@ -1578,7 +1598,14 @@ namespace Test.BuildXL.Executables.TestProcess
         private void DoSpawn()
         {
             var cmdLine = string.Join(" ", DecodeList(Content));
-            DoSpawn(fileName: AssemblyHelper.GetAssemblyLocation(System.Reflection.Assembly.GetExecutingAssembly(), computeAssemblyLocation: true), arguments: cmdLine);
+            // For the spawn operation 'additional args' actually represent two things
+            var additionalArgs = DecodeList(AdditionalArgs);
+            bool waitToFinish = additionalArgs[0] == WaitToFinishMoniker;
+            string executable = string.IsNullOrEmpty(additionalArgs[1]) 
+                ? AssemblyHelper.GetAssemblyLocation(System.Reflection.Assembly.GetExecutingAssembly(), computeAssemblyLocation: true)
+                : additionalArgs[1];
+
+            DoSpawn(fileName: executable, arguments: cmdLine, waitToFinish);
         }
 
         private void DoSpawnWithVFork()
@@ -1592,13 +1619,14 @@ namespace Test.BuildXL.Executables.TestProcess
             // CODESYNC: Public\Src\Utilities\UnitTests\Executables\TestProcess\Test.BuildXL.Executables.TestProcess.dsc
             string vforkSpawn = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(testExecutor), "vforkSpawn");
 
-            DoSpawn(fileName: vforkSpawn, arguments: cmdLine);
+            var waitToFinish = AdditionalArgs == WaitToFinishMoniker;
+
+            DoSpawn(fileName: vforkSpawn, arguments: cmdLine, waitToFinish);
         }
 
-        private void DoSpawn(string fileName, string arguments)
+        private void DoSpawn(string fileName, string arguments, bool waitToFinish)
         {
             var cmdLine = string.Join(" ", DecodeList(Content));
-            var waitToFinish = AdditionalArgs == WaitToFinishMoniker;
 
             var feedStdoutDone = new ManualResetEventSlim();
             var feedStderrDone = new ManualResetEventSlim();

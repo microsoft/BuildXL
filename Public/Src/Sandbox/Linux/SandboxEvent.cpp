@@ -66,6 +66,9 @@ SandboxEvent::SandboxEvent(
             case buildxl::linux::EventType::kPTrace:
                 source_access_report_.file_operation = buildxl::linux::FileOperation::kProcessRequiresPtrace;
                 break;
+            case buildxl::linux::EventType::kBreakAway:
+                source_access_report_.file_operation = buildxl::linux::FileOperation::kProcessBreakaway;
+                break;
             default:
                 // These cases require mode to be set with a resolved path before they can be classfied
                 // This will happen when the access check is performed.

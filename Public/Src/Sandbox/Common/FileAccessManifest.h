@@ -126,8 +126,8 @@ public:
     inline PCManifestRecord GetUnixManifestTreeRoot() const                 { return manifest_tree_->BucketCount > 0 ? manifest_tree_->GetChildRecord(0) : manifest_tree_; }
     // TODO [pgunasekara]: accept a length argument as reference instead of a pointer.
     inline const char *GetReportsPath(int *length) const                    { *length = report_->Size; return report_->Report.ReportPath; }
-    inline bool AllowChildProcessesToBreakAway() const                      { return breakaway_child_processes_.size() > 0; }
-
+    bool ShouldBreakaway(const PathChar *path, const PathChar *const argv[]);
+    
     // Debugging Helpers
     std::basic_string<PathChar> ManifestTreeToString(PCManifestRecord node = nullptr, const int indent = 0, const int index = 0);
 };

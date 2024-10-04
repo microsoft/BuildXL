@@ -319,6 +319,15 @@ namespace BuildXL.Processes
             private readonly ConcurrentDictionary<int, byte> m_activeProcesses;
 
             /// <summary>
+            /// This dictionary stores the processes that requested a breakaway. They truly broke away if the
+            /// corresponding exec* call succeeded, but we don't know this here for sure. However, the only
+            /// consequence of a pid being stored here is that we won't wait for it to finish after
+            /// the root process exited. The assumption is that if the process was about to breakaway and
+            /// it is alive when the root process finished, then it actually broke away and we shouldn't wait for it.
+            /// </summary>
+            private readonly ConcurrentDictionary<int, byte> m_breakawayProcesses;
+
+            /// <summary>
             /// Sanity check to make sure the sandbox is torn down appropriately even if, for whatever reason, we never
             /// see the root process start event.
             /// </summary>
@@ -361,6 +370,8 @@ namespace BuildXL.Processes
                 FamPath = famPath;
 
                 m_activeProcesses = new ConcurrentDictionary<int, byte>();
+                m_breakawayProcesses = new ConcurrentDictionary<int, byte>();
+
                 m_activeProcessesChecker = new CancellableTimedAction(
                     CheckActiveProcesses,
                     intervalMs: Math.Min((int)process.ChildProcessTimeout.TotalMilliseconds, (int)s_activeProcessesCheckerInterval.TotalMilliseconds));
@@ -419,7 +430,15 @@ namespace BuildXL.Processes
                 {
                     if (!Dispatch.IsProcessAlive(pid))
                     {
-                        LogDebug($"CheckActiveProcesses. Removing {pid}.");
+                        LogDebug($"CheckActiveProcesses. Process {pid} is not alive, removing.");
+                        RemovePid(pid);
+                        continue;
+                    }
+
+                    // We shouldn't wait for a breakaway process after the main root process exited.
+                    if (m_breakawayProcesses.TryGetValue(pid, out _))
+                    {
+                        LogDebug($"CheckActiveProcesses. Process {pid} is a breakaway, removing.");
                         RemovePid(pid);
                     }
                 }
@@ -502,6 +521,14 @@ namespace BuildXL.Processes
             {
                 bool added = m_activeProcesses.TryAdd(pid, 1);
                 LogDebug($"AddPid({pid}) :: added: {added}; size: {m_activeProcesses.Count}");
+                
+                // If the recently started process has the same pid as an existing breakaway one, that means
+                // the breakaway process ended and we have a case of process id reuse. The newly started process
+                // is not a breakaway one
+                if (m_breakawayProcesses.TryRemove(pid, out _))
+                {
+                    LogDebug($"AddPid({pid}) :: New process is reusing a breakaway pid presumably dead");
+                }
             }
 
             /// <summary>
@@ -733,6 +760,11 @@ namespace BuildXL.Processes
                     {
                         LogDebug($"Received FileOperation.OpProcessExit for pid {report.ProcessId})");
                         RemovePid((int)report.ProcessId);
+                    }
+                    else if (report.FileOperation == ReportedFileOperation.ProcessBreakaway)
+                    {
+                        LogDebug($"Received FileOperation.ProcessBreakaway for pid {report.ProcessId})");
+                        m_breakawayProcesses[(int)report.ProcessId] = 0;
                     }
 
                     // Let's check for linux-specific reports that we want to ignore

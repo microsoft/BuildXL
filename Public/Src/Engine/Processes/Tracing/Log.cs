@@ -1247,6 +1247,15 @@ namespace BuildXL.Processes.Tracing
         public abstract void PTraceSandboxLaunchedForPip(LoggingContext context, string pipDescription, string exePath);
 
         [GeneratedEvent(
+            (int)LogEventId.ProcessBreakaway,
+            EventLevel = Level.Verbose,
+            EventGenerators = EventGenerators.LocalOnly,
+            Keywords = (int)((Keywords.UserMessage) | Keywords.Diagnostics),
+            EventTask = (int)Tasks.PipExecutor,
+            Message = "[{pipDescription}] Process {pid} with path '{exePath}' breaks away from the sandbox.")]
+        public abstract void ProcessBreakaway(LoggingContext context, string pipDescription, string exePath, uint pid);
+
+        [GeneratedEvent(
             (ushort)LogEventId.PTraceRunnerError,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,

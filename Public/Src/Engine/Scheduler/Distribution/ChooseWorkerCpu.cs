@@ -82,13 +82,6 @@ namespace BuildXL.Scheduler.Distribution
         public WorkerResource? LastConcurrencyLimiter { get; set; }
 
         /// <summary>
-        /// Number of iterations that ChooseWorker logic is run
-        /// </summary>
-        public int NumIterations => m_numIterations;
-
-        private int m_numIterations;
-
-        /// <summary>
         /// Constructor
         /// </summary>
         public ChooseWorkerCpu(
@@ -133,8 +126,6 @@ namespace BuildXL.Scheduler.Distribution
             Worker chosenWorker = null;
             WorkerResource? limitingResource = null;
             var moduleId = runnablePip.Pip.Provenance.ModuleId;
-
-            Interlocked.Increment(ref m_numIterations);
 
             if (!IsOrchestrator || runnablePip.MustRunOnOrchestrator)
             {

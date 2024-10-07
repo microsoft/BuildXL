@@ -120,7 +120,6 @@ namespace BuildXL.Scheduler
         /// </summary>
         internal TimeSpan ChooseQueueRunTime => (m_chooseWorkerCpuQueue is ChooseWorkerQueue queue) ? queue.RunTime : default;
 
-        private long m_triggerDispatcherCount;
         private long m_dispatcherLoopCount;
         private TimeSpan m_dispatcherLoopTime;
         private TimeSpan? m_cancelTimeout = null;
@@ -144,17 +143,6 @@ namespace BuildXL.Scheduler
             get
             {
                 return m_dispatcherLoopCount;
-            }
-        }
-
-        /// <summary>
-        /// Number of times dispatcher loop was triggered
-        /// </summary>
-        public long TriggerDispatcherCount
-        {
-            get
-            {
-                return m_triggerDispatcherCount;
             }
         }
 
@@ -484,7 +472,6 @@ namespace BuildXL.Scheduler
 
         internal void TriggerDispatcher()
         {
-            Interlocked.Increment(ref m_triggerDispatcherCount);
             m_hasAnyChange.Set();
         }
 

@@ -986,9 +986,6 @@ namespace BuildXL.Scheduler
 
         #region Statistics
 
-        private ulong m_totalPeakWorkingSetMb;
-        private ulong m_totalAverageWorkingSetMb;
-
         private readonly object m_statusLock = new object();
 
         /// <summary>
@@ -2153,8 +2150,8 @@ namespace BuildXL.Scheduler
                 statistics.Add("RetriedDueToLowMemory_" + current.Key, current.Value);
             }
 
-            statistics.Add("TotalExpectedAverageWorkingSetMb", m_totalExpectedAverageWorkingSetMb);
-            statistics.Add("TotalActualAverageWorkingSetMb", m_totalActualAverageWorkingSetMb);
+            statistics.Add("TotalExpectedAverageWorkingSetMb", (long)m_totalExpectedAverageWorkingSetMb);
+            statistics.Add("TotalActualAverageWorkingSetMb", (long)m_totalActualAverageWorkingSetMb);
 
             Logger.Log.CacheFingerprintHitSources(loggingContext, m_cacheIdHits);
 
@@ -2306,9 +2303,6 @@ namespace BuildXL.Scheduler
                 statistics.Add(string.Format(perfStatsName, "SendRequest", (PipExecutionStep)i), totalSendRequestDurations[i]);
             }
 
-            statistics.Add("TotalPeakWorkingSetMb", (long)m_totalPeakWorkingSetMb);
-            statistics.Add("TotalAverageWorkingSetMb", (long)m_totalAverageWorkingSetMb);
-
             if (m_pluginManager != null)
             {
                 statistics.Add(Statistics.PluginLoadingTime, (long)m_pluginManager.PluginLoadingTime);
@@ -2411,11 +2405,9 @@ namespace BuildXL.Scheduler
                 { "MachineKbitsPerSecSent", data => (long)m_perfInfo.MachineKbitsPerSecSent },
                 { "MachineKbitsPerSecReceived", data => (long)m_perfInfo.MachineKbitsPerSecReceived },
                 { "DispatchIterations", data => OptionalPipQueueImpl?.DispatcherIterations ?? 0 },
-                { "DispatchTriggers", data => OptionalPipQueueImpl?.TriggerDispatcherCount ?? 0 },
                 { "DispatchMs", data => (long)(OptionalPipQueueImpl?.DispatcherLoopTime.TotalMilliseconds ?? 0) },
                 { "ChooseQueueFastNextCount", data => OptionalPipQueueImpl?.ChooseQueueFastNextCount ?? 0 },
                 { "ChooseQueueRunTimeMs", data => OptionalPipQueueImpl?.ChooseQueueRunTime.TotalMilliseconds ?? 0 },
-                { "ChooseWorkerCpuIterations", data => m_chooseWorkerCpu.NumIterations },
                 { "LastSchedulerConcurrencyLimiter", data => m_chooseWorkerCpu.LastConcurrencyLimiter?.Name ?? "N/A" },
                 { "LimitingResource", data => data.LimitingResource},
                 { "MemoryResourceAvailability", data => LocalWorker.MemoryResource.ToString().Replace(',', '-')},
@@ -5021,12 +5013,6 @@ namespace BuildXL.Scheduler
                             int peakWorkingSetMb = executionResult.PerformanceInformation?.MemoryCounters.PeakWorkingSetMb ?? 0;
                             int averageWorkingSetMb = executionResult.PerformanceInformation?.MemoryCounters.AverageWorkingSetMb ?? 0;
 
-                            if (expectedMemoryCounters.AverageWorkingSetMb > 0)
-                            {
-                                m_totalExpectedAverageWorkingSetMb += expectedMemoryCounters.AverageWorkingSetMb;
-                                m_totalActualAverageWorkingSetMb += averageWorkingSetMb;
-                            }
-
                             try
                             {
                                 Logger.Log.ProcessPipExecutionInfo(
@@ -5046,8 +5032,11 @@ namespace BuildXL.Scheduler
                                     (int)ByteSizeFormatter.BytesToMegabytes(executionResult.PerformanceInformation?.IO.GetAggregateIO().TransferCount ?? 0),
                                     (processRunnable.HistoricPerfData?.MaxExeDurationInMs ?? 0) / 1000.0);
 
-                                m_totalPeakWorkingSetMb += (ulong)peakWorkingSetMb;
-                                m_totalAverageWorkingSetMb += (ulong)averageWorkingSetMb;
+                                if (expectedMemoryCounters.AverageWorkingSetMb > 0)
+                                {
+                                    m_totalExpectedAverageWorkingSetMb += (ulong)expectedMemoryCounters.AverageWorkingSetMb;
+                                    m_totalActualAverageWorkingSetMb += (ulong)averageWorkingSetMb;
+                                }
                             }
                             catch (OverflowException ex)
                             {
@@ -7964,7 +7953,7 @@ namespace BuildXL.Scheduler
 
         private DateTime m_schedulerDoneTimeUtc;
         private DateTime m_schedulerStartedTimeUtc;
-        private int m_totalExpectedAverageWorkingSetMb, m_totalActualAverageWorkingSetMb;
+        private ulong m_totalExpectedAverageWorkingSetMb, m_totalActualAverageWorkingSetMb;
 
         /// <inheritdoc/>
         public void SetMaxExternalProcessRan()

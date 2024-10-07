@@ -33,9 +33,8 @@ resources:
   - pipeline: BxlRollingPipeline
     source: '\BuildXL\BuildXL Rolling'
     trigger:
-      branches:
-        include:
-          - main
+      tags:
+      - RollingRelease
   - pipeline: CloudBuild
     source: 'CloudBuild\ReleaseBuilds\CloudBuild Deploy QBits (YML)'
 

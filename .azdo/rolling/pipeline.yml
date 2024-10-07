@@ -1,3 +1,12 @@
+parameters:
+# If this parameter is false, publishing is skipped
+# and the release pipeline won't be triggered
+# CODESYNC: Don't remove or rename this parameter without first updating 
+#           the 1ESPT pipeline that is queuing a build and passing it.
+- name: triggerReleasePipeline
+  type: boolean
+  default: true
+
 trigger:
   branches:
     include:
@@ -95,6 +104,6 @@ extends:
       variables:
       - group: "BuildXL GitHub Secrets"
       dependsOn: [CB, RCIT, External, Linux, Mac]
-      condition: and(succeeded(), eq(variables.isPublishingBranch, true))
+      condition: and(succeeded(), parameters.triggerReleasePipeline, eq(variables.isPublishingBranch, true))
       jobs:
       - template: .azdo/rolling/jobs/publish.yml@self

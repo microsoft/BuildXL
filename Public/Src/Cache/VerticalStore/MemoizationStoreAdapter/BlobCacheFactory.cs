@@ -145,7 +145,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             }
 
             // For Linux, check whether a codespaces credential helper can be used.
-            if (OperatingSystemHelper.IsLinuxOS && uri is not null)
+            if (credentials is null && OperatingSystemHelper.IsLinuxOS && uri is not null)
             {
                 var authHelperToolPath = CodespacesCredentials.FindAuthHelperTool(out var failure);
                 // If a failure is present, log it
@@ -154,7 +154,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                     context.TracingContext.Info($"An error occurred while trying to find '{CodespacesCredentials.AuthHelperToolName}'. Details: {failure}", nameof(BlobCacheFactory));
                 }
                 // If the authHelperToolPath is null, that just means the helper tool is not under PATH, so we just move on
-                if (credentials is null && authHelperToolPath != null)
+                if (authHelperToolPath != null)
                 {
                     context.TracingContext.Info("Authenticating with azure-auth-helper (codespaces)", nameof(BlobCacheFactory));
 

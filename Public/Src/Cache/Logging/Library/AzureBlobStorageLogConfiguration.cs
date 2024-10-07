@@ -78,6 +78,11 @@ namespace BuildXL.Cache.Logging
         /// <nodoc />
         public bool LogUploads { get; set; } = false;
 
+        /// <summary>
+        /// Gets whether to asuume that the container exists
+        /// </summary>
+        public bool AssumeContainerExists { get; set; } = false;
+
         /// <nodoc />
         public AzureBlobStorageLogConfiguration(AbsolutePath workspace)
         {

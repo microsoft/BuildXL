@@ -15,9 +15,15 @@ namespace MemoizationStoreAdapter {
             importFrom("BuildXL.Cache.VerticalStore").Interfaces.dll,
             importFrom("BuildXL.Cache.VerticalStore").MemoizationStoreAdapter.dll,
             importFrom("BuildXL.Cache.VerticalStore").VerticalAggregator.dll,
+
+            ...importFrom("BuildXL.Cache.ContentStore").getAzureBlobStorageSdkPackages(true),
+
+            importFrom("BuildXL.Cache.ContentStore").DistributedTest.dll,
             importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
             importFrom("BuildXL.Cache.ContentStore").UtilitiesCore.dll,
             importFrom("BuildXL.Cache.ContentStore").Interfaces.dll,
+            importFrom("BuildXL.Cache.ContentStore").InterfacesTest.dll,
+            importFrom("BuildXL.Cache.ContentStore").Test.dll,
             importFrom("BuildXL.Cache.MemoizationStore").Interfaces.dll,
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Configuration.dll,

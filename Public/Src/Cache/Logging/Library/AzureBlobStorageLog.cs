@@ -115,12 +115,21 @@ namespace BuildXL.Cache.Logging
             CancellationToken cancellationToken,
             IReadOnlyDictionary<string, string>? additionalBlobMetadata = null)
         {
+            var configuration = new AzureBlobStorageLogConfiguration(new AbsolutePath(uploadWorkspacePath))
+            {
+                // Make sure the upload queue always get drained on shutdown, since after the build is done we won't have the opportunity to do it again
+                DrainUploadsOnShutdown = true,
+            };
+
+            // If using container sas credentails, extract container name from credentials.
+            if (credentials is ContainerSasStorageCredentials containerCredentials)
+            {
+                configuration.ContainerName = containerCredentials.ContainerName;
+                configuration.AssumeContainerExists = true;
+            }
+
             var azureBlobStorageLog = new AzureBlobStorageLog(
-                configuration: new AzureBlobStorageLogConfiguration(new AbsolutePath(uploadWorkspacePath))
-                {
-                    // Make sure the upload queue always get drained on shutdown, since after the build is done we won't have the opportunity to do it again
-                    DrainUploadsOnShutdown = true,
-                },
+                configuration: configuration,
                 context: new OperationContext(new ContentStore.Interfaces.Tracing.Context(logger), cancellationToken),
                 clock: SystemClock.Instance,
                 fileSystem: new PassThroughFileSystem(),
@@ -146,12 +155,12 @@ namespace BuildXL.Cache.Logging
 
             credentials = new ManagedIdentityCredential(clientId: managedIdentityId);
 
-            var blobServiceClient = new BlobServiceClient(new Uri(uri.GetLeftPart(UriPartial.Authority)), credentials);
+            var container = new BlobContainerClient(uri, credentials);
 
             return new AzureBlobStorageLog(
                 new AzureBlobStorageLogConfiguration(new AbsolutePath(uploadWorkspacePath))
                 {
-                    ContainerName = uri.Segments[1],
+                    ContainerName = container.Name,
                     // Make sure the upload queue always get drained on shutdown, since after the build is done we won't have the opportunity to do it again
                     DrainUploadsOnShutdown = true,
                 },
@@ -159,7 +168,7 @@ namespace BuildXL.Cache.Logging
                 SystemClock.Instance,
                 new ContentStore.FileSystem.PassThroughFileSystem(),
                 new BasicTelemetryFieldsProvider(),
-                blobServiceClient,
+                container,
                 additionalBlobMetadata: null);
         }
 
@@ -173,7 +182,8 @@ namespace BuildXL.Cache.Logging
             IAzureStorageCredentials credentials,
             IReadOnlyDictionary<string, string>? additionalBlobMetadata)
             : this(configuration, context, clock, fileSystem, telemetryFieldsProvider,
-                credentials.CreateBlobServiceClient(
+                credentials.CreateContainerClient(
+                    configuration.ContainerName,
                     new BlobClientOptions
                     {
                         RetryPolicy = new RetryPolicy(delayStrategy: DelayStrategy.CreateExponentialDelayStrategy())
@@ -191,6 +201,26 @@ namespace BuildXL.Cache.Logging
             ITelemetryFieldsProvider telemetryFieldsProvider,
             BlobServiceClient blobServiceClient,
             IReadOnlyDictionary<string, string>? additionalBlobMetadata)
+            : this(
+                configuration,
+                context,
+                clock,
+                fileSystem,
+                telemetryFieldsProvider,
+                blobServiceClient.GetBlobContainerClient(configuration.ContainerName),
+                additionalBlobMetadata)
+        {
+        }
+
+        /// <nodoc />
+        public AzureBlobStorageLog(
+            AzureBlobStorageLogConfiguration configuration,
+            OperationContext context,
+            IClock clock,
+            IAbsFileSystem fileSystem,
+            ITelemetryFieldsProvider telemetryFieldsProvider,
+            BlobContainerClient container,
+            IReadOnlyDictionary<string, string>? additionalBlobMetadata)
         {
             _configuration = configuration;
 
@@ -201,7 +231,7 @@ namespace BuildXL.Cache.Logging
             _clock = clock;
             _fileSystem = fileSystem;
             _telemetryFieldsProvider = telemetryFieldsProvider;
-            _container = blobServiceClient.GetBlobContainerClient(configuration.ContainerName);
+            _container = container;
             _additionalBlobMetadata = additionalBlobMetadata;
 
             _writeQueue = NagleQueue<string>.CreateUnstarted(
@@ -265,13 +295,18 @@ namespace BuildXL.Cache.Logging
         /// <inheritdoc />
         protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
         {
-            Tracer.Debug(_context, $"Creating container '{_container.Name}' in storage account '{_container.AccountName}'");
+            var exists = _configuration.AssumeContainerExists || await _container.ExistsAsync();
+            var verb = exists ? "Using" : "Creating";
+            Tracer.Debug(_context, $"{verb} container '{_container.Name}' in storage account '{_container.AccountName}'");
 
-            await _container.CreateIfNotExistsAsync(
-                PublicAccessType.None,
-                metadata: null,
-                encryptionScopeOptions: null,
-                cancellationToken: context.Token);
+            if (!exists)
+            {
+                await _container.CreateIfNotExistsAsync(
+                    PublicAccessType.None,
+                    metadata: null,
+                    encryptionScopeOptions: null,
+                    cancellationToken: context.Token);
+            }
 
             PrepareLoggingFolders(context);
 

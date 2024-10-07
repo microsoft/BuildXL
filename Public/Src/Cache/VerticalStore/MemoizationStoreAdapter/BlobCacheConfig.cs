@@ -231,7 +231,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             var logToKusto = configuration.Logging.LogToKusto;
             // For legacy reasons, cache logs require 'Master' when the build role is orchestrator
             Role = configuration.Distribution.BuildRole.IsOrchestrator() ? "Master" : configuration.Distribution.BuildRole.ToString();
-            BuildId = activityId.ToString();
+            BuildId = configuration.Logging.RelatedActivityId ?? activityId.ToString();
 
             AllowInteractiveAuth = configuration.Interactive;
             // Let's use the engine cache as the target directory for storing the token

@@ -95,15 +95,14 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             }
         }
 
-        internal static async Task<(ILogger logger, AbsolutePath logPath)> CreateLoggerAsync(TConfig configuration)
+
+        internal static async Task<(ILogger logger, bool storageLogEnabled)> CreateLoggerAsync(TConfig configuration, ILogger fileLogger)
         {
             var logPath = new AbsolutePath(configuration.CacheLogPath);
+            bool storageLogEnabled = false;
             ILogger logger;
 
             // Logging always happens to a file (and ETW)
-            var etwFileLog = new EtwFileLog(logPath.Path, configuration.CacheId);
-            var etwFileLogger = new DisposeLogger(etwFileLog, configuration.LogFlushIntervalSeconds);
-            etwFileLogger.Debug($"Start logging at '{logPath}', Kusto logging enabled = {configuration.LogToKusto}");
             if (configuration.LogToKusto)
             {
                 HostParameters hostParameters = HostParameters.FromEnvironment(configuration.LogParameters ?? new(), prefix: null);
@@ -119,21 +118,21 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                 Directory.CreateDirectory(workspacePath);
 
                 AzureBlobStorageLog storageLog;
-                etwFileLogger.Debug($"Kusto logging identity = {configuration.LogToKustoIdentityId}");
+                fileLogger.Debug($"Kusto logging identity = {configuration.LogToKustoIdentityId}");
                 if (!string.IsNullOrEmpty(configuration.LogToKustoIdentityId))
                 {
                     storageLog = AzureBlobStorageLog.CreateWithManagedIdentity(
-                        etwFileLogger, configuration.LogToKustoIdentityId, configuration.LogToKustoBlobUri, workspacePath, CancellationToken.None);
+                        fileLogger, configuration.LogToKustoIdentityId, configuration.LogToKustoBlobUri, workspacePath, CancellationToken.None);
                 }
                 else
                 {
                     var file = Environment.GetEnvironmentVariable(configuration.LogToKustoConnectionStringFileEnvironmentVariableName);
-                    etwFileLogger.Debug($"Kusto logging connection string file = '{file}'");
+                    fileLogger.Debug($"Kusto logging connection string file = '{file}'");
 
                     var credentials = BlobCacheCredentialsHelper.Load(new AbsolutePath(file), configuration.ConnectionStringFileDataProtectionEncrypted);
 
                     storageLog = AzureBlobStorageLog.CreateWithCredentials(
-                        etwFileLogger,
+                        fileLogger,
                         credentials: credentials.Values.First(),
                         uploadWorkspacePath: workspacePath,
                         telemetryFieldsProvider: telemetryFieldsProvider,
@@ -142,24 +141,45 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
 
                 await storageLog.StartupAsync().ThrowIfFailure();
 
-                etwFileLogger.Debug($"Created storage logger.");
+                fileLogger.Debug($"Created storage logger.");
 
                 var nLogger = await NLogAdapterHelper.CreateAdapterForCacheClientAsync(
-                    etwFileLogger,
+                    fileLogger,
                     telemetryFieldsProvider,
                     configuration.Role,
                     new Dictionary<string, string>(),
                     storageLog);
 
                 // Disable the ETW logging and just retain file logging
-                etwFileLog.DisableEtwLogging = true;
+                storageLogEnabled = true;
 
                 // We want the blob upload to happen in addition to the regular etw/file logging, so let's compose both
-                logger = new CompositeLogger(etwFileLogger, nLogger);
+                logger = new CompositeLogger(fileLogger, nLogger);
             }
             else
             {
-                logger = etwFileLogger;
+                logger = fileLogger;
+            }
+
+            return (logger, storageLogEnabled);
+        }
+
+
+        internal static async Task<(ILogger logger, AbsolutePath logPath)> CreateLoggerAsync(TConfig configuration)
+        {
+            var logPath = new AbsolutePath(configuration.CacheLogPath);
+
+            // Logging always happens to a file (and ETW)
+            var etwFileLog = new EtwFileLog(logPath.Path, configuration.CacheId);
+            var etwFileLogger = new DisposeLogger(etwFileLog, configuration.LogFlushIntervalSeconds);
+            etwFileLogger.Debug($"Start logging at '{logPath}', Kusto logging enabled = {configuration.LogToKusto}");
+
+            var (logger, storageLogEnabled) = await CreateLoggerAsync(configuration, etwFileLogger);
+
+            if (storageLogEnabled)
+            {
+                // Disable the ETW logging and just retain file logging
+                etwFileLog.DisableEtwLogging = true;
             }
 
             return (logger, logPath);

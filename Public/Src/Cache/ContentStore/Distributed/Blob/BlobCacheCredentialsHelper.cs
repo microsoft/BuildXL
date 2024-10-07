@@ -8,7 +8,9 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+using Azure;
 using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Specialized;
 using BuildXL.Cache.ContentStore.Distributed.Utilities;
 using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
@@ -128,6 +130,24 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blob
                         {
                             BlobCacheStorageAccountName.Parse(blobService.AccountName),
                             new SecretBasedAzureStorageCredentials(new PlainTextSecret(credentials))
+                        }
+                    };
+                }
+
+                if (credentials.StartsWith("http") && Uri.TryCreate(credentials, UriKind.Absolute, out var sasUri))
+                {
+                    var container = new BlobContainerClient(sasUri);
+                    return new()
+                    {
+                        {
+                            BlobCacheStorageAccountName.Parse(container.AccountName),
+                            !string.IsNullOrEmpty(container.Name)
+                                ? new ContainerSasStorageCredentials(
+                                    // Get account name stripped of sas query parameters
+                                    accountUri: new Uri(container.GetParentBlobServiceClient().Uri.GetLeftPart(UriPartial.Path)),
+                                    containerName: container.Name,
+                                    azureSasCredential: new AzureSasCredential(sasUri.Query))
+                                : new SecretBasedAzureStorageCredentials(new PlainTextSecret(credentials))
                         }
                     };
                 }

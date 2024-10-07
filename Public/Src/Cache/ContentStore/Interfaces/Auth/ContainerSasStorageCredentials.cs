@@ -14,14 +14,18 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Auth
     public class ContainerSasStorageCredentials : IAzureStorageCredentials
     {
         private readonly Uri _accountUri;
-        private readonly string _containerName;
         private readonly AzureSasCredential _azureSasCredential;
+
+        /// <summary>
+        /// The name of the container reference by the credentials.
+        /// </summary>
+        public string ContainerName { get; }
 
         /// <nodoc />
         public ContainerSasStorageCredentials(Uri accountUri, string containerName, AzureSasCredential azureSasCredential)
         {
             _accountUri = accountUri;
-            _containerName = containerName;
+            ContainerName = containerName;
             _azureSasCredential = azureSasCredential;
         }
 
@@ -40,9 +44,9 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Auth
         /// <nodoc />
         public BlobContainerClient CreateContainerClient(string containerName, BlobClientOptions? blobClientOptions = null)
         {
-            if (containerName != _containerName)
+            if (containerName != ContainerName)
             {
-                throw new ArgumentException($"The provided container name ({containerName}) does not match the container name for which the credentials were created ({_containerName}).");
+                throw new ArgumentException($"The provided container name ({containerName}) does not match the container name for which the credentials were created ({ContainerName}).");
             }
 
             blobClientOptions = BlobClientOptionsFactory.CreateOrOverride(blobClientOptions);

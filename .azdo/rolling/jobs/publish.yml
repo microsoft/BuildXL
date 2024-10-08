@@ -90,7 +90,10 @@ jobs:
       filePath: Shared/Scripts/SBOMValidation.ps1
       arguments: -SBOMManifestFile  $(Agent.TempDirectory)/DownloadedDrop/_manifest/spdx_2.2/manifest.spdx.json -BcdeOutputFile  $(Agent.TempDirectory)/DownloadedDrop/_manifest/bcde-output.json
 
-  - script: echo "##vso[build.addbuildtag]RollingRelease"
+  - task: PowerShell@2
+    inputs:
+      targetType: 'inline'
+      script: Write-Host "##vso[build.addbuildtag]RollingRelease"
     displayName: Tag build for consumption in release pipeline
 
   # Add MacOS and Linux artifacts to the DownloadedDrop directory, so they will be included in the

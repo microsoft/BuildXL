@@ -393,7 +393,50 @@ namespace Test.BuildXL.Scheduler
             AssertFilteredOutputs(graph, $"~(id='{p0.FormattedSemiStableHash}') and ~(id='{p1.FormattedSemiStableHash}')", expectedMatching: [opaque2], expectedNotMatching: [opaque0, opaque1]);
         }
 
+        /// <summary>
+        /// This test validates that filtering can match on SealDirectory pips. The BinaryFilter pip filter has a concept
+        /// of constraining pips to limit what the right side of a filter evaluates based on the results of the left
+        /// side. This test validates that a SealDirectory matched by the left side makes it into that constraining pips
+        /// set correctly and is able to also be matched by the right side.
+        /// </summary>
+        [Fact]
+        public void TestOpaqueProducersAndNegatedTagFilter()
+        {
+            var root = Path.Combine(ObjectRoot, "root");
+            var opaque0 = CreateUniqueObjPath(root, "o0");
+            Process p0 = CreateAndScheduleProcess(
+                dependencies: [CreateSourceFile()],
+                outputDirectoryPaths: [opaque0],
+                outputs: [CreateOutputFileArtifact()],
+                provenance: CreateProvenance(),
+                tags: ["p0"]);
+
+            var sharedOpaqueDirectory = PipGraphBuilder.ReserveSharedOpaqueDirectory(AbsolutePath.Create(Context.PathTable, root));
+            var compositeOpaque = new CompositeSharedOpaqueSealDirectory(
+                sharedOpaqueDirectory,
+                new List<DirectoryArtifact>() { p0.DirectoryOutputs[0] },
+                CreateProvenance(StringId.Create(Context.PathTable.StringTable, SealDirectoryDescription)), 
+                ReadOnlyArray<StringId>.FromWithoutCopy([StringId.Create(Context.StringTable, "compositeOpaque")]),
+                contentFilter: null,
+                compositionAction: SealDirectoryCompositionActionKind.WidenDirectoryCone);
+            compositeOpaque.SetDirectoryArtifact(sharedOpaqueDirectory);
+            sharedOpaqueDirectory = PipGraphBuilder.AddSealDirectory(compositeOpaque);
+
+            var graph = PipGraphBuilder.Build();
+
+            // The left side should match both the compositeOpaque and the SealDirectory corresponding to opaque0.
+            // Then the right side should filter to just the compositeOpaque from that set of constrained pips
+            AssertFilteredDirectoryOutputs(graph, $"(~(tag='nonexistentPip') and (tag='compositeOpaque'))", expectedMatching: [compositeOpaque.Directory], expectedNotMatching: [opaque0]);
+        }
+
         private void AssertFilteredOutputs(PipGraph graph, string filter, AbsolutePath[] expectedMatching, AbsolutePath[] expectedNotMatching)
+        {
+            AssertFilteredDirectoryOutputs(graph, filter,
+                expectedMatching.Select(expected => new DirectoryArtifact(expected, 0)).ToArray(),
+                expectedNotMatching);
+        }
+
+        private void AssertFilteredDirectoryOutputs(PipGraph graph, string filter, DirectoryArtifact[] expectedMatching, AbsolutePath[] expectedNotMatching)
         {
             FilterParser parser = new FilterParser(Context, getPathByMountName, filter);
             Assert.True(parser.TryParse(out var rootFilter, out var pathFilter));
@@ -401,7 +444,7 @@ namespace Test.BuildXL.Scheduler
 
             foreach (var match in expectedMatching)
             {
-                Assert.True(outputs.Contains(new DirectoryArtifact(match, 0)), $"Expected to find {match.ToString(Context.PathTable)}");
+                Assert.True(outputs.Contains(match), $"Expected to find {match.Path.ToString(Context.PathTable)}");
             }
 
             foreach (var noMatch in expectedNotMatching)

@@ -435,7 +435,19 @@ namespace BuildXL.Pips.Filter
                         return left;
                     }
 
-                    right = Right.FilterOutputs(context, negate, new HashSet<PipId>(left.Select(l => context.GetProducer(l))).ToList());
+                    // Note: this filtering of constrainingPips is a little tricky in that it will not forward through
+                    // the SealDirectory pips that are automatically created for Process pip output directories. This
+                    // behavior comes from how GetProducer() works. It first checks for a producing Process pip and returns
+                    // only that pip if found, and not also the SealDirectory pip.
+                    //
+                    // This used to cause problems with negated filters that could address the SealDirectory pip and not
+                    // the associated Process pip. The PipId filter was the only filter that could do that, and that
+                    // functionality was changed. So this shouldn't be a problem anymore.
+                    //
+                    // Other SealDirectory types like composite and SourceSealed can indeed be individually addressed,
+                    // but they are not problematic because they do not have a corresponding Process pip that would take
+                    // precedence as the registered producer.
+                    right = Right.FilterOutputs(context, negate, constrainingPips: new HashSet<PipId>(left.Select(l => context.GetProducer(l))).ToList());
 
                     if (right.Count == 0)
                     {

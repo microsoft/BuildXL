@@ -139,13 +139,16 @@ namespace BuildXL.Utilities.Configuration
         bool? EnforceSourceReadsUnderPackageRoots { get; }
 
         /// <summary>
-        /// When <see cref="EnforceSourceReadsUnderPackageRoots"/> is enabled, a collection of additional scopes (directories and its recursive content)
-        /// where source reads are allowed.
+        /// When <see cref="EnforceSourceReadsUnderPackageRoots"/> is enabled, a collection of additional scopes
+        /// are added to all pips, where source reads are allowed.
         /// </summary>
         /// <remarks>
+        /// An additional scope can be provided as:
+        /// * Directory: read accesses recursively under the directory will be allowed
+        /// * string: read accesses matching the regular expression will be allowed
         /// When <see cref="EnforceSourceReadsUnderPackageRoots"/> is disabled, this option has no effect.
         /// </remarks>
-        IReadOnlyList<DirectoryArtifact> AdditionalSourceReadsScopes { get; }
+        IReadOnlyList<DiscriminatingUnion<DirectoryArtifact, string>> AdditionalSourceReadsScopes { get; }
     }
 
     /// <nodoc/>

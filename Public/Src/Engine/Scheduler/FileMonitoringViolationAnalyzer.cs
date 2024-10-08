@@ -8,7 +8,9 @@ using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
+using System.Text.RegularExpressions;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Pips;
 using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
@@ -17,11 +19,10 @@ using BuildXL.ProcessPipExecutor;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Storage;
 using BuildXL.Storage.Fingerprints;
-using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Tracing;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 #pragma warning disable 1591 // disabling warning about missing API documentation; TODO: Remove this line and write documentation!
 
@@ -1342,28 +1343,38 @@ namespace BuildXL.Scheduler
             List<ReportedViolation> reportedViolations,
             [AllowNull] Dictionary<FileArtifact, (FileMaterializationInfo fileMaterializationInfo, ReportedViolation reportedViolation)> allowedDoubleWriteViolations)
         {
-            // If undeclared reads are restricted, let's build the collection of allowed scopes and paths for this pip
-            // In addition to the explicit allowed scopes/paths configured on the pip, any untracked file or directory naturally applies to the allow list
+            // If undeclared reads are restricted, let's build the collection of allowed scopes, paths and regexes for this pip
             using var allowedScopesWrapper = pip.AreUndeclaredSourceReadsRestricted
                 ? (PooledObjectWrapper<List<AbsolutePath>>?) Pools.AbsolutePathListPool.GetInstance() 
                 : null;
             var allowedScopes = allowedScopesWrapper?.Instance;
-            if (pip.AreUndeclaredSourceReadsRestricted)
-            {
-                allowedScopes.AddRange(pip.AllowedUndeclaredSourceReadScopes);
-                allowedScopes.AddRange(pip.UntrackedScopes);
-            }
 
             using var allowedPathsWrapper = pip.AreUndeclaredSourceReadsRestricted
                 ? (PooledObjectWrapper<List<AbsolutePath>>?)Pools.AbsolutePathListPool.GetInstance()
                 : null;
             var allowedPaths = allowedPathsWrapper?.Instance;
+
+            using var allowedRegexesWrapper = pip.AreUndeclaredSourceReadsRestricted
+                ? (PooledObjectWrapper<List<Regex>>?)SchedulerPools.RegexList.GetInstance()
+                : null;
+            var allowedRegexes = allowedRegexesWrapper?.Instance;
             if (pip.AreUndeclaredSourceReadsRestricted)
             {
+                // In addition to the explicit allowed scopes/paths configured on the pip, any untracked file or directory naturally applies to the allow list
+                allowedScopes.AddRange(pip.AllowedUndeclaredSourceReadScopes);
+                allowedScopes.AddRange(pip.UntrackedScopes);
+                
                 allowedPaths.AddRange(pip.AllowedUndeclaredSourceReadPaths);
                 allowedPaths.AddRange(pip.UntrackedPaths);
+                
+                allowedRegexes.AddRange(
+                    pip.AllowedUndeclaredSourceReadRegexes.Select(
+                        // The whole flow in this class is not async. But still is useful to leverage the regex cache, it is likely
+                        // that regex patterns are shared across pips
+                        regexDescriptor => RegexFactory.GetRegexAsync(
+                            new ExpandedRegexDescriptor(regexDescriptor.Pattern.ToString(Context.StringTable), regexDescriptor.Options)
+                            ).GetAwaiter().GetResult()));
             }
-
 
             foreach (var undeclaredRead in allowedUndeclaredReads)
             {
@@ -1446,18 +1457,24 @@ namespace BuildXL.Scheduler
                 if (pip.AreUndeclaredSourceReadsRestricted)
                 {
                     // If undeclared reads are restricted, let's see whether the undeclared read falls under any of the allowed scopes
-                    var validUndeclaredScope = allowedScopes.FirstOrDefault(allowedUndeclaredSourceReadScope 
-                        => undeclaredRead.IsWithin(Context.PathTable, allowedUndeclaredSourceReadScope));
+                    var canRead = allowedScopes.FirstOrDefault(allowedUndeclaredSourceReadScope 
+                        => undeclaredRead.IsWithin(Context.PathTable, allowedUndeclaredSourceReadScope)).IsValid;
 
                     // If no valid scope was found, check equivalently for allowed paths
-                    if (!validUndeclaredScope.Value.IsValid)
+                    if (!canRead)
                     {
-                        validUndeclaredScope = allowedPaths.FirstOrDefault(allowedUndeclaredSourceReadPath
-                            => undeclaredRead == allowedUndeclaredSourceReadPath);
+                        canRead = allowedPaths.FirstOrDefault(allowedUndeclaredSourceReadPath
+                            => undeclaredRead == allowedUndeclaredSourceReadPath).IsValid;
+                    }
+
+                    // Finally, check whether there is a match against any of the defined regexes
+                    if (!canRead)
+                    {
+                        canRead = allowedRegexes.Any(regex => regex.IsMatch(undeclaredRead.ToString(Context.PathTable)));
                     }
 
                     // If we didn't find any valid scope/path, this is a violation
-                    if (!validUndeclaredScope.Value.IsValid)
+                    if (!canRead)
                     {
                         reportedViolations.Add(
                             HandleDependencyViolation(

@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Scheduler.Fingerprints;
@@ -39,6 +40,14 @@ namespace BuildXL.Scheduler
         public static readonly ObjectPool<HashSet<WeakContentFingerprint>> WeakContentFingerprintSet =
             new ObjectPool<HashSet<WeakContentFingerprint>>(
                 () => new HashSet<WeakContentFingerprint>(),
+                c => c.Clear());
+
+        /// <summary>
+        /// Pool for regexes
+        /// </summary>
+        public static readonly ObjectPool<List<Regex>> RegexList =
+            new ObjectPool<List<Regex>>(
+                () => new List<Regex>(),
                 c => c.Clear());
     }
 }

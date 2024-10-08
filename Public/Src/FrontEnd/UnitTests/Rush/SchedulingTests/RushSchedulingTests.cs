@@ -300,13 +300,18 @@ namespace Test.BuildXL.FrontEnd.Rush
             var projectC = CreateRushProject("@ms/C", dependencies: new[] { projectB });
 
             var additionalSourceReadScope = AbsolutePath.Create(PathTable, TestRoot).Combine(PathTable, "additional-source-dir");
+            var additionalRegex = ".*ignore.*";
+            var additionalRegexId = StringId.Create(StringTable, additionalRegex);
 
             // Turn on source read scope enforcement and add an additional source read scope to all pips
             var result = Start(new RushResolverSettings
             {
                 EnforceSourceReadsUnderPackageRoots = true,
-                AdditionalSourceReadsScopes = new List<DirectoryArtifact>()
-                        { DirectoryArtifact.CreateWithZeroPartialSealId(additionalSourceReadScope) },
+                AdditionalSourceReadsScopes = new List<DiscriminatingUnion<DirectoryArtifact, string>>()
+                        { 
+                            new DiscriminatingUnion<DirectoryArtifact, string>(DirectoryArtifact.CreateWithZeroPartialSealId(additionalSourceReadScope)),
+                            new DiscriminatingUnion<DirectoryArtifact, string>(additionalRegex),
+                        },
             })
                 .Add(projectA)
                 .Add(projectB)
@@ -319,6 +324,10 @@ namespace Test.BuildXL.FrontEnd.Rush
                 processA.AllowedUndeclaredSourceReadScopes,
                 projectA.ProjectFolder, 
                 additionalSourceReadScope);
+            // It should also contain the regex
+            XAssert.Contains(
+                processA.AllowedUndeclaredSourceReadRegexes.Select(regexDescriptor => regexDescriptor.Pattern),
+                additionalRegexId);
 
             // Same for project B, plus being able to read from A's project folder
             var processB = result.RetrieveSuccessfulProcess(projectB);
@@ -327,6 +336,10 @@ namespace Test.BuildXL.FrontEnd.Rush
                 projectB.ProjectFolder, 
                 projectA.ProjectFolder, 
                 additionalSourceReadScope);
+            // It should also contain the regex
+            XAssert.Contains(
+                processB.AllowedUndeclaredSourceReadRegexes.Select(regexDescriptor => regexDescriptor.Pattern),
+                additionalRegexId);
 
             // Same for project C, plus A and B project folder (the transitive closure)
             var processC = result.RetrieveSuccessfulProcess(projectC);
@@ -336,6 +349,10 @@ namespace Test.BuildXL.FrontEnd.Rush
                 projectB.ProjectFolder, 
                 projectA.ProjectFolder, 
                 additionalSourceReadScope);
+            // It should also contain the regex
+            XAssert.Contains(
+                processC.AllowedUndeclaredSourceReadRegexes.Select(regexDescriptor => regexDescriptor.Pattern),
+                additionalRegexId);
         }
 
         /// <summary>

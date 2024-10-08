@@ -583,11 +583,14 @@ interface JavaScriptResolver extends ResolverBase, UntrackingSettings {
     enforceSourceReadsUnderPackageRoots?: boolean;
 
     /**
-     * When enforceSourceReadsUnderPackageRoots is enabled, a collection of additional scopes (directories and its recursive content)
+     * When enforceSourceReadsUnderPackageRoots is enabled, a collection of additional scopes
      * are added to all pips, where source reads are allowed.
+     * An additional scope can be provided as a:
+     * - Directory: read accesses recursively under the directory will be allowed
+     * - string: read accesses matching the regular expression will be allowed
      * When enforceSourceReadsUnderPackageRoots is disabled, this option has no effect.
      */
-    additionalSourceReadsScopes?: Directory[];
+    additionalSourceReadsScopes?: (Directory | string)[];
 }
 
 /**

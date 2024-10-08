@@ -89,8 +89,6 @@ namespace BuildXL.ProcessPipExecutor
         /// </summary>
         public const int OutputChunkInLines = 10000;
 
-        private static readonly ConcurrentDictionary<ExpandedRegexDescriptor, Lazy<Task<Regex>>> s_regexTasks = new();
-
         /// <summary>
         /// Indicate whether a intentional retry attempt is initiated for the sake of integration testing.
         /// </summary>
@@ -367,14 +365,14 @@ namespace BuildXL.ProcessPipExecutor
             if (pip.WarningRegex.IsValid)
             {
                 var expandedDescriptor = new ExpandedRegexDescriptor(pip.WarningRegex.Pattern.ToString(context.StringTable), pip.WarningRegex.Options);
-                m_warningRegexTask = GetRegexAsync(expandedDescriptor);
+                m_warningRegexTask = RegexFactory.GetRegexAsync(expandedDescriptor);
                 m_warningRegexIsDefault = RegexDescriptor.IsDefault(expandedDescriptor.Pattern, expandedDescriptor.Options);
             }
 
             if (pip.ErrorRegex.IsValid)
             {
                 var expandedDescriptor = new ExpandedRegexDescriptor(pip.ErrorRegex.Pattern.ToString(context.StringTable), pip.ErrorRegex.Options);
-                m_errorRegexTask = GetRegexAsync(expandedDescriptor);
+                m_errorRegexTask = RegexFactory.GetRegexAsync(expandedDescriptor);
             }
 
             m_excludeReportAccessMask = ~FileAccessPolicy.ReportAccess;
@@ -503,23 +501,6 @@ namespace BuildXL.ProcessPipExecutor
             }
 
             return result ?? false;
-        }
-
-        private static Task<Regex> GetRegexAsync(ExpandedRegexDescriptor descriptor)
-        {
-            // ConcurrentDictionary.GetOrAdd might evaluate the delegate multiple times for the same key
-            // if its called concurrently for the same key and there isn't an entry in the dictionary yet.
-            // However, only one is actually stored in the dictionary.
-            // To avoid creating multiple tasks that do redundant expensive work, we wrap the task creation in a Lazy.
-            // While multiple lazies might get created, only one of them is actually evaluated: the one that was actually inserted into the dictionary.
-            // All others are forgotten, and thus, we only ever do the expensive Regex work once.
-            // The overhead of the Lazy is irrelevant in practice given that the race itself is unlikely, and considering that the actual
-            // Regex object dwarfs the size of the Lazy overhead by several orders of magnitude.
-            return s_regexTasks.GetOrAdd(
-                descriptor,
-                descriptor2 => Lazy.Create(
-                    () => Task.Factory.StartNew(
-                        () => new Regex(descriptor2.Pattern, descriptor2.Options | RegexOptions.Compiled | RegexOptions.CultureInvariant)))).Value;
         }
 
         /// <summary>

@@ -1,8 +1,10 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Diagnostics.ContractsLight;
 using System.IO;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Core;
 
 namespace BuildXL.Pips.Operations
@@ -93,6 +95,37 @@ namespace BuildXL.Pips.Operations
             var value = WriteFile.Options.Deserialize(this);
             End();
             return value;
+        }
+
+        /// <summary>
+        /// Reads a ReadOnlyArray
+        /// </summary>
+        public ReadOnlyArray<T> ReadReadOnlyArray<T>(Func<PipReader, T> reader)
+        {
+            Contract.RequiresNotNull(reader);
+            Start<ReadOnlyArray<T>>();
+            int length = ReadInt32Compact();
+            if (length == 0)
+            {
+                End();
+                return ReadOnlyArray<T>.Empty;
+            }
+
+            T[] array = ReadArrayCore(reader, length);
+
+            End();
+            return ReadOnlyArray<T>.FromWithoutCopy(array);
+        }
+
+        private T[] ReadArrayCore<T>(Func<PipReader, T> reader, int length, int minimumLength = 0)
+        {
+            var array = CollectionUtilities.NewOrEmptyArray<T>(Math.Max(minimumLength, length));
+            for (int i = 0; i < length; i++)
+            {
+                array[i] = reader(this);
+            }
+
+            return array;
         }
     }
 }

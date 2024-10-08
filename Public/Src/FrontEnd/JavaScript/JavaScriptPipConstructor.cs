@@ -7,21 +7,22 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using BuildXL.FrontEnd.JavaScript.ProjectGraph;
 using BuildXL.FrontEnd.Script.Ambients.Transformers;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Utilities;
 using BuildXL.FrontEnd.Utilities.GenericProjectGraphResolver;
 using BuildXL.FrontEnd.Workspaces.Core;
+using BuildXL.Native.IO;
 using BuildXL.Pips;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
-using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
-using static BuildXL.Utilities.Core.FormattableStringEx;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Tasks;
-using BuildXL.Native.IO;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.FrontEnd.JavaScript
 {
@@ -397,6 +398,9 @@ namespace BuildXL.FrontEnd.JavaScript
                 using var sourceReadsPathsWrapper = Pools.AbsolutePathSetPool.GetInstance();
                 var sourceReadsPaths = sourceReadsPathsWrapper.Instance;
 
+                using var sourceReadsRegexesWrapper = Pools.StringIdSetPool.GetInstance();
+                var sourceReadsRegexes = sourceReadsRegexesWrapper.Instance;
+
                 // The current project is allowed to read under the project folder of every dependency
                 sourceReadsScopes.AddRange(transitiveDependencies.Select(dependency => dependency.ProjectFolder));
 
@@ -450,14 +454,36 @@ namespace BuildXL.FrontEnd.JavaScript
                 // If additional scopes for source reads are configured, add them here
                 if (m_resolverSettings.AdditionalSourceReadsScopes != null)
                 {
-                    sourceReadsScopes.AddRange(
-                        m_resolverSettings.AdditionalSourceReadsScopes
-                            .Select(directory => directory.Path)
-                    );
+                    // Scopes are expressed as a discriminating union of directories or (string) regexes
+                    foreach (var directoryOrRegex in m_resolverSettings.AdditionalSourceReadsScopes)
+                    {
+                        var value = directoryOrRegex.GetValue();
+                        if (value is string regex)
+                        {
+                            sourceReadsRegexes.Add(StringId.Create(m_context.StringTable, regex));
+                        }
+                        else
+                        {
+                            Contract.Assert(value is DirectoryArtifact);
+                            sourceReadsScopes.Add(((DirectoryArtifact) value).Path);
+                        }
+                    }
                 }
 
                 processBuilder.AllowedUndeclareSourceReadScopes = sourceReadsScopes.ToArray();
                 processBuilder.AllowedUndeclareSourceReadPaths = sourceReadsPaths.ToArray();
+                processBuilder.AllowedUndeclareSourceReadRegexes = sourceReadsRegexes.Select(
+                    regex => new RegexDescriptor(
+                        regex,
+#if NET7_0_OR_GREATER
+                        // Let's try to keep things linear
+                        RegexOptions.NonBacktracking |
+#endif
+                        // Let's make the regex matching case insensitive on Windows (since the matching is against a path)
+                        (OperatingSystemHelper.IsWindowsOS 
+                            ? RegexOptions.IgnoreCase 
+                            : RegexOptions.None))
+                    ).ToArray();
             }
 
             // We want to enforce the use of weak fingerprint augmentation since input predictions could be not complete/sufficient

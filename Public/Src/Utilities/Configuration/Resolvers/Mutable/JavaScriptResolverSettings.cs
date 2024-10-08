@@ -112,6 +112,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public bool? EnforceSourceReadsUnderPackageRoots { get; set; }
 
         /// <inheritdoc/>
-        public IReadOnlyList<DirectoryArtifact> AdditionalSourceReadsScopes { get; set; }
+        public IReadOnlyList<DiscriminatingUnion<DirectoryArtifact, string>> AdditionalSourceReadsScopes { get; set; }
     }
 }

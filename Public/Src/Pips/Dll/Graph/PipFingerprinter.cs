@@ -8,10 +8,10 @@ using System.Linq;
 using BuildXL.Pips.Operations;
 using BuildXL.Storage;
 using BuildXL.Storage.Fingerprints;
-using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
-using static BuildXL.Utilities.Core.FormattableStringEx;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Core;
+using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.Pips.Graph
 {
@@ -68,6 +68,7 @@ namespace BuildXL.Pips.Graph
         private readonly Comparer<FileArtifactWithAttributes> m_expandedPathFileArtifactWithAttributesComparer;
         private readonly Comparer<EnvironmentVariable> m_environmentVariableComparer;
         private readonly PipFragmentRenderer m_pipFragmentRenderer;
+        private readonly RegexDescriptorComparer m_regexDescriptorComparer;
 
         /// <summary>
         /// Directory comparer.
@@ -136,6 +137,7 @@ namespace BuildXL.Pips.Graph
                 // PipFragmentRenderer can accept a null value here, and it has special logic for such cases.
                 m_contentHashLookup);
             m_pipFingerprintSaltLookup = pipFingerprintSaltLookup ?? new PipFingerprintSaltLookup(_ => string.Empty);
+            m_regexDescriptorComparer = new RegexDescriptorComparer(pathTable.StringTable.OrdinalComparer);
         }
 
         /// <summary>
@@ -396,12 +398,32 @@ namespace BuildXL.Pips.Graph
        
             if (process.AllowedUndeclaredSourceReadScopes.Length > 0)
             {
-                fingerprinter.AddOrderIndependentCollection<AbsolutePath, ReadOnlyArray<AbsolutePath>>(nameof(Process.AllowedUndeclaredSourceReadScopes), process.AllowedUndeclaredSourceReadScopes, (h, p) => h.Add(p), m_pathTable.ExpandedPathComparer);
+                fingerprinter.AddOrderIndependentCollection<AbsolutePath, ReadOnlyArray<AbsolutePath>>(
+                    nameof(Process.AllowedUndeclaredSourceReadScopes), 
+                    process.AllowedUndeclaredSourceReadScopes, 
+                    (h, p) => h.Add(p), 
+                    m_pathTable.ExpandedPathComparer);
             }
 
             if (process.AllowedUndeclaredSourceReadPaths.Length > 0)
             {
-                fingerprinter.AddOrderIndependentCollection<AbsolutePath, ReadOnlyArray<AbsolutePath>>(nameof(Process.AllowedUndeclaredSourceReadPaths), process.AllowedUndeclaredSourceReadPaths, (h, p) => h.Add(p), m_pathTable.ExpandedPathComparer);
+                fingerprinter.AddOrderIndependentCollection<AbsolutePath, ReadOnlyArray<AbsolutePath>>(
+                    nameof(Process.AllowedUndeclaredSourceReadPaths), 
+                    process.AllowedUndeclaredSourceReadPaths, 
+                    (h, p) => h.Add(p), 
+                    m_pathTable.ExpandedPathComparer);
+            }
+
+            if (process.AllowedUndeclaredSourceReadRegexes.Length > 0)
+            {
+                fingerprinter.AddOrderIndependentCollection<RegexDescriptor, IEnumerable<RegexDescriptor>>(
+                    nameof(Process.AllowedUndeclaredSourceReadRegexes), 
+                    process.AllowedUndeclaredSourceReadRegexes, (h, r) => 
+                        { 
+                            h.Add(r.Pattern); 
+                            h.Add((int)r.Options); 
+                        }, 
+                    m_regexDescriptorComparer);
             }
 
             AddProcessSpecificFingerprintSalt(fingerprinter, process);

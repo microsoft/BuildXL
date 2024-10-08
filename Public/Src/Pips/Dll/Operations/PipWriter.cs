@@ -1,8 +1,11 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
+using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Core;
 
 namespace BuildXL.Pips.Operations
@@ -80,6 +83,28 @@ namespace BuildXL.Pips.Operations
         {
             Start<WriteFile.Options>();
             value.Serialize(this);
+            End();
+        }
+
+        /// <summary>
+        /// Writes a ReadOnlyArray
+        /// </summary>
+        public void Write<T>(ReadOnlyArray<T> value, Action<PipWriter, T> write)
+        {
+            Contract.Requires(value.IsValid);
+            WriteReadOnlyListCore(value, write);
+        }
+
+        private void WriteReadOnlyListCore<T, TReadOnlyList>(TReadOnlyList value, Action<PipWriter, T> write)
+            where TReadOnlyList : IReadOnlyList<T>
+        {
+            Start<TReadOnlyList>();
+            WriteCompact(value.Count);
+            for (int i = 0; i < value.Count; i++)
+            {
+                write(this, value[i]);
+            }
+
             End();
         }
     }

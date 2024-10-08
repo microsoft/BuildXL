@@ -966,6 +966,7 @@ namespace Test.BuildXL.Scheduler
             bool requireGlobalDependencies = source.Vary(p => p.RequireGlobalDependencies);
             var allowedUndeclaredSourceReadScopes = source.Vary(p => p.AllowedUndeclaredSourceReadScopes);
             var allowedUndeclaredSourceReadPaths = source.Vary(p => p.AllowedUndeclaredSourceReadPaths);
+            var allowedUndeclaredSourceReadRegexes = source.Vary(p => p.AllowedUndeclaredSourceReadRegexes);
 
             Process.Options options = Process.Options.None;
             if (hasUntrackedChildProcesses)
@@ -1063,8 +1064,9 @@ namespace Test.BuildXL.Scheduler
                 retryAttemptEnvironmentVariable: source.Vary(p => p.RetryAttemptEnvironmentVariable),
                 traceFile: traceFile,
                 reclassificationRules: source.Vary(p => p.ReclassificationRules),
-                allowedUndeclareSourceReadScopes: allowedUndeclaredSourceReadScopes,
-                allowedUndeclareSourceReadPaths: allowedUndeclaredSourceReadPaths);
+                allowedUndeclaredSourceReadScopes: allowedUndeclaredSourceReadScopes,
+                allowedUndeclaredSourceReadPaths: allowedUndeclaredSourceReadPaths,
+                allowedUndeclaredSourceReadRegexes: allowedUndeclaredSourceReadRegexes);
         }
 
         private CopyFile CreateCopyFileVariant(VariationSource<CopyFile> source)
@@ -1872,6 +1874,13 @@ namespace Test.BuildXL.Scheduler
                 return new FingerprintingTypeDescriptor<ReadOnlyArray<IReclassificationRule>>(
                     baseVal: ReadOnlyArray<IReclassificationRule>.Empty,
                     generateClasses: role => GenerateArrayVariants<IReclassificationRule>(descriptors, role));
+            }
+
+            if (type == typeof(ReadOnlyArray<RegexDescriptor>))
+            {
+                return new FingerprintingTypeDescriptor<ReadOnlyArray<RegexDescriptor>>(
+                    baseVal: ReadOnlyArray<RegexDescriptor>.Empty,
+                    generateClasses: role => GenerateArrayVariants<RegexDescriptor>(descriptors, role));
             }
 
             IFingerprintingTypeDescriptor typeDescriptor = descriptors.SingleOrDefault(td => type.IsAssignableFrom(td.ValueType));

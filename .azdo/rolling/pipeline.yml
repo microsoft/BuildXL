@@ -104,6 +104,6 @@ extends:
       variables:
       - group: "BuildXL GitHub Secrets"
       dependsOn: [CB, RCIT, External, Linux, Mac]
-      condition: and(succeeded(), parameters.triggerReleasePipeline, eq(variables.isPublishingBranch, true))
+      condition: and(succeeded(), eq(${{ parameters.triggerReleasePipeline }}, true), eq(variables.isPublishingBranch, true))
       jobs:
       - template: .azdo/rolling/jobs/publish.yml@self

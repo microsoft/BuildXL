@@ -16,12 +16,15 @@ using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Interfaces.Utils;
+using BuildXL.Cache.ContentStore.Sessions.Internal;
 using BuildXL.Cache.ContentStore.Synchronization;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.MemoizationStore.Interfaces.Results;
 using BuildXL.Utilities.Core.Tasks;
+
+#nullable enable annotations
 
 namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
 {
@@ -133,11 +136,16 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
                 ? new VolatileSet<ContentHash>(clock)
                 : null;
 
-            if (_config.TempDir != null)
+            static AbsolutePath? getWorkingDir(ICacheSession session) => (session as ITrustedContentSession)?.TryGetWorkingDirectory(null);
+
+            var tempDir = _config.TempDir != null ? new AbsolutePath(_config.TempDir) : null;
+            tempDir ??= getWorkingDir(_localCacheSession) ?? getWorkingDir(_remoteCacheSession);
+
+            if (tempDir != null)
             {
                 _tempFolder = new DisposableDirectory(
                     PassThroughFileSystem.Default,
-                    new AbsolutePath(_config.TempDir) / $"{nameof(TwoLevelCacheSession)}Temp");
+                    tempDir / $"{nameof(TwoLevelCacheSession)}Temp");
             }
         }
 
@@ -147,6 +155,11 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         /// <inheritdoc />
         protected override async Task<BoolResult> StartupCoreAsync(OperationContext context)
         {
+            if (_tempFolder != null)
+            {
+                Tracer.Debug(context, $"Initializing with temp dir '{_tempFolder.Path}'");
+            }
+
             var (local, remote) = await MultiLevel(session => session.StartupAsync(context));
 
             var result = local & remote;
@@ -426,13 +439,28 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
 
                 try
                 {
-                    var placeFromRemoteResult = await _remoteCacheSession.PlaceFileAsync(context, contentHash, tempFilePath, FileAccessMode.ReadOnly, FileReplacementMode.FailIfExists, FileRealizationMode.Move, cts);
+                    var placeFromRemoteResult = await _remoteCacheSession.PlaceFileAsync(
+                        context,
+                        contentHash,
+                        tempFilePath,
+                        FileAccessMode.ReadOnly,
+                        FileReplacementMode.FailIfExists,
+                        FileRealizationMode.Any,
+                        cts);
+
                     if (!placeFromRemoteResult.Succeeded)
                     {
                         return placeFromRemoteResult;
                     }
 
-                    var putIntoLocalResult = await _localCacheSession.PutFileAsync(context, contentHash, tempFilePath, FileRealizationMode.Move, cts);
+                    var putIntoLocalResult = await _localCacheSession.PutOrPutTrustedFileAsync(
+                        context,
+                        new ContentHashWithSize(contentHash, placeFromRemoteResult.FileSize),
+                        tempFilePath,
+                        FileRealizationMode.Move,
+                        cts,
+                        urgencyHint);
+
                     if (!putIntoLocalResult.Succeeded)
                     {
                         return putIntoLocalResult;

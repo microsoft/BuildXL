@@ -55,7 +55,7 @@ config({
                     // If you need to consume packages make sure they are upstreamed in that feed.
                   }
                 : {
-                    "buildxl-selfhost" : "https://pkgs.dev.azure.com/ms/BuildXL/_packaging/BuildXL.Selfhost/nuget/v3/index.json",
+                    "buildxl-selfhost" : "https://pkgs.dev.azure.com/mseng/PipelineTools/_packaging/BuildXL.External.Dependencies/nuget/v3/index.json",
                     "nuget.org" : "https://api.nuget.org/v3/index.json",
                     "dotnet-arcade" : "https://dotnetfeed.blob.core.windows.net/dotnet-core/index.json",
                   },
@@ -167,8 +167,8 @@ config({
                 { id: "Microsoft.Windows.ProjFS", version: "1.2.19351.1" },
 
                 // RocksDb
-                { id: "RocksDbSharp", version: "8.1.1-20240730.1", alias: "RocksDbSharpSigned" },
-                { id: "RocksDbNative", version: "8.1.1-20240730.1" },
+                { id: "RocksDbSharp", version: "8.1.1-20241011.2", alias: "RocksDbSharpSigned" },
+                { id: "RocksDbNative", version: "8.1.1-20241011.2" },
 
                 { id: "JsonDiffPatch.Net", version: "2.1.0" },
 

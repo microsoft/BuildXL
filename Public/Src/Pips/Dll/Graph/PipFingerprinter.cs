@@ -69,6 +69,7 @@ namespace BuildXL.Pips.Graph
         private readonly Comparer<EnvironmentVariable> m_environmentVariableComparer;
         private readonly PipFragmentRenderer m_pipFragmentRenderer;
         private readonly RegexDescriptorComparer m_regexDescriptorComparer;
+        private readonly BreakawayChildProcessComparer m_breakawayChildProcessComparer;
 
         /// <summary>
         /// Directory comparer.
@@ -138,6 +139,7 @@ namespace BuildXL.Pips.Graph
                 m_contentHashLookup);
             m_pipFingerprintSaltLookup = pipFingerprintSaltLookup ?? new PipFingerprintSaltLookup(_ => string.Empty);
             m_regexDescriptorComparer = new RegexDescriptorComparer(pathTable.StringTable.OrdinalComparer);
+            m_breakawayChildProcessComparer = new BreakawayChildProcessComparer(pathTable.StringTable.OrdinalComparer);
         }
 
         /// <summary>
@@ -377,11 +379,19 @@ namespace BuildXL.Pips.Graph
                 fingerprinter.Add(nameof(Process.ChangeAffectedInputListWrittenFile), process.ChangeAffectedInputListWrittenFile);
             }
 
-            fingerprinter.AddOrderIndependentCollection<StringId, ReadOnlyArray<StringId>>(
+            fingerprinter.AddOrderIndependentCollection<IBreakawayChildProcess, ReadOnlyArray<IBreakawayChildProcess>>(
                 nameof(Process.ChildProcessesToBreakawayFromSandbox),
-                process.ChildProcessesToBreakawayFromSandbox.Select(processName => processName.StringId).ToReadOnlyArray(),
-                (h, p) => h.Add(p),
-                m_pathTable.StringTable.OrdinalComparer);
+                process.ChildProcessesToBreakawayFromSandbox,
+                (h, b) => { 
+                    h.Add(b.ProcessName.StringId);
+                    // Only add the optional arguments if present, so we avoid a general fingerprint bump
+                    if (!string.IsNullOrEmpty(b.RequiredArguments))
+                    {
+                        h.Add(b.RequiredArguments);
+                        h.Add(b.RequiredArgumentsIgnoreCase ? 1 : 0);
+                    }
+                },
+                m_breakawayChildProcessComparer);
 
             fingerprinter.AddOrderIndependentCollection<AbsolutePath, ReadOnlyArray<AbsolutePath>>(
                 nameof(Process.OutputDirectoryExclusions),

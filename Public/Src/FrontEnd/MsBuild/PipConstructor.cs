@@ -21,6 +21,7 @@ using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 using ProjectWithPredictions = BuildXL.FrontEnd.MsBuild.Serialization.ProjectWithPredictions<BuildXL.Utilities.Core.AbsolutePath>;
+using BuildXL.Utilities.Configuration.Mutable;
 
 namespace BuildXL.FrontEnd.MsBuild
 {
@@ -622,7 +623,7 @@ namespace BuildXL.FrontEnd.MsBuild
             var vbcsCompiler = PathAtom.Create(m_context.StringTable, "VBCSCompiler.exe");
             if (UseSharedCompilation)
             {
-                processBuilder.ChildProcessesToBreakawayFromSandbox = ReadOnlyArray<PathAtom>.FromWithoutCopy(vbcsCompiler);
+                processBuilder.ChildProcessesToBreakawayFromSandbox = ReadOnlyArray<IBreakawayChildProcess>.FromWithoutCopy(new BreakawayChildProcess() { ProcessName = vbcsCompiler });
             }
             else
             {

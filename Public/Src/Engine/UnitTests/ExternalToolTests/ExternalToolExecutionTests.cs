@@ -15,6 +15,8 @@ using Xunit;
 using Xunit.Abstractions;
 using EngineLogEventId = BuildXL.Engine.Tracing.LogEventId;
 using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
+using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Configuration.Mutable;
 
 namespace ExternalToolTest.BuildXL.Scheduler
 {
@@ -103,7 +105,8 @@ namespace ExternalToolTest.BuildXL.Scheduler
 
             builder.Options |= Process.Options.RequiresAdmin;
             // Configure the test process itself to escape the sandbox
-            builder.ChildProcessesToBreakawayFromSandbox = ReadOnlyArray<PathAtom>.FromWithoutCopy(new[] { PathAtom.Create(Context.StringTable, TestProcessToolName) });
+            builder.ChildProcessesToBreakawayFromSandbox = ReadOnlyArray<IBreakawayChildProcess>.FromWithoutCopy(
+                new[] { new BreakawayChildProcess() { ProcessName = PathAtom.Create(Context.StringTable, TestProcessToolName) } });
 
             SchedulePipBuilder(builder);
 

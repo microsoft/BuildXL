@@ -15,6 +15,8 @@ using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
+using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Configuration.Mutable;
 
 namespace IntegrationTest.BuildXL.Scheduler
 {
@@ -63,7 +65,8 @@ namespace IntegrationTest.BuildXL.Scheduler
             builder.AddInputFile(source);
 
             // Configure the test process itself to escape the sandbox
-            builder.ChildProcessesToBreakawayFromSandbox = ReadOnlyArray<PathAtom>.FromWithoutCopy(new[] { PathAtom.Create(Context.StringTable, TestProcessToolName) });
+            builder.ChildProcessesToBreakawayFromSandbox = ReadOnlyArray<IBreakawayChildProcess>.FromWithoutCopy(
+                new[] { new BreakawayChildProcess() { ProcessName = PathAtom.Create(Context.StringTable, TestProcessToolName) } });
 
             var pip = SchedulePipBuilder(builder);
             RunScheduler().AssertSuccess();
@@ -104,7 +107,8 @@ namespace IntegrationTest.BuildXL.Scheduler
             builder.AddOutputFile(optionalOutput.Path, FileExistence.Optional);
 
             // Configure the test process itself to escape the sandbox
-            builder.ChildProcessesToBreakawayFromSandbox = ReadOnlyArray<PathAtom>.FromWithoutCopy(new[] { PathAtom.Create(Context.StringTable, TestProcessToolName) });
+            builder.ChildProcessesToBreakawayFromSandbox = ReadOnlyArray<IBreakawayChildProcess>.FromWithoutCopy(
+                new[] { new BreakawayChildProcess() { ProcessName = PathAtom.Create(Context.StringTable, TestProcessToolName) } });
             // And to compensate for missing accesses based on declared artifacts
             builder.Options |= Process.Options.TrustStaticallyDeclaredAccesses;
 
@@ -141,7 +145,8 @@ namespace IntegrationTest.BuildXL.Scheduler
             testProcessExecutable: m_testProcessAlternative);
 
             // Configure the spawned test process itself to escape the sandbox
-            builder.ChildProcessesToBreakawayFromSandbox = ReadOnlyArray<PathAtom>.FromWithoutCopy(new[] { PathAtom.Create(Context.StringTable, TestProcessToolName) });
+            builder.ChildProcessesToBreakawayFromSandbox = ReadOnlyArray<IBreakawayChildProcess>.FromWithoutCopy(
+                new[] { new BreakawayChildProcess() { ProcessName = PathAtom.Create(Context.StringTable, TestProcessToolName) } });
 
             var pip = SchedulePipBuilder(builder);
 
@@ -182,7 +187,8 @@ namespace IntegrationTest.BuildXL.Scheduler
             testProcessExecutable: m_testProcessAlternative);
 
             // Configure the spawned test process itself to escape the sandbox
-            builder.ChildProcessesToBreakawayFromSandbox = ReadOnlyArray<PathAtom>.FromWithoutCopy(new[] { PathAtom.Create(Context.StringTable, TestProcessToolName) });
+            builder.ChildProcessesToBreakawayFromSandbox = ReadOnlyArray<IBreakawayChildProcess>.FromWithoutCopy(
+                new[] { new BreakawayChildProcess() { ProcessName = PathAtom.Create(Context.StringTable, TestProcessToolName) } });
 
             var pip = SchedulePipBuilder(builder);
             RunScheduler().AssertSuccess();
@@ -232,7 +238,8 @@ namespace IntegrationTest.BuildXL.Scheduler
             builder.Options |= Process.Options.AllowUndeclaredSourceReads;
 
             // Configure the test process itself to escape the sandbox
-            builder.ChildProcessesToBreakawayFromSandbox = ReadOnlyArray<PathAtom>.FromWithoutCopy(new[] { PathAtom.Create(Context.StringTable, TestProcessToolName) });
+            builder.ChildProcessesToBreakawayFromSandbox = ReadOnlyArray<IBreakawayChildProcess>.FromWithoutCopy(
+                new[] { new BreakawayChildProcess() { ProcessName = PathAtom.Create(Context.StringTable, TestProcessToolName) } });
 
             SchedulePipBuilder(builder);
             // No violations should occur

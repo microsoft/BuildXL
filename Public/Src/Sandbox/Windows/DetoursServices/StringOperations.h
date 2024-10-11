@@ -263,6 +263,12 @@ size_t GetRootLength(PCPathChar path) noexcept;
 // Compares two strings in a case-insensitive manner
 bool AreEqualCaseInsensitively(const std::basic_string<PathChar>& s1, const std::basic_string<PathChar>& s2);
 
+// Finds value in string in a case-insensitive manner
+std::basic_string<PathChar>::const_iterator FindCaseInsensitively(const std::basic_string<PathChar>& string, const std::basic_string<PathChar>& value);
+
+// Converts an argument vector containing the command line into a single string.
+std::basic_string<PathChar> GetCommandLineFromArgv(const PathChar * const * argv);
+
 #if _WIN32
 // Returns a collection of all path atoms of the given path
 int TryDecomposePath(const std::wstring& path, std::vector<std::wstring>& elements);

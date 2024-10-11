@@ -241,7 +241,6 @@ bool FileAccessManifest::ShouldBreakaway(const PathChar *path, const PathChar *c
 
     for(auto it = breakaway_child_processes_.begin(); it != breakaway_child_processes_.end(); it++)
     {
-        // TODO: matching required arguments is missing. Implement.
         if (imageName.compare(it->GetExecutable()) == 0)
         {
             // If the image name matched and there are no required args, this is a breakaway
@@ -249,10 +248,29 @@ bool FileAccessManifest::ShouldBreakaway(const PathChar *path, const PathChar *c
             {
                 return true;
             }
+            else
+            {
+                return ContainsRequiredArgs(it->GetRequiredArgs(), it->GetRequiredArgsIgnoreCase(), argv);
+            }
         }
     }
 
     return false;
+}
+
+bool FileAccessManifest::ContainsRequiredArgs(const std::basic_string<PathChar>& requiredArgs, bool requiredArgsIgnoreCase, const PathChar *const argv[])
+{
+    // Argument matching needs to happen against the whole set of arguments, so we need to put the command line back together
+    std::basic_string<PathChar> arguments = GetCommandLineFromArgv(argv);
+
+    if (requiredArgsIgnoreCase)
+    {
+        return FindCaseInsensitively(arguments, requiredArgs) != arguments.end();
+    }
+    else
+    {
+        return arguments.find(requiredArgs) != arguments.npos;
+    }
 }
 
 } // namespace common

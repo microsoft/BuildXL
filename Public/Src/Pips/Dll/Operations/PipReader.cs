@@ -5,6 +5,8 @@ using System;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Core;
 
 namespace BuildXL.Pips.Operations
@@ -95,6 +97,16 @@ namespace BuildXL.Pips.Operations
             var value = WriteFile.Options.Deserialize(this);
             End();
             return value;
+        }
+
+        public virtual IBreakawayChildProcess ReadBreakawayChildProcess()
+        {
+            Start<IBreakawayChildProcess>();
+            var processName = ReadPathAtom();
+            var requiredArgs = ReadString();
+            var ignoreCase = ReadBoolean();
+            End();
+            return new BreakawayChildProcess() { ProcessName = processName, RequiredArguments = requiredArgs, RequiredArgumentsIgnoreCase = ignoreCase };
         }
 
         /// <summary>

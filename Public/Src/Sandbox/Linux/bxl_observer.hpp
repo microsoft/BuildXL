@@ -378,7 +378,7 @@ public:
      * Converts an argument vector containing the command line into a single string.
      * If an argc is not provided, it will be calculated based on the provided argv.
     */
-    std::string GetProcessCommandLine(char **argv);
+    std::string GetProcessCommandLine(const char * const argv[]);
 
     /**
      * Performs an access check on the provided SandboxEvent and produces an access report.

@@ -14,6 +14,7 @@ using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Resolvers;
+using BuildXL.Utilities.Configuration.Mutable;
 
 namespace BuildXL.FrontEnd.Utilities
 {
@@ -139,7 +140,26 @@ namespace BuildXL.FrontEnd.Utilities
 
             if (settings.ChildProcessesToBreakawayFromSandbox != null)
             {
-                processBuilder.ChildProcessesToBreakawayFromSandbox = settings.ChildProcessesToBreakawayFromSandbox.Where(processName => processName.IsValid).ToReadOnlyArray();
+                var breakawayProcesses = new List<IBreakawayChildProcess>();
+                foreach (var breakawayProcess in settings.ChildProcessesToBreakawayFromSandbox)
+                {
+                    object value = breakawayProcess.GetValue();
+                    if (value is PathAtom pathAtom && pathAtom.IsValid)
+                    {
+                        breakawayProcesses.Add(new BreakawayChildProcess() { ProcessName = pathAtom });
+                    }
+                    else
+                    {
+                        Contract.Assert(value is IBreakawayChildProcess, "Expecting a discriminating union of PathAtom and IBreakawayChildProcess");
+                        var breakaway = (IBreakawayChildProcess) value;
+                        if (breakaway.ProcessName.IsValid)
+                        {
+                            breakawayProcesses.Add((IBreakawayChildProcess)value);
+                        }
+                    }
+                }
+
+                processBuilder.ChildProcessesToBreakawayFromSandbox = breakawayProcesses.ToReadOnlyArray();
             }
 
             if (settings.AllowedSurvivingChildProcesses != null)

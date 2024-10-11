@@ -134,7 +134,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public IReadOnlyList<RelativePath> UntrackedGlobalDirectoryScopes { get; set; }
 
         /// <inheritdoc />
-        public IReadOnlyList<PathAtom> ChildProcessesToBreakawayFromSandbox { get; set; }
+        public IReadOnlyList<DiscriminatingUnion<PathAtom, IBreakawayChildProcess>> ChildProcessesToBreakawayFromSandbox { get; set; }
 
         /// <inheritdoc />
         public IReadOnlyList<PathAtom> AllowedSurvivingChildProcesses { get; set; }

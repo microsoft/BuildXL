@@ -33,15 +33,18 @@ public:
         : BreakawayChildProcess(other.executable, other.required_args, other.ignore_case)
     {}
 
+    // The executable name (image name) of the process to breakaway
     std::basic_string<PathChar> const & GetExecutable() {
         return executable;
     }
 
+    // If non-empty, a substring of the arguments passed to the process to breakaway
     std::basic_string<PathChar> const & GetRequiredArgs() {
         return required_args;
     }
 
-    bool GetIgnoreCase() {
+    // Whether the required arguments are to be matched ignoring case
+    bool GetRequiredArgsIgnoreCase() {
         return ignore_case;
     }
 } BreakawayChildProcess;
@@ -105,6 +108,7 @@ private:
     size_t ParseUtf16CharArrayToString(size_t& offset, std::basic_string<PathChar>& output);
     BYTE ParseByte(size_t& offset);
     bool CheckValidUnixManifestTreeRoot(PCManifestRecord node, std::string& error);
+    bool ContainsRequiredArgs(const std::basic_string<PathChar>& requiredArgs, bool requiredArgsIgnoreCase, const PathChar *const argv[]);
 public:
     /**
      * Construct a file access manifest object.

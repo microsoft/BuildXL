@@ -36,14 +36,16 @@ namespace BuildXL.Utilities.Configuration.Resolvers
         IReadOnlyList<RelativePath> UntrackedGlobalDirectoryScopes { get; }
 
         /// <summary>
-        /// Process names that will break away from the sandbox when spawned by the main process
+        /// Processes that will break away from the sandbox when spawned by the main process.
         /// </summary>
         /// <remarks>
+        /// The breakaway condition can be specified as process names (with a PathAtom) or by a richer 
+        /// structure (<see cref="IBreakawayChildProcess"/>>).
         /// The accesses of processes that break away from the sandbox won't be observed.
         /// Processes that breakaway can survive the lifespan of the sandbox.
         /// Only add to this list processes that are trusted and whose accesses can be safely predicted by some other means.
         /// </remarks>
-        public IReadOnlyList<PathAtom> ChildProcessesToBreakawayFromSandbox { get; }
+        public IReadOnlyList<DiscriminatingUnion<PathAtom, IBreakawayChildProcess>> ChildProcessesToBreakawayFromSandbox { get; set; }
 
         /// <summary>
         /// The process names, e.g. "mspdbsrv.exe", allowed to be cleaned up by a process pip sandbox job object after the main process has exited (which would otherwise throw a build error DX0041). 

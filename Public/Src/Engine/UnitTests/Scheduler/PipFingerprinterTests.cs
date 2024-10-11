@@ -1066,7 +1066,8 @@ namespace Test.BuildXL.Scheduler
                 reclassificationRules: source.Vary(p => p.ReclassificationRules),
                 allowedUndeclaredSourceReadScopes: allowedUndeclaredSourceReadScopes,
                 allowedUndeclaredSourceReadPaths: allowedUndeclaredSourceReadPaths,
-                allowedUndeclaredSourceReadRegexes: allowedUndeclaredSourceReadRegexes);
+                allowedUndeclaredSourceReadRegexes: allowedUndeclaredSourceReadRegexes,
+                childProcessesToBreakawayFromSandbox: source.Vary(p => p.ChildProcessesToBreakawayFromSandbox));
         }
 
         private CopyFile CreateCopyFileVariant(VariationSource<CopyFile> source)
@@ -1377,7 +1378,12 @@ namespace Test.BuildXL.Scheduler
                            {
                                PathRegex = ".*",
                                ResolvedObservationTypes = [ObservationType.ExistingFileProbe]
-                           })
+                           }),
+                       new FingerprintingTypeDescriptor<IBreakawayChildProcess>(
+                           new BreakawayChildProcess() {ProcessName = PathAtom.Create(stringTable, "cmd")},
+                           new BreakawayChildProcess() {ProcessName = PathAtom.Create(stringTable, "cmd"), RequiredArguments = "some args"},
+                           new BreakawayChildProcess() {ProcessName = PathAtom.Create(stringTable, "cmd"), RequiredArguments = "some args", RequiredArgumentsIgnoreCase = true}
+                           ),
                    };
         }
 
@@ -1881,6 +1887,13 @@ namespace Test.BuildXL.Scheduler
                 return new FingerprintingTypeDescriptor<ReadOnlyArray<RegexDescriptor>>(
                     baseVal: ReadOnlyArray<RegexDescriptor>.Empty,
                     generateClasses: role => GenerateArrayVariants<RegexDescriptor>(descriptors, role));
+            }
+
+            if (type == typeof(ReadOnlyArray<IBreakawayChildProcess>))
+            {
+                return new FingerprintingTypeDescriptor<ReadOnlyArray<IBreakawayChildProcess>>(
+                    baseVal: ReadOnlyArray<IBreakawayChildProcess>.Empty,
+                    generateClasses: role => GenerateArrayVariants<IBreakawayChildProcess>(descriptors, role));
             }
 
             IFingerprintingTypeDescriptor typeDescriptor = descriptors.SingleOrDefault(td => type.IsAssignableFrom(td.ValueType));

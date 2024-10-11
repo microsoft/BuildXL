@@ -467,7 +467,7 @@ namespace BuildXL.Pips.Operations
             ReadOnlyArray<AbsolutePath>? preserveOutputAllowlist = null,
             FileArtifact changeAffectedInputListWrittenFile = default,
             int? preserveOutputsTrustLevel = null,
-            ReadOnlyArray<PathAtom>? childProcessesToBreakawayFromSandbox = null,
+            ReadOnlyArray<IBreakawayChildProcess>? childProcessesToBreakawayFromSandbox = null,
             ReadOnlyArray<AbsolutePath>? outputDirectoryExclusions = null,
             ReadOnlyArray<IReclassificationRule>? reclassificationRules = null,
             int? processRetries = null,
@@ -586,7 +586,7 @@ namespace BuildXL.Pips.Operations
 
             ProcessOptions = options;
             PreserveOutputsTrustLevel = preserveOutputsTrustLevel ?? (int)PreserveOutputsTrustValue.Lowest;
-            ChildProcessesToBreakawayFromSandbox = childProcessesToBreakawayFromSandbox ?? ReadOnlyArray<PathAtom>.Empty;
+            ChildProcessesToBreakawayFromSandbox = childProcessesToBreakawayFromSandbox ?? ReadOnlyArray<IBreakawayChildProcess>.Empty;
             OutputDirectoryExclusions = outputDirectoryExclusions ?? ReadOnlyArray<AbsolutePath>.Empty;
             ReclassificationRules = reclassificationRules ?? ReadOnlyArray<IReclassificationRule>.Empty;
             ProcessRetries = processRetries;
@@ -825,7 +825,8 @@ namespace BuildXL.Pips.Operations
         /// The accesses of processes that break away from them sandbox won't be observed.
         /// Processes that breakaway can survive the lifespan of the sandbox
         /// </remarks>
-        public ReadOnlyArray<PathAtom> ChildProcessesToBreakawayFromSandbox { get; }
+        [PipCaching(FingerprintingRole = FingerprintingRole.Semantic)]
+        public ReadOnlyArray<IBreakawayChildProcess> ChildProcessesToBreakawayFromSandbox { get; }
 
         /// <summary>
         /// Directory cones that will be excluded from opaque directories
@@ -1012,7 +1013,7 @@ namespace BuildXL.Pips.Operations
                 preserveOutputAllowlist: reader.ReadReadOnlyArray(r => r.ReadAbsolutePath()),
                 changeAffectedInputListWrittenFile: reader.ReadFileArtifact(),
                 preserveOutputsTrustLevel: reader.ReadInt32(),
-                childProcessesToBreakawayFromSandbox: reader.ReadReadOnlyArray(reader1 => reader1.ReadPathAtom()),
+                childProcessesToBreakawayFromSandbox: reader.ReadReadOnlyArray(reader1 => reader1.ReadBreakawayChildProcess()),
                 outputDirectoryExclusions: reader.ReadReadOnlyArray(reader1 => reader1.ReadAbsolutePath()),
                 reclassificationRules: reader.ReadReadOnlyArray(reader1 => ReclassificationRule.Deserialize(reader1)),
                 processRetries: reader.ReadBoolean() ? (int?)reader.ReadInt32Compact() : null,

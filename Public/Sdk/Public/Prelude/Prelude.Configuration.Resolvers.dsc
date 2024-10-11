@@ -536,15 +536,6 @@ interface JavaScriptResolver extends ResolverBase, UntrackingSettings {
     customScheduling?: CustomSchedulingCallBack;
 
     /**
-     * Process names that will break away from the sandbox when spawned by the main process
-     * The accesses of processes that break away from the sandbox won't be observed.
-     * Processes that breakaway can survive the lifespan of the sandbox.
-     * Only add to this list processes that are trusted and whose accesses can be safely predicted
-     * by some other means.
-     */
-    childProcessesToBreakawayFromSandbox?: PathAtom[];
-
-    /**
      * Users can specify a callback that defines the available scripts for a given package name. The result of the callback
      * overrides the information on existing package.json files that coordinators may decide to pick up.
      * The callback can return a JSON file which is expected to follow package.json schema (in particular, BuildXL will load
@@ -861,13 +852,16 @@ interface UntrackingSettings {
     untrackedGlobalDirectoryScopes?: RelativePath[];
 
     /**
-     * Process names that will break away from the sandbox when spawned by the main process
+     * Processes that will break away from the sandbox when spawned by the main process. 
+     * The breakaway condition can be specified as process names (with a PathAtom) or by a richer 
+     * structure (with a BreakawayProcess), which allows to include conditions on the 
+     process arguments.
      * The accesses of processes that break away from the sandbox won't be observed.
      * Processes that breakaway can survive the lifespan of the sandbox.
      * Only add to this list processes that are trusted and whose accesses can be safely predicted
      * by some other means.
      */
-    childProcessesToBreakawayFromSandbox?: PathAtom[];
+    childProcessesToBreakawayFromSandbox?: (PathAtom | BreakawayProcess)[];
 
     /** 
      * The process names, e.g. "mspdbsrv.exe", allowed to be cleaned up by a process pip sandbox job object
@@ -883,6 +877,18 @@ interface UntrackingSettings {
      * Defaults to 30000 (30 seconds). 
      */
     nestedProcessTerminationTimeoutMs?: number;
+}
+
+/** The characteristics to match for a process to break away from the sandbox */
+interface BreakawayProcess {
+    /** The breakaway child process name */
+    processName: PathAtom,
+    
+    /** Optionally, the substring that the command line arguments to processName must contain for it to breakaway. */
+    requiredArguments?: string,
+
+    /** Whether to ignore case when checking if the command line arguments contain the required arguments */
+    requiredArgumentsIgnoreCase?: boolean
 }
 
 interface NuGetConfiguration extends ToolConfiguration {

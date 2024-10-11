@@ -392,7 +392,7 @@ namespace Test.BuildXL.FrontEnd.MsBuild
             // - let VBCSCompiler escape the sandbox
             // - attach the VBCSCompiler logger to compensate for missing accesses
             Assert.DoesNotContain("/p:UseSharedCompilation=false", arguments);
-            Assert.Equal(PathAtom.Create(StringTable, "VBCSCompiler.exe"), testProj.ChildProcessesToBreakawayFromSandbox.Single());
+            Assert.Equal(PathAtom.Create(StringTable, "VBCSCompiler.exe"), testProj.ChildProcessesToBreakawayFromSandbox.Single().ProcessName);
             Assert.Contains(PipConstructor.VBCSCompilerLogger, arguments);
         }
     }

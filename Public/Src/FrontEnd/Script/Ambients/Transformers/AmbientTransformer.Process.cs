@@ -20,6 +20,7 @@ using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using static BuildXL.Utilities.Core.FormattableStringEx;
+using BuildXL.Utilities.Configuration.Mutable;
 
 namespace BuildXL.FrontEnd.Script.Ambients.Transformers
 {
@@ -1445,7 +1446,11 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             }
 
             // UnsafeExecuteArguments.childProcessesToBreakawayFromSandbox
-            processBuilder.ChildProcessesToBreakawayFromSandbox = ProcessOptionalValueArray<PathAtom>(unsafeOptionsObjLit, m_unsafeChildProcessesToBreakawayFromSandbox, skipUndefined: true);
+            // TODO: expose BreakawayChildProcess to DScript
+            processBuilder.ChildProcessesToBreakawayFromSandbox = 
+                ProcessOptionalValueArray<PathAtom>(unsafeOptionsObjLit, m_unsafeChildProcessesToBreakawayFromSandbox, skipUndefined: true)
+                .Select<PathAtom, IBreakawayChildProcess>(atom => new BreakawayChildProcess() { ProcessName = atom })
+                .ToReadOnlyArray();
 
             // UnsafeExecuteArguments.trustStaticallyDeclaredAccesses
             if (Converter.ExtractOptionalBoolean(unsafeOptionsObjLit, m_unsafeTrustStaticallyDeclaredAccesses) == true)

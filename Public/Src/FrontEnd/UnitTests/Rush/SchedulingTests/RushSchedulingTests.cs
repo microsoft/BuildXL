@@ -211,8 +211,8 @@ namespace Test.BuildXL.FrontEnd.Rush
         public void BreakawayProcessIsHonored()
         {
             var project = CreateRushProject();
-            var breakawayTest = PathAtom.Create(StringTable, "test.exe");
-            var breakawayProcesses = Start(new RushResolverSettings { ChildProcessesToBreakawayFromSandbox = new[] { breakawayTest } })
+            var breakawayTest = new BreakawayChildProcess() { ProcessName = PathAtom.Create(StringTable, "test.exe") };
+            var breakawayProcesses = Start(new RushResolverSettings { ChildProcessesToBreakawayFromSandbox = new[] { new DiscriminatingUnion<PathAtom, IBreakawayChildProcess>(breakawayTest) } })
                 .Add(project)
                 .ScheduleAll()
                 .RetrieveSuccessfulProcess(project)

@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Core;
 
 namespace BuildXL.Pips.Operations
@@ -76,6 +77,15 @@ namespace BuildXL.Pips.Operations
         {
             Start<ProcessSemaphoreInfo>();
             value.Serialize(this);
+            End();
+        }
+
+        public virtual void Write(in IBreakawayChildProcess value)
+        {
+            Start<IBreakawayChildProcess>();
+            Write(value.ProcessName);
+            Write(value.RequiredArguments);
+            Write(value.RequiredArgumentsIgnoreCase);
             End();
         }
 

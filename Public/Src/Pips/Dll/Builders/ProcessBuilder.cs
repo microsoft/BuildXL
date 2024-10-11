@@ -191,7 +191,7 @@ namespace BuildXL.Pips.Builders
         public ReadOnlyArray<PathAtom> AllowedSurvivingChildProcessNames { get; set; } = ReadOnlyArray<PathAtom>.Empty;
 
         /// <nodoc />
-        public ReadOnlyArray<PathAtom> ChildProcessesToBreakawayFromSandbox { get; set; } = ReadOnlyArray<PathAtom>.Empty;
+        public ReadOnlyArray<IBreakawayChildProcess> ChildProcessesToBreakawayFromSandbox { get; set; } = ReadOnlyArray<IBreakawayChildProcess>.Empty;
 
         private readonly AbsolutePath m_realUserProfilePath;
         private readonly AbsolutePath m_redirectedUserProfilePath;

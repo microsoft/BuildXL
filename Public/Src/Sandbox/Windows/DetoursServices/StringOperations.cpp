@@ -1,6 +1,13 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+#pragma warning (push)
+// This STL library produces a CS4710 (a function marked for inlining the compiler could not inline)
+// https://learn.microsoft.com/en-us/cpp/error-messages/compiler-warnings/compiler-warning-level-4-c4710?view=msvc-170
+#pragma warning (disable:4710)
+#include <algorithm>
+#pragma warning (pop)
+
 #include "stdafx.h"
 #include "StringOperations.h"
 #include <cwctype>
@@ -423,6 +430,45 @@ bool AreEqualCaseInsensitively(const std::basic_string<PathChar>& s1, const std:
             return std::towlower(a) == std::towlower(b);
         }
     );
+}
+
+std::basic_string<PathChar>::const_iterator FindCaseInsensitively(const std::basic_string<PathChar>& string, const std::basic_string<PathChar>& value)
+{
+    return std::search(
+                    string.begin(), 
+                    string.end(), 
+                    value.begin(), 
+                    value.end(), 
+                    [](PathChar c1, PathChar c2) {
+                        return std::towlower(c1) == std::towlower(c2);
+                    }
+                );
+}
+
+std::basic_string<PathChar> GetCommandLineFromArgv(const PathChar * const * argv) 
+{
+    std::basic_string<PathChar> cmd_line;
+    int arg_counter = 0;
+
+    if (argv == nullptr)
+    {
+        return cmd_line;
+    }
+
+    while(argv[arg_counter] != nullptr) {
+        if (arg_counter > 0) {
+#if _WIN32
+            cmd_line.append(L" ");
+#else
+            cmd_line.append(" ");
+#endif
+        }
+
+        cmd_line.append(argv[arg_counter]);
+        arg_counter++;
+    }
+
+    return cmd_line;
 }
 
 #if _WIN32

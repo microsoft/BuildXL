@@ -562,24 +562,12 @@ bool BxlObserver::SendExitReport(pid_t pid, pid_t ppid)
     return SendReport(event);
 }
 
-std::string BxlObserver::GetProcessCommandLine(char **argv) {
+std::string BxlObserver::GetProcessCommandLine(const char * const argv[]) {
     if (!IsReportingProcessArgs()) {
         return "";
     }
-
-    std::string cmd_line;
-    int arg_counter = 0;
-
-    while(argv[arg_counter] != nullptr) {
-        if (arg_counter > 0) {
-            cmd_line.append(" ");
-        }
-
-        cmd_line.append(argv[arg_counter]);
-        arg_counter++;
-    }
-
-    return cmd_line;
+    
+    return GetCommandLineFromArgv(argv);
 }
 
 std::string BxlObserver::GetProcessCommandLine(pid_t pid) {

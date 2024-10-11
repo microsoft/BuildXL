@@ -2071,6 +2071,10 @@ namespace BuildXL.Processes
         /// <param name="CommandLineArgsSubstringContainmentIgnoreCase">Whether to ignore case when checking if the command line arguments
         /// to <paramref name="ProcessName"/> contain <paramref name="RequiredCommandLineArgsSubstring"/> (if <paramref name="RequiredCommandLineArgsSubstring"/> is not <see langword="null"/>).
         /// Defaults to <see langword="false"/>.</param>
+        /// <remarks>
+        /// This record is conceptually equivalent to IBreakawayChildProcess defined in the Configuration dll. The reason for defining it here again is that this Process dll cannot have 
+        /// extra dependencies (see BuildXL.Processes.dsc for details).
+        /// </remarks>
         public record BreakawayChildProcess(string ProcessName, string? RequiredCommandLineArgsSubstring = null, bool CommandLineArgsSubstringContainmentIgnoreCase = false);
 
         /// <summary>

@@ -28,7 +28,7 @@ namespace Hashing {
             importFrom("System.Threading.Tasks.Extensions").pkg,
             ...BuildXLSdk.bclAsyncPackages,
         ],
-        runtimeContent: Context.getCurrentHost().os !== "win" ? [] : [
+        runtimeContent: (!BuildXLSdk.Flags.isMicrosoftInternal || Context.getCurrentHost().os !== "win") ? [] : [
             {
                 subfolder: "x64",
                 contents: [

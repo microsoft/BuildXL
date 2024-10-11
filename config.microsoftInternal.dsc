@@ -49,6 +49,9 @@ export const pkgs = isMicrosoftInternal ? [
     { id: "Microsoft.Azure.Storage.Common", version: "11.2.3" },
     { id: "System.ServiceProcess.ServiceController", version: "6.0.1" },
 
+    // CloudStore dependencies
+    { id: "DeduplicationSigned", version: "1.0.14" },
+
     // DropDaemon Artifact dependencies.
     // Here, even though the packages depend on Cache bits other than Hashing, we make sure that the codepaths that actually depend on them are never activated. This is to ensure that there is no cyclic dependency between BXL and AzureDevOps.
     // This is further enforced by not including Cache bits in DropDaemon, other than BuildXL.Cache.Hashing.
@@ -125,5 +128,6 @@ export const resolver = {
         f`Private/InternalSdk/AnyBuild.SDK/module.config.dsc`,
         f`Private/InternalSdk/Microsoft.Internal.VisualStudio.Interop/module.config.dsc`,
         f`Private/InternalSdk/Microsoft.VisualStudio.ProjectSystem/module.config.dsc`,
+        f`Private/InternalSdk/DeduplicationSigned/module.config.dsc`,
     ]
 };

@@ -239,7 +239,7 @@ export const pkgs = [
     { id: "System.Security.AccessControl", version: pkgVersion6 },
     { id: "System.Security.Principal.Windows", version: pkgVersion6Preview },
     
-    { id: "System.Text.Json", version: "8.0.4" },
+    { id: "System.Text.Json", version: "8.0.5" },
     { id: "System.Threading.AccessControl", version: pkgVersionNext },
 
     // Non-standard version ones

@@ -99,6 +99,7 @@ public class InteractiveClientStorageCredentials : AzureStorageCredentialsBase
             
                 try
                 {
+                    Directory.CreateDirectory(interactiveAuthTokenDirectory);
                     using var authRecordStream = new FileStream(file, FileMode.Create, FileAccess.Write);
                     await authRecord.SerializeAsync(authRecordStream, token);
                 }

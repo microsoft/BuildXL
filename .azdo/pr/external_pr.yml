@@ -12,6 +12,9 @@ variables:
     value: 0.0.$(Build.BuildNumber)
   - name: BuildXL.Configuration
     value: Release
+  # We have a separate pipeline that runs clean builds to get full CodeQL coverage.
+  - name: Codeql.Enabled
+    value: "false"
 
 jobs:
 - job: Public_Validation

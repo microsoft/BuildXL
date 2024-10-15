@@ -3,7 +3,7 @@ import {Transformer} from "Sdk.Transformers";
 export namespace DropTool {
     @@public
     export const tool = toolTemplate.override<Transformer.ToolDefinition>({
-        exe: f`bin/DropDaemon.exe`, 
+        exe: Context.isWindowsOS() ? f`bin/DropDaemon.exe` : f`bin/DropDaemon`, 
         runtimeDependencies: [
             ...globR(d`bin`, "*.*"),
             // In some circumstances the engine directory is a symlink, which is read to get to the final target containing

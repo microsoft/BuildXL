@@ -55,6 +55,13 @@ export interface DropSettings {
 
     /** Session guid to use when e.g. calling Azure DevOps. */
     sessionId?: string;
+
+    /** Name of an environment variable that contains a PAT. If a value is provided and 
+     *  the environment variable contains data, DropDaemon will only use PAT-based authentication.
+     *  
+     *  Note: This env variable must also be forwarded by BuildXL to the daemon, i.e., it must be
+     *  included in forwardEnvironmentVars. */
+     patEnvironmentVariable?: string;
 }
 
 /**

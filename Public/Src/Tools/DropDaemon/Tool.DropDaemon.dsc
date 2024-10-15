@@ -59,6 +59,7 @@ export namespace DropDaemon {
     });
 
     const temporarySdkDropNextToEngineFolder = d`${Context.getBuildEngineDirectory()}/Sdk/Sdk.Drop/bin`;
+    // Temp tool is only used in selfhost builds on Windows, os it's fine to have a hardcoded path here.
     const temporaryDropDaemonTool : Transformer.ToolDefinition = {
         exe: f`${temporarySdkDropNextToEngineFolder}/DropDaemon.exe`,
         runtimeDirectoryDependencies: [

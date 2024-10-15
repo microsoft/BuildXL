@@ -49,6 +49,16 @@ function createSdkDeploymentDefinition(serverDeployment: boolean, minimalDeploym
                     // consists of just the specs, but not binaries. The evaluation only SDK is used to deploy SDKs alongside
                     // the VSCode plugin. The plugin only needs specs to evaluate, and adding binaries will make the vsix 
                     // unnecessarily heavy.
+                    ...addIfLazy(!serverDeployment && (qualifier.targetRuntime === "win-x64" || qualifier.targetRuntime === "linux-x64"), () => [
+                        {
+                            subfolder: "Sdk.Drop",
+                            contents: [ 
+                                importFrom("BuildXL.Tools.DropDaemon").withQualifier({
+                                    targetFramework: isDotNetCore(qualifier.targetFramework) ? qualifier.targetFramework : "net8.0"
+                                }).selectDeployment(evaluationOnly)
+                            ]
+                        },
+                    ]),
                     ...addIfLazy(!serverDeployment && qualifier.targetRuntime === "win-x64", () => [
                         {
                             subfolder: "Sdk.QTest",
@@ -58,15 +68,7 @@ function createSdkDeploymentDefinition(serverDeployment: boolean, minimalDeploym
                         },
                         // Daemon tools are not included in the minimal deployment
                         ...addIf(!minimalDeployment, 
-                            {
-                                subfolder: "Sdk.Drop",
-                                contents: [ 
-                                    importFrom("BuildXL.Tools.DropDaemon").withQualifier({
-                                        targetFramework: isDotNetCore(qualifier.targetFramework) ? qualifier.targetFramework : "net8.0",
-                                        targetRuntime: "win-x64"
-                                    }).selectDeployment(evaluationOnly)
-                                ]
-                            },
+                            
                             {
                                 subfolder: "Sdk.Symbols",
                                 contents: [

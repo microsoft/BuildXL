@@ -475,6 +475,7 @@ export namespace DropDaemonRunner {
                 ),
                 Cmd.option("--operationTimeoutMinutes ", args.operationTimeoutMinutes),
                 Cmd.option("--maxOperationRetries ", args.maxOperationRetries),
+                Cmd.option("--PersonalAccessTokenEnv ", args.patEnvironmentVariable),
             ],
             consoleOutput: outDir.combine(`${nametag}-stdout.txt`),
             dependencies: [

@@ -46,7 +46,7 @@ namespace Npm {
         return getTool(installation, getDefaultNpmInstallation, npmTool, relativePathToInstallation);
     }
 
-    function npmTool() : PathAtom { return Context.isWindowsOS? a`npm.cmd` : a`npm`; }
+    function npmTool() : PathAtom { return Context.isWindowsOS() ? a`npm.cmd` : a`npm`; }
 
     /**
      * Runs Npm install as specified in the arguments.

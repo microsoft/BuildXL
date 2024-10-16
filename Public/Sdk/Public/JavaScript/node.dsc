@@ -32,7 +32,7 @@ namespace Node {
         let nodeToolFile = undefined;
         // If the specific location of node is not provided, try to find it under the static directory
         if (!relativePathToInstallation) {
-            let nodeToolName = Context.isWindowsOS? a`node.exe` : a`node`;
+            let nodeToolName = Context.isWindowsOS() ? a`node.exe` : a`node`;
             let nodeToolFound = nodeInstallation.contents.find((file, index, array) => array[index].name === nodeToolName);
             if (nodeToolFound !== undefined) {
                 nodeToolFile = nodeToolFound;

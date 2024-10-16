@@ -27,7 +27,7 @@ namespace Yarn {
      */
     @@public
     export function getYarnTool(yarnInstallation?: StaticDirectory, relativePathToInstallation?: RelativePath) : Transformer.ToolDefinition {
-        return getTool(yarnInstallation, getDefaultYarnInstallation, () => Context.isWindowsOS? a`yarn.cmd` : a`yarn`, relativePathToInstallation);
+        return getTool(yarnInstallation, getDefaultYarnInstallation, () => Context.isWindowsOS() ? a`yarn.cmd` : a`yarn`, relativePathToInstallation);
     }
 
     /**

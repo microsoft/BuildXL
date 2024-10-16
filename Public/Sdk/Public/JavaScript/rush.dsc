@@ -27,7 +27,7 @@ namespace Rush {
      */
     @@public
     export function getRushTool(rushInstallation?: StaticDirectory, relativePathToInstallation?: RelativePath) : Transformer.ToolDefinition {
-        return getTool(rushInstallation, getDefaultRushInstallation, () => Context.isWindowsOS? a`rush.cmd` : a`rush`, relativePathToInstallation);
+        return getTool(rushInstallation, getDefaultRushInstallation, () => Context.isWindowsOS() ? a`rush.cmd` : a`rush`, relativePathToInstallation);
     }
 
     /**

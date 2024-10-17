@@ -102,6 +102,8 @@ namespace BuildXL.Engine
         /// </remarks>
         public IConfiguration Configuration { get; private set; }
 
+        private readonly IConsole m_console;
+
         /// <summary>
         /// The startup configuration
         /// </summary>
@@ -275,7 +277,8 @@ namespace BuildXL.Engine
             TrackingEventListener trackingEventListener,
             bool rememberAllChangedTrackedInputs,
             [AllowNull] string commitId,
-            [AllowNull] string buildVersion)
+            [AllowNull] string buildVersion,
+            IConsole console = null)
         {
             Contract.Requires(context != null);
             Contract.Requires(configuration != null);
@@ -319,7 +322,8 @@ namespace BuildXL.Engine
 
             Context = context;
             Configuration = configuration;
-
+            
+            m_console = console;
             m_initialCommandLineConfiguration = initialConfig;
             m_frontEndControllerFactory = frontEndControllerFactory;
             FrontEndController = frontEndController;
@@ -398,7 +402,8 @@ namespace BuildXL.Engine
             TrackingEventListener trackingEventListener = null,
             bool rememberAllChangedTrackedInputs = false,
             string commitId = null,
-            string buildVersion = null)
+            string buildVersion = null,
+            IConsole console = null)
         {
             Contract.Requires(context != null);
             Contract.Requires(buildViewModel != null);
@@ -471,7 +476,8 @@ namespace BuildXL.Engine
                 trackingEventListener,
                 rememberAllChangedTrackedInputs,
                 commitId,
-                buildVersion);
+                buildVersion,
+                console);
         }
 
         /// <summary>
@@ -1881,7 +1887,7 @@ namespace BuildXL.Engine
 
                                 cacheInitializationTask = CacheInitializer.GetCacheInitializationTask(
                                     loggingContext,
-                                    Context.PathTable,
+                                    Context,
                                     Configuration.Layout.CacheDirectory.ToString(Context.PathTable),
                                     Configuration.Logging.LogsDirectory.ToString(Context.PathTable),
                                     Configuration,
@@ -2998,7 +3004,7 @@ namespace BuildXL.Engine
                             Logger.Log.ErrorCacheInitializationForEngineScheduleConstruction(loggingContext, possibleCacheInitializer.Failure.Describe());
                             return ConstructScheduleResult.Failure;
                         }
-
+                        
                         CacheInitializer cacheInitializerForGraphConstruction = possibleCacheInitializer.Result;
                         engineSchedule = EngineSchedule.Create(
                             loggingContext,

@@ -63,8 +63,8 @@ namespace BuildXL.Cache.Interfaces
         /// <param name="config">Json cache configuration data string</param>
         /// <param name="activityId">Guid that identifies the parent of this call for tracing.</param>
         /// <param name="configuration">Configuration object, which may influence how the cache is configured</param>
-        /// <param name="pathTable">Path table associated to the configuration object</param>
-        public static async Task<Possible<ICache, Failure>> InitializeCacheAsync(string config, Guid activityId, IConfiguration configuration = null, PathTable pathTable = null)
+        /// <param name="buildXLContext">BuildXL context associated to the configuration object</param>
+        public static async Task<Possible<ICache, Failure>> InitializeCacheAsync(string config, Guid activityId, IConfiguration configuration = null, BuildXLContext buildXLContext = null)
         {
             ICacheConfigData cacheData;
             Exception exception;
@@ -74,7 +74,7 @@ namespace BuildXL.Cache.Interfaces
             }
 
             // create cache instance
-            return await InitializeCacheAsync(cacheData, activityId, configuration, pathTable);
+            return await InitializeCacheAsync(cacheData, activityId, configuration, buildXLContext);
         }
 
         /// <summary>
@@ -119,8 +119,8 @@ namespace BuildXL.Cache.Interfaces
         /// <param name="cacheData">The cache config data to be passed to the factory</param>
         /// <param name="activityId">Guid that identifies the parent of this call for tracing.</param>
         /// <param name="configuration">Configuration object, which may influence how the cache is configured</param>
-        /// <param name="pathTable">Path table related to the configuration object</param>
-        public static async Task<Possible<ICache, Failure>> InitializeCacheAsync(ICacheConfigData cacheData, Guid activityId, IConfiguration configuration, PathTable pathTable)
+        /// <param name="buildXLContext">BuildXL context related to the configuration object</param>
+        public static async Task<Possible<ICache, Failure>> InitializeCacheAsync(ICacheConfigData cacheData, Guid activityId, IConfiguration configuration, BuildXLContext buildXLContext)
         {
             Contract.Requires(cacheData != null);
 
@@ -173,7 +173,7 @@ namespace BuildXL.Cache.Interfaces
             }
 
             // call the loaded cache factory and create new cache object
-            return await factoryObject.InitializeCacheAsync(cacheData, activityId, configuration, pathTable);
+            return await factoryObject.InitializeCacheAsync(cacheData, activityId, configuration, buildXLContext);
         }
 
         /// <summary>
@@ -246,14 +246,14 @@ namespace BuildXL.Cache.Interfaces
         /// <param name="cacheData">The ICache data object to use</param>
         /// <param name="activityId">Identifier for the corresponding build</param>
         /// <param name="configuration">Engine-side configuration, from which some settings may be relevant to the object being created</param>
-        /// <param name="pathTable">Path table associated to the configuration object</param>
+        /// <param name="buildXLContext">BuildXL context associated to the configuration object</param>
         /// <returns>A new data object already filled in or a failure due to missing or invalid values</returns>
         /// <remarks>
         /// Enforces the contract that all given config items map to the T (no unknown values) other than the two factory values
         /// Enforces the contract that CacheId field both exists and that its value is constrained to a valid cache ID.
         /// If T is a data object that needs settings coming from the engine, please <see cref="IEngineDependentSettingsConfiguration"/>.
         /// </remarks>
-        public static Possible<T, Failure> Create<T>(this ICacheConfigData cacheData, Guid? activityId = null, IConfiguration configuration = null, PathTable pathTable = null) where T : class, new()
+        public static Possible<T, Failure> Create<T>(this ICacheConfigData cacheData, Guid? activityId = null, IConfiguration configuration = null, BuildXLContext buildXLContext = null) where T : class, new()
         {
             Contract.Requires(cacheData != null);
 
@@ -298,8 +298,8 @@ namespace BuildXL.Cache.Interfaces
             {
                 Contract.Requires(configuration != null);
                 Contract.Requires(activityId != null);
-                Contract.Requires(pathTable != null);
-                if (!engineDependentSettingsConfiguration.TryPopulateFrom(activityId.Value, configuration, pathTable, out var failure))
+                Contract.Requires(buildXLContext != null);
+                if (!engineDependentSettingsConfiguration.TryPopulateFrom(activityId.Value, configuration, buildXLContext, out var failure))
                 {
                     return failure;
                 }
@@ -374,7 +374,13 @@ namespace BuildXL.Cache.Interfaces
                     {
                         try
                         {
-                            propertyInfo.SetValue(target, Convert.ChangeType(defaultValueAttribute.Value, propertyInfo.PropertyType, CultureInfo.InvariantCulture));
+                            // Deal with a nullable target attribute
+                            Type maybeNullablePropertyType = Nullable.GetUnderlyingType(propertyInfo.PropertyType) ?? propertyInfo.PropertyType;
+                            object safeValueAttribute = (defaultValueAttribute.Value == null)
+                                ? null
+                                : Convert.ChangeType(defaultValueAttribute.Value, maybeNullablePropertyType, CultureInfo.InvariantCulture);
+
+                            propertyInfo.SetValue(target, safeValueAttribute);
                         }
                         catch (Exception e)
                         {

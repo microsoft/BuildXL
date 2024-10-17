@@ -317,7 +317,7 @@ function execute(args: Transformer.ExecuteArguments): Transformer.ExecuteResult 
 
             var maybeCacheInitializer = CacheInitializer.GetCacheInitializationTask(
                 LoggingContext,
-                Context.PathTable,
+                Context,
                 cacheDirectory,
                 Path.Combine(TemporaryDirectory, "tmplogdirectory"),
                 Configuration,

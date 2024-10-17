@@ -172,7 +172,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
 
                 context.TracingContext.Info("Authenticating with (maybe silent) interactive browser", nameof(BlobCacheFactory));
                 credentials = new Dictionary<BlobCacheStorageAccountName, IAzureStorageCredentials>();
-                var credential = new InteractiveClientStorageCredentials(configuration.InteractiveAuthTokenDirectory, uri, token);
+                var credential = new InteractiveClientStorageCredentials(context.TracingContext, configuration.InteractiveAuthTokenDirectory, uri, configuration.ConsoleWindowHandle, token);
                 credentials.Add(BlobCacheStorageAccountName.Parse(credential.GetAccountName()), credential);
             }
 

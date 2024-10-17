@@ -83,5 +83,10 @@ namespace BuildXL.Utilities.Tracing
         /// This is intended for logging
         /// </summary>
         void SetRecoverableErrorAction(Action<Exception> errorAction);
+
+        /// <summary>
+        /// The handle to the owned root window of the current console
+        /// </summary>
+        IntPtr ConsoleWindowHandle { get; }
     }
 }

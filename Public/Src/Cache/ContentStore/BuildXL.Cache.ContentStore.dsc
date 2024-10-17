@@ -180,6 +180,7 @@ export function getAzureBlobStorageSdkPackagesWithoutNetStandard() : (Managed.Ma
         importFrom("Azure.Storage.Blobs.Batch").pkg,
         importFrom("Azure.Storage.Blobs.ChangeFeed").pkg,
         importFrom("Azure.Identity").pkg,
+        importFrom("Azure.Identity.Broker").pkg,
     ];
 }
 

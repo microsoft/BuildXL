@@ -22,11 +22,11 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
     public class BlobWithLocalCacheFactory : ICacheFactory
     {
         /// <inheritdoc/>
-        public async Task<Possible<ICache, Failure>> InitializeCacheAsync(ICacheConfigData cacheData, Guid activityId = default, IConfiguration configuration = null, PathTable pathTable = null)
+        public async Task<Possible<ICache, Failure>> InitializeCacheAsync(ICacheConfigData cacheData, Guid activityId = default, IConfiguration configuration = null, BuildXLContext buildXLContext = null)
         {
             Contract.Requires(cacheData != null);
 
-            var possibleCacheConfig = cacheData.Create<BlobWithLocalCacheConfig>(activityId, configuration, pathTable);
+            var possibleCacheConfig = cacheData.Create<BlobWithLocalCacheConfig>(activityId, configuration, buildXLContext);
             if (!possibleCacheConfig.Succeeded)
             {
                 return possibleCacheConfig.Failure;

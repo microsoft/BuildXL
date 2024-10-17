@@ -8,7 +8,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using Azure.Core;
 using Azure.Identity;
+using Azure.Identity.Broker;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Interfaces.Utils;
 
 namespace BuildXL.Cache.ContentStore.Interfaces.Auth;
 
@@ -27,15 +29,22 @@ public class InteractiveClientStorageCredentials : AzureStorageCredentialsBase
     /// <inheritdoc/>
     protected override TokenCredential Credentials => _credentials;
 
+    private readonly Tracing.Context _tracingContext;
+
     /// <nodoc />
-    public InteractiveClientStorageCredentials(string interactiveAuthTokenDirectory, Uri blobUri, CancellationToken cancellationToken) : base(blobUri)
+    public InteractiveClientStorageCredentials(Tracing.Context tracingContext, string interactiveAuthTokenDirectory, Uri blobUri, IntPtr? consoleWindowHandler, CancellationToken cancellationToken) : base(blobUri)
     {
+        _tracingContext = tracingContext;
         _credentials = new ChainedTokenCredential(
             new VisualStudioCodeCredential(),
-            CreateInteractiveBrowserCredentialWithPersistence(interactiveAuthTokenDirectory, blobUri, cancellationToken).GetAwaiter().GetResult());
+            CreateInteractiveBrowserCredentialWithPersistence(interactiveAuthTokenDirectory, blobUri, consoleWindowHandler, cancellationToken).GetAwaiter().GetResult());
     }
 
-    private static async Task<InteractiveBrowserCredential> CreateInteractiveBrowserCredentialWithPersistence(string interactiveAuthTokenDirectory, Uri uri, CancellationToken token)
+    private async Task<InteractiveBrowserCredential> CreateInteractiveBrowserCredentialWithPersistence(
+        string interactiveAuthTokenDirectory,
+        Uri uri,
+        IntPtr? consoleWindowHandler,
+        CancellationToken token)
     {
         // We want a different token per uri to authenticate against. So let's just use a VSO hash of the URI, since we want to avoid the final path name
         // to contain disallowed characters.
@@ -45,10 +54,30 @@ public class InteractiveClientStorageCredentials : AzureStorageCredentialsBase
         // The auth record will be serialized in the designated directory
         var file = Path.Combine(interactiveAuthTokenDirectory, tokenName);
 
-        var options = new InteractiveBrowserCredentialOptions
+        var tokenOptions = new TokenCachePersistenceOptions { Name = tokenName };
+
+        InteractiveBrowserCredentialOptions options;
+
+        _tracingContext.Info($"Creating interactive credential options. Console window handler is '{consoleWindowHandler?.ToString("X")}'", nameof(InteractiveClientStorageCredentials));
+
+        // On Windows we can use an interactive provider with WAM support.
+        if (OperatingSystemHelper.IsWindowsOS && consoleWindowHandler.HasValue && consoleWindowHandler.Value != IntPtr.Zero)
         {
-            TokenCachePersistenceOptions = new TokenCachePersistenceOptions { Name = tokenName },
-        };
+            _tracingContext.Info($"Using InteractiveBrowserCredentialBrokerOptions (with WAM support)", nameof(InteractiveClientStorageCredentials));
+            options = new InteractiveBrowserCredentialBrokerOptions(consoleWindowHandler.Value)
+            {
+                UseDefaultBrokerAccount = true,
+                TokenCachePersistenceOptions = tokenOptions
+            };
+        }
+        else
+        {
+            _tracingContext.Info($"Using InteractiveBrowserCredentialOptions", nameof(InteractiveClientStorageCredentials));
+            options = new InteractiveBrowserCredentialOptions
+            {
+                TokenCachePersistenceOptions = tokenOptions,
+            };
+        }
 
         bool authRecordExists;
         try

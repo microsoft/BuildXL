@@ -24,7 +24,7 @@ namespace BuildXL.Cache.Tests
     public class BlobWithLocalCacheTests : TestWithOutput
     {
         private readonly LocalRedisFixture _fixture;
-        private readonly PathTable _pathTable;
+        private readonly BuildXLContext _context;
 
         protected string ScratchPath => Path.Combine(Path.GetTempPath(), GetType().ToString());
 
@@ -32,7 +32,7 @@ namespace BuildXL.Cache.Tests
             : base(output)
         {
             _fixture = fixture;
-            _pathTable = new PathTable();
+            _context = BuildXLContext.CreateInstanceForTesting();
         }
 
         [Fact]
@@ -75,7 +75,7 @@ namespace BuildXL.Cache.Tests
             try
             {
                 var configuration = new ConfigurationImpl();
-                cache = await CacheFactory.InitializeCacheAsync(config, default(Guid), configuration, _pathTable).SuccessAsync();
+                cache = await CacheFactory.InitializeCacheAsync(config, default(Guid), configuration, _context).SuccessAsync();
                 var session = await cache.CreateSessionAsync().SuccessAsync();
                 cacheRecord = await FakeBuild.DoPipAsync(session, "TestPip");
 

@@ -71,7 +71,7 @@ namespace BuildXL.Engine
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope")]
         public static CacheInitializationTask GetCacheInitializationTask(
             LoggingContext loggingContext,
-            PathTable pathTable,
+            EngineContext engineContext,
             string cacheDirectory,
             string logDirectory,
             IConfiguration config,
@@ -106,7 +106,7 @@ namespace BuildXL.Engine
                         Possible<CacheCoreCacheInitializer> maybeCacheCoreEngineCache =
                             await CacheCoreCacheInitializer.TryInitializeCacheInternalAsync(
                                 loggingContext,
-                                pathTable,
+                                engineContext,
                                 cacheDirectory,
                                 config,
                                 enableFingerprintLookup: config.Cache.Incremental,
@@ -351,15 +351,15 @@ namespace BuildXL.Engine
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope")]
         internal static async Task<Possible<CacheCoreCacheInitializer>> TryInitializeCacheInternalAsync(
             LoggingContext loggingContext,
-            PathTable pathTable,
+            EngineContext engineContext,
             string cacheDirectory,
             IConfiguration config,
             bool enableFingerprintLookup,
             RootTranslator rootTranslator,
             string orchestratorIpAddress)
         {
-            Contract.Requires(pathTable != null);
-            Contract.Requires(pathTable.IsValid);
+            Contract.Requires(engineContext != null);
+            Contract.Requires(engineContext.PathTable.IsValid);
             Contract.Requires(config != null);
             Contract.Requires(config.Cache.CacheLogFilePath.IsValid);
             Contract.Requires(config.Cache.CacheConfigFile.IsValid);
@@ -370,7 +370,7 @@ namespace BuildXL.Engine
             ICacheCoreSession session = null;
             try
             {
-                Possible<ICacheConfigData> cacheConfigData = TryGetCacheConfigData(pathTable, cacheDirectory, config.Cache, orchestratorIpAddress, rootTranslator);
+                Possible<ICacheConfigData> cacheConfigData = TryGetCacheConfigData(engineContext.PathTable, cacheDirectory, config.Cache, orchestratorIpAddress, rootTranslator);
                 if (!cacheConfigData.Succeeded)
                 {
                     return cacheConfigData.Failure;
@@ -378,7 +378,7 @@ namespace BuildXL.Engine
 
                 // Each nested LoggingContext creates a new ActivityId in the traditional ETW style. We want the cache associated with
                 // the root level ActivityId of the session for ease of tracking across components. Hence we use the ActivityId on Session.
-                Possible<ICacheCoreCache> maybeCache = await CacheFactory.InitializeCacheAsync(cacheConfigData.Result, loggingContext.Session.ActivityId, config, pathTable);
+                Possible<ICacheCoreCache> maybeCache = await CacheFactory.InitializeCacheAsync(cacheConfigData.Result, loggingContext.Session.ActivityId, config, engineContext);
 
                 if (!maybeCache.Succeeded)
                 {

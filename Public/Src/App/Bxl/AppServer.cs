@@ -249,7 +249,7 @@ namespace BuildXL
                 SetEnvironmentVariables(serverData.EnvironmentVariables);
                 Directory.SetCurrentDirectory(serverData.CurrentDirectory);
 
-                var console = new AppServerForwardingConsole(writer);
+                var console = new AppServerForwardingConsole(serverData.ClientConsoleWindowHandler, writer);
 
                 if (!Args.TryParseArguments(serverData.RawArgs.ToArray(), pathTable, console, out ICommandLineConfiguration configuration))
                 {
@@ -418,11 +418,14 @@ namespace BuildXL
 
             private readonly object m_lock = new object();
             private readonly BinaryWriter m_writer;
+            private readonly IntPtr m_consoleWindowsHandle;
             private bool m_disabled;
             public bool UpdatingConsole { get; } = false;
-            internal AppServerForwardingConsole(BinaryWriter writer)
+            
+            internal AppServerForwardingConsole(IntPtr clientConsoleWindowHandle, BinaryWriter writer)
             {
                 m_writer = writer;
+                m_consoleWindowsHandle = clientConsoleWindowHandle;
             }
 
             public void Dispose()
@@ -507,6 +510,9 @@ namespace BuildXL
                     return false;
                 }
             }
+
+            /// <inheritdoc/>
+            public IntPtr ConsoleWindowHandle => m_consoleWindowsHandle;
 
             public void WriteOverwritableOutputLine(MessageLevel messageLevel, string standardText, string updatableText)
             {
@@ -925,7 +931,8 @@ namespace BuildXL
                             BuildXLAppServerData.Create(
                                 rawArgs,
                                 environmentVariables,
-                                serverModeStatusAndPerf).Serialize(writer);
+                                serverModeStatusAndPerf,
+                                m_console.ConsoleWindowHandle).Serialize(writer);
 
                             bool cancellationRequested = false;
 

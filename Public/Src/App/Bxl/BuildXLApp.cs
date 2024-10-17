@@ -843,7 +843,7 @@ namespace BuildXL
             PerformanceCollector performanceCollector)
         {
             var fileSystem = new PassThroughFileSystem(m_pathTable);
-            var engineContext = EngineContext.CreateNew(cancellationToken, m_pathTable, fileSystem);
+            var engineContext = EngineContext.CreateNew(cancellationToken, m_pathTable, fileSystem, m_console);
             var frontEndControllerFactory = FrontEndControllerFactory.Create(
                     m_configuration.FrontEnd.FrontEndMode(),
                     loggingContext,
@@ -2413,7 +2413,7 @@ namespace BuildXL
                     Name = Statistics.AppHostInitializationDurationMs,
                     Value = appInitializationDurationMs,
                 });
-
+            
             var engine = BuildXLEngine.Create(
                 loggingContext,
                 engineContext,
@@ -2425,7 +2425,8 @@ namespace BuildXL
                 trackingEventListener,
                 rememberAllChangedTrackedInputs: true,
                 commitId: s_buildInfo?.IsDeveloperBuild == false ? s_buildInfo.CommitId : null,
-                buildVersion: s_buildInfo?.IsDeveloperBuild == false ? s_buildInfo.Build : null);
+                buildVersion: s_buildInfo?.IsDeveloperBuild == false ? s_buildInfo.Build : null,
+                console: m_console);
 
             if (engine == null)
             {

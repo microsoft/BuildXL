@@ -28,6 +28,9 @@ namespace Test.BuildXL
         /// </summary>
         public bool UpdatingConsole { get; set; } = false;
 
+        /// <inheritdoc/>
+        public IntPtr ConsoleWindowHandle => IntPtr.Zero;
+
         public void Dispose()
         {
         }

@@ -493,7 +493,8 @@ namespace BuildXL.Engine
                     serializer,
                     Configuration,
                     loggingContext,
-                    engineState).GetAwaiter().GetResult();
+                    engineState,
+                    m_console).GetAwaiter().GetResult();
             }
             catch (BuildXLException e)
             {
@@ -602,7 +603,8 @@ namespace BuildXL.Engine
                     engineState,
                     tempCleaner: m_tempCleaner,
                     buildEngineFingerprint,
-                    m_pipSpecificPropertiesConfig).GetAwaiter().GetResult();
+                    m_pipSpecificPropertiesConfig,
+                    m_console).GetAwaiter().GetResult();
             }
             catch (BuildXLException e)
             {

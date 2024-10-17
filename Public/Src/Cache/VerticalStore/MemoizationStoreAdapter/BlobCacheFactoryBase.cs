@@ -36,11 +36,11 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             ICacheConfigData cacheData,
             Guid activityId,
             IConfiguration configuration = null,
-            PathTable pathTable = null)
+            BuildXLContext buildXLContext = null)
         {
             Contract.Requires(cacheData != null);
 
-            var possibleCacheConfig = cacheData.Create<TConfig>(activityId, configuration, pathTable);
+            var possibleCacheConfig = cacheData.Create<TConfig>(activityId, configuration, buildXLContext);
             if (!possibleCacheConfig.Succeeded)
             {
                 return possibleCacheConfig.Failure;

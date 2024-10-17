@@ -86,6 +86,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "Azure.Identity.Broker",
+          "Version": "1.1.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "Azure.Messaging.EventHubs",
           "Version": "5.9.0"
         }
@@ -1230,7 +1239,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Identity.Client",
-          "Version": "4.61.3"
+          "Version": "4.65.0"
         }
       }
     },
@@ -1239,7 +1248,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Identity.Client.Broker",
-          "Version": "4.55.0"
+          "Version": "4.65.0"
         }
       }
     },
@@ -1248,7 +1257,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Identity.Client.Extensions.Msal",
-          "Version": "4.61.3"
+          "Version": "4.65.0"
         }
       }
     },
@@ -1257,7 +1266,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Identity.Client.NativeInterop",
-          "Version": "0.13.8"
+          "Version": "0.16.2"
         }
       }
     },

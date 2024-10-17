@@ -99,6 +99,16 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         public bool AllowInteractiveAuth { get; set; }
 
         /// <summary>
+        /// A handler to the console window
+        /// </summary>
+        /// <remarks>
+        /// Used for interactive auth purposes.
+        /// Provided by the BuildXL main configuration object.
+        /// </remarks>
+        [DefaultValue(null)]
+        public IntPtr? ConsoleWindowHandle { get; set; }
+
+        /// <summary>
         /// The directory where interactive tokens should be stored and retrieved as a way to provide silent authentication (when possible)
         /// across BuildXL invocations.
         /// </summary>
@@ -226,7 +236,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         /// <summary>
         /// This configuration needs the role, activity id and the kusto logging info coming from the engine configuration object
         /// </summary>
-        public bool TryPopulateFrom(Guid activityId, IConfiguration configuration, PathTable pathTable, out Failure failure)
+        public bool TryPopulateFrom(Guid activityId, IConfiguration configuration, BuildXLContext buildXLContext, out Failure failure)
         {
             var logToKusto = configuration.Logging.LogToKusto;
             // For legacy reasons, cache logs require 'Master' when the build role is orchestrator
@@ -236,7 +246,9 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             AllowInteractiveAuth = configuration.Interactive;
             // Let's use the engine cache as the target directory for storing the token
             // This should be enough to offer persistence/silent authentication for local builds
-            InteractiveAuthTokenDirectory = configuration.Layout.EngineCacheDirectory.ToString(pathTable);
+            InteractiveAuthTokenDirectory = configuration.Layout.EngineCacheDirectory.ToString(buildXLContext.PathTable);
+
+            ConsoleWindowHandle = buildXLContext.ConsoleWindowsHandle;
 
             if (!logToKusto)
             {

@@ -54,6 +54,11 @@ namespace BuildXL
         /// Client start time.
         /// </summary>
         public DateTime ClientStartTime { get; }
+        
+        /// <summary>
+        /// Handler to the client console window
+        /// </summary>
+        public IntPtr ClientConsoleWindowHandler { get; }
 
         /// <summary>
         /// Creates an instance of <see cref="BuildXLAppServerData"/>.
@@ -64,7 +69,8 @@ namespace BuildXL
             ServerModeStatusAndPerf serverModeStatusAndPerf,
             string currentDirectory,
             string clientPath,
-            DateTime clientStartTime)
+            DateTime clientStartTime,
+            IntPtr clientConsoleWindowHandler)
         {
             Contract.RequiresNotNull(rawArgs);
             Contract.RequiresNotNull(environmentVariables);
@@ -77,6 +83,7 @@ namespace BuildXL
             CurrentDirectory = currentDirectory;
             ClientPath = clientPath;
             ClientStartTime = clientStartTime;
+            ClientConsoleWindowHandler = clientConsoleWindowHandler;
         }
 
         /// <summary>
@@ -85,7 +92,8 @@ namespace BuildXL
         public static BuildXLAppServerData Create(
              IReadOnlyList<string> rawArgs,
              IReadOnlyList<KeyValuePair<string, string>> environmentVariables,
-             ServerModeStatusAndPerf serverModeStatusAndPerf)
+             ServerModeStatusAndPerf serverModeStatusAndPerf,
+             IntPtr clientConsoleWindowHandler)
         {
             Contract.RequiresNotNull(rawArgs);
             Contract.RequiresNotNull(environmentVariables);
@@ -96,7 +104,8 @@ namespace BuildXL
                 serverModeStatusAndPerf,
                 Directory.GetCurrentDirectory(),
                 AssemblyHelper.GetThisProgramExeLocation(),
-                Process.GetCurrentProcess().StartTime);
+                Process.GetCurrentProcess().StartTime,
+                clientConsoleWindowHandler);
         }
 
         /// <summary>
@@ -124,12 +133,13 @@ namespace BuildXL
 
             writer.Write(CurrentDirectory);
             ServerModeStatusAndPerf.Write(writer);
+            writer.Write(ClientConsoleWindowHandler.ToInt64());
 
             writer.Flush();
         }
 
         /// <summary>
-        /// Deserilizes data and creates an instance of <see cref="BuildXLAppServerData"/>.
+        /// Deserializes data and creates an instance of <see cref="BuildXLAppServerData"/>.
         /// </summary>
         public static BuildXLAppServerData Deserialize(BinaryReader reader)
         {
@@ -155,6 +165,7 @@ namespace BuildXL
 
             var currentDirectory = reader.ReadString();
             var serverModeStatusAndPerf = ServerModeStatusAndPerf.Read(reader);
+            var consoleWindowHandler = new IntPtr(reader.ReadInt64());
 
             return new BuildXLAppServerData(
                 rawArgs,
@@ -162,7 +173,8 @@ namespace BuildXL
                 serverModeStatusAndPerf,
                 currentDirectory,
                 clientPath,
-                clientStartTime);
+                clientStartTime,
+                consoleWindowHandler);
         }
     }
 }

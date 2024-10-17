@@ -26,10 +26,13 @@ namespace BuildXL.Utilities.Tracing
         private string m_lastOverwriteableLine;
         private readonly PathTranslator m_pathTranslator;
         private readonly bool m_debugConsole;
+        private readonly IntPtr m_handler;
         private Action<Exception> m_recoverableErrorAction = null;
         /// <inheritdoc />
         public bool UpdatingConsole { get; private set; }
 
+        /// <inheritdoc/>
+        public IntPtr ConsoleWindowHandle => m_handler;
 
         /// <summary>
         /// Create a new standard console
@@ -78,6 +81,10 @@ namespace BuildXL.Utilities.Tracing
             {
                 m_debugConsole = true;
             }
+
+            m_handler = OperatingSystemHelper.IsWindowsOS 
+                ? ConsoleHelper.GetConsoleOrTerminalWindow() 
+                : IntPtr.Zero;
         }
 
         /// <inheritdoc />

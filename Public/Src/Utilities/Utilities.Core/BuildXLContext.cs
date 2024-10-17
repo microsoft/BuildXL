@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Threading;
@@ -15,6 +16,8 @@ namespace BuildXL.Utilities.Core
     {
         private readonly TokenTextTable m_tokenTextTable;
 
+        private readonly IntPtr m_consoleWindowsHandle;
+
         /// <summary>
         /// protected constructor
         /// </summary>
@@ -25,7 +28,8 @@ namespace BuildXL.Utilities.Core
             context.PathTable,
             context.SymbolTable,
             context.QualifierTable,
-            context.TokenTextTable)
+            context.TokenTextTable,
+            context.ConsoleWindowsHandle)
         {
             Contract.RequiresNotNull(context);
         }
@@ -39,7 +43,8 @@ namespace BuildXL.Utilities.Core
             PathTable pathTable,
             SymbolTable symbolTable,
             QualifierTable qualifierTable,
-            TokenTextTable tokenTextTable)
+            TokenTextTable tokenTextTable,
+            IntPtr consoleWindowsHandle)
             : base(
                 cancellationToken,
                 stringTable,
@@ -50,6 +55,7 @@ namespace BuildXL.Utilities.Core
             Contract.RequiresNotNull(tokenTextTable);
 
             m_tokenTextTable = tokenTextTable;
+            m_consoleWindowsHandle = consoleWindowsHandle;
         }
 
         /// <summary>
@@ -91,6 +97,14 @@ namespace BuildXL.Utilities.Core
         }
 
         /// <summary>
+        /// A handle to the owner console window where BuildXL is running.
+        /// </summary>
+        /// <remarks>
+        /// If BuildXL is running with server mode enabled, the handle represents the owner of the client window.
+        /// </remarks>
+        public IntPtr ConsoleWindowsHandle => m_consoleWindowsHandle;
+
+        /// <summary>
         /// Invalidates the context to prevent future use
         /// </summary>
         public virtual void Invalidate()
@@ -122,7 +136,8 @@ namespace BuildXL.Utilities.Core
                     pathTable,
                     symbolTable,
                     qualifierTable,
-                    tokenTextTable)
+                    tokenTextTable,
+                    consoleWindowsHandle: IntPtr.Zero)
             {
             }
         }

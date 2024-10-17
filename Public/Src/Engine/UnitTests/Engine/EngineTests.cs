@@ -299,7 +299,7 @@ namespace Test.BuildXL.EngineTests
 
             var possibleFirstCacheInitializer = CacheInitializer.GetCacheInitializationTask(
                 LoggingContext,
-                Context.PathTable,
+                Context,
                 cacheDirectory,
                 Path.Combine(TemporaryDirectory, "tmplogdirectory"),
                 new ConfigurationImpl()
@@ -321,7 +321,7 @@ namespace Test.BuildXL.EngineTests
 
             var possibleSecondCacheInitializer = CacheInitializer.GetCacheInitializationTask(
                 LoggingContext,
-                Context.PathTable,
+                Context,
                 cacheDirectory,
                 Path.Combine(TemporaryDirectory, "tmplogdirectory"),
                 new ConfigurationImpl()

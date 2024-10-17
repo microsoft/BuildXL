@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
@@ -8,11 +9,11 @@ using System.Threading;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Sdk.FileSystem;
 using BuildXL.Pips.Operations;
-using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
-using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Qualifier;
+using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 
 namespace BuildXL.Engine
@@ -69,8 +70,9 @@ namespace BuildXL.Engine
             IFileSystem fileSystem,
             TokenTextTable tokenTextTable,
             CounterCollection<EngineCounter> engineCounters = null,
-            HistoricTableSizes historicTableSizes = null)
-            : base(cancellationToken, pathTable.StringTable, pathTable, symbolTable, qualifierTable, tokenTextTable)
+            HistoricTableSizes historicTableSizes = null,
+            IConsole console = null)
+            : base(cancellationToken, pathTable.StringTable, pathTable, symbolTable, qualifierTable, tokenTextTable, console == null ? IntPtr.Zero : console.ConsoleWindowHandle)
         {
             Contract.Requires(pathTable != null);
             Contract.Requires(symbolTable != null);
@@ -91,7 +93,7 @@ namespace BuildXL.Engine
         /// Creates a new engine context
         /// </summary>
         [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope", Justification = "BuildXLContext takes ownership for disposal.")]
-        public static EngineContext CreateNew(CancellationToken cancellationToken, PathTable pathTable, IFileSystem fileSystem)
+        public static EngineContext CreateNew(CancellationToken cancellationToken, PathTable pathTable, IFileSystem fileSystem, IConsole console = null)
         {
             Contract.Requires(pathTable != null);
 
@@ -99,7 +101,7 @@ namespace BuildXL.Engine
             var symbolTable = new SymbolTable(stringTable);
             var tokenTextTable = new TokenTextTable();
 
-            return new EngineContext(cancellationToken, pathTable, symbolTable, new QualifierTable(pathTable.StringTable), fileSystem, tokenTextTable);
+            return new EngineContext(cancellationToken, pathTable, symbolTable, new QualifierTable(pathTable.StringTable), fileSystem, tokenTextTable, console: console);
         }
 
         /// <summary>

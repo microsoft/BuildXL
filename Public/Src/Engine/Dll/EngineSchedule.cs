@@ -10,6 +10,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.Artifacts;
 using BuildXL.Engine.Cache.Fingerprints;
@@ -32,18 +33,18 @@ using BuildXL.Storage;
 using BuildXL.Storage.Fingerprints;
 using BuildXL.Tracing;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
-using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Qualifier;
 using BuildXL.Utilities.Core.Tasks;
 using BuildXL.Utilities.Core.Tracing;
+using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.Utilities.Tracing;
 using BuildXL.ViewModel;
+using Google.Protobuf;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 using Logger = BuildXL.Engine.Tracing.Logger;
 using SchedulerLogger = BuildXL.Scheduler.Tracing.Logger;
-using BuildXL.Cache.ContentStore.Service.Grpc;
-using Google.Protobuf;
 
 namespace BuildXL.Engine
 {
@@ -1585,7 +1586,8 @@ namespace BuildXL.Engine
             EngineState engineState,
             TempCleaner tempCleaner,
             string buildEngineFingerprint,
-            PipSpecificPropertiesConfig pipSpecificPropertiesConfig)
+            PipSpecificPropertiesConfig pipSpecificPropertiesConfig,
+            IConsole console)
         {
             // journal may be null, in the event that journal usage is not enabled.
             var graphLoaderAndFingerprint = await ReadGraphFingerprintAndCreateGraphLoader(oldContext, serializer, loggingContext, engineState);
@@ -1625,7 +1627,8 @@ namespace BuildXL.Engine
                     oldContext.FileSystem.CopyWithNewPathTable(pathTable),
                     new TokenTextTable(),
                     engineCounters: oldContext.EngineCounters,
-                    historicTableSizes: await historicTableSizesTask);
+                    historicTableSizes: await historicTableSizesTask,
+                    console: console);
             }
             else
             {
@@ -1796,7 +1799,8 @@ namespace BuildXL.Engine
             EngineSerializer serializer,
             IConfiguration configuration,
             LoggingContext loggingContext,
-            EngineState engineState)
+            EngineState engineState,
+            IConsole console)
         {
             var graphLoaderAndFingerprint = await ReadGraphFingerprintAndCreateGraphLoader(oldContext, serializer, loggingContext, engineState);
 
@@ -1828,7 +1832,8 @@ namespace BuildXL.Engine
                 oldContext.FileSystem.CopyWithNewPathTable(pipExecutionContext.PathTable),
                 new TokenTextTable(),
                 engineCounters: oldContext.EngineCounters,
-                historicTableSizes: historicTableSizes);
+                historicTableSizes: historicTableSizes,
+                console: console);
 
             return Tuple.Create(pipGraph, newContext);
         }

@@ -16,6 +16,9 @@ internal class MockConsole : IConsole
     public bool UpdatingConsole { get; set; } = false;
 
     /// <inheritdoc/>
+    public IntPtr ConsoleWindowHandle => IntPtr.Zero;
+
+    /// <inheritdoc/>
     public void Dispose() { }
 
     /// <inheritdoc/>

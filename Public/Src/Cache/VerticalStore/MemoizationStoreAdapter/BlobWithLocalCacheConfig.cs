@@ -25,14 +25,14 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         public BlobCacheConfig RemoteCache { get; set; }
 
         /// <inheritdoc/>
-        public bool TryPopulateFrom(Guid activityId, IConfiguration configuration, PathTable pathTable, out Failure failure)
+        public bool TryPopulateFrom(Guid activityId, IConfiguration configuration, BuildXLContext buildXLContext, out Failure failure)
         {
             // The local cache config does not depend on engine configurations. Asserting that in case things change and this goes unnoticed.
 #pragma warning disable CS0184 // 'is' expression's given expression is never of the provided type
             Contract.Assert(!(LocalCache is IEngineDependentSettingsConfiguration));
 #pragma warning restore CS0184 // 'is' expression's given expression is never of the provided type
 
-            return RemoteCache.TryPopulateFrom(activityId, configuration, pathTable, out failure);
+            return RemoteCache.TryPopulateFrom(activityId, configuration, buildXLContext, out failure);
         }
     }
 }

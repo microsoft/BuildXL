@@ -689,24 +689,6 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "Microsoft.AzureAd.Icm.Types.amd64",
-          "Version": "2.2.1363.11"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.AzureAd.Icm.WebService.Client.amd64",
-          "Version": "2.2.1363.11"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
           "Name": "Microsoft.Bcl",
           "Version": "1.1.10"
         }

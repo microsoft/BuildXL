@@ -66,10 +66,6 @@ export const pkgs = isMicrosoftInternal ? [
     { id: "Symbol.Client", version: artifactNugetVersion, dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["Microsoft.BuildXL.Cache.Hashing", "DotNetFxRefAssemblies.Corext"] },
     { id: "TransientFaultHandling.Core", version: "5.1.1209.1" },
 
-    // IcM and dependencies
-    { id: "Microsoft.AzureAd.Icm.Types.amd64", version: "2.2.1363.11" },
-    { id: "Microsoft.AzureAd.Icm.WebService.Client.amd64", version: "2.2.1363.11" },
-
     // Cpp Sdk
     { id: "VisualCppTools.Internal.VS2017Layout", version: "14.39.33521", osSkip: [ "macOS", "unix" ] },
 

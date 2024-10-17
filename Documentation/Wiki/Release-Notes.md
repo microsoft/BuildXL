@@ -2,6 +2,13 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20241011.6 (Release [29186874](https://dev.azure.com/mseng/Domino/_build/results?buildId=29186874&view=results))
+- Improve memory projection logic
+- Remove ChooseWorkerCpu iteration counter
+- Add regex matching to undeclared read allowlist
+- Change public external feed to dev.azure.com/PipelineTools
+- Add support to breakaway based on command line args
+
 # 0.1.0-20241004.1 (Release [29152776](https://dev.azure.com/mseng/Domino/_build/results?buildId=29152776&view=results))
 -	Breakaway processes for Linux interpose sandbox.
 - Change default destination for DScript profiler log to build log directory.

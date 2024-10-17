@@ -1383,6 +1383,8 @@ namespace BuildXL.Cache.ContentStore.Stores
                     AbsFileSystemExtension.DefaultFileStreamBufferSize))
                 {
                     await inputStream.CopyToWithFullBufferAsync(tempFileStream);
+                    await tempFileStream.FlushAsync();
+
 
                     // We want to set an ACL which denies writes before closing the destination stream. This way, there
                     // are no instants in which we have neither an exclusive lock on writing the file nor a protective

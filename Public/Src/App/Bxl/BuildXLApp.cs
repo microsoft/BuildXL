@@ -713,7 +713,7 @@ namespace BuildXL
 
                         // Log Ado Summary
                         var buildSummary = m_buildViewModel.BuildSummary;
-                        if (buildSummary != null)
+                        if (buildSummary != null && m_configuration.Distribution.BuildRole != DistributedBuildRoles.Worker)
                         {
                             try
                             {

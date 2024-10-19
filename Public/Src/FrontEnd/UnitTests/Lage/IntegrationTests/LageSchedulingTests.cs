@@ -3,12 +3,14 @@
 
 using System.Diagnostics;
 using System.Linq;
+using BuildXL.FrontEnd.Lage;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Core;
 using Test.BuildXL.FrontEnd.Core;
 using Xunit;
 using Xunit.Abstractions;
+using Process = BuildXL.Pips.Operations.Process;
 
 namespace Test.BuildXL.FrontEnd.Lage
 {
@@ -36,13 +38,13 @@ namespace Test.BuildXL.FrontEnd.Lage
             // Create two projects A and B such that A -> B.
             var config = Build()
                 .AddJavaScriptProject("@ms/project-A", "src/A", "module.exports = function A(){}")
-                .AddJavaScriptProject("@ms/project-B", "src/B", "const A = require('@ms/project-A'); return A();", new string[] { "@ms/project-A"})
+                .AddJavaScriptProject("@ms/project-B", "src/B", "const A = require('@ms/project-A'); return A();", new string[] { "@ms/project-A" })
                 .PersistSpecsAndGetConfiguration();
 
             var engineResult = RunLageProjects(config);
 
             Assert.True(engineResult.IsSuccess);
-            
+
             // Let's do some basic graph validations
             var processes = engineResult.EngineState.PipGraph.RetrievePipsOfType(PipType.Process).ToList();
             // There should be two process pips
@@ -60,7 +62,7 @@ namespace Test.BuildXL.FrontEnd.Lage
             // Create two projects A and B such that A -> B.
             var config = Build(executeCommands: "['build', 'test']")
                 .AddJavaScriptProject("@ms/project-A", "src/A", "module.exports = function A(){}", scriptCommands: new[] { ("test", "node ./main.js") })
-                .AddJavaScriptProject("@ms/project-B", "src/B", "const A = require('@ms/project-A'); return A();", new string[] { "@ms/project-A" }, scriptCommands: new[] { 
+                .AddJavaScriptProject("@ms/project-B", "src/B", "const A = require('@ms/project-A'); return A();", new string[] { "@ms/project-A" }, scriptCommands: new[] {
                     ("test", "node ./main.js"),
                     ("build", "node ./main.js")
                 })
@@ -126,6 +128,24 @@ namespace Test.BuildXL.FrontEnd.Lage
             // The graph construction process should be returning a single process pip.
             var processes = engineResult.EngineState.PipGraph.RetrievePipsOfType(PipType.Process).ToList();
             Assert.Equal(1, processes.Count);
+        }
+
+        [Fact]
+        public void LageServerBreakawayIsConfigured()
+        {
+            var config = Build()
+                .AddJavaScriptProject("@ms/project-A", "src/A")
+                .PersistSpecsAndGetConfiguration();
+
+            var engineResult = RunLageProjects(config);
+
+            Assert.True(engineResult.IsSuccess);
+            var process = (Process) engineResult.EngineState.PipGraph.RetrievePipsOfType(PipType.Process).Single();
+
+            // All lage pips should contain a configured breakaway representing the lage server
+            Assert.Equal(1, process.ChildProcessesToBreakawayFromSandbox.Length);
+            var lageServer = process.ChildProcessesToBreakawayFromSandbox[0];
+            Assert.Equal(LagePipConstructor.LageServerArgumentBreakaway, lageServer.RequiredArguments);
         }
     }
 }

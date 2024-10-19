@@ -9,7 +9,9 @@ using BuildXL.FrontEnd.JavaScript.ProjectGraph;
 using BuildXL.FrontEnd.Lage.ProjectGraph;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Workspaces.Core;
+using BuildXL.Pips.Builders;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Core;
 
 namespace BuildXL.FrontEnd.Lage
@@ -20,6 +22,12 @@ namespace BuildXL.FrontEnd.Lage
     internal sealed class LagePipConstructor : JavaScriptPipConstructor
     {
         private readonly ILageResolverSettings m_resolverSettings;
+        private readonly FrontEndContext m_context;
+
+        /// <summary>
+        /// The arguments passed to node that identifies the lage server being used
+        /// </summary>
+        internal const string LageServerArgumentBreakaway = "lage-server";
 
         /// <nodoc/>
         public LagePipConstructor(
@@ -35,6 +43,7 @@ namespace BuildXL.FrontEnd.Lage
         : base(context, frontEndHost, moduleDefinition, resolverSettings, userDefinedEnvironment, userDefinedPassthroughVariables, customCommands, allProjectsToBuild)
         {
             m_resolverSettings = resolverSettings;
+            m_context = context;
         }
 
         /// <inheritdoc/>
@@ -54,6 +63,20 @@ namespace BuildXL.FrontEnd.Lage
             }
 
             return base.GetResolverSpecificAllowedSourceReadsScopes().Union(specificReadScopes);
+        }
+
+        /// <inheritdoc/>
+        protected override void ConfigureProcessBuilder(ProcessBuilder processBuilder, JavaScriptProject project, IReadOnlySet<JavaScriptProject> transitiveDependencies)
+        {
+            base.ConfigureProcessBuilder(processBuilder, project, transitiveDependencies);
+
+            // In some scenarios Lage spawns a server process 'lage-server' that serves a variety of requests. This process needs to break away from the sandbox.
+            var lageServerBreakaway = new BreakawayChildProcess() {
+                ProcessName = PathAtom.Create(m_context.StringTable, OperatingSystemHelper.IsWindowsOS ? "node.exe" : "node"),
+                RequiredArguments = LageServerArgumentBreakaway
+            };
+
+            processBuilder.ChildProcessesToBreakawayFromSandbox = processBuilder.ChildProcessesToBreakawayFromSandbox.Append(lageServerBreakaway).ToArray();
         }
     }
 }

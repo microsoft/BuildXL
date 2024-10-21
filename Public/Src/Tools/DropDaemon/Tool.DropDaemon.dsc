@@ -9,6 +9,9 @@ import * as Deployment from "Sdk.Deployment";
 import { NetFx } from "Sdk.BuildXL";
 
 export namespace DropDaemon {
+    @@public 
+    export declare const qualifier: BuildXLSdk.Net8Qualifier;
+
     @@public
     export const exe = !BuildXLSdk.isDropToolingEnabled ? undefined : BuildXLSdk.executable({
         assemblyName: "DropDaemon",
@@ -157,6 +160,7 @@ export namespace DropDaemon {
         return [
             importFrom("Microsoft.Parsers.ManifestGenerator").pkg,
             importFrom("Microsoft.SBOMCore").pkg,
+            importFrom("Microsoft.Sbom.Parsers.Spdx22SbomParser").pkg,
             importFrom("Microsoft.Sbom.Contracts").pkg,
             importFrom("Microsoft.Sbom.Extensions").pkg,
             importFrom("Microsoft.Sbom.Parsers.Spdx22SbomParser").pkg,

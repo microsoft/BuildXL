@@ -12,7 +12,10 @@ namespace Core {
     export const dll = BuildXLSdk.test({
         assemblyName: "Test.BuildXL.Utilities",
         allowUnsafeBlocks: true,
-        sources: globR(d`.`, "*.cs"),
+        // The SBOM utilities have their own dll since it cannot be a net6.0 due to latest SBOM packages not supporting net6.0 anymore.
+        // TODO: merge SBOM utilities back to this dll once we stop building for net6.0. 
+        // CODESYNC: Public\Src\Utilities\UnitTests\Utilities\SBOM\Test.BuildXL.Utilities.SBOM.dsc
+        sources: globR(d`.`, "*.cs").filter(f => !f.isWithin(d`SBOM`)),
         // TODO - there is some issue with deploying the git binaries to the unit test directory under QTest.
         // Leave this as xunit for now
         testFramework: XUnit.framework,
@@ -37,8 +40,6 @@ namespace Core {
             importFrom("Newtonsoft.Json").pkg,
             AsyncMutexClient.exe,
             ...BuildXLSdk.systemMemoryDeployment,
-            ...addIf(BuildXLSdk.Flags.isMicrosoftInternal, importFrom("BuildXL.Utilities").SBOMUtilities.dll),
-            ...addIf(BuildXLSdk.Flags.isMicrosoftInternal, importFrom("Microsoft.Sbom.Contracts").pkg),
             ...BuildXLSdk.fluentAssertionsWorkaround
         ],
         runtimeContent: [

@@ -2,8 +2,11 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 import {Cmd} from "Sdk.Transformers";
+import * as BuildXLSdk from "Sdk.BuildXL";
 
 namespace Test.Tool.DropDaemon {
+    export declare const qualifier: BuildXLSdk.Net8Qualifier;
+
     export const dll = !(BuildXLSdk.Flags.isMicrosoftInternal && Context.getCurrentHost().os === "win") ? undefined : BuildXLSdk.test({
         assemblyName: "Test.Tool.DropDaemon",
         sources: globR(d`.`, "*.cs"),

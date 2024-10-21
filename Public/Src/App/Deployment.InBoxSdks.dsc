@@ -54,7 +54,7 @@ function createSdkDeploymentDefinition(serverDeployment: boolean, minimalDeploym
                             subfolder: "Sdk.Drop",
                             contents: [ 
                                 importFrom("BuildXL.Tools.DropDaemon").withQualifier({
-                                    targetFramework: isDotNetCore(qualifier.targetFramework) ? qualifier.targetFramework : "net8.0"
+                                    targetFramework: "net8.0"
                                 }).selectDeployment(evaluationOnly)
                             ]
                         },

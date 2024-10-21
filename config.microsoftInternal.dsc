@@ -70,13 +70,17 @@ export const pkgs = isMicrosoftInternal ? [
     { id: "VisualCppTools.Internal.VS2017Layout", version: "14.39.33521", osSkip: [ "macOS", "unix" ] },
 
     // SBOM Generation
-    { id: "Microsoft.SBOMCore", version: "4.0.15" },
-    { id: "Microsoft.Parsers.ManifestGenerator", version: "3.8.11", dependentPackageIdsToIgnore: ["BuildXL.Cache.Hashing"] },
-    { id: "Microsoft.Sbom.Parsers.Spdx22SbomParser", version: "2.2.9" },
-    { id: "Microsoft.Sbom.Adapters", version: "2.2.9" },
-    { id: "Microsoft.ComponentDetection.Contracts", version: "4.9.6" },
-    { id: "Microsoft.Sbom.Contracts", version: "2.2.9" },
-    { id: "Microsoft.Sbom.Extensions", version: "2.2.9" },
+    // The following two packages need to skip some of its dependencies because they are referencing
+    // their net6.0 version and our nuget resolver doesn't handle the case where the framework is gone in newer versions.
+    // TODO: we should be able to remove the skipped packages whenever Microsoft.SBOMCore and Microsoft.Parsers.ManifestGenerator
+    // expose updated versions that point to the latest (net8 only) SBOM packages
+    { id: "Microsoft.SBOMCore", version: "4.0.15", dependentPackageIdsToSkip: ["Microsoft.Sbom.Parsers.Spdx22SbomParser"] },
+    { id: "Microsoft.Parsers.ManifestGenerator", version: "3.8.11", dependentPackageIdsToIgnore: ["BuildXL.Cache.Hashing"], dependentPackageIdsToSkip: ["Microsoft.Sbom.Contracts", "Microsoft.Sbom.Extensions"] },
+    { id: "Microsoft.Sbom.Parsers.Spdx22SbomParser", version: "3.0.0" },
+    { id: "Microsoft.Sbom.Adapters", version: "3.0.0" },
+    { id: "Microsoft.ComponentDetection.Contracts", version: "5.1.5" },
+    { id: "Microsoft.Sbom.Contracts", version: "3.0.0" },
+    { id: "Microsoft.Sbom.Extensions", version: "3.0.0" },
     { id: "Microsoft.Bcl.HashCode", version: "1.1.1" },
 
     // Process remoting

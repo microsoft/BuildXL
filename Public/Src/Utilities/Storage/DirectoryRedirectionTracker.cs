@@ -37,20 +37,54 @@ namespace BuildXL.Storage
             Contract.Requires(!string.IsNullOrEmpty(redirectedPath));
             Contract.Requires(!string.IsNullOrEmpty(realPath));
 
-            ExceptionUtilities.HandleRecoverableIOException(
-                () =>
-                {
-#pragma warning disable EPC13 // ThrowIfFailure() correctly observes the result of the Possible
-                    FileUtilities.TryCreateReparsePointIfTargetsDoNotMatch(redirectedPath, realPath, OperatingSystemHelper.IsWindowsOS ? ReparsePointType.Junction : ReparsePointType.DirectorySymlink, out _).ThrowIfFailure();
-#pragma warning restore EPC13 
+            Possible<Unit> tryCreateRedirect() => FileUtilities.TryCreateReparsePointIfTargetsDoNotMatch(
+                redirectedPath,
+                realPath,
+                OperatingSystemHelper.IsWindowsOS ? ReparsePointType.Junction : ReparsePointType.DirectorySymlink,
+                out _);
 
-                    if (deleteOnDispose)
-                    {
-                        m_directoryLinks.Add(redirectedPath);
-                    }
-                        
-                },
-                ex => { throw new BuildXLException(I($"Failed to create the redirected directory '{redirectedPath}'"), ex); });
+            if (!tryCreateRedirect().Succeeded)
+            {
+                // Apply fallback logic before retrying
+                HandleCreateRedirectionFailure(redirectedPath);
+                var secondTry = tryCreateRedirect();
+                if (!secondTry.Succeeded)
+                {
+                    throw new BuildXLException(I($"Failed to create the redirected directory '{redirectedPath}'"), secondTry.Failure.CreateException());
+                }
+            }
+
+            if (deleteOnDispose)
+            {
+                m_directoryLinks.Add(redirectedPath);
+            }
+        }
+
+        /// <summary>
+        /// Provide a fallback for issues with CreateRedirection.
+        /// </summary>
+        private static void HandleCreateRedirectionFailure(string redirectedPath)
+        {
+            var timeStamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+
+            // BXL fails to create redirection if directories retain content from previous builds.
+            // TryCreateReparsePointIfTargetsDoNotMatch() handles reparse points, but if a non-empty directory exists (not a reparse point),
+            // we rename it with a timestamp (e.g., BuildXLCurrentLog_moved_20240909_0000000) to preserve its contents. This avoids deleting files
+            // of unknown origin. The original directory is then recreated for the current build logs.
+            var directoryInfo = new DirectoryInfo(redirectedPath);
+
+            try
+            {
+                if (Directory.Exists(redirectedPath) && ((directoryInfo.Attributes & FileAttributes.ReparsePoint) != FileAttributes.ReparsePoint))
+                {
+                    var renamedDir = redirectedPath + "_moved_" + timeStamp;
+                    Directory.Move(redirectedPath, renamedDir);
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new BuildXLException(I($"Failed to move the directory from '{redirectedPath}' to '{redirectedPath + "_moved_" + timeStamp}'"), ex);
+            }
         }
 
         /// <inheritdoc />

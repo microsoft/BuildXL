@@ -1751,7 +1751,7 @@ namespace BuildXL.Engine
                 Logger.Log.EndEngineRun))
             {
                 var engineLoggingContext = pm.LoggingContext;
-                using (CreateOutputDirectories(Context.PathTable, engineLoggingContext, out var directoryCreationSuccess))
+                using (CreateOutputDirectories(Context.PathTable, engineLoggingContext, Configuration, m_moveDeleteTempDirectory, out var directoryCreationSuccess))
                 {
                     if (!directoryCreationSuccess)
                     {
@@ -2349,30 +2349,32 @@ namespace BuildXL.Engine
         /// Creates output directories for the engine, and returns a disposable object that when disposed will delete the redirected links.
         /// </summary>
         [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope")]
-        public DirectoryRedirectionTracker CreateOutputDirectories(PathTable pathTable, LoggingContext loggingContext, out bool success)
+        internal static DirectoryRedirectionTracker CreateOutputDirectories(PathTable pathTable, LoggingContext loggingContext, IConfiguration configuration, string moveDeleteTempDirectory, out bool success)
         {
             Contract.Requires(pathTable != null);
 
             var container = new DirectoryRedirectionTracker(loggingContext);
-            var layout = Configuration.Layout;
+            var layout = configuration.Layout;
             success = false;
             try
             {
                 FileUtilities.CreateDirectoryWithRetry(layout.ObjectDirectory.ToString(pathTable));
                 FileUtilities.CreateDirectoryWithRetry(layout.CacheDirectory.ToString(pathTable));
                 FileUtilities.CreateDirectoryWithRetry(layout.EngineCacheDirectory.ToString(pathTable));
-                FileUtilities.CreateDirectoryWithRetry(Configuration.Logging.LogsDirectory.ToString(pathTable));
+                FileUtilities.CreateDirectoryWithRetry(configuration.Logging.LogsDirectory.ToString(pathTable));
 
-                if (Configuration.Logging.RedirectedLogsDirectory.IsValid)
+                if (configuration.Logging.RedirectedLogsDirectory.IsValid)
                 {
+                    var redirectedLogsDir = configuration.Logging.RedirectedLogsDirectory.ToString(pathTable);
+
                     container.CreateRedirection(
-                        Configuration.Logging.RedirectedLogsDirectory.ToString(pathTable),
-                        Configuration.Logging.LogsDirectory.ToString(pathTable),
+                        redirectedLogsDir,
+                        configuration.Logging.LogsDirectory.ToString(pathTable),
                         deleteOnDispose: true);
                 }
 
-                FileUtilities.CreateDirectoryWithRetry(m_moveDeleteTempDirectory);
-                if (Configuration.Layout.NormalizedBuildEngineDirectory.IsValid)
+                FileUtilities.CreateDirectoryWithRetry(moveDeleteTempDirectory);
+                if (configuration.Layout.NormalizedBuildEngineDirectory.IsValid)
                 {
                     container.CreateRedirection(
                         layout.NormalizedBuildEngineDirectory.ToString(pathTable),

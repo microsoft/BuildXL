@@ -647,6 +647,66 @@ const y = Debug.writeLine(T.testValue); ";
             AssertVerboseEventLogged(LogEventId.MismatchInputInGraphInputDescriptor, count: allowedMismatchInputInGraphCounter);
         }
 
+        /// <summary>
+        /// Check the handling of retained engine output directories.
+        /// Ensures that if the `BuildXLCurrentLog` directory exists, it is renamed with a timestamp, and a new log directory is created.
+        /// </summary>
+        [Fact]
+        public void TestCreateOutputDirectories()
+        {
+            // Create a path similar to Out/BuildXLCurrentLog
+            // Set up root and output paths for testing directory creation.
+            var outPath = Combine(AbsolutePath.Create(Context.PathTable, TemporaryDirectory), "Out");
+            var buildXLCurrentLogPath = Combine(outPath, "BuildXLCurrentLog");
+
+            try
+            {
+                // Set the redirectedLogsDirectory path.
+                Configuration.Logging.RedirectedLogsDirectory = buildXLCurrentLogPath;
+
+                var moveDeleteTempDirectoryName = Path.Combine(Configuration.Layout.ObjectDirectory.ToString(Context.PathTable), "MoveDeleteTempDirectoryName");
+
+                // Create and ensure that the redirectedLogsDirectory exists
+                var redirectedLogsDirectory = Configuration.Logging.RedirectedLogsDirectory.ToString(Context.PathTable);
+                Directory.CreateDirectory(redirectedLogsDirectory);
+                XAssert.IsTrue(Directory.Exists(redirectedLogsDirectory));
+
+                // Add a dummy file to redirectedLogsDirectory
+                // Out/BuildXLCurrentLog/dummyFile.txt
+                string testFilePath = Path.Combine(redirectedLogsDirectory, "dummyFile.txt");
+                File.WriteAllText(testFilePath, "This is a test file.");
+
+                var directoryRedirectionTracker = BuildXLEngine.CreateOutputDirectories(Context.PathTable, LoggingContext, Configuration, moveDeleteTempDirectoryName, out var success);
+                XAssert.IsTrue(success);
+
+                // The retained engine output directory is expected to contain the timestamp in the folder name.
+                // We expect the both the retained directory and the new engine output directory to be present.
+                // Ex: BuildXLCurrentLog and BuildXLCurrrentLog_moved_20240909_0000000 should be present.
+                var expectedDatePart = DateTime.Now.ToString("yyyyMMdd");
+
+                var outFolderContents = Directory.GetDirectories(outPath.ToString(Context.PathTable));
+
+                // Retained directory should exist in Linux as well.
+                // There is an existing bug in Linux where the retained directory is getting deleted and a new symlink is being created, resulting in the loss of retained directory logs.
+                // Although this does not cause BXL to crash, but we expect BuildXL to scrub only the directories it creates, the bug needs to be investigated further, so disabling this behavior on Linux for now.
+                if (OperatingSystemHelper.IsWindowsOS)
+                {
+                    bool timestampedFolderExists = outFolderContents.Any(dir => dir.Contains($"BuildXLCurrentLog_moved_{expectedDatePart}"));
+                    XAssert.IsTrue(timestampedFolderExists, $"The directory with expected date '{expectedDatePart}' should have been created.");
+                }
+
+                // Newly created directory should also exist.
+                bool buildXLCurrentLogFolderExists = outFolderContents.Any(dir =>
+                                                        Path.GetFileName(dir).Equals("BuildXLCurrentLog", StringComparison.OrdinalIgnoreCase));
+                XAssert.IsTrue(buildXLCurrentLogFolderExists, $"The directory '{buildXLCurrentLogFolderExists}' should have been created.");               
+            }
+            finally
+            {
+                // Delete the created directories in the unit test.
+                FileUtilities.DeleteDirectoryContents(outPath.ToString(Context.PathTable), deleteRootDirectory: true);
+            }
+        }
+
         private void SetupPipsWithEnvironmentAccess(string moduleName, string[] environmentVarName)
         {
             var writenEnvVar = string.Join(",", environmentVarName.Select(e => $@"Environment.getStringValue('{e}')"));

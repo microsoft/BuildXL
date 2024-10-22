@@ -9,5 +9,5 @@ namespace Nuget {
     export const packageAuthors = company;
 
     @@public
-    export const pacakgeCopyright = copyright;
+    export const packageCopyright = copyright;
 }

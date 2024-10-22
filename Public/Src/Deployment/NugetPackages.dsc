@@ -648,7 +648,7 @@ namespace NugetPackages {
         version:Branding.Nuget.packageVersion,
         authors: Branding.Nuget.packageAuthors,
         owners:Branding.Nuget.packageOwners,
-        copyright: Branding.Nuget.pacakgeCopyright
+        copyright: Branding.Nuget.packageCopyright
     };
 
     /**

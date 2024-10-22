@@ -1,0 +1,66 @@
+parameters:
+- name: platform
+  type: string
+  values:
+  - win-x64
+  - linux-x64
+- name: pool
+  type: object
+
+jobs:
+- job:
+  displayName: "[${{ parameters.platform }}] Build, test, and publish BuildToolsInstaller"
+  pool: ${{ parameters.pool }}
+  variables:
+    buildConfiguration: 'Release'
+    artifactName: '1ES.BuildToolsInstaller.${{ parameters.platform }}.zip'
+
+  steps:
+  - checkout: self
+    fetchDepth: 1
+    fetchTags: false
+
+  - template: /.azdo/common/use-latest-dotnet-sdk.yml@self
+
+  - task: DotNetCoreCLI@2
+    inputs:
+      command: 'build'
+      arguments: '--configuration $(buildConfiguration)'
+      projects: 'Private/BuildToolsInstaller'
+    displayName: 'Build Project'
+
+  - task: DotNetCoreCLI@2
+    inputs:
+      command: 'test'
+      projects: 'Private/BuildToolsInstaller'
+      arguments: '--no-build --configuration $(buildConfiguration)'
+    displayName: 'Run Tests'
+
+  - task: ArchiveFiles@2
+    inputs:
+      rootFolderOrFile: '$(Build.SourcesDirectory)/Private/BuildToolsInstaller/src/bin/$(buildConfiguration)'
+      includeRootFolder: false
+      archiveType: 'zip'
+      archiveFile: '$(Build.ArtifactStagingDirectory)/$(artifactName)'
+      replaceExistingArchive: true
+    displayName: 'Archive Build Output'
+
+  - task: PowerShell@2
+    inputs:
+      targetType: 'inline'
+      script: |
+        $storageAccount = "bxlscripts"
+        $containerName = '$web'
+        $blobName = "$(artifactName)"
+        $filePath = "$(Build.ArtifactStagingDirectory)/$(artifactName)"
+        $clientId = "b583f84b-187a-44e6-a85a-30e9089292d8" # BuildXL-DevOpsAgents-ConfigUploader-Identity
+        # Authenticate using the user-assigned managed identity
+        az login --identity --username $clientId
+        # Upload the file to blob storage
+        az storage blob upload `
+          --overwrite `
+          --account-name $storageAccount `
+          --container-name $containerName `
+          --name $blobName `
+          --file $filePath `
+          --auth-mode login

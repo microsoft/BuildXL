@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2011/08/nuspec.xsd">
+  <metadata>
+    <id>1ES.BuildToolsInstaller.Experimental.win-x64</id>
+    <version>0.0.4</version>
+    <authors>BuildXL</authors>
+    <owners>BuildXL</owners>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <projectUrl>https://dev.azure.com/mseng/Domino/_git/BuildXL.Internal</projectUrl>
+    <description>Tool to install build tools in an Azure Agent</description>
+  </metadata>
+  <files>
+    <file src="bin\Release\*" target="bin" />
+  </files>
+</package>

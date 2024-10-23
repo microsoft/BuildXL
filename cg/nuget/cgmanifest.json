@@ -474,7 +474,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "MessagePack",
-          "Version": "2.2.85"
+          "Version": "2.5.187"
         }
       }
     },
@@ -483,7 +483,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "MessagePack.Annotations",
-          "Version": "2.2.85"
+          "Version": "2.5.187"
         }
       }
     },

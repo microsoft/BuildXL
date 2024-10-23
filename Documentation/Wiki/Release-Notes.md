@@ -2,6 +2,14 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20241018.3 (Release [29215725](https://dev.azure.com/mseng/Domino/_build/results?buildId=29215725&view=results))
+-	Automatically add Lage server process as a breakaway under the Lage resolver
+-	Prevent ADO extension tab markdown to be populated by workers
+-	Add WAM support to cache client interactive authentication
+-	Add support for drop daemon on Linux
+-	Bug fixes
+
+
 # 0.1.0-20241011.6 (Release [29186874](https://dev.azure.com/mseng/Domino/_build/results?buildId=29186874&view=results))
 - Improve memory projection logic
 - Remove ChooseWorkerCpu iteration counter

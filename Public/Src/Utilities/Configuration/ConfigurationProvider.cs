@@ -117,7 +117,6 @@ namespace BuildXL.Utilities.Configuration
             config.Engine.TrackBuildsInUserFolder = false;
             config.Logging.OptimizeConsoleOutputForAzureDevOps = true;
             config.Logging.StoreFingerprints = true;
-            config.Sandbox.TimeoutMultiplier = 3;
             config.FrontEnd.EnableCredScan = true;
             config.Sandbox.RetryOnAzureWatsonExitCode = true;
             config.Server = ServerMode.Disabled;

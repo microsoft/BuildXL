@@ -485,7 +485,7 @@ namespace BuildXL
                 return RunWithLoggingScope(
                     configureLogging: loggingContext =>
                     {
-                        appLoggers.ConfigureLogging(loggingContext);
+                        appLoggers.ConfigureLogging(m_configuration.Distribution.BuildRole, loggingContext);
                         if (m_configuration.Logging.EnableCloudBuildEtwLoggingIntegration)
                         {
                             appLoggers.EnableEtwOutputLogging(loggingContext);
@@ -1573,7 +1573,7 @@ namespace BuildXL
 
             public TrackingEventListener TrackingEventListener { get; private set; }
 
-            public void ConfigureLogging(LoggingContext loggingContext)
+            public void ConfigureLogging(DistributedBuildRoles buildRole, LoggingContext loggingContext)
             {
                 lock (m_lock)
                 {
@@ -1611,7 +1611,9 @@ namespace BuildXL
                         ConfigureKustoLogging(loggingContext);
                     }
 
-                    if (m_configuration.LogEventsToConsole.Count > 0)
+                    // We don't surface logs in the worker consoles to avoid user-level duplicate messages:
+                    // these events are always forwarded to the orchestrator (so they will end up in the orchestrator's console)
+                    if (m_configuration.LogEventsToConsole.Count > 0 && buildRole != DistributedBuildRoles.Worker)
                     {
                         ConfigureConsoleRedirection(loggingContext);
                     }

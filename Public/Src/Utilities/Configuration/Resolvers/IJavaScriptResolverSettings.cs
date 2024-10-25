@@ -124,6 +124,11 @@ namespace BuildXL.Utilities.Configuration
         int? ProcessRetries { get; }
 
         /// <summary>
+        /// A custom set of uncacheable exit codes which prevents BuildXL from caching the pip.
+        /// </summary>
+        IReadOnlyList<int> UncacheableExitCodes { get; }
+
+        /// <summary>
         /// The timeout in milliseconds that the execution sandbox waits for child processes started by the top-level process to exit after the top-level process exits.
         /// </summary>
         int? NestedProcessTerminationTimeoutMs { get; }

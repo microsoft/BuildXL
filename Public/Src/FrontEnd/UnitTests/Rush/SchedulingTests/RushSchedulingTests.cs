@@ -278,6 +278,18 @@ namespace Test.BuildXL.FrontEnd.Rush
         }
 
         [Fact]
+        public void UncacheableExitCodesAreHonored()
+        {
+            var project = CreateRushProject();
+            var uncacheableExitCodes = Start(new RushResolverSettings { UncacheableExitCodes = new[] { 42 } })
+                .Add(project)
+                .ScheduleAll()
+                .RetrieveSuccessfulProcess(project)
+                .UncacheableExitCodes;
+            XAssert.Contains(uncacheableExitCodes, 42);
+        }
+
+        [Fact]
         public void ProcessNestedTerminationTimeoutIsHonored()
         {
             var project = CreateRushProject();

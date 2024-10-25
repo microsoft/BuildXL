@@ -539,6 +539,12 @@ namespace BuildXL.FrontEnd.JavaScript
                 processBuilder.SetProcessRetries(m_resolverSettings.ProcessRetries.Value);
             }
 
+            // If defined, uncacheable exit codes at resolver level applies to every pip
+            if (m_resolverSettings.UncacheableExitCodes != null)
+            {
+                processBuilder.UncacheableExitCodes = m_resolverSettings.UncacheableExitCodes.ToReadOnlyArray();
+            }
+
             // If defined, nested process termination timeout at the resolver level applies to every pip
             if (m_resolverSettings.NestedProcessTerminationTimeoutMs.HasValue)
             {

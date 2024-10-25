@@ -252,6 +252,13 @@ namespace BuildXL.Pips.Operations
         public ReadOnlyArray<int> SucceedFastExitCodes { get; }
 
         /// <summary>
+        /// Optional list of uncacheable exit codes which prevent BuildXL from caching the pip.
+        /// </summary>
+        [SuppressMessage("Microsoft.Performance", "CA1819:PropertiesShouldNotReturnArrays")]
+        [PipCaching(FingerprintingRole = FingerprintingRole.Semantic)]
+        public ReadOnlyArray<int> UncacheableExitCodes { get; }
+
+        /// <summary>
         /// Optional regular expression to detect warnings in console error / output.
         /// </summary>
         [PipCaching(FingerprintingRole = FingerprintingRole.Semantic)]
@@ -458,6 +465,7 @@ namespace BuildXL.Pips.Operations
             ServiceInfo serviceInfo = null,
             ReadOnlyArray<int>? retryExitCodes = null,
             ReadOnlyArray<int>? succeedFastExitCodes = null,
+            ReadOnlyArray<int>? uncacheableExitCodes = null,
             ReadOnlyArray<PathAtom>? allowedSurvivingChildProcessNames = null,
             TimeSpan? nestedProcessTerminationTimeout = null,
             AbsentPathProbeInUndeclaredOpaquesMode absentPathProbeMode = AbsentPathProbeInUndeclaredOpaquesMode.Unsafe,
@@ -561,6 +569,7 @@ namespace BuildXL.Pips.Operations
             SuccessExitCodes = successExitCodes;
             RetryExitCodes = retryExitCodes ?? ReadOnlyArray<int>.Empty;
             SucceedFastExitCodes = succeedFastExitCodes ?? ReadOnlyArray<int>.Empty;
+            UncacheableExitCodes = uncacheableExitCodes ?? ReadOnlyArray<int>.Empty;
             WarningRegex = warningRegex;
             ErrorRegex = errorRegex;
             EnableMultiLineErrorScanning = enableMultiLineErrorScanning;
@@ -642,6 +651,7 @@ namespace BuildXL.Pips.Operations
             ServiceInfo serviceInfo = null,
             ReadOnlyArray<int>? retryExitCodes = null,
             ReadOnlyArray<int>? succeedFastExitCodes = null,
+            ReadOnlyArray<int>? uncacheableExitCodes = null,
             ReadOnlyArray<PathAtom>? allowedSurvivingChildProcessNames = null,
             TimeSpan? nestedProcessTerminationTimeout = null,
             AbsentPathProbeInUndeclaredOpaquesMode absentPathProbeMode = AbsentPathProbeInUndeclaredOpaquesMode.Unsafe,
@@ -689,6 +699,7 @@ namespace BuildXL.Pips.Operations
                 serviceInfo ?? ServiceInfo,
                 retryExitCodes ?? RetryExitCodes,
                 succeedFastExitCodes ?? succeedFastExitCodes,
+                uncacheableExitCodes ?? UncacheableExitCodes,
                 allowedSurvivingChildProcessNames,
                 nestedProcessTerminationTimeout,
                 absentPathProbeMode,
@@ -1022,7 +1033,8 @@ namespace BuildXL.Pips.Operations
                 traceFile: reader.ReadFileArtifact(),
                 allowedUndeclaredSourceReadScopes: reader.ReadReadOnlyArray(reader1 => reader1.ReadAbsolutePath()),
                 allowedUndeclaredSourceReadPaths: reader.ReadReadOnlyArray(reader1 => reader1.ReadAbsolutePath()),
-                allowedUndeclaredSourceReadRegexes: reader.ReadReadOnlyArray(reader1 => reader1.ReadRegexDescriptor()));
+                allowedUndeclaredSourceReadRegexes: reader.ReadReadOnlyArray(reader1 => reader1.ReadRegexDescriptor()),
+                uncacheableExitCodes: reader.ReadReadOnlyArray(r => r.ReadInt32()));
         }
 
         /// <inheritdoc />
@@ -1084,6 +1096,7 @@ namespace BuildXL.Pips.Operations
             writer.Write(AllowedUndeclaredSourceReadScopes, (w, v) => w.Write(v));
             writer.Write(AllowedUndeclaredSourceReadPaths, (w, v) => w.Write(v));
             writer.Write(AllowedUndeclaredSourceReadRegexes, (w, v) => w.Write(v));
+            writer.Write(UncacheableExitCodes, (w, v) => w.Write(v));
         }
         #endregion
     }

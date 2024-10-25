@@ -588,6 +588,8 @@ namespace BuildXL.Execution.Analyzer
                     m_html.CreateRow("RetryExitCodes", string.Join(",", pip.RetryExitCodes)),
                     GetReclassificationRulesDetails(pip.ReclassificationRules),
                     (pip.ProcessRetries != null ? m_html.CreateRow("ProcessRetries", pip.ProcessRetries.Value) : null)),
+                    m_html.CreateRow("UncacheableExitCodes", string.Join(",", pip.UncacheableExitCodes)),
+
 
                 m_html.CreateBlock(
                     "Process inputs/outputs",

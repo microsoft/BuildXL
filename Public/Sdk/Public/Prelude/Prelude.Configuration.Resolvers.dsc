@@ -566,6 +566,12 @@ interface JavaScriptResolver extends ResolverBase, UntrackingSettings {
     processRetries?: number;
 
     /**
+     * A custom set of exit codes that will prevent pips from being cached by BuildXL.
+     * Applies to all the processes scheduled by this resolver.
+     * */
+    uncacheableExitCodes?: number[];
+
+    /**
      * When enabled, pips are only allowed to read sources under package roots to which there is an explicitly dependency declared (or is in its transitive closure)
      * Defaults to false.
      * When a pip reads a source file outside of the allowed scopes, a read DFA will be issued.

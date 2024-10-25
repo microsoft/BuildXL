@@ -1725,6 +1725,11 @@ namespace BuildXL.Scheduler
                     {
                         Logger.Log.ScheduleProcessNotStoredToCacheDueToInherentUncacheability(operationContext, processDescription);
                     }
+                    else if ((pip.UncacheableExitCodes.Length > 0) && (pip.UncacheableExitCodes.Contains(executionResult.ExitCode)))
+                    {
+                        // If a successful pip has been marked with an uncacheable exit code, we do not cache it.
+                        skipCaching = true;
+                    }
                     else
                     {
                         Contract.Assume(
@@ -1742,7 +1747,7 @@ namespace BuildXL.Scheduler
                         counters.IncrementCounter(PipExecutorCounter.ProcessPipsExecutedButUncacheable);
                     }
 
-                    // Even though we call StoreContentForProcessAndCreateCacheEntgryAsync here, the observed inputs are actually not stored when skipCaching = true
+                    // Even though we call StoreContentForProcessAndCreateCacheEntryAsync here, the observed inputs are actually not stored when skipCaching = true
                     using (operationContext.StartOperation(PipExecutorCounter.ProcessOutputsStoreContentForProcessAndCreateCacheEntryDuration))
                     {
                         start = DateTime.UtcNow;

@@ -1045,6 +1045,7 @@ namespace Test.BuildXL.Scheduler
                 tags: ReadOnlyArray<StringId>.From(source.Vary(p => p.Tags)),
                 successExitCodes: ReadOnlyArray<int>.From(source.Vary(p => p.SuccessExitCodes)),
                 succeedFastExitCodes: ReadOnlyArray<int>.From(source.Vary(p => p.SucceedFastExitCodes)),
+                uncacheableExitCodes: ReadOnlyArray<int>.From(source.Vary(p => p.UncacheableExitCodes)),
                 semaphores: ReadOnlyArray<ProcessSemaphoreInfo>.Empty,
                 warningRegex: source.Vary(p => p.WarningRegex),
                 errorRegex: source.Vary(p => p.ErrorRegex),

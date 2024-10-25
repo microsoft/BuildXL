@@ -2382,6 +2382,7 @@ EXIT /b 3
                                       tags: ReadOnlyArray<StringId>.Empty,
                                       successExitCodes: ReadOnlyArray<int>.Empty,
                                       retryExitCodes: ReadOnlyArray<int>.FromWithoutCopy(3),
+                                      uncacheableExitCodes: ReadOnlyArray<int>.Empty,
                                       semaphores: ReadOnlyArray<ProcessSemaphoreInfo>.Empty,
                                       options: Process.Options.ProducesPathIndependentOutputs,
                                       provenance: PipProvenance.CreateDummy(env.Context),

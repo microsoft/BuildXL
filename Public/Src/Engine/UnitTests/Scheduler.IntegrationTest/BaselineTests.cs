@@ -2688,6 +2688,34 @@ namespace IntegrationTest.BuildXL.Scheduler
             }
         }
 
+        /// <summary>
+        /// If a pip exits with an uncacheable exit code then BuildXL does not cache the pip.
+        /// </summary>
+        [Fact]
+        public void TestUncacheableExitCodes()
+        {
+            var outFile = CreateOutputFileArtifact();
+            var ops = new Operation[]
+            {
+                 Operation.WriteFile(outFile),
+                 Operation.SucceedWithExitCode(42)
+            };
+
+            var builder = CreatePipBuilder(ops);
+            builder.SuccessExitCodes = ReadOnlyArray<int>.FromWithoutCopy(new[] { 42 });
+            var pip = SchedulePipBuilder(builder);
+            RunScheduler().AssertCacheMiss(pip.Process.PipId);
+            RunScheduler().AssertCacheHit(pip.Process.PipId);
+
+            ResetPipGraphBuilder();
+
+            // If the pip exits with an uncacheable exit code then we expect the pip to have a cache miss.
+            builder.UncacheableExitCodes = ReadOnlyArray<int>.FromWithoutCopy(new[] { 42 });     
+            pip = SchedulePipBuilder(builder);
+            RunScheduler().AssertCacheMiss(pip.Process.PipId);
+            RunScheduler().AssertCacheMiss(pip.Process.PipId);
+        }
+
         private Operation ProbeOp(string root, string relativePath = "")
         {
             return Operation.Probe(CreateFileArtifactWithName(root: root, name: relativePath), doNotInfer: true);

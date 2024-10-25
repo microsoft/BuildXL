@@ -96,6 +96,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         private SymbolAtom m_executeSuccessExitCodes;
         private SymbolAtom m_executeRetryExitCodes;
         private SymbolAtom m_retryAttemptEnvironmentVariable;
+        private SymbolAtom m_executeUncacheableExitCodes;
         private SymbolAtom m_executeTempDirectory;
         private SymbolAtom m_executeUnsafe;
         private SymbolAtom m_executeIsLight;
@@ -246,6 +247,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             m_executeSuccessExitCodes = Symbol("successExitCodes");
             m_executeRetryExitCodes = Symbol("retryExitCodes");
             m_retryAttemptEnvironmentVariable = Symbol("retryAttemptEnvironmentVariable");
+            m_executeUncacheableExitCodes = Symbol("uncacheableExitCodes");
             m_executeTempDirectory = Symbol("tempDirectory");
             m_executeUnsafe = Symbol("unsafe");
             m_executeIsLight = Symbol("isLight");
@@ -527,7 +529,12 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             // Exit Codes
             // If a process exits with one of these codes, skip downstream pips but treat it as a success.
             processBuilder.SucceedFastExitCodes = ProcessOptionalIntArray(obj, m_succeedFastExitCodes);
-            processBuilder.SuccessExitCodes = ReadOnlyArray<int>.FromWithoutCopy(ProcessOptionalIntArray(obj, m_executeSuccessExitCodes).Concat(processBuilder.SucceedFastExitCodes.ToArray()).ToArray());
+            // If a process exits with one of these codes, BuildXL does not cache the pip.
+            processBuilder.UncacheableExitCodes = ProcessOptionalIntArray(obj, m_executeUncacheableExitCodes);
+            processBuilder.SuccessExitCodes = ReadOnlyArray<int>.FromWithoutCopy(ProcessOptionalIntArray(obj, m_executeSuccessExitCodes)
+                                                                .Concat(processBuilder.SucceedFastExitCodes.ToArray())
+                                                                .Concat(processBuilder.UncacheableExitCodes.ToArray())
+                                                                .ToArray());
             processBuilder.RetryExitCodes = ProcessOptionalIntArray(obj, m_executeRetryExitCodes);
 
             // Retry attempt environment variable.

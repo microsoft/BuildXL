@@ -306,6 +306,7 @@ namespace BuildXL.Scheduler.Tracing
                 ProcessOptions = pip.ProcessOptions.ToString(),
                 RetryExitCodes = pip.RetryExitCodes.IsValid ? GetJsonFriendlyList(pip.RetryExitCodes) : null,
                 ProcessRetries = pip.ProcessRetries,
+                UncacheableExitCodes = pip.UncacheableExitCodes.IsValid ? GetJsonFriendlyList(pip.UncacheableExitCodes) : null,
                 ReclassificationRules = GetJsonFriendlyList(pip.ReclassificationRules.Select((r, i) => CreateReclassificationRules(i,r))) 
             };
         }

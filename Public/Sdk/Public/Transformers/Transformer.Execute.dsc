@@ -127,6 +127,9 @@ namespace Transformer {
          */
         processRetries?: number;
 
+        /** A custom set of exit codes that will prevent pips from being cached by BuildXL */
+        uncacheableExitCodes?: number[];
+
         /**
          * The name of the environment variable BuildXL will use to communicate the number of times the pip has been retried so far.
          * When defined, the first time the pip is executed the value of this environment variable will be 0. If a retry happens by virtue of 'retryExitCodes',

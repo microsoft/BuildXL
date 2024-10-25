@@ -163,6 +163,8 @@ namespace BuildXL.Scheduler.Tracing
         public List<int> RetryExitCodes { get; set; }
         [JsonPropertyName("Process Retries")]
         public int? ProcessRetries { get; set; }
+        [JsonPropertyName("Uncacheable Exit Codes")]
+        public List<int> UncacheableExitCodes { get; set; }
         [JsonPropertyName("Reclassification rules")]
         public List<ReclassificationRuleJson> ReclassificationRules { get; set; }
     }

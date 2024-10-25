@@ -45,6 +45,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             SuccessExitCodes = resolverSettings.SuccessExitCodes;
             RetryExitCodes = resolverSettings.RetryExitCodes;
             ProcessRetries = resolverSettings.ProcessRetries;
+            UncacheableExitCodes = resolverSettings.UncacheableExitCodes;
             AdditionalDependencies = resolverSettings.AdditionalDependencies?.Select(additionalDependency => new JavaScriptDependency(additionalDependency, pathRemapper))?.ToList();
             NestedProcessTerminationTimeoutMs = resolverSettings.NestedProcessTerminationTimeoutMs;
             EnforceSourceReadsUnderPackageRoots = resolverSettings.EnforceSourceReadsUnderPackageRoots;
@@ -113,5 +114,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc/>
         public IReadOnlyList<DiscriminatingUnion<DirectoryArtifact, string>> AdditionalSourceReadsScopes { get; set; }
+
+        /// <inheritdoc/>
+        public IReadOnlyList<int> UncacheableExitCodes { get; set; }
     }
 }

@@ -369,6 +369,11 @@ namespace BuildXL.Pips.Graph
             fingerprinter.AddOrderIndependentCollection<int, ReadOnlyArray<int>>(nameof(Process.SuccessExitCodes), process.SuccessExitCodes, (h, i) => h.Add(i), Comparer<int>.Default);
             fingerprinter.AddOrderIndependentCollection<int, ReadOnlyArray<int>>(nameof(Process.SucceedFastExitCodes), process.SucceedFastExitCodes, (h, i) => h.Add(i), Comparer<int>.Default);
 
+            if (process.UncacheableExitCodes.Length > 0)
+            {
+                fingerprinter.AddOrderIndependentCollection<int, ReadOnlyArray<int>>(nameof(Process.UncacheableExitCodes), process.UncacheableExitCodes, (h, i) => h.Add(i), Comparer<int>.Default);
+            }
+
             if (process.ChangeAffectedInputListWrittenFile.IsValid)
             {
                 fingerprinter.AddOrderIndependentCollection<AbsolutePath, ReadOnlyArray<AbsolutePath>>(

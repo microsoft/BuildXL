@@ -50,6 +50,13 @@ public static class AzureBlobStorageCacheFactory
         /// </summary>
         public static readonly string DefaultNamespace = "default";
 
+        private bool IsServerlessGC => RetentionPolicyInDays != null;
+
+        /// <summary>
+        /// Determines behavior for checking content existence for determining whether to replace entry in AddOrGetContentHashList
+        /// </summary>
+        public ContentHashListReplacementCheckBehavior ContentHashListReplacementCheckBehavior { get; set; } = ContentHashListReplacementCheckBehavior.AllowPinElision;
+
         /// <summary>
         /// In the case the cache configuration comes from 1ESHP, the 1ES build cache resource configuration that acts as the backing blob
         /// </summary>
@@ -150,8 +157,8 @@ public static class AzureBlobStorageCacheFactory
             : TimeSpan.FromDays(configuration.RetentionPolicyInDays.Value);
 
         var announcer = new RemoteNotificationDispatch();
+        AzureBlobStorageContentStore contentStore = CreateContentStore(configuration, topology, announcer);
         IMemoizationStore memoizationStore = CreateMemoizationStore(configuration, topology, retentionPolicyTimeSpan);
-        IContentStore contentStore = CreateContentStore(configuration, topology, announcer);
 
         var cache = CreateCache(configuration, contentStore, memoizationStore);
 
@@ -165,7 +172,7 @@ public static class AzureBlobStorageCacheFactory
                         memoizationStoreFunc: () => memoizationStore,
                         configuration: new OneLevelCacheBaseConfiguration(
                             Id: Guid.NewGuid(),
-                            AutomaticallyOverwriteContentHashLists: false,
+                            AutomaticallyOverwriteContentHashLists: true,
                             MetadataPinElisionDuration: configuration.MetadataPinElisionDuration
                         ));
     }
@@ -222,6 +229,12 @@ public static class AzureBlobStorageCacheFactory
                 DisablePreventivePinning = retentionPolicyTimeSpan is null
             });
 
-        return new DatabaseMemoizationStore(blobMemoizationDatabase) { OptimizeWrites = true };
+        bool usesServerGc = retentionPolicyTimeSpan is null;
+
+        return new DatabaseMemoizationStore(blobMemoizationDatabase)
+        {
+            OptimizeWrites = true,
+            ContentHashListReplacementCheckBehavior = configuration.ContentHashListReplacementCheckBehavior
+        };
     }
 }

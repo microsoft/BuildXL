@@ -7,6 +7,8 @@ using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.Interfaces;
+using BuildXL.Cache.MemoizationStore.Distributed.Stores;
+using BuildXL.Cache.MemoizationStore.Stores;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Core;
 
@@ -40,6 +42,12 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         /// </summary>
         [DefaultValue(0)]
         public uint LogFlushIntervalSeconds { get; set; }
+
+        /// <summary>
+        /// <see cref="MemoizationStore.Stores.ContentHashListReplacementCheckBehavior"/>
+        /// </summary>
+        [DefaultValue(ContentHashListReplacementCheckBehavior.AllowPinElision)]
+        public ContentHashListReplacementCheckBehavior ContentHashListReplacementCheckBehavior { get; set; } = ContentHashListReplacementCheckBehavior.AllowPinElision;
 
         /// <summary>
         /// Authenticate by using a single or an array of connection strings inside of an environment variable.

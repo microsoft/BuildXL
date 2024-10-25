@@ -30,7 +30,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         private readonly MetadataStoreMemoizationDatabaseConfiguration _configuration;
 
         /// <inheritdoc />
-        protected override Tracer Tracer { get; } = new Tracer(nameof(MetadataStoreMemoizationDatabase));
+        protected override Tracer Tracer { get; }
 
         /// <summary>
         /// Reflects the name of the underlying <see cref="IMetadataStore"/>
@@ -49,6 +49,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         {
             Contract.Requires(configuration?.RetentionPolicy == null || configuration.RetentionPolicy >= TimeSpan.FromDays(1));
 
+            Tracer = new Tracer($"{store.Name}Db");
             _store = store;
             _centralStorage = centralStorage;
             _configuration = configuration ?? new MetadataStoreMemoizationDatabaseConfiguration();

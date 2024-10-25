@@ -27,6 +27,9 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         }
 
         /// <inheritdoc />
+        public override string? StackTrace => Result.Exception?.StackTrace ?? base.StackTrace;
+
+        /// <inheritdoc />
         public override string ToString() => Result.ToString();
 
         /// <nodoc />

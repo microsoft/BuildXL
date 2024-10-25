@@ -854,7 +854,9 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
             var context = new Context(Logger);
             return RunReadOnlySessionTestAsync(context, async session =>
             {
-                var path = new AbsolutePath(PathGeneratorUtilities.GetAbsolutePath("Z", "nonexist", "file.dat"));
+                using var placeDirectory = new DisposableDirectory(FileSystem);
+                var path = placeDirectory.Path / "file.dat";
+
                 var result = await session.PlaceFileAsync(
                     context,
                     ContentHash.Random(PreferredHashType),
@@ -1054,6 +1056,11 @@ namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
         [Fact]
         public Task EnumerateStrongFingerprintsEmpty()
         {
+            if (!ImplementsEnumerateStrongFingerprints)
+            {
+                return Task.CompletedTask;
+            }
+
             var context = new Context(Logger);
             return RunTestAsync(context, async cache =>
             {

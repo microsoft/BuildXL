@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
@@ -53,7 +54,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         ValueTask<BoolResult> DeleteLocationAsync(OperationContext context, MachineId machineId, IReadOnlyList<ShortHash> contentHashes);
     }
 
-    public interface IMetadataStore : IStartupShutdownSlim
+    public interface IMetadataStore : IStartupShutdownSlim, IName
     {
         /// <nodoc />
         Task<Result<bool>> CompareExchangeAsync(

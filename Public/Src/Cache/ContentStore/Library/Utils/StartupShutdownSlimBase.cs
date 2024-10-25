@@ -7,6 +7,7 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing;
@@ -17,7 +18,7 @@ namespace BuildXL.Cache.ContentStore.Utils
     /// <summary>
     /// Base implementation of <see cref="IStartupShutdownSlim"/> interface.
     /// </summary>
-    public abstract class StartupShutdownSlimBase : IStartupShutdownSlim
+    public abstract class StartupShutdownSlimBase : IStartupShutdownSlim, IName
     {
         // Tracking instance id to simplify debugging of double shutdown issues.
         private static int CurrentInstanceId;
@@ -30,6 +31,8 @@ namespace BuildXL.Cache.ContentStore.Utils
 
         /// <nodoc />
         protected abstract Tracer Tracer { get; }
+
+        string IName.Name => Tracer.Name;
 
         /// <summary>
         /// Indicates whether the component supports multiple startup and shutdown calls. If true,

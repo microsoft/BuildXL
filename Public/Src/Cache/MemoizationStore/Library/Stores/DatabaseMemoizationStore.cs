@@ -54,6 +54,11 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         public bool OptimizeWrites { get; set; } = false;
 
         /// <summary>
+        /// <see cref="Stores.ContentHashListReplacementCheckBehavior"/>
+        /// </summary>
+        public ContentHashListReplacementCheckBehavior ContentHashListReplacementCheckBehavior { get; set; } = ContentHashListReplacementCheckBehavior.PinAlways;
+
+        /// <summary>
         /// Indicates calls to <see cref="AddOrGetContentHashListAsync"/> should register associated content for content hash lists
         /// </summary>
         public bool RegisterAssociatedContent { get; set; } = false;
@@ -186,24 +191,24 @@ namespace BuildXL.Cache.MemoizationStore.Stores
                         .ThrowIfFailureAsync();
                 }
 
-                // We do multiple attempts here because we have a "CompareExchange" RocksDB in the heart
-                // of this implementation, and this may fail if the database is heavily contended.
-                // Unfortunately, there is not much we can do at the time of writing to avoid this
-                // requirement.
+                // We do multiple attempts here because we have a "CompareExchange"
+                // of this implementation, and this may fail if the strong fingerprint has concurrent
+                // writers.
                 const int MaxAttempts = 5;
                 for (int attempt = 0; attempt < MaxAttempts; attempt++)
                 {
-                    var contentHashList = contentHashListWithDeterminism.ContentHashList;
+                    var contentHashList = contentHashListWithDeterminism.ContentHashList!;
                     var determinism = contentHashListWithDeterminism.Determinism;
 
                     // Load old value. Notice that this get updates the time, regardless of whether we replace the value or not.
-                    var (oldContentHashListInfo, replacementToken, _) = (!OptimizeWrites || attempt > 0)
+                    var contentHashListResult = (!OptimizeWrites || attempt > 0)
                         ? await Database.GetContentHashListAsync(
                             ctx,
                             strongFingerprint,
                             // Prefer shared result because conflicts are resolved at shared level
                             preferShared: true).ThrowIfFailureAsync()
                         : new ContentHashListResult(default(ContentHashListWithDeterminism), string.Empty);
+                    var (oldContentHashListInfo, replacementToken, _) = contentHashListResult;
 
                     var oldContentHashList = oldContentHashListInfo.ContentHashList;
                     var oldDeterminism = oldContentHashListInfo.Determinism;
@@ -214,9 +219,44 @@ namespace BuildXL.Cache.MemoizationStore.Stores
                         return AddOrGetContentHashListResult.SinglePhaseMixingError;
                     }
 
-                    if (oldContentHashList is null ||
-                        oldDeterminism.ShouldBeReplacedWith(determinism) ||
-                        !(await contentSession.EnsureContentIsAvailableAsync(ctx, Tracer.Name, oldContentHashList, automaticallyOverwriteContentHashLists, ctx.Token).ConfigureAwait(false)))
+                    async ValueTask<bool> canReplaceAsync()
+                    {
+                        if (oldContentHashList is null || oldDeterminism.ShouldBeReplacedWith(determinism))
+                        {
+                            // No old value or new value has higher determinism precedence so replace
+                            return true;
+                        }
+
+                        if (ContentHashListReplacementCheckBehavior == ContentHashListReplacementCheckBehavior.ReplaceAlways)
+                        {
+                            return true;
+                        }
+                        else if (ContentHashListReplacementCheckBehavior == ContentHashListReplacementCheckBehavior.ReplaceNever)
+                        {
+                            return false;
+                        }
+                        else if (ContentHashListReplacementCheckBehavior == ContentHashListReplacementCheckBehavior.AllowPinElision)
+                        {
+                            if (!Database.AssociatedContentNeedsPinning(ctx, strongFingerprint, contentHashListResult))
+                            {
+                                // Database guarantees that content is available without the need to pin, so do not replace
+                                return false;
+                            }
+                        }
+                        else
+                        {
+                            Contract.Assert(ContentHashListReplacementCheckBehavior == ContentHashListReplacementCheckBehavior.PinAlways);
+                        }
+
+                        return !await contentSession.EnsureContentIsAvailableAsync(
+                            ctx,
+                            Tracer.Name,
+                            oldContentHashList,
+                            automaticallyOverwriteContentHashLists,
+                            ctx.Token).ConfigureAwait(false);
+                    }
+
+                    if (await canReplaceAsync())
                     {
                         // Replace if incoming has better determinism or some content for the existing
                         // entry is missing. The entry could have changed since we fetched the old value
@@ -239,7 +279,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
 
                     // If we didn't accept the new value because it is the same as before, just with a not
                     // necessarily better determinism, then let the user know.
-                    if (oldContentHashList.Equals(contentHashList))
+                    if (contentHashList.Equals(oldContentHashList))
                     {
                         return new AddOrGetContentHashListResult(new ContentHashListWithDeterminism(null, oldDeterminism), contentHashCount: oldContentHashList?.Hashes?.Count);
                     }
@@ -258,7 +298,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
 
                 return new AddOrGetContentHashListResult("Hit too many races attempting to add content hash list into the cache");
             },
-            extraEndMessage: _ => $"StrongFingerprint=[{strongFingerprint}], Determinism=[{contentHashListWithDeterminism.Determinism}]",
+            extraEndMessage: _ => $"StrongFingerprint=[{strongFingerprint}], ContentHashList=[{contentHashListWithDeterminism.ContentHashList}], Determinism=[{contentHashListWithDeterminism.Determinism}]",
             traceOperationStarted: false);
         }
 

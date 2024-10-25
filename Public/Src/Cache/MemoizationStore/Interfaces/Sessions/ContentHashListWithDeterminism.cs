@@ -86,6 +86,6 @@ public readonly record struct ContentHashListWithDeterminism(ContentHashList? Co
         }
 
         var hashes = ContentHashList.Hashes;
-        return $"Count={hashes.Count}" + (hashes.Count != 0 ? $" FirstHash={hashes[0]}" : string.Empty);
+        return $"Determinism=[{Determinism}] Count={hashes.Count}" + (hashes.Count != 0 ? $" FirstHash={hashes[0]}" : string.Empty);
     }
 }

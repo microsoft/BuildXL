@@ -75,7 +75,8 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                     RetentionPolicyInDays: selectedBuildCacheConfiguration.RetentionDays,
                     IsReadOnly: configuration.IsReadOnly)
                 {
-                    BuildCacheConfiguration = selectedBuildCacheConfiguration
+                    BuildCacheConfiguration = selectedBuildCacheConfiguration,
+                    ContentHashListReplacementCheckBehavior = configuration.ContentHashListReplacementCheckBehavior
                 };
 
                 return AzureBlobStorageCacheFactory.Create(context, factoryConfiguration, new AzureBuildCacheSecretsProvider(selectedBuildCacheConfiguration));

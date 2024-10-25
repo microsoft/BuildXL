@@ -545,6 +545,8 @@ namespace BuildXL.Native.IO.Unix
                     var statBuffer = new StatBuffer();
                     if (StatFileDescriptor(sourceHandle, ref statBuffer) != 0)
                     {
+                        destinationHandle.Close();
+                        DeleteFile(destination, false);
                         return new NativeFailure(Marshal.GetLastWin32Error(), I($"Failed to stat source file '{source}' for size query in {nameof(InKernelFileCopy)}"));
                     }
 
@@ -557,6 +559,8 @@ namespace BuildXL.Native.IO.Unix
                         bytesCopied = CopyBytes(sourceHandle, destinationHandle);
                         if (bytesCopied == -1)
                         {
+                            destinationHandle.Close();
+                            DeleteFile(destination, false);
                             return new NativeFailure(Marshal.GetLastWin32Error(), I($"{nameof(InKernelFileCopy)} failed  copying '{source}' to '{destination}' with error code: {lastError}"));
                         }
 

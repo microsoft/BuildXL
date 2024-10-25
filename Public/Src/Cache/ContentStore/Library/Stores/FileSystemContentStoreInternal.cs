@@ -821,45 +821,45 @@ namespace BuildXL.Cache.ContentStore.Stores
                         content.Size,
                         pinRequest?.PinContext,
                         onContentAlreadyInCache: async (hashHandle, primaryPath, info) =>
-                                                 {
-                                                     // The content exists in the cache. Try to replace the file that is being put in
-                                                     // with a link to the file that is already in the cache. Release the handle to
-                                                     // allow for the hardlink to succeed.
-                                                     using var trace = _tracer.PutFileExistingHardLink();
-                                                     // ReSharper disable once AccessToDisposedClosure
-                                                     var result = await PlaceLinkFromCacheAsync(
-                                                         context,
-                                                         path,
-                                                         FileReplacementMode.ReplaceExisting,
-                                                         realizationMode,
-                                                         content.Hash,
-                                                         info);
-                                                     return result == CreateHardLinkResult.Success;
-                                                 },
+                        {
+                            // The content exists in the cache. Try to replace the file that is being put in
+                            // with a link to the file that is already in the cache. Release the handle to
+                            // allow for the hardlink to succeed.
+                            using var trace = _tracer.PutFileExistingHardLink();
+                            // ReSharper disable once AccessToDisposedClosure
+                            var result = await PlaceLinkFromCacheAsync(
+                                context,
+                                path,
+                                FileReplacementMode.ReplaceExisting,
+                                realizationMode,
+                                content.Hash,
+                                info);
+                            return result == CreateHardLinkResult.Success;
+                        },
                         onContentNotInCache: primaryPath =>
-                                             {
-                                                 using var trace = _tracer.PutFileNewHardLink();
-                                                 ApplyPermissions(context, path, FileAccessMode.ReadOnly);
+                        {
+                            using var trace = _tracer.PutFileNewHardLink();
+                            ApplyPermissions(context, path, FileAccessMode.ReadOnly);
 
-                                                 var hardLinkResult = CreateHardLinkResult.Unknown;
-                                                 Func<bool> tryCreateHardlinkFunc = () => TryCreateHardlink(
-                                                                                        context,
-                                                                                        path,
-                                                                                        primaryPath,
-                                                                                        realizationMode,
-                                                                                        false,
-                                                                                        out hardLinkResult);
+                            var hardLinkResult = CreateHardLinkResult.Unknown;
+                            Func<bool> tryCreateHardlinkFunc = () => TryCreateHardlink(
+                                                                   context,
+                                                                   path,
+                                                                   primaryPath,
+                                                                   realizationMode,
+                                                                   false,
+                                                                   out hardLinkResult);
 
-                                                 bool result = tryCreateHardlinkFunc();
-                                                 if (hardLinkResult == CreateHardLinkResult.FailedDestinationExists)
-                                                 {
-                                                     // Extraneous blobs on disk. Delete them and retry.
-                                                     RemoveAllReplicasFromDiskFor(context, content.Hash);
-                                                     result = tryCreateHardlinkFunc();
-                                                 }
+                            bool result = tryCreateHardlinkFunc();
+                            if (hardLinkResult == CreateHardLinkResult.FailedDestinationExists)
+                            {
+                                // Extraneous blobs on disk. Delete them and retry.
+                                RemoveAllReplicasFromDiskFor(context, content.Hash);
+                                result = tryCreateHardlinkFunc();
+                            }
 
-                                                 return Task.FromResult(result);
-                                             });
+                            return Task.FromResult(result);
+                        });
 
                     if (putInternalSucceeded)
                     {
@@ -876,38 +876,55 @@ namespace BuildXL.Cache.ContentStore.Stores
                     content.Hash,
                     content.Size,
                     pinRequest?.PinContext,
-                    onContentAlreadyInCache: (hashHandle, primaryPath, info) => Task.FromResult(true),
+                    onContentAlreadyInCache: async (hashHandle, primaryPath, info) =>
+                    {
+                        // Failed hardlink creation attempt will delete the file if content is already in cache on Linux.
+                        // Re-create the file use content from cache if the file was deleted.
+                        if (!FileSystem.FileExists(path))
+                        {
+                            try
+                            {
+                                await SafeCopyFileAsync(context, content.Hash, primaryPath, path, FileReplacementMode.FailIfExists);
+                            }
+                            catch (IOException e)
+                            {
+                                _tracer.Warning(context, e, $"Unable to re-create file {path} from existing content. This file was deleted in previous hardlink creation attempt.");
+                                return false;
+                            }
+                        }
+                        return true;
+                    },
                     onContentNotInCache: async primaryPath =>
-                                         {
-                                             using var trace = _tracer.PutFileNewCopy();
-                                             alreadyInCache = false;
+                    {
+                        using var trace = _tracer.PutFileNewCopy();
+                        alreadyInCache = false;
 
-                                             await RetryOnUnexpectedReplicaAsync(
-                                                 context,
-                                                 () =>
-                                                 {
-                                                     if (realizationMode == FileRealizationMode.Move)
-                                                     {
-                                                         return Task.Run(() =>
-                                                         {
-                                                             ApplyPermissions(context, path, FileAccessMode.ReadOnly);
-                                                             FileSystem.MoveFile(path, primaryPath, replaceExisting: false);
-                                                         });
-                                                     }
-                                                     else
-                                                     {
-                                                         return SafeCopyFileAsync(
-                                                             context,
-                                                             content.Hash,
-                                                             path,
-                                                             primaryPath,
-                                                             FileReplacementMode.FailIfExists);
-                                                     }
-                                                 },
-                                                 content.Hash,
-                                                 expectedReplicaCount: 0);
-                                             return true;
-                                         });
+                        await RetryOnUnexpectedReplicaAsync(
+                            context,
+                            () =>
+                            {
+                                if (realizationMode == FileRealizationMode.Move)
+                                {
+                                    return Task.Run(() =>
+                                    {
+                                        ApplyPermissions(context, path, FileAccessMode.ReadOnly);
+                                        FileSystem.MoveFile(path, primaryPath, replaceExisting: false);
+                                    });
+                                }
+                                else
+                                {
+                                    return SafeCopyFileAsync(
+                                        context,
+                                        content.Hash,
+                                        path,
+                                        primaryPath,
+                                        FileReplacementMode.FailIfExists);
+                                }
+                            },
+                            content.Hash,
+                            expectedReplicaCount: 0);
+                        return true;
+                    });
 
                 return new PutResult(content.Hash, content.Size, contentAlreadyExistsInCache: alreadyInCache)
                     .WithLockAcquisitionDuration(contentHashHandle);

@@ -358,6 +358,13 @@ namespace BuildXL.Scheduler
         private int m_numProblematicWorkers;
 
         /// <summary>
+        /// Tracks the number of pip memory retries on the machine to allow warning when it gets out of hand
+        /// </summary>
+        private int m_machineTotalPipRetries;
+
+        private const int MaxMachineTotalPipRetryWarningThreshold = 10;
+
+        /// <summary>
         /// Enables distribution for the orchestrator node
         /// </summary>
         public void EnableDistribution(RemoteWorkerBase[] remoteWorkers)
@@ -4930,6 +4937,11 @@ namespace BuildXL.Scheduler
                                     else
                                     {
                                         Logger.Log.PipRetryDueToLowMemory(operationContext, processRunnable.Description, worker.Name, worker.DefaultWorkingSetMbPerProcess, expectedCounters.PeakWorkingSetMb, actualCounters?.PeakWorkingSetMb ?? 0);
+
+                                        if (Interlocked.Increment(ref m_machineTotalPipRetries) == MaxMachineTotalPipRetryWarningThreshold)
+                                        {
+                                            Logger.Log.ExcessiveMachineTotalPipRetriesDueToLowMemory(operationContext, MaxMachineTotalPipRetryWarningThreshold);
+                                        }
                                     }
                                 }
                                 else if (retryReason.IsPreProcessExecOrRemotingInfraFailure())

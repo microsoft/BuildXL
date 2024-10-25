@@ -3853,6 +3853,15 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void ExcessivePipRetriesDueToLowMemory(LoggingContext loggingContext, string pipDescription, int retryLimit);
 
         [GeneratedEvent(
+            (ushort)LogEventId.ExcessiveMachineTotalPipRetriesDueToLowMemory,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.PipExecutor,
+            Message = "Total pips retried on machine due to low memory is beyond warning threshold of [{threshold}]. This generally indicates a build infrastructure tuning issue. See verbose log for relevant pips.")]
+        internal abstract void ExcessiveMachineTotalPipRetriesDueToLowMemory(LoggingContext loggingContext, int threshold);
+
+        [GeneratedEvent(
             (ushort)LogEventId.TopPipsPerformanceInfo,
             EventGenerators = EventGenerators.LocalAndTelemetry,
             EventLevel = Level.Verbose,
@@ -3873,7 +3882,7 @@ namespace BuildXL.Scheduler.Tracing
         [GeneratedEvent(
             (ushort)LogEventId.PipRetryDueToLowMemory,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Warning,
+            EventLevel = Level.Verbose,
             Keywords = (int)(Keywords.UserMessage),
             EventTask = (ushort)Tasks.PipExecutor,
             Message = "[{pipDescription}] Pip will be retried due to Low Memory. Worker: {workerName}, DefaultWorkingSetUsage: {defaultWorkingSetUsage}, ExpectedWorkingSetUsage: {expectedWorkingSetUsage}, ActualWorkingSetUsage: {actualWorkingSetUsage}")]

@@ -537,6 +537,7 @@ namespace BuildXL.Scheduler.Tracing
         PendingEventsRemaingAfterDisposed = 14604,
         DynamicRamDetected = 14605,
         RamProjectionDisabled = 14606,
+        ExcessiveMachineTotalPipRetriesDueToLowMemory = 14607,
 
         // was DependencyViolationGenericWithRelatedPip_AsError = 25000,
         // was DependencyViolationGeneric_AsError = 25001,

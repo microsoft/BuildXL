@@ -8,7 +8,7 @@ package BuildXL.Distribution.Grpc;
 service Orchestrator {    
     // A worker can advertise its own location dynamically during the build
     // This returns true if the orchestrator accepts this worker
-    rpc Hello(ServiceLocation) returns (HelloResponse) {}
+    rpc Hello(HelloRequest) returns (HelloResponse) {}
 
     // Signals the completion of the Attach call
     rpc AttachCompleted(AttachCompletionInfo) returns (RpcResponse) {}
@@ -50,6 +50,12 @@ service Worker
 
 // Empty response for a rpc method
 message RpcResponse {}
+
+message HelloRequest {
+    // The worker can request a particular id
+    optional int32 RequestedId = 1;
+    ServiceLocation Location = 2;
+}
 
 // True or false response for a rpc method
 message HelloResponse

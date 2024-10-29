@@ -38,13 +38,13 @@ namespace BuildXL.Engine.Distribution.Grpc
             m_counters = counters;
         }
 
-        public async Task<Possible<HelloResponseType>> SayHelloAsync(ServiceLocation myLocation, CancellationToken cancellationToken = default)
+        public async Task<Possible<HelloResponseType>> SayHelloAsync(HelloRequest helloRequest, CancellationToken cancellationToken = default)
         {
             HelloResponseType result = HelloResponseType.Ok;    // Need to initialize to please the compiler
             var callResult = await m_connectionManager.CallAsync(
                async (callOptions) =>
                {
-                   result = (await m_client.HelloAsync(myLocation, options: callOptions)).Message;
+                   result = (await m_client.HelloAsync(helloRequest, options: callOptions)).Message;
                },
                "Hello",
                cancellationToken: cancellationToken,

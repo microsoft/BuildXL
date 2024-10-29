@@ -256,7 +256,7 @@ namespace Test.BuildXL.Distribution
                 return Task.CompletedTask;
             }
 
-            public HelloResponseType Hello(ServiceLocation workerLocation)
+            HelloResponseType IOrchestratorService.Hello(ServiceLocation workerLocation, int requestedId)
             {
                 return HelloResponseType.Ok;
             }

@@ -28,9 +28,9 @@ namespace BuildXL.Engine.Distribution.Grpc
         }
 
         /// <inheritdoc/>
-        public override Task<HelloResponse> Hello(ServiceLocation workerLocation, ServerCallContext context)
+        public override Task<HelloResponse> Hello(HelloRequest helloRequest, ServerCallContext context)
         {
-            var result = m_orchestratorService.Hello(workerLocation);
+            var result = m_orchestratorService.Hello(helloRequest.Location, helloRequest.RequestedId);
             return Task.FromResult(new HelloResponse { Message = result });
         }
 

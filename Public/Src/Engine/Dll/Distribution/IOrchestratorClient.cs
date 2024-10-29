@@ -15,7 +15,7 @@ namespace BuildXL.Engine.Distribution
 {
     internal interface IOrchestratorClient
     {
-        Task<Possible<HelloResponseType>> SayHelloAsync(ServiceLocation serviceLocation, CancellationToken cancellationToken = default);
+        Task<Possible<HelloResponseType>> SayHelloAsync(HelloRequest helloRequest, CancellationToken cancellationToken = default);
         void Initialize(string ipAddress, int port, EventHandler<ConnectionFailureEventArgs> onConnectionFailureAsync);
         Task<RpcCallResult<Unit>> AttachCompletedAsync(AttachCompletionInfo attachCompletionInfo, CancellationToken cancellationToken = default);
         Task<RpcCallResult<Unit>> ReportPipResultsAsync(PipResultsInfo message, string description, CancellationToken cancellationToken = default);

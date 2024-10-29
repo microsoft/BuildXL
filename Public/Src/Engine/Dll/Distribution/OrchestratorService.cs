@@ -31,7 +31,7 @@ namespace BuildXL.Engine.Distribution
     /// <remarks>This interface is marked internal to reduce visibility to the distribution layer only</remarks>
     internal interface IOrchestratorService
     {
-        HelloResponseType Hello(ServiceLocation workerLocation);
+        HelloResponseType Hello(ServiceLocation workerLocation, int requestedId);
         void AttachCompleted(AttachCompletionInfo attachCompletionInfo);
         Task ReceivedPipResults(PipResultsInfo pipResults);
         Task ReceivedExecutionLog(ExecutionLogInfo executionLog);
@@ -389,7 +389,7 @@ namespace BuildXL.Engine.Distribution
         /// <summary>
         /// A worker advertises its location during the build
         /// </summary>
-        public HelloResponseType Hello(ServiceLocation workerLocation)
+        public HelloResponseType Hello(ServiceLocation workerLocation, int requestedId)
         {
             lock (m_remoteWorkers)
             {
@@ -400,22 +400,46 @@ namespace BuildXL.Engine.Distribution
                     return HelloResponseType.Ok;
                 }
 
-                // Choose a "dynamic" slot (with unknown location), if any, and set its service location
-                var availableWorkerSlot = m_remoteWorkers.FirstOrDefault(rw => rw.Location == null);
-                if (availableWorkerSlot is not null)
+                RemoteWorker assignedSlot = null;
+                if (requestedId != 0)
                 {
-                    availableWorkerSlot.Location = workerLocation;
+                    // A specific id was requested
+                    if (requestedId > m_remoteWorkers.Length)
+                    {
+                        // The requested id is more than the available slots. This means /dynamicWorkerCount had a wrong value:
+                        // this is a configuration error.
+                        Logger.Log.DistributionHelloNoSlot(m_loggingContext, workerLocation.IpAddress, workerLocation.Port, details: $" Requested id {requestedId} is greater than the total number of slots ({m_remoteWorkers.Length})");
+                        return HelloResponseType.NoSlots;
+                    }
 
-                    Logger.Log.DistributionHelloReceived(m_loggingContext, workerLocation.IpAddress, workerLocation.Port, availableWorkerSlot.WorkerId);
+                    assignedSlot = m_remoteWorkers[requestedId - 1];
+                    if (assignedSlot.Location != null)
+                    {
+                        Logger.Log.DistributionHelloNoSlot(m_loggingContext, workerLocation.IpAddress, workerLocation.Port, details: $" Requested id {requestedId} is already taken. Requested ids shouldn't be repeated");
+                        return HelloResponseType.NoSlots;
+                    }
+                }
+                else
+                {
+                    // If a specific id is not requested, then just grab the earliest one
+                    // Choose a "dynamic" slot (with unknown location), if any, and set its service location
+                    assignedSlot = m_remoteWorkers.FirstOrDefault(rw => rw.Location == null);
+                }
+
+                if (assignedSlot is not null)
+                {
+                    assignedSlot.Location = workerLocation;
+
+                    Logger.Log.DistributionHelloReceived(m_loggingContext, workerLocation.IpAddress, workerLocation.Port, assignedSlot.WorkerId);
 
                     // Indicate if it is already stopped by the scheduler due to the early worker release or scheduler completion, so the worker does not wait for the attachment.
-                    return availableWorkerSlot.Status.IsStoppingOrStopped() ? HelloResponseType.Released : HelloResponseType.Ok; 
+                    return assignedSlot.Status.IsStoppingOrStopped() ? HelloResponseType.Released : HelloResponseType.Ok; 
                 }
                 else
                 {
                     // If we receive a worker location and don't have a slot, it means that /dynamicWorkerCount had a wrong value:
                     // this is a configuration error.
-                    Logger.Log.DistributionHelloNoSlot(m_loggingContext, workerLocation.IpAddress, workerLocation.Port);
+                    Logger.Log.DistributionHelloNoSlot(m_loggingContext, workerLocation.IpAddress, workerLocation.Port, details: " Check that /dynamicBuildWorkerSlots is an upper bound to the number of workers that might say hello.");
                     return HelloResponseType.NoSlots;
                 }
             }

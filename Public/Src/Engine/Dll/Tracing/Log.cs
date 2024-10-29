@@ -673,9 +673,8 @@ namespace BuildXL.Engine.Tracing
             EventLevel = Level.Warning,
             Keywords = (int)(Keywords.UserMessage),
             EventTask = (ushort)Tasks.Distribution,
-            Message = "Received a Hello from {ip}:{port} but couln't find any RemoteWorker slots to assign the location." +
-            "This means that the /dynamicBuildWorkerSlots argument is not an upper bound to the number of workers that might say hello")]
-        public abstract void DistributionHelloNoSlot(LoggingContext context, string ip, int port);
+            Message = "Received a Hello from {ip}:{port} but coulna a RemoteWorker slot couldn't be assigned.{details}")]
+        public abstract void DistributionHelloNoSlot(LoggingContext context, string ip, int port, string details);
 
         [GeneratedEvent(
             (ushort)LogEventId.DistributionExitReceived,

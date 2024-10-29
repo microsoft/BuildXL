@@ -187,7 +187,7 @@ namespace Test.BuildXL.Distribution
             m_fail = true;
         }
 
-        public Task<Possible<HelloResponseType>> SayHelloAsync(ServiceLocation serviceLocation, CancellationToken cancellationToken = default)
+        public Task<Possible<HelloResponseType>> SayHelloAsync(HelloRequest helloRequest, CancellationToken cancellationToken = default)
         {
             return Task.FromResult(new Possible<HelloResponseType>(HelloResponseType.Ok));
         }

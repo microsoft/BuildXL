@@ -35,7 +35,13 @@ namespace BuildXL.Processes
         /// <summary>
         /// Attempts to create a process memory dump at the requested location. Any file already existing at that location will be overwritten
         /// </summary>
-        public static bool TryDumpProcess(Process process, string dumpPath, out Exception dumpCreationException, bool compress = false, Action<string> debugLogger = null)
+        public static bool TryDumpProcess(Process process, string dumpPath, out Exception dumpCreationException, bool compress = false, Action<string> debugLogger = null) =>
+            TryDumpProcess(process.SafeHandle, process.Id, process.ProcessName, dumpPath, out dumpCreationException, compress, debugLogger);
+
+        /// <summary>
+        /// Attempts to create a process memory dump at the requested location. Any file already existing at that location will be overwritten
+        /// </summary>
+        public static bool TryDumpProcess(SafeHandle processHandle, int processId, string processName, string dumpPath, out Exception dumpCreationException, bool compress = false, Action<string> debugLogger = null)
         {
             if (OperatingSystemHelper.IsMacOS)
             {
@@ -45,14 +51,12 @@ namespace BuildXL.Processes
 
             if (OperatingSystemHelper.IsLinuxOS)
             {
-                return TryDumpLinuxProcess(process.Id, dumpPath, out dumpCreationException, debugLogger);
+                return TryDumpLinuxProcess(processId, dumpPath, out dumpCreationException, debugLogger);
             }
 
-            string processName = "Exited";
             try
             {
-                processName = process.ProcessName;
-                bool dumpResult = TryDumpProcess(process.Handle, process.Id, dumpPath, out dumpCreationException, compress);
+                bool dumpResult = TryDumpProcess(processHandle, processId, dumpPath, out dumpCreationException, compress);
                 if (!dumpResult)
                 {
                     Contract.Assume(dumpCreationException != null, "Exception was null on failure.");
@@ -81,7 +85,7 @@ namespace BuildXL.Processes
         /// Attempts to create a process memory dump at the requested location. Any file already existing at that location will be overwritten
         /// </summary>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2202:DoNotDisposeObjectsMultipleTimes")]
-        public static bool TryDumpProcess(IntPtr processHandle, int processId, string dumpPath, out Exception dumpCreationException, bool compress = false)
+        public static bool TryDumpProcess(SafeHandle processHandle, int processId, string dumpPath, out Exception dumpCreationException, bool compress = false)
         {
             if (OperatingSystemHelper.IsUnixOS)
             {
@@ -107,7 +111,7 @@ namespace BuildXL.Processes
                     lock (s_dumpProcessLock)
                     {
                         bool dumpSuccess = ProcessUtilitiesWin.MiniDumpWriteDump(
-                            hProcess: processHandle,
+                            hProcess: processHandle.DangerousGetHandle(),
                             processId: (uint)processId,
                             hFile: fs.SafeFileHandle,
                             dumpType: (uint)ProcessUtilitiesWin.MINIDUMP_TYPE.MiniDumpWithFullMemory,

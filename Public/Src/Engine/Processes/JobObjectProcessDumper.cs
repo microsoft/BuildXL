@@ -130,7 +130,7 @@ namespace BuildXL.Processes
                         {
                             if (!string.IsNullOrEmpty(survivingPipProcessDumpDirectory))
                             {
-                                DumpProcess(loggingContext, survivingPipProcessDumpDirectory!, reportedProcess, out Exception? childDumpException);
+                                DumpProcess(loggingContext, survivingPipProcessDumpDirectory!, processHandle, reportedProcess, out Exception? childDumpException);
                                 dumpException ??= childDumpException;
                             }
                             else
@@ -145,53 +145,21 @@ namespace BuildXL.Processes
             return survivingChildProcesses;
         }
 
-        private static void DumpProcess(LoggingContext loggingContext, string survivingPipProcessDumpDirectory, ReportedProcess reportedProcess, out Exception? childDumpException)
+        private static void DumpProcess(LoggingContext loggingContext, string survivingPipProcessDumpDirectory, SafeHandle processHandle, ReportedProcess reportedProcess, out Exception? childDumpException)
         {
             childDumpException = null;
 
-            if (TryGetProcessById((int)reportedProcess.ProcessId, out var processToBeDumped, loggingContext, out Exception? getProcessIdException))
+            var executableName =  Path.GetFileNameWithoutExtension(reportedProcess.Path);
+            string dumpPath = Path.Combine(survivingPipProcessDumpDirectory, $"Dump_{reportedProcess.ParentProcessId}_{reportedProcess.ProcessId}_{executableName}.zip");
+            if (!ProcessDumper.TryDumpProcess(processHandle, (int)reportedProcess.ProcessId, executableName, dumpPath, out Exception dumpException, compress: true))
             {
-                string dumpPath = Path.Combine(survivingPipProcessDumpDirectory, $"Dump_{reportedProcess.ParentProcessId}_{reportedProcess.ProcessId}_{processToBeDumped?.ProcessName}.zip");
-                if (!ProcessDumper.TryDumpProcess(processToBeDumped!, dumpPath, out Exception dumpException, compress: true))
-                {
-                    Tracing.Logger.Log.DumpSurvivingPipProcessChildrenStatus(loggingContext, processToBeDumped!.ProcessName, $"Failed with exception: {dumpException?.Message}");
-                    getProcessIdException = dumpException;
-                }
-                else
-                {
-                    Tracing.Logger.Log.DumpSurvivingPipProcessChildrenStatus(loggingContext, processToBeDumped!.ProcessName, $"Succeeded at path: {dumpPath}");
-                }
+                Tracing.Logger.Log.DumpSurvivingPipProcessChildrenStatus(loggingContext, executableName, $"Failed with exception: {dumpException?.Message}");
+                childDumpException = dumpException;
             }
-
-            childDumpException ??= getProcessIdException;
-        }
-
-        private static bool TryGetProcessById(int pid, out Process? process, LoggingContext loggingContext, out Exception? childDumpException)
-        {
-            process = null;
-            childDumpException = null;
-            try
+            else
             {
-                process = Process.GetProcessById(pid);
-                // Process.GetProcessById returns an object that is not fully initialized. Instead, the fields are populated the first time they are accessed.
-                // Because of that if a process exits before the object is initialized, reading any of the properties will result in an InvalidOperationException
-                // exception. Force initialization be querying the process name. Local function is used here just to make sure that the compiler does not
-                // optimize away the property access.
-                Analysis.IgnoreResult(process.ProcessName);
-                return true;
+                Tracing.Logger.Log.DumpSurvivingPipProcessChildrenStatus(loggingContext, executableName, $"Succeeded at path: {dumpPath}");
             }
-            catch (ArgumentException aEx)
-            {
-                Tracing.Logger.Log.DumpSurvivingPipProcessChildrenStatus(loggingContext, pid.ToString(), $"Failed with Exception: {aEx.Message}");
-                childDumpException = aEx;
-            }
-            catch (InvalidOperationException ioEx)
-            {
-                Tracing.Logger.Log.DumpSurvivingPipProcessChildrenStatus(loggingContext, pid.ToString(), $"Failed with Exception: {ioEx.Message}");
-                childDumpException = ioEx;
-            }
-
-            return false;
         }
     }
 }

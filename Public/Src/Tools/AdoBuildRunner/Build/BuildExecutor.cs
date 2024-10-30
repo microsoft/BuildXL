@@ -87,6 +87,16 @@ namespace BuildXL.AdoBuildRunner.Build
 
             defaultArguments.Add(cacheMissOption);
 
+            if (AdoBuildRunnerService.AdoEnvironment.JobAttemptNumber > 1)
+            {
+                // Retries on ADO are single-machine unless users retry the worker stage
+                // Let's prevent terminations and warnings in this case until we support 
+                // a better strategy (feature #2227233)
+                Logger.Warning("This build is part of a job retry. BuildXL will run without minimum worker checks or warnings.");
+                defaultArguments.Add("/p:BuildXLLimitProblematicWorkerCount=0");
+                defaultArguments.Add("/minWorkersWarn:0");
+            }
+
             return defaultArguments.ToArray();
         }
     }

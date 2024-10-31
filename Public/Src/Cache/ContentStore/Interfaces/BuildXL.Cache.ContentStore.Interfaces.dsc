@@ -14,6 +14,7 @@ namespace Interfaces {
         sources: globR(d`.`, "*.cs"),
         addStackTraceHiddenAttribute: true,
         references: [
+            importFrom("BuildXL.Utilities").Utilities.Core.dll,
             Hashing.dll,
             UtilitiesCore.dll,
             ...addIfLazy(BuildXLSdk.isFullFramework, () => [

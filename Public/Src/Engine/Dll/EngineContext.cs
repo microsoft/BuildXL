@@ -13,6 +13,7 @@ using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Qualifier;
+using BuildXL.Utilities.Core.Tracing;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 
@@ -72,7 +73,7 @@ namespace BuildXL.Engine
             CounterCollection<EngineCounter> engineCounters = null,
             HistoricTableSizes historicTableSizes = null,
             IConsole console = null)
-            : base(cancellationToken, pathTable.StringTable, pathTable, symbolTable, qualifierTable, tokenTextTable, console == null ? IntPtr.Zero : console.ConsoleWindowHandle)
+            : base(cancellationToken, pathTable.StringTable, pathTable, symbolTable, qualifierTable, tokenTextTable, console)
         {
             Contract.Requires(pathTable != null);
             Contract.Requires(symbolTable != null);

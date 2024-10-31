@@ -10,6 +10,7 @@ using BuildXL;
 using BuildXL.Processes.Tracing;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities.Core;
+using BuildXL.Utilities.Core.Tracing;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 using BuildXL.ViewModel;

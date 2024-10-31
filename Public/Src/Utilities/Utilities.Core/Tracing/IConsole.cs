@@ -3,7 +3,7 @@
 
 using System;
 
-namespace BuildXL.Utilities.Tracing
+namespace BuildXL.Utilities.Core.Tracing
 {
     /// <summary>
     /// Message level for WriteOutputLine

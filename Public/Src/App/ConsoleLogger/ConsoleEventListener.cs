@@ -16,6 +16,7 @@ using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Core;
+using BuildXL.Utilities.Core.Tracing;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 using BuildXL.ViewModel;

@@ -234,7 +234,7 @@ export const pkgs = [
     { id: "System.Xml.XPath.XmlDocument", version: pkgVersion },
 
     // Bumped version numbers
-    { id: "System.IO.FileSystem.AccessControl", version: pkgVersionNext },
+    { id: "System.IO.FileSystem.AccessControl", version: pkgVersion5 },
     { id: "System.Management", version: pkgVersionNext },
     { id: "System.Security.AccessControl", version: pkgVersion6 },
     // NOTE: this package is explicitly on version 5.0.0.0 because 6.0.0.0 was delisted from nuget.

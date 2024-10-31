@@ -3075,7 +3075,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.IO.FileSystem.AccessControl",
-          "Version": "4.7.0"
+          "Version": "5.0.0"
         }
       }
     },

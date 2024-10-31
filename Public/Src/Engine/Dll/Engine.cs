@@ -4,7 +4,6 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
@@ -30,24 +29,25 @@ using BuildXL.FrontEnd.Script.Constants;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.Ide.Generator;
 using BuildXL.Native.IO;
-using BuildXL.ProcessPipExecutor;
 using BuildXL.Pips.DirectedGraph;
 using BuildXL.Pips.Filter;
 using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
 using BuildXL.Processes.External;
+using BuildXL.ProcessPipExecutor;
 using BuildXL.Scheduler;
 using BuildXL.Storage;
 using BuildXL.Storage.Fingerprints;
 using BuildXL.Tracing;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
-using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Tasks;
+using BuildXL.Utilities.Core.Tracing;
+using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 using BuildXL.ViewModel;
 using Microsoft.Win32.SafeHandles;
@@ -55,7 +55,6 @@ using static BuildXL.Utilities.Core.BuildParameters;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 using IOneBuildModuleConfiguration = BuildXL.Utilities.Configuration.IModuleConfiguration;
 using Logger = BuildXL.Engine.Tracing.Logger;
-using BuildXL.Cache.ContentStore.Hashing;
 
 namespace BuildXL.Engine
 {

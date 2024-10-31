@@ -1,12 +1,11 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using BuildXL;
-using BuildXL.Utilities.Core;
-using BuildXL.Utilities.Tracing;
 using System;
 using System.Linq;
 using System.Text;
+using BuildXL.Utilities.Core;
+using BuildXL.Utilities.Core.Tracing;
 
 namespace BuildXL.App.Fuzzing;
 

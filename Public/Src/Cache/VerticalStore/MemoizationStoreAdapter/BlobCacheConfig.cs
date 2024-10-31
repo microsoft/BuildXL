@@ -11,6 +11,7 @@ using BuildXL.Cache.MemoizationStore.Distributed.Stores;
 using BuildXL.Cache.MemoizationStore.Stores;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Core;
+using BuildXL.Utilities.Core.Tracing;
 
 namespace BuildXL.Cache.MemoizationStoreAdapter
 {
@@ -107,14 +108,13 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         public bool AllowInteractiveAuth { get; set; }
 
         /// <summary>
-        /// A handler to the console window
+        /// The console window
         /// </summary>
         /// <remarks>
         /// Used for interactive auth purposes.
-        /// Provided by the BuildXL main configuration object.
         /// </remarks>
         [DefaultValue(null)]
-        public IntPtr? ConsoleWindowHandle { get; set; }
+        public IConsole Console{ get; set; }
 
         /// <summary>
         /// The directory where interactive tokens should be stored and retrieved as a way to provide silent authentication (when possible)
@@ -256,7 +256,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             // This should be enough to offer persistence/silent authentication for local builds
             InteractiveAuthTokenDirectory = configuration.Layout.EngineCacheDirectory.ToString(buildXLContext.PathTable);
 
-            ConsoleWindowHandle = buildXLContext.ConsoleWindowsHandle;
+            Console = buildXLContext.Console;
 
             if (!logToKusto)
             {

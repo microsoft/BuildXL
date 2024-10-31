@@ -10,23 +10,20 @@ using System.Globalization;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Native.IO;
-using BuildXL.Pips.Filter;
 using BuildXL.Pips.Operations;
+using BuildXL.Processes;
 using BuildXL.Storage;
 using BuildXL.Storage.Fingerprints;
 using BuildXL.ToolSupport;
-using BuildXL.Utilities;
 using BuildXL.Utilities.CLI;
-using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Core;
+using BuildXL.Utilities.Core.Tracing;
 using BuildXL.Utilities.Tracing;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 using HelpLevel = BuildXL.Utilities.Configuration.HelpLevel;
 using Strings = bxl.Strings;
-using System.Text.RegularExpressions;
-using BuildXL.Processes;
 
 #pragma warning disable SA1649 // File name must match first type name
 

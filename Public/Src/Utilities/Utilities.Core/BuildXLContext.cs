@@ -6,6 +6,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Threading;
 using BuildXL.Utilities.Core.Qualifier;
+using BuildXL.Utilities.Core.Tracing;
 
 namespace BuildXL.Utilities.Core
 {
@@ -15,8 +16,6 @@ namespace BuildXL.Utilities.Core
     public abstract class BuildXLContext : PipExecutionContext
     {
         private readonly TokenTextTable m_tokenTextTable;
-
-        private readonly IntPtr m_consoleWindowsHandle;
 
         /// <summary>
         /// protected constructor
@@ -29,7 +28,7 @@ namespace BuildXL.Utilities.Core
             context.SymbolTable,
             context.QualifierTable,
             context.TokenTextTable,
-            context.ConsoleWindowsHandle)
+            context.Console)
         {
             Contract.RequiresNotNull(context);
         }
@@ -44,7 +43,7 @@ namespace BuildXL.Utilities.Core
             SymbolTable symbolTable,
             QualifierTable qualifierTable,
             TokenTextTable tokenTextTable,
-            IntPtr consoleWindowsHandle)
+            IConsole console)
             : base(
                 cancellationToken,
                 stringTable,
@@ -55,7 +54,7 @@ namespace BuildXL.Utilities.Core
             Contract.RequiresNotNull(tokenTextTable);
 
             m_tokenTextTable = tokenTextTable;
-            m_consoleWindowsHandle = consoleWindowsHandle;
+            Console = console;
         }
 
         /// <summary>
@@ -102,7 +101,7 @@ namespace BuildXL.Utilities.Core
         /// <remarks>
         /// If BuildXL is running with server mode enabled, the handle represents the owner of the client window.
         /// </remarks>
-        public IntPtr ConsoleWindowsHandle => m_consoleWindowsHandle;
+        public IConsole Console { get; }
 
         /// <summary>
         /// Invalidates the context to prevent future use
@@ -137,7 +136,7 @@ namespace BuildXL.Utilities.Core
                     symbolTable,
                     qualifierTable,
                     tokenTextTable,
-                    consoleWindowsHandle: IntPtr.Zero)
+                    console: null)
             {
             }
         }

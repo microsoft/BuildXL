@@ -3840,7 +3840,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Security.Principal.Windows",
-          "Version": "6.0.0-preview.5.21301.5"
+          "Version": "5.0.0"
         }
       }
     },

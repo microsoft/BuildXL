@@ -320,7 +320,8 @@ namespace Tool.MaterializationDaemon
                     possibleFiles = await ParseManifestFilesAsync(manifestFiles);
                     if (!possibleFiles.Succeeded)
                     {
-                        return new IpcResult(IpcResultStatus.ExecutionError, possibleFiles.Failure.Describe());
+                        // If there were failures while we were using an external parser, classify the errors as user errors. 
+                        return new IpcResult(m_config.ParserExeLocation != null ? IpcResultStatus.InvalidInput : IpcResultStatus.ExecutionError, possibleFiles.Failure.Describe());
                     }
 
                     m_counters.AddToCounter(MaterializationDaemonCounter.ManifestParsingReferencedTotalFiles, possibleFiles.Result.Count);
@@ -520,12 +521,20 @@ namespace Tool.MaterializationDaemon
                     Possible<List<string>> possibleResult;
                     using (m_counters.StartStopwatch(MaterializationDaemonCounter.ManifestParsingInnerDuration))
                     {
-                        possibleResult = await launchExternalProcessAndParseOutputAsync(process);
+                        possibleResult = await launchExternalProcessAndParseOutputAsync(process, Logger);
                     }
 
                     if (possibleResult.Succeeded)
                     {
-                        Logger.Log(LogLevel.Verbose, $"Manifest file ('{manifestFilePath}') content:", possibleResult.Result, placeItemsOnSeparateLines: true);
+                        if (possibleResult.Result.Count > 0)
+                        {
+                            Logger.Log(LogLevel.Verbose, $"File(s) referenced by the file '{manifestFilePath}' (count: {possibleResult.Result.Count}):", possibleResult.Result, placeItemsOnSeparateLines: true);
+                        }
+                        else
+                        {
+                            Logger.Log(LogLevel.Verbose, $"No files are referenced by the file '{manifestFilePath}'.");
+                        }
+
                         return possibleResult.Result;
                     }
 
@@ -543,7 +552,11 @@ namespace Tool.MaterializationDaemon
                     else
                     {
                         m_counters.IncrementCounter(MaterializationDaemonCounter.ManifestParsingExternalParserFailuresAfterRetriesCount);
-                        Logger.Warning($"Failing an external parser because the number of retries were exhausted. The latest error: {possibleResult.Failure.Describe()}.");
+                        Logger.Error($"Failing an external parser because the number of retries were exhausted. The latest error: {possibleResult.Failure.Describe()}.");
+
+                        var content = await System.IO.File.ReadAllTextAsync(manifestFilePath);
+                        Logger.Verbose($"File '{manifestFilePath}' content:{Environment.NewLine}{content}{Environment.NewLine}");
+
                         return possibleResult.Failure;
                     }
 
@@ -555,18 +568,21 @@ namespace Tool.MaterializationDaemon
                 return new Failure<string>($"{describeProcess(process)} {e.DemystifyToString()}");
             }
 
-            static async Task<Possible<List<string>>> launchExternalProcessAndParseOutputAsync(Process process)
+            static async Task<Possible<List<string>>> launchExternalProcessAndParseOutputAsync(Process process, IIpcLogger logger)
             {
                 var result = new List<string>();
                 using (var pooledList = Pools.GetStringList())
+                using (var pooledStringBuilder = Pools.GetStringBuilder())
                 {
                     var stdErrContent = pooledList.Instance;
+                    var processExecutorLog = pooledStringBuilder.Instance;
 
                     using (var processExecutor = new AsyncProcessExecutor(
                         process,
                         s_externalProcessTimeout,
                         outputBuilder: line => { if (line != null) { result.Add(line); } },
-                        errorBuilder: line => { if (line != null) { stdErrContent.Add(line); } }))
+                        errorBuilder: line => { if (line != null) { stdErrContent.Add(line); } },
+                        logger: line => { if (line != null) { processExecutorLog.AppendLine(line); } }))
                     {
                         processExecutor.Start();
                         await processExecutor.WaitForExitAsync();
@@ -574,8 +590,10 @@ namespace Tool.MaterializationDaemon
 
                         if (processExecutor.Process.ExitCode != 0)
                         {
-                            var stdOut = $"{Environment.NewLine}{string.Join(Environment.NewLine, result)}";
-                            var stdErr = $"{Environment.NewLine}{string.Join(Environment.NewLine, stdErrContent)}";
+                            var stdOut = $"{Environment.NewLine}StdOut:{Environment.NewLine}{string.Join(Environment.NewLine, result)}";
+                            var stdErr = $"{Environment.NewLine}StdErr:{Environment.NewLine}{string.Join(Environment.NewLine, stdErrContent)}";
+                            logger.Info($"{describeProcess(process)} Exit code: {processExecutor.Process.ExitCode}{stdOut}{stdErr}{Environment.NewLine}ProcessExecutorLog:{Environment.NewLine}{processExecutorLog.ToString()}");
+                            // The Failure constructed here can become a part of user message, so don't put processExecutorLog in it.
                             return new Failure<string>($"{describeProcess(process)} Process failed with an exit code {processExecutor.Process.ExitCode}{stdOut}{stdErr}");
                         }
 

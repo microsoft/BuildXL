@@ -827,12 +827,12 @@ namespace BuildXL
                             "pipDefaultTimeout",
                             opt =>
                             sandboxConfiguration.DefaultTimeout =
-                            CommandLineUtilities.ParseInt32Option(opt, 1, (int)Process.MaxTimeout.TotalMilliseconds)),
+                            CommandLineUtilities.ParseDurationOptionToMilliseconds(opt, 1, (int)Process.MaxTimeout.TotalMilliseconds)),
                         OptionHandlerFactory.CreateOption(
                             "pipDefaultWarningTimeout",
                             opt =>
                             sandboxConfiguration.DefaultWarningTimeout =
-                            CommandLineUtilities.ParseInt32Option(opt, 1, (int)Process.MaxTimeout.TotalMilliseconds)),
+                            CommandLineUtilities.ParseDurationOptionToMilliseconds(opt, 1, (int)Process.MaxTimeout.TotalMilliseconds)),
                         OptionHandlerFactory.CreateOption(
                             "pipTimeoutMultiplier",
                             opt => sandboxConfiguration.TimeoutMultiplier = (int)CommandLineUtilities.ParseDoubleOption(opt, 0.000001, 1000000)),

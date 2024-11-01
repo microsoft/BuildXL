@@ -189,14 +189,14 @@ namespace BuildXL.Processes.Tracing
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.PipExecutor,
             Message =
-                EventConstants.PipPrefix + "Process ran for {2}ms, which is longer than the warning timeout of {3}ms; the process will be terminated if it ever runs longer than {4}ms")]
+                EventConstants.PipPrefix + "Process ran for {2}, which is longer than the warning timeout of {3}; the process will be terminated if it ever runs longer than {4}")]
         public abstract void PipProcessTookTooLongWarning(
             LoggingContext context,
             long pipSemiStableHash,
             string pipDescription,
-            long actual,
-            long softMax,
-            long hardMax);
+            string actual,
+            string softMax,
+            string hardMax);
 
         [GeneratedEvent(
             (int)LogEventId.PipProcessTookTooLongError,
@@ -204,8 +204,8 @@ namespace BuildXL.Processes.Tracing
             EventLevel = Level.Error,
             Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
             EventTask = (int)Tasks.PipExecutor,
-            Message = EventConstants.PipPrefix + "Process terminated because it took too long: {2}ms; the timeout is set to {3}ms. {4} \r\n Process Output: \r\n {5}")]
-        public abstract void PipProcessTookTooLongError(LoggingContext context, long pipSemiStableHash, string pipDescription, long actual, long time, string dumpDetails, string outputToLog);
+            Message = EventConstants.PipPrefix + "Process terminated because it took too long: {2}; the timeout is set to {3}. {4} \r\n Process Output: \r\n {5}")]
+        public abstract void PipProcessTookTooLongError(LoggingContext context, long pipSemiStableHash, string pipDescription, string actual, string time, string dumpDetails, string outputToLog);
 
         [GeneratedEvent(
             (int)LogEventId.PipProcessStandardOutput,

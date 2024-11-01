@@ -68,6 +68,19 @@ namespace BuildXL.ToolSupport
         /// </summary>
         private static readonly char[] s_separators = { ':' };
 
+        
+        /// <summary>
+        /// Used to parse time duration options
+        /// </summary>
+        private static readonly (string, int)[] s_durationFactorBySuffix =
+        [
+                ("ms",  1),         // Order matters so we try ms before s
+                ("s",   1000),
+                ("m",   1000 * 60),
+                ("min", 1000 * 60),
+                ("h",   1000 * 60 * 60)
+        ];
+
         /// <summary>
         /// Wraps a command-line for easy consumption.
         /// </summary>
@@ -620,6 +633,63 @@ namespace BuildXL.ToolSupport
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// Parse an option that represents a time duration: the allowed suffixes are 'ms', 's', 'm', 'h'
+        /// If no suffix is specified the amount is interpreted in milliseconds
+        /// </summary>
+        public static int ParseDurationOptionToMilliseconds(Option opt, int minValue, int maxValue)
+        {
+            if (string.IsNullOrEmpty(opt.Value))
+            {
+                throw Error("The /{0} argument requires a value.", opt.Name);
+            }
+
+            var input = opt.Value;
+            if (double.TryParse(input, out double doubleValue))
+            {
+                return ranged(doubleValue);
+            }
+
+            // We'll do a very naive parsing, but good enough, this is called at most a couple of times
+            
+
+            foreach (var (suffix, multiplier) in s_durationFactorBySuffix)
+            {
+                if (input.EndsWith(suffix))
+                {
+                    var numberPart = input.Substring(0, input.Length - suffix.Length);
+                    if (!double.TryParse(numberPart, out doubleValue))
+                    {
+                        // An incorrect suffix was provided
+                        break;
+                    }
+
+                    var valueInMs = doubleValue * multiplier;
+                    return ranged(valueInMs);
+                }
+            }
+
+            throw Error(
+                "The value provided for the /{0} argument is invalid, expecting a numeric expression representing a time period (ending with 'ms', 's', 'm', 'h')",
+                opt.Name);
+
+            int ranged(double x)
+            {
+                if (x < minValue || x > maxValue)
+                {
+                    throw Error(
+                        "The value provided for the /{0} argument is invalid, expecting a duration falling in the range {1}ms..{2}ms but got '{3} = {4}ms'.",
+                        opt.Name,
+                        minValue,
+                        maxValue,
+                        opt.Value,
+                        x);
+                }
+
+                return (int)x;
+            }
         }
 
         /// <summary>

@@ -4668,14 +4668,30 @@ namespace BuildXL.ProcessPipExecutor
         private void LogFinishedFailed(SandboxedProcessResult result) =>
             Logger.Log.PipProcessFinishedFailed(m_loggingContext, m_pip.SemiStableHash, m_pipDescription, result.ExitCode);
 
+        private string DurationForLog(TimeSpan duration)
+        {
+            if (duration.TotalSeconds < 1)
+            {
+                return $"{(int)duration.TotalMilliseconds}ms";
+            }
+            else if (duration.TotalMinutes < 1)
+            {
+                return $"{(int)duration.TotalSeconds}s";
+            }
+            else
+            {
+                return $"{Bound(duration.TotalMinutes)}min";
+            }
+        }
+        
         private void LogTookTooLongWarning(TimeSpan timeout, TimeSpan time, TimeSpan warningTimeout) =>
             Logger.Log.PipProcessTookTooLongWarning(
                 m_loggingContext,
                 m_pip.SemiStableHash,
                 m_pipDescription,
-                Bound(time.TotalMilliseconds),
-                Bound(warningTimeout.TotalMilliseconds),
-                Bound(timeout.TotalMilliseconds));
+                DurationForLog(time),
+                DurationForLog(warningTimeout),
+                DurationForLog(timeout));
 
         private void LogTookTooLongError(SandboxedProcessResult result, TimeSpan timeout, TimeSpan time,
                                          string stdError, string stdOut, bool errorWasTruncated, bool errorWasFiltered)
@@ -4698,8 +4714,8 @@ namespace BuildXL.ProcessPipExecutor
                 m_loggingContext,
                 m_pip.SemiStableHash,
                 m_pipDescription,
-                Bound(time.TotalMilliseconds),
-                Bound(timeout.TotalMilliseconds),
+                DurationForLog(time),
+                DurationForLog(timeout),
                 dumpString,
                 EnsureToolOutputIsNotEmpty(outputTolog));
         }

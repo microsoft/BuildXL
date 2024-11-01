@@ -521,5 +521,45 @@ Arg1");
             var clu = new CommandLineUtilities(args);
             XAssert.AreEqual(expectedEndOfCallerArgument, clu.HasEndOfCallerArgument);
         }
+
+        [Theory]
+        [InlineData("100", 100)]
+        [InlineData("20000ms", 20_000)]
+        [InlineData("100s", 100_000)]
+        [InlineData("1.5s", 1500)]
+        [InlineData("1m", 60_000)]
+        [InlineData("60m", 3_600_000)]
+        [InlineData("60min", 3_600_000)]
+        [InlineData("0.5h", 1_800_000)]
+        [InlineData("1h", 3_600_000)]
+        [InlineData("999999999999999h", -1)]
+        [InlineData("233a", -1)]
+        [InlineData("233mm", -1)]
+        [InlineData("233msh", -1)]
+        [InlineData("", -1)]
+        [InlineData(null, -1)]
+        public void ParseTimeToMsOption(string value, int expectedValue)
+        {
+            const int MinValue = 0;
+            const int MaxValue = int.MaxValue;
+
+            var opt = new CommandLineUtilities.Option
+            {
+                Name = "time",
+                Value = value
+            };
+
+            if (expectedValue == -1)
+            {
+                Assert.Throws<InvalidArgumentException>(() =>
+                {
+                    CommandLineUtilities.ParseDurationOptionToMilliseconds(opt, MinValue, MaxValue);
+                });
+            }
+            else
+            {
+                XAssert.AreEqual(expectedValue, CommandLineUtilities.ParseDurationOptionToMilliseconds(opt, MinValue, MaxValue));
+            }
+        }
     }
 }

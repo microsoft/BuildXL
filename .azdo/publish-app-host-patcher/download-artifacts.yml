@@ -1,0 +1,11 @@
+parameters:
+- name: artifactName
+  type: string
+- name: targetDirectory
+  type: string
+
+steps:
+  - task: DownloadPipelineArtifact@2
+    inputs:
+      artifactName: ${{ parameters.artifactName }}
+      path: ${{ parameters.targetDirectory }}

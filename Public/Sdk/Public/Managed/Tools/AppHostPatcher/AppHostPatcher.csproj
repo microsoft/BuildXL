@@ -2,6 +2,7 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <PlatformTarget>x64</PlatformTarget>
-    <TargetFramework>netcoreapp3.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
+    <SelfContained>true</SelfContained>
   </PropertyGroup>
 </Project>

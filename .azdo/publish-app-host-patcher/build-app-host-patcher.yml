@@ -1,0 +1,30 @@
+parameters:
+- name: platform
+  type: string
+  values:
+  - win-x64
+  - linux-x64
+  - osx-x64
+- name: pool
+  type: object
+- name: jobName
+  type: string
+
+jobs:
+- job: ${{ parameters.jobName }}
+  displayName: "[${{ parameters.platform }}] Build AppHostPatcher"
+  pool:  ${{ parameters.pool }}
+
+  steps:
+  - checkout: self
+    fetchDepth: 1
+    fetchTags: false
+
+  - template: /.azdo/common/use-latest-dotnet-sdk.yml@self
+
+  - task: DotNetCoreCLI@2
+    displayName: 'Build AppHostPatcher'
+    inputs:
+      command: 'build'
+      projects: '$(Build.SourcesDirectory)/Public/Sdk/Public/Managed/Tools/AppHostPatcher'
+      arguments: '--configuration Release --output $(AppHostPatcherRootDir)/${{ parameters.platform }}'

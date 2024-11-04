@@ -1,0 +1,25 @@
+parameters:
+- name: windowsPlatform
+  type: string
+- name: linuxPlatform
+  type: string
+- name: macosPlatform
+  type: string
+- name: targetRootDirectory
+  type: string
+
+steps:
+  - template: /.azdo/publish-app-host-patcher/download-artifacts.yml@self
+    parameters:
+    targetDirectory: ${{ parameters.targetRootDirectory }}/Package/tools/${{ parameters.windowsPlatform }}
+    artifactName: ${{ parameters.windowsPlatform }}
+
+  - template: /.azdo/publish-app-host-patcher/download-artifacts.yml@self
+    parameters:
+    targetDirectory: ${{ parameters.targetRootDirectory }}/Package/tools/${{ parameters.linuxPlatform }}
+    artifactName: ${{ parameters.linuxPlatform }}
+
+  - template: /.azdo/publish-app-host-patcher/download-artifacts.yml@self
+    parameters:
+    targetDirectory: ${{ parameters.targetRootDirectory }}/Package/tools/${{ parameters.macosPlatform }}
+    artifactName: ${{ parameters.macosPlatform }}  

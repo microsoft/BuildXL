@@ -81,6 +81,22 @@ extends:
                   targetPath: $(Agent.TempDirectory)/AppHostPatcherPackage
                   artifactName: AppHostPatcherArtifacts
 
+                - output: nuget
+                  displayName: '📦 Push NuGet packages to Domino-BuildXL feed'
+                  packageParentPath: $(Agent.TempDirectory)/AppHostPatcherPackage
+                  packagesToPush: $(Agent.TempDirectory)/AppHostPatcherPackage/*.nupkg
+                  nuGetFeedType: internal
+                  publishFeedCredentials: 'mseng-Domino-BuildXL-CloudBuild_BuildXL.Selfhost'
+                  sbomEnabled: false
+
+                - output: nuget
+                  displayName: '📦 Push NuGet packages to to BuildXL External feed'
+                  packageParentPath: $(Agent.TempDirectory)/AppHostPatcherPackage
+                  packagesToPush: (Agent.TempDirectory)/AppHostPatcherPackage/*.nupkg
+                  nuGetFeedType: external
+                  publishFeedCredentials: 'mseng-Domino-BuildXL-mseng_PipelineTools_BuildXL.External.Dependencies'
+                  sbomEnabled: false
+
             steps:
               - task: PowerShell@2
                 displayName: Prepare Nuget Package directory
@@ -112,34 +128,18 @@ extends:
                   packDestination: '$(Agent.TempDirectory)/AppHostPatcherPackage'
                   versioningScheme: 'off'
 
-              - template: /.azdo/common/generate-access-token.yml
+              - template: /.azdo/common/generate-access-token.yml@self
                 parameters:
                   AccessTokenVariable: BuildXL-Pipeline-AccessToken
 
-              - template: /.azdo/common/set-nuget-endpoint.yml
+              - template: /.azdo/common/set-nuget-endpoint.yml@self
                 parameters:
                   NuGetServiceConnectionId: '15735478-03ea-4f29-ab6f-04026188ebc8'
                   NuGetServiceConnectionName: 'mseng-Domino-BuildXL-CloudBuild_BuildXL.Selfhost'
                   AccessToken: $(BuildXL-Pipeline-AccessToken)
 
-              - task: NuGetCommand@2
-                displayName: '📦 Push NuGet packages to Domino-BuildXL feed'
-                inputs:
-                  command: 'push'
-                  packagesToPush: '$(Agent.TempDirectory)/AppHostPatcherPackage/*.nupkg'
-                  nuGetFeedType: 'internal'
-                  publishFeedCredentials: 'mseng-Domino-BuildXL-CloudBuild_BuildXL.Selfhost'
-
-              - template: /.azdo/common/set-nuget-endpoint.yml
+              - template: /.azdo/common/set-nuget-endpoint.yml@self
                 parameters:
                   NuGetServiceConnectionId: '06cc4f73-9c24-4070-a2fd-99d867cdc1ef'
                   NuGetServiceConnectionName: 'mseng-Domino-BuildXL-mseng_PipelineTools_BuildXL.External.Dependencies'
                   AccessToken: $(BuildXL-Pipeline-AccessToken)
-
-              - task: NuGetCommand@2
-                displayName: '📦 Push NuGet packages to to BuildXL External feed'
-                inputs:
-                  command: 'push'
-                  packagesToPush: '$(Agent.TempDirectory)/AppHostPatcherPackage/*.nupkg'
-                  nuGetFeedType: 'external'
-                  publishFeedCredentials: 'mseng-Domino-BuildXL-mseng_PipelineTools_BuildXL.External.Dependencies'

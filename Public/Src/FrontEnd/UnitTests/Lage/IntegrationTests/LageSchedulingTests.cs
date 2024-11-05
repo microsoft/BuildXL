@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using BuildXL.FrontEnd.Lage;
 using BuildXL.Pips.Operations;
@@ -146,6 +146,29 @@ namespace Test.BuildXL.FrontEnd.Lage
             Assert.Equal(1, process.ChildProcessesToBreakawayFromSandbox.Length);
             var lageServer = process.ChildProcessesToBreakawayFromSandbox[0];
             Assert.Equal(LagePipConstructor.LageServerArgumentBreakaway, lageServer.RequiredArguments);
+        }
+
+        [Fact]
+        public void GraphConstructionErrorIsLogged()
+        {
+            var config = Build()
+                .AddJavaScriptProject("@ms/project-A", "src/A", "module.exports = function A(){}")
+                .PersistSpecsAndGetConfiguration();
+
+            BootstrapLage(config);
+
+            // Introduce an error in the main lage config file to trigger a graph construction error
+            var packageJson = config.Layout.SourceDirectory.Combine(PathTable, "lage.config.js").ToString(PathTable);
+            File.AppendAllText(packageJson, "invalid");
+
+            var engineResult = RunEngine(config);
+
+            Assert.False(engineResult.IsSuccess);
+            // The graph construction error should be logged
+            AssertLogContains(caseSensitive: false, "invalid is not defined");
+
+            AssertErrorEventLogged(global::BuildXL.FrontEnd.JavaScript.Tracing.LogEventId.ProjectGraphConstructionError);
+            AssertErrorEventLogged(global::BuildXL.FrontEnd.Core.Tracing.LogEventId.CannotBuildWorkspace);
         }
     }
 }

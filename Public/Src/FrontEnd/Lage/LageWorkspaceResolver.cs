@@ -131,6 +131,10 @@ namespace BuildXL.FrontEnd.Lage
             
             _ = ResolverSettings.Since == null ? sb.Append(@" ""undefined""") : sb.Append($@" ""{ResolverSettings.Since}""");
 
+            // The 8th argument is a boolean indicating whether to produce an error file. This can be removed after Office updates the direct consumption of the lage adapter
+            // to pass 'false'. This is a temporary workaround to avoid breaking Office's build, since they run the adapter inside a pip, and the extra error file produces a DFA.
+            sb.Append(" true");
+
             return JavaScriptUtilities.GetCmdArguments(sb.ToString());
         }
 

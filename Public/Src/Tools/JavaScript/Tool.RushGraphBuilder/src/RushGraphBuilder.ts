@@ -1,10 +1,14 @@
+// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
 import { execSync } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
 import * as semver from 'semver';
 import * as BxlConfig from './BuildXLConfigurationReader';
 import {JavaScriptGraph, JavaScriptProject, ScriptCommands} from './BuildGraph';
-import {RushBuildPluginGraph, RushBuildPluginNode} from './RushBuildPluginGraph'
+import {RushBuildPluginGraph, RushBuildPluginNode} from './RushBuildPluginGraph';
+import * as Utilities from './Utilities';
 
 /**
  * A Rush graph, for what matters to BuildXL, is just a collection of projects and some graph-level configuration data
@@ -40,11 +44,7 @@ export function buildRushPluginGraph(rushConfigurationFile: string, pathToRush: 
         let root = path.dirname(rushConfigurationFile);
         let script  = `"${pathToRush}" build --drop-graph "${outputGraphFile}"`;
 
-        // A file with the same name as the output graph file but with a .err extension
-        // will be picked up on managed side and displayed to the user in case of errors.
-        const outputDirectory = path.dirname(outputGraphFile);
-        const errorFileName = `${path.basename(outputGraphFile)}.err`;
-        errorFd = fs.openSync(path.join(outputDirectory, errorFileName), 'w')
+        errorFd = Utilities.getErrorFileDescriptor(outputGraphFile);
 
         // The graph sometimes is big enough to exceed the default stdio buffer (200kb). In order to workaround this issue, output the raw
         // report to the output graph file and immediately read it back for post-processing. The final graph (in the format bxl expects)

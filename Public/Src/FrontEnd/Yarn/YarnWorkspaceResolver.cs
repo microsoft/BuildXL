@@ -93,9 +93,19 @@ namespace BuildXL.FrontEnd.Yarn
             // Use forward slashes for all node.exe arguments to avoid this.
             string pathToRepoRoot = ResolverSettings.Root.ToString(Context.PathTable, PathFormat.Script);
 
-            var args = $@"""{nodeExeLocation}"" ""{bxlGraphConstructionToolPath.ToString(Context.PathTable, PathFormat.Script)}"" ""{pathToRepoRoot}"" ""{outputFile.ToString(Context.PathTable, PathFormat.Script)}"" ""{toolLocation.ToString(Context.PathTable, PathFormat.Script)}""";
+            using var sbWrapper = Pools.StringBuilderPool.GetInstance();
+            var sb = sbWrapper.Instance;
 
-            return JavaScriptUtilities.GetCmdArguments(args);
+            sb.Append($@"""{nodeExeLocation}""");
+            sb.Append($@" ""{bxlGraphConstructionToolPath.ToString(Context.PathTable, PathFormat.Script)}""");
+            sb.Append($@" ""{pathToRepoRoot}""");
+            sb.Append($@" ""{outputFile.ToString(Context.PathTable, PathFormat.Script)}""");
+            sb.Append($@" ""{toolLocation.ToString(Context.PathTable, PathFormat.Script)}""");
+            // The 6th argument is a boolean indicating whether to produce an error file. This can be removed after Office updates the direct consumption of the lage adapter
+            // to pass 'false'. This is a temporary workaround to avoid breaking Office's build, since they run the adapter inside a pip, and the extra error file produces a DFA.
+            sb.Append(" true");
+
+            return JavaScriptUtilities.GetCmdArguments(sb.ToString());
         }
     }
 }

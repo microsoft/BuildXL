@@ -58,6 +58,7 @@ namespace Test.Tool.Javascript.YarnGraphBuilder
                 + " " + m_yarnWorkSpaceRoot
                 + " " + outputFile
                 + " " + YarnTool
+                + " true" // a boolean indicating whether to produce an error file
                 + (string.IsNullOrEmpty(testWorkspaceJsonPath) ? string.Empty : " " + testWorkspaceJsonPath);
         }
 

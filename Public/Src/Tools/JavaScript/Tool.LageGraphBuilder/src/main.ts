@@ -1,3 +1,6 @@
+// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
 import { execSync } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
@@ -5,11 +8,12 @@ import * as BxlConfig from './BuildXLConfigurationReader';
 
 import { serializeGraph } from "./GraphSerializer";
 import {JavaScriptGraph, ScriptCommands, JavaScriptProject} from './BuildGraph';
+import * as Utilities from './Utilities';
 
 // String value "undefined" can be passed in for the 6th argument. Office implementation will use this to pass the lage location.
-// For now 'since' is optional until Office can update their implementation. See TODO below.
-if (process.argv.length < 7) {
-    console.log("Expected arguments: <repo-folder> <path-to-output-graph> <npm Location> <list-of-targets> <Lage Location> <since>");
+// For now 'since' and 'produceErrFile' are optional until Office can update their implementation. See TODO below.
+if (process.argv.length < 7 || process.argv.length > 9) {
+    console.log("Expected arguments: <repo-folder> <path-to-output-graph> <npm Location> <list-of-targets> <Lage Location> <since> <produce-error-file>");
     process.exit(1);
 }
 
@@ -20,11 +24,15 @@ const npmLocation = process.argv[4];
 const targets : string = process.argv[5];
 const lageLocation = process.argv[6] === "undefined" ? undefined : process.argv[6];
 let since = "";
+let produceErrFile = false;
 
-// TODO: Remove this condition once the Office implementation is updated to pass 'undefined ' for the 7th argument (since). For now
-// we make this parameter optional, change it later to be mandatory.
-if (process.argv.length == 8) {
+// TODO: Remove these conditions once the Office implementation is updated to pass 'undefined ' for the 7th argument (since) and 'false' for
+// the 8th argument (produce error file). For now we make this parameter optional, change it later to be mandatory.
+if (process.argv.length >= 8) {
   since = process.argv[7] === "undefined" ? "" : `--since '${process.argv[7]}' `;
+}
+if (process.argv.length == 9) {
+  produceErrFile = process.argv[8] === "true";
 }
 
 /**
@@ -89,7 +97,8 @@ function lageToBuildXL(lage: Report): JavaScriptGraph {
   }
 
 
-try {
+  let errorFd = 0;
+  try {
     let script  = lageLocation === undefined ? `"${npmLocation}" run lage --silent --` : `"${lageLocation}"`;
     script  = `${script} info ${targets} --reporter json ${since}> "${outputGraphFile}"`;
     console.log(`Starting lage export: ${script}`);
@@ -97,7 +106,16 @@ try {
     // The graph sometimes is big enough to exceed the default stdio buffer (200kb). In order to workaround this issue, output the raw
     // report to the output graph file and immediately read it back for post-processing. The final graph (in the format bxl expects)
     // will be rewritten into the same file
-    execSync(script, {stdio: "ignore"});
+    let stdio;
+    if (produceErrFile) {
+      errorFd = Utilities.getErrorFileDescriptor(outputGraphFile);
+      stdio = {stdio: ["ignore", "ignore", errorFd]};
+    }
+    else {
+      stdio = {stdio: "ignore"};
+    }
+
+    execSync(script, stdio);
  
     const lageJson = fs.readFileSync(outputGraphFile, "utf8");
 
@@ -112,4 +130,7 @@ try {
     // Catch any exceptions and just print out the message.
     console.error(Error.message);
     process.exit(1);
+}
+finally {
+    fs.closeSync(errorFd);
 }

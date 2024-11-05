@@ -113,6 +113,13 @@ namespace Test.BuildXL.FrontEnd.Lage
             TestCache testCache = null, 
             IDetoursEventListener detoursListener = null)
         {
+            BootstrapLage(config);
+
+            return RunEngine(config, testCache, detoursListener);
+        }
+
+        protected void BootstrapLage(ICommandLineConfiguration config)
+        {
             // This bootstraps the 'repo'
             File.WriteAllText(config.Layout.SourceDirectory.Combine(PathTable, "package.json").ToString(PathTable), $@"
             {{
@@ -145,8 +152,6 @@ module.exports = {
             {
                 throw new InvalidOperationException("Yarn install failed.");
             }
-
-            return RunEngine(config, testCache, detoursListener);
         }
 
         /// <summary>

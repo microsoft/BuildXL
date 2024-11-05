@@ -17,7 +17,7 @@ namespace BuildXL.Scheduler.Fingerprints
             state => state.Clear());
 
         // NOTE: Be sure to add any collections created here to Clear
-        public readonly HashSet<AbsolutePath> AllowedUndeclaredReads = new HashSet<AbsolutePath>();
+        public readonly Dictionary<AbsolutePath, ObservedInputType> AllowedUndeclaredReads = new Dictionary<AbsolutePath, ObservedInputType>();
         public readonly List<(AbsolutePath path, DynamicObservationKind observationType)> DynamicObservations = new List<(AbsolutePath, DynamicObservationKind)>();
         public readonly List<SourceSealWithPatterns> SourceDirectoriesAllDirectories = new List<SourceSealWithPatterns>();
         public readonly List<SourceSealWithPatterns> SourceDirectoriesTopDirectoryOnly = new List<SourceSealWithPatterns>();

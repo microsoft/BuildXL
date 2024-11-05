@@ -1130,7 +1130,7 @@ namespace BuildXL.Scheduler
         /// This method also ensures that we do not do merge the lists unless there has been a retry.
         /// </remarks>
         internal static void MergeAllDynamicAccessesAndViolations(IEnumerable<ExecutionResult> allExecutionResults,
-                                                                  out IReadOnlySet<AbsolutePath> allowedUndeclaredRead,
+                                                                  out IReadOnlyDictionary<AbsolutePath, ObservedInputType> allowedUndeclaredRead,
                                                                   out IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> sharedDynamicDirectoryWriteAccesses,
                                                                   out ReadOnlyArray<(AbsolutePath Path, DynamicObservationKind Kind)>? dynamicObservations,
                                                                   out ReadOnlyArray<(DirectoryArtifact directoryArtifact, ReadOnlyArray<FileArtifactWithAttributes> fileArtifactArray)>? exclusiveOpaqueContent)
@@ -1156,7 +1156,7 @@ namespace BuildXL.Scheduler
             {
                 // Merge AllowedUndeclaredRead
                 allowedUndeclaredRead = (allExecutionResults.Where(result => result.AllowedUndeclaredReads != null)
-                                                            .SelectMany(result => result.AllowedUndeclaredReads)).ToReadOnlySet();
+                                                            .SelectMany(result => result.AllowedUndeclaredReads)).ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
 
                 // Merge SharedOpaqueDirectoryWriteAccesses
                 sharedDynamicDirectoryWriteAccesses = new ReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>>(allExecutionResults.Where(result => result.SharedDynamicDirectoryWriteAccesses != null)
@@ -1209,7 +1209,7 @@ namespace BuildXL.Scheduler
                 MergeAllAccessesAndViolations(allExecutionResults, out IReadOnlyCollection<ReportedFileAccess> fileAccessViolationsNotAllowlisted, out IReadOnlyCollection<ReportedFileAccess> allowlistedFileAccessViolations);
                 
                 MergeAllDynamicAccessesAndViolations(allExecutionResults,
-                                                            out IReadOnlySet<AbsolutePath> allowedUndeclaredReads,
+                                                            out IReadOnlyDictionary<AbsolutePath, ObservedInputType> allowedUndeclaredReads,
                                                             out IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> sharedDynamicDirectoryWriteAccesses,
                                                             out ReadOnlyArray<(AbsolutePath Path, DynamicObservationKind Kind)>? dynamicObservations,
                                                             out ReadOnlyArray<(DirectoryArtifact directoryArtifact, ReadOnlyArray<FileArtifactWithAttributes> fileArtifactArray)>? exclusiveOpaqueContent);
@@ -1603,7 +1603,7 @@ namespace BuildXL.Scheduler
                 // We just populate processExecutionResult with empty observations
                 // to appease the contract assertions regarding these fields being set
                 processExecutionResult.DynamicObservations = ReadOnlyArray<(AbsolutePath Path, DynamicObservationKind Kind)>.Empty;
-                processExecutionResult.AllowedUndeclaredReads = new ReadOnlyHashSet<AbsolutePath>();
+                processExecutionResult.AllowedUndeclaredReads = new Dictionary<AbsolutePath, ObservedInputType>();
                 processExecutionResult.FileAccessViolationsNotAllowlisted = new List<ReportedFileAccess>();
                 processExecutionResult.AllowlistedFileAccessViolations = new List<ReportedFileAccess>();
                 processExecutionResult.ReportUnexpectedFileAccesses(default);
@@ -3287,7 +3287,7 @@ namespace BuildXL.Scheduler
                         : ReadOnlyArray<(AbsolutePath, DynamicObservationKind)>.Empty,
                     allowedUndeclaredSourceReads: observedInputProcessingResult.HasValue
                         ? observedInputProcessingResult.Value.AllowedUndeclaredSourceReads
-                        : CollectionUtilities.EmptySet<AbsolutePath>(),
+                        : CollectionUtilities.EmptyDictionary<AbsolutePath, ObservedInputType>(),
                     cacheHitData: cacheHitData);
             }
 

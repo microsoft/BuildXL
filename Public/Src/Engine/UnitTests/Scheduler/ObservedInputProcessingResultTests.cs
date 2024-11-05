@@ -134,7 +134,7 @@ namespace Test.BuildXL.Scheduler
                 sorted, 
                 emptyObservedAccessFileNames, 
                 dynamicObservations: ReadOnlyArray<(AbsolutePath, DynamicObservationKind)>.Empty, 
-                allowedUndeclaredSourceReads: CollectionUtilities.EmptySet<AbsolutePath>());
+                allowedUndeclaredSourceReads: CollectionUtilities.EmptyDictionary<AbsolutePath, ObservedInputType>());
         }
 
         private class FingerprintingHarness

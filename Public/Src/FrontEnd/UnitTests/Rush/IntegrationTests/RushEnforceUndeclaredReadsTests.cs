@@ -71,7 +71,7 @@ namespace Test.BuildXL.FrontEnd.Rush.IntegrationTests
                 .PersistSpecsAndGetConfiguration();
 
             // Produce the file A is going to read
-            File.WriteAllText(config.Layout.SourceDirectory.Combine(PathTable, "src").Combine(PathTable, "FileA").ToString(), "test");
+            File.WriteAllText(config.Layout.SourceDirectory.Combine(PathTable, "src").Combine(PathTable, "FileA").ToString(PathTable), "test");
 
             var engineResult = RunRushProjects(
                 config,
@@ -89,6 +89,25 @@ namespace Test.BuildXL.FrontEnd.Rush.IntegrationTests
                 Assert.False(engineResult.IsSuccess);
                 AssertErrorEventLogged(global::BuildXL.Scheduler.Tracing.LogEventId.DependencyViolationDisallowedUndeclaredSourceRead);
             }
+        }
+
+        [FactIfSupported(requiresLinuxBasedOperatingSystem: true)]
+        public void AbsentProbesAreAlwaysAllowed()
+        {
+            var config = Build(enforceSourceReadsUnderPackageRoots: true, enableFullReparsePointResolving: true)
+                // Package A access a non-existent file outside of its project root
+                .AddJavaScriptProject("@ms/project-A", "src/A", "const fs = require('fs'); fs.existsSync('../NonExistentFile');")
+                .PersistSpecsAndGetConfiguration();
+
+            var engineResult = RunRushProjects(
+                config,
+                new[] {
+                    ("src/A", "@ms/project-A")
+                },
+                overrideDisableReparsePointResolution: false);
+
+            // The file is not in an allowed scope, but it does not exist, so it is not a violation
+            Assert.True(engineResult.IsSuccess);
         }
     }
 }

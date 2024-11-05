@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Text;
@@ -11,6 +12,7 @@ using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Engine.Cache.Fingerprints;
 using BuildXL.Native.IO;
 using BuildXL.Pips;
+using BuildXL.Pips.Operations;
 using BuildXL.Processes;
 using BuildXL.ProcessPipExecutor;
 using BuildXL.Scheduler.Artifacts;
@@ -18,15 +20,13 @@ using BuildXL.Scheduler.FileSystem;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Storage;
 using BuildXL.Storage.Fingerprints;
-using BuildXL.Utilities.Core;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Core;
+using BuildXL.Utilities.Debugging;
 using BuildXL.Utilities.Tracing;
 using static BuildXL.Utilities.Core.FormattableStringEx;
-using System.Diagnostics.CodeAnalysis;
-using BuildXL.Utilities.Debugging;
-using BuildXL.Utilities;
-using BuildXL.Pips.Operations;
 
 #pragma warning disable 1591 // disabling warning about missing API documentation; TODO: Remove this line and write documentation!
 
@@ -508,7 +508,7 @@ namespace BuildXL.Scheduler.Fingerprints
                                 if (undeclaredAccessCheckResult == ObservedInputAccessCheckFailureAction.Fail)
                                 {
                                     // Undeclared access doesn't match any entry in the allow list.
-                                    allowedUndeclaredSourceReads.Add(path);
+                                    allowedUndeclaredSourceReads.Add(path, type);
                                 }
                                 else
                                 {
@@ -894,7 +894,7 @@ namespace BuildXL.Scheduler.Fingerprints
                             new ObservedInputExpandedPathComparer(pathComparer)),
                         observedAccessedFileNames: observedAccessedFileNames,
                         dynamicObservations: ReadOnlyArray<(AbsolutePath, DynamicObservationKind)>.From(dynamicObservations),
-                        allowedUndeclaredSourceReads: allowedUndeclaredSourceReads.ToReadOnlySet());
+                        allowedUndeclaredSourceReads: new Dictionary<AbsolutePath, ObservedInputType>(allowedUndeclaredSourceReads));
                 }
                 else
                 {
@@ -913,7 +913,7 @@ namespace BuildXL.Scheduler.Fingerprints
                         numberOfValidEntries: valid,
                         numberOfInvalidEntries: invalid,
                         dynamicObservations: ReadOnlyArray<(AbsolutePath, DynamicObservationKind)>.From(dynamicObservations),
-                        allowedUndeclaredSourceReads: allowedUndeclaredSourceReads.ToReadOnlySet());
+                        allowedUndeclaredSourceReads: new Dictionary<AbsolutePath, ObservedInputType>(allowedUndeclaredSourceReads));
                 }
             }
         }
@@ -1504,7 +1504,7 @@ namespace BuildXL.Scheduler.Fingerprints
         /// <summary>
         /// The set of undeclared reads (or probes) that occurred on source files
         /// </summary>
-        public readonly IReadOnlySet<AbsolutePath> AllowedUndeclaredSourceReads;
+        public readonly IReadOnlyDictionary<AbsolutePath, ObservedInputType> AllowedUndeclaredSourceReads;
 
         private readonly SortedReadOnlyArray<ObservedInput, ObservedInputExpandedPathComparer> m_observedInputs;
 
@@ -1517,7 +1517,7 @@ namespace BuildXL.Scheduler.Fingerprints
             int numberOfValidEntires,
             int numberOfInvalidEntries,
             ReadOnlyArray<(AbsolutePath, DynamicObservationKind)> dynamicObservations,
-            IReadOnlySet<AbsolutePath> allowedUndeclaredSourceReads)
+            IReadOnlyDictionary<AbsolutePath, ObservedInputType> allowedUndeclaredSourceReads)
         {
             Contract.Requires(status != ObservedInputProcessingStatus.Success || observedInputs.IsValid);
             Contract.Requires(status != ObservedInputProcessingStatus.Success || observedAccessFileNames.IsValid);
@@ -1542,7 +1542,7 @@ namespace BuildXL.Scheduler.Fingerprints
             int numberOfValidEntries,
             int numberOfInvalidEntries,
             ReadOnlyArray<(AbsolutePath, DynamicObservationKind)> dynamicObservations,
-            IReadOnlySet<AbsolutePath> allowedUndeclaredSourceReads)
+            IReadOnlyDictionary<AbsolutePath, ObservedInputType> allowedUndeclaredSourceReads)
         {
             Contract.Requires(status != ObservedInputProcessingStatus.Success);
             Contract.Requires(dynamicObservations.IsValid);
@@ -1563,7 +1563,7 @@ namespace BuildXL.Scheduler.Fingerprints
             SortedReadOnlyArray<ObservedInput, ObservedInputExpandedPathComparer> observedInputs,
             SortedReadOnlyArray<StringId, CaseInsensitiveStringIdComparer> observedAccessedFileNames,
             ReadOnlyArray<(AbsolutePath, DynamicObservationKind)> dynamicObservations,
-            IReadOnlySet<AbsolutePath> allowedUndeclaredSourceReads)
+            IReadOnlyDictionary<AbsolutePath, ObservedInputType> allowedUndeclaredSourceReads)
         {
             Contract.Requires(dynamicObservations.IsValid);
             Contract.Requires(allowedUndeclaredSourceReads != null);

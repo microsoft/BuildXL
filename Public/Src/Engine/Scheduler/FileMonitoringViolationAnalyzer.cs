@@ -16,6 +16,7 @@ using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
 using BuildXL.ProcessPipExecutor;
+using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Storage;
 using BuildXL.Storage.Fingerprints;
@@ -312,7 +313,7 @@ namespace BuildXL.Scheduler
             [AllowNull] IReadOnlyCollection<ReportedFileAccess> allowlistedAccesses,
             [AllowNull] IReadOnlyCollection<(DirectoryArtifact, ReadOnlyArray<FileArtifactWithAttributes>)> exclusiveOpaqueDirectoryContent,
             [AllowNull] IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> sharedOpaqueDirectoryWriteAccesses,
-            [AllowNull] IReadOnlySet<AbsolutePath> allowedUndeclaredReads,
+            [AllowNull] IReadOnlyDictionary<AbsolutePath, ObservedInputType> allowedUndeclaredReads,
             [AllowNull] IReadOnlyCollection<(AbsolutePath Path, DynamicObservationKind Kind)> dynamicObservations,
             ReadOnlyArray<(FileArtifact fileArtifact, FileMaterializationInfo fileInfo, PipOutputOrigin pipOutputOrigin)> outputsContent,
             out IReadOnlyDictionary<FileArtifact, (FileMaterializationInfo, ReportedViolation)> allowedSameContentViolations)
@@ -432,7 +433,7 @@ namespace BuildXL.Scheduler
             }
         }
 
-        private void UpdateUndeclaredReadersIfNeeded(Process pip, IReadOnlySet<AbsolutePath> allowedUndeclaredReads)
+        private void UpdateUndeclaredReadersIfNeeded(Process pip, IReadOnlyDictionary<AbsolutePath, ObservedInputType> allowedUndeclaredReads)
         {
             // If same content rewrites are allowed, keep track of all readers from undeclared reads, since in case of a rewrite we need
             // to make sure there is at least one reader ordered before the write
@@ -440,7 +441,7 @@ namespace BuildXL.Scheduler
             {
                 foreach (var undeclaredRead in allowedUndeclaredReads)
                 {
-                    m_undeclaredReaders.AddOrUpdate(undeclaredRead, pip.PipId,
+                    m_undeclaredReaders.AddOrUpdate(undeclaredRead.Key, pip.PipId,
                         (path, pipId) => { var readers = new ConcurrentQueue<PipId>(); readers.Enqueue(pipId); return readers; },
                         (path, pipId, readers) => { readers.Enqueue(pipId); return readers; });
                 }
@@ -537,7 +538,7 @@ namespace BuildXL.Scheduler
             Process pip,
             IReadOnlyCollection<(DirectoryArtifact, ReadOnlyArray<FileArtifactWithAttributes>)> exclusiveOpaqueDirectoryContent,
             [AllowNull] IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> sharedOpaqueDirectoryWriteAccesses,
-            [AllowNull] IReadOnlySet<AbsolutePath> allowedUndeclaredReads,
+            [AllowNull] IReadOnlyDictionary<AbsolutePath, ObservedInputType> allowedUndeclaredReads,
             [AllowNull] IReadOnlyCollection<(AbsolutePath Path, DynamicObservationKind Kind)> dynamicObservations,
             ReadOnlyArray<(FileArtifact fileArtifact, FileMaterializationInfo fileInfo, PipOutputOrigin pipOutputOrigin)> outputsContent)
         {
@@ -572,7 +573,7 @@ namespace BuildXL.Scheduler
             Process pip,
             [AllowNull] IReadOnlyCollection<(DirectoryArtifact, ReadOnlyArray<FileArtifactWithAttributes>)> exclusiveOpaqueDirectories,
             [AllowNull] IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> sharedOpaqueDirectoryWriteAccesses,
-            [AllowNull] IReadOnlySet<AbsolutePath> allowedUndeclaredReads,
+            [AllowNull] IReadOnlyDictionary<AbsolutePath, ObservedInputType> allowedUndeclaredReads,
             [AllowNull] IReadOnlyCollection<(AbsolutePath Path, DynamicObservationKind Kind)> dynamicObservations,
             IReadOnlyDictionary<FileArtifact, FileMaterializationInfo> outputArtifactInfo,
             [AllowNull] Dictionary<FileArtifact, (FileMaterializationInfo fileMaterializationInfo, ReportedViolation reportedViolation)> allowedDoubleWriteViolations)
@@ -1339,7 +1340,7 @@ namespace BuildXL.Scheduler
 
         private void ReportAllowedUndeclaredReadViolations(
             Process pip,
-            IReadOnlySet<AbsolutePath> allowedUndeclaredReads,
+            IReadOnlyDictionary<AbsolutePath, ObservedInputType> allowedUndeclaredReads,
             List<ReportedViolation> reportedViolations,
             [AllowNull] Dictionary<FileArtifact, (FileMaterializationInfo fileMaterializationInfo, ReportedViolation reportedViolation)> allowedDoubleWriteViolations)
         {
@@ -1376,8 +1377,9 @@ namespace BuildXL.Scheduler
                             ).GetAwaiter().GetResult()));
             }
 
-            foreach (var undeclaredRead in allowedUndeclaredReads)
+            foreach (var undeclaredReadAndType in allowedUndeclaredReads)
             {
+                var undeclaredRead = undeclaredReadAndType.Key;
                 // We look for a static writer of the file. Any pip statically producing this file, regardless of the scheduled order,
                 // violates the assumption that undeclared reads should always happen against source files
                 var maybeProducer = TryFindProducer(undeclaredRead, VersionDisposition.Latest);
@@ -1454,7 +1456,10 @@ namespace BuildXL.Scheduler
                             pip.Executable.Path));
                 }
 
-                if (pip.AreUndeclaredSourceReadsRestricted)
+                var undeclaredReadType = undeclaredReadAndType.Value;
+
+                // For restricted reads, we only care about the ones that would have needed a declaration if undeclared reads were off. So that ends up being file reads/existing file probes.
+                if (pip.AreUndeclaredSourceReadsRestricted && (undeclaredReadType == ObservedInputType.FileContentRead || undeclaredReadType == ObservedInputType.ExistingFileProbe))
                 {
                     // If undeclared reads are restricted, let's see whether the undeclared read falls under any of the allowed scopes
                     var canRead = allowedScopes.FirstOrDefault(allowedUndeclaredSourceReadScope 

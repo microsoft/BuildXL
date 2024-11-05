@@ -41,7 +41,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Observed allowed undeclared source reads
         /// </summary>
-        public readonly IReadOnlySet<AbsolutePath> AllowedUndeclaredReads;
+        public readonly IReadOnlyDictionary<AbsolutePath, ObservedInputType> AllowedUndeclaredReads;
 
         /// <summary>
         /// Cache miss reason
@@ -150,7 +150,7 @@ namespace BuildXL.Scheduler
         private RunnableFromCacheResult(
             WeakContentFingerprint weakFingerprint,
             ReadOnlyArray<(AbsolutePath, DynamicObservationKind)> dynamicObservations,
-            IReadOnlySet<AbsolutePath> allowedUndeclaredSourceReads,
+            IReadOnlyDictionary<AbsolutePath, ObservedInputType> allowedUndeclaredSourceReads,
             CacheHitData cacheHitData,
             PipCacheMissType cacheMissType)
         {
@@ -171,7 +171,7 @@ namespace BuildXL.Scheduler
             return new RunnableFromCacheResult(
                 weakFingerprint,
                 dynamicObservations: ReadOnlyArray<(AbsolutePath, DynamicObservationKind)>.Empty,
-                allowedUndeclaredSourceReads: CollectionUtilities.EmptySet<AbsolutePath>(),
+                allowedUndeclaredSourceReads: CollectionUtilities.EmptyDictionary<AbsolutePath, ObservedInputType>(),
                 null,
                 cacheMissType);
         }
@@ -182,7 +182,7 @@ namespace BuildXL.Scheduler
         public static RunnableFromCacheResult CreateForHit(
             WeakContentFingerprint weakFingerprint,
             ReadOnlyArray<(AbsolutePath, DynamicObservationKind)> dynamicObservations,
-            IReadOnlySet<AbsolutePath> allowedUndeclaredSourceReads,
+            IReadOnlyDictionary<AbsolutePath, ObservedInputType> allowedUndeclaredSourceReads,
             CacheHitData cacheHitData)
         {
             Contract.Requires(cacheHitData != null);

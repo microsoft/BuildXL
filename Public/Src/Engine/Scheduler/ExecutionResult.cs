@@ -52,7 +52,7 @@ namespace BuildXL.Scheduler
         private bool m_mustBeConsideredPerpetuallyDirty;
         private bool m_converged;
         private ReadOnlyArray<(AbsolutePath, DynamicObservationKind)> m_dynamicObservations;
-        private IReadOnlySet<AbsolutePath> m_allowedUndeclaredSourceReads;
+        private IReadOnlyDictionary<AbsolutePath, ObservedInputType> m_allowedUndeclaredSourceReads;
         private PipCacheDescriptorV2Metadata m_pipCacheDescriptorV2Metadata;
         private PipCachePerfInfo m_pipCachePerfInfo;
         private IReadOnlyDictionary<string, int> m_pipProperties;
@@ -97,7 +97,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Observed allowed undeclared source reads
         /// </summary>
-        public IReadOnlySet<AbsolutePath> AllowedUndeclaredReads
+        public IReadOnlyDictionary<AbsolutePath, ObservedInputType> AllowedUndeclaredReads
         {
             get
             {
@@ -427,7 +427,7 @@ namespace BuildXL.Scheduler
             IReadOnlyList<ReportedFileAccess> allowlistedFileAccessViolations,
             bool mustBeConsideredPerpetuallyDirty,
             ReadOnlyArray<(AbsolutePath, DynamicObservationKind)> dynamicObservations,
-            IReadOnlySet<AbsolutePath> allowedUndeclaredSourceReads,
+            IReadOnlyDictionary<AbsolutePath, ObservedInputType> allowedUndeclaredSourceReads,
             TwoPhaseCachingInfo twoPhaseCachingInfo,
             PipCacheDescriptorV2Metadata pipCacheDescriptorV2Metadata,
             bool converged,
@@ -879,7 +879,7 @@ namespace BuildXL.Scheduler
                     m_dynamicObservations = ReadOnlyArray<(AbsolutePath, DynamicObservationKind)>.Empty;
                     m_outputContent = ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty;
                     m_directoryOutputs = ReadOnlyArray<(DirectoryArtifact, ReadOnlyArray<FileArtifactWithAttributes>)>.Empty;
-                    m_allowedUndeclaredSourceReads = CollectionUtilities.EmptySet<AbsolutePath>();
+                    m_allowedUndeclaredSourceReads = CollectionUtilities.EmptyDictionary<AbsolutePath, ObservedInputType>();
                     m_createdDirectories = CollectionUtilities.EmptySet<AbsolutePath>();
                 }
 
@@ -927,7 +927,7 @@ namespace BuildXL.Scheduler
             public DateTime ExecutionStop;
             public bool MustBeConsideredPerpetuallyDirty;
             public ReadOnlyArray<(AbsolutePath Path, DynamicObservationKind Kind)> DynamicObservations = ReadOnlyArray<(AbsolutePath, DynamicObservationKind)>.Empty;
-            public IReadOnlySet<AbsolutePath> AllowedUndeclaredSourceReads = CollectionUtilities.EmptySet<AbsolutePath>();
+            public IReadOnlyDictionary<AbsolutePath, ObservedInputType> AllowedUndeclaredSourceReads = CollectionUtilities.EmptyDictionary<AbsolutePath, ObservedInputType>();
 
             /// <summary>
             /// How long it took to push the process outputs to the cache

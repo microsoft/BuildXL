@@ -2,23 +2,24 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Engine.Cache.Fingerprints;
+using BuildXL.Native.IO;
 using BuildXL.Pips;
 using BuildXL.Processes;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Distribution;
+using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Storage;
 using BuildXL.Storage.Fingerprints;
-using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
-using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
+using BuildXL.Utilities.Core;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
-using BuildXL.Native.IO;
-using System.Collections.Generic;
 
 namespace Test.BuildXL.Scheduler
 {
@@ -77,9 +78,9 @@ namespace Test.BuildXL.Scheduler
                     (CreateSourceFile().Path, DynamicObservationKind.AbsentPathProbeUnderOutputDirectory),
                     (CreateSourceFile().Path, DynamicObservationKind.AbsentPathProbeUnderOutputDirectory)
                 ),
-                allowedUndeclaredSourceReads: new ReadOnlyHashSet<AbsolutePath> {
-                    CreateSourceFile().Path,
-                    CreateSourceFile().Path
+                allowedUndeclaredSourceReads: new Dictionary<AbsolutePath, ObservedInputType> {
+                    [CreateSourceFile().Path] = ObservedInputType.FileContentRead,
+                    [CreateSourceFile().Path] = ObservedInputType.FileContentRead
                 },
                 twoPhaseCachingInfo: new TwoPhaseCachingInfo(
                     new WeakContentFingerprint(Fingerprint.Random(FingerprintUtilities.FingerprintLength)),

@@ -122,7 +122,7 @@ namespace BuildXL.Scheduler.Distribution
             var directoryOutputs = ReadOnlyArray<(DirectoryArtifact, ReadOnlyArray<FileArtifactWithAttributes>)>.FromWithoutCopy(ReadDirectoryOutputs(reader));
             var mustBeConsideredPerpetuallyDirty = reader.ReadBoolean();
             var dynamicObservations = reader.ReadReadOnlyArray(ReadDynamicObservation);
-            var allowedUndeclaredSourceReads = reader.ReadReadOnlySet(ReadAbsolutePath);
+            var allowedUndeclaredSourceReads = reader.ReadArray(ReadAllowedUndeclaredRead).ToDictionary(kvp => kvp.Item1, kvp => kvp.Item2);
 
             ReportedFileAccess[] fileAccessViolationsNotAllowlisted;
             ReportedFileAccess[] allowlistedFileAccessViolations;
@@ -217,7 +217,7 @@ namespace BuildXL.Scheduler.Distribution
             WriteDirectoryOutputs(writer, result.DirectoryOutputs);
             writer.Write(result.MustBeConsideredPerpetuallyDirty);
             writer.Write(result.DynamicObservations, WriteDynamicObservation);
-            writer.Write(result.AllowedUndeclaredReads, WriteAbsolutePath);
+            writer.Write(result.AllowedUndeclaredReads.ToArray(), WriteAllowedUndeclaredRead);
             WriteReportedProcessesAndFileAccesses(
                 writer,
                 result.FileAccessViolationsNotAllowlisted,
@@ -654,35 +654,29 @@ namespace BuildXL.Scheduler.Distribution
         [SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode", Justification = "To be used when implementing arbitrary path serialization.")]
         private (AbsolutePath, DynamicObservationKind) ReadDynamicObservation(BuildXLReader reader)
         {
-            AbsolutePath path;
-            if (reader.ReadBoolean())
-            {
-                path = reader.ReadAbsolutePath();
-            }
-            else
-            {
-                path = AbsolutePath.Create(m_executionContext.PathTable, reader.ReadString());
-            }
-
-
+            AbsolutePath path = ReadAbsolutePath(reader);
             return (path, (DynamicObservationKind)reader.ReadInt32());
+        }
+
+        [SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode", Justification = "To be used when implementing arbitrary path serialization.")]
+        private (AbsolutePath, ObservedInputType) ReadAllowedUndeclaredRead(BuildXLReader reader)
+        {
+            AbsolutePath path = ReadAbsolutePath(reader);
+            return (path, (ObservedInputType)reader.ReadInt32());
         }
 
         [SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode", Justification = "To be used when implementing arbitrary path serialization.")]
         private void WriteDynamicObservation(BuildXLWriter writer, (AbsolutePath Path, DynamicObservationKind Kind) observation)
         {
-            if (observation.Path.Value.Index <= m_maxSerializableAbsolutePathIndex)
-            {
-                writer.Write(true);
-                writer.Write(observation.Path);
-            }
-            else
-            {
-                writer.Write(false);
-                writer.Write(observation.Path.ToString(m_executionContext.PathTable));
-            }
-
+            WriteAbsolutePath(writer, observation.Path);
             writer.Write((int)observation.Kind);
+        }
+
+        [SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode", Justification = "To be used when implementing arbitrary path serialization.")]
+        private void WriteAllowedUndeclaredRead(BuildXLWriter writer, KeyValuePair<AbsolutePath, ObservedInputType> observation)
+        {
+            WriteAbsolutePath(writer, observation.Key);
+            writer.Write((int)observation.Value);
         }
 
         private FileArtifact ReadFileArtifact(BuildXLReader reader)

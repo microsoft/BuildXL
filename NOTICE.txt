@@ -5873,17 +5873,15 @@ Copyright 2001
 Copyright 2003
 Copyright 2008
 (c) Copyright John
-Copyright (c) 2007
 Copyright 2014 LRI
 Copyright 2015 LRI
-(c) 2023 GitHub, Inc.
+Copyright (c) 2018 Yi
 Copyright 2014 LASMEA
 Copyright Jens Maurer
+(c) 2024 GitHub,  Inc.
 (c) David Abrahams 2002
 Copyright (c) 2010 Ilya
 Copyright Nat Goodspeed
-(c) 2008 Gordon Woodhull
-Copyright (c) 2018 Yi Ji
 Copyright 2012 IBM Corp.
 Copyright 2013 Kyle Lutz
 Copyright Lingxi Li 2015
@@ -5893,13 +5891,11 @@ copyright Xiaogang Zhang
 Copyright (c) 2019 Damian
 Copyright 2003 Bruce Barr
 Copyright 2006 Johan Rade
-Copyright 2011 Simon West
 Copyright 2012 K R Walker
 Copyright Jaap Suter 2003
 Copyright Jan Langer 2002
 copyright Jason Rice 2016
 copyright Jason Rice 2017
-(c) MidLetter or MidNumLet
 Copyright 2000 Jens Maurer
 Copyright 2003 Jeremy Siek
 Copyright 2005 Dan Marsden
@@ -5908,10 +5904,8 @@ Copyright 2005 Rene Rivera
 Copyright 2007 Peter Dimov
 Copyright 2008 Beman Dawes
 Copyright 2008 Peter Dimov
-Copyright 2009 Neil Groves
 Copyright 2013 Ankur Sinha
 Copyright 2013 Peter Dimov
-Copyright 2013 Rene Rivera
 Copyright 2014 Neil Groves
 Copyright 2014 Peter Dimov
 Copyright 2015 Peter Dimov
@@ -5950,35 +5944,26 @@ Copyright Rene Rivera 2015
 Copyright Rene Rivera 2017
 Copyright Thomas Mang 2012
 (c) Copyright 2014 Jim Bell
+Copyright (c) 2005 Voipster
 Copyright (c) 2011 Jamboree
 Copyright (c) 2013 Jamboree
 Copyright (c) 2014 Jamboree
 Copyright 2001 John Maddock
 Copyright 2004 Eric Niebler
 Copyright 2005 Eric Niebler
-Copyright 2006 Eric Niebler
 Copyright 2007 Eric Niebler
 Copyright 2008 Eric Niebler
 Copyright 2008 John Maddock
-Copyright 2009 Eric Niebler
-Copyright 2010 Eric Niebler
 Copyright 2010 John Maddock
 Copyright 2011 Eric Niebler
 Copyright 2011 John Maddock
 Copyright 2011, Andrew Ross
-Copyright 2012 Eric Niebler
 Copyright 2012 John Maddock
 Copyright 2013 John Maddock
-Copyright 2013 Paul Bristow
 Copyright 2014 John Maddock
 Copyright 2014 NumScale SAS
-Copyright 2015 John Maddock
 Copyright 2015 NumScale SAS
-Copyright 2016 John Maddock
-Copyright 2017 Daniel James
-Copyright 2017 John Maddock
 Copyright 2017 Vinnie Falco
-Copyright 2018 John Maddock
 Copyright Beman Dawes, 2009
 Copyright Eric Niebler 2005
 Copyright Eric Niebler 2008
@@ -6007,9 +5992,7 @@ Copyright (c) 2017 Dynatrace
 Copyright 2002 Daryle Walker
 Copyright 2003 - 2011 LASMEA
 Copyright 2005 Ben Hutchings
-Copyright 2005 Daniel Egloff
 Copyright 2005 Daniel Wallin
-Copyright 2006 Andy Tompkins
 Copyright 2006 Ion Gaztanaga
 Copyright 2007 Aaron Windsor
 Copyright 2007 Andy Tompkins
@@ -6019,7 +6002,6 @@ Copyright 2007 David Jenkins
 Copyright 2008 CodeRage, LLC
 Copyright 2008 David Jenkins
 Copyright 2008 Gautam Sewani
-Copyright 2009 Andy Tompkins
 Copyright 2010 Andy Tompkins
 Copyright 2012 Chung-Lin Wen
 Copyright 2012 Denis Demidov
@@ -6151,12 +6133,12 @@ Copyright (c) 2005 Peter Dimov
 Copyright (c) 2006 Dan Marsden
 Copyright (c) 2006 Peter Dimov
 Copyright (c) 2007 Dan Marsden
+Copyright (c) 2007 Distributed
 Copyright (c) 2007 Peter Dimov
 Copyright (c) 2008 Beman Dawes
 Copyright (c) 2008 Peter Dimov
 Copyright (c) 2009 Carl Barron
 Copyright (c) 2009 Peter Dimov
-Copyright (c) 2010 Neil Groves
 Copyright (c) 2012 David Stone
 Copyright (c) 2013 Carl Barron
 Copyright (c) 2013 Peter Dimov
@@ -6175,7 +6157,6 @@ Copyright (c) Jeremy Siek 2001
 Copyright (c) Thomas Witt 2002
 Copyright 2000 Maarten Keijzer
 Copyright 2005 Matthias Troyer
-Copyright 2008 Joaquin M Lopez
 Copyright 2010 Kenneth Riddile
 Copyright 2011 Steven Watanabe
 Copyright 2012 Andreas Pokorny
@@ -6188,10 +6169,7 @@ Copyright 2015 Andrey Semashev
 Copyright 2015 Antony Polukhin
 Copyright 2015 Steven Watanabe
 Copyright 2016 Andrey Semashev
-Copyright 2016 Joaquin M Lopez
 Copyright 2017 Andrey Semashev
-Copyright 2017 Joaquin M Lopez
-Copyright 2018 Joaquin M Lopez
 Copyright 2018 Steven Watanabe
 Copyright Adam D. Walling 2012
 Copyright Alexander Grund 2018
@@ -6221,7 +6199,6 @@ Copyright Steven Watanabe 2011
 Copyright Steven Watanabe 2014
 (c) Copyright 2005 John Maddock
 (c) Copyright 2008 Robert Ramey
-(c) Copyright 2010 Daniel James
 (c) Copyright 2010 Robert Ramey
 (c) Copyright Daniel K. O. 2005
 (c) Copyright Hubert Holin 2001
@@ -6254,7 +6231,6 @@ Copyright (c) 2006 John Maddock
 Copyright (c) 2006 Stephen Nutt
 Copyright (c) 2007 John Maddock
 Copyright (c) 2008 Eric Niebler
-Copyright (c) 2008 Roelof Naude
 Copyright (c) 2009 John Maddock
 Copyright (c) 2010 Eric Niebler
 Copyright (c) 2011 Aaron Graham
@@ -6264,9 +6240,7 @@ Copyright (c) 2011 John Maddock
 Copyright (c) 2012 Nathan Ridge
 Copyright (c) 2012 Oswin Krause
 Copyright (c) 2012 Robert Ramey
-Copyright (c) 2013 Eurodecision
 Copyright (c) 2014 Eric Niebler
-Copyright (c) 2014 Mageswaran.D
 Copyright (c) 2015 John Maddock
 Copyright (c) 2015 Orson Peters
 Copyright (c) 2015 Robert Ramey
@@ -6280,10 +6254,8 @@ Copyright 2004-2005 Peter Dimov
 Copyright 2004-2006 Peter Dimov
 Copyright 2004-2008 Peter Dimov
 Copyright 2005-2013 Peter Dimov
-Copyright 2006 Thorsten Ottosen
 Copyright 2008 Christophe Henry
 Copyright 2008,2012 Peter Dimov
-Copyright 2009-2014 Neil Groves
 Copyright 2011 Christophe Henry
 Copyright 2012 (c) Google, Inc.
 Copyright 2012 Lucanus Simonson
@@ -6328,7 +6300,6 @@ Copyright Thorsten Ottosen 2006
 Copyright Thorsten Ottosen 2008
 (c) Copyright 2007 Andrew Sutton
 (c) Copyright 2007 David Deakins
-(c) Copyright 2008 CodeRage, LLC
 (c) Copyright 2012 Vicente Botet
 (c) Copyright 2013 Tim Blechmann
 (c) Copyright Andrew Sutton 2007
@@ -6373,7 +6344,6 @@ Copyright (c) 2003 Vladimir Prus
 Copyright (c) 2004 Angus Leeming
 Copyright (c) 2004 Daniel Wallin
 Copyright (c) 2005 Aaron Windsor
-Copyright (c) 2005 Stefan Arentz
 Copyright (c) 2006 Daniel Wallin
 Copyright (c) 2006 Tomas Puverle
 Copyright (c) 2008 Ion Gaztanaga
@@ -6415,12 +6385,7 @@ Copyright (c) Marshall Clow 2017
 Copyright (c) Pablo Aguilar 2005
 Copyright (c) Vladimir Prus 2003
 Copyright 2002, 2009 Peter Dimov
-Copyright 2005 Alexander Nasonov
 Copyright 2005, 2014 Peter Dimov
-Copyright 2005-2009 Daniel James
-Copyright 2005-2011 Daniel James
-Copyright 2005-2012 Daniel James
-Copyright 2005-2014 Daniel James
 Copyright 2007 Christian Henning
 Copyright 2007, 2014 Peter Dimov
 Copyright 2007, 2019 Peter Dimov
@@ -6479,7 +6444,6 @@ copyright Louis Dionne 2013-2017
 (c) Copyright Roland Richter 2003
 (c) Copyright Stefan Slapeta 2004
 (c) Copyright Stephen Cleary 2000
-Copyright (c) 2000 David Abrahams
 Copyright (c) 2000 Stephen Cleary
 Copyright (c) 2001 David Abrahams
 Copyright (c) 2001 Stephen Cleary
@@ -6493,7 +6457,6 @@ Copyright (c) 2004 Hartmut Kaiser
 Copyright (c) 2004 Joel de Guzman
 Copyright (c) 2004 Ralf Mattethat
 Copyright (c) 2005 Douglas Gregor
-Copyright (c) 2005 Igor Chesnokov
 Copyright (c) 2006 Douglas Gregor
 Copyright (c) 2006 Piotr Wyderski
 Copyright (c) 2006 Xiaogang Zhang
@@ -6513,7 +6476,6 @@ Copyright (c) 2011 Hartmut Kaiser
 Copyright (c) 2011 Thomas Bernard
 Copyright (c) 2012 Hartmut Kaiser
 Copyright (c) 2012 Martin Raspaud
-Copyright (c) 2012, Michele Caini
 Copyright (c) 2013 Anton Bikineev
 Copyright (c) 2013 Mateusz Loskot
 Copyright (c) 2013 Sebastian Redl
@@ -6538,7 +6500,6 @@ Copyright 2006-2007 Boris Gubenko
 Copyright 2007 Alexandre Courpron
 Copyright 2007-2008 CodeRage, LLC
 Copyright 2007-2012 Ion Gaztanaga
-Copyright 2011 -2013 John Maddock
 Copyright 2017 James E. King, III
 Copyright Barrett Adair 2015-2017
 Copyright Barrett Adair 2015-2018
@@ -6557,7 +6518,6 @@ Copyright Vladimir Prus 2002-2004
 (c) Copyright 2007 Matthias Troyer
 (c) Copyright 2008 Matthias Troyer
 (c) Copyright 2013 Andrey Semashev
-(c) Copyright 2016 Raffi Enficiaud
 (c) Copyright 2017 Andrey Semashev
 (c) Copyright Andrey Semashev 2017
 (c) Copyright Antony Polukhin 2013
@@ -6632,7 +6592,6 @@ Copyright 2010-2013 Karsten Ahnert
 Copyright 2010-2013 Mario Mulansky
 Copyright 2010-2014 Mario Mulansky
 Copyright 2010-2015 Mario Mulansky
-Copyright 2011 - 2013 John Maddock
 Copyright 2011-2012 Karsten Ahnert
 Copyright 2011-2012 Mario Mulansky
 Copyright 2011-2013 Karsten Ahnert
@@ -6695,43 +6654,19 @@ Copyright (c) 2006 Arkadiy Vertleyb
 Copyright (c) 2006 Tobias Schwinger
 Copyright (c) 2007 Tobias Schwinger
 Copyright (c) 2012 Anthony Williams
-Copyright (c) 2012 Lorenzo Caminiti
 Copyright (c) 2013-2014 Damien Buhl
 Copyright (c) 2016 K. Noel Belcourt
-Copyright (c) 2016-2019Damian Jarek
 Copyright (c) Jeremy Siek 2001-2003
 Copyright (c) T. Zachary Laine 2018
-Copyright 2003-2008 Joaquin M Lopez
-Copyright 2003-2013 Joaquin M Lopez
-Copyright 2003-2014 Joaquin M Lopez
-Copyright 2003-2015 Joaquin M Lopez
-Copyright 2003-2016 Joaquin M Lopez
-Copyright 2003-2017 Joaquin M Lopez
-Copyright 2003-2018 Joaquin M Lopez
-Copyright 2003-2019 Joaquin M Lopez
-Copyright 2006-2008 Joaquin M Lopez
-Copyright 2006-2009 Joaquin M Lopez
-Copyright 2006-2011 Joaquin M Lopez
-Copyright 2006-2013 Joaquin M Lopez
-Copyright 2006-2014 Joaquin M Lopez
-Copyright 2006-2015 Joaquin M Lopez
-Copyright 2006-2018 Joaquin M Lopez
-Copyright 2006-2019 Joaquin M Lopez
-Copyright 2008 Andreas Huber Doenni
 Copyright 2008-2009 Frank Mori Hess
-Copyright 2008-2010 Gordon Woodhull
 Copyright 2011-2012 Steven Watanabe
 Copyright 2012-2013 Steven Watanabe
 Copyright 2013 University of Warsaw
 Copyright 2015-2018 Andrey Semashev
 Copyright 2015-2019 Antony Polukhin
-Copyright 2016-2017 Joaquin M Lopez
 Copyright 2016-2018 Andrey Semashev
-Copyright 2016-2018 Joaquin M Lopez
 Copyright 2016-2019 Antony Polukhin
-Copyright 2016-2019 Joaquin M Lopez
 Copyright 2017, NVIDIA CORPORATION.
-Copyright 2017-2018 Joaquin M Lopez
 Copyright 2018-2019 Antony Polukhin
 Copyright Eric Niebler 2013-present
 Copyright Frank Mori Hess 2007,2009
@@ -6744,6 +6679,7 @@ Copyright Paul A. Bristow 2006-2011
 Copyright Shunsuke Sogame 2005-2006
 Copyright Steven Watanabe 2009-2011
 Copyright Steven Watanabe 2010-2011
+(c) 2008 Gordon Woodhull Distributed
 (c) Copyright 2002, 2003 Beman Dawes
 (c) Copyright 2002-4 Pavel Vozenilek
 (c) Copyright 2016 Ashish Sadanandan
@@ -6776,9 +6712,7 @@ Copyright (c) 2003 Gerald I. Evenden
 Copyright (c) 2003-2005 John Maddock
 Copyright (c) 2004 Gerald I. Evenden
 Copyright (c) 2005 Matthew Calabrese
-Copyright (c) 2005-2008 Daniel James
 Copyright (c) 2005-2009 Jongsoo Park
-Copyright (c) 2005-2011 Daniel James
 Copyright (c) 2005-2016 Daniel James
 Copyright (c) 2007 Marcin Kalicinski
 Copyright (c) 2007, 2008 Peter Dimov
@@ -6789,8 +6723,6 @@ Copyright (c) 2008 Gerald I. Evenden
 Copyright (c) 2008, 2009 Peter Dimov
 Copyright (c) 2008, 2011 Peter Dimov
 Copyright (c) 2008, 2018 Peter Dimov
-Copyright (c) 2008-2011 Daniel James
-Copyright (c) 2008-2016 Daniel James
 Copyright (c) 2009, 2015 Peter Dimov
 Copyright (c) 2010-2011 David Bellot
 Copyright (c) 2011-2013 Andrew Hundt
@@ -6798,7 +6730,6 @@ Copyright (c) 2013 Tim Blechmann ARM
 Copyright (c) 2015-2019 Vinnie Falco
 Copyright (c) 2016-2019 Vinnie Falco
 Copyright (c) 2017 James E. King III
-Copyright (c) 2018 Christian Henning
 Copyright (c) 2018 James E. King III
 Copyright (c) Christof Meerwald 2003
 Copyright (c) Intel Corporation 2008
@@ -7022,6 +6953,8 @@ Copyright (c) 2017 Andrzej Krzemienski
 Copyright (c) Christopher Diggins 2005
 Copyright 2002, 2009, 2014 Peter Dimov
 Copyright 2007 University of Karlsruhe
+Copyright 2011 Simon West. Distributed
+Copyright 2013 Rene Rivera Distributed
 Copyright 2015, 2017, 2019 Peter Dimov
 Copyright 2016, 2018, 2019 Peter Dimov
 Copyright Alexander Nasonov, 2006-2010
@@ -7065,10 +6998,14 @@ Copyright (c) 2018-2019 Antony Polukhin
 Copyright 2000 University of Notre Dame
 Copyright 2001 University of Notre Dame
 Copyright 2002-2003 Guillaume Melquiond
+Copyright 2009 Neil Groves. Distributed
 Copyright 2009 Vicente J. Botet Escriba
 Copyright 2010 Vicente J. Botet Escriba
 Copyright 2011 Vicente J. Botet Escriba
 Copyright 2012 Vicente J. Botet Escriba
+Copyright 2013 John Maddock Distributed
+Copyright 2013 Paul Bristow Distributed
+Copyright 2017 John Maddock Distributed
 Copyright Christopher Kormanyos 2013-14
 Copyright Paul A. Bristow 2007, 2013-14
 Copyright Ralf W. Grosse-Kunstleve 2006
@@ -7082,7 +7019,6 @@ Copyright Vicente J. Botet Escriba 2012
 (c) Copyright David Abrahams 2002 - 2003
 (c) Copyright Jeremy William Murphy 2015
 (c) Copyright Jeremy William Murphy 2016
-(c) Copyright Microsoft Corporation 2014
 (c) Copyright R.W. Grosse-Kunstleve 2002
 (c) Copyright Thorsten Ottosen 2002-2003
 Copyright (arg) 2001-2014 Joel de Guzman
@@ -7093,8 +7029,6 @@ Copyright (c) 2006-2007 Tobias Schwinger
 Copyright (c) 2007-2008 Tobias Schwinger
 Copyright (c) 2008 Federico J. Fernandez
 Copyright (c) 2008-2012 Simonson Lucanus
-Copyright (c) 2008-2018 Lorenzo Caminiti
-Copyright (c) 2009-2012 Lorenzo Caminiti
 Copyright (c) 2010 Athanasios Iliopoulos
 Copyright (c) 2011 Christopher Jefferson
 Copyright (c) 2012-2012 Andrii Sydorchuk
@@ -7102,29 +7036,36 @@ Copyright (c) 2013 Christopher Kormanyos
 Copyright (c) 2015 Agustin K-ballo Berge
 Copyright (c) 2016-2018 T. Zachary Laine
 Copyright (c) Microsoft Corporation 2014
-Copyright 2001, 2004, 2011 Daryle Walker
-Copyright 2002-2006 Andreas Huber Doenni
-Copyright 2002-2007 Andreas Huber Doenni
-Copyright 2002-2008 Andreas Huber Doenni
-Copyright 2002-2010 Andreas Huber Doenni
-Copyright 2005-2006 Andreas Huber Doenni
-Copyright 2005-2008 Andreas Huber Doenni
+Copyright 2004 Eric Niebler. Distributed
+Copyright 2005 Eric Niebler. Distributed
+Copyright 2006 Eric Niebler. Distributed
+Copyright 2008 Eric Niebler. Distributed
+Copyright 2009 Eric Niebler. Distributed
+Copyright 2010 Eric Niebler. Distributed
 Copyright 2010-2012, D. E. Shaw Research
+Copyright 2011 Eric Niebler. Distributed
+Copyright 2011 John Maddock. Distributed
+Copyright 2012 Eric Niebler. Distributed
+Copyright 2012 John Maddock. Distributed
 Copyright 2012-2013 Andreas Angelopoulos
+Copyright 2013 John Maddock. Distributed
+Copyright 2015 John Maddock. Distributed
+Copyright 2016 John Maddock. Distributed
+Copyright 2017 Daniel James. Distributed
+Copyright 2018 John Maddock. Distributed
 Copyright Gottfried Ganssauge 2003..2006
-(c) Copyright 2003-2007 Jonathan Turkanis
 (c) Copyright 2004-2007 Jonathan Turkanis
 (c) Copyright 2005-2007 Jonathan Turkanis
 (c) Copyright Jonathan Turkanis 2004-2005
 (c) Copyright Samuli-Petrus Korhonen 2017
 CNRS/Univ. Clermont II Copyright 2014 LRI
 Copyright (c) 1999-2003 Jeremiah Willcock
-Copyright (c) 2001 by Andrei Alexandrescu
 Copyright (c) 2001-2009, 2012 Peter Dimov
 Copyright (c) 2002 by Andrei Alexandrescu
 Copyright (c) 2002-2006 Marcin Kalicinski
 Copyright (c) 2002-2007 Marcin Kalicinski
 Copyright (c) 2004, 2005 Arkadiy Vertleyb
+Copyright (c) 2005 Peder Holt Distributed
 Copyright (c) 2007-2009 Joachim Faulhaber
 Copyright (c) 2007-2010 Joachim Faulhaber
 Copyright (c) 2007-2011 Joachim Faulhaber
@@ -7149,9 +7090,13 @@ Copyright (c) 2017 - 2018 Andrey Semashev
 Copyright (c) 2017 Klemens D. Morgenstern
 Copyright (c) 2018 Klemens D. Morgenstern
 Copyright (c) 2019 Klemens D. Morgenstern
-Copyright 2006 Eric Niebler, Olivier Gygi
+Copyright 2005 Daniel Egloff. Distributed
+Copyright 2006 Andy Tompkins. Distributed
 Copyright 2006 Michael van der Westhuizen
+Copyright 2007 Andy Tompkins. Distributed
 Copyright 2008 Adobe Systems Incorporated
+Copyright 2009 Andy Tompkins. Distributed
+Copyright 2010 Andy Tompkins. Distributed
 Copyright Arno Schoedl & Neil Groves 2009
 Copyright Kevlin Henney, 2000, 2001, 2002
 copyright (c) 1995-2010 Geodan, Amsterdam
@@ -7161,28 +7106,24 @@ copyright (c) 1995-2010 Geodan, Amsterdam
 (c) Copyright Edward Diener 2011,2012,2013
 (c) Copyright Peter Dimov 2001, 2002, 2003
 Copyright (c) 1994 Hewlett-Packard Company
-Copyright (c) 2000 Cadenza New Zealand Ltd
 Copyright (c) 2001, 2002, 2003 Peter Dimov
 Copyright (c) 2001, 2002, 2012 Peter Dimov
 Copyright (c) 2002, 2008, 2013 Peter Dimov
 Copyright (c) 2002, 2009, 2014 Peter Dimov
+Copyright (c) 2003 Peter Dimov Distributed
 Copyright (c) 2003, 2006 Gerald I. Evenden
 Copyright (c) 2006, 2009 Marcin Kalicinski
 Copyright (c) 2007, 2008, 2012 Peter Dimov
 Copyright (c) 2007, 2013, 2015 Peter Dimov
+Copyright (c) 2008 Beman Dawes Distributed
+Copyright (c) 2010 Neil Groves Distributed
 Copyright (c) 2017, 2018 James E. King III
-Copyright 2005 Daniel Egloff, Eric Niebler
-Copyright 2005 Daniel Egloff, Olivier Gygi
-Copyright 2005 Eric Niebler, Daniel Egloff
-Copyright 2006 Daniel Egloff, Olivier Gygi
-Copyright 2006 Olivier Gygi, Daniel Egloff
-Copyright 2006, Eric Niebler, Olivier Gygi
-Copyright 2010 Daniel Wallin, Eric Niebler
 Copyright 2015-2018 Klemens D. Morgenstern
 Copyright Paul A. Bristow 2006, 2007, 2012
 Copyright Paul A. Bristow 2006, 2012, 2017
 Copyright Paul A. Bristow 2016, 2017, 2018
 Portions Copyright (c) 2002 David Abrahams
+(c) Copyright 2010 Daniel James Distributed
 (c) Copyright 2010 Vicente J. Botet Escriba
 (c) Copyright 2011 Vicente J. Botet Escriba
 (c) Copyright 2012 Vicente J. Botet Escriba
@@ -7208,7 +7149,6 @@ Copyright (c) 2015 Vicente J. Botet Escriba
 Copyright (c) 2015-2018 Andrzej Krzemienski
 Copyright (c) 2017 Vicente J. Botet Escriba
 Copyright 2002 Brad King and Douglas Gregor
-Copyright 2012 (c) Jeffrey Lee Hellrung, Jr
 Copyright Christopher Kormanyos 2002 - 2011
 Copyright Christopher Kormanyos 2002 - 2013
 Copyright (c) 2002 Eric Friedman, Itay Maman
@@ -7224,9 +7164,12 @@ Copyright (c) 2015 Barend Gehrels, Amsterdam
 Copyright (c) 2017 Barend Gehrels, Amsterdam
 Copyright (c) 2019 Barend Gehrels, Amsterdam
 Copyright 1997-2001 University of Notre Dame
+Copyright 2006 Thorsten Ottosen. Distributed
 Copyright 2009-2010 Vicente J. Botet Escriba
 Copyright 2009-2011 Vicente J. Botet Escriba
 Copyright 2009-2012 Vicente J. Botet Escriba
+Copyright 2009-2014 Neil Groves. Distributed
+Copyright 2017 James E. King III Distributed
 Copyright Beman Dawes and Daryle Walker 1999
 Copyright Daniel Wallin, David Abrahams 2005
 Copyright Daniel Wallin, David Abrahams 2010
@@ -7240,37 +7183,47 @@ Copyright (c) 2006 Michael van der Westhuizen
 Copyright (c) 2014 - 2018 Andrzej Krzemienski
 Copyright (c) 2015 - 2017 Andrzej Krzemienski
 Copyright 2000 Jeremy Siek (jsiek@lsc.nd.edu)
-Copyright 2005 Eric Niebler, Michael Gauckler
+Copyright 2005 Alexander Nasonov. Distributed
 Copyright 2005 Trustees of Indiana University
+Copyright 2005-2009 Daniel James. Distributed
+Copyright 2005-2011 Daniel James. Distributed
+Copyright 2005-2012 Daniel James. Distributed
+Copyright 2005-2014 Daniel James. Distributed
 Copyright 2006 Trustees of Indiana University
 Copyright 2009 Trustees of Indiana University
+Copyright 2017 James E. King, III Distributed
 Copyright David Abrahams and Jeremy Siek 2003
 Copyright John Maddock 2006, 2007, 2012, 2014
 Copyright Peter Dimov and David Abrahams 2002
+Copyright (c) 2000 David Abrahams. Distributed
 Copyright (c) 2004 CrystalClear Software, Inc.
 Copyright (c) 2005 CrystalClear Software, Inc.
 Copyright (c) 2006 CrystalClear Software, Inc.
 Copyright (c) 2006, 2007 Julio M. Merino Vidal
 Copyright (c) 2011 Jeff Flinn, Boris Schaeling
 Copyright (c) 2012 Mateusz Loskot, London, UK.
+Copyright (c) 2012, Michele Caini. Distributed
 Copyright (c) 2013 Mateusz Loskot, London, UK.
+Copyright (c) 2014 Kohei Takahashi Distributed
 Copyright (c) 2014 Mateusz Loskot, London, UK.
 Copyright (c) 2016 Modified Work Barrett Adair
 Copyright 2001, 2003, 2004, 2012 Daryle Walker
 Copyright 2005-2007 Adobe Systems Incorporated
+Copyright 2011 -2013 John Maddock. Distributed
 Copyright 2011 Garmin Ltd. or its subsidiaries
 Copyright 2012 Chung-Lin Wen, Davide Anastasia
+(c) Copyright 2007 Anthony Williams Distributed
+(c) Copyright 2016 Raffi Enficiaud. Distributed
 (c) Copyright Daniel Frey and Robert Ramey 2009
 Copyright (c) 1995 Maarten Hilferink, Amsterdam
 Copyright (c) 2002 Brad King and Douglas Gregor
 Copyright (c) 2003 Gunter Winkler, Joerg Walter
-Copyright (c) 2003-2011 Christopher M. Kohlhoff
-Copyright (c) 2003-2019 Christopher M. Kohlhoff
+Copyright (c) 2004 Arkadiy Vertleyb Distributed
+Copyright (c) 2005 Arkadiy Vertleyb Distributed
 Copyright (c) 2005 Arkadiy Vertleyb, Peder Holt
-Copyright (c) 2005 Voipster / Indrek dot Juhani
-Copyright (c) 2005-2019 Christopher M. Kohlhoff
 Copyright (c) 2006-2009, 2012 Alexander Nasonov
 Copyright (c) 2012 - 2014, 2017 Andrey Semashev
+Copyright (c) 2012 Lorenzo Caminiti Distributed
 Copyright (c) 2013 Tim Blechmann Linux-specific
 Copyright (c) 2015 Oracle and/or its affiliates
 Copyright (c) 2016 Oracle and/or its affiliates
@@ -7279,8 +7232,10 @@ Copyright (c) 2018 Oracle and/or its affiliates
 Copyright (c) 2019 Oracle and/or its affiliates
 Copyright 2002 Rensselaer Polytechnic Institute
 Copyright 2004-9 Trustees of Indiana University
+Copyright 2008 Andreas Huber Doenni Distributed
+Copyright 2008-2010 Gordon Woodhull Distributed
 Copyright 2010 Fabien Castan, Christian Henning
-Copyright 2010 Gaetano Mendola, 2011 Simon West
+Copyright 2011 - 2013 John Maddock. Distributed
 copyright (c) 2014 Oracle and/or its affiliates
 copyright (c) 2015 Oracle and/or its affiliates
 copyright (c) 2016 Oracle and/or its affiliates
@@ -7294,7 +7249,6 @@ copyright (c) 2019 Oracle and/or its affiliates
 (c) Copyright 2011-2013 Vicente J. Botet Escriba
 (c) Copyright 2011-2015 Vicente J. Botet Escriba
 (c) Copyright 2013,2014 Vicente J. Botet Escriba
-(c) Copyright 2013,2015 Vicente J. Botet Escriba
 (c) Copyright David Abrahams, Vicente Botet 2009
 (c) Copyright Eric Jourdanneau, Joel Falcou 2010
 (c) Copyright John Maddock and Steve Cleary 2000
@@ -7304,9 +7258,9 @@ copyright (c) 2019 Oracle and/or its affiliates
 CNRS/Univ. Clermont II Copyright 2009 - 2011 LRI
 Copyright (c) 2001, Thomas Flemming, tf@ttqv.com
 Copyright (c) 2003-2004 Jeremy B. Maitin-Shepard
+Copyright (c) 2005-2016 Daniel James Distributed
 Copyright (c) 2008 Ilya Sokolov, Boris Schaeling
 Copyright (c) 2009, Spirent Communications, Inc.
-Copyright (c) 2010 Eric Jourdanneau, Joel Falcou
 Copyright (c) 2010 Felipe Tanus, Boris Schaeling
 Copyright (c) 2010 Nuovation System Designs, LLC
 Copyright (c) 2011-2012 Vicente J. Botet Escriba
@@ -7338,6 +7292,8 @@ copyright (c) 2016, Oracle and/or its affiliates
 copyright (c) 2017, Oracle and/or its affiliates
 copyright (c) 2018, Oracle and/or its affiliates
 Copyright (c) 2002-2003 Eric Friedman, Itay Maman
+Copyright (c) 2005-2008 Daniel James. Distributed
+Copyright (c) 2005-2011 Daniel James. Distributed
 Copyright (c) 2006 Trustees of Indiana University
 Copyright (c) 2007 Trustees of Indiana University
 Copyright (c) 2007-2011 Barend Gehrels, Amsterdam
@@ -7347,9 +7303,11 @@ Copyright (c) 2007-2014 Barend Gehrels, Amsterdam
 Copyright (c) 2007-2015 Barend Gehrels, Amsterdam
 Copyright (c) 2007-2016 Barend Gehrels, Amsterdam
 Copyright (c) 2007-2017 Barend Gehrels, Amsterdam
+Copyright (c) 2008-2011 Daniel James. Distributed
 Copyright (c) 2008-2012 Barend Gehrels, Amsterdam
 Copyright (c) 2008-2014 Barend Gehrels, Amsterdam
 Copyright (c) 2008-2015 Barend Gehrels, Amsterdam
+Copyright (c) 2008-2016 Daniel James. Distributed
 Copyright (c) 2009 Trustees of Indiana University
 Copyright (c) 2009-2012 Barend Gehrels, Amsterdam
 Copyright (c) 2009-2015 Barend Gehrels, Amsterdam
@@ -7370,19 +7328,14 @@ Copyright 2005 Felix Hofling, Guillaume Melquiond
 Copyright 2005 The Trustees of Indiana University
 Copyright 2006 The Trustees of Indiana University
 Copyright 2008 Christian Henning, Lubomir Bourdev
+Copyright 2008 Joaquin M Lopez Munoz. Distributed
 Copyright 2009 The Trustees of Indiana University
 Copyright 2010 The Trustees of Indiana University
 Copyright 2012 Kenneth Riddile, Christian Henning
 Copyright 2012 The Trustees of Indiana University
-Copyright Abel Sinkovics (abel@sinkovics.hu) 2010
-Copyright Abel Sinkovics (abel@sinkovics.hu) 2011
-Copyright Abel Sinkovics (abel@sinkovics.hu) 2012
-Copyright Abel Sinkovics (abel@sinkovics.hu) 2013
-Copyright Abel Sinkovics (abel@sinkovics.hu) 2014
-Copyright Abel Sinkovics (abel@sinkovics.hu) 2015
-Copyright Abel Sinkovics (abel@sinkovics.hu) 2016
-Copyright Abel Sinkovics (abel@sinkovics.hu) 2017
-Copyright Abel Sinkovics (abel@sinkovics.hu) 2018
+Copyright 2016 Joaquin M Lopez Munoz. Distributed
+Copyright 2017 Joaquin M Lopez Munoz. Distributed
+Copyright 2018 Joaquin M Lopez Munoz. Distributed
 (c) Copyright Dave Abrahams and Daryle Walker 2001
 (c) Copyright Jeremy Siek and John R. Bandela 2001
 (c) Copyright John Maddock & Thorsten Ottosen 2005
@@ -7392,16 +7345,19 @@ Copyright (c) 2000-2004 Joerg Walter, Mathias Koch
 Copyright (c) 2001 Vladimir Prus <ghost@cs.msu.su>
 Copyright (c) 2003-2008 Matthias Christian Schabel
 Copyright (c) 2003-2009 Matthias Christian Schabel
-Copyright 2005 David Abrahams and Aleksey Gurtovoy
 Copyright 2012 Fernando Vilas 2010 Daniel Trebbien
 Copyright 2014 Renato Tegon Forti, Antony Polukhin
 Copyright 2018 Mateusz Loskot <mateusz@loskot.net>
 Copyright Alexander Nasonov & Paul A. Bristow 2006
 Copyright David Abrahams and Nikolay Mladenov 2003
+Copyright Nuxi, https://nuxi.nl/ 2015. Distributed
 Copyright (c) 2000 Gary Powell (powellg@amazon.com)
 Copyright (c) 2001 Peter Dimov and Multi Media Ltd.
 Copyright (c) 2001, 2002 Python Software Foundation
 Copyright (c) 2001-2007 Hartmut Kaiser Revised 2007
+Copyright (c) 2001-2011 Hartmut Kaiser. Distributed
+Copyright (c) 2001-2012 Hartmut Kaiser. Distributed
+Copyright (c) 2001-2013 Hartmut Kaiser. Distributed
 Copyright (c) 2002 Peter Dimov and Multi Media Ltd.
 Copyright (c) 2002,2003 CrystalClear Software, Inc.
 Copyright (c) 2002-2004 CrystalClear Software, Inc.
@@ -7422,15 +7378,19 @@ Copyright (c) 2014-2015 Mateusz Loskot, London, UK.
 Copyright (c) 2018 Adeel Ahmad, Islamabad, Pakistan
 Copyright 2004, 2005 Trustees of Indiana University
 Copyright 2004-5 The Trustees of Indiana University
+Copyright 2011 Vicente J. Botet Escriba Distributed
 Copyright 2012 Olivier Tournaire, Christian Henning
 Copyright 2016 Klemens Morgenstern, Antony Polukhin
 Copyright David Abrahams 2002, Joel de Guzman, 2002
 Copyright Thorsten Ottosen, Neil Groves 2006 - 2008
 (c) Copyright 2005 Matthias Troyer and Dave Abrahams
 (c) Copyright Greg Colvin and Beman Dawes 1998, 1999
+(c) Copyright Microsoft Corporation 2014 Distributed
 Copyright (c) 2003, Fernando Luis Cacciola Carballal
 Copyright (c) 2005, Fernando Luis Cacciola Carballal
 Copyright (c) 2006 Xiaogang Zhang, 2015 John Maddock
+Copyright (c) 2008-2018 Lorenzo Caminiti Distributed
+Copyright (c) 2009-2012 Lorenzo Caminiti Distributed
 Copyright (c) 2011, 2012 Jeff Flinn, Boris Schaeling
 Copyright (c) 2013 Kyle Lutz <kyle.r.lutz@gmail.com>
 Copyright (c) 2014 Samuel Debionne, Grenoble, France
@@ -7451,9 +7411,15 @@ Copyright (c) 2017-2019 Oracle and/or its affiliates
 Copyright (c) 2018 Jakub Szuppe <j.szuppe@gmail.com>
 Copyright (c) 2018, Cem Bassoy, cem.bassoy@gmail.com
 Copyright (c) 2018-2019 Oracle and/or its affiliates
+Copyright (c) Microsoft Corporation 2014 Distributed
 Copyright 2000 John Maddock (john@johnmaddock.co.uk)
+Copyright 2002-2006 Andreas Huber Doenni Distributed
+Copyright 2002-2007 Andreas Huber Doenni Distributed
+Copyright 2002-2008 Andreas Huber Doenni Distributed
+Copyright 2002-2010 Andreas Huber Doenni Distributed
+Copyright 2005-2006 Andreas Huber Doenni Distributed
+Copyright 2005-2008 Andreas Huber Doenni Distributed
 Copyright 2013 Christian Henning and Juan V. Puertos
-Copyright David Abrahams 2002, Nikolay Mladenov 2007
 Copyright David Abrahams and Thomas Becker 2000-2006
 Copyright Peter Dimov and Multi Media Ltd 2001, 2002
 copyright (c) 2013-2015 Oracle and/or its affiliates
@@ -7473,12 +7439,14 @@ copyright (c) 2016-2019 Oracle and/or its affiliates
 copyright (c) 2017-2018 Oracle and/or its affiliates
 copyright (c) 2017-2019 Oracle and/or its affiliates
 (c) Copyright 2002 Robert Ramey - http://www.rrsd.com
+(c) Copyright 2003-2007 Jonathan Turkanis Distributed
 (c) Copyright 2004 Robert Ramey - http://www.rrsd.com
+(c) Copyright 2004-2007 Jonathan Turkanis Distributed
 (c) Copyright 2005 Robert Ramey - http://www.rrsd.com
+(c) Copyright 2005-2007 Jonathan Turkanis Distributed
 (c) Copyright 2007 Robert Ramey - http://www.rrsd.com
 (c) Copyright 2008-2009,2012 Vicente J. Botet Escriba
 (c) Copyright 2009 Robert Ramey - http://www.rrsd.com
-(c) Copyright 2011,2012,2015 Vicente J. Botet Escriba
 (c) Copyright 2011-2012,2015 Vicente J. Botet Escriba
 (c) Copyright 2014 Robert Ramey - http://www.rrsd.com
 (c) Copyright Vicente J. Botet Escriba 2008-2009,2012
@@ -7521,6 +7489,7 @@ Copyright (c) 2017, 2019 Oracle and/or its affiliates
 Copyright (c) 2017-2018, Oracle and/or its affiliates
 Copyright (c) 2017-2019, Oracle and/or its affiliates
 Copyright (c) 2018, 2019 Oracle and/or its affiliates
+Copyright 2001, 2004, 2011 Daryle Walker. Distributed
 copyright (c) 2013, 2014 Oracle and/or its affiliates
 copyright (c) 2013-2014, Oracle and/or its affiliates
 copyright (c) 2013-2015, Oracle and/or its affiliates
@@ -7545,19 +7514,40 @@ copyright (c) 2017-2019, Oracle and/or its affiliates
 copyright (c) 2018, 2019 Oracle and/or its affiliates
 copyright (c) 2018-2019, Oracle and/or its affiliates
 (c) Copyright Beman Dawes and Ullrich Koethe 1995-2001
-(c) Copyright David Abrahams 2001, Howard Hinnant 2001
 (c) Copyright Hubert Holin and Daryle Walker 2001-2002
+Copyright (c) 2000 Cadenza New Zealand Ltd Distributed
+Copyright (c) 2001 by Andrei Alexandrescu. Distributed
 Copyright (c) 2014, 2018, Oracle and/or its affiliates
 Copyright (c) 2014, 2019, Oracle and/or its affiliates
 Copyright (c) 2015, 2018, Oracle and/or its affiliates
-Copyright (c) Jeremy Siek 2001, Marc Wintermantel 2002
+Copyright 2003-2008 Joaquin M Lopez Munoz. Distributed
+Copyright 2003-2013 Joaquin M Lopez Munoz. Distributed
+Copyright 2003-2014 Joaquin M Lopez Munoz. Distributed
+Copyright 2003-2015 Joaquin M Lopez Munoz. Distributed
+Copyright 2003-2016 Joaquin M Lopez Munoz. Distributed
+Copyright 2003-2017 Joaquin M Lopez Munoz. Distributed
+Copyright 2003-2018 Joaquin M Lopez Munoz. Distributed
+Copyright 2003-2019 Joaquin M Lopez Munoz. Distributed
 Copyright 2004-2006 The Trustees of Indiana University
 Copyright 2005-2009 The Trustees of Indiana University
+Copyright 2006 Eric Niebler, Olivier Gygi. Distributed
+Copyright 2006-2008 Joaquin M Lopez Munoz. Distributed
+Copyright 2006-2009 Joaquin M Lopez Munoz. Distributed
+Copyright 2006-2011 Joaquin M Lopez Munoz. Distributed
+Copyright 2006-2013 Joaquin M Lopez Munoz. Distributed
+Copyright 2006-2014 Joaquin M Lopez Munoz. Distributed
+Copyright 2006-2015 Joaquin M Lopez Munoz. Distributed
+Copyright 2006-2018 Joaquin M Lopez Munoz. Distributed
+Copyright 2006-2019 Joaquin M Lopez Munoz. Distributed
 Copyright 2007-2008 Andreas Pokorny, Christian Henning
 Copyright 2007-2008 Christian Henning, Andreas Pokorny
 Copyright 2007-2012 Christian Henning, Andreas Pokorny
 Copyright 2007-2012 Christian Henning, Lubomir Bourdev
 Copyright 2010-2012 Kenneth Riddile, Christian Henning
+Copyright 2016-2017 Joaquin M Lopez Munoz. Distributed
+Copyright 2016-2018 Joaquin M Lopez Munoz. Distributed
+Copyright 2016-2019 Joaquin M Lopez Munoz. Distributed
+Copyright 2017-2018 Joaquin M Lopez Munoz. Distributed
 copyright (c) 2013, 2014, Oracle and/or its affiliates
 copyright (c) 2014, 2018, Oracle and/or its affiliates
 copyright (c) 2014, 2019, Oracle and/or its affiliates
@@ -7566,6 +7556,8 @@ copyright (c) 2015, 2019, Oracle and/or its affiliates
 copyright (c) 2017, 2018, Oracle and/or its affiliates
 copyright (c) 2017, 2019, Oracle and/or its affiliates
 copyright (c) 2018, 2019, Oracle and/or its affiliates
+(c) Copyright 2012 Vicente J. Botet Escriba Distributed
+(c) Copyright 2013 Vicente J. Botet Escriba Distributed
 (c) Copyright Boris Rasin and Antony Polukhin 2014-2019
 (c) Copyright Dave Abrahams and Daniel Walker 1999-2003
 (c) Copyright Robert Ramey 2003. Jonathan Turkanis 2004
@@ -7574,10 +7566,19 @@ Copyright (c) 1995-2013 Jean-loup Gailly and Mark Adler
 Copyright (c) 2000 Gary Powell (gary.powell@sierra.com)
 Copyright (c) 2001 Gary Powell (gary.powell@sierra.com)
 Copyright (c) 2002 Lars Gullik Bjonnes <larsbj@lyx.org>
+Copyright (c) 2005 Igor Chesnokov, ichesnokov@gmail.com
 Copyright (c) 2011 Boris Schaeling (boris@highscore.de)
+Copyright (c) 2013 Eurodecision Authors Guillaume Pinot
 Copyright (c) 2014 Roshan <thisisroshansmail@gmail.com>
 Copyright (c) 2015 Orson Peters <orsonpeters@gmail.com>
 Copyright 2004, 2005 The Trustees of Indiana University
+Copyright 2005 Daniel Egloff, Eric Niebler. Distributed
+Copyright 2005 Daniel Egloff, Olivier Gygi. Distributed
+Copyright 2005 Eric Niebler, Daniel Egloff. Distributed
+Copyright 2006 Daniel Egloff, Olivier Gygi. Distributed
+Copyright 2006 Olivier Gygi, Daniel Egloff. Distributed
+Copyright 2006, Eric Niebler, Olivier Gygi. Distributed
+Copyright 2010 Daniel Wallin, Eric Niebler. Distributed
 Copyright 2014-2015 Renato Tegon Forti, Antony Polukhin
 (c) Copyright 2006 David Abrahams - http://www.boost.org
 (c) Copyright Daryle Walker and Stephen Cleary 2001-2002
@@ -7588,20 +7589,16 @@ Copyright (c) 2002 Jaakko Jarvi (jaakko.jarvi@cs.utu.fi)
 Copyright (c) 2002,2003,2005 CrystalClear Software, Inc.
 Copyright (c) 2002-2003,2005 CrystalClear Software, Inc.
 Copyright 2008 CodeRage, LLC 2004-2007 Jonathan Turkanis
+Copyright 2012 (c) Jeffrey Lee Hellrung, Jr. Distributed
 Copyright 2014 Marco Guazzone (marco.guazzone@gmail.com)
-Copyright Abel Sinkovics (abel@sinkovics.hu) 2009 - 2010
-Copyright Abel Sinkovics (abel@sinkovics.hu) 2009 - 2011
-Copyright Abel Sinkovics (abel@sinkovics.hu) 2009 - 2012
-Copyright Abel Sinkovics (abel@sinkovics.hu) 2010 - 2011
-Copyright Abel Sinkovics (abel@sinkovics.hu) 2011 - 2012
 Copyright Ralf W. Grosse-Kunstleve & David Abrahams 2006
 (c) ACM, 2011. http://doi.acm.org/10.1145/1916461.1916469
 (c) Copyright 2002-2008, Fernando Luis Cacciola Carballal
-Copyright (c) 1999-2006 Cortex Software GmbH, Kantstrasse
 Copyright (c) 2001, 2002 Peter Dimov and Multi Media Ltd.
 Copyright (c) 2002, 2003 Peter Dimov and Multi Media Ltd.
 Copyright (c) 2002,2003, 2007 CrystalClear Software, Inc.
 Copyright (c) 2003, 2008 Fernando Luis Cacciola Carballal
+Copyright (c) 2005 Stefan Arentz (stefan at soze dot com)
 Copyright (c) 2007 Douglas Gregor <doug.gregor@gmail.com>
 Copyright (c) 2009 Ben Hanson (http://www.benhanson.net/)
 Copyright (c) 2013-2014 Kyle Lutz <kyle.r.lutz@gmail.com>
@@ -7634,7 +7631,9 @@ Copyright (c) 2005-2010 The Trustees of Indiana University
 Copyright (c) 2006-2010 The Trustees of Indiana University
 Copyright (c) 2011, 2012 Martin Lambers <marlam@marlam.de>
 Copyright (c) 2012 Flavio De Lorenzi (fdlorenzi@gmail.com)
+Copyright (c) 2014 Mageswaran.D <mageswaran1989@gmail.com>
 Copyright 1999, 2000 Jaakko Jarvi (jaakko.jarvi@cs.utu.fi)
+Copyright 2005 Eric Niebler, Michael Gauckler. Distributed
 Copyright 2009 (c) Dean Michael Berris <me@deanberris.com>
 Copyright (c) 2001 Jeremy Siek, Douglas Gregor, Brian Osman
 Copyright (c) 2006 Tiago de Paula Peixoto <tiago@forked.de>
@@ -7644,18 +7643,19 @@ Copyright 2013 Juan V. Puertos G-Cluster, Christian Henning
 (c) 2015-2019 Niall Douglas <http://www.nedproductions.biz/>
 (c) 2017-2019 Niall Douglas <http://www.nedproductions.biz/>
 (c) 2018-2019 Niall Douglas <http://www.nedproductions.biz/>
+(c) Copyright 2011-2012 Vicente J. Botet Escriba Distributed
+(c) Copyright 2013,2015 Vicente J. Botet Escriba Distributed
 Copyright (c) 2001 Housemarque Oy http://www.housemarque.com
+Copyright (c) 2010 Eric Jourdanneau, Joel Falcou Distributed
 Copyright (c) 2014, 2018, 2019, Oracle and/or its affiliates
-Copyright (c) Alexander Zaitsev <zamazan4ik@gmail.by> , 2017
 Copyright (c) Tobias Schwinger http://spirit.sourceforge.net
+Copyright 2010 Gaetano Mendola, 2011 Simon West. Distributed
 (c) Copyright Runar Undheim, Robert Ramey & John Maddock 2008
 Copyright (c) 2000-2003 Brian McNamara and Yannis Smaragdakis
 Copyright (c) 2003 Martin Wille http://spirit.sourceforge.net
 Copyright (c) 2011 Aaron Graham http://spirit.sourceforge.net
 Copyright (c) 2014 Glen Joseph Fernandes (glenjofe@gmail.com)
 Copyright (c) 2017 Glen Joseph Fernandes (glenjofe@gmail.com)
-Copyright (c) Alexander Zaitsev <zamazan4ik@gmail.com> , 2016
-Copyright (c) Alexander Zaitsev <zamazan4ik@gmail.com> , 2017
 Copyright (c) Charles Karney (2008-2017) <charles@karney.com>
 Copyright (c) Glen Joseph Fernandes 2019 (glenjofe@gmail.com)
 Copyright Daniel Walker, Eric Niebler, Michel Morin 2008-2012
@@ -7682,7 +7682,16 @@ Copyright 2014-2015 Glen Joseph Fernandes (glenjofe@gmail.com)
 Copyright 2014-2016 Glen Joseph Fernandes (glenjofe@gmail.com)
 Copyright 2017-2018 Glen Joseph Fernandes (glenjofe@gmail.com)
 Copyright 2017-2019 Glen Joseph Fernandes (glenjofe@gmail.com)
-(c) Copyright Andreas Huber Doenni 2002-2005, Eric Niebler 2006
+Copyright Abel Sinkovics (abel@sinkovics.hu) 2010. Distributed
+Copyright Abel Sinkovics (abel@sinkovics.hu) 2011. Distributed
+Copyright Abel Sinkovics (abel@sinkovics.hu) 2012. Distributed
+Copyright Abel Sinkovics (abel@sinkovics.hu) 2013. Distributed
+Copyright Abel Sinkovics (abel@sinkovics.hu) 2014. Distributed
+Copyright Abel Sinkovics (abel@sinkovics.hu) 2015. Distributed
+Copyright Abel Sinkovics (abel@sinkovics.hu) 2016. Distributed
+Copyright Abel Sinkovics (abel@sinkovics.hu) 2017. Distributed
+Copyright Abel Sinkovics (abel@sinkovics.hu) 2018. Distributed
+(c) Copyright 2008 CodeRage, LLC (turkanis at coderage dot com)
 (c) Copyright Peter Dimov and Multi Media Ltd. 2001, 2002, 2003
 Copyright (c) 1996,1997 Silicon Graphics Computer Systems, Inc.
 Copyright (c) 1996-1998 Silicon Graphics Computer Systems, Inc.
@@ -7692,9 +7701,11 @@ Copyright (c) 2003 Gustavo Guerra http://spirit.sourceforge.net
 Copyright (c) 2003 Hartmut Kaiser http://spirit.sourceforge.net
 Copyright (c) 2003 Joel de Guzman http://spirit.sourceforge.net
 Copyright (c) 2003 Jonathan de Halleux (dehalleux@pelikhan.com)
+Copyright (c) 2008 Roelof Naude (roelof.naude at gmail dot com)
 Copyright (c) 2009 Francois Barel http://spirit.sourceforge.net
 Copyright (c) 2011 Thomas Bernard http://spirit.sourceforge.net
 Copyright (c) 2016 Frank Hein, maxence business consulting gmbh
+Copyright 2005 David Abrahams and Aleksey Gurtovoy. Distributed
 (c) Copyright Mat Marcus, Jesse Jones and Adobe Systems Inc 2001
 Copyright (c) 2000-2010 Joerg Walter, Mathias Koch, David Bellot
 Copyright (c) 2000-2011 Joerg Walter, Mathias Koch, David Bellot
@@ -7702,6 +7713,7 @@ Copyright (c) 2000-2013 Joerg Walter, Mathias Koch. David Bellot
 Copyright (c) 2003, Hartmut Kaiser http://spirit.sourceforge.net
 Copyright (c) 2007 Matthias Troyer <troyer@boost-consulting.com>
 Copyright Neil Groves & Thorsten Ottosen & Pavol Droba 2003-2004
+(c) Copyright 2011,2012,2015 Vicente J. Botet Escriba Distributed
 Copyright (c) 2002-2003 Toon Knapen, Kresimir Fresl, Joerg Walter
 Copyright (c) 2006 Tobias Schwinger http://spirit.sourceforge.net
 Copyright (c) 2006-2008 Emil Dotchevski and Reverge Studios, Inc.
@@ -7711,19 +7723,24 @@ Copyright (c) 2006-2013 Emil Dotchevski and Reverge Studios, Inc.
 Copyright (c) 2008-2009 Emil Dotchevski and Reverge Studios, Inc.
 Copyright (c) 2008-2016 Emil Dotchevski and Reverge Studios, Inc.
 Copyright (c) 2008-2017 Emil Dotchevski and Reverge Studios, Inc.
+Copyright (c) 2018 Christian Henning (chhenning at gmail dot com)
+Copyright David Abrahams 2002, Nikolay Mladenov 2007. Distributed
 (c) Copyright David Abrahams, Jeremy Siek, Daryle Walker 1999-2001
 Copyright (c) 2000-2007 Joerg Walter, Mathias Koch, Gunter Winkler
 Copyright (c) 2000-2009 Joerg Walter, Mathias Koch, Gunter Winkler
 Copyright (c) 2001, Daniel C. Nuffer http://spirit.sourceforge.net
 Copyright (c) 2002-2003 Martin Wille http://spirit.sourceforge.net
 Copyright (c) 2018 Yaghyavardhan Singh Khangarot, Hyderabad, India
+Copyright (c) Jeremy Siek 2001, Marc Wintermantel 2002 Distributed
 Copyright 2002 Herve Bronnimann, Guillaume Melquiond, Sylvain Pion
 Copyright 2012 Christian Henning, Andreas Pokorny, Lubomir Bourdev
+(c) Copyright David Abrahams 2001, Howard Hinnant 2001. Distributed
 Copyright (c) 2001-2003 Daniel Nuffer http://spirit.sourceforge.net
 Copyright (c) 2001-2009 Daniel Nuffer http://spirit.sourceforge.net
 Copyright (c) 2002 Raghavendra Satish http://spirit.sourceforge.net
 Copyright (c) 1998-2002 Joel de Guzman http://spirit.sourceforge.net
 Copyright (c) 1998-2003 Joel de Guzman http://spirit.sourceforge.net
+Copyright (c) 1999-2006 Cortex Software GmbH, Kantstrasse 57, Berlin
 Copyright (c) 2001-2003 Hartmut Kaiser http://spirit.sourceforge.net
 Copyright (c) 2001-2003 Joel de Guzman http://spirit.sourceforge.net
 Copyright (c) 2001-2007 Hartmut Kaiser http://spirit.sourceforge.net
@@ -7736,6 +7753,11 @@ Copyright (c) 2001-2012 Joel de Guzman http://spirit.sourceforge.net
 Copyright (c) 2001-2014 Joel de Guzman http://spirit.sourceforge.net
 Copyright (c) 2002-2003 Hartmut Kaiser http://spirit.sourceforge.net
 Copyright (c) 2002-2006 Hartmut Kaiser http://spirit.sourceforge.net
+Copyright Abel Sinkovics (abel@sinkovics.hu) 2009 - 2010. Distributed
+Copyright Abel Sinkovics (abel@sinkovics.hu) 2009 - 2011. Distributed
+Copyright Abel Sinkovics (abel@sinkovics.hu) 2009 - 2012. Distributed
+Copyright Abel Sinkovics (abel@sinkovics.hu) 2010 - 2011. Distributed
+Copyright Abel Sinkovics (abel@sinkovics.hu) 2011 - 2012. Distributed
 (c) Copyright 2004-2009 Robert Ramey, Martin Ecker and Takatoshi Kondo
 Copyright (c) 2008 Rep Invariant Systems, Inc. (info@repinvariant.com)
 (c) Copyright 2007, 2008 Steven Watanabe, Joseph Gauterin, Niels Dekker
@@ -7745,10 +7767,17 @@ Copyright 2002-2003 Herve Bronnimann, Guillaume Melquiond, Sylvain Pion
 Copyright 2007-2008 Christian Henning, Andreas Pokorny, Lubomir Bourdev
 Copyright 2007-2012 Christian Henning, Andreas Pokorny, Lubomir Bourdev
 Copyright (c) 2000-2013 Joerg Walter, Mathias Koch, Athanasios Iliopoulos
+Copyright (c) Alexander Zaitsev <zamazan4ik@gmail.by> , 2017. Distributed
+Copyright (c) Alexander Zaitsev <zamazan4ik@gmail.com> , 2016 Distributed
+Copyright (c) Alexander Zaitsev <zamazan4ik@gmail.com> , 2017 Distributed
 Copyright 2003-2013 Joaquin M Lopez Munoz. 2019 Mike Dev <mike.dev@gmx.de>
 (c) Copyright 2002 Rani Sharoni (rani_sharoni@hotmail.com) and Robert Ramey
 (c) Copyright 2003-4 Pavel Vozenilek and Robert Ramey - http://www.rrsd.com
+(c) Copyright Andreas Huber Doenni 2002-2005, Eric Niebler 2006 Distributed
 (c) Copyright Steve Cleary, Beman Dawes, Howard Hinnant & John Maddock 2000
+Copyright (c) 2003-2011 Christopher M. Kohlhoff (chris at kohlhoff dot com)
+Copyright (c) 2003-2019 Christopher M. Kohlhoff (chris at kohlhoff dot com)
+Copyright (c) 2005-2019 Christopher M. Kohlhoff (chris at kohlhoff dot com)
 Copyright (c) 2002-2003 Juan Carlos Arevalo-Baeza http://spirit.sourceforge.net
 (c) Copyright Steve Cleary, Beman Dawes, Howard Hinnant & John Maddock 2000-2005
 Copyright (c) 2000-2010 Joerg Walter, Mathias Koch, Gunter Winkler, David Bellot
@@ -7757,6 +7786,7 @@ copyright (c) 2005 troy d. straszheim <troy@resophonic.com> http://www.resophoni
 Copyright (c) 2002 Brad King (brad.king@kitware.com) Douglas Gregor (gregod@cs.rpi.edu)
 (c) Copyright 2009-2011 Frederic Bron, Robert Stewart, Steven Watanabe & Roman Perepelitsa
 (c) Copyright Dave Abrahams, Steve Cleary, Beman Dawes, Howard Hinnant & John Maddock 2000
+Copyright (c) 2003-2019 Christopher M. Kohlhoff (chris at kohlhoff dot com) Oliver Kowalke
 (c) Copyright Dave Abrahams, Steve Cleary, Beman Dawes, Howard Hinnant and John Maddock 2000
 (c) Copyright Steve Cleary, Beman Dawes, Aleksey Gurtovoy, Howard Hinnant & John Maddock 2000
 Copyright (c) 2003 Jonathan de Halleux (dehalleux@pelikhan.com) http://spirit.sourceforge.net
@@ -7767,6 +7797,7 @@ Copyright (c) 2013 Jakob Lykke Andersen, University of Southern Denmark (jlander
 (c) Copyright Dave Abrahams, Steve Cleary, Beman Dawes, Howard Hinnant and John Maddock 2000, 2010
 Copyright (c) 2001 Jaakko Jarvi (jaakko.jarvi@cs.utu.fi) 2001 Gary Powell (gary.powell@sierra.com)
 Copyright (c) 2003 Jonathan de Halleux http://spirit.sourceforge.net http://www.boost.org/libs/spirit
+Copyright 2004 The Trustees of Indiana University Authors Andrew Lumsdaine, Lie-Quan Lee, Jeremy G. Siek
 (c) Copyright Dave Abrahams, Steve Cleary, Beman Dawes, Aleksey Gurtovoy, Howard Hinnant & John Maddock 2000
 Copyright (c) 2001 Ronald Garcia, Indiana University (garcia@osl.iu.edu) Andrew Lumsdaine, Indiana University (lums@osl.iu.edu)
 Copyright 2002 Marc Wintermantel (wintermantel@even-ag.ch) ETH Zurich, Center of Structure Technologies (https://web.archive.org/web/20050307090307/http://www.structures.ethz.ch/)
@@ -8343,105 +8374,39 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ---------------------------------------------------------
 
-MessagePack 2.2.85 - MIT
+MessagePack 2.5.187 - MIT
 
 
-(c) Yoshifumi Kawai and contributors.
-Copyright (c) 2013-2017, Milosz Krajewski
-Copyright (c) 2017 Yoshifumi Kawai and contributors
-
-MessagePack for C#
+(c) Yoshifumi Kawai and contributors
 
 MIT License
 
-Copyright (c) 2017 Yoshifumi Kawai and contributors
+Copyright (c) <year> <copyright holders>
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
----
-
-lz4net
-
-Copyright (c) 2013-2017, Milosz Krajewski
-
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
-
-Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
-
-Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ---------------------------------------------------------
 
 ---------------------------------------------------------
 
-MessagePack.Annotations 2.2.85 - MIT
+MessagePack.Annotations 2.5.187 - MIT
 
 
-(c) Yoshifumi Kawai and contributors.
-Copyright (c) 2013-2017, Milosz Krajewski
-Copyright (c) 2017 Yoshifumi Kawai and contributors
-
-MessagePack for C#
+(c) Yoshifumi Kawai and contributors
 
 MIT License
 
-Copyright (c) 2017 Yoshifumi Kawai and contributors
+Copyright (c) <year> <copyright holders>
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
----
-
-lz4net
-
-Copyright (c) 2013-2017, Milosz Krajewski
-
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
-
-Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
-
-Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ---------------------------------------------------------
 
@@ -8546,6 +8511,330 @@ Microsoft.ApplicationInsights.WindowsServer.TelemetryChannel 2.3.0 - MIT
 
 
 Copyright (c) Microsoft.
+
+MIT License
+
+Copyright (c) <year> <copyright holders>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+---------------------------------------------------------
+
+---------------------------------------------------------
+
+Microsoft.AspNetCore.App.Ref 6.0.35 - MIT
+
+
+(c) Microsoft Corporation
+Copyright (c) Andrew Arnott
+Copyright (c) 2019 David Fowler
+Copyright (c) 2016 Richard Morris
+Copyright (c) 2017 Yoshifumi Kawai
+Copyright (c) Microsoft Corporation
+Copyright (c) 2007 James Newton-King
+Copyright (c) 2014-2018 Michael Daines
+Copyright (c) 2013-2017, Milosz Krajewski
+Copyright (c) .NET Foundation and Contributors
+Copyright (c) 2019-2020 West Wind Technologies
+Copyright (c) 2010-2019 Google LLC. http://angular.io/license
+Copyright (c) Sindre Sorhus <sindresorhus@gmail.com> (https://sindresorhus.com)
+
+MIT License
+
+Copyright (c) <year> <copyright holders>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+---------------------------------------------------------
+
+---------------------------------------------------------
+
+Microsoft.AspNetCore.App.Ref 8.0.10 - MIT
+
+
+Copyright Jorn Zaefferer
+(c) Microsoft Corporation
+Copyright (c) Andrew Arnott
+Copyright (c) 2015, Google Inc.
+Copyright (c) 2019 David Fowler
+Copyright (c) HTML5 Boilerplate
+Copyright 2019 The gRPC Authors
+Copyright (c) 2016 Richard Morris
+Copyright (c) 1998 John D. Polstra
+Copyright (c) 2017 Yoshifumi Kawai
+Copyright (c) Microsoft Corporation
+Copyright (c) 2007 James Newton-King
+Copyright (c) 2013 - 2018 AngleSharp
+Copyright (c) 2000-2013 Julian Seward
+Copyright (c) 2011-2021 Twitter, Inc.
+Copyright (c) 2014-2018 Michael Daines
+Copyright (c) 1996-1998 John D. Polstra
+Copyright (c) 2013-2017, Milosz Krajewski
+Copyright (c) .NET Foundation Contributors
+Copyright (c) 2011-2021 The Bootstrap Authors
+Copyright (c) 2019-2023 The Bootstrap Authors
+Copyright (c) .NET Foundation and Contributors
+Copyright (c) 2019-2020 West Wind Technologies
+Copyright (c) 2007 John Birrell (jb@freebsd.org)
+Copyright (c) 2011 Alex MacCaw (info@eribium.org)
+Copyright (c) Nicolas Gallagher and Jonathan Neal
+Copyright (c) 2010-2019 Google LLC. http://angular.io/license
+Copyright (c) 2011 Nicolas Gallagher (nicolas@nicolasgallagher.com)
+Copyright (c) 1989, 1993 The Regents of the University of California
+Copyright (c) 1990, 1993 The Regents of the University of California
+Copyright OpenJS Foundation and other contributors, https://openjsf.org
+Copyright (c) Sindre Sorhus <sindresorhus@gmail.com> (https://sindresorhus.com)
+
+MIT License
+
+Copyright (c) <year> <copyright holders>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+---------------------------------------------------------
+
+---------------------------------------------------------
+
+Microsoft.AspNetCore.App.Runtime.linux-x64 6.0.35 - MIT
+
+
+(c) Microsoft Corporation
+Copyright (c) Andrew Arnott
+Copyright (c) 2019 David Fowler
+Copyright (c) 2016 Richard Morris
+Copyright (c) 2017 Yoshifumi Kawai
+Copyright (c) Microsoft Corporation
+Copyright (c) 2007 James Newton-King
+Copyright (c) 2014-2018 Michael Daines
+Copyright (c) 2013-2017, Milosz Krajewski
+Copyright (c) .NET Foundation and Contributors
+Copyright (c) 2019-2020 West Wind Technologies
+Copyright (c) 2010-2019 Google LLC. http://angular.io/license
+Copyright (c) Sindre Sorhus <sindresorhus@gmail.com> (https://sindresorhus.com)
+
+MIT License
+
+Copyright (c) <year> <copyright holders>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+---------------------------------------------------------
+
+---------------------------------------------------------
+
+Microsoft.AspNetCore.App.Runtime.linux-x64 8.0.10 - MIT
+
+
+Copyright Jorn Zaefferer
+(c) Microsoft Corporation
+Copyright (c) Andrew Arnott
+Copyright (c) 2015, Google Inc.
+Copyright (c) 2019 David Fowler
+Copyright (c) HTML5 Boilerplate
+Copyright 2019 The gRPC Authors
+Copyright (c) 2016 Richard Morris
+Copyright (c) 1998 John D. Polstra
+Copyright (c) 2017 Yoshifumi Kawai
+Copyright (c) Microsoft Corporation
+Copyright (c) 2007 James Newton-King
+Copyright (c) 2013 - 2018 AngleSharp
+Copyright (c) 2000-2013 Julian Seward
+Copyright (c) 2011-2021 Twitter, Inc.
+Copyright (c) 2014-2018 Michael Daines
+Copyright (c) 1996-1998 John D. Polstra
+Copyright (c) 2013-2017, Milosz Krajewski
+Copyright (c) .NET Foundation Contributors
+Copyright (c) 2011-2021 The Bootstrap Authors
+Copyright (c) 2019-2023 The Bootstrap Authors
+Copyright (c) .NET Foundation and Contributors
+Copyright (c) 2019-2020 West Wind Technologies
+Copyright (c) 2007 John Birrell (jb@freebsd.org)
+Copyright (c) 2011 Alex MacCaw (info@eribium.org)
+Copyright (c) Nicolas Gallagher and Jonathan Neal
+Copyright (c) 2010-2019 Google LLC. http://angular.io/license
+Copyright (c) 2011 Nicolas Gallagher (nicolas@nicolasgallagher.com)
+Copyright (c) 1989, 1993 The Regents of the University of California
+Copyright (c) 1990, 1993 The Regents of the University of California
+Copyright OpenJS Foundation and other contributors, https://openjsf.org
+Copyright (c) Sindre Sorhus <sindresorhus@gmail.com> (https://sindresorhus.com)
+
+MIT License
+
+Copyright (c) <year> <copyright holders>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+---------------------------------------------------------
+
+---------------------------------------------------------
+
+Microsoft.AspNetCore.App.Runtime.osx-x64 6.0.35 - MIT
+
+
+(c) Microsoft Corporation
+Copyright (c) Andrew Arnott
+Copyright (c) 2019 David Fowler
+Copyright (c) 2016 Richard Morris
+Copyright (c) 2017 Yoshifumi Kawai
+Copyright (c) Microsoft Corporation
+Copyright (c) 2007 James Newton-King
+Copyright (c) 2014-2018 Michael Daines
+Copyright (c) 2013-2017, Milosz Krajewski
+Copyright (c) .NET Foundation and Contributors
+Copyright (c) 2019-2020 West Wind Technologies
+Copyright (c) 2010-2019 Google LLC. http://angular.io/license
+Copyright (c) Sindre Sorhus <sindresorhus@gmail.com> (https://sindresorhus.com)
+
+MIT License
+
+Copyright (c) <year> <copyright holders>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+---------------------------------------------------------
+
+---------------------------------------------------------
+
+Microsoft.AspNetCore.App.Runtime.osx-x64 8.0.10 - MIT
+
+
+Copyright Jorn Zaefferer
+(c) Microsoft Corporation
+Copyright (c) Andrew Arnott
+Copyright (c) 2015, Google Inc.
+Copyright (c) 2019 David Fowler
+Copyright (c) HTML5 Boilerplate
+Copyright 2019 The gRPC Authors
+Copyright (c) 2016 Richard Morris
+Copyright (c) 1998 John D. Polstra
+Copyright (c) 2017 Yoshifumi Kawai
+Copyright (c) Microsoft Corporation
+Copyright (c) 2007 James Newton-King
+Copyright (c) 2013 - 2018 AngleSharp
+Copyright (c) 2000-2013 Julian Seward
+Copyright (c) 2011-2021 Twitter, Inc.
+Copyright (c) 2014-2018 Michael Daines
+Copyright (c) 1996-1998 John D. Polstra
+Copyright (c) 2013-2017, Milosz Krajewski
+Copyright (c) .NET Foundation Contributors
+Copyright (c) 2011-2021 The Bootstrap Authors
+Copyright (c) 2019-2023 The Bootstrap Authors
+Copyright (c) .NET Foundation and Contributors
+Copyright (c) 2019-2020 West Wind Technologies
+Copyright (c) 2007 John Birrell (jb@freebsd.org)
+Copyright (c) 2011 Alex MacCaw (info@eribium.org)
+Copyright (c) Nicolas Gallagher and Jonathan Neal
+Copyright (c) 2010-2019 Google LLC. http://angular.io/license
+Copyright (c) 2011 Nicolas Gallagher (nicolas@nicolasgallagher.com)
+Copyright (c) 1989, 1993 The Regents of the University of California
+Copyright (c) 1990, 1993 The Regents of the University of California
+Copyright OpenJS Foundation and other contributors, https://openjsf.org
+Copyright (c) Sindre Sorhus <sindresorhus@gmail.com> (https://sindresorhus.com)
+
+MIT License
+
+Copyright (c) <year> <copyright holders>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+---------------------------------------------------------
+
+---------------------------------------------------------
+
+Microsoft.AspNetCore.App.Runtime.win-x64 6.0.35 - MIT
+
+
+(c) Microsoft Corporation
+Copyright (c) Andrew Arnott
+Copyright (c) 2019 David Fowler
+Copyright (c) 2016 Richard Morris
+Copyright (c) 2017 Yoshifumi Kawai
+Copyright (c) Microsoft Corporation
+Copyright (c) 2007 James Newton-King
+Copyright (c) 2014-2018 Michael Daines
+Copyright (c) 2013-2017, Milosz Krajewski
+Copyright (c) .NET Foundation and Contributors
+Copyright (c) 2019-2020 West Wind Technologies
+Copyright (c) 2010-2019 Google LLC. http://angular.io/license
+Copyright (c) Sindre Sorhus <sindresorhus@gmail.com> (https://sindresorhus.com)
+
+MIT License
+
+Copyright (c) <year> <copyright holders>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+---------------------------------------------------------
+
+---------------------------------------------------------
+
+Microsoft.AspNetCore.App.Runtime.win-x64 8.0.10 - MIT
+
+
+Copyright Jorn Zaefferer
+(c) Microsoft Corporation
+Copyright (c) Andrew Arnott
+Copyright (c) 2015, Google Inc.
+Copyright (c) 2019 David Fowler
+Copyright (c) HTML5 Boilerplate
+Copyright 2019 The gRPC Authors
+Copyright (c) 2016 Richard Morris
+Copyright (c) 1998 John D. Polstra
+Copyright (c) 2017 Yoshifumi Kawai
+Copyright (c) Microsoft Corporation
+Copyright (c) 2007 James Newton-King
+Copyright (c) 2013 - 2018 AngleSharp
+Copyright (c) 2000-2013 Julian Seward
+Copyright (c) 2011-2021 Twitter, Inc.
+Copyright (c) 2014-2018 Michael Daines
+Copyright (c) 1996-1998 John D. Polstra
+Copyright (c) 2013-2017, Milosz Krajewski
+Copyright (c) .NET Foundation Contributors
+Copyright (c) 2011-2021 The Bootstrap Authors
+Copyright (c) 2019-2023 The Bootstrap Authors
+Copyright (c) .NET Foundation and Contributors
+Copyright (c) 2019-2020 West Wind Technologies
+Copyright (c) 2007 John Birrell (jb@freebsd.org)
+Copyright (c) 2011 Alex MacCaw (info@eribium.org)
+Copyright (c) Nicolas Gallagher and Jonathan Neal
+Copyright (c) 2010-2019 Google LLC. http://angular.io/license
+Copyright (c) 2011 Nicolas Gallagher (nicolas@nicolasgallagher.com)
+Copyright (c) 1989, 1993 The Regents of the University of California
+Copyright (c) 1990, 1993 The Regents of the University of California
+Copyright OpenJS Foundation and other contributors, https://openjsf.org
+Copyright (c) Sindre Sorhus <sindresorhus@gmail.com> (https://sindresorhus.com)
 
 MIT License
 
@@ -9135,7 +9424,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ---------------------------------------------------------
 
-Microsoft.ComponentDetection.Contracts 4.9.6 - MIT
+Microsoft.ComponentDetection.Contracts 5.1.5 - MIT
 
 
 (c) Microsoft Corporation
@@ -12563,7 +12852,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ---------------------------------------------------------
 
-Microsoft.Sbom.Adapters 2.2.9 - MIT
+Microsoft.Sbom.Adapters 3.0.0 - MIT
 
 
 (c) Microsoft Corporation
@@ -12582,7 +12871,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ---------------------------------------------------------
 
-Microsoft.Sbom.Contracts 2.2.9 - MIT
+Microsoft.Sbom.Contracts 3.0.0 - MIT
 
 
 (c) Microsoft Corporation
@@ -12601,7 +12890,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ---------------------------------------------------------
 
-Microsoft.Sbom.Extensions 2.2.9 - MIT
+Microsoft.Sbom.Extensions 3.0.0 - MIT
 
 
 (c) Microsoft Corporation
@@ -12620,7 +12909,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ---------------------------------------------------------
 
-Microsoft.Sbom.Parsers.Spdx22SbomParser 2.2.9 - MIT
+Microsoft.Sbom.Parsers.Spdx22SbomParser 3.0.0 - MIT
 
 
 (c) Microsoft Corporation
@@ -15064,29 +15353,48 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ---------------------------------------------------------
 
-System.IO.FileSystem.AccessControl 4.7.0 - MIT
+System.IO.FileSystem.AccessControl 5.0.0 - MIT
 
 
-(c) Microsoft Corporation.
-Copyright (c) .NET Foundation.
+(c) Microsoft Corporation
+Copyright (c) Andrew Arnott
+Copyright 2018 Daniel Lemire
+Copyright (c) .NET Foundation
 Copyright (c) 2011, Google Inc.
-(c) 1997-2005 Sean Eron Anderson.
+Copyright (c) 2020 Dan Shechter
+(c) 1997-2005 Sean Eron Anderson
+Copyright (c) 1998 Microsoft. To
+Copyright (c) 2017 Yoshifumi Kawai
+Copyright (c) Microsoft Corporation
 Copyright (c) 2007 James Newton-King
-Copyright (c) 1991-2017 Unicode, Inc.
+Copyright (c) 2012-2014, Yann Collet
+Copyright (c) 1991-2020 Unicode, Inc.
 Copyright (c) 2013-2017, Alfred Klomp
+Copyright 2012 the V8 project authors
+Copyright (c) 2011-2020 Microsoft Corp
 Copyright (c) 2015-2017, Wojciech Mula
 Copyright (c) 2005-2007, Nick Galbreath
+Copyright (c) 2015 The Chromium Authors
+Copyright (c) 2018 Alexander Chermyanin
+Copyright (c) The Internet Society 1997
 Portions (c) International Organization
-Copyright (c) 2015 The Chromium Authors.
 Copyright (c) 2004-2006 Intel Corporation
+Copyright (c) 2013-2017, Milosz Krajewski
 Copyright (c) 2016-2017, Matthieu Darbois
+Copyright (c) The Internet Society (2003)
 Copyright (c) .NET Foundation Contributors
 Copyright (c) .NET Foundation and Contributors
 Copyright (c) 2011 Novell, Inc (http://www.novell.com)
 Copyright (c) 1995-2017 Jean-loup Gailly and Mark Adler
 Copyright (c) 2015 Xamarin, Inc (http://www.xamarin.com)
-Copyright (c) 2009, 2010, 2013-2016 by the Brotli Authors.
-Copyright (c) YEAR W3C(r) (MIT, ERCIM, Keio, Beihang). Disclaimers THIS WORK IS PROVIDED AS
+Copyright (c) 2009, 2010, 2013-2016 by the Brotli Authors
+Copyright (c) 2014 Ryan Juckett http://www.ryanjuckett.com
+Copyright (c) 1990- 1993, 1996 Open Software Foundation, Inc.
+Copyright (c) YEAR W3C(r) (MIT, ERCIM, Keio, Beihang). Disclaimers
+Copyright (c) 2015 THL A29 Limited, a Tencent company, and Milo Yip
+Copyright 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018 The Regents of the University of California
+Copyright (c) 1989 by Hewlett-Packard Company, Palo Alto, Ca. & Digital Equipment Corporation, Maynard, Mass
+Copyright (c) 1989 by Hewlett-Packard Company, Palo Alto, Ca. & Digital Equipment Corporation, Maynard, Mass. To
 
 The MIT License (MIT)
 
@@ -16347,7 +16655,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-System.Security.Principal.Windows 6.0.0-preview.5.21301.5 - MIT
+System.Security.Principal.Windows 5.0.0 - MIT
 
 
 (c) Microsoft Corporation.
@@ -16369,7 +16677,6 @@ Copyright (c) 2018 Alexander Chermyanin
 Portions (c) International Organization
 Copyright (c) 2015 The Chromium Authors.
 Copyright (c) The Internet Society 1997.
-Copyright (c) 2002 Sun Microsystems, Inc.
 Copyright (c) 2004-2006 Intel Corporation
 Copyright (c) 2013-2017, Milosz Krajewski
 Copyright (c) 2016-2017, Matthieu Darbois

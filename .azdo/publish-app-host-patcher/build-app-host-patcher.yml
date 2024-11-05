@@ -14,6 +14,14 @@ jobs:
 - job: ${{ parameters.jobName }}
   displayName: "[${{ parameters.platform }}] Build AppHostPatcher"
   pool:  ${{ parameters.pool }}
+  templateContext:
+    outputs:
+    - output: pipelineArtifact
+      displayName: 'Publish binaries'
+      condition: always()
+      continueOnError: True
+      targetPath: $(AppHostPatcherRootDir)/${{ parameters.platform }}
+      artifactName: 'apphostpatcher-${{ parameters.platform }}'
 
   steps:
   - checkout: self

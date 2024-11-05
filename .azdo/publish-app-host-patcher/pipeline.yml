@@ -14,7 +14,7 @@ variables:
   - name: MacOSPlatform
     value: osx-x64
   - name: BasePackageName
-    value: buildxl.tools.apphostpatcher
+    value: BuildXL.Tools.AppHostPatcher
 
 resources:
   repositories:
@@ -74,13 +74,6 @@ extends:
 
             templateContext:
               outputs:
-                - output: pipelineArtifact
-                  displayName: Publish nuget packages
-                  condition: succeeded()
-                  continueOnError: True
-                  targetPath: $(Agent.TempDirectory)/AppHostPatcherPackage
-                  artifactName: AppHostPatcherArtifacts
-
                 - output: nuget
                   displayName: '📦 Push NuGet packages to Domino-BuildXL feed'
                   packageParentPath: $(Agent.TempDirectory)/AppHostPatcherPackage
@@ -92,7 +85,7 @@ extends:
                 - output: nuget
                   displayName: '📦 Push NuGet packages to to BuildXL External feed'
                   packageParentPath: $(Agent.TempDirectory)/AppHostPatcherPackage
-                  packagesToPush: (Agent.TempDirectory)/AppHostPatcherPackage/*.nupkg
+                  packagesToPush: $(Agent.TempDirectory)/AppHostPatcherPackage/*.nupkg
                   nuGetFeedType: external
                   publishFeedCredentials: 'mseng-Domino-BuildXL-mseng_PipelineTools_BuildXL.External.Dependencies'
                   sbomEnabled: false
@@ -102,8 +95,8 @@ extends:
                 displayName: Prepare Nuget Package directory
                 inputs:
                   targetType: 'filePath'
-                  filePath: '/.azdo/scripts/PrepareAppHostPatcherRuntimePackage.ps1'
-                  arguments: '-packageVersion {{ parameters.AppHostPatcherVersion }} -outputDirectory $(AppHostPatcherRootDir) -basePackageName $(BasePackageName)'
+                  filePath: '$(Build.SourcesDirectory)/.azdo/scripts/PrepareAppHostPatcherRuntimePackage.ps1'
+                  arguments: '-packageVersion ${{ parameters.AppHostPatcherVersion }} -outputDirectory $(AppHostPatcherRootDir) -basePackageName $(BasePackageName)'
                
               - task: PowerShell@2
                 displayName: Prepare packaging directory

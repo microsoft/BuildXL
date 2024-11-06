@@ -34,12 +34,12 @@ namespace BuildXL.ViewModel
 
             if (duration.TotalMinutes >= 1)
             {
-                return $"{duration.Minutes}m {duration.Seconds}s {duration.Milliseconds}ms";
+                return $"{duration.Minutes}m {duration.Seconds}s";
             }
 
             if (duration.TotalSeconds >= 1)
             {
-                return $"{duration.Seconds}s {duration.Milliseconds}ms";
+                return $"{duration.Seconds}s";
             }
 
             return $"{duration.Milliseconds}ms";

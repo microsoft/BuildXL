@@ -329,7 +329,7 @@ config({
 
                 // Ninja JSON graph generation helper
                 { id: "BuildXL.Tools.Ninjson", version: "1.11.6", osSkip: [ "macOS" ] },
-                { id: "BuildXL.Tools.AppHostPatcher", version: "1.0.0" },
+                { id: "BuildXL.Tools.AppHostPatcher", version: "2.0.0" },
 
                 // Azure Communication
                 { id: "Microsoft.Rest.ClientRuntime", version: "2.3.24",

@@ -4,6 +4,10 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.RegularExpressions;
+using Microsoft.TeamFoundation.Build.WebApi;
+using Microsoft.VisualStudio.Services.Common;
+using Microsoft.VisualStudio.Services.WebApi;
+using NuGet.Protocol.Plugins;
 
 namespace BuildToolsInstaller.Utiltiies
 {
@@ -20,9 +24,60 @@ namespace BuildToolsInstaller.Utiltiies
 
         /// <nodoc />
         public static string CollectionUri => Environment.GetEnvironmentVariable("SYSTEM_COLLECTIONURI")!;
-
         /// <nodoc />
         public static string ToolsDirectory => Environment.GetEnvironmentVariable("AGENT_TOOLSDIRECTORY")!;
+
+        /// <nodoc />
+        public static string AccessToken => Environment.GetEnvironmentVariable("SYSTEM_ACCESSTOKEN")!;
+
+        /// <nodoc />
+        private static string ServerUri => Environment.GetEnvironmentVariable("SYSTEM_TEAMFOUNDATIONSERVERURI")!;
+
+        /// <nodoc />
+        private static string ProjectId => Environment.GetEnvironmentVariable("SYSTEM_TEAMPROJECTID")!;
+
+        /// <nodoc />
+        public static string BuildId => Environment.GetEnvironmentVariable("BUILD_BUILDID")!;
+
+        private static BuildHttpClient BuildClient => s_httpClient ??= new BuildHttpClient(new Uri(ServerUri), new VssBasicCredential(string.Empty, AccessToken));
+        private static BuildHttpClient? s_httpClient;
+
+        public static async Task<string?> GetBuildPropertyAsync(string key)
+        {
+            var props = await IdempotentWithRetry(() => BuildClient.GetBuildPropertiesAsync(ProjectId, int.Parse(BuildId)));
+            return props.ContainsKey(key) ? props.GetValue(key, string.Empty) : null;
+        }
+
+        public static async Task SetBuildPropertyAsync(string key, string value)
+        {
+
+            // UpdateBuildProperties is ultimately an HTTP PATCH: the new properties specified will be added to the existing ones
+            // in an atomic fashion. So we don't have to worry about multiple builds concurrently calling UpdateBuildPropertiesAsync
+            // as long as the keys don't clash.
+            PropertiesCollection patch = new()
+            {
+                { key, value }
+            };
+
+            await IdempotentWithRetry(() => BuildClient.UpdateBuildPropertiesAsync(patch, ProjectId, int.Parse(BuildId)));
+        }
+
+        /// <summary>
+        /// A naive retry to be a liitle bit robust around flaky network issues and such
+        /// </summary>
+        private static async Task<T> IdempotentWithRetry<T>(Func<Task<T>> taskFactory)
+        {
+            try
+            {
+                return await taskFactory();
+            }
+            catch (Exception)
+            {
+                // Back off for a sec
+                await Task.Delay(1000);
+                return await taskFactory();
+            }
+        }
 
         /// <summary>
         /// Get the organization name from environment data in the agent

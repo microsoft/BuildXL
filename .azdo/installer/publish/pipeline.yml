@@ -20,7 +20,7 @@ extends:
     - stage:
       displayName: Test, build and publish
       jobs:
-      - template: /.azdo/installer-publish/job.yml@self
+      - template: /.azdo/installer/publish/job.yml@self
         parameters:
           platform: linux-x64
           pool: 
@@ -28,7 +28,7 @@ extends:
             image: linux-PME-GPT
             os: linux  
 
-      - template: /.azdo/installer-publish/job.yml@self
+      - template: /.azdo/installer/publish/job.yml@self
         parameters:
           platform: win-x64
           pool: 

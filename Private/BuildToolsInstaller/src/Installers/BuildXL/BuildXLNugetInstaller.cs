@@ -2,6 +2,8 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Threading.Tasks;
+using System.Threading;
 using BuildToolsInstaller.Config;
 using BuildToolsInstaller.Utiltiies;
 using NuGet.Configuration;
@@ -20,8 +22,13 @@ namespace BuildToolsInstaller
         private readonly INugetDownloader m_downloader;
         private readonly ILogger m_logger;
         private BuildXLNugetInstallerConfig? m_config;
+        private const int DefaultWorkerTimeoutMin = 20;
+        private const int PropertiesPollDelaySeconds = 5;
 
         private static string PackageName => OperatingSystem.IsWindows() ? "BuildXL.win-x64" : "BuildXL.linux-x64";
+
+        // Use only after calling TryInitializeConfig()
+        private BuildXLNugetInstallerConfig Config => m_config!;
 
         public BuildXLNugetInstaller(INugetDownloader downloader, ILogger logger)
         {
@@ -39,7 +46,7 @@ namespace BuildToolsInstaller
 
             try
             {
-                var version = m_config!.Version ?? await TryResolveVersionAsync();
+                var version = await TryResolveVersionAsync();
                 if (version == null)
                 {
                     m_logger.Error("BuildLXNugetInstaller: failed to resolve version to install.");
@@ -74,11 +81,11 @@ namespace BuildToolsInstaller
 
                 if (!NuGetVersion.TryParse(version, out var nugetVersion))
                 {
-                    m_logger.Error($"The provided version for BuildXL package is malformed: {m_config.Version}.");
+                    m_logger.Error($"The provided version for BuildXL package is malformed: {Config.Version}.");
                     return false;
                 }
 
-                var feed = m_config.FeedOverride ?? InferSourceRepository();
+                var feed = Config.FeedOverride ?? InferSourceRepository();
 
                 var repository = CreateSourceRepository(feed);
                 if (await m_downloader.TryDownloadNugetToDiskAsync(repository, PackageName, nugetVersion, downloadLocation, m_logger))
@@ -163,6 +170,12 @@ namespace BuildToolsInstaller
                 return false;
             }
 
+            if (m_config.DistributedRole != null && !AdoUtilities.IsAdoBuild)
+            {
+                m_logger.Error("Distributed mode can only be enabld in ADO Builds. Installation will fail.");
+                return false;
+            }
+
             return true;
         }
 
@@ -176,16 +189,82 @@ namespace BuildToolsInstaller
 
         private async Task<string?> TryResolveVersionAsync()
         {
-            const string ConfigurationWellKnownUri = "https://bxlscripts.z20.web.core.windows.net/config/buildxl/BuildXLConfig_V0.json";
-            var jsonUri = new Uri(m_config!.Internal_GlobalConfigOverride ?? ConfigurationWellKnownUri);
-            var config = await JsonDeserializer.DeserializeFromHttpAsync<BuildXLGlobalConfig_V0>(jsonUri, m_logger, default);
-            if (config == null)
+            var resolvedVersionProperty = "BuildXLResolvedVersion_" + (Config.InvocationKey ?? "default");
+            string? resolvedVersion = null;
+            if (Config.Version != null)
             {
-                // Error should have been logged.
-                return null;
+                // A version specified in the configuration is preferred to anything else
+                resolvedVersion = Config.Version;
+            }
+            else if (Config.DistributedRole == DistributedRole.Worker)
+            {
+                var timeoutMinutes = Config.WorkerTimeoutMin ?? DefaultWorkerTimeoutMin;
+                m_logger.Info($"The installer is running in worker mode. Poll the build properties to get the resolved version from the main agent. This operation will time out after {timeoutMinutes} minutes");
+
+                using var cts = new CancellationTokenSource();
+                cts.CancelAfter(TimeSpan.FromMinutes(timeoutMinutes)); // Cancel automatically after the timeout
+
+                try
+                {
+                    resolvedVersion = await ResolveVersionFromOrchestratorAsync(resolvedVersionProperty, cts.Token);
+                }
+                catch (OperationCanceledException) when (cts.IsCancellationRequested)
+                {
+                    m_logger.Error($"Timed out waiting for resolved version from orchestrator. Timeout: {timeoutMinutes} min");
+                    resolvedVersion = null;
+                }
+            }
+            else
+            {
+                // Orchestrator (or default) mode -> resolve version from global configuration an publish it
+                const string ConfigurationWellKnownUri = "https://bxlscripts.z20.web.core.windows.net/config/buildxl/BuildXLConfig_V0.json";
+                var jsonUri = new Uri(Config.Internal_GlobalConfigOverride ?? ConfigurationWellKnownUri);
+                var config = await JsonDeserializer.DeserializeFromHttpAsync<BuildXLGlobalConfig_V0>(jsonUri, m_logger, default);
+                if (config == null)
+                {
+                    // Error should have been logged.
+                    return null;
+                }
+
+                resolvedVersion = config.Release;
             }
 
-            return config.Release;
+            if (Config.DistributedRole== DistributedRole.Orchestrator)
+            {
+                // We resolved a version - we should push it to the properties for the workers to consume.
+                // If the version is null it means we encountered some error above, so push the empty string
+                // (the workers must be signalled that there was an error somehow).
+                await AdoUtilities.SetBuildPropertyAsync(resolvedVersionProperty, resolvedVersion ?? string.Empty);
+            }
+
+            return resolvedVersion;
+        }
+
+        private async Task<string?> ResolveVersionFromOrchestratorAsync(string propertyKey, CancellationToken token)
+        {
+            await Task.Yield();
+            while (true)
+            {
+                token.ThrowIfCancellationRequested();
+
+                var maybeProperty = await AdoUtilities.GetBuildPropertyAsync(propertyKey);
+                if (maybeProperty != null)
+                {
+                    // Orchestrator pushes an empty string on error
+                    if (maybeProperty == string.Empty)
+                    {
+                        m_logger.Error("The orchestrator stage installer encountered an error resolving the version. This installer is running in worker mode and it can't continue.");
+                        return null;
+                    }
+
+                    // Should have the resolved property
+                    return maybeProperty;
+                }
+
+                // Wait before polling again
+                await Task.Delay(TimeSpan.FromSeconds(PropertiesPollDelaySeconds), token);
+            }
+
         }
     }
 }

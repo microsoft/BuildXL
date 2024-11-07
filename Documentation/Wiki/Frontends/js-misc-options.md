@@ -40,3 +40,20 @@ Maximum number of retries for processes. A process returning an exit code specif
 
 ### enforceSourceReadsUnderPackageRoots: boolean
 By default JavaScript projects can liberally read any source file on disk. BuildXL will only make sure these files are not treated in a racy manner (e.g. they are both rewritten and read by different pips in a non-deterministic order). By enabling this setting, pips are only allowed to read sources under package roots to which there is an explicitly dependency declared (or is in its transitive closure). When a pip reads a source file outside of the allowed scopes, a read DFA will be issued. Additional read scopes can be configured with `additionalSourceReadsScopes`. Defaults to false.
+
+### timeouts: JavaScriptProjectTimeout[]
+A list of timeouts that apply to selected JavaScript projects. JavaScriptProjectTimeout definition is:
+
+```typescript
+interface JavaScriptProjectTimeout {
+    timeout?: string;
+    warningTimeout?: string;
+    projectSelector: JavaScriptProjectSelector[];
+}
+```
+
+Check the [resolver configuration settings](..\..\..\Public\Sdk\Public\Prelude\Prelude.Configuration.Resolvers.dsc) for the full definition.
+
+The order in which timeouts are applied to projects matters. If a project is selected multiple times, the last selection will be the one that takes effect. 
+
+Make sure `timeout` and `warningTimeout` are correctly formatted string. Invalid format will cause build failure. In addition, If not provided, the error and warning timeouts will be set to their default values.

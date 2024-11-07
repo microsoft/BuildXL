@@ -226,6 +226,20 @@ namespace BuildXL.FrontEnd.JavaScript
                 }
             }
 
+            if (resolverSettings.Timeouts != null)
+            {
+                foreach (var timeouts in resolverSettings.Timeouts)
+                {
+                    foreach (var projectSelector in timeouts.ProjectSelector)
+                    {
+                        if (!ValidateProjectSelector(projectSelector, pathToFile, "JavaScript pip timeout for projects"))
+                        {
+                            return false;
+                        }
+                    }
+                }
+            }
+
             return true;
         }
 
@@ -606,6 +620,8 @@ namespace BuildXL.FrontEnd.JavaScript
                 new Binding(StringId.Create(Context.StringTable, "environmentVariables"), new EvaluationResult(new EvaluatedArrayLiteral(envVars, default, m_javaScriptWorkspaceResolver.ExportsFile)), location: default),
                 new Binding(StringId.Create(Context.StringTable, "passThroughEnvironmentVariables"), new EvaluationResult(new EvaluatedArrayLiteral(passThroughVars, default, m_javaScriptWorkspaceResolver.ExportsFile)), location: default),
                 new Binding(StringId.Create(Context.StringTable, "tempDirectory"), new EvaluationResult(DirectoryArtifact.CreateWithZeroPartialSealId(process.TempDirectory)), location: default),
+                new Binding(StringId.Create(Context.StringTable, "timeoutInMilliseconds"), new EvaluationResult(project.TimeoutInMilliseconds), location: default),
+                new Binding(StringId.Create(Context.StringTable, "warningTimeoutInMilliseconds"), new EvaluationResult(project.WarningTimeoutInMilliseconds), location: default),
             };
 
             return new EvaluationResult(ObjectLiteral.Create(bindings, default, m_resolverSettings.File));

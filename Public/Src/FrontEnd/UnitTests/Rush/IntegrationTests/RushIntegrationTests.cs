@@ -31,6 +31,105 @@ namespace Test.BuildXL.FrontEnd.Rush
         }
 
         [Fact]
+        public void JavaScriptPipTimeoutErrorForProject()
+        {
+            var config = Build(timeouts: "[{timeout: '500ms', projectSelector: ['@ms/project-B']}]")
+                .AddJavaScriptProject("@ms/project-A", "src/A", "setTimeout(function(){console.log('sleep over!')}, 1000)")
+                .AddJavaScriptProject("@ms/project-B", "src/B", "setTimeout(function(){console.log('sleep over!')}, 1000)")
+                .PersistSpecsAndGetConfiguration();
+
+            var engineResult = RunRushProjects(config, new[] {
+                ("src/A", "@ms/project-A"),
+                ("src/B", "@ms/project-B"),
+            });
+
+            Assert.False(engineResult.IsSuccess);
+
+            // Let's do some basic graph validations
+            var processes = engineResult.EngineState.PipGraph.RetrievePipsOfType(global::BuildXL.Pips.Operations.PipType.Process).ToList();
+            // There should be two process pips
+            Assert.Equal(2, processes.Count);
+            // A PipProcessTookTooLongError should be logged
+            AssertErrorEventLogged(global::BuildXL.Processes.Tracing.LogEventId.PipProcessTookTooLongError, 1);
+        }
+
+        [Fact]
+        public void JavaScriptPipTimeoutWarningForProject()
+        {
+            var config = Build(timeouts: "[{warningTimeout: '500', projectSelector: ['@ms/project-B']}]")
+                .AddJavaScriptProject("@ms/project-A", "src/A", "setTimeout(function(){console.log('sleep over!')}, 1000)")
+                .AddJavaScriptProject("@ms/project-B", "src/B", "setTimeout(function(){console.log('sleep over!')}, 1000)")
+                .PersistSpecsAndGetConfiguration();
+
+            var engineResult = RunRushProjects(config, new[] {
+                ("src/A", "@ms/project-A"),
+                ("src/B", "@ms/project-B"),
+            });
+
+            Assert.True(engineResult.IsSuccess);
+
+            // Let's do some basic graph validations
+            var processes = engineResult.EngineState.PipGraph.RetrievePipsOfType(global::BuildXL.Pips.Operations.PipType.Process).ToList();
+            // There should be two process pips
+            Assert.Equal(2, processes.Count);
+            // A PipProcessTookTooLongWarning should be logged
+            AssertWarningEventLogged(global::BuildXL.Processes.Tracing.LogEventId.PipProcessTookTooLongWarning, 1);
+        }
+
+        [Fact]
+        public void JavaScriptPipTimeoutForDifferentProjects()
+        {
+            var config = Build(timeouts: "[{warningTimeout: '500', projectSelector: ['@ms/project-B', '@ms/project-C']}, {warningTimeout: '500ms', projectSelector: ['@ms/project-D']}, {timeout: '500', projectSelector: ['@ms/project-E']}]")
+                .AddJavaScriptProject("@ms/project-A", "src/A", "setTimeout(function(){console.log('sleep over!')}, 1000)")
+                .AddJavaScriptProject("@ms/project-B", "src/B", "setTimeout(function(){console.log('sleep over!')}, 1000)")
+                .AddJavaScriptProject("@ms/project-C", "src/C", "setTimeout(function(){console.log('sleep over!')}, 1000)")
+                .AddJavaScriptProject("@ms/project-D", "src/D", "setTimeout(function(){console.log('sleep over!')}, 1000)")
+                .AddJavaScriptProject("@ms/project-E", "src/E", "setTimeout(function(){console.log('sleep over!')}, 1000)")
+                .PersistSpecsAndGetConfiguration();
+
+            var engineResult = RunRushProjects(config, new[] {
+                ("src/A", "@ms/project-A"),
+                ("src/B", "@ms/project-B"),
+                ("src/C", "@ms/project-C"),
+                ("src/D", "@ms/project-D"),
+                ("src/E", "@ms/project-E"),
+            });
+
+            Assert.False(engineResult.IsSuccess);
+            // Let's do some basic graph validations
+            var processes = engineResult.EngineState.PipGraph.RetrievePipsOfType(global::BuildXL.Pips.Operations.PipType.Process).ToList();
+            // There should be two process pips
+            Assert.Equal(5, processes.Count);
+
+            // There should be 3 PipProcessTookTooLongWarning logged
+            AssertWarningEventLogged(global::BuildXL.Processes.Tracing.LogEventId.PipProcessTookTooLongWarning, 3);
+            // There should be 1 PipProcessTookTooLongError logged
+            AssertErrorEventLogged(global::BuildXL.Processes.Tracing.LogEventId.PipProcessTookTooLongError, 1);
+        }
+
+        [Theory]
+        [InlineData("233a")]
+        [InlineData("233mm")]
+        [InlineData("233msh")]
+        public void JavaScriptInvalidPipTimeout(string timeoutDuration)
+        {
+            var config = Build(timeouts: $"[{{timeout: '{timeoutDuration}', projectSelector: ['@ms/project-B']}}]")
+                .AddJavaScriptProject("@ms/project-A", "src/A", "setTimeout(function(){console.log('sleep over!')}, 1000)")
+                .AddJavaScriptProject("@ms/project-B", "src/B", "setTimeout(function(){console.log('sleep over!')}, 1000)")
+                .PersistSpecsAndGetConfiguration();
+
+            var engineResult = RunRushProjects(config, new[] {
+                ("src/A", "@ms/project-A"),
+                ("src/B", "@ms/project-B"),
+            });
+
+            Assert.False(engineResult.IsSuccess);
+
+            // A PipProcessTookTooLongError should be logged
+            AssertErrorEventLogged(global::BuildXL.FrontEnd.JavaScript.Tracing.LogEventId.InvalidTimeoutDurationValue, 1);
+        }
+
+        [Fact]
         public void EndToEndPipExecutionWithDependencies()
         {
             // Create two projects A and B such that A -> B.

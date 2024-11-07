@@ -118,7 +118,8 @@ namespace Test.BuildXL.FrontEnd.Rush
             string rushLocation = null,
             bool? enforceSourceReadsUnderPackageRoots = null,
             string additionalSourceReadsScopes = null,
-            string childProcessesToBreakawayFromSandbox = null)
+            string childProcessesToBreakawayFromSandbox = null,
+            string timeouts = null)
         {
             environment ??= new Dictionary<string, string> { 
                 ["PATH"] = PathToNodeFolder,
@@ -143,7 +144,8 @@ namespace Test.BuildXL.FrontEnd.Rush
                 rushLocation,
                 enforceSourceReadsUnderPackageRoots,
                 additionalSourceReadsScopes,
-                childProcessesToBreakawayFromSandbox);
+                childProcessesToBreakawayFromSandbox,
+                timeouts);
         }
 
         /// <inheritdoc/>
@@ -165,7 +167,8 @@ namespace Test.BuildXL.FrontEnd.Rush
             string rushLocation = null,
             bool? enforceSourceReadsUnderPackageRoots = null,
             string additionalSourceReadsScopes = null,
-            string childProcessesToBreakawayFromSandbox = null)
+            string childProcessesToBreakawayFromSandbox = null,
+            string timeouts = null)
         {
             environment ??= new Dictionary<string, DiscriminatingUnion<string, UnitValue>> { 
                 ["PATH"] = new DiscriminatingUnion<string, UnitValue>(PathToNodeFolder),
@@ -206,7 +209,8 @@ namespace Test.BuildXL.FrontEnd.Rush
                     rushLocation,
                     enforceSourceReadsUnderPackageRoots,
                     additionalSourceReadsScopes,
-                    childProcessesToBreakawayFromSandbox));
+                    childProcessesToBreakawayFromSandbox,
+                    timeouts));
         }
 
         protected BuildXLEngineResult RunRushProjects(
@@ -316,7 +320,8 @@ namespace Test.BuildXL.FrontEnd.Rush
             string rushLocation = null,
             bool? enforceSourceReadsUnderPackageRoots = null,
             string additionalSourceReadScopes = null,
-            string childProcessesToBreakawayFromSandbox = null) => $@"
+            string childProcessesToBreakawayFromSandbox = null,
+            string timeouts = null) => $@"
 config({{
     resolvers: [
         {{
@@ -338,6 +343,7 @@ config({{
             {(enforceSourceReadsUnderPackageRoots != null ? $"enforceSourceReadsUnderPackageRoots: {enforceSourceReadsUnderPackageRoots.Value.ToString().ToLowerInvariant()}," : string.Empty)}
             {(additionalSourceReadScopes != null ? $"additionalSourceReadsScopes: {additionalSourceReadScopes}," : string.Empty)}
             {(childProcessesToBreakawayFromSandbox != null ? $"childProcessesToBreakawayFromSandbox: {childProcessesToBreakawayFromSandbox}," : string.Empty)}
+            {(timeouts != null ? $"timeouts: {timeouts}," : string.Empty)}
         }},
         {(addDScriptResolver? "{kind: 'DScript', modules: [f`module.config.dsc`, f`${Context.getBuildEngineDirectory()}/Sdk/Sdk.Transformers/package.config.dsc`]}" : string.Empty)}
     ],

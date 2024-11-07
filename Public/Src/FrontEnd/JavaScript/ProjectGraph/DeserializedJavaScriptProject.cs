@@ -28,7 +28,9 @@ namespace BuildXL.FrontEnd.JavaScript.ProjectGraph
             [AllowNull] IReadOnlyDictionary<string, string> availableScriptCommands,
             AbsolutePath tempFolder,
             IReadOnlyCollection<PathWithTargets> outputDirectories,
-            IReadOnlyCollection<PathWithTargets> sourceFiles) : base(name, projectFolder, dependencies, tempFolder)
+            IReadOnlyCollection<PathWithTargets> sourceFiles,
+            int timeoutInMilliseconds = 0,
+            int warningTimeoutInMilliseconds = 0) : base(name, projectFolder, dependencies, tempFolder, timeoutInMilliseconds, warningTimeoutInMilliseconds)
         {
             Contract.RequiresNotNull(dependencies);
             Contract.RequiresNotNull(outputDirectories);
@@ -45,7 +47,7 @@ namespace BuildXL.FrontEnd.JavaScript.ProjectGraph
             Contract.Requires(customScriptCommands != null);
 
             return new DeserializedJavaScriptProject(
-                Name, ProjectFolder, Dependencies, customScriptCommands, TempFolder, OutputDirectories, SourceFiles);
+                Name, ProjectFolder, Dependencies, customScriptCommands, TempFolder, OutputDirectories, SourceFiles, TimeoutInMilliseconds, WarningTimeoutInMilliseconds);
         }
 
         /// <summary>

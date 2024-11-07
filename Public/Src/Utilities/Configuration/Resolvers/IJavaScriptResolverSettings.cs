@@ -154,6 +154,11 @@ namespace BuildXL.Utilities.Configuration
         /// When <see cref="EnforceSourceReadsUnderPackageRoots"/> is disabled, this option has no effect.
         /// </remarks>
         IReadOnlyList<DiscriminatingUnion<DirectoryArtifact, string>> AdditionalSourceReadsScopes { get; }
+
+        /// <summary>
+        /// Pip Timeout that will be applied for selected JavaScript projects
+        /// </summary>
+        IReadOnlyList<IJavaScriptProjectTimeout> Timeouts { get; }
     }
 
     /// <nodoc/>

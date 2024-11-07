@@ -242,5 +242,14 @@ namespace BuildXL.FrontEnd.JavaScript.Tracing
             Message = EventConstants.LabeledProvenancePrefix + "Failed to inspect path '{path}' for reparse points. Details: {error}",
             Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
         public abstract void CannotGetFinalPathForPath(LoggingContext context, Location location, string path, int error);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.InvalidTimeoutDurationValue,
+            EventGenerators = EventGenerators.LocalOnly,
+            Message = EventConstants.LabeledProvenancePrefix + "Invalid timeout duration value. Details: {message}",
+            EventTask = (ushort)Tasks.Engine,
+            EventOpcode = (byte)Tasks.Parser,
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
+        public abstract void InvalidTimoutDurationValue(LoggingContext context, Location location, string message);
     }
 }

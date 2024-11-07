@@ -588,6 +588,16 @@ namespace BuildXL.FrontEnd.JavaScript
                 }
             }
             FrontEndUtilities.SetProcessEnvironmentVariables(CreateEnvironment(project), m_userDefinedPassthroughVariables, processBuilder, m_context.PathTable);
+
+            if (project.TimeoutInMilliseconds > 0)
+            {
+                processBuilder.Timeout = TimeSpan.FromMilliseconds(project.TimeoutInMilliseconds);
+            }
+
+            if (project.WarningTimeoutInMilliseconds > 0)
+            {
+                processBuilder.WarningTimeout = TimeSpan.FromMilliseconds(project.WarningTimeoutInMilliseconds);
+            }
         }
 
         /// <summary>

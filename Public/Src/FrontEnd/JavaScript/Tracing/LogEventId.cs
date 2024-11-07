@@ -39,5 +39,6 @@ namespace BuildXL.FrontEnd.JavaScript.Tracing
         IgnoredDependency = 11922,
         CannotCopySerializedGraphFile = 11923,
         CannotGetFinalPathForPath = 11924,
+        InvalidTimeoutDurationValue = 11925,
     }
 }

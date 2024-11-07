@@ -20,7 +20,9 @@ namespace BuildXL.FrontEnd.JavaScript.ProjectGraph
             string name,
             AbsolutePath projectFolder,
             [AllowNull] IReadOnlyCollection<TDependency> dependencies,
-            AbsolutePath tempFolder)
+            AbsolutePath tempFolder,
+            int timeoutInMilliseconds = 0,
+            int warningTimeoutInMilliseconds = 0)
         {   
             Contract.RequiresNotNullOrEmpty(name);
             Contract.Requires(projectFolder.IsValid);
@@ -29,6 +31,8 @@ namespace BuildXL.FrontEnd.JavaScript.ProjectGraph
             ProjectFolder = projectFolder;
             Dependencies = dependencies;
             TempFolder = tempFolder;
+            TimeoutInMilliseconds = timeoutInMilliseconds;
+            WarningTimeoutInMilliseconds = warningTimeoutInMilliseconds;
         }
 
         /// <nodoc/>
@@ -49,5 +53,11 @@ namespace BuildXL.FrontEnd.JavaScript.ProjectGraph
         /// <nodoc/>
         /// <remarks>Can be invalid</remarks>
         public AbsolutePath TempFolder { get; }
+
+        /// <nodoc/>
+        public int TimeoutInMilliseconds { get; internal set; }
+
+        /// <nodoc/>
+        public int WarningTimeoutInMilliseconds { get; internal set; }
     }
 }

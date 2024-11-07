@@ -20,6 +20,8 @@ using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Utilities;
 using BuildXL.FrontEnd.Utilities.GenericProjectGraphResolver;
 using BuildXL.FrontEnd.Workspaces.Core;
+using BuildXL.Pips.Operations;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Core;
@@ -492,23 +494,32 @@ namespace BuildXL.FrontEnd.JavaScript
             var javaScriptGraph = maybeResult.Result.graph;
             var flattenedGraph = maybeResult.Result.flattenedGraph;
 
-            JavaScriptProjectSelector projectSelector = null;
+            Lazy<JavaScriptProjectSelector> lazyProjectSelector = new Lazy<JavaScriptProjectSelector>(() => new JavaScriptProjectSelector(javaScriptGraph.Projects));
 
             // If additional dependencies are specified, let's extend projects with them
             if (ResolverSettings.AdditionalDependencies != null)
             {
-                projectSelector = new JavaScriptProjectSelector(javaScriptGraph.Projects);
-                if (!TryUpdateProjectsWithAdditionalDependencies(projectSelector))
+                if (!TryUpdateProjectsWithAdditionalDependencies(lazyProjectSelector.Value))
                 {
                     // Specific error should have been logged
                     return new JavaScriptGraphConstructionFailure(ResolverSettings, Context.PathTable);
                 }
             }
 
-            if (!TryResolveExports(javaScriptGraph.Projects, flattenedGraph.Projects, projectSelector, out var exports))
+            if (!TryResolveExports(javaScriptGraph.Projects, flattenedGraph.Projects, lazyProjectSelector.Value, out var exports))
             {
                 // Specific error should have been logged
                 return new JavaScriptGraphConstructionFailure(ResolverSettings, Context.PathTable);
+            }
+
+            // If per project pip timeout is specified, update the project pip timeout
+            if (ResolverSettings.Timeouts != null)
+            {
+                if (!TryUpdateProjectsWithTimeout(lazyProjectSelector.Value))
+                {
+                    // Specific errors should have been logged
+                    return new JavaScriptGraphConstructionFailure(ResolverSettings, Context.PathTable);
+                }
             }
 
             // The module contains all project files that are part of the graph
@@ -540,6 +551,60 @@ namespace BuildXL.FrontEnd.JavaScript
                 mounts: null);
 
             return new JavaScriptGraphResult<TGraphConfiguration>(javaScriptGraph, moduleDefinition, exports);
+        }
+
+        /// <summary>
+        /// Add timeout and warning timeout to selected projects
+        /// </summary>
+        private bool TryUpdateProjectsWithTimeout(JavaScriptProjectSelector projectSelector)
+        {
+            foreach (var timeouts in ResolverSettings.Timeouts)
+            {
+                foreach (var selector in timeouts.ProjectSelector)
+                {
+                    if (!projectSelector.TryGetMatches(selector, out var matches, out var failure))
+                    {
+                        Tracing.Logger.Log.InvalidRegexInProjectSelector(
+                                        Context.LoggingContext,
+                                        ResolverSettings.Location(Context.PathTable),
+                                        selector.GetValue().ToString(),
+                                        failure);
+                        return false;
+                    }
+
+                    foreach (var match in matches)
+                    {
+                        if (!string.IsNullOrEmpty(timeouts.Timeout))
+                        {
+                            var possibleTimeoutInMilliseconds = ConvertUtilities.TryParseDurationOptionToMilliseconds(timeouts.Timeout, nameof(timeouts.Timeout), 1, (int)Process.MaxTimeout.TotalMilliseconds);
+                            if (!possibleTimeoutInMilliseconds.Succeeded)
+                            {
+                                Tracing.Logger.Log.InvalidTimoutDurationValue(
+                                                Context.LoggingContext,
+                                                ResolverSettings.Location(Context.PathTable),
+                                                possibleTimeoutInMilliseconds.Failure.Content);
+                                return false;
+                            }
+                            match.TimeoutInMilliseconds = possibleTimeoutInMilliseconds.Result;
+                        }
+
+                        if (!string.IsNullOrEmpty(timeouts.WarningTimeout))
+                        {
+                            var possibleWarningTimeoutInMilliseconds = ConvertUtilities.TryParseDurationOptionToMilliseconds(timeouts.WarningTimeout, nameof(timeouts.WarningTimeout), 1, (int)Process.MaxTimeout.TotalMilliseconds);
+                            if (!possibleWarningTimeoutInMilliseconds.Succeeded)
+                            {
+                                Tracing.Logger.Log.InvalidTimoutDurationValue(
+                                                Context.LoggingContext,
+                                                ResolverSettings.Location(Context.PathTable),
+                                                possibleWarningTimeoutInMilliseconds.Failure.Content);
+                                return false;
+                            }
+                            match.WarningTimeoutInMilliseconds = possibleWarningTimeoutInMilliseconds.Result;
+                        }           
+                    }
+                }
+            }
+            return true;
         }
 
         /// <summary>

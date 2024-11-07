@@ -32,7 +32,9 @@ namespace BuildXL.FrontEnd.JavaScript.ProjectGraph
             IReadOnlyCollection<AbsolutePath> outputDirectories,
             IEnumerable<FileArtifact> inputFiles,
             IEnumerable<DirectoryArtifact> inputDirectories,
-            [AllowNull] string projectNameDisplayString = null) : base(name, projectFolder, null, tempFolder)
+            [AllowNull] string projectNameDisplayString = null,
+            int timeoutInMilliseconds = 0,
+            int warningTimeoutInMilliseconds = 0) : base(name, projectFolder, null, tempFolder, timeoutInMilliseconds, warningTimeoutInMilliseconds)
         {
             Contract.RequiresNotNullOrEmpty(scriptCommandName);
             Contract.RequiresNotNull(outputDirectories);
@@ -63,7 +65,9 @@ namespace BuildXL.FrontEnd.JavaScript.ProjectGraph
                 outputDirectories,
                 inputFiles,
                 inputDirectories: CollectionUtilities.EmptyArray<DirectoryArtifact>(),
-                projectNameDisplayString);
+                projectNameDisplayString,
+                deserializedJavaScriptProject.TimeoutInMilliseconds,
+                deserializedJavaScriptProject.WarningTimeoutInMilliseconds);
         }
 
         private static List<AbsolutePath> ExtractRelevantPaths(

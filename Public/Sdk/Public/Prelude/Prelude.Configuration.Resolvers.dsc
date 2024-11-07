@@ -588,6 +588,19 @@ interface JavaScriptResolver extends ResolverBase, UntrackingSettings {
      * When enforceSourceReadsUnderPackageRoots is disabled, this option has no effect.
      */
     additionalSourceReadsScopes?: (Directory | string)[];
+
+    /**
+     * Pip time out for selected projects.
+     * timeouts:[
+     *  {
+     *      timeout: 5s,
+     *      warningTimeout: 5s,
+     *      projectSelector: ["@ms/projectA", "@ms/projectB",...,],
+     *  },
+     *  ...
+     * ]
+     */
+    timeouts?: JavaScriptProjectTimeout[];
 }
 
 /**
@@ -613,6 +626,33 @@ interface JavaScriptDependency {
     dependencies: (JavaScriptProjectSelector | LazyEval<File> | LazyEval<StaticDirectory>)[], 
     dependents: JavaScriptProjectSelector[]
 }
+
+
+/**
+ * Timeout and Warning Timeout for selected projects.
+ */
+interface JavaScriptProjectTimeout {
+    /**
+     * How long to wait before terminating individual processes. 
+     * The argument allows an expression that represents a time duration, like "3s", "500ms", "30m", "1.5h". 
+     * The allowed suffixes are 'ms', 's', 'm', 'h', and no suffix is interpreted as an amount in milliseconds.
+     * Setting this value will only have an effect the selected JavaScript project
+     */
+    timeout?: string;
+
+    /**
+     * After how much time to issue a warning that an individual process runs too long. 
+     * The argument allows an expression that represents a time duration, like "3s", "500ms", "30m", "1.5h". The allowed suffixes are 'ms', 's', 'm', 'h', and no suffix is interpreted as an amount in milliseconds. 
+     * Setting this value will only have an effect the selected JavaScript project.
+     */
+    warningTimeout?: string;
+
+    /**
+     * ProjectSelector that select the projects to apply the timeout
+     */
+    projectSelector: JavaScriptProjectSelector[];
+}
+
 
 /**
  * The list of commands to execute can be specified with finer-grained detail
@@ -678,6 +718,8 @@ interface JavaScriptProject {
     environmentVariables: {name: string, value: string}[];
     passThroughEnvironmentVariables: string[];
     tempDirectory?: Directory;
+    timeoutInMilliseconds?: number;
+    warningTimeoutInMilliseconds?: number;
 }
 
 /**

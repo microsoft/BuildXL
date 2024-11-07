@@ -641,55 +641,14 @@ namespace BuildXL.ToolSupport
         /// </summary>
         public static int ParseDurationOptionToMilliseconds(Option opt, int minValue, int maxValue)
         {
-            if (string.IsNullOrEmpty(opt.Value))
-            {
-                throw Error("The /{0} argument requires a value.", opt.Name);
-            }
-
-            var input = opt.Value;
-            if (double.TryParse(input, out double doubleValue))
-            {
-                return ranged(doubleValue);
-            }
-
-            // We'll do a very naive parsing, but good enough, this is called at most a couple of times
+            var possibleResult = ConvertUtilities.TryParseDurationOptionToMilliseconds(opt.Value, opt.Name, minValue, maxValue);
             
-
-            foreach (var (suffix, multiplier) in s_durationFactorBySuffix)
+            if (!possibleResult.Succeeded)
             {
-                if (input.EndsWith(suffix))
-                {
-                    var numberPart = input.Substring(0, input.Length - suffix.Length);
-                    if (!double.TryParse(numberPart, out doubleValue))
-                    {
-                        // An incorrect suffix was provided
-                        break;
-                    }
-
-                    var valueInMs = doubleValue * multiplier;
-                    return ranged(valueInMs);
-                }
+                throw Error(possibleResult.Failure.Content);
             }
 
-            throw Error(
-                "The value provided for the /{0} argument is invalid, expecting a numeric expression representing a time period (ending with 'ms', 's', 'm', 'h')",
-                opt.Name);
-
-            int ranged(double x)
-            {
-                if (x < minValue || x > maxValue)
-                {
-                    throw Error(
-                        "The value provided for the /{0} argument is invalid, expecting a duration falling in the range {1}ms..{2}ms but got '{3} = {4}ms'.",
-                        opt.Name,
-                        minValue,
-                        maxValue,
-                        opt.Value,
-                        x);
-                }
-
-                return (int)x;
-            }
+            return possibleResult.Result;
         }
 
         /// <summary>

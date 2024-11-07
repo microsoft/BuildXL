@@ -50,6 +50,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             NestedProcessTerminationTimeoutMs = resolverSettings.NestedProcessTerminationTimeoutMs;
             EnforceSourceReadsUnderPackageRoots = resolverSettings.EnforceSourceReadsUnderPackageRoots;
             AdditionalSourceReadsScopes = resolverSettings.AdditionalSourceReadsScopes;
+            Timeouts = resolverSettings.Timeouts;
         }
 
         /// <inheritdoc/>
@@ -117,5 +118,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc/>
         public IReadOnlyList<int> UncacheableExitCodes { get; set; }
+
+        /// <inheritdoc/>
+        public IReadOnlyList<IJavaScriptProjectTimeout> Timeouts { get; set; }
     }
 }

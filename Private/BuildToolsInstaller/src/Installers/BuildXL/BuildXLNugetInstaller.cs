@@ -19,6 +19,10 @@ namespace BuildToolsInstaller
     /// </summary>
     public class BuildXLNugetInstaller : IToolInstaller
     {
+        // Default ring for BuildXL installation
+        public string DefaultRing => "GeneralPublic";
+
+        private readonly IAdoService m_adoService;
         private readonly INugetDownloader m_downloader;
         private readonly ILogger m_logger;
         private BuildXLNugetInstallerConfig? m_config;
@@ -30,14 +34,15 @@ namespace BuildToolsInstaller
         // Use only after calling TryInitializeConfig()
         private BuildXLNugetInstallerConfig Config => m_config!;
 
-        public BuildXLNugetInstaller(INugetDownloader downloader, ILogger logger)
+        public BuildXLNugetInstaller(INugetDownloader downloader, IAdoService adoService, ILogger logger)
         {
+            m_adoService = adoService;
             m_downloader = downloader;
             m_logger = logger;
         }
 
         /// <inheritdoc />
-        public async Task<bool> InstallAsync(BuildToolsInstallerArgs args)
+        public async Task<bool> InstallAsync(string selectedVersion, BuildToolsInstallerArgs args)
         {
             if (!await TryInitializeConfigAsync(args))
             {
@@ -46,10 +51,11 @@ namespace BuildToolsInstaller
 
             try
             {
-                var version = await TryResolveVersionAsync();
+                // Version override
+                var version = await TryResolveVersionAsync(selectedVersion);
                 if (version == null)
                 {
-                    m_logger.Error("BuildLXNugetInstaller: failed to resolve version to install.");
+                    // Error should have been logged
                     return false;
                 }
 
@@ -85,7 +91,7 @@ namespace BuildToolsInstaller
                     return false;
                 }
 
-                var feed = Config.FeedOverride ?? InferSourceRepository();
+                var feed = Config.FeedOverride ?? InferSourceRepository(m_adoService);
 
                 var repository = CreateSourceRepository(feed);
                 if (await m_downloader.TryDownloadNugetToDiskAsync(repository, PackageName, nugetVersion, downloadLocation, m_logger))
@@ -120,14 +126,14 @@ namespace BuildToolsInstaller
         /// <summary>
         /// Construct the implicit source repository for installers, a well-known feed that should be installed in the organization
         /// </summary>
-        private static string InferSourceRepository()
+        private static string InferSourceRepository(IAdoService adoService)
         {
-            if (!AdoUtilities.IsAdoBuild)
+            if (!adoService.IsEnabled)
             {
                 throw new InvalidOperationException("Automatic source repository inference is only supported when running on an ADO Build");
             }
 
-            if (!AdoUtilities.TryGetOrganizationName(out var adoOrganizationName))
+            if (!adoService.TryGetOrganizationName(out var adoOrganizationName))
             {
                 throw new InvalidOperationException("Could not retrieve organization name");
             }
@@ -152,7 +158,10 @@ namespace BuildToolsInstaller
 
         private void SetLocationVariable(string engineLocation)
         {
-            AdoUtilities.SetVariable("ONEES_BUILDXL_LOCATION", engineLocation, isReadOnly: true);
+            if (m_adoService.IsEnabled)
+            {
+                m_adoService.SetVariable("ONEES_BUILDXL_LOCATION", engineLocation, isReadOnly: true);
+            }
         }
 
         private async Task<bool> TryInitializeConfigAsync(BuildToolsInstallerArgs args)
@@ -163,14 +172,14 @@ namespace BuildToolsInstaller
                 return true;
             }
 
-            m_config = await JsonDeserializer.DeserializeAsync<BuildXLNugetInstallerConfig>(args.ConfigFilePath, m_logger, CancellationToken.None);
+            m_config = await JsonUtilities.DeserializeAsync<BuildXLNugetInstallerConfig>(args.ConfigFilePath, m_logger, serializerOptions: new () { PropertyNameCaseInsensitive = true });
             if (m_config == null)
             {
                 m_logger.Error("Could not parse the BuildXL installer configuration. Installation will fail.");
                 return false;
             }
 
-            if (m_config.DistributedRole != null && !AdoUtilities.IsAdoBuild)
+            if (m_config.DistributedRole != null && !m_adoService.IsEnabled)
             {
                 m_logger.Error("Distributed mode can only be enabld in ADO Builds. Installation will fail.");
                 return false;
@@ -187,7 +196,7 @@ namespace BuildToolsInstaller
             return Environment.GetEnvironmentVariable("BUILDTOOLSDOWNLOADER_NUGET_PAT") ?? Environment.GetEnvironmentVariable("SYSTEM_ACCESSTOKEN") ?? "";
         }
 
-        private async Task<string?> TryResolveVersionAsync()
+        private async Task<string?> TryResolveVersionAsync(string selectedVersion)
         {
             var resolvedVersionProperty = "BuildXLResolvedVersion_" + (Config.InvocationKey ?? "default");
             string? resolvedVersion = null;
@@ -216,25 +225,16 @@ namespace BuildToolsInstaller
             }
             else
             {
-                // Orchestrator (or default) mode -> resolve version from global configuration an publish it
-                const string ConfigurationWellKnownUri = "https://bxlscripts.z20.web.core.windows.net/config/buildxl/BuildXLConfig_V0.json";
-                var jsonUri = new Uri(Config.Internal_GlobalConfigOverride ?? ConfigurationWellKnownUri);
-                var config = await JsonDeserializer.DeserializeFromHttpAsync<BuildXLGlobalConfig_V0>(jsonUri, m_logger, default);
-                if (config == null)
-                {
-                    // Error should have been logged.
-                    return null;
-                }
-
-                resolvedVersion = config.Release;
+                // Orchestrator (or default) mode 
+                resolvedVersion = selectedVersion;
             }
 
-            if (Config.DistributedRole== DistributedRole.Orchestrator)
+            if (Config.DistributedRole == DistributedRole.Orchestrator)
             {
                 // We resolved a version - we should push it to the properties for the workers to consume.
                 // If the version is null it means we encountered some error above, so push the empty string
                 // (the workers must be signalled that there was an error somehow).
-                await AdoUtilities.SetBuildPropertyAsync(resolvedVersionProperty, resolvedVersion ?? string.Empty);
+                await m_adoService.SetBuildPropertyAsync(resolvedVersionProperty, resolvedVersion ?? string.Empty);
             }
 
             return resolvedVersion;
@@ -247,7 +247,7 @@ namespace BuildToolsInstaller
             {
                 token.ThrowIfCancellationRequested();
 
-                var maybeProperty = await AdoUtilities.GetBuildPropertyAsync(propertyKey);
+                var maybeProperty = await m_adoService.GetBuildPropertyAsync(propertyKey);
                 if (maybeProperty != null)
                 {
                     // Orchestrator pushes an empty string on error

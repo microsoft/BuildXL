@@ -1,26 +1,24 @@
 ﻿using System;
-using System.ComponentModel.DataAnnotations;
 using System.IO;
-using System.Linq;
 using System.Threading.Tasks;
-using BuildToolsInstaller.Utiltiies;
 using Xunit;
 
 namespace BuildToolsInstaller.Tests
 {
     public class BuildXLInstallerTests
     {
+        const string DefaultRing = "GeneralPublic";
+        const string DefaultVersion = "0.1.0-20252610.1";
+
         [Fact]
         public async Task AdoEnvironmentPickedUpByDefault()
         {
-            // We may modify the environment during the test, this will restore it on dispose
-            using var modifyEnvironment = new TemporaryTestEnvironment();
-
-            // If we're not in ADO, this will simulate that we are
+             // If we're not in ADO, this will simulate that we are
             var toolsDirectory = Path.Combine(Path.GetTempPath(), "Test");
-            modifyEnvironment.Set("AGENT_TOOLSDIRECTORY", toolsDirectory);
-            modifyEnvironment.Set("SYSTEM_COLLECTIONURI", "https://mseng.visualstudio.com/");
-            modifyEnvironment.Set("TF_BUILD", "True");
+            var mockAdoService = new MockAdoService()
+            {
+                ToolsDirectory = toolsDirectory
+            };
 
             var configTempPath = Path.GetTempFileName();
             File.WriteAllText(configTempPath, """
@@ -33,16 +31,16 @@ namespace BuildToolsInstaller.Tests
                 var mockDownloader = new MockNugetDownloader();
                 var log = new TestLogger();
 
-                var args = new BuildToolsInstallerArgs(BuildTool.BuildXL, AdoUtilities.ToolsDirectory, configTempPath, false);
-                var buildXLInstaller = new BuildXLNugetInstaller(mockDownloader, log);
-                var result = await buildXLInstaller.InstallAsync(args);
+                var args = new BuildToolsInstallerArgs(BuildTool.BuildXL, "GeneralPublic", mockAdoService.ToolsDirectory, configTempPath, false);
+                var buildXLInstaller = new BuildXLNugetInstaller(mockDownloader, mockAdoService, log);
+                var result = await buildXLInstaller.InstallAsync(DefaultVersion, args);
                 Assert.True(result, log.FullLog);
 
                 Assert.Single(mockDownloader.Downloads);
 
                 var download = mockDownloader.Downloads[0];
                 // Default feed is within the org
-                Assert.StartsWith("https://pkgs.dev.azure.com/mseng/_packaging", download.Repository);
+                Assert.StartsWith($"https://pkgs.dev.azure.com/{MockAdoService.OrgName}/_packaging", download.Repository);
                 Assert.Equal("0.1.0-20241026.1", download.Version);
             }
             finally
@@ -59,6 +57,12 @@ namespace BuildToolsInstaller.Tests
         [Fact]
         public async Task InstallWithCustomConfig()
         {
+            var downloadDirectory = Path.Join(Path.GetTempPath(), $"Test_{nameof(InstallWithCustomConfig)}");
+            if (Directory.Exists(downloadDirectory))
+            {
+                Directory.Delete(downloadDirectory, true);
+            }
+
             var configTempPath = Path.GetTempFileName();
             File.WriteAllText(configTempPath, """
                 {
@@ -71,10 +75,15 @@ namespace BuildToolsInstaller.Tests
                 var mockDownloader = new MockNugetDownloader();
                 var log = new TestLogger();
 
-                var downloadDirectory = Path.GetTempPath();
-                var args = new BuildToolsInstallerArgs(BuildTool.BuildXL, downloadDirectory, configTempPath, false);
-                var buildXLInstaller = new BuildXLNugetInstaller(mockDownloader, log);
-                var result = await buildXLInstaller.InstallAsync(args);
+                var mockAdoService = new MockAdoService()
+                {
+                    ToolsDirectory = downloadDirectory
+                };
+
+                var args = new BuildToolsInstallerArgs(BuildTool.BuildXL, DefaultRing, downloadDirectory, configTempPath, false);
+
+                var buildXLInstaller = new BuildXLNugetInstaller(mockDownloader, mockAdoService, log);
+                var result = await buildXLInstaller.InstallAsync(DefaultVersion, args);
                 Assert.True(result, log.FullLog);
 
                 Assert.Single(mockDownloader.Downloads);
@@ -112,9 +121,10 @@ namespace BuildToolsInstaller.Tests
                 var mockDownloader = new MockNugetDownloader();
                 var log = new TestLogger();
 
-                var args = new BuildToolsInstallerArgs(BuildTool.BuildXL, toolsDirectory, configTempPath, force);
-                var buildXLInstaller = new BuildXLNugetInstaller(mockDownloader, log);
-                var result = await buildXLInstaller.InstallAsync(args);
+                var args = new BuildToolsInstallerArgs(BuildTool.BuildXL, DefaultRing, toolsDirectory, configTempPath, force);
+                var mockAdoService = new MockAdoService() { ToolsDirectory = toolsDirectory };
+                var buildXLInstaller = new BuildXLNugetInstaller(mockDownloader, mockAdoService, log);
+                var result = await buildXLInstaller.InstallAsync(DefaultVersion, args);
                 Assert.True(result, log.FullLog);
 
                 if (force)

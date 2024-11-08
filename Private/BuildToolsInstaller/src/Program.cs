@@ -23,6 +23,10 @@ namespace BuildToolsInstaller
                 description: "The tool to install.")
                 { IsRequired = true };
 
+            var ringOption = new Option<string?>(
+                name: "--ring",
+                description: "Selects a deployment ring for the tool");
+
             var toolsDirectoryOption = new Option<string?>(
                 name: "--toolsDirectory",
                 description: "The location where packages should be downloaded. Defaults to AGENT_TOOLSDIRECTORY if defined, or the working directory if not");
@@ -54,23 +58,26 @@ namespace BuildToolsInstaller
 
             var rootCommand = new RootCommand("Build tools installer");
             rootCommand.AddOption(toolOption);
+            rootCommand.AddOption(ringOption);
             rootCommand.AddOption(toolsDirectoryOption);
             rootCommand.AddOption(configOption);
             rootCommand.AddOption(forceOption);
 
             int returnCode = ProgramNotRunExitCode; // Make the compiler happy, we should assign every time
-            rootCommand.SetHandler(async (tool, toolsDirectory, configFile, forceInstallation) =>
+            rootCommand.SetHandler(async (tool, ring, toolsDirectory, configFile, forceInstallation) =>
             {
-                toolsDirectory ??= AdoUtilities.ToolsDirectory ?? ".";
+                toolsDirectory ??= AdoService.Instance.IsEnabled ? AdoService.Instance.ToolsDirectory : ".";
                 returnCode = await BuildToolsInstaller.Run(new BuildToolsInstallerArgs()
                 {
                     Tool = tool,
+                    Ring = ring,
                     ToolsDirectory = toolsDirectory,
                     ConfigFilePath = configFile,
                     ForceInstallation = forceInstallation
                 });
             },
                 toolOption,
+                ringOption,
                 toolsDirectoryOption,
                 configOption,
                 forceOption

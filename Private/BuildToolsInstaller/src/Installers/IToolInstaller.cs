@@ -11,6 +11,11 @@ namespace BuildToolsInstaller
         /// <summary>
         /// Install to the given directory
         /// </summary>
-        public Task<bool> InstallAsync(BuildToolsInstallerArgs args);
+        public Task<bool> InstallAsync(string selectedVersion, BuildToolsInstallerArgs args);
+
+        /// <summary>
+        /// The name of the default ring for this tool
+        /// </summary>
+        public string DefaultRing { get; }
     }
 }

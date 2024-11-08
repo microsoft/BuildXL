@@ -1,56 +1,89 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System;
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using Microsoft.TeamFoundation.Build.WebApi;
 using Microsoft.VisualStudio.Services.Common;
 using Microsoft.VisualStudio.Services.WebApi;
-using NuGet.Protocol.Plugins;
 
 namespace BuildToolsInstaller.Utiltiies
 {
-    internal sealed partial class AdoUtilities
+    internal sealed partial class AdoService : IAdoService
     {
+        // Make this class a singleton
+        private AdoService() { }
+
+        public static AdoService Instance { get; } = s_instance ??= new();
+        // Keep as lazily initialized for the sake of testing outside of ADO (where we need to modify the environment first)
+        private static AdoService? s_instance;
+
         /// <summary>
         /// True if the process is running in an ADO build. 
         /// The other methods and properties in this class are meaningful if this is true.
         /// </summary>
-        public static bool IsAdoBuild => !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("TF_BUILD"));
+        public bool IsEnabled => m_isAdoBuild;
+        private readonly bool m_isAdoBuild = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("TF_BUILD"));
 
         [GeneratedRegex(@"^(?:https://(?<oldSchoolAccountName>[a-zA-Z0-9-]+)\.(?:vsrm\.)?visualstudio\.com/|https://(?:vsrm\.)?dev\.azure\.com/(?<newSchoolAccountName>[a-zA-Z0-9-]+)/)$", RegexOptions.CultureInvariant)]
         private static partial Regex CollectionUriRegex();
 
-        /// <nodoc />
-        public static string CollectionUri => Environment.GetEnvironmentVariable("SYSTEM_COLLECTIONURI")!;
-        /// <nodoc />
-        public static string ToolsDirectory => Environment.GetEnvironmentVariable("AGENT_TOOLSDIRECTORY")!;
-
-        /// <nodoc />
-        public static string AccessToken => Environment.GetEnvironmentVariable("SYSTEM_ACCESSTOKEN")!;
-
-        /// <nodoc />
-        private static string ServerUri => Environment.GetEnvironmentVariable("SYSTEM_TEAMFOUNDATIONSERVERURI")!;
-
-        /// <nodoc />
-        private static string ProjectId => Environment.GetEnvironmentVariable("SYSTEM_TEAMPROJECTID")!;
-
-        /// <nodoc />
-        public static string BuildId => Environment.GetEnvironmentVariable("BUILD_BUILDID")!;
-
-        private static BuildHttpClient BuildClient => s_httpClient ??= new BuildHttpClient(new Uri(ServerUri), new VssBasicCredential(string.Empty, AccessToken));
-        private static BuildHttpClient? s_httpClient;
-
-        public static async Task<string?> GetBuildPropertyAsync(string key)
+        private void EnsureAdo()
         {
+            if (!IsEnabled)
+            {
+                throw new InvalidOperationException($"This operation in {nameof(AdoService)} is only available in an ADO build");
+            }
+        }
+
+        private T EnsuringAdo<T>(T? ret)
+        {
+            EnsureAdo();
+            return ret!;
+        }
+
+        #region Predefined variables - see https://learn.microsoft.com/en-us/azure/devops/pipelines/build/variables
+        /// <nodoc />
+        public string CollectionUri => EnsuringAdo(Environment.GetEnvironmentVariable("SYSTEM_COLLECTIONURI"));
+
+        /// <nodoc />
+        public string ToolsDirectory => EnsuringAdo(Environment.GetEnvironmentVariable("AGENT_TOOLSDIRECTORY"));
+
+        /// <nodoc />
+        public string AccessToken => EnsuringAdo(Environment.GetEnvironmentVariable("SYSTEM_ACCESSTOKEN"));
+
+        /// <nodoc />
+        private string ServerUri => EnsuringAdo(Environment.GetEnvironmentVariable("SYSTEM_TEAMFOUNDATIONSERVERURI"));
+
+        /// <nodoc />
+        private string ProjectId => EnsuringAdo(Environment.GetEnvironmentVariable("SYSTEM_TEAMPROJECTID"));
+
+        /// <nodoc />
+        public string BuildId => EnsuringAdo(Environment.GetEnvironmentVariable("BUILD_BUILDID"));
+
+        /// <nodoc />
+        public string RepositoryName => Environment.GetEnvironmentVariable("BUILD_REPOSITORY_NAME")!;
+
+        /// <nodoc />
+        public int PipelineId => int.Parse(Environment.GetEnvironmentVariable("SYSTEM_DEFINITIONID")!);
+        #endregion
+
+        private BuildHttpClient BuildClient => m_httpClient ??= new BuildHttpClient(new Uri(ServerUri), new VssBasicCredential(string.Empty, AccessToken));
+        private BuildHttpClient? m_httpClient;
+
+        /// <inheritdoc /> 
+        public async Task<string?> GetBuildPropertyAsync(string key)
+        {
+            EnsureAdo();
             var props = await IdempotentWithRetry(() => BuildClient.GetBuildPropertiesAsync(ProjectId, int.Parse(BuildId)));
             return props.ContainsKey(key) ? props.GetValue(key, string.Empty) : null;
         }
 
-        public static async Task SetBuildPropertyAsync(string key, string value)
+        /// <inheritdoc />
+        public async Task SetBuildPropertyAsync(string key, string value)
         {
-
+            EnsureAdo();
             // UpdateBuildProperties is ultimately an HTTP PATCH: the new properties specified will be added to the existing ones
             // in an atomic fashion. So we don't have to worry about multiple builds concurrently calling UpdateBuildPropertiesAsync
             // as long as the keys don't clash.
@@ -82,8 +115,9 @@ namespace BuildToolsInstaller.Utiltiies
         /// <summary>
         /// Get the organization name from environment data in the agent
         /// </summary>
-        public static bool TryGetOrganizationName([NotNullWhen(true)] out string? organizationName)
+        public bool TryGetOrganizationName([NotNullWhen(true)] out string? organizationName)
         {
+            EnsureAdo();
             organizationName = null;
             string collectionUri = CollectionUri;
             if (collectionUri == null)
@@ -105,12 +139,11 @@ namespace BuildToolsInstaller.Utiltiies
             }
         }
 
-        /// <summary>
-        /// Set a variable that will be visible by subsequent tasks in the running job
-        /// </summary>
-        public static void SetVariable(string variableName, string value, bool isReadOnly = true)
+        /// <inheritdoc />
+        public void SetVariable(string variableName, string value, bool isReadOnly = true)
         {
-            if (!IsAdoBuild)
+            EnsureAdo();
+            if (!IsEnabled)
             {
                 return;
             }

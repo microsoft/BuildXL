@@ -23,7 +23,6 @@ namespace BuildToolsInstaller.Config
     {
         /// <summary>
         /// A specific version to install
-        /// TODO: Support 'Latest' here
         /// </summary>
         public string? Version { get; set; }
 

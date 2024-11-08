@@ -10,16 +10,20 @@ namespace BuildToolsInstaller.Utiltiies
     /// <summary>
     /// Deserializing utilities
     /// </summary>
-    public static class JsonDeserializer
+    public static class JsonUtilities
     {
         private static readonly HttpClient s_httpClient = new HttpClient();
         private const int MaxRetries = 3;
         private static readonly TimeSpan s_delayBetweenRetries = TimeSpan.FromSeconds(2);
+        internal static readonly JsonSerializerOptions DefaultSerializerOptions = new()
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        };
 
         /// <summary>
         /// Deserialize from a file stored in an Azure Storage blob, logging an error and returning null if the operation fails
         /// </summary>
-        public static async Task<T?> DeserializeFromBlobAsync<T>(Uri blobUri, ILogger logger, CancellationToken token)
+        public static async Task<T?> DeserializeFromBlobAsync<T>(Uri blobUri, ILogger logger, JsonSerializerOptions? serializerOptions = null, CancellationToken token = default)
         {
             // The storage account should have been configured with anonymous read access to the config blob,
             // so no need to provide any credentials.
@@ -39,7 +43,7 @@ namespace BuildToolsInstaller.Utiltiies
                     return default;
                 }
 
-                return await DeserializeAsync<T>(downloadPath, logger, token);
+                return await DeserializeAsync<T>(downloadPath, logger, serializerOptions, token);
             }
             finally
             {
@@ -57,7 +61,7 @@ namespace BuildToolsInstaller.Utiltiies
         /// <summary>
         /// Deserializes a JSON file pointed by <paramref name="uri"/>. The request is retried upon HTTP failures.
         /// </summary>
-        public static async Task<T?> DeserializeFromHttpAsync<T>(Uri uri, ILogger logger, CancellationToken token)
+        public static async Task<T?> DeserializeFromHttpAsync<T>(Uri uri, ILogger logger, JsonSerializerOptions? serializerOptions = null, CancellationToken token = default)
         {
             int retryCount = 0;
 
@@ -70,7 +74,7 @@ namespace BuildToolsInstaller.Utiltiies
                         response.EnsureSuccessStatusCode();
                         await using (Stream responseStream = await response.Content.ReadAsStreamAsync(token))
                         {
-                            T? result = await JsonSerializer.DeserializeAsync<T>(responseStream, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }, token);
+                            T? result = await JsonSerializer.DeserializeAsync<T>(responseStream, serializerOptions ?? DefaultSerializerOptions, token);
                             logger.Info($"Successfully deserialized JSON from {uri}.");
                             return result;
                         }
@@ -102,13 +106,13 @@ namespace BuildToolsInstaller.Utiltiies
         /// <summary>
         /// Deserialize JSON from a file, logging an error and returning null if the operation fails
         /// </summary>
-        public static async Task<T?> DeserializeAsync<T>(string filePath, ILogger logger, CancellationToken token)
+        public static async Task<T?> DeserializeAsync<T>(string filePath, ILogger logger, JsonSerializerOptions? serializerOptions = null, CancellationToken token = default)
         {
             try
             {
                 using (FileStream openStream = File.OpenRead(filePath))
                 {
-                    return await JsonSerializer.DeserializeAsync<T>(openStream, cancellationToken: token);
+                    return await JsonSerializer.DeserializeAsync<T>(openStream, serializerOptions ?? DefaultSerializerOptions, cancellationToken: token);
                 }
             }
             catch (Exception e)

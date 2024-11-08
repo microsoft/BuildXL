@@ -1,12 +1,7 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using BuildToolsInstaller.Utiltiies;
 using Xunit;
 
@@ -26,9 +21,10 @@ namespace BuildToolsInstaller.Tests
             modifyEnvironment.Set("SYSTEM_COLLECTIONURI", "https://mseng.visualstudio.com/");
             modifyEnvironment.Set("TF_BUILD", "True");
 
-            Assert.True(AdoUtilities.IsAdoBuild);
-            Assert.Equal(toolsDirectory, AdoUtilities.ToolsDirectory);
-            Assert.True(AdoUtilities.TryGetOrganizationName(out var orgName));
+            var adoService = AdoService.Instance;
+            Assert.True(adoService.IsEnabled);
+            Assert.Equal(toolsDirectory, adoService.ToolsDirectory);
+            Assert.True(adoService.TryGetOrganizationName(out var orgName));
             Assert.Equal("mseng", orgName);
         }
     }

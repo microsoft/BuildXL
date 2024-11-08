@@ -14,6 +14,6 @@ namespace BuildToolsInstaller.Config
         /// <summary>
         /// Latest release version number
         /// </summary>
-        public required string Release { get; set; }
+        public required string Release { get; init; }
     }
 }

@@ -207,10 +207,18 @@ namespace BuildXL.Processes
             return await ExceptionUtilities.HandleRecoverableIOException(
                 async () =>
                 {
-                    using (TextReader reader = CreateFileReader())
+                    try
                     {
-                        string value = await reader.ReadToEndAsync();
-                        return value;
+                        using (TextReader reader = CreateFileReader())
+                        {
+                            string value = await reader.ReadToEndAsync();
+                            return value;
+                        }
+                    }
+                    catch (OutOfMemoryException)
+                    {
+                        // Short term mitigation for office builds running out of memory here
+                        return "Standard stream exceeds maximum length. It cannot be processed.";
                     }
                 },
                 e => throw new BuildXLException("Failed to read a value from a stream", e));

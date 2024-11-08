@@ -187,7 +187,7 @@ namespace BuildXL.FrontEnd.JavaScript
 
             SandboxedProcessResult result = await RunJavaScriptGraphBuilderAsync(nodeExeLocation, outputFile, buildParameters, foundLocation);
 
-            string standardError = result.StandardError.CreateReader().ReadToEndAsync().GetAwaiter().GetResult();
+            string standardError = result.StandardError.ReadValueAsync().GetAwaiter().GetResult();
             
             // Check whether the graph construction tool produced an error file, and in that case attach it to the standard error.
             string errorFile = GetErrorFile(outputFile, Context.PathTable).ToString(Context.PathTable);

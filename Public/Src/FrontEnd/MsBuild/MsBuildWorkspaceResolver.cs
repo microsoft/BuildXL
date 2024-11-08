@@ -320,7 +320,7 @@ namespace BuildXL.FrontEnd.MsBuild
 
             SandboxedProcessResult result = await RunMsBuildGraphBuilderAsync(responseFile, projectEntryPoints, outputFile, msBuidSearchLocations, dotnetExeLocation, buildParameters);
 
-            string standardError = result.StandardError.CreateReader().ReadToEndAsync().GetAwaiter().GetResult();
+            string standardError = result.StandardError.ReadValueAsync().GetAwaiter().GetResult();
 
             if (result.ExitCode != 0)
             {

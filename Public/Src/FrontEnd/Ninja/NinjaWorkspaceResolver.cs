@@ -150,7 +150,7 @@ namespace BuildXL.FrontEnd.Ninja
 
             SandboxedProcessResult result = await RunNinjaGraphBuilderAsync(outputFile);
 
-            string standardError = result.StandardError.CreateReader().ReadToEndAsync().GetAwaiter().GetResult();
+            string standardError = result.StandardError.ReadValueAsync().GetAwaiter().GetResult();
             if (result.ExitCode != 0)
             {
                 if (!Context.CancellationToken.IsCancellationRequested)

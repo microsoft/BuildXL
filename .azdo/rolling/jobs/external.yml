@@ -173,7 +173,13 @@ jobs:
       sourcePath: $(Build.SourcesDirectory)/Out/Bin/release/public/pkgs
       retentionDays: 5
       dropMetadataContainerName: DropMetadata-Linux-Intermediate-External
-  
+
+    - output: pipelineArtifact
+      displayName: Upload Linux VS Code extension
+      continueOnError: True
+      artifact: buildxl-external.vscode.linux-x64.$(Build.BuildNumber)
+      targetPath: $(Build.SourcesDirectory)/Out/Bin/release/ide
+
     - output: buildArtifacts 
       displayName: Publish build logs
       condition: always()
@@ -217,5 +223,5 @@ jobs:
         /p:Build.BuildId=$(Build.BuildNumber)
         /p:[BuildXL.Branding]SourceIdentification=$(Branding_SourceIdentification)
         /q:ReleaseLinux
-        "/f:output='/home/subst/Out/Bin/release/public/pkgs/*'"
+        "/f:output='/home/subst/Out/Bin/release/public/pkgs/*'oroutput='/home/subst/Out/Bin/release/ide/*'"
       workingDirectory: /home/subst

@@ -176,7 +176,7 @@ config({
                 { id: "Microsoft.Azure.Amqp", version: "2.6.1" },
                 { id: "Azure.Core.Amqp", version: "1.3.0"},
                 { id: "Azure.Messaging.EventHubs", version: "5.9.0" },
-                { id: "Microsoft.Azure.KeyVault.Core", version: "1.0.0" },
+                { id: "Microsoft.Azure.KeyVault.Core", version: "2.0.4" },
                 { id: "Microsoft.IdentityModel.Logging", version: "7.2.0" },
                 { id: "Microsoft.IdentityModel.Tokens", version: "7.2.0" },
                 { id: "System.IdentityModel.Tokens.Jwt", version: "7.2.0"},
@@ -321,7 +321,7 @@ config({
                 { id: "System.Text.Encoding.CodePages", version: "4.5.1" },
 
                 // Used for MSBuild input/output prediction
-                { id: "Microsoft.Build.Prediction", version: "0.3.0" },
+                { id: "Microsoft.Build.Prediction", version: "1.2.27" },
 
                 { id: "SharpZipLib", version: "1.3.3" },
 

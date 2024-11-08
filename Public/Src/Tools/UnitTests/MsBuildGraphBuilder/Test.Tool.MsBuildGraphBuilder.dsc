@@ -12,6 +12,17 @@ namespace Test.Tool.MsBuildGraphBuilder {
     export const dll = BuildXLSdk.test({
         assemblyName: "Test.Tool.ProjectGraphBuilder",
         sources: globR(d`.`, "*.cs"),
+        assemblyBindingRedirects: [
+            ...importFrom("Sdk.BuildXL").bxlBindingRedirects(),
+            // Microsoft.Build.Prediction asks for an older version of System.Text.Json 
+            {
+                name: "System.Text.Json",
+                publicKeyToken: "cc7b13ffcd2ddd51",
+                culture: "neutral",
+                oldVersion: "0.0.0.0-8.0.0.5",
+                newVersion: "8.0.0.5",  // Corresponds to: { id: "System.Text.Json", version: "8.0.5" },
+            }
+        ],
         references:[
             importFrom("BuildXL.Tools").MsBuildGraphBuilder.exe,
             importFrom("Microsoft.Build.Prediction").pkg,

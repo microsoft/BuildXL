@@ -332,7 +332,7 @@ namespace MsBuildGraphBuilderTool
             IReadOnlyCollection<IProjectPredictor> predictors;
             try
             {
-                predictors = projectPredictorsForTesting ?? ProjectPredictors.AllPredictors;
+                predictors = projectPredictorsForTesting ?? ProjectPredictors.AllProjectPredictors;
             }
             catch(Exception ex)
             {
@@ -368,7 +368,7 @@ namespace MsBuildGraphBuilderTool
                 try
                 {
                     // Again, be defensive when using arbitrary predictors
-                    predictionExecutor.PredictInputsAndOutputs(project, predictionCollector);
+                    predictionExecutor.PredictInputsAndOutputs(projectInstance, predictionCollector);
                 }
                 catch(Exception ex)
                 {

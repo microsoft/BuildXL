@@ -6,6 +6,8 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Microsoft.Build.Construction;
+using Microsoft.Build.Execution;
 using MsBuildGraphBuilderTool;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
@@ -15,8 +17,13 @@ namespace Test.ProjectGraphBuilder
 {
     public class MsBuildPredictionCollectorTests : TemporaryStorageTestBase
     {
+        private readonly ProjectInstance m_mockProject;
+
         public MsBuildPredictionCollectorTests(ITestOutputHelper output): base(output)
         {
+            var pathToProject = Path.Combine(TemporaryDirectory, "MockProject.csproj");
+            File.WriteAllText(pathToProject, "<Project />");
+            m_mockProject = new ProjectInstance(Path.Combine(TemporaryDirectory, "MockProject.csproj"));
         }
 
         [Fact]
@@ -29,7 +36,7 @@ namespace Test.ProjectGraphBuilder
             var predictionFailures = new ConcurrentQueue<(string predictorName, string failure)>();
             var collector = new MsBuildOutputPredictionCollector(outputFolderPredictions, predictionFailures);
 
-            collector.AddOutputFile(absoluteFilePath, TemporaryDirectory, "Mock");
+            collector.AddOutputFile(absoluteFilePath, m_mockProject, "Mock");
 
             XAssert.AreEqual(1, outputFolderPredictions.Count);
             Assert.Contains(absoluteDirectoryPath, outputFolderPredictions);
@@ -47,7 +54,7 @@ namespace Test.ProjectGraphBuilder
             var predictionFailures = new ConcurrentQueue<(string predictorName, string failure)>();
             var collector = new MsBuildOutputPredictionCollector(outputFolderPredictions, predictionFailures);
 
-            collector.AddOutputFile(relativeFilePath, TemporaryDirectory, "Mock");
+            collector.AddOutputFile(relativeFilePath, m_mockProject, "Mock");
 
             XAssert.AreEqual(1, outputFolderPredictions.Count);
             Assert.Contains(absoluteDirectoryPath, outputFolderPredictions);
@@ -61,7 +68,7 @@ namespace Test.ProjectGraphBuilder
             var predictionFailures = new ConcurrentQueue<(string predictorName, string failure)>();
             var collector = new MsBuildOutputPredictionCollector(outputFolderPredictions, predictionFailures);
 
-            collector.AddOutputFile("!@#$%^&*()\0", TemporaryDirectory, "Mock");
+            collector.AddOutputFile("!@#$%^&*()\0", m_mockProject, "Mock");
 
             XAssert.AreEqual(0, outputFolderPredictions.Count);
             XAssert.AreEqual(1, predictionFailures.Count);
@@ -78,7 +85,7 @@ namespace Test.ProjectGraphBuilder
             var predictionFailures = new ConcurrentQueue<(string predictorName, string failure)>();
             var collector = new MsBuildOutputPredictionCollector(outputFolderPredictions, predictionFailures);
 
-            collector.AddOutputDirectory(absoluteDirectoryPath, TemporaryDirectory, "Mock");
+            collector.AddOutputDirectory(absoluteDirectoryPath, m_mockProject, "Mock");
 
             XAssert.AreEqual(1, outputFolderPredictions.Count);
             Assert.Contains(absoluteDirectoryPath, outputFolderPredictions);
@@ -95,7 +102,7 @@ namespace Test.ProjectGraphBuilder
             var predictionFailures = new ConcurrentQueue<(string predictorName, string failure)>();
             var collector = new MsBuildOutputPredictionCollector(outputFolderPredictions, predictionFailures);
 
-            collector.AddOutputDirectory(relativeDirectoryPath, TemporaryDirectory, "Mock");
+            collector.AddOutputDirectory(relativeDirectoryPath, m_mockProject, "Mock");
 
             XAssert.AreEqual(1, outputFolderPredictions.Count);
             Assert.Contains(absoluteDirectoryPath, outputFolderPredictions);
@@ -109,7 +116,7 @@ namespace Test.ProjectGraphBuilder
             var predictionFailures = new ConcurrentQueue<(string predictorName, string failure)>();
             var collector = new MsBuildOutputPredictionCollector(outputFolderPredictions, predictionFailures);
 
-            collector.AddOutputDirectory("!@#$%^&*()\0", TemporaryDirectory, "Mock");
+            collector.AddOutputDirectory("!@#$%^&*()\0", m_mockProject, "Mock");
 
             XAssert.AreEqual(0, outputFolderPredictions.Count);
             XAssert.AreEqual(1, predictionFailures.Count);

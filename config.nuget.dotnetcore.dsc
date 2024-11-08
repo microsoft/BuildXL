@@ -224,7 +224,7 @@ export const pkgs = [
     { id: "System.Threading.Thread", version: pkgVersion },
     { id: "System.Threading.ThreadPool", version: pkgVersion },
     { id: "System.Threading.Timer", version: pkgVersion },
-    { id: "System.ValueTuple", version: pkgVersion },
+    { id: "System.ValueTuple", version: "4.5.0" },
     { id: "System.Xml.ReaderWriter", version: pkgVersion },
     { id: "System.Xml.XDocument", version: pkgVersion },
     { id: "System.Xml.XmlDocument", version: pkgVersion },

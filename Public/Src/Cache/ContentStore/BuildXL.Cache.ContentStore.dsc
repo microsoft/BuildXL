@@ -147,7 +147,8 @@ function getWebFrameworkExclusions(): Managed.ManagedNugetPackage[] {
         importFrom("Microsoft.Extensions.Logging").pkg,
         importFrom("Microsoft.Extensions.Logging.Abstractions").pkg,
         importFrom("Microsoft.Extensions.Options").pkg,
-        importFrom("Microsoft.Extensions.Primitives").pkg
+        importFrom("Microsoft.Extensions.Primitives").pkg,
+        importFrom("Microsoft.Extensions.ObjectPool").pkg
     ];
 }
 

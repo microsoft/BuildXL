@@ -36,7 +36,7 @@ export const pkgs = [
     { id: "System.ServiceModel.Http", version: "4.10.0" },
     { id: "System.ServiceModel.Primitives", version: "4.10.0" },
     { id: "System.Private.ServiceModel", version: "4.10.0" },
-    { id: "Microsoft.Extensions.ObjectPool", version: "5.0.10" },
+    { id: "Microsoft.Extensions.ObjectPool", version: "6.0.35" },
 
     { id: "Microsoft.Extensions.Hosting.Abstractions", version: "3.0.3" },
     { id: "Microsoft.Extensions.FileProviders.Abstractions", version: "3.0.3" },

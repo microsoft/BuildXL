@@ -18,5 +18,11 @@ namespace Test.Tool.ProjectGraphBuilder.Mocks
         {
             throw new InvalidOperationException();
         }
+
+        /// <inheritdoc/>
+        public void PredictInputsAndOutputs(ProjectInstance projectInstance, ProjectPredictionReporter predictionReporter)
+        {
+            throw new InvalidOperationException();
+        }
     }
 }

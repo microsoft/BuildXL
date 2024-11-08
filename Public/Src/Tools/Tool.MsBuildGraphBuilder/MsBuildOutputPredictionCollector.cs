@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using Microsoft.Build.Prediction;
+using Microsoft.Build.Execution;
 
 namespace MsBuildGraphBuilderTool
 {
@@ -42,21 +43,21 @@ namespace MsBuildGraphBuilderTool
         }
 
         /// <inheritdoc/>
-        public void AddInputFile(string path, string projectDirectory, string predictorName)
+        public void AddInputFile(string path, ProjectInstance projectInstance, string predictorName)
         {
             // We don't collect inputs
         }
 
         /// <inheritdoc/>
-        public void AddInputDirectory(string path, string projectDirectory, string predictorName)
+        public void AddInputDirectory(string path, ProjectInstance projectInstance, string predictorName)
         {
             // We don't collect input directories
         }
 
         /// <inheritdoc/>
-        public void AddOutputFile(string path, string projectDirectory, string predictorName)
+        public void AddOutputFile(string path, ProjectInstance projectInstance, string predictorName)
         {
-            if (!TryValidatePrediction(path, projectDirectory, predictorName, out string absolutePath))
+            if (!TryValidatePrediction(path, projectInstance, predictorName, out string absolutePath))
             {
                 return;
             }
@@ -66,9 +67,9 @@ namespace MsBuildGraphBuilderTool
         }
 
         /// <inheritdoc/>
-        public void AddOutputDirectory(string path, string projectDirectory, string predictorName)
+        public void AddOutputDirectory(string path, ProjectInstance projectInstance, string predictorName)
         {
-            if (!TryValidatePrediction(path, projectDirectory, predictorName, out string absolutePath))
+            if (!TryValidatePrediction(path, projectInstance, predictorName, out string absolutePath))
             {
                 return;
             }
@@ -76,13 +77,13 @@ namespace MsBuildGraphBuilderTool
             m_outputFolderPredictions.Add(absolutePath);
         }
 
-        private bool TryValidatePrediction(string path, string projectDirectory, string predictorName, out string absolutePath)
+        private bool TryValidatePrediction(string path, ProjectInstance projectInstance, string predictorName, out string absolutePath)
         {
             try
             {
                 absolutePath = Path.IsPathRooted(path)
                     ? path
-                    : Path.GetFullPath(Path.Combine(projectDirectory, path));
+                    : Path.GetFullPath(Path.Combine(projectInstance.Directory, path));
                 return true;
             }
             catch (ArgumentException e)

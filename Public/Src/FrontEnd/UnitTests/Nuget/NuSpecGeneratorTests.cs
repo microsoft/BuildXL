@@ -17,7 +17,7 @@ namespace Test.BuildXL.FrontEnd.Nuget
 {
     public class NuSpecGeneratorTests
     {
-        private const int CurrentSpecGenVersion = 22;
+        private const int CurrentSpecGenVersion = 23;
 
         private readonly ITestOutputHelper m_output;
         private readonly FrontEndContext m_context;
@@ -162,7 +162,14 @@ export const pkg: Managed.ManagedNugetPackage = (() => {{
                 [
                     Managed.Factory.createBinaryFromFiles(Contents.all.getFile(r`lib/netstandard2.0/my.dll`)),
                 ],
-                [...addIfLazy(qualifier.targetFramework === ""netstandard2.0"", () => [importFrom(""Newtonsoft.Json"").pkg])]
+                [
+                    ...addIfLazy(
+                        qualifier.targetFramework === ""netstandard2.0"" || qualifier.targetFramework === ""netcoreapp2.0"" || qualifier.targetFramework === ""netcoreapp2.1"" || qualifier.targetFramework === ""netcoreapp2.2"" || qualifier.targetFramework === ""netstandard2.1"" || qualifier.targetFramework === ""netcoreapp3.0"" || qualifier.targetFramework === ""netcoreapp3.1"" || qualifier.targetFramework === ""net5.0"" || qualifier.targetFramework === ""net6.0"" || qualifier.targetFramework === ""net7.0"" || qualifier.targetFramework === ""net8.0"",
+                        (
+                        )
+                        => [importFrom(""Newtonsoft.Json"").pkg]
+                    ),
+                ]
             );
         default:
             Contract.fail(""Unsupported target framework"");
@@ -171,7 +178,7 @@ export const pkg: Managed.ManagedNugetPackage = (() => {{
 )();";
             XAssert.AreEqual(expectedSpec.Trim(), text.Trim());
 
-            const string CurrentSpecHash = "F7DD1A361D7A83C2CD11ECCE8C3AAF28B7153324";
+            const string CurrentSpecHash = "B96512D3CCE95EADCB0607A4E51558C33FB5D8E0";
             ValidateCurrentSpecGenVersion(expectedSpec, CurrentSpecHash);
         }
 
@@ -287,7 +294,9 @@ export const pkg: Managed.ManagedNugetPackage = (() => {{
                 Contents.all,
                 [Managed.Factory.createBinaryFromFiles(Contents.all.getFile(r`lib/net7.0/my.dll`))],
                 [Managed.Factory.createBinaryFromFiles(Contents.all.getFile(r`lib/net7.0/my.dll`))],
-                [...addIfLazy(qualifier.targetFramework === ""net7.0"", () => [])]
+                [
+                    ...addIfLazy(qualifier.targetFramework === ""net7.0"" || qualifier.targetFramework === ""net8.0"", () => []),
+                ]
             );
         default:
             Contract.fail(""Unsupported target framework"");
@@ -296,7 +305,7 @@ export const pkg: Managed.ManagedNugetPackage = (() => {{
 )();";
             XAssert.AreEqual(expectedSpec.Trim(), text.Trim());
 
-            const string CurrentSpecHash = "A5CEC98DFA6CCA08AA29DDD3E1CA0C8C90C97958";
+            const string CurrentSpecHash = "CFEDF8AE73BA99A07A11E1C5D7FA66CE65897E16";
             ValidateCurrentSpecGenVersion(expectedSpec, CurrentSpecHash);
         }
 

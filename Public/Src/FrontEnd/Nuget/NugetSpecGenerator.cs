@@ -6,14 +6,14 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
-using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Core;
 using TypeScript.Net.DScript;
 using TypeScript.Net.Extensions;
 using TypeScript.Net.Types;
-using static TypeScript.Net.DScript.SyntaxFactory;
 using static BuildXL.FrontEnd.Nuget.SyntaxFactoryEx;
+using static TypeScript.Net.DScript.SyntaxFactory;
 
 namespace BuildXL.FrontEnd.Nuget
 {
@@ -35,7 +35,7 @@ namespace BuildXL.FrontEnd.Nuget
         private readonly IEsrpSignConfiguration m_esrpSignConfiguration;
 
         /// <summary>Current spec generation format version</summary>
-        public const int SpecGenerationFormatVersion = 22;
+        public const int SpecGenerationFormatVersion = 23;
 
         private readonly NugetRelativePathComparer m_nugetRelativePathComparer;
 
@@ -207,11 +207,18 @@ namespace BuildXL.FrontEnd.Nuget
                                     Array(runtime),
                                     m_nugetFrameworkMonikers.IsFullFrameworkMoniker(monikers.Last())
                                         ? Array(dependencies)
+                                        // For a non-full framework moniker range, add the dependencies specified.
+                                        // Observe the dependency is specified in the nupkg for a particular version, e.g. <group targetFramework=X>, but the 
+                                        // semantics is 'X and all versions compatible with X are supported'. In this case 'X' should be the first moniker in the range
+                                        // so we could unconditionally add all dependencies. But we might have added all the full framework monikers as well, so we need to
+                                        // filter on the specific moniker range we currently have.
                                         : Array(new CallExpression(new Identifier("...addIfLazy"),
-                                            new BinaryExpression(
-                                                new PropertyAccessExpression("qualifier", "targetFramework"),
-                                                SyntaxKind.EqualsEqualsEqualsToken,
-                                                new LiteralExpression(monikers.First().ToString(m_pathTable.StringTable))
+                                            monikers.Skip(1).Aggregate<PathAtom, IExpression>(
+                                                QualifierEqualsMonikerExpression(monikers.First()),
+                                                (expression, moniker) => new BinaryExpression(
+                                                    expression,
+                                                    SyntaxKind.BarBarToken,
+                                                    QualifierEqualsMonikerExpression(moniker))
                                             ),
                                             new ArrowFunction(
                                                 CollectionUtilities.EmptyArray<IParameterDeclaration>(),
@@ -226,6 +233,17 @@ namespace BuildXL.FrontEnd.Nuget
             }
 
             return cases;
+        }
+
+        /// <summary>
+        /// Generates the expression 'qualifier.targetFramework === moniker'
+        /// </summary>
+        private BinaryExpression QualifierEqualsMonikerExpression(PathAtom moniker)
+        {
+            return new BinaryExpression(
+                new PropertyAccessExpression("qualifier", "targetFramework"),
+                SyntaxKind.EqualsEqualsEqualsToken,
+                new LiteralExpression(moniker.ToString(m_pathTable.StringTable)));
         }
 
         private bool TryGetValueForFrameworkAndFallbacks<TValue>(

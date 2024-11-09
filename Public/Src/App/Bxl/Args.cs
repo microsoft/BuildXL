@@ -542,6 +542,9 @@ namespace BuildXL
                         OptionHandlerFactory.CreateBoolOption(
                             "honorDirectoryCasingOnDisk",
                             sign => configuration.Cache.HonorDirectoryCasingOnDisk = sign),
+                        OptionHandlerFactory.CreateOption(
+                            "immediateWorkerRelease",
+                            opt => distributionConfiguration.ImmediateWorkerRelease = CommandLineUtilities.ParseInt32Option(opt, 0, int.MaxValue)),
                         OptionHandlerFactory.CreateBoolOption(
                             "inCloudBuild",
                             sign => { /* Do nothing - the argument is handled by CaptureBuildInfo, and listed here for backward compatibility. */}),

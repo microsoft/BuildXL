@@ -86,6 +86,7 @@ This page lists flags that can be used to configure BuildXL.
 | Help | Display this usage message (Short form: /?). See verbose help with /help:verbose. See DX code specific help with /help:1234. |
 | HonorDirectoryCasingOnDisk | When true, casing of directories for dynamic outputs will match the ones found on disk when a pip is done executing (as opposed to using the casing of the first time the path is mentioned in the build). Useful on Windows when tools are case sensitive. Defaults to false. |
 | IgnoreNonExistentProbes | When enabled, {ShortProductName} will not report non existent probes, that are not in sealed directories. This might lead to incorrect builds because some file accesses will not be enforced and validated. Certain calls to GetFileAttribute method for non existing files will not be reported to {ShortProductName}. |
+| ImmediateWorkerRelease | Immediately drops the specified number of workers from a distributed build session. Useful in conjunction with AB testing to test different worker counts. |
 | Incremental | When enabled, artifacts are built incrementally based on which source files have changed. Defaults to on. |
 | IncrementalScheduling | When enabled, scheduling is performed incrementally. Defaults to off. |
 | InferNonExistenceBasedOnParentPathInRealFileSystem | Infers the non-existence of a path based on the parent path when checking the real file system in file system view. Defaults to on. |

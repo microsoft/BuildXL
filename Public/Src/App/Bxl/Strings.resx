@@ -1189,4 +1189,7 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   <data name="HelpText_DisplayHelp_BuildTimeoutMins" xml:space="preserve">
     <value>The time elapsed (in minutes) since BuildXL is launched when an external entity will terminate the build. BuildXL will fail the build and shutdown gracefully an epsilon before the specified timeout to avoid an ungraceful exit. The epsilon is variable and is computed as a small percentage of the length of the specified timeout.</value>
   </data>
+  <data name="HelpText_DisplayHelp_ImmediateWorkerRelease" xml:space="preserve">
+    <value>Immediately drops the specified number of workers from a distributed build session. Useful in conjunction with AB testing to test different worker counts.</value>
+  </data>
 </root>

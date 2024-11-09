@@ -970,6 +970,11 @@ namespace BuildXL
                 "/validateDistribution:[+|-]",
                 Strings.HelpText_DisplayHelp_ValidateDistribution,
                 HelpLevel.Verbose);
+
+            hw.WriteOption(
+                "/immediateWorkerRelease:[+|-]",
+                Strings.HelpText_DisplayHelp_ImmediateWorkerRelease,
+                HelpLevel.Verbose);
             #endregion
 
             hw.WriteBanner(

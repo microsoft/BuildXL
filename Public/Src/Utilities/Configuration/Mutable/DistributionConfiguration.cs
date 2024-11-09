@@ -37,6 +37,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             ReplicateOutputsToWorkers = template.ReplicateOutputsToWorkers;
             BuildWorkers = new List<IDistributionServiceLocation>(template.BuildWorkers.Select(location => new DistributionServiceLocation(location)));
             DynamicBuildWorkerSlots = template.DynamicBuildWorkerSlots;
+            ImmediateWorkerRelease = template.ImmediateWorkerRelease;
             OrchestratorLocation = template.OrchestratorLocation;
             MachineHostName = template.MachineHostName;
             MinimumWorkers = template.MinimumWorkers;
@@ -69,6 +70,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public int DynamicBuildWorkerSlots { get; set; }
+
+        /// <inheritdoc />
+        public int ImmediateWorkerRelease { get; set; }
 
         /// <inheritdoc />
         public int RemoteWorkerCount => BuildWorkers.Count + DynamicBuildWorkerSlots;

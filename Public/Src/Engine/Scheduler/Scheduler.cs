@@ -71,9 +71,6 @@ using static BuildXL.Processes.SandboxedProcessFactory;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 using Logger = BuildXL.Scheduler.Tracing.Logger;
 using Process = BuildXL.Pips.Operations.Process;
-using System.Runtime.InteropServices;
-using BuildXL.Cache.ContentStore.Tracing;
-using BuildXL.Cache.Interfaces;
 
 namespace BuildXL.Scheduler
 {
@@ -357,6 +354,8 @@ namespace BuildXL.Scheduler
         /// </summary>
         private int m_numProblematicWorkers;
 
+        private int m_remainingImmediateReleaseCount;
+
         /// <summary>
         /// Tracks the number of pip memory retries on the machine to allow warning when it gets out of hand
         /// </summary>
@@ -384,6 +383,7 @@ namespace BuildXL.Scheduler
             PipExecutionCounters.AddToCounter(PipExecutorCounter.RemoteWorkerCount, remoteWorkers.Length);
             m_taskArrayPool = new ObjectPool<Task[]>(() => new Task[remoteWorkers.Length], tb => { return tb; });
             m_remoteWorkers = remoteWorkers;
+            m_remainingImmediateReleaseCount = m_configuration.Distribution.ImmediateWorkerRelease;
         }
 
         private void StartWorkers(LoggingContext loggingContext)
@@ -409,6 +409,13 @@ namespace BuildXL.Scheduler
                     OnWorkerStatusChanged);
 
                 worker.Start();
+
+                if (worker.IsRemote && Interlocked.Decrement(ref m_remainingImmediateReleaseCount) >= 0)
+                {
+                    // Immediate release workers get initialized and early released so they don't sit idle waiting for a connection.
+                    Logger.Log.DistributionEarlyReleasingDueToConfig(m_loggingContext, worker.Name);
+                    worker.EarlyReleaseAsync().Forget();
+                }
             }
 
             m_workersAttachmentTasks = m_remoteWorkers.Select(static w => w.AttachCompletionTask).ToList();
@@ -8198,7 +8205,7 @@ namespace BuildXL.Scheduler
 
             if (EngineEnvironmentSettings.LimitProblematicWorkerCount &&
                 m_remoteWorkers.Length >= 4 &&
-                numProblematicWorkers >= (m_remoteWorkers.Length * EngineEnvironmentSettings.LimitProblematicWorkerThreshold))
+                numProblematicWorkers >= (Math.Max(0, m_remoteWorkers.Length - m_configuration.Distribution.ImmediateWorkerRelease) * EngineEnvironmentSettings.LimitProblematicWorkerThreshold))
             {
                 // Because LimitProblematicWorkerThreshold is 0.9 by default, we will fail the build only when all workers fail until 10 workers.
                 Logger.Log.HighCountProblematicWorkers(m_loggingContext, numProblematicWorkers, m_remoteWorkers.Length);

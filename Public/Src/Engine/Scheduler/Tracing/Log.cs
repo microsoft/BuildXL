@@ -4186,6 +4186,15 @@ namespace BuildXL.Scheduler.Tracing
             EventTask = (int)Tasks.PipExecutor,
             Message = "The RAM size could not be measured, so the RAM projection feature has been disabled.")]
         public abstract void RamProjectionDisabled(LoggingContext context);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.DistributionEarlyReleasingDueToConfig,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)(Keywords.UserMessage | Keywords.Progress),
+            EventTask = (ushort)Tasks.Distribution,
+            Message = "Immediately releasing worker due to /immediateWorkerRelease configuration. Released worker: [{ip}]")]
+        public abstract void DistributionEarlyReleasingDueToConfig(LoggingContext context, string ip);
     }
 }
 #pragma warning restore CA1823 // Unused field

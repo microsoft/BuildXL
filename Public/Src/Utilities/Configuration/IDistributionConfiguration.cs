@@ -56,6 +56,18 @@ namespace BuildXL.Utilities.Configuration
         int DynamicBuildWorkerSlots { get;  }
 
         /// <summary>
+        /// Count of workers that should be immediately released when they attempt to connect to the orchestrator.
+        /// </summary>
+        /// <remarks>
+        /// The useful application of this feature is to do A/B testing on worker counts. Using this flag in the A/B
+        /// test args will allow some portion of build traffic to run with a smaller worker count to compare at scale
+        /// the effect of fewer workers. This is a wasteful option to use since the infrastructure will spin up
+        /// a worker only to be immediately released. But it is much simpler to provide this functionality at
+        /// the build engine level than at the infrastructure level.
+        /// </remarks>
+        int ImmediateWorkerRelease { get; }
+
+        /// <summary>
         /// The total number of remote workers that we expect for this build, i.e. the sum of DynamicBuildWorkerSlots
         /// and the number of BuildWorkers known at the start of the build
         /// </summary>

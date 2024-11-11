@@ -659,6 +659,16 @@ namespace BuildXL.ProcessPipExecutor
             public bool IsFiltered;
 
             /// <summary>
+            /// Whether the result was truncated
+            /// </summary>
+            public bool IsTruncated;
+
+            /// <summary>
+            /// Whether the result was truncated or filtered
+            /// </summary>
+            public bool IsTruncatedOrFilterd => IsTruncated || IsFiltered;
+
+            /// <summary>
             /// Whether there was an error processing the output
             /// </summary>
             public bool HasError => FilteredOutput == null;
@@ -720,6 +730,7 @@ namespace BuildXL.ProcessPipExecutor
                                 sb.AppendLine("[...]");
                                 await output.SaveAsync();
                                 sb.Append(output.FileName);
+                                filterResult.IsTruncated = true;
                                 break;
                             }
                         }
@@ -5025,7 +5036,7 @@ namespace BuildXL.ProcessPipExecutor
 
             var errorFilter = OutputFilter.GetErrorFilter(m_errorRegex, m_pip.EnableMultiLineErrorScanning);
 
-            bool errorWasTruncated = false;
+            bool errorWasFilteredOrTruncated = false;
             var exceedsLimit = OutputExceedsLimit(result.StandardOutput) || OutputExceedsLimit(result.StandardError);
             if (!exceedsLimit || m_sandboxConfig.OutputReportingMode == OutputReportingMode.TruncatedOutputOnError)
             {
@@ -5050,14 +5061,7 @@ namespace BuildXL.ProcessPipExecutor
                     standardOutput = standardOutputFilterResult.FilteredOutput;
                 }
 
-                // Ignore empty lines
-                var standardErrorInResult = await result.StandardError.ReadValueAsync();
-                var standardOutputInResult = await result.StandardOutput.ReadValueAsync();
-                if (standardError.Replace(Environment.NewLine, string.Empty).Trim().Length != standardErrorInResult.Replace(Environment.NewLine, string.Empty).Trim().Length
-                    || standardOutput.Replace(Environment.NewLine, string.Empty).Trim().Length != standardOutputInResult.Replace(Environment.NewLine, string.Empty).Trim().Length)
-                {
-                    errorWasTruncated = true;
-                }
+                errorWasFilteredOrTruncated = standardErrorFilterResult.IsTruncatedOrFilterd || standardOutputFilterResult.IsTruncatedOrFilterd;
 
                 HandleErrorsFromTool(standardError);
                 HandleErrorsFromTool(standardOutput);
@@ -5068,14 +5072,14 @@ namespace BuildXL.ProcessPipExecutor
                 var errorFiltered = standardErrorFilterResult.IsFiltered || standardOutputFilterResult.IsFiltered;
                 if (!result.TimedOut)
                 {
-                    LogPipProcessError(result, allOutputsPresent, failedDueToWritingToStdErr, standardError, standardOutput, errorWasTruncated, errorFiltered);
+                    LogPipProcessError(result, allOutputsPresent, failedDueToWritingToStdErr, standardError, standardOutput, errorWasFilteredOrTruncated, errorFiltered);
                 }
                 else
                 {
-                    LogTookTooLongError(result, m_timeout, processTotalWallClockTime, standardError, standardOutput, errorWasTruncated, errorFiltered);
+                    LogTookTooLongError(result, m_timeout, processTotalWallClockTime, standardError, standardOutput, errorWasFilteredOrTruncated, errorFiltered);
                 }
 
-                return new LogErrorResult(success: true, errorWasTruncated: errorWasTruncated);
+                return new LogErrorResult(success: true, errorWasTruncated: errorWasFilteredOrTruncated);
             }
 
             long stdOutTotalLength = 0;
@@ -5084,7 +5088,7 @@ namespace BuildXL.ProcessPipExecutor
             // The output exceeds the limit and the full output has been requested. Emit it in chunks
             if (!await TryEmitFullOutputInChunks(errorFilter))
             {
-                return new LogErrorResult(success: false, errorWasTruncated: errorWasTruncated);
+                return new LogErrorResult(success: false, errorWasTruncated: errorWasFilteredOrTruncated);
             }
 
             if (stdOutTotalLength == 0 && stdErrTotalLength == 0)
@@ -5092,14 +5096,14 @@ namespace BuildXL.ProcessPipExecutor
                 // Standard error and standard output are empty.
                 // This could be because the filter is too aggressive and the entire output was filtered out.
                 // Rolling back to a non-filtered approach because some output is better than nothing.
-                errorWasTruncated = false;
+                errorWasFilteredOrTruncated = false;
                 if (!await TryEmitFullOutputInChunks(filter: null))
                 {
-                    return new LogErrorResult(success: false, errorWasTruncated: errorWasTruncated);
+                    return new LogErrorResult(success: false, errorWasTruncated: errorWasFilteredOrTruncated);
                 }
             }
 
-            return new LogErrorResult(success: true, errorWasTruncated: errorWasTruncated);
+            return new LogErrorResult(success: true, errorWasTruncated: errorWasFilteredOrTruncated);
 
             async Task<bool> TryEmitFullOutputInChunks(OutputFilter? filter)
             {
@@ -5148,17 +5152,17 @@ namespace BuildXL.ProcessPipExecutor
                             {
                                 if (stdOutTotalLength != result.StandardOutput.Length || stdErrTotalLength != result.StandardError.Length)
                                 {
-                                    errorWasTruncated = true;
+                                    errorWasFilteredOrTruncated = true;
                                 }
                             }
 
                             if (!result.TimedOut)
                             {
-                                LogPipProcessError(result, allOutputsPresent, failedDueToWritingToStdErr, stdError, stdOut, errorWasTruncated, false);
+                                LogPipProcessError(result, allOutputsPresent, failedDueToWritingToStdErr, stdError, stdOut, errorWasFilteredOrTruncated, false);
                             }
                             else
                             {
-                                LogTookTooLongError(result, m_timeout, processTotalWallClockTime, stdError, stdOut, errorWasTruncated, false);
+                                LogTookTooLongError(result, m_timeout, processTotalWallClockTime, stdError, stdOut, errorWasFilteredOrTruncated, false);
                             }
                         }
 
@@ -5391,15 +5395,7 @@ namespace BuildXL.ProcessPipExecutor
                 return false;
             }
 
-            bool warningWasTruncated = false;
-            // Ignore empty lines
-            var standardErrorInResult = await standardError.ReadValueAsync();
-            var standardOutputInResult = await standardOutput.ReadValueAsync();
-            if (warningsError.Replace(Environment.NewLine, string.Empty).Trim().Length != standardErrorInResult.Replace(Environment.NewLine, string.Empty).Trim().Length ||
-                warningsOutput.Replace(Environment.NewLine, string.Empty).Trim().Length != standardOutputInResult.Replace(Environment.NewLine, string.Empty).Trim().Length)
-            {
-                warningWasTruncated = true;
-            }
+            bool warningWasTruncatedOrFiltered = errorFilterResult.IsTruncatedOrFilterd || outputFilterResult.IsTruncatedOrFilterd;
 
             FormatOutputAndPaths(
                 warningsOutput,
@@ -5409,7 +5405,7 @@ namespace BuildXL.ProcessPipExecutor
                 out string outputTolog,
                 out string outputPathsToLog,
                 out string messageAboutPathsToLog,
-                warningWasTruncated,
+                warningWasTruncatedOrFiltered,
                 errorFilterResult.IsFiltered || outputFilterResult.IsFiltered);
 
             Logger.Log.PipProcessWarning(

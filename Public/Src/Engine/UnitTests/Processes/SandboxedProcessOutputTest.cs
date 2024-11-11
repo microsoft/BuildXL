@@ -90,6 +90,33 @@ namespace Test.BuildXL.Processes
         }
 
         [Fact]
+        public async Task ReadValueAsyncTruncates()
+        {
+            using (var tempFiles = new TempFileStorage(canGetFileNames: true))
+            {
+                var storage = (ISandboxedProcessFileStorage)tempFiles;
+                var fileName = storage.GetFileName(SandboxedProcessFile.StandardOutput);
+                var outputBuilder =
+                    new SandboxedProcessOutputBuilder(
+                        Encoding.UTF8,
+                        300,
+                        tempFiles,
+                        SandboxedProcessFile.StandardOutput,
+                        null);
+                XAssert.IsTrue(outputBuilder.HookOutputStream);
+                
+                for (int i = 0; i < 100; i++)
+                {
+                    outputBuilder.AppendLine(new string('a', 1000));
+                }
+                
+                var output = outputBuilder.Freeze();
+                var result = await output.ReadValueAsync(10_000);
+                Assert.Equal(10_000, result.Length);
+            }
+        }
+
+        [Fact]
         public void OutputPassThroughToParentConsole()
         {
             // Verify we can construct a builder with pass-through arguments.

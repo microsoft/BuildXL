@@ -189,10 +189,15 @@ namespace BuildXL.Processes
         }
 
         /// <summary>
-        /// Reads the entire value; don't call this if the length is excessive, as it might OOM.
+        /// Reads the entire value; String will be truncated around 100k characters.
         /// </summary>
         /// <exception cref="BuildXLException">Thrown if a recoverable error occurs while opening the stream.</exception>
-        public async Task<string> ReadValueAsync()
+        public Task<string> ReadValueAsync() => ReadValueAsync(100_000_000);
+
+        /// <summary>
+        /// For testing
+        /// </summary>
+        internal async Task<string> ReadValueAsync(int maxLength)
         {
             if (m_exception != null)
             {
@@ -207,18 +212,18 @@ namespace BuildXL.Processes
             return await ExceptionUtilities.HandleRecoverableIOException(
                 async () =>
                 {
-                    try
+                    using (TextReader reader = CreateFileReader())
                     {
-                        using (TextReader reader = CreateFileReader())
+                        if (m_length < maxLength)
                         {
-                            string value = await reader.ReadToEndAsync();
-                            return value;
+                            return await reader.ReadToEndAsync();
                         }
-                    }
-                    catch (OutOfMemoryException)
-                    {
-                        // Short term mitigation for office builds running out of memory here
-                        return "Standard stream exceeds maximum length. It cannot be processed.";
+                        else
+                        {
+                            char[] buffer = new char[maxLength];
+                            await reader.ReadBlockAsync(buffer, 0, maxLength);
+                            return new string(buffer);
+                        }
                     }
                 },
                 e => throw new BuildXLException("Failed to read a value from a stream", e));

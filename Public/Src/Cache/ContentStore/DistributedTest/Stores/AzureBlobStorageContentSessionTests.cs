@@ -377,72 +377,84 @@ public class AzureBlobStorageContentSessionTests : ContentSessionTests
 
     private IDisposable? CreateBlobContentStore(out AzureBlobStorageContentStore store)
     {
-        AzuriteStorageProcess? process;
+        AzuriteStorageProcess? process = null;
         IBlobCacheContainerSecretsProvider secretsProvider;
         BuildCacheConfiguration? buildCacheConfiguration;
         List<BlobCacheStorageAccountName> shards;
 
-        // Set the storageAccount below to a storage endpoint's URI to use a real storage account, authenticate using
-        // Entra ID, and emit User-Delegation SAS tokens for all normal operation. This is useful to test the real way
-        // in which the system will interact with Azure Storage.
-        string? storageAccount = null;
-        if (!string.IsNullOrEmpty(storageAccount))
+        try
         {
-            process = null;
+            // Set the storageAccount below to a storage endpoint's URI to use a real storage account, authenticate using
+            // Entra ID, and emit User-Delegation SAS tokens for all normal operation. This is useful to test the real way
+            // in which the system will interact with Azure Storage.
+            string? storageAccount = null;
+            if (!string.IsNullOrEmpty(storageAccount))
+            {
+                process = null;
 
-            var accountUri = new Uri(storageAccount);
-            var accountName = AzureStorageUtilities.GetAccountName(accountUri);
-            shards = new List<BlobCacheStorageAccountName>
+                var accountUri = new Uri(storageAccount);
+                var accountName = AzureStorageUtilities.GetAccountName(accountUri);
+                shards = new List<BlobCacheStorageAccountName>
             {
                 new BlobCacheStorageNonShardingAccountName(accountName)
             };
 
-            buildCacheConfiguration = new BuildCacheConfiguration()
-            {
-                Name = "MyCache",
-                RetentionDays = null,
-                Shards = shards.Select(shard => new BuildCacheShard()
+                buildCacheConfiguration = new BuildCacheConfiguration()
                 {
-                    StorageUrl = accountUri,
-                    Containers = CreateContainersAsync(accountUri).GetAwaiter().GetResult(),
-                }).ToList()
+                    Name = "MyCache",
+                    RetentionDays = null,
+                    Shards = shards.Select(shard => new BuildCacheShard()
+                    {
+                        StorageUrl = accountUri,
+                        Containers = CreateContainersAsync(accountUri).GetAwaiter().GetResult(),
+                    }).ToList()
+                };
+
+                secretsProvider = new AzureBuildCacheSecretsProvider(buildCacheConfiguration);
+            }
+            else
+            {
+                shards = Enumerable.Range(0, 10)
+                   .Select(shard => (BlobCacheStorageAccountName)new BlobCacheStorageShardingAccountName("0123456789", shard, "testing")).ToList();
+
+                // Force it to use a non-sharding account
+                shards.Add(new BlobCacheStorageNonShardingAccountName("devstoreaccount1"));
+                (process, secretsProvider, buildCacheConfiguration) = CreateTestTopology(_fixture, shards, UseBuildCacheConfiguration);
+
+                // Under the build cache scenario, the account names are created using the corresponding URIs directly. So let's keep that in sync and use those
+                if (buildCacheConfiguration != null)
+                {
+                    shards = buildCacheConfiguration.Shards.Select(shard => shard.GetAccountName()).ToList();
+                }
+            }
+
+            var configuration = new AzureBlobStorageContentStoreConfiguration()
+            {
+                Topology = new ShardedBlobCacheTopology(
+                                        new ShardedBlobCacheTopology.Configuration(
+                                            BuildCacheConfiguration: buildCacheConfiguration,
+                                            new ShardingScheme(ShardingAlgorithm.JumpHash, shards),
+                                            SecretsProvider: secretsProvider,
+                                            Universe: OverrideFolderName ?? _runId,
+                                            Namespace: "default",
+                                            BlobRetryPolicy: new ShardedBlobCacheTopology.BlobRetryPolicy())
+                                        {
+                                        }),
             };
 
-            secretsProvider = new AzureBuildCacheSecretsProvider(buildCacheConfiguration);
+            store = new AzureBlobStorageContentStore(configuration);
+
+            return process;
         }
-        else
+        catch
         {
-            shards = Enumerable.Range(0, 10)
-               .Select(shard => (BlobCacheStorageAccountName)new BlobCacheStorageShardingAccountName("0123456789", shard, "testing")).ToList();
-
-            // Force it to use a non-sharding account
-            shards.Add(new BlobCacheStorageNonShardingAccountName("devstoreaccount1"));
-            (process, secretsProvider, buildCacheConfiguration) = CreateTestTopology(_fixture, shards, UseBuildCacheConfiguration);
-
-            // Under the build cache scenario, the account names are created using the corresponding URIs directly. So let's keep that in sync and use those
-            if (buildCacheConfiguration != null)
+            if (process is not null)
             {
-                shards = buildCacheConfiguration.Shards.Select(shard => shard.GetAccountName()).ToList();
+                process.Dispose();
             }
+
+            throw;
         }
-
-        var configuration = new AzureBlobStorageContentStoreConfiguration()
-        {
-            Topology = new ShardedBlobCacheTopology(
-                                    new ShardedBlobCacheTopology.Configuration(
-                                        BuildCacheConfiguration: buildCacheConfiguration,
-                                        new ShardingScheme(ShardingAlgorithm.JumpHash, shards),
-                                        SecretsProvider: secretsProvider,
-                                        Universe: OverrideFolderName ?? _runId,
-                                        Namespace: "default",
-                                        BlobRetryPolicy: new ShardedBlobCacheTopology.BlobRetryPolicy())
-                                    {
-                                    }),
-        };
-
-        store = new AzureBlobStorageContentStore(configuration);
-
-        return process;
     }
 
     private async static Task<List<BuildCacheContainer>> CreateContainersAsync(Uri accountUri)
@@ -506,20 +518,28 @@ public class AzureBlobStorageContentSessionTests : ContentSessionTests
             TestGlobal.Logger,
             accounts: accounts.Select(account => account.AccountName).ToList());
 
-        BuildCacheConfiguration? buildCacheConfiguration;
-        IBlobCacheContainerSecretsProvider secretsProvider;
-        if (usePreauthenticatedUris)
+        try
         {
-            buildCacheConfiguration = BuildCacheConfigurationSecretGenerator.GenerateConfigurationFrom("MyCache", process, accounts);
-            secretsProvider = new AzureBuildCacheSecretsProvider(buildCacheConfiguration);
-        }
-        else
-        {
-            buildCacheConfiguration = null;
-            secretsProvider = new ConnectionStringSecretsProvider(process, accounts);
-        }
+            BuildCacheConfiguration? buildCacheConfiguration;
+            IBlobCacheContainerSecretsProvider secretsProvider;
+            if (usePreauthenticatedUris)
+            {
+                buildCacheConfiguration = BuildCacheConfigurationSecretGenerator.GenerateConfigurationFrom("MyCache", process, accounts);
+                secretsProvider = new AzureBuildCacheSecretsProvider(buildCacheConfiguration);
+            }
+            else
+            {
+                buildCacheConfiguration = null;
+                secretsProvider = new ConnectionStringSecretsProvider(process, accounts);
+            }
 
-        return (process, secretsProvider, buildCacheConfiguration);
+            return (process, secretsProvider, buildCacheConfiguration);
+        }
+        catch
+        {
+            process.Dispose();
+            throw;
+        }
     }
 }
 

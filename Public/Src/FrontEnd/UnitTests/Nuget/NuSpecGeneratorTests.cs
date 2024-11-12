@@ -79,7 +79,7 @@ namespace Test.BuildXL.FrontEnd.Nuget
     </dependencies>
   </metadata>
 </package>",
-                s_packagesOnConfig, new string[] { "lib/net45/my.dll", "lib/net451/my.dll",  "lib/netstandard2.0/my.dll"});
+                s_packagesOnConfig, package: null, new string[] { "lib/net45/my.dll", "lib/net451/my.dll",  "lib/netstandard2.0/my.dll"});
 
             var spec = new NugetSpecGenerator(m_context.PathTable, pkg, new NugetResolverSettings { Repositories = new Dictionary<string, string>() }, AbsolutePath.Invalid).CreateScriptSourceFile(pkg);
             var text = spec.ToDisplayStringV2();
@@ -243,7 +243,7 @@ export const pkg: NugetPackage = {{
     </dependencies>
   </metadata>
 </package>",
-                s_packagesOnConfig, new string[] { "lib/net6.0/my.dll", "lib/net7.0/my.dll", "runtimes/win/lib/net6.0/my.dll" });
+                s_packagesOnConfig, package: null, new string[] { "lib/net6.0/my.dll", "lib/net7.0/my.dll", "runtimes/win/lib/net6.0/my.dll" });
 
             var spec = new NugetSpecGenerator(m_context.PathTable, pkg, new NugetResolverSettings { Repositories = new Dictionary<string, string>() }, AbsolutePath.Invalid).CreateScriptSourceFile(pkg);
             var text = spec.ToDisplayStringV2();

@@ -67,7 +67,7 @@ namespace Test.BuildXL.FrontEnd.Nuget
       </group>
     </dependencies>
   </metadata>
-</package>", s_packagesOnConfig, new string[] { "lib/net45/my.dll" });
+</package>", s_packagesOnConfig, package: null, new string[] { "lib/net45/my.dll" });
 
             List<PathAtom> compatibleTfms = new List<PathAtom>();
             NugetSpecGenerator.FindAllCompatibleFrameworkMonikers(analyzedPackage,

@@ -24,9 +24,9 @@ namespace Test.BuildXL.FrontEnd.Nuget
             m_monikers = monikers;
         }
 
-        public NugetAnalyzedPackage AnalyzePackage(string xml, Dictionary<string, INugetPackage> packagesOnConfig, params string[] relativePaths)
+        public NugetAnalyzedPackage AnalyzePackage(string xml, Dictionary<string, INugetPackage> packagesOnConfig, INugetPackage package, params string[] relativePaths)
         {
-            var nugetPackage = new NugetPackage() { Id = "TestPkg", Version = "1.999" };
+            var nugetPackage = package ?? new NugetPackage() { Id = "TestPkg", Version = "1.999" };
 
             var paths = new List<RelativePath>();
             paths.Add(RelativePath.Create(m_context.StringTable, nugetPackage.Id + ".nuspec"));

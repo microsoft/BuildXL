@@ -3,37 +3,39 @@
 
 using System.Collections.Generic;
 using System.Linq;
-using BuildXL.Utilities.Configuration;
-using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.FrontEnd.Nuget;
 using BuildXL.FrontEnd.Sdk;
-using Xunit;
-
-using static Test.BuildXL.TestUtilities.Xunit.XunitBuildXLTest;
+using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Configuration.Mutable;
 using Test.BuildXL.TestUtilities.Xunit;
-using BuildXL.Utilities.Core;
+using Xunit;
+using Xunit.Abstractions;
 
 namespace Test.BuildXL.FrontEnd.Nuget
 {
-    public class NugetAnalyzedPackageTests
+    public class NugetAnalyzedPackageTests : XunitBuildXLTest
     {
         private readonly FrontEndContext m_context;
         private readonly NugetFrameworkMonikers m_monikers;
         private readonly PackageGenerator m_packageGenerator;
 
         private static readonly INugetPackage s_myPackage = new NugetPackage() { Id = "MyPkg", Version = "1.99" };
+        private static readonly INugetPackage s_myPackageSkipCollections = new NugetPackage() { Id = "MyPkgSkipCollections", Version = "1.99", DependentPackageIdsToSkip = new List<string> { "System.Collections" } };
         private static readonly INugetPackage s_systemCollections = new NugetPackage() { Id = "System.Collections", Version = "4.0.11" };
         private static readonly INugetPackage s_systemCollectionsConcurrent = new NugetPackage() { Id = "System.Collections.Concurrent", Version = "4.0.12" };
 
         private static readonly Dictionary<string, INugetPackage> s_packagesOnConfig = new Dictionary<string, INugetPackage>
         {
             [s_myPackage.Id] = s_myPackage,
+            [s_myPackageSkipCollections.Id] = s_myPackageSkipCollections,
             [s_systemCollections.Id] = s_systemCollections,
             [s_systemCollectionsConcurrent.Id] = s_systemCollectionsConcurrent
         };
 
-        public NugetAnalyzedPackageTests()
+        public NugetAnalyzedPackageTests(ITestOutputHelper output) : base(output)
         {
+            RegisterEventSource(global::BuildXL.FrontEnd.Nuget.ETWLogger.Log);
+
             m_context = FrontEndContext.CreateInstanceForTesting();
             m_monikers = new NugetFrameworkMonikers(m_context.StringTable, new NugetResolverSettings());
             m_packageGenerator = new PackageGenerator(m_context, m_monikers);
@@ -54,7 +56,8 @@ namespace Test.BuildXL.FrontEnd.Nuget
     </dependencies>
   </metadata>
 </package>",
-                s_packagesOnConfig);
+                s_packagesOnConfig,
+                package: null);
 
             Assert.Equal(2, pkg.Dependencies.Count);
             Assert.Equal("System.Collections", pkg.Dependencies.First().Id);
@@ -78,13 +81,60 @@ namespace Test.BuildXL.FrontEnd.Nuget
     </dependencies>
   </metadata>
 </package>",
-                s_packagesOnConfig);
+                s_packagesOnConfig,
+                package: null);
 
             Assert.Equal(2, pkg.Dependencies.Count);
             Assert.Equal("System.Collections", pkg.Dependencies.First().Id);
             Assert.Equal("4.0.11", pkg.Dependencies.First().Version);
 
             Assert.False(pkg.DependenciesPerFramework.ContainsKey(m_monikers.Net46));
+        }
+
+        [Fact]
+        public void ParseDependenciesWithIncorrectVersionFails()
+        {
+            var pkg = AnalyzePackage(
+                @"<?xml version='1.0' encoding='utf-8'?>
+<package xmlns='http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd'>
+  <metadata>
+    <id>MyPkg</id>
+    <version>1.999</version>
+    <dependencies>
+      <dependency id='System.Collections' version='[7.0.0]' />
+    </dependencies>
+  </metadata>
+</package>",
+                s_packagesOnConfig,
+                package: null);
+
+            Assert.Equal(null, pkg);
+
+            AssertErrorEventLogged(global::BuildXL.FrontEnd.Nuget.Tracing.LogEventId.NugetFailedToReadNuSpecFile);
+            var errorLog = EventListener.GetLogMessagesForEventId((int)global::BuildXL.FrontEnd.Nuget.Tracing.LogEventId.NugetFailedToReadNuSpecFile).Single();
+            Assert.Contains("'4.0.11', but that is not contained in the interval '[7.0.0]'", errorLog);
+        }
+
+        [Fact]
+        public void ParseSkippedDependenciesWithIncorrectVersionSucceeds()
+        {
+            var pkg = AnalyzePackage(
+                @"<?xml version='1.0' encoding='utf-8'?>
+<package xmlns='http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd'>
+  <metadata>
+    <id>MyPkgSkipCollections</id>
+    <version>1.999</version>
+    <dependencies>
+      <dependency id='System.Collections' version='[7.0.0]' />
+    </dependencies>
+  </metadata>
+</package>",
+                s_packagesOnConfig,
+                package: s_myPackageSkipCollections);
+
+            // The (single) dependency was out of range, but flagged as skipped. The final package shouldn't have any dependency
+            // No errors should be logged
+            Assert.Equal(0, pkg.Dependencies.Count);
         }
 
         [Fact]
@@ -102,7 +152,8 @@ namespace Test.BuildXL.FrontEnd.Nuget
     </dependencies>
   </metadata>
 </package>",
-                s_packagesOnConfig);
+                s_packagesOnConfig,
+                package: null);
 
             Assert.Equal(2, pkg.Dependencies.Count);
             Assert.Equal("System.Collections", pkg.Dependencies.First().Id);
@@ -140,7 +191,8 @@ namespace Test.BuildXL.FrontEnd.Nuget
     </dependencies>
   </metadata>
 </package>",
-                s_packagesOnConfig);
+                s_packagesOnConfig,
+                package: null);
 
             Assert.Equal(0, pkg.Dependencies.Count);
             Assert.True(pkg.DependenciesPerFramework.ContainsKey(m_monikers.Net45));
@@ -166,6 +218,7 @@ namespace Test.BuildXL.FrontEnd.Nuget
   </metadata>
 </package>",
                 s_packagesOnConfig,
+                package: null,
                 packageRelativePath);
 
             Assert.Equal(1, pkg.Libraries.Count);
@@ -193,7 +246,8 @@ namespace Test.BuildXL.FrontEnd.Nuget
     </dependencies>
   </metadata>
 </package>",
-                s_packagesOnConfig);
+                s_packagesOnConfig,
+                package: null);
 
             Assert.True(pkg.IsManagedPackage);
             Assert.True(pkg.TargetFrameworks.Contains(m_monikers.Net45));
@@ -212,9 +266,9 @@ namespace Test.BuildXL.FrontEnd.Nuget
             XAssert.SetEqual(m_monikers.WellknownMonikers, pkg.TargetFrameworks);
         }
 
-        private NugetAnalyzedPackage AnalyzePackage(string xml, Dictionary<string, INugetPackage> packagesOnConfig, params string[] relativePaths)
+        private NugetAnalyzedPackage AnalyzePackage(string xml, Dictionary<string, INugetPackage> packagesOnConfig, INugetPackage package, params string[] relativePaths)
         {
-            return m_packageGenerator.AnalyzePackage(xml, packagesOnConfig, relativePaths);
+            return m_packageGenerator.AnalyzePackage(xml, packagesOnConfig, package, relativePaths);
         }
     }
 }

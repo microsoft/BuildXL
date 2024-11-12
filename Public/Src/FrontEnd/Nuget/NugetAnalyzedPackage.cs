@@ -432,7 +432,14 @@ namespace BuildXL.FrontEnd.Nuget
 
                 if (genericDependency != null && !skipAllDependencies && !skipIdLookupTable.Contains(genericDependency.GetPackageIdentity()))
                 {
-                    m_dependencies.Add(genericDependency);
+                    if (ValidateVersion(genericDependency, dependency.Attribute("version")?.Value?.Trim(), m_doNotEnforceDependencyVersions))
+                    {
+                        m_dependencies.Add(genericDependency);
+                    }
+                    else
+                    {
+                        return false;
+                    }
                 }
             }
 
@@ -472,15 +479,22 @@ namespace BuildXL.FrontEnd.Nuget
                                 group.Elements().Where(
                                     el => string.Equals(el.Name.LocalName, "dependency", StringComparison.Ordinal)))
                         {
-                            var grouppedDependency = ReadDependencyElement(dependency);
-                            if (grouppedDependency == null && !(ignoreAllDependencies || ignoreIdLookupTable.Contains(dependency.Attribute("id")?.Value?.Trim())))
+                            var groupedDependency = ReadDependencyElement(dependency);
+                            if (groupedDependency == null && !(ignoreAllDependencies || ignoreIdLookupTable.Contains(dependency.Attribute("id")?.Value?.Trim())))
                             {
                                 return false;
                             }
 
-                            if (grouppedDependency != null && !skipAllDependencies && !skipIdLookupTable.Contains(grouppedDependency.GetPackageIdentity()))
+                            if (groupedDependency != null && !skipAllDependencies && !skipIdLookupTable.Contains(groupedDependency.GetPackageIdentity()))
                             {
-                                DependenciesPerFramework.Add(targetFramework, grouppedDependency);
+                                if (ValidateVersion(groupedDependency, dependency.Attribute("version")?.Value?.Trim(), m_doNotEnforceDependencyVersions))
+                                {
+                                    DependenciesPerFramework.Add(targetFramework, groupedDependency);
+                                }
+                                else
+                                {
+                                    return false;
+                                }
                             }
                         }
                     }
@@ -495,6 +509,13 @@ namespace BuildXL.FrontEnd.Nuget
             return true;
         }
 
+        /// <summary>
+        /// Reads a dependency element from the nuspec file.
+        /// </summary>
+        /// <remarks>
+        /// The version of the dependency is not enforced since the dependency might be in the end ignored. Call <see cref="ValidateVersion(INugetPackage, string, bool)"/> 
+        /// if the dependency is indeed added as such.
+        /// </remarks>
         [SuppressMessage("Microsoft.Naming", "CA2204:Literals should be spelled correctly")]
         private INugetPackage ReadDependencyElement(XElement dependency)
         {
@@ -560,7 +581,8 @@ namespace BuildXL.FrontEnd.Nuget
             if (!packagesOnConfig.ContainsKey(id))
             {
                 nugetPackage = null;
-                if (requestorPackage.DependentPackageIdsToIgnore.Contains(id) || requestorPackage.DependentPackageIdsToIgnore.Contains("*")) {
+                if (requestorPackage.DependentPackageIdsToIgnore.Contains(id) || requestorPackage.DependentPackageIdsToIgnore.Contains("*"))
+                {
                     errorMessage = null;
                     return true;
                 }
@@ -595,18 +617,32 @@ namespace BuildXL.FrontEnd.Nuget
                 return false;
             }
 
+            nugetPackage = candidatePackage;
+            errorMessage = null;
+
+            return true;
+        }
+
+        private bool ValidateVersion(INugetPackage package, string version, bool doNotEnforceDependencyVersions)
+        {
+            if (version == null)
+            {
+                return true;
+            }
+
             if (VersionRange.TryParse(version, out var versionRange))
             {
+                var parseResult = NuGetVersion.TryParse(package.Version, out var packageOnConfigVersion);
+                // Already checked in TryResolveNugetPackageVersion
+                Contract.Assert(parseResult == true);
+
                 if (versionRange.Satisfies(packageOnConfigVersion))
                 {
-                    nugetPackage = candidatePackage;
-                    errorMessage = null;
-
                     // This is just informative. We succeeded already.
                     Logger.Log.NugetDependencyVersionWasPickedWithinRange(
                         m_context.LoggingContext,
-                        nugetPackage.Id,
-                        nugetPackage.Version,
+                        package.Id,
+                        package.Version,
                         version);
 
                     return true;
@@ -614,28 +650,35 @@ namespace BuildXL.FrontEnd.Nuget
 
                 if (doNotEnforceDependencyVersions)
                 {
-                    nugetPackage = candidatePackage;
-                    errorMessage = null;
-
-                    // This is a warning, but we suceeded since versions are configured to not be enforced
+                    // This is a warning, but we succeeded since versions are configured to not be enforced
                     Logger.Log.NugetDependencyVersionDoesNotMatch(
                         m_context.LoggingContext,
-                        requestorPackage.Id,
-                        requestorPackage.Version,
-                        nugetPackage.Id,
-                        nugetPackage.Version,
+                        PackageOnDisk.Package.Id,
+                        PackageOnDisk.Package.Version,
+                        package.Id,
+                        package.Version,
                         version);
 
                     return true;
                 }
 
-                nugetPackage = null;
-                errorMessage = I($"Package '{id}' is specified with version '{candidatePackage.Version}', but that is not contained in the interval '{version}'.");
+                Logger.Log.NugetFailedToReadNuSpecFile(
+                    m_context.LoggingContext,
+                    PackageOnDisk.Package.Id,
+                    PackageOnDisk.Package.Version,
+                    NuSpecFilePath,
+                    $"Package '{package.Id}' is specified with version '{package.Version}', but that is not contained in the interval '{version}'.");
+
                 return false;
             }
 
-            nugetPackage = null;
-            errorMessage = I($"Could not parse version '{version}'.");
+            Logger.Log.NugetFailedToReadNuSpecFile(
+                m_context.LoggingContext,
+                PackageOnDisk.Package.Id,
+                PackageOnDisk.Package.Version,
+                NuSpecFilePath,
+                $"Could not parse version '{version}'.");
+
             return false;
         }
     }

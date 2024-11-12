@@ -49,10 +49,10 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public List<string> OsSkip { get; private set; }
 
         /// <inheritdoc />
-        public List<string> DependentPackageIdsToSkip { get; private set; }
+        public List<string> DependentPackageIdsToSkip { get; set; }
 
         /// <inheritdoc />
-        public List<string> DependentPackageIdsToIgnore { get; private set; }
+        public List<string> DependentPackageIdsToIgnore { get; set; }
 
         /// <inheritdoc />
         public bool ForceFullFrameworkQualifiersOnly { get; private set; } = false;

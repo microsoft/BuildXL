@@ -86,6 +86,8 @@ jobs:
       targetType: inline
       script: |
         set -eu
-        rm -rf Out/Bin/debug/sdk
+        rm -rf Out/Bin/debug
+        rm -rf Out/Bin/Demos
         rm -rf Out/Bin/release/sdk
+        rm -rf Out/Bin/release/tools/DistributedBuildRunner
       workingDirectory: /home/subst

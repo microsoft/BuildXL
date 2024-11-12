@@ -148,14 +148,14 @@ namespace BuildXL.AdoBuildRunner.Vsts
             if (properties.ContainsKey(workerInvocationSentinel))
             {
                 var value = properties.GetValue(workerInvocationSentinel, string.Empty);
-                if (value != AdoEnvironment.JobId)
+                if (!string.IsNullOrEmpty(value))
                 {
                     LogAndThrow($"All workers participating in the build '{BuildContext.InvocationKey}' must originate from the same parallel job. This failure probably means that some pipeline specification is duplicating invocation keys");
                 }
             }
             else
             {
-                m_logger?.Info($"No property found with the key {workerInvocationSentinel}");
+                m_logger?.Debug($"No property found with the key {workerInvocationSentinel}");
             }
 
             // "Claim" this invocation key for this job by publishing the sentinel in the properties,
@@ -171,24 +171,26 @@ namespace BuildXL.AdoBuildRunner.Vsts
                 || !triggerInfo.TryGetValue(Constants.TriggeringAdoBuildIdParameter, out string? triggeringBuildIdString)
                 || !int.TryParse(triggeringBuildIdString, out int triggeringBuildId))
             {
-                m_logger.Info("Couldn't find trigger info for this build. Assuming it is being ran on the same pipeline as the orchestrator and using the current build id as the orchestrator's build id");
                 triggeringBuildId = AdoEnvironment.BuildId;
+            }
+            else 
+            {
+              m_logger.Info($"Orchestrator build: {GetBuildLinkFromId(triggeringBuildId)}");
             }
 
             var elapsedTime = 0;
 
-            m_logger.Info($"Orchestrator build: {GetBuildLinkFromId(triggeringBuildId)}");
-
             // At this point we can perform the sanity checks for the workers against the orchestrator
             await VerifyWorkerCorrectness(triggeringBuildId);
 
-            m_logger.Info($"Querying the build properties of build {triggeringBuildId} for the build information");
+            m_logger.Info($"Querying the build properties of build {triggeringBuildId} for the orchestrator's information");
             while (elapsedTime < Config.MaximumWaitForWorkerSeconds)
             {
                 var properties = await m_retryHandler.ExecuteAsync(() => m_adoAPIService.GetBuildPropertiesAsync(triggeringBuildId), nameof(m_adoAPIService.GetBuildPropertiesAsync), m_logger);
                 var maybeInfo = properties.GetValue<string?>(BuildContext.InvocationKey, null);
                 if (maybeInfo != null)
                 {
+                    m_logger.Info($"Orchestrator information retrieved from build properties.");
                     return BuildInfo.Deserialize(maybeInfo);
                 }
 

@@ -3806,7 +3806,7 @@ namespace BuildXL.Scheduler.Artifacts
                     storedFileContentInfo.Length != fileMaterializationInfo.Length)
                 {
                     Contract.Assert(false,
-                        $"File length mismatch for file '{fileMaterializationInfo.FileName}' :: " +
+                        $"File length mismatch for file '{fileMaterializationInfo.FileName.ToString(Context.StringTable)}' :: " +
                         $"arg = {{ hash: {fileMaterializationInfo.Hash.ToHex()}, length: {fileMaterializationInfo.Length} }}, " +
                         $"stored = {{ hash: {storedFileContentInfo.Hash.ToHex()}, length: {storedFileContentInfo.Length}, serializedLength: {storedFileContentInfo.SerializedLengthAndExistence}, existence: '{storedFileContentInfo.Existence}' }}");
                 }

@@ -90,7 +90,7 @@ param(
 
     [Parameter(Mandatory = $false)]
     [ValidateSet("Disable", "Consume", "ConsumeAndPublish")]
-    [string]$SharedCacheMode = "Consume",
+    [string]$SharedCacheMode = "Disable",
 
     [Parameter(Mandatory = $false)]
     [switch]$DevCache = $false,

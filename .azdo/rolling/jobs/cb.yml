@@ -47,30 +47,3 @@ jobs:
           "ContentWriteMode": "WriteThrough"
         }
       toolPaths: '{ "DominoEngine": "https://cloudbuild.artifacts.visualstudio.com/DefaultCollection/_apis/drop/drops/$(BuildXL.Candidate.DropName)?root=release/win-x64" }'
-
-- template: cb-rolling.yml
-  parameters:
-    jobName: CbPopulateDevCache
-    displayName: Populate Dev Cache
-    dependsOn:
-    - BuildCandidate
-    condition: and(succeeded(), ne(variables['ServicingOnlyBuild'], 'true'))
-    continueOnError: true
-    arguments:
-      uploadDropMetadata: false
-      additionalFlags: >-
-        /q:DebugNet472
-        /q:ReleaseNet472
-        /q:ReleaseNet8
-        /q:DebugNet8
-        /p:[Sdk.BuildXL]useManagedSharedCompilation=1
-        /p:[BuildXL.Branding]PrereleaseTag=devBuild
-        /p:[Sdk.BuildXL]microsoftInternal=1
-        /p:[Sdk.BuildXL]DoNotForceXUnitFrameworkInVm=1
-        /cacheMiss:[commit$(Build.SourceVersion)]
-        /historicMetadataCache-
-        /p:ENABLE_ESRP=0
-        /unsafe_AssumeCleanOutputs-
-        /p:BUILDXL_DROP_ENABLED=false
-      genericRunnerOptions: '{ "ContentWriteMode": "WriteThrough" }'
-      toolPaths: '{ "DominoEngine": "https://cloudbuild.artifacts.visualstudio.com/DefaultCollection/_apis/drop/drops/$(BuildXL.Candidate.DropName)?root=release/win-x64" }'

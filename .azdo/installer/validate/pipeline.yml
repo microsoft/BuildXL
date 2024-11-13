@@ -20,7 +20,7 @@ extends:
     - stage:
       displayName: Build tools installer integration testing
       jobs:
-      - template: /.azdo/installer/validate/job.yml@self
+      - template: /.azdo/installer/validate/integration-test.yml@self
         parameters:
           platform: linux-x64
           pool: 
@@ -28,9 +28,10 @@ extends:
             image: linux-PME-GPT
             os: linux  
 
-      - template: /.azdo/installer/validate/job.yml@self
+      - template: /.azdo/installer/validate/integration-test.yml@self
         parameters:
           platform: win-x64
           pool: 
             name: BuildXL-DevOpsAgents-Selfhost
             os: windows  
+      

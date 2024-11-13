@@ -37,6 +37,24 @@ jobs:
       arguments: '--no-build --configuration $(buildConfiguration)'
     displayName: 'Run dotnet tests'
 
+  - task: Powershell@2
+    displayName: Run ConfigCop
+    inputs:
+      targetType: 'inline'
+      script: |
+        Write-Host "##[command]Running in config cop mode: it should succeed against the current deployed configuration"
+        $url = "https://bxlscripts.z20.web.core.windows.net/config/DeploymentConfig_V0.json"
+        $configFilePath = Join-Path $(Agent.TempDirectory) "DeploymentConfig.json"
+        Invoke-RestMethod -Uri $url -OutFile $configFilePath
+
+        if ($IsWindows) {
+          $executableName = "1ES.BuildToolsInstaller.exe"
+        } else {
+          $executableName = "1ES.BuildToolsInstaller"
+        }
+
+        $executablePath = Join-Path -Path $(Build.SourcesDirectory) -ChildPath "Private/BuildToolsInstaller/src/bin/$(buildConfiguration)/$executableName"
+        & $executablePath configcop --path $configFilePath
 
   - task: PowerShell@2
     displayName: Run installer
@@ -100,7 +118,7 @@ jobs:
       arguments: '--configuration $(buildConfiguration)'
       projects: 'Private/BuildToolsInstaller'
     displayName: 'Build Project'
-
+  
   # Integration test:
   # 1. Run installer in 'orchestrator' (default) mode. This should pick up the latest version from the configuration.
   #    Install a fixed version (0.1.0-20240802.2) so we can verify the worker picks up the same one without it coming from

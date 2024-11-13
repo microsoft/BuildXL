@@ -18,6 +18,9 @@ namespace BuildToolsInstaller
                 System.Diagnostics.Debugger.Launch();
             }
 
+            var rootCommand = new RootCommand("Build tools installer");
+            
+            // Configure root command
             var toolOption = new Option<BuildTool>(
                 name: "--tool",
                 description: "The tool to install.")
@@ -56,7 +59,6 @@ namespace BuildToolsInstaller
                      return filePath;
                  });
 
-            var rootCommand = new RootCommand("Build tools installer");
             rootCommand.AddOption(toolOption);
             rootCommand.AddOption(ringOption);
             rootCommand.AddOption(toolsDirectoryOption);
@@ -82,6 +84,22 @@ namespace BuildToolsInstaller
                 configOption,
                 forceOption
             );
+
+            // Configure config cop subcommand
+            var configCopSubCommand = new Command("configcop", "Configuration validation");
+            var pathOption = new Option<string>(
+                name: "--path",
+                description: "The path to the configuration to validate.")
+                { IsRequired = true };
+
+            configCopSubCommand.AddOption(pathOption);
+            configCopSubCommand.SetHandler<string>(async path => 
+            {
+                returnCode = await ConfigCop.ValidateConfiguration(path); 
+            }, pathOption);
+
+
+            rootCommand.AddCommand(configCopSubCommand);
 
             await rootCommand.InvokeAsync(arguments);
             return returnCode;

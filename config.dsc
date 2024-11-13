@@ -70,7 +70,7 @@ config({
 
                 { id: "Microsoft.NETFramework.ReferenceAssemblies.net472", version: "1.0.0" },
 
-                { id: "System.Diagnostics.DiagnosticSource", version: "7.0.2" },
+                { id: "System.Diagnostics.DiagnosticSource", version: "8.0.0" },
 
                 // Roslyn
                 // The old compiler used by integration tests only.
@@ -81,50 +81,35 @@ config({
 
                 // These packages are used by log generators and because they're old
                 // we can't use the latest language features there.
-                { id: "Microsoft.CodeAnalysis.Common", version: "3.5.0" },
-                { id: "Microsoft.CodeAnalysis.CSharp", version: "3.5.0" },
-                { id: "Microsoft.CodeAnalysis.VisualBasic", version: "3.5.0" },
-                { id: "Microsoft.CodeAnalysis.Workspaces.Common", version: "3.5.0",
+                { id: "Microsoft.CodeAnalysis.Common", version: "3.8.0" },
+                { id: "Microsoft.CodeAnalysis.CSharp", version: "3.8.0" },
+                { id: "Microsoft.CodeAnalysis.VisualBasic", version: "3.8.0" },
+                { id: "Microsoft.CodeAnalysis.Workspaces.Common", version: "3.8.0",
                     dependentPackageIdsToSkip: ["SQLitePCLRaw.bundle_green", "System.Composition"],
                     dependentPackageIdsToIgnore: ["SQLitePCLRaw.bundle_green", "System.Composition"],
                 },
-                { id: "Microsoft.CodeAnalysis.CSharp.Workspaces", version: "3.5.0" },
+                { id: "Microsoft.CodeAnalysis.CSharp.Workspaces", version: "3.8.0" },
 
-                // VBCSCompilerLogger needs the latest version (.net 5), but we haven't completed the migration to net 5 for
-                // the rest of the codebase yet
-                // Note: if any of the CodeAnalysis packages get upgraded, any new
-                // switch introduced in the compiler command line argument supported by
-                // the new version needs to be evaluated and incorporated into VBCSCompilerLogger.cs
-                { id: "Microsoft.CodeAnalysis.Common", version: "3.8.0", alias: "Microsoft.CodeAnalysis.Common.ForVBCS"},
-                { id: "Microsoft.CodeAnalysis.CSharp", version: "3.8.0", alias: "Microsoft.CodeAnalysis.CSharp.ForVBCS",
-                    dependentPackageIdsToSkip: ["Microsoft.CodeAnalysis.Common"] },
-                { id: "Microsoft.CodeAnalysis.VisualBasic", version: "3.8.0", alias: "Microsoft.CodeAnalysis.VisualBasic.ForVBCS",
-                    dependentPackageIdsToSkip: ["Microsoft.CodeAnalysis.Common"]},
-                { id: "Microsoft.CodeAnalysis.Workspaces.Common", version: "3.8.0", alias: "Microsoft.CodeAnalysis.Workspaces.Common.ForVBCS",
-                    dependentPackageIdsToSkip: ["SQLitePCLRaw.bundle_green", "System.Composition"],
-                    dependentPackageIdsToIgnore: ["SQLitePCLRaw.bundle_green", "System.Composition"],
-                },
-                { id: "Microsoft.CodeAnalysis.CSharp.Workspaces", version: "3.8.0", alias: "Microsoft.CodeAnalysis.CSharp.Workspaces.ForVBCS" },
                 { id: "Humanizer.Core", version: "2.2.0" },
 
                 // Old code analysis libraries, for tests only
                 { id: "Microsoft.CodeAnalysis.Common", version: "2.10.0", alias: "Microsoft.CodeAnalysis.Common.Old" },
-                { id: "Microsoft.CodeAnalysis.CSharp", version: "2.10.0", alias: "Microsoft.CodeAnalysis.CSharp.Old" },
+                { id: "Microsoft.CodeAnalysis.CSharp", version: "2.10.0", alias: "Microsoft.CodeAnalysis.CSharp.Old", dependentPackageIdsToSkip: ["Microsoft.CodeAnalysis.Common"] },
                 { id: "Microsoft.CodeAnalysis.VisualBasic", version: "2.10.0", alias: "Microsoft.CodeAnalysis.VisualBasic.Old" },
 
                 // Roslyn Analyzers
                 { id: "Microsoft.CodeAnalysis.Analyzers", version: "3.3.1" },
                 { id: "Microsoft.CodeAnalysis.FxCopAnalyzers", version: "2.6.3" },
-                { id: "Microsoft.CodeQuality.Analyzers", version: "2.3.0-beta1" },
-                { id: "Microsoft.NetFramework.Analyzers", version: "2.3.0-beta1" },
-                { id: "Microsoft.NetCore.Analyzers", version: "2.3.0-beta1" },
+                { id: "Microsoft.CodeQuality.Analyzers", version: "2.6.3" },
+                { id: "Microsoft.NetFramework.Analyzers", version: "2.6.3" },
+                { id: "Microsoft.NetCore.Analyzers", version: "2.6.3" },
                 { id: "Microsoft.CodeAnalysis.NetAnalyzers", version: "5.0.3"},
 
                 { id: "AsyncFixer", version: "1.6.0" },
                 { id: "ErrorProne.NET.CoreAnalyzers", version: "0.6.1-beta.1" },
                 { id: "protobuf-net.BuildTools", version: "3.0.101" },
                 { id: "Microsoft.VisualStudio.Threading.Analyzers", version: "17.6.40"},
-                { id: "Text.Analyzers", version: "2.3.0-beta1" },
+                { id: "Text.Analyzers", version: "2.6.3" },
                 { id: "Microsoft.CodeAnalysis.PublicApiAnalyzers", version: "3.3.4" },
 
                 // MEF
@@ -177,19 +162,19 @@ config({
                 { id: "Azure.Core.Amqp", version: "1.3.0"},
                 { id: "Azure.Messaging.EventHubs", version: "5.9.0" },
                 { id: "Microsoft.Azure.KeyVault.Core", version: "2.0.4" },
-                { id: "Microsoft.IdentityModel.Logging", version: "7.2.0" },
-                { id: "Microsoft.IdentityModel.Tokens", version: "7.2.0" },
-                { id: "System.IdentityModel.Tokens.Jwt", version: "7.2.0"},
-                { id: "Microsoft.IdentityModel.JsonWebTokens", version: "7.2.0" },
+                { id: "Microsoft.IdentityModel.Logging", version: "7.6.2" },
+                { id: "Microsoft.IdentityModel.Tokens", version: "7.6.2" },
+                { id: "System.IdentityModel.Tokens.Jwt", version: "7.6.2"},
+                { id: "Microsoft.IdentityModel.JsonWebTokens", version: "7.6.2" },
 
                 // Key Vault
                 { id: "Azure.Security.KeyVault.Secrets", version: "4.5.0" },
                 { id: "Azure.Security.KeyVault.Certificates", version: "4.5.1" },
                 { id: "Azure.Identity", version: "1.11.4" },
                 { id: "Microsoft.Identity.Client", version: "4.65.0" },
-                { id: "Microsoft.IdentityModel.Abstractions", version: "7.2.0" },
+                { id: "Microsoft.IdentityModel.Abstractions", version: "7.6.2" },
                 { id: "Microsoft.Identity.Client.Extensions.Msal", version: "4.65.0" },
-                { id: "Azure.Core", version: "1.38.0" },
+                { id: "Azure.Core", version: "1.43.0" },
                 { id: "Azure.Identity.Broker", version: "1.1.0" },
                 { id: "System.Memory.Data", version: "1.0.2" },
                 { id: "System.ClientModel", version: "1.0.0" },
@@ -224,17 +209,17 @@ config({
                 { id: "Microsoft.DotNet.XUnitConsoleRunner", version: "2.5.1-beta.19270.4" },
 
                 // SQL
-                { id: "Microsoft.Data.SqlClient", version: "5.1.5" },
-                { id: "Microsoft.Data.SqlClient.SNI", version: "5.1.1" },
-                { id: "Microsoft.Data.SqlClient.SNI.runtime", version: "5.1.1" },
+                { id: "Microsoft.Data.SqlClient", version: "5.2.1" },
+                { id: "Microsoft.Data.SqlClient.SNI", version: "5.2.0" },
+                { id: "Microsoft.Data.SqlClient.SNI.runtime", version: "5.2.0" },
                 { id: "Microsoft.IdentityModel.Protocols.OpenIdConnect", version: "6.35.0" },
                 { id: "Microsoft.IdentityModel.Protocols", version: "6.35.0" },
                 { id: "Microsoft.SqlServer.Server", version: "1.0.0" },
-                { id: "System.Runtime.Caching", version: "6.0.0" },
+                { id: "System.Runtime.Caching", version: "8.0.1" },
 
                 // microsoft test platform
                 { id: "Microsoft.TestPlatform.TestHost", version: "16.4.0"},
-                { id: "Microsoft.TestPlatform.ObjectModel", version: "16.4.0"},
+                { id: "Microsoft.TestPlatform.ObjectModel", version: "17.7.2"},
                 { id: "Microsoft.NET.Test.Sdk", version: "15.9.0" },
                 { id: "Microsoft.CodeCoverage", version: "15.9.0" },
 
@@ -247,11 +232,11 @@ config({
                 { id: "Microsoft.Bcl.Build", version: "1.0.14" },
                 
                 { id: "Pipelines.Sockets.Unofficial", version: "2.2.0" },
-                { id: "System.Diagnostics.PerformanceCounter", version: "5.0.0" },
+                { id: "System.Diagnostics.PerformanceCounter", version: "6.0.0" },
                 { id: "System.Threading.Channels", version: "7.0.0" },
 
                 { id: "System.Linq.Async", version: "4.0.0"},
-                { id: "Polly", version: "7.2.1" },
+                { id: "Polly", version: "7.2.2" },
                 { id: "Polly.Contrib.WaitAndRetry", version: "1.1.1" },
 
                 // Azurite node app compiled to standalone executable
@@ -260,26 +245,28 @@ config({
                 { id: "BuildXL.Azurite.Executables", version: "1.0.0-CI-20230614-171424" },
 
                 // Testing
-                { id: "System.Security.Cryptography.ProtectedData", version: "7.0.0"},
-                { id: "System.Configuration.ConfigurationManager", version: "7.0.0"},
-                { id: "System.Diagnostics.EventLog", version: "7.0.0" },
+                { id: "System.Security.Cryptography.ProtectedData", version: "8.0.0"},
+                { id: "System.Configuration.ConfigurationManager", version: "8.0.1"},
+                { id: "System.Diagnostics.EventLog", version: "8.0.1" },
                 { id: "FluentAssertions", version: "5.3.0" },
 
                 { id: "DotNet.Glob", version: "2.0.3" },
-                { id: "Minimatch", version: "1.1.0.0" },
-                { id: "Microsoft.ApplicationInsights", version: "2.21.0", dependentPackageIdsToIgnore: ["System.RunTime.InteropServices"] },
-                { id: "Microsoft.ApplicationInsights.Agent.Intercept", version: "2.0.7" },
-                { id: "Microsoft.ApplicationInsights.DependencyCollector", version: "2.3.0" },
-                { id: "Microsoft.ApplicationInsights.PerfCounterCollector", version: "2.3.0" },
-                { id: "Microsoft.ApplicationInsights.WindowsServer", version: "2.3.0" },
-                { id: "Microsoft.ApplicationInsights.WindowsServer.TelemetryChannel", version: "2.3.0" },
-                { id: "System.Security.Cryptography.Xml", version: "4.7.1" },
+                { id: "Minimatch", version: "2.0.0" },
+                { id: "Microsoft.ApplicationInsights", version: "2.22.0", dependentPackageIdsToIgnore: ["System.RunTime.InteropServices"] },
+                { id: "Microsoft.ApplicationInsights.Agent.Intercept", version: "2.4.0" },
+                { id: "Microsoft.ApplicationInsights.DependencyCollector", version: "2.22.0" },
+                { id: "Microsoft.ApplicationInsights.PerfCounterCollector", version: "2.22.0" },
+                { id: "Microsoft.ApplicationInsights.WindowsServer", version: "2.22.0" },
+                { id: "Microsoft.ApplicationInsights.WindowsServer.TelemetryChannel", version: "2.22.0" },
+                { id: "Microsoft.Extensions.Caching.Memory", version: "1.0.0" },
+                { id: "Microsoft.Extensions.Caching.Abstractions", version: "1.0.0" },
+                { id: "System.Security.Cryptography.Xml", version: "8.0.0" },
                 { id: "System.Text.Encodings.Web", version: "8.0.0" },
                 { id: "System.Security.Permissions", version: "7.0.0" },
                 { id: "System.Windows.Extensions", version: "7.0.0" },
                 { id: "System.Drawing.Common", version: "7.0.0" },
                 { id: "Microsoft.Win32.SystemEvents", version: "7.0.0" },
-                { id: "System.Security.Cryptography.Pkcs", version: "7.0.2" },
+                { id: "System.Security.Cryptography.Pkcs", version: "8.0.0" },
 
                 { id: "ILRepack", version: "2.0.16" },
 
@@ -290,22 +277,20 @@ config({
                 { id: "Validation", version: "2.5.42"},
 
                 // VSTS managed API
-                { id: "Microsoft.TeamFoundationServer.Client", version: "16.170.0"},
-                { id: "Microsoft.TeamFoundation.DistributedTask.WebApi", version: "16.170.0",
+                { id: "Microsoft.TeamFoundation.DistributedTask.WebApi", version: "19.245.0-preview",
                     dependentPackageIdsToSkip: ["*"] },
-                { id: "Microsoft.TeamFoundation.DistributedTask.Common.Contracts", version: "16.170.0"},
 
                 // MSBuild. These should be used for compile references only, as at runtime one can only practically use MSBuilds from Visual Studio / dotnet CLI
-                { id: "Microsoft.Build", version: "17.10.4" },
-                { id: "Microsoft.Build.Runtime", version: "17.10.4" },
-                { id: "Microsoft.Build.Tasks.Core", version: "17.10.4" },
-                { id: "Microsoft.Build.Utilities.Core", version: "17.10.4" },
-                { id: "Microsoft.Build.Framework", version: "17.10.4" },
-                { id: "Microsoft.NET.StringTools", version: "17.10.4" },
+                { id: "Microsoft.Build", version: "17.11.4" },
+                { id: "Microsoft.Build.Runtime", version: "17.11.4" },
+                { id: "Microsoft.Build.Tasks.Core", version: "17.11.4" },
+                { id: "Microsoft.Build.Utilities.Core", version: "17.11.4" },
+                { id: "Microsoft.Build.Framework", version: "17.11.4" },
+                { id: "Microsoft.NET.StringTools", version: "17.11.4" },
                 { id: "Microsoft.Build.Locator", version: "1.5.5" },
                 { id: "System.Reflection.MetadataLoadContext", version: "8.0.0"},    
 
-                { id: "System.Resources.Extensions", version: "4.6.0-preview9.19411.4",
+                { id: "System.Resources.Extensions", version: "8.0.0",
                     dependentPackageIdsToSkip: ["System.Memory"]},
 
                 // Buffers and Memory
@@ -317,8 +302,8 @@ config({
 
                 // Extra dependencies to make MSBuild work
                 { id: "Microsoft.VisualStudio.Setup.Configuration.Interop", version: "3.2.2146"},
-                { id: "System.CodeDom", version: "4.4.0"},
-                { id: "System.Text.Encoding.CodePages", version: "4.5.1" },
+                { id: "System.CodeDom", version: "8.0.0"},
+                { id: "System.Text.Encoding.CodePages", version: "7.0.0" },
 
                 // Used for MSBuild input/output prediction
                 { id: "Microsoft.Build.Prediction", version: "1.2.27" },
@@ -347,7 +332,7 @@ config({
                 // Needed for SBOM Generation
                 { id: "Microsoft.Extensions.Logging.Abstractions", version: "8.0.0" },
                 { id: "packageurl-dotnet", version: "1.1.0" },
-                { id: "System.Reactive", version: "4.4.1" },
+                { id: "System.Reactive", version: "6.0.1" },
 
                 // CredScan
                 { id: "Crc32.NET", version: "1.2.0" },

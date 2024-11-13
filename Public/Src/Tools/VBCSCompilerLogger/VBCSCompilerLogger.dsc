@@ -16,9 +16,9 @@ namespace VBCSCompilerLogger {
         sources: globR(d`.`, "*.cs"),
         references:[
             ...MSBuild.msbuildReferences,
-            importFrom("Microsoft.CodeAnalysis.CSharp.ForVBCS").pkg,
-            importFrom("Microsoft.CodeAnalysis.VisualBasic.ForVBCS").pkg,
-            importFrom("Microsoft.CodeAnalysis.Common.ForVBCS").pkg,
+            importFrom("Microsoft.CodeAnalysis.CSharp").pkg,
+            importFrom("Microsoft.CodeAnalysis.VisualBasic").pkg,
+            importFrom("Microsoft.CodeAnalysis.Common").pkg,
             ...addIf(BuildXLSdk.isFullFramework, importFrom("System.Collections.Immutable").pkg),
             importFrom("BuildXL.Utilities").Utilities.Core.dll,
             importFrom("BuildXL.Utilities").Native.dll,

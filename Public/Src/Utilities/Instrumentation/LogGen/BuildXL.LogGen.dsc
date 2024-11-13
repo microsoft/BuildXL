@@ -15,8 +15,8 @@ namespace LogGen {
             importFrom("BuildXL.Utilities").Utilities.Core.dll,
             importFrom("BuildXL.Utilities").ToolSupport.dll,
             importFrom("BuildXL.Utilities").CodeGenerationHelper.dll,
-            importFrom("Microsoft.CodeAnalysis.CSharp.ForVBCS").pkg,
-            importFrom("Microsoft.CodeAnalysis.Common.ForVBCS").pkg,
+            importFrom("Microsoft.CodeAnalysis.CSharp").pkg,
+            importFrom("Microsoft.CodeAnalysis.Common").pkg,
         ],
     });
 

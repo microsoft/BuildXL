@@ -147,13 +147,13 @@ namespace BuildXL.Utilities.Authentication
                 return new VssCredentials();
             }
 
-            return await CreateVssCredentialsWithAadAsync(baseUri);
+            return await CreateVssCredentialsWithAadAsync();
         }
 
         /// <summary>
         /// Performs AAD authentication with MSAL.
         /// </summary>
-        public async Task<VssCredentials> CreateVssCredentialsWithAadAsync(Uri baseUri)
+        public async Task<VssCredentials> CreateVssCredentialsWithAadAsync()
         {
             // NOTE: BuildXL explicitly does not use the WAM broker (PublicClientApplicationBuilder.WithBroker())
             // because it requires a parent window to display an authentication prompt.
@@ -181,7 +181,7 @@ namespace BuildXL.Utilities.Authentication
             cache.RegisterCache(app.UserTokenCache);
 
             var providers = MsalTokenProviders.Get(app, m_logger);
-            var tokenRequest = new TokenRequest(baseUri)
+            var tokenRequest = new TokenRequest()
             {
                 IsInteractive = true
             };

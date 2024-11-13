@@ -17,6 +17,10 @@ namespace Test.Tool.VBCSCompilerLogger {
             importFrom("Microsoft.Build.Utilities.Core").pkg,
             importFrom("BuildXL.Tools").VBCSCompilerLogger.dll,
         ],
+        runtimeContentToSkip: [
+            // Avoid deploying the standard reference in favor of the old one
+            importFrom("System.Reflection.Metadata").pkg,
+        ],
         runtimeContent: [
             {
                 subfolder: a`Logger`,

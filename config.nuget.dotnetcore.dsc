@@ -16,20 +16,18 @@ const pkgVersion5 = "5.0.0";
 const pkgVersion6 = "6.0.0";
 const pkgVersion6Preview = "6.0.0-preview.5.21301.5";
 
+const cryptographyOpenSslVersion = "4.3.2";
+
 export const pkgs = [
 
     // .NET Core Dependencies
-    { id: "Microsoft.NETCore.App.Ref", version: coreVersion },
-
     { id: "NETStandard.Library", version: "2.0.3", tfm: ".NETStandard2.0" },
     { id: "Microsoft.NETCore.Platforms", version: core50Version },
     
     // .NET Core Self-Contained Deployment
-    { id: "Microsoft.NETCore.DotNetHostResolver", version: coreVersion },
+    { id: "Microsoft.NETCore.DotNetHostResolver", version: core80Version },
 
-    { id: "Microsoft.NETCore.DotNetHostPolicy", version: coreVersion },
-
-    { id: "Microsoft.NETCore.DotNetAppHost", version: coreVersion },
+    { id: "Microsoft.NETCore.DotNetAppHost", version: core80Version },
 
     // .NET 6
 
@@ -38,11 +36,7 @@ export const pkgs = [
 
    
     // .NET Core Self-Contained Deployment
-    { id: "Microsoft.NETCore.DotNetHostResolver", version: core60Version, alias: "Microsoft.NETCore.DotNetHostResolver.6.0" },
-
     { id: "Microsoft.NETCore.DotNetHostPolicy", version: core60Version, alias: "Microsoft.NETCore.DotNetHostPolicy.6.0" },
-
-    { id: "Microsoft.NETCore.DotNetAppHost", version: core60Version, alias: "Microsoft.NETCore.DotNetAppHost.6.0" },
 
     // .NET Core win-x64 runtime deps
     { id: "Microsoft.NETCore.App.Host.win-x64", version: core60Version, osSkip: [ "macOS", "unix" ], alias: "Microsoft.NETCore.App.Host.win-x64.6.0" },
@@ -72,11 +66,7 @@ export const pkgs = [
     { id: "Microsoft.NETCore.Platforms", version: core80VersionPlatforms, alias: "Microsoft.NETCore.Platforms.8.0" },
     
     // .NET Core Self-Contained Deployment
-    { id: "Microsoft.NETCore.DotNetHostResolver", version: core80Version, alias: "Microsoft.NETCore.DotNetHostResolver.8.0" },
-
     { id: "Microsoft.NETCore.DotNetHostPolicy", version: core80Version, alias: "Microsoft.NETCore.DotNetHostPolicy.8.0" },
-
-    { id: "Microsoft.NETCore.DotNetAppHost", version: core80Version, alias: "Microsoft.NETCore.DotNetAppHost.8.0" },
 
     // .NET Core win-x64 runtime deps
     { id: "Microsoft.NETCore.App.Host.win-x64", version: core80Version, osSkip: [ "macOS", "unix" ], alias: "Microsoft.NETCore.App.Host.win-x64.8.0" },
@@ -99,35 +89,38 @@ export const pkgs = [
     { id: "runtime.native.System", version: pkgVersion },
     { id: "runtime.win7-x64.runtime.native.System.Data.SqlClient.sni", version: pkgVersion, osSkip: [ "macOS", "unix" ] },
     { id: "runtime.win7-x86.runtime.native.System.Data.SqlClient.sni", version: pkgVersion, osSkip: [ "macOS", "unix" ] },
-    { id: "runtime.native.System.Data.SqlClient.sni", version: pkgVersion },
+    { id: "runtime.native.System.Data.SqlClient.sni", version: pkgVersionNext },
+    { id: "runtime.win-arm64.runtime.native.System.Data.SqlClient.sni", version: "4.4.0" },
+    { id: "runtime.win-x64.runtime.native.System.Data.SqlClient.sni", version: "4.4.0" },
+    { id: "runtime.win-x86.runtime.native.System.Data.SqlClient.sni", version: "4.4.0" },
     { id: "runtime.native.System.Net.Http", version: pkgVersion },
     { id: "runtime.native.System.IO.Compression", version: pkgVersion },
     { id: "runtime.native.System.Net.Security", version: pkgVersion },
-    { id: "runtime.native.System.Security.Cryptography.Apple", version: pkgVersion },
-    { id: "runtime.osx.10.10-x64.runtime.native.System.Security.Cryptography.Apple", version: pkgVersion },
-    { id: "runtime.native.System.Security.Cryptography.OpenSsl", version: pkgVersion },
-    { id: "runtime.debian.8-x64.runtime.native.System.Security.Cryptography.OpenSsl", version: pkgVersion },
-    { id: "runtime.fedora.23-x64.runtime.native.System.Security.Cryptography.OpenSsl", version: pkgVersion },
-    { id: "runtime.fedora.24-x64.runtime.native.System.Security.Cryptography.OpenSsl", version: pkgVersion },
-    { id: "runtime.opensuse.13.2-x64.runtime.native.System.Security.Cryptography.OpenSsl", version: pkgVersion },
-    { id: "runtime.opensuse.42.1-x64.runtime.native.System.Security.Cryptography.OpenSsl", version: pkgVersion },
-    { id: "runtime.osx.10.10-x64.runtime.native.System.Security.Cryptography.OpenSsl", version: pkgVersion },
-    { id: "runtime.rhel.7-x64.runtime.native.System.Security.Cryptography.OpenSsl", version: pkgVersion },
-    { id: "runtime.ubuntu.14.04-x64.runtime.native.System.Security.Cryptography.OpenSsl", version: pkgVersion },
-    { id: "runtime.ubuntu.16.04-x64.runtime.native.System.Security.Cryptography.OpenSsl", version: pkgVersion },
-    { id: "runtime.ubuntu.16.10-x64.runtime.native.System.Security.Cryptography.OpenSsl", version: pkgVersion },
+    { id: "runtime.native.System.Security.Cryptography.Apple", version: "4.3.1" },
+    { id: "runtime.osx.10.10-x64.runtime.native.System.Security.Cryptography.Apple", version: "4.3.1" },
+    { id: "runtime.native.System.Security.Cryptography.OpenSsl", version: cryptographyOpenSslVersion },
+    { id: "runtime.debian.8-x64.runtime.native.System.Security.Cryptography.OpenSsl", version: cryptographyOpenSslVersion },
+    { id: "runtime.fedora.23-x64.runtime.native.System.Security.Cryptography.OpenSsl", version: cryptographyOpenSslVersion },
+    { id: "runtime.fedora.24-x64.runtime.native.System.Security.Cryptography.OpenSsl", version: cryptographyOpenSslVersion },
+    { id: "runtime.opensuse.13.2-x64.runtime.native.System.Security.Cryptography.OpenSsl", version: cryptographyOpenSslVersion },
+    { id: "runtime.opensuse.42.1-x64.runtime.native.System.Security.Cryptography.OpenSsl", version: cryptographyOpenSslVersion },
+    { id: "runtime.osx.10.10-x64.runtime.native.System.Security.Cryptography.OpenSsl", version: cryptographyOpenSslVersion },
+    { id: "runtime.rhel.7-x64.runtime.native.System.Security.Cryptography.OpenSsl", version: cryptographyOpenSslVersion },
+    { id: "runtime.ubuntu.14.04-x64.runtime.native.System.Security.Cryptography.OpenSsl", version: cryptographyOpenSslVersion },
+    { id: "runtime.ubuntu.16.04-x64.runtime.native.System.Security.Cryptography.OpenSsl", version: cryptographyOpenSslVersion },
+    { id: "runtime.ubuntu.16.10-x64.runtime.native.System.Security.Cryptography.OpenSsl", version: cryptographyOpenSslVersion },
 
     // Packages
-    { id: "Microsoft.CSharp", version: pkgVersion },
+    { id: "Microsoft.CSharp", version: pkgVersionNext },
     { id: "Microsoft.Win32.Primitives", version: pkgVersion },
-    { id: "Microsoft.Win32.Registry", version: "4.7.0" }, // This is the version our dependencies rely on.
+    { id: "Microsoft.Win32.Registry", version: "5.0.0" }, // This is the version our dependencies rely on.
     { id: "System.AppContext", version: pkgVersion },
     { id: "System.Collections", version: pkgVersion },
     { id: "System.Collections.Concurrent", version: pkgVersion },
     { id: "System.Collections.NonGeneric", version: pkgVersion },
     { id: "System.Collections.Specialized", version: pkgVersion },
     { id: "System.ComponentModel", version: pkgVersion },
-    { id: "System.ComponentModel.Annotations", version: pkgVersion },
+    { id: "System.ComponentModel.Annotations", version: pkgVersion5 },
     { id: "System.ComponentModel.Composition", version: "4.5.0" },
     { id: "System.ComponentModel.EventBasedAsync", version: pkgVersion },
     { id: "System.ComponentModel.Primitives", version: pkgVersion },
@@ -165,7 +158,7 @@ export const pkgs = [
     { id: "System.Linq.Expressions", version: pkgVersion },
     { id: "System.Linq.Parallel", version: pkgVersion },
     { id: "System.Linq.Queryable", version: pkgVersion },
-    { id: "System.Net.Http", version: pkgVersion },
+    { id: "System.Net.Http", version: "4.3.4" },
     { id: "System.Net.NameResolution", version: pkgVersion },
     { id: "System.Net.NetworkInformation", version: pkgVersion },
     { id: "System.Net.Ping", version: pkgVersion },
@@ -179,13 +172,13 @@ export const pkgs = [
     { id: "System.ObjectModel", version: pkgVersion },
     { id: "System.Private.DataContractSerialization", version: pkgVersion },
     { id: "System.Reflection", version: pkgVersion },
-    { id: "System.Reflection.DispatchProxy", version: pkgVersion },
-    { id: "System.Reflection.Emit", version: pkgVersion },
-    { id: "System.Reflection.Emit.ILGeneration", version: pkgVersion },
-    { id: "System.Reflection.Emit.Lightweight", version: pkgVersion },
+    { id: "System.Reflection.DispatchProxy", version: "4.7.1" },
+    { id: "System.Reflection.Emit", version: pkgVersionNext },
+    { id: "System.Reflection.Emit.ILGeneration", version: pkgVersionNext },
+    { id: "System.Reflection.Emit.Lightweight", version: pkgVersionNext },
     { id: "System.Reflection.Extensions", version: pkgVersion },
     { id: "System.Reflection.Primitives", version: pkgVersion },
-    { id: "System.Reflection.TypeExtensions", version: pkgVersion },
+    { id: "System.Reflection.TypeExtensions", version: pkgVersionNext },
     { id: "System.Resources.Reader", version: pkgVersion },
     { id: "System.Resources.ResourceManager", version: pkgVersion },
     { id: "System.Resources.Writer", version: pkgVersion },
@@ -203,7 +196,7 @@ export const pkgs = [
     { id: "System.Runtime.Serialization.Primitives", version: pkgVersion },
     { id: "System.Runtime.Serialization.Xml", version: pkgVersion },
     { id: "System.Runtime.WindowsRuntime", version: pkgVersion },
-    { id: "System.Security.Cryptography.Algorithms", version: pkgVersion },
+    { id: "System.Security.Cryptography.Algorithms", version: "4.3.1", osSkip: [ "macOS" ], filesToExclude: [r`runtimes/osx/lib/netstandard1.6/System.Security.Cryptography.Algorithms.dll`] },
     { id: "System.Security.Cryptography.Cng", version: pkgVersion5 },
     { id: "System.Security.Cryptography.Csp", version: pkgVersion },
     { id: "System.Security.Cryptography.Encoding", version: pkgVersion },
@@ -241,13 +234,13 @@ export const pkgs = [
     { id: "System.Security.Principal.Windows", version: pkgVersion5 },
     
     { id: "System.Text.Json", version: "8.0.5" },
-    { id: "System.Threading.AccessControl", version: pkgVersionNext },
+    { id: "System.Threading.AccessControl", version: pkgVersion5 },
 
     // Non-standard version ones
     { id: "Microsoft.NETCore.Targets", version: "2.0.0" },
     
     { id: "System.Threading.Tasks.Extensions", version: "4.5.4" }, // If you change this version, please change cacheBindingRedirects in BuildXLSdk.dsc
 
-    { id: "System.Security.Cryptography.OpenSsl", version: "4.4.0" },
+    { id: "System.Security.Cryptography.OpenSsl", version: "5.0.0" },
     { id: "System.Collections.Immutable", version: "8.0.0" },
 ];

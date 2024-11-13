@@ -12,8 +12,8 @@ namespace Core {
             AriaCommon.dll,
             importFrom("BuildXL.Utilities").CodeGenerationHelper.dll,
             importFrom("BuildXL.Utilities").Utilities.Core.dll,
-            importFrom("Microsoft.CodeAnalysis.CSharp.ForVBCS").pkg,
-            importFrom("Microsoft.CodeAnalysis.Common.ForVBCS").pkg,
+            importFrom("Microsoft.CodeAnalysis.CSharp").pkg,
+            importFrom("Microsoft.CodeAnalysis.Common").pkg,
             importFrom("System.Collections.Immutable").pkg,
         ],
     });

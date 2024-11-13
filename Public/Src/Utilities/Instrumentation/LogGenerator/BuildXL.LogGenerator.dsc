@@ -19,8 +19,8 @@ namespace LogGenerator {
             // Using Newtonsoft.Json for deserializing Log Gen config, because it self-contained.
             importFrom("Newtonsoft.Json").pkg,
 
-            importFrom("Microsoft.CodeAnalysis.Common.ForVBCS").pkg,
-            importFrom("Microsoft.CodeAnalysis.CSharp.ForVBCS").pkg,
+            importFrom("Microsoft.CodeAnalysis.Common").pkg,
+            importFrom("Microsoft.CodeAnalysis.CSharp").pkg,
             importFrom("System.Collections.Immutable").pkg,
             importFrom("BuildXL.Utilities").CodeGenerationHelper.dll,
         ],

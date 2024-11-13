@@ -14,8 +14,8 @@ const asp8RuntimeVersion = "8.0.10";
 export const pkgs = [
     // aspnet web api
     { id: "Microsoft.AspNet.WebApi.Client", version: "5.2.7" },
-    { id: "Microsoft.AspNet.WebApi.Core", version: "5.2.3" },
-    { id: "Microsoft.AspNet.WebApi.WebHost", version: "5.2.2" },
+    { id: "Microsoft.AspNet.WebApi.Core", version: "5.2.7" },
+    { id: "Microsoft.AspNet.WebApi.WebHost", version: "5.2.7" },
 
     // aspnet core
     { id: "Microsoft.Extensions.Configuration.Abstractions", version: aspVersion },

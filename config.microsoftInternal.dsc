@@ -48,6 +48,8 @@ export const pkgs = isMicrosoftInternal ? [
     { id: "Microsoft.VisualStudio.Services.InteractiveClient", version: azureDevopsNugetVersion, dependentPackageIdsToSkip: [ "Ben.Demystifier" ], dependentPackageIdsToIgnore: [ "Ben.Demystifier" ] },
     { id: "Microsoft.Azure.Storage.Common", version: "11.2.3" },
     { id: "System.ServiceProcess.ServiceController", version: "6.0.1" },
+    { id: "Microsoft.TeamFoundationServer.Client", version: azureDevopsNugetVersion},
+    { id: "Microsoft.TeamFoundation.DistributedTask.Common.Contracts", version: azureDevopsNugetVersion},
 
     // CloudStore dependencies
     { id: "DeduplicationSigned", version: "1.0.14" },
@@ -104,13 +106,14 @@ export const pkgs = isMicrosoftInternal ? [
     { id: "Microsoft.Security.CredScan.KnowledgeBase.Ruleset", version: "1.7.1.6" },
 
     // Authentication
-    { id: "Microsoft.Artifacts.Authentication", version: "0.1.2" },
+    { id: "Microsoft.Artifacts.Authentication", version: "0.2.2" },
     
 ] : [
 
     // Artifact packages and dependencies in OSS
-    { id: "Microsoft.VisualStudio.Services.Client", version: "16.148.0-preview", dependentPackageIdsToSkip: [ "Microsoft.Data.SqlClient", "Microsoft.Net.Http", "Microsoft.AspNet.WebApi.Client", "System.Security.Cryptography.OpenSsl", "Microsoft.Data.SqlClient", "System.Security.Principal.Windows" ] },
-
+    { id: "Microsoft.VisualStudio.Services.Client", version: "19.245.0-preview", dependentPackageIdsToSkip: [ "Microsoft.Data.SqlClient", "Microsoft.Net.Http", "Microsoft.AspNet.WebApi.Client", "System.Security.Cryptography.OpenSsl", "Microsoft.Data.SqlClient", "System.Security.Principal.Windows" ] },
+    { id: "Microsoft.TeamFoundationServer.Client", version: "19.245.0-preview"},
+    { id: "Microsoft.TeamFoundation.DistributedTask.Common.Contracts", version: "19.245.0-preview"},
 ];
 
 // This contains facade modules for the packages that are only available internally

@@ -63,10 +63,7 @@ jobs:
     inputs:
       targetType: 'inline'
       script: |
-        $config = @{
-          'FeedOverride' = 'https://pkgs.dev.azure.com/mseng/Domino/_packaging/buildxl.maly.internal/nuget/v3/index.json'
-        }
-
+        $config = @{}
         $configPath = Join-Path $(Agent.TempDirectory) "buildToolInstallerConfig.json"
         $config | ConvertTo-Json | Set-Content -Path $configPath
         Get-Content -Path $configPath
@@ -135,10 +132,9 @@ jobs:
         Write-Host "##[command]Run the installer in orchestrator mode and output to 'Orch'"
 
         $config = @{
-          'FeedOverride' = 'https://pkgs.dev.azure.com/mseng/Domino/_packaging/buildxl.maly.internal/nuget/v3/index.json'
-          'Version' = '0.1.0-20240802.2'
-          'DistributedRole' = 'Orchestrator'
-          'InvocationKey'= 'MyBuild_${{ parameters.platform }}'
+          'version' = '0.1.0-20240802.2'
+          'distributedRole' = 'Orchestrator'
+          'invocationKey'= 'MyBuild_${{ parameters.platform }}'
         }
 
         $configPath = Join-Path $(Agent.TempDirectory) "buildToolInstallerConfig.json"
@@ -158,10 +154,9 @@ jobs:
 
         Write-Host "##[command]Run the installer in worker mode and output to 'Worker'"
         $config = @{
-          'FeedOverride' = 'https://pkgs.dev.azure.com/mseng/Domino/_packaging/buildxl.maly.internal/nuget/v3/index.json'
-          'DistributedRole' = 'Worker'
-          'InvocationKey'= 'MyBuild_${{ parameters.platform }}'
-          'WorkerTimeoutMin' = 3
+          'distributedRole' = 'Worker'
+          'invocationKey'= 'MyBuild_${{ parameters.platform }}'
+          'workerTimeoutMin' = 3
         }
 
         $configPath = Join-Path $(Agent.TempDirectory) "buildToolInstallerConfig_worker.json"

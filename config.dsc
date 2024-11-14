@@ -346,8 +346,6 @@ config({
                 { id: "Microsoft.Windows.SDK.CPP.x86", version: "10.0.22621.755", osSkip: [ "macOS", "unix" ] },
                 { id: "Microsoft.Windows.SDK.CPP.x64", version: "10.0.22621.755", osSkip: [ "macOS", "unix" ] },
             ],
-
-            doNotEnforceDependencyVersions: true,
         },
 
         importFile(f`config.microsoftInternal.dsc`).resolver,

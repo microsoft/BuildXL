@@ -80,6 +80,9 @@ jobs:
       PATCloudBuild: $(BuildXL-Pipeline-AccessToken)
       VSTSPERSONALACCESSTOKEN: $(System.AccessToken)
 
+  # Delete all linux outputs that aren't eventually published to save SDL scanning costs
+  # This leaves out/bin/release/npm and out/bin/release/pkgs which eventually get published
+  # Still build everything for sake of ensuring it still builds
   - task: Bash@3
     displayName: Clean bin directory for Drop
     inputs:
@@ -88,6 +91,10 @@ jobs:
         set -eu
         rm -rf Out/Bin/debug
         rm -rf Out/Bin/Demos
-        rm -rf Out/Bin/release/sdk
-        rm -rf Out/Bin/release/tools/DistributedBuildRunner
+        rm -rf Out/Bin/net8.0
+        rm -rf Out/Bin/release/cache
+        rm -rf Out/Bin/release/ide
+        rm -rf Out/Bin/release/linux-x64
+        rm -rf Out/Bin/release/tools
+        du -h --max-depth=4 Out/Bin
       workingDirectory: /home/subst

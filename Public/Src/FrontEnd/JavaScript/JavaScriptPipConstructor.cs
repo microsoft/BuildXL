@@ -44,6 +44,11 @@ namespace BuildXL.FrontEnd.JavaScript
         private readonly ModuleDefinition m_moduleDefinition;
         private readonly IJavaScriptResolverSettings m_resolverSettings;
 
+        private RegexDescriptor WarningRegexDescriptor => 
+            m_resolverSettings.WarningRegex != null ? new RegexDescriptor(StringId.Create(m_context.StringTable, m_resolverSettings.WarningRegex), RegexOptions.None) : default;
+        private RegexDescriptor ErrorRegexDescriptor =>
+            m_resolverSettings.ErrorRegex != null ? new RegexDescriptor(StringId.Create(m_context.StringTable, m_resolverSettings.ErrorRegex), RegexOptions.None) : default;
+
         private AbsolutePath Root => m_resolverSettings.Root;
 
         private readonly IEnumerable<KeyValuePair<string, string>> m_userDefinedEnvironment;
@@ -597,6 +602,16 @@ namespace BuildXL.FrontEnd.JavaScript
             if (project.WarningTimeoutInMilliseconds > 0)
             {
                 processBuilder.WarningTimeout = TimeSpan.FromMilliseconds(project.WarningTimeoutInMilliseconds);
+            }
+
+            if (WarningRegexDescriptor.IsValid)
+            {
+                processBuilder.WarningRegex = WarningRegexDescriptor;
+            }
+
+            if (ErrorRegexDescriptor.IsValid)
+            {
+                processBuilder.ErrorRegex = ErrorRegexDescriptor;
             }
         }
 

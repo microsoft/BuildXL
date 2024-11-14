@@ -159,6 +159,16 @@ namespace BuildXL.Utilities.Configuration
         /// Pip Timeout that will be applied for selected JavaScript projects
         /// </summary>
         IReadOnlyList<IJavaScriptProjectTimeout> Timeouts { get; }
+
+        /// <summary>
+        /// Regex that would be used to extract warnings from the output.
+        /// </summary>
+        string WarningRegex { get; }
+
+        /// <summary>
+        /// Regex that would be used to extract errors from the output.
+        /// </summary>
+        string ErrorRegex { get; }
     }
 
     /// <nodoc/>

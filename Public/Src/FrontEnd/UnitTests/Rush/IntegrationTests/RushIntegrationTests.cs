@@ -31,6 +31,64 @@ namespace Test.BuildXL.FrontEnd.Rush
         }
 
         [Fact]
+        public void JavaScriptWarningRegexTest()
+        {
+            var config = Build(warningRegex: "'WARNING'")
+                .AddJavaScriptProject("@ms/project-A", "src/A", "console.log('This is a WARNING message!')")
+                .AddJavaScriptProject("@ms/project-B", "src/B", "console.log('This is a regular message!')")
+                .PersistSpecsAndGetConfiguration();
+
+            var engineResult = RunRushProjects(config, new[] {
+                ("src/A", "@ms/project-A"),
+                ("src/B", "@ms/project-B"),
+            });
+
+            Assert.True(engineResult.IsSuccess);
+
+            // Let's do some basic graph validations
+            var processes = engineResult.EngineState.PipGraph.RetrievePipsOfType(global::BuildXL.Pips.Operations.PipType.Process).ToList();
+            // There should be two process pips
+            Assert.Equal(2, processes.Count);
+            // A PipProcessWarning should be logged
+            AssertWarningEventLogged(global::BuildXL.Processes.Tracing.LogEventId.PipProcessWarning, 1);
+        }
+
+        [Fact]
+        public void JavaScriptErrorRegexTest()
+        {
+            var content = @"
+                function createError(x) {
+                    if (x == 1) {
+                        throw new Error('This is an error message');
+                    }
+                }
+                createError(1);
+            ";
+
+            // Create a failed JavaScript project
+            var config = Build(errorRegex: "'message'")
+                .AddJavaScriptProject("@ms/project-A", "src/A", content)
+                .PersistSpecsAndGetConfiguration();
+
+            var engineResult = RunRushProjects(config, new[] {
+                ("src/A", "@ms/project-A"),
+            });
+
+            Assert.False(engineResult.IsSuccess);
+
+            // Let's do some basic graph validations
+            var processes = engineResult.EngineState.PipGraph.RetrievePipsOfType(global::BuildXL.Pips.Operations.PipType.Process).ToList();
+            // There should be one process pips
+            Assert.Equal(1, processes.Count);
+
+            // A PipProcessError should be logged
+            AssertErrorEventLogged(global::BuildXL.Processes.Tracing.LogEventId.PipProcessError, 1);
+            // Error message has been filtered by a regex, it should only contains the line contains 'error';
+            AssertLogNotContains(true, "createError(1);");
+            AssertLogContains(true, "This is an error message");
+        }
+
+        [Fact]
         public void JavaScriptPipTimeoutErrorForProject()
         {
             var config = Build(timeouts: "[{timeout: '500ms', projectSelector: ['@ms/project-B']}]")

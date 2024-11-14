@@ -601,6 +601,16 @@ interface JavaScriptResolver extends ResolverBase, UntrackingSettings {
      * ]
      */
     timeouts?: JavaScriptProjectTimeout[];
+
+    /** 
+     * Regex that would be used to extract warnings from the output. 
+     */
+    warningRegex?: string;
+
+    /** 
+     * Regex that would be used to extract errors from the output. 
+     */
+    errorRegex?: string;
 }
 
 /**

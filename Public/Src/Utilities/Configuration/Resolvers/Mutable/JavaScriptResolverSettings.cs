@@ -51,6 +51,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
             EnforceSourceReadsUnderPackageRoots = resolverSettings.EnforceSourceReadsUnderPackageRoots;
             AdditionalSourceReadsScopes = resolverSettings.AdditionalSourceReadsScopes;
             Timeouts = resolverSettings.Timeouts;
+            ErrorRegex = resolverSettings.ErrorRegex;
+            WarningRegex = resolverSettings.WarningRegex;
         }
 
         /// <inheritdoc/>
@@ -121,5 +123,11 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc/>
         public IReadOnlyList<IJavaScriptProjectTimeout> Timeouts { get; set; }
+
+        /// <inheritdoc/>
+        public string WarningRegex { get; set; }
+
+        /// <inheritdoc/>
+        public string ErrorRegex { get; set; }
     }
 }

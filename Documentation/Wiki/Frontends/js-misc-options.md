@@ -57,3 +57,9 @@ Check the [resolver configuration settings](../../../Public/Sdk/Public/Prelude/P
 The order in which timeouts are applied to projects matters. If a project is selected multiple times, the last selection will be the one that takes effect. 
 
 Make sure `timeout` and `warningTimeout` are correctly formatted string. Invalid format will cause build failure. The argument allows an expression that represents a time duration, like `3s`, `500ms`, `30m`, `1.5h`. The allowed suffixes are `ms`, `s`, `m`, `h`, and no suffix is interpreted as an amount in milliseconds. In addition, If not provided, the error and warning timeouts will be set to their default values.
+
+### warningRegex: string
+Regex that would be used to extract warnings from the output.
+
+### errorRegex: string
+Regex that would be used to extract errors from the output.

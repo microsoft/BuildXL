@@ -1130,7 +1130,7 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
     <value>How long to wait before terminating individual processes. The argument allows an expression that represents a time duration, like "3s", "500ms", "30m", "1.5h". The allowed suffixes are 'ms', 's', 'm', 'h', and no suffix is interpreted as an amount in milliseconds. Setting this value will only have an effect if no other timeout is specified for a process.</value>
   </data>
   <data name="HelpText_DisplayHelp_PipDefaultWarningTimeout" xml:space="preserve">
-    <value>After how much time to issue a warning that an individual process runs too long. The argument allows an expression that represents a time duration, like "3s", "500ms", "30m", "1.5h". The allowed suffixes are 'ms', 's', 'm', 'h', and no suffix is interpreted as an amount in milliseconds. Setting this value will only have an effect if no other timeout is specified for a process.</value>
+    <value>After how much time to issue a warning that an individual process ran too long. The argument allows an expression that represents a time duration, like "3s", "500ms", "30m", "1.5h". The allowed suffixes are 'ms', 's', 'm', 'h', and no suffix is interpreted as an amount in milliseconds. Setting this value will only have an effect if no other timeout is specified for a process.</value>
   </data>
   <data name="HelpText_DisplayHelp_Debug_LoadGraph" xml:space="preserve">
     <value>Loads a cached build graph stored under the given fingerprint (40 digit hex string, no delimiters), path to cached graph directory, or canonical name.</value>

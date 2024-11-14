@@ -10,9 +10,9 @@ There are a few ways the timeouts are set:
 
 * A default timeout that applies to all pips. This defaults to 10 minutes if not specified, but can be overridden on the command line.
 
-  * `/pipDefaultTimeout:<ms>` - How long to wait before terminating individual processes, in milliseconds. Setting this value will only have an effect if no other timeout is specified for a process.
+  * `/pipDefaultTimeout:<string>` - How long to wait before terminating individual processes. The argument allows an expression that represents a time duration, like "3s", "500ms", "30m", "1.5h". The allowed suffixes are 'ms', 's', 'm', 'h', and no suffix is interpreted as an amount in milliseconds. Setting this value will only have an effect if no other timeout is specified.
 
-  * `/pipDefaultWarningTimeout:<ms>` - After how much time to issue a warning that an individual process is running too long, in milliseconds. Setting this value will only have an effect if no other timeout is specified for a process; see command line help text for more details.
+  * `/pipDefaultWarningTimeout:<string>` - After how much time to issue a warning that an individual process ran too long. The argument allows an expression that represents a time duration, like "3s", "500ms", "30m", "1.5h". The allowed suffixes are 'ms', 's', 'm', 'h', and no suffix is interpreted as an amount in milliseconds. Setting this value will only have an effect if no other timeout is specified for a process.
 
 * Per-process timeouts are configurable at graph construction time. These override the global timeout. These are the fields on the Transformer.Execute API:
    ```ts

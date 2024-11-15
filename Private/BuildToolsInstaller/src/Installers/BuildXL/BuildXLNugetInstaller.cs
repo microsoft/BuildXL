@@ -5,7 +5,7 @@ using System;
 using System.Threading.Tasks;
 using System.Threading;
 using BuildToolsInstaller.Config;
-using BuildToolsInstaller.Utiltiies;
+using BuildToolsInstaller.Utilities;
 using NuGet.Configuration;
 using NuGet.Protocol;
 using NuGet.Protocol.Core.Types;

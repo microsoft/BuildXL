@@ -4,7 +4,7 @@
 using NuGet.Protocol.Core.Types;
 using NuGet.Versioning;
 
-namespace BuildToolsInstaller.Utiltiies
+namespace BuildToolsInstaller.Utilities
 {
     /// <nodoc />
     public interface INugetDownloader

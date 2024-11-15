@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 using System.IO;
-using BuildToolsInstaller.Utiltiies;
+using BuildToolsInstaller.Utilities;
 using Xunit;
 
 namespace BuildToolsInstaller.Tests

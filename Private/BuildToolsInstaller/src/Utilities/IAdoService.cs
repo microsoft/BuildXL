@@ -3,7 +3,7 @@
 
 using System.Diagnostics.CodeAnalysis;
 
-namespace BuildToolsInstaller.Utiltiies
+namespace BuildToolsInstaller.Utilities
 {
     /// <summary>
     /// Component that interacts with Azure DevOps, using the REST API or the environment 

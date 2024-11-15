@@ -3,7 +3,7 @@
 
 using BuildToolsInstaller.Config;
 using BuildToolsInstaller.Logging;
-using BuildToolsInstaller.Utiltiies;
+using BuildToolsInstaller.Utilities;
 using NuGet.Common;
 
 namespace BuildToolsInstaller

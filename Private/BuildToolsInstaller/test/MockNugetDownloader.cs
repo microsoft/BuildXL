@@ -3,7 +3,7 @@
 
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using BuildToolsInstaller.Utiltiies;
+using BuildToolsInstaller.Utilities;
 using NuGet.Protocol.Core.Types;
 using NuGet.Versioning;
 

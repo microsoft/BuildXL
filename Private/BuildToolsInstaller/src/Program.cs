@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 using System.CommandLine;
-using BuildToolsInstaller.Utiltiies;
+using BuildToolsInstaller.Utilities;
 
 namespace BuildToolsInstaller
 {

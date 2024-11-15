@@ -6,7 +6,7 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Text.Json;
 using BuildToolsInstaller.Config;
-using BuildToolsInstaller.Utiltiies;
+using BuildToolsInstaller.Utilities;
 using Xunit;
 
 namespace BuildToolsInstaller.Tests

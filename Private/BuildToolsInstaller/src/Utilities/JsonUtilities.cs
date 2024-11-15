@@ -5,14 +5,14 @@ using System.Text.Json;
 using Azure;
 using Azure.Storage.Blobs;
 
-namespace BuildToolsInstaller.Utiltiies
+namespace BuildToolsInstaller.Utilities
 {
     /// <summary>
     /// Deserializing utilities
     /// </summary>
     public static class JsonUtilities
     {
-        private static readonly HttpClient s_httpClient = new HttpClient();
+        private static readonly HttpClient s_httpClient = HttpClientFactory.Create();
         private const int MaxRetries = 3;
         private static readonly TimeSpan s_delayBetweenRetries = TimeSpan.FromSeconds(2);
         internal static readonly JsonSerializerOptions DefaultSerializerOptions = new()

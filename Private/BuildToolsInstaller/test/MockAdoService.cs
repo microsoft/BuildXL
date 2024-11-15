@@ -5,7 +5,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
-using BuildToolsInstaller.Utiltiies;
+using BuildToolsInstaller.Utilities;
 
 namespace BuildToolsInstaller.Tests
 {

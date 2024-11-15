@@ -2,13 +2,12 @@
 // Licensed under the MIT License.
 
 using System.Diagnostics.CodeAnalysis;
-using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using Microsoft.TeamFoundation.Build.WebApi;
 using Microsoft.VisualStudio.Services.Common;
 using Microsoft.VisualStudio.Services.WebApi;
 
-namespace BuildToolsInstaller.Utiltiies
+namespace BuildToolsInstaller.Utilities
 {
     internal sealed partial class AdoService : IAdoService
     {

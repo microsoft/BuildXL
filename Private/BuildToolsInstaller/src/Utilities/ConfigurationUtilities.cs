@@ -4,7 +4,7 @@
 using System.Diagnostics.CodeAnalysis;
 using BuildToolsInstaller.Config;
 
-namespace BuildToolsInstaller.Utiltiies
+namespace BuildToolsInstaller.Utilities
 {
     internal class ConfigurationUtilities
     {

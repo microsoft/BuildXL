@@ -8,7 +8,7 @@ using NuGet.Protocol.Core.Types;
 using System.Diagnostics;
 using NuGet.Versioning;
 
-namespace BuildToolsInstaller.Utiltiies
+namespace BuildToolsInstaller.Utilities
 {
     /// <nodoc />
     internal sealed class NugetDownloader : INugetDownloader

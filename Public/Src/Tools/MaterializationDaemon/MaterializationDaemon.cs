@@ -37,7 +37,7 @@ namespace Tool.MaterializationDaemon
         public const string MaterializationDaemonLogPrefix = "(MMD) ";
         private const string LogFileName = "MaterializationDaemon";
 
-        private static readonly TimeSpan s_externalProcessTimeout = TimeSpan.FromSeconds(10);
+        private static readonly TimeSpan s_externalProcessTimeout = TimeSpan.FromSeconds(60);
         private static readonly TimeSpan[] s_retryIntervals = new[]
         {
             // the values are similar to the ones in the ReloadingClient class
@@ -584,17 +584,20 @@ namespace Tool.MaterializationDaemon
                         errorBuilder: line => { if (line != null) { stdErrContent.Add(line); } },
                         logger: line => { if (line != null) { processExecutorLog.AppendLine(line); } }))
                     {
+                        var sw = Stopwatch.StartNew();
                         processExecutor.Start();
                         await processExecutor.WaitForExitAsync();
                         await processExecutor.WaitForStdOutAndStdErrAsync();
+                        logger.Verbose($"{describeProcess(process)} Execution time: {sw.ElapsedMilliseconds}ms.");
 
                         if (processExecutor.Process.ExitCode != 0)
                         {
                             var stdOut = $"{Environment.NewLine}StdOut:{Environment.NewLine}{string.Join(Environment.NewLine, result)}";
                             var stdErr = $"{Environment.NewLine}StdErr:{Environment.NewLine}{string.Join(Environment.NewLine, stdErrContent)}";
-                            logger.Info($"{describeProcess(process)} Exit code: {processExecutor.Process.ExitCode}{stdOut}{stdErr}{Environment.NewLine}ProcessExecutorLog:{Environment.NewLine}{processExecutorLog.ToString()}");
+                            var killedTimedOutDetails = $"Process was killed: {processExecutor.Killed}. Process timed out: {processExecutor.TimedOut}.";
+                            logger.Verbose($"{describeProcess(process)} Exit code: {processExecutor.Process.ExitCode}. {killedTimedOutDetails}{stdOut}{stdErr}{Environment.NewLine}ProcessExecutorLog:{Environment.NewLine}{processExecutorLog.ToString()}");
                             // The Failure constructed here can become a part of user message, so don't put processExecutorLog in it.
-                            return new Failure<string>($"{describeProcess(process)} Process failed with an exit code {processExecutor.Process.ExitCode}{stdOut}{stdErr}");
+                            return new Failure<string>($"{describeProcess(process)} Process failed with an exit code {processExecutor.Process.ExitCode}. {killedTimedOutDetails}");
                         }
 
                         if (result.Count == 0)

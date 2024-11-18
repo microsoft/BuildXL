@@ -86,9 +86,26 @@ namespace LanguageService.Server {
     export function buildVsixDeploymentDefinition(serverAssembly: ManagedSdk.Assembly) : Deployment.Definition {
         // We have to publish the vsix to the Visual Studio MarketPlace which doesn't handle prerelease tags. 
         let version = Branding.versionNumberForToolsThatDontSupportPreReleaseTag;
-        let manifest = IDE.VersionUtilities.updateVersion(version, f`pluginTemplate/extension.vsixmanifest`);
-        let json = IDE.VersionUtilities.updateVersion(version, f`client/package.json`);
-        let readme = IDE.VersionUtilities.updateVersion(Branding.version, f`client/README.md`);
+        // Target platform strings are slightly different for some platforms from what dscript uses.
+        // List of supported target platforms: https://code.visualstudio.com/api/working-with-extensions/publishing-extension#platformspecific-extensions
+        let targetPlatform = "";
+        switch (qualifier.targetRuntime) {
+            case "win-x64":
+                targetPlatform = "win32-x64";
+                break;
+            case "osx-x64":
+                targetPlatform = "darwin-x64";
+                break;
+            case "linux-x64":
+                targetPlatform = "linux-x64";
+                break;
+            default:
+                Contract.assert(false, `${qualifier.targetRuntime} is not supported by the BuildXL VSCode extension.`);
+        }
+
+        let manifest = IDE.VersionUtilities.updateVersion(version, f`pluginTemplate/extension.vsixmanifest`, targetPlatform);
+        let json = IDE.VersionUtilities.updateVersion(version, f`client/package.json`, targetPlatform);
+        let readme = IDE.VersionUtilities.updateVersion(Branding.version, f`client/README.md`, targetPlatform);
 
         const vsixDeployment: Deployment.Definition = {
             contents: [

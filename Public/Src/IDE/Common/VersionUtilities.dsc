@@ -13,13 +13,14 @@ namespace IDE.VersionUtilities {
      * Note: The reason for it being set to 0.0.0 is to have a semver-compliant version
      * to allow debugging locally.
      */
-    export function updateVersion(version: string, file: SourceFile) : DerivedFile
+    export function updateVersion(version: string, file: SourceFile, platform: string) : DerivedFile
     {
         const brandingDirectory = Context.getNewOutputDirectory("branding");
-
         let content = File.readAllText(file, TextEncoding.utf8);
         
         content = content.replace("0.0.0", version);
+        content = content.replace("REPLACE_PLATFORM", platform);
+
         let newFile = Transformer.writeAllText({
             outputPath: p`${brandingDirectory}/${file.name}`, 
             text: content

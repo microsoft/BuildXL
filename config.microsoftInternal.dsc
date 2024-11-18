@@ -80,7 +80,7 @@ export const pkgs = isMicrosoftInternal ? [
     { id: "Microsoft.Parsers.ManifestGenerator", version: "3.8.11", dependentPackageIdsToIgnore: ["BuildXL.Cache.Hashing"], dependentPackageIdsToSkip: ["Microsoft.Sbom.Contracts", "Microsoft.Sbom.Extensions"] },
     { id: "Microsoft.Sbom.Parsers.Spdx22SbomParser", version: "3.0.0" },
     { id: "Microsoft.Sbom.Adapters", version: "3.0.0" },
-    { id: "Microsoft.ComponentDetection.Contracts", version: "5.1.7" },
+    { id: "Microsoft.ComponentDetection.Contracts", version: "5.1.8" },
     { id: "Microsoft.Sbom.Contracts", version: "3.0.0" },
     { id: "Microsoft.Sbom.Extensions", version: "3.0.0" },
     { id: "Microsoft.Bcl.HashCode", version: "1.1.1" },

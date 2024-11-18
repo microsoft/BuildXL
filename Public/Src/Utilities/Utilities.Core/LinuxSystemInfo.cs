@@ -38,6 +38,12 @@ namespace BuildXL.Utilities.Core
         /// </summary>
         private static string m_processorIdentifier;
 
+        /// <nodoc />
+        public static string InvalidVersionIdExceptionMessage = "Failed to parse the Linux distro Version_Id";
+
+        /// <nodoc />
+        public static string InvalidDistroInfoExceptionMessage = "Failed to obtain Linux distribution name and version ID due to a parsing error";
+
         public static string GetOSVersion()
         {
             if (m_osVersion != null)
@@ -137,17 +143,27 @@ namespace BuildXL.Utilities.Core
         /// </remarks>
         public static (string distroName, Version distroVersionId) GetLinuxDistroInfo()
         {
+            return ParseLinuxDistroInfo(File.ReadLines("/etc/os-release"));
+        }
+        
+        /// <summary>
+        /// Parse linux distro information to obtain the distro name and the version id.
+        /// </summary>
+        internal static (string distroName, Version distroVersionId) ParseLinuxDistroInfo(IEnumerable<string> content)
+        {
             string distroName = null;
             Version distroVersionId = null;
 
-            foreach (string line in File.ReadLines("/etc/os-release"))
+            foreach (string line in content)
             {
                 var keyValuePair = line.Split('=');
 
                 if (keyValuePair.Length == 2)
                 {
                     string key = keyValuePair[0].Trim();
-                    string value = keyValuePair[1].Trim(); 
+                    // Whitespace is trimmed to handle cases where it may surround the value unexpectedly.
+                    // Double quotes are trimmed because the os-release file format may enclose values in quotes.
+                    string value = keyValuePair[1].Trim(new[] { ' ', '"' });
 
                     // Capture the Version_Id and Id from this file.
                     if (key == "ID")
@@ -156,17 +172,29 @@ namespace BuildXL.Utilities.Core
                     }
                     else if (key == "VERSION_ID")
                     {
-                        if (!Version.TryParse(value.Replace("\"", ""), out distroVersionId))
+                        value = value.Replace("\"", "");
+
+                        // In some cases, the Linux distribution `VERSION_ID` might be a single integer, such as "11" or "17".
+                        // These single-integer versions (often found in Debian-based systems) do not include a minor component,
+                        // which causes `Version.ParseVersion` within `TryParse` to fail since it expects a "major.minor" format (e.g., "11.0").
+                        // To handle this, we append ".0" to the `VERSION_ID` (e.g., converting "11" to "11.0") to allow `Version.TryParse` 
+                        // to create a valid `Version` object, ensuring compatibility with systems that use single-integer versioning.
+                        if (!value.Contains("."))
                         {
-                            throw new ArgumentException($"Failed to parse the Linux distro Version_Id '{value}'");
+                            value += ".0";
+                        }
+
+                        if (!Version.TryParse(value, out distroVersionId))
+                        {
+                            throw new ArgumentException($"{InvalidVersionIdExceptionMessage} '{value}'");
                         }
                     }
                 }
             }
 
-            if (string.IsNullOrEmpty(distroName) || distroVersionId == null) 
+            if (string.IsNullOrEmpty(distroName) || distroVersionId == null)
             {
-                throw new BuildXLException("Failed to obtain Linux distribution name and version ID due to a parsing error");
+                throw new BuildXLException(InvalidDistroInfoExceptionMessage);
             }
 
             return (distroName, distroVersionId);

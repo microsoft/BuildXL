@@ -76,16 +76,16 @@ int FileDescriptorAccessesFullyResolvesPath()
 }
 
 int ExecReportsCorrectExecutableAndArgumentsSuccess() {
-    char *const args[] = {"/bin/echo", "hello world", nullptr};
-    execv(args[0], args);
+    const char *const args[] = {"/bin/echo", "hello world", nullptr};
+    execv(args[0], const_cast<char* const*>(args));
 
     // execv should have succeeded and we should never hit this return statement
     return 1;
 }
 
 int ExecReportsCorrectExecutableAndArgumentsFailed() {
-    char *const args[] = {"/bin/echooooo", "hello world", nullptr};
-    execv(args[0], args);
+    const char *const args[] = {"/bin/echooooo", "hello world", nullptr};
+    execv(args[0], const_cast<char* const*>(args));
 
     // expecting execv to fail here
     return EXIT_SUCCESS;

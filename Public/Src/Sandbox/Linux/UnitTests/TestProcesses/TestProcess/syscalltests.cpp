@@ -4,6 +4,7 @@
 #include <linux/sched.h>
 #include <sys/syscall.h>
 
+#include <cstdint>
 #include "syscalltests.hpp"
 
 // clone3 is available on linux kernel 5.3+

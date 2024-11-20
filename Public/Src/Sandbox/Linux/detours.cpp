@@ -1032,6 +1032,8 @@ INTERPOSE(int, putc, int c, FILE *stream)({
         /* ppid */          getppid(),
         /* error */         0,
         /* src_fd */        stream_fd);
+    // Logging the forward calls on this sytem call are disabled because some processes make a lot of calls to putc
+    event.DisableLogging();
     bxl->CreateAccess(event);
     return bxl->check_fwd_and_report_putc(event, ERROR_RETURN_VALUE, c, stream);
 })

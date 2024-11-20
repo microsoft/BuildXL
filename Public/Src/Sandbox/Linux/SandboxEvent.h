@@ -94,6 +94,9 @@ private:
     /** Destination Access Reports containing a path and an access check. */
     AccessReport destination_access_report_;
 
+    /** Indicates whether logging was disabled for this event. */
+    bool disable_logging_;
+
     /** Indicates whether this object represents a valid SandboxEvent. */
     bool is_valid_;
 
@@ -208,6 +211,7 @@ public:
     RequiredPathResolution GetRequiredPathResolution() const { assert(is_valid_); return required_path_resolution_; }
     AccessCheckResult GetSourceAccessCheckResult() const { assert(is_valid_); return source_access_report_.access_check_result; }
     AccessCheckResult GetDestinationAccessCheckResult() const { assert(is_valid_); return destination_access_report_.access_check_result; }
+    bool IsLoggingDisabled() const { assert(is_valid_); return disable_logging_; }
 
     /* For debug logging */
     const char *DebugGetSystemCall() const { return system_call_; }
@@ -250,6 +254,11 @@ public:
      */
     void SetSourceAccessCheck(AccessCheckResult check_result);
     void SetDestinationAccessCheck(AccessCheckResult check_result);
+
+    /**
+     * Disable logging for this event.
+     */
+    void DisableLogging();
 };
 
 } // namespace linux

@@ -130,6 +130,12 @@ static const char GLIBC_23[] = "GLIBC_2.3";
             return_value.get_errno());                                          \
         return return_value;                                                    \
     }                                                                           \
+    template<typename ...TArgs> result_t<ret> fwd_no_log_##name(TArgs&& ...args)\
+    {                                                                           \
+        ret result = real_##name(std::forward<TArgs>(args)...);                 \
+        result_t<ret> return_value(result);                                     \
+        return return_value;                                                    \
+    }                                                                           \
     template<typename ...TArgs> ret check_fwd_and_report_##name(                \
         buildxl::linux::SandboxEvent& event,                                    \
         ret error_val,                                                          \
@@ -142,7 +148,9 @@ static const char GLIBC_23[] = "GLIBC_2.3";
         AccessCheckResult check_result = event.GetEventAccessCheckResult();     \
         result_t<ret> return_value = should_deny(check_result)                  \
             ? result_t<ret>(error_val, EPERM)                                   \
-            : fwd_##name(args...);                                              \
+            : event.IsLoggingDisabled()                                         \
+                ? fwd_no_log_##name(args...)                                    \
+                : fwd_##name(args...);                                          \
         event.SetErrno(return_value.get() == error_val                          \
             ? return_value.get_errno()                                          \
             : 0);                                                               \

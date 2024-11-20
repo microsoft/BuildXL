@@ -31,6 +31,7 @@ SandboxEvent::SandboxEvent(
         error_(error),
         path_type_(path_type),
         required_path_resolution_(RequiredPathResolution::kFullyResolve),
+        disable_logging_(false),
         is_valid_(true),
         is_sealed_(false) {
 
@@ -271,6 +272,13 @@ void SandboxEvent::SetDestinationAccessCheck(AccessCheckResult check_result) {
     assert(!is_sealed_);
 
     destination_access_report_.access_check_result = check_result;
+}
+
+void SandboxEvent::DisableLogging() {
+    assert(is_valid_);
+    assert(!is_sealed_);
+
+    disable_logging_ = true;
 }
 
 }  // namespace linux

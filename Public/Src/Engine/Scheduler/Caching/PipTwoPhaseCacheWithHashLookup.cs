@@ -85,7 +85,7 @@ namespace BuildXL.Scheduler.Cache
         /// <summary>
         /// An asynchronous task responsible for initializing and loading the cache's data upon startup.
         /// </summary>
-        protected readonly Lazy<Task> LoadTask;
+        protected readonly Lazy<Task<bool>> LoadTask;
         private readonly TaskSourceSlim<Unit> m_prepareCompletion;
 
         /// <summary>
@@ -145,14 +145,14 @@ namespace BuildXL.Scheduler.Cache
             m_activeContentHashMappingColumnIndex = -1;
 
             m_prepareCompletion = TaskSourceSlim.Create<Unit>();
-            LoadTask = new Lazy<Task>(() => ExecuteLoadTask(prepareAsync));
+            LoadTask = new Lazy<Task<bool>>(() => ExecuteLoadTask(prepareAsync));
         }
 
         /// <summary>
         /// Executes initialization tasks for the cache, updates and manages the cache's age. 
         /// Recalculates the ContentHashMappingColumnIndex, and prepares the database for new data entries. 
         /// </summary>
-        protected virtual async Task ExecuteLoadTask(Func<PipTwoPhaseCacheWithHashLookup, Task> prepareAsync)
+        protected virtual async Task<bool> ExecuteLoadTask(Func<PipTwoPhaseCacheWithHashLookup, Task> prepareAsync)
         {
             // Unblock the caller
             await Task.Yield();
@@ -179,6 +179,8 @@ namespace BuildXL.Scheduler.Cache
                 m_prepareCompletion.TrySetResult(Unit.Void);
                 Valid = false;
             }
+
+            return true;
         }
 
         /// <summary>
@@ -201,12 +203,20 @@ namespace BuildXL.Scheduler.Cache
         /// Throw an exception if HistoricMetadataCache is closed and build is not cancelled.
         /// Otherwise return true after cache is fully loaded
         /// </returns>
+        /// <remarks>
+        /// This method must not create and await any tasks as this method is often synchronously
+        /// waited on and thus could cause a deadlock where this method is waiting for tasks that itself is blocking 
+        /// (which may be intermittent depending on how many threads are processing tasks on the task context and how many of
+        /// those tasks synchronously wait on this method - which in the past has happened).
+        /// That means this method cannot use async/await as that allows the compiler to create and await tasks.
+        /// For a specific example see https://dev.azure.com/mseng/1ES/_workitems/edit/2229869
+        /// </remarks>
         /// <exception cref="BuildXLException"></exception>
-        protected async Task<bool> EnsureLoadedAsync()
+        protected Task<bool> EnsureLoadedAsync()
         {
             if (Context.CancellationToken.IsCancellationRequested || SchedulerCancellationToken.IsCancellationRequested)
             {
-                return false;
+                return Task.FromResult(false);
             }
 
             if (Closed)
@@ -216,8 +226,7 @@ namespace BuildXL.Scheduler.Cache
 
             Volatile.Write(ref LoadStarted, true);
 
-            await (LoadTask.Value ?? Task.CompletedTask);
-            return true;
+            return LoadTask.Value ?? Task.FromResult(true);
         }
 
         /// <inheritdoc />

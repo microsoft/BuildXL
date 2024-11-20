@@ -149,7 +149,7 @@ namespace BuildXL.Scheduler.Cache
         /// Executes the initialization tasks for loading the database. This method orchestrates the loading of cache entries,
         /// starts the garbage collection process asynchronously.
         /// </summary>
-        protected override async Task ExecuteLoadTask(Func<PipTwoPhaseCacheWithHashLookup, Task> prepareAsync)
+        protected override async Task<bool> ExecuteLoadTask(Func<PipTwoPhaseCacheWithHashLookup, Task> prepareAsync)
         {
             // Unblock the caller
             await Task.Yield();
@@ -158,7 +158,7 @@ namespace BuildXL.Scheduler.Cache
 
             if (!Valid)
             {
-                return;
+                return true;
             }
 
             try
@@ -178,6 +178,8 @@ namespace BuildXL.Scheduler.Cache
                 Logger.Log.HistoricMetadataCacheLoadFailed(LoggingContext, ex.ToString());
                 Valid = false;
             }
+
+            return true;
         }
 
         /// <inheritdoc/>

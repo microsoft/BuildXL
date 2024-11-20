@@ -17,6 +17,7 @@ namespace BuildXL.Cache.BuildCacheResource.Helper
     /// </summary>
     public static class BuildCacheResourceHelper
     {
+        private static readonly JsonSerializerOptions CaseInsensitiveOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
 
         /// <summary>
         /// Loads the content of the given JSON file and returns a representation of it
@@ -76,6 +77,25 @@ namespace BuildXL.Cache.BuildCacheResource.Helper
             buildCacheConfiguration = hostedPoolBuildCacheConfiguration.AssociatedBuildCaches.FirstOrDefault(buildCacheConfig => buildCacheConfig.Name == hostedPoolActiveBuildCacheName);
 
             return buildCacheConfiguration is not null;
+        }
+
+        /// <summary>
+        /// <see cref="LoadFromJSONAsync(string)"/>
+        /// </summary>
+        public static async Task<BuildCacheConfiguration> LoadBuildCacheConfigurationFromJSONAsync(Stream content)
+        {
+            var buildCacheConfig = await JsonSerializer.DeserializeAsync<BuildCacheConfiguration>(
+                content,
+                // This call is used as part of the dev cache info retrieval process, and the endpoint returns
+                // the JSON in camelCase.
+                CaseInsensitiveOptions);
+
+            if (buildCacheConfig is null)
+            {
+                throw new ArgumentNullException(nameof(content), "The containing JSON is null");
+            }
+
+            return buildCacheConfig;
         }
     }
 }

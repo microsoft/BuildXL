@@ -104,6 +104,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "Azure.ResourceManager",
+          "Version": "1.13.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "Azure.Security.KeyVault.Certificates",
           "Version": "4.5.1"
         }

@@ -3,7 +3,6 @@
 
 using System;
 using System.IO;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Azure.Core;
@@ -18,48 +17,42 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Auth;
 /// <summary>
 /// Provides interactive credentials for the cache client to authenticate
 /// </summary>
-/// <remarks>
-/// Returned credentials try, in order, <see cref="VisualStudioCodeCredential"/>, <see cref="InteractiveBrowserCredential"/> and <see cref="DeviceCodeCredential"/>.
-/// For the interactive browser and device code case, the authentication record that allows a maybe silent authentication is stored in a file to be able to reuse it
-/// across build invocations.
-/// </remarks>
-public class InteractiveClientStorageCredentials : AzureStorageCredentialsBase
+public class InteractiveClientTokenCredential : ChainedTokenCredential
 {
-    private readonly ChainedTokenCredential _credentials;
-
-    /// <inheritdoc/>
-    protected override TokenCredential Credentials => _credentials;
-
-    private readonly Tracing.Context _tracingContext;
-
-    /// <nodoc />
-    public InteractiveClientStorageCredentials(Tracing.Context tracingContext, string interactiveAuthTokenDirectory, Uri blobUri, IConsole console, CancellationToken cancellationToken) : base(blobUri)
-    {
-        _tracingContext = tracingContext;
-        _credentials = new ChainedTokenCredential(
-            new VisualStudioCodeCredential(),
+    /// <summary>
+    /// Returned credentials try, in order, <see cref="VisualStudioCodeCredential"/> and <see cref="InteractiveBrowserCredentialOptions"/> (for the latter, <see cref="DeviceCodeCredential"/>
+    /// is used instead when no browser is available).
+    /// </summary>
+    /// <remarks>
+    /// For the interactive browser and device code case, the authentication record that allows a maybe silent authentication is stored in a file under the provided directory, to be able to reuse it
+    /// across build invocations. The given <paramref name="persistentTokenIdentifier"/> is used as the identifier for the token.
+    /// </remarks>
+    public InteractiveClientTokenCredential(Tracing.Context tracingContext, string interactiveAuthTokenDirectory, ContentHash persistentTokenIdentifier, IConsole console, CancellationToken cancellationToken)
+        : base(new VisualStudioCodeCredential(),
             // On Linux, check whether X server is available by querying DISPLAY. Without an X server, the interactive browser credential provider won't
             // be able to launch a browser. In that case, launch a device code credential provider.
             OperatingSystemHelper.IsLinuxOS && string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DISPLAY"))
-                ? CreateDeviceCodeWithPersistence(interactiveAuthTokenDirectory, blobUri, console, cancellationToken).GetAwaiter().GetResult()
-                : CreateInteractiveBrowserCredentialWithPersistence(interactiveAuthTokenDirectory, blobUri, console, cancellationToken).GetAwaiter().GetResult()
-            );
+                ? CreateDeviceCodeWithPersistence(interactiveAuthTokenDirectory, persistentTokenIdentifier, console, cancellationToken).GetAwaiter().GetResult()
+                : CreateInteractiveBrowserCredentialWithPersistence(tracingContext, interactiveAuthTokenDirectory, persistentTokenIdentifier, console, cancellationToken).GetAwaiter().GetResult()
+            )
+    {
     }
 
-    private Task<TokenCredential> CreateInteractiveBrowserCredentialWithPersistence(
+    private static Task<TokenCredential> CreateInteractiveBrowserCredentialWithPersistence(
+        Tracing.Context tracingContext,
         string interactiveAuthTokenDirectory,
-        Uri uri,
+        ContentHash persistentTokenIdentifier,
         IConsole console,
         CancellationToken token)
     {
         InteractiveBrowserCredentialOptions options;
 
-        _tracingContext.Info($"Creating interactive credential options. Console window handler is '{console?.ConsoleWindowHandle.ToString("X")}'", nameof(InteractiveClientStorageCredentials));
+        tracingContext.Info($"Creating interactive credential options. Console window handler is '{console?.ConsoleWindowHandle.ToString("X")}'", nameof(InteractiveClientTokenCredential));
 
         // On Windows we can use an interactive provider with WAM support.
         if (OperatingSystemHelper.IsWindowsOS && console != null && console.ConsoleWindowHandle != IntPtr.Zero)
         {
-            _tracingContext.Info($"Using InteractiveBrowserCredentialBrokerOptions (with WAM support)", nameof(InteractiveClientStorageCredentials));
+            tracingContext.Info($"Using InteractiveBrowserCredentialBrokerOptions (with WAM support)", nameof(InteractiveClientTokenCredential));
             options = new InteractiveBrowserCredentialBrokerOptions(console.ConsoleWindowHandle)
             {
                 UseDefaultBrokerAccount = true
@@ -67,7 +60,7 @@ public class InteractiveClientStorageCredentials : AzureStorageCredentialsBase
         }
         else
         {
-            _tracingContext.Info($"Using InteractiveBrowserCredentialOptions", nameof(InteractiveClientStorageCredentials));
+            tracingContext.Info($"Using InteractiveBrowserCredentialOptions", nameof(InteractiveClientTokenCredential));
             options = new InteractiveBrowserCredentialOptions();
         }
 
@@ -75,14 +68,14 @@ public class InteractiveClientStorageCredentials : AzureStorageCredentialsBase
             options,
             interactiveCredentialOptions => new InteractiveBrowserCredential(interactiveCredentialOptions),
             interactiveAuthTokenDirectory,
-            uri,
+            persistentTokenIdentifier,
             token
         );
     }
 
-    private Task<TokenCredential> CreateDeviceCodeWithPersistence(
+    private static Task<TokenCredential> CreateDeviceCodeWithPersistence(
         string interactiveAuthTokenDirectory,
-        Uri uri,
+        ContentHash persistentTokenIdentifier,
         IConsole console,
         CancellationToken token)
     {
@@ -105,7 +98,7 @@ public class InteractiveClientStorageCredentials : AzureStorageCredentialsBase
             options,
             deviceCodeOptions => new DeviceCodeCredential(deviceCodeOptions),
             interactiveAuthTokenDirectory,
-            uri,
+            persistentTokenIdentifier,
             token
         );
     }
@@ -114,13 +107,11 @@ public class InteractiveClientStorageCredentials : AzureStorageCredentialsBase
         TTokenCredentialOptions tokenCredentialOptions,
         Func<TTokenCredentialOptions, TokenCredential> createTokenCredential,
         string interactiveAuthTokenDirectory,
-        Uri uri,
+        ContentHash persistentTokenIdentifier,
         CancellationToken token)
             where TTokenCredentialOptions : TokenCredentialOptions
     {
-        // We want a different token per uri to authenticate against. So let's just use a hash of the URI, since we want to avoid the final path name
-        // to contain disallowed characters.
-        var uriAsHash = HashInfoLookup.GetContentHasher(HashType.SHA256).GetContentHash(Encoding.UTF8.GetBytes(uri.ToString())).ToHex();
+        var uriAsHash = persistentTokenIdentifier.ToHex();
 
         var tokenName = $"BxlBlobCacheAuthToken{uriAsHash}";
         // The auth record will be serialized in the designated directory
@@ -195,7 +186,7 @@ public class InteractiveClientStorageCredentials : AzureStorageCredentialsBase
         {
             // Let's provide a more informative message. The cache factory will catch any exception that happens during creation time
             // and will display the error to the user 
-            throw new Exception($"Browser interactive authentication timed out after {userTimeout.TotalSeconds} seconds.");
+            throw new Exception($"Interactive authentication timed out after {userTimeout.TotalSeconds} seconds.");
         }
 
         return credential;

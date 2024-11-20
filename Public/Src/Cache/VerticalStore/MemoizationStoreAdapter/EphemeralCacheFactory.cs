@@ -3,11 +3,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.ContractsLight;
-using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Distributed;
-using BuildXL.Cache.ContentStore.Distributed.Blob;
 using BuildXL.Cache.ContentStore.Grpc;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
@@ -18,7 +15,6 @@ using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Cache.MemoizationStore.Sessions;
-using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Core;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 
@@ -61,7 +57,7 @@ public class EphemeralCacheFactory : BlobCacheFactoryBase<EphemeralCacheConfig>,
         var rootPath = new AbsolutePath(configuration.CacheRootPath);
         context.TracingContext.Info($"Creating ephemeral cache. DatacenterWide=[{configuration.DatacenterWide}] Root=[{rootPath}] Machine=[{machineLocation}] Leader=[{leaderLocation}] Universe=[{configuration.Universe}] Namespace=[{configuration.Namespace}] RetentionPolicyInDays=[{configuration.RetentionPolicyInDays}] UseContentServer=[{configuration.UseContentServer}] ContentServerPort=[{configuration.GrpcPort}]", nameof(EphemeralCacheFactory));
 
-        var persistentCache = BlobCacheFactory.CreateCache(logger, configuration);
+        var persistentCache = await BlobCacheFactory.CreateCacheAsync(logger, configuration);
 
         if (configuration.DatacenterWide)
         {

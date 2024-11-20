@@ -9,6 +9,7 @@ namespace MemoizationStoreAdapter {
         assemblyName: "BuildXL.Cache.MemoizationStoreAdapter",
         sources: globR(d`.`, "*.cs"),
         references: [
+            ...addIf(BuildXLSdk.isFullFramework, importFrom("System.Memory").pkg),
             Interfaces.dll,
             importFrom("BuildXL.Cache.BuildCacheResource").Helper.dll,
             importFrom("BuildXL.Utilities").dll,
@@ -31,6 +32,8 @@ namespace MemoizationStoreAdapter {
             importFrom("BuildXL.Cache.MemoizationStore").Library.dll,
             importFrom("BuildXL.Cache.MemoizationStore").Distributed.dll,
             importFrom("NLog").pkg,
+            importFrom("Azure.Core").pkg,
+            importFrom("Azure.Identity").pkg
         ],
         internalsVisibleTo: [
             "BuildXL.Cache.MemoizationStoreAdapter.Test",

@@ -30,6 +30,8 @@ namespace Interfaces {
 
             ...BuildXLSdk.systemMemoryDeployment,
             ...getAzureBlobStorageSdkPackages(true),
+            importFrom("BuildXL.Cache.BuildCacheResource").Helper.dll,
+            importFrom("Azure.ResourceManager").pkg,
         ],
         nullable: true,
         allowUnsafeBlocks: true,

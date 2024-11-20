@@ -242,6 +242,17 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         public string HostedPoolActiveBuildCacheName { get; set; }
 
         /// <summary>
+        /// In the context of a developer build, the build cache resource id to use for this build.
+        /// </summary>
+        /// <remarks>
+        /// The shape of this string is expected to be /subscriptions/{subscription}/resourceGroups/{resource group}/providers/Microsoft.CloudTest/{build cache name}/buildcache (essentially
+        /// the id that is displayed in the Azure portal properties for the build cache resource)
+        /// Using this option implies an interactive authentication flow, meaning that <see cref="AllowInteractiveAuth"/> should be set to true."/>
+        /// </remarks>
+        [DefaultValue(null)]
+        public string DeveloperBuildCacheResourceId { get; set; }
+
+        /// <summary>
         /// This configuration needs the role, activity id and the kusto logging info coming from the engine configuration object
         /// </summary>
         public bool TryPopulateFrom(Guid activityId, IConfiguration configuration, BuildXLContext buildXLContext, out Failure failure)

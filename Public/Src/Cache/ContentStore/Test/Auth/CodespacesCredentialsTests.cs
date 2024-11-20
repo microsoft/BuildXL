@@ -16,7 +16,7 @@ namespace BuildXL.Cache.ContentStore.Test.Auth
     public class CodespacesCredentialsTests : TestBase
     {
         // CODESYNC: Public/Src/Cache/ContentStore/Test/BuildXL.Cache.ContentStore.Test.dsc
-        private string AuthHelperPath => Path.Combine(TestDeploymentDir, CodespacesCredentials.AuthHelperToolName);
+        private string AuthHelperPath => Path.Combine(TestDeploymentDir, AzureAuthTokenCredential.AuthHelperToolName);
 
         public CodespacesCredentialsTests() : base(TestGlobal.Logger)
         {
@@ -28,7 +28,7 @@ namespace BuildXL.Cache.ContentStore.Test.Auth
             string envVarName = "_ToolLookupReturnsNullWhenAbsent";
             Environment.SetEnvironmentVariable(envVarName, "/path/to/nothing");
 
-            var authHelperPath = CodespacesCredentials.FindAuthHelperToolForTesting(envVarName, out _);
+            var authHelperPath = AzureAuthTokenCredential.FindAuthHelperToolForTesting(envVarName, out _);
             Assert.Null(authHelperPath);
         }
 
@@ -40,7 +40,7 @@ namespace BuildXL.Cache.ContentStore.Test.Auth
             string envVarName = "_ToolLookupReturnsLocationWhenPresent";
             Environment.SetEnvironmentVariable(envVarName, TestDeploymentDir);
 
-            var authHelperPath = CodespacesCredentials.FindAuthHelperToolForTesting(envVarName, out _);
+            var authHelperPath = AzureAuthTokenCredential.FindAuthHelperToolForTesting(envVarName, out _);
             Assert.Equal(AuthHelperPath, authHelperPath);
         }
 

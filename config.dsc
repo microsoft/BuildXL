@@ -182,6 +182,7 @@ config({
                 // Authentication
                 { id: "Microsoft.Identity.Client.Broker", version: "4.65.0" },
                 { id: "Microsoft.Identity.Client.NativeInterop", version: "0.16.2" },
+                { id: "Azure.ResourceManager", version: "1.13.0"},
                 
                 // Package sets
                 ...importFile(f`config.nuget.vssdk.dsc`).pkgs,

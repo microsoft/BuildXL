@@ -5,10 +5,13 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
+using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
+using Azure.Core;
 using BuildXL.Cache.BuildCacheResource.Helper;
-using BuildXL.Cache.BuildCacheResource.Model;
 using BuildXL.Cache.ContentStore.Distributed.Blob;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
@@ -16,6 +19,7 @@ using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Cache.MemoizationStore.Distributed.Stores;
 using BuildXL.Utilities.Core;
+using BuildXL.Utilities.Core.Tracing;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 
 namespace BuildXL.Cache.MemoizationStoreAdapter
@@ -32,12 +36,12 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
     /// </remarks>
     public class BlobCacheFactory : BlobCacheFactoryBase<BlobCacheConfig>, ICacheFactory
     {
-        internal override Task<MemoizationStore.Interfaces.Caches.ICache> CreateInnerCacheAsync(ILogger logger, BlobCacheConfig configuration)
+        internal async override Task<MemoizationStore.Interfaces.Caches.ICache> CreateInnerCacheAsync(ILogger logger, BlobCacheConfig configuration)
         {
-            return Task.FromResult((MemoizationStore.Interfaces.Caches.ICache)CreateCache(logger, configuration).Cache);
+            return (MemoizationStore.Interfaces.Caches.ICache)(await CreateCacheAsync(logger, configuration)).Cache;
         }
 
-        internal static AzureBlobStorageCacheFactory.CreateResult CreateCache(ILogger logger, BlobCacheConfig configuration)
+        internal async static Task<AzureBlobStorageCacheFactory.CreateResult> CreateCacheAsync(ILogger logger, BlobCacheConfig configuration)
         {
             var tracingContext = new Context(logger);
             var context = new OperationContext(tracingContext);
@@ -49,6 +53,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                 hostedPoolConfigurationFilePath = Environment.GetEnvironmentVariable(configuration.HostedPoolBuildCacheConfigurationFileEnvironmentVariableName);
             }
 
+            // First check if a hosted pool configuration file is provided. This is the indication the build is running in a hosted pool, which takes preference over other configurations.
             if (!string.IsNullOrEmpty(hostedPoolConfigurationFilePath))
             {
                 var encryption = configuration.ConnectionStringFileDataProtectionEncrypted
@@ -81,6 +86,52 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
 
                 return AzureBlobStorageCacheFactory.Create(context, factoryConfiguration, new AzureBuildCacheSecretsProvider(selectedBuildCacheConfiguration));
             }
+            // Second, check if a developer build cache resource is configured
+            else if (!string.IsNullOrEmpty(configuration.DeveloperBuildCacheResourceId))
+            {
+                // SAS tokens returned from the dev cache endpoint are readonly. So if the remote cache
+                // is not configured as readonly, we are already bound to fail since the cache client will attempt
+                // to write to it. So just fail early with a meaningful error message.
+                if (!configuration.IsReadOnly)
+                {
+                    throw new InvalidOperationException("Developer build cache resources must be read-only. Please configure your remote cache to be read-only.");
+                }
+
+                context.TracingContext.Info($"Retrieving configuration for developer build cache {configuration.DeveloperBuildCacheResourceId}", nameof(BlobCacheFactory));
+
+                // Authenticate and retrieve the build cache configuration
+                var token = UserInteractiveAuthenticate(
+                    context,
+                    configuration.InteractiveAuthTokenDirectory,
+                    configuration.Console,
+                    configuration.DeveloperBuildCacheResourceId,
+                    configuration.AllowInteractiveAuth,
+                    context.Token);
+                var maybeBuildCacheConfiguration = await BuildCacheConfigurationProvider.TryGetBuildCacheConfigurationAsync(token, configuration.DeveloperBuildCacheResourceId, context.Token);
+
+                if (!maybeBuildCacheConfiguration.Succeeded)
+                {
+                    throw maybeBuildCacheConfiguration.Failure.Throw();
+                }
+
+                var buildCacheConfiguration = maybeBuildCacheConfiguration.Result;
+
+                var factoryConfiguration = new AzureBlobStorageCacheFactory.Configuration(
+                    ShardingScheme: new ShardingScheme(
+                        ShardingAlgorithm.JumpHash,
+                        buildCacheConfiguration.Shards.Select(shard => shard.GetAccountName()).ToList()),
+                    Universe: configuration.Universe,
+                    Namespace: configuration.Namespace,
+                    RetentionPolicyInDays: buildCacheConfiguration.RetentionDays,
+                    IsReadOnly: configuration.IsReadOnly)
+                {
+                    BuildCacheConfiguration = buildCacheConfiguration,
+                    ContentHashListReplacementCheckBehavior = configuration.ContentHashListReplacementCheckBehavior
+                };
+
+                return AzureBlobStorageCacheFactory.Create(context, factoryConfiguration, new AzureBuildCacheSecretsProvider(buildCacheConfiguration));
+            }
+            // Third, check for the presence of other authentication methods
             else
             {
                 context.TracingContext.Info($"Creating blob cache. Universe=[{configuration.Universe}] Namespace=[{configuration.Namespace}] RetentionPolicyInDays=[{configuration.RetentionPolicyInDays}]", nameof(BlobCacheFactory));
@@ -145,22 +196,14 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                 credentials.Add(BlobCacheStorageAccountName.Parse(credential.GetAccountName()), credential);
             }
 
-            // For Linux, check whether a codespaces credential helper can be used.
-            if (credentials is null && OperatingSystemHelper.IsLinuxOS && uri is not null)
+            // Check whether a CodeSpaces credential helper can be used.
+            if (credentials is null && uri is not null)
             {
-                var authHelperToolPath = CodespacesCredentials.FindAuthHelperTool(out var failure);
-                // If a failure is present, log it
-                if (failure != null)
+                if (TryCodespacesAuthentication(context, out var tokenCredential))
                 {
-                    context.TracingContext.Info($"An error occurred while trying to find '{CodespacesCredentials.AuthHelperToolName}'. Details: {failure}", nameof(BlobCacheFactory));
-                }
-                // If the authHelperToolPath is null, that just means the helper tool is not under PATH, so we just move on
-                if (authHelperToolPath != null)
-                {
-                    context.TracingContext.Info("Authenticating with azure-auth-helper (codespaces)", nameof(BlobCacheFactory));
-
+                    context.TracingContext.Info("Authenticating with codespaces auth", nameof(BlobCacheFactory));
                     credentials = new Dictionary<BlobCacheStorageAccountName, IAzureStorageCredentials>();
-                    var credential = new CodespacesCredentials(authHelperToolPath, uri);
+                    var credential = new UriAzureStorageTokenCredential(tokenCredential, uri);
                     credentials.Add(BlobCacheStorageAccountName.Parse(credential.GetAccountName()), credential);
                 }
             }
@@ -173,17 +216,29 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
 
                 context.TracingContext.Info("Authenticating with (maybe silent) interactive browser", nameof(BlobCacheFactory));
                 credentials = new Dictionary<BlobCacheStorageAccountName, IAzureStorageCredentials>();
-                var credential = new InteractiveClientStorageCredentials(context.TracingContext, configuration.InteractiveAuthTokenDirectory, uri, configuration.Console, token);
+                var tokenCredential = new InteractiveClientTokenCredential(context.TracingContext, configuration.InteractiveAuthTokenDirectory, GetHashForTokenIdentifier(uri), configuration.Console, token);
+                var credential = new UriAzureStorageTokenCredential(tokenCredential, uri);
                 credentials.Add(BlobCacheStorageAccountName.Parse(credential.GetAccountName()), credential);
             }
 
             if (credentials is null)
             {
-                throw new InvalidOperationException($"Can't find credentials to authenticate against the Blob Cache. Please see documentation for the supported authentication methods and how to configure them.");
+                throw new InvalidOperationException($"Can't find credentials to authenticate against the cache. Please see documentation for the supported authentication methods and how to configure them.");
             }
 
             return credentials;
         }
+
+        private static ContentHash GetHashForTokenIdentifier(Uri uri)
+        {
+            return GetHashForTokenIdentifier(uri.ToString());
+        }
+
+        private static ContentHash GetHashForTokenIdentifier(string identifier)
+        {
+            return HashInfoLookup.GetContentHasher(HashType.SHA256).GetContentHash(Encoding.UTF8.GetBytes(identifier));
+        }
+
         /// <inheritdoc />
         public IEnumerable<Failure> ValidateConfiguration(ICacheConfigData cacheData)
         {
@@ -194,6 +249,62 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                 failures.AddFailureIfNullOrWhitespace(cacheConfig.CacheId, nameof(cacheConfig.CacheId));
                 return failures;
             });
+        }
+
+        private static TokenCredential UserInteractiveAuthenticate(
+            Context context,
+            string interactiveAuthTokenDirectory,
+            IConsole console,
+            string buildCacheResourceId,
+            bool allowInteractiveAuth,
+            CancellationToken cancellationToken)
+        {
+            // Check whether a CodeSpaces credential helper can be used first.
+            // Observe that codespaces auth does not need user interaction
+            if (TryCodespacesAuthentication(context, out var tokenCredential))
+            {
+                return tokenCredential;
+            }
+
+            // If interactive auth is not allowed, we can't proceed since we are about to launch browser/device code interactive auth
+            if (!allowInteractiveAuth)
+            {
+                throw new InvalidOperationException("Interactive authentication is required to authenticate against the cache. " +
+                    "Please see documentation for the supported authentication methods and how to configure them. If this is a developer build, consider passing /interactive+");
+            }
+
+            // Otherwise, we fallback to interactive authentication
+            // The build cache resource ID is used to uniquely identify the auth token for the build cache, so it can be cached when doing interactive auth.
+            return new InteractiveClientTokenCredential(context, interactiveAuthTokenDirectory, GetHashForTokenIdentifier(buildCacheResourceId), console, cancellationToken);
+        }
+
+        private static bool TryCodespacesAuthentication(Context context, out TokenCredential tokenCredential)
+        {
+            tokenCredential = null;
+            // CodeSpaces authentication is only available on Linux
+            if (!OperatingSystemHelper.IsLinuxOS)
+            {
+                context.Info("Not running on Linux, so codespaces authentication is not available", nameof(BuildCacheConfigurationProvider));
+                return false;
+            }
+
+            var authHelperToolPath = AzureAuthTokenCredential.FindAuthHelperTool(out var failure);
+            // If a failure is present, log it
+            if (failure != null)
+            {
+                context.Info($"An error occurred while trying to find '{AzureAuthTokenCredential.AuthHelperToolName}'. Details: {failure}", nameof(BuildCacheConfigurationProvider));
+            }
+
+            // If the authHelperToolPath is null, that just means the helper tool is not under PATH, so we just move on
+            if (authHelperToolPath != null)
+            {
+                context.Info("Authenticating with azure-auth-helper (codespaces)", nameof(BuildCacheConfigurationProvider));
+
+                tokenCredential = new AzureAuthTokenCredential(authHelperToolPath);
+                return true;
+            }
+
+            return false;
         }
     }
 }

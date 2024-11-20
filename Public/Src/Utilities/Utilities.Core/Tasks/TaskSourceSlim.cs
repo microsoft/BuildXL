@@ -40,7 +40,6 @@ namespace BuildXL.Utilities.Core.Tasks
 
         /// <nodoc />
         internal TaskSourceSlim(bool runContinuationsAsynchronously)
-            : this()
         {
             TaskCreationOptions flags = runContinuationsAsynchronously
                 ? TaskCreationOptions.RunContinuationsAsynchronously

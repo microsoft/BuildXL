@@ -59,6 +59,9 @@ jobs:
     
     # Build parameters
     buildXL:
+      # We don't use the automatic installation for selfhost builds
+      install: false
+
       # invoker: exe means we need to provide the directory where AdoBuildRunner is located
       invoker: exe
       engineLocation: $(BootstrapLocation)

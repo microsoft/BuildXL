@@ -96,6 +96,8 @@ jobs:
       - ${{ step }}
 
     buildXL:
+      # We don't use the automatic installation for selfhost builds
+      install: false
       invoker: custom
       # Set a 60m timeout so we can catch hangs *and* get logs collected at the same time. Otherwise the whole job will timeout (check 'timeoutInMinutes' above).
       invocationPrefix: timeout --signal 9 60m bash .azdo/bxl_ado.sh

@@ -833,6 +833,16 @@ namespace BuildXL
                 // Log full exception string with stack trace as unexpected condition
                 OnUnexpectedCondition(string.Join(Environment.NewLine, "Bug 1209727", e.Exception.ToString()));
             }
+
+            if (e.Exception is NullReferenceException _)
+            {
+                string exceptionMessage = e.Exception.ToString();
+                if (exceptionMessage.Contains("System.Runtime.CompilerServices.AsyncTaskMethodBuilder<TResult>.SetResult(TResult result)", StringComparison.OrdinalIgnoreCase)
+                    && exceptionMessage.Contains("BuildXL.Engine.Cache.Plugin.CacheCore.CacheCoreArtifactContentCache.TryStoreAsync", StringComparison.OrdinalIgnoreCase))
+                {
+                    OnUnexpectedCondition(string.Join(Environment.NewLine, "Bugs 2142530, 2232707", exceptionMessage));
+                }
+            }
         }
 
         private EngineState RunEngineWithDecorators(

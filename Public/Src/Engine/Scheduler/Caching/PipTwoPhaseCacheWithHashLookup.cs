@@ -76,16 +76,55 @@ namespace BuildXL.Scheduler.Cache
         }
 
         private bool m_closed = false;
+        private volatile bool m_closing = false;
+
+        /// <summary>
+        /// This task is used to ensures that the historic metadata cache is fully loaded before queries to metadata are allowed.
+        /// </summary>
+        /// <returns>
+        /// Return false if cancellation has been requested.
+        /// Throw an exception if HistoricMetadataCache is closed and build is not cancelled.
+        /// Otherwise return true after cache is fully loaded
+        /// </returns>
+        /// <remarks>
+        /// This task is is often synchronously awaited, so it's important that it is accessed from this property only to not allow
+        /// it to await new tasks that will be processed by the same thread pool for tasks that the synchronous wait itself is blocking 
+        /// (this may be intermittent depending on how many threads are processing tasks on the task context and how many of
+        /// those tasks synchronously wait on this method - which in the past has happened). 
+        /// We thus use a property with a getter (which can't be async) rather than a method to construct this task.
+        /// For a specific example see https://dev.azure.com/mseng/1ES/_workitems/edit/2229869
+        /// </remarks>
+        /// <exception cref="BuildXLException"></exception>
+        protected Task<bool> LoadTask
+        {
+            get
+            {
+                if (Context.CancellationToken.IsCancellationRequested || SchedulerCancellationToken.IsCancellationRequested)
+                {
+                    return Task.FromResult(false);
+                }
+
+                if (Closed)
+                {
+                    throw new BuildXLException("Attempts to load the HistoricMetadataCache should not be made after Close is called.");
+                }
+
+                Volatile.Write(ref LoadStarted, true);
+
+                return m_lazyLoadTask.Value ?? Task.FromResult(true);
+            }
+        }
+
+        /// <summary>
+        /// An asynchronous task responsible for initializing and loading the cache's data upon startup.
+        /// </summary>
+        private readonly Lazy<Task<bool>> m_lazyLoadTask;
 
         /// <summary>
         /// Whether the async initialization of <see cref="LoadTask"/> has started.
         /// </summary>
         protected bool LoadStarted = false;
 
-        /// <summary>
-        /// An asynchronous task responsible for initializing and loading the cache's data upon startup.
-        /// </summary>
-        protected readonly Lazy<Task<bool>> LoadTask;
         private readonly TaskSourceSlim<Unit> m_prepareCompletion;
 
         /// <summary>
@@ -145,7 +184,7 @@ namespace BuildXL.Scheduler.Cache
             m_activeContentHashMappingColumnIndex = -1;
 
             m_prepareCompletion = TaskSourceSlim.Create<Unit>();
-            LoadTask = new Lazy<Task<bool>>(() => ExecuteLoadTask(prepareAsync));
+            m_lazyLoadTask = new Lazy<Task<bool>>(() => ExecuteLoadTask(prepareAsync));
         }
 
         /// <summary>
@@ -188,62 +227,29 @@ namespace BuildXL.Scheduler.Cache
         /// </summary>
         public override void StartLoading(bool waitForCompletion)
         {
-            var loadingTask = EnsureLoadedAsync();
+            var loadingTask = LoadTask;
             if (waitForCompletion)
             {
                 loadingTask.GetAwaiter().GetResult();
             }
         }
 
-        /// <summary>
-        /// Ensures that the historic metadata cache is fully loaded before queries to metadata are allowed.
-        /// </summary>
-        /// <returns>
-        /// Return false if cancellation has been requested.
-        /// Throw an exception if HistoricMetadataCache is closed and build is not cancelled.
-        /// Otherwise return true after cache is fully loaded
-        /// </returns>
-        /// <remarks>
-        /// This method must not create and await any tasks as this method is often synchronously
-        /// waited on and thus could cause a deadlock where this method is waiting for tasks that itself is blocking 
-        /// (which may be intermittent depending on how many threads are processing tasks on the task context and how many of
-        /// those tasks synchronously wait on this method - which in the past has happened).
-        /// That means this method cannot use async/await as that allows the compiler to create and await tasks.
-        /// For a specific example see https://dev.azure.com/mseng/1ES/_workitems/edit/2229869
-        /// </remarks>
-        /// <exception cref="BuildXLException"></exception>
-        protected Task<bool> EnsureLoadedAsync()
-        {
-            if (Context.CancellationToken.IsCancellationRequested || SchedulerCancellationToken.IsCancellationRequested)
-            {
-                return Task.FromResult(false);
-            }
-
-            if (Closed)
-            {
-                throw new BuildXLException("Attempts to load the HistoricMetadataCache should not be made after Close is called.");
-            }
-
-            Volatile.Write(ref LoadStarted, true);
-
-            return LoadTask.Value ?? Task.FromResult(true);
-        }
-
         /// <inheritdoc />
         public override async Task CloseAsync()
         {
             // Allow Close to be called multiple times with no side effects
-            if (Closed)
+            if (Closed || m_closing)
             {
                 return;
             }
 
-            Closed = true;
+            m_closing = true;
             Logger.Log.HistoricMetadataCacheCloseCalled(LoggingContext);
 
             await DoCloseAsync();
-
             await base.CloseAsync();
+
+            Closed = true;
         }
 
         /// <summary>
@@ -256,7 +262,7 @@ namespace BuildXL.Scheduler.Cache
             {
                 // If a load was started, wait for full completion of the load
                 // Otherwise, close and the load initialization can run concurrently and cause race conditions
-                await LoadTask.Value;
+                await LoadTask;
 
                 StoreAccessor?.Dispose();
 
@@ -286,7 +292,7 @@ namespace BuildXL.Scheduler.Cache
         /// <inheritdoc/>
         public override void TryStoreRemappedContentHash(ContentHash contentHash, ContentHash remappedContentHash)
         {
-            if(!EnsureLoadedAsync().GetAwaiter().GetResult())
+            if(!LoadTask.GetAwaiter().GetResult())
             {
                 return;
             }
@@ -324,7 +330,7 @@ namespace BuildXL.Scheduler.Cache
         /// <inheritdoc/>
         public override ContentHash TryGetMappedContentHash(ContentHash contentHash, HashType hashType)
         {
-            if (!EnsureLoadedAsync().GetAwaiter().GetResult())
+            if (!LoadTask.GetAwaiter().GetResult())
             {
                 return new ContentHash(HashType.Unknown);
             }

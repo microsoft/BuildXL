@@ -188,7 +188,7 @@ namespace BuildXL.Scheduler.Cache
             WeakContentFingerprint weak,
             OperationHints hints = default)
         {
-            if (!EnsureLoadedAsync().GetAwaiter().GetResult())
+            if (!LoadTask.GetAwaiter().GetResult())
             {
                 yield return Task.FromResult(
                     new Possible<PublishedEntryRef, Failure>(
@@ -236,7 +236,7 @@ namespace BuildXL.Scheduler.Cache
             StrongContentFingerprint strongFingerprint,
             OperationHints hints)
         {
-            if (!await EnsureLoadedAsync())
+            if (!await LoadTask)
             {
                 return new Possible<CacheEntry?, Failure>(new CancellationFailure());
             }
@@ -300,7 +300,7 @@ namespace BuildXL.Scheduler.Cache
             ContentHash metadataHash,
             ContentHash pathSetHash)
         {
-            if(!await EnsureLoadedAsync())
+            if(!await LoadTask)
             {
                 new Possible<PipCacheDescriptorV2Metadata>(new CancellationFailure());
             }
@@ -330,7 +330,7 @@ namespace BuildXL.Scheduler.Cache
             var possiblyStored = await base.TryStoreMetadataAsync(metadata);
             if (possiblyStored.Succeeded)
             {
-                if (!await EnsureLoadedAsync())
+                if (!await LoadTask)
                 {
                     return new Possible<ContentHash>(new CancellationFailure());
                 }
@@ -345,7 +345,7 @@ namespace BuildXL.Scheduler.Cache
         /// <inheritdoc/>
         protected override async Task<Possible<StreamWithLength>> TryLoadAndOpenPathSetStreamAsync(ContentHash pathSetHash, bool avoidRemoteLookups = false)
         {
-            if (!await EnsureLoadedAsync())
+            if (!await LoadTask)
             {
                 return new Possible<StreamWithLength>(new CancellationFailure());
             }
@@ -389,7 +389,7 @@ namespace BuildXL.Scheduler.Cache
         /// <inheritdoc/>
         protected override async Task<Possible<Unit>> TryStorePathSetContentAsync(ContentHash pathSetHash, MemoryStream pathSetBuffer)
         {
-            if (!await EnsureLoadedAsync())
+            if (!await LoadTask)
             {
                 new Possible<Unit>(new CancellationFailure());
             }
@@ -474,7 +474,7 @@ namespace BuildXL.Scheduler.Cache
             {
                 // If a load was started, wait for full completion of the load
                 // Otherwise, close and the load initialization can run concurrently and cause race conditions
-                await LoadTask.Value;
+                await LoadTask;
 
                 Logger.Log.HistoricMetadataCacheTrace(LoggingContext, I($"Saving historic metadata cache Start"));
 
@@ -577,7 +577,7 @@ namespace BuildXL.Scheduler.Cache
             bool preservePathCasing)
         {
 
-            if (!EnsureLoadedAsync().GetAwaiter().GetResult())
+            if (!LoadTask.GetAwaiter().GetResult())
             {
                 return;
             }
@@ -654,7 +654,7 @@ namespace BuildXL.Scheduler.Cache
         /// </summary>
         private bool TryAdd(ContentHash hash, in ObservedPathSet pathSet, bool preservePathCasing)
         {
-            if (!EnsureLoadedAsync().GetAwaiter().GetResult())
+            if (!LoadTask.GetAwaiter().GetResult())
             {
                 return false;
             }
@@ -788,7 +788,7 @@ namespace BuildXL.Scheduler.Cache
         /// </summary>
         private async Task StoreCacheEntriesAsync()
         {
-            Contract.Requires(LoadTask.IsValueCreated && LoadTask.Value.IsCompleted);
+            Contract.Requires(LoadTask.IsCompleted);
 
             // Unblock the thread
             await Task.Yield();

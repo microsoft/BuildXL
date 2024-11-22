@@ -65,7 +65,7 @@ namespace Tool.DropDaemon
         /// <summary>
         ///     Optional domain id. Null represents a default value.
         /// </summary>
-        public byte? DomainId { get; }
+        public string DomainId { get; }
 
         /// <summary>
         ///     Build Manifest generation flag.
@@ -162,7 +162,7 @@ namespace Tool.DropDaemon
             bool? enableChunkDedup = null,
             bool? enableArtifactTracer = null,
             int? batchSize = null,
-            byte? dropDomainId = null,
+            string dropDomainId = null,
             bool? generateBuildManifest = null,
             bool? signBuildManifest = null,
             string sbomPackageName = null,

@@ -161,14 +161,15 @@ namespace Tool.DropDaemon
         {
             using (m_counters.StartStopwatch(DropClientCounter.CreateTime))
             {
-                if (!m_config.DomainId.HasValue)
+                bool domainIdNotSpecified = string.IsNullOrWhiteSpace(m_config.DomainId);
+                if (domainIdNotSpecified)
                 {
                     m_logger.Verbose("Domain ID is not specified. Creating drop using a default domain id.");
                 }
 
-                IDomainId domainId = m_config.DomainId.HasValue
-                    ? new ByteDomainId(m_config.DomainId.Value)
-                    : WellKnownDomainIds.DefaultDomainId;
+                IDomainId domainId = domainIdNotSpecified
+                    ? WellKnownDomainIds.DefaultDomainId
+                    : DomainIdFactory.Create(m_config.DomainId);
 
                 var result = await m_dropClient.CreateAsync(
                     domainId,

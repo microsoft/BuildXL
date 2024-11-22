@@ -206,7 +206,7 @@ namespace Tool.DropDaemon
             DefaultValue = DropConfig.DefaultEnableChunkDedup,
         });
 
-        internal static readonly NullableIntOption OptionalDropDomainId = RegisterConfigOption(new NullableIntOption("domainId")
+        internal static readonly StrOption OptionalDropDomainId = RegisterConfigOption(new StrOption("domainId")
         {
             ShortName = "ddid",
             HelpText = "Optional drop domain id setting.",
@@ -1479,11 +1479,7 @@ namespace Tool.DropDaemon
 
         internal static DropConfig CreateDropConfig(ConfiguredCommand conf)
         {
-            byte? domainId;
-            checked
-            {
-                domainId = (byte?)conf.Get(OptionalDropDomainId);
-            }
+            string domainId = (string)conf.Get(OptionalDropDomainId);
 
             Guid? sessionId = null;
             if (Guid.TryParse(conf.Get(SessionId), out var parsedSessionId))

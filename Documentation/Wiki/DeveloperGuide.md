@@ -80,5 +80,8 @@ You can also filter by test class. Again, be careful to make sure you don't inad
 
 The `bxl.sh` corresponding arguments are `--test-method` and `--test-class`.
 
+### Contributions
+If you wish to contribute to the repo, please refer to [this](https://mseng.visualstudio.com/Domino/_git/BuildXL.Internal?path=/CONTRIBUTING.md&version=GBdev/kkaroth/shardset&anchor=before-you-start) guide first.
+
 ### Debugging
 The easiest way to get a debugger attached to bxl.exe is to specify an environment variable called `BuildXLDebugOnStart` and set it to 1. This will cause a debugger window to pop up and will let you choose a running Visual Studio instance to attach to the process and start debugging. Alternatively, placing a good old `System.Diagnostics.Debugger.Launch();` inside the code you want to debug, re-compiling BuildXL and running it with the `-use Dev` flag does the trick too.

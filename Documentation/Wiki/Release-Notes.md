@@ -2,6 +2,15 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20241115.2.1 (Releases [29353508](https://dev.azure.com/mseng/Domino/_build/results?buildId=29353508&view=results), [29356655](https://dev.azure.com/mseng/Domino/_build/results?buildId=29356655&view=results))
+- [Patch] Mitigation for BuildXL hung build problems.
+- Increase timeout for manifest parsing in materialization daemon.
+- Expose warning/error regex to the JS resolver family.
+- Added example for binary graph fragments.
+- Clean up output stream handling to prevent out of memory.
+- More robust dependency handling in the NuGet resolver.
+- Various bug fixes.
+
 # 0.1.0-20241025.4 (Release [29246836](https://dev.azure.com/mseng/Domino/_build/results?buildId=29246836&view=results))
 - Make SBOM & Drop daemon net8.0 only
 - BuildXL installer for 1ESPT

@@ -163,7 +163,7 @@ namespace BuildXL.Scheduler
                         maybeMaterialized.Failure.DescribeIncludingInnerFailures());
                 }
 
-                Contract.Assert(operationContext.LoggingContext.ErrorWasLogged);
+                AssertErrorWasLoggedWhenNotCancelled(environment, operationContext);
             }
 
             return maybeMaterialized.Succeeded ? maybeMaterialized.Result.ToPipResult() : PipResultStatus.Failed;
@@ -1236,7 +1236,7 @@ namespace BuildXL.Scheduler
 
                 if (!analyzePipViolationsResult.IsViolationClean)
                 {
-                    Contract.Assume(operationContext.LoggingContext.ErrorWasLogged, "Error should have been logged by FileMonitoringViolationAnalyzer");
+                    AssumeErrorWasLoggedWhenNotCancelled(environment, operationContext, errorMessage: "Error should have been logged by FileMonitoringViolationAnalyzer");
                     latestProcessExecutionResult = latestProcessExecutionResult.CloneSealedWithResult(PipResultStatus.Failed);
                 }
 
@@ -1271,7 +1271,7 @@ namespace BuildXL.Scheduler
 
                 if (!analyzePipViolationsResult.IsViolationClean)
                 {
-                    Contract.Assume(operationContext.LoggingContext.ErrorWasLogged, "Error should have been logged by FileMonitoringViolationAnalyzer");
+                    AssumeErrorWasLoggedWhenNotCancelled(environment, operationContext, errorMessage: "Error should have been logged by FileMonitoringViolationAnalyzer");
                     processExecutionResult = processExecutionResult.CloneSealedWithResult(PipResultStatus.Failed);
                 }
 
@@ -1357,7 +1357,7 @@ namespace BuildXL.Scheduler
                                 executionResult.DynamicObservations,
                                 executionResult.OutputContent))
                     {
-                        Contract.Assume(operationContext.LoggingContext.ErrorWasLogged, "Error should have been logged by FileMonitoringViolationAnalyzer");
+                        AssumeErrorWasLoggedWhenNotCancelled(environment, operationContext, errorMessage: "Error should have been logged by FileMonitoringViolationAnalyzer");
                         return executionResult.CloneSealedWithResult(PipResultStatus.Failed);
                     }
 
@@ -1578,14 +1578,15 @@ namespace BuildXL.Scheduler
             if (executionResult.Status == SandboxedProcessPipExecutionStatus.ExecutionFailed ||
                 executionResult.Status == SandboxedProcessPipExecutionStatus.FileAccessMonitoringFailed)
             {
-                Contract.Assert(operationContext.LoggingContext.ErrorWasLogged, $"Error should have been logged for '{executionResult.Status}'");
+                AssertErrorWasLoggedWhenNotCancelled(environment, operationContext, errorMessage: $"Error should have been logged for '{executionResult.Status}'");
             }
 
             if (executionResult.RetryInfo?.RetryReason == RetryReason.OutputWithNoFileAccessFailed ||
                 executionResult.RetryInfo?.RetryReason == RetryReason.MismatchedMessageCount ||
                 executionResult.RetryInfo?.RetryReason == RetryReason.AzureWatsonExitCode)
             {
-                Contract.Assert(operationContext.LoggingContext.ErrorWasLogged, $"Error should have been logged for failures after multiple retries on {executionResult.RetryInfo?.RetryMode.ToString()} due to '{executionResult.RetryInfo?.RetryReason.ToString()}'");
+                AssertErrorWasLoggedWhenNotCancelled(environment, operationContext,
+                    errorMessage: $"Error should have been logged for failures after multiple retries on {executionResult.RetryInfo?.RetryMode.ToString()} due to '{executionResult.RetryInfo?.RetryReason.ToString()}'");
             }
 
             Contract.Assert(executionResult.UnexpectedFileAccesses != null, "Success / ExecutionFailed provides all execution-time fields");
@@ -1648,7 +1649,7 @@ namespace BuildXL.Scheduler
                 if (observedInputValidationResult.Status == ObservedInputProcessingStatus.Aborted)
                 {
                     succeeded = false;
-                    Contract.Assume(operationContext.LoggingContext.ErrorWasLogged, "No error was logged when ValidateObservedAccesses failed");
+                    AssumeErrorWasLoggedWhenNotCancelled(environment, operationContext, errorMessage:"No error was logged when ValidateObservedAccesses failed");
                 }
 
                 if (pip.ProcessAbsentPathProbeInUndeclaredOpaquesMode == Process.AbsentPathProbeInUndeclaredOpaquesMode.Relaxed)
@@ -2813,7 +2814,7 @@ namespace BuildXL.Scheduler
 
                                         break;
                                     default:
-                                        Contract.Assume(operationContext.LoggingContext.ErrorWasLogged);
+                                        AssumeErrorWasLoggedWhenNotCancelled(environment, operationContext);
                                         Contract.Assert(processingStatus == ObservedInputProcessingStatus.Aborted);
 
                                         // An error has already been logged. We have to bail out and fail the pip.
@@ -2930,7 +2931,7 @@ namespace BuildXL.Scheduler
                                         // The recursive call can return null when observed input processor aborts (see innerCheckRunnableFromCacheAsync).
                                         // An error has already been logged - we should have asserted this already in the inner call before returning null
                                         // but it doesn't hurt to double-check.
-                                        Contract.Assume(operationContext.LoggingContext.ErrorWasLogged);
+                                        AssumeErrorWasLoggedWhenNotCancelled(environment, operationContext);
                                         return null;
                                     }
 
@@ -3861,7 +3862,7 @@ namespace BuildXL.Scheduler
 
             if (!await executor.TryInitializeWarningRegexAsync())
             {
-                Contract.Assert(operationContext.LoggingContext.ErrorWasLogged, "Error was not logged for initializing the warning regex");
+                AssertErrorWasLoggedWhenNotCancelled(environment, operationContext, errorMessage: "Error was not logged for initializing the warning regex");
                 return false;
             }
 
@@ -4108,6 +4109,28 @@ namespace BuildXL.Scheduler
 
             resolvedStandardConsoleStream = Tuple.Create(path, standardConsoleStream.StringKeyedHash.ContentHash.ToContentHash(), standardConsoleStream.EncodingName);
             return true;
+        }
+
+        /// <summary>
+        /// Ensures an error event is logged for the ContractType-Assume when a CancellationToken is not requested.
+        /// </summary>
+        public static void AssumeErrorWasLoggedWhenNotCancelled(IPipExecutionEnvironment pipExecutionEnvironment, OperationContext operationContext, string errorMessage = "Error event should have been logged")
+        {
+            if (!pipExecutionEnvironment.Context.CancellationToken.IsCancellationRequested)
+            {
+                Contract.Assume(operationContext.LoggingContext.ErrorWasLogged, errorMessage);
+            }
+        }
+
+        /// <summary>
+        /// Ensure error event is logged for ContractType-Assert when a CancellationToken is not requested.
+        /// </summary>
+        public static void AssertErrorWasLoggedWhenNotCancelled(IPipExecutionEnvironment pipExecutionEnvironment, OperationContext operationContext, string errorMessage = "Error event should have been logged")
+        {
+            if (!pipExecutionEnvironment.Context.CancellationToken.IsCancellationRequested)
+            {
+                 Contract.Assert(operationContext.LoggingContext.ErrorWasLogged, errorMessage);
+            }
         }
 
         private readonly struct TwoPhasePathSetValidationTarget : IObservedInputProcessingTarget<ObservedPathEntry>
@@ -5063,7 +5086,7 @@ namespace BuildXL.Scheduler
                 // be some missing output file hashes
                 if (!successfullyProcessedOutputs)
                 {
-                    Contract.Assume(operationContext.LoggingContext.ErrorWasLogged);
+                    AssumeErrorWasLoggedWhenNotCancelled(environment, operationContext);
                     return false;
                 }
 
@@ -5119,7 +5142,7 @@ namespace BuildXL.Scheduler
 
                     if (entryStore == null)
                     {
-                        Contract.Assume(operationContext.LoggingContext.ErrorWasLogged);
+                        AssumeErrorWasLoggedWhenNotCancelled(environment, operationContext);
                         return false;
                     }
 
@@ -5398,6 +5421,13 @@ namespace BuildXL.Scheduler
 
             var pathSet = observedInputProcessingResult.GetPathSet(state.UnsafeOptions);
             Possible<ContentHash> maybePathSetStored = await environment.State.Cache.TryStorePathSetAsync(pathSet, process.PreservePathSetCasing);
+
+            // Skip logging TwoPhaseFailedToStoreMetadataForCacheEntry for cancelled operations to avoid misclassifying cancelled builds in telemetry data.
+            if (environment.Context.CancellationToken.IsCancellationRequested)
+            {
+                return null;
+            }
+
             if (!maybePathSetStored.Succeeded)
             {
                 Logger.Log.TwoPhaseFailedToStoreMetadataForCacheEntry(
@@ -5432,6 +5462,12 @@ namespace BuildXL.Scheduler
             {
                 // Note that we wrap the metadata in a PipFingerprintEntry before storing it; this is symmetric with the read-side (TryCreatePipCacheDescriptorFromMetadataAndReferencedContent)
                 maybeStoredMetadata = await twoPhaseCache.TryStoreMetadataAsync(metadata);
+
+                if (environment.Context.CancellationToken.IsCancellationRequested)
+                {
+                    return null;
+                }
+
                 if (!maybeStoredMetadata.Succeeded)
                 {
                     Logger.Log.TwoPhaseFailedToStoreMetadataForCacheEntry(

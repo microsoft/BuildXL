@@ -36,13 +36,12 @@ namespace BuildXL.Engine.Distribution
 
         private void InterceptCallContext(ServerCallContext context, out string sender)
         {
-            string method = context.Method.Split('/')[2];
+            var callInformation = GrpcCallInformation.Extract(context);
+            sender = callInformation.Sender;
 
-            GrpcSettings.ParseHeader(context.RequestHeaders, out sender, out var senderInvocationId, out string traceId, out string token);
-
-            if (m_invocationId != senderInvocationId)
+            if (m_invocationId != callInformation.InvocationId)
             {
-                string failureMessage = $"The receiver and sender distributed invocation ids do not match. Receiver invocation id: {m_invocationId}. Sender invocation id: {senderInvocationId}.";
+                string failureMessage = $"The receiver and sender distributed invocation ids do not match. Receiver invocation id: {m_invocationId}. Sender invocation id: {callInformation.InvocationId}.";
                 Logger.Log.GrpcServerTrace(m_loggingContext, failureMessage);
 
                 var trailers = new Metadata
@@ -58,9 +57,9 @@ namespace BuildXL.Engine.Distribution
                     trailers);
             }
 
-            if (m_authenticationEnabled && token != m_token)
+            if (m_authenticationEnabled && callInformation.Token != m_token)
             {
-                Logger.Log.GrpcTrace(m_loggingContext, sender, $"Authentication tokens do not match:\r\nReceived:{token}\r\nExpected:{m_token}");
+                Logger.Log.GrpcTrace(m_loggingContext, callInformation.Sender, $"Authentication tokens do not match:\r\nReceived:{callInformation.Token.Substring(0, 10)}\r\nExpected:{m_token.Substring(0,10)}");
 
                 var trailers = new Metadata
                 {
@@ -70,7 +69,7 @@ namespace BuildXL.Engine.Distribution
                 throw new RpcException(new Status(StatusCode.Unauthenticated, "Call could not be authenticated."), trailers);
             }
 
-            Logger.Log.GrpcTrace(m_loggingContext, sender, $"Recv {traceId} {method}");
+            Logger.Log.GrpcTrace(m_loggingContext, callInformation.Sender, $"Recv {callInformation.TraceId} {callInformation.MethodName}");
         }
 
         public override Task<TResponse> UnaryServerHandler<TRequest, TResponse>(TRequest request, ServerCallContext context, UnaryServerMethod<TRequest, TResponse> continuation)

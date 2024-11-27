@@ -26,9 +26,8 @@ namespace BuildXL.Engine.Distribution.Grpc
         /// <inheritdoc/>
         public override Task<RpcResponse> Attach(BuildStartData message, ServerCallContext context)
         {
-            GrpcSettings.ParseHeader(context.RequestHeaders, out string sender, out var _, out var _, out var _);
-
-            m_workerService.Attach(message, sender);
+            var callInformation = GrpcCallInformation.Extract(context);
+            m_workerService.Attach(message, callInformation.Sender);
 
             return GrpcUtils.EmptyResponseTask;
         }

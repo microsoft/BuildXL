@@ -367,7 +367,8 @@ namespace BuildXL.Utilities.Core.Tasks
         /// </summary>
         /// <param name="task">The task whose result is to be ignored.</param>
         /// <param name="unobservedExceptionHandler">Optional handler for the task's unobserved exception (if any).</param>
-        public static void Forget(this Task task, Action<Exception> unobservedExceptionHandler = null)
+        /// <param name="synchronousContinuation">Optional action to invoke synchronously after the task completes succesfully</param>
+        public static void Forget(this Task task, Action<Exception> unobservedExceptionHandler = null, Action<Task> synchronousContinuation = null)
         {
             task.ContinueWith(t =>
             {
@@ -376,6 +377,17 @@ namespace BuildXL.Utilities.Core.Tasks
                     Analysis.IgnoreArgument(t.Exception);
                     var e = (t.Exception as AggregateException)?.InnerException ?? t.Exception;
                     unobservedExceptionHandler?.Invoke(e);
+                }
+                else
+                {
+                    try
+                    {
+                        synchronousContinuation?.Invoke(t);
+                    }
+                    catch (Exception e)
+                    {
+                        unobservedExceptionHandler?.Invoke(e);
+                    }
                 }
             });
         }

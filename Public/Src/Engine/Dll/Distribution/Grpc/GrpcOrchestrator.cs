@@ -44,14 +44,20 @@ namespace BuildXL.Engine.Distribution.Grpc
         /// <inheritdoc/>
         public override Task<RpcResponse> ReportPipResults(PipResultsInfo message, ServerCallContext context)
         {
-            m_orchestratorService.ReceivedPipResults(message).Forget(ex => Tracing.Logger.Log.GrpcEventHandlerExceptionOccurred(m_loggingContext, ex.ToStringDemystified()));
+            var ci = GrpcCallInformation.Extract(context);
+            m_orchestratorService.ReceivedPipResults(message).Forget(
+                unobservedExceptionHandler: ex => Tracing.Logger.Log.GrpcEventHandlerExceptionOccurred(m_loggingContext, ex.ToStringDemystified()),
+                synchronousContinuation: _ => Tracing.Logger.Log.GrpcTrace(m_loggingContext, ci.Sender, $"Done {ci.TraceId} {ci.MethodName}"));
             return GrpcUtils.EmptyResponseTask;
         }
 
         /// <inheritdoc/>
         public override Task<RpcResponse> ReportExecutionLog(ExecutionLogInfo message, ServerCallContext context)
         {
-            m_orchestratorService.ReceivedExecutionLog(message).Forget(ex => Tracing.Logger.Log.GrpcEventHandlerExceptionOccurred(m_loggingContext, ex.ToStringDemystified()));
+            var ci = GrpcCallInformation.Extract(context);
+            m_orchestratorService.ReceivedExecutionLog(message).Forget(
+                unobservedExceptionHandler: ex => Tracing.Logger.Log.GrpcEventHandlerExceptionOccurred(m_loggingContext, ex.ToStringDemystified()),
+                synchronousContinuation: _ => Tracing.Logger.Log.GrpcTrace(m_loggingContext, ci.Sender, $"Done {ci.TraceId} {ci.MethodName}"));
             return GrpcUtils.EmptyResponseTask;
         }
 

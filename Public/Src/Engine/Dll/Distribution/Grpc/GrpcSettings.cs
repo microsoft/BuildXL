@@ -8,8 +8,66 @@ using Grpc.Core;
 
 namespace BuildXL.Engine.Distribution.Grpc
 {
+    /// <summary>
+    /// Information of interest that we extract for every call
+    /// </summary>
+    public record struct GrpcCallInformation(string Sender, string MethodName, DistributedInvocationId InvocationId, string TraceId, string Token)
+    {
+        /// <summary>
+        /// Extracts the information from a <see cref="ServerCallContext"/>
+        /// </summary>
+        public static GrpcCallInformation Extract(ServerCallContext context)
+        {
+            string method = context.Method.Split('/')[2];
+
+            var callInformation = new GrpcCallInformation
+            {
+                MethodName = method,
+                Sender = string.Empty
+            };
+            string relatedActivityId = string.Empty;
+            string environment = string.Empty;
+            string engineVersion = string.Empty;
+
+            callInformation.TraceId = string.Empty;
+            callInformation.Token = string.Empty;
+
+            foreach (var kvp in context.RequestHeaders)
+            {
+                if (kvp.Key == GrpcMetadata.TraceIdKey)
+                {
+                    callInformation.TraceId = kvp.Value;
+                }
+                else if (kvp.Key == GrpcMetadata.RelatedActivityIdKey)
+                {
+                    relatedActivityId = kvp.Value;
+                }
+                else if (kvp.Key == GrpcMetadata.EnvironmentKey)
+                {
+                    environment = kvp.Value;
+                }
+                else if (kvp.Key == GrpcMetadata.EngineVersionKey)
+                {
+                    engineVersion = kvp.Value;
+                }
+                else if (kvp.Key == GrpcMetadata.SenderKey)
+                {
+                    callInformation.Sender = kvp.Value;
+                }
+                else if (kvp.Key == GrpcMetadata.AuthKey)
+                {
+                    callInformation.Token = kvp.Value;
+                }
+            }
+
+            callInformation.InvocationId = new DistributedInvocationId(relatedActivityId, environment, engineVersion);
+            return callInformation;
+        }
+    }
+
     internal static class GrpcSettings
     {
+
         /// <summary>
         /// How many retry attempts when a grpc message is failed to send in the given <see cref="CallTimeout"/>
         /// </summary>
@@ -59,46 +117,5 @@ namespace BuildXL.Engine.Distribution.Grpc
         /// Default: 75 minutes
         /// </remarks>
         public static TimeSpan WorkerAttachTimeout => EngineEnvironmentSettings.WorkerAttachTimeout;
-
-        public static void ParseHeader(Metadata header, out string sender, out DistributedInvocationId senderInvocationId, out string traceId, out string token)
-        {
-            sender = string.Empty;
-            string relatedActivityId = string.Empty;
-            string environment = string.Empty;
-            string engineVersion = string.Empty;
-           
-            traceId = string.Empty;
-            token = string.Empty;
-
-            foreach (var kvp in header)
-            {
-                if (kvp.Key == GrpcMetadata.TraceIdKey)
-                {
-                    traceId = kvp.Value;
-                }
-                else if (kvp.Key == GrpcMetadata.RelatedActivityIdKey)
-                {
-                    relatedActivityId = kvp.Value;
-                }
-                else if (kvp.Key == GrpcMetadata.EnvironmentKey)
-                {
-                    environment = kvp.Value;
-                }
-                else if (kvp.Key == GrpcMetadata.EngineVersionKey)
-                {
-                    engineVersion = kvp.Value;
-                }
-                else if (kvp.Key == GrpcMetadata.SenderKey)
-                {
-                    sender = kvp.Value;
-                }
-                else if (kvp.Key == GrpcMetadata.AuthKey)
-                {
-                    token = kvp.Value;
-                }
-            }
-
-            senderInvocationId = new DistributedInvocationId(relatedActivityId, environment, engineVersion);
-        }
     }
 }

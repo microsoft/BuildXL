@@ -744,9 +744,6 @@ namespace BuildXL.Scheduler
             FileEnvelopeId fileEnvelopeId = m_fileChangeTracker.GetFileEnvelopeToSaveWith();
             string fileChangeTrackerPath = m_fileChangeTrackerFile.ToString(Context.PathTable);
 
-            // Unblock caller.
-            await Task.Yield();
-
             var fileChangeTrackerSaveTask = Task.Run(async () =>
             {
                 m_fileChangeTracker.SaveTrackingStateIfChanged(fileChangeTrackerPath, fileEnvelopeId);

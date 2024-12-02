@@ -155,7 +155,7 @@ namespace BuildXL.Scheduler
         }
 
         // TODO : Use an object pool for all these lists that are now flying around?
-        private bool TryGetBuildManifestHashesAsync(ContentHash identifyingHash, out IReadOnlyList<ContentHash> manifestHashes)
+        private bool TryGetBuildManifestHashes(ContentHash identifyingHash, out IReadOnlyList<ContentHash> manifestHashes)
         {
             var manifestHashesMutable = new List<ContentHash>();
             if (Interlocked.CompareExchange(ref m_historicMetadataCacheCheckComplete, 1, 0) == 0)
@@ -559,7 +559,7 @@ namespace BuildXL.Scheduler
             }
 
             // (2) Attempt hash read from cache
-            if (TryGetBuildManifestHashesAsync(buildManifestEntry.Hash, out var buildManifestHashes))
+            if (TryGetBuildManifestHashes(buildManifestEntry.Hash, out var buildManifestHashes))
             {
                 m_inMemoryBuildManifestStore.TryAdd(buildManifestEntry.Hash, buildManifestHashes);
                 return new Tracing.BuildManifestEntry(dropName, buildManifestEntry.RelativePath, buildManifestEntry.Hash, buildManifestHashes);

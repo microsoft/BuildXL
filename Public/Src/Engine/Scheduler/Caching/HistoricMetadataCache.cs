@@ -151,9 +151,7 @@ namespace BuildXL.Scheduler.Cache
         /// </summary>
         protected override async Task<bool> ExecuteLoadTask(Func<PipTwoPhaseCacheWithHashLookup, Task> prepareAsync)
         {
-            // Unblock the caller
-            await Task.Yield();
-
+            // Note the base method yields immediately, so we unblock the caller
             await base.ExecuteLoadTask(prepareAsync);
 
             if (!Valid)

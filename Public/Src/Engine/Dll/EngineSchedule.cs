@@ -460,10 +460,7 @@ namespace BuildXL.Engine
                             context,
                             pathExpander,
                             AbsolutePath.Create(context.PathTable, directoryPath),
-                            prepareAsync: hmc =>
-                            {
-                                return TryLoadHistoricMetadataCache(loggingContext, hmc, context, configuration, cache, performanceDataFingerprint);
-                            },
+                            prepareAsync: hmc => TryLoadHistoricMetadataCache(loggingContext, hmc, context, configuration, cache, performanceDataFingerprint),
                             logDirectoryLocation: configuration.Logging.HistoricMetadataCacheLogDirectory);
                     }
                     else if (configuration.Cache.HistoricMetadataCache == HistoricMetadataCacheMode.HashToHashOnly)
@@ -474,10 +471,7 @@ namespace BuildXL.Engine
                                context,
                                pathExpander,
                                AbsolutePath.Create(context.PathTable, directoryPath),
-                               prepareAsync: hmc =>
-                               {
-                                   return TryLoadHistoricMetadataCache(loggingContext, hmc, context, configuration, cache, performanceDataFingerprint);
-                               },
+                               prepareAsync: hmc => TryLoadHistoricMetadataCache(loggingContext, hmc, context, configuration, cache, performanceDataFingerprint),
                                logDirectoryLocation: configuration.Logging.HistoricMetadataCacheLogDirectory);
                     }
 
@@ -506,7 +500,6 @@ namespace BuildXL.Engine
             Contract.Requires(context != null);
             Contract.Requires(configuration != null);
 
-            await Task.Yield();
             var location = historicMetadataCache.StoreLocation;
             bool fromCache = false;
             if (configuration.Schedule.ForceUseEngineInfoFromCache || !Directory.Exists(location) || !Directory.EnumerateFiles(location).Any())

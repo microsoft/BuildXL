@@ -177,14 +177,7 @@ namespace BuildXL.Processes
         public int ProcessId { get; private set; }
 
         /// <inheritdoc />
-        public async Task<SandboxedProcessResult> GetResultAsync()
-        {
-            SandboxedProcessResult result = await m_resultTaskCompletionSource.Task;
-
-            // await yield to make sure we are not blocking the thread that called us
-            await Task.Yield();
-            return result;
-        }
+        public Task<SandboxedProcessResult> GetResultAsync() => m_resultTaskCompletionSource.Task;
 
         /// <inheritdoc />
         public EmptyWorkingSetResult TryEmptyWorkingSet(bool isSuspend)

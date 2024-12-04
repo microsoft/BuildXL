@@ -3,7 +3,7 @@
 set -e
 
 MY_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-source "$MY_DIR/Public/Src/Sandbox/MacOs/scripts/env.sh"
+source "$MY_DIR/Public/Src/App/Bxl/Unix/env.sh"
 
 declare arg_Positional=()
 # stores user-specified args that are not used by this script; added to the end of command line
@@ -19,9 +19,6 @@ declare credProviderPath=""
 if [[ "${OSTYPE}" == "linux-gnu" ]]; then
     readonly HostQualifier=Linux
     readonly DeploymentFolder=linux-x64
-elif [[ "${OSTYPE}" == "darwin"* ]]; then
-    readonly HostQualifier=DotNetCoreMac
-    readonly DeploymentFolder=osx-x64
 else
     print_error "Operating system not supported: ${OSTYPE}"
     exit 1
@@ -222,7 +219,7 @@ function installCredProvider() {
     mkdir -p "$destinationFolder"
     wget -q -c https://github.com/microsoft/artifacts-credprovider/releases/download/v1.0.0/Microsoft.NuGet.CredentialProvider.tar.gz -O - | tar -xz -C "$destinationFolder"
 
-    # Remove the .exe, since we want to replace it with a script that runs on Mac/Linux
+    # Remove the .exe, since we want to replace it with a script that runs on Linux
     rm "$credentialProviderExe"
 
     # Create a new .exe with the shape of a script that calls dotnet against the dotnetcore dll
@@ -373,12 +370,6 @@ if [[ -n "$arg_UseDev" ]]; then
     export BUILDXL_BIN=$MY_DIR/Out/Selfhost/Dev
 elif [[ -z "$BUILDXL_BIN" ]]; then
     getLkg
-fi
-
-# Forcing a salt here to avoid problems faced in Linux validation pipeline related to cache.
-# This is related to Bug 2104538 where the cache may or may not be setting the execute bit for some executables.
-if [[ $arg_UserProvidedBxlArguments != *"/p:BUILDXL_FINGERPRINT_SALT"* ]]; then
-    arg_Positional+=("/p:BUILDXL_FINGERPRINT_SALT=fixForCopyFilePipBugInLinux")
 fi
 
 compileWithBxl ${arg_Positional[@]} ${arg_UserProvidedBxlArguments[@]}

@@ -22,7 +22,7 @@ The behavior described above may be modified with a few command line arguments. 
 bxl.exe accepts `/normalizeReadTimestamps-` as an argument to disable timestamp normalization. But remember that timestamps of output files may not necessarily be preserved after a pip runs since they get hardlinked into the cache to preserve space. If the file with the same content has earlier been produced and is in the cache, it will be deduped and will get the timestamp from the first time the file was introduced into the cache.
 
 ## Other platforms
-BuildXL's macOS sandbox implementation doesn't have a mechanism to fake timestamps. It would be possible via interposing, but that feature requires System Integrity Protection to be disabled and thus is undesirable. In order to enable distributed builds and shared cache on macOS, source control needs to ensure timestamp consistency.
+BuildXL's Linux sandbox implementation doesn't have a mechanism to fake timestamps. It would be possible via interposing, but that feature requires System Integrity Protection to be disabled and thus is undesirable. In order to enable distributed builds and shared cache on Linux, source control needs to ensure timestamp consistency.
 
 To deal with precomiled headers in clang, the recommendation is to utilize the `-fno-pch-timestamp` option. This instructs clang to ignore the timestamp check. This puts trust in the build graph specified to BuildXL to invoke clang appropriately when the header file content changes.
 

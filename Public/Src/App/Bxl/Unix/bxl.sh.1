@@ -1,6 +1,6 @@
 .TH bxl.sh 1 "" "" "BuildXL User Guide"
 .SH NAME
-bxl.sh \- Run BuildXL on macOS
+bxl.sh \- Run BuildXL on Linux
 .SH SYNOPSIS
 .B buildXL
 [--buildxl-bin \fIbuildxl-dir\fR]
@@ -11,7 +11,7 @@ bxl.sh \- Run BuildXL on macOS
 [--cache-config-file \fIfile\fR]
 [\fIbuildxl-arguments\fI]
 .SH DESCRIPTION
-A wrapper script for running BuildXL on macOS.
+A wrapper script for running BuildXL on Linux.
 .SH OPTIONS
 .TP
 .BI --buildxl-bin " buildxl-dir"
@@ -24,17 +24,6 @@ BuildXL DScript main configuration file of the build (typically named 'config.ds
 When specified, prior to running the build this script creates a symlink inside of the \fIsdk-dir\fR
 folder pointing to the Sdk.Transformers folder from \fIbuildxl-dir\fR directory.  This is useful when
 the build specification files require the "Transformers" sdk.
-.TP
-.BI --check-kext-log
-When specified, after BuildXL build completes, this script will check the system log for any error messages
-reported by BuildXLSandbox.
-.TP
-.BI --load-kext " | " --no-load-kext
-Whether or not to attempt to load BuildXLSandbox kernel extension prior to running the build.  When neither
-is specified, the default is not to automatically load BuildXLSandbox.
-.TP
-.BI --install-daemon
-Whether to attempt to install the BuildXLESSandbox daemon prior to running the build.
 .TP
 .BI --cache-config-file " cache-config-file"
 Path to file which specifies characteristics of the cache. If not specified, defaults to

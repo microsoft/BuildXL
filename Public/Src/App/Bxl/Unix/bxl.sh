@@ -19,9 +19,6 @@ declare arg_Runner=()
 declare arg_BuildXLBin=""
 declare arg_MainConfig=""
 declare arg_SymlinkSdksInto=""
-declare arg_checkKextLogInterval=""
-declare arg_loadKext=""
-declare arg_installDaemon=""
 declare arg_useAdoBuildRunner=""
 
 declare g_bxlCmdArgs=()
@@ -71,39 +68,6 @@ function setBxlCmdArgs {
     )
 }
 
-# Greps system log for messages from BuildXLSandbox kext.
-#
-# Takes one argument, which is the interval passed to 'log show --last'.
-#
-# Prints outs: (1) total number of messages, (2) number of "send retries", and (3) number of errors.
-# If errors are found, they are printed out to stdout.
-#
-# Returns 1 if either no log messages are found or non-zero errors are found, and 0 otherwise.
-function checkKextLog {
-    local logInterval="$1"
-
-    print_info "Checking system log for kext error messages"
-
-    local kextLogFile="kext-log.txt"
-    log show --last $logInterval --predicate 'message contains "buildxl"' > $kextLogFile
-
-    local numKextLogLines=$(wc -l $kextLogFile | awk '{print $1}')
-    local numKextErrors=$(grep "ERROR" $kextLogFile | wc -l | awk '{print $1}')
-
-    print_info "System log stats :: total messages: $numKextLogLines | num errors: $numKextErrors"
-
-    local status=0
-
-    if [[ $numKextErrors != 0 ]]; then
-        print_error "Kext error messages found:"
-        grep "ERROR" $kextLogFile
-        status=1
-    fi
-
-    rm $kextLogFile
-    return $status
-}
-
 # Runs a BuildXL build.
 #
 # Performs a number of checks prior to running BuildXL (like checking that the required options have been specified,
@@ -146,40 +110,6 @@ function build {
     arg_BuildXLBin=$(cd "$arg_BuildXLBin" && pwd)
     print_info "BUILDXL_BIN set to $arg_BuildXLBin"
 
-    # load kext if arg_loadKext is not empty
-    if [[ -n "$arg_loadKext" ]]; then
-        readonly kextPath="$arg_BuildXLBin/native/MacOS/BuildXLSandbox.kext"
-        if [[ ! -d "$kextPath" ]]; then
-            print_error "Kext folder not found at '$kextPath'"
-            exit 1
-        fi
-        print_info "Loading kext from: '$kextPath'"
-        sudo "${MY_DIR}/sandbox-load.sh" --deploy-dir /tmp "$kextPath" || {
-            print_error "Could not load BuildXLSandbox kernel extension"
-            exit 1
-        }
-    fi
-
-    # install sandbox daemon if arg_loadKext is not empty
-    if [[ -n "$arg_installDaemon" ]]; then
-        readonly daemonPath="$arg_BuildXLBin/native/MacOS/BuildXLSandboxDaemon"
-        if [[ ! -f "$daemonPath" ]]; then
-            print_error "Sandbox daemon not found at '$daemonPath'"
-            exit 1
-        fi
-        print_info "Installing sandbox daemon from: '$daemonPath'"
-        # Get the launchd plist ready, copy and launch the sandbox daemon
-        sed -i '' "s=PROGRAM_PATH=$daemonPath=g" $arg_BuildXLBin/native/MacOS/com.microsoft.buildxl.sandbox.plist
-        sudo cp $arg_BuildXLBin/native/MacOS/com.microsoft.buildxl.sandbox.plist /Library/LaunchDaemons/
-        # Unload a potentually running sandbox daemon, then load and verify the daemon setup
-        sudo launchctl unload /Library/LaunchDaemons/com.microsoft.buildxl.sandbox.plist >/dev/null 2>&1 || true
-        sudo launchctl load /Library/LaunchDaemons/com.microsoft.buildxl.sandbox.plist >/dev/null 2>&1 || true
-        sudo launchctl list | grep "com.microsoft.buildxl.sandbox" || {
-            print_error "Could not install sandbox daemon"
-            exit 1
-        }
-    fi
-
     # Create symlinks for Sdk.Transformers dirs
     if [[ -n "$arg_SymlinkSdksInto" ]]; then
         for bxlSdkDir in "$arg_BuildXLBin/Sdk/Sdk.Transformers"; do
@@ -201,9 +131,6 @@ function build {
     fi
 
     if [[ -z "$arg_MainConfig" ]]; then
-        if [[ -z $arg_loadKext && -z $arg_installDaemon ]]; then
-            print_warning "Switch --config not specified --> no BuildXL build to run"
-        fi
         return 0
     fi
 
@@ -237,17 +164,6 @@ function build {
         echo "${tputBold}${tputRed}BuildXL Failed${tputReset}"
     fi
 
-    local kextLogCheckResult=0
-    if [[ ! -z $arg_checkKextLogInterval ]]; then
-        checkKextLog $arg_checkKextLogInterval
-        kextLogCheckResult=$?
-    fi
-
-    if [[ $kextLogCheckResult != 0 ]]; then
-        print_error "Kext errors found"
-        return 1
-    fi
-
     return $bxlExitCode
 }
 
@@ -279,26 +195,9 @@ function parseArgs {
                 shift
                 shift
                 ;;
-            --check-kext-log)
-                arg_checkKextLogInterval="$2"
-                shift
-                shift
-                ;;
             --cache-config-file)
                 arg_CacheConfigFile="$2"
                 shift
-                shift
-                ;;
-            --load-kext)
-                arg_loadKext="1"
-                shift
-                ;;
-            --no-load-kext)
-                arg_loadKext=""
-                shift
-                ;;
-            --install-daemon)
-                arg_installDaemon="1"
                 shift
                 ;;
             --use-adobuildrunner)

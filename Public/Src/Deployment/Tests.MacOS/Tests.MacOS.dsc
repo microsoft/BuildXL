@@ -143,7 +143,7 @@ namespace Tests.MacOS {
         contents: [
             f`xunitrunner.sh`,
             writeFile(a`bashrunner.sh`, createUnixTestRunnerScript(tests)),
-            f`${Context.getMount("Sandbox").path}/MacOs/scripts/env.sh`,
+            f`../../App/Bxl/Unix/env.sh`,
             {
                 subfolder: r`tests`,
                 contents: [

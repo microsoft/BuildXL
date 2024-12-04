@@ -1,7 +1,7 @@
 # Overview
 There are two variants of BuildXL development: Public (default) and Internal (for Microsoft internal developers). The difference comes down to a few dependencies which are only available internally within Microsoft today, like the connections to an internal cache server. The acquisition path for machine prerequisites may also differ slightly. 
 
-If you are a Microsoft internal developer, the Internal variant is automatically selected based on your user domain on Windows. On Linux and macOS you need to specify --internal in bxl.sh.
+If you are a Microsoft internal developer, the Internal variant is automatically selected based on your user domain on Windows. On Linux you need to specify --internal in bxl.sh.
 
 # Prerequesites
 ## Windows
@@ -11,18 +11,8 @@ If you are a Microsoft internal developer, the Internal variant is automatically
 ## Linux
 See [Prepare Linux VM](/Documentation/Wiki/LinuxDevelopment/How_to_prep_VM.md)
 
-
-## macOS
-To run BuildXL on macOS you need to install:
-
-* Microsoft [.NET Core SDK](https://dotnet.microsoft.com/download) for macOS
-* The latest [Mono](https://www.mono-project.com/download/stable/) runtime
-* If you want to run and load the sandbox to enable fully observed and cacheable builds, you also have to [turn off System Integrity Protection](https://developer.apple.com/library/archive/documentation/Security/Conceptual/System_Integrity_Protection_Guide/ConfiguringSystemIntegrityProtection/ConfiguringSystemIntegrityProtection.html) (SIP) on macOS. SIP blocks the installation of the unsigned kernel extension (or Kext) produced by the build.
-* Latest version of Xcode
-
-
 # Performing a build
-`bxl.cmd` (and `./bxl.sh`) are the entry points to building BuildXL. They provide some shorthands for common tasks to prevent developers from needing to specify longer command line options. While most examples below are based off of bxl.cmd for Windows, there will most times be a bxl.sh equivalent for macOS/Linux: `bxl.sh -h` shows the custom arguments for this script.
+`bxl.cmd` (and `./bxl.sh`) are the entry points to building BuildXL. They provide some shorthands for common tasks to prevent developers from needing to specify longer command line options. While most examples below are based off of bxl.cmd for Windows, there will most times be a bxl.sh equivalent for Linux: `bxl.sh -h` shows the custom arguments for this script.
 
 
 ## Minimal Build
@@ -39,8 +29,8 @@ Running a vanilla `bxl.cmd` without the `-minimal` flag above will compile a lar
 
 The `-minimal` and `-all` flags are shorthands that get translated to more complicated pip filter expressions which are eventually passed to `bxl.exe`
 
-## Build and Test for macOS and Linux
-BuildXL can be run on Linux and macOS systems via the `bxl.sh` script. The `--minimal` flag can be passed to run a minimal build (as described in the section above).
+## Build and Test for Linux
+BuildXL can be run on Linux via the `bxl.sh` script. The `--minimal` flag can be passed to run a minimal build (as described in the section above).
 
 One can also run `./bxl.sh "/f:tag='test'"` to only run the tests.
 

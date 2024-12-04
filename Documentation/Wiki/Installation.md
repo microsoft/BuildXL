@@ -12,26 +12,6 @@ The steps to take are:
 
 ![Screenshot of VsCode with arrows for steps how to install the BuildXL extension](./InstallBuildXLToVsCode.png)
 
-### MacOS
-The plugin only contains windows binaries at the moment. For MacOS we currently only support building the plugin locally. You can build the plugin using a local copy of the BuildXL repo with:
-
-1. `bxl out\bin\debug\ide\*`
-1. Launch VsCode
-1. Type 'Ctrl'+'Shift'+'P' (or choose 'View -> Command Palette...' from the main menu)
-1. Type `vsix`
-
-     ![installvsix.png](./installvsix.png)
-1. Select 'Extensions: Install from VSIX
-1. Navigate to: `<YourEnlistmentRoot>\Out\Bin\debug\ide` to install the extension you just built locally 
-1. Select `BuildXL.vscode.osx.vsix`
-1. Open a `.dsc` file to see the extension in action
-1. **[macOS only]** The first time you open a `.dsc` file after installing the extension you might get the following error message
-![ScreenShot2019-03-04.png](./ScreenShot2019-03-04.png)
-The most likely reason for this is the `BuildXL.Ide.LanguageServer` file from the extension deployment missing Execute permission.  To fix it, locate that file in your `~/.vscode/extensions` directory and execute `chmod +x` on it, e.g.,
-    ```bash
-    chmod +x ~/.vscode/extensions/microsoft.buildxl.dscript-0.1.0-devBuild/bin/BuildXL.Ide.LanguageServer
-    ```
-
 ## Visual Studio Plugin for opening generated solutions
 This plugin enables C# and C++ target language support for building using BuildXL in Visual Studio. It is meant to be used in conjunction with the command line `bxl -vs` command that generates .g.csproj and .g.vcxproj files from DScript build specs.
 

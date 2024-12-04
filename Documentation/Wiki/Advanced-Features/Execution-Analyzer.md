@@ -4,7 +4,7 @@
 
 bxlAnalayzer.exe is a tool that lives next to bxl.exe. It can provide analysis of the execution of a build and its graph. It operates on execution log files (.xlg), which live in BuildXL's log directory.
 
-The analyzer works on both on Windows and macOS (unless otherwise specified). For macOS, remove the ".exe" extension from the examples and correct the paths.
+The analyzer works on both on Windows and Linux (unless otherwise specified). For Linux, remove the ".exe" extension from the examples and correct the paths.
 
 ## Specifying inputs
 Most analysis modes require a pointer to an execution log from a prior BuildXL build session. This can either be specified on the command line with `/xl:[PathTo.xlg file]` or the analyzer will find the log of the last BuildXL session run if left blank. See the analyzer help text for more details

@@ -18,32 +18,40 @@ namespace BuildXL.Scheduler.Fingerprints
     /// <summary>
     /// Type of <see cref="ObservedInput" />.
     /// </summary>
+    /// <remarks>
+    /// The integer values of `ObservedInputType` are assigned based on the order of precedence, where lower values indicate higher precedence.
+    /// This precedence is critical for resolving conflicts in AllowedUndeclaredReads during retries when multiple ObservedInputTypes are reported for the same path.
+    /// For example:
+    /// For example, if `FileContentRead` and `AbsentPathProbe` are both reported for a path, we opt for `FileContentRead` as it reflects a more critical observation of the file's state.
+    /// **Note**: Do not change the order or values of this enum unless absolutely necessary, as it directly impacts the logic for handling AllowedUndeclaredReads in scenarios involving retries with DFA's. 
+    /// Any changes should be reviewed carefully to ensure compatibility with existing merging logic.
+    /// </remarks>
     public enum ObservedInputType
     {
         /// <summary>
-        /// A path was probed, but did not exist.
-        /// </summary>
-        AbsentPathProbe,
-
-        /// <summary>
         /// A file with known contents was read.
         /// </summary>
-        FileContentRead,
+        FileContentRead = 1,
 
         /// <summary>
         /// A directory was enumerated (kind of like a directory read).
         /// </summary>
-        DirectoryEnumeration,
-
-        /// <summary>
-        /// An existing directory probe.
-        /// </summary>
-        ExistingDirectoryProbe,
+        DirectoryEnumeration = 2,
 
         /// <summary>
         /// An existing file probe.
         /// </summary>
-        ExistingFileProbe,
+        ExistingFileProbe = 3,
+
+        /// <summary>
+        /// An existing directory probe.
+        /// </summary>
+        ExistingDirectoryProbe = 4,
+
+        /// <summary>
+        /// A path was probed, but did not exist.
+        /// </summary>
+        AbsentPathProbe = 5,
     }
 
     /// <summary>

@@ -1155,8 +1155,7 @@ namespace BuildXL.Scheduler
             else
             {
                 // Merge AllowedUndeclaredRead
-                allowedUndeclaredRead = (allExecutionResults.Where(result => result.AllowedUndeclaredReads != null)
-                                                            .SelectMany(result => result.AllowedUndeclaredReads)).ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+                allowedUndeclaredRead = MergeAllowedUndeclaredReads(allExecutionResults);
 
                 // Merge SharedOpaqueDirectoryWriteAccesses
                 sharedDynamicDirectoryWriteAccesses = new ReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>>(allExecutionResults.Where(result => result.SharedDynamicDirectoryWriteAccesses != null)
@@ -1182,6 +1181,37 @@ namespace BuildXL.Scheduler
                                                                              return (group.Key, FileArtifacts: fileArtifacts.Any() ? ReadOnlyArray<FileArtifactWithAttributes>.From(fileArtifacts) : ReadOnlyArray<FileArtifactWithAttributes>.Empty);
                                                                          })).ToReadOnlyArray();
             }
+        }
+
+        /// <summary>
+        /// Merges the AllowedUndeclaredReads from multiple ExecutionResults and resolves duplicates.
+        /// </summary>
+        /// <remarks>
+        /// If during the retries, the same path is encountered more than once (duplicate keys), it compares the ObservedInputType values:
+        /// 1.) If the types are different, it selects the one with the highest precedence of ObservedInputType.
+        /// For example, if `FileContentRead` and `AbsentPathProbe` are both reported for a path, we opt for `FileContentRead` as it reflects a more critical observation of the file's state.
+        /// 2.) If the types are the same, we need to report the same observedInputType for the path. 
+        /// </remarks>
+        internal static IReadOnlyDictionary<AbsolutePath, ObservedInputType> MergeAllowedUndeclaredReads(IEnumerable<ExecutionResult> allExecutionResults)
+        {
+            var allowedUndeclaredRead = new Dictionary<AbsolutePath, ObservedInputType>();
+
+            foreach (var kvp in allExecutionResults
+                .Where(result => result.AllowedUndeclaredReads != null)
+                .SelectMany(result => result.AllowedUndeclaredReads))
+            {
+                if (!allowedUndeclaredRead.TryAdd(kvp.Key, kvp.Value))
+                {
+                    if (allowedUndeclaredRead.TryGetValue(kvp.Key, out var existingValue) &&
+                        (kvp.Value != existingValue) &&
+                        ((int)kvp.Value < (int)existingValue))
+                    {
+                        allowedUndeclaredRead[kvp.Key] = kvp.Value;
+                    }
+                }
+            }
+
+            return new ReadOnlyDictionary<AbsolutePath, ObservedInputType>(allowedUndeclaredRead);
         }
 
         /// <summary>

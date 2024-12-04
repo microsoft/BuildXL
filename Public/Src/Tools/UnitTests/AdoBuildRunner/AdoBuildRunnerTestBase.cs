@@ -15,6 +15,7 @@ namespace Test.Tool.AdoBuildRunner
         protected static readonly string TestRelatedSessionId = "testId123";
 
         protected static readonly string TestOrchestratorLocation = "testLocation";
+        protected static readonly string TestOrchestratorPool = "testPool";
 
         protected static readonly int TestOrchestratorId = 12345;
 
@@ -49,7 +50,7 @@ namespace Test.Tool.AdoBuildRunner
                 } 
             }
             private IBuildExecutor m_buildExecutor;
-            private readonly IAdoAPIService m_apiService;
+            private readonly IAdoService m_adoService;
             private readonly bool m_isWorker;
             private bool m_isInitialized;
 
@@ -59,9 +60,9 @@ namespace Test.Tool.AdoBuildRunner
             /// <nodoc />
             public MockLauncher MockLauncher { get; private set; } = new();
 
-            internal AgentHarness(IAdoAPIService apiService, bool isWorker) 
+            internal AgentHarness(IAdoService service, bool isWorker) 
             {
-                m_apiService = apiService;
+                m_adoService = service;
                 m_isWorker = isWorker;
                 MockLogger = new MockLogger();
                 Config = new MockAdoBuildRunnerConfig();
@@ -71,7 +72,7 @@ namespace Test.Tool.AdoBuildRunner
 
             internal void Initialize()
             {
-                m_runnerService = new AdoBuildRunnerService(MockLogger, AdoEnvironment, m_apiService, Config);
+                m_runnerService = new AdoBuildRunnerService(MockLogger, AdoEnvironment, m_adoService, Config);
                 m_buildExecutor = m_isWorker ? new WorkerBuildExecutor(MockLauncher, m_runnerService, MockLogger) : new OrchestratorBuildExecutor(MockLauncher, m_runnerService, MockLogger);
                 m_isInitialized = true;
             }
@@ -79,7 +80,7 @@ namespace Test.Tool.AdoBuildRunner
 
         // The "API service" is shared by all agents created for the test, as 
         // if everyone is querying against the same ADO endpoints
-        protected MockAdoAPIService MockApiService { get; set; } = new();
+        protected MockAdoService MockApiService { get; set; } = new();
 
         /// <nodoc />
         public AdoBuildRunnerTestBase()
@@ -117,7 +118,8 @@ namespace Test.Tool.AdoBuildRunner
             var buildInfo = new BuildInfo()
             {
                 RelatedSessionId = TestRelatedSessionId,
-                OrchestratorLocation = TestOrchestratorLocation
+                OrchestratorLocation = TestOrchestratorLocation,
+                OrchestratorPool = TestOrchestratorPool,
             };
 
             return buildInfo;

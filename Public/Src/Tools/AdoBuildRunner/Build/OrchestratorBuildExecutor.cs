@@ -26,7 +26,8 @@ namespace BuildXL.AdoBuildRunner.Build
         {
             // The orchestrator creates the build info and publishes it to the build properties
             var buildContext = AdoBuildRunnerService.BuildContext;
-            var buildInfo = new BuildInfo { RelatedSessionId = Guid.NewGuid().ToString("D"), OrchestratorLocation = buildContext.AgentHostName };
+            var poolName = await AdoBuildRunnerService.GetRunningPoolNameAsync();
+            var buildInfo = new BuildInfo { RelatedSessionId = Guid.NewGuid().ToString("D"), OrchestratorLocation = buildContext.AgentHostName, OrchestratorPool = poolName };
             await AdoBuildRunnerService.PublishBuildInfo(buildInfo);
             Logger.Info($@"Launching distributed build as orchestrator");
             var returnCode = await ExecuteBuild(

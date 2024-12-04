@@ -43,9 +43,9 @@ namespace Test.Tool.AdoBuildRunner
         {
             var faultyBuildId = 000;
             var exceptionThrown = false;
-            RetryHandlerHelper(mockAPIException: mockAPIException, out AdoBuildRunnerRetryHandler adoBuildRunnerRetryHandler, out MockLogger mockLogger, out MockAdoAPIService mockAdoAPIService);
+            RetryHandlerHelper(mockAPIException: mockAPIException, out AdoBuildRunnerRetryHandler adoBuildRunnerRetryHandler, out MockLogger mockLogger, out MockAdoService mockAdoService);
 
-            IAdoAPIService service = mockAdoAPIService;
+            IAdoService service = mockAdoService;
             Task taskToBeAwaited = apiMethod switch
             {
                 ApiMethod.GetBuildAsync => adoBuildRunnerRetryHandler.ExecuteAsync(() => service.GetBuildAsync(faultyBuildId), nameof(service.GetBuildAsync), mockLogger),
@@ -102,9 +102,9 @@ namespace Test.Tool.AdoBuildRunner
         /// <summary>
         /// Initializes mock API services and the AdoBuildRunnerRetryHandler for testing. 
         /// </summary>
-        public void RetryHandlerHelper(bool mockAPIException, out AdoBuildRunnerRetryHandler adoBuildRunnerRetryHandler, out MockLogger mockLogger, out MockAdoAPIService mockAdoAPIService)
+        public void RetryHandlerHelper(bool mockAPIException, out AdoBuildRunnerRetryHandler adoBuildRunnerRetryHandler, out MockLogger mockLogger, out MockAdoService mockAdoAPIService)
         {
-            mockAdoAPIService = new MockAdoAPIService(mockAPIException);
+            mockAdoAPIService = new MockAdoService(mockAPIException);
             foreach (var buildID in m_expectedBuildIds)
             {
                 mockAdoAPIService.AddBuild(buildID, new Build());

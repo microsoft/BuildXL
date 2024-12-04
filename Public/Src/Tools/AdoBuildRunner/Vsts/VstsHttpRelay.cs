@@ -20,7 +20,6 @@ namespace BuildXL.AdoBuildRunner.Vsts
     /// </summary>
     public class VstsHttpRelay
     {
-        private readonly ILogger m_logger;
         private HttpClient Client => (m_httpClient ??= GetClient());
         private HttpClient? m_httpClient;
         private readonly static JsonSerializerOptions s_jsonSerializerOptions = new() { PropertyNameCaseInsensitive = true };
@@ -28,10 +27,9 @@ namespace BuildXL.AdoBuildRunner.Vsts
         private readonly IAdoEnvironment m_adoBuildRunnerEnv;
 
         /// <nodoc />
-        public VstsHttpRelay(IAdoEnvironment adoBuildRunnerEnv, ILogger logger)
+        public VstsHttpRelay(IAdoEnvironment adoBuildRunnerEnv)
         {
             m_adoBuildRunnerEnv = adoBuildRunnerEnv;
-            m_logger = logger;
             m_endpoint = $"build/builds/{adoBuildRunnerEnv.BuildId}";
         }
 

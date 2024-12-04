@@ -13,7 +13,7 @@ namespace AdoBuildRunner
     /// This interface facilitates operations such as retrieving and updating build properties,
     /// accessing specific builds by their ID's, and obtaining information about the build that has been triggered.
     /// </summary>
-    public interface IAdoAPIService
+    public interface IAdoService
     {
         /// <summary>
         /// Gets the build properties for a specificied buildId.
@@ -34,5 +34,11 @@ namespace AdoBuildRunner
         /// Gets the build trigger information.
         /// </summary>
         Task<Dictionary<string, string>> GetBuildTriggerInfoAsync();
+
+        /// <summary>
+        /// Gets the name of the pool this agent is running on
+        /// </summary>
+        /// <returns></returns>
+        Task<string> GetPoolNameAsync();
     }
 }

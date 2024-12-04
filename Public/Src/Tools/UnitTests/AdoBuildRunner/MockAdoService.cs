@@ -8,14 +8,17 @@ using AdoBuildRunner;
 using Microsoft.TeamFoundation.Build.WebApi;
 using Microsoft.VisualStudio.Services.WebApi;
 
+#nullable enable
 namespace Test.Tool.AdoBuildRunner
 {
     /// <summary>
     /// Provides a mock implementation of the Ado API's for testing purpose.
     /// </summary>
-    public class MockAdoAPIService : IAdoAPIService
+    public class MockAdoService : IAdoService
     {
         public readonly Dictionary<int, PropertiesCollection> BuildProperties = new Dictionary<int, PropertiesCollection>();
+        public string PoolName => GetPoolName?.Invoke() ?? "AgentPoolName";
+        public Func<string>? GetPoolName { get; set; } = null;
 
         private readonly Dictionary<int, Build> m_adoBuilds = new Dictionary<int, Build>();
 
@@ -24,7 +27,7 @@ namespace Test.Tool.AdoBuildRunner
         private readonly bool m_mockApiException;
 
         /// <nodoc/>
-        public MockAdoAPIService()
+        public MockAdoService()
         {
 
         }
@@ -32,7 +35,7 @@ namespace Test.Tool.AdoBuildRunner
         /// <summary>
         /// Intialize MockAdoAPIService with a mock exception to simulate an error for some API's.
         /// </summary>
-        public MockAdoAPIService(bool setMockException)
+        public MockAdoService(bool setMockException)
         {
             m_mockApiException = setMockException;
         }
@@ -40,7 +43,7 @@ namespace Test.Tool.AdoBuildRunner
         /// <summary>
         /// Retrieves the build properties for the specificied buildId and throws if buildId does not exist.
         /// </summary>
-        Task<PropertiesCollection> IAdoAPIService.GetBuildPropertiesAsync(int buildId)
+        Task<PropertiesCollection> IAdoService.GetBuildPropertiesAsync(int buildId)
         {
             if (m_mockApiException)
             {
@@ -58,7 +61,7 @@ namespace Test.Tool.AdoBuildRunner
         /// <summary>
         /// Retrieves a build for the specified buildId and throws if the buildId does not exist.
         /// </summary>
-        Task<Build> IAdoAPIService.GetBuildAsync(int buildId)
+        Task<Build> IAdoService.GetBuildAsync(int buildId)
         {
             if (m_mockApiException)
             {
@@ -76,7 +79,7 @@ namespace Test.Tool.AdoBuildRunner
         /// <summary>
         /// Updates the build properties for the specified buildId and throws an exception if the buildId does not exist.
         /// </summary>
-        Task IAdoAPIService.UpdateBuildPropertiesAsync(PropertiesCollection properties, int buildId)
+        Task IAdoService.UpdateBuildPropertiesAsync(PropertiesCollection properties, int buildId)
         {
             if (m_mockApiException)
             {
@@ -99,7 +102,7 @@ namespace Test.Tool.AdoBuildRunner
         /// <summary>
         /// Retrieves build trigger information. Simulates an API exception if configured to do so.
         /// </summary>
-        Task<Dictionary<string, string>> IAdoAPIService.GetBuildTriggerInfoAsync()
+        Task<Dictionary<string, string>> IAdoService.GetBuildTriggerInfoAsync()
         {
             if (m_mockApiException)
             {
@@ -140,6 +143,11 @@ namespace Test.Tool.AdoBuildRunner
         public void AddBuildTriggerProperties(string triggerIdProperty, string triggerIdValue)
         {
             m_buildTriggerProperties[triggerIdProperty] = triggerIdValue;
+        }
+
+        public Task<string> GetPoolNameAsync()
+        {
+            return Task.FromResult(PoolName);
         }
     }
 }

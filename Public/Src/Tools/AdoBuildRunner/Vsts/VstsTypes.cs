@@ -48,4 +48,44 @@ namespace BuildXL.AdoBuildRunner.Vsts
         public Dictionary<string, string> TriggerInfo { get; set; }
     }
     #endregion
+
+    #region IMDS
+    // These data objects are a projection of the metadata we need from
+    // https://learn.microsoft.com/en-us/azure/virtual-machines/instance-metadata-service
+
+    /// <nodoc />
+    [DataContract]
+    public class MetadataTag
+    {
+        /// <nodoc />
+        [JsonPropertyName("name")]
+        [DataMember(Name = "name")]
+        public string Name { get; set; }
+
+        /// <nodoc />
+        [JsonPropertyName("value")]
+        [DataMember(Name = "value")]
+        public string Value { get; set; }
+    }
+
+    /// <nodoc />
+    [DataContract]
+    public class MetadataComputeSection
+    {
+        /// <nodoc />
+        [JsonPropertyName("tagsList")]
+        [DataMember(Name = "tagsList")]
+        public List<MetadataTag> TagsList { get; set; }
+    }
+
+    /// <nodoc />
+    [DataContract]
+    public class InstanceMetadata
+    {
+        /// <nodoc />
+        [JsonPropertyName("compute")]
+        [DataMember(Name = "compute")]
+        public MetadataComputeSection Compute { get; set; }
+    }
+    #endregion
 }

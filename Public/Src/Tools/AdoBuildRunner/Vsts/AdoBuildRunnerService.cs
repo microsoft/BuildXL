@@ -38,7 +38,7 @@ namespace BuildXL.AdoBuildRunner.Vsts
 
         private readonly AdoBuildRunnerRetryHandler m_retryHandler;
 
-        private readonly IAdoAPIService m_adoAPIService;
+        private readonly IAdoService m_adoService;
 
         /// <nodoc />
         public AdoBuildRunnerService(IAdoBuildRunnerConfiguration config, IAdoEnvironment adoEnvironment, ILogger logger)
@@ -48,17 +48,17 @@ namespace BuildXL.AdoBuildRunner.Vsts
             AdoEnvironment = adoEnvironment;
             BuildContext = GetBuildContext();
             m_retryHandler = new AdoBuildRunnerRetryHandler(Constants.MaxApiAttempts);
-            m_adoAPIService = new AdoApiService(AdoEnvironment, m_logger);
+            m_adoService = new AdoService(AdoEnvironment, m_logger);
         }
 
         /// <summary>
         /// Constructor for testing purpose.
         /// </summary>
-        public AdoBuildRunnerService(ILogger logger, IAdoEnvironment adoBuildRunnerEnvConfig, IAdoAPIService adoAPIService, IAdoBuildRunnerConfiguration adoBuildRunnerUserConfig)
+        public AdoBuildRunnerService(ILogger logger, IAdoEnvironment adoBuildRunnerEnvConfig, IAdoService adoService, IAdoBuildRunnerConfiguration adoBuildRunnerUserConfig)
         {
             AdoEnvironment = adoBuildRunnerEnvConfig;
             m_logger = logger;
-            m_adoAPIService = adoAPIService;
+            m_adoService = adoService;
             m_retryHandler = new AdoBuildRunnerRetryHandler(Constants.MaxApiAttempts);
             Config = adoBuildRunnerUserConfig;
             BuildContext = GetBuildContext();
@@ -78,7 +78,15 @@ namespace BuildXL.AdoBuildRunner.Vsts
                 { property, value }
             };
 
-            return m_retryHandler.ExecuteAsync(() => m_adoAPIService.UpdateBuildPropertiesAsync(patch, buildId), nameof(m_adoAPIService.UpdateBuildPropertiesAsync), m_logger);
+            return m_retryHandler.ExecuteAsync(() => m_adoService.UpdateBuildPropertiesAsync(patch, buildId), nameof(m_adoService.UpdateBuildPropertiesAsync), m_logger);
+        }
+
+        /// <summary>
+        /// Return the name of the pool where the agent running this build is running on
+        /// </summary>
+        public Task<string> GetRunningPoolNameAsync()
+        {
+            return m_retryHandler.ExecuteAsync(() => m_adoService.GetPoolNameAsync(), nameof(m_adoService.GetPoolNameAsync), m_logger);
         }
 
         /// <inheritdoc />
@@ -88,7 +96,7 @@ namespace BuildXL.AdoBuildRunner.Vsts
             // where some pipeline uses the same identifier for two different BuildXL invocations.
             // Note that this check is racing against a concurrent update, but this doesn't matter because
             // we expect to catch it most of times, and that's all we need for the error to be surfaced and fixed.            
-            var properties = await m_retryHandler.ExecuteAsync(() => m_adoAPIService.GetBuildPropertiesAsync(AdoEnvironment.BuildId), nameof(m_adoAPIService.GetBuildPropertiesAsync), m_logger);
+            var properties = await m_retryHandler.ExecuteAsync(() => m_adoService.GetBuildPropertiesAsync(AdoEnvironment.BuildId), nameof(m_adoService.GetBuildPropertiesAsync), m_logger);
             if (properties.ContainsKey(BuildContext.InvocationKey))
             {
                 LogAndThrow($"A build with identifier '{BuildContext.InvocationKey}' is already running in this pipeline. " +
@@ -118,9 +126,9 @@ namespace BuildXL.AdoBuildRunner.Vsts
         /// at the same time, not notice the other one, and then 'last-one-wins' updating the properties.
         /// However, it is enough for catching this specification error that this is just unlikely (which it is) and not impossible.
         /// </remarks>
-        private async Task VerifyWorkerCorrectness(int orchestratorBuildId)
+        private async Task VerifyWorkerCorrectness(BuildInfo buildInfo, int orchestratorBuildId)
         {
-            var orchestratorBuild = await m_retryHandler.ExecuteAsync(() => m_adoAPIService.GetBuildAsync(orchestratorBuildId), nameof(m_adoAPIService.GetBuildAsync), m_logger);
+            var orchestratorBuild = await m_retryHandler.ExecuteAsync(() => m_adoService.GetBuildAsync(orchestratorBuildId), nameof(m_adoService.GetBuildAsync), m_logger);
 
             // (1) Source branch / version should match
             if (orchestratorBuild.SourceBranch != AdoEnvironment.LocalSourceBranch || orchestratorBuild.SourceVersion != AdoEnvironment.LocalSourceVersion)
@@ -130,7 +138,26 @@ namespace BuildXL.AdoBuildRunner.Vsts
                             + $"Orchestrator build (id={orchestratorBuildId}): SourceBranch='{orchestratorBuild.SourceBranch}', SourceVersion='{orchestratorBuild.SourceVersion}'");
             }
 
-            // (2) One-to-one correspondence between a jobs in a worker pipeline, and an orchestrator
+            // (2) Pools should match, or we log a warning to the console
+            try
+            {
+                var workerPoolName = await GetRunningPoolNameAsync();
+                if (workerPoolName != buildInfo.OrchestratorPool)
+                {
+                    m_logger?.Warning($"This agent is running on pool '{workerPoolName}', which is different than the pool the orchestrator is running on '{buildInfo.OrchestratorPool}'");
+                    m_logger?.Warning($"This mismatch can occur when a backup pool is configured for the pool specified for this pipeline.");
+                    m_logger?.Warning($"The workers will fail to connect to the orchestrator if agents from '{workerPoolName}' and '{buildInfo.OrchestratorPool}' are not on the same network");
+                }
+            }
+            catch (Exception)
+#pragma warning disable ERP022 // Unobserved exception in a generic exception handler
+            {
+                // Swallow any errors here, we don't want to fail the build if this check fails
+                // Any error messages should have been logged
+            }
+#pragma warning restore ERP022 // Unobserved exception in a generic exception handler
+
+            // (3) One-to-one correspondence between a jobs in a worker pipeline, and an orchestrator
             if (AdoEnvironment.JobPositionInPhase != AdoEnvironment.TotalJobsInPhase)
             {
                 // Only do this once per 'parallel group', i.e., only for the last agent in a parallel strategy context
@@ -143,7 +170,7 @@ namespace BuildXL.AdoBuildRunner.Vsts
                 return;
             }
 
-            var properties = await m_retryHandler.ExecuteAsync(() => m_adoAPIService.GetBuildPropertiesAsync(orchestratorBuildId), nameof(m_adoAPIService.GetBuildPropertiesAsync), m_logger);
+            var properties = await m_retryHandler.ExecuteAsync(() => m_adoService.GetBuildPropertiesAsync(orchestratorBuildId), nameof(m_adoService.GetBuildPropertiesAsync), m_logger);
             var workerInvocationSentinel = $"{BuildContext.InvocationKey}__workerjobid";
             if (properties.ContainsKey(workerInvocationSentinel))
             {
@@ -166,7 +193,7 @@ namespace BuildXL.AdoBuildRunner.Vsts
         /// <inheritdoc />
         public async Task<BuildInfo> WaitForBuildInfo()
         {
-            var triggerInfo = await m_retryHandler.ExecuteAsync(() => m_adoAPIService.GetBuildTriggerInfoAsync(), nameof(m_adoAPIService.GetBuildTriggerInfoAsync), m_logger);
+            var triggerInfo = await m_retryHandler.ExecuteAsync(() => m_adoService.GetBuildTriggerInfoAsync(), nameof(m_adoService.GetBuildTriggerInfoAsync), m_logger);
             if (triggerInfo == null
                 || !triggerInfo.TryGetValue(Constants.TriggeringAdoBuildIdParameter, out string? triggeringBuildIdString)
                 || !int.TryParse(triggeringBuildIdString, out int triggeringBuildId))
@@ -180,18 +207,21 @@ namespace BuildXL.AdoBuildRunner.Vsts
 
             var elapsedTime = 0;
 
-            // At this point we can perform the sanity checks for the workers against the orchestrator
-            await VerifyWorkerCorrectness(triggeringBuildId);
 
             m_logger.Info($"Querying the build properties of build {triggeringBuildId} for the orchestrator's information");
             while (elapsedTime < Config.MaximumWaitForWorkerSeconds)
             {
-                var properties = await m_retryHandler.ExecuteAsync(() => m_adoAPIService.GetBuildPropertiesAsync(triggeringBuildId), nameof(m_adoAPIService.GetBuildPropertiesAsync), m_logger);
+                var properties = await m_retryHandler.ExecuteAsync(() => m_adoService.GetBuildPropertiesAsync(triggeringBuildId), nameof(m_adoService.GetBuildPropertiesAsync), m_logger);
                 var maybeInfo = properties.GetValue<string?>(BuildContext.InvocationKey, null);
                 if (maybeInfo != null)
                 {
                     m_logger.Info($"Orchestrator information retrieved from build properties.");
-                    return BuildInfo.Deserialize(maybeInfo);
+
+                    var buildInfo = BuildInfo.Deserialize(maybeInfo);
+
+                    // At this point we can perform the sanity checks for the workers against the orchestrator
+                    await VerifyWorkerCorrectness(buildInfo, triggeringBuildId);
+                    return buildInfo;
                 }
 
                 m_logger.Info($"Couldn't find the build info in the build properties: retrying in {Constants.PollRetryPeriodInSeconds} Seconds(s)...");
@@ -281,7 +311,7 @@ namespace BuildXL.AdoBuildRunner.Vsts
         /// <inheritdoc />
         public async Task<string?> GetBuildProperty(string propertyName)
         {
-            var properties = await m_retryHandler.ExecuteAsync(() => m_adoAPIService.GetBuildPropertiesAsync(AdoEnvironment.BuildId), nameof(GetBuildProperty), m_logger);
+            var properties = await m_retryHandler.ExecuteAsync(() => m_adoService.GetBuildPropertiesAsync(AdoEnvironment.BuildId), nameof(GetBuildProperty), m_logger);
             return properties.GetValue<string?>(GetPropertyKey(propertyName), null);
         }
 

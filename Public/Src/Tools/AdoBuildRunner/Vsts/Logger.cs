@@ -32,7 +32,7 @@ namespace BuildXL.AdoBuildRunner.Vsts
         public void Error(string message)
         {
             string errorCommand = string.Format(LogErrorFormat, WithTimeStamp(message));
-            Console.WriteLine(errorCommand);
+            Output(errorCommand);
         }
 
         /// <nodoc />
@@ -74,20 +74,29 @@ namespace BuildXL.AdoBuildRunner.Vsts
         public void Warning(string message)
         {
             string warningCommand = string.Format(LogWarningFormat, WithTimeStamp(message));
-            Console.WriteLine(warningCommand);
+            Output(warningCommand);
         }
 
         /// <nodoc />
         public void Debug(string message)
         {
             string debugCommand = string.Format(LogDebugFormat, WithTimeStamp(message));
-            Console.WriteLine(debugCommand);
+            Output(debugCommand);
         }
 
         /// <nodoc />
         public void Info(string message)
         {
-            Console.WriteLine(WithTimeStamp(message));
+            Output(WithTimeStamp(message));
+        }
+        
+        /// <summary>
+        /// Output the log line. 
+        /// Abstracted for testing reasons
+        /// </summary>
+        protected virtual void Output(string message)
+        {
+            Console.WriteLine(message);
         }
 
         private string WithTimeStamp(string message) => string.Format("[{0}] {1}", DateTime.UtcNow.ToString("HH:mm:ss.ff"), message);

@@ -22,19 +22,24 @@ namespace BuildXL.AdoBuildRunner.Build
         /// </summary>
         public required string OrchestratorLocation { get; init; }
 
+        /// <summary>
+        /// Orchestrator 
+        /// </summary>
+        public required string OrchestratorPool {  get; init; }
+
         /// <nodoc />
-        public string Serialize() => $"{RelatedSessionId};{OrchestratorLocation}"; 
+        public string Serialize() => $"{RelatedSessionId};{OrchestratorLocation};{OrchestratorPool}"; 
 
         /// <nodoc />
         public static BuildInfo Deserialize(string serialized)
         {
             var splits = serialized.Split(';');
-            if (splits.Length != 2)
+            if (splits.Length != 3)
             {
                 throw new ArgumentException("The provided string does not represent a valid BuildInfo");
             }
 
-            return new BuildInfo { RelatedSessionId = splits[0], OrchestratorLocation = splits[1] };
+            return new BuildInfo { RelatedSessionId = splits[0], OrchestratorLocation = splits[1], OrchestratorPool = splits[2] };
         }
     }
 }

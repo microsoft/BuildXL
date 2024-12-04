@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using AdoBuildRunner;
 using AdoBuildRunner.Vsts;
 using BuildXL.AdoBuildRunner;
+using BuildXL.AdoBuildRunner.Build;
 using Microsoft.TeamFoundation.Build.WebApi;
 using Microsoft.VisualStudio.Services.WebApi;
 using Test.BuildXL.TestUtilities.Xunit;
@@ -107,11 +108,12 @@ namespace Test.Tool.AdoBuildRunner
                 });
             }
 
+            var buildInfo = CreateTestBuildInfo();
             try
             {
                 // Attempt to publish build info using the ADO Build Runner service.
                 // This should succeed for unique build IDs and fail for duplicate invocation keys.
-                await adoBuildRunnerService.PublishBuildInfo(CreateTestBuildInfo());
+                await adoBuildRunnerService.PublishBuildInfo(buildInfo);
             }
             catch (CoordinationException ex)
             {
@@ -125,8 +127,9 @@ namespace Test.Tool.AdoBuildRunner
                 // Verify that no exception was thrown.
                 XAssert.IsFalse(exceptionThrown);
                 // Check if the build properties contain the serialized orchestrator data.
-                var properties = await ((IAdoAPIService)MockApiService).GetBuildPropertiesAsync(orchestratorBuildId);
-                XAssert.IsTrue(properties.ContainsValue($"{TestRelatedSessionId};{TestOrchestratorLocation}"));
+                var properties = await ((IAdoService)MockApiService).GetBuildPropertiesAsync(orchestratorBuildId);
+
+                XAssert.IsTrue(properties.ContainsValue(buildInfo.Serialize()));
             }
             else
             {
@@ -166,9 +169,10 @@ namespace Test.Tool.AdoBuildRunner
             MockApiService.AddBuildTriggerProperties(Constants.TriggeringAdoBuildIdParameter, TestOrchestratorId.ToString());
 
             // Add orchestrator's mock build properties for testing purpose.
+            var buildInfo = CreateTestBuildInfo();
             var orchestratorProperties = new PropertiesCollection
             {
-                { orchHarness.RunnerService.BuildContext.InvocationKey, $"{TestRelatedSessionId};{TestOrchestratorLocation}" }
+                { orchHarness.RunnerService.BuildContext.InvocationKey, buildInfo.Serialize() }
             };
 
             MockApiService.AddBuildProperties(TestOrchestratorId, orchestratorProperties);
@@ -216,7 +220,6 @@ namespace Test.Tool.AdoBuildRunner
             harness.Initialize();
             var adoBuildRunnerService = harness.RunnerService;
 
-
             // Create a mock orchestrator build with the specified source branch and version.
             var orchestratorBuild = CreateTestBuild(orchHarness.AdoEnvironment);
             // Add the orchestrator build to the mock ADO API service.
@@ -226,26 +229,22 @@ namespace Test.Tool.AdoBuildRunner
             MockApiService.AddBuildTriggerProperties(Constants.TriggeringAdoBuildIdParameter, TestOrchestratorId.ToString());
 
             // Add orchestrator's mock build properties for testing purpose.
-            // When testing for duplicate chosenInvocationKey's, we add the chosenInvocationKey with different jobId.
-            PropertiesCollection orchestratorProperties;
+            // When testing for duplicate chosenInvocationKeys, we add the worker sentinel.
             if (!shouldSucceed)
             {
-                orchestratorProperties = new()
+                MockApiService.AddBuildProperties(TestOrchestratorId, new()
                 {
-                    { orchHarness.RunnerService.BuildContext.InvocationKey + "__workerjobid", "10009" }
-                };
+                    { orchHarness.RunnerService.BuildContext.InvocationKey + "__workerjobid", "1" }
+                });
             }
-            else
-            {
-                // We assume that the orchestrator has successfully published its address.
-                // Hence we map the chosenInvocationKey with the below value.
-                orchestratorProperties = new()
-                {
-                    { orchHarness.RunnerService.BuildContext.InvocationKey, $"{TestRelatedSessionId};{TestOrchestratorLocation}" }
-                };
-            }
-            MockApiService.AddBuildProperties(TestOrchestratorId, orchestratorProperties);
 
+            // We assume that the orchestrator has successfully published its address.
+            // Hence we map the chosenInvocationKey with the below value.
+            MockApiService.AddBuildProperties(TestOrchestratorId, new()
+            {
+                { orchHarness.RunnerService.BuildContext.InvocationKey, CreateTestBuildInfo().Serialize() }
+            });
+            
             try
             {
                 var result = await adoBuildRunnerService.WaitForBuildInfo();
@@ -311,9 +310,10 @@ namespace Test.Tool.AdoBuildRunner
             PropertiesCollection orchestratorProperties;
             // We assume that the orchestrator has successfully published its address.
             // Hence we map the chosenInvocationKey with the below value.
+            var buildInfo = CreateTestBuildInfo();
             orchestratorProperties = new()
             {
-                 { orchHarness.RunnerService.BuildContext.InvocationKey, $"{TestRelatedSessionId};{TestOrchestratorLocation}" }
+                 { orchHarness.RunnerService.BuildContext.InvocationKey, buildInfo.Serialize() }
             };
 
             MockApiService.AddBuildProperties(TestOrchestratorId, orchestratorProperties);

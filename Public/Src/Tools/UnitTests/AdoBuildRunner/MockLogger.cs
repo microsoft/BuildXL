@@ -3,70 +3,26 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using BuildXL.AdoBuildRunner.Vsts;
+using Test.BuildXL.TestUtilities.Xunit;
 
 namespace Test.Tool.AdoBuildRunner
 {
-    public class MockLogger : ILogger
+    public class MockLogger : Logger
     {
         internal List<string> Messages = new List<string>();
 
-        /// <nodoc />
-        public void Info(string message)
+        /// <inheritdoc />
+        protected override void Output(string message)
         {
-            Console.WriteLine(WithTimeStamp(message));
             Messages.Add(message);
         }
 
-        /// <nodoc />
-        public void Debug(string debugMessage)
+        public void AssertLogContains(string substring)
         {
-
+            XAssert.IsTrue(Messages.Any(m => m.Contains(substring)));
         }
-
-        /// <nodoc />
-        public void Warning(string warningMessage)
-        {
-
-        }
-
-        /// <nodoc />
-        public void Error(string errorMessage)
-        {
-
-        }
-
-        /// <nodoc />
-        public void Warning(string format, params object[] args)
-        {
-
-        }
-
-        /// <nodoc />
-        public void Error(string format, params object[] args)
-        {
-
-        }
-
-        /// <nodoc />
-        public void Debug(string format, params object[] args)
-        {
-
-        }
-
-        /// <nodoc />
-        public void Warning(Exception ex, string warningMessage)
-        {
-
-        }
-
-        /// <nodoc />
-        public void Error(Exception ex, string errorMessage)
-        {
-
-        }
-
-        private string WithTimeStamp(string message) => string.Format("[{0}] {1}", DateTime.UtcNow.ToString("HH:mm:ss.ff"), message);
 
         public int MessageCount(string messageSubString)
         {

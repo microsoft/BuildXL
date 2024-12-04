@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using AdoBuildRunner.Vsts;
 using BuildXL.AdoBuildRunner;
 using BuildXL.AdoBuildRunner.Vsts;
 using Microsoft.TeamFoundation.Build.WebApi;
@@ -13,9 +14,9 @@ using Microsoft.VisualStudio.Services.WebApi;
 namespace AdoBuildRunner
 {
     /// <summary>
-    /// Concrete implementation of the ADO API interface for interacting with ADO build services.
+    /// Concrete implementation of <see cref="IAdoService"/>
     /// </summary>
-    public class AdoApiService : IAdoAPIService
+    public class AdoService : IAdoService
     {
         private readonly BuildHttpClient m_buildClient;
 
@@ -28,12 +29,18 @@ namespace AdoBuildRunner
         /// </summary>
         private readonly VstsHttpRelay m_http;
 
+        /// <summary>
+        /// We need to query IMDS for some resource metadata 
+        /// </summary>
+        private readonly AzureInstanceMetadataService m_imds;
+
         /// <nodoc />
-        public AdoApiService(IAdoEnvironment adoBuildRunnerEnv, ILogger logger)
+        public AdoService(IAdoEnvironment adoBuildRunnerEnv, ILogger logger)
         {
             m_logger = logger;
             m_projectId = new Guid(adoBuildRunnerEnv.TeamProjectId);
-            m_http = new VstsHttpRelay(adoBuildRunnerEnv, logger);
+            m_http = new VstsHttpRelay(adoBuildRunnerEnv);
+            m_imds = new AzureInstanceMetadataService();
             var server = new Uri(adoBuildRunnerEnv.ServerUri);
             var cred = new VssBasicCredential(string.Empty, adoBuildRunnerEnv.AccessToken);
             m_buildClient = new BuildHttpClient(server, cred);
@@ -61,6 +68,12 @@ namespace AdoBuildRunner
         public Task<Dictionary<string, string>> GetBuildTriggerInfoAsync()
         {
             return m_http.GetBuildTriggerInfoAsync();
+        }
+
+        /// <inheritdoc />
+        public async Task<string> GetPoolNameAsync()
+        {
+            return await m_imds.GetPoolName(m_logger) ?? string.Empty;
         }
     }
 }

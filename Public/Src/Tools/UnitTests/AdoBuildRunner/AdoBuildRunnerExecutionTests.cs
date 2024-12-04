@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using AdoBuildRunner;
 using BuildXL.AdoBuildRunner.Build;
@@ -91,6 +92,38 @@ namespace Test.Tool.AdoBuildRunner
             // The worker now tries to join the build session. But because the orchestrator is done, it won't even run BuildXL
             await wManager.BuildAsync();
             XAssert.IsFalse(worker.MockLauncher.Launched);
+        }
+
+        [Fact]
+        public async Task PoolMismatchIsLogged()
+        {
+            var (orchestrator, worker) = CreateOrchestratorWorkerPairBuild();
+
+            var invocationKey = worker.Config.InvocationKey;
+
+            var orchTcs = new TaskCompletionSource();
+            orchestrator.MockLauncher.CompletionTask = orchTcs.Task;    // We'll delay the orchestrator so the worker has a chance to 'attach' while the build is running
+
+            orchestrator.Initialize();
+            worker.Initialize();
+
+            var buildArgs = new[] { "/foo", "/bar" };
+            var wManager = new BuildManager(worker.RunnerService, worker.BuildExecutor, buildArgs, worker.MockLogger);
+            var oManager = new BuildManager(orchestrator.RunnerService, orchestrator.BuildExecutor, buildArgs, orchestrator.MockLogger);
+
+            var poolId = 0;
+            // Return a different pool for each agent
+            MockApiService.GetPoolName = () => $"Pool_{Interlocked.Increment(ref poolId)}";
+
+            var oBuildTask = oManager.BuildAsync();
+            var wBuildTask = wManager.BuildAsync();
+
+            var workerReturn = await wBuildTask.WithTimeoutAsync(TimeSpan.FromSeconds(5)); // Worker finishes
+            orchTcs.SetResult();    // And now let orchestrator finish
+            var orchReturn = await oBuildTask.WithTimeoutAsync(TimeSpan.FromSeconds(5));
+
+            XAssert.IsTrue(worker.MockLauncher.Launched);
+            worker.MockLogger.AssertLogContains("is different than the pool the orchestrator is running on");
         }
 
         private (AgentHarness Orchestrator, AgentHarness Worker) CreateOrchestratorWorkerPairBuild()

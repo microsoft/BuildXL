@@ -78,13 +78,6 @@ namespace BuildXL.Scheduler
         /// <nodoc/>
         public IReadOnlyCollection<DiskStatistics> DiskStatistics;
 
-        /// <summary>
-        /// The LowMemory smell is logged when it first happens instead of waiting for the end of the build, since
-        /// there is a high likelihood that the machine would be so bogged down from paging that the user would kill
-        /// the build before it gets to the end when all perf smells are logged
-        /// </summary>
-        public bool HitLowMemorySmell;
-
         /// <nodoc/>
         public PipCountersByTelemetryTag ProcessPipCountersByTelemetryTag;
     }

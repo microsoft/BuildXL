@@ -457,7 +457,7 @@ namespace BuildXL.Scheduler.Tracing
 
         LowRamMemory = 14007,
         LowCommitMemory = 14014,
-        HitLowMemorySmell = 14015,
+      // was HitLowMemorySmell = 14015,
         HighFileDescriptorCount = 14016,
 
         DirtyBuildExplicitlyRequestedModules = 14200,

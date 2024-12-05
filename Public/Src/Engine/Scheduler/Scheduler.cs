@@ -109,6 +109,11 @@ namespace BuildXL.Scheduler
         private const int MaxInitialPipPriority = (1 << CriticalPathPriorityBitCount) - 1;
 
         /// <summary>
+        /// The RAM utilization percentage above which we consider the situation to be problematic enough to issue some logging
+        /// </summary>
+        private const int ProblematicRamUtilizationPercentageThreshold = 98;
+
+        /// <summary>
         /// The piptypes we want to report stats for.
         /// </summary>
         private static readonly PipType[] s_pipTypesToLogStats =
@@ -1152,7 +1157,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Whether a low ram memory perf smell was reached
         /// </summary>
-        private volatile bool m_hitLowRamMemoryPerfSmell;
+        private volatile bool m_hitCriticallyLowRam;
 
         /// <summary>
         /// Whether a low commit memory perf smell was reached
@@ -2358,7 +2363,6 @@ namespace BuildXL.Scheduler
                 MachineMinimumAvailablePhysicalMB = SafeConvert.ToLong(((m_performanceAggregator != null && m_performanceAggregator.MachineAvailablePhysicalMB.Count > 2) ? m_performanceAggregator.MachineAvailablePhysicalMB.Minimum : -1)),
                 AverageMachineCPU = (m_performanceAggregator != null && m_performanceAggregator.MachineCpu.Count > 2) ? (int)m_performanceAggregator.MachineCpu.Average : 0,
                 DiskStatistics = m_performanceAggregator != null ? m_performanceAggregator.DiskStats : null,
-                HitLowMemorySmell = m_hitLowRamMemoryPerfSmell,
                 ProcessPipCountersByTelemetryTag = ProcessPipCountersByTelemetryTag
             };
         }
@@ -3033,14 +3037,14 @@ namespace BuildXL.Scheduler
                 // This is the calculation for the low memory perf smell. This is somewhat of a check against how effective
                 // the throttling is. It happens regardless of the throttling limits and is logged when we're pretty
                 // sure there is a ram problem
-                bool isAvailableRamCritical = perfInfo.AvailableRamMb.Value < 100 || perfInfo.RamUsagePercentage.Value >= 98;
+                bool isAvailableRamCritical = perfInfo.AvailableRamMb.Value < 100 || perfInfo.RamUsagePercentage.Value >= ProblematicRamUtilizationPercentageThreshold;
                 if (isAvailableRamCritical)
                 {
                     PipExecutionCounters.IncrementCounter(PipExecutorCounter.CriticalLowRamMemory);
 
-                    if (!m_hitLowRamMemoryPerfSmell)
+                    if (!m_hitCriticallyLowRam)
                     {
-                        m_hitLowRamMemoryPerfSmell = true;
+                        m_hitCriticallyLowRam = true;
                         // Log the perf smell at the time that it happens since the machine is likely going to get very
                         // bogged down and we want to make sure this gets sent to telemetry before the build is killed.
                         Logger.Log.LowRamMemory(m_executePhaseLoggingContext, perfInfo.AvailableRamMb.Value, perfInfo.RamUsagePercentage.Value);

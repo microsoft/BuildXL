@@ -3588,7 +3588,7 @@ namespace BuildXL.Scheduler.Tracing
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.HostApplication,
-            Message = "Machine ran out of physical ram and had to fall back to the page file: {machineAvailablePhysicalMb} MB - {machineRamUsagePercentage}%.",
+            Message = "Machine is close to running out of physical ram: {machineAvailablePhysicalMb} MB - {machineRamUsagePercentage}%.",
             Keywords = (int)Keywords.UserMessage)]
         public abstract void LowRamMemory(LoggingContext context, int machineAvailablePhysicalMb, int machineRamUsagePercentage);
 
@@ -3600,15 +3600,6 @@ namespace BuildXL.Scheduler.Tracing
             Message = "Machine ran out of commit memory: {machineAvailableCommitMb} MB - {machineCommitUsagePercentage}%.",
             Keywords = (int)Keywords.UserMessage)]
         public abstract void LowCommitMemory(LoggingContext context, int machineAvailableCommitMb, int machineCommitUsagePercentage);
-
-        [GeneratedEvent(
-            (ushort)LogEventId.HitLowMemorySmell,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Verbose,
-            EventTask = (ushort)Tasks.HostApplication,
-            Message = "Machine ran out of physical ram and had to fall back to the page file. This can dramatically impact build performance. Either too much concurrency was used during the build or the memory throttling options were not effective. Try adjusting the following options: /maxproc, /maxRamUtilizationPercentage. See verbose help text for details: {MainExecutableName} /help:verbose",
-            Keywords = (int)Keywords.UserMessage)]
-        public abstract void HitLowMemorySmell(LoggingContext context);
 
         [GeneratedEvent(
             (ushort)LogEventId.HighFileDescriptorCount,

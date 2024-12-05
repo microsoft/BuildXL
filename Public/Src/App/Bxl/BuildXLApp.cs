@@ -2729,11 +2729,6 @@ namespace BuildXL
                     LogPerfSmell(context, () => Logger.Log.SlowCacheInitialization(context, perfInfo.EnginePerformanceInfo.CacheInitializationDurationMs));
                 }
 
-                if (perfInfo.EnginePerformanceInfo.SchedulerPerformanceInfo.HitLowMemorySmell)
-                {
-                    LogPerfSmell(context, () => Scheduler.Tracing.Logger.Log.HitLowMemorySmell(context));
-                }
-
                 if (config.Sandbox.LogProcesses)
                 {
                     LogPerfSmell(context, () => Logger.Log.LogProcessesEnabled(context));

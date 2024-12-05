@@ -256,7 +256,7 @@
     <value>Sandbox kind '{0}' cannot be used on '{1}' operating system</value>
   </data>
   <data name="HelpText_DisplayHelp_SandboxKind" xml:space="preserve">
-    <value>Specifies the sandbox kind. Allowed values are 'None' (no sandboxing), 'Default' (default sandboxing), 'WinDetours', 'MacOsKext'. Default is 'Default'.</value>
+    <value>Specifies the sandbox kind. Allowed values are 'None' (no sandboxing), 'Default' (default sandboxing), 'WinDetours'. Default is 'Default'.</value>
   </data>
   <data name="HelpText_DisplayHelp_IgnoreNonExistentProbes" xml:space="preserve">
     <value>When enabled, {ShortProductName} will not report non existent probes, that are not in sealed directories. This might lead to incorrect builds because some file accesses will not be enforced and validated. Certain calls to GetFileAttribute method for non existing files will not be reported to {ShortProductName}.</value>

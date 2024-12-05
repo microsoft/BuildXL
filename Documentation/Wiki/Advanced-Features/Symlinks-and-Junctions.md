@@ -1,6 +1,6 @@
 # Symlinks and junctions
 
-|               | Windows | macOS |
+|               | Windows | Linux |
 |-----------|:-----------:|-----------|
 | File symlinks | Fully supported | Fully supported |
 | Directory symlinks | Partially supported; treated like junctions. See details below | Fully supported |

@@ -217,21 +217,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public bool MeasureProcessCpuTimes { get; set; }
 
         /// <inheritdoc />
-        public uint KextReportQueueSizeMb { get; set; }
-
-        /// <inheritdoc />
-        public bool KextEnableReportBatching { get; set; }
-
-        /// <inheritdoc />
-        public uint KextThrottleCpuUsageBlockThresholdPercent { get; set; }
-
-        /// <inheritdoc />
-        public uint KextThrottleCpuUsageWakeupThresholdPercent { get; set; }
-
-        /// <inheritdoc />
-        public uint KextThrottleMinAvailableRamMB { get; set; }
-
-        /// <inheritdoc />
         public AdminRequiredProcessExecutionMode AdminRequiredProcessExecutionMode { get; set; }
 
         /// <inheritdoc />

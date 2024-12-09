@@ -1188,7 +1188,7 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
         [InlineData(10)]
         [InlineData(100)]
         [InlineData(1000)]
-        [Trait("Category", "WindowsOSOnly")]
+        [Trait("Category", "SkipLinux")]
         public void WriteAllBytesToLongFilePaths(int deltaMaxShortPath)
         {
             using var testDirectory = new DisposableDirectory(FileSystem);
@@ -1213,7 +1213,6 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
         }
 
         [Fact]
-        [Trait("Category", "WindowsOSOnly")]
         public void HardLinkToLongSourceAndDestinationFilePaths()
         {
             using (var testDirectory = new DisposableDirectory(FileSystem))
@@ -1259,7 +1258,6 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
         [InlineData(10)]
         [InlineData(100)]
         [InlineData(1000)]
-        [Trait("Category", "WindowsOSOnly")]
         public void HardLinkToLongDestinationFilePaths(int deltaMaxShortPath)
         {
             using var testDirectory = new DisposableDirectory(FileSystem);
@@ -1363,7 +1361,6 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
         }
 
         [Fact]
-        [Trait("Category", "WindowsOSOnly")] // See Bug #1355843
         public void CreatingHardLinkWhenDenyWritesFileAlreadyExistsOverwrite()
         {
             using (var testDirectory = new DisposableDirectory(FileSystem))
@@ -1395,7 +1392,6 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
         }
 
         [Fact]
-        [Trait("Category", "WindowsOSOnly")] // See Bug #1355843
         public void CreatingHardLinkWhenFileAlreadyExistsOverwrite()
         {
             using (var testDirectory = new DisposableDirectory(FileSystem))
@@ -1571,7 +1567,6 @@ namespace BuildXL.Cache.ContentStore.InterfacesTest.FileSystem
         }
 
         [Fact]
-        [Trait("Category", "WindowsOSOnly")] // See Bug #1355843
         public void CreatingHardLinkWhenReadOnlyFileAlreadyExistsOverwrite()
         {
             using (var testDirectory = new DisposableDirectory(FileSystem))

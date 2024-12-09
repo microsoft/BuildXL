@@ -219,7 +219,7 @@ namespace Test.BuildXL.Utilities
             }
         }
 
-        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true, requiresAdmin: true)]
+        [TheoryIfSupported(requiresAdmin: true)]
         [InlineData(true, false, false)] // Don't expect success when we cannot read through the junction
         [InlineData(true, true, true)]
         [InlineData(false, true, false)]

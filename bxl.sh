@@ -85,11 +85,9 @@ function setInternal() {
 function compileWithBxl() {
     local args=(
         --config "$MY_DIR/config.dsc"
-        /fancyConsoleMaxStatusPips:10
-        # LazySODeletion is disabled as it is flaky on linux
-        # /exp:LazySODeletion
-        /nowarn:11319 # DX11319: nuget version mismatch
         /logsToRetain:20
+        # Ignore accesses related to a VSCode tunnel
+        /unsafe_GlobalUntrackedScopes:$HOME/.vscode-server
         "$@"
     )
 

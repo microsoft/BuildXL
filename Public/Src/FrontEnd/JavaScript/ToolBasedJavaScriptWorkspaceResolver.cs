@@ -93,20 +93,21 @@ namespace BuildXL.FrontEnd.JavaScript
 
             Possible<(JavaScriptGraph<TGraphConfiguration> graph, GenericJavaScriptGraph<DeserializedJavaScriptProject, TGraphConfiguration> flattenedGraph)> maybeResult = await ComputeBuildGraphAsync(outputFile, buildParameters);
 
+            if (ResolverSettings.KeepProjectGraphFile == true || !maybeResult.Succeeded)
+            {
+                // Graph-related files are requested to be left on disk, or we encountered a failure.
+                // Copy them to the output logs to facilitate uploads.
+                await CopyGraphBuilderRelatedFilesToLogsDirectoryAsync(outputFile);
+            }
+            else
+            {
+                DeleteGraphBuilderRelatedFiles(outputFile);
+            }
+
             if (!maybeResult.Succeeded)
             {
                 // A more specific error has been logged already
                 return maybeResult.Failure;
-            }
-
-            if (ResolverSettings.KeepProjectGraphFile != true)
-            {
-                DeleteGraphBuilderRelatedFiles(outputFile);
-            }
-            else
-            {
-                // Graph-related files are requested to be left on disk. Copy them to the output directory to facilitate log uploads.
-                await CopyGraphBuilderRelatedFilesToOutputDirectoryAsync(outputFile, Configuration.Logging.LogsDirectory);
             }
 
             return maybeResult;
@@ -420,23 +421,32 @@ namespace BuildXL.FrontEnd.JavaScript
             }
         }
 
-        private async Task CopyGraphBuilderRelatedFilesToOutputDirectoryAsync(AbsolutePath outputFile, AbsolutePath outputDirectory)
+        private async Task CopyGraphBuilderRelatedFilesToLogsDirectoryAsync(AbsolutePath outputFile)
         {
-            // Copy the file with the serialized graph to the output directory. Log uploads are usually done on the whole output directory, so this makes it easier for people to find the
-            // serialized graph on a lab build
+            // Copy the file with the serialized graph to the logs directory.
+            // Log uploads are usually done on the whole directory, so this makes it easier for people to find the
+            // serialized graph on a lab build.
             // If there is a problem copying this file, log as a warning and move on, this is not a blocking problem
-            var destinationFile = outputDirectory.Combine(Context.PathTable, outputFile.GetName(Context.PathTable)).ToString(Context.PathTable);
+            var outputDirectory = Configuration.Logging.LogsDirectory;
+            var filenameBaseName = $"{Name}Resolver_GraphConstructionTool";
+            var destinationFile = outputDirectory.Combine(Context.PathTable, $"{filenameBaseName}.out").ToString(Context.PathTable);
             try
             {
-                await FileUtilities.CopyFileAsync(outputFile.ToString(Context.PathTable), destinationFile);
-                
+                var outputFileAsString = outputFile.ToString(Context.PathTable);
+                // The file may not always be present (e.g., on failure we still try to copy these files)
+                if (FileUtilities.Exists(outputFileAsString))
+                {
+                    await FileUtilities.CopyFileAsync(outputFileAsString, destinationFile);
+                }
+
                 // The error file may not always be present, but we want to copy it if that's the case.
                 var errorFile = GetErrorFile(outputFile, Context.PathTable);
                 var errorFileAsString = errorFile.ToString(Context.PathTable);
 
                 if (FileUtilities.Exists(errorFileAsString))
                 {
-                    await FileUtilities.CopyFileAsync(errorFileAsString, outputDirectory.Combine(Context.PathTable, errorFile.GetName(Context.PathTable)).ToString(Context.PathTable));
+                    var errorFileDestination = outputDirectory.Combine(Context.PathTable, $"{filenameBaseName}.err").ToString(Context.PathTable);
+                    await FileUtilities.CopyFileAsync(errorFileAsString, errorFileDestination);
                 }
             }
             catch (BuildXLException ex)

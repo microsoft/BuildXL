@@ -2709,7 +2709,7 @@ namespace BuildXL.Scheduler
 
                 // PipState.Running does not mean that the pip is actually running. The pip might be waiting for a slot.
                 // That's why, we need to get the actual number of process pips that were allocated a slot on the workers (including localworker).
-                long numProcessPipsAllocatedSlots = Workers.Sum(a => a.AcquiredSlotsForProcessPips);
+                long numProcessPipsAllocatedSlots = Workers.Sum(a => a.AcquiredProcessSlots);
 
                 // Verify available disk space is greater than the minimum available space specified in /minimumDiskSpaceForPipsGb:<int>
                 if (m_diskSpaceMonitoredDrives != null &&

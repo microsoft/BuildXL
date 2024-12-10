@@ -374,9 +374,9 @@ namespace BuildXL.Scheduler.Distribution
         public int AcquiredSlots => AcquiredProcessSlots + AcquiredCacheLookupSlots + AcquiredLightProcessSlots + AcquiredIpcSlots + Volatile.Read(ref m_acquiredPostProcessSlots);
 
         /// <summary>
-        /// Gets the currently acquired slots for process pips.
+        /// Gets the currently acquired slots for process pips which is a sum of process slots and cache lookup slots.
         /// </summary>
-        public int AcquiredSlotsForProcessPips => AcquiredProcessSlots + AcquiredCacheLookupSlots;
+        public int AcquiredProcessAndCacheLookupSlots => AcquiredProcessSlots + AcquiredCacheLookupSlots;
 
         /// <summary>
         /// Gets the currently acquired process slots

@@ -565,6 +565,7 @@ export namespace DropDaemonRunner {
         "QAUTHMATERIALROOT",                        // Auth material for low-privilege build.
         "AZURE_ARTIFACTS_CREDENTIALPROVIDERS_PATH", // Cloudbuild auth helper executable path for build cache, symbol, and drop
         "Q_SESSION_GUID", // TODO: Remove after golden update (#2104026)
+        "CB_COMPUTE_PROVIDER", // Informs ESRPManifestSign.exe whether the build is happening in Autopilot or RM
         ...cloudBuildVarsPointingToDirs];
     /**
      * Sets the values of the 'forwardEnvironmentVars'

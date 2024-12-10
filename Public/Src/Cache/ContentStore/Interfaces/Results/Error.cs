@@ -74,13 +74,24 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
         }
 
         /// <summary>
-        /// Creates an error from with a given <paramref name="errorMessage"/> and <paramref name="exception"/>.
+        /// Creates an error with a prefixed <paramref name="errorMessage"/> and <paramref name="exception"/>.
         /// </summary>
         public static Error FromException(Exception exception, string? errorMessage = null)
         {
             var message = exception is ResultPropagationException rpe ? rpe.Message : GetErrorMessageFromException(errorMessage, exception);
-            var diagnostics = new Lazy<string>(() => CreateDiagnostics(exception));
-            return new Error(message, exception, diagnostics);
+            return FromExceptionOverrideMessage(exception, message, addDiagnostics: true);
+        }
+
+        /// <summary>
+        /// Creates an error with an <paramref name="overrideErrorMessage"/> and <paramref name="exception"/>.
+        /// </summary>
+        /// <remarks>
+        /// The displayed error message will be <paramref name="overrideErrorMessage"/> instead of the exception message.
+        /// </remarks>
+        public static Error FromExceptionOverrideMessage(Exception exception, string overrideErrorMessage, bool addDiagnostics = true)
+        {
+            var diagnostics = addDiagnostics ? new Lazy<string>(() => CreateDiagnostics(exception)) : null;
+            return new Error(overrideErrorMessage, exception, diagnostics);
         }
 
         /// <summary>

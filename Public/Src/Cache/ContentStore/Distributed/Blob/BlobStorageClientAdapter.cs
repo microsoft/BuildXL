@@ -372,81 +372,91 @@ public class BlobStorageClientAdapter
             Tracer,
             async context =>
             {
-                // This updates the last access time in blob storage when last access time tracking is enabled. 
-                // See: https://learn.microsoft.com/en-us/azure/storage/blobs/lifecycle-management-overview?tabs=azure-portal#move-data-based-on-last-accessed-time
-                if (hard)
+                try
                 {
-                    // Update the last access time by updating a header. This method is good because it forces an
-                    // update to the last modification time (which we use as last access time as well), and the update
-                    // is never binned (i.e., it's updated every time).
-                    // The method is bad because it requires write access to the blob, which some clients may not have.
-                    //
-                    // We update the HTTP headers to a random value because there's no direct way to force an update of
-                    // the last access time, so we update the last modification time. There's also no way to update the
-                    // last modification time in the blob storage API, so we have to update either the metadata or the
-                    // properties.
-                    //
-                    // Updating the Metadata is not a good idea here because the API replaces the previous metadata
-                    // with the new one, so you need to have the old metadata in order to perform a single-item update,
-                    // and we actually use the metadata to implement compression.
-                    //
-                    // The same thing happens with the properties, but since we don't actually use the properties it's
-                    // not a big deal.
-                    BlobRequestConditions? conditions = null;
-                    if (etag is not null)
-                    {
-                        conditions = new BlobRequestConditions()
-                        {
-                            IfMatch = etag.Value,
-                        };
-                    }
-
-                    var response = await blob.SetHttpHeadersAsync(
-                        httpHeaders: new BlobHttpHeaders()
-                        {
-                            // Setting this to a random value guarantees the last modification time gets updated.
-                            // The reason we set this particular field is we don't expect it to ever be useful for our
-                            // use-case. If it ever becomes useful, we can change it to a more meaningful value and
-                            // we'll have to pick another one.
-                            ContentLanguage = Guid.NewGuid().ToString(),
-                        },
-                        conditions,
-                        cancellationToken: context.Token);
-
-                    // The last modified time in this case is also the last access time. Unfortunately, the blob size
-                    // is unavailable with this method.
-                    return Result.Success<(DateTimeOffset, long?, ETag)>(
-                        (response.Value.LastModified, null, response.Value.ETag),
-                        isNullAllowed: true);
-                }
-                else
-                {
-                    // Update the last access time using a 1-byte download. This method is good because it can be used
-                    // when there's only read access, but bad because the update of the last access time is binned on
-                    // 1d increments (i.e., it's only updated every 24h).
-                    //
+                    // This updates the last access time in blob storage when last access time tracking is enabled. 
                     // See: https://learn.microsoft.com/en-us/azure/storage/blobs/lifecycle-management-overview?tabs=azure-portal#move-data-based-on-last-accessed-time
-                    try
+                    if (hard)
                     {
-                        var response = await blob.DownloadContentAsync(
-                            new BlobDownloadOptions()
+                        // Update the last access time by updating a header. This method is good because it forces an
+                        // update to the last modification time (which we use as last access time as well), and the update
+                        // is never binned (i.e., it's updated every time).
+                        // The method is bad because it requires write access to the blob, which some clients may not have.
+                        //
+                        // We update the HTTP headers to a random value because there's no direct way to force an update of
+                        // the last access time, so we update the last modification time. There's also no way to update the
+                        // last modification time in the blob storage API, so we have to update either the metadata or the
+                        // properties.
+                        //
+                        // Updating the Metadata is not a good idea here because the API replaces the previous metadata
+                        // with the new one, so you need to have the old metadata in order to perform a single-item update,
+                        // and we actually use the metadata to implement compression.
+                        //
+                        // The same thing happens with the properties, but since we don't actually use the properties it's
+                        // not a big deal.
+                        BlobRequestConditions? conditions = null;
+                        if (etag is not null)
+                        {
+                            conditions = new BlobRequestConditions()
                             {
-                                Range = new HttpRange(0, 1),
-                                Conditions = new BlobRequestConditions() { IfMatch = etag ?? ETag.All, }
+                                IfMatch = etag.Value,
+                            };
+                        }
+
+                        var response = await blob.SetHttpHeadersAsync(
+                            httpHeaders: new BlobHttpHeaders()
+                            {
+                                // Setting this to a random value guarantees the last modification time gets updated.
+                                // The reason we set this particular field is we don't expect it to ever be useful for our
+                                // use-case. If it ever becomes useful, we can change it to a more meaningful value and
+                                // we'll have to pick another one.
+                                ContentLanguage = Guid.NewGuid().ToString(),
                             },
+                            conditions,
                             cancellationToken: context.Token);
 
-                        return Result.Success<(DateTimeOffset, long?, ETag)>((response.Value.Details.LastAccessed, response.Value.Details.ContentLength, response.Value.Details.ETag), isNullAllowed: true);
+                        // The last modified time in this case is also the last access time. Unfortunately, the blob size
+                        // is unavailable with this method.
+                        return Result.Success<(DateTimeOffset, long?, ETag)>(
+                            (response.Value.LastModified, null, response.Value.ETag),
+                            isNullAllowed: true);
                     }
-                    catch (RequestFailedException ex) when (ex.ErrorCode == BlobErrorCode.InvalidRange)
+                    else
                     {
-                        // We are dealing with a zero-size piece of content. Use unbounded download API to touch the file.
-                        var response = await blob.DownloadContentAsync(
-                            conditions: new BlobRequestConditions() { IfMatch = etag ?? ETag.All, },
-                            cancellationToken: context.Token);
+                        // Update the last access time using a 1-byte download. This method is good because it can be used
+                        // when there's only read access, but bad because the update of the last access time is binned on
+                        // 1d increments (i.e., it's only updated every 24h).
+                        //
+                        // See: https://learn.microsoft.com/en-us/azure/storage/blobs/lifecycle-management-overview?tabs=azure-portal#move-data-based-on-last-accessed-time
+                        try
+                        {
+                            var response = await blob.DownloadContentAsync(
+                                new BlobDownloadOptions()
+                                {
+                                    Range = new HttpRange(0, 1),
+                                    Conditions = new BlobRequestConditions() { IfMatch = etag ?? ETag.All, }
+                                },
+                                cancellationToken: context.Token);
 
-                        return Result.Success<(DateTimeOffset, long?, ETag)>((response.Value.Details.LastAccessed, response.Value.Details.ContentLength, response.Value.Details.ETag), isNullAllowed: true);
+                            return Result.Success<(DateTimeOffset, long?, ETag)>((response.Value.Details.LastAccessed, response.Value.Details.ContentLength, response.Value.Details.ETag), isNullAllowed: true);
+                        }
+                        catch (RequestFailedException ex) when (ex.ErrorCode == BlobErrorCode.InvalidRange)
+                        {
+                            // We are dealing with a zero-size piece of content. Use unbounded download API to touch the file.
+                            var response = await blob.DownloadContentAsync(
+                                conditions: new BlobRequestConditions() { IfMatch = etag ?? ETag.All, },
+                                cancellationToken: context.Token);
+
+                            return Result.Success<(DateTimeOffset, long?, ETag)>((response.Value.Details.LastAccessed, response.Value.Details.ContentLength, response.Value.Details.ETag), isNullAllowed: true);
+                        }
                     }
+                }
+                // The case of a blob not found is fairly common when doing a touch. The exception that comes back has a pretty big message, and that bloats the cache logs.
+                // Propagate a simpler error message instead
+                catch (RequestFailedException ex) when (ex.ErrorCode == BlobErrorCode.BlobNotFound)
+                {
+                    return new Result<(DateTimeOffset dateTimeOffset, long? contentLength, ETag ETag)>(
+                        Error.FromExceptionOverrideMessage(ex, $"ErrorCode: {BlobErrorCode.BlobNotFound}. Status: {ex.Status}", addDiagnostics: false));
                 }
             },
             traceOperationStarted: false,

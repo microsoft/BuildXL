@@ -82,7 +82,10 @@ namespace BuildXL.Processes
             writer.WriteCompact((uint)m_file);
             writer.Write(m_exception, (w, v) =>
             {
-                w.WriteNullableString(v.Message);
+                // There is no easy way to serialize an exception. So, in addition to serializing the message of the exception,
+                // we also serialize the messages of its inner exceptions.
+                // TODO: Consider serializing the exception as a JSON object; currently it only works with Newtonsoft.Json.
+                w.WriteNullableString(v.LogEventMessage);
                 w.WriteCompact((uint)v.RootCause);
             });
         }

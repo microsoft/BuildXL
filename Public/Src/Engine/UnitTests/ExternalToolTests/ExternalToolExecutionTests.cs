@@ -260,5 +260,21 @@ namespace ExternalToolTest.BuildXL.Scheduler
             RunScheduler().AssertSuccess();
             RunScheduler().AssertCacheHit(process.Process.PipId);
         }
+
+        [Fact]
+        public void ExecutionWithTraceFile()
+        {
+            ProcessBuilder builder = CreatePipBuilder(new[] { Operation.ReadFile(CreateSourceFile()), Operation.WriteFile(CreateOutputFileArtifact()) });
+
+            builder.SetTraceFile(CreateUniqueObjPath("trace", Path.Combine(ObjectRoot, "MyTraceDir")));
+            builder.Options |= Process.Options.RequiresAdmin;
+            ProcessWithOutputs process = SchedulePipBuilder(builder);
+
+            RunScheduler().AssertSuccess();
+            Assert.True(File.Exists(ArtifactToString(process.Process.TraceFile)));
+
+            RunScheduler().AssertCacheHit(process.Process.PipId);
+            Assert.True(File.Exists(ArtifactToString(process.Process.TraceFile)));
+        }
     }
 }

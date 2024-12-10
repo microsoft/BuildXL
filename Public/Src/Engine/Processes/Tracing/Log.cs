@@ -696,8 +696,7 @@ namespace BuildXL.Processes.Tracing
             string pipDescription,
             string path,
             int errorCode,
-            string message,
-            string exception);
+            string message);
 
         [GeneratedEvent(
             (int)LogEventId.PipProcessOutputPreparationToBeRetriedInVM,

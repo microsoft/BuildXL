@@ -1615,8 +1615,7 @@ namespace BuildXL.ProcessPipExecutor
                 m_pipDescription,
                 path,
                 ex.LogEventErrorCode,
-                ex.LogEventMessage,
-                ex.ToString());
+                ex.LogEventMessage);
         }
 
         private void LogInvalidWarningRegex()

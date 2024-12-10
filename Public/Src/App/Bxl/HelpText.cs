@@ -1349,7 +1349,6 @@ namespace BuildXL
             // TODO: Dynamic
             return new string[]
                    {
-                       "AggregateDistributedOutputs",
                        "AdaptiveIO",
                        "ForceReadOnlyForRequestedReadWrite",
                        "UseSubstTargetForCache",

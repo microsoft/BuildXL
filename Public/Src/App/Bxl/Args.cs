@@ -2009,9 +2009,6 @@ namespace BuildXL
                 case "FANCYCONSOLE":
                     loggingConfiguration.FancyConsole = experimentalOptionAndValue.Item2;
                     break;
-                case "USEWORKSPACE":
-                    ReportObsoleteOption(opt);
-                    break;
                 case "USELEGACYDOMINOSCRIPT":
                     // Office-specific flag (at this point) to isolate them from changes
                     frontEndConfiguration.UseLegacyOfficeLogic = experimentalOptionAndValue.Item2;
@@ -2025,9 +2022,6 @@ namespace BuildXL
                         throw CommandLineUtilities.Error(Strings.Args_Experimental_useDominoScriptv2_Deprecated);
                     }
                     break;
-                case "AUTOMATICALLYEXPORTNAMESPACES":
-                    // Deprecated option: Nobody should be passing this anymore. Its on by default now.
-                    break;
                 case "ADAPTIVEIO":
                     scheduleConfiguration.AdaptiveIO = experimentalOptionAndValue.Item2;
                     break;
@@ -2039,12 +2033,6 @@ namespace BuildXL
                     break;
                 case "USESPECPUBLICFACADEANDASTWHENAVAILABLE":
                     frontEndConfiguration.UseSpecPublicFacadeAndAstWhenAvailable = experimentalOptionAndValue.Item2;
-                    break;
-                case "CONVERTPATHLIKELITERALSATPARSETIME":
-                    // Deprecated option: Nobody should be passing this anymore. Its on by default now.
-                    break;
-                case "ESCAPEIDENTIFIERS":
-                    // Deprecated option: Nobody should be passing this anymore. Its on by default now.
                     break;
                 case "GRAPHAGNOSTICINCREMENTALSCHEDULING":
                     // Deprecated option: Nobody should be passing this anymore. Its on by default now.
@@ -2058,11 +2046,6 @@ namespace BuildXL
                 default:
                     throw CommandLineUtilities.Error(Strings.Args_Experimental_UnsupportedValue, experimentalOptionAndValue.Item1);
             }
-        }
-
-        private void ReportObsoleteOption(CommandLineUtilities.Option opt)
-        {
-            m_console.WriteOutputLine(MessageLevel.Warning, I($"Option '{opt.Name}' is obsolete and has no effect any longer."));
         }
 
         /// <summary>

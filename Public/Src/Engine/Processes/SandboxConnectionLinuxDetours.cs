@@ -521,11 +521,14 @@ namespace BuildXL.Processes
             {
                 bool added = m_activeProcesses.TryAdd(pid, 1);
                 LogDebug($"AddPid({pid}) :: added: {added}; size: {m_activeProcesses.Count}");
-                
+
                 // If the recently started process has the same pid as an existing breakaway one, that means
                 // the breakaway process ended and we have a case of process id reuse. The newly started process
                 // is not a breakaway one
-                if (m_breakawayProcesses.TryRemove(pid, out _))
+                // Observe that we send clone events on both parent and child processes (which trigger calls to AddPid), and these can arrive in non-deterministic order.
+                // So the case where both clone events arrive before the breakaway event is possible. Therefore, only try to detect process id reuse if we actually added the pid, otherwise
+                // we might misinterpret the arrival of the second clone event as a process id reuse.
+                if (added && m_breakawayProcesses.TryRemove(pid, out _))
                 {
                     LogDebug($"AddPid({pid}) :: New process is reusing a breakaway pid presumably dead");
                 }

@@ -5,6 +5,7 @@ using System;
 using System.ComponentModel;
 using System.Diagnostics.ContractsLight;
 using System.IO;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading;
 using Microsoft.DataDeduplication.Interop;
@@ -262,17 +263,23 @@ namespace BuildXL.Cache.ContentStore.Hashing
 
                 if (hLib == IntPtr.Zero)
                 {
-                    // Next try the the folder this library is in.
-                    hLib = LoadLibrary(Path.Combine(Directory.GetCurrentDirectory(), libraryName));
-                }
+                    var executingAssemblyDirectory = Directory.GetParent(Assembly.GetExecutingAssembly().Location)?.FullName;
+                    if (executingAssemblyDirectory == null || !Directory.Exists(executingAssemblyDirectory))
+                    {
+                        throw new Win32Exception($"Could not determine executing assembly location to load '{libraryName}' on {Environment.OSVersion}: {Marshal.GetLastWin32Error()}");
+                    }
 
-                if (hLib == IntPtr.Zero)
-                {
-                    // If not there, we carry a copy with us in the x64 folder.
-                    hLib = LoadLibrary(Path.Combine(Directory.GetCurrentDirectory(), "x64", libraryName));
+                    // Next try the the folder this library is in.
+                    hLib = LoadLibrary(Path.Combine(executingAssemblyDirectory, libraryName));
+
                     if (hLib == IntPtr.Zero)
                     {
-                        throw new Win32Exception($"Could not load {libraryName}' on {Environment.OSVersion}: {Marshal.GetLastWin32Error()}");
+                        // If not there, we carry a copy with us in the x64 folder.
+                        hLib = LoadLibrary(Path.Combine(executingAssemblyDirectory, "x64", libraryName));
+                        if (hLib == IntPtr.Zero)
+                        {
+                            throw new Win32Exception($"Could not load {libraryName}' on {Environment.OSVersion}: {Marshal.GetLastWin32Error()}");
+                        }
                     }
                 }
 

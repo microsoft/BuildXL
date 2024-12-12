@@ -182,7 +182,9 @@ public class InteractiveClientTokenCredential : ChainedTokenCredential
 #pragma warning restore ERP022
             }
         }
-        catch (OperationCanceledException)
+        // If the user doesn't respond in time, we cancel the operation. A TokenCredential will throw an AuthenticationFailedException
+        // if the cancellation happens while the interactive prompt is ongoing, so we account for that case as well.
+        catch (Exception ex) when (ex is OperationCanceledException || (ex is AuthenticationFailedException && tokenSource.Token.IsCancellationRequested))
         {
             // Let's provide a more informative message. The cache factory will catch any exception that happens during creation time
             // and will display the error to the user 

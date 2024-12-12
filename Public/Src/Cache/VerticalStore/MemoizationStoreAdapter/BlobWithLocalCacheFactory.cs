@@ -41,7 +41,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             var remoteCacheConfig = blobWithLocalCacheConfig.RemoteCache;
 
             MemoizationStore.Interfaces.Caches.ICache remoteCache;
-            ILogger combinedLogger;
+            ILogger combinedLogger = null;
             ContentStore.Interfaces.FileSystem.AbsolutePath logPath;
 
             try
@@ -52,6 +52,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             }
             catch (Exception e)
             {
+                combinedLogger?.Dispose();
                 return new CacheConstructionFailure(remoteCacheConfig.CacheId, e);
             }
 
@@ -96,6 +97,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             var startupResult = await cache.StartupAsync();
             if (!startupResult.Succeeded)
             {
+                cache.Dispose();
                 return startupResult.Failure;
             }
 

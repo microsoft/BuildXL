@@ -84,6 +84,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                 var startupResult = await cache.StartupAsync();
                 if (!startupResult.Succeeded)
                 {
+                    cache.Dispose();
                     return startupResult.Failure;
                 }
 
@@ -94,7 +95,6 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                 return new CacheConstructionFailure(configuration.CacheId, e);
             }
         }
-
 
         internal static async Task<(ILogger logger, bool storageLogEnabled)> CreateLoggerAsync(TConfig configuration, ILogger fileLogger)
         {

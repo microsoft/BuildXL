@@ -10,6 +10,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Azure.Core;
 using BuildXL.Cache.BuildCacheResource.Helper;
+using BuildXL.Cache.BuildCacheResource.Model;
 using BuildXL.Cache.ContentStore.Distributed.Blob;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Auth;
@@ -71,6 +72,8 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
 
                 context.TracingContext.Info($"Selecting 1ES Build cache resource with name {selectedBuildCacheConfiguration.Name}", nameof(BlobCacheFactory));
 
+                LogBuildCacheConfiguration(context.TracingContext, selectedBuildCacheConfiguration);
+
                 var factoryConfiguration = new AzureBlobStorageCacheFactory.Configuration(
                     ShardingScheme: new ShardingScheme(
                         ShardingAlgorithm.JumpHash,
@@ -116,6 +119,8 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
 
                 var buildCacheConfiguration = maybeBuildCacheConfiguration.Result;
 
+                LogBuildCacheConfiguration(context.TracingContext, buildCacheConfiguration);
+
                 var factoryConfiguration = new AzureBlobStorageCacheFactory.Configuration(
                     ShardingScheme: new ShardingScheme(
                         ShardingAlgorithm.JumpHash,
@@ -146,6 +151,21 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                     IsReadOnly: configuration.IsReadOnly);
 
                 return AzureBlobStorageCacheFactory.Create(context, factoryConfiguration, new StaticBlobCacheSecretsProvider(credentials));
+            }
+        }
+
+        /// <summary>
+        /// Logs the build cache configuration to the cache log for debugging/traceability purposes
+        /// </summary>
+        /// <remarks>
+        /// Logs the cache name, shard URIs, and retention days for the cache
+        /// </remarks>
+        private static void LogBuildCacheConfiguration(Context tracingContext, BuildCacheConfiguration buildCacheConfiguration)
+        {
+            tracingContext.Info($"Using build cache '{buildCacheConfiguration.Name}'. Shard count: {buildCacheConfiguration.Shards.Count}. Retention in days: {buildCacheConfiguration.RetentionDays}", nameof(BlobCacheFactory));
+            foreach (var (shard, index) in buildCacheConfiguration.Shards.Select((shard, index) => (shard, index)))
+            {
+                tracingContext.Info($"[{buildCacheConfiguration.Name} - shard {index}] Url: '{shard.StorageUrl}'", nameof(BlobCacheFactory));
             }
         }
 

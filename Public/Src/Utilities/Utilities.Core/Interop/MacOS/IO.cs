@@ -486,7 +486,14 @@ namespace BuildXL.Interop.Unix
         public const string UsrBin          = "/usr/bin";
         public const string UsrInclude      = "/usr/include";
         public const string UsrLib          = "/usr/lib";
+        /// <summary>
+        /// Contains libraries provided by the OS.
+        /// </summary>
         public const string UsrLib64        = "/usr/lib64";
+        /// <summary>
+        /// Contains libraries installed by the local user.
+        /// </summary>
+        public const string UsrLocalLib64   = "/usr/local/lib64";
         public const string UsrLibexec      = "/usr/libexec";
         public const string UsrShare        = "/usr/share";
         public const string UsrStandalone   = "/usr/standalone";

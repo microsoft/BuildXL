@@ -3020,6 +3020,46 @@ namespace BuildXL.Scheduler
             return 0;
         }
 
+        /// <summary>
+        /// If delayed cache lookup is enabled, then checks whether the <see cref="DispatcherKind.DelayedCacheLookup"/> queue should be blocked based on the number of pips
+        /// currently in the <see cref="DispatcherKind.ChooseWorkerCpu"/> or <see cref="DispatcherKind.CacheLookup"/> queues.
+        /// </summary>
+        private void UpdateQueuesForDelayedCacheLookup()
+        {
+            if (m_scheduleConfiguration.DelayedCacheLookupEnabled())
+            {
+                int totalSlots = PipQueue.NumTotalProcessSlots;
+                int totalPipsWaitingForCacheLookup = Workers.Where(w => w.IsAvailable).Sum(w => w.AcquiredCacheLookupSlots) - Workers.Where(w => w.IsAvailable).Sum(w => w.TotalCacheLookupSlots);;
+                int minElements = (int)(totalSlots * m_scheduleConfiguration.DelayedCacheLookupMinMultiplier.Value);
+                int maxElements = (int)(totalSlots * m_scheduleConfiguration.DelayedCacheLookupMaxMultiplier.Value);
+
+                Contract.Assert(minElements <= maxElements);
+
+                // When there is a large number of ready-to-execute pips in the m_chooseWorkerCpuQueue, we want to stop cache lookup for other pips temporarily.
+                // A potential scenario that can occur is that there are many concurrent builds running that will run the same pip.
+                // If we assume another build is executing that pip and will push its output to the cache, we can delay doing cache lookup on a machine that is busy executing pips.
+                // While waiting in the delayed cache lookup queue, it's possible that another build will have cached this pip and we can avoid running it on this build.
+                // We can do this because cache lookups are relatively cheap compared to running the pip.
+                // Therefore we can throttle the cache lookup queue while the machine is busy executing pips.
+                // To account for this case, we use the ChooseWorkerCpu queue to determine whether to block the DelayedCacheLookup queue.
+
+                // Another scenario this addresses is when a build graph contains many leaf nodes.
+                // When this occurs, there are no pips executing yet, but there will be many waiting for cache lookup.
+                // If worker machines do not connect fast enough, the scheduler may push all of the cache lookups onto the orchestrator machine only.
+                // To avoid this, we can also block the DelayedCacheLookup queue when the cache lookup queue is at capacity.
+                if (PipQueue.GetNumQueuedByKind(DispatcherKind.ChooseWorkerCpu) > maxElements || totalPipsWaitingForCacheLookup > maxElements)
+                {
+                    // we have enough pips queued in chooseworkercpu or cachelookup queues, pause adding new pips to the cache lookup queue
+                    PipQueue.SetMaxParallelDegreeByKind(DispatcherKind.DelayedCacheLookup, 0);
+                }
+                else if (PipQueue.GetNumQueuedByKind(DispatcherKind.ChooseWorkerCpu) <= minElements || totalPipsWaitingForCacheLookup <= minElements)
+                {
+                    // not enough pips are in the chooseworkercpu or cachelookup queues, start adding the pips to the cache lookup queue
+                    PipQueue.SetMaxParallelDegreeByKind(DispatcherKind.DelayedCacheLookup, 1);
+                }
+            }
+        }
+
         private void UpdateResourceAvailability(PerformanceCollector.MachinePerfInfo perfInfo)
         {
             var resourceManager = State.ResourceManager;
@@ -4236,6 +4276,9 @@ namespace BuildXL.Scheduler
             }
 
             // Only orchestrator executes the following statements:
+
+            // When delayed cache lookup is enabled, block or unblock the delayed cache lookup queue.
+            UpdateQueuesForDelayedCacheLookup();
 
             // Send an Executionlog event
             runnablePip.LogExecutionStepPerformance(runnablePip.Step, startTime, duration);

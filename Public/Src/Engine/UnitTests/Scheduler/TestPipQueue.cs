@@ -271,6 +271,9 @@ namespace Test.BuildXL.Scheduler
         public int NumRemoteRunning => 0;
 
         /// <inheritdoc/>
+        public int NumTotalProcessSlots => m_innerQueue.NumTotalProcessSlots;
+
+        /// <inheritdoc/>
         public int GetNumAcquiredSlotsByKind(DispatcherKind queueKind) => m_innerQueue.GetNumAcquiredSlotsByKind(queueKind);
 
         /// <inheritdoc/>

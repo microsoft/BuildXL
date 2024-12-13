@@ -90,6 +90,9 @@ namespace BuildXL.Scheduler
         private int m_totalProcessSlots;
 
         /// <inheritdoc/>
+        public int NumTotalProcessSlots => Volatile.Read(ref m_totalProcessSlots);
+
+        /// <inheritdoc/>
         public int MaxProcesses => m_queuesByKind[DispatcherKind.CPU].MaxParallelDegree;
 
         /// <inheritdoc/>
@@ -237,9 +240,9 @@ namespace BuildXL.Scheduler
         {
             if (maxParallelDegree == 0)
             {
-                // We only allow 0 for ChooseWorkerCpu and ChooseWorkerCacheLookup dispatchers.
+                // We only allow 0 for ChooseWorkerCpu, ChooseWorkerCacheLookup, and DelayedCacheLookup dispatchers.
                 // For all other dispatchers, 0 is not allowed for potential deadlocks.
-                if (!kind.IsChooseWorker())
+                if (!kind.IsChooseWorker() && kind != DispatcherKind.DelayedCacheLookup)
                 {
                     maxParallelDegree = 1;
                 }
@@ -269,26 +272,6 @@ namespace BuildXL.Scheduler
                 Interlocked.Increment(ref m_dispatcherLoopCount);
 
                 m_hasAnyChange.Reset();
-
-                if (m_scheduleConfig.DelayedCacheLookupEnabled())
-                {
-                    int totalSlots = m_totalProcessSlots;
-                    int minElements = (int)(totalSlots * m_scheduleConfig.DelayedCacheLookupMinMultiplier.Value);
-                    int maxElements = (int)(totalSlots * m_scheduleConfig.DelayedCacheLookupMaxMultiplier.Value);
-                    
-                    Contract.Assert(minElements <= maxElements);                    
-                    
-                    if (m_chooseWorkerCpuQueue.NumProcessesQueued > maxElements)
-                    {
-                        // we have enough pips queued, pause adding new pips
-                        m_queuesByKind[DispatcherKind.DelayedCacheLookup].AdjustParallelDegree(0);
-                    }
-                    else if (m_chooseWorkerCpuQueue.NumProcessesQueued <= minElements)
-                    {
-                        // not enough pips are in the queue, start adding the pips
-                        m_queuesByKind[DispatcherKind.DelayedCacheLookup].AdjustParallelDegree(1);
-                    }
-                }
 
                 foreach (var queue in m_queuesByKind.Values)
                 {

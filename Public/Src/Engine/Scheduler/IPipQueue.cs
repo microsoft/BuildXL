@@ -54,6 +54,11 @@ namespace BuildXL.Scheduler
         int NumRemoteRunning { get; }
 
         /// <summary>
+        /// The total number of process slots in the build.
+        /// </summary>
+        int NumTotalProcessSlots { get; }
+
+        /// <summary>
         /// Gets the number of running pips in the given queue
         /// </summary>
         int GetNumRunningPipsByKind(DispatcherKind queueKind);

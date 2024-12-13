@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Pips.Builders;
 using BuildXL.Processes;
@@ -31,6 +32,29 @@ namespace Test.BuildXL.Processes
         {
             RegisterEventSource(global::BuildXL.Processes.ETWLogger.Log);
             TestOutput = output;
+        }
+
+        [Fact]
+        public void ManagedPTraceDetection()
+        {
+            PrepareStaticallyLinkedProcess(
+               out FileArtifact staticProcessArtifact,
+               out _,
+               out _,
+               out _,
+               out _,
+               out _,
+               out _,
+               out _,
+               out DirectoryArtifact workingDirectory);
+
+            var objDumpUtils = UnixObjectFileDumpUtils.CreateObjDump();
+            XAssert.IsTrue(objDumpUtils.IsBinaryStaticallyLinked(staticProcessArtifact.Path.ToString(Context.PathTable)));
+            XAssert.IsFalse(objDumpUtils.IsBinaryStaticallyLinked("/bin/bash"));
+
+            var getcapUtils = UnixGetCapUtils.CreateGetCap();
+            XAssert.IsTrue(getcapUtils.BinaryContainsCapabilities("/bin/ping"));
+            XAssert.IsFalse(getcapUtils.BinaryContainsCapabilities("/bin/bash"));
         }
 
         [Fact]

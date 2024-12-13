@@ -38,5 +38,5 @@ public class UnixObjectFileDumpUtils : UnixUtilsBase
     /// <param name="binaryPath">Path for executable to be tested.</param>
     /// <returns>True if the binary is statically linked, false if not.</returns>
     public bool IsBinaryStaticallyLinked(string binaryPath) => 
-        CheckConditionAgainstStandardOutput(binaryPath, $"-p {binaryPath}", (stdout) => stdout.Contains(ObjDumpLibcOutput));
+        CheckConditionAgainstStandardOutput(binaryPath, $"-p {binaryPath}", (stdout) => !stdout.Contains(ObjDumpLibcOutput));
 }

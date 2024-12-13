@@ -1039,7 +1039,7 @@ namespace Test.BuildXL.Scheduler
 
         [Theory]
         // For all cases except the commented one, if the regex matches every thing, the user gets all the information from the log message,
-        // the path to original stdout/err log file shouldn't be presented.
+        // the log message about where to find stdout/err shouldn't be presented.
         // Otherwise, it should be presented.
         [InlineData(true, ProcessesLogEventId.PipProcessError, false)]
         [InlineData(false, ProcessesLogEventId.PipProcessError, true)]
@@ -1048,7 +1048,7 @@ namespace Test.BuildXL.Scheduler
         // even though the regex matches every thing the error message still get truncated, so present the path to original stdout/err log file
         [InlineData(true, ProcessesLogEventId.PipProcessError, true, 10 * SandboxedProcessPipExecutor.OutputChunkInLines)]
         [InlineData(false, ProcessesLogEventId.PipProcessError, true, 10 * SandboxedProcessPipExecutor.OutputChunkInLines, OutputReportingMode.FullOutputAlways)]
-        [InlineData(true, ProcessesLogEventId.PipProcessError, false, 10 * SandboxedProcessPipExecutor.OutputChunkInLines, OutputReportingMode.FullOutputAlways)]       
+        [InlineData(true, ProcessesLogEventId.PipProcessError, false, 10 * SandboxedProcessPipExecutor.OutputChunkInLines, OutputReportingMode.FullOutputAlways)]
         [InlineData(true, ProcessesLogEventId.PipProcessWarning, false)]
         [InlineData(false, ProcessesLogEventId.PipProcessWarning, true)]
         public Task ProcessPrintPathsToLog(bool regexMatchesEverything, ProcessesLogEventId eventId, bool shouldContainLogPath, int errorMessageLength = 0, OutputReportingMode outputReportingMode = OutputReportingMode.TruncatedOutputOnError)
@@ -1063,9 +1063,11 @@ namespace Test.BuildXL.Scheduler
                     string destination = GetFullPath("dest");
                     AbsolutePath destinationAbsolutePath = AbsolutePath.Create(env.Context.PathTable, destination);
 
+                    Process pip;
+
                     if ((int)eventId == (int)ProcessesLogEventId.PipProcessError)
                     {
-                        Process pip = CreateErrorProcess(
+                        pip = CreateErrorProcess(
                             env.Context,
                             workingDirectoryAbsolutePath,
                             destinationAbsolutePath,
@@ -1077,7 +1079,7 @@ namespace Test.BuildXL.Scheduler
                     }
                     else
                     {
-                        Process pip = CreateWarningProcess(
+                        pip = CreateWarningProcess(
                             env.Context,
                             workingDirectoryAbsolutePath,
                             destinationAbsolutePath,
@@ -1090,23 +1092,24 @@ namespace Test.BuildXL.Scheduler
 
                     string log = EventListener.GetLog();
                     string relatedLog = GetRelatedLog(log, eventId);
+                    string relativeStdLogDir = Path.Combine(SandboxedProcessPipExecutor.StdOutputsDirNameInLog, pip.FormattedSemiStableHash);
 
                     if (shouldContainLogPath)
                     {
-                        XAssert.IsTrue(relatedLog.Contains(destination));
+                        XAssert.IsTrue(relatedLog.Contains(relativeStdLogDir));
                     }
                     else
                     {
-                        XAssert.IsFalse(relatedLog.Contains(destination));
+                        XAssert.IsFalse(relatedLog.Contains(relativeStdLogDir));
                     }
                 },
                 null,
                 pathTable => GetConfiguration(pathTable, enableLazyOutputs: false, outputReportingMode: outputReportingMode));
         }
 
-        private string GetRelatedLog (string log, ProcessesLogEventId eventId)
+        private string GetRelatedLog(string log, ProcessesLogEventId eventId)
         {
-            string start = "DX00"+ ((int)eventId).ToString();
+            string start = "DX00" + ((int)eventId).ToString();
             string[] ends = { "WARNING DX", "ERROR DX", "VERBOSE DX" };
             string upperCaseLog = log.ToUpper();
 

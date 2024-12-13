@@ -163,6 +163,9 @@ namespace BuildXL.Scheduler.Distribution
                 cacheMissType = (PipCacheMissType)reader.ReadByte();
             }
 
+            var standardOutput = ReadEncodedStringKeyedHash(reader);
+            var standardError = ReadEncodedStringKeyedHash(reader);
+
             var processExecutionResult = ExecutionResult.CreateSealed(
                 result,
                 numberOfWarnings,
@@ -184,7 +187,9 @@ namespace BuildXL.Scheduler.Distribution
                 exitCode,
                 createdDirectories,
                 cacheMissType,
-                pipRetryInfo);
+                pipRetryInfo,
+                standardOutput,
+                standardError);
 
             return processExecutionResult;
         }
@@ -251,6 +256,9 @@ namespace BuildXL.Scheduler.Distribution
             {
                 writer.Write(false);
             }
+
+            WriteEncodedStringKeyedHash(writer, result.StandardOutput);
+            WriteEncodedStringKeyedHash(writer, result.StandardError);
         }
 
         private static TwoPhaseCachingInfo ReadTwoPhaseCachingInfo(BuildXLReader reader)
@@ -748,6 +756,40 @@ namespace BuildXL.Scheduler.Distribution
                     writer.Write(key);
                     writer.WriteCompact(pipProperties[key]);
                 }
+            }
+        }
+
+        private static void WriteEncodedStringKeyedHash(BuildXLWriter writer, EncodedStringKeyedHash encodedStringKeyedHash)
+        {
+            if (encodedStringKeyedHash != null)
+            {
+                writer.Write(true);
+                var blob = CacheGrpcExtensions.Serialize(encodedStringKeyedHash);
+                writer.WriteCompact(blob.Count);
+                writer.Write(blob.Array, blob.Offset, blob.Count);
+            }
+            else
+            {
+                writer.Write(false);
+            }
+        }
+
+        private static EncodedStringKeyedHash ReadEncodedStringKeyedHash(BuildXLReader reader)
+        {
+            if (reader.ReadBoolean())
+            {
+                var length = reader.ReadInt32Compact();
+                var blob = new ArraySegment<byte>(reader.ReadBytes(length));
+                var possibleResult = CacheGrpcExtensions.Deserialize<EncodedStringKeyedHash>(blob);
+                if (!possibleResult.Succeeded)
+                {
+                    return null;
+                }
+                return possibleResult.Result;
+            }
+            else
+            {
+                return null;
             }
         }
     }

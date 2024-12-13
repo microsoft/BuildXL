@@ -8,7 +8,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Diagnostics.Tracing;
-using System.Globalization;
+using System.Globalization;                              
 using System.IO;
 using System.Linq;
 using System.Net.Sockets;
@@ -71,6 +71,8 @@ using static BuildXL.Processes.SandboxedProcessFactory;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 using Logger = BuildXL.Scheduler.Tracing.Logger;
 using Process = BuildXL.Pips.Operations.Process;
+using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Engine.Cache.Fingerprints;
 
 namespace BuildXL.Scheduler
 {
@@ -3581,7 +3583,7 @@ namespace BuildXL.Scheduler
                             ReportOpaqueOutputs(runnablePip);
                         }
                     }
-
+                    
                     if (pipType == PipType.Process)
                     {
                         ProcessPipExecutionPerformance processPerformanceResult = result.PerformanceInfo as ProcessPipExecutionPerformance;
@@ -3629,6 +3631,13 @@ namespace BuildXL.Scheduler
                             PipExecutionCounters.AddToCounter(
                                 PipExecutorCounter.ProcessPipMissingContentImpactedDurationMs,
                                 (long)(result.PerformanceInfo.ExecutionStop - result.PerformanceInfo.ExecutionStart).TotalMilliseconds);
+                        }
+
+                        // When pip has failure or warning, log standard output and standard error in log directgory on orchestrator
+                        ExecutionResult executionResult = runnablePip.ExecutionResult;
+                        if (!IsDistributedWorker && executionResult != null && (!succeeded || executionResult.NumberOfWarnings > 0))
+                        {
+                            await PipExecutor.LogStandardOutputAndErrorForFailAndWarningPips(runnablePip as ProcessRunnablePip, executionResult);
                         }
                     }
                 }

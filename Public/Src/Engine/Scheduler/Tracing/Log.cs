@@ -4186,6 +4186,15 @@ namespace BuildXL.Scheduler.Tracing
             EventTask = (ushort)Tasks.Distribution,
             Message = "Immediately releasing worker due to /immediateWorkerRelease configuration. Released worker: [{ip}]")]
         public abstract void DistributionEarlyReleasingDueToConfig(LoggingContext context, string ip);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.UnableToWritePipStandardOutputLog,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.PipExecutor,
+            Message = "Unnable to write standard output log for {pipSemiStableHash} to {path}. {message}")]
+        public abstract void UnableToWritePipStandardOutputLog(LoggingContext context, string pipSemiStableHash, string path, string message);
     }
 }
 #pragma warning restore CA1823 // Unused field

@@ -112,7 +112,7 @@ err3" };
         [InlineData(global::BuildXL.Utilities.Configuration.OutputReportingMode.FullOutputOnError)]
         [InlineData(global::BuildXL.Utilities.Configuration.OutputReportingMode.FullOutputOnWarningOrError)]
         [InlineData(global::BuildXL.Utilities.Configuration.OutputReportingMode.TruncatedOutputOnError)]
-        public void StdFileCopyTest(global::BuildXL.Utilities.Configuration.OutputReportingMode outputReportingMode)
+        public void StdFileLogTest(global::BuildXL.Utilities.Configuration.OutputReportingMode outputReportingMode)
         {
             EventListener.NestedLoggerHandler += (eventData, _) =>
             {
@@ -153,49 +153,26 @@ err3" };
             runResult.AssertFailure();
 
             AssertErrorEventLogged(LogEventId.PipProcessError);
-            string expectedPrintedError;
+
             var stdFilePathInLogDir = Path.Combine(runResult.Config.Logging.LogsDirectory.ToString(Context.PathTable), SandboxedProcessPipExecutor.StdOutputsDirNameInLog, pip.FormattedSemiStableHash, SandboxedProcessFile.StandardError.DefaultFileName());
-            if (outputReportingMode == global::BuildXL.Utilities.Configuration.OutputReportingMode.TruncatedOutputOnError)
-            {
-                expectedPrintedError = @"
+
+            string expectedPrintedError = @"
 * <error> *
 * </error> *
 * <error>err2</error> * <error>err3</error> *
-This message has been filtered by a regex. Please find the complete stdout/stderr in the following file(s) in the log directory.";
+This message has been filtered by a regex. This message has been truncated. Please find the complete stdout/stderr in the following file(s) in the log directory.";
 
-                XAssert.FileExists(stdFilePathInLogDir, $"StandardError file {stdFilePathInLogDir} should had been copied to log directory");
-            }
-            else
-            {
-                expectedPrintedError = @"
-* <error> *
-* </error> *
-* <error>err2</error> * <error>err3</error> *
-This message has been filtered by a regex. Please find the complete stdout/stderr in the following file(s) or in the DX0066 event in the log file.";
-
-                XAssert.FileDoesNotExist(stdFilePathInLogDir, $"StandardError file {stdFilePathInLogDir} should had been copied to log directory");
-            }
+                XAssert.FileExists(stdFilePathInLogDir, $"StandardError file {stdFilePathInLogDir} should had been logged to log directory");
 
             XAssert.ArrayEqual(
                 SplitLines(expectedPrintedError),
                 m_loggedPipFailures.SelectMany(SplitLines).ToArray());
 
-            // Rerun the pip and the std file will be copied to the log directory too
+            // Rerun the pip and the std file will be logged to the log directory too
             runResult = RunScheduler();
             runResult.AssertFailure();
 
-            string extension = Path.GetExtension(stdFilePathInLogDir);
-            var basename = stdFilePathInLogDir.Substring(0, stdFilePathInLogDir.Length - extension.Length);
-            stdFilePathInLogDir = $"{basename}.1{extension}";
-
-            if (outputReportingMode == global::BuildXL.Utilities.Configuration.OutputReportingMode.TruncatedOutputOnError)
-            {
-                XAssert.FileExists(stdFilePathInLogDir, $"StandardError file {stdFilePathInLogDir} should had been copied to log directory");
-            }
-            else
-            {
-                XAssert.FileDoesNotExist(stdFilePathInLogDir, $"StandardError file {stdFilePathInLogDir} should had been copied to log directory");
-            }
+            XAssert.FileExists(stdFilePathInLogDir, $"StandardError file {stdFilePathInLogDir} should had been logged to log directory");
 
             AssertErrorEventLogged(LogEventId.PipProcessError);
         }
@@ -240,10 +217,9 @@ This message has been filtered by a regex. Please find the complete stdout/stder
             var pipProcessErrorMessages = EventListener.GetLogMessagesForEventId((int)LogEventId.PipProcessError);
             XAssert.AreEqual(2, pipProcessErrorMessages.Length);
 
-            // On the first run, standard error should have been copied to a file named err.txt
+            // standard error should have been copied to a file named err.txt
             XAssert.Contains(pipProcessErrorMessages[0], "err.txt");
-            // On the second run, the file existed already, so it should have been renamed
-            XAssert.Contains(pipProcessErrorMessages[1], "err.1.txt");
+            XAssert.Contains(pipProcessErrorMessages[1], "err.txt");
         }
 
         private string[] SplitLines(string text)

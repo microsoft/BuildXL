@@ -4908,100 +4908,43 @@ namespace BuildXL.ProcessPipExecutor
             out string outputToLog, out string pathsToLog, out string extraMessage,
             bool messageWasTruncated,
             bool errorWasFiltered)
-        {
-            // Only display error/out if it is non-empty. This avoids adding duplicated newlines in the message.
-            // Also use the emptiness as a hit for whether to show the path to the file on disk
-            bool standardOutEmpty = string.IsNullOrWhiteSpace(standardOut);
-            bool standardErrorEmpty = string.IsNullOrWhiteSpace(standardError);
-
+        { 
             extraMessage = string.Empty;
-
+            pathsToLog = string.Empty;    
+            
+            // Add extra message about message was filtered or truncated
             if (errorWasFiltered)
             {
                 extraMessage = "This message has been filtered by a regex. ";
             }
 
-            var stdInLogDir = false;
-            string standardOutPathInLog = string.Empty;
-            string standardErrorPathInLog = string.Empty;
             if (messageWasTruncated)
             {
-                if (m_sandboxConfig.OutputReportingMode == OutputReportingMode.TruncatedOutputOnError)
-                {
-                    if (!standardOutEmpty && CopyFileToLogDirectory(standardOutPath, m_pip.FormattedSemiStableHash, out standardOutPathInLog))
-                    {
-                        stdInLogDir = true;
-                    }
-
-                    if (!standardErrorEmpty && CopyFileToLogDirectory(standardErrorPath, m_pip.FormattedSemiStableHash, out standardErrorPathInLog))
-                    {
-                        stdInLogDir = true;
-                    }
-
-                    if (stdInLogDir)
-                    {
-                        extraMessage += $"Please find the complete stdout/stderr in the following file(s) in the log directory.";
-                    }
-                }
-                else
-                {
-                    extraMessage += "Please find the complete stdout/stderr in the following file(s) or in the DX0066 event in the log file.";
-                }
+                extraMessage += "This message has been truncated. ";
             }
 
+            // These messages are results after filtered or handled by plugin.
+            // Only display error/out in log if it is non-empty. This avoids adding duplicated newlines in the message.
+            bool standardOutEmpty = string.IsNullOrWhiteSpace(standardOut);
+            bool standardErrorEmpty = string.IsNullOrWhiteSpace(standardError);
 
             outputToLog = (standardOutEmpty ? string.Empty : standardOut)
                 + (!standardOutEmpty && !standardErrorEmpty ? Environment.NewLine : string.Empty)
                 + (standardErrorEmpty ? string.Empty : standardError);
 
-
-            var originalStdPaths = (standardOutEmpty ? string.Empty : standardOutPath)
-                + (!standardOutEmpty && !standardErrorEmpty ? Environment.NewLine : string.Empty)
-                + (standardErrorEmpty ? string.Empty : standardErrorPath);
-
-            var stdPathsInLogDir = (standardOutEmpty ? string.Empty : standardOutPathInLog)
-                + (!standardOutEmpty && !standardErrorEmpty ? Environment.NewLine : string.Empty)
-                + (standardErrorEmpty ? string.Empty : standardErrorPathInLog);
-
-            pathsToLog = !messageWasTruncated
-                ? string.Empty
-                : (stdInLogDir ? stdPathsInLogDir : originalStdPaths);
-        }
-
-        private bool CopyFileToLogDirectory(string path, string formattedSemiStableHash, out string relativeFilePath)
-        {
-            if (File.Exists(path)
-                && m_loggingConfiguration != null
-                && Directory.Exists(m_loggingConfiguration.LogsDirectory.ToString(m_pathTable)))
+            // If the messages were filtered or truncated, log stdout/stderr files in log directory.
+            // Add extra message to guide user to find the files.
+            if (errorWasFiltered || messageWasTruncated)
             {
-                var relativeDirectoryPath = Path.Combine(StdOutputsDirNameInLog, formattedSemiStableHash);
-                var directoryWithPipHash = Path.Combine(m_loggingConfiguration.LogsDirectory.ToString(m_pathTable), relativeDirectoryPath);
-                // Make sure the file has a unique path
-                var destFilePathWithPipHash = GetNextFileName(Path.Combine(directoryWithPipHash, Path.GetFileName(path)));
-
-                relativeFilePath = Path.Combine(relativeDirectoryPath, Path.GetFileName(destFilePathWithPipHash));
-
-                Directory.CreateDirectory(directoryWithPipHash);
-                File.Copy(path, destFilePathWithPipHash);
-
-                return true;
+                // These are the paths used to persist the standard out and standard error in log directory.
+                // CODESYNC: PipExecutor.LoadAndPersistPipStdOutput
+                var relativeDirectoryPath = Path.Combine(StdOutputsDirNameInLog, m_pip.FormattedSemiStableHash);
+                string standardOutPathInLog = Path.Combine(relativeDirectoryPath, SandboxedProcessFile.StandardOutput.DefaultFileName());
+                string standardErrorPathInLog = Path.Combine(relativeDirectoryPath, SandboxedProcessFile.StandardError.DefaultFileName());
+    
+                extraMessage += "Please find the complete stdout/stderr in the following file(s) in the log directory.";
+                pathsToLog = standardOutPathInLog + Environment.NewLine + standardErrorPathInLog;
             }
-
-            relativeFilePath = string.Empty;
-            return false;
-        }
-
-        private static string GetNextFileName(string path)
-        {
-            var ext = Path.GetExtension(path);
-            var basename = path.Substring(0, path.Length - ext.Length);
-            int i = 0;
-            while (File.Exists(path))
-            {
-                path = $"{basename}.{++i}{ext}";
-            }
-
-            return path;
         }
 
         private record LogErrorResult

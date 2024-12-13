@@ -1552,7 +1552,7 @@ namespace BuildXL.Scheduler
                 PipExecutorCounter.SandboxedProcessProcessResultDurationMs,
                 executionResult.ProcessSandboxedProcessResultMs);
             counters.AddToCounter(PipExecutorCounter.ProcessStartTimeMs, executionResult.ProcessStartTimeMs);
- 
+
             // We may have some violations reported already (outright denied by the sandbox manifest).
             FileAccessReportingContext fileAccessReportingContext = executionResult.UnexpectedFileAccesses;
 
@@ -1847,6 +1847,45 @@ namespace BuildXL.Scheduler
 
                     fingerprintComputation.Value.Kind = !succeeded ? FingerprintComputationKind.ExecutionFailed : FingerprintComputationKind.ExecutionNotCacheable;
                     SandboxedProcessPipExecutor.LogSubPhaseDuration(operationContext, pip, SandboxedProcessCounters.PipExecutorPhaseComputingStrongFingerprint, DateTime.UtcNow.Subtract(start), $"(ps: {pathSet.Paths.Length})");
+
+                    // Store pip standard output and standard error into cache for orchestrator to retrieve them
+                    // Add hashes into ExecutionResult but don't add them into any cache descriptor metadata
+                    // Standard output and standard error are already part of PipCacheDescriptorV2Metadata for cachable pips
+                    EncodedStringKeyedHash stdoutEncodedStringKeyedHash;
+                    if (executionResult.EncodedStandardOutput != null)
+                    {
+                        var possibleStdEncodedStringKeyedHash = await TryStorePipStandardOutputOrErrorToCache(
+                            executionResult.EncodedStandardOutput,
+                            environment,
+                            pathTable,
+                            pip,
+                            operationContext,
+                            state);
+
+                        if (possibleStdEncodedStringKeyedHash.Succeeded)
+                        {
+                            stdoutEncodedStringKeyedHash = possibleStdEncodedStringKeyedHash.Result;
+                            processExecutionResult.ReportStandardOutput(stdoutEncodedStringKeyedHash);
+                        }
+                    }
+
+                    EncodedStringKeyedHash stderrEncodedStringKeyedHash;
+                    if (executionResult.EncodedStandardError != null)
+                    {
+                        var possibleStdErrEncodedStringKeyedHash = await TryStorePipStandardOutputOrErrorToCache(
+                            executionResult.EncodedStandardError,
+                            environment,
+                            pathTable,
+                            pip,
+                            operationContext,
+                            state);
+
+                        if (possibleStdErrEncodedStringKeyedHash.Succeeded)
+                        {
+                            stderrEncodedStringKeyedHash = possibleStdErrEncodedStringKeyedHash.Result;
+                            processExecutionResult.ReportStandardError(stderrEncodedStringKeyedHash);
+                        }
+                    }
                 }
 
                 // Log the fingerprint computation
@@ -5878,6 +5917,122 @@ namespace BuildXL.Scheduler
             }
 
             return renderer;
+        }
+
+        /// <summary>
+        /// Store pip standard output or standard error into cache for orchestrator to retrieve
+        /// Return a EncondedStringKeyedHash that added into ExecutionResult later
+        /// Stdout/error are stored in artifact cache without a cache descriptor or fingerprint
+        /// These are only meant to be used for orchestrator to retrieve the content and save into separate log if required
+        /// </summary>
+        private static async Task<Possible<EncodedStringKeyedHash>> TryStorePipStandardOutputOrErrorToCache(
+            Tuple<AbsolutePath, Encoding> output, 
+            IPipExecutionEnvironment environment, 
+            PathTable pathTable, 
+            Process pip, 
+            OperationContext operationContext,
+            PipExecutionState.PipScopeState state)
+        {
+            Contract.Requires(output.Item1.IsValid && output.Item2 != null);
+
+            var path = output.Item1;
+            var artifact = FileArtifact.CreateOutputFile(path).WithAttributes(FileExistence.Required);
+            Possible<ContentHash> possiblyStored = await environment.Cache.ArtifactContentCache.TryStoreAsync(GetFileRealizationMode(environment), path.Expand(pathTable));
+
+            if (!possiblyStored.Succeeded)
+            {
+                if (possiblyStored.Failure is TryPrepareFailure)
+                {
+                    Logger.Log.StoragePrepareOutputFailed(
+                        operationContext,
+                        pip.GetDescription(environment.Context),
+                        artifact.Path.ToString(environment.Context.PathTable),
+                        possiblyStored.Failure.DescribeIncludingInnerFailures());
+                }
+                else
+                {
+                    Logger.Log.StorageCachePutContentFailed(
+                        operationContext,
+                        pip.GetDescription(environment.Context),
+                        artifact.Path.ToString(environment.Context.PathTable),
+                        possiblyStored.Failure.DescribeIncludingInnerFailures());
+                }
+                return possiblyStored.Failure;
+            }
+
+            return GetOptionalEncodedStringKeyedHash(environment, state, output, possiblyStored.Result);
+        }
+
+        /// <summary>
+        /// Persist pip standard output and standard error in Log directory if pip has failure or warning
+        /// </summary>
+        public static async Task LogStandardOutputAndErrorForFailAndWarningPips(ProcessRunnablePip runnablePip, ExecutionResult executionResult)
+        {
+            var environment = runnablePip.Environment;
+            var state = environment.State.GetScope(runnablePip.Process);
+            var directoryPath = environment.Configuration.Logging.LogsDirectory.Combine(environment.Context.PathTable, SandboxedProcessPipExecutor.StdOutputsDirNameInLog).Combine(environment.Context.PathTable, $"{runnablePip.FormattedSemiStableHash}").ToString(environment.Context.PathTable);
+
+            EncodedStringKeyedHash standardOutput = null;
+            EncodedStringKeyedHash standardError = null;
+
+            if (executionResult.StandardOutput != null)
+            {
+                standardOutput = executionResult.StandardOutput;
+            }
+            else if (executionResult.PipCacheDescriptorV2Metadata != null && executionResult.PipCacheDescriptorV2Metadata.StandardOutput != null)
+            {
+                standardOutput = executionResult.PipCacheDescriptorV2Metadata.StandardOutput;
+            }
+
+            if (executionResult.StandardOutput != null)
+            {
+                standardError = executionResult.StandardOutput;
+            }
+            else if (executionResult.PipCacheDescriptorV2Metadata != null && executionResult.PipCacheDescriptorV2Metadata.StandardError != null)
+            {
+                standardError = executionResult.PipCacheDescriptorV2Metadata.StandardError;
+            }
+
+            if (standardOutput != null)
+            {
+                await LoadAndPersistPipStdOutput(runnablePip.LoggingContext, environment, state, standardOutput, directoryPath, SandboxedProcessFile.StandardOutput.DefaultFileName(), runnablePip.FormattedSemiStableHash);
+            }
+
+            if (standardError != null)
+            {
+                await LoadAndPersistPipStdOutput(runnablePip.LoggingContext, environment, state, standardError, directoryPath, SandboxedProcessFile.StandardError.DefaultFileName(), runnablePip.FormattedSemiStableHash);
+            }           
+        }
+
+        private static async Task LoadAndPersistPipStdOutput(LoggingContext loggingContext, IPipExecutionEnvironment environment, PipExecutionState.PipScopeState state, EncodedStringKeyedHash stringKeyedHash, string directoryPath, string fileName, string formattedSemiStableHash)
+        {
+            var filePath = Path.Combine(directoryPath, fileName);
+            var absoluteFilePath = AbsolutePath.Create(environment.Context.PathTable, filePath).Expand(environment.Context.PathTable);
+            Tuple<AbsolutePath, ContentHash, string> output;
+            if (!TryParseOptionalStandardConsoleStreamHash(environment.Context.PathTable, state.PathExpander, stringKeyedHash, out output))
+            {
+                return;
+            }
+
+            if (output != null)
+            {
+                try
+                {
+                    FileUtilities.CreateDirectoryWithRetry(directoryPath);
+                }
+                catch (Exception ex)
+                {
+                    Logger.Log.UnableToWritePipStandardOutputLog(loggingContext, formattedSemiStableHash, directoryPath, ex.ToString());
+                    return;
+                }
+
+                var maybeResult = await environment.Cache.ArtifactContentCache.TryMaterializeAsync(GetFileRealizationMode(environment), absoluteFilePath, output.Item2, environment.Context.CancellationToken);
+                if (!maybeResult.Succeeded)
+                {
+                    Logger.Log.UnableToWritePipStandardOutputLog(loggingContext, formattedSemiStableHash, filePath, maybeResult.Failure.ToString());
+                }
+            }
+            return;
         }
     }
 }

@@ -550,5 +550,7 @@ namespace BuildXL.Scheduler.Tracing
         // was DependencyViolationUndeclaredReadCycle_AsError = 25007,
         // was DependencyViolationUndeclaredOutput_AsError = 25008,
         // was DependencyViolationReadUndeclaredOutput_AsError = 25009,
+
+        UnableToWritePipStandardOutputLog = 14609,
     }
 }

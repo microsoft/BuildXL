@@ -62,6 +62,27 @@ namespace BuildXL.Scheduler
         private IReadOnlySet<AbsolutePath> m_createdDirectories;
         private PipCacheMissType? m_cacheMissType;
 
+        private EncodedStringKeyedHash m_standardOutput;
+        private EncodedStringKeyedHash m_standardError;
+
+        public EncodedStringKeyedHash StandardOutput
+        {
+            get
+            {
+                EnsureSealed();
+                return m_standardOutput;
+            }
+        }
+
+        public EncodedStringKeyedHash StandardError
+        {
+            get
+            {
+                EnsureSealed();
+                return m_standardError;
+            }
+        }
+
         public PipCachePerfInfo CacheLookupPerfInfo
         {
             get
@@ -437,7 +458,9 @@ namespace BuildXL.Scheduler
             int exitCode,
             IReadOnlySet<AbsolutePath> createdDirectories,
             PipCacheMissType? cacheMissType,
-            RetryInfo pipRetryInfo = null)
+            RetryInfo pipRetryInfo = null,
+            EncodedStringKeyedHash standardOutput = null,
+            EncodedStringKeyedHash standardError = null)
         {
             var processExecutionResult =
                 new ExecutionResult
@@ -464,7 +487,9 @@ namespace BuildXL.Scheduler
                     m_retryInfo = pipRetryInfo,
                     m_createdDirectories = createdDirectories,
                     m_exitCode = exitCode,
-                    m_cacheMissType = cacheMissType
+                    m_cacheMissType = cacheMissType,
+                    m_standardOutput = standardOutput,
+                    m_standardError = standardError
                 };
             return processExecutionResult;
         }
@@ -506,7 +531,9 @@ namespace BuildXL.Scheduler
                 ExitCode,
                 CreatedDirectories,
                 PipCacheMissType.Hit,
-                RetryInfo);
+                RetryInfo,
+                convergedCacheResult.StandardOutput,
+                convergedCacheResult.StandardError);
         }
 
         /// <summary>
@@ -538,7 +565,9 @@ namespace BuildXL.Scheduler
                 ExitCode,
                 CreatedDirectories,
                 CacheMissType,
-                RetryInfo);
+                RetryInfo,
+                StandardOutput,
+                StandardError);
         }
 
         /// <summary>
@@ -565,6 +594,21 @@ namespace BuildXL.Scheduler
                     // NOTE: This should not be used so we set it to default values except the metadata hash (it is used for HistoricMetadataCache).
                     cacheEntry: new CacheEntry(cacheHitData.MetadataHash, "<Unspecified>", ArrayView<ContentHash>.Empty));
             }
+        }
+
+        /// <summary>
+        /// Records the encoded pip standard output
+        /// </summary>
+        public void ReportStandardOutput(EncodedStringKeyedHash standardOutput)
+        {
+            EnsureUnsealed();
+            InnerUnsealedState.StandardOutput = standardOutput;
+        }
+
+        public void ReportStandardError(EncodedStringKeyedHash standardError)
+        {
+            EnsureUnsealed();
+            InnerUnsealedState.StandardError = standardError;
         }
 
         /// <summary>
@@ -873,6 +917,8 @@ namespace BuildXL.Scheduler
                             suspendedDurationMs: processResult.SuspendedDurationMs,
                             pushOutputsToCacheDurationMs: m_unsealedState.PushOutputsToCacheDurationMs);
                     }
+                    m_standardOutput = m_unsealedState.StandardOutput;
+                    m_standardError = m_unsealedState.StandardError;
                 }
                 else
                 {
@@ -939,6 +985,9 @@ namespace BuildXL.Scheduler
 
             public readonly List<(DirectoryArtifact, ReadOnlyArray<FileArtifactWithAttributes>)> DirectoryOutputs =
                 new List<(DirectoryArtifact, ReadOnlyArray<FileArtifactWithAttributes>)>();
+
+            public EncodedStringKeyedHash StandardOutput;
+            public EncodedStringKeyedHash StandardError;
 
             public UnsealedState()
             {

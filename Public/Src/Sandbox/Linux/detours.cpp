@@ -2126,7 +2126,13 @@ void __attribute__ ((constructor)) _bxl_linux_sandbox_init(void)
 
     BxlObserver::GetInstance()->Init();
 
-    // Report that a new process has been created
+    // TODO: we shouldn't be sending a clone event here and we should remove this event. 
+    // This code path is hit after an exec or after launching the sandbox for the root process, no 'clone' happens here.
+    // What prevents us from removing it is the case of launching the sandbox for the root process. Our managed side tracking does
+    // expect a 'clone/fork' event before an exec in order to assign the right pids and update the active process collection. Doing
+    // this on managed side is racy (since the pid to use will be available only after the root process has started and events may have arrived already)
+    // One alternative is using some hidden env var to distinguish the 'root process case' here and only send a clone in that case. 
+    // On the other hand, sending an extra clone event is just confusing, but harmless. Maybe couple this change with some other related refactoring.
     auto fork_event = buildxl::linux::SandboxEvent::CloneSandboxEvent(
         /* system_call */   "__init__fork",
         /* pid */           getpid(),

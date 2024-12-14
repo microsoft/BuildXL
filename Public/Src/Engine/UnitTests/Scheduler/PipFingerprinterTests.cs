@@ -392,7 +392,8 @@ namespace Test.BuildXL.Scheduler
 
             PipDataBuilder pdb = new PipDataBuilder(m_context.PathTable.StringTable);
             string appDataSubdirName = "appdataSubDir";
-            pdb.Add(AbsolutePath.Create(pathTable, Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), appDataSubdirName)));
+            string userProfileDir = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            pdb.Add(AbsolutePath.Create(pathTable, Path.Combine(userProfileDir, "appdata", appDataSubdirName)));
             EnvironmentVariable envVar = new EnvironmentVariable(m_context.StringTable.AddString("testVar"), pdb.ToPipData(" ", PipDataFragmentEscaping.NoEscaping));
 
             var dependencies = new HashSet<FileArtifact>() { executable };
@@ -405,7 +406,6 @@ namespace Test.BuildXL.Scheduler
                 .Build();
 
             MountPathExpander expander = new MountPathExpander(pathTable);
-            string userProfileDir = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
             var userProfilePath = AbsolutePath.Create(pathTable, userProfileDir);
             expander.Add(pathTable, new SemanticPathInfo(PathAtom.Create(pathTable.StringTable, "UserProfile"), userProfilePath, SemanticPathFlags.System | SemanticPathFlags.Tokenizable));
 

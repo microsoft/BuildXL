@@ -41,6 +41,9 @@ namespace BuildXL.Scheduler.Distribution
         /// </summary>
         public static readonly WorkerResource AvailableMemoryMb = new WorkerResource(nameof(AvailableMemoryMb), Precedence.SemaphorePrecedence);
 
+        /// <nodoc/>
+        public static readonly WorkerResource AvailableCpu = new WorkerResource(nameof(AvailableCpu), Precedence.AvailableProcessSlots);
+
         /// <summary>
         /// See <see cref="LocalWorker.MemoryResourceAvailable"/>
         /// </summary>

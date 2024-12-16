@@ -1318,6 +1318,9 @@ namespace BuildXL
                             "useHardlinks",
                             sign => engineConfiguration.UseHardlinks = sign),
                         OptionHandlerFactory.CreateBoolOption(
+                            "useHistoricalCpuThrottling",
+                            sign => schedulingConfiguration.UseHistoricalCpuThrottling = sign),
+                        OptionHandlerFactory.CreateBoolOption(
                             "useHistoricalCpuUsageInfo",
                             sign => schedulingConfiguration.UseHistoricalCpuUsageInfo = sign),
                         OptionHandlerFactory.CreateBoolOption(

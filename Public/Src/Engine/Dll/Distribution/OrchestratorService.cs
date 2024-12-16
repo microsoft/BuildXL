@@ -35,6 +35,7 @@ namespace BuildXL.Engine.Distribution
         void AttachCompleted(AttachCompletionInfo attachCompletionInfo);
         Task ReceivedPipResults(PipResultsInfo pipResults);
         Task ReceivedExecutionLog(ExecutionLogInfo executionLog);
+        void ReceivedWorkerPerfInfo(WorkerPerfInfo workerPerfInfo);
     }
 
     /// <summary>
@@ -442,6 +443,25 @@ namespace BuildXL.Engine.Distribution
                     Logger.Log.DistributionHelloNoSlot(m_loggingContext, workerLocation.IpAddress, workerLocation.Port, details: " Check that /dynamicBuildWorkerSlots is an upper bound to the number of workers that might say hello.");
                     return HelloResponseType.NoSlots;
                 }
+            }
+        }
+
+        void IOrchestratorService.ReceivedWorkerPerfInfo(WorkerPerfInfo info)
+        {
+            if (info.WorkerId <= 0)
+            {
+                return;
+            }
+
+            var worker = GetWorkerById(info.WorkerId);
+            if (worker.IsAvailable)
+            {
+                worker.UpdatePerfInfo(m_loggingContext,
+                    currentTotalRamMb: null,
+                    machineAvailableRamMb: info.MachineAvailableRamMb,
+                    engineRamMb: info.EngineRamMb,
+                    engineCpuUsage: info.EngineCpuUsage,
+                    machineCpuUsage: info.MachineCpuUsage);
             }
         }
     }

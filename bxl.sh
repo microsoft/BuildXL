@@ -88,6 +88,7 @@ function compileWithBxl() {
         /logsToRetain:20
         # Ignore accesses related to a VSCode tunnel
         /unsafe_GlobalUntrackedScopes:$HOME/.vscode-server
+        /unsafe_GlobalUntrackedScopes:$HOME/.vscode-server-insiders
         "$@"
     )
 

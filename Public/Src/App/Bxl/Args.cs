@@ -1140,41 +1140,8 @@ namespace BuildXL
                             "unsafe_GlobalUntrackedScopes",
                             opt => sandboxConfiguration.GlobalUnsafeUntrackedScopes.AddRange(CommandLineUtilities.ParseRepeatingPathOption(opt, pathTable, ";"))),
                         OptionHandlerFactory.CreateBoolOption(
-                            "unsafe_IgnoreCreateProcessReport",
-                            sign =>
-                            {
-                                sandboxConfiguration.UnsafeSandboxConfigurationMutable.IgnoreCreateProcessReport = sign;
-                            },
-                            isUnsafe: true),
-                        OptionHandlerFactory.CreateBoolOption(
                             "unsafe_IgnoreGetFinalPathNameByHandle",
                             sign => sandboxConfiguration.UnsafeSandboxConfigurationMutable.IgnoreGetFinalPathNameByHandle = sign,
-                            isUnsafe: true),
-                        OptionHandlerFactory.CreateBoolOption(
-                            "unsafe_IgnoreNonCreateFileReparsePoints",
-                            sign =>
-                            {
-                                if (sign && OperatingSystemHelper.IsUnixOS)
-                                {
-                                    throw CommandLineUtilities.Error(Strings.Args_UnsafeOption_IgnoreNonCreateFileReparsePoints_NotAllowed);
-                                }
-                                sandboxConfiguration.UnsafeSandboxConfigurationMutable.IgnoreNonCreateFileReparsePoints = sign;
-                            },
-                            isUnsafe: true),
-                        OptionHandlerFactory.CreateBoolOption(
-                            "unsafe_IgnoreNonExistentProbes", sign =>
-                            {
-                                // Error if it is set. Noop when unset for legacy command line compatibility. Make sure Office
-                                // is no longer setting this before removing it.
-                                if (sign)
-                                {
-                                    throw CommandLineUtilities.Error(Strings.Args_UnsafeOption_IgnoreNonExistentProbes_Deprecated);
-                                }
-                            },
-                            inactive: true),
-                        OptionHandlerFactory.CreateBoolOption(
-                            "unsafe_IgnoreNtCreateFile",
-                            sign => sandboxConfiguration.UnsafeSandboxConfigurationMutable.MonitorNtCreateFile = !sign,
                             isUnsafe: true),
                         OptionHandlerFactory.CreateBoolOption(
                             "unsafe_IgnorePreserveOutputsPrivatization",
@@ -1212,7 +1179,7 @@ namespace BuildXL
                             "unsafe_IgnorePreloadedDlls",
                             sign =>
                             {
-                                sandboxConfiguration.UnsafeSandboxConfigurationMutable.IgnorePreloadedDlls = sign;
+                                // TODO - this flag can be removed once BuildXL.Internal usages go away
                             },
                             isUnsafe: true),
                         OptionHandlerFactory.CreateBoolOptionWithValue(
@@ -1226,30 +1193,6 @@ namespace BuildXL
                             },
                             isUnsafe: true,
                             isEnabled: () => sandboxConfiguration.UnsafeSandboxConfigurationMutable.IgnoreDynamicWritesOnAbsentProbes != DynamicWriteOnAbsentProbePolicy.IgnoreNothing),
-                        OptionHandlerFactory.CreateBoolOption(
-                            "unsafe_IgnoreSetFileInformationByHandle",
-                            sign => sandboxConfiguration.UnsafeSandboxConfigurationMutable.IgnoreSetFileInformationByHandle = sign,
-                            isUnsafe: true),
-                        OptionHandlerFactory.CreateBoolOption(
-                            "unsafe_IgnoreUndeclaredAccessesUnderSharedOpaques",
-                            sign =>
-                            sandboxConfiguration.UnsafeSandboxConfigurationMutable.IgnoreUndeclaredAccessesUnderSharedOpaques = sign,
-                            isUnsafe: true),
-                        OptionHandlerFactory.CreateBoolOption(
-                            "unsafe_IgnoreValidateExistingFileAccessesForOutputs",
-                            sign => { /* Do nothing Office and WDG are still passing this flag even though it is deprecated. */ }),
-                        OptionHandlerFactory.CreateBoolOption(
-                            "unsafe_IgnoreZwCreateOpenQueryFamily",
-                            sign => sandboxConfiguration.UnsafeSandboxConfigurationMutable.MonitorZwCreateOpenQueryFile = !sign,
-                            isUnsafe: true),
-                        OptionHandlerFactory.CreateBoolOption(
-                            "unsafe_IgnoreZwOtherFileInformation",
-                            sign => sandboxConfiguration.UnsafeSandboxConfigurationMutable.IgnoreZwOtherFileInformation = sign,
-                            isUnsafe: true),
-                        OptionHandlerFactory.CreateBoolOption(
-                            "unsafe_IgnoreZwRenameFileInformation",
-                            sign => sandboxConfiguration.UnsafeSandboxConfigurationMutable.IgnoreZwRenameFileInformation = sign,
-                            isUnsafe: true),
                         OptionHandlerFactory.CreateBoolOption(
                             "unsafe_MonitorFileAccesses",
                             sign =>
@@ -1271,13 +1214,6 @@ namespace BuildXL
                             "unsafe_PreserveOutputsTrustLevel",
                             (opt) => sandboxConfiguration.UnsafeSandboxConfigurationMutable.PreserveOutputsTrustLevel =
                             CommandLineUtilities.ParseInt32Option(opt, (int)PreserveOutputsTrustValue.Lowest, int.MaxValue),
-                            isUnsafe: true),
-                        OptionHandlerFactory.CreateBoolOption(
-                            "unsafe_ProbeDirectorySymlinkAsDirectory",
-                            sign =>
-                            {
-                                sandboxConfiguration.UnsafeSandboxConfigurationMutable.ProbeDirectorySymlinkAsDirectory = sign;
-                            },
                             isUnsafe: true),
                         OptionHandlerFactory.CreateBoolOption(
                             "unsafe_UnexpectedFileAccessesAreErrors",

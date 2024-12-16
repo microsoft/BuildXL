@@ -85,21 +85,25 @@ namespace BuildXL.Utilities.Configuration
         bool MonitorFileAccesses { get; }
 
         /// <summary>
+        /// Deprecated: Still in code for cache fingerprint stability.
         /// Whether BuildXL is to detour the ZwRenameFileInformation API. Not detouring ZwRenameFileInformation is an unsafe configuration. Defaults to off (i.e., detour the ZwRenameFileInformation API).
         /// </summary>
         bool IgnoreZwRenameFileInformation { get; }
 
         /// <summary>
+        /// Deprecated: Still in code for cache fingerprint stability.
         /// Whether BuildXL is to detour the ZwOtherFileInformation API. Not detouring ZwOtherFileInformation is an unsafe configuration. Defaults to on (i.e., don't detour the ZwOtherFileInformation API).
         /// </summary>
         bool IgnoreZwOtherFileInformation { get; }
 
         /// <summary>
-        /// Whether BuildXL is to detour the follow symlinks for APIs different than CreateFile and NtCreate/OpenFile APIs. Not detouring ZwOtherFileInformation is an unsafe configuration. Defaults to on (i.e., don't follow symlinks for these APIs).
+        /// Deprecated: Still in code for cache fingerprint stability.
+        /// Whether BuildXL is to detour the follow symlinks for APIs different than CreateFile and NtCreate/OpenFile APIs.
         /// </summary>
         bool IgnoreNonCreateFileReparsePoints { get; }
 
         /// <summary>
+        /// Deprecated: Still in code for cache fingerprint stability.
         /// Whether BuildXL is to detour the SetFileInformationByhandle API. Not detouring SetFileInformationByHandle is an unsafe configuration. Defaults to off (i.e., detour the SetFileInformationByHandle API).
         /// </summary>
         bool IgnoreSetFileInformationByHandle { get; }
@@ -120,8 +124,7 @@ namespace BuildXL.Utilities.Configuration
         bool IgnorePreloadedDlls { get; }
 
         /// <summary>
-        /// Whether BuildXL treats existing directory probes as enumerations. This could lead to cases of overbuilding. Defaults to on (i.e., existing directory probes are hanled as enumeration).
-        /// TODO: temporarily making the default true until WDG sets the flags or let us remove the flag completely.
+        /// Whether BuildXL treats existing directory probes as enumerations. This could lead to cases of overbuilding. Defaults to off (i.e., existing directory probes are not hanled as enumeration).
         /// </summary>
         /// <remarks>
         /// Overbuilding could happen when you have directory that is just being probed for existence, but BuildXL treats it as a directory enumeration.
@@ -130,11 +133,13 @@ namespace BuildXL.Utilities.Configuration
         bool ExistingDirectoryProbesAsEnumerations { get; }
 
         /// <summary>
+        /// Deprecated: Still in code for cache fingerprint stability.
         /// Monitor files opened for read by NtCreateFile
         /// </summary>
         bool MonitorNtCreateFile { get; }
 
         /// <summary>
+        /// Deprecated: Still in code for cache fingerprint stability.
         /// Monitor files opened for read by ZwCreateFile or ZwOpenFile
         /// </summary>
         bool MonitorZwCreateOpenQueryFile { get; }
@@ -169,6 +174,7 @@ namespace BuildXL.Utilities.Configuration
         RewritePolicy? DoubleWritePolicy { get; }
 
         /// <summary>
+        /// Deprecated: Still in code for cache fingerprint stability.
         /// Undeclared accesses under a shared opaque are not reported.
         /// </summary>
         /// <remarks>
@@ -182,6 +188,7 @@ namespace BuildXL.Utilities.Configuration
         bool IgnoreCreateProcessReport { get; }
 
         /// <summary>
+        /// Deprecated: Still in code for cache fingerprint stability.
         /// Treats directory symlink probes as directory probes instead of file probes.
         /// </summary>
         /// <remarks>

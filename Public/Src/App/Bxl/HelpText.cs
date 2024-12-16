@@ -1046,26 +1046,6 @@ namespace BuildXL
                 Strings.HelpText_DisplayHelp_Unsafe_MonitorFileAccesses);
 
             hw.WriteOption(
-                "/unsafe_IgnoreZwRenameFileInformation[+|-]",
-                Strings.HelpText_DisplayHelp_Unsafe_IgnoreZwRenameFileInformation,
-                HelpLevel.Verbose);
-
-            hw.WriteOption(
-                "/unsafe_IgnoreZwOtherFileInformation[+|-]",
-                Strings.HelpText_DisplayHelp_Unsafe_IgnoreZwOtherFileInformation,
-                HelpLevel.Verbose);
-
-            hw.WriteOption(
-                "/unsafe_IgnoreNonCreateFileReparsePoints[+|-]",
-                Strings.HelpText_DisplayHelp_Unsafe_IgnoreNonCreateFileReparsePoints,
-                HelpLevel.Verbose);
-
-            hw.WriteOption(
-                "/unsafe_IgnoreSetFileInformationByHandle[+|-]",
-                Strings.HelpText_DisplayHelp_Unsafe_IgnoreSetFileInformationByHandle,
-                HelpLevel.Verbose);
-
-            hw.WriteOption(
                 "/unsafe_IgnoreReparsePoints[+|-]",
                 Strings.HelpText_DisplayHelp_Unsafe_IgnoreReparsePoints,
                 HelpLevel.Verbose);
@@ -1073,11 +1053,6 @@ namespace BuildXL
             hw.WriteOption(
                 "/unsafe_IgnoreFullReparsePointResolving[+|-]",
                 Strings.HelpText_DisplayHelp_Unsafe_IgnoreFullReparsePointResolving,
-                HelpLevel.Verbose);
-
-            hw.WriteOption(
-                "/unsafe_IgnorePreloadedDlls[+|-]",
-                Strings.HelpText_DisplayHelp_Unsafe_IgnorePreloadedDlls,
                 HelpLevel.Verbose);
 
             hw.WriteOption(
@@ -1123,16 +1098,6 @@ namespace BuildXL
             hw.WriteOption(
                 "/unsafe_ignoreGetFinalPathNameByHandle[+|-]",
                 Strings.HelpText_DisplayHelp_Unsafe_IgnoreGetFinalPathNameByHandle,
-                HelpLevel.Verbose);
-
-            hw.WriteOption(
-                "/unsafe_IgnoreNtCreateFile[+|-]",
-                Strings.HelpText_DisplayHelp_Unsafe_IgnoreNtCreateFile,
-                HelpLevel.Verbose);
-
-            hw.WriteOption(
-                "/unsafe_IgnoreZwCreateOpenQueryFamily[+|-]",
-                Strings.HelpText_DisplayHelp_Unsafe_IgnoreZwCreateOpenQueryFamily,
                 HelpLevel.Verbose);
 
             hw.WriteOption(

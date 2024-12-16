@@ -189,7 +189,7 @@ $tfBuild = [Environment]::GetEnvironmentVariable("TF_BUILD")
 [bool] $isRunningOnADO = If ($tfBuild -eq $null) { $false } Else { $tfBuild }
 
 # These are the options added unless -Vanilla is specified.
-$NonVanillaOptions = @("/IncrementalScheduling", "/nowarn:909 /nowarn:11318 /nowarn:11319 /unsafe_IgnorePreloadedDlls- /historicMetadataCache+");
+$NonVanillaOptions = @("/IncrementalScheduling", "/nowarn:909 /nowarn:11318 /nowarn:11319 /historicMetadataCache+");
 
 if ($SelfhostHelp) {
     Get-Help -Detailed $PSCommandPath;

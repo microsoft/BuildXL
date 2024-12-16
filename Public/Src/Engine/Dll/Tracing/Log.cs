@@ -1078,42 +1078,6 @@ namespace BuildXL.Engine.Tracing
         public abstract void ConfigUnsafeDisabledFileAccessMonitoring(LoggingContext context);
 
         [GeneratedEvent(
-            (ushort)LogEventId.ConfigIgnoreZwRenameFileInformation,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Warning,
-            Keywords = (int)Keywords.UserMessage,
-            EventTask = (int)Tasks.Engine,
-            Message = "/unsafe_IgnoreZwRenameFileInformation enabled: {ShortProductName} is configured not to detour the ZwRenameInformation API for ZwSetFileInformation. This might lead to incorrect builds because some file accesses will not be enforced.")]
-        public abstract void ConfigIgnoreZwRenameFileInformation(LoggingContext context);
-
-        [GeneratedEvent(
-            (ushort)LogEventId.ConfigIgnoreZwOtherFileInformation,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Warning,
-            Keywords = (int)Keywords.UserMessage,
-            EventTask = (int)Tasks.Engine,
-            Message = "/unsafe_IgnoreZwOtherFileInformation: {ShortProductName} is configured not to detour the ZwLinkInformation, ZwFileNameInformation, ZwDispositionInformation, ZwModeInformation APIs for SetFileInformation. This might lead to incorrect builds because some file accesses will not be enforced.")]
-        public abstract void ConfigIgnoreZwOtherFileInformation(LoggingContext context);
-
-        [GeneratedEvent(
-            (ushort)LogEventId.ConfigIgnoreValidateExistingFileAccessesForOutputs,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Warning,
-            Keywords = (int)Keywords.UserMessage,
-            EventTask = (int)Tasks.Engine,
-            Message = "/unsafe_IgnoreValidateExistingFileAccessesForOutputs: {ShortProductName} is configured not to validate file access messages for outputs produced. This might lead to incorrect builds and cathastrophic cache corruption because some PathSets will not have all the paths accessed.")]
-        public abstract void ConfigIgnoreValidateExistingFileAccessesForOutputs(LoggingContext context);
-
-        [GeneratedEvent(
-            (ushort)LogEventId.ConfigIgnoreNonCreateFileReparsePoints,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Warning,
-            Keywords = (int)Keywords.UserMessage,
-            EventTask = (int)Tasks.Engine,
-            Message = "/unsafe_IgnoreNonCreateFileReparsePoints enabled: {ShortProductName} is configured not to follow symlinks for other than CreateFile and NtCreate/OpenFile APIs. This might lead to incorrect builds because some file accesses will not be enforced.")]
-        public abstract void ConfigIgnoreNonCreateFileReparsePoints(LoggingContext context);
-
-        [GeneratedEvent(
             (ushort)LogEventId.ConfigIgnoreSetFileInformationByHandle,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
@@ -1168,24 +1132,6 @@ namespace BuildXL.Engine.Tracing
         public abstract void ConfigIgnoreGetFinalPathNameByHandle(LoggingContext context);
 
         [GeneratedEvent(
-            (ushort)LogEventId.ConfigIgnoreCreateProcessReport,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Warning,
-            Keywords = (int)Keywords.UserMessage,
-            EventTask = (int)Tasks.Engine,
-            Message = "/unsafe_IgnoreCreateProcessReport enabled: {ShortProductName} is configured to not report file access due to CreateProcess API. This can lead to incorrect builds.")]
-        public abstract void ConfigIgnoreCreateProcessReport(LoggingContext context);
-
-        [GeneratedEvent(
-            (ushort)LogEventId.ConfigProbeDirectorySymlinkAsDirectory,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Warning,
-            Keywords = (int)Keywords.UserMessage,
-            EventTask = (int)Tasks.Engine,
-            Message = "/unsafe_ProbeDirectorySymlinkAsDirectory enabled: {ShortProductName} is configured to treat directory symlink probe as directory probe. This makes {ShortProductName} not track the target directory path. This can lead to incorrect builds.")]
-        public abstract void ConfigProbeDirectorySymlinkAsDirectory(LoggingContext context);
-
-        [GeneratedEvent(
             (ushort)LogEventId.ConfigPreserveOutputs,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
@@ -1204,15 +1150,6 @@ namespace BuildXL.Engine.Tracing
         public abstract void ConfigUnsafeUnexpectedFileAccessesAsWarnings(LoggingContext context);
 
         [GeneratedEvent(
-            (ushort)LogEventId.ConfigUnsafeIgnoreUndeclaredAccessesUnderSharedOpaques,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Warning,
-            Keywords = (int)Keywords.UserMessage,
-            EventTask = (int)Tasks.Engine,
-            Message = "/unsafe_IgnoreUndeclaredAccessesUnderSharedOpaques enabled: Undeclared accesses under shared opaques will not be reported. This is an unsafe configuration since it removes all guarantees of build correctness.")]
-        public abstract void ConfigUnsafeIgnoreUndeclaredAccessesUnderSharedOpaques(LoggingContext context);
-
-        [GeneratedEvent(
             (ushort)LogEventId.ConfigUnsafeOptimizedAstConversion,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,
@@ -1229,15 +1166,6 @@ namespace BuildXL.Engine.Tracing
             EventTask = (int)Tasks.Engine,
             Message = "Profiling and debugging cannot be specified simultaneously.")]
         public abstract void ConfigDebuggingAndProfilingCannotBeSpecifiedSimultaneously(LoggingContext context);
-
-        [GeneratedEvent(
-            (ushort)LogEventId.ConfigUnsafeMonitorNtCreateFileOff,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Warning,
-            Keywords = (int)Keywords.UserMessage,
-            EventTask = (int)Tasks.Engine,
-            Message = "/unsafe_IgnoreNtCreateFile enabled: The monitoring of NTs CreateFile is turned off. This might lead to incorrect builds because some file accesses will not be enforced.")]
-        public abstract void ConfigUnsafeMonitorNtCreateFileOff(LoggingContext context);
 
         [GeneratedEvent(
             (ushort)LogEventId.ConfigUnsafeAllowMissingOutput,
@@ -1274,15 +1202,6 @@ namespace BuildXL.Engine.Tracing
             EventTask = (int)Tasks.Engine,
             Message = "/unsafe_ExistingDirectoryProbesasEnumerations enabled: {ShortProductName} is reporting existing directory probes as enumerations. This might lead to cases where pips will be executed even when there is no need for it.")]
         public abstract void ConfigUnsafeExistingDirectoryProbesAsEnumerations(LoggingContext context);
-
-        [GeneratedEvent(
-            (ushort)LogEventId.ConfigUnsafeMonitorZwCreateOpenQueryFileOff,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Warning,
-            Keywords = (int)Keywords.UserMessage,
-            EventTask = (int)Tasks.Engine,
-            Message = "The monitoring of ZwOpenFile, ZwCreateFile, and ZwQueryDirectoryFile is turned off. This might lead to incorrect builds because some file accesses will not be enforced.")]
-        public abstract void ConfigUnsafeMonitorZwCreateOpenQueryFileOff(LoggingContext context);
 
         [GeneratedEvent(
             (ushort)LogEventId.ConfigArtificialCacheMissOptions,

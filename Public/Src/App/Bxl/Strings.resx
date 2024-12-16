@@ -1030,9 +1030,6 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   <data name="Args_UnsafeOption_IgnoreNonCreateFileReparsePoints_NotAllowed" xml:space="preserve">
     <value>/unsafe_IgnoreNonCreateFileReparsePoints not allowed on non-Windows OS.</value>
   </data>
-  <data name="Args_UnsafeOption_IgnoreNonExistentProbes_Deprecated" xml:space="preserve">
-    <value>/unsafe_IgnoreNonExistentProbes is deprecated.</value>
-  </data>
   <data name="Args_UnsafeOption_IgnoreReparsePoints_NotAllowed" xml:space="preserve">
     <value>/unsafe_IgnoreReparsePoints not allowed on non-Windows OS.</value>
   </data>
@@ -1096,18 +1093,6 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   <data name="HelpText_DisplayHelp_Unsafe_UnexpectedFileAccessesAreErrors" xml:space="preserve">
     <value>When enabled, if {ShortProductName} detects that a tool accesses a file that was not declared in the specification dependencies, it is treated as an error instead of a warning. Turning this option off results in an unsafe configuration (for diagnostic purposes only). Defaults to on.</value>
   </data>
-  <data name="HelpText_DisplayHelp_Unsafe_IgnoreZwRenameFileInformation" xml:space="preserve">
-    <value>When enabled, {ShortProductName} will not detour the ZwRenameFileInformation API. This might lead to incorrect builds because some file accesses will not be enforced.</value>
-  </data>
-  <data name="HelpText_DisplayHelp_Unsafe_IgnoreZwOtherFileInformation" xml:space="preserve">
-    <value>When enabled, {ShortProductName} will not detour the ZwLinkFileInformation, ZwFileNameFileInformation, ZwDispositionFileInformation, ZwModeFileInformation APIs. This might lead to incorrect builds because some file accesses will not be enforced. Defaults to off - the functions are detoured.</value>
-  </data>
-  <data name="HelpText_DisplayHelp_Unsafe_IgnoreNonCreateFileReparsePoints" xml:space="preserve">
-    <value>When enabled, {ShortProductName} will not follow symlinks for access validation and reporting for API's outisde of CreateFile, NtCreate, and OpenFile. This might lead to incorrect builds because some file accesses will not be enforced. Defaults to off.</value>
-  </data>
-  <data name="HelpText_DisplayHelp_Unsafe_IgnoreSetFileInformationByHandle" xml:space="preserve">
-    <value>When enabled, {ShortProductName} will not detour the SetFileInformationByHandle API. This might lead to incorrect builds because some file accesses will not be enforced.</value>
-  </data>
   <data name="HelpText_DisplayHelp_Unsafe_IgnoreReparsePoints" xml:space="preserve">
     <value>When enabled, {ShortProductName} will not track reparse points. This might lead to incorrect builds because some file accesses will not be enforced. Any reparse points (symlinks and mount points) will not be followed.</value>
   </data>
@@ -1122,12 +1107,6 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   </data>
   <data name="HelpText_DisplayHelp_Unsafe_ExistingDirectoryProbesAsEnumerations" xml:space="preserve">
     <value>When enabled, {ShortProductName} will report existing directory probes as enumerations. This might lead to cases where pips will be executed even when there is no need for it.</value>
-  </data>
-  <data name="HelpText_DisplayHelp_Unsafe_IgnoreNtCreateFile" xml:space="preserve">
-    <value>When enabled, {ShortProductName} will not intercept NtCreateFile calls. This might lead to incorrect builds because some file accesses will not be enforced.</value>
-  </data>
-  <data name="HelpText_DisplayHelp_Unsafe_IgnoreZwCreateOpenQueryFamily" xml:space="preserve">
-    <value>When enabled, {ShortProductName} will not intercept ZwCreateFile, ZwOpenFile, and ZwQueryDirectoryFile calls. This might lead to incorrect builds because some file accesses will not be enforced. This flag is off by default.</value>
   </data>
   <data name="HelpText_DisplayHelp_PipDefaultTimeout" xml:space="preserve">
     <value>How long to wait before terminating individual processes. The argument allows an expression that represents a time duration, like "3s", "500ms", "30m", "1.5h". The allowed suffixes are 'ms', 's', 'm', 'h', and no suffix is interpreted as an amount in milliseconds. Setting this value will only have an effect if no other timeout is specified for a process.</value>

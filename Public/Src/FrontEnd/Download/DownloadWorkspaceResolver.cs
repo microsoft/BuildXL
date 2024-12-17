@@ -348,7 +348,8 @@ namespace BuildXL.FrontEnd.Download
                         IsWritable = true,
                         IsReadable = true,
                         IsScrubbable = true }
-                }); // A Download package does not have any module dependency restrictions nor allowlist cycles
+                },
+                scrubDirectories: null); // A Download package does not have any module dependency restrictions nor allowlist cycles
 
             m_descriptors.Add(descriptor);
             m_descriptorsByName.Add(name, descriptor);

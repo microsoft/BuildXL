@@ -127,7 +127,8 @@ namespace BuildXL.FrontEnd.Nuget
                     new[] { pathToSpec },
                     allowedModuleDependencies: null,
                     cyclicalFriendModules: null, // A NuGet package does not have any module dependency restrictions nor allowlists cycles
-                    mounts: null);
+                    mounts: null,
+                    scrubDirectories: null);
             });
         }
 
@@ -247,6 +248,7 @@ namespace BuildXL.FrontEnd.Nuget
                 Publisher = null,
                 Version = moduleDescriptor.Version,
                 Projects = new List<AbsolutePath>(moduleDefinition.Specs),
+                ScrubDirectories = new List<AbsolutePath>(moduleDefinition.ScrubDirectories)
             };
 
             // We know that the generated Nuget package config does not have any qualifier space defined.

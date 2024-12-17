@@ -19,6 +19,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
         {
             ModuleName = template.ModuleName;
             Projects = template.Projects;
+            ScrubDirectories = template.ScrubDirectories;
         }
 
         /// <inheritdoc/>
@@ -26,5 +27,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc/>
         public IReadOnlyList<AbsolutePath> Projects { get; set; }
+
+        /// <inheritdoc/>
+        public IReadOnlyList<AbsolutePath> ScrubDirectories { get; set; }
     }
 }

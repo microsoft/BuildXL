@@ -253,7 +253,8 @@ namespace BuildXL.FrontEnd.MsBuild
                 projectFiles,
                 allowedModuleDependencies: null, // no module policies
                 cyclicalFriendModules: null, // no allowlist of cycles
-                mounts: null);
+                mounts: null,
+                scrubDirectories: null);
 
             return new ProjectGraphResult(projectGraph, moduleDefinition, projectGraphResult.PathToMsBuild, projectGraphResult.PathToDotNetExe);
         }

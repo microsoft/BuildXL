@@ -139,7 +139,8 @@ namespace BuildXL.FrontEnd.Ninja
                 new List<AbsolutePath>() { specFileConfig } ,
                 allowedModuleDependencies: null, // no module policies
                 cyclicalFriendModules: null, // no allowlist of cycles
-                mounts: null);
+                mounts: null,
+                scrubDirectories: null);
 
             return new NinjaGraphWithModuleDefinition(result.Graph, moduleDefinition);            
         }

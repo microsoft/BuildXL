@@ -16,5 +16,10 @@ namespace BuildXL.Utilities.Configuration
 
         /// <nodoc/>
         IReadOnlyList<AbsolutePath> Projects { get; }
+
+        /// <summary>
+        /// List of directories to scrub if this module is included in the build
+        /// </summary>
+        public IReadOnlyList<AbsolutePath> ScrubDirectories { get; set; }
     }
 }

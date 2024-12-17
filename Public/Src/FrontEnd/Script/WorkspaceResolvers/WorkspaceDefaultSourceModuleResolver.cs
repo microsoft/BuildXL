@@ -160,7 +160,8 @@ namespace BuildXL.FrontEnd.Script
             ConfigAsPackage = CreateConfigAsPackage(
                 Configuration,
                 m_defaultDScriptResolverSettings.ConfigFile,
-                orphanProjectPaths);
+                orphanProjectPaths,
+                scrubDirectories: null);
 
             UpdatePackageMap(ConfigAsPackage);
 
@@ -170,7 +171,8 @@ namespace BuildXL.FrontEnd.Script
         private Package CreateConfigAsPackage(
            IConfiguration config,
            AbsolutePath configPath,
-           IReadOnlyList<AbsolutePath> projects)
+           IReadOnlyList<AbsolutePath> projects,
+           IReadOnlyList<AbsolutePath> scrubDirectories)
         {
             string name = Names.ConfigAsPackageName;
 
@@ -181,6 +183,7 @@ namespace BuildXL.FrontEnd.Script
                 DisplayName = configPath.GetParent(Context.PathTable).GetName(Context.PathTable).ToString(Context.StringTable),
                 Projects = projects,
                 NameResolutionSemantics = config.FrontEnd.NameResolutionSemantics(),
+                ScrubDirectories = scrubDirectories
             };
 
             var id = PackageId.Create(StringId.Create(Context.StringTable, name));

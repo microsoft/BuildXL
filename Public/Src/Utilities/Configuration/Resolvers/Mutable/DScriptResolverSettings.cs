@@ -78,7 +78,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
             var remappedInlineModuleDefinition = new InlineModuleDefinition
             {
                 ModuleName = inlineModuleDefinition.ModuleName,
-                Projects = inlineModuleDefinition.Projects?.Select(project => pathRemapper.Remap(project)).ToList()
+                Projects = inlineModuleDefinition.Projects?.Select(project => pathRemapper.Remap(project)).ToList(),
+                ScrubDirectories = inlineModuleDefinition.ScrubDirectories?.Select(project => pathRemapper.Remap(project)).ToList(),
             };
 
             return new DiscriminatingUnion<AbsolutePath, IInlineModuleDefinition>(remappedInlineModuleDefinition);

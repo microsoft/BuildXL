@@ -55,5 +55,8 @@ namespace BuildXL.FrontEnd.Sdk.Mutable
 
         /// <inheritdoc/>
         public IReadOnlyList<IMount> Mounts { get; set; }
+
+        /// <inheritdoc/>
+        public IReadOnlyList<AbsolutePath> ScrubDirectories { get; set; }
     }
 }

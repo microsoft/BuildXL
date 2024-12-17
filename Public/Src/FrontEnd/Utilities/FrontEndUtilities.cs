@@ -520,6 +520,7 @@ namespace BuildXL.FrontEnd.Utilities
                 Publisher = null,
                 Version = moduleDescriptor.Version,
                 Projects = new List<AbsolutePath>(moduleDefinition.Specs),
+                ScrubDirectories = new List<AbsolutePath>(moduleDefinition.ScrubDirectories)
             };
 
             return Package.Create(packageId, moduleDefinition.ModuleConfigFile, packageDescriptor, moduleId: moduleDescriptor.Id);

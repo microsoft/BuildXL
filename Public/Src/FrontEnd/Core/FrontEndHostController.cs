@@ -1472,7 +1472,8 @@ namespace BuildXL.FrontEnd.Core
                             version: StringId.Create(FrontEndContext.StringTable, module.Descriptor.Version),
                             location: moduleLocation,
                             resolverKind: StringId.Create(FrontEndContext.StringTable, module.Descriptor.ResolverKind),
-                            resolverName: StringId.Create(FrontEndContext.StringTable, module.Descriptor.ResolverName));
+                            resolverName: StringId.Create(FrontEndContext.StringTable, module.Descriptor.ResolverName),
+                            scrubDirectories: new List<AbsolutePath>(module.Definition.ScrubDirectories));
 
                     if (PipGraphFragmentManager != null)
                     {

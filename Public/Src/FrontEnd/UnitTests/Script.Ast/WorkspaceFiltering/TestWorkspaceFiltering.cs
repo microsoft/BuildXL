@@ -42,11 +42,69 @@ namespace Test.DScript.Ast.WorkspaceFiltering
         private readonly string myModule = A("d", "myModule.dsc");
         private readonly string myModule2 = A("d", "myModule2.dsc");
         private readonly string myDerivedModule = A("d", "myDerivedModule.dsc");
+        private readonly string baseScrubDir = A("d", "base");
+        private readonly string myModuleScrubDir = A("d", "mymodule");
+        private readonly string myModule2ScrubDir = A("d", "mymodule2");
 
         /// <inheritdoc />
         public TestWorkspaceFiltering()
         {
             m_symbolTable = new SymbolTable(m_pathTable.StringTable);
+        }
+
+        [Fact]
+        public void ScrubDirectoriesIncludeJustTargetWorkspaceTheirDependencies()
+        {
+            /*
+             * MyModule and MyModule2 both depend on BaseModule
+             * Each of these 3 modules declares a different scrub directory.
+             * When filtering to MyModule, we expect the scrub dir for MyModule and BaseModule to be included in the graph, but not the scrub directory for MyModule2
+             */
+            // Base module. Root spec
+            var baseModule = ModuleDescriptor.CreateForTesting("baseModuleDescriptor");
+            var baseModuleSourceFile = SourceFile(baseSpec);
+            var baseScrubDir = AbsolutePath.Create(m_pathTable, this.baseScrubDir);
+
+            // MyModule: depends on a spec from the base module
+            var moduleDescriptor = ModuleDescriptor.CreateForTesting("MyModule");
+            var mySpecPath = myModule;
+            var moduleSourceFile = SourceFile(mySpecPath);
+            var myModuleScrubDir = AbsolutePath.Create(m_pathTable, this.myModuleScrubDir);
+
+            // MyModule2: also depends on a spec from the base module
+            var moduleDescriptor2 = ModuleDescriptor.CreateForTesting("MyModule2");
+            var mySpecPath2 = myModule2;
+            var moduleSourceFile2 = SourceFile(mySpecPath2);
+            var myModule2ScrubDir = AbsolutePath.Create(m_pathTable, this.myModule2ScrubDir);
+
+            var workspace = CreateWorkspace(
+                CreateEmptyParsedModuleWithScrubDirectories(moduleDescriptor, [moduleSourceFile], myModuleScrubDir),
+                CreateEmptyParsedModuleWithScrubDirectories(baseModule, [baseModuleSourceFile], baseScrubDir),
+                CreateEmptyParsedModuleWithScrubDirectories(moduleDescriptor2, [moduleSourceFile2], myModule2ScrubDir));
+
+            // Can add dependencies only when the workspace is constructed
+            AddUpStreamDependency(workspace, moduleSourceFile, baseSpec);
+            AddUpStreamModuleDependency(moduleSourceFile, "baseModuleDescriptor");
+
+            AddUpStreamDependency(workspace, moduleSourceFile2, baseSpec);
+            AddUpStreamModuleDependency(moduleSourceFile2, "baseModuleDescriptor");
+
+            // Filter takes only myModule.dsc
+            var filter = ModuleFilterByModuleName("MyModule");
+
+            // Act
+            FilterWorkspace(workspace, filter);
+
+            var moduleFromFilteredWorksapce = workspace.Modules;
+            Assert.NotNull(moduleFromFilteredWorksapce);
+
+            Assert.Equal(workspace.ModuleCount, 2);
+            
+            var scrubDirectories = workspace.Modules.SelectMany(module => module.Definition.ScrubDirectories).ToList();
+            Assert.Equal(scrubDirectories.Count, 2);
+
+            Assert.True(scrubDirectories.Contains(baseScrubDir));
+            Assert.True(scrubDirectories.Contains(myModuleScrubDir));
         }
 
         [Fact]
@@ -291,7 +349,7 @@ namespace Test.DScript.Ast.WorkspaceFiltering
 
         private ParsedModule CreateEmptyParsedModule(ModuleDescriptor moduleDescriptor)
         {
-            var moduleDefinition = CreateModuleDefinition(moduleDescriptor, Enumerable.Empty<AbsolutePath>());
+            var moduleDefinition = CreateModuleDefinition(moduleDescriptor, Enumerable.Empty<AbsolutePath>(), Enumerable.Empty<AbsolutePath>());
 
             return new ParsedModule(moduleDefinition, new Dictionary<AbsolutePath, ISourceFile>(), new ReadOnlyHashSet<(ModuleDescriptor, Location)>());
         }
@@ -310,7 +368,7 @@ namespace Test.DScript.Ast.WorkspaceFiltering
 
         private ParsedModule CreateEmptyParsedModule(ModuleDescriptor moduleDescriptor, params ISourceFile[] specs)
         {
-            var moduleDefinition = CreateModuleDefinition(moduleDescriptor, specs.Select(s => s.GetAbsolutePath(m_pathTable)));
+            var moduleDefinition = CreateModuleDefinition(moduleDescriptor, specs.Select(s => s.GetAbsolutePath(m_pathTable)), Enumerable.Empty<AbsolutePath>());
 
             return new ParsedModule(
                 moduleDefinition,
@@ -318,7 +376,17 @@ namespace Test.DScript.Ast.WorkspaceFiltering
                 new ReadOnlyHashSet<(ModuleDescriptor, Location)>());
         }
 
-        private ModuleDefinition CreateModuleDefinition(ModuleDescriptor moduleDescriptor, IEnumerable<AbsolutePath> specs)
+        private ParsedModule CreateEmptyParsedModuleWithScrubDirectories(ModuleDescriptor moduleDescriptor, ISourceFile[] specs, params AbsolutePath[] scrubDirectories)
+        {
+            var moduleDefinition = CreateModuleDefinition(moduleDescriptor, specs.Select(s => s.GetAbsolutePath(m_pathTable)), scrubDirectories);
+
+            return new ParsedModule(
+                moduleDefinition,
+                specs.ToDictionary(s => AbsolutePath.Create(m_pathTable, s.Path.AbsolutePath), s => s),
+                new ReadOnlyHashSet<(ModuleDescriptor, Location)>());
+        }
+
+        private ModuleDefinition CreateModuleDefinition(ModuleDescriptor moduleDescriptor, IEnumerable<AbsolutePath> specs, IEnumerable<AbsolutePath> scrubDirectories)
         {
             var moduleDefinition = new ModuleDefinition(
                 moduleDescriptor,
@@ -330,7 +398,8 @@ namespace Test.DScript.Ast.WorkspaceFiltering
                 v1QualifierSpaceId: 0,
                 allowedModuleDependencies: null,
                 cyclicalFriendModules: null,
-                mounts: null);
+                mounts: null,
+                scrubDirectories: scrubDirectories);
             return moduleDefinition;
         }
 

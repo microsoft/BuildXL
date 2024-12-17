@@ -33,6 +33,7 @@ using BuildXL.Storage;
 using BuildXL.Storage.Fingerprints;
 using BuildXL.Tracing;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Qualifier;
@@ -788,6 +789,15 @@ namespace BuildXL.Engine
             RootFilter filter)
         {
             var pathsToScrub = new List<string>();
+            HashSet<AbsolutePath> moduleScrubDirectories = scheduler.PipGraph.Modules
+                .Where(m => m.Key.IsValid)
+                .Select(moduleId => scheduler.PipGraph.PipTable.HydratePip(moduleId.Value.ToPipId(), PipQueryContext.SchedulerExecutePips) as Pips.Operations.ModulePip)
+                .Where(m => m?.ScrubDirectories != null)
+                .SelectMany(m => m.ScrubDirectories)
+                .ToHashSet();
+
+            pathsToScrub.AddRange(moduleScrubDirectories.Select(moduleScrubDirectory => moduleScrubDirectory.ToString(scheduler.Context.PathTable)));
+
             if (configuration.Engine.Scrub && mountPathExpander != null)
             {
                 pathsToScrub.AddRange(mountPathExpander.GetScrubbableRoots().Select(p => p.ToString(scheduler.Context.PathTable)));

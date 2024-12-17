@@ -4,6 +4,7 @@
 using System.Diagnostics.ContractsLight;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
+using System.Collections.Generic;
 
 namespace BuildXL.Pips.Operations
 {
@@ -46,9 +47,14 @@ namespace BuildXL.Pips.Operations
         public LocationData Location { get; }
 
         /// <summary>
+        /// Directories to scrub for this module
+        /// </summary>
+        public IReadOnlyList<AbsolutePath> ScrubDirectories { get; }
+
+        /// <summary>
         /// Constructs a new module pip
         /// </summary>
-        public ModulePip(ModuleId module, StringId identity, StringId version, LocationData location, StringId resolverKind, StringId resolverName)
+        public ModulePip(ModuleId module, StringId identity, StringId version, LocationData location, StringId resolverKind, StringId resolverName, IReadOnlyList<AbsolutePath> scrubDirectories)
         {
             Contract.Requires(module.IsValid);
             Contract.Requires(identity.IsValid);
@@ -61,6 +67,7 @@ namespace BuildXL.Pips.Operations
             Location = location;
             ResolverKind = resolverKind;
             ResolverName = resolverName;
+            ScrubDirectories = scrubDirectories;
         }
 
         /// <inheritdoc />
@@ -75,7 +82,7 @@ namespace BuildXL.Pips.Operations
         /// <summary>
         /// Helper method to crate a dummy test version of the modulepip.
         /// </summary>
-        public static ModulePip CreateForTesting(StringTable stringTable, AbsolutePath specPath, ModuleId? moduleId = null, StringId? moduleName = null)
+        public static ModulePip CreateForTesting(StringTable stringTable, AbsolutePath specPath, ModuleId? moduleId = null, StringId? moduleName = null, IReadOnlyList<AbsolutePath> scrubDirectories = null)
         {
             moduleName = moduleName ?? StringId.Create(stringTable, "TestModule");
             return new ModulePip(
@@ -84,7 +91,8 @@ namespace BuildXL.Pips.Operations
                 version: StringId.Invalid,
                 location: new LocationData(specPath, 0, 0),
                 resolverKind: StringId.Create(stringTable, "TestResolver"),
-                resolverName: StringId.Create(stringTable, "TestResolver")
+                resolverName: StringId.Create(stringTable, "TestResolver"),
+                scrubDirectories: scrubDirectories
             );
         }
 
@@ -99,6 +107,7 @@ namespace BuildXL.Pips.Operations
             Location.Serialize(writer);
             writer.Write(ResolverKind);
             writer.Write(ResolverName);
+            writer.WriteReadOnlyList(ScrubDirectories ?? new List<AbsolutePath>(), (writer, path) => writer.Write(path));
         }
 
         /// <summary>
@@ -112,7 +121,8 @@ namespace BuildXL.Pips.Operations
                 version: reader.ReadStringId(),
                 location: LocationData.Deserialize(reader),
                 resolverKind: reader.ReadStringId(),
-                resolverName: reader.ReadStringId()
+                resolverName: reader.ReadStringId(),
+                scrubDirectories: reader.ReadReadOnlyList((reader) => reader.ReadAbsolutePath())
             );
         }
         #endregion

@@ -81,6 +81,10 @@ namespace BuildXL.FrontEnd.Workspaces.Core
         public IEnumerable<IMount> Mounts { get; }
 
         /// <nodoc/>
+        [AllowNull]
+        public IEnumerable<AbsolutePath> ScrubDirectories { get; }
+
+        /// <nodoc/>
         public ModuleDefinition(
             ModuleDescriptor descriptor,
             AbsolutePath root,
@@ -91,7 +95,8 @@ namespace BuildXL.FrontEnd.Workspaces.Core
             int v1QualifierSpaceId,
             [AllowNull] IEnumerable<ModuleReferenceWithProvenance> allowedModuleDependencies,
             [AllowNull] IEnumerable<ModuleReferenceWithProvenance> cyclicalFriendModules,
-            [AllowNull] IEnumerable<IMount> mounts)
+            [AllowNull] IEnumerable<IMount> mounts,
+            [AllowNull] IEnumerable<AbsolutePath> scrubDirectories)
         {
             Contract.Requires(specs != null);
             Contract.Requires(root.IsValid);
@@ -99,6 +104,7 @@ namespace BuildXL.FrontEnd.Workspaces.Core
             AllowedModuleDependencies = allowedModuleDependencies;
             CyclicalFriendModules = cyclicalFriendModules;
             Mounts = mounts;
+            ScrubDirectories = scrubDirectories ?? new List<AbsolutePath>();
 
             // Main file is valid iff the resolution semantics is explicit references
             Contract.Requires(resolutionSemantics == NameResolutionSemantics.ImplicitProjectReferences
@@ -126,7 +132,8 @@ namespace BuildXL.FrontEnd.Workspaces.Core
             IEnumerable<AbsolutePath> specs,
             [AllowNull] IEnumerable<ModuleReferenceWithProvenance> allowedModuleDependencies,
             [AllowNull] IEnumerable<ModuleReferenceWithProvenance> cyclicalFriendModules,
-            [AllowNull] IEnumerable<IMount> mounts)
+            [AllowNull] IEnumerable<IMount> mounts,
+            [AllowNull] IEnumerable<AbsolutePath> scrubDirectories)
         {
             return new ModuleDefinition(
                 descriptor,
@@ -138,7 +145,8 @@ namespace BuildXL.FrontEnd.Workspaces.Core
                 InvalidQualifierSpaceId,
                 allowedModuleDependencies,
                 cyclicalFriendModules,
-                mounts);
+                mounts,
+                scrubDirectories);
         }
 
         /// <summary>
@@ -152,6 +160,7 @@ namespace BuildXL.FrontEnd.Workspaces.Core
             AbsolutePath main,
             AbsolutePath moduleConfigFile,
             IEnumerable<AbsolutePath> specs,
+            IEnumerable<AbsolutePath> scrubDirectories,
             PathTable pathTable,
             int qualifierSpaceId)
         {
@@ -165,7 +174,8 @@ namespace BuildXL.FrontEnd.Workspaces.Core
                 qualifierSpaceId,
                 allowedModuleDependencies: null,
                 cyclicalFriendModules: null,
-                mounts: null);
+                mounts: null,
+                scrubDirectories);
         }
 
         /// <summary>
@@ -217,7 +227,8 @@ namespace BuildXL.FrontEnd.Workspaces.Core
                 EmptyQualifierSpaceId,
                 allowedModuleDependencies: null,
                 cyclicalFriendModules: null,
-                mounts: null);
+                mounts: null,
+                scrubDirectories: null);
         }
 
         /// <summary>
@@ -236,7 +247,8 @@ namespace BuildXL.FrontEnd.Workspaces.Core
                 V1QualifierSpaceId,
                 AllowedModuleDependencies,
                 CyclicalFriendModules,
-                Mounts);
+                Mounts,
+                ScrubDirectories);
         }
 
         /// <inheritdoc />

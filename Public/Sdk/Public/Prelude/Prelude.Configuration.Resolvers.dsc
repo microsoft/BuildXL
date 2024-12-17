@@ -44,6 +44,11 @@ interface InlineModuleDefinition {
      * If not provided, all the .dsc files in the same folder as the main configuration file will be included
      */
     projects?: (Path | File)[];
+
+    /**
+     * List of directories to scrub if this module is present in the pip graph.
+     */
+    scrubDirectories?: Path[];
 }
 
 /**

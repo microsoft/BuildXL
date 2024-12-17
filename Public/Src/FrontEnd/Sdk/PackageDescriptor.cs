@@ -74,6 +74,12 @@ namespace BuildXL.FrontEnd.Sdk
         /// These mounts contribute to the global collection of mounts defined in <see cref="IModuleConfiguration.Mounts"/>
         /// </remarks>
         IReadOnlyList<IMount> Mounts { get; }
+
+
+        /// <summary>
+        /// Directories to scrub.
+        /// </summary>
+        IReadOnlyList<AbsolutePath> ScrubDirectories { get; }
     }
 
     /// <summary>

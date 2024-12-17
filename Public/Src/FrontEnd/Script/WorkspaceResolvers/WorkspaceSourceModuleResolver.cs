@@ -568,10 +568,10 @@ namespace BuildXL.FrontEnd.Script
 
             return package.Descriptor.NameResolutionSemantics() == NameResolutionSemantics.ImplicitProjectReferences
                 ? ModuleDefinition.CreateModuleDefinitionWithImplicitReferences(
-                    ConvertPackageToModuleDescriptor(package), packageRoot, moduleConfigFile, projects, allowedDependencies, cyclicalFriendModules, package.Descriptor.Mounts)
+                    ConvertPackageToModuleDescriptor(package), packageRoot, moduleConfigFile, projects, allowedDependencies, cyclicalFriendModules, package.Descriptor.Mounts, package.Descriptor.ScrubDirectories)
 
                     : ModuleDefinition.CreateModuleDefinitionWithExplicitReferences(
-                    ConvertPackageToModuleDescriptor(package), package.Path, moduleConfigFile, projects, PathTable, Context.QualifierTable.EmptyQualifierSpaceId.Id);
+                    ConvertPackageToModuleDescriptor(package), package.Path, moduleConfigFile, projects, package.Descriptor.ScrubDirectories, PathTable, Context.QualifierTable.EmptyQualifierSpaceId.Id);
         }
 
         /// <summary>
@@ -837,6 +837,7 @@ namespace BuildXL.FrontEnd.Script
                 // The default is V2
                 NameResolutionSemantics = NameResolutionSemantics.ImplicitProjectReferences,
                 Projects = inlineDefinition.Projects,
+                ScrubDirectories = inlineDefinition.ScrubDirectories
             };
 
             if (!ValidatePackageConfiguration(packageConfiguration, configPath))

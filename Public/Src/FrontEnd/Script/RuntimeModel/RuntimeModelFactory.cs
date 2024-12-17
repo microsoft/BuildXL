@@ -408,7 +408,8 @@ createExpression(" + spec + ");");
                 specs: new [] {specPath},
                 allowedModuleDependencies: null,
                 cyclicalFriendModules: null,
-                mounts: null
+                mounts: null,
+                scrubDirectories: null
                 );
 
             return new ParsedModule(moduleDefinition, new Dictionary<AbsolutePath, ISourceFile>() {[specPath] = sourceFile});

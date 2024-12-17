@@ -548,7 +548,8 @@ namespace BuildXL.FrontEnd.JavaScript
                 projectFiles,
                 allowedModuleDependencies: null, // no module policies
                 cyclicalFriendModules: null, // no allowlist of cycles
-                mounts: null);
+                mounts: null,
+                scrubDirectories: null);
 
             return new JavaScriptGraphResult<TGraphConfiguration>(javaScriptGraph, moduleDefinition, exports);
         }

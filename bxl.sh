@@ -24,17 +24,7 @@ else
     exit 1
 fi
 
-function callNuget() {
-    if [[ "${OSTYPE}" == "linux-gnu" ]]; then
-        $MONO_HOME/mono Shared/Tools/NuGet.exe "$@"
-    elif [[ "${OSTYPE}" == "darwin"* ]]; then
-        $MONO_HOME/mono Shared/Tools/NuGet.exe "$@"
-    else
-        print_error "Operating system not supported: ${OSTYPE}"
-        return 1
-    fi
-}
-
+# TODO [pgunasekara]: Remove this once we no longer use mono for packing nuget packages
 function findMono() {
     local monoLocation=$(which mono)
     if [[ -z $monoLocation ]]; then
@@ -43,6 +33,48 @@ function findMono() {
     else
         export MONO_HOME="$(dirname "$monoLocation")"
     fi
+}
+
+function installLkg() {
+    local feed="$1"
+    local lkgName="$2"
+    local lkgVersion="$3"
+
+    # Prepare temporary directory
+    # We'll leave these files on disk since they're in the out directory and can be inspected in case restore fails for some reason.
+    local outDir="$MY_DIR/Out/BootStrap/cs"
+    local nugetConfigFile="$outDir/nuget.config"
+    local csprojFile="$outDir/bootstrap.csproj"
+    mkdir -p "$outDir"
+
+    # Clean up existing bootstrap files if still on disk
+    rm -f "$nugetConfig"
+    rm -f "$csprojFile"
+
+    # Write files required for dotnet restore to run
+    local nugetConfig="<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>
+<configuration>
+    <packageSources>
+        <add key=\"BuildXL\" value=\"$feed\" />
+    </packageSources>
+</configuration>"
+
+    local csproj="<Project Sdk=\"Microsoft.NET.Sdk\">
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net8.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+    </PropertyGroup>
+    <ItemGroup>
+        <PackageReference Include=\"$lkgName\" Version=\"$lkgVersion\" />
+    </ItemGroup>
+</Project>"
+
+    echo "$nugetConfig" > "$nugetConfigFile"
+    echo "$csproj" > "$csprojFile"
+
+    # Run dotnet install to download the BuildXL package to the nuget cache
+    dotnet restore --interactive "$csprojFile"
 }
 
 function getLkg() {
@@ -60,8 +92,19 @@ function getLkg() {
     print_info "Getting package: $BUILDXL_LKG_NAME.$BUILDXL_LKG_VERSION"
 
     local _BUILDXL_BOOTSTRAP_OUT="$MY_DIR/Out/BootStrap"
-    callNuget install -OutputDirectory "$_BUILDXL_BOOTSTRAP_OUT" -Source $BUILDXL_LKG_FEED_1 $BUILDXL_LKG_NAME -Version $BUILDXL_LKG_VERSION
     export BUILDXL_BIN="$_BUILDXL_BOOTSTRAP_OUT/$BUILDXL_LKG_NAME.$BUILDXL_LKG_VERSION"
+
+    if [[ ! -d "$BUILDXL_BIN" ]]; then
+        # Check if a cached version of the LKG is available
+        local nugetPackageRoot=$(dotnet nuget locals global-packages -l | cut -d: -f2 | tr -d ' ')
+        local cachePath="$nugetPackageRoot/$(echo $BUILDXL_LKG_NAME/$BUILDXL_LKG_VERSION | tr '[:upper:]' '[:lower:]')"
+        if [[ ! -d "$cachePath" ]]; then
+            installLkg "$BUILDXL_LKG_FEED_1" "$BUILDXL_LKG_NAME" "$BUILDXL_LKG_VERSION"
+        fi
+        # Copy the LKG to the local bootstrap directory
+        cp -R "$cachePath" "$BUILDXL_BIN"
+    fi
+    print_info "LKG installed in $BUILDXL_BIN"
 }
 
 function setMinimal() {

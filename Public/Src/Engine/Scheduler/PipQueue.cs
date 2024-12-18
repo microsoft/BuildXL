@@ -163,12 +163,18 @@ namespace BuildXL.Scheduler
             // If adaptive IO is enabled, then start with the half of the maxIO.
             var ioLimit = m_scheduleConfig.AdaptiveIO ? (m_scheduleConfig.MaxIO + 1) / 2 : m_scheduleConfig.MaxIO;
 
+            // ChooseWorkerQueue uses a custom task scheduler which can sometimes cause issues. 
+            // We have a flag to disable this custom task scheduler and use the default DispatcherQueue.
+            bool doNotUseCustomTaskScheduler = EngineEnvironmentSettings.DoNotUseChooseWorkerQueueWithCustomTaskScheduler;
+
             if (m_scheduleConfig.ModuleAffinityEnabled())
             {
                 // When module affinity is enabled, we assign a separate priority queue to each worker.
                 // This ensures that pips from different modules do not block each other
                 // if their designated worker is unavailable.
-                m_chooseWorkerCpuQueue = new NestedChooseWorkerQueue(this, m_scheduleConfig.MaxChooseWorkerCpu, config.Distribution.RemoteWorkerCount + 1);
+                m_chooseWorkerCpuQueue = doNotUseCustomTaskScheduler ?
+                    new NestedDispatcherQueue(this, m_scheduleConfig.MaxChooseWorkerCpu, config.Distribution.RemoteWorkerCount + 1) :
+                    new NestedChooseWorkerQueue(this, m_scheduleConfig.MaxChooseWorkerCpu, config.Distribution.RemoteWorkerCount + 1) ;
             }
             else if (m_scheduleConfig.DeprioritizeOnSemaphoreConstraints)
             {
@@ -183,7 +189,9 @@ namespace BuildXL.Scheduler
                 // To mitigate this impact, we allow concurrency within ChooseWorkerCpu (default is 5),
                 // enabling the ChooseWorker logic to execute for up to 5 pips simultaneously.
                 // However, if all 5 pips are waiting for semaphores, other pips in the queue will still be blocked.
-                m_chooseWorkerCpuQueue = new ChooseWorkerQueue(this, m_scheduleConfig.MaxChooseWorkerCpu);
+                m_chooseWorkerCpuQueue = doNotUseCustomTaskScheduler ? 
+                    new DispatcherQueue(this, m_scheduleConfig.MaxChooseWorkerCpu) :
+                    new ChooseWorkerQueue(this, m_scheduleConfig.MaxChooseWorkerCpu);
             }
 
             // When CpuAdaptiveSemaphore is enabled, the max parallel degree of CPU dispatcher will be throttled by the cpu semaphore, so we don't want to limit the slots.

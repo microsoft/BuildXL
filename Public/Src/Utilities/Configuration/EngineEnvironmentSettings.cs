@@ -453,6 +453,14 @@ namespace BuildXL.Utilities.Configuration
         /// </summary>
         public static readonly Setting<bool> IncrementalSchedulingTrackAntidependencies = CreateSetting("BuildXLIncrementalSchedulingTrackAntidependencies", value => value == "1");
 
+        /// <summary>
+        /// Whether we use ChooseWorkerQueue with custom task scheduler
+        /// </summary>
+        /// <remarks>
+        /// Default disabled
+        /// </remarks>
+        public static readonly Setting<bool> DoNotUseChooseWorkerQueueWithCustomTaskScheduler = CreateSetting("BuildXLDoNotUseChooseWorkerQueueWithCustomTaskScheduler", value => value == "1");
+
         #region Cache-related timeouts
 
         /// <summary>

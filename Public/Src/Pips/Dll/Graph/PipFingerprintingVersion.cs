@@ -86,7 +86,7 @@ namespace BuildXL.Pips.Graph
         /* 
          * We do not want to bump the fingerprint version more than needed, so we will accumulate the tasks to do when we really need to bump the fingerprint version:
          ************ TODOs ******************
-         * 1)
+         * 1) Remove UnexpectedFileAccessesAreErrors from ExtraFingerprintSalts.cs 
          */
     }
 }

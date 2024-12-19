@@ -642,7 +642,7 @@ namespace Test.Tool.Analyzers
         [Fact]
         public void TestUnsafeConfigurationDiffsCorrectly()
         {
-            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.UnexpectedFileAccessesAreErrors = !UnsafeOptions.SafeConfigurationValues.UnexpectedFileAccessesAreErrors;
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.MonitorZwCreateOpenQueryFile = !UnsafeOptions.SafeConfigurationValues.MonitorZwCreateOpenQueryFile;
             Configuration.Sandbox.UnsafeSandboxConfigurationMutable.IgnorePreloadedDlls = !UnsafeOptions.SafeConfigurationValues.IgnorePreloadedDlls;
             var builder = CreatePipBuilder(new Operation[]
             {
@@ -651,27 +651,27 @@ namespace Test.Tool.Analyzers
             builder.Options |= Process.Options.AllowPreserveOutputs;
             var pip = SchedulePipBuilder(builder).Process;
 
-            // First build with UnexpectedFileAccessesAreErrors = false, IgnorePreloadedDlls = false, PreserveOutputs = disable
+            // First build with MonitorZwCreateOpenQueryFile = false, IgnorePreloadedDlls = false, PreserveOutputs = disable
             var build1 = RunScheduler().AssertCacheMiss(pip.PipId);
 
 
-            // Second build with UnexpectedFileAccessesAreErrors = true, IgnorePreloadedDlls = false, PreserveOutputs = enable with PreserveOutputsTrustLevel = 1
-            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.UnexpectedFileAccessesAreErrors = UnsafeOptions.SafeConfigurationValues.UnexpectedFileAccessesAreErrors;
+            // Second build with MonitorZwCreateOpenQueryFile = true, IgnorePreloadedDlls = false, PreserveOutputs = enable with PreserveOutputsTrustLevel = 1
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.MonitorZwCreateOpenQueryFile = UnsafeOptions.SafeConfigurationValues.MonitorZwCreateOpenQueryFile;
             Configuration.Sandbox.UnsafeSandboxConfigurationMutable.PreserveOutputsTrustLevel = 1;
             Configuration.Sandbox.UnsafeSandboxConfigurationMutable.PreserveOutputs = PreserveOutputsMode.Enabled;
             var build2 = RunScheduler().AssertCacheMiss(pip.PipId);
             var result = RunAnalyzer(build1, build2);
 
-            // Difference between build1 and build2 will has UnexpectedFileAccessesAreErrors, PreserveOutputInfo with PreserveOutputTrustLevel in it
+            // Difference between build1 and build2 will has PreserveOutputInfo with PreserveOutputTrustLevel in it
             result.AssertPipMiss(
                 pip,
                 PipCacheMissType.MissForDescriptorsDueToStrongFingerprints,
                 ObservedPathSet.Labels.UnsafeOptions,
-                nameof(Configuration.Sandbox.UnsafeSandboxConfigurationMutable.UnexpectedFileAccessesAreErrors),
+                nameof(Configuration.Sandbox.UnsafeSandboxConfigurationMutable.MonitorZwCreateOpenQueryFile),
                 nameof(PreserveOutputsInfo),
                 nameof(PreserveOutputsInfo.PreserveOutputTrustLevel));
 
-            // Second build with UnexpectedFileAccessesAreErrors = true, IgnorePreloadedDlls = true, PreserveOutputs = enable with PreserveOutputsTrustLevel = 0
+            // Second build with MonitorZwCreateOpenQueryFile = true, IgnorePreloadedDlls = true, PreserveOutputs = enable with PreserveOutputsTrustLevel = 0
             Configuration.Sandbox.UnsafeSandboxConfigurationMutable.PreserveOutputsTrustLevel = 0;
             Configuration.Sandbox.UnsafeSandboxConfigurationMutable.IgnorePreloadedDlls = UnsafeOptions.SafeConfigurationValues.IgnorePreloadedDlls;
             var build3 = RunScheduler().AssertCacheMiss(pip.PipId);

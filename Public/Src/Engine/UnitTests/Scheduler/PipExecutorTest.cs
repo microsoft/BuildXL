@@ -528,10 +528,10 @@ namespace Test.BuildXL.Scheduler
         }
 
         private static IConfiguration GetUnsafeOptions(PathTable pathTable)
-            => GetConfiguration(pathTable, monitorFileAccesses: true, unexpectedFileAccessesAreErrors: false);
+            => GetConfiguration(pathTable, monitorFileAccesses: true, ignoreReparsePoints: true);
 
         private static IConfiguration GetSaferOptions(PathTable pathTable)
-            => GetConfiguration(pathTable, monitorFileAccesses: true, unexpectedFileAccessesAreErrors: true);
+            => GetConfiguration(pathTable, monitorFileAccesses: true, ignoreReparsePoints: false);
 
         [Fact]
         public async Task ExecutingProcessWithLessSafeSandboxOptionsShouldGetCacheHit()
@@ -2750,13 +2750,15 @@ EXIT /b 3
             int? retryCount = null,
             bool monitorFileAccesses = true,
             OutputReportingMode outputReportingMode = OutputReportingMode.TruncatedOutputOnError,
-            bool storeOutputsToCache = true)
+            bool storeOutputsToCache = true,
+            bool ignoreReparsePoints = false)
         {
             var config = ConfigurationHelpers.GetDefaultForTesting(pathTable, AbsolutePath.Create(pathTable, TestPath));
             config.Sandbox.FileAccessIgnoreCodeCoverage = fileAccessIgnoreCodeCoverage;
             config.Schedule.EnableLazyOutputMaterialization = enableLazyOutputs;
             config.Sandbox.FailUnexpectedFileAccesses = failUnexpectedFileAccesses;
             config.Sandbox.UnsafeSandboxConfigurationMutable.UnexpectedFileAccessesAreErrors = unexpectedFileAccessesAreErrors;
+            config.Sandbox.UnsafeSandboxConfigurationMutable.IgnoreReparsePoints = ignoreReparsePoints;
             config.Sandbox.OutputReportingMode = outputReportingMode;
             config.Schedule.AllowCopySymlink = allowCopySymlink;
             config.Sandbox.UnsafeSandboxConfigurationMutable.PreserveOutputs = preserveOutputs;

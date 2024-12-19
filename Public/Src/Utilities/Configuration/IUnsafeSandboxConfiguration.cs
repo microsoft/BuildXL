@@ -324,6 +324,13 @@ namespace BuildXL.Utilities.Configuration
         /// </summary>
         public static bool IsAsSafeOrSaferThan(this IUnsafeSandboxConfiguration lhs, IUnsafeSandboxConfiguration rhs)
         {
+            // Intentionally missing fields:
+            //
+            // - UnexpectedFileAccessesAreErrors: When a pip has an unexpected file access, PipExecutor.cs enforces that its metadata
+            //      is not stored to the cache. Therefore it is not necessary to consider this setting for sake of caching.
+            // - PreserveOutputs: The sandbox configuration setting globally decides whether preserve outputs.
+            //      Whether the current run is as safe or safer also depends on whether preserve outputs is allowed for
+            //      the pip in question. Because that requires pip specific details, that is determined in UnsafeOptions
             return IsAsSafeOrSafer(lhs.DisableDetours(), rhs.DisableDetours(), SafeDefaults.DisableDetours())
                 && IsAsSafeOrSafer(lhs.ExistingDirectoryProbesAsEnumerations, rhs.ExistingDirectoryProbesAsEnumerations, SafeDefaults.ExistingDirectoryProbesAsEnumerations)
                 && IsAsSafeOrSafer(lhs.IgnoreGetFinalPathNameByHandle, rhs.IgnoreGetFinalPathNameByHandle, SafeDefaults.IgnoreGetFinalPathNameByHandle)
@@ -336,10 +343,6 @@ namespace BuildXL.Utilities.Configuration
                 && IsAsSafeOrSafer(lhs.MonitorFileAccesses, rhs.MonitorFileAccesses, SafeDefaults.MonitorFileAccesses)
                 && IsAsSafeOrSafer(lhs.MonitorNtCreateFile, rhs.MonitorNtCreateFile, SafeDefaults.MonitorNtCreateFile)
                 && IsAsSafeOrSafer(lhs.MonitorZwCreateOpenQueryFile, rhs.MonitorZwCreateOpenQueryFile, SafeDefaults.MonitorZwCreateOpenQueryFile)
-                && IsAsSafeOrSafer(lhs.UnexpectedFileAccessesAreErrors, rhs.UnexpectedFileAccessesAreErrors, SafeDefaults.UnexpectedFileAccessesAreErrors)
-                // Where's PreserveOutputs? The sandbox configuration setting globally decides whether preserve outputs.
-                // Whether the current run is as safe or safer also depends on whether preserve outputs is allowed for
-                // the pip in question. Because that requires pip specific details, that is determined in UnsafeOptions
                 && IsAsSafeOrSafer(lhs.IgnorePreserveOutputsPrivatization, rhs.IgnorePreserveOutputsPrivatization, SafeDefaults.IgnorePreserveOutputsPrivatization)
                 && IsAsSafeOrSafer(lhs.IgnorePreloadedDlls, rhs.IgnorePreloadedDlls, SafeDefaults.IgnorePreloadedDlls)
                 && IsAsSafeOrSafer(lhs.IgnoreDynamicWritesOnAbsentProbes, rhs.IgnoreDynamicWritesOnAbsentProbes, SafeDefaults.IgnoreDynamicWritesOnAbsentProbes)

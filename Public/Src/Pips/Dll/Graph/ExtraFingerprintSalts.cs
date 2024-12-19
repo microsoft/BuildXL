@@ -178,7 +178,9 @@ namespace BuildXL.Pips.Graph
             MonitorNtCreateFile = monitorNtCreateFile;
             MonitorZwCreateOpenQueryFile = monitorZwCreateOpenQueryFile;
             MonitorFileAccesses = monitorFileAccesses;
-            UnexpectedFileAccessesAreErrors = unexpectedFileAccessesAreErrors;
+            // No need to impact fingerprints. Processes with unexpected file accesses already disable caching.
+            // TODO This can be fully removed from extra fingerprint salts when a fingerprint change is acceptable.
+            UnexpectedFileAccessesAreErrors = true;
             MaskUntrackedAccesses = maskUntrackedAccesses;
             NormalizeReadTimestamps = normalizeReadTimestamps;
             ValidateDistribution = validateDistribution;

@@ -224,6 +224,25 @@ namespace IntegrationTest.BuildXL.Scheduler
             AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, count: 2);
         }
 
+        [Fact]
+        public void UnexpectedFileAccessesAreErrors_DoesntImpactCachingWhenNoViolation()
+        {
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.UnexpectedFileAccessesAreErrors = false;
+
+            FileArtifact expectedAccess = CreateSourceFile();
+            Process pip = CreateAndSchedulePipBuilder(
+            [
+                Operation.WriteFile(CreateOutputFileArtifact()),
+                Operation.ReadFile(expectedAccess)
+            ]).Process;
+
+            RunScheduler().AssertCacheMiss(pip.PipId);
+
+            Configuration.Sandbox.UnsafeSandboxConfigurationMutable.UnexpectedFileAccessesAreErrors = true;
+            // Pip should be a cache hit since it didn't have an unexpected file access
+            RunScheduler().AssertCacheHit(pip.PipId);
+        }
+
         [FactIfSupported(requiresJournalScan: true, Skip = "Bug #1517905")]
         public void UseJunctionRoots()
         {

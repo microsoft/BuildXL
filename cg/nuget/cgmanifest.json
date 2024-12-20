@@ -752,6 +752,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "Microsoft.Bcl.TimeProvider",
+          "Version": "8.0.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "Microsoft.Build",
           "Version": "17.11.4"
         }
@@ -1049,6 +1058,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "Microsoft.Extensions.AmbientMetadata.Application",
+          "Version": "8.0.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "Microsoft.Extensions.Caching.Abstractions",
           "Version": "1.0.0"
         }
@@ -1060,6 +1078,15 @@
         "NuGet": {
           "Name": "Microsoft.Extensions.Caching.Memory",
           "Version": "1.0.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Extensions.Compliance.Abstractions",
+          "Version": "8.0.0"
         }
       }
     },
@@ -1112,8 +1139,53 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "Microsoft.Extensions.DependencyInjection.AutoActivation",
+          "Version": "8.0.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Extensions.DiagnosticAdapter",
+          "Version": "3.1.32"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Extensions.Diagnostics",
+          "Version": "8.0.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Extensions.Diagnostics.Abstractions",
+          "Version": "8.0.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Extensions.Diagnostics.ExceptionSummarization",
+          "Version": "8.0.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "Microsoft.Extensions.FileProviders.Abstractions",
-          "Version": "3.0.3"
+          "Version": "8.0.0"
         }
       }
     },
@@ -1131,7 +1203,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Extensions.Hosting.Abstractions",
-          "Version": "3.0.3"
+          "Version": "8.0.0"
         }
       }
     },
@@ -1141,6 +1213,33 @@
         "NuGet": {
           "Name": "Microsoft.Extensions.Http",
           "Version": "7.0.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Extensions.Http",
+          "Version": "8.0.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Extensions.Http.Diagnostics",
+          "Version": "8.0.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Extensions.Http.Resilience",
+          "Version": "8.0.0"
         }
       }
     },
@@ -1166,6 +1265,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "Microsoft.Extensions.Logging.Configuration",
+          "Version": "8.0.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "Microsoft.Extensions.MemoryPool",
           "Version": "1.0.0-rc1-final"
         }
@@ -1176,7 +1284,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Extensions.ObjectPool",
-          "Version": "6.0.36"
+          "Version": "8.0.0"
         }
       }
     },
@@ -1185,6 +1293,15 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Extensions.Options",
+          "Version": "8.0.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Extensions.Options.ConfigurationExtensions",
           "Version": "8.0.0"
         }
       }
@@ -1204,6 +1321,42 @@
         "NuGet": {
           "Name": "Microsoft.Extensions.Primitives",
           "Version": "8.0.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Extensions.Resilience",
+          "Version": "8.0.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Extensions.Telemetry",
+          "Version": "8.0.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Extensions.Telemetry.Abstractions",
+          "Version": "8.0.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.IO.RecyclableMemoryStream",
+          "Version": "2.3.2"
         }
       }
     },
@@ -2516,6 +2669,33 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "Polly.Core",
+          "Version": "8.0.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Polly.Extensions",
+          "Version": "8.0.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Polly.RateLimiting",
+          "Version": "8.0.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "RE2.Managed",
           "Version": "1.10.0"
         }
@@ -2689,6 +2869,15 @@
         "NuGet": {
           "Name": "System.Collections.Specialized",
           "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.CommandLine",
+          "Version": "2.0.0-beta4.22272.1"
         }
       }
     },
@@ -3931,6 +4120,15 @@
         "NuGet": {
           "Name": "System.Threading.Overlapped",
           "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Threading.RateLimiting",
+          "Version": "7.0.0"
         }
       }
     },

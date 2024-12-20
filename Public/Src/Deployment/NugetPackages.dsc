@@ -716,7 +716,7 @@ namespace NugetPackages {
     // Currently we deploy tools as self-contained .NET Core binaries for macOS only!
     const toolsAdoBuildRunner = pack({
         id: `${packageNamePrefix}.Tools.AdoBuildRunner.osx-x64`,
-        deployment: Tools.AdoBuildRunner.withQualifier({
+        deployment: importFrom("BuildXL.AdoBuildRunner").BuildXL.AdoBuildRunner.withQualifier({
             targetFramework: defaultTargetFramework,
             targetRuntime: "osx-x64"
         }).deployment

@@ -25,9 +25,9 @@ namespace Tools {
 
         export const deployment : Deployment.Definition = {
             contents: [
-                importFrom("BuildXL.Tools").withQualifier({
+                importFrom("BuildXL.AdoBuildRunner").withQualifier({
                     targetFramework: qualifier.targetFramework,
-                }).AdoBuildRunner.exe
+                }).BuildXL.AdoBuildRunner.exe
             ],
         };
 

@@ -25,7 +25,7 @@ function createDeployment(isServerDeployment: boolean, isMinimal: boolean) : Dep
             Main.exe,
             f`DefaultCacheConfig.json`,
             
-            importFrom("BuildXL.Tools").AdoBuildRunner.deployment,
+            importFrom("BuildXL.AdoBuildRunner").BuildXL.AdoBuildRunner.deployment,
             importFrom("BuildXL.Cache.VerticalStore").Deployment.deployment,
             importFrom("BuildXL.Cache.ContentStore").deploymentForBuildXL,
 

@@ -83,7 +83,6 @@ export const pkgs = isMicrosoftInternal ? [
     { id: "Microsoft.ComponentDetection.Contracts", version: "5.1.16" },
     { id: "Microsoft.Sbom.Contracts", version: "3.0.0" },
     { id: "Microsoft.Sbom.Extensions", version: "3.0.0" },
-    { id: "Microsoft.Bcl.HashCode", version: "1.1.1" },
 
     // Process remoting
     { id: "AnyBuild.SDK", version: "0.2.0" },

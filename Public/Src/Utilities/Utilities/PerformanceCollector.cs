@@ -400,11 +400,10 @@ namespace BuildXL.Utilities
         /// <summary>
         /// Get machine memory counters
         /// </summary>
-        public static bool TryGetMemoryCountersMb(out int? machineTotalPhysicalMb, out int? machineAvailablePhysicalMb, out int? engineRamMb)
+        public static bool TryGetMemoryCountersMb(out int? machineTotalPhysicalMb, out int? machineAvailablePhysicalMb)
         {
             machineTotalPhysicalMb = null;
             machineAvailablePhysicalMb = null;
-            engineRamMb = (int)(Process.GetCurrentProcess().WorkingSet64 / 1024 / 1024);
 
             if (TryGetMemoryCounters(out double? machineTotalPhysicalBytes, out double? machineAvailablePhysicalBytes))
             {

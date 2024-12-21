@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Distribution.Grpc;
-using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Tasks;
 using static BuildXL.Distribution.Grpc.HelloResponse.Types;
@@ -23,6 +22,5 @@ namespace BuildXL.Engine.Distribution
         Task<RpcCallResult<Unit>> ReportExecutionLogAsync(ExecutionLogInfo message, CancellationToken cancellationToken = default);
         Task CloseAsync();
         bool TryFinalizeStreaming();
-        void SetupPerfDataInHeartbeats(PerformanceCollector.Aggregator performanceAggregator, uint workerId);
     }
 }

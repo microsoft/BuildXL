@@ -26,7 +26,7 @@ service Orchestrator {
     rpc StreamExecutionLog(stream ExecutionLogInfo) returns (RpcResponse) {}
 
     // Heartbeat
-    rpc Heartbeat(WorkerPerfInfo) returns (RpcResponse) {}
+    rpc Heartbeat(RpcResponse) returns (RpcResponse) {}
 }
 
 // Defines the service for talking to builder worker processes
@@ -99,9 +99,6 @@ message AttachCompletionInfo
 
     // The total RAM on the worker
     int32 TotalRamMb = 7;
-
-    // BuildXL engine RAM usage in MB
-    int32 EngineRamMb = 8;
 }
 
 // Defines information about a completed pip and its outputs
@@ -396,23 +393,4 @@ message PipProcessEvent {
     optional string OptionalMessage = 10;
     optional string ShortPipDescription = 11;
     optional int64 PipExecutionTimeMs = 12;
-}
-
-// Worker performance information
-message WorkerPerfInfo
-{
-    // Identifies the worker making the callback
-    uint32 WorkerId = 1;
-
-    // Overall machine free RAM in MB
-    int32 MachineAvailableRamMb = 2;
-
-    // Overall machine CPU usage as a percentage
-    int32 MachineCpuUsage = 3;
-
-    // BuildXL engine RAM usage in MB
-    int32 EngineRamMb = 4;
-
-    // BuildXL engine CPU usage as a percentage
-    int32 EngineCpuUsage = 5;
 }

@@ -62,9 +62,8 @@ namespace BuildXL.Engine.Distribution.Grpc
         }
 
         /// <inheritdoc/>
-        public override Task<RpcResponse> Heartbeat(WorkerPerfInfo message, ServerCallContext context)
+        public override Task<RpcResponse> Heartbeat(RpcResponse message, ServerCallContext context)
         {
-            m_orchestratorService.ReceivedWorkerPerfInfo(message);
             return GrpcUtils.EmptyResponseTask;
         }
 

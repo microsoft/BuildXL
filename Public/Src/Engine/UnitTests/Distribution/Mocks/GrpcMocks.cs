@@ -196,9 +196,5 @@ namespace Test.BuildXL.Distribution
         {
             return true;
         }
-
-        public void SetupPerfDataInHeartbeats(PerformanceCollector.Aggregator performanceAggregator, uint workerId)
-        {   
-        }
     }
 }

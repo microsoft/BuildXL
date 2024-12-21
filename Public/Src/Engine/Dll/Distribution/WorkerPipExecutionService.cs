@@ -156,7 +156,6 @@ namespace BuildXL.Engine.Distribution
                         MaxLightProcesses = Config.Schedule.MaxLight,
                         AvailableRamMb = (m_scheduler.LocalWorker.TotalRamMb - m_scheduler.LocalWorker.UsedRamMb) ?? 0,
                         TotalRamMb = m_scheduler.LocalWorker.TotalRamMb ?? 0,
-                        EngineRamMb = m_scheduler.LocalWorker.EngineRamMb ?? 0
                     };
 
             /// <inheritdoc/>

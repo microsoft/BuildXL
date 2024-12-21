@@ -1210,14 +1210,7 @@ namespace BuildXL.Engine.Distribution
                 availableRamMb = Environment.LocalWorker.AvailableRamMb;
             }
 
-            // When the remote worker is first attached, we just need to know the ram counters, so we can set up the ram semaphores.
-            // The cpu usage information will be sent as a part of the heartbeat messages.
-            UpdatePerfInfo(m_appLoggingContext,
-                currentTotalRamMb: totalRamMb,
-                machineAvailableRamMb: availableRamMb,
-                engineRamMb: attachCompletionInfo.EngineRamMb,
-                engineCpuUsage: null,
-                machineCpuUsage: null);
+            UpdateRamCounters(m_appLoggingContext, totalRamMb, availableRamMb);
 
             // There is a nearly impossible race condition where the node may still be
             // in the Starting state (i.e. waiting for ACK of Attach call) so we try to transition

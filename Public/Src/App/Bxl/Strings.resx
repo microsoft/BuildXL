@@ -901,9 +901,6 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   <data name="HelpText_DisplayHelp_DeprioritizeOnSemaphoreConstraints" xml:space="preserve">
     <value>Enables the de-prioritization when there is a semaphore constraint, so that other lower-priority pips can be scheduled.</value>
   </data>
-  <data name="HelpText_DisplayHelp_UseHistoricalCpuThrottling" xml:space="preserve">
-    <value>Use the historical cpu usages of the process pips as a semaphore to limit the number of processes to execute.</value>
-  </data>
   <data name="HelpText_DisplayHelp_VmConcurrencyLimit" xml:space="preserve">
     <value>Max number of processes executed in VM. Value 0 means unbounded. Defaults to 0.</value>
   </data>

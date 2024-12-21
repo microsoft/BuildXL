@@ -15,6 +15,7 @@ using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Artifacts;
 using BuildXL.Scheduler.Tracing;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
@@ -40,8 +41,6 @@ namespace BuildXL.Scheduler.Distribution
         /// Name of the RAM semaphore
         /// </summary>
         private const string RamSemaphoreName = "BuildXL.Scheduler.Worker.TotalMemory";
-
-        private const string CpuSemaphoreName = "BuildXL.Scheduler.Worker.CPU";
 
         /// <summary>
         /// Name of semaphore that controls the number of pips that execute in VM.
@@ -167,9 +166,7 @@ namespace BuildXL.Scheduler.Distribution
         /// </summary>
         public int TotalMaterializeInputSlots { get; protected set; }
 
-        private readonly StringId m_cpuSemaphoreNameId;
-        private readonly int m_cpuSemaphoreIndex = -1;
-        private readonly int m_cpuSemaphoreLimit;
+        private bool m_dynamicRamDetected = false;
 
         private readonly StringId m_ramSemaphoreNameId;
         private int m_ramSemaphoreIndex = -1;
@@ -177,33 +174,25 @@ namespace BuildXL.Scheduler.Distribution
         private int? m_initialAvailableRamMb;
 
         /// <nodoc/>
-        public int? EngineRamMb { get; private set; }
-
-        /// <nodoc/>
         public int? AvailableRamMb => TotalRamMb - UsedRamMb;
 
         /// <nodoc/>
-        public int? TotalRamMb { get; private set; }
+        public int? TotalRamMb
+        {
+            get; private set;
+        }
 
         /// <nodoc/>
-        public int? UsedRamMb { get; private set; }
+        public int? UsedRamMb
+        {
+            get; private set;
+        }
 
         /// <summary>
         /// Gets the projected total RAM usage in megabytes (MB) for all pips currently assigned to this worker.
         /// This represents the RAM that will be used throughout the execution of these pips.
         /// </summary>
         public int ProjectedPipsRamUsageMb => m_ramSemaphoreIndex < 0 ? 0 : m_workerSemaphores.GetUsage(m_ramSemaphoreIndex);
-
-        /// <nodoc/>
-        public int CpuUsage { get; private set; }
-
-        /// <nodoc/>
-        public int ProjectedPipsCpuUsage => m_cpuSemaphoreIndex < 0 ? 0 : m_workerSemaphores.GetUsage(m_cpuSemaphoreIndex);
-
-        /// <summary>
-        /// Semaphore resources acquired by the worker to account for the BuildXL process's RAM and CPU usage.
-        /// </summary>
-        private ItemResources? m_lastEngineResource;
 
         /// <summary>
         /// Default memory usage for process pips in case of no historical ram usage info 
@@ -308,13 +297,6 @@ namespace BuildXL.Scheduler.Distribution
 
             m_ramSemaphoreNameId = context.StringTable.AddString(RamSemaphoreName);
             m_scheduleConfig = scheduleConfig;
-
-            m_cpuSemaphoreNameId = context.StringTable.AddString(CpuSemaphoreName);
-
-            // For an 8-core machine, the semaphore limit is set to 800 because the pips
-            // report their CPU usage per core. If a pip fully utilizes 2 cores, its CPU usage would be 200%.
-            m_cpuSemaphoreLimit = 100 * Environment.ProcessorCount;
-            m_cpuSemaphoreIndex = m_workerSemaphores.CreateSemaphore(m_cpuSemaphoreNameId, m_cpuSemaphoreLimit);
         }
 
         /// <summary>
@@ -523,7 +505,7 @@ namespace BuildXL.Scheduler.Distribution
         /// <summary>
         /// Try acquire given resources on the worker.
         /// </summary>
-        internal bool TryAcquireProcess(ProcessRunnablePip processRunnablePip, out WorkerResource? limitingResource, double loadFactor, bool moduleAffinityEnabled = false)
+        internal bool TryAcquireProcess(ProcessRunnablePip processRunnablePip, out WorkerResource? limitingResource, double loadFactor = 1, bool moduleAffinityEnabled = false)
         {
             limitingResource = WorkerResource.Status;
 
@@ -594,10 +576,6 @@ namespace BuildXL.Scheduler.Distribution
             {
                 limitingResource = WorkerResource.AvailableMemoryMb;
             }
-            else if (limitingResourceName == m_cpuSemaphoreNameId)
-            {
-                limitingResource = WorkerResource.AvailableCpu;
-            }
             else
             {
                 limitingResource = WorkerResource.CreateSemaphoreResource(limitingResourceName.ToString(processRunnablePip.Environment.Context.StringTable));
@@ -618,49 +596,6 @@ namespace BuildXL.Scheduler.Distribution
             return Interlocked.Add(ref m_acquiredProcessSlots, (release ? -1 : 1) * processRunnable.Weight);
         }
 
-        private void UpdateMachineSemaphores(int? engineRamMb, int? engineCpuUsage)
-        {
-            if (engineRamMb == null || engineRamMb == 0 || engineCpuUsage == null)
-            {
-                return;
-            }
-
-            using (var semaphoreInfoListWrapper = s_semaphoreInfoListPool.GetInstance())
-            {
-                var semaphores = semaphoreInfoListWrapper.Instance;
-
-                if (m_scheduleConfig.UseHistoricalCpuThrottling)
-                {
-                    // The CPU usage of the BuildXL process is reported across all cores. Therefore,
-                    // we need to multiply it by the number of processors before using it as a semaphore value.
-                    int value = Math.Max(1, engineCpuUsage.Value * Environment.ProcessorCount);
-                    var cpuSemaphoreInfo = new ProcessSemaphoreInfo(
-                        m_cpuSemaphoreNameId,
-                        value: value,
-                        limit: m_cpuSemaphoreLimit);
-                    semaphores.Add(cpuSemaphoreInfo);
-                }
-
-                var ramSemaphoreInfo = new ProcessSemaphoreInfo(
-                    m_ramSemaphoreNameId,
-                    value: engineRamMb.Value,
-                    limit: m_ramSemaphoreLimit);
-                semaphores.Add(ramSemaphoreInfo);
-
-                var resources = ProcessExtensions.GetSemaphoreResources(m_workerSemaphores, semaphores);
-                // Due to the assigned process pips, the worker's RAM and CPU semaphores might be near the limit.
-                // That's why, we force to acquire the buildxl process's semaphores.
-                m_workerSemaphores.TryAcquireResources(resources, force: true);
-
-                if (m_lastEngineResource.HasValue)
-                {
-                    m_workerSemaphores.ReleaseResources(m_lastEngineResource.Value);
-                }
-
-                m_lastEngineResource = resources;
-            }
-        }
-
         private ProcessSemaphoreInfo[] GetAdditionalResourceInfo(ProcessRunnablePip runnableProcess, ProcessMemoryCounters expectedMemoryCounters)
         {
             var config = runnableProcess.Environment.Configuration;
@@ -678,28 +613,18 @@ namespace BuildXL.Scheduler.Distribution
                         limit: config.Sandbox.VmConcurrencyLimit));
                 }
 
-                if (runnableProcess.Environment.IsRamProjectionActive)
+                if (!runnableProcess.Environment.IsRamProjectionActive)
                 {
-                    int ramUsage = Math.Max(1, config.Schedule.EnableLessAggressiveMemoryProjection ? expectedMemoryCounters.AverageWorkingSetMb : expectedMemoryCounters.PeakWorkingSetMb);
-                    var ramSemaphoreInfo = new ProcessSemaphoreInfo(
-                            m_ramSemaphoreNameId,
-                            value: Math.Min(ramUsage, m_ramSemaphoreLimit),
-                            limit: m_ramSemaphoreLimit);
-                    semaphores.Add(ramSemaphoreInfo);
+                    // Not tracking working set
+                    return semaphores.ToArray();
                 }
 
-                if (runnableProcess.Environment.Configuration.Schedule.UseHistoricalCpuThrottling)
-                {
-                    // If there is no historical data available, we use 100 (1-core) as the cpu usage by default.
-                    // Sometimes, the historical data shows the cpu usage as 0 if the process is very lightweight and short-running. 
-                    // In those cases, we use 1 as the cpu usage.
-                    int cpuUsage = Math.Max(1, runnableProcess.HistoricPerfData.Value == ProcessPipHistoricPerfData.Empty ? 100 : runnableProcess.HistoricPerfData.Value.ProcessorsInPercents);
-                    var cpuSemaphoreInfo = new ProcessSemaphoreInfo(
-                        m_cpuSemaphoreNameId,
-                        value: Math.Min(cpuUsage, m_cpuSemaphoreLimit),
-                        limit: m_cpuSemaphoreLimit);
-                    semaphores.Add(cpuSemaphoreInfo);
-                }
+                int ramUsage = Math.Max(1, config.Schedule.EnableLessAggressiveMemoryProjection ? expectedMemoryCounters.AverageWorkingSetMb : expectedMemoryCounters.PeakWorkingSetMb);
+                var ramSemaphoreInfo = new ProcessSemaphoreInfo(
+                        m_ramSemaphoreNameId,
+                        value: Math.Min(ramUsage, m_ramSemaphoreLimit),
+                        limit: m_ramSemaphoreLimit);
+                semaphores.Add(ramSemaphoreInfo);
 
                 return semaphores.ToArray();
             }
@@ -838,52 +763,29 @@ namespace BuildXL.Scheduler.Distribution
             }
         }
 
-        internal void UpdatePerfInfo(LoggingContext loggingContext, int? currentTotalRamMb, int? machineAvailableRamMb, int? engineRamMb, int? engineCpuUsage, int? machineCpuUsage)
-        {
-            UpdateRamInfo(loggingContext, currentTotalRamMb, machineAvailableRamMb, engineRamMb);
-
-            // Pips and the BuildXL engine run on the same machine, competing for shared resources.
-            // Therefore, when scheduling pips, we must consider the RAM and CPU usage of the BuildXL engine. 
-            // Since the engine performs tasks such as cache lookups, materialization, hashing, and more,
-            // it is logical to represent the engine as a pip from the scheduler's perspective.
-            UpdateMachineSemaphores(engineRamMb, engineCpuUsage);
-
-            if (machineCpuUsage.HasValue)
-            {
-                CpuUsage = machineCpuUsage.Value;
-            }
-        }
-
-        private void UpdateRamInfo(LoggingContext loggingContext, int? currentTotalRamMb, int? machineAvailableRamMb, int? engineRamMb)
+        internal void UpdateRamCounters(LoggingContext loggingContext, int? currentTotalRamMb, int? availableRamMb)
         {
             if (!TotalRamMb.HasValue)
             {
                 TotalRamMb = currentTotalRamMb;
             }
-            else if (currentTotalRamMb.HasValue && TotalRamMb != currentTotalRamMb)
+            else if (currentTotalRamMb.HasValue && TotalRamMb != currentTotalRamMb && !m_dynamicRamDetected)
             {
+                m_dynamicRamDetected = true;
                 Logger.Log.DynamicRamDetected(loggingContext, Name, TotalRamMb.Value, currentTotalRamMb.Value);
-                TotalRamMb = currentTotalRamMb;
             }
 
-            if (!m_initialAvailableRamMb.HasValue && machineAvailableRamMb.HasValue)
+            if (!m_initialAvailableRamMb.HasValue && availableRamMb.HasValue)
             {
-                // We will add BuildXL's current ram usage to the available ram
-                // because we will use the process ram usage as a semaphore.
-                m_initialAvailableRamMb = machineAvailableRamMb + (engineRamMb ?? 0);
+                m_initialAvailableRamMb = availableRamMb;
 
                 m_ramSemaphoreLimit = (int)Math.Round((double)m_initialAvailableRamMb * m_scheduleConfig.RamSemaphoreMultiplier);
                 m_ramSemaphoreIndex = m_workerSemaphores.CreateSemaphore(m_ramSemaphoreNameId, m_ramSemaphoreLimit);
             }
 
-            if (TotalRamMb.HasValue && machineAvailableRamMb.HasValue)
+            if (currentTotalRamMb.HasValue && availableRamMb.HasValue)
             { 
-                UsedRamMb = TotalRamMb.Value - machineAvailableRamMb.Value;
-            }
-
-            if (engineRamMb.HasValue)
-            {
-                EngineRamMb = engineRamMb;
+                UsedRamMb = currentTotalRamMb.Value - availableRamMb.Value;
             }
         }
 

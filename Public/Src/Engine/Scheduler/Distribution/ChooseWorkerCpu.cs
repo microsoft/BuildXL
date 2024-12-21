@@ -43,8 +43,6 @@ namespace BuildXL.Scheduler.Distribution
         /// <summary>
         /// Determines the maximum load factor for oversubscribing workers. Allows extra pips to be assigned to workers. 
         /// These extra pips can materialize inputs while waiting in the CPU dispatcher for available slots in the assigned worker.
-        /// If <see cref="IScheduleConfiguration.UseHistoricalCpuThrottling"/> is enabled, we set `MaxLoadFactor` to a very high number like 10, so we do not get throttled by the available slots.
-        /// When this feature is used, the available CPU slots are not important as the max level of concurrency will be decided based on the cpu semaphore.
         /// If `DeprioritizeOnSemaphoreConstraints` is enabled, we set `MaxLoadFactor` to 1. This is because we do not want to lower the priority of pips when they are throttled by memory constraints.
         /// When oversubscribing is allowed (i.e., `MaxLoadFactor` > 1), the limiting resource becomes memory or other semaphores rather than the available worker slots.
         /// 
@@ -52,9 +50,8 @@ namespace BuildXL.Scheduler.Distribution
         /// In the builds where module affinity is enabled, the materialization cost is high, so oversubscribing the workers helps the scheduler utilize the workers more efficiently.
         /// </summary>
         private double MaxLoadFactor =>
-            m_scheduleConfig.UseHistoricalCpuThrottling ? 10 :
-            (m_scheduleConfig.DeprioritizeOnSemaphoreConstraints || !IsOrchestrator ? 1 :
-            (m_moduleAffinityEnabled ? m_scheduleConfig.ModuleAffinityLoadFactor.Value : 2));
+            m_scheduleConfig.DeprioritizeOnSemaphoreConstraints ? 1 :
+            (m_moduleAffinityEnabled ? m_scheduleConfig.ModuleAffinityLoadFactor.Value : 2);
 
         private readonly FileContentManager m_fileContentManager;
         private readonly PipTable m_pipTable;
@@ -133,7 +130,7 @@ namespace BuildXL.Scheduler.Distribution
             if (!IsOrchestrator || runnablePip.MustRunOnOrchestrator)
             {
                 // This is shortcut for the single-machine builds.
-                chosenWorker = m_localWorker.TryAcquireProcess(runnablePip, out limitingResource, loadFactor: MaxLoadFactor) ? m_localWorker : null;
+                chosenWorker = m_localWorker.TryAcquireProcess(runnablePip, out limitingResource, loadFactor: 1) ? m_localWorker : null;
             }
             else if (m_moduleAffinityEnabled && m_moduleWorkerMapping.TryGetValue(moduleId, out var assignedWorkers))
             {
@@ -160,8 +157,7 @@ namespace BuildXL.Scheduler.Distribution
                 runnablePip.IsWaitingForWorker = true;
                 m_lastIterationBlockedPip = runnablePip;
 
-                if (m_scheduleConfig.DeprioritizeOnSemaphoreConstraints && 
-                    limitingResource.Value.PrecedenceType == WorkerResource.Precedence.SemaphorePrecedence)
+                if (m_scheduleConfig.DeprioritizeOnSemaphoreConstraints && limitingResource.Value.PrecedenceType == WorkerResource.Precedence.SemaphorePrecedence)
                 {
                     // Scheduling dilemma: prioritization conflicts with resource constraints.
                     // When a pip can't be assigned to any worker due to semaphore constraints,

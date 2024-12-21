@@ -194,10 +194,6 @@ namespace BuildXL.Scheduler
                     new ChooseWorkerQueue(this, m_scheduleConfig.MaxChooseWorkerCpu);
             }
 
-            // When CpuAdaptiveSemaphore is enabled, the max parallel degree of CPU dispatcher will be throttled by the cpu semaphore, so we don't want to limit the slots.
-            // All pips run in the CPU dispatcher are process pips and they need to go through ChooseWorkerCpu logic to acquire the cpu semaphore.
-            int cpuMaxParallelDegree = m_scheduleConfig.UseHistoricalCpuThrottling ? int.MaxValue : m_scheduleConfig.EffectiveMaxProcesses;
-
             m_queuesByKind = new Dictionary<DispatcherKind, DispatcherQueue>()
                              {
                                  {DispatcherKind.IO, new DispatcherQueue(this, ioLimit)},
@@ -207,7 +203,7 @@ namespace BuildXL.Scheduler
                                  {DispatcherKind.ChooseWorkerIpc, new DispatcherQueue(this, 1)},
                                  {DispatcherKind.ChooseWorkerCpu, m_chooseWorkerCpuQueue},
                                  {DispatcherKind.CacheLookup, new DispatcherQueue(this, m_scheduleConfig.MaxCacheLookup)},
-                                 {DispatcherKind.CPU, new DispatcherQueue(this, cpuMaxParallelDegree, useWeight: true)},
+                                 {DispatcherKind.CPU, new DispatcherQueue(this, m_scheduleConfig.EffectiveMaxProcesses, useWeight: true)},
                                  {DispatcherKind.Materialize, new DispatcherQueue(this, m_scheduleConfig.MaxMaterialize)},
                                  {DispatcherKind.Light, new DispatcherQueue(this, m_scheduleConfig.MaxLight)},
                                  {DispatcherKind.IpcPips, new DispatcherQueue(this, m_scheduleConfig.MaxIpc)}
@@ -258,12 +254,6 @@ namespace BuildXL.Scheduler
                 {
                     maxParallelDegree = 1;
                 }
-            }
-
-            if (m_scheduleConfig.UseHistoricalCpuThrottling && kind == DispatcherKind.CPU)
-            {
-                // If it is enabled, we shouldn't adjust the max parallel degree of the CPU dispatcher, as we want the concurrency to only be controlled by the semaphore.
-                return;
             }
 
             if (m_queuesByKind[kind].AdjustParallelDegree(maxParallelDegree) && maxParallelDegree > 0)

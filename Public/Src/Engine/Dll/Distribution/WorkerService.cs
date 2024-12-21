@@ -26,7 +26,6 @@ using static BuildXL.Distribution.Grpc.HelloResponse.Types;
 using static BuildXL.Engine.Distribution.Grpc.ClientConnectionManager;
 using PipGraphCacheDescriptor = BuildXL.Engine.Cache.Fingerprints.PipGraphCacheDescriptor;
 using Logger = BuildXL.Engine.Tracing.Logger;
-using static BuildXL.Distribution.Grpc.Orchestrator;
 
 namespace BuildXL.Engine.Distribution
 {
@@ -186,7 +185,6 @@ namespace BuildXL.Engine.Distribution
         {
             Contract.Assert(AttachCallTask.IsCompleted && AttachCallTask.GetAwaiter().GetResult() == AttachResult.Attached, "Start called before finishing attach on worker");
             m_executionLogTarget = schedule?.Scheduler.ExecutionLog;
-            m_orchestratorClient.SetupPerfDataInHeartbeats(schedule?.Scheduler.PerformanceAggregator, WorkerId);
             m_pipExecutionService.Start(schedule, BuildStartData);
             m_notificationManager.Start(m_orchestratorClient, schedule, new PipResultSerializer(resultSerializer), m_config.Logging);
         }

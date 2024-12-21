@@ -533,10 +533,5 @@ namespace BuildXL.Utilities.Configuration
         /// Represents the RAM semaphore limit as a multiplier of the available RAM at the start of the build.
         /// </summary>
         double RamSemaphoreMultiplier { get; }
-
-        /// <summary>
-        /// Use the historical cpu usages of the process pips as a semaphore to limit the number of processes to execute
-        /// </summary>
-        bool UseHistoricalCpuThrottling { get; }
     }
 }

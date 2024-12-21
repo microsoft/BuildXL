@@ -261,10 +261,6 @@ namespace Test.BuildXL.Distribution
                 return HelloResponseType.Ok;
             }
 
-            public void ReceivedWorkerPerfInfo(WorkerPerfInfo workerPerfInfo)
-            {
-            }
-
             #endregion
         }
 

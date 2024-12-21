@@ -667,10 +667,6 @@ namespace BuildXL
                 Strings.HelpText_DisplayHelp_DeprioritizeOnSemaphoreConstraints);
 
             hw.WriteOption(
-                "/useHistoricalCpuThrottling[+|-]",
-                Strings.HelpText_DisplayHelp_UseHistoricalCpuThrottling);
-
-            hw.WriteOption(
                 "/maxCommitUtilizationPercentage:<number>",
                 Strings.HelpText_DisplayHelp_MaxCommitUtilizationPercentage,
                 HelpLevel.Verbose);

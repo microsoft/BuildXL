@@ -102,7 +102,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
 
         private void AddOption(string prefix, IpcMoniker value)
         {
-            AddOption(prefix, value, valueIsEmpty: value == null, writeValue: (b, v) => b.AddIpcMoniker(v));
+            AddOption(prefix, value, valueIsEmpty: value.Id == null, writeValue: (b, v) => b.AddIpcMoniker(v));
         }
 
         private void AddVsoHashOption(string prefix, FileArtifact value)

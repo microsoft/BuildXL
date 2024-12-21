@@ -498,7 +498,7 @@ namespace BuildXL.FrontEnd.Utilities
             var parser = new DScriptParser(context.PathTable);
             sourceFile = (TypeScript.Net.Types.SourceFile)parser.ParseSourceFileContent(sourceFilePath.ToString(context.PathTable), sourceFileContent, ParsingOptions.DefaultParsingOptions);
 
-            return sourceFile.ParseDiagnostics.Count != 0;
+            return sourceFile.ParseDiagnostics.Count == 0;
         }
 
         /// <summary>

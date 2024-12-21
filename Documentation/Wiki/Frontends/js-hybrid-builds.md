@@ -76,7 +76,7 @@ config({
         kind: "Rush",
         moduleName: "sp-client",
         ...
-        customScheduling: {module: "test-telemetry", schedulingFunction: "runJestWithTelemetry"}
+        customScheduling: {module: "test-telemetry", schedulingFunction: "runJestWithTelemetry", argument: LazyEval<any>{...}}
       }
       {
           kind: "DScript",
@@ -86,16 +86,16 @@ config({
 });
 ```
 
-With this configuration, every time there is a JavaScript project to schedule, the resolver will call `runJestWithTelemetry` instead of scheduling the project in the usual way. The scheduling function is expected to have a particular signature:
+With this configuration, every time there is a JavaScript project to schedule, the resolver will call `runJestWithTelemetry` instead of scheduling the project in the usual way. The argument `argument` is optional and can be omitted. The scheduling function is expected to have a particular signature:
 
 ```typescript
 // test-telemetry.dsc
 
-@@public export function runJestWithTelemetry(project: JavaScriptProject): TransformerExecuteResult {
+@@public export function runJestWithTelemetry(project: JavaScriptProject, argument: any): TransformerExecuteResult | TransformerIpcSendResult {
     ...
 }
 ```
-The argument represents all the information the resolver has about a particular project + script command that needs to be scheduled:
+The first argument represents all the information the resolver has about a particular project + script command that needs to be scheduled:
 
 
 ```typescript
@@ -111,7 +111,12 @@ interface JavaScriptProject {
     tempDirectory?: Directory;
 }
 ```
-The result type matches the type of `Transformer.execute`, the basic building block for executing processes in DScript (check [here](../../../Public/Sdk/Public/Transformers/Transformer.Execute.dsc)).
+
+The second argument represents a result of evaluation of the specified `LazyEval` expression.
+That expression will be evaluated only once, and the result will be provided to all calls of the scheduling function.
+If `argument` field was not specified, the second argument will have `undefined` value.
+
+The result type matches the type of `Transformer.execute`, the basic building block for executing processes in DScript (check [here](../../../Public/Sdk/Public/Transformers/Transformer.Execute.dsc)), or the type of `Transformer.ipcSend`, a result of executing an IPC pip (e.g., drop upload).
 
 Let's see now how this custom scheduler can be implemented:
 
@@ -132,4 +137,6 @@ import * as JestTelemetry from "Sdk.JestTelemetry";
 }
 ```
 
+Notice that the second parameter as well as `TransformerIpcSendResult` are missing in this particular implementation.
+They can be omitted if one has no use for them (e.g., `argument` is not used and the function always returns `TransformerExecuteResult`) and wants to have a bit cleaner looking code.
 The callback can return `undefined` to indicate it has not interest in custom scheduling a particular project + script command. In this case, anything that is not a test can be scheduled in the regular way. For the sake of simplicity, we assume here there is an existing SDK that can wrap jest executions adding temeletry to it. `runJestWithTelemetry` only needs the jest script to execute, the working directory and the output directories where the JavaScript resolver was expecting outputs from the script. This function will eventually call `Transformer.execute` as part of its implementation and return that.

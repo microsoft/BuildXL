@@ -533,8 +533,8 @@ interface JavaScriptResolver extends ResolverBase, UntrackingSettings {
      * When specified, the resolver will give this callback an opportunity to schedule pips based on each project information. The callback
      * will be executed for every project discovered by this resolver. When the callback is present, the resolver won't schedule the given 
      * project and the callback is responsible for doing it.
-     * The callback defines the location a function whose expected type is (JavaScriptProject) => TransformerExecuteResult. The
-     * resolver will create an instance of an JavaScriptProject for each discovered project and pass it along.
+     * The callback defines the location a function whose expected type is (JavaScriptProject, any) => TransformerExecuteResult | TransformerIpcSendResult.
+     * The resolver will create an instance of an JavaScriptProject for each discovered project and pass it along.
      * The callback can decide not to schedule a given project by returning 'undefined', in which case the resolver will schedule it in the
      * regular way.
      */
@@ -627,9 +627,17 @@ interface CustomSchedulingCallBack {
     
     /** 
      * Function name of the callback. The name can be a dotted identifier specifying a function name nested in namespaces. 
-     * The type of the defined function is expected to be (JavaScriptProject) => TransformerExecuteResult
+     * The type of the defined function is expected to be (JavaScriptProject, any) => TransformerExecuteResult | TransformerIpcSendResult
      * */
     schedulingFunction: string;
+
+    /**
+     * An optional argument for the scheduling function. Can be any expression as long as its 
+     * type matches the signature of the provided scheduling function.
+     * Note: the value of the argument will be evaluated only once, and that value will be used 
+     * in all invocations of the scheduling function.
+     */
+    argument?: LazyEval<any>;
 }
 
 /**

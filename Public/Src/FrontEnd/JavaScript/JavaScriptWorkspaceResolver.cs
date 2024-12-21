@@ -31,15 +31,14 @@ using TypeScript.Net.DScript;
 using TypeScript.Net.Types;
 using ConfigurationConverter = BuildXL.FrontEnd.Script.Util.ConfigurationConverter;
 using SourceFile = TypeScript.Net.Types.SourceFile;
-using SyntaxKind = TypeScript.Net.Types.SyntaxKind;
 
 namespace BuildXL.FrontEnd.JavaScript
 {
     /// <summary>
     /// Workspace resolver for JavaScript based resolvers 
     /// </summary>
-    public abstract class JavaScriptWorkspaceResolver<TGraphConfiguration, TResolverSettings> : ProjectGraphWorkspaceResolverBase<JavaScriptGraphResult<TGraphConfiguration>, TResolverSettings> 
-        where TGraphConfiguration: class 
+    public abstract class JavaScriptWorkspaceResolver<TGraphConfiguration, TResolverSettings> : ProjectGraphWorkspaceResolverBase<JavaScriptGraphResult<TGraphConfiguration>, TResolverSettings>
+        where TGraphConfiguration : class
         where TResolverSettings : class, IJavaScriptResolverSettings
     {
         /// <summary>
@@ -51,7 +50,7 @@ namespace BuildXL.FrontEnd.JavaScript
         /// Script commands to execute to list of dependencies
         /// </summary>
         protected IReadOnlyDictionary<string, IReadOnlyList<IJavaScriptCommandDependency>> ComputedCommands;
-        
+
         /// <summary>
         /// Mapping of command name groups to the list of (plain) command names that define the group
         /// </summary>
@@ -148,7 +147,7 @@ namespace BuildXL.FrontEnd.JavaScript
         public override bool TryInitialize(FrontEndHost host, FrontEndContext context, IConfiguration configuration, IResolverSettings resolverSettings)
         {
             var success = base.TryInitialize(host, context, configuration, resolverSettings);
-            
+
             if (!success)
             {
                 return false;
@@ -167,7 +166,7 @@ namespace BuildXL.FrontEnd.JavaScript
 
             ExportsFile = ResolverSettings.Root.Combine(Context.PathTable, "exports.dsc");
             ImportsFile = ResolverSettings.Root.Combine(Context.PathTable, "imports.dsc");
-            LazyEvaluationsFile = ResolverSettings.Root.Combine(Context.PathTable, "lazyEvals.dsc"); 
+            LazyEvaluationsFile = ResolverSettings.Root.Combine(Context.PathTable, "lazyEvals.dsc");
             AllProjectsSymbol = FullSymbol.Create(Context.SymbolTable, "all");
 
             // The context is initialized as if all evaluations happen on the main config file.
@@ -187,7 +186,7 @@ namespace BuildXL.FrontEnd.JavaScript
                     cycleDetectorStartupDelay: TimeSpan.FromSeconds(Configuration.FrontEnd.CycleDetectorStartupDelay())),
                 Host.DefaultEvaluationScheduler,
                 FileType.GlobalConfiguration);
-            
+
             return true;
         }
 
@@ -305,7 +304,7 @@ namespace BuildXL.FrontEnd.JavaScript
                 PopulateExportsFileIfNeeded(path, sourceFile);
 
                 // If a custom scheduling function is referenced, let's add the reference to the imports file
-                PopulateImportsFileIfNeeded(path, sourceFile);
+                PopulateImportsFileIfNeeded(path, ref sourceFile);
 
                 return sourceFile;
             }
@@ -313,17 +312,25 @@ namespace BuildXL.FrontEnd.JavaScript
 
         private SourceFile CreateLazyEvaluationsFile(AbsolutePath path)
         {
-            if (ResolverSettings.AdditionalDependencies == null)
+            var customSchedulingArgument = ResolverSettings.CustomScheduling?.Argument;
+            if (ResolverSettings.AdditionalDependencies == null && customSchedulingArgument == null)
             {
                 return SourceFile.Create(path.ToString(Context.PathTable));
             }
 
             // Collect all lazy expressions in declaration order
-            ILazyEval[] lazyEvaluations = ResolverSettings.AdditionalDependencies
-                .SelectMany(javaScriptDependency =>
-                    javaScriptDependency.Dependencies
-                        .Where(dependency => dependency.GetValue() is ILazyEval)
-                        .Select(union => union.GetValue() as ILazyEval))
+            // and append an argument from the custom scheduling config to the end of this list.
+            ILazyEval[] lazyEvaluations = Enumerable.Empty<ILazyEval>()
+                .Concat(ResolverSettings.AdditionalDependencies == null
+                    ? Enumerable.Empty<ILazyEval>()
+                    : ResolverSettings.AdditionalDependencies
+                    .SelectMany(javaScriptDependency =>
+                        javaScriptDependency.Dependencies
+                            .Where(dependency => dependency.GetValue() is ILazyEval)
+                            .Select(union => union.GetValue() as ILazyEval)))
+                .Concat(customSchedulingArgument == null
+                    ? Enumerable.Empty<ILazyEval>()
+                    : [customSchedulingArgument])
                 .ToArray();
 
             // For each lazy expression, add a variable declaration with the shape
@@ -354,7 +361,7 @@ namespace BuildXL.FrontEnd.JavaScript
             return sourceFile;
         }
 
-        private void PopulateImportsFileIfNeeded(AbsolutePath path, SourceFile sourceFile)
+        private void PopulateImportsFileIfNeeded(AbsolutePath path, ref SourceFile sourceFile)
         {
             // The import file contains a reference to the custom scheduling function, if specified.
             // The provided DScript callback could be evaluated directly, but instead of that we declare a function in this module
@@ -367,74 +374,25 @@ namespace BuildXL.FrontEnd.JavaScript
                 // The scheduling function can be a dotted identifier 
                 var schedulingFunction = FullSymbol.Create(Context.SymbolTable, ResolverSettings.CustomScheduling.SchedulingFunction);
 
-                // Add an import to the user defined module and scheduling function by adding  'import { schedulingFunctionRootIdentifier } from "module"'
-                var import = new ImportDeclaration(new[] { schedulingFunction.GetRoot(Context.SymbolTable).ToString(Context.StringTable) }, ResolverSettings.CustomScheduling.Module)
-                {
-                    Pos = 1,
-                    End = 2
-                };
-                sourceFile.Statements.Add(import);
+                // By typing the scheduling function, we enforce the type of the user-provided function
+                var content = @$"
+import {{{schedulingFunction.GetRoot(Context.SymbolTable).ToString(Context.StringTable)}}} from ""{ResolverSettings.CustomScheduling.Module}"";
+const schedulingFunction : (project: JavaScriptProject, argument: any) => TransformerExecuteResult | TransformerIpcSendResult = {ResolverSettings.CustomScheduling.SchedulingFunction};
+";
 
-                // Now construct the function type, that needs to be JavaScriptProject => TransformerExecuteResult
-                var evaluatedProjectType = new TypeReferenceNode("JavaScriptProject");
-                evaluatedProjectType.TypeName.Pos = 3;
-                evaluatedProjectType.TypeName.End = 4;
-
-                var executeResult = new TypeReferenceNode("TransformerExecuteResult");
-                executeResult.TypeName.Pos = 3;
-                executeResult.TypeName.End = 4;
-
-                var functionType = new FunctionOrConstructorTypeNode
+                if (ResolverSettings.CustomScheduling.Argument != null)
                 {
-                    Kind = SyntaxKind.FunctionType,
-                    Type = executeResult,
-                    Parameters = new NodeArray<IParameterDeclaration>(new ParameterDeclaration { Name = new IdentifierOrBindingPattern(new Identifier("project")), Type = evaluatedProjectType }),
-                    Pos = 3,
-                    End = 4
-                };
-
-                // The initializer is either a property access expression if a FQN is needed, or a simple identifier in case of referencing a top level value
-                IExpression initializer;
-                if (schedulingFunction.GetParent(Context.SymbolTable).IsValid)
-                {
-                    IReadOnlyList<string> parts = schedulingFunction.ToReadOnlyList(Context.SymbolTable).Select(atom => atom.ToString(Context.StringTable)).ToList();
-                    initializer = new PropertyAccessExpression(parts, Enumerable.Repeat((3, 4), parts.Count).ToList<(int, int)>())
-                    {
-                        Pos = 3,
-                        End = 4
-                    };
-                }
-                else
-                {
-                    initializer = new Identifier(schedulingFunction.ToString(Context.SymbolTable))
-                    {
-                        Pos = 3,
-                        End = 4
-                    };
+                    // The typeSanityCheck statement is to validate the type of the user-provided argument is compatible with the scheduling function type declaration
+                    content += $"const typeSanityCheck = () => {ResolverSettings.CustomScheduling.SchedulingFunction}(undefined, {ResolverSettings.CustomScheduling.Argument.Expression});";
                 }
 
-
-                // Create a const declaration and assign it to the callback: const schedulingFunction : (JavaScriptProject) => TransformerExecuteResult = schedulingFunctionName;
-                // Observe 'schedulingFunction' is an arbitrary name. This is a private value, so it is not visible to other modules.
-                CustomSchedulingCallback = new VariableDeclaration("schedulingFunction", initializer, functionType)
-                {
-                    Pos = 3,
-                    End = 4
-                };
-                CustomSchedulingCallback.Name.Pos = 3;
-                CustomSchedulingCallback.Name.End = 4;
-
-                // Final source file looks like
-                //   import { schedulingFunctionName } from "module";
-                //   const schedulingFunction : (JavaScriptProject) => Result = schedulingFunctionName;
-                sourceFile.Statements.Add(new VariableStatement()
-                {
-                    DeclarationList = new VariableDeclarationList(
-                            NodeFlags.Const,
-                            CustomSchedulingCallback)
-                });
-
-                sourceFile.SetLineMap(new[] { 0, 4 });
+                // Observe the resulting source file may come with errors because we are embedding a
+                // user-provided argument. But that's fine, we will return it with errors and the workspace
+                // will fail constructing appropriately.
+                FrontEndUtilities.TryParseSourceFile(Context, path, content, out sourceFile);
+                
+                // Set the custom scheduling callback. Given the file we just defined above, this is the second (1-index) statement in the file
+                CustomSchedulingCallback = (VariableDeclaration)sourceFile.Statements[1].As<IVariableStatement>().DeclarationList.Declarations[0];
             }
         }
 
@@ -601,7 +559,7 @@ namespace BuildXL.FrontEnd.JavaScript
                                 return false;
                             }
                             match.WarningTimeoutInMilliseconds = possibleWarningTimeoutInMilliseconds.Result;
-                        }           
+                        }
                     }
                 }
             }
@@ -665,7 +623,8 @@ namespace BuildXL.FrontEnd.JavaScript
                     }
 
                     // Dependents are all JS project selectors. Each dependent depends on all the computed dependencies
-                    foreach (var dependent in additionalDependency.Dependents.SelectMany(dependent => { 
+                    foreach (var dependent in additionalDependency.Dependents.SelectMany(dependent =>
+                    {
                         if (!projectSelector.TryGetMatches(dependent, out var matches, out var failure))
                         {
                             // If the regex is not legit, log and return a null singleton
@@ -849,12 +808,12 @@ namespace BuildXL.FrontEnd.JavaScript
                             if (!resolvedProjects.TryGetValue((javaScriptProject.Name, dependency.Command), out var value))
                             {
                                 AddClosestPresentDependencies(
-                                    javaScriptProject.Name, 
-                                    dependency.Command, 
-                                    resolvedProjects, 
-                                    deserializedProjectsByName, 
-                                    projectDependencies, 
-                                    closestDependenciesCache, 
+                                    javaScriptProject.Name,
+                                    dependency.Command,
+                                    resolvedProjects,
+                                    deserializedProjectsByName,
+                                    projectDependencies,
+                                    closestDependenciesCache,
                                     resolvedCommandGroupMembership,
                                     commandGroupMembership,
                                     cycleDetector);
@@ -885,12 +844,12 @@ namespace BuildXL.FrontEnd.JavaScript
                                 if (!resolvedProjects.TryGetValue((packageDependencyName, dependency.Command), out var value))
                                 {
                                     AddClosestPresentDependencies(
-                                        packageDependencyName, 
-                                        dependency.Command, 
-                                        resolvedProjects, 
-                                        deserializedProjectsByName, 
-                                        projectDependencies, 
-                                        closestDependenciesCache, 
+                                        packageDependencyName,
+                                        dependency.Command,
+                                        resolvedProjects,
+                                        deserializedProjectsByName,
+                                        projectDependencies,
+                                        closestDependenciesCache,
                                         resolvedCommandGroupMembership,
                                         commandGroupMembership,
                                         cycleDetector);
@@ -969,12 +928,12 @@ namespace BuildXL.FrontEnd.JavaScript
             string computedScript = ComputeScriptSequence(members.Select(member => member.ScriptCommand));
 
             var projectGroup = new JavaScriptProject(
-                projectName, 
-                projectFolder, 
-                commandName, 
-                computedScript, 
-                tempFolder, 
-                outputDirectories, 
+                projectName,
+                projectFolder,
+                commandName,
+                computedScript,
+                tempFolder,
+                outputDirectories,
                 inputFiles,
                 inputDirectories,
                 TryGetProjectDisplayName(projectName, commandName, projectFolder));
@@ -1039,12 +998,12 @@ namespace BuildXL.FrontEnd.JavaScript
                     if (!resolvedProjects.TryGetValue((projectName, dependency.Command), out var dependencyProject))
                     {
                         AddClosestPresentDependencies(
-                            projectName, 
-                            dependency.Command, 
-                            resolvedProjects, 
-                            deserializedProjects, 
-                            closestCachedDependencies, 
-                            closestDependenciesCache, 
+                            projectName,
+                            dependency.Command,
+                            resolvedProjects,
+                            deserializedProjects,
+                            closestCachedDependencies,
+                            closestDependenciesCache,
                             resolvedCommandGroupMembership,
                             commandGroupMembership,
                             cycleDetector);
@@ -1063,12 +1022,12 @@ namespace BuildXL.FrontEnd.JavaScript
                         if (!resolvedProjects.TryGetValue((projectDependencyName, dependency.Command), out var dependencyProject))
                         {
                             AddClosestPresentDependencies(
-                                projectDependencyName, 
-                                dependency.Command, 
-                                resolvedProjects, 
-                                deserializedProjects, 
-                                closestCachedDependencies, 
-                                closestDependenciesCache, 
+                                projectDependencyName,
+                                dependency.Command,
+                                resolvedProjects,
+                                deserializedProjects,
+                                closestCachedDependencies,
+                                closestDependenciesCache,
                                 resolvedCommandGroupMembership,
                                 commandGroupMembership,
                                 cycleDetector);
@@ -1111,10 +1070,10 @@ namespace BuildXL.FrontEnd.JavaScript
             // Create a stack frame and push the package name and location as arguments
             using (var args = EvaluationStackFrame.Create(closure.Function, CollectionUtilities.EmptyArray<EvaluationResult>()))
             using (m_configEvaluationContext.RootContext.PushStackEntry(
-                closure.Function, 
-                closure.Env, 
-                closure.Env.CurrentFileModule, 
-                TypeScript.Net.Utilities.LineInfo.FromLineAndPosition(ResolverSettings.Location.Line, ResolverSettings.Location.Position), 
+                closure.Function,
+                closure.Env,
+                closure.Env.CurrentFileModule,
+                TypeScript.Net.Utilities.LineInfo.FromLineAndPosition(ResolverSettings.Location.Line, ResolverSettings.Location.Position),
                 args))
             {
                 args.SetArgument(0, EvaluationResult.Create(packageName));
@@ -1126,8 +1085,8 @@ namespace BuildXL.FrontEnd.JavaScript
                 if (closureEvaluation.IsErrorValue)
                 {
                     return LogCallbackErrorAndCreateFailure(
-                        closure, 
-                        packageName, 
+                        closure,
+                        packageName,
                         "Callback produced an evaluation error. Details should have been logged already.");
                 }
 
@@ -1157,7 +1116,7 @@ namespace BuildXL.FrontEnd.JavaScript
                 var result = new Dictionary<string, string>(orderedMap.Count);
                 foreach (var elem in orderedMap)
                 {
-                    string scriptName = elem.Key.IsUndefined? null : (string)elem.Key.Value;
+                    string scriptName = elem.Key.IsUndefined ? null : (string)elem.Key.Value;
                     if (string.IsNullOrEmpty(scriptName))
                     {
                         return LogCallbackErrorAndCreateFailure(
@@ -1180,7 +1139,7 @@ namespace BuildXL.FrontEnd.JavaScript
                     {
                         script = ConfigurationConverter.CreatePipDataFromFileContent(Context, scriptEvaluation.Value, string.Empty).ToString(Context.PathTable);
                     }
-                    catch(ConvertException e)
+                    catch (ConvertException e)
                     {
                         return LogCallbackErrorAndCreateFailure(
                             closure,
@@ -1240,7 +1199,7 @@ namespace BuildXL.FrontEnd.JavaScript
                         provenance,
                         absolutePath.ToString(Context.PathTable),
                         "Section 'scripts' not found in JSON file.");
-                        
+
                         return new JavaScriptGraphConstructionFailure(ResolverSettings, Context.PathTable);
                     }
 
@@ -1276,14 +1235,14 @@ namespace BuildXL.FrontEnd.JavaScript
         /// Validates a deserialized project and constructs the corresponding <see cref="JavaScriptProject"/> based on the given command
         /// </summary>
         protected bool TryValidateAndCreateProject(
-            string command, 
-            DeserializedJavaScriptProject deserializedProject, 
+            string command,
+            DeserializedJavaScriptProject deserializedProject,
             out JavaScriptProject javaScriptProject,
             out Failure failure)
         {
             javaScriptProject = JavaScriptProject.FromDeserializedProject(
-                command, 
-                deserializedProject.AvailableScriptCommands[command], 
+                command,
+                deserializedProject.AvailableScriptCommands[command],
                 deserializedProject,
                 TryGetProjectDisplayName(deserializedProject.Name, command, deserializedProject.ProjectFolder));
 
@@ -1294,7 +1253,7 @@ namespace BuildXL.FrontEnd.JavaScript
                     ResolverSettings.Location(Context.PathTable),
                     $"The project '{deserializedProject.Name}' defined in '{deserializedProject.ProjectFolder.ToString(Context.PathTable)}' is invalid. {reason}");
 
-                failure =  new JavaScriptGraphConstructionFailure(ResolverSettings, Context.PathTable);
+                failure = new JavaScriptGraphConstructionFailure(ResolverSettings, Context.PathTable);
                 return false;
             }
 

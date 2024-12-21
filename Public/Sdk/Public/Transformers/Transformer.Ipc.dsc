@@ -64,9 +64,7 @@ namespace Transformer {
      * Result of the 'ipcSend' function.
      */
     @@public
-    export interface IpcSendResult {
-        outputFile: DerivedFile;
-    }
+    export type IpcSendResult = TransformerIpcSendResult;
 
     /**
      * Opaque type representing a moniker used for inter-process communication (IPC).

@@ -8,10 +8,11 @@ using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.FrontEnd.MsBuild;
+using BuildXL.FrontEnd.Script.Values;
 using BuildXL.FrontEnd.Sdk.ProjectGraph;
 using BuildXL.Pips.Builders;
-using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.ParallelAlgorithms;
 
 namespace BuildXL.FrontEnd.Utilities.GenericProjectGraphResolver
@@ -40,7 +41,11 @@ namespace BuildXL.FrontEnd.Utilities.GenericProjectGraphResolver
         /// <summary>
         /// Creates a pip graph that corresponds to all the specified projects in the graph
         /// </summary>
-        public async Task<Possible<ProjectGraphSchedulingResult<TProject>>> TrySchedulePipsForFilesAsync(IReadOnlySet<TProject> projectsToEvaluate, QualifierId qualifierId, Func<ProjectCreationResult<TProject>, Possible<ProcessOutputs>> customScheduler = null)
+        public async Task<Possible<ProjectGraphSchedulingResult<TProject>>> TrySchedulePipsForFilesAsync(
+            IReadOnlySet<TProject> projectsToEvaluate,
+            QualifierId qualifierId,
+            Func<ProjectCreationResult<TProject>, EvaluationResult, Possible<ProcessOutputs>> customScheduler = null,
+            EvaluationResult? customSchedulingArgumentValue = null)
         {
             Contract.Requires(qualifierId.IsValid);
 
@@ -70,18 +75,20 @@ namespace BuildXL.FrontEnd.Utilities.GenericProjectGraphResolver
                         // We only schedule the project if the project does not rule itself out from being added to the graph
                         if (project.CanBeScheduled())
                         {
-                                var maybeResult = m_pipConstructor.TryCreatePipForProject(project, qualifierId);
-                                if (!maybeResult.Succeeded)
-                                {
-                                    // Error is already logged
-                                    success = false;
-                                    failure = maybeResult.Failure;
-                                    return;
-                                }
+                            var maybeResult = m_pipConstructor.TryCreatePipForProject(project, qualifierId);
+                            if (!maybeResult.Succeeded)
+                            {
+                                // Error is already logged
+                                success = false;
+                                failure = maybeResult.Failure;
+                                return;
+                            }
 
                             // If a custom scheduler is not present, or it returns null when called, we add the resulting pip as the pip constructor created it
-                            if (customScheduler == null || 
-                                (customScheduler(maybeResult.Result) is var maybeCustomSchedulingOutputs && maybeCustomSchedulingOutputs.Succeeded && maybeCustomSchedulingOutputs.Result == null))
+                            if (customScheduler == null ||
+                                (customScheduler(maybeResult.Result, customSchedulingArgumentValue ?? EvaluationResult.Undefined) is var maybeCustomSchedulingOutputs
+                                  && maybeCustomSchedulingOutputs.Succeeded
+                                  && maybeCustomSchedulingOutputs.Result == null))
                             {
                                 var maybeOutputs = m_pipConstructor.TrySchedulePipForProject(maybeResult.Result, qualifierId);
                                 if (!maybeOutputs.Succeeded)
@@ -140,9 +147,9 @@ namespace BuildXL.FrontEnd.Utilities.GenericProjectGraphResolver
             perTierParallelPipCreator.Complete();
             await perTierParallelPipCreator.Completion;
 
-            return success? 
-                new ProjectGraphSchedulingResult<TProject>(processOutputs) : 
-                (Possible<ProjectGraphSchedulingResult<TProject>>) failure;
+            return success ?
+                new ProjectGraphSchedulingResult<TProject>(processOutputs) :
+                (Possible<ProjectGraphSchedulingResult<TProject>>)failure;
         }
 
         private static bool TryTopoSortProjectsAndComputeClosure(

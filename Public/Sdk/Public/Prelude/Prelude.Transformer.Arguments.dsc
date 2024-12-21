@@ -98,3 +98,10 @@ interface TransformerExecuteResult {
     getOutputDirectory(dir: Directory): OpaqueDirectory;
     getOutputDirectories(): OpaqueDirectory[];
 }
+
+/**
+ * The result of executing an ipc pip
+ */
+interface TransformerIpcSendResult {
+    outputFile: DerivedFile;
+}

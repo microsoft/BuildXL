@@ -12,7 +12,7 @@ namespace BuildXL.Utilities.Configuration
         /// Module name.
         /// </summary>
         string Module { get; }
-        
+
         /// <summary>
         /// The scheduling function to use
         /// </summary>
@@ -20,5 +20,10 @@ namespace BuildXL.Utilities.Configuration
         /// Can be a dotted identified to denote a function nested in namespaces.
         /// </remarks>
         string SchedulingFunction { get; }
+
+        /// <summary>
+        /// An optional argument for the scheduling function. Can be an expression.
+        /// </summary>
+        ILazyEval Argument { get; }
     }
 }

@@ -29,6 +29,9 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         internal const string GetDominoIpcServerMonikerFunctionName = "getDominoIpcServerMoniker";
         internal const string IpcSendFunctionName = "ipcSend";
 
+        /// <nodoc/>
+        public const string IpcSendResultOutputSymbolName = "outputFile";
+
         private SymbolAtom m_ipcSendMoniker;
         private SymbolAtom m_ipcSendMessageBody;
         private SymbolAtom m_ipcSendTargetServicePip;
@@ -77,7 +80,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             m_ipcSendMustRunOnOrchestrator = Symbol("mustRunOnOrchestrator");
 
             // IpcSendResult
-            m_ipcSendResultOutputFile = Symbol("outputFile");
+            m_ipcSendResultOutputFile = Symbol(IpcSendResultOutputSymbolName);
             m_ipcObjectFolderName = PathAtom.Create(StringTable, "ipc");
             m_ipcOutputFileName = PathAtom.Create(StringTable, "results.txt");
         }

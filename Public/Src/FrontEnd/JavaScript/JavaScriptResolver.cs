@@ -26,10 +26,9 @@ using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Pips;
 using BuildXL.Pips.Builders;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
-using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.Utilities.Core;
 using TypeScript.Net.Types;
 using TypeScript.Net.Utilities;
 using static BuildXL.FrontEnd.Script.Values.Thunk;
@@ -39,22 +38,22 @@ namespace BuildXL.FrontEnd.JavaScript
     /// <summary>
     /// Resolver for JavaScript based builds.
     /// </summary>
-    public class JavaScriptResolver<TGraphConfiguration, TResolverSettings> : IResolver 
+    public class JavaScriptResolver<TGraphConfiguration, TResolverSettings> : IResolver
         where TGraphConfiguration : class
         where TResolverSettings : class, IJavaScriptResolverSettings
     {
         private readonly string m_frontEndName;
-        
+
         /// <nodoc/>
         protected readonly FrontEndContext Context;
-        
+
         private readonly FrontEndHost m_host;
         private readonly Script.Tracing.Logger m_logger;
         private JavaScriptWorkspaceResolver<TGraphConfiguration, TResolverSettings> m_javaScriptWorkspaceResolver;
         private TResolverSettings m_resolverSettings;
 
         private ModuleDefinition ModuleDefinition => m_javaScriptWorkspaceResolver.ComputedProjectGraph.Result.ModuleDefinition;
-        
+
         private IReadOnlyCollection<ResolvedJavaScriptExport> Exports => m_javaScriptWorkspaceResolver.ComputedProjectGraph.Result.Exports;
 
         private readonly ConcurrentDictionary<JavaScriptProject, List<ProcessOutputs>> m_scheduledProcessOutputs = new ConcurrentDictionary<JavaScriptProject, List<ProcessOutputs>>();
@@ -249,7 +248,7 @@ namespace BuildXL.FrontEnd.JavaScript
 
             switch (projectValue)
             {
-                case string packageName: 
+                case string packageName:
                 {
                     if (string.IsNullOrEmpty(packageName))
                     {
@@ -332,7 +331,7 @@ namespace BuildXL.FrontEnd.JavaScript
 
         private async Task ConvertLazyEvaluationsFileAsync(Package package)
         {
-            if (m_resolverSettings.AdditionalDependencies != null)
+            if (m_resolverSettings.AdditionalDependencies != null || m_resolverSettings.CustomScheduling?.Argument != null)
             {
                 await RunAstConverstionForFileAsync(package, m_javaScriptWorkspaceResolver.LazyEvaluationsFile);
             }
@@ -392,17 +391,18 @@ namespace BuildXL.FrontEnd.JavaScript
                 return EvaluationResult.Error;
             }
 
-            var processOutputs = export.ExportedProjects.SelectMany(project => {
+            var processOutputs = export.ExportedProjects.SelectMany(project =>
+            {
                 if (!m_scheduledProcessOutputs.TryGetValue(project, out var projectOutputs))
                 {
                     // The requested project was not scheduled. This can happen when a filter gets applied, so even
                     // though the export points to a valid project (which is already validated), the project is not part
                     // of the graph. In this case just log an informational message.
                     Tracing.Logger.Log.RequestedExportIsNotPresent(
-                        Context.LoggingContext, 
-                        m_resolverSettings.Location(Context.PathTable), 
-                        export.FullSymbol.ToString(Context.SymbolTable), 
-                        project.Name, 
+                        Context.LoggingContext,
+                        m_resolverSettings.Location(Context.PathTable),
+                        export.FullSymbol.ToString(Context.SymbolTable),
+                        project.Name,
                         project.ScriptCommandName);
                 }
 
@@ -459,7 +459,7 @@ namespace BuildXL.FrontEnd.JavaScript
 
                 return m_evaluationResult.Value;
             }
-            finally 
+            finally
             {
                 m_evaluationSemaphore.Release();
             }
@@ -472,7 +472,7 @@ namespace BuildXL.FrontEnd.JavaScript
         /// Allows extenders to construct a more specialized pip graph constructor
         /// </remarks>
         protected virtual IProjectToPipConstructor<JavaScriptProject> CreateGraphToPipGraphConstructor(
-            FrontEndHost host, 
+            FrontEndHost host,
             ModuleDefinition moduleDefinition,
             TResolverSettings resolverSettings,
             TGraphConfiguration graphConfiguration,
@@ -534,9 +534,10 @@ namespace BuildXL.FrontEnd.JavaScript
         private async Task<bool> TrySchedulePipsForFileAsync(QualifierId qualifierId, IEvaluationScheduler scheduler, IReadOnlySet<JavaScriptProject> filteredBuildFiles, ProjectGraphToPipGraphConstructor<JavaScriptProject> graphConstructor)
         {
             // If custom scheduling is specified, get the scheduler callback. The result is null if no custom callback is provided.
-            Func<ProjectCreationResult<JavaScriptProject>, Possible<ProcessOutputs>> customScheduler = GetCustomSchedulerIfConfigured(scheduler, out ContextTree context);
+            Func<ProjectCreationResult<JavaScriptProject>, EvaluationResult, Possible<ProcessOutputs>> customScheduler = GetCustomSchedulerIfConfigured(scheduler, out ContextTree context);
 
-            if (m_resolverSettings.AdditionalDependencies != null)
+            EvaluationResult? customSchedulingArgumentValue = null;
+            if (m_resolverSettings.AdditionalDependencies != null || m_resolverSettings.CustomScheduling?.Argument != null)
             {
                 // Evaluate lazy artifacts and add them to the corresponding projects
                 if (!TryEvaluateLazyEvals(scheduler, out var evaluatedLazys))
@@ -544,12 +545,20 @@ namespace BuildXL.FrontEnd.JavaScript
                     return false;
                 }
 
-                AddAdditionalLazyDependencies(evaluatedLazys);
+                if (m_javaScriptWorkspaceResolver.AdditionalLazyArtifactsPerProject != null)
+                {
+                    AddAdditionalLazyDependencies(evaluatedLazys);
+                }
+
+                if (m_resolverSettings.CustomScheduling?.Argument != null)
+                {
+                    customSchedulingArgumentValue = evaluatedLazys[m_resolverSettings.CustomScheduling?.Argument];
+                }
             }
 
             using (context)
             {
-                var scheduleResult = await graphConstructor.TrySchedulePipsForFilesAsync(filteredBuildFiles, qualifierId, customScheduler);
+                var scheduleResult = await graphConstructor.TrySchedulePipsForFilesAsync(filteredBuildFiles, qualifierId, customScheduler, customSchedulingArgumentValue);
 
                 if (!scheduleResult.Succeeded)
                 {
@@ -580,7 +589,7 @@ namespace BuildXL.FrontEnd.JavaScript
                     .DirectoryDependencies
                     .Select(dirInput => new EvaluationResult(StaticDirectory.CreateForOutputDirectory(dirInput))))
                 .ToArray();
-            
+
             var outputs = process
                 .FileOutputs
                 .Select(output => new EvaluationResult(output.Path))
@@ -592,7 +601,7 @@ namespace BuildXL.FrontEnd.JavaScript
             // CODESYNC: Public\Sdk\Public\Prelude\Prelude.Configuration.Resolvers.dsc (JavaScriptProject)
             var envVars = process.EnvironmentVariables
                 .Where(var => !var.IsPassThrough)
-                .Select(var => (Name : var.Name.ToString(Context.StringTable), Value: var.Value.ToString(Context.PathTable)))
+                .Select(var => (Name: var.Name.ToString(Context.StringTable), Value: var.Value.ToString(Context.PathTable)))
                 .Where(tuple => !BuildParameters.DisallowedTempVariables.Contains(tuple.Name.ToUpper()))
                 .Select(tuple =>
                     new EvaluationResult(ObjectLiteral.Create(new List<Binding> {
@@ -631,7 +640,7 @@ namespace BuildXL.FrontEnd.JavaScript
         {
             foreach (var kvp in m_javaScriptWorkspaceResolver.AdditionalLazyArtifactsPerProject)
             {
-                foreach(var evaluationResult in  kvp.Value.Select(lazyEval => result[lazyEval]))
+                foreach (var evaluationResult in kvp.Value.Select(lazyEval => result[lazyEval]))
                 {
                     switch (evaluationResult.Value)
                     {
@@ -691,7 +700,7 @@ namespace BuildXL.FrontEnd.JavaScript
                         out _);
                     // The entry should be there because we added it in JavaScriptWorkspaceResolver to lazyEvals.dsc
                     Contract.Assert(success);
-                    
+
                     // If the expresion is 'undefined' we get a constant expression and not a thunk
                     if (lazyEvalEntry.ConstantExpression != null)
                     {
@@ -722,12 +731,12 @@ namespace BuildXL.FrontEnd.JavaScript
 
                     mutableResult[m_javaScriptWorkspaceResolver.LazyEvaluationStatementMapping[lazyVariableStatement]] = evaluationResult;
                 }
-                
+
                 return true;
             }
         }
 
-        private Func<ProjectCreationResult<JavaScriptProject>, Possible<ProcessOutputs>> GetCustomSchedulerIfConfigured(IEvaluationScheduler scheduler, out ContextTree evaluationContext)
+        private Func<ProjectCreationResult<JavaScriptProject>, EvaluationResult, Possible<ProcessOutputs>> GetCustomSchedulerIfConfigured(IEvaluationScheduler scheduler, out ContextTree evaluationContext)
         {
             if (m_resolverSettings.CustomScheduling == null)
             {
@@ -775,6 +784,8 @@ namespace BuildXL.FrontEnd.JavaScript
             // The result of Transformer.execute() is an object literal constructed off a ProcessOutputs instance. The original instance is kept
             // in a member of the object literal that AmbientTransformer advertises
             var processOutputsKey = SymbolAtom.Create(Context.StringTable, AmbientTransformerBase.ProcessOutputsSymbolName);
+            // If the custom scheduler schedules an IPC pip, the returned literal will contain a single field.
+            var ipcSendOutputFileKey = SymbolAtom.Create(Context.StringTable, AmbientTransformerBase.IpcSendResultOutputSymbolName);
 
             var schedulingCallbackName = FullSymbol.Create(Context.SymbolTable, SymbolAtom.Create(Context.StringTable, m_javaScriptWorkspaceResolver.CustomSchedulingCallback.Name.GetUnescapedText()));
 
@@ -789,23 +800,23 @@ namespace BuildXL.FrontEnd.JavaScript
             var thunkEvaluation = schedulingCallbackEntry.Thunk.Evaluate(contextTree.RootContext, importsModule, EvaluationStackFrame.Empty(), ref factory);
             // This thunk in particular is a value assignment of a property access expression, so nothing should fail
             Contract.Assert(!thunkEvaluation.IsErrorValue);
-            
+
             // If the thunk evaluation comes back as undefined, this is sort of a corner case where the definition of the function callback is a lambda with an
             // undefined body. We could error here, but instead we consider this an indication that no custom scheduling should happen
             if (thunkEvaluation.IsUndefined)
             {
-                return (ProjectCreationResult<JavaScriptProject> project) => new Possible<ProcessOutputs>((ProcessOutputs)null);
+                return (ProjectCreationResult<JavaScriptProject> project, EvaluationResult argument) => new Possible<ProcessOutputs>((ProcessOutputs)null);
             }
 
             // The result of evaluating the thunk should be a closure representing the scheduling callback.
             var closure = thunkEvaluation.Value as Closure;
             Contract.AssertNotNull(closure);
 
-            return (ProjectCreationResult<JavaScriptProject> createdProject) =>
+            return (ProjectCreationResult<JavaScriptProject> createdProject, EvaluationResult argument) =>
             {
                 // Create the argument that will be passed to the DScript callback
                 EvaluationResult javaScriptProject = CreateJavaScriptProject(createdProject.Project, createdProject.Process);
-                
+
                 // For each JavaScript project, callbacks may be called concurrently. Create a mutable child context for each invocation
                 // using for the full symbol 'projectName_ScriptCommandName', which is unique per resolver
                 var childFactory = new MutableContextFactory(
@@ -820,7 +831,9 @@ namespace BuildXL.FrontEnd.JavaScript
                 using (var args = EvaluationStackFrame.Create(closure.Function, CollectionUtilities.EmptyArray<EvaluationResult>()))
                 using (childContext.PushStackEntry(closure.Function, closure.Env, importsModule, schedulingCallbackEntry.Location, args))
                 {
-                    args.TrySetArguments(1, javaScriptProject);
+                    // Set args up to the number of function's parameters (i.e., if it only expects one, don't try setting the second one).
+                    args.TrySetArguments(args.ParametersCount, javaScriptProject, argument);
+
                     var closureEvaluation = childContext.InvokeClosure(closure, args);
 
                     if (closureEvaluation.IsErrorValue)
@@ -844,7 +857,23 @@ namespace BuildXL.FrontEnd.JavaScript
 
                     // Retrieve process outputs from the object literal
                     var processOutputs = executeResult[processOutputsKey].Value as ProcessOutputs;
-                    Contract.AssertNotNull(processOutputs);
+                    var ipcSendResultOutput = executeResult[ipcSendOutputFileKey].Value as FileArtifact?;
+
+                    Contract.Assert(processOutputs != null ^ (ipcSendResultOutput != null && ipcSendResultOutput.Value.IsValid), "Function must evaluate to either TransformerExecuteResult or TransformerIpcSendResult.");
+
+                    if (processOutputs == null)
+                    {
+                        // The result of evaluation is TransformerIpcSendResult. Due to expectation that a custom scheduler schedules process pips,
+                        // everything downstream from this point expects an instance of ProcessOutputs. In this case, the custom scheduler scheduled
+                        // an ipc pip. Let's fake an instance of ProcessOutputs.
+                        // Note: processOutputs.ProcessPipId will stay 'Invalid'. Ideally, we'd put the id of the scheduled IPC pip, but it's not available here.
+                        processOutputs = new ProcessOutputs(
+                            outputFileMap: new Dictionary<AbsolutePath, FileArtifactWithAttributes>
+                            {
+                                [ipcSendResultOutput.Value.Path] = FileArtifactWithAttributes.Create(ipcSendResultOutput.Value, FileExistence.Required)
+                            },
+                            outputDirectoryMap: new());
+                    }
 
                     return processOutputs;
                 }

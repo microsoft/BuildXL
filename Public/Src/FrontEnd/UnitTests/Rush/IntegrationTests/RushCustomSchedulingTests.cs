@@ -48,6 +48,31 @@ namespace Test.BuildXL.FrontEnd.Rush.IntegrationTests
             AssertErrorEventLogged(LogEventId.CannotBuildWorkspace);
         }
 
+        [Theory]
+        // The provided argument is a boolean but should be a string
+        [InlineData("<LazyEval<any>>{expression: 'true'}", LogEventId.CheckerError)]
+        // The provided argument is a parsing error
+        [InlineData("<LazyEval<any>>{expression: 'invalid expression'}", LogEventId.TypeScriptSyntaxError)]
+        public void CallbackArgumentIsValidated(string argumentExpression, LogEventId expectedErrorId)
+        {
+            var config =
+                Build(
+                    schedulingCallback: $"{{module: 'myModule', schedulingFunction: 'Test.custom', argument: {argumentExpression}}}",
+                    addDScriptResolver: true)
+               .AddJavaScriptProject("@ms/project-A", "src/A")
+               .AddSpec("module.config.dsc", "module({name: 'myModule'});")
+               .AddSpec("@@public export function custom(project: JavaScriptProject, argument: string) : TransformerExecuteResult { return undefined; }")
+               .PersistSpecsAndGetConfiguration();
+
+            var result = RunRushProjects(config, new[] {
+                ("src/A", "@ms/project-A"),
+            });
+
+            Assert.False(result.IsSuccess);
+            AssertErrorEventLogged(expectedErrorId);
+            AssertErrorEventLogged(LogEventId.CannotBuildWorkspace);
+        }
+
         [Fact]
         public void CallbackEvaluationErrorIsHandled()
         {
@@ -98,6 +123,69 @@ export function custom(project: JavaScriptProject) : TransformerExecuteResult {
     Contract.requires(project.environmentVariables.some(envVar => envVar.name === 'PATH'));
     Contract.requires(project.passThroughEnvironmentVariables.length === 0);
     Contract.requires(project.tempDirectory.name === a`t`);
+
+    return undefined;
+}
+")
+               .PersistSpecsAndGetConfiguration();
+
+            var result = RunRushProjects(config, new[] {
+                ("src/A", "@ms/project-A"),
+            });
+
+            Assert.True(result.IsSuccess);
+        }
+
+        [Theory]
+        [InlineData("string", "'testValue'", "'testValue'")]
+        [InlineData("number", "1+2", "3")]
+        [InlineData("boolean", "true", "true")]
+        public void CallbackArgumentIsEvaluated(string type, string initializer, string expectedValue)
+        {
+            var config =
+                Build(
+                    schedulingCallback: "{module: 'myModule', schedulingFunction: 'custom', argument: <LazyEval<any>>{expression: 'importFrom(\\\"myModule\\\").variableName'} }",
+                    addDScriptResolver: true)
+               .AddJavaScriptProject("@ms/project-A", "src/A")
+               .AddSpec("module.config.dsc", "module({name: 'myModule'});")
+               .AddSpec("schedulingFunction.dsc", $@"
+@@public
+export function custom(project: JavaScriptProject, argument: {type}) : TransformerExecuteResult {{
+
+    Debug.writeLine(argument);
+    Contract.requires(argument === {expectedValue});
+
+    return undefined;
+}}
+")
+               .AddSpec("schedulingFunctionArgument.dsc", $@"
+@@public export
+const variableName : {type} = {initializer};
+")
+               .PersistSpecsAndGetConfiguration();
+
+            var result = RunRushProjects(config, new[] {
+                ("src/A", "@ms/project-A"),
+            });
+
+            Assert.True(result.IsSuccess);
+        }
+
+        [Fact]
+        public void CallbackArgumentIsUndefinedWhenItIsNotSpecified()
+        {
+            var config =
+                Build(
+                    schedulingCallback: "{module: 'myModule', schedulingFunction: 'custom' }",
+                    addDScriptResolver: true)
+               .AddJavaScriptProject("@ms/project-A", "src/A")
+               .AddSpec("module.config.dsc", "module({name: 'myModule'});")
+               .AddSpec("schedulingFunction.dsc", @"
+@@public
+export function custom(project: JavaScriptProject, argument: string) : TransformerExecuteResult {
+
+    Debug.writeLine(argument);
+    Contract.requires(argument === undefined);
 
     return undefined;
 }

@@ -16,6 +16,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
         {
             Module = template.Module;
             SchedulingFunction = template.SchedulingFunction;
+            Argument = template.Argument;
         }
 
         /// <inheritdoc/>
@@ -23,5 +24,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc/>
         public string SchedulingFunction { get; set; }
+
+        /// <inheritdoc/>
+        public ILazyEval Argument { get; set; }
     }
 }

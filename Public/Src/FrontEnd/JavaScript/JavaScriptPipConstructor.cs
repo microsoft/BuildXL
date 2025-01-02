@@ -247,6 +247,14 @@ namespace BuildXL.FrontEnd.JavaScript
                 m_context.CredentialScanner,
                 m_context.LoggingContext))
             {
+                if (!project.ProjectFolder.IsWithin(PathTable, Root))
+                {
+                    failureDetail = $"Configuration root '{Root.ToString(PathTable)}' should be a parent of '{project.ProjectFolder.ToString(PathTable)}'. Please make sure {project.Name} is in source repository and packages.json is correct. An incorrect packageJsonPath value can override the project working directory path.";
+                    process = null;
+                    processOutputs = null;
+                    return false;
+                }
+
                 using var transitiveDependenciesWrapper = JavaScriptPools.JavaScriptProjectSet.GetInstance();
                 var transitiveDependencies = transitiveDependenciesWrapper.Instance;
                 ComputeTransitiveDependenciesFor(project, transitiveDependencies);
@@ -709,7 +717,6 @@ namespace BuildXL.FrontEnd.JavaScript
         private AbsolutePath GetLogDirectory(JavaScriptProject projectFile)
         {
             var success = Root.TryGetRelative(PathTable, projectFile.ProjectFolder, out var inFolderPathFromEnlistmentRoot);
-            Contract.Assert(success, $"Configuration root '{Root.ToString(PathTable)}' should be a parent of '{projectFile.ProjectFolder.ToString(PathTable)}'");
 
             // We hardcode the log to go under the output directory Logs/<frontend-name> (and follow the project structure underneath)
             var result = LogDirectoryBase(m_frontEndHost.Configuration, m_context.PathTable, m_resolverSettings.Name)

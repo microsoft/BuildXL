@@ -1131,10 +1131,6 @@ namespace BuildXL
                             "unsafe_GlobalUntrackedScopes",
                             opt => sandboxConfiguration.GlobalUnsafeUntrackedScopes.AddRange(CommandLineUtilities.ParseRepeatingPathOption(opt, pathTable, ";"))),
                         OptionHandlerFactory.CreateBoolOption(
-                            "unsafe_IgnoreGetFinalPathNameByHandle",
-                            sign => sandboxConfiguration.UnsafeSandboxConfigurationMutable.IgnoreGetFinalPathNameByHandle = sign,
-                            isUnsafe: true),
-                        OptionHandlerFactory.CreateBoolOption(
                             "unsafe_IgnorePreserveOutputsPrivatization",
                             sign => sandboxConfiguration.UnsafeSandboxConfigurationMutable.IgnorePreserveOutputsPrivatization = !sign,
                             isUnsafe: true),

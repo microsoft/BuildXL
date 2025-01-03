@@ -119,7 +119,7 @@ namespace BuildXL.Utilities.Configuration
         bool IgnoreFullReparsePointResolving { get; }
 
         /// <summary>
-        /// Whether BuildXL is to ignore Dlls loaded before Detours was started. Ignoring the preloaded (statically loaded) dlls is an unsafe configuration. Defaults to on (i.e., ignoring preloaded Dlls).
+        /// Whether BuildXL is to ignore Dlls loaded before Detours was started. Ignoring the preloaded (statically loaded) dlls is an unsafe configuration.
         /// </summary>
         bool IgnorePreloadedDlls { get; }
 

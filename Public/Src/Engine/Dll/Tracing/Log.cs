@@ -1094,7 +1094,7 @@ namespace BuildXL.Engine.Tracing
             EventTask = (int)Tasks.Engine,
             Message = "/unsafe_IgnoreFullReparsePointResolving enabled: {ShortProductName} will not fully resolve paths containing any sort of reparse point (old-resolver logic). This might lead to incorrect builds because some file accesses will not be enforced.")]
         public abstract void ConfigIgnoreFullReparsePointResolving(LoggingContext context);
-        
+
         [GeneratedEvent(
             (ushort)LogEventId.ConfigIgnorePreloadedDlls,
             EventGenerators = EventGenerators.LocalOnly,
@@ -1112,15 +1112,6 @@ namespace BuildXL.Engine.Tracing
             EventTask = (int)Tasks.Engine,
             Message = "/unsafe_DisableDetours enabled: {ShortProductName} is configured not to detour any file access APIs. This might lead to incorrect builds because any file accesses will not be enforced.")]
         public abstract void ConfigDisableDetours(LoggingContext context);
-
-        [GeneratedEvent(
-            (ushort)LogEventId.ConfigIgnoreGetFinalPathNameByHandle,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Warning,
-            Keywords = (int)Keywords.UserMessage,
-            EventTask = (int)Tasks.Engine,
-            Message = "/unsafe_IgnoreGetFinalPathNameByHandle enabled: {ShortProductName} is configured to use Subst without handling the GetFinalPathNameByHandle API. You may encounter errors.")]
-        public abstract void ConfigIgnoreGetFinalPathNameByHandle(LoggingContext context);
 
         [GeneratedEvent(
             (ushort)LogEventId.ConfigPreserveOutputs,

@@ -1096,11 +1096,6 @@ namespace BuildXL
                 HelpLevel.Verbose);
 
             hw.WriteOption(
-                "/unsafe_ignoreGetFinalPathNameByHandle[+|-]",
-                Strings.HelpText_DisplayHelp_Unsafe_IgnoreGetFinalPathNameByHandle,
-                HelpLevel.Verbose);
-
-            hw.WriteOption(
                 "/unsafe_OptimizedAstConversion[+|-]",
                 Strings.HelpText_DisplayHelp_Unsafe_OptimizedAstConversion,
                 HelpLevel.Verbose);

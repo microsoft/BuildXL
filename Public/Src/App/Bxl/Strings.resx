@@ -1144,9 +1144,6 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   <data name="HelpText_DisplayHelp_EnableWorkerSourceFileMaterialization" xml:space="preserve">
     <value>Enables materialization of source files on distributed workers. NOTE: Source files are required to be present in the worker's remote or local cache.</value>
   </data>
-  <data name="HelpText_DisplayHelp_Unsafe_IgnoreGetFinalPathNameByHandle" xml:space="preserve">
-    <value>When enabled, {ShortProductName} will not intercept GetFinalPathNameByHandle calls. This may lead to failures when using subst because non-subst paths will be used. Defaults to off.</value>
-  </data>
   <data name="HelpText_DisplayHelp_Unsafe_DisableGraphPostValidation" xml:space="preserve">
     <value>Disables post validation of graph construction. Defaults to on.</value>
   </data>

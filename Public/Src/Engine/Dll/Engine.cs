@@ -2425,7 +2425,6 @@ namespace BuildXL.Engine
                 { "unsafe_ForceSkipDeps", Logger.Log.ForceSkipDependenciesEnabled },
                 { "unsafe_GlobalPassthroughEnvVars",  loggingContext => { } /* Special case: unsafe option we do not want logged */ },
                 { "unsafe_GlobalUntrackedScopes",  loggingContext => { } /* Special case: unsafe option we do not want logged */ },
-                { "unsafe_IgnoreGetFinalPathNameByHandle", Logger.Log.ConfigIgnoreGetFinalPathNameByHandle },
                 { "unsafe_IgnoreReparsePoints", Logger.Log.ConfigIgnoreReparsePoints },
                 { "unsafe_IgnoreFullReparsePointResolving", Logger.Log.ConfigIgnoreFullReparsePointResolving },
                 { "unsafe_IgnorePreloadedDlls", Logger.Log.ConfigIgnorePreloadedDlls },

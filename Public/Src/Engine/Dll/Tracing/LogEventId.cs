@@ -91,7 +91,7 @@ namespace BuildXL.Engine.Tracing
         // was ConfigUnsafeLazySymlinkCreation = 919,
         ConfigDisableDetours = 920,
         ConfigDebuggingAndProfilingCannotBeSpecifiedSimultaneously = 921,
-        ConfigIgnoreGetFinalPathNameByHandle = 922,
+        // was ConfigIgnoreGetFinalPathNameByHandle = 922,
         // was ConfigIgnoreZwOtherFileInformation = 923,
         // was ConfigUnsafeMonitorZwCreateOpenQueryFileOff = 924,
         // was ConfigIgnoreNonCreateFileReparsePoints = 925,

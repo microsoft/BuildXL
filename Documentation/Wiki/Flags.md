@@ -218,7 +218,6 @@ This page lists flags that can be used to configure BuildXL.
 | Unsafe_ForceSkipDeps | Specifies that dependencies of processes requested in the filter should be skipped as long as all the inputs are present. |
 | Unsafe_IgnoreDynamicWritesOnAbsentProbes | When enabled, {ShortProductName} will not flag as violations absent path probes that coexist with writes under output directories for those same paths. |
 | Unsafe_IgnoreFullReparsePointResolving | When enabled, {ShortProductName} will not fully resolve paths containing any sort of reparse point. This might lead to incorrect builds because some file accesses will not be enforced or tracked at all. |
-| Unsafe_IgnoreGetFinalPathNameByHandle | When enabled, {ShortProductName} will not intercept GetFinalPathNameByHandle calls. This may lead to failures when using subst because non-subst paths will be used. Defaults to off. |
 | Unsafe_IgnorePreloadedDlls | When enabled, {ShortProductName} will not report Dlls loaded before Detours was started. This might lead to incorrect builds because some file accesses will not be enforced. |
 | Unsafe_IgnoreReparsePoints | When enabled, {ShortProductName} will not track reparse points. This might lead to incorrect builds because some file accesses will not be enforced. Any reparse points (symlinks and mount points) will not be followed. |
 | Unsafe_MonitorFileAccesses | Whether {ShortProductName} is to monitor file accesses of individual tools at all. Disabling monitoring results in an unsafe configuration (for diagnostic purposes only). Defaults to on. |

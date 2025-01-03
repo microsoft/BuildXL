@@ -95,7 +95,6 @@ This page lists flags that can be used to configure BuildXL.
 | LaunchDebugger | Launches the debugger during boot (in the server process if applicable). |
 | LimitPathSetsOnCacheLookup | Limits the number of path sets to be checked during cache lookup. Once the limit is reached, the pip is determined to have a cache miss. Defaults to off. The number of path sets can also be set. Defaults to 0 (off). |
 | LogCatalog | Records the set of spec files added to the catalog. Defaults to off. |
-| LogCounters | Collects various performance counters and logs phase specific aggregations. Defaults to on. |
 | LogExecution | Logs an execution trace to the default trace file in the same folder as the main log file. Defaults to on. |
 | LogFileAccessTables | Records the file enforcement access tables for individual pips to the log. Defaults to off. |
 | LogMemory | Collects actual memory usage when collection performance counters. This has a negaitve performance impact and should only be used when analyzing memory consumption. Defaults to off. |

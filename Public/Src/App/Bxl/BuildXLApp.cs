@@ -2125,15 +2125,12 @@ namespace BuildXL
                     Logger.Log.MemoryLoggingEnabled(loggingContext);
                 }
 
-                if (m_configuration.Logging.LogCounters)
-                {
-                    collector = new PerformanceCollector(
-                        TimeSpan.FromMilliseconds(m_configuration.Logging.PerfCollectorFrequencyMs),
-                        collectBytesHeld: m_configuration.Logging.LogMemory,
-                        initializationErrorHandler: (ex) => Logger.Log.PerformanceCollectorInitializationFailed(loggingContext, ex.Message),
-                        collectionErrorHandler: ex => Logger.Log.PerformanceCollectorCollectionFailed(loggingContext, ex?.Message),
-                        queryJobObject: BuildXLJobObjectCpu);
-                }
+                collector = new PerformanceCollector(
+                    TimeSpan.FromMilliseconds(m_configuration.Logging.PerfCollectorFrequencyMs),
+                    collectBytesHeld: m_configuration.Logging.LogMemory,
+                    initializationErrorHandler: (ex) => Logger.Log.PerformanceCollectorInitializationFailed(loggingContext, ex.Message),
+                    collectionErrorHandler: ex => Logger.Log.PerformanceCollectorCollectionFailed(loggingContext, ex?.Message),
+                    queryJobObject: BuildXLJobObjectCpu);
             }
 
             Tracing.Logger.Log.Statistic(

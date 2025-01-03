@@ -570,9 +570,6 @@ namespace BuildXL
                             "logCachedPipOutputs",
                             sign => loggingConfiguration.LogCachedPipOutputs = sign),
                         OptionHandlerFactory.CreateBoolOption(
-                            "logCounters",
-                            sign => loggingConfiguration.LogCounters = sign),
-                        OptionHandlerFactory.CreateBoolOption(
                             "logDeterminismProbe",
                             sign =>
                             {

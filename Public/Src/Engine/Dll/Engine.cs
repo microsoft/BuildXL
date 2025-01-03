@@ -1072,8 +1072,6 @@ namespace BuildXL.Engine
 
             if (mutableConfig.Schedule.AdaptiveIO)
             {
-                Contract.Assert(mutableConfig.Logging.LogCounters, "AdaptiveIO requires the logCounters flag");
-
                 // If the adaptive IO is enabled and the user does not pass a custom maxIO value, then use the number of processors as the IO limit.
                 mutableConfig.Schedule.MaxIO = Environment.ProcessorCount;
 

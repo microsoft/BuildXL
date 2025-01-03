@@ -146,7 +146,6 @@ namespace Test.BuildXL.Engine
                         LogsDirectory = logsPath,
                         LogStats = false,
                         LogExecution = false,
-                        LogCounters = false,
                         LogMemory = false,
                         StoreFingerprints = false,
                         NoWarnings =

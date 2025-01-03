@@ -189,11 +189,6 @@ namespace BuildXL.Utilities.Configuration
         VerbosityLevel FileVerbosity { get; }
 
         /// <summary>
-        /// Collects various performance counters and logs phase specific aggregations.
-        /// </summary>
-        bool LogCounters { get; }
-
-        /// <summary>
         /// Queries the GC for memory usage when collecting counters. This has a negative performance implication
         /// </summary>
         bool LogMemory { get; }

@@ -23,7 +23,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
             ForwardableWorkerEvents = new List<int>();
             ConsoleVerbosity = VerbosityLevel.Informational;
             FileVerbosity = VerbosityLevel.Verbose;
-            LogCounters = true;
             TraceInfo = new Dictionary<string, string>(StringComparer.InvariantCultureIgnoreCase);
             Color = true;
             AnimateTaskbar = true;
@@ -117,7 +116,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
             Diagnostic = template.Diagnostic;
             ConsoleVerbosity = template.ConsoleVerbosity;
             FileVerbosity = template.FileVerbosity;
-            LogCounters = template.LogCounters;
             LogStats = template.LogStats;
             EnableAsyncLogging = template.EnableAsyncLogging;
             StatsLog = pathRemapper.Remap(template.StatsLog);
@@ -290,9 +288,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public VerbosityLevel FileVerbosity { get; set; }
-
-        /// <inheritdoc />
-        public bool LogCounters { get; set; }
 
         /// <inheritdoc />
         public bool LogMemory { get; set; }

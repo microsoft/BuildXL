@@ -294,11 +294,6 @@ namespace BuildXL
                 HelpLevel.Verbose);
 
             hw.WriteOption(
-                "/logCounters[+|-]",
-                Strings.HelpText_DisplayHelp_LogCounters,
-                HelpLevel.Verbose);
-
-            hw.WriteOption(
                 "/logMemory[+|-]",
                 Strings.HelpText_DisplayHelp_LogMemory,
                 HelpLevel.Verbose);

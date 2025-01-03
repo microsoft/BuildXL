@@ -468,9 +468,6 @@
   <data name="HelpText_DisplayHelp_TraceInfo" xml:space="preserve">
     <value>Attaches tracing information to the build. May be specified multiple times. Ex: /TraceInfo:Branch=MyBranch</value>
   </data>
-  <data name="HelpText_DisplayHelp_LogCounters" xml:space="preserve">
-    <value>Collects various performance counters and logs phase specific aggregations. Defaults to on.</value>
-  </data>
   <data name="HelpText_DisplayHelp_RootMap" xml:space="preserve">
     <value>Specifies a drive mapping applied during this build. Paths under specified letters will be mapped to the corresponding paths at the system level for the build process and the tools launched as a part of the build. (short form: /rm)</value>
   </data>

@@ -160,9 +160,6 @@ namespace BuildXL.Scheduler
 
             m_scheduleConfig = config.Schedule;
 
-            // If adaptive IO is enabled, then start with the half of the maxIO.
-            var ioLimit = m_scheduleConfig.AdaptiveIO ? (m_scheduleConfig.MaxIO + 1) / 2 : m_scheduleConfig.MaxIO;
-
             // ChooseWorkerQueue uses a custom task scheduler which can sometimes cause issues. 
             // We have a flag to disable this custom task scheduler and use the default DispatcherQueue.
             bool doNotUseCustomTaskScheduler = EngineEnvironmentSettings.DoNotUseChooseWorkerQueueWithCustomTaskScheduler;
@@ -200,7 +197,7 @@ namespace BuildXL.Scheduler
 
             m_queuesByKind = new Dictionary<DispatcherKind, DispatcherQueue>()
                              {
-                                 {DispatcherKind.IO, new DispatcherQueue(this, ioLimit)},
+                                 {DispatcherKind.IO, new DispatcherQueue(this, m_scheduleConfig.MaxIO)},
                                  {DispatcherKind.DelayedCacheLookup, new DispatcherQueue(this, 1)},
                                  {DispatcherKind.ChooseWorkerCacheLookup, new DispatcherQueue(this, m_scheduleConfig.MaxChooseWorkerCacheLookup)},
                                  {DispatcherKind.ChooseWorkerLight, new DispatcherQueue(this, m_scheduleConfig.MaxChooseWorkerLight)},
@@ -218,7 +215,7 @@ namespace BuildXL.Scheduler
             BuildXL.Tracing.Logger.Log.BulkStatistic(loggingContext, m_queuesByKind.ToDictionary(kvp => $"DispatcherKind.{kvp.Key}.Max", kvp => (long)kvp.Value.MaxParallelDegree));
             Tracing.Logger.Log.PipQueueConcurrency(
                 loggingContext,
-                ioLimit,
+                m_scheduleConfig.MaxIO,
                 m_scheduleConfig.MaxChooseWorkerCpu,
                 m_scheduleConfig.MaxChooseWorkerCacheLookup,
                 m_scheduleConfig.MaxChooseWorkerLight,
@@ -366,52 +363,6 @@ namespace BuildXL.Scheduler
         {
             m_isFinalized = true;
             TriggerDispatcher();
-        }
-
-        /// <summary>
-        /// Adjusts the max parallel degree of the IO dispatcher queue
-        /// </summary>
-        /// <remarks>
-        /// We introduce another limit for the IO queue, which is 'currentMax'. CurrentMax specifies the max parallel degree for the IO queue.
-        /// CurrentMax initially equals to (maxIO + 1)/2. Then, based on the machine resources, it will vary between 1 and maxIO (both inclusive) during the build.
-        /// This method will be called every second to adjust the IO limit.
-        /// </remarks>
-        public void AdjustIOParallelDegree(PerformanceCollector.MachinePerfInfo machinePerfInfo)
-        {
-            if (!IsDraining || !m_scheduleConfig.AdaptiveIO)
-            {
-                return;
-            }
-
-            var ioDispatcher = m_queuesByKind[DispatcherKind.IO];
-            int currentMax = ioDispatcher.MaxParallelDegree;
-
-            // If numRunning is closer to the currentMax, consider increasing the limit based on the resource usage
-            // We should not only look at the disk usage activity but also CPU, RAM as well because the pips running on the IO queue consume CPU and RAM resources as well.
-            // TODO: Instead of looking at all disk usages, just look at the ones which are associated with the build files (both inputs and outputs).
-            bool hasLowGlobalUsage = machinePerfInfo.CpuUsagePercentage < 90 &&
-                                     machinePerfInfo.RamUsagePercentage < 90 &&
-                                     machinePerfInfo.DiskUsagePercentages.All(a => a < 90);
-            bool numRunningIsNearMax = ioDispatcher.NumAcquiredSlots > currentMax * 0.8;
-
-            if (numRunningIsNearMax && (currentMax < m_scheduleConfig.MaxIO) && hasLowGlobalUsage)
-            {
-                // The new currentMax will be the midpoint of currentMax and absoluteMax.
-                currentMax = (m_scheduleConfig.MaxIO + currentMax + 1) / 2;
-
-                ioDispatcher.AdjustParallelDegree(currentMax);
-                TriggerDispatcher(); // After increasing the limit, trigger the dispatcher so that we can start new tasks.
-            }
-            else if (machinePerfInfo.DiskUsagePercentages.Any(a => a > 95))
-            {
-                // If any of the disks usage is higher than 95%, then decrease the limit.
-                // TODO: Should we look at the CPU or MEM usage as well to decrease the limit?
-                currentMax = (currentMax + 1) / 2;
-                ioDispatcher.AdjustParallelDegree(currentMax);
-            }
-
-            // TODO: Right now, we only care about the disk active time. We should also take the avg disk queue length into account.
-            // Average disk queue length is a product of disk transfers/sec (response X I/O) and average disk sec/transfer.
         }
 
         /// <inheritdoc />

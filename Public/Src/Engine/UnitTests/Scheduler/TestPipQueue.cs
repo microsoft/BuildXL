@@ -298,12 +298,6 @@ namespace Test.BuildXL.Scheduler
         public int GetMaxParallelDegreeByKind(DispatcherKind queueKind) => m_innerQueue.GetMaxParallelDegreeByKind(queueKind);
 
         /// <inheritdoc/>
-        public void AdjustIOParallelDegree(PerformanceCollector.MachinePerfInfo machinePerfInfo)
-        {
-            m_innerQueue.AdjustIOParallelDegree(machinePerfInfo);
-        }
-
-        /// <inheritdoc/>
         public void SetTotalProcessSlots(int totalProcessSlots)
         {
             m_innerQueue.SetTotalProcessSlots(totalProcessSlots);

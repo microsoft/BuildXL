@@ -1298,7 +1298,6 @@ namespace BuildXL
             // TODO: Dynamic
             return new string[]
                    {
-                       "AdaptiveIO",
                        "ForceReadOnlyForRequestedReadWrite",
                        "UseSubstTargetForCache",
                        "CheckUpToDatenessFilesOnDiskDuringCacheLookup",

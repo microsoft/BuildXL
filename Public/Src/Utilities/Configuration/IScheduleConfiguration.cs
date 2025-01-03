@@ -97,11 +97,6 @@ namespace BuildXL.Utilities.Configuration
         int MaxIO { get; }
 
         /// <summary>
-        /// Adaptive IO limit
-        /// </summary>
-        bool AdaptiveIO { get; }
-
-        /// <summary>
         /// Runs the build engine and all tools at a lower priority in order to provide better responsiveness to interactive processes on the current machine.
         /// </summary>
         bool LowPriority { get; }
@@ -512,11 +507,6 @@ namespace BuildXL.Utilities.Configuration
         /// When the specified time is negative, then the process pip will wait forever for a remote agent.
         /// </remarks>
         double RemoteAgentWaitTimeSec { get; }
-
-        /// <summary>
-        /// Whether Cpu resource determines the scheduling behavior
-        /// </summary>
-        bool CpuResourceAware { get; }
 
         /// <summary>
         /// Whether to enable the remote cache cut-off feature, which avoids lookups to the remote cache

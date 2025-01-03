@@ -2445,7 +2445,6 @@ namespace BuildXL.Scheduler
                 { "LastSchedulerConcurrencyLimiter", data => m_chooseWorkerCpu.LastConcurrencyLimiter?.Name ?? "N/A" },
                 { "LimitingResource", data => data.LimitingResource},
                 { "MemoryResourceAvailability", data => LocalWorker.MemoryResource.ToString().Replace(',', '-')},
-                { "CpuResourceAvailability", data => LocalWorker.CpuResourceAvailable ? 1 : 0},
                 { "ProcessRetriesDueToResourceLimits", data => PipExecutionCounters.GetCounterValue(PipExecutorCounter.ProcessRetriesDueToResourceLimits)},
                 { "EmptyWorkingSetSucceeded", data => PipExecutionCounters.GetCounterValue(PipExecutorCounter.EmptyWorkingSetSucceeded)},
                 { "ResourceManager_TotalUsedWorkingSet", data => State.ResourceManager.TotalUsedWorkingSet},
@@ -2819,12 +2818,6 @@ namespace BuildXL.Scheduler
                     m_chooseWorkerCpu.TogglePauseChooseWorkerQueue(pause: false);
                 }
 
-                if (m_scheduleConfiguration.AdaptiveIO)
-                {
-                    Contract.Assert(PerformanceAggregator != null, "Adaptive IO requires non-null performanceAggregator");
-                    PipQueue.AdjustIOParallelDegree(m_perfInfo);
-                }
-
                 if (m_configuration.Distribution.EarlyWorkerRelease && IsDistributedOrchestrator)
                 {
                     PerformEarlyReleaseWorker(numProcessPipsPending, numProcessPipsAllocatedSlots);
@@ -3172,14 +3165,7 @@ namespace BuildXL.Scheduler
                 }
             }
 
-            bool cpuResourceAvailable = true;
-            if (m_scheduleConfiguration.CpuResourceAware)
-            {
-                // More than 5000 context switches per second per core can cause congestion issues. 
-                cpuResourceAvailable = !(perfInfo.CpuWMIUsagePercentage >= 98 && perfInfo.ContextSwitchesPerSec > (Environment.ProcessorCount * 5000));
-            }
-
-            ToggleResourceAvailability(perfInfo, memoryResource, cpuResourceAvailable);
+            ToggleMemoryResourceAvailability(perfInfo, memoryResource);
 
             resourceManager.LastRequiredSizeMb = 0;
             resourceManager.LastManageMemoryMode = null;
@@ -3295,7 +3281,7 @@ namespace BuildXL.Scheduler
             }
         }
 
-        private void ToggleResourceAvailability(PerformanceCollector.MachinePerfInfo perfInfo, MemoryResource memoryResource, bool cpuResourceAvailable)
+        private void ToggleMemoryResourceAvailability(PerformanceCollector.MachinePerfInfo perfInfo, MemoryResource memoryResource)
         {
             if (memoryResource.HasFlag(MemoryResource.LowRam))
             {
@@ -3334,8 +3320,6 @@ namespace BuildXL.Scheduler
 
                 LocalWorker.MemoryResource = memoryResource;
             }
-
-            LocalWorker.CpuResourceAvailable = cpuResourceAvailable;
 
             PipQueue.SetMaxParallelDegreeByKind(DispatcherKind.CPU, LocalWorker.TotalProcessSlots);
 

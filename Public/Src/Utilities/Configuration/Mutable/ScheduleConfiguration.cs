@@ -146,7 +146,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
             MinimumDiskSpaceForPipsGb = template.MinimumDiskSpaceForPipsGb;
             MaximumAllowedMemoryPressureLevel = template.MaximumAllowedMemoryPressureLevel;
             AllowCopySymlink = template.AllowCopySymlink;
-            AdaptiveIO = template.AdaptiveIO;
             ReuseOutputsOnDisk = template.ReuseOutputsOnDisk;
             UseHistoricalRamUsageInfo = template.UseHistoricalRamUsageInfo;
             VerifyCacheLookupPin = template.VerifyCacheLookupPin;
@@ -206,8 +205,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
             RemoteAgentWaitTimeSec = template.RemoteAgentWaitTimeSec;
 
             StopDirtyOnSucceedFastPips = template.StopDirtyOnSucceedFastPips;
-            CpuResourceAware = template.CpuResourceAware;
-
             RemoteCacheCutoff = template.RemoteCacheCutoff;
             RemoteCacheCutoffLength = template.RemoteCacheCutoffLength;
 
@@ -248,9 +245,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool LowPriority { get; set; }
-
-        /// <inheritdoc />
-        public bool AdaptiveIO { get; set; }
 
         /// <inheritdoc />
         public bool DisableProcessRetryOnResourceExhaustion { get; set; }
@@ -499,9 +493,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public bool RemoteCacheCutoff { get; set; }
 
         private int NumOfRemoteAgentLeasesValue => NumOfRemoteAgentLeases ?? (int)(2.5 * MaxProcesses);
-
-        /// <inheritdoc />
-        public bool CpuResourceAware { get; set; }
 
         /// <inheritdoc />
         public bool DeprioritizeOnSemaphoreConstraints { get; set; }

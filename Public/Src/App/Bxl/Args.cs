@@ -233,9 +233,6 @@ namespace BuildXL
                         OptionHandlerFactory.CreateBoolOption(
                             "converge",
                             sign => engineConfiguration.Converge = sign),
-                        OptionHandlerFactory.CreateBoolOption(
-                            "cpuResourceAware",
-                            sign => schedulingConfiguration.CpuResourceAware = sign),
                         OptionHandlerFactory.CreateOption(
                             "credScanEnvironmentVariablesAllowList",
                             opt => frontEndConfiguration.CredScanEnvironmentVariablesAllowList.AddRange(CommandLineUtilities.ParseRepeatingOption(opt, ";", v => v.Trim()))),
@@ -1935,9 +1932,6 @@ namespace BuildXL
                     {
                         throw CommandLineUtilities.Error(Strings.Args_Experimental_useDominoScriptv2_Deprecated);
                     }
-                    break;
-                case "ADAPTIVEIO":
-                    scheduleConfiguration.AdaptiveIO = experimentalOptionAndValue.Item2;
                     break;
                 case "USEGRAPHPATCHING":
                     frontEndConfiguration.UseGraphPatching = experimentalOptionAndValue.Item2;

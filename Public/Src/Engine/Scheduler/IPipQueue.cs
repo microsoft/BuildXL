@@ -116,11 +116,6 @@ namespace BuildXL.Scheduler
         void Cancel(TimeSpan? timeout);
 
         /// <summary>
-        /// Adjusts the concurrency limit for the IO queue
-        /// </summary>
-        void AdjustIOParallelDegree(PerformanceCollector.MachinePerfInfo machinePerfInfo);
-        
-        /// <summary>
         /// Sets the total number of process slots in the build.
         /// </summary>
         void SetTotalProcessSlots(int totalProcessSlots);

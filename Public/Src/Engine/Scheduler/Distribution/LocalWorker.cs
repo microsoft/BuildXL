@@ -47,14 +47,9 @@ namespace BuildXL.Scheduler.Distribution
         {
             get
             {
-                return MemoryResourceAvailable && CpuResourceAvailable ? base.TotalProcessSlots : 1;
+                return MemoryResourceAvailable ? base.TotalProcessSlots : 1;
             }
         }
-
-        /// <summary>
-        /// Whether Cpu resource is available.
-        /// </summary>
-        public bool CpuResourceAvailable = true;
 
         /// <summary>
         /// The state of the memory resource availability.

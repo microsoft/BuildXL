@@ -1059,19 +1059,6 @@ namespace BuildXL.Engine
                 mutableConfig.Schedule.EnableLazyOutputMaterialization = false;
             }
 
-            if (mutableConfig.Schedule.AdaptiveIO)
-            {
-                // If the adaptive IO is enabled and the user does not pass a custom maxIO value, then use the number of processors as the IO limit.
-                mutableConfig.Schedule.MaxIO = Environment.ProcessorCount;
-
-                // If the adaptive IO is enabled and the user does not pass a custom statusFrequencyMs, then use 1000ms as a statusFrequency.
-                // In the interval of 1000ms, both status messages will be printed on console and the maximum limit for the IO will be adjusted.
-                if (mutableConfig.Logging.StatusFrequencyMs == 0)
-                {
-                    mutableConfig.Logging.StatusFrequencyMs = 1000;
-                }
-            }
-
             if (!mutableConfig.Logging.FailPipOnFileAccessError)
             {
                 mutableConfig.Sandbox.UnsafeSandboxConfigurationMutable.UnexpectedFileAccessesAreErrors = false;

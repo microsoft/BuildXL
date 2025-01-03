@@ -611,12 +611,6 @@ namespace BuildXL
                         OptionHandlerFactory.CreateOption(
                             "logsDirectory",
                             opt => loggingConfiguration.LogsDirectory = CommandLineUtilities.ParsePathOption(opt, pathTable)),
-                        OptionHandlerFactory.CreateBoolOption(
-                            "logStats",
-                            sign => loggingConfiguration.LogStats = sign),
-                        OptionHandlerFactory.CreateBoolOption(
-                            "logStatus",
-                            sign => loggingConfiguration.LogStatus = sign),
                         OptionHandlerFactory.CreateOption(
                             "logToConsole",
                             opt => {
@@ -643,9 +637,6 @@ namespace BuildXL
                         OptionHandlerFactory.CreateOption(
                             "logsToRetain",
                             opt => loggingConfiguration.LogsToRetain = CommandLineUtilities.ParseInt32Option(opt, 1, 1000)),
-                        OptionHandlerFactory.CreateBoolOption(
-                            "logTracer",
-                            sign => loggingConfiguration.LogTracer = sign),
                         OptionHandlerFactory.CreateBoolOption(
                             "lowPriority",
                             sign => schedulingConfiguration.LowPriority = sign),

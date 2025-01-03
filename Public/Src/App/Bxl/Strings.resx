@@ -456,12 +456,6 @@
   <data name="HelpText_DisplayHelp_EnableDedupChunk" xml:space="preserve">
     <value>When enabled, DedupChunk hashing algorithm is used instead of VSO0. Defaults to off.</value>
   </data>
-  <data name="HelpText_DisplayHelp_LogStats" xml:space="preserve">
-    <value>Logs key/value statistics to default stats file in the same folder as the main log file. Defaults to on.</value>
-  </data>
-  <data name="HelpText_DisplayHelp_LogStatus" xml:space="preserve">
-    <value>Logs build status information to a CSV file in the same folder as the main log file. Defaults to on.</value>
-  </data>
   <data name="HelpText_DisplayHelp_LogOutput" xml:space="preserve">
     <value>Specifies how process standard error and standard output should be reported. Allowed values are 'TruncatedOutputOnError', 'FullOutputAlways', 'FullOutputOnError', 'FullOutputOnWarningOrError'. Default is 'TruncatedOutputOnError'.</value>
   </data>

@@ -2846,7 +2846,7 @@ namespace BuildXL.Scheduler
                     m_schedulerCompletionExceptMaterializeOutputsTimeUtc = DateTime.UtcNow;
                 }
 
-                if (m_configuration.Logging.LogTracer && DateTime.UtcNow > m_tracerLastUpdated.AddSeconds(EngineEnvironmentSettings.MinStepDurationSecForTracer))
+                if (DateTime.UtcNow > m_tracerLastUpdated.AddSeconds(EngineEnvironmentSettings.MinStepDurationSecForTracer))
                 {
                     LogPercentageCounter(LocalWorker, "CPU", data.CpuPercent, data.Time.Ticks);
                     LogPercentageCounter(LocalWorker, "RAM", data.RamPercent, data.Time.Ticks);

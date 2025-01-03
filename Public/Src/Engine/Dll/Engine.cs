@@ -779,22 +779,11 @@ namespace BuildXL.Engine
             logging.Log = logging.LogsDirectory.Combine(pathTable, logging.LogPrefix + LogFileExtensions.Log);
             logging.ErrorLog = logging.LogsDirectory.Combine(pathTable, logging.LogPrefix + LogFileExtensions.Errors);
             logging.WarningLog = logging.LogsDirectory.Combine(pathTable, logging.LogPrefix + LogFileExtensions.Warnings);
-
-            if (logging.LogStats)
-            {
-                logging.StatsLog = logging.LogsDirectory.Combine(pathTable, logging.LogPrefix + LogFileExtensions.Stats);
-                logging.StatsPrfLog = logging.LogsDirectory.Combine(pathTable, logging.LogPrefix + LogFileExtensions.StatsPrf);
-            }
-
-            if (logging.LogStatus)
-            {
-                logging.StatusLog = logging.LogsDirectory.Combine(pathTable, logging.LogPrefix + LogFileExtensions.Status);
-            }
-
-            if (logging.LogTracer)
-            {
-                logging.TraceLog = logging.LogsDirectory.Combine(pathTable, logging.LogPrefix + LogFileExtensions.Trace);
-            }
+            
+            logging.StatsLog = logging.LogsDirectory.Combine(pathTable, logging.LogPrefix + LogFileExtensions.Stats);
+            logging.StatsPrfLog = logging.LogsDirectory.Combine(pathTable, logging.LogPrefix + LogFileExtensions.StatsPrf);
+            logging.StatusLog = logging.LogsDirectory.Combine(pathTable, logging.LogPrefix + LogFileExtensions.Status);
+            logging.TraceLog = logging.LogsDirectory.Combine(pathTable, logging.LogPrefix + LogFileExtensions.Trace);
 
             if (logging.LogExecution)
             {

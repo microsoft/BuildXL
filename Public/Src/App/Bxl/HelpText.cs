@@ -279,16 +279,6 @@ namespace BuildXL
                 Strings.HelpText_DisplayHelp_ReplayWarnings);
 
             hw.WriteOption(
-                "/logStats[+|-]",
-                Strings.HelpText_DisplayHelp_LogStats,
-                HelpLevel.Verbose);
-
-            hw.WriteOption(
-                "/logStatus[+|-]",
-                Strings.HelpText_DisplayHelp_LogStatus,
-                HelpLevel.Verbose);
-
-            hw.WriteOption(
                 "/traceInfo:<Key>=<Value>",
                 Strings.HelpText_DisplayHelp_TraceInfo,
                 HelpLevel.Verbose);

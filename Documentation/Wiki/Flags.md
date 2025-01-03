@@ -106,8 +106,6 @@ This page lists flags that can be used to configure BuildXL.
 | LogProcessDetouringStatus | When enabled, store the Detouring Status messages in the Execution log. Defaults to off. |
 | LogProcesses | Records all launched processes, including nested processes, of each pip to the log. Defaults to off. |
 | LogsDirectory | Specifies the path to the logs directory. |
-| LogStats | Logs key/value statistics to default stats file in the same folder as the main log file. Defaults to on. |
-| LogStatus | Logs build status information to a CSV file in the same folder as the main log file. Defaults to on. |
 | LogsToRetain | The number of previous logs to retain. |
 | LogToConsole | Displays the specified messages in the console. |
 | LogToKusto | Whether to send log events to Kusto. If enabled, a valid authentication mechanism should be available with enough permissions to write into the blob storage account where logs are piped to Kusto. Use /logToKustoBlobUri:https://{storage-account-name}/{container-name} and /logToKustoIdentityId:{Identity guid} to specify the destination of the log messages. |

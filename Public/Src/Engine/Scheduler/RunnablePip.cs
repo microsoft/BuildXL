@@ -283,8 +283,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Whether to include the pip in the tracer log
         /// </summary>
-        public bool IncludeInTracer => Environment.Configuration.Logging.LogTracer
-            && Step.IncludeInTracer()
+        public bool IncludeInTracer => Step.IncludeInTracer()
             && (PipType == PipType.Process || PipType == PipType.Ipc)
             && Worker != null;
 

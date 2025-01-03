@@ -26,7 +26,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
             TraceInfo = new Dictionary<string, string>(StringComparer.InvariantCultureIgnoreCase);
             Color = true;
             AnimateTaskbar = true;
-            LogStats = true;
             LogExecution = true;
             FingerprintStoreMode = FingerprintStoreMode.Default;
             FingerprintStoreMaxEntryAgeMinutes = 4320; // 3 days
@@ -41,8 +40,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
             SubstTarget = AbsolutePath.Invalid;
             FancyConsole = true;
             FancyConsoleMaxStatusPips = 5;
-            LogStatus = true;
-            LogTracer = true;
             FailPipOnFileAccessError = true;
             UseCustomPipDescriptionOnConsole = true;
             AdoConsoleMaxIssuesToLog = 100;
@@ -116,7 +113,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
             Diagnostic = template.Diagnostic;
             ConsoleVerbosity = template.ConsoleVerbosity;
             FileVerbosity = template.FileVerbosity;
-            LogStats = template.LogStats;
             EnableAsyncLogging = template.EnableAsyncLogging;
             StatsLog = pathRemapper.Remap(template.StatsLog);
             StatsPrfLog = pathRemapper.Remap(template.StatsPrfLog);
@@ -138,8 +134,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
             SubstSource = pathRemapper.Remap(template.SubstSource);
             SubstTarget = pathRemapper.Remap(template.SubstTarget);
             DisableLoggedPathTranslation = template.DisableLoggedPathTranslation;
-            LogStatus = template.LogStatus;
-            LogTracer = template.LogTracer;
             StatusFrequencyMs = template.StatusFrequencyMs;
             PerfCollectorFrequencyMs = template.PerfCollectorFrequencyMs;
             StatusLog = pathRemapper.Remap(template.StatusLog);
@@ -293,9 +287,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public bool LogMemory { get; set; }
 
         /// <inheritdoc />
-        public bool LogStats { get; set; }
-
-        /// <inheritdoc />
         public bool? EnableAsyncLogging { get; set; }
 
         /// <inheritdoc />
@@ -342,12 +333,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public AbsolutePath SubstTarget { get; set; }
-
-        /// <inheritdoc />
-        public bool LogStatus { get; set; }
-
-        /// <inheritdoc />
-        public bool LogTracer { get; set; }
 
         /// <inheritdoc />
         public AbsolutePath StatusLog { get; set; }

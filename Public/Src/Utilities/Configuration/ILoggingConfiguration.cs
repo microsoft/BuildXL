@@ -194,11 +194,6 @@ namespace BuildXL.Utilities.Configuration
         bool LogMemory { get; }
 
         /// <summary>
-        /// Logs key/value statistics to a file specified by path. If a file path is not specified, one will be chosen based on the location of the main log file
-        /// </summary>
-        bool LogStats { get; }
-
-        /// <summary>
         /// Indicates whether async logging is enabled which queues log messages and processes them on a dedicated thread.
         /// </summary>
         bool? EnableAsyncLogging { get; }
@@ -287,16 +282,6 @@ namespace BuildXL.Utilities.Configuration
         /// set to true.
         /// </summary>
         bool DisableLoggedPathTranslation { get; }
-
-        /// <summary>
-        /// Logs the usage of resources and queues.
-        /// </summary>
-        bool LogStatus { get; }
-
-        /// <summary>
-        /// Logs the tracer.
-        /// </summary>
-        bool LogTracer { get; }
 
         /// <summary>
         /// Logs the usage of resources and queues to a file specified by path. If a file path is not specified, one will be chosen based on the location of the main log file.

@@ -213,6 +213,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
             DeprioritizeOnSemaphoreConstraints = template.DeprioritizeOnSemaphoreConstraints;
             RamSemaphoreMultiplier = template.RamSemaphoreMultiplier;
+            UseHistoricalCpuThrottling = template.UseHistoricalCpuThrottling;
         }
 
         /// <inheritdoc />
@@ -507,5 +508,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public double RamSemaphoreMultiplier { get; set; }
+
+        /// <inheritdoc />
+        public bool UseHistoricalCpuThrottling { get; set; }
     }
 }

@@ -59,6 +59,8 @@ namespace BuildXL.Scheduler
 
         internal long PushOutputsToCacheDurationMs { get; private set; }
 
+        internal int ActualAverageWorkingSetMb;
+
         /// <summary>
         /// Number of retries attempted on the remote workers
         /// </summary>

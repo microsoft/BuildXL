@@ -473,6 +473,13 @@ namespace BuildXL.Scheduler
             int targetProcessSlots = m_scheduleConfiguration.EffectiveMaxProcesses;
             int newProcessSlots;
 
+            if (m_scheduleConfiguration.UseHistoricalCpuThrottling)
+            {
+                // When we use cpu usage of the buildxl process as semaphore, we already take into account the distribution overhead.
+                // That's why, there is no need to lower the concurrency level of the orchestrator when more workers get connected. 
+                return;
+            }
+
             if (availableRemoteWorkersCount < 5)
             {
                 // If there are less than 5 remote workers, the process slots for the orchestrator is not affected. 
@@ -1144,7 +1151,8 @@ namespace BuildXL.Scheduler
             public long LongestPath;
         }
 
-        private readonly PerformanceCollector.Aggregator m_performanceAggregator;
+        /// <nodoc/>
+        public readonly PerformanceCollector.Aggregator PerformanceAggregator;
 
         /// <summary>
         /// Last machine performance info collected
@@ -1174,6 +1182,7 @@ namespace BuildXL.Scheduler
         private int m_historicPerfDataMisses;
         private int m_historicPerfDataZeroMemoryHits;
         private int m_historicPerfDataNonZeroMemoryHits;
+        private int m_historicPerfDataZeroCpuHits;
 
         /// <summary>
         /// Maps modules to the number of process pips and the list of workers assigned.
@@ -1262,7 +1271,7 @@ namespace BuildXL.Scheduler
             m_semanticPathExpander = PipGraph.SemanticPathExpander;
             m_pipTable = PipGraph.PipTable;
 
-            m_performanceAggregator = performanceCollector?.CreateAggregator();
+            PerformanceAggregator = performanceCollector?.CreateAggregator();
             ExecutionSampler = new ExecutionSampler(IsDistributedBuild, pipQueue.MaxProcesses);
 
             PipQueue = pipQueue;
@@ -1695,17 +1704,24 @@ namespace BuildXL.Scheduler
             // Before we start the scheduler, we should inquiry the memory
             if (m_scheduleConfiguration.UseHistoricalRamUsageInfo)
             {
-                m_perfInfo = m_performanceAggregator?.ComputeMachinePerfInfo() ??
+                m_perfInfo = PerformanceAggregator?.ComputeMachinePerfInfo() ??
                     (m_testHooks?.GenerateSyntheticMachinePerfInfo != null ? m_testHooks?.GenerateSyntheticMachinePerfInfo(m_executePhaseLoggingContext, this) : null) ??
                     default(PerformanceCollector.MachinePerfInfo);
 
                 int? totalRamMb = m_perfInfo.TotalRamMb;
                 int? availableRamMb = m_perfInfo.AvailableRamMb;
+                int? engineRamMb = m_perfInfo.ProcessWorkingSetMB;
 
                 if (totalRamMb != null || 
-                    (m_testHooks == null && PerformanceCollector.TryGetMemoryCountersMb(out totalRamMb, out availableRamMb)))
+                    (m_testHooks == null && PerformanceCollector.TryGetMemoryCountersMb(out totalRamMb, out availableRamMb, out engineRamMb)))
                 {
-                    LocalWorker.UpdateRamCounters(m_loggingContext, totalRamMb, availableRamMb);
+                    LocalWorker.UpdatePerfInfo(m_loggingContext,
+                       currentTotalRamMb: totalRamMb,
+                       machineAvailableRamMb: availableRamMb,
+                       engineRamMb: engineRamMb,
+                       engineCpuUsage: m_perfInfo.ProcessCpuPercentage,
+                       machineCpuUsage: m_perfInfo.CpuUsagePercentage);
+
                     IsRamProjectionActive = true;
                 }
 
@@ -2131,6 +2147,7 @@ namespace BuildXL.Scheduler
             }
 
             statistics.Add("HistoricPerfData.Misses", m_historicPerfDataMisses);
+            statistics.Add("HistoricPerfData.ZeroCpuHits", m_historicPerfDataZeroCpuHits);
             statistics.Add("HistoricPerfData.ZeroMemoryHits", m_historicPerfDataZeroMemoryHits);
             statistics.Add("HistoricPerfData.NonZeroMemoryHits", m_historicPerfDataNonZeroMemoryHits);
 
@@ -2362,9 +2379,9 @@ namespace BuildXL.Scheduler
                 RunProcessFromCacheDurationMs = SafeConvert.ToLong(PipExecutionCounters.GetElapsedTime(PipExecutorCounter.RunProcessFromCacheDuration).TotalMilliseconds),
                 RunProcessFromRemoteCacheDurationMs = SafeConvert.ToLong(PipExecutionCounters.GetElapsedTime(PipExecutorCounter.RunProcessFromRemoteCacheDuration).TotalMilliseconds),
                 SandboxedProcessPrepDurationMs = PipExecutionCounters.GetCounterValue(PipExecutorCounter.SandboxedProcessPrepDurationMs),
-                MachineMinimumAvailablePhysicalMB = SafeConvert.ToLong(((m_performanceAggregator != null && m_performanceAggregator.MachineAvailablePhysicalMB.Count > 2) ? m_performanceAggregator.MachineAvailablePhysicalMB.Minimum : -1)),
-                AverageMachineCPU = (m_performanceAggregator != null && m_performanceAggregator.MachineCpu.Count > 2) ? (int)m_performanceAggregator.MachineCpu.Average : 0,
-                DiskStatistics = m_performanceAggregator != null ? m_performanceAggregator.DiskStats : null,
+                MachineMinimumAvailablePhysicalMB = SafeConvert.ToLong(((PerformanceAggregator != null && PerformanceAggregator.MachineAvailablePhysicalMB.Count > 2) ? PerformanceAggregator.MachineAvailablePhysicalMB.Minimum : -1)),
+                AverageMachineCPU = (PerformanceAggregator != null && PerformanceAggregator.MachineCpu.Count > 2) ? (int)PerformanceAggregator.MachineCpu.Average : 0,
+                DiskStatistics = PerformanceAggregator != null ? PerformanceAggregator.DiskStats : null,
                 ProcessPipCountersByTelemetryTag = ProcessPipCountersByTelemetryTag
             };
         }
@@ -2395,7 +2412,7 @@ namespace BuildXL.Scheduler
 
         private StatusRows GetStatusRows()
         {
-            var windowsDiskStats = !OperatingSystemHelper.IsUnixOS ? m_performanceAggregator?.DiskStats : null; // Some disk stats are available only in Windows, we remove these columns from Mac builds for a cleaner status.csv file
+            var windowsDiskStats = !OperatingSystemHelper.IsUnixOS ? PerformanceAggregator?.DiskStats : null; // Some disk stats are available only in Windows, we remove these columns from Mac builds for a cleaner status.csv file
             return new StatusRows()
             {
                 { "Cpu Percent", data => data.CpuPercent },
@@ -2481,7 +2498,7 @@ namespace BuildXL.Scheduler
                 // Drive stats
                 { windowsDiskStats, d => I($"Drive \'{d.Drive}\' % Active"), (d, index) => (data => data.DiskPercents[index]) },
                 { windowsDiskStats, d => I($"Drive \'{d.Drive}\' QueueDepth"), (d, index) => (data => data.DiskQueueDepths[index]) },
-                { m_performanceAggregator?.DiskStats, d => I($"Drive \'{d.Drive}\' AvailableSpaceGB"), (d, index) => (data => data.DiskAvailableSpaceGb[index]) },
+                { PerformanceAggregator?.DiskStats, d => I($"Drive \'{d.Drive}\' AvailableSpaceGB"), (d, index) => (data => data.DiskAvailableSpaceGb[index]) },
 
                 {
                     EnumTraits<PipType>.EnumerateValues().Where(pipType => pipType != PipType.Max), (rows, pipType) =>
@@ -2495,10 +2512,6 @@ namespace BuildXL.Scheduler
                         }
                     }
                 },
-
-                // BuildXL process stats
-                { "Domino.CPUPercent", data => data.ProcessCpuPercent },
-                { "Domino.WorkingSetMB", data => data.ProcessWorkingSetMB },
                 { "UnresponsivenessFactor", data => data.UnresponsivenessFactor },
 
                 // PipExecutionStep counts
@@ -2539,7 +2552,12 @@ namespace BuildXL.Scheduler
                         rows.Add(I($"W{worker.WorkerId} BatchSize Count"), _ => worker.CurrentBatchSize, includeInSnapshot: false);
                         rows.Add(I($"W{worker.WorkerId} Total Ram Mb"), _ => worker.TotalRamMb ?? 0, includeInSnapshot: false);
                         rows.Add(I($"W{worker.WorkerId} Projected Pips Ram Mb"), _ => worker.ProjectedPipsRamUsageMb, includeInSnapshot: false);
+                        rows.Add(I($"W{worker.WorkerId} Ram Semaphore Limit Mb"), _ => worker.RamSemaphoreLimitMb, includeInSnapshot: false);
+                        rows.Add(I($"W{worker.WorkerId} Projected Pips Cpu"), _ => worker.ProjectedPipsCpuUsage, includeInSnapshot: false);
+                        rows.Add(I($"W{worker.WorkerId} LastLimitingResourceValue"), _ => worker.LastLimitingResourceValue, includeInSnapshot: false);
                         rows.Add(I($"W{worker.WorkerId} Used Ram Mb"), _ => worker.UsedRamMb ?? 0, includeInSnapshot: false);
+                        rows.Add(I($"W{worker.WorkerId} Cpu Percent"), _ => worker.CpuUsage, includeInSnapshot: false);
+                        rows.Add(I($"W{worker.WorkerId} EngineRamMb"), _ => worker.EngineRamMb ?? 0, includeInSnapshot: false);
                         rows.Add(I($"W{worker.WorkerId} Status"), _ => worker.Status, includeInSnapshot: false);
                     }
                 },
@@ -2599,10 +2617,10 @@ namespace BuildXL.Scheduler
                 pipsWaiting += semaphoreQueued;
 
                 ExecutionSampler.LimitingResource limitingResource = ExecutionSampler.LimitingResource.Other;
-                if (m_performanceAggregator != null)
+                if (PerformanceAggregator != null)
                 {
                     limitingResource = ExecutionSampler.OnPerfSample(
-                        m_performanceAggregator,
+                        PerformanceAggregator,
                         pendingProcessPips: m_processStateCountersSnapshot[PipState.Ready] + m_processStateCountersSnapshot.RunningCount - LocalWorker.RunningPipExecutorProcesses.Count,
                         lastConcurrencyLimiter: m_chooseWorkerCpu.LastConcurrencyLimiter);
                 }
@@ -2623,9 +2641,19 @@ namespace BuildXL.Scheduler
                         pipsWaitingOnSemaphore: semaphoreQueued);
                 }
 
-                m_perfInfo = m_performanceAggregator?.ComputeMachinePerfInfo(ensureSample: m_testHooks != null) ??
+                m_perfInfo = PerformanceAggregator?.ComputeMachinePerfInfo(ensureSample: m_testHooks != null) ??
                     (m_testHooks?.GenerateSyntheticMachinePerfInfo != null ? m_testHooks?.GenerateSyntheticMachinePerfInfo(m_executePhaseLoggingContext, this) : null) ??
                     default(PerformanceCollector.MachinePerfInfo);
+
+                if (!IsDistributedWorker)
+                {
+                    LocalWorker.UpdatePerfInfo(m_loggingContext,
+                        currentTotalRamMb: m_perfInfo.TotalRamMb,
+                        machineAvailableRamMb: m_perfInfo.AvailableRamMb,
+                        engineRamMb: m_perfInfo.ProcessWorkingSetMB,
+                        engineCpuUsage: m_perfInfo.ProcessCpuPercentage,
+                        machineCpuUsage: m_perfInfo.CpuUsagePercentage);
+                }
 
                 UpdateResourceAvailability(m_perfInfo);
 
@@ -2716,10 +2744,10 @@ namespace BuildXL.Scheduler
                 // Verify available disk space is greater than the minimum available space specified in /minimumDiskSpaceForPipsGb:<int>
                 if (m_diskSpaceMonitoredDrives != null &&
                     !m_scheduleTerminating &&
-                    m_performanceAggregator != null &&
+                    PerformanceAggregator != null &&
                     (m_scheduleConfiguration.MinimumDiskSpaceForPipsGb ?? 0) > 0)
                 {
-                    foreach (var disk in m_performanceAggregator.DiskStats)
+                    foreach (var disk in PerformanceAggregator.DiskStats)
                     {
                         if (m_diskSpaceMonitoredDrives.Contains(disk.Drive)
                             && disk.AvailableSpaceGb.Count != 0 // If we ever have a successful collection of the disk space
@@ -2793,7 +2821,7 @@ namespace BuildXL.Scheduler
 
                 if (m_scheduleConfiguration.AdaptiveIO)
                 {
-                    Contract.Assert(m_performanceAggregator != null, "Adaptive IO requires non-null performanceAggregator");
+                    Contract.Assert(PerformanceAggregator != null, "Adaptive IO requires non-null performanceAggregator");
                     PipQueue.AdjustIOParallelDegree(m_perfInfo);
                 }
 
@@ -3065,8 +3093,6 @@ namespace BuildXL.Scheduler
             var resourceManager = State.ResourceManager;
             resourceManager.RefreshMemoryCounters();
 
-            LocalWorker.UpdateRamCounters(m_loggingContext, m_perfInfo.TotalRamMb, m_perfInfo.AvailableRamMb);
-
             ManageMemoryMode defaultManageMemoryMode = m_scheduleConfiguration.GetManageMemoryMode();
             MemoryResource memoryResource = MemoryResource.Available;
 
@@ -3114,7 +3140,7 @@ namespace BuildXL.Scheduler
              * Process reserves a series of memory addresses (sometimes more that it currently requires, to control a contiguous block of memory)
              * Reserved memory does not necessarily represent real space in the physical memory (RAM) or on disk and a process can reserve more memory that available on the system.
              * To become usable, the memory address needs to correspond to byte space in memory (physical or disk).
-             * Commit memory is the association between this reserved memory and it�s physical address (RAM or disk) causing them to be unavailable to other processes in most cases.
+             * Commit memory is the association between this reserved memory and it s physical address (RAM or disk) causing them to be unavailable to other processes in most cases.
              * Since commit memory is a combination of the physical memory and the page file on disk, the used committed memory can exceed the physical memory available to the operating system.
              */
 
@@ -5436,6 +5462,11 @@ namespace BuildXL.Scheduler
                         else
                         {
                             Interlocked.Increment(ref m_historicPerfDataNonZeroMemoryHits);
+                        }
+
+                        if (perfData.ProcessorsInPercents == 0)
+                        {
+                            Interlocked.Increment(ref m_historicPerfDataZeroCpuHits);
                         }
                     }
                     else
@@ -8284,7 +8315,7 @@ namespace BuildXL.Scheduler
 
             m_workers.ForEach(w => w.Dispose());
 
-            m_performanceAggregator?.Dispose();
+            PerformanceAggregator?.Dispose();
             m_ipcProvider.Dispose();
             m_apiServer?.Dispose();
             m_pluginManager?.Dispose();

@@ -352,7 +352,7 @@ namespace BuildXL.Engine
             PathTranslator.CreateIfEnabled(configuration.Logging.SubstTarget, configuration.Logging.SubstSource, Context.PathTable, out m_translator);
             m_directoryTranslator = CreateDirectoryTranslator(Configuration);
             m_rootTranslator = new RootTranslator(m_directoryTranslator.GetReverseTranslator());
-
+            
             m_collector = collector;
             m_commitId = commitId;
             m_buildVersion = buildVersion;
@@ -1266,6 +1266,12 @@ namespace BuildXL.Engine
             if (mutableConfig.Schedule.DeprioritizeOnSemaphoreConstraints)
             {
                 mutableConfig.Schedule.MaxChooseWorkerCpu = 1;
+            }
+
+            if (mutableConfig.Schedule.UseHistoricalCpuThrottling)
+            {
+                // CpuUsageAsSemaphore feature is a modern replacement for UseHistoricalCpuUsageInfo.
+                mutableConfig.Schedule.UseHistoricalCpuUsageInfo = false;
             }
 
             return success;

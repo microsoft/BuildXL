@@ -135,7 +135,7 @@ namespace BuildXL.Scheduler
         }
 
         /// <nodoc/>
-        public bool TryAcquireResources(SemaphoreSet<StringId> machineSemaphores, IReadOnlyList<ProcessSemaphoreInfo> additionalResources, out StringId limitingResourceName)
+        public bool TryAcquireResources(SemaphoreSet<StringId> machineSemaphores, IReadOnlyList<ProcessSemaphoreInfo> additionalResources, bool force, out StringId limitingResourceName)
         {
             // TryAcquireResources might be called more than once.
             // Once we cannot acquire resources and try again,
@@ -143,7 +143,7 @@ namespace BuildXL.Scheduler
             Resources = Process.GetSemaphoreResources(machineSemaphores, customSemaphores: additionalResources);
 
             int? limitingResourceIndex;
-            var result = machineSemaphores.TryAcquireResources(Resources.Value, out limitingResourceIndex);
+            var result = machineSemaphores.TryAcquireResources(Resources.Value, out limitingResourceIndex, force);
             if (!result)
             {
                 limitingResourceName = machineSemaphores.GetKey(limitingResourceIndex.Value);

@@ -232,6 +232,7 @@ This page lists flags that can be used to configure BuildXL.
 | UseFileContentTable | When enabled, use file content table. Defaults to on on Windows, but off on Unix |
 | UseFileContentTablePathMappings | Use file content table path mappings to avoid opening handles for hashing files already in the table. Defaults to off. |
 | UseHardlinks | When enabled, hardlinks will be used (when possible) to de-duplicate content in output directories with content in the build cache. This reduces space usage and improves performance, since copies are avoided. Creating hardlinks requires that the output directories and cache are on the same volume, and that volume must use NTFS. Defaults to on.  |
+| UseHistoricalCpuThrottling | Use the historical cpu usages of the process pips as a semaphore to limit the number of processes to execute. |
 | UseLargeNtClosePreallocatedList | When enabled, it uses a larger initial preallocated list for draining NtClose events. Defaults to off. |
 | UsePartialEvaluation | When enabled, a partial graph may be constructed to decrease evaluation time. Defaults to off for XML specs. |
 | ValidateCgManifest | Validates the cgmanifest.json file at the specified path. This file should contain up-to-date names and versions of all Nuget packages used within BuildXL for Component Governance. Any mismatch will cause the Build to fail. Updated file can be created using the /generateCgManifestForNugets:<path> |

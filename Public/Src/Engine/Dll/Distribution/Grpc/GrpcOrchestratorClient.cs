@@ -14,8 +14,8 @@ using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Tasks;
 using Grpc.Core;
 using static BuildXL.Engine.Distribution.Grpc.ClientConnectionManager;
-using BuildXL.Cache.ContentStore.Interfaces.Results;
 using static BuildXL.Distribution.Grpc.HelloResponse.Types;
+using BuildXL.Utilities;
 
 namespace BuildXL.Engine.Distribution.Grpc
 {
@@ -29,7 +29,9 @@ namespace BuildXL.Engine.Distribution.Grpc
         private volatile bool m_initialized;
         private AsyncClientStreamingCall<ExecutionLogInfo, RpcResponse> m_executionLogStream;
         private AsyncClientStreamingCall<PipResultsInfo, RpcResponse> m_pipResultsStream;
+        private PerformanceCollector.Aggregator m_performanceAggregator;
         private readonly CounterCollection<DistributionCounter> m_counters;
+        private uint m_workerId;
 
         public GrpcOrchestratorClient(LoggingContext loggingContext, DistributedInvocationId invocationId, CounterCollection<DistributionCounter> counters)
         {
@@ -58,6 +60,20 @@ namespace BuildXL.Engine.Distribution.Grpc
             return result;
         }
 
+        private async Task HeartbeatCall(CallOptions callOptions)
+        {
+            var workerPerfInfo = new WorkerPerfInfo() { WorkerId = m_workerId };
+            if (m_performanceAggregator != null)
+            {
+                workerPerfInfo.MachineAvailableRamMb = (int) m_performanceAggregator.MachineAvailablePhysicalMB.Latest;
+                workerPerfInfo.MachineCpuUsage = (int)m_performanceAggregator.MachineCpu.Latest;
+                workerPerfInfo.EngineRamMb = (int)m_performanceAggregator.ProcessWorkingSetMB.Latest;
+                workerPerfInfo.EngineCpuUsage = (int)m_performanceAggregator.ProcessCpu.Latest;
+            }
+
+            await m_client.HeartbeatAsync(workerPerfInfo, callOptions);
+        }
+
         public void Initialize(string ipAddress, 
             int port, 
             EventHandler<ConnectionFailureEventArgs> onConnectionFailureAsync)
@@ -68,7 +84,7 @@ namespace BuildXL.Engine.Distribution.Grpc
                 port, 
                 m_invocationId, 
                 m_counters, 
-                async (callOptions) => await m_client.HeartbeatAsync(GrpcUtils.EmptyResponse, callOptions));
+                HeartbeatCall);
             m_connectionManager.OnConnectionFailureAsync += onConnectionFailureAsync;
 #if NET6_0_OR_GREATER
             m_client = new Orchestrator.OrchestratorClient(m_connectionManager.Channel);
@@ -169,6 +185,12 @@ namespace BuildXL.Engine.Distribution.Grpc
             }
 
             return executionLogResponse.Succeeded && pipResultsResponse.Succeeded;
+        }
+
+        public void SetupPerfDataInHeartbeats(PerformanceCollector.Aggregator performanceAggregator, uint workerId)
+        {
+            m_performanceAggregator = performanceAggregator;
+            m_workerId = workerId;
         }
     }
 }

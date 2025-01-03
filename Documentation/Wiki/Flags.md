@@ -65,7 +65,6 @@ This page lists flags that can be used to configure BuildXL.
 | ExitOnNewGraph | When enabled, exit early if a new graph needs to be created.  This differs from phase:schedule because it doesn't actually create the graph. |
 | Experimental__0 | Enables an experimental feature (short form: /exp). Available experimental features: {0} |
 | ExplicitlyReportDirectoryProbes | When enabled, detours will explicitly report directory probes. Note that this may result in an increased amount of DFAs. |
-| ExportGraph | Specifies the optional file path to export a JSON-formatted graph of pips. |
 | FancyConsole | When enabled, the console will give frequent updates of the status of processes that are running. Defaults to off. |
 | FancyConsoleMaxStatusPips | Maximum number of concurrently executing pips to render in Fancy Console view. Defaults to 5. |
 | FileChangeTrackerInitializationMode | Modes for initializing file change tracker. Allowed values are ResumeExisting, ForceRestart. Defaults to ResumeExisting. |

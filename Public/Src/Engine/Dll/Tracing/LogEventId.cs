@@ -82,7 +82,7 @@ namespace BuildXL.Engine.Tracing
         ConfigUsingExperimentalOptions = 909,
         // was ConfigIgnoreZwRenameFileInformation = 910,
         ConfigArtificialCacheMissOptions = 911,
-        ConfigExportGraphRequiresScheduling = 912,
+        // was ConfigExportGraphRequiresScheduling = 912,
         ConfigUsingPipFilter = 913,
         ConfigFilterAndPathImplicitNotSupported = 914,
         ConfigIgnoreDynamicWritesOnAbsentProbes = 916,

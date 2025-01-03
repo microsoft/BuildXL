@@ -366,9 +366,6 @@
   <data name="HelpText_DisplayHelp_Filter_Transformer" xml:space="preserve">
     <value>Filters by a transformer name. Case sensitive.</value>
   </data>
-  <data name="HelpText_DisplayHelp_ExportGraph" xml:space="preserve">
-    <value>Specifies the optional file path to export a JSON-formatted graph of pips.</value>
-  </data>
   <data name="App_Visualizer_DevModeMessage1" xml:space="preserve">
     <value>Visualizer is in devmode for location: '{0}'.</value>
   </data>

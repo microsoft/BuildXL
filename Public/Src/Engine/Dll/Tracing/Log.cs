@@ -1042,15 +1042,6 @@ namespace BuildXL.Engine.Tracing
         public abstract void AllowlistFileAccess(LoggingContext context, IDictionary<string, int> entryMatches);
 
         [GeneratedEvent(
-            (ushort)LogEventId.ConfigExportGraphRequiresScheduling,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Error,
-            Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
-            EventTask = (int)Tasks.Engine,
-            Message = "In order to export a build graph (/exportGraph), the schedule phase must be completed. Specify /phase:Schedule or /phase:Execute, or remove the /phase option altogether.")]
-        public abstract void ConfigExportGraphRequiresScheduling(LoggingContext context);
-
-        [GeneratedEvent(
             (ushort)LogEventId.ConfigUnsafeIgnoringChangeJournal,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,

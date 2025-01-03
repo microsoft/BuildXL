@@ -426,12 +426,6 @@ namespace BuildXL
                             "explicitlyReportDirectoryProbes",
                             sign => sandboxConfiguration.ExplicitlyReportDirectoryProbes = sign
                             ),
-                        OptionHandlerFactory.CreateOption(
-                            "exportGraph",
-                            opt =>
-                            {
-                                throw CommandLineUtilities.Error("The /exportGraph option has been deprecated. Use bxlanalyzer.exe /mode:ExportGraph");
-                            }),
                         OptionHandlerFactory.CreateBoolOption(
                             "failPipOnFileAccessError",
                             sign =>
@@ -467,9 +461,6 @@ namespace BuildXL
                         OptionHandlerFactory.CreateOption(
                             "fileContentTableFile",
                             opt => layoutConfiguration.FileContentTableFile = CommandLineUtilities.ParsePathOption(opt, pathTable)),
-                        OptionHandlerFactory.CreateOption(
-                            "fileContentTablePathMappingMode",
-                            opt => { /* Do nothing Office still passes this flag. */  }),
                         OptionHandlerFactory.CreateOption(
                             "fileSystemMode",
                             opt => sandboxConfiguration.FileSystemMode = CommandLineUtilities.ParseEnumOption<FileSystemMode>(opt)),

@@ -4,7 +4,7 @@
 import * as Deployment from "Sdk.Deployment";
 import * as BuildXLSdk from "Sdk.BuildXL";
 import * as Managed from "Sdk.Managed.Shared";
-import * as Nuget from "Sdk.Managed.Tools.NuGet";
+import * as Nuget from "Sdk.BuildXL.Tools.NuGet";
 
 namespace Cache.NugetPackages {
     export declare const qualifier : { configuration: "debug" | "release"};

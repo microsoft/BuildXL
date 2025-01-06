@@ -3,7 +3,6 @@
 
 import * as Deployment from "Sdk.Deployment";
 import * as BuildXLSdk from "Sdk.BuildXL";
-import * as Nuget from "Sdk.Managed.Tools.NuGet";
 
 namespace Cache {
     export declare const qualifier: BuildXLSdk.DefaultQualifierWithNet472;

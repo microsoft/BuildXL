@@ -2,5 +2,5 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 module({
-    name: "Sdk.Managed.Tools.NuGet"
+    name: "Sdk.BuildXL.Tools.NuGet"
 });

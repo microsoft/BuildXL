@@ -2,28 +2,29 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 import {Artifact, Cmd, Transformer} from "Sdk.Transformers";
+import {NugetPacker}                from "BuildXL.Tools";
 
-import * as Deployment from "Sdk.Deployment";
-import * as Managed    from "Sdk.Managed.Shared";
-import * as Mono       from "Sdk.Mono";
-import * as Nuget      from "NuGet.CommandLine";
-import * as Xml        from "Sdk.Xml";
+import * as Deployment              from "Sdk.Deployment";
+import * as Managed                 from "Sdk.Managed.Shared";
+import * as Mono                    from "Sdk.Mono";
+import * as Nuget                   from "NuGet.CommandLine";
+import * as Xml                     from "Sdk.Xml";
 
 @@public
-export const tool : Transformer.ToolDefinition = {
-    exe: Nuget.Contents.all.getFile(r`tools/NuGet.exe`),
-    description: "NuGet pack",
-    untrackedDirectoryScopes: [
-        d`${Context.getMount("ProgramData").path}/Nuget`,
-        ...addIfLazy(Context.isWindowsOS(), () => [d`${Context.getMount("ProgramFilesX86").path}/Nuget`]),
-    ],
-    dependsOnWindowsDirectories: true,
-    dependsOnAppDataDirectory: true,
-    prepareTempDirectory: true,
-    runtimeDependencies: [
-        ...addIfLazy(Context.isWindowsOS(), () => [Nuget.Contents.all.getFile(r`tools/Nuget.pdb`)]),
-    ],
-};
+export const tool : Transformer.ToolDefinition = getNugetPackerToolForCurrentOs();
+
+function getNugetPackerToolForCurrentOs() : Transformer.ToolDefinition {
+    switch (Context.getCurrentHost().os) {
+        case "win":
+            return NugetPacker.withQualifier({targetFramework: "net8.0", targetRuntime: "win-x64", configuration: "release"}).tool;
+        case "macOS":
+            return NugetPacker.withQualifier({targetFramework: "net8.0", targetRuntime: "osx-x64", configuration: "release"}).tool;
+        case "unix":
+            return NugetPacker.withQualifier({targetFramework: "net8.0", targetRuntime: "linux-x64", configuration: "release"}).tool;
+        default:
+            return Contract.fail(`NugetPacker is not supported on current host OS '${Context.getCurrentHost().os}'`);
+    }
+}
 
 @@public
 export interface Arguments extends Transformer.RunnerArguments {
@@ -388,17 +389,12 @@ export function pack(args: Arguments): PackResult {
     const nuspecData = createNuSpecFile(args.metadata, args.deployment, nuspecPath, args.deploymentOptions, args.filterFiles);
 
     const arguments: Argument[] = [
-        Cmd.argument("pack"),
-        Cmd.argument(Artifact.input(nuspecData.nuspec)),
-        Cmd.argument("-NonInteractive"),
-        Cmd.argument("-NoDefaultExcludes"),
-        Cmd.option("-Verbosity ", "detailed"),
-        Cmd.argument("-ForceEnglishOutput"),
-        Cmd.option("-ConfigFile ", Artifact.input(f`empty.config`)),
-        Cmd.option("-OutputDirectory ", Artifact.none(outDir)),
-        Cmd.flag("-NoDefaultExcludes", args.noDefaultExcludes),
-        Cmd.flag("-NoPackageAnalysis", args.noPackageAnalysis),
-        Cmd.option("-MinClientVersion ", args.minClientVersion)
+        Cmd.option("/NuSpecPath:", Artifact.input(nuspecData.nuspec)),
+        Cmd.argument("/NoDefaultExcludes"),
+        Cmd.option("/Verbosity:", "detailed"),
+        Cmd.option("/OutputDirectory:", Artifact.none(outDir)),
+        Cmd.flag("/NoDefaultExcludes", args.noDefaultExcludes),
+        Cmd.flag("/NoPackageAnalysis", args.noPackageAnalysis),
     ];
 
     let execArgs = <Transformer.ExecuteArguments>{
@@ -430,9 +426,7 @@ export function pack(args: Arguments): PackResult {
         }
     };
 
-    const executeResult =  Context.getCurrentHost().os === "win"
-        ? Transformer.execute(execArgs)
-        : Mono.execute(execArgs);
+    const executeResult = Transformer.execute(execArgs);
 
     return {
         nuPkg: executeResult.getOutputFile(nupkgPath)

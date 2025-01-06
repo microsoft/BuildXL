@@ -5,7 +5,6 @@ import * as BuildXLSdk from "Sdk.BuildXL";
 import * as Deployment from "Sdk.Deployment";
 import * as MemoizationStore from "BuildXL.Cache.MemoizationStore";
 import * as Managed from "Sdk.Managed";
-import * as Nuget from "Sdk.Managed.Tools.NuGet";
 
 export declare const qualifier : BuildXLSdk.AllSupportedQualifiers;
 

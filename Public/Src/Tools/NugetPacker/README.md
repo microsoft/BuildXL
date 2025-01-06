@@ -1,0 +1,4 @@
+# BuildXL Nuget Packer Tool
+The nuget packer tool exists to allow selfhost BuildXL builds on Linux to pack nuget packages without needing a dependency on mono as the nuget CLI does not support non-framework versions of dotnet. Since our nuget project specs for nuget packages are written in dscript and not msbuild, we can only create packages with the nuget CLI or this tool. Additionally, running the `dotnet pack` with a mocked csproj spec turned out to be difficult due to the way that msbuild behaves when multiple instances of it are running in parallel.
+
+This tool is intended for internal BuildXL packaging. When building your own nuget packages under BuildXL please use `dotnet pack`, `msbuild -t:pack` or the nuget CLI. 

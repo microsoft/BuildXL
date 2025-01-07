@@ -6,7 +6,6 @@ import {NugetPacker}                from "BuildXL.Tools";
 
 import * as Deployment              from "Sdk.Deployment";
 import * as Managed                 from "Sdk.Managed.Shared";
-import * as Mono                    from "Sdk.Mono";
 import * as Nuget                   from "NuGet.CommandLine";
 import * as Xml                     from "Sdk.Xml";
 

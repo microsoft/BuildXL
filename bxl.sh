@@ -5,6 +5,8 @@ set -e
 MY_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "$MY_DIR/Public/Src/App/Bxl/Unix/env.sh"
 
+declare DEFAULT_CACHE_CONFIG_FILE_NAME=DefaultCacheConfig.json
+
 declare arg_Positional=()
 # stores user-specified args that are not used by this script; added to the end of command line
 declare arg_UserProvidedBxlArguments=()
@@ -15,6 +17,12 @@ declare arg_Internal=""
 # default configuration is debug
 declare configuration="Debug"
 declare credProviderPath=""
+declare arg_CacheConfigFile=""
+declare arg_Runner=()
+declare arg_useAdoBuildRunner=""
+
+declare g_bxlCmdArgs=()
+declare g_adoBuildRunnerCmdArgs=()
 
 if [[ "${OSTYPE}" == "linux-gnu" ]]; then
     readonly HostQualifier=Linux
@@ -24,15 +32,91 @@ else
     exit 1
 fi
 
-# TODO [pgunasekara]: Remove this once we no longer use mono for packing nuget packages
-function findMono() {
-    local monoLocation=$(which mono)
-    if [[ -z $monoLocation ]]; then
-        print_error "Did not find Mono. Please ensure mono is installed per: https://www.mono-project.com/docs/getting-started/install/ and is accessable in your PATH"
-        return 1
-    else
-        export MONO_HOME="$(dirname "$monoLocation")"
-    fi
+function printHelp() {
+    echo "${BASH_SOURCE[0]} [--deploy-dev] [--use-dev] [--minimal] [--internal] [--release] [--shared-comp] [--vs] [--use-adobuildrunner] [--runner-arg <arg-to-buildrunner>] [--test-method <full-test-method-name>] [--test-class <full-test-class-name>] <other-arguments>"
+}
+
+function parseArgs() {
+    arg_Positional=()
+    arg_UserProvidedBxlArguments=()
+    while [[ $# -gt 0 ]]; do
+        cmd="$1"
+        case $cmd in
+        --help | -h)
+            printHelp
+            shift
+            return 1
+            ;;
+        --deploy-dev)
+            arg_DeployDev="1"
+            shift
+            ;;
+        --use-dev)
+            arg_UseDev="1"
+            shift
+            ;;
+        --minimal)
+            arg_Minimal="1"
+            shift
+            ;;
+        --release)
+            configuration="Release"
+            shift
+            ;;
+        --internal)
+            arg_Internal="1"
+            shift
+            ;;
+        --test-class)
+            arg_Positional+=("/p:[UnitTest]Filter.testClass=$2")
+            shift
+            shift
+            ;;
+        --test-method)
+            arg_Positional+=("/p:[UnitTest]Filter.testMethod=$2")
+            shift
+            shift
+            ;;
+        --shared-comp)
+            arg_Positional+=("/p:[Sdk.BuildXL]useManagedSharedCompilation=1")
+            shift
+            ;;
+        --vs)
+            arg_Positional+=(
+                "/vs"
+                "/vsNew"
+                "/vsTargetFramework:net6.0"
+                "/vsTargetFramework:net8.0"
+                "/vsTargetFramework:netstandard2.0"
+                "/vsTargetFramework:netstandard2.1")
+            shift
+            ;;
+        --disable-xunitretry)
+            arg_DisableXunitRetry="1"
+            shift
+            ;;
+        --cache-config-file)
+            arg_CacheConfigFile="$2"
+            shift
+            shift
+            ;;
+        --use-adobuildrunner)
+            arg_useAdoBuildRunner="1"
+            shift
+            ;;
+        --runner-arg)
+            arg_Runner+=("$2")
+            shift
+            shift
+            ;;
+        *)
+            # "Script" flags (and the settings associated with them) might conflict with BuildXL arguments set by a user.
+            # In such a case, user-provided bxl arguments will override any arguments set by this script.
+            arg_UserProvidedBxlArguments+=("$1")
+            shift
+            ;;
+        esac
+    done
 }
 
 function installLkg() {
@@ -125,9 +209,72 @@ function setInternal() {
     done
 }
 
+# Clears and then populates the 'g_bxlArgs' array with arguments to be passed to 'bxl'.
+# The arguments are decided based on sensible defaults as well as the current values of the 'arg_*' variables.
+function setBxlCmdArgs {
+    g_bxlCmdArgs=(
+        # some environment variables
+        "/p:DOTNET_EXE=$(which dotnet)"
+        # user-specified config files
+        "/c:$MY_DIR/config.dsc"
+    )
+
+    if [[ "${OSTYPE}" == "linux-gnu" ]]; then
+        g_bxlCmdArgs+=(
+            /enableEvaluationThrottling
+            # setting up core dump creation failed
+            /noWarn:460
+        )
+    fi
+
+    # If we are not using the ado build runner, inject a default cache. Otherwise, we are using
+    # the cache config autogen functionality of the runner, so let that kick in
+    if [[ -z "$arg_useAdoBuildRunner" ]]; then
+        if [[ -z $arg_CacheConfigFile ]]; then
+            arg_CacheConfigFile="$BUILDXL_BIN/$DEFAULT_CACHE_CONFIG_FILE_NAME"
+        fi
+
+        g_bxlCmdArgs+=(
+            "/cacheMiss+"
+            "/cacheConfigFilePath:$arg_CacheConfigFile"
+        )
+    else
+        g_adoBuildRunnerCmdArgs+=(
+            "${arg_Runner[@]}"
+        )
+    fi
+
+    # all other user-specified args
+    g_bxlCmdArgs+=(
+       "$@"
+    )
+}
+
+function validateBxlExecutablesOnDisk() {
+    local bxlFilesToCheck="bxl bxl.runtimeconfig.json bxl.deps.json"
+    for f in $bxlFilesToCheck; do
+        if [[ ! -f $BUILDXL_BIN/$f ]]; then
+            print_error "Expected to find file '$f' in '$BUILDXL_BIN' but that file is not present"
+            exit -1
+        fi
+    done
+}
+
+function setExecutablePermissions() {
+    # On some usages of this script, execution bits might be
+    # missing from the deployment. This is the case, for example, on ADO
+    # builds where the engine is deployed by downloading pipeline artifacts.
+    # Make sure that the executables that we need in the build are indeed executable.
+    chmod u+rx "$BUILDXL_BIN/bxl"
+    chmod u+rx "$BUILDXL_BIN/NugetDownloader"
+    chmod u+rx "$BUILDXL_BIN/Downloader"
+    chmod u+rx "$BUILDXL_BIN/Extractor"
+}
+
 function compileWithBxl() {
+    validateBxlExecutablesOnDisk
+
     local args=(
-        --config "$MY_DIR/config.dsc"
         /logsToRetain:20
         # Ignore accesses related to a VSCode tunnel
         /unsafe_GlobalUntrackedScopes:$HOME/.vscode-server
@@ -135,94 +282,30 @@ function compileWithBxl() {
         "$@"
     )
 
-    if [[ -z "${VSTS_BUILDXL_BIN}" ]]; then
-        bash "$BUILDXL_BIN/bxl.sh" "${args[@]}"
+    setBxlCmdArgs "${args[@]}"
+
+    setExecutablePermissions
+
+    if [[ -n "$arg_useAdoBuildRunner" ]]; then
+        local adoBuildRunnerExe="$BUILDXL_BIN/AdoBuildRunner"
+        chmod u=rx "$adoBuildRunnerExe" || true
+        print_info "${tputBold}Running AdoBuildRunner:${tputReset} '$adoBuildRunnerExe' ${g_adoBuildRunnerCmdArgs[@]} -- ${g_bxlCmdArgs[@]}"
+        "$adoBuildRunnerExe" "${g_adoBuildRunnerCmdArgs[@]}" "--" "${g_bxlCmdArgs[@]}"
     else
-        # Currently only used on VSTS CI to allow for custom BuildXL binary execution
-        bash "$VSTS_BUILDXL_BIN/bxl.sh" "${args[@]}"
+        print_info "${tputBold}Running bxl:${tputReset} '$bxlExe' ${g_bxlCmdArgs[@]}"
+
+        "$BUILDXL_BIN/bxl" "${g_bxlCmdArgs[@]}"
     fi
-}
 
-function printHelp() {
-    echo "${BASH_SOURCE[0]} [--deploy-dev] [--use-dev] [--minimal] [--internal] [--release] [--shared-comp] [--vs] [--use-adobuildrunner] [--runner-arg <arg-to-buildrunner>] [--test-method <full-test-method-name>] [--test-class <full-test-class-name>] <other-arguments>"
-}
+    local bxlExitCode=$?
 
-function parseArgs() {
-    arg_Positional=()
-    arg_UserProvidedBxlArguments=()
-    while [[ $# -gt 0 ]]; do
-        cmd="$1"
-        case $cmd in
-        --help | -h)
-            printHelp
-            shift
-            return 1
-            ;;
-        --deploy-dev)
-            arg_DeployDev="1"
-            shift
-            ;;
-        --use-dev)
-            arg_UseDev="1"
-            shift
-            ;;
-        --minimal)
-            arg_Minimal="1"
-            shift
-            ;;
-        --release)
-            configuration="Release"
-            shift
-            ;;
-        --internal)
-            arg_Internal="1"
-            shift
-            ;;
-        --test-class)
-            arg_Positional+=("/p:[UnitTest]Filter.testClass=$2")
-            shift
-            shift
-            ;;
-        --test-method)
-            arg_Positional+=("/p:[UnitTest]Filter.testMethod=$2")
-            shift
-            shift
-            ;;
-        --shared-comp)
-            arg_Positional+=("/p:[Sdk.BuildXL]useManagedSharedCompilation=1")
-            shift
-            ;;
-        --use-adobuildrunner)
-            arg_Positional+=("--use-adobuildrunner")
-            shift
-            ;;
-        --runner-arg)
-            arg_Positional+=("--runner-arg $2")
-            shift
-            shift
-            ;;
-        --vs)
-            arg_Positional+=(
-                "/vs"
-                "/vsNew"
-                "/vsTargetFramework:net6.0"
-                "/vsTargetFramework:net8.0"
-                "/vsTargetFramework:netstandard2.0"
-                "/vsTargetFramework:netstandard2.1")
-            shift
-            ;;
-        --disable-xunitretry)
-            arg_DisableXunitRetry="1"
-            shift
-            ;;
-        *)
-            # "Script" flags (and the settings associated with them) might conflict with BuildXL arguments set by a user.
-            # In such a case, user-provided bxl arguments will override any arguments set by this script.
-            arg_UserProvidedBxlArguments+=("$1")
-            shift
-            ;;
-        esac
-    done
+    if [[ $bxlExitCode == 0 ]]; then
+        echo "${tputBold}${tputGreen}BuildXL Succeeded${tputReset}"
+    else
+        echo "${tputBold}${tputRed}BuildXL Failed${tputReset}"
+    fi
+
+    return $bxlExitCode
 }
 
 function deployBxl { # (fromDir, toDir)
@@ -337,8 +420,6 @@ outputConfiguration=`printf '%s' "$configuration" | awk '{ print tolower($0) }'`
 if [[ -n "$arg_Internal" && -n "$TF_BUILD" ]]; then
     readonly ADOBuild="1"
 fi
-
-findMono
 
 if [[ -n "$arg_DeployDev" || -n "$arg_Minimal" ]]; then
     setMinimal

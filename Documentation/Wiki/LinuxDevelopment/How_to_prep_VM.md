@@ -5,7 +5,7 @@
 ```bash
 # install packages
 sudo apt-get update 
-sudo apt-get install –y git build-essential mono-devel mono-complete libc6-dev openssh-server curl dotnet8
+sudo apt-get install –y git build-essential libc6-dev openssh-server curl dotnet8
 
 # link libdl.so
 sudo ln -vs /lib/x86_64-linux-gnu/libdl.so.2 /usr/lib/x86_64-linux-gnu/libdl.so
@@ -15,7 +15,7 @@ sudo ln -vs /lib/x86_64-linux-gnu/libdl.so.2 /usr/lib/x86_64-linux-gnu/libdl.so
 ```bash
 # install packages
 sudo apt-get update 
-sudo apt-get install –y git build-essential mono-devel mono-complete libc6-dev openssh-server curl 
+sudo apt-get install –y git build-essential libc6-dev openssh-server curl 
 
 # install .NET
 wget https://packages.microsoft.com/config/ubuntu/20.04/packages-microsoft-prod.deb -O packages-microsoft-prod.deb

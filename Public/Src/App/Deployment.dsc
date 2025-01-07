@@ -35,8 +35,6 @@ function createDeployment(isServerDeployment: boolean, isMinimal: boolean) : Dep
 
             ...addIfLazy(qualifier.targetRuntime === "osx-x64" || 
                          qualifier.targetRuntime === "linux-x64", () => [
-                f`Bxl/Unix/bxl.sh`,
-                f`Bxl/Unix/bxl.sh.1`,
                 f`Bxl/Unix/env.sh`,
             ]),
 

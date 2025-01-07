@@ -17,8 +17,13 @@ done
 if [ "$found_separator" == false ]; then
     args=${runnerArgs[@]}
     runnerArgs=()
+else
+    for i in "${!runnerArgs[@]}"; do
+        args+=("--runner-arg")
+        args+=("${runnerArgs[$i]}")
+    done
 fi
 
 # Call bxl.sh specifying the runner arguments explicitly
 # Note this script should be called with the repo root as working directory
-./bxl.sh "--use-adobuildrunner" "${runnerArgs[@]/#/--runner-arg }" "${args[@]}"
+./bxl.sh "--use-adobuildrunner" "${args[@]}"

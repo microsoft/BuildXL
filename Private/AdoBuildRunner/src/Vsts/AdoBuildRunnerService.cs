@@ -43,9 +43,9 @@ namespace BuildXL.AdoBuildRunner.Vsts
             Config = config;
             m_logger = logger;
             AdoEnvironment = adoEnvironment;
-            BuildContext = GetBuildContext();
             m_retryHandler = new AdoBuildRunnerRetryHandler(Constants.MaxApiAttempts);
             m_adoService = new AdoService(AdoEnvironment, m_logger);
+            BuildContext = GetBuildContext();
 #if DEBUG
             if (Environment.GetEnvironmentVariable("__ADOBR_INTERNAL_MOCK_ADO") == "1")
             {
@@ -87,7 +87,7 @@ namespace BuildXL.AdoBuildRunner.Vsts
         /// <summary>
         /// Return the name of the pool where the agent running this build is running on
         /// </summary>
-        public Task<string> GetRunningPoolNameAsync()
+        private Task<string> GetRunningPoolNameAsync()
         {
             return m_retryHandler.ExecuteAsync(() => m_adoService.GetPoolNameAsync(), nameof(m_adoService.GetPoolNameAsync), m_logger);
         }
@@ -254,6 +254,7 @@ namespace BuildXL.AdoBuildRunner.Vsts
             {
                 InvocationKey = GetInvocationKey(),
                 BuildId = AdoEnvironment.BuildId,
+                AgentPool = GetRunningPoolNameAsync().GetAwaiter().GetResult(),
                 AgentMachineName = AdoEnvironment.AgentMachineName,
                 AgentHostName = $"{AdoEnvironment.AgentMachineName}.internal.cloudapp.net",  // see https://learn.microsoft.com/en-us/azure/virtual-network/virtual-networks-name-resolution-for-vms-and-role-instances
                 SourcesDirectory = AdoEnvironment.SourcesDirectory,

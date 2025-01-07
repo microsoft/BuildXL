@@ -14,6 +14,13 @@ namespace BuildXL.AdoBuildRunner
         /// </summary>
         public required string InvocationKey { get; init; }
 
+        /// <summary>
+        /// The pool where the running agent was provided from.
+        /// This can be different than the 'pool name' in the job definition
+        /// if a backup pool is used. 
+        /// </summary>
+        public required string AgentPool { get; init; }
+
         /// <nodoc />
         public required int BuildId { get; init; }
 

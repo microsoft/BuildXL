@@ -94,7 +94,26 @@ namespace BuildXL.AdoBuildRunner
                 defaultArguments.Add("/minWorkersWarn:0");
             }
 
+            AddTraceInfoForTelemetry(buildContext, defaultArguments);
             return defaultArguments.ToArray();
         }
+
+        /// <summary>
+        /// Let's push whatever we want to collect in the traceInfo for the build.
+        /// There is work in progress to use a common framework for agent telemetry,
+        /// so we mean to use that as a more permanent solution (see feature #2241404)
+        /// </summary>
+        private void AddTraceInfoForTelemetry(BuildContext buildContext, List<string> arguments)
+        {
+            addTraceInfo("InvocationKey", buildContext.InvocationKey);
+            addTraceInfo("AgentPool",     buildContext.AgentPool);
+
+            void addTraceInfo(string key, string value)
+            {
+                arguments.Add($"/traceInfo:{key}={value}");
+            }
+        }
+
+
     }
 }

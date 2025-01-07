@@ -60,6 +60,28 @@ namespace Test.Tool.AdoBuildRunner
         }
 
         [Fact]
+        public async Task TraceInfoTelemetry()
+        {
+            var poolName = "TestPoolName";
+            MockApiService.GetPoolName = () => poolName;
+            var orchestrator = CreateOrchestrator();
+            MockApiService.AddBuild(orchestrator.AdoEnvironment.BuildId, CreateTestBuild(orchestrator.AdoEnvironment));
+
+
+            var invocationKey = orchestrator.Config.InvocationKey;
+            orchestrator.Initialize();
+
+            var buildArgs = new[] { "/foo", "/bar" };
+            var oManager = new BuildManager(orchestrator.RunnerService, orchestrator.BuildExecutor, buildArgs, orchestrator.MockLogger);
+            var oBuildTask = oManager.BuildAsync();
+            var orchReturn = await oBuildTask;
+
+            // TraceInfo has some telemetry
+            Assert.Contains($"/traceInfo:InvocationKey={invocationKey}", orchestrator.MockLauncher.Arguments);
+            Assert.Contains($"/traceInfo:AgentPool={poolName}", orchestrator.MockLauncher.Arguments);
+        }
+
+        [Fact]
         public async Task LateWorkerDoesNotLaunchEngine()
         {
             var (orchestrator, worker) = CreateOrchestratorWorkerPairBuild();

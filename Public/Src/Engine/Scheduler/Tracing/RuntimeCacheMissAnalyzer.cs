@@ -585,7 +585,7 @@ namespace BuildXL.Scheduler.Tracing
         /// <summary>
         /// Choose a key with which to store the fingerprint store for this build so as to be consistent with subsequent retrieval attempts.
         /// </summary>
-        internal static string GetStoreKeyForCurrentBuild(CacheMissAnalysisOption option, LoggingContext loggingContext)
+        internal static string GetStoreKeyForCurrentBuild(CacheMissAnalysisOption option)
         {
             if (option.Mode == CacheMissMode.AzureDevOps)
             {

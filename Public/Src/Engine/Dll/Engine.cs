@@ -453,7 +453,7 @@ namespace BuildXL.Engine
                 configuration = new ConfigurationImpl(parsedConfiguration);
             }
 
-            PopulateFileSystemCapabilities(configuration, initialCommandLineConfiguration, context.PathTable, loggingContext);
+            PopulateFileSystemCapabilities(initialCommandLineConfiguration, context.PathTable);
 
             // No need to call PopulateLoggingAndLayoutConfiguration, the caller is responsible for calling this.
             if (!PopulateAndValidateConfiguration(configuration, initialCommandLineConfiguration, context.PathTable, loggingContext))
@@ -615,7 +615,7 @@ namespace BuildXL.Engine
             commandLineConfiguration.Sandbox.GlobalUnsafePassthroughEnvironmentVariables.Add(variable);
         }
 
-        private static AbsolutePath AppendNoIndexSuffixToLayoutDirectoryIfNeeded(PathTable pathTable, AbsolutePath directory, ILayoutConfiguration layout, bool inTestMode)
+        private static AbsolutePath AppendNoIndexSuffixToLayoutDirectoryIfNeeded(PathTable pathTable, AbsolutePath directory, bool inTestMode)
         {
             if (OperatingSystemHelper.IsMacOS && !inTestMode)
             {
@@ -668,7 +668,7 @@ namespace BuildXL.Engine
             if (!layout.ObjectDirectory.IsValid)
             {
                 var objectDirectory = layout.OutputDirectory.Combine(pathTable, Strings.Layout_DefaultObjectsFolderName);
-                layout.ObjectDirectory = AppendNoIndexSuffixToLayoutDirectoryIfNeeded(pathTable, objectDirectory, layout, inTestMode);
+                layout.ObjectDirectory = AppendNoIndexSuffixToLayoutDirectoryIfNeeded(pathTable, objectDirectory, inTestMode);
             }
 
             if (!layout.RedirectedDirectory.IsValid)
@@ -676,25 +676,25 @@ namespace BuildXL.Engine
                 // By default the root of all redirected directories (that is, for pips running in containers) is directly under object root
                 // with a well-known name. This allows for easily identifying if a file is a redirected one.
                 var redirectedDirectory = layout.ObjectDirectory.Combine(pathTable, Strings.Layout_DefaultRedirectedFolderName);
-                layout.RedirectedDirectory = AppendNoIndexSuffixToLayoutDirectoryIfNeeded(pathTable, redirectedDirectory, layout, inTestMode);
+                layout.RedirectedDirectory = AppendNoIndexSuffixToLayoutDirectoryIfNeeded(pathTable, redirectedDirectory, inTestMode);
             }
 
             if (!layout.FrontEndDirectory.IsValid)
             {
                 var frontEndDirectory = layout.ObjectDirectory.GetParent(pathTable).Combine(pathTable, Strings.Layout_DefaultFrontEndFolderName);
-                layout.FrontEndDirectory = AppendNoIndexSuffixToLayoutDirectoryIfNeeded(pathTable, frontEndDirectory, layout, inTestMode);
+                layout.FrontEndDirectory = AppendNoIndexSuffixToLayoutDirectoryIfNeeded(pathTable, frontEndDirectory, inTestMode);
             }
 
             if (!layout.CacheDirectory.IsValid)
             {
                 var cacheDirectory = layout.OutputDirectory.Combine(pathTable, Strings.Layout_DefaultCacheFolderName);
-                layout.CacheDirectory = AppendNoIndexSuffixToLayoutDirectoryIfNeeded(pathTable, cacheDirectory, layout, inTestMode);
+                layout.CacheDirectory = AppendNoIndexSuffixToLayoutDirectoryIfNeeded(pathTable, cacheDirectory, inTestMode);
             }
 
             if (!layout.EngineCacheDirectory.IsValid)
             {
                 var engineCacheDirectory = layout.CacheDirectory.Combine(pathTable, Strings.Layout_DefaultEngineCacheFolderName);
-                layout.EngineCacheDirectory = AppendNoIndexSuffixToLayoutDirectoryIfNeeded(pathTable, engineCacheDirectory, layout, inTestMode);
+                layout.EngineCacheDirectory = AppendNoIndexSuffixToLayoutDirectoryIfNeeded(pathTable, engineCacheDirectory, inTestMode);
             }
 
             if (!layout.BuildEngineDirectory.IsValid)
@@ -851,10 +851,8 @@ namespace BuildXL.Engine
         /// Populates file system capability.
         /// </summary>
         public static void PopulateFileSystemCapabilities(
-            ConfigurationImpl mutableConfig,
             ICommandLineConfiguration initialCommandLineConfiguration,
-            PathTable pathTable,
-            LoggingContext loggingContext)
+            PathTable pathTable)
         {
             string mainConfigFile = initialCommandLineConfiguration.Startup.ConfigFile.ToString(pathTable);
 
@@ -2052,8 +2050,7 @@ namespace BuildXL.Engine
                                     postExecutionTasks = engineSchedule.ProcessPostExecutionTasksAsync(
                                         loggingContext,
                                         Context,
-                                        Configuration,
-                                        phase);
+                                        Configuration);
                                 }
 
                                 if (TestHooks == null && !string.IsNullOrEmpty(PipEnvironment.RestrictedTemp))

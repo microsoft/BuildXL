@@ -153,9 +153,9 @@ namespace BuildXL.Engine
                 // User profile is redirected; need to use the paths specified in the env block.
                 Contract.Assert(properties != null);
 
-                RegisterRedirectedMount(context, properties, table, "UserProfile", trackSourceFileChanges: !OperatingSystemHelper.IsWindowsOS);
-                RegisterRedirectedMount(context, properties, table, "AppData", allowCreateDirectory: true, trackSourceFileChanges: !OperatingSystemHelper.IsWindowsOS);
-                RegisterRedirectedMount(context, properties, table, "LocalAppData", allowCreateDirectory: true, trackSourceFileChanges: !OperatingSystemHelper.IsWindowsOS);
+                RegisterRedirectedMount(properties, table, "UserProfile", trackSourceFileChanges: !OperatingSystemHelper.IsWindowsOS);
+                RegisterRedirectedMount(properties, table, "AppData", allowCreateDirectory: true, trackSourceFileChanges: !OperatingSystemHelper.IsWindowsOS);
+                RegisterRedirectedMount(properties, table, "LocalAppData", allowCreateDirectory: true, trackSourceFileChanges: !OperatingSystemHelper.IsWindowsOS);
             }
 
             if (!OperatingSystemHelper.IsUnixOS)
@@ -179,10 +179,10 @@ namespace BuildXL.Engine
                 {
                     // User profile is redirected; need to use the paths specified in the env block.
                     Contract.Assert(properties != null);
-                    RegisterRedirectedMount(context, properties, table, "InternetCache");
-                    RegisterRedirectedMount(context, properties, table, "InternetHistory");
-                    RegisterRedirectedMount(context, properties, table, "INetCookies", allowCreateDirectory: true);
-                    RegisterRedirectedMount(context, properties, table, "LocalLow");
+                    RegisterRedirectedMount(properties, table, "InternetCache");
+                    RegisterRedirectedMount(properties, table, "InternetHistory");
+                    RegisterRedirectedMount(properties, table, "INetCookies", allowCreateDirectory: true);
+                    RegisterRedirectedMount(properties, table, "LocalLow");
                 }
             }
             else
@@ -203,7 +203,6 @@ namespace BuildXL.Engine
         }
 
         private static void RegisterRedirectedMount(
-            BuildXLContext context,
             IReadOnlyDictionary<string, string> properties,
             MountsTable table,
             string mountName,

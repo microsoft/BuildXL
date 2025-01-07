@@ -2224,7 +2224,7 @@ namespace BuildXL.Scheduler.Fingerprints
             return m_env.State.FileContentManager.TryQuerySealedOrUndeclaredMaterializationInfoAsync(sealedPath, consumerDescription, allowUndeclaredSourceReads);
         }
 
-        private Action<AbsolutePath, string> FilteredHandledEntry(AbsolutePath directory, Action<AbsolutePath, string> handleEntry)
+        private Action<AbsolutePath, string> FilteredHandledEntry(Action<AbsolutePath, string> handleEntry)
         {
             var filter = m_directoryMembershipFilter;
             var context = Context;
@@ -2418,7 +2418,7 @@ namespace BuildXL.Scheduler.Fingerprints
 
                     // Create a new directory enumeration result that represents this 'overlayed' view
                     var result = new DirectoryEnumerationResult(pipFileEnumResult.Count > 0 ? PathExistence.ExistsAsDirectory : PathExistence.Nonexistent, pipFileEnumResult.ToList());
-                    var handleEntry = FilteredHandledEntry(path, request.HandleEntry);
+                    var handleEntry = FilteredHandledEntry(request.HandleEntry);
 
                     return HandleDirectoryContents(request, result, handleEntry);
                 }
@@ -2459,7 +2459,7 @@ namespace BuildXL.Scheduler.Fingerprints
         {
             var directoryContents = GetEnumerationResult(request, mode, trackPathExistence: trackPathExistence);
             var path = request.DirectoryPath;
-            var handleEntry = FilteredHandledEntry(path, request.HandleEntry);
+            var handleEntry = FilteredHandledEntry(request.HandleEntry);
 
             return HandleDirectoryContents(request, directoryContents, handleEntry);
         }
@@ -2513,7 +2513,7 @@ namespace BuildXL.Scheduler.Fingerprints
         private PathExistence? EnumerateDirectoryWithMinimalPipGraph(EnumerationRequest request)
         {
             var path = request.DirectoryPath;
-            var handleEntry = FilteredHandledEntry(path, request.HandleEntry);
+            var handleEntry = FilteredHandledEntry(request.HandleEntry);
 
             InitializePipFileSystem(request.PipInfo);
 

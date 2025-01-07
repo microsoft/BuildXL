@@ -38,8 +38,7 @@ namespace BuildXL.AdoBuildRunner
                 var buildInfo = await AdoBuildRunnerService.WaitForBuildInfo();
                 Logger.Info($@"Launching distributed build as worker");
                 returnCode = await ExecuteBuild(
-                    ConstructArguments(buildInfo, buildArguments),
-                    AdoBuildRunnerService.BuildContext.SourcesDirectory
+                    ConstructArguments(buildInfo, buildArguments)
                 );
             }
 

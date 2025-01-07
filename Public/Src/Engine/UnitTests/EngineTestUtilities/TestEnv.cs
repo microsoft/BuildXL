@@ -176,7 +176,7 @@ namespace Test.BuildXL.TestUtilities
             configuration.Engine.UnsafeAllowOutOfMountWrites ??= true;
             customizeConfig?.Invoke(configuration);
 
-            BuildXLEngine.PopulateFileSystemCapabilities(configuration, configuration, Context.PathTable, LoggingContext);
+            BuildXLEngine.PopulateFileSystemCapabilities(configuration, Context.PathTable);
             BuildXLEngine.PopulateLoggingAndLayoutConfiguration(configuration, Context.PathTable, bxlExeLocation: null, inTestMode: true);
             BuildXLEngine.PopulateAndValidateConfiguration(configuration, configuration, Context.PathTable, LoggingContext);
 

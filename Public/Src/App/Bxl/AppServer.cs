@@ -274,7 +274,7 @@ namespace BuildXL
                         serverModeStatusAndPerf: serverData.ServerModeStatusAndPerf))
                     {
                         // Create a thread to listen for cancel.
-                        var listeningClientThread = new Thread(() => ListenClient(app, console, reader, writer))
+                        var listeningClientThread = new Thread(() => ListenClient(app, console, reader))
                         {
                             Name = "Cancellation Event Waiter",
                         };
@@ -333,7 +333,7 @@ namespace BuildXL
             }
         }
 
-        private static void ListenClient(BuildXLApp app, AppServerForwardingConsole console, BinaryReader reader, BinaryWriter writer)
+        private static void ListenClient(BuildXLApp app, AppServerForwardingConsole console, BinaryReader reader)
         {
             try
             {

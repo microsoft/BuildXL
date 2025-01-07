@@ -2356,7 +2356,7 @@ namespace BuildXL.Scheduler
                 statistics.Add("SchedulerType.InputCost", m_configuration.Schedule.EnableSetupCostWhenChoosingWorker ? 1 : 0);
             }
 
-            m_chooseWorkerCpu.LogStats(statistics);
+            m_chooseWorkerCpu.LogStats();
             ExecutionSampler.GetLimitingResourcePercentages().AddToStats(statistics);
 
             BuildXL.Tracing.Logger.Log.BulkStatistic(loggingContext, statistics);
@@ -5131,7 +5131,6 @@ namespace BuildXL.Scheduler
                             executionResult = PipExecutor.AnalyzeFileAccessViolations(
                                 operationContext,
                                 environment,
-                                pipScope,
                                 processRunnable.Process,
                                 processRunnable.AllExecutionResults,
                                 out pipIsSafeToCache,
@@ -5179,7 +5178,6 @@ namespace BuildXL.Scheduler
                                 executionResult = PipExecutor.AnalyzeDoubleWritesOnCacheConvergence(
                                    operationContext,
                                    environment,
-                                   pipScope,
                                    executionResult,
                                    processRunnable.Process,
                                    allowedSameContentViolations);

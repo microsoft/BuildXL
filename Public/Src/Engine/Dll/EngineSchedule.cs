@@ -613,13 +613,12 @@ namespace BuildXL.Engine
 
         internal async Task<bool> TrySaveFingerprintStoreAsync(
             LoggingContext loggingContext,
-            EngineContext context,
             IConfiguration configuration)
         {
             // Save the fingerprint store to cache if the cache miss analysis is requested with remote mode.
             if (configuration.Logging.CacheMissAnalysisOption.ShouldPublishFingerprintStoreToCache && configuration.FingerprintStoreEnabled())
             {
-                string storeKey = RuntimeCacheMissAnalyzer.GetStoreKeyForCurrentBuild(configuration.Logging.CacheMissAnalysisOption, loggingContext);
+                string storeKey = RuntimeCacheMissAnalyzer.GetStoreKeyForCurrentBuild(configuration.Logging.CacheMissAnalysisOption);
 
                 if (storeKey == null)
                 {
@@ -1299,8 +1298,7 @@ namespace BuildXL.Engine
         public async Task<bool> ProcessPostExecutionTasksAsync(
             LoggingContext loggingContext,
             EngineContext context,
-            IConfiguration configuration,
-            EnginePhases phases)
+            IConfiguration configuration)
         {
             using (Context.EngineCounters.StartStopwatch(EngineCounter.ProcessPostExecutionTasksDuration))
             {
@@ -1320,7 +1318,7 @@ namespace BuildXL.Engine
                 var saveSchedulerTrackerFilesTask = Scheduler.SaveFileChangeTrackerAsync(loggingContext);
                 var savingRunningTimeTableTask = TrySaveRunningTimeTable(loggingContext, context, configuration);
                 var savingHistoricMetadataCacheTask = TrySaveHistoricMetadataCache(loggingContext, context, configuration);
-                var savingFingerprintStoreTask = TrySaveFingerprintStoreAsync(loggingContext, context, configuration);
+                var savingFingerprintStoreTask = TrySaveFingerprintStoreAsync(loggingContext, configuration);
 
                 await Task.WhenAll(
                     saveSchedulerTrackerFilesTask,
@@ -1615,7 +1613,7 @@ namespace BuildXL.Engine
             // DeserializeFromFile() performs all exception handling so accessing Result is safe and will either return a valid object or null
             var configFileStateTask = serializer.DeserializeFromFileAsync<ConfigFileState>(
                 GraphCacheFile.ConfigState,
-                reader => ConfigFileState.DeserializeAsync(reader, loggingContext, pipExecutionContextTask));
+                reader => ConfigFileState.DeserializeAsync(reader, pipExecutionContextTask));
 
             EngineContext newContext;
 
@@ -1800,7 +1798,6 @@ namespace BuildXL.Engine
         public static async Task<Tuple<PipGraph, EngineContext>> LoadPipGraphAsync(
             EngineContext oldContext,
             EngineSerializer serializer,
-            IConfiguration configuration,
             LoggingContext loggingContext,
             EngineState engineState,
             IConsole console)

@@ -306,7 +306,7 @@ namespace BuildXL.Scheduler.Distribution
             m_pipQueue.SetMaxParallelDegreeByKind(DispatcherKind.ChooseWorkerCpu, maxConcurrency);
         }
 
-        public void LogStats(Dictionary<string, long> statistics)
+        public void LogStats()
         {
             var limitingResourceStats = m_limitingResourceCounts.ToDictionary(kvp => kvp.Key.ToString(), kvp => (long)kvp.Value.Value);
             Logger.Log.LimitingResourceStatistics(m_loggingContext, limitingResourceStats);

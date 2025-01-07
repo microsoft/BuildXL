@@ -1042,14 +1042,6 @@ namespace BuildXL.Scheduler.Artifacts
         }
 
         /// <summary>
-        /// Gets whether the given directory has potential outputs of the build
-        /// </summary>
-        public bool HasPotentialBuildOutputs(AbsolutePath directoryPath, in SemanticPathInfo mountInfo, bool isReadOnlyDirectory)
-        {
-            return (mountInfo.IsWritable && !isReadOnlyDirectory);
-        }
-
-        /// <summary>
         /// <see cref="IQueryableFileContentManager.TryQueryUndeclaredInputContentAsync(AbsolutePath, string)"/>
         /// </summary>
         public async Task<FileContentInfo?> TryQueryUndeclaredInputContentAsync(AbsolutePath path, string consumerDescription = null)
@@ -1768,7 +1760,7 @@ namespace BuildXL.Scheduler.Artifacts
             {
                 using (operationContext.StartOperation(PipExecutorCounter.FileContentManagerGetHydrateFilesDuration))
                 {
-                    PopulateFilesToHydrate(operationContext, state, readPaths);
+                    PopulateFilesToHydrate(state, readPaths);
                 }
             }
 
@@ -1821,7 +1813,7 @@ namespace BuildXL.Scheduler.Artifacts
             return firstFailure ?? ArtifactMaterializationResult.Succeeded;
         }
 
-        private void PopulateFilesToHydrate(OperationContext operationContext, PipArtifactsState state, IEnumerable<AbsolutePath> readPaths)
+        private void PopulateFilesToHydrate(PipArtifactsState state, IEnumerable<AbsolutePath> readPaths)
         {
             IEnumerable<AbsolutePath> pathsToHydrate = Enumerable.Empty<AbsolutePath>();
 

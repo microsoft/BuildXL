@@ -28,7 +28,7 @@ namespace BuildXL.AdoBuildRunner
         }
 
         /// <nodoc />
-        protected Task<int> ExecuteBuild(IEnumerable<string> fullArguments, string buildSourceDirectory)
+        protected Task<int> ExecuteBuild(IEnumerable<string> fullArguments)
         {
             var arguments = ExtractAndEscapeCommandLineArguments(fullArguments);
             Logger.Info($"Launching BuildXL with Arguments: {arguments}");
@@ -47,7 +47,7 @@ namespace BuildXL.AdoBuildRunner
         public Task<int> ExecuteSingleMachineBuild(string[] buildArguments)
         {
             Logger.Info($@"Launching single machine build");
-            return ExecuteBuild(buildArguments, AdoBuildRunnerService.BuildContext.SourcesDirectory);
+            return ExecuteBuild(buildArguments);
         }
 
         /// <inheritdoc />

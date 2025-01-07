@@ -821,7 +821,6 @@ namespace BuildXL.Engine
                             mountHasher,
                             mount.Key,
                             mount.Value,
-                            possibleMismatchedInputs,
                             ref mountInputDifferenceCount);
                     }
 
@@ -916,7 +915,6 @@ namespace BuildXL.Engine
             CoreHashingHelperBase hasher,
             string name,
             string comparedValue,
-            MismatchedInputCollection possibleMismatchedInputs,
             ref int mountInputDifferenceCount)
         {
             Contract.Requires(mounts != null);

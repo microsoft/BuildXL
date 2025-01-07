@@ -93,7 +93,6 @@ namespace BuildXL.Engine
         /// </summary>
         public static async Task<ConfigFileState> DeserializeAsync(
             BuildXLReader reader,
-            LoggingContext loggingContext,
             Task<PipExecutionContext> contextTask)
         {
             Contract.Requires(reader != null);

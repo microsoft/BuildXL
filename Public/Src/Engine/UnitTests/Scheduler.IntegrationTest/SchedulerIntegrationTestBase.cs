@@ -140,7 +140,7 @@ namespace Test.BuildXL.Scheduler
             // Populate file system capabilities.
             // Here, for example, we use copy-on-write instead of hardlinks when Unix file system supports copy-on-write.
             // Particular tests can override this by setting Configuration.Engine.UseHardlinks.
-            BuildXLEngine.PopulateFileSystemCapabilities(Configuration, Configuration, Context.PathTable, LoggingContext);
+            BuildXLEngine.PopulateFileSystemCapabilities(Configuration, Context.PathTable);
 
             // Reset pip graph builder to use the populated configuration.
             ResetPipGraphBuilder();

@@ -347,8 +347,6 @@ namespace BuildXL.Scheduler
                         pip,
                         violations,
                         isAllowlistedViolation: false,
-                        outputArtifactInfo,
-                        allowedDoubleWriteViolations,
                         out nonAnalyzableViolations);
                 }
 
@@ -359,8 +357,6 @@ namespace BuildXL.Scheduler
                         pip,
                         allowlistedAccesses,
                         isAllowlistedViolation: true,
-                        outputArtifactInfo,
-                        allowedDoubleWriteViolations,
                         out _);
                 }
 
@@ -1588,8 +1584,6 @@ namespace BuildXL.Scheduler
             Process pip,
             IReadOnlyCollection<ReportedFileAccess> violations,
             bool isAllowlistedViolation,
-            IReadOnlyDictionary<FileArtifact, FileMaterializationInfo> outputArtifactInfo,
-            Dictionary<FileArtifact, (FileMaterializationInfo, ReportedViolation)> allowedSameContentViolations,
             out ReportedFileAccess[] nonAnalyzableViolations)
         {
             var aggregateViolationsByPath = new Dictionary<(AbsolutePath, AbsolutePath), AggregateViolation>();

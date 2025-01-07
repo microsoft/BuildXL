@@ -1439,7 +1439,7 @@ namespace BuildXL.Scheduler.Tracing
         /// <summary>
         /// Checks if a content hash already exists in the store.
         /// </summary>
-        public bool ContainsContentHash(string contentHash, bool putPurposeCheck = false)
+        public bool ContainsContentHash(string contentHash)
         {
             m_lruEntryTracker?.TrackPipUniqueOutputHashEntry(contentHash);
             return ContainsInternal(contentHash.ToString(), ColumnNames.ContentHashes);

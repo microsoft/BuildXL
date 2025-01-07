@@ -29,8 +29,7 @@ namespace BuildXL.AdoBuildRunner
             await AdoBuildRunnerService.PublishBuildInfo(buildInfo);
             Logger.Info($@"Launching distributed build as orchestrator");
             var returnCode = await ExecuteBuild(
-                ConstructArguments(buildInfo, buildArguments),
-                buildContext.SourcesDirectory
+                ConstructArguments(buildInfo, buildArguments)
             );
 
             try

@@ -1795,7 +1795,6 @@ namespace BuildXL.Scheduler.IncrementalScheduling
             IncrementalSchedulingPathMapping<PipStableId> dynamicallyProbedFiles,
             IncrementalSchedulingPathMapping<PipStableId> dynamicallyObservedEnumerations,
             IncrementalSchedulingPathMapping<PipStableId> dynamicallyObservedAbsentPathProbes,
-            int indexToGraphLogs,
             ConcurrentDictionary<PipStableId, PipId> dirtiedPipProducers)
         {
             Contract.Requires(path.IsValid);
@@ -1912,7 +1911,6 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                 graphLogs[indexToGraphLogs].Item1.ToString(),
                 graphLogs[indexToGraphLogs].Item2.ToString("G"));
 
-            int savedIndexToGraphLogs = indexToGraphLogs;
             var dirtiedPipProducers = new ConcurrentDictionary<PipStableId, PipId>();
 
             // Step 2. Update pip producers.
@@ -1943,7 +1941,6 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                            dynamicallyProbedFiles,
                            dynamicallyObservedEnumerations,
                            dynamicallyObservedAbsentPathProbes,
-                           savedIndexToGraphLogs, 
                            dirtiedPipProducers);
                    }
 
@@ -2020,7 +2017,6 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                         dynamicallyProbedFiles,
                         dynamicallyObservedEnumerations,
                         dynamicallyObservedAbsentPathProbes,
-                        savedIndexToGraphLogs,
                         dirtiedPipProducers);
                 });
 

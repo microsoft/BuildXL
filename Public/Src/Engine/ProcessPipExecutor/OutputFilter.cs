@@ -115,7 +115,7 @@ namespace BuildXL.ProcessPipExecutor
         /// <summary>
         /// Create an OutputFilter to match on all PipProperties by extracting all text between PipPropertyPrefix and PipPropertySuffix
         /// </summary>
-        internal static OutputFilter GetPipPropertiesFilter(bool enableMultLineScanning)
+        internal static OutputFilter GetPipPropertiesFilter()
         {
             const string PipPropertyPrefix = "PipProperty_";
             const string PipPropertySuffix = "_EndProperty";

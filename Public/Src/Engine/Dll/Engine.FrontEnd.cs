@@ -491,7 +491,6 @@ namespace BuildXL.Engine
                 t = EngineSchedule.LoadPipGraphAsync(
                     Context,
                     serializer,
-                    Configuration,
                     loggingContext,
                     engineState,
                     m_console).GetAwaiter().GetResult();

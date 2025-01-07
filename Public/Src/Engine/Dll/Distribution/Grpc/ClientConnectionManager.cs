@@ -139,7 +139,7 @@ namespace BuildXL.Engine.Distribution.Grpc
                 return;
             }
 
-            var result = CallAsync(m_heartbeatCall, "Heartbeat", m_exitTokenSource.Token, doNotRetry: true, timeout: TimeSpan.FromMinutes(1)).GetAwaiter().GetResult();
+            var result = CallAsync(m_heartbeatCall, "Heartbeat", m_exitTokenSource.Token, doNotRetry: true).GetAwaiter().GetResult();
 
             if (result.Succeeded)
             {
@@ -675,8 +675,7 @@ namespace BuildXL.Engine.Distribution.Grpc
             string operation,
             CancellationToken cancellationToken = default(CancellationToken),
             bool waitForConnection = false,
-            bool doNotRetry = false,
-            TimeSpan? timeout = null) => CallAsyncWithResult<Unit>(
+            bool doNotRetry = false) => CallAsyncWithResult<Unit>(
                 async callOptions => 
                 { 
                     await func(callOptions); 

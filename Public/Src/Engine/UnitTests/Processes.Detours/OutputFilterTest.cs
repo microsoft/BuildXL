@@ -41,8 +41,7 @@ namespace Test.BuildXL.Processes.Detours
         [Fact]
         public void GetPipPropertyFilterTest()
         {
-            bool enableMultiLine = true;
-            OutputFilter propertyFilter = OutputFilter.GetPipPropertiesFilter(enableMultiLine);
+            OutputFilter propertyFilter = OutputFilter.GetPipPropertiesFilter();
             const string OutputText = @"RandomTextPipProperty_SomeProp_123456_EndPropertyOtherRandomText";
             const string ExpectedPipPropertyMatches = @"SomeProp_123456";
 

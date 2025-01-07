@@ -129,7 +129,7 @@ namespace BuildXL.FrontEnd.Nuget
                 .Build();
         }
 
-        private List<ICaseClause> CreateSwitchCasesForTargetFrameworks(NugetAnalyzedPackage analyzedPackage, ITypeNode pkgType)
+        private List<ICaseClause> CreateSwitchCasesForTargetFrameworks(NugetAnalyzedPackage analyzedPackage)
         {
             var cases = new List<ICaseClause>();
             Contract.Assert(analyzedPackage.TargetFrameworks.Count != 0, "Managed package must have at least one target framework.");
@@ -271,7 +271,7 @@ namespace BuildXL.FrontEnd.Nuget
                 pkgType = new TypeReferenceNode("Managed", "ManagedNugetPackage");
 
                 // Computes the switch cases, based on the target framework
-                List<ICaseClause> cases = CreateSwitchCasesForTargetFrameworks(package, pkgType);
+                List<ICaseClause> cases = CreateSwitchCasesForTargetFrameworks(package);
 
                 pkgExpression = new CallExpression(
                     new ParenthesizedExpression(

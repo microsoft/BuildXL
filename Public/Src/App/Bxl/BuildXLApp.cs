@@ -220,15 +220,15 @@ namespace BuildXL
                 mutableConfig.Engine.ReuseEngineState = false;
             }
 
-            ConfigureDistributionLogging(pathTable, mutableConfig);
+            ConfigureDistributionLogging(mutableConfig);
             ConfigureDefaultDevLog(mutableConfig);
-            ConfigureCloudBuildLogging(pathTable, mutableConfig);
+            ConfigureCloudBuildLogging(mutableConfig);
             if (mutableConfig.Logging.CacheMissAnalysisOption.Mode != CacheMissMode.Disabled)
             {
-                ConfigureCacheMissLogging(pathTable, mutableConfig);
+                ConfigureCacheMissLogging(mutableConfig);
             }
 
-            ConfigurePluginLogging(pathTable, mutableConfig);
+            ConfigurePluginLogging(mutableConfig);
 
             m_configuration = mutableConfig;
             m_initialConfiguration = mutableConfig;
@@ -259,7 +259,7 @@ namespace BuildXL
             m_buildViewModel = new BuildViewModel();
         }
 
-        private static void ConfigureCacheMissLogging(PathTable pathTable, BuildXL.Utilities.Configuration.Mutable.CommandLineConfiguration mutableConfig)
+        private static void ConfigureCacheMissLogging(BuildXL.Utilities.Configuration.Mutable.CommandLineConfiguration mutableConfig)
         {
             mutableConfig.Logging.CustomLog.Add(
                 mutableConfig.Logging.CacheMissLog,
@@ -275,7 +275,7 @@ namespace BuildXL
                 null));
         }
 
-        private static void ConfigurePluginLogging(PathTable pathTable, BuildXL.Utilities.Configuration.Mutable.CommandLineConfiguration mutableConfig)
+        private static void ConfigurePluginLogging(BuildXL.Utilities.Configuration.Mutable.CommandLineConfiguration mutableConfig)
         {
             mutableConfig.Logging.CustomLog.Add(
                 mutableConfig.Logging.PluginLog,
@@ -294,7 +294,7 @@ namespace BuildXL
                 null));
         }
 
-        private static void ConfigureDistributionLogging(PathTable pathTable, BuildXL.Utilities.Configuration.Mutable.CommandLineConfiguration mutableConfig)
+        private static void ConfigureDistributionLogging(BuildXL.Utilities.Configuration.Mutable.CommandLineConfiguration mutableConfig)
         {
             if (mutableConfig.Distribution.BuildRole != DistributedBuildRoles.None)
             {
@@ -384,7 +384,7 @@ namespace BuildXL
         // Ideally, these configs should be set in <see cref="ConfigurationProvider.GetMutableDefaultConfig(Infra, PathTable)"/>. However, the values that
         // are being set here are not visible there and it's not clear how setting them there might affect 'external' users of the config object, e.g.,
         // BxlPipGraphFragmentGenerator and BxlScriptAnalyzer.
-        private static void ConfigureCloudBuildLogging(PathTable pathTable, BuildXL.Utilities.Configuration.Mutable.CommandLineConfiguration mutableConfig)
+        private static void ConfigureCloudBuildLogging(BuildXL.Utilities.Configuration.Mutable.CommandLineConfiguration mutableConfig)
         {
             if (!mutableConfig.InCloudBuild())
             {
@@ -739,7 +739,7 @@ namespace BuildXL
                         {
                             WriteErrorLineToConsoleWithDefaultColor(Strings.App_Main_BuildFailed);
 
-                            LogGeneratedFiles(pm.LoggingContext, appLoggers.TrackingEventListener, translator: appLoggers.PathTranslatorForLogging);
+                            LogGeneratedFiles(appLoggers.TrackingEventListener, translator: appLoggers.PathTranslatorForLogging);
 
                             var classification = ClassifyFailureFromLoggedEvents(appLoggers.TrackingEventListener);
 
@@ -753,7 +753,7 @@ namespace BuildXL
 
                         WriteLineToConsole(Strings.App_Main_BuildSucceeded);
 
-                        LogGeneratedFiles(pm.LoggingContext, appLoggers.TrackingEventListener, translator: appLoggers.PathTranslatorForLogging);
+                        LogGeneratedFiles(appLoggers.TrackingEventListener, translator: appLoggers.PathTranslatorForLogging);
 
                         if (m_configuration.Ide.IsEnabled)
                         {
@@ -912,7 +912,7 @@ namespace BuildXL
             }
         }
 
-        private void LogGeneratedFiles(LoggingContext loggingContext, TrackingEventListener trackingListener, PathTranslator translator)
+        private void LogGeneratedFiles(TrackingEventListener trackingListener, PathTranslator translator)
         {
             if (m_configuration.Logging.LogsDirectory.IsValid)
             {

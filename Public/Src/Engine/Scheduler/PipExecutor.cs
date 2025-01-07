@@ -1220,7 +1220,6 @@ namespace BuildXL.Scheduler
         internal static ExecutionResult AnalyzeFileAccessViolations(
             OperationContext operationContext,
             IPipExecutionEnvironment environment,
-            PipExecutionState.PipScopeState state,
             Process process,
             IEnumerable<ExecutionResult> allExecutionResults,
             out bool pipIsSafeToCache,
@@ -1282,7 +1281,6 @@ namespace BuildXL.Scheduler
         internal static ExecutionResult AnalyzeDoubleWritesOnCacheConvergence(
             OperationContext operationContext,
             IPipExecutionEnvironment environment,
-            PipExecutionState.PipScopeState state,
             ExecutionResult processExecutionResult,
             Process process,
             IReadOnlyDictionary<FileArtifact, (FileMaterializationInfo, ReportedViolation)> allowedSameContentViolations)
@@ -3110,7 +3108,6 @@ namespace BuildXL.Scheduler
                     if (entryFetchResult?.Succeeded == true)
                     {
                         cacheHitData = await TryConvertToRunnableFromCacheResultAsync(
-                            processRunnable,
                             operationContext,
                             environment,
                             state,
@@ -3140,7 +3137,7 @@ namespace BuildXL.Scheduler
                         && pathSetCount >= threshold)
                     {
                         // Compute 'weak augmenting' path set with common paths among path sets
-                        ObservedPathSet weakAugmentingPathSet = ExtractPathSetForAugmentingWeakFingerprint(pathTable, environment.Configuration.Cache, process, strongFingerprintComputationList);
+                        ObservedPathSet weakAugmentingPathSet = ExtractPathSetForAugmentingWeakFingerprint(environment.Configuration.Cache, process, strongFingerprintComputationList);
 
                         var minPathCount = strongFingerprintComputationList.Select(s => s.Value.PathSet.Paths.Length).Min();
                         var maxPathCount = strongFingerprintComputationList.Select(s => s.Value.PathSet.Paths.Length).Max();
@@ -3243,7 +3240,6 @@ namespace BuildXL.Scheduler
         /// Extract a path set to represent the commonly accessed paths which can be used to compute an augmented weak fingerprint
         /// </summary>
         private static ObservedPathSet ExtractPathSetForAugmentingWeakFingerprint(
-            PathTable pathTable,
             ICacheConfiguration cacheConfiguration,
             Process process,
             List<BoxRef<ProcessStrongFingerprintComputationData>> strongFingerprintComputationList)
@@ -3410,7 +3406,6 @@ namespace BuildXL.Scheduler
         }
 
         private static async Task<RunnableFromCacheResult.CacheHitData> TryConvertToRunnableFromCacheResultAsync(
-            ProcessRunnablePip processRunnable,
             OperationContext operationContext,
             IPipExecutionEnvironment environment,
             PipExecutionState.PipScopeState state,
@@ -5687,7 +5682,6 @@ namespace BuildXL.Scheduler
 
             // Converge to the conflicting entry rather than ignoring and continuing.
             var usableDescriptor = await TryConvertToRunnableFromCacheResultAsync(
-                null,
                 operationContext,
                 environment,
                 state,

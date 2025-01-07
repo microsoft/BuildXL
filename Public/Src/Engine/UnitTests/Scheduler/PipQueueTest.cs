@@ -754,7 +754,6 @@ namespace Test.BuildXL.Scheduler
                         executionResult = PipExecutor.AnalyzeFileAccessViolations(
                                 operationContext,
                                 environment,
-                                pipScope,
                                 cacheableProcess.Process,
                                 runnablePip.AllExecutionResults,
                                 out _,

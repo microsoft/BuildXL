@@ -2083,7 +2083,7 @@ namespace BuildXL.ProcessPipExecutor
 
         private async Task<(bool success, Dictionary<string, int> pipProperties)> TrySetPipPropertiesAsync(SandboxedProcessResult result)
         {
-            OutputFilter propertyFilter = OutputFilter.GetPipPropertiesFilter(m_pip.EnableMultiLineErrorScanning);
+            OutputFilter propertyFilter = OutputFilter.GetPipPropertiesFilter();
 
             var filteredErr = await TryFilterAsync(result.StandardError, propertyFilter, appendNewLine: true);
             var filteredOut = await TryFilterAsync(result.StandardOutput, propertyFilter, appendNewLine: true);
@@ -4712,8 +4712,6 @@ namespace BuildXL.ProcessPipExecutor
             FormatOutputAndPaths(
                 stdOut,
                 stdError,
-                result.StandardOutput.FileName,
-                result.StandardError.FileName,
                 out string outputTolog,
                 out _,
                 out _,
@@ -4904,7 +4902,6 @@ namespace BuildXL.ProcessPipExecutor
         }
 
         private void FormatOutputAndPaths(string standardOut, string standardError,
-            string standardOutPath, string standardErrorPath,
             out string outputToLog, out string pathsToLog, out string extraMessage,
             bool messageWasTruncated,
             bool errorWasFiltered)
@@ -5126,8 +5123,6 @@ namespace BuildXL.ProcessPipExecutor
             FormatOutputAndPaths(
                 stdOut,
                 stdError,
-                result.StandardOutput.FileName,
-                result.StandardError.FileName,
                 out string outputTolog,
                 out string outputPathsToLog,
                 out string messageAboutPathsToLog,
@@ -5342,8 +5337,6 @@ namespace BuildXL.ProcessPipExecutor
             FormatOutputAndPaths(
                 warningsOutput,
                 warningsError,
-                standardOutput.FileName,
-                standardError.FileName,
                 out string outputTolog,
                 out string outputPathsToLog,
                 out string messageAboutPathsToLog,

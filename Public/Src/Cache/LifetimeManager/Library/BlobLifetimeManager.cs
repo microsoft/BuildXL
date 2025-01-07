@@ -162,6 +162,16 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                         {
                             // We don't want to restore checkpoints on a loop.
                             RestoreCheckpoints = false,
+
+                            // Creating a checkpoint takes a while. We don't want to do it too often, because we are
+                            // forced to stop processing events for the duration of the checkpoint creation. We'll call
+                            // it fine to loose 30m of progress in a crash case.
+                            CreateCheckpointInterval = TimeSpan.FromMinutes(30),
+
+                            // Checkpoint files are uploaded in parallel. We don't want to overload the storage account
+                            // with too many parallel uploads, but we also don't want to do this serially. This is the
+                            // same value we use in CaSaaS.
+                            IncrementalCheckpointDegreeOfParallelism = 10,
                         },
                         new CounterCollection<ContentLocationStoreCounters>(),
                         clock);

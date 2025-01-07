@@ -663,6 +663,14 @@ namespace BuildXL.Processes
                             // In this case we just ignore the message. The sentinel will be sent again once we reach 0
                             // active processes
                             LogDebug($"NoActiveProcessesSentinel received for fifo {item.processor.GetFifoName()} but {m_activeProcesses.Count} processes were detected. This means new start process reports arrived afterwards. The sentinel is ignored.");
+
+                            // Observe that this is a case where at some point we reached 0 active processes but new process start events arrived afterwards
+                            // The root process has exited already (since we reached 0 processes), and we might be in a case where the active process checker
+                            // has not started (when the last process to exit before reaching 0 was the root process). Start it now to account for the orphan 
+                            // processes that started since then.
+                            // If the active process checker was started already, this call has no effect.
+                            LogDebug($"NoActiveProcessesSentinel was ignored. Starting the active process checker to account for newly added orphan processes.");
+                            m_activeProcessesChecker.Start();
                         }
 
                         return;

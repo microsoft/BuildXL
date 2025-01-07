@@ -698,7 +698,9 @@ namespace BuildXL.Scheduler.Distribution
                     int ramUsage = Math.Max(1, config.Schedule.EnableLessAggressiveMemoryProjection ? expectedMemoryCounters.AverageWorkingSetMb : expectedMemoryCounters.PeakWorkingSetMb);
                     var ramSemaphoreInfo = new ProcessSemaphoreInfo(
                             m_ramSemaphoreNameId,
-                            value: ramUsage,
+                            // When we run the pipeline on a less powerful machine in the next run, the RAM usage might exceed the current RAM size. 
+                            // Therefore, we limit the value of the semaphore to the current RAM size.
+                            value: Math.Min(ramUsage, RamSemaphoreLimitMb),
                             limit: RamSemaphoreLimitMb);
                     semaphores.Add(ramSemaphoreInfo);
                 }
@@ -711,7 +713,9 @@ namespace BuildXL.Scheduler.Distribution
                     int cpuUsage = Math.Max(1, runnableProcess.HistoricPerfData.Value == ProcessPipHistoricPerfData.Empty ? 100 : runnableProcess.HistoricPerfData.Value.ProcessorsInPercents);
                     var cpuSemaphoreInfo = new ProcessSemaphoreInfo(
                         m_cpuSemaphoreNameId,
-                        value: cpuUsage,
+                        // When we run the pipeline on a less powerful machine in the next run, the CPU usage might exceed the current CPU max limit. 
+                        // Therefore, we limit the value of the semaphore to the current CPU max limit.
+                        value: Math.Min(cpuUsage, m_cpuSemaphoreLimit),
                         limit: m_cpuSemaphoreLimit);
                     semaphores.Add(cpuSemaphoreInfo);
                 }

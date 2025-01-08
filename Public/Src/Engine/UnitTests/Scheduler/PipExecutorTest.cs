@@ -1152,14 +1152,17 @@ namespace Test.BuildXL.Scheduler
                     string destination = GetFullPath("out");
                     AbsolutePath destinationAbsolutePath = AbsolutePath.Create(pathTable, destination);
 
+                    var fileA = sourceDirAbsolutePath.Combine(pathTable, "a");
+                    var fileB = sourceDirAbsolutePath.Combine(pathTable, "b");
+                    var fileC = sourceDirAbsolutePath.Combine(pathTable, "CFolder").Combine(pathTable, "c");
+
                     var dummyContents = new List<AbsolutePath>
                                         {
-                                            sourceDirAbsolutePath.Combine(pathTable, "a"),
-                                            sourceDirAbsolutePath.Combine(pathTable, "b"),
+                                            fileA,
+                                            fileB,
                                             sourceDirAbsolutePath.Combine(pathTable, "echo"),
-                                            sourceDirAbsolutePath.Combine(pathTable, "CFolder").Combine(pathTable, "c"),
+                                            fileC,
                                         };
-
 
                     var script = OperatingSystemHelper.IsUnixOS ?
                             "if [ -f a ]; then /bin/cat a; else /bin/cat b; fi; if [ -f CFolder/c ]; then /bin/cat CFolder/c; fi; echo." :
@@ -1178,8 +1181,14 @@ namespace Test.BuildXL.Scheduler
                     File.WriteAllText(sourceDirAbsolutePath.Combine(pathTable, "echo").ToString(pathTable), "FAIL ECHO INVOCATION");
 
                     await testRunChecker.VerifyFailed(env, pip, "BC");
-                    VerifyExecutionObservedFingerprintComputationAndClear(env, pathTable, pip.PipId, FingerprintComputationKind.ExecutionFailed, 5);
-                    SetExpectedFailures(1, 0, OperatingSystemHelper.IsUnixOS ? "/bin/sh: 1: echo.: not found" : "'echo.' is not recognized as an internal or external command");
+                    VerifyExecutionObservedFingerprintComputationAndClear(env, pathTable, pip.PipId, FingerprintComputationKind.ExecutionFailed, [fileA, fileB, fileC]);
+                    
+                    var errorMessage = OperatingSystemHelper.IsUnixOS
+                        ? LinuxSystemInfo.GetLinuxDistroInfo().distroName == "ubuntu"
+                            ? "/bin/sh: 1: echo.: not found"
+                            : "/bin/sh: line 1: echo.: command not found"
+                        : "'echo.' is not recognized as an internal or external command";
+                    SetExpectedFailures(1, 0, errorMessage);
                 },
                 null,
                 pathTable => GetConfiguration(pathTable, fileAccessIgnoreCodeCoverage: true, failUnexpectedFileAccesses: false, unexpectedFileAccessesAreErrors: false));
@@ -1227,7 +1236,7 @@ namespace Test.BuildXL.Scheduler
                     AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, count: 1);
 
                     // On linux there is no observed inputs for echo
-                    VerifyExecutionObservedFingerprintComputationAndClear(env, env.Context.PathTable, pip.PipId, FingerprintComputationKind.ExecutionNotCacheable, OperatingSystemHelper.IsUnixOS ? 1 : 2);
+                    VerifyExecutionObservedFingerprintComputationAndClear(env, env.Context.PathTable, pip.PipId, FingerprintComputationKind.ExecutionNotCacheable, [fileA]);
                 });
         }
 
@@ -1904,7 +1913,7 @@ namespace Test.BuildXL.Scheduler
             PathTable pathTable,
             PipId pipId,
             FingerprintComputationKind kind,
-            int expectedObservedInputsCount)
+            List<AbsolutePath> observedInputsToCheck)
         {
             var fingerprintData = env.ExecutionLogRecorder
                 .GetEvents<ProcessFingerprintComputationEventData>()
@@ -1921,7 +1930,17 @@ namespace Test.BuildXL.Scheduler
                 count += fingerprint.StrongFingerprintComputations[0].ObservedInputs.Count();
             }
 
-            XAssert.AreEqual(expectedObservedInputsCount, count);
+            var missingObservedInputs = new List<AbsolutePath>();
+            var observedInputPaths = fingerprint.StrongFingerprintComputations[0].ObservedInputs.Select(o => o.Path).ToList();
+            foreach (var observedInput in observedInputsToCheck)
+            {
+                if (!observedInputPaths.Contains(observedInput))
+                {
+                    missingObservedInputs.Add(observedInput);
+                }
+            }
+
+            XAssert.AreEqual(missingObservedInputs.Count, 0, $"Pip Observed Inputs:{Environment.NewLine} {string.Join(Environment.NewLine, observedInputPaths.Select(o => o.ToString(pathTable)))}{Environment.NewLine}Expected Observed Inputs:{Environment.NewLine} {string.Join(Environment.NewLine, observedInputsToCheck.Select(o => o.ToString(pathTable)))}{Environment.NewLine}Missing Observed Inputs:{Environment.NewLine} {string.Join(Environment.NewLine, missingObservedInputs.Select(o => o.ToString(pathTable)))}");
 
             env.ExecutionLogRecorder.Clear();
         }

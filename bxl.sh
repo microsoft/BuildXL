@@ -295,7 +295,7 @@ function compileWithBxl() {
         print_info "${tputBold}Running AdoBuildRunner:${tputReset} '$adoBuildRunnerExe' ${g_adoBuildRunnerCmdArgs[@]} -- ${g_bxlCmdArgs[@]}"
         "$adoBuildRunnerExe" "${g_adoBuildRunnerCmdArgs[@]}" "--" "${g_bxlCmdArgs[@]}"
     else
-        print_info "${tputBold}Running bxl:${tputReset} '$bxlExe' ${g_bxlCmdArgs[@]}"
+        print_info "${tputBold}Running bxl:${tputReset} '$BUILDXL_BIN/bxl' ${g_bxlCmdArgs[@]}"
 
         "$BUILDXL_BIN/bxl" "${g_bxlCmdArgs[@]}"
     fi

@@ -177,6 +177,9 @@ function getLkg() {
 
     local _BUILDXL_BOOTSTRAP_OUT="$MY_DIR/Out/BootStrap"
     export BUILDXL_BIN="$_BUILDXL_BOOTSTRAP_OUT/$BUILDXL_LKG_NAME.$BUILDXL_LKG_VERSION"
+    # Set the DOTNET_NOLOGO environment variable to prevent the dotnet CLI from printing the first run logo which can interfere with parsing the output
+    # Some commands accept this as an argument, but dotnet nuget locals does not
+    export DOTNET_NOLOGO=true
 
     if [[ ! -d "$BUILDXL_BIN" ]]; then
         # Check if a cached version of the LKG is available

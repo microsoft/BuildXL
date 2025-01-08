@@ -2,6 +2,25 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20250102.2 (Release [29472339](https://dev.azure.com/mseng/Domino/_build/results?buildId=29472339&view=results))
+- Fixes for Ubuntu 24.04
+- Tighter integration with 1ES Build Cache
+- Drop integration support for shardsets
+- Improvements for RPC tracing
+- Diagnostics for when build workers are in different pools
+- Better Javascript resolver diagnostic logging
+- Revamp low memory diagnostic logging
+- Fixes to support running in CloudBuild RM environment
+- Compatibility fix for CB Admin VM and build trace files
+- Performance fixes for very shallow build graphs (distributing cache lookups, early worker release)
+- Reduce BlobL3 cache log size & ensure it is flushed on failure
+- Breakaway process support on Linux
+- Capture standard output streams to orchestrator log file directory on pip failure
+- Performance improvements for memory based scheduler throttling
+- Ability to specify scrub directories in module definition
+- Cache hit rate improvements when using /unsafe_unexpectedFileAccessesAreErrors-
+- Misc dependency updates, perf improvements, bug fixes, and code cleanup
+
 # 0.1.0-20241115.2.1 (Releases [29353508](https://dev.azure.com/mseng/Domino/_build/results?buildId=29353508&view=results), [29356655](https://dev.azure.com/mseng/Domino/_build/results?buildId=29356655&view=results))
 - [Patch] Mitigation for BuildXL hung build problems.
 - Increase timeout for manifest parsing in materialization daemon.

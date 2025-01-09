@@ -73,6 +73,7 @@ using Logger = BuildXL.Scheduler.Tracing.Logger;
 using Process = BuildXL.Pips.Operations.Process;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Engine.Cache.Fingerprints;
+using ZstdSharp;
 
 namespace BuildXL.Scheduler
 {
@@ -7735,12 +7736,19 @@ namespace BuildXL.Scheduler
             {
                 var executionLogPathString = executionLogPath.ToString(context.PathTable);
 
+                // The Zstd compression stream is used to wrap the FileStream to ensure the execution log file is compressed on the fly.
                 FileStream executionLogStream;
+                CompressionStream compressionStream;
 
                 try
                 {
                     FileUtilities.CreateDirectoryWithRetry(Path.GetDirectoryName(executionLogPathString));
                     executionLogStream = File.Open(executionLogPathString, FileMode.Create, FileAccess.Write, FileShare.Read | FileShare.Delete);
+                    // Level 2 compression is used as it provides optimal results in terms of both size of the file and performance.
+                    // Testing has shown approximately a 60% reduction in execution log file size without causing any noticeable 
+                    // end-to-end performance slowdown, making it an optimal choice.
+                    // The leaveOpen flag is set to false, ensuring the underlying stream is closed automatically.
+                    compressionStream = new CompressionStream(executionLogStream, level: 2, leaveOpen: false);
                 }
                 catch (Exception ex)
                 {
@@ -7756,7 +7764,7 @@ namespace BuildXL.Scheduler
                     // path is safe since at least the current set of paths will be serialized
                     var lastStaticAbsolutePathValue = pipGraph.MaxAbsolutePathIndex;
 
-                    var logFile = new BinaryLogger(executionLogStream, context, pipGraph.GraphId, lastStaticAbsolutePathValue);
+                    var logFile = new BinaryLogger(compressionStream, context, pipGraph.GraphId, lastStaticAbsolutePathValue);
                     var executionLogTarget = new ExecutionLogFileTarget(logFile, disabledEventIds: configuration.Logging.NoExecutionLog);
                     executionLogTarget.BuildSessionConfiguration(new BuildSessionConfigurationEventData(salts));
 
@@ -7764,6 +7772,7 @@ namespace BuildXL.Scheduler
                 }
                 catch
                 {
+                    compressionStream.Dispose();
                     executionLogStream.Dispose();
                     throw;
                 }

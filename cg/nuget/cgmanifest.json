@@ -4316,6 +4316,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "ZstdSharp.Port",
+          "Version": "0.8.4"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "boost",
           "Version": "1.71.0.0"
         }

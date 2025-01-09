@@ -372,6 +372,9 @@ config({
                 { id: "Microsoft.Bcl.TimeProvider", version: "8.0.0" },
                 { id: "Polly.RateLimiting", version: "8.0.0" },
                 { id: "Microsoft.IO.RecyclableMemoryStream", version: "2.3.2" },
+
+                // Compression streams
+                { id: "ZstdSharp.Port", version: "0.8.4" },
             ],
         },
 

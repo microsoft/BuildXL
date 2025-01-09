@@ -1,19 +1,18 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Collections.Generic;
+using System.IO;
 using System.Threading.Tasks;
 using BuildXL.Engine;
+using BuildXL.Execution.Analyzer;
+using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Core;
 using Test.BuildXL.Scheduler;
 using Test.BuildXL.TestUtilities.Xunit;
-using BuildXL.Execution.Analyzer;
 using Xunit.Abstractions;
-using BuildXL.Utilities.Collections;
-using System.Collections.Generic;
-using BuildXL.Utilities.Core;
-using System.IO;
 using static BuildXL.ToolSupport.CommandLineUtilities;
-using System.Text;
-using System;
+using ConsoleRedirector = Test.BuildXL.TestUtilities.ConsoleRedirector;
 
 namespace Test.Tool.Analyzers
 {
@@ -221,36 +220,6 @@ namespace Test.Tool.Analyzers
                         m_ioCompletionTraceHook.Dispose();
                     }
                 }
-            }
-        }
-
-        /// <summary>
-        /// Temporarily redirects console output to strings while the 
-        /// object is in scope. Console output returns to previous location on dispose.
-        /// </summary>
-        public class ConsoleRedirector : IDisposable
-        {
-            private TextWriter m_originalConsoleOut;
-            private StringBuilder m_standardOutput = new StringBuilder();
-            private string m_outStringTarget;
-
-            /// <summary>
-            /// Start redirecting console output.
-            /// </summary>
-            public ConsoleRedirector(ref string outString)
-            {
-                m_originalConsoleOut = Console.Out;
-                m_outStringTarget = outString;
-                Console.SetOut(new StringWriter(m_standardOutput));
-            }
-
-            /// <summary>
-            /// Return console output to previous locations.
-            /// </summary>
-            public void Dispose()
-            {
-                m_outStringTarget = m_standardOutput.ToString();
-                Console.SetOut(m_originalConsoleOut);
             }
         }
 

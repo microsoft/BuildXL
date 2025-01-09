@@ -623,11 +623,11 @@ namespace NugetPackages {
         cacheContentStoreDistributedSpecification,
         cacheContentStoreLibrarySpecification,
         cacheContentStoreGrpcSpecification,
+        cacheContentStoreVstsInterfacesSpecification,
+        cacheMemoizationStoreVstsInterfacesSpecification,
         ...addIfLazy(BuildXLSdk.Flags.isVstsArtifactsEnabled, () => [ 
             cacheContentStoreVstsSpecification,
-            cacheContentStoreVstsInterfacesSpecification,
             cacheMemoizationStoreVstsSpecification,
-            cacheMemoizationStoreVstsInterfacesSpecification
         ]),
         cacheMemoizationStoreDistributedSpecification,
         cacheMemoizationStoreLibrarySpecification,

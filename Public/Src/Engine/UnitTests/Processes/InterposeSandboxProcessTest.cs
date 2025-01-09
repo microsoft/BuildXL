@@ -1,6 +1,7 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -10,6 +11,7 @@ using BuildXL.Processes;
 using BuildXL.Native.IO;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Core;
+using UnixPaths = BuildXL.Interop.Unix.UnixPaths;
 using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
@@ -111,8 +113,9 @@ namespace Test.BuildXL.Processes
             XAssert.IsNotNull(result.FileAccesses);
 
             // There should be only one absent file access
-            var absentPathAccesses = result.FileAccesses!.Where(a => a.IsNonexistent);
-            XAssert.AreEqual(1, absentPathAccesses.Count());
+            // NOTE: on some Linux distributions, /proc/<pid>/stat is absent when the test process runs so it shows up as non-existent. We can ignore these.
+            var absentPathAccesses = result.FileAccesses!.Where(a => a.IsNonexistent && !a.ManifestPath.ToString(Context.PathTable).StartsWith(UnixPaths.Proc));
+            XAssert.AreEqual(1, absentPathAccesses.Count(), $"Expected 1 absent path access, but got {absentPathAccesses.Count()} with paths: {Environment.NewLine}{string.Join(Environment.NewLine, absentPathAccesses.Select(a => a.ManifestPath.ToString(Context.PathTable)))}");
 
             // readlink on absent path is reported backed as probe
             var absentFileAccess = absentPathAccesses.Single();

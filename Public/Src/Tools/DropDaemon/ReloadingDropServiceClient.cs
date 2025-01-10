@@ -31,7 +31,7 @@ namespace Tool.ServicePipDaemon
         /// <param name="operationTimeout">Timeout for the reloading client.</param>
         /// <param name="maxOperationRetryCount">How many times to retry.</param>
         public ReloadingDropServiceClient(IIpcLogger logger, Func<IDropServiceClient> clientConstructor, TimeSpan operationTimeout, int maxOperationRetryCount)
-            : base(logger, clientConstructor, operationTimeout, maxOperationRetryCount)
+            : base(logger, clientConstructor, operationTimeout, maxOperationRetryCount, new[] { typeof(DropAlreadyExistsException) })
         {
         }
 

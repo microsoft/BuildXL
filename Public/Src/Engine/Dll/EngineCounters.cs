@@ -45,9 +45,6 @@ namespace BuildXL.Engine
         ChangeJournalClientDisposeDuration,
 
         [CounterType(CounterType.Stopwatch)]
-        SnapshotCollectorPersistDuration,
-
-        [CounterType(CounterType.Stopwatch)]
         RecordingBuildsInUserFolderDuration,
 
         /// <summary>

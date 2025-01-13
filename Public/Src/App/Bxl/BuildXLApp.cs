@@ -958,8 +958,6 @@ namespace BuildXL
                 {
                     logFunction(Strings.App_Main_Log, log.Key);
                 }
-
-                logFunction(Strings.App_Main_Snapshot, m_configuration.Export.SnapshotFile);
             }
         }
 
@@ -2449,16 +2447,6 @@ namespace BuildXL
                     m_startTimeUtc.Ticks + TimeSpan.FromMinutes(configuration.Engine.BuildTimeoutMins.Value).Ticks;
                 
                 SetTimeoutCleanExit(timeoutUtcTicks);
-            }
-
-            if (configuration.Export.SnapshotFile.IsValid && configuration.Export.SnapshotMode != SnapshotMode.None)
-            {
-                engine.SetSnapshotCollector(
-                    new SnapshotCollector(
-                        loggingContext,
-                        configuration.Export.SnapshotFile,
-                        configuration.Export.SnapshotMode,
-                        m_commandLineArguments));
             }
 
             ILoggingQueue loggingQueue = createLoggingQueueIfEnabled();

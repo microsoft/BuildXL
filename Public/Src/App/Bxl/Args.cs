@@ -101,7 +101,6 @@ namespace BuildXL
                 var schedulingConfiguration = configuration.Schedule;
                 var cacheConfiguration = configuration.Cache;
                 var loggingConfiguration = configuration.Logging;
-                var exportConfiguration = configuration.Export;
                 var experimentalConfiguration = configuration.Experiment;
                 var distributionConfiguration = configuration.Distribution;
                 var frontEndConfiguration = configuration.FrontEnd;
@@ -968,12 +967,6 @@ namespace BuildXL
                             "skipHashSourceFile",
                             sign =>
                             schedulingConfiguration.SkipHashSourceFile = sign),
-                        OptionHandlerFactory.CreateOption(
-                            "snap",
-                            opt => exportConfiguration.SnapshotFile = CommandLineUtilities.ParsePathOption(opt, pathTable)),
-                        OptionHandlerFactory.CreateOption(
-                            "snapshotMode",
-                            opt => exportConfiguration.SnapshotMode = CommandLineUtilities.ParseEnumOption<SnapshotMode>(opt)),
                         OptionHandlerFactory.CreateOption(
                             "solutionName",
                             opt =>

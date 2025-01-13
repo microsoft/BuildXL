@@ -1196,16 +1196,6 @@ namespace BuildXL
                 Strings.HelpText_DisplayHelp_NoLogo);
 
             hw.WriteOption(
-                "/snap:<file>",
-                Strings.HelpText_DisplayHelp_Snapshot,
-                HelpLevel.Verbose);
-
-            hw.WriteOption(
-                "/snapshotMode:<snapshot mode>",
-                Strings.HelpText_DisplayHelp_SnapshotMode,
-                HelpLevel.Verbose);
-
-            hw.WriteOption(
                 "/relatedActivityId:<guid>",
                 Strings.HelpText_DisplayHelp_RelatedActivityId,
                 HelpLevel.Verbose);

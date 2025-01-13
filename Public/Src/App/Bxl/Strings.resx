@@ -246,12 +246,6 @@
   <data name="App_Main_Log" xml:space="preserve">
     <value>    Log: {0}</value>
   </data>
-  <data name="App_Main_ValuesLog" xml:space="preserve">
-    <value>    Values Log: {0}</value>
-  </data>
-  <data name="App_Main_Snapshot" xml:space="preserve">
-    <value>    Snapshot: {0}</value>
-  </data>
   <data name="Args_SandboxKind_WrongPlatform" xml:space="preserve">
     <value>Sandbox kind '{0}' cannot be used on '{1}' operating system</value>
   </data>
@@ -497,12 +491,6 @@
   </data>
   <data name="AppServer_TerminatingClient_PipeDisconnect" xml:space="preserve">
     <value>Terminating {ShortProductName} client process because communication with the server has been lost: {0}</value>
-  </data>
-  <data name="HelpText_DisplayHelp_Snapshot" xml:space="preserve">
-    <value>When enabled, captures build inputs needed for evaluation or the full build depending on the specified snapshot mode (see /snapshotMode)</value>
-  </data>
-  <data name="HelpText_DisplayHelp_SnapshotMode" xml:space="preserve">
-    <value>Specifies the mode used to snapshot the build: None, Full (capture all build inputs in VHD file), Evaluation (captures build specifications in zip file). Defaults to Evaluation.</value>
   </data>
   <data name="HelpText_DisplayHelp_Scrub" xml:space="preserve">
     <value>Before executing, scrubs (deletes) files not marked as inputs or outputs of the current build. Only applies to mounts marked as Scrubbable. This includes the object directory but none others by default. Defaults to off.</value>

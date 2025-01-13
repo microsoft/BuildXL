@@ -80,12 +80,6 @@ namespace BuildXL.Utilities.Configuration
         ILoggingConfiguration Logging { get; }
 
         /// <summary>
-        /// Export configuration settings
-        /// </summary>
-        [NotNull]
-        IExportConfiguration Export { get; }
-
-        /// <summary>
         /// Experimental settings
         /// </summary>
         [NotNull]

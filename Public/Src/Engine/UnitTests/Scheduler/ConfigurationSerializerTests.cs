@@ -245,9 +245,6 @@ namespace Test.BuildXL.Scheduler
             public ILoggingConfiguration Logging => throw new System.NotImplementedException();
 
             [JsonIgnore]
-            public IExportConfiguration Export => throw new System.NotImplementedException();
-
-            [JsonIgnore]
             public IExperimentalConfiguration Experiment => throw new System.NotImplementedException();
 
             [JsonIgnore]

@@ -43,8 +43,6 @@ namespace BuildXL.Engine
 
         private FileCombiner m_specCache;
 
-        private readonly SnapshotCollector m_snapshotCollector;
-
         // The FileContentTable is a func because the initialization logic and lifetime of this class has gotten very complex.
         private readonly Func<FileContentTable> m_getFileContentTable;
 
@@ -109,7 +107,6 @@ namespace BuildXL.Engine
             IStartupConfiguration startupConfiguration,
             MountsTable mountsTable,
             InputTracker inputTracker,
-            SnapshotCollector snapshotCollector,
             DirectoryTranslator directoryTranslator,
             Func<FileContentTable> getFileContentTable,
             int timerUpdatePeriod,
@@ -132,7 +129,6 @@ namespace BuildXL.Engine
             m_getFileContentTable = getFileContentTable;
             m_isPartialReuse = isPartialReuse;
             m_frontendsEnvironmentRestriction = registeredFrontends.ToDictionary(frontend => frontend.Name, frontEnd => frontEnd.ShouldRestrictBuildParameters);
-            m_snapshotCollector = snapshotCollector;
             GetTimerUpdatePeriod = timerUpdatePeriod;
             Layout = configuration.Layout;
             m_directoryTranslator = directoryTranslator;
@@ -344,8 +340,6 @@ namespace BuildXL.Engine
         {
             var physicalPath = path.ToString(PathTable);
 
-            m_snapshotCollector?.RecordFile(path);
-
             return TryRetrieveAndTrackFile(physicalPath, out stream);
         }
 
@@ -353,8 +347,6 @@ namespace BuildXL.Engine
         public override Task<Possible<FileContent, RecoverableExceptionFailure>> GetFileContentAsync(AbsolutePath path)
         {
             var physicalPath = path.ToString(PathTable);
-
-            m_snapshotCollector?.RecordFile(path);
 
             return RetrieveAndTrackFileAsync(physicalPath);
         }
@@ -382,7 +374,6 @@ namespace BuildXL.Engine
                     var bytes = reader.ReadBytes((int)fs.Length);
                     var contentHash = ContentHashingUtilities.HashBytes(bytes);
 
-                    m_snapshotCollector?.RecordFile(path);
                     m_inputTracker.RegisterAccessAndTrackFile(fs.SafeFileHandle, physicalPath, contentHash);
 
                     return Encoding.UTF8.GetString(bytes); // File.ReadAllText defaults to UTF8 too.
@@ -411,8 +402,6 @@ namespace BuildXL.Engine
         /// <inheritdoc />
         public override void RecordFrontEndFile(AbsolutePath path, string frontEnd)
         {
-            m_snapshotCollector?.RecordFile(path);
-
             m_inputTracker.RegisterFileAccess(path, PathTable);
         }
 
@@ -441,8 +430,6 @@ namespace BuildXL.Engine
 
                 success = TryGetAndUse(m_visibleBuildParameters, name, out value, locationData);
             }
-
-            m_snapshotCollector?.RecordEnvironmentVariable(name, value);
 
             return success;
         }

@@ -166,14 +166,6 @@ namespace BuildXL.Engine
         /// </summary>
         private BuildViewModel m_buildViewModel;
 
-        /// <summary>
-        /// The snapshot collector.
-        /// </summary>
-        /// <remarks>
-        /// Only set when initialized for snapshot collection
-        /// </remarks>
-        private SnapshotCollector m_snapshotCollector;
-
         #endregion External inspectors to the engine
 
         /// <summary>
@@ -899,18 +891,6 @@ namespace BuildXL.Engine
             // the string size, some of the large strings that used to go to the string table can go to the large string buffer.
             StringTable.OverrideStringTableDefaults(EngineEnvironmentSettings.LargeStringBufferThresholdBytes);
 
-            if (mutableConfig.Export.SnapshotFile.IsValid && mutableConfig.Export.SnapshotMode != SnapshotMode.None)
-            {
-                // Note: the /CleanOnly also overrides the Phase. In this case it is safe. An evaluation snapshot 'can' work with the 'schedule' phase in case both are set.
-                mutableConfig.Engine.Phase = mutableConfig.Export.SnapshotMode == SnapshotMode.Full
-                    ? EnginePhases.Schedule
-                    : EnginePhases.Evaluate;
-
-                // TODO: Snapshot mode does not work when loading cached graph. Can input tracker be used to capture/load the same information as
-                // the snapshot collector so snapshot works with graph caching.
-                mutableConfig.Cache.CacheGraph = false;
-            }
-
             // The /cleanonly option should override the phase to only schedule and not perform execution
             if (mutableConfig.Engine.CleanOnly)
             {
@@ -1570,16 +1550,6 @@ namespace BuildXL.Engine
         private readonly PerformanceCollector m_collector;
 
         /// <summary>
-        /// Sets the snapshot visitor
-        /// </summary>
-        public void SetSnapshotCollector(SnapshotCollector snapshotCollector)
-        {
-            Contract.Requires(snapshotCollector != null);
-
-            m_snapshotCollector = snapshotCollector;
-        }
-
-        /// <summary>
         /// Runs the engine, producing the output values requested by the arguments.
         /// </summary>
         [SuppressMessage("Microsoft.Maintainability", "CA1505:AvoidUnmaintainableCode")]
@@ -2172,15 +2142,6 @@ namespace BuildXL.Engine
                                 }
 
                                 cacheInitializationTask?.Dispose();
-
-                                if (m_snapshotCollector != null)
-                                {
-                                    using (Context.EngineCounters.StartStopwatch(EngineCounter.SnapshotCollectorPersistDuration))
-                                    {
-                                        success &= m_snapshotCollector.Persist(Configuration, Context.PathTable, Context.CancellationToken);
-                                        ValidateSuccessMatches(success, engineLoggingContext);
-                                    }
-                                }
 
                                 if (Configuration.Engine.LogStatistics)
                                 {
@@ -2882,7 +2843,6 @@ namespace BuildXL.Engine
                         m_initialCommandLineConfiguration.Startup,
                         mountsTable,
                         inputTrackerForGraphConstruction,
-                        m_snapshotCollector,
                         m_directoryTranslator,
                         () => FileContentTable,
                         Configuration.Logging.GetTimerUpdatePeriodInMs(),
@@ -2941,20 +2901,6 @@ namespace BuildXL.Engine
                                     Name = "GraphConstruction.DurationMs",
                                     Value = m_enginePerformanceInfo.GraphConstructionDurationMs
                                 });
-                        }
-
-                        if (m_snapshotCollector != null)
-                        {
-                            if (newlyEvaluatedGraph != null)
-                            {
-                                m_snapshotCollector.SetPipGraph(newlyEvaluatedGraph);
-                            }
-
-                            // Collect all mounts.
-                            foreach (var mount in mountsTable.AllMounts)
-                            {
-                                m_snapshotCollector.RecordMount(mount);
-                            }
                         }
 
                         if (!phase.HasFlag(EnginePhases.Schedule))

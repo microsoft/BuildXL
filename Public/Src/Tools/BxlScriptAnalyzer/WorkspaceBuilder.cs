@@ -235,7 +235,6 @@ namespace BuildXL.FrontEnd.Script.Analyzer
                             mountsTable,
                             InputTracker.CreateDisabledTracker(loggingContext),
                             null,
-                            null,
                             () => FileContentTable.CreateStub(loggingContext),
                             5000,
                             false,

@@ -29,7 +29,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
             Sandbox = new SandboxConfiguration();
             Cache = new CacheConfiguration();
             Logging = new LoggingConfiguration();
-            Export = new ExportConfiguration();
             Experiment = new ExperimentalConfiguration();
             Distribution = new DistributionConfiguration();
             Projects = null; // Deliberate null, here as magic indication that none has been defined. All consumers are aware and deal with it.
@@ -64,7 +63,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
             Sandbox = new SandboxConfiguration(template.Sandbox, pathRemapper);
             Cache = new CacheConfiguration(template.Cache, pathRemapper);
             Logging = new LoggingConfiguration(template.Logging, pathRemapper);
-            Export = new ExportConfiguration(template.Export, pathRemapper);
             Experiment = new ExperimentalConfiguration(template.Experiment);
             Distribution = new DistributionConfiguration(template.Distribution);
             Projects = template.Projects?.Select(p => pathRemapper.Remap(p)).ToList();
@@ -312,26 +310,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inhertidoc />
         ILoggingConfiguration IConfiguration.Logging => Logging;
-
-        /// <nodoc />
-        public ExportConfiguration Export
-        {
-            get
-            {
-                AssertNotInvalid();
-                return m_export;
-            }
-
-            set
-            {
-                m_export = value;
-            }
-        }
-
-        private ExportConfiguration m_export;
-
-        /// <inhertidoc />
-        IExportConfiguration IConfiguration.Export => Export;
 
         /// <nodoc />
         public ExperimentalConfiguration Experiment

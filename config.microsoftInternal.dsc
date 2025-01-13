@@ -78,11 +78,11 @@ export const pkgs = isMicrosoftInternal ? [
     // expose updated versions that point to the latest (net8 only) SBOM packages
     { id: "Microsoft.SBOMCore", version: "4.0.15", dependentPackageIdsToSkip: ["Microsoft.Sbom.Parsers.Spdx22SbomParser"] },
     { id: "Microsoft.Parsers.ManifestGenerator", version: "3.8.11", dependentPackageIdsToIgnore: ["BuildXL.Cache.Hashing"], dependentPackageIdsToSkip: ["Microsoft.Sbom.Contracts", "Microsoft.Sbom.Extensions"] },
-    { id: "Microsoft.Sbom.Parsers.Spdx22SbomParser", version: "3.0.0" },
-    { id: "Microsoft.Sbom.Adapters", version: "3.0.0" },
-    { id: "Microsoft.ComponentDetection.Contracts", version: "5.1.17" },
-    { id: "Microsoft.Sbom.Contracts", version: "3.0.0" },
-    { id: "Microsoft.Sbom.Extensions", version: "3.0.0" },
+    { id: "Microsoft.Sbom.Parsers.Spdx22SbomParser", version: "3.0.1" },
+    { id: "Microsoft.Sbom.Adapters", version: "3.0.1" },
+    { id: "Microsoft.ComponentDetection.Contracts", version: "5.1.18" },
+    { id: "Microsoft.Sbom.Contracts", version: "3.0.1" },
+    { id: "Microsoft.Sbom.Extensions", version: "3.0.1" },
 
     // Process remoting
     { id: "AnyBuild.SDK", version: "0.2.0" },

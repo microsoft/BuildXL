@@ -1184,7 +1184,7 @@ namespace Test.BuildXL.Scheduler
                     VerifyExecutionObservedFingerprintComputationAndClear(env, pathTable, pip.PipId, FingerprintComputationKind.ExecutionFailed, [fileA, fileB, fileC]);
                     
                     var errorMessage = OperatingSystemHelper.IsUnixOS
-                        ? LinuxSystemInfo.GetLinuxDistroInfo().distroName == "ubuntu"
+                        ? LinuxSystemInfo.GetLinuxDistroInfo().Id == "ubuntu"
                             ? "/bin/sh: 1: echo.: not found"
                             : "/bin/sh: line 1: echo.: command not found"
                         : "'echo.' is not recognized as an internal or external command";

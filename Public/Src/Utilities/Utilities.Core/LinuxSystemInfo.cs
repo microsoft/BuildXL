@@ -141,7 +141,7 @@ namespace BuildXL.Utilities.Core
         /// UBUNTU_CODENAME = focal
         /// We make use of the Version_Id and Id to obtain the required information.
         /// </remarks>
-        public static (string distroName, Version distroVersionId) GetLinuxDistroInfo()
+        public static LinuxDistribution GetLinuxDistroInfo()
         {
             return ParseLinuxDistroInfo(File.ReadLines("/etc/os-release"));
         }
@@ -149,7 +149,7 @@ namespace BuildXL.Utilities.Core
         /// <summary>
         /// Parse linux distro information to obtain the distro name and the version id.
         /// </summary>
-        internal static (string distroName, Version distroVersionId) ParseLinuxDistroInfo(IEnumerable<string> content)
+        internal static LinuxDistribution ParseLinuxDistroInfo(IEnumerable<string> content)
         {
             string distroName = null;
             Version distroVersionId = null;
@@ -197,7 +197,7 @@ namespace BuildXL.Utilities.Core
                 throw new BuildXLException(InvalidDistroInfoExceptionMessage);
             }
 
-            return (distroName, distroVersionId);
+            return new LinuxDistribution(distroName, distroVersionId);
         }
 
         /// <summary>

@@ -1051,9 +1051,9 @@ namespace BuildXL
                     {
                         try
                         {
-                            if (!OperatingSystemHelperExtension.IsLinuxDistroVersionSupported())
+                            if (!OperatingSystemHelperExtension.IsLinuxDistroVersionSupported(out var distribution))
                             {
-                                Logger.Log.IncompatibleLinuxDistroVersionDetected(loggingContext, s_machineInfo.OsVersion);
+                                Logger.Log.IncompatibleLinuxDistroVersionDetected(loggingContext, distribution.ToString(), string.Join(", ", OperatingSystemHelperExtension.SupportedLinuxDistributions));
                             }
                         }
                         catch(Exception ex)

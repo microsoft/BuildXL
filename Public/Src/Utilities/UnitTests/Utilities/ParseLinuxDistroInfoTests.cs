@@ -23,8 +23,8 @@ namespace Test.BuildXL.Utilities
         public void TestParseLinuxDistroInfo(List<string> parsingContent, Version expectedVersionId, string expectedDistroName)
         {
             var distroInfo = LinuxSystemInfo.ParseLinuxDistroInfo(parsingContent);
-            XAssert.AreEqual(expectedVersionId, distroInfo.distroVersionId);
-            XAssert.AreEqual(expectedDistroName, distroInfo.distroName);
+            XAssert.AreEqual(expectedVersionId, distroInfo.Version);
+            XAssert.AreEqual(expectedDistroName, distroInfo.Id);
         }
 
         /// <summary>

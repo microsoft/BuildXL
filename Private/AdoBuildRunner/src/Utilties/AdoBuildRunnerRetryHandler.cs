@@ -59,7 +59,7 @@ namespace BuildXL.AdoBuildRunner
                 {
                     if (retryAttempt == m_maxAttempts)
                     {
-                        throw new Exception($"Failed to execute {apiMethodName} after {retryAttempt} attempts", ex);
+                        throw new CoordinationException($"Failed to execute {apiMethodName} after {retryAttempt} attempts. Last exception details: {ex}");
                     }
                 }
 

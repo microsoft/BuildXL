@@ -25,6 +25,13 @@ namespace Test.Tool.AdoBuildRunner
 #pragma warning restore xUnit2012 // Do not use boolean check to check if a value exists in a collection
         }
 
+        public void AssertLogNotContains(string substring)
+        {
+#pragma warning disable xUnit2012 // Do not use boolean check to check if a value exists in a collection
+            Assert.False(Messages.Any(m => m.Contains(substring)));
+#pragma warning restore xUnit2012 // Do not use boolean check to check if a value exists in a collection
+        }
+
         public int MessageCount(string messageSubString)
         {
             var messageCount = 0;

@@ -85,11 +85,23 @@ namespace BuildXL.AdoBuildRunner.Vsts
         }
 
         /// <summary>
-        /// Return the name of the pool where the agent running this build is running on
+        /// Return the name of the pool where the agent running this build is running on.
+        /// Returns the empty string if the pool name can't be resolved (possible due to service failures)
         /// </summary>
         private Task<string> GetRunningPoolNameAsync()
         {
-            return m_retryHandler.ExecuteAsync(() => m_adoService.GetPoolNameAsync(), nameof(m_adoService.GetPoolNameAsync), m_logger);
+            try
+            {
+                return m_retryHandler.ExecuteAsync(() => m_adoService.GetPoolNameAsync(), nameof(m_adoService.GetPoolNameAsync), m_logger);
+            }
+            catch (Exception)
+            {
+                // We use the pool name as a sanity check - let's not fail if this operation fails.
+                // this will trigger a warning
+#pragma warning disable ERP022 // Unobserved exception in a generic exception handler
+                return Task.FromResult(string.Empty);
+#pragma warning restore ERP022 // Unobserved exception in a generic exception handler
+            }
         }
 
         /// <inheritdoc />
@@ -145,11 +157,15 @@ namespace BuildXL.AdoBuildRunner.Vsts
             try
             {
                 var workerPoolName = await GetRunningPoolNameAsync();
-                if (workerPoolName != buildInfo.OrchestratorPool)
+                // The pool name can be empty if we failed to resolve it (in either agent) - we do this best effort
+                if (!string.IsNullOrEmpty(workerPoolName) && !string.IsNullOrEmpty(buildInfo.OrchestratorPool))
                 {
-                    m_logger?.Warning($"This agent is running on pool '{workerPoolName}', which is different than the pool the orchestrator is running on '{buildInfo.OrchestratorPool}'");
-                    m_logger?.Warning($"This mismatch can occur when a backup pool is configured for the pool specified for this pipeline.");
-                    m_logger?.Warning($"The workers will fail to connect to the orchestrator if agents from '{workerPoolName}' and '{buildInfo.OrchestratorPool}' are not on the same network");
+                    if (workerPoolName != buildInfo.OrchestratorPool)
+                    {
+                        m_logger?.Warning($"This agent is running on pool '{workerPoolName}', which is different than the pool the orchestrator is running on '{buildInfo.OrchestratorPool}'");
+                        m_logger?.Warning($"This mismatch can occur when a backup pool is configured for the pool specified for this pipeline.");
+                        m_logger?.Warning($"The workers will fail to connect to the orchestrator if agents from '{workerPoolName}' and '{buildInfo.OrchestratorPool}' are not on the same network");
+                    }
                 }
             }
             catch (Exception)

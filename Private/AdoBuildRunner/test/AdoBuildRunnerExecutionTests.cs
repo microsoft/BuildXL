@@ -111,6 +111,10 @@ namespace Test.Tool.AdoBuildRunner
         [Fact]
         public async Task PoolMismatchIsLogged()
         {
+            var poolId = 0;
+            // Return a different pool for each agent
+            MockApiService.GetPoolName = () => $"Pool_{nameof(PoolMismatchIsLogged)}_{Interlocked.Increment(ref poolId)}";
+
             var (orchestrator, worker) = CreateOrchestratorWorkerPairBuild();
 
             var invocationKey = worker.Config.InvocationKey;
@@ -125,9 +129,6 @@ namespace Test.Tool.AdoBuildRunner
             var wManager = new BuildManager(worker.RunnerService, worker.BuildExecutor, buildArgs, worker.MockLogger);
             var oManager = new BuildManager(orchestrator.RunnerService, orchestrator.BuildExecutor, buildArgs, orchestrator.MockLogger);
 
-            var poolId = 0;
-            // Return a different pool for each agent
-            MockApiService.GetPoolName = () => $"Pool_{Interlocked.Increment(ref poolId)}";
 
             var oBuildTask = oManager.BuildAsync();
             var wBuildTask = wManager.BuildAsync();
@@ -139,6 +140,50 @@ namespace Test.Tool.AdoBuildRunner
 
             Assert.True(worker.MockLauncher.Launched);
             worker.MockLogger.AssertLogContains("is different than the pool the orchestrator is running on");
+        }
+
+        [Fact]
+        public async Task PoolMismatchIsBestEffort()
+        {
+            var poolId = 0;
+            MockApiService.GetPoolName = () =>
+            {
+                if (Interlocked.Increment(ref poolId) == 1)
+                {
+                    return "PoolName_1";
+                }
+
+                // Empty string means "failed to resolve"
+                return string.Empty;
+            };
+
+            var (orchestrator, worker) = CreateOrchestratorWorkerPairBuild();
+
+            var invocationKey = worker.Config.InvocationKey;
+
+            var orchTcs = new TaskCompletionSource();
+            orchestrator.MockLauncher.CompletionTask = orchTcs.Task;
+
+            orchestrator.Initialize();
+            worker.Initialize();
+
+            var buildArgs = new[] { "/foo", "/bar" };
+            var wManager = new BuildManager(worker.RunnerService, worker.BuildExecutor, buildArgs, worker.MockLogger);
+            var oManager = new BuildManager(orchestrator.RunnerService, orchestrator.BuildExecutor, buildArgs, orchestrator.MockLogger);
+
+            var oBuildTask = oManager.BuildAsync();
+            var wBuildTask = wManager.BuildAsync();
+
+            var ct = new CancellationTokenSource();
+            var workerReturn = await wBuildTask; // Worker finishes
+            orchTcs.SetResult();                 // And now let orchestrator finish
+            var orchReturn = await oBuildTask;
+
+            Assert.True(worker.MockLauncher.Launched);
+
+            // Even though there is a 'mismatch', we don't see a warning, because one of the 'GetPoolName' operations failed,
+            // so we just skipped the check.
+            worker.MockLogger.AssertLogNotContains("is different than the pool the orchestrator is running on");
         }
 
         private (AgentHarness Orchestrator, AgentHarness Worker) CreateOrchestratorWorkerPairBuild()

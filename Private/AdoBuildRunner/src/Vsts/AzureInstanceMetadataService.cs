@@ -1,6 +1,7 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 using System;
+using System.Net;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Threading.Tasks;
@@ -48,6 +49,16 @@ namespace BuildXL.AdoBuildRunner.Vsts
                 try
                 {
                     HttpResponseMessage response = await Client.GetAsync(ImdsUri);
+
+                    if (response.StatusCode == HttpStatusCode.Gone || response.StatusCode == HttpStatusCode.InternalServerError)
+                    {
+                        // IMDS docs say to 'retry after some time' upon these status codes. Wait for 20 seconds and try again
+                        // https://learn.microsoft.com/en-us/azure/virtual-machines/instance-metadata-service?tabs=windows#errors-and-debugging
+                        logger.Warning($"IMDS operation failed with status code {response.StatusCode}. Retrying after 20 seconds...");
+                        await Task.Delay(TimeSpan.FromSeconds(20));
+                        response = await Client.GetAsync(ImdsUri);
+                    }
+
                     response.EnsureSuccessStatusCode();
                     m_cachedMetadata = await response.Content.ReadFromJsonAsync<InstanceMetadata>();
                 }

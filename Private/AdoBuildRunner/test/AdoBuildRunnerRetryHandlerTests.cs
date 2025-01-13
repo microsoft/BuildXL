@@ -88,7 +88,7 @@ namespace Test.Tool.AdoBuildRunner
             }
 
             var apiMethodName = nameof(failingTask);
-            var exception = await Assert.ThrowsAsync<Exception>(() => retryHandler.ExecuteAsync(failingTask, apiMethodName, mockLogger));
+            var exception = await Assert.ThrowsAsync<CoordinationException>(() => retryHandler.ExecuteAsync(failingTask, apiMethodName, mockLogger));
 
             // Verify that the method was retried the expected number of times.
             Assert.Equal(MaxRetryAttempts, retryAttemptCount);

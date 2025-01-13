@@ -1075,9 +1075,6 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   <data name="HelpText_DisplayHelp_Unsafe_IgnoreFullReparsePointResolving" xml:space="preserve">
     <value>When enabled, {ShortProductName} will not fully resolve paths containing any sort of reparse point. This might lead to incorrect builds because some file accesses will not be enforced or tracked at all.</value>
   </data>
-  <data name="HelpText_DisplayHelp_Unsafe_IgnorePreloadedDlls" xml:space="preserve">
-    <value>When enabled, {ShortProductName} will not report Dlls loaded before Detours was started. This might lead to incorrect builds because some file accesses will not be enforced.</value>
-  </data>
   <data name="HelpText_DisplayHelp_Unsafe_DisableDetours" xml:space="preserve">
     <value>When enabled, {ShortProductName} will not detour any processes. This might lead to incorrect builds because any file accesses will not be enforced.</value>
   </data>

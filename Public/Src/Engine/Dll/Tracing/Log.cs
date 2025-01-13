@@ -1096,15 +1096,6 @@ namespace BuildXL.Engine.Tracing
         public abstract void ConfigIgnoreFullReparsePointResolving(LoggingContext context);
 
         [GeneratedEvent(
-            (ushort)LogEventId.ConfigIgnorePreloadedDlls,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Warning,
-            Keywords = (int)Keywords.UserMessage,
-            EventTask = (int)Tasks.Engine,
-            Message = "/unsafe_IgnorePreloadedDlls enabled: {ShortProductName} is configured not to track preloaded Dlls. This might lead to incorrect builds because some file accesses will not be enforced.")]
-        public abstract void ConfigIgnorePreloadedDlls(LoggingContext context);
-
-        [GeneratedEvent(
             (ushort)LogEventId.ConfigDisableDetours,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,

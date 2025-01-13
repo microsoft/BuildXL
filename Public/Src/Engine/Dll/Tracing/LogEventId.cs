@@ -103,7 +103,7 @@ namespace BuildXL.Engine.Tracing
         ConfigUnsafeOptimizedAstConversion = 931,
         ConfigIncompatibleIncrementalSchedulingDisabled = 933,
         ConfigIncompatibleOptionWithDistributedBuildError = 934,
-        ConfigIgnorePreloadedDlls = 935,
+        //was ConfigIgnorePreloadedDlls = 935,
         ConfigIncompatibleOptionWithDistributedBuildWarn = 936,
 
         WarnToNotUsePackagesButModules = 937,

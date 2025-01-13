@@ -1134,13 +1134,6 @@ namespace BuildXL
                                 sandboxConfiguration.UnsafeSandboxConfigurationMutable.EnableFullReparsePointResolving = !sign;
                             },
                             isUnsafe: true),
-                        OptionHandlerFactory.CreateBoolOption(
-                            "unsafe_IgnorePreloadedDlls",
-                            sign =>
-                            {
-                                // TODO - this flag can be removed once BuildXL.Internal usages go away
-                            },
-                            isUnsafe: true),
                         OptionHandlerFactory.CreateBoolOptionWithValue(
                             "unsafe_IgnoreDynamicWritesOnAbsentProbes",
                             (opt, sign) =>

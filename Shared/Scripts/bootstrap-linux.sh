@@ -3,6 +3,9 @@
 arg_InstallOptional=""
 arg_HyperV=""
 
+. /etc/lsb-release
+operatingSystem=$(echo "$DISTRIB_ID" | tr '[:upper:]' '[:lower:]')
+
 debugprint() {
     local message=$@
     NoColour='\033[0m'
@@ -29,10 +32,24 @@ parseArgs() {
     done
 }
 
+installPackages() {
+    debugprint "Installing $@"
+    case "$operatingSystem" in
+        "ubuntu")
+            sudo apt update -y
+            sudo apt install -y $@
+        ;;
+        "mariner" | "azurelinux")
+            sudo dnf install -y -v $@
+        ;;
+    esac
+}
+
 parseArgs $@
 
 # On hyper-v machines, we want to auto expand the root partition
-if [[ -n "$arg_HyperV" ]]; then
+# currently not necessary to do this on AzureLinux because prebuilt vhds aren't provided
+if [[ -n "$arg_HyperV" && "$operatingSystem" == "ubuntu" ]]; then
     # /dev/sda1 should be the root partition on the hyper-v quick created machines
     debugprint "Expanding /dev/sda1 to take up remaining unallocated space"
     debugprint "Installing cloud-guest-utils"
@@ -49,62 +66,60 @@ mkdir ~/git
 cd ~/git
 
 # Required packages
-debugprint "Installing required packages"
-sudo apt update -y
-sudo apt install -y git build-essential mono-devel mono-complete libc6-dev openssh-server curl
+debugprint "Required packages:"
+    case "$operatingSystem" in
+        "ubuntu")            
+            if [[ "$DISTRIB_RELEASE" == "20.04" ]]; then
+                wget https://packages.microsoft.com/config/ubuntu/20.04/packages-microsoft-prod.deb -O packages-microsoft-prod.deb
+                sudo dpkg -i packages-microsoft-prod.deb
+                rm packages-microsoft-prod.deb
+            fi
 
-. /etc/lsb-release
-if [[ "$DISTRIB_RELEASE" == "22.04" ]]; then
-    sudo apt install -y dotnet8
-fi
-
-if [[ "$DISTRIB_RELEASE" == "20.04" ]]; then
-    wget https://packages.microsoft.com/config/ubuntu/20.04/packages-microsoft-prod.deb -O packages-microsoft-prod.deb
-    sudo dpkg -i packages-microsoft-prod.deb
-    rm packages-microsoft-prod.deb
-
-    sudo apt-get update -y
-    sudo apt-get install -y dotnet-sdk-6.0
-fi
+            installPackages "build-essential" "libc6-dev" "openssh-server" "curl" "dotnet-sdk-8.0"
+        ;;
+        "mariner" | "azurelinux")
+            installPackages "rsync" "glibc-static.x86_64" "time" "dotnet-sdk-8.0"
+        ;;
+    esac
 
 # Git credential manager
 debugprint "Installing Git Credential Manager"
-wget https://github.com/GitCredentialManager/git-credential-manager/releases/download/v2.0.785/gcm-linux_amd64.2.0.785.deb
-sudo apt install -y ./gcm-linux_amd64.2.0.785.deb
-rm gcm-linux_amd64.2.0.785.deb
+source ~/.bashrc
+sudo dotnet workload update
+dotnet tool install -g git-credential-manager
+source ~/.bashrc
 
-debugprint "Configuring Git Credential Manager to use Secret Service for credential caching and setting timeout to 600000"
-git-credential-manager-core configure
-git config --global credential.credentialStore secretservice --replace-all
-git config --global credential.helper 'cache --timeout=600000' --replace-all
+debugprint "Configuring Git Credential Manager to use git credential cache and use oauth authentication"
+git-credential-manager configure
+git config --global credential.credentialStore cache --replace-all
+git config --global credential.cacheOptions "--timeout 600000" --replace-all
+git config --global credential.azreposCredentialType oauth --replace-all
+
 
 # Clone the BuildXL repo
 debugprint "Cloning BuildXL.Internal repository to ~/git/BuildXL.Internal"
-debugprint "Please sign into your Microsoft account when the interactive authentication Window opens in Firefox"
 git clone https://mseng@dev.azure.com/mseng/Domino/_git/BuildXL.Internal
 
 # Optional quality of life tweaks
 if [[ -n "$arg_InstallOptional" ]]; then
-    debugprint "Installing zsh and ohmyzsh"
-    sudo apt install -y zsh
-    sh -c "$(curl -fsSL https://raw.github.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
+    installPackages "fish"
+    
+    # Set fish to the default shell
+    chsh -s $(which fish)
 
-    # Set zsh to the default shell
-    chsh -s $(which zsh)
+    if [[ "$operatingSystem" == "ubuntu" ]]; then
+        # no GUI on Mariner so we can skip this
+        debugprint "Installing Visual Studio Code"
+        wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > packages.microsoft.gpg
+        sudo install -D -o root -g root -m 644 packages.microsoft.gpg /etc/apt/keyrings/packages.microsoft.gpg
+        sudo sh -c 'echo "deb [arch=amd64,arm64,armhf signed-by=/etc/apt/keyrings/packages.microsoft.gpg] https://packages.microsoft.com/repos/code stable main" > /etc/apt/sources.list.d/vscode.list'
+        rm -f packages.microsoft.gpg
 
-    # bindkey for ctrl + backspace to delete an entire word
-    echo "bindkey '^H' backward-kill-word" >> ~/.zshrc
+        sudo apt install -y apt-transport-https
+        sudo apt update -y
+        sudo apt install -y code
 
-    debugprint "Installing Visual Studio Code"
-    wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > packages.microsoft.gpg
-    sudo install -D -o root -g root -m 644 packages.microsoft.gpg /etc/apt/keyrings/packages.microsoft.gpg
-    sudo sh -c 'echo "deb [arch=amd64,arm64,armhf signed-by=/etc/apt/keyrings/packages.microsoft.gpg] https://packages.microsoft.com/repos/code stable main" > /etc/apt/sources.list.d/vscode.list'
-    rm -f packages.microsoft.gpg
-
-    sudo apt install -y apt-transport-https
-    sudo apt update -y
-    sudo apt install -y code
-
-    debugprint "Installing glogg"
-    sudo apt install -y glogg
+        debugprint "Installing glogg"
+        sudo apt install -y glogg
+    fi
 fi

@@ -184,6 +184,61 @@ void WriteWarningOrErrorF(PCWSTR format, ...)
     WriteMessage(result.c_str());
 }
 
+bool LaunchDebugger()
+{
+    if (IsDebuggerPresent())
+    {
+        // If we are already running under a debugger, we don't need to launch one.
+        return true;
+    }
+
+    WCHAR wszSysDirBuffer[MAX_PATH];
+    DWORD nSysDirBufferLength = sizeof(wszSysDirBuffer) / sizeof(WCHAR);
+    std::wstring systemDir;
+
+    // Get System directory, typically c:\windows\system32
+    UINT nChars = GetSystemDirectoryW(wszSysDirBuffer, nSysDirBufferLength);
+    if (nChars == 0 || nChars >= nSysDirBufferLength)
+    {
+        // Failed to get system directory.
+        // This function is just for debugging, and not production, so we ignore failure.
+        // Note that we are using MAX_PATH as a buffer size, which is a reasonable size for a path, so we don't expect this to fail due to insufficient buffer.
+        return false;
+    }
+
+    systemDir = std::wstring(wszSysDirBuffer, static_cast<size_t>(nChars));
+    std::wstring cmdLine = DebugStringFormat(L"%s\\vsjitdebugger.exe -p %d", systemDir.c_str(), GetCurrentProcessId());
+
+    // Start debugger process
+    STARTUPINFOW si;
+    ZeroMemory(&si, sizeof(si));
+    si.cb = sizeof(si);
+
+    PROCESS_INFORMATION pi;
+    ZeroMemory(&pi, sizeof(pi));
+
+    if (!CreateProcessW(NULL, &cmdLine[0], NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi))
+    {
+        // Failed to launch the debugger.
+        // This function is just for debugging, and not production, so we ignore failure.
+        return false;
+    }
+
+    // Close debugger process handles to eliminate resource leak
+    CloseHandle(pi.hThread);
+    CloseHandle(pi.hProcess);
+
+    // Wait for the debugger to attach
+    while (!IsDebuggerPresent())
+    {
+        Sleep(100);
+    }
+
+    // Stop execution so the debugger can take over
+    DebugBreak();
+    return true;
+}
+
 #endif // DETOURS_SERVICES_NATIVES_LIBRARY
 
 #ifdef BUILDXL_NATIVES_LIBRARY
@@ -200,6 +255,11 @@ void HandleDetoursInjectionAndCommunicationErrors(int errorCode, LPCWSTR eventLo
 
     fflush(stdout);
     fflush(stderr);
+}
+
+bool LaunchDebugger()
+{
+    return false;
 }
 #endif // BUILDXL_NATIVES_LIBRARY
 

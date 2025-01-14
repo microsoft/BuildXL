@@ -44,6 +44,10 @@ void WriteWarningOrErrorF(PCWSTR format, ...);
 
 void MaybeBreakOnAccessDenied();
 
+#if _WIN32
+bool LaunchDebugger();
+#endif
+
 #if MAC_OS_LIBRARY || MAC_OS_SANDBOX
 #pragma clang diagnostic pop
 #endif

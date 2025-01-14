@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.IO;
-using System.IO.Compression;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Engine.Cache;
@@ -16,13 +15,12 @@ using BuildXL.Pips;
 using BuildXL.Pips.DirectedGraph;
 using BuildXL.Pips.Graph;
 using BuildXL.Scheduler;
-using BuildXL.Scheduler.Graph;
-using BuildXL.Utilities;
-using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
-using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Qualifier;
+using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Serialization;
+using ZstdSharp;
 
 namespace BuildXL.Engine
 {
@@ -255,7 +253,7 @@ namespace BuildXL.Engine
 
                             var isCompressed = fileStream.ReadByte() == 1;
 
-                            using (Stream readStream = isCompressed ? new TrackedStream(new BufferedStream(new DeflateStream(fileStream, CompressionMode.Decompress), 64 << 10)) : fileStream)
+                            using (Stream readStream = isCompressed ? new TrackedStream(new BufferedStream(new DecompressionStream(fileStream), 64 << 10)) : fileStream)
                             using (BuildXLReader reader = new BuildXLReader(m_debug, readStream, leaveOpen: false))
                             {
                                 result = await deserializer(reader);
@@ -370,7 +368,9 @@ namespace BuildXL.Engine
 
                     if (m_useCompression)
                     {
-                        using (var writer = new BuildXLWriter(m_debug, new TrackedStream(new BufferedStream(new DeflateStream(fileStream, CompressionLevel.Fastest, leaveOpen: true), bufferSize: 64 << 10)), false, false))
+
+                        
+                        using (var writer = new BuildXLWriter(m_debug, new TrackedStream(new BufferedStream(new CompressionStream(fileStream, level: 2, leaveOpen: true), bufferSize: 64 << 10)), false, false))
                         {
                             // TODO: We can improve performance significantly by parallelizing the compression.
                             // There's no setting to do that, but given you have the entire file content upfront in a memory stream,

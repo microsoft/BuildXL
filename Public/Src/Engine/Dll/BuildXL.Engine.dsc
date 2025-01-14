@@ -54,6 +54,7 @@ namespace Engine {
             ...importFrom("BuildXL.Cache.ContentStore").getGrpcPackages(true),
             ...importFrom("BuildXL.Cache.ContentStore").getGrpcAspNetCorePackages(),
             importFrom("Newtonsoft.Json").pkg,
+            importFrom("ZstdSharp.Port").pkg,
         ],
         internalsVisibleTo: [
             "BxlPipGraphFragmentGenerator",

@@ -23,7 +23,12 @@ jobs:
       buildVersionToDownload: 'specific'
       pipelineId: '$(RollingBuild.BuildId)'
       artifactName: 'buildxl-external.pkgs.$(RollingBuild.BuildNumber)'
-      itemPattern: 'Microsoft.BuildXL.win-x64.0.1.0*'
+      # Microsoft.BuildXL.win pkg exclude BuildXLNative.pdb and DetoursServices.pdb
+      # Add Microsoft.BuildXL.Processes and Microsoft.BuildXL.Native to include the pdb files
+      itemPattern: |
+        Microsoft.BuildXL.win-x64.0.1.0* 
+        Microsoft.BuildXL.Processes.0.1.0*
+        Microsoft.BuildXL.Native.0.1.0*
       targetPath: '$(System.DefaultWorkingDirectory)\win'
 
   - task: PowerShell@2
@@ -34,19 +39,19 @@ jobs:
             $directory = "$(System.DefaultWorkingDirectory)\Win"
             $destinationDirectory = "$(System.DefaultWorkingDirectory)\WinExpanded"
 
-            $file = Get-ChildItem -Path $directory -Filter *.nupkg
-            $nameWithoutExtension = [System.IO.Path]::GetFileNameWithoutExtension($file.FullName)
+            $nupkgFiles = Get-ChildItem -Path $directory -Filter *.nupkg
+            foreach($file in $nupkgFiles) {
+              $nameWithoutExtension = [System.IO.Path]::GetFileNameWithoutExtension($file.FullName)
 
-            $newName = $nameWithoutExtension+".zip"
-            Rename-Item -Path $file.FullName -NewName $newName
-
-            $zipfile = $file.DirectoryName + "\\" + $newName
-
-            if (!(Test-Path -Path $destinationDirectory)) {
+              $newName = $nameWithoutExtension+".zip"
+              Rename-Item -Path $file.FullName -NewName $newName
+              $zipfile = $file.DirectoryName + "\\" + $newName
+              if (!(Test-Path -Path $destinationDirectory)) {
                 New-Item -ItemType Directory -Force -Path $destinationDirectory
-            }
+              }
 
-            Expand-Archive -Path $zipfile -DestinationPath $destinationDirectory -Force
+              Expand-Archive -Path $zipfile -DestinationPath $destinationDirectory -Force
+            }
 
   - task: AzureCLI@2
     inputs:

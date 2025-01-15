@@ -226,8 +226,7 @@ namespace BuildXL.AdoBuildRunner.Vsts
 
             var elapsedTime = 0;
 
-
-            m_logger.Info($"Querying the build properties of build {triggeringBuildId} for the orchestrator's information");
+            m_logger.Info($"Polling the build properties for the orchestrator's information (this operation will timeout in {Config.MaximumWaitForWorkerSeconds} seconds)...");
             while (elapsedTime < Config.MaximumWaitForWorkerSeconds)
             {
                 var properties = await m_retryHandler.ExecuteAsync(() => m_adoService.GetBuildPropertiesAsync(triggeringBuildId), nameof(m_adoService.GetBuildPropertiesAsync), m_logger);
@@ -243,12 +242,17 @@ namespace BuildXL.AdoBuildRunner.Vsts
                     return buildInfo;
                 }
 
-                m_logger.Info($"Couldn't find the build info in the build properties: retrying in {Constants.PollRetryPeriodInSeconds} Seconds(s)...");
                 await Task.Delay(TimeSpan.FromSeconds(Constants.PollRetryPeriodInSeconds));
                 elapsedTime += Constants.PollRetryPeriodInSeconds;
             }
 
-            LogAndThrow($"Waiting for orchestrator address failed after {Config.MaximumWaitForWorkerSeconds} seconds. Aborting...");
+            LogAndThrow($"Did not receive the orchestrator information after {Config.MaximumWaitForWorkerSeconds} seconds." +
+                $"The task will be aborted, but note that this timeout is by design (and configurable with the maximumWaitForAgentSeconds option)." +
+                $"This error means that either the job in the orchestrator agent failed before running the BuildXL task, " +
+                $"or that said task did not start before this agent hit the timeout. " +
+                $"The latter can happen naturally due to variance in the agents' starting time and/or the durations of pre-build tasks." +
+                "Comparing the timestamps of the orchestrator task with this task will clarify which scenario was hit.");
+
             return null;
         }
 

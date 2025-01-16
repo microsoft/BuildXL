@@ -65,7 +65,6 @@ namespace Execution.Analyzer {
             importFrom("Microsoft.TeamFoundationServer.Client").pkg,
             importFrom("Microsoft.VisualStudio.Services.Client").pkg,
             importFrom("Microsoft.VisualStudio.Services.InteractiveClient").pkg,
-            importFrom("ZstdSharp.Port").pkg,
         ],
         internalsVisibleTo: ["Test.Tool.Analyzers"],
         defineConstants: addIf(BuildXLSdk.Flags.isVstsArtifactsEnabled, "FEATURE_VSTS_ARTIFACTSERVICES"),

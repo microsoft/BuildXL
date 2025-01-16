@@ -51,7 +51,6 @@ namespace Scheduler {
             importFrom("BuildXL.Utilities.Instrumentation").AriaCommon.dll,
             importFrom("BuildXL.FrontEnd").Sdk.dll,
             importFrom("Newtonsoft.Json").pkg,
-            importFrom("ZstdSharp.Port").pkg,
             ...importFrom("Sdk.Selfhost.RocksDbSharp").pkgs,
             ...importFrom("BuildXL.Cache.ContentStore").getProtobufPackages(),
             

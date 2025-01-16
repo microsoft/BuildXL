@@ -40,7 +40,6 @@ namespace Test.Tool.Analyzers {
             importFrom("BuildXL.Utilities.UnitTests").TestProcess.exe,
             importFrom("BuildXL.Utilities.UnitTests").StorageTestUtilities.dll,
             importFrom("Newtonsoft.Json").pkg,
-            importFrom("ZstdSharp.Port").pkg,
         ],
         runtimeContent: [
             importFrom("BuildXL.Utilities.UnitTests").testProcessExe

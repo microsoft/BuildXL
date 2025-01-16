@@ -15,7 +15,6 @@ using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 using static BuildXL.Utilities.Core.FormattableStringEx;
-using ExecutionLogDecompressorConstants = BuildXL.Execution.Analyzer.ExecutionLogDecompressor.ExecutionLogDecompressorConstants;
 
 namespace BuildXL.Execution.Analyzer
 {
@@ -60,7 +59,11 @@ namespace BuildXL.Execution.Analyzer
                 {
                     var archive = archiveWrapper.Value;
                     var xlgEntries = archive.Entries.Where(entry => entry.FullName.EndsWith(".xlg", System.StringComparison.OrdinalIgnoreCase)).ToList();
-                    VerifyNumberOfXlgFiles(xlgEntries.Count, path, "zip");
+                    if (xlgEntries.Count != 1)
+                    {
+                        throw new BuildXLException(I($"Execution log path '{path}' appears to refer to a zip file. Expected to find exactly one entry with extension '.xlg' but found {xlgEntries.Count} "));
+                    }
+
                     path = Path.Combine(path, xlgEntries[0].FullName.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar).TrimStart(Path.DirectorySeparatorChar));
                 }
             }
@@ -71,26 +74,16 @@ namespace BuildXL.Execution.Analyzer
                 if (path != null && Directory.Exists(path))
                 {
                     var xlgFiles = Directory.GetFiles(path, "*.xlg", SearchOption.TopDirectoryOnly);
-                    VerifyNumberOfXlgFiles(xlgFiles.Length, path, "directory");
+                    if (xlgFiles.Length != 1)
+                    {
+                        throw new BuildXLException(I($"Execution log path '{path}' appears to refer to a directory. Expected to find exactly one file at root with extension '.xlg' but found {xlgFiles.Length} "));
+                    }
+
                     path = xlgFiles[0];
                 }
             }
 
-            // Validate and decompress the compressed ExecutionLogFile.
-            return ExecutionLogDecompressor.GetDecompressedExecutionLogFile(path);
-        }
-
-        /// <summary>
-        /// Ensure that there are not more than two xlg files at any time in the logs folder.
-        /// If the file is compressed then there will be two xlg files.
-        /// Ex: /Out/Logs/BuildXL.xlg and /Out/Logs/BuildXL_decompressed.xlg
-        /// </summary>
-        private void VerifyNumberOfXlgFiles(int fileCount, string path, string type)
-        {
-            if (fileCount < 1 || fileCount > 2)
-            {
-                throw new BuildXLException(I($"Execution log path '{path}' appears to refer to a {type}. Expected to find not more than two entries with extension '.xlg' but found {fileCount} "));
-            }
+            return path;
         }
 
         public bool LoadCacheGraph(string cachedGraphDirectory)
@@ -111,12 +104,7 @@ namespace BuildXL.Execution.Analyzer
 
             CachedGraphDirectory = !string.IsNullOrWhiteSpace(cachedGraphDirectory)
                 ? cachedGraphDirectory
-               : Path.Combine(
-                    Path.GetDirectoryName(ExecutionLogPath),
-                    // We need to extract the suffix from the decompressed file name of the format BuildXL_decompressed.xlg
-                    Path.GetFileName(ExecutionLogPath).Contains(ExecutionLogDecompressorConstants.DecompressedExecutionLogFileSuffixWithExtension)
-                        ? Path.GetFileName(ExecutionLogPath).Split(ExecutionLogDecompressorConstants.DecompressedExecutionLogFileSuffixWithExtension)[0]
-                        : Path.GetFileNameWithoutExtension(ExecutionLogPath));
+                : Path.Combine(Path.GetDirectoryName(ExecutionLogPath), Path.GetFileNameWithoutExtension(ExecutionLogPath));
 
             using (ConsoleEventListener listener = new ConsoleEventListener(Events.Log, DateTime.UtcNow,
                 eventMask: new EventMask(

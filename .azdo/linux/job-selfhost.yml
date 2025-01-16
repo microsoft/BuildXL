@@ -9,6 +9,14 @@ parameters:
     image: linux-PME-GPT
     os: linux
 
+- name: sdkVersion
+  type: string
+  default: '8.x'
+
+# Pre-build steps, including downloading BuildXL if needed
+- name: preBuildSteps
+  type: stepList
+  default: []
 
 jobs:
 - template: job-build-selfhost-base.yml
@@ -17,6 +25,7 @@ jobs:
     internal: true
     publishTestResults: true
     pool: ${{ parameters.pool }}
+    sdkVersion: ${{ parameters.sdkVersion }}
     distribution:
       enabled: true
       workerCount: 1
@@ -38,3 +47,6 @@ jobs:
         artifactName: Dev
         # Use the path that --deploy-dev would use, because we --use-dev in the validation
         targetPath: "$(Build.SourcesDirectory)/Out/Selfhost/Dev"
+    
+    - ${{ each step in parameters.preBuildSteps }}:
+      - ${{ step }}

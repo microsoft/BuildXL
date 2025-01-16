@@ -48,6 +48,10 @@ parameters:
     name: BuildXL-DevOpsAgents-Selfhost
     image: linux-PME-GPT
     os: linux
+  
+- name: sdkVersion
+  type: string
+  default: '8.x'
 
 jobs:
 - job: Selfhost_${{ parameters.validationName }}
@@ -82,7 +86,9 @@ jobs:
 
     preBuildSteps: 
     - template: /.azdo/common/use-latest-dotnet-sdk.yml@self
-    
+      parameters:
+        sdkVersion: ${{ parameters.sdkVersion }}
+        
     - template: /.azdo/common/generate-access-token.yml@self
       parameters:
         AccessTokenVariable: BuildXL-Pipeline-AccessToken

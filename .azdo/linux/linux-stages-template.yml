@@ -12,12 +12,31 @@ parameters:
     /p:[Sdk.BuildXL]xunitSemaphoreCount=8 
     /forceAddExecutionPermission-
   '
+- name: BxlDistributedArgs
+  type: string
+  default: '
+    /c:/home/subst/Private/AdoDistributionTests/config.dsc
+    /p:BUILDXL_FINGERPRINT_SALT=*
+    /p:BUILDXL_GRAPH_FINGERPRINT_SALT=*
+    /replicateOutputsToWorkers+ 
+    /p:BuildXLMinimumWaitForRemoteWorkerMin=5
+  '
+
 - name: pool
   type: object
   default: 
     name: BuildXL-DevOpsAgents-Selfhost
     image: linux-PME-GPT
     os: linux
+
+- name: sdkVersion
+  type: string
+  default: '8.x'
+
+# Pre-build steps, including downloading BuildXL if needed
+- name: preBuildSteps
+  type: stepList
+  default: []
 
 stages:
 - stage: Bootstrap_Internal
@@ -29,6 +48,7 @@ stages:
     parameters:
       BxlCommonArgs: --shared-comp ${{ parameters.BxlCommonArgs }}
       pool: ${{ parameters.pool }}
+      sdkVersion: ${{ parameters.sdkVersion }}
 
 - stage: Build_External
   displayName: External validation
@@ -38,6 +58,7 @@ stages:
       parameters:
         BxlCommonArgs: --shared-comp ${{ parameters.BxlCommonArgs }}
         pool: ${{ parameters.pool }}
+        sdkVersion: ${{ parameters.sdkVersion }}
 
 - stage: Build_Internal
   displayName: Internal validation
@@ -47,6 +68,10 @@ stages:
     parameters:
       BxlCommonArgs: --shared-comp ${{ parameters.BxlCommonArgs }}
       pool: ${{ parameters.pool }}
+      sdkVersion: ${{ parameters.sdkVersion }}
+      preBuildSteps:
+      - ${{ each step in parameters.preBuildSteps }}:
+        - ${{ step }}
 
 - stage: Verify_PTrace
   displayName: PTrace validation
@@ -56,6 +81,7 @@ stages:
     parameters:
       BxlCommonArgs: ${{ parameters.BxlCommonArgs }}
       pool: ${{ parameters.pool }}
+      sdkVersion: ${{ parameters.sdkVersion }}
 
 - stage: Build_Distributed
   displayName: Distributed test
@@ -63,9 +89,13 @@ stages:
   jobs:
   - template: /.azdo/linux/job-distributed-1espt.yml@self
     parameters:
+      BxlDistributedArgs: ${{ parameters.BxlDistributedArgs }}
       pool:
         # This stage expects a pool with a build cache configured, so harcoding that one
         ${{ each kvp in parameters.pool }}:
           ${{ if not(in(kvp.key, 'name')) }}:
             ${{ kvp.key }}: ${{ kvp.value }}
         name: BuildXL-DevOpsAgents-Selfhost-BuildCache
+      preBuildSteps:
+      - ${{ each step in parameters.preBuildSteps }}:
+        - ${{ step }}

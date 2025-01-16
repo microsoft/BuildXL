@@ -7,6 +7,21 @@ parameters:
     image: linux-PME-GPT
     os: linux
 
+- name: BxlDistributedArgs
+  type: string
+  default: '
+    /c:/home/subst/Private/AdoDistributionTests/config.dsc
+    /p:BUILDXL_FINGERPRINT_SALT=*
+    /p:BUILDXL_GRAPH_FINGERPRINT_SALT=*
+    /replicateOutputsToWorkers+ 
+    /p:BuildXLMinimumWaitForRemoteWorkerMin=5
+  '
+
+# Pre-build steps, including downloading BuildXL if needed
+- name: preBuildSteps
+  type: stepList
+  default: []
+
 jobs:
 - job: TestDistributed
   displayName: Test distributed build
@@ -57,6 +72,9 @@ jobs:
         chmod +x $(BootstrapLocation)/bxl
       displayName: Set execution bits
     
+    - ${{ each step in parameters.preBuildSteps }}:
+      - ${{ step }}
+    
     # Build parameters
     buildXL:
       # We don't use the automatic installation for selfhost builds
@@ -66,13 +84,7 @@ jobs:
       invoker: exe
       engineLocation: $(BootstrapLocation)
       
-      arguments: '
-        /c:/home/subst/Private/AdoDistributionTests/config.dsc
-        /p:BUILDXL_FINGERPRINT_SALT=*
-        /p:BUILDXL_GRAPH_FINGERPRINT_SALT=*
-        /replicateOutputsToWorkers+ 
-        /p:BuildXLMinimumWaitForRemoteWorkerMin=5
-        '
+      arguments: ${{ parameters.BxlDistributedArgs }}
       env:
         TRANSFORMERS_SDK_DIR: /home/subst/Public/Sdk/Public/Transformers
         OUTPUT_DIR: /home/subst/Out

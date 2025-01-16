@@ -9,6 +9,10 @@ parameters:
     image: linux-PME-GPT
     os: linux
 
+- name: sdkVersion
+  type: string
+  default: '8.x'
+
 jobs:
 - template: job-build-selfhost-base.yml
   parameters:
@@ -17,6 +21,7 @@ jobs:
     internal: false
     publishTestResults: true
     pool: ${{ parameters.pool }}
+    sdkVersion: ${{ parameters.sdkVersion }}
     
     outputs:
     - output: pipelineArtifact

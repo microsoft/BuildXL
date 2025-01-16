@@ -1,5 +1,10 @@
+parameters:
+- name: sdkVersion
+  type: string
+  default: '8.x'
+
 steps:
 - task: UseDotNet@2
-  displayName: Use .NET Core sdk 8.x
+  displayName: Use .NET Core sdk ${{ parameters.sdkVersion }}
   inputs:
-    version: 8.x
+    version: ${{ parameters.sdkVersion }}

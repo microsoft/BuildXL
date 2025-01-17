@@ -112,6 +112,7 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
             // Force it to use a non-sharding account
             shards.Add(new BlobCacheStorageNonShardingAccountName("devstoreaccount1"));
 
+            //With account not null, AzuriteStorageProcess always create new process instead of reuse one
             var process = AzuriteStorageProcess.CreateAndStart(
                 _redis,
                 _logger,
@@ -510,7 +511,8 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
             {
                 foreach (var database in _databasesToDispose)
                 {
-                    database.Dispose();
+                    // Close the process since this test is not reusing the process
+                    database.Dispose(true);
                 }
             }
         }

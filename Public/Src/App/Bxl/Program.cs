@@ -158,7 +158,8 @@ namespace BuildXL
             string clientPathSubst = translator.Translate(clientPath);
 
             // Launch bxl again via RunInSubst as a child process, with same arguments, but disable /runInSubst and specify subst target and source
-            string arguments = $"B=\"{substSource}\" \"{clientPathSubst}\" {string.Join(" ", rawArgs)} /runInSubst- /substTarget:{substTarget} /substSource:\"{substSource}\"";
+            char substTargetDriveLetter = substTarget[0];
+            string arguments = $"{substTargetDriveLetter}=\"{substSource}\" \"{clientPathSubst}\" {string.Join(" ", rawArgs)} /runInSubst- /substTarget:{substTarget} /substSource:\"{substSource}\"";
 
             var startInfo = new ProcessStartInfo
             {

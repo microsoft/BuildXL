@@ -1236,9 +1236,6 @@ namespace BuildXL
                             "validateDistribution",
                             sign => distributionConfiguration.ValidateDistribution = sign),
                         OptionHandlerFactory.CreateBoolOption(
-                            "validateExistingFileAccessesForOutputs",
-                            sign => { /* Do nothing Office and WDG are still passing this flag even though it is deprecated. */ }),
-                        OptionHandlerFactory.CreateBoolOption(
                             "verifyCacheLookupPin",
                             sign => schedulingConfiguration.VerifyCacheLookupPin = sign),
                         OptionHandlerFactory.CreateBoolOption(

@@ -319,10 +319,10 @@ namespace Test.BuildXL.FrontEnd.Rush
             var result = Start(new RushResolverSettings
             {
                 EnforceSourceReadsUnderPackageRoots = true,
-                AdditionalSourceReadsScopes = new List<DiscriminatingUnion<DirectoryArtifact, string>>()
+                AdditionalSourceReadsScopes = new List<DiscriminatingUnion<DirectoryArtifact, string, IJavaScriptScopeWithSelector>>()
                         { 
-                            new DiscriminatingUnion<DirectoryArtifact, string>(DirectoryArtifact.CreateWithZeroPartialSealId(additionalSourceReadScope)),
-                            new DiscriminatingUnion<DirectoryArtifact, string>(additionalRegex),
+                            new (DirectoryArtifact.CreateWithZeroPartialSealId(additionalSourceReadScope)),
+                            new (additionalRegex),
                         },
             })
                 .Add(projectA)
@@ -364,6 +364,62 @@ namespace Test.BuildXL.FrontEnd.Rush
             // It should also contain the regex
             XAssert.Contains(
                 processC.AllowedUndeclaredSourceReadRegexes.Select(regexDescriptor => regexDescriptor.Pattern),
+                additionalRegexId);
+        }
+
+
+        [Fact]
+        public void UndeclaredReadScopesWithSelector()
+        {
+            // Create independent projects
+            var projectA = CreateRushProject("@ms/Project-Named-A");
+            var projectB = CreateRushProject("@ms/Project-Named-B");
+
+            var additionalSourceReadScope = AbsolutePath.Create(PathTable, TestRoot).Combine(PathTable, "additional-source-dir");
+            var additionalRegex = ".*ignore.*";
+            var additionalRegexId = StringId.Create(StringTable, additionalRegex);
+
+            // Turn on source read scope enforcement and add additional scopes selecting the project to which they apply
+            var result = Start(new RushResolverSettings
+            {
+                EnforceSourceReadsUnderPackageRoots = true,
+                AdditionalSourceReadsScopes = new List<DiscriminatingUnion<DirectoryArtifact, string, IJavaScriptScopeWithSelector>>()
+                        {
+                            new (new JavaScriptScopeWithSelector()
+                            {
+                                Scope = new (DirectoryArtifact.CreateWithZeroPartialSealId(additionalSourceReadScope)),
+                                Packages = [new (new JavaScriptProjectRegexSelector() { PackageNameRegex = "Named-A" })],
+                            }),
+                            new (new JavaScriptScopeWithSelector()
+                            {
+                                Scope = new (additionalRegex),
+                                Packages = [new (new JavaScriptProjectRegexSelector() { PackageNameRegex = "Named-B" })],
+                            }),
+                        },
+                })
+                .Add(projectA)
+                .Add(projectB)
+                .ScheduleAll();
+
+            // Project A should be able to read from the additional scope
+            var processA = result.RetrieveSuccessfulProcess(projectA);
+            XAssert.Contains(
+                processA.AllowedUndeclaredSourceReadScopes,
+                additionalSourceReadScope);
+
+            // It should not contain the regex
+            XAssert.ContainsNot(
+                processA.AllowedUndeclaredSourceReadRegexes.Select(regexDescriptor => regexDescriptor.Pattern),
+                additionalRegexId);
+
+            // Project B is the opposite
+            var processB = result.RetrieveSuccessfulProcess(projectB);
+            XAssert.ContainsNot(
+                processB.AllowedUndeclaredSourceReadScopes,
+                additionalSourceReadScope);
+
+            XAssert.Contains(
+                processB.AllowedUndeclaredSourceReadRegexes.Select(regexDescriptor => regexDescriptor.Pattern),
                 additionalRegexId);
         }
 

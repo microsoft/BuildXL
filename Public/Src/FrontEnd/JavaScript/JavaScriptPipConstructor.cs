@@ -33,10 +33,10 @@ namespace BuildXL.FrontEnd.JavaScript
     /// Allows to extend its behavior for other JavaScript-based coordinators by 
     /// * extending how inputs and outputs: <see cref="ProcessInputs(JavaScriptProject, ProcessBuilder, IReadOnlySet{JavaScriptProject})"/>, 
     ///   <see cref="ProcessOutputs(JavaScriptProject, ProcessBuilder, IReadOnlySet{JavaScriptProject})"/>
-    /// * extending how the process builder is configured and arguments are built: <see cref="ConfigureProcessBuilder(ProcessBuilder, JavaScriptProject, IReadOnlySet{JavaScriptProject})"/>
+    /// * extending how the process builder is configured and arguments are built: <see cref="TryConfigureProcessBuilder(ProcessBuilder, JavaScriptProject, IReadOnlySet{JavaScriptProject})"/>
     /// * and by extending how the environment for each pip is created: <see cref="DoCreateEnvironment(JavaScriptProject)"/>
     /// </remarks>
-    public class JavaScriptPipConstructor : IProjectToPipConstructor<JavaScriptProject> 
+    public class JavaScriptPipConstructor : IProjectToPipConstructor<JavaScriptProject>
     {
         private readonly FrontEndContext m_context;
 
@@ -44,7 +44,7 @@ namespace BuildXL.FrontEnd.JavaScript
         private readonly ModuleDefinition m_moduleDefinition;
         private readonly IJavaScriptResolverSettings m_resolverSettings;
 
-        private RegexDescriptor WarningRegexDescriptor => 
+        private RegexDescriptor WarningRegexDescriptor =>
             m_resolverSettings.WarningRegex != null ? new RegexDescriptor(StringId.Create(m_context.StringTable, m_resolverSettings.WarningRegex), RegexOptions.None) : default;
         private RegexDescriptor ErrorRegexDescriptor =>
             m_resolverSettings.ErrorRegex != null ? new RegexDescriptor(StringId.Create(m_context.StringTable, m_resolverSettings.ErrorRegex), RegexOptions.None) : default;
@@ -183,7 +183,7 @@ namespace BuildXL.FrontEnd.JavaScript
 
                 return new JavaScriptProjectSchedulingFailure(project, ex.ToString());
             }
-            finally 
+            finally
             {
                 // Once the pip is added to the graph it should be safe to remove the pip construction helper from the cache
                 m_pipConstructionHelperPerProject.TryRemove((project, qualifierId), out _);
@@ -266,7 +266,13 @@ namespace BuildXL.FrontEnd.JavaScript
                 ComputeTransitiveDependenciesFor(project, transitiveDependencies);
 
                 // Configure the process to add an assortment of settings: arguments, response file, etc.
-                ConfigureProcessBuilder(processBuilder, project, transitiveDependencies);
+                if (!TryConfigureProcessBuilder(processBuilder, project, transitiveDependencies))
+                {
+                    failureDetail = "Failed to configure the process builder";
+                    process = null;
+                    processOutputs = null;
+                    return false;
+                }
 
                 // Process all predicted outputs and inputs, including the predicted project dependencies
                 ProcessInputs(project, processBuilder, transitiveDependencies);
@@ -330,7 +336,7 @@ namespace BuildXL.FrontEnd.JavaScript
                 {
                     processBuilder.AddInputDirectory(output.Root);
                 }
-                
+
                 // Add all known output files, but exclude logs
                 foreach (FileArtifact output in processOutputs.GetOutputFiles()
                     .Where(fa => !fa.Path.IsWithin(m_context.PathTable, LogDirectoryBase(m_frontEndHost.Configuration, m_context.PathTable, m_resolverSettings.Name))))
@@ -395,7 +401,7 @@ namespace BuildXL.FrontEnd.JavaScript
         /// <summary>
         /// Configures the process builder to execute the specified commands
         /// </summary>
-        protected virtual void ConfigureProcessBuilder(
+        protected virtual bool TryConfigureProcessBuilder(
             ProcessBuilder processBuilder,
             JavaScriptProject project,
             IReadOnlySet<JavaScriptProject> transitiveDependencies)
@@ -448,10 +454,10 @@ namespace BuildXL.FrontEnd.JavaScript
                         {
                             // Just verbose log, this is not a blocker
                             Tracing.Logger.Log.CannotGetFinalPathForPath(
-                                m_context.LoggingContext, 
-                                Location.FromFile(project.ProjectFolder.ToString(PathTable)), 
+                                m_context.LoggingContext,
+                                Location.FromFile(project.ProjectFolder.ToString(PathTable)),
                                 sourceReadScope.ToString(PathTable), error);
-                            
+
                             continue;
                         }
 
@@ -473,18 +479,52 @@ namespace BuildXL.FrontEnd.JavaScript
                 // If additional scopes for source reads are configured, add them here
                 if (m_resolverSettings.AdditionalSourceReadsScopes != null)
                 {
-                    // Scopes are expressed as a discriminating union of directories or (string) regexes
-                    foreach (var directoryOrRegex in m_resolverSettings.AdditionalSourceReadsScopes)
+                    // Scopes are expressed as a discriminating union of directories or (string) regexes 
+                    // Scopes can also be limited to a specific set of packages by using a package selector
+                    //  in that case we only add the scopes if this package is a match for the selector
+                    foreach (var sourceReadScopeDef in m_resolverSettings.AdditionalSourceReadsScopes)
                     {
-                        var value = directoryOrRegex.GetValue();
+                        var value = sourceReadScopeDef.GetValue();
                         if (value is string regex)
                         {
                             sourceReadsRegexes.Add(StringId.Create(m_context.StringTable, regex));
                         }
+                        else if (value is DirectoryArtifact dirScope)
+                        {
+                            sourceReadsScopes.Add(dirScope.Path);
+                        }
+                        else if (value is IJavaScriptScopeWithSelector scopeWithSelector)
+                        {
+                            foreach (var packageSelector in scopeWithSelector.Packages)
+                            {
+                                if (!JavaScriptProjectSelector.TryMatch(packageSelector, project, out var isMatch, out var failure))
+                                {
+                                    Tracing.Logger.Log.InvalidRegexInProjectSelector(
+                                        m_context.LoggingContext,
+                                        m_resolverSettings.Location(m_context.PathTable),
+                                        packageSelector.GetValue().ToString(),
+                                        failure);
+                                    return false;
+                                }
+
+                                if (isMatch)
+                                {
+                                    var scope = scopeWithSelector.Scope.GetValue();
+                                    if (scope is string rgx)
+                                    {
+                                        sourceReadsRegexes.Add(StringId.Create(m_context.StringTable, rgx));
+                                    }
+                                    else
+                                    {
+                                        Contract.Assert(scope is DirectoryArtifact);
+                                        sourceReadsScopes.Add(((DirectoryArtifact)scope).Path);
+                                    }
+                                }
+                            }
+                        }
                         else
                         {
-                            Contract.Assert(value is DirectoryArtifact);
-                            sourceReadsScopes.Add(((DirectoryArtifact) value).Path);
+                            Contract.Assert(false, $"Unexpected type {value.GetType()} for AdditionalSourceReadsScopes");
                         }
                     }
                 }
@@ -519,8 +559,8 @@ namespace BuildXL.FrontEnd.JavaScript
 
             // By default the double write policy is to allow same content double writes and safe rewrites.
             // Otherwise we honor the double write policy specified in the resolver configuration
-            processBuilder.RewritePolicy |= m_resolverSettings.DoubleWritePolicy.HasValue ? 
-                (m_resolverSettings.DoubleWritePolicy.Value | RewritePolicy.SafeSourceRewritesAreAllowed) : 
+            processBuilder.RewritePolicy |= m_resolverSettings.DoubleWritePolicy.HasValue ?
+                (m_resolverSettings.DoubleWritePolicy.Value | RewritePolicy.SafeSourceRewritesAreAllowed) :
                 RewritePolicy.DefaultSafe;
 
             // On Windows, untrack the user profile. The corresponding mount is already configured for not tracking source files, and with allowed undeclared source reads,
@@ -598,7 +638,7 @@ namespace BuildXL.FrontEnd.JavaScript
                             AddJavaScriptArgumentToBuilder(processBuilder.ArgumentsBuilder, value);
                         }
                     }
-                    
+
                     // Closing the double quotes for Linux/Mac
                     if (!OperatingSystemHelper.IsWindowsOS)
                     {
@@ -627,6 +667,8 @@ namespace BuildXL.FrontEnd.JavaScript
             {
                 processBuilder.ErrorRegex = ErrorRegexDescriptor;
             }
+
+            return true;
         }
 
         /// <summary>
@@ -658,7 +700,7 @@ namespace BuildXL.FrontEnd.JavaScript
 
             // On Windows, ProgramFiles is also a very common location that is read (on Linux the equivalent already falls under untracked directories
             // injected by the OS defaults
-            if (OperatingSystemHelper.IsWindowsOS) 
+            if (OperatingSystemHelper.IsWindowsOS)
             {
                 scopes.Add(AbsolutePath.Create(PathTable, Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles)));
                 scopes.Add(AbsolutePath.Create(PathTable, Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86)));
@@ -766,7 +808,7 @@ namespace BuildXL.FrontEnd.JavaScript
 
             // We shouldn't be adding the same spec file pip to the pip graph.
             // This can happen if the same package root is defined for multiple packages, or if different qualifiers apply to the same package.
-            m_specFilePips.GetOrAdd(pathToProject, Unit.Void, 
+            m_specFilePips.GetOrAdd(pathToProject, Unit.Void,
                 addValueFactory: (pathToProject, unit) => {
                     m_frontEndHost.PipGraph?.AddSpecFile(
                         new SpecFilePip(

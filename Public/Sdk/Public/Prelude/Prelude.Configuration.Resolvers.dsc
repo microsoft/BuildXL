@@ -592,7 +592,7 @@ interface JavaScriptResolver extends ResolverBase, UntrackingSettings {
      * - string: read accesses matching the regular expression will be allowed
      * When enforceSourceReadsUnderPackageRoots is disabled, this option has no effect.
      */
-    additionalSourceReadsScopes?: (Directory | string)[];
+    additionalSourceReadsScopes?: (Directory | string | JavascriptScopeWithSelector)[];
 
     /**
      * Pip time out for selected projects.
@@ -776,6 +776,15 @@ interface JavaScriptProjectSimpleSelector {
 interface JavaScriptProjectRegexSelector {
     packageNameRegex: string;
     commandRegex?: string;
+}
+
+/** 
+ * Defines a scope to apply only to projects picked out by some JavaScriptProjectSelector
+ */
+interface JavascriptScopeWithSelector
+{
+    scope: Directory | string,
+    packages: JavaScriptProjectSelector[]
 }
 
 /**

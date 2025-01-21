@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
@@ -9,7 +10,6 @@ using System.Text.RegularExpressions;
 using BuildXL.FrontEnd.JavaScript.ProjectGraph;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
-using BuildXL.Utilities.Configuration.Mutable;
 
 namespace BuildXL.FrontEnd.JavaScript
 {
@@ -18,6 +18,8 @@ namespace BuildXL.FrontEnd.JavaScript
     /// </summary>
     public sealed class JavaScriptProjectSelector
     {
+        private static readonly ConcurrentDictionary<string, Regex> s_regexCache = new();
+
         /// <summary>
         /// Map from project name to all projects with that name (and different script commands)
         /// Speeds up searches under the assumption that there are usually a handful of script commands per project compared to the amount of project names
@@ -34,69 +36,23 @@ namespace BuildXL.FrontEnd.JavaScript
         /// <summary>
         /// Returns all projects with the given package name
         /// </summary>
-        public IReadOnlyCollection<JavaScriptProject> GetMatches(string packageName)
+        private IReadOnlyList<JavaScriptProject> GetProjectsByName(string packageName)
         {
             Contract.AssertNotNull(packageName);
 
-            return GetMatches(new JavaScriptProjectSimpleSelector() { PackageName = packageName, Commands = null});
-        }
-
-        /// <summary>
-        /// Returns all projects with the given package name and script command included in the list of script commands
-        /// </summary>
-        /// <remarks>
-        /// If the selector commands is null, any script command is matched
-        /// </remarks>
-        public IReadOnlyCollection<JavaScriptProject> GetMatches(IJavaScriptProjectSimpleSelector simpleSelector)
-        {
-            Contract.AssertNotNull(simpleSelector);
-
-            if (!m_nameToProjects.TryGetValue(simpleSelector.PackageName, out var values))
+            if (!m_nameToProjects.TryGetValue(packageName, out var values))
             {
                 return CollectionUtilities.EmptyArray<JavaScriptProject>();
             }
 
-            // If commands is not specified, all commands are returned
-            if (simpleSelector.Commands == null)
-            {
-                return values;
-            }
-
-            // Otherwise, all script commands that match verbatim
-            return values.Where(js => simpleSelector.Commands.Contains(js.ScriptCommandName)).ToArray();
+            return values;
         }
+
 
         /// <summary>
-        /// Returns all projects that regex match both the provided package name and commands
+        /// Returns all projects where the regex matches the provided package name
         /// </summary>
-        /// <remarks>
-        /// If commands is null, any script command will match.
-        /// </remarks>
-        /// <exception cref="System.ArgumentException">A regular expression parsing error occurred</exception>
-        public IReadOnlyCollection<JavaScriptProject> GetMatches(IJavaScriptProjectRegexSelector regexSelector)
-        {
-            var packageRegex = new Regex(regexSelector.PackageNameRegex, RegexOptions.None);
-            var packages = m_nameToProjects.Keys.Where(projectName => packageRegex.IsMatch(projectName));
-
-            var commandRegex = regexSelector.CommandRegex != null ? new Regex(regexSelector.CommandRegex, RegexOptions.None) : null;
-
-            var matches = new List<JavaScriptProject>();
-            foreach(string packageName in packages)
-            {
-                var projects = m_nameToProjects[packageName];
-
-                if (commandRegex == null)
-                {
-                    matches.AddRange(projects);
-                }
-                else
-                {
-                    matches.AddRange(projects.Where(project => commandRegex.IsMatch(project.ScriptCommandName)));
-                }
-            }
-
-            return matches;
-        }
+        private IEnumerable<JavaScriptProject> GetProjectsByName(Regex nameRegex) => m_nameToProjects.Where(kvp => nameRegex.IsMatch(kvp.Key)).SelectMany(kvp => kvp.Value);
 
         /// <summary>
         /// Returns all projects that the actual selector in the discriminating union specifies
@@ -104,32 +60,86 @@ namespace BuildXL.FrontEnd.JavaScript
         public bool TryGetMatches(DiscriminatingUnion<string, IJavaScriptProjectSimpleSelector, IJavaScriptProjectRegexSelector> selector, out IReadOnlyCollection<JavaScriptProject> matches, out string failure)
         {
             failure = string.Empty;
+            try
+            {
+                switch (selector.GetValue())
+                {
+                    case string s:
+                        // Only the name needs to match
+                        matches = GetProjectsByName(s);
+                        return true;
+                    case IJavaScriptProjectSimpleSelector simpleSelector:
+                        // Match name and commands
+                        matches = GetProjectsByName(simpleSelector.PackageName).Where(p => IsCommandMatch(simpleSelector, p)).ToList();
+                        return true;
+                    case IJavaScriptProjectRegexSelector regexSelector:
+                        // Regex match name and commands
+                        matches = GetProjectsByName(GetRegex(regexSelector.PackageNameRegex)).Where(p => IsCommandMatch(regexSelector, p)).ToList();
+                        return true;
+                    default:
+                        Contract.Assert(false, $"Unexpected type {selector.GetValue().GetType()}");
+                        matches = CollectionUtilities.EmptyArray<JavaScriptProject>();
+                        return false;
+                };
+            }
+            catch (ArgumentException e)
+            {
+                matches = CollectionUtilities.EmptyArray<JavaScriptProject>();
+                failure = e.Message;
+                return false;
+            }
+        }
+
+        internal static bool TryMatch(DiscriminatingUnion<string, IJavaScriptProjectSimpleSelector, IJavaScriptProjectRegexSelector> selector, JavaScriptProject project, out bool isMatch, out string failure)
+        {
+            isMatch = false;
+            failure = string.Empty;
             switch (selector.GetValue())
             {
                 case string s:
-                    matches = GetMatches(s);
+                    isMatch = project.Name == s;
                     return true;
                 case IJavaScriptProjectSimpleSelector simpleSelector:
-                    matches = GetMatches(simpleSelector);
+                    isMatch = project.Name == simpleSelector.PackageName && IsCommandMatch(simpleSelector, project);
                     return true;
                 case IJavaScriptProjectRegexSelector regexSelector:
                     try
                     {
-                        matches = GetMatches(regexSelector);
+                        var packageRegex = GetRegex(regexSelector.PackageNameRegex);
+                        isMatch = packageRegex.IsMatch(project.Name) && IsCommandMatch(regexSelector, project);
+                        return true;
                     }
-                    catch(ArgumentException e)
+                    catch (ArgumentException e)
                     {
-                        matches = CollectionUtilities.EmptyArray<JavaScriptProject>();
                         failure = e.Message;
                         return false;
                     }
-
-                    return true;
                 default:
                     Contract.Assert(false, $"Unexpected type {selector.GetValue().GetType()}");
-                    matches = CollectionUtilities.EmptyArray<JavaScriptProject>();
                     return false;
             }
+        }
+
+		/// <summary>
+		/// Returns true if the project's command matches the selector
+		/// </summary>
+        private static bool IsCommandMatch(IJavaScriptProjectSimpleSelector simpleSelector, JavaScriptProject project)
+        {
+            return simpleSelector.Commands == null || simpleSelector.Commands.Contains(project.ScriptCommandName);
+        }
+
+		/// <summary>
+		/// Returns true if the project's command matches the selector
+		/// </summary>
+		private static bool IsCommandMatch(IJavaScriptProjectRegexSelector regexSelector, JavaScriptProject project)
+        {
+            var commandRegex = regexSelector.CommandRegex != null ? GetRegex(regexSelector.CommandRegex) : null;
+            return commandRegex == null || commandRegex.IsMatch(project.ScriptCommandName);
+        }
+
+        private static Regex GetRegex(string pattern)
+        {
+            return s_regexCache.GetOrAdd(pattern, p => new Regex(p, RegexOptions.None));
         }
     }
 }

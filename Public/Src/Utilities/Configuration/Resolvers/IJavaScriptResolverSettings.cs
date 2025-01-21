@@ -153,7 +153,7 @@ namespace BuildXL.Utilities.Configuration
         /// * string: read accesses matching the regular expression will be allowed
         /// When <see cref="EnforceSourceReadsUnderPackageRoots"/> is disabled, this option has no effect.
         /// </remarks>
-        IReadOnlyList<DiscriminatingUnion<DirectoryArtifact, string>> AdditionalSourceReadsScopes { get; }
+        IReadOnlyList<DiscriminatingUnion<DirectoryArtifact, string, IJavaScriptScopeWithSelector>> AdditionalSourceReadsScopes { get; }
 
         /// <summary>
         /// Pip Timeout that will be applied for selected JavaScript projects

@@ -91,6 +91,38 @@ namespace Test.BuildXL.FrontEnd.Rush.IntegrationTests
             }
         }
 
+        [TheoryIfSupported(requiresLinuxBasedOperatingSystem: true)]
+        [InlineData("project-A", true)]
+        [InlineData("project-B", false)]
+        public void UseProjectSelector(string selectorRegex, bool success)
+        {
+            var scopeWithSelector = @$"[{{ scope: "".*FileA"", packages: [{{ packageNameRegex: ""{selectorRegex}"" }}] }}]";
+            var config = Build(enforceSourceReadsUnderPackageRoots: true, enableFullReparsePointResolving: true, additionalSourceReadsScopes: scopeWithSelector)
+                // Package A access a file outside of its project root
+                .AddJavaScriptProject("@ms/project-A", "src/A", "const fs = require('fs'); fs.existsSync('../FileA');")
+                .PersistSpecsAndGetConfiguration();
+
+            // Produce the file A is going to read
+            File.WriteAllText(config.Layout.SourceDirectory.Combine(PathTable, "src").Combine(PathTable, "FileA").ToString(PathTable), "test");
+
+            var engineResult = RunRushProjects(
+                config,
+                new[] {
+                    ("src/A", "@ms/project-A")
+                },
+                overrideDisableReparsePointResolution: false);
+
+            if (success)
+            {
+                Assert.True(engineResult.IsSuccess);
+            }
+            else
+            {
+                Assert.False(engineResult.IsSuccess);
+                AssertErrorEventLogged(global::BuildXL.Scheduler.Tracing.LogEventId.DependencyViolationDisallowedUndeclaredSourceRead);
+            }
+        }
+
         [FactIfSupported(requiresLinuxBasedOperatingSystem: true)]
         public void AbsentProbesAreAlwaysAllowed()
         {

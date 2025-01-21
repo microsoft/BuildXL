@@ -66,9 +66,12 @@ namespace BuildXL.FrontEnd.Lage
         }
 
         /// <inheritdoc/>
-        protected override void ConfigureProcessBuilder(ProcessBuilder processBuilder, JavaScriptProject project, IReadOnlySet<JavaScriptProject> transitiveDependencies)
+        protected override bool TryConfigureProcessBuilder(ProcessBuilder processBuilder, JavaScriptProject project, IReadOnlySet<JavaScriptProject> transitiveDependencies)
         {
-            base.ConfigureProcessBuilder(processBuilder, project, transitiveDependencies);
+            if (!base.TryConfigureProcessBuilder(processBuilder, project, transitiveDependencies))
+            {
+                return false;
+            }
 
             // In some scenarios Lage spawns a server process 'lage-server' that serves a variety of requests. This process needs to break away from the sandbox.
             var lageServerBreakaway = new BreakawayChildProcess() {
@@ -77,6 +80,7 @@ namespace BuildXL.FrontEnd.Lage
             };
 
             processBuilder.ChildProcessesToBreakawayFromSandbox = processBuilder.ChildProcessesToBreakawayFromSandbox.Append(lageServerBreakaway).ToArray();
+            return true;
         }
     }
 }

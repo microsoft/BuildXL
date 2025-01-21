@@ -116,7 +116,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public bool? EnforceSourceReadsUnderPackageRoots { get; set; }
 
         /// <inheritdoc/>
-        public IReadOnlyList<DiscriminatingUnion<DirectoryArtifact, string>> AdditionalSourceReadsScopes { get; set; }
+        public IReadOnlyList<DiscriminatingUnion<DirectoryArtifact, string, IJavaScriptScopeWithSelector>> AdditionalSourceReadsScopes { get; set; }
 
         /// <inheritdoc/>
         public IReadOnlyList<int> UncacheableExitCodes { get; set; }

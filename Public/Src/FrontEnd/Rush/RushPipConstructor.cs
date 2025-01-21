@@ -92,12 +92,15 @@ namespace BuildXL.FrontEnd.Rush
         }
 
         /// <inheritdoc/>
-        protected override void ConfigureProcessBuilder(
+        protected override bool TryConfigureProcessBuilder(
             ProcessBuilder processBuilder,
             JavaScriptProject project,
             IReadOnlySet<JavaScriptProject> transitiveDependencies)
         {
-            base.ConfigureProcessBuilder(processBuilder, project, transitiveDependencies);
+            if (!base.TryConfigureProcessBuilder(processBuilder, project, transitiveDependencies))
+            {
+                return false;
+            }
 
             // If dependencies are tracked with the shrinkwrap-deps file, then untrack everything under the Rush common temp folder, where all package
             // dependencies are placed
@@ -105,6 +108,8 @@ namespace BuildXL.FrontEnd.Rush
             {
                 processBuilder.AddUntrackedDirectoryScope(DirectoryArtifact.CreateWithZeroPartialSealId(m_rushConfiguration.CommonTempFolder));
             }
+
+            return true;
         }
 
         /// <inheritdoc/>

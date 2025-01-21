@@ -9,6 +9,9 @@ using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration.Mutable;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
+using System.Collections.Generic;
+using System;
+using BuildXL.Utilities.Configuration;
 
 namespace Test.BuildXL.FrontEnd.Rush.SchedulingTests
 {
@@ -27,11 +30,14 @@ namespace Test.BuildXL.FrontEnd.Rush.SchedulingTests
             var aBuild = CreateJavaScriptProject("project-A", "build");
             var aTest = CreateJavaScriptProject("project-A", "test");
             var bBuild = CreateJavaScriptProject("project-B", "build");
-            var selector = new JavaScriptProjectSelector(new[] { aBuild, aTest, bBuild });
-
-            var result = selector.GetMatches("project-A");
+            var matcher = new JavaScriptProjectSelector(new[] { aBuild, aTest, bBuild });
+            var selector = "project-A";
+            List<JavaScriptProject> allProjects = [ aBuild, aTest, bBuild ];
+            XAssert.IsTrue(matcher.TryGetMatches(new(selector), out var result, out _));
             XAssert.Contains(result, aBuild, aTest);
             XAssert.ContainsNot(result, bBuild);
+
+            ValidateTryMatchConsistency(allProjects, result, new(selector));
         }
 
         [Theory]
@@ -48,13 +54,16 @@ namespace Test.BuildXL.FrontEnd.Rush.SchedulingTests
             var aLint = CreateJavaScriptProject("project-A", "lint");
             var bLint = CreateJavaScriptProject("project-B", "lint");
 
-            var selector = new JavaScriptProjectSelector(new[] { aBuild, aTest, aLint, bLint });
+            var matcher = new JavaScriptProjectSelector(new[] { aBuild, aTest, aLint, bLint });
+            var selector = new JavaScriptProjectSimpleSelector() { PackageName = packageName, Commands = commands };
+            List<JavaScriptProject> allProjects = [ aBuild, aTest, aLint, bLint ];
+            XAssert.IsTrue(matcher.TryGetMatches(new(selector), out var result, out _));
 
-            var result = selector.GetMatches(new JavaScriptProjectSimpleSelector() { PackageName = packageName, Commands = commands });
-            
             XAssert.AreEqual(expectedProjectCount,  result.Count);
             XAssert.IsTrue(result.All(project => project.Name == packageName));
             XAssert.IsTrue(result.All(project => commands?.Contains(project.ScriptCommandName) != false));
+
+            ValidateTryMatchConsistency(allProjects, result, new(selector));
         }
 
         [Theory]
@@ -72,11 +81,30 @@ namespace Test.BuildXL.FrontEnd.Rush.SchedulingTests
             var bTest = CreateJavaScriptProject("project-B", "test");
             var bLint = CreateJavaScriptProject("project-B", "lint");
 
-            var selector = new JavaScriptProjectSelector(new[] { aBuild, aTest, aLint, bTest, bLint });
-
-            var result = selector.GetMatches(new JavaScriptProjectRegexSelector() { PackageNameRegex = packageName, CommandRegex = commands });
-
+            var matcher = new JavaScriptProjectSelector(new[] { aBuild, aTest, aLint, bTest, bLint });
+            var selector = new JavaScriptProjectRegexSelector() { PackageNameRegex = packageName, CommandRegex = commands };
+            List<JavaScriptProject> allProjects = [aBuild, aTest, aLint, bTest, bLint];
+            XAssert.IsTrue(matcher.TryGetMatches(new(selector), out var result, out _));
             XAssert.AreEqual(expectedProjectCount, result.Count);
+
+            ValidateTryMatchConsistency(allProjects, result, new(selector));
+        }
+
+        private void ValidateTryMatchConsistency(IReadOnlyCollection<JavaScriptProject> allProjects, IReadOnlyCollection<JavaScriptProject> result, DiscriminatingUnion<string, IJavaScriptProjectSimpleSelector, IJavaScriptProjectRegexSelector> selector)
+        {
+            // Every project in the result should match the selector individually
+            foreach (var project in allProjects)
+            {
+                XAssert.IsTrue(JavaScriptProjectSelector.TryMatch(selector, project, out var isMatch, out _));
+                if (result.Any(p => p.ToString() == project.ToString())) // Basic equality enough for this test
+                {
+                    XAssert.IsTrue(isMatch);
+                }
+                else
+                {
+                    XAssert.IsFalse(isMatch);
+                }
+            }
         }
 
         private JavaScriptProject CreateJavaScriptProject(string name, string scriptCommandName)

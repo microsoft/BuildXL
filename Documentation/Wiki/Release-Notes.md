@@ -2,6 +2,15 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20250117.1 (Release [29518312](https://dev.azure.com/mseng/Domino/_build/results?buildId=29518312&view=results))
+-	Improve Linux sandbox stability
+-	Remove unused CLI flags
+-	Additional logging messages in the ADOBuildRunner
+-	Turn off IO_URING for JavaScript resolvers
+-	Use zstd compression for build graph files
+-	Add functionality to launch a debugger from Detours code
+-	Make pool mismatch logging best effort for ADOBuildRunner
+
 # 0.1.0-20250102.2 (Release [29472339](https://dev.azure.com/mseng/Domino/_build/results?buildId=29472339&view=results))
 - Fixes for Ubuntu 24.04
 - Tighter integration with 1ES Build Cache

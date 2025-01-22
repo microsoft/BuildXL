@@ -1089,7 +1089,7 @@ namespace BuildXL.Scheduler.Tracing
         [GeneratedEvent(
             (int)LogEventId.TwoPhaseCheckingTooManyPathSets,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Warning,
+            EventLevel = Level.Verbose, // Temporarily demoting this to a verbose while CloudBuild's BlobL3 cache Garbage Collection is being fixed.
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.PipExecutor,
             Message = "[{pipDescription}] There have been many unique checked path sets ({pathSetCount}) during cache lookup. This may result in an expensive cache lookup. "

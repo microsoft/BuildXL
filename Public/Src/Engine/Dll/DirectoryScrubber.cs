@@ -56,7 +56,7 @@ namespace BuildXL.Engine
         /// </remarks>
         public static IEnumerable<string> CollapsePaths(IEnumerable<string> paths)
         {
-            paths = paths.Select(path => (path.Length > 0 && path[path.Length - 1] == Path.DirectorySeparatorChar) ? path : path + @"\").OrderBy(path => path, OperatingSystemHelper.PathComparer);
+            paths = paths.Select(path => (path.Length > 0 && path[path.Length - 1] == Path.DirectorySeparatorChar) ? path : path + Path.DirectorySeparatorChar).OrderBy(path => path, OperatingSystemHelper.PathComparer);
             string lastPath = null;
             foreach(var path in paths)
             {

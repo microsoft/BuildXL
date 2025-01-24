@@ -4,12 +4,14 @@
 using System;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Cache.ContentStore.Interfaces.Utils;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Native.Processes.Unix;
 using BuildXL.Storage.Fingerprints;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
+using OperatingSystemHelper = BuildXL.Utilities.Core.OperatingSystemHelper;
+using StructUtilities = BuildXL.Cache.ContentStore.Interfaces.Utils.StructUtilities;
 
 namespace BuildXL.Pips.Graph
 {
@@ -44,7 +46,8 @@ namespace BuildXL.Pips.Graph
                         validateDistribution: false,
                         explicitlyReportDirectoryProbes: false,
                         ignoreDeviceIoControlGetReparsePoint: true, // Remove this flag from the fingerprint once we validated there are no breaking changes
-                        honorDirectoryCasingOnDisk: false
+                        honorDirectoryCasingOnDisk: false,
+                        linuxOSName: OperatingSystemHelper.IsLinuxOS ? OperatingSystemHelperExtension.GetLinuxDistribution().Id : string.Empty
             );
 
         /// <summary>
@@ -93,7 +96,8 @@ namespace BuildXL.Pips.Graph
                 observationReclassificationRulesHash,
                 config.Sandbox.ExplicitlyReportDirectoryProbes,
                 config.Sandbox.IgnoreDeviceIoControlGetReparsePoint,
-                config.Cache.HonorDirectoryCasingOnDisk
+                config.Cache.HonorDirectoryCasingOnDisk,
+                OperatingSystemHelper.IsLinuxOS ? OperatingSystemHelperExtension.GetLinuxDistribution().Id : string.Empty
                 )
         {
         }
@@ -138,6 +142,7 @@ namespace BuildXL.Pips.Graph
         /// <param name="explicitlyReportDirectoryProbes">Whether /unsafe_explicitlyReportDirectoryProbes was passed to BuildXL.</param>
         /// <param name="ignoreDeviceIoControlGetReparsePoint">Whether /ignoreDeviceIoControlGetReparsePoint was passed to BuildXL.</param>
         /// <param name="honorDirectoryCasingOnDisk">Whether /honorDirectoryCasingOnDisk was passed to BuildXL.</param>
+        /// <param name="linuxOSName">The linux os name (Ubuntu or Mariner), string.Empty if current environment is windows</param>
         public ExtraFingerprintSalts(
             bool ignoreSetFileInformationByHandle,
             bool ignoreZwRenameFileInformation,
@@ -163,7 +168,8 @@ namespace BuildXL.Pips.Graph
             ContentHash? observationReclassificationRulesHash,
             bool explicitlyReportDirectoryProbes,
             bool ignoreDeviceIoControlGetReparsePoint,
-            bool honorDirectoryCasingOnDisk
+            bool honorDirectoryCasingOnDisk,
+            string linuxOSName
             )
         {
             IgnoreSetFileInformationByHandle = ignoreSetFileInformationByHandle;
@@ -194,6 +200,7 @@ namespace BuildXL.Pips.Graph
             ExplicitlyReportDirectoryProbes = explicitlyReportDirectoryProbes;
             IgnoreDeviceIoControlGetReparsePoint = ignoreDeviceIoControlGetReparsePoint;
             HonorDirectoryCasingOnDisk = honorDirectoryCasingOnDisk;
+            LinuxOSName = linuxOSName;
         }
 #pragma warning restore CS1572
 
@@ -330,6 +337,11 @@ namespace BuildXL.Pips.Graph
         /// </summary>
         public bool HonorDirectoryCasingOnDisk { get; set; }
 
+        /// <summary>
+        /// Linux OS name (Ubuntu or Mariner)
+        /// </summary>
+        public string LinuxOSName { get; }
+
         /// <nodoc />
         public static bool operator ==(ExtraFingerprintSalts left, ExtraFingerprintSalts right)
         {
@@ -375,7 +387,8 @@ namespace BuildXL.Pips.Graph
                 && other.ValidateDistribution == ValidateDistribution
                 && other.ExplicitlyReportDirectoryProbes.Equals(ExplicitlyReportDirectoryProbes)
                 && other.IgnoreDeviceIoControlGetReparsePoint.Equals(IgnoreDeviceIoControlGetReparsePoint)
-                && other.HonorDirectoryCasingOnDisk.Equals(HonorDirectoryCasingOnDisk);
+                && other.HonorDirectoryCasingOnDisk.Equals(HonorDirectoryCasingOnDisk)
+                && string.Equals(LinuxOSName, other.LinuxOSName);
         }
 
         /// <inheritdoc />
@@ -414,6 +427,7 @@ namespace BuildXL.Pips.Graph
                 hashCode = (hashCode * 397) ^ ExplicitlyReportDirectoryProbes.GetHashCode();
                 hashCode = (hashCode * 397) ^ IgnoreDeviceIoControlGetReparsePoint.GetHashCode();
                 hashCode = (hashCode * 397) ^ HonorDirectoryCasingOnDisk.GetHashCode();
+                hashCode = (hashCode * 397) ^ (string.IsNullOrEmpty(LinuxOSName) ? 0 : LinuxOSName.GetHashCode());
 
                 return hashCode;
             }
@@ -492,6 +506,11 @@ namespace BuildXL.Pips.Graph
             }
 
             fingerprinter.Add(nameof(FingerprintVersion), (int)FingerprintVersion);
+
+            if (!string.IsNullOrEmpty(LinuxOSName))
+            {
+                fingerprinter.Add(nameof(LinuxOSName), LinuxOSName);
+            }
         }
 
         private CalculatedFingerprintTuple ComputeWeakFingerprint()

@@ -362,6 +362,19 @@ namespace BuildXL.Utilities
         }
 
         /// <summary>
+        /// Get the current linux distro info from LinuxSystemInfo internal class
+        /// </summary>
+        public static LinuxDistribution GetLinuxDistribution()
+        {
+            if (!OperatingSystemHelper.IsLinuxOS)
+            {
+                return null;
+            }
+
+            return LinuxSystemInfo.GetLinuxDistroInfo();
+        }
+
+        /// <summary>
         /// Checks if the current Linux distro version on the machine is among those officially supported by BuildXL.
         /// </summary>
         public static bool IsLinuxDistroVersionSupported(out LinuxDistribution distribution)

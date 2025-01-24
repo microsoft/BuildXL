@@ -499,6 +499,11 @@ namespace BuildXL.Scheduler.Tracing
         /// </summary>
         public bool HonorDirectoryCasingOnDisk;
 
+        /// <summary>
+        /// Linux OS name (Ubuntu or Mariner)
+        /// </summary>
+        public string LinuxOSName;
+
         /// <inheritdoc />
         public ExecutionLogEventMetadata<BuildSessionConfigurationEventData> Metadata => ExecutionLogMetadata.BuildSessionConfiguration;
 
@@ -533,6 +538,7 @@ namespace BuildXL.Scheduler.Tracing
             ExplicitlyReportDirectoryProbes = salts.ExplicitlyReportDirectoryProbes;
             IgnoreDeviceIoControlGetReparsePoint = salts.IgnoreDeviceIoControlGetReparsePoint;
             HonorDirectoryCasingOnDisk = salts.HonorDirectoryCasingOnDisk;
+            LinuxOSName = salts.LinuxOSName;
         }
 
         /// <summary>
@@ -568,7 +574,8 @@ namespace BuildXL.Scheduler.Tracing
                        pipWarningsPromotedToErrors: PipWarningsPromotedToErrors,
                        explicitlyReportDirectoryProbes: ExplicitlyReportDirectoryProbes,
                        ignoreDeviceIoControlGetReparsePoint: IgnoreDeviceIoControlGetReparsePoint,
-                       honorDirectoryCasingOnDisk: HonorDirectoryCasingOnDisk
+                       honorDirectoryCasingOnDisk: HonorDirectoryCasingOnDisk,
+                       linuxOSName: LinuxOSName
                    )
                    {
                        // Constructor appends EngineEnvironmentSettings.FingerprintSalt
@@ -607,6 +614,7 @@ namespace BuildXL.Scheduler.Tracing
             writer.Write(ExplicitlyReportDirectoryProbes);
             writer.Write(IgnoreDeviceIoControlGetReparsePoint);
             writer.Write(HonorDirectoryCasingOnDisk);
+            writer.Write(LinuxOSName);
         }
 
         /// <inheritdoc />
@@ -638,6 +646,7 @@ namespace BuildXL.Scheduler.Tracing
             ExplicitlyReportDirectoryProbes = reader.ReadBoolean();
             IgnoreDeviceIoControlGetReparsePoint = reader.ReadBoolean();
             HonorDirectoryCasingOnDisk = reader.ReadBoolean();
+            LinuxOSName = reader.ReadString();
         }
     }
 

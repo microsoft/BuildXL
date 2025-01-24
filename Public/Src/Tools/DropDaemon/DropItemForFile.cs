@@ -45,9 +45,9 @@ namespace Tool.DropDaemon
 
             FullyQualifiedDropName = fullDropName;
             FullFilePath = Path.GetFullPath(fileFullPath);
-            if (FullFilePath.Length >= MaxNonLongFileNameLength && !FullFilePath.StartsWith(LongFileNamePrefix))
+            if (FullFilePath.Length >= MaxNonLongFileNameLength && !FullFilePath.StartsWith(LongFileNamePrefix) && OperatingSystemHelper.IsWindowsOS)
             {
-                // this file has a long file name, need to add a prefix to it
+                // This file has a long file name/path. On Windows, we need to add a prefix to it
                 FullFilePath = $"{LongFileNamePrefix}{FullFilePath}";
             }
 

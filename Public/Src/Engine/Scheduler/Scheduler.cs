@@ -8,7 +8,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Diagnostics.Tracing;
-using System.Globalization;                              
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net.Sockets;
@@ -71,8 +71,7 @@ using static BuildXL.Processes.SandboxedProcessFactory;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 using Logger = BuildXL.Scheduler.Tracing.Logger;
 using Process = BuildXL.Pips.Operations.Process;
-using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Engine.Cache.Fingerprints;
+using ZstdSharp;
 
 namespace BuildXL.Scheduler
 {
@@ -7735,12 +7734,18 @@ namespace BuildXL.Scheduler
             {
                 var executionLogPathString = executionLogPath.ToString(context.PathTable);
 
-                FileStream executionLogStream;
+                Stream executionLogStream;
 
                 try
                 {
                     FileUtilities.CreateDirectoryWithRetry(Path.GetDirectoryName(executionLogPathString));
                     executionLogStream = File.Open(executionLogPathString, FileMode.Create, FileAccess.Write, FileShare.Read | FileShare.Delete);
+
+                    if (configuration.Engine.CompressExecutionLog)
+                    {
+                        // Testing of office builds found that level 2 compression yielded no slowdown in build time and ~60% reduction in execution log file size
+                        executionLogStream = new CompressionStream(executionLogStream, level: 2, leaveOpen: false);
+                    }
                 }
                 catch (Exception ex)
                 {

@@ -69,7 +69,7 @@ namespace Test.Tool.Analyzers
                 }
             };
 
-            RunAnalyzer(schedulerResult, null, options);
+            RunAnalyzer(schedulerResult, null, options).AssertSuccess();
 
             Assert.True(Directory.Exists(logFolder));
             Assert.True(File.Exists(pipDumpFile));

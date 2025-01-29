@@ -43,7 +43,7 @@ namespace Test.Tool.Analyzers
                 },
             };
 
-            RunAnalyzer(schedulerResult, null, options);
+            RunAnalyzer(schedulerResult, null, options).AssertSuccess();
 
             // The output file should be produced using the default location
             var outputFile = schedulerResult.Config.Logging.LogsDirectory.Combine(Context.PathTable, $"{pip.FormattedSemiStableHash}.txt").ToString(Context.PathTable);
@@ -75,7 +75,7 @@ namespace Test.Tool.Analyzers
                 },
             };
 
-            RunAnalyzer(schedulerResult, null, options);
+            RunAnalyzer(schedulerResult, null, options).AssertSuccess();
 
             // The output file should be produced using the default location
             var outputFile = schedulerResult.Config.Logging.LogsDirectory.Combine(Context.PathTable, 

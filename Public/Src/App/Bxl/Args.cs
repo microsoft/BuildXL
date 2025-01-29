@@ -218,6 +218,9 @@ namespace BuildXL
                         OptionHandlerFactory.CreateBoolOption(
                             "compressGraphFiles",
                             sign => engineConfiguration.CompressGraphFiles = sign),
+                        OptionHandlerFactory.CreateBoolOption(
+                            "compressExecutionLog",
+                            sign => engineConfiguration.CompressExecutionLog = sign),
                         OptionHandlerFactory.CreateOption2(
                             "config",
                             "c",

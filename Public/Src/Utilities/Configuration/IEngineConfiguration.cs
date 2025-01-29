@@ -180,6 +180,11 @@ namespace BuildXL.Utilities.Configuration
         bool CompressGraphFiles { get; }
 
         /// <summary>
+        /// Compresses the execution log. Enabled by default.
+        /// </summary>
+        bool CompressExecutionLog { get; }
+
+        /// <summary>
         /// Initialization mode for file change tracker.
         /// </summary>
         FileChangeTrackerInitializationMode FileChangeTrackerInitializationMode { get; }

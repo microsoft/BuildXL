@@ -5978,9 +5978,9 @@ namespace BuildXL.Scheduler
                 standardOutput = executionResult.PipCacheDescriptorV2Metadata.StandardOutput;
             }
 
-            if (executionResult.StandardOutput != null)
+            if (executionResult.StandardError != null)
             {
-                standardError = executionResult.StandardOutput;
+                standardError = executionResult.StandardError;
             }
             else if (executionResult.PipCacheDescriptorV2Metadata != null && executionResult.PipCacheDescriptorV2Metadata.StandardError != null)
             {

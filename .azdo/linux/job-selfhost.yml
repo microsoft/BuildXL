@@ -34,10 +34,6 @@ jobs:
       /q:ReleaseLinux
       ${{ parameters.BxlCommonArgs }}
       "/f:tag='test'"
-      /logToKusto
-      /cacheLogToKusto
-      /logToKustoBlobUri:https://adomessages.blob.core.windows.net/adomessages
-      /logToKustoIdentityId:6e0959cf-a9ba-4988-bbf1-7facd9deda51
     
     preBuildSteps:
     # Get bootstrap

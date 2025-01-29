@@ -35,11 +35,7 @@ jobs:
       --use-dev 
       ${{ parameters.BxlCommonArgs }}
       /q:ReleaseLinux
-      "/f:tag='test'" 
-      /logToKusto
-      /cacheLogToKusto
-      /logToKustoBlobUri:https://adomessages.blob.core.windows.net/adomessages
-      /logToKustoIdentityId:6e0959cf-a9ba-4988-bbf1-7facd9deda51
+      "/f:tag='test'"
 
     preBuildSteps:
       # 1. Bootstrap external bits manually - note this is a pre-build step for the actual "build" (which is running tests) 
@@ -53,8 +49,6 @@ jobs:
         --minimal
         --deploy-dev --release
         --runner-arg /cacheConfigLogGeneratedConfiguration:true 
-        --runner-arg /cacheConfigStorageAccountEndpoint:https://l3bxlselfhost.blob.core.windows.net
-        --runner-arg /cacheConfigManagedIdentityId:eb694749-b1d6-45bc-b7af-2bd81603968a
         /logsDirectory:"Out/Logs/Bootstrap"
         /forceAddExecutionPermission-
         ${{ parameters.BxlCommonArgs }}

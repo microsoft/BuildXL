@@ -2345,7 +2345,7 @@ namespace BuildXL.Scheduler
                 statistics.Add(Statistics.PluginLoadedSuccessfulCounts, (long)m_pluginManager.PluginLoadedSuccessfulCount);
                 statistics.Add(Statistics.PluginLoadedFailureCounts, (long)m_pluginManager.PluginLoadedFailureCount);
                 statistics.Add(Statistics.PluginProcessedRequestCounts, (long)m_pluginManager.PluginProcessedRequestCounts);
-                statistics.Add(Statistics.PluginUnregisteredCounts, (long)m_pluginManager.PluginProcessedRequestCounts);
+                statistics.Add(Statistics.PluginUnregisteredCounts, (long)m_pluginManager.PluginUnregisteredCounts);
             }
 
             if (!IsDistributedWorker)

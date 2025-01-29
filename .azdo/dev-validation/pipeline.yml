@@ -1,0 +1,69 @@
+trigger: none
+
+parameters:
+- name: rmBranch
+  type: string
+  default: master
+
+resources:
+  repositories:
+  - repository: DominoReleaseManagement
+    type: git
+    name: Domino.ReleaseManagement
+    ref: ${{ parameters.rmBranch }}
+
+  pipelines:
+  - pipeline: CloudBuild
+    source: 'CloudBuild\ReleaseBuilds\CloudBuild Deploy QBits (YML)'
+
+variables:
+- template: variables.yml
+
+extends:
+  template: /pipelines/dev-validation/validations.yml@DominoReleaseManagement
+  parameters:
+    pool:
+      name: Windows-SDL-Agents
+      image: Windows-SDL-Image
+      os: windows
+    sdl:
+      sourceRepositoriesToScan:
+        exclude:
+        - repository: DominoReleaseManagement
+      codeql:
+        compiled:
+          enabled: false
+          justificationForDisabling: 'We have a dedicated pipeline for CodeQL.'
+      sourceAnalysisPool:
+        name: Windows-SDL-Agents
+        image: Windows-SDL-Image
+        os: windows
+    buildStages:
+    - stage: Setup
+      displayName: Setup
+      jobs:
+      - template: /.azdo/dev-validation/jobs/setup.yml@self
+
+    - stage: CBBuild
+      displayName: Build BuildXL in CB
+      dependsOn: Setup
+      jobs:
+      - template: /.azdo/rolling/jobs/cb.yml@self
+    
+    - stage: LinuxBuild
+      displayName: Linux build
+      dependsOn: Setup
+      jobs:
+      - template: /.azdo/rolling/jobs/linux.yml@self
+
+    - stage: Publish
+      displayName: Publish artifacts and NuGet packages
+      dependsOn: 
+      - CBBuild
+      - LinuxBuild
+      jobs:
+      - template: /.azdo/rolling/jobs/publish.yml@self
+        parameters:
+          isRollingBuild: false
+    dependsOn:
+    - Publish

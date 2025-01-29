@@ -1,0 +1,7 @@
+variables:
+- group: "BuildXL Common variables"
+- group: "CloudBuild Common"
+- name: Branding_SourceIdentification
+  value: $(Build.SourceBranch):$(Build.SourceVersion)
+- name: BuildXL.Candidate.DropName
+  value: buildxl.dev-candidate.$(Build.BuildId)

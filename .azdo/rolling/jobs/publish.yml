@@ -1,3 +1,8 @@
+parameters:
+- name: isRollingBuild
+  type: boolean
+  default: true
+
 jobs:
 - job: PublishBinaries
   displayName: 'AzDev Hosted: Publish build binaries'
@@ -90,11 +95,12 @@ jobs:
       filePath: Shared/Scripts/SBOMValidation.ps1
       arguments: -SBOMManifestFile  $(Agent.TempDirectory)/DownloadedDrop/_manifest/spdx_2.2/manifest.spdx.json -BcdeOutputFile  $(Agent.TempDirectory)/DownloadedDrop/_manifest/bcde-output.json
 
-  - task: PowerShell@2
-    inputs:
-      targetType: 'inline'
-      script: Write-Host "##vso[build.addbuildtag]RollingRelease"
-    displayName: Tag build for consumption in release pipeline
+  - ${{ if eq(parameters.isRollingBuild, true) }}:
+    - task: PowerShell@2
+      inputs:
+        targetType: 'inline'
+        script: Write-Host "##vso[build.addbuildtag]RollingRelease"
+      displayName: Tag build for consumption in release pipeline
 
   # Add MacOS and Linux artifacts to the DownloadedDrop directory, so they will be included in the
   # final drop produced by this pipeline. This way the release pipeline has everything it needs in
@@ -105,13 +111,14 @@ jobs:
   #       Note that, when set to 'false', the task will use the environment variable 'ArtifactServices.Drop.PAT' set by set-artifacts-pat.yml,
   #       otherwise, it will use the system access token. Because the following drop download tasks are downloading from the same organization,
   #       the system access token should be (in theory) sufficient.
-  - task: ms-vscs-artifact.build-tasks.artifactDropDownloadTask-1.artifactDropDownloadTask@0
-    displayName: '📥 Download MacOS Runtime NuGet Package'
-    inputs:
-      dropMetadataContainerName: DropMetadata-MacOS-Intermediate
-      dropServiceURI: ''
-      destinationPath: $(Agent.TempDirectory)/DownloadedDrop
-      usePat: false # TODO: May be this can be removed (or set to true) because system access token is sufficient.
+  - ${{ if eq(parameters.isRollingBuild, true) }}:
+    - task: ms-vscs-artifact.build-tasks.artifactDropDownloadTask-1.artifactDropDownloadTask@0
+      displayName: '📥 Download MacOS Runtime NuGet Package'
+      inputs:
+        dropMetadataContainerName: DropMetadata-MacOS-Intermediate
+        dropServiceURI: ''
+        destinationPath: $(Agent.TempDirectory)/DownloadedDrop
+        usePat: false # TODO: May be this can be removed (or set to true) because system access token is sufficient.
 
   - task: ms-vscs-artifact.build-tasks.artifactDropDownloadTask-1.artifactDropDownloadTask@1
     displayName: '📥 Download Internal Linux Intermediate Artifacts'
@@ -144,21 +151,22 @@ jobs:
       NuGetServiceConnectionName: 'mseng-Domino-BuildXL-1ESSharedAssets_BuildXL'
       AccessToken: $(BuildXL-Pipeline-AccessToken)
 
-- job: GitHubForcePush
-  displayName: Force Push BuildXL.Internal to GitHub Main
-  timeoutInMinutes: 180
-  # Only force push the main branch
-  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
-  pool:
-    name: BuildXL-DevOpsAgents-Selfhost
-    os: windows
+- ${{ if eq(parameters.isRollingBuild, true) }}:
+  - job: GitHubForcePush
+    displayName: Force Push BuildXL.Internal to GitHub Main
+    timeoutInMinutes: 180
+    # Only force push the main branch
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+    pool:
+      name: BuildXL-DevOpsAgents-Selfhost
+      os: windows
 
-  steps:
-  - checkout: self
-    fetchTags: true
-  
-  - task: PowerShell@2
-    displayName: Force push to GitHub master SSH
-    inputs:
-      filePath: Shared/Scripts/github/PushToGHWithDeployKey.ps1
-      arguments: '"$(Github-DeployKey-PrivateKey)" "$(Github-DeployKey-PublicKey)" "$(Build.SourcesDirectory)\Shared\Scripts\github\known_hosts"'
+    steps:
+    - checkout: self
+      fetchTags: true
+
+    - task: PowerShell@2
+      displayName: Force push to GitHub master SSH
+      inputs:
+        filePath: Shared/Scripts/github/PushToGHWithDeployKey.ps1
+        arguments: '"$(Github-DeployKey-PrivateKey)" "$(Github-DeployKey-PublicKey)" "$(Build.SourcesDirectory)\Shared\Scripts\github\known_hosts"'

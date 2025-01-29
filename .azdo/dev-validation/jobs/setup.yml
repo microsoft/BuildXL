@@ -1,0 +1,45 @@
+jobs:
+- deployment: Gates
+  displayName: Gates
+  pool:
+    name: server
+  environment:
+    # Environment ensuring that checkout branches are from
+    # - refs/heads/releases/dev-validation/* - for feature branch
+    # - refs/heads/main - for validating main
+    # - refs/head/master - for release management
+    # - refs/tags/release - for 1ES PT
+    name: BuildXL-Dev-Validation 
+- job: Setup
+  displayName: Setup
+  dependsOn: Gates
+  variables:
+    skipComponentGovernanceDetection: true # Skip component governance detection because the job does not use any code or produce any output.
+  steps:
+  - checkout: none
+
+  - task: CmdLine@2
+    name: SetBuildNumber
+    displayName: Set build/version number 
+    inputs:
+      script: |
+        @echo off
+
+        echo Using ADO build number as prerelease tag
+        set PrereleaseTag=$(Build.BuildNumber)
+
+        REM Be defensive and remove any semantic version prefix
+        for /F "tokens=1,2 delims=-" %%a in ("%PrereleaseTag%") do (
+            if not "%%b"=="" (
+                echo Inferred Prerelease Tag '%%b'
+                set PrereleaseTag=%%b
+            )
+        )
+        echo Setting 'BuildXLPreReleaseTag' to '%PrereleaseTag%'
+        echo ##vso[task.setvariable variable=BuildXLPreReleaseTag;isOutput=true]%PrereleaseTag%
+
+        set Branding_SemanticVersion=0.1.0
+        echo Setting 'BuildXLSemanticVersion' to '%Branding_SemanticVersion%'
+        echo ##vso[task.setvariable variable=BuildXLSemanticVersion;isOutput=true]%Branding_SemanticVersion%
+
+        echo ##vso[build.updatebuildnumber]%Branding_SemanticVersion%-dev.%PrereleaseTag%

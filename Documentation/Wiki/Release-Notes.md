@@ -2,6 +2,14 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+
+# 0.1.0-20250124.4 (Release [29540324](https://dev.azure.com/mseng/Domino/_build/results?buildId=29540324&view=results))
+- Allow unobserved task exception for BlobL3 cache client
+- Fix scrubber path collapsing for Linux
+- Add linux os name into ExtraFingerprintSalts
+- dropD - don't add longFileName prefix to long path on Linux
+- Allow limiting additionalSourceReadsScopes with a JavascriptProjectSelector
+
 # 0.1.0-20250117.1 (Release [29518312](https://dev.azure.com/mseng/Domino/_build/results?buildId=29518312&view=results))
 -	Improve Linux sandbox stability
 -	Remove unused CLI flags

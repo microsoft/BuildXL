@@ -326,6 +326,7 @@ namespace BuildXL.Scheduler.Tracing
         public string Operation { get; set; }
         public string FlagsAndAttributes { get; set; }
         public uint Error { get; set; }
+        public uint RawError { get; set; }
         public ulong Usn { get; set; }
         public string ManifestPath { get; set; }
         public uint Process { get; set; }

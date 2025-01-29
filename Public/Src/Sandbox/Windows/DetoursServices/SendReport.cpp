@@ -125,6 +125,17 @@ bool EscapeFileName(PCWSTR fileName, size_t fileNameLength, std::wstring &escape
 // ----------------------------------------------------------------------------
 // FUNCTION DEFINITIONS
 // ----------------------------------------------------------------------------
+void ReportFileAccess(
+    FileOperationContext const& fileOperationContext,
+    FileAccessStatus status,
+    PolicyResult const& policyResult,
+    AccessCheckResult const& accessCheckResult,
+    DWORD error,
+    USN usn,
+    wchar_t const* filter)
+{
+    ReportFileAccess(fileOperationContext, status, policyResult, accessCheckResult, error, error, usn, filter);
+}
 
 void ReportFileAccess(
     FileOperationContext const& fileOperationContext,
@@ -132,6 +143,7 @@ void ReportFileAccess(
     PolicyResult const& policyResult,
     AccessCheckResult const& accessCheckResult,
     DWORD error,
+    DWORD rawError,
     USN usn,
     wchar_t const* filter)
 {
@@ -175,9 +187,9 @@ void ReportFileAccess(
     size_t filterLength = wcslen(filterStr); // in characters
     size_t fileProcessCommandLineLength = wcslen(g_currentProcessCommandLine); // in characters
     size_t operationLen = wcslen(fileOperationContext.Operation); // in characters
-    size_t reportBufferSize = fileNameLength + filterLength + fileProcessCommandLineLength + operationLen + 116; // in characters
+    size_t reportBufferSize = fileNameLength + filterLength + fileProcessCommandLineLength + operationLen + 124; // in characters
 
-    // Adding 116 should be enough for now since the max values for the members of the message are:
+    // Adding 124 should be enough for now since the max values for the members of the message are:
     // buildxl::common::ReportType::kFileAccess � 1 char
     // g_currentProcessId � 8 chars
     // FileOperationContext.Id � 8 chars
@@ -186,6 +198,7 @@ void ReportFileAccess(
     // status � 1 char
     // (int)(accessCheckResult.ReportLevel == ReportLevel::ReportExplicit) � 1 char(0 or 1)
     // Error � 8 chars
+    // RawError � 8 chars
     // Usn � 16 chars
     // fileOperationContext.DesiredAccess � 8 chars
     // fileOperationContext.ShareMode � 8 chars
@@ -198,7 +211,7 @@ void ReportFileAccess(
     // g_currentProcessCommandLine � separately added
     // 15 chars for | chars
     // 5 chars for �, �  � : � �\r� �\n� �\0� chars
-    // Total : 120 characters.
+    // Total : 128 characters.
 
     unique_ptr<wchar_t[]> report(new wchar_t[reportBufferSize]);
     assert(report.get());
@@ -220,7 +233,7 @@ void ReportFileAccess(
         std::replace(commandLine.begin(), commandLine.end(), L'\r', L' ');
         std::replace(commandLine.begin(), commandLine.end(), L'\n', L' ');
 
-        constructReportResult = swprintf_s(report.get(), reportBufferSize, L"%d,%s:%lx|%lx|%lx|%x|%x|%x|%lx|%llx|%lx|%lx|%lx|%lx|%lx|%lx|%s|%s|%s\r\n",
+        constructReportResult = swprintf_s(report.get(), reportBufferSize, L"%d,%s:%lx|%lx|%lx|%x|%x|%x|%lx|%lx|%llx|%lx|%lx|%lx|%lx|%lx|%lx|%s|%s|%s\r\n",
             buildxl::common::ReportType::kFileAccess,
             fileOperationContext.Operation,
             g_currentProcessId,
@@ -230,6 +243,7 @@ void ReportFileAccess(
             status,
             (int)(accessCheckResult.Level == ReportLevel::ReportExplicit),
             error,
+            rawError,
             usn,
             fileOperationContext.DesiredAccess,
             fileOperationContext.ShareMode,
@@ -243,7 +257,7 @@ void ReportFileAccess(
     }
     else
     {
-        constructReportResult = swprintf_s(report.get(), reportBufferSize, L"%d,%s:%lx|%lx|%lx|%x|%x|%x|%lx|%llx|%lx|%lx|%lx|%lx|%lx|%lx|%s|%s\r\n",
+        constructReportResult = swprintf_s(report.get(), reportBufferSize, L"%d,%s:%lx|%lx|%lx|%x|%x|%x|%lx|%lx|%llx|%lx|%lx|%lx|%lx|%lx|%lx|%s|%s\r\n",
             buildxl::common::ReportType::kFileAccess,
             fileOperationContext.Operation,
             g_currentProcessId,
@@ -253,6 +267,7 @@ void ReportFileAccess(
             status,
             (int)(accessCheckResult.Level == ReportLevel::ReportExplicit),
             error,
+            rawError,
             usn,
             fileOperationContext.DesiredAccess,
             fileOperationContext.ShareMode,

@@ -259,6 +259,7 @@ namespace BuildXL.Execution.Analyzer
                     status: FileAccessStatus.None,
                     explicitlyReported: true,
                     error: 0,
+                    rawError: 0,
                     usn: default(Usn),
                     desiredAccess: DesiredAccess.GENERIC_ALL,
                     shareMode: ShareMode.FILE_SHARE_READ,

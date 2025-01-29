@@ -112,11 +112,22 @@ void InitProcessKind();
 
 void TranslateFilePath(_In_ const std::wstring& inFileName, _Out_ std::wstring& outFileName);
 
+DWORD GetReportedError(BOOL result, DWORD error);
+
 void ReportIfNeeded(
     AccessCheckResult const& checkResult,
     FileOperationContext const& context,
     PolicyResult const& policyResult,
     DWORD error,
+    USN usn = -1,
+    wchar_t const* filter = nullptr);
+
+void ReportIfNeeded(
+    AccessCheckResult const& checkResult,
+    FileOperationContext const& context,
+    PolicyResult const& policyResult,
+    DWORD error,
+    DWORD rawError,
     USN usn = -1,
     wchar_t const* filter = nullptr);
 

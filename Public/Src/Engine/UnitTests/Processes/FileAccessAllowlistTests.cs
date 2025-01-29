@@ -151,6 +151,7 @@ namespace Test.BuildXL.Processes
                 FileAccessStatus.Allowed,
                 true,
                 0,
+                0,
                 Usn.Zero,
                 DesiredAccess.GENERIC_READ,
                 ShareMode.FILE_SHARE_READ,

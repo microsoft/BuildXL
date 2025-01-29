@@ -533,7 +533,7 @@ static bool ShouldResolveReparsePointsInPath(
     wstring resolver;
     size_t level = 0;
     size_t levelToEnforceReparsePointParsingFrom = GetLevelToEnableFullReparsePointParsing(policyResult);
-    for(auto iter = atoms.begin(); iter != atoms.end(); iter++)
+    for (auto iter = atoms.begin(); iter != atoms.end(); iter++)
     {
         resolver.append(*iter);
 
@@ -888,7 +888,7 @@ static void DetourGetFinalPaths(_In_ const CanonicalizedPath& path, _In_ HANDLE 
     HANDLE handle = hInput;
     wstring currentPath = path.GetPathString();
 
-    while(true)
+    while (true)
     {
         order->push_back(currentPath);
 
@@ -1279,7 +1279,7 @@ static bool ResolveAllReparsePointsAndEnforceAccess(
             resolved += L"\\";
             resolved += next;
             level++;
-            
+
             // Avoid opening handle by not calling TryGetReparsePointTarget when reparse point has been fouond (foundReparsePoint == true).
             if ((!first || level >= levelToEnforceReparsePointParsingFrom) && !foundReparsePoint)
             {
@@ -1430,9 +1430,9 @@ static bool ResolveAllReparsePointsAndEnforceAccess(
     }
 
     PathCache_InsertResolvedPaths(
-        path.GetPathStringWithoutTypePrefix(), 
-        preserveLastReparsePointInPath, 
-        order, 
+        path.GetPathStringWithoutTypePrefix(),
+        preserveLastReparsePointInPath,
+        order,
         resolvedPaths,
         policyResult);
     return success;
@@ -2051,11 +2051,11 @@ NTSTATUS HandleFileRenameInformation(
     wstring targetPath;
 
     if (!TryGetFileNameFromFileInformation(
-            pRenameInfo->FileName,
-            pRenameInfo->FileNameLength,
-            pRenameInfo->RootDirectory,
-            true,
-            targetPath)
+        pRenameInfo->FileName,
+        pRenameInfo->FileNameLength,
+        pRenameInfo->RootDirectory,
+        true,
+        targetPath)
         || targetPath.empty())
     {
         SetLastError(lastError);
@@ -2130,11 +2130,11 @@ NTSTATUS HandleFileRenameInformation(
     if (renameDirectory)
     {
         if (!ValidateMoveDirectory(
-                L"ZwSetRenameInformationFile_Source",
-                L"ZwSetRenameInformationFile_Dest",
-                sourcePath.c_str(),
-                targetPath.c_str(),
-                filesAndDirectoriesToReport))
+            L"ZwSetRenameInformationFile_Source",
+            L"ZwSetRenameInformationFile_Dest",
+            sourcePath.c_str(),
+            targetPath.c_str(),
+            filesAndDirectoriesToReport))
         {
             return FALSE;
         }
@@ -2148,22 +2148,18 @@ NTSTATUS HandleFileRenameInformation(
         FileInformation,
         Length,
         FileInformationClass);
-
-    if (!NT_SUCCESS(result))
-    {
-        lastError = GetLastError();
-    }
+    lastError = GetLastError();
 
     DWORD ntError = RtlNtStatusToDosError(result);
 
-    ReportIfNeeded(sourceAccessCheck, sourceOpContext, sourcePolicyResult, ntError);
-    ReportIfNeeded(destAccessCheck, destinationOpContext, destPolicyResult, ntError);
+    ReportIfNeeded(sourceAccessCheck, sourceOpContext, sourcePolicyResult, ntError, lastError);
+    ReportIfNeeded(destAccessCheck, destinationOpContext, destPolicyResult, ntError, lastError);
 
     if (renameDirectory)
     {
-        for (auto entry : filesAndDirectoriesToReport)
+        for (auto& entry : filesAndDirectoriesToReport)
         {
-            ReportIfNeeded(entry.GetAccessCheckResult(), entry.GetFileOperationContext(), entry.GetPolicyResult(), ntError);
+            ReportIfNeeded(entry.GetAccessCheckResult(), entry.GetFileOperationContext(), entry.GetPolicyResult(), ntError, lastError);
         }
     }
 
@@ -2181,7 +2177,7 @@ NTSTATUS HandleFileLinkInformation(
     _In_  BOOL                   IsExtendedFileInformation)
 {
     assert((!IsExtendedFileInformation && (FILE_INFORMATION_CLASS_EXTRA)FileInformationClass == FILE_INFORMATION_CLASS_EXTRA::FileLinkInformation)
-         || (IsExtendedFileInformation && (FILE_INFORMATION_CLASS_EXTRA)FileInformationClass == FILE_INFORMATION_CLASS_EXTRA::FileLinkInformationEx));
+        || (IsExtendedFileInformation && (FILE_INFORMATION_CLASS_EXTRA)FileInformationClass == FILE_INFORMATION_CLASS_EXTRA::FileLinkInformationEx));
 
     DetouredScope scope;
     if (scope.Detoured_IsDisabled())
@@ -2268,13 +2264,9 @@ NTSTATUS HandleFileLinkInformation(
         FileInformation,
         Length,
         FileInformationClass);
+    lastError = GetLastError();
 
-    if (!NT_SUCCESS(result))
-    {
-        lastError = GetLastError();
-    }
-
-    ReportIfNeeded(targetAccessCheck, targetOpContext, targetPolicyResult, RtlNtStatusToDosError(result));
+    ReportIfNeeded(targetAccessCheck, targetOpContext, targetPolicyResult, RtlNtStatusToDosError(result), lastError);
 
     SetLastError(lastError);
 
@@ -2371,13 +2363,9 @@ NTSTATUS HandleFileDispositionInformation(
         FileInformation,
         Length,
         FileInformationClass);
+    lastError = GetLastError();
 
-    if (!NT_SUCCESS(result))
-    {
-        lastError = GetLastError();
-    }
-
-    ReportIfNeeded(sourceAccessCheck, sourceOpContext, sourcePolicyResult, RtlNtStatusToDosError(result));
+    ReportIfNeeded(sourceAccessCheck, sourceOpContext, sourcePolicyResult, RtlNtStatusToDosError(result), lastError);
 
     SetLastError(lastError);
 
@@ -2461,13 +2449,9 @@ NTSTATUS HandleFileModeInformation(
         FileInformation,
         Length,
         FileInformationClass);
+    lastError = GetLastError();
 
-    if (!NT_SUCCESS(result))
-    {
-        lastError = GetLastError();
-    }
-
-    ReportIfNeeded(sourceAccessCheck, sourceOpContext, sourcePolicyResult, RtlNtStatusToDosError(result));
+    ReportIfNeeded(sourceAccessCheck, sourceOpContext, sourcePolicyResult, RtlNtStatusToDosError(result), lastError);
 
     SetLastError(lastError);
 
@@ -2599,11 +2583,11 @@ NTSTATUS HandleFileNameInformation(
     if (renameDirectory)
     {
         if (!ValidateMoveDirectory(
-                L"ZwSetFileNameInformationFile_Source",
-                L"ZwSetFileNameInformationFile_Dest",
-                sourcePath.c_str(),
-                targetPath.c_str(),
-                filesAndDirectoriesToReport))
+            L"ZwSetFileNameInformationFile_Source",
+            L"ZwSetFileNameInformationFile_Dest",
+            sourcePath.c_str(),
+            targetPath.c_str(),
+            filesAndDirectoriesToReport))
         {
             return FALSE;
         }
@@ -2617,22 +2601,18 @@ NTSTATUS HandleFileNameInformation(
         FileInformation,
         Length,
         FileInformationClass);
-
-    if (!NT_SUCCESS(result))
-    {
-        lastError = GetLastError();
-    }
+    lastError = GetLastError();
 
     DWORD ntError = RtlNtStatusToDosError(result);
 
-    ReportIfNeeded(sourceAccessCheck, sourceOpContext, sourcePolicyResult, ntError);
-    ReportIfNeeded(destAccessCheck, destinationOpContext, destPolicyResult, ntError);
+    ReportIfNeeded(sourceAccessCheck, sourceOpContext, sourcePolicyResult, ntError, lastError);
+    ReportIfNeeded(destAccessCheck, destinationOpContext, destPolicyResult, ntError, lastError);
 
     if (renameDirectory)
     {
         for (auto entry : filesAndDirectoriesToReport)
         {
-            ReportIfNeeded(entry.GetAccessCheckResult(), entry.GetFileOperationContext(), entry.GetPolicyResult(), ntError);
+            ReportIfNeeded(entry.GetAccessCheckResult(), entry.GetFileOperationContext(), entry.GetPolicyResult(), ntError, lastError);
         }
     }
 
@@ -2654,45 +2634,45 @@ NTSTATUS NTAPI Detoured_ZwSetInformationFile(
 
     switch (fileInformationClassExtra)
     {
-        case FILE_INFORMATION_CLASS_EXTRA::FileRenameInformation:
-        case FILE_INFORMATION_CLASS_EXTRA::FileRenameInformationEx:
-        case FILE_INFORMATION_CLASS_EXTRA::FileRenameInformationBypassAccessCheck:
-        case FILE_INFORMATION_CLASS_EXTRA::FileRenameInformationExBypassAccessCheck:
-            if (!IgnoreZwRenameFileInformation())
-            {
-                return HandleFileRenameInformation(FileHandle, IoStatusBlock, FileInformation, Length, FileInformationClass);
-            }
-            break;
-        case FILE_INFORMATION_CLASS_EXTRA::FileLinkInformation:
-        case FILE_INFORMATION_CLASS_EXTRA::FileLinkInformationEx:
-            if (!IgnoreZwOtherFileInformation())
-            {
-                return HandleFileLinkInformation(FileHandle, IoStatusBlock, FileInformation, Length, FileInformationClass, fileInformationClassExtra == FILE_INFORMATION_CLASS_EXTRA::FileLinkInformationEx);
-            }
-            break;
-        case FILE_INFORMATION_CLASS_EXTRA::FileDispositionInformation:
-        case FILE_INFORMATION_CLASS_EXTRA::FileDispositionInformationEx:
-            if (!IgnoreZwOtherFileInformation())
-            {
-                return HandleFileDispositionInformation(FileHandle, IoStatusBlock, FileInformation, Length, FileInformationClass);
-            }
-            break;
-        case FILE_INFORMATION_CLASS_EXTRA::FileModeInformation:
-            if (!IgnoreZwOtherFileInformation())
-            {
-                return HandleFileModeInformation(FileHandle, IoStatusBlock, FileInformation, Length, FileInformationClass);
-            }
-            break;
-        case FILE_INFORMATION_CLASS_EXTRA::FileNameInformation:
-            if (!IgnoreZwOtherFileInformation())
-            {
-                return HandleFileNameInformation(FileHandle, IoStatusBlock, FileInformation, Length, FileInformationClass);
-            }
-            break;
-        default:
-            break;
-// Without the warning suppression below, some compilation flag can produce a warning because the cases aboe are not
-// exhaustive with respect to the FILE_INFORMATION_CLASS_EXTRA enums.
+    case FILE_INFORMATION_CLASS_EXTRA::FileRenameInformation:
+    case FILE_INFORMATION_CLASS_EXTRA::FileRenameInformationEx:
+    case FILE_INFORMATION_CLASS_EXTRA::FileRenameInformationBypassAccessCheck:
+    case FILE_INFORMATION_CLASS_EXTRA::FileRenameInformationExBypassAccessCheck:
+        if (!IgnoreZwRenameFileInformation())
+        {
+            return HandleFileRenameInformation(FileHandle, IoStatusBlock, FileInformation, Length, FileInformationClass);
+        }
+        break;
+    case FILE_INFORMATION_CLASS_EXTRA::FileLinkInformation:
+    case FILE_INFORMATION_CLASS_EXTRA::FileLinkInformationEx:
+        if (!IgnoreZwOtherFileInformation())
+        {
+            return HandleFileLinkInformation(FileHandle, IoStatusBlock, FileInformation, Length, FileInformationClass, fileInformationClassExtra == FILE_INFORMATION_CLASS_EXTRA::FileLinkInformationEx);
+        }
+        break;
+    case FILE_INFORMATION_CLASS_EXTRA::FileDispositionInformation:
+    case FILE_INFORMATION_CLASS_EXTRA::FileDispositionInformationEx:
+        if (!IgnoreZwOtherFileInformation())
+        {
+            return HandleFileDispositionInformation(FileHandle, IoStatusBlock, FileInformation, Length, FileInformationClass);
+        }
+        break;
+    case FILE_INFORMATION_CLASS_EXTRA::FileModeInformation:
+        if (!IgnoreZwOtherFileInformation())
+        {
+            return HandleFileModeInformation(FileHandle, IoStatusBlock, FileInformation, Length, FileInformationClass);
+        }
+        break;
+    case FILE_INFORMATION_CLASS_EXTRA::FileNameInformation:
+        if (!IgnoreZwOtherFileInformation())
+        {
+            return HandleFileNameInformation(FileHandle, IoStatusBlock, FileInformation, Length, FileInformationClass);
+        }
+        break;
+    default:
+        break;
+        // Without the warning suppression below, some compilation flag can produce a warning because the cases aboe are not
+        // exhaustive with respect to the FILE_INFORMATION_CLASS_EXTRA enums.
 #pragma warning(suppress: 4061)
     }
 
@@ -3016,7 +2996,7 @@ static bool TryGetUsn(
     const size_t MaximumComponentLength = 255;
     const size_t MaximumChangeJournalRecordSize =
         (MaximumComponentLength * sizeof(WCHAR)
-        + sizeof(USN_RECORD) - sizeof(WCHAR));
+            + sizeof(USN_RECORD) - sizeof(WCHAR));
     union {
         USN_RECORD_V2 usnRecord;
         BYTE reserved[MaximumChangeJournalRecordSize];
@@ -3167,8 +3147,6 @@ HANDLE WINAPI Detoured_CreateFileW(
         }
     }
 
-    error = ERROR_SUCCESS;
-
     HANDLE handle = Real_CreateFileW(
         lpFileName,
         desiredAccess,
@@ -3179,10 +3157,11 @@ HANDLE WINAPI Detoured_CreateFileW(
         hTemplateFile);
 
     error = GetLastError();
+    DWORD reportedError = GetReportedError(handle != INVALID_HANDLE_VALUE, error);
     FileReadContext readContext;
-    readContext.InferExistenceFromError(error);
+    readContext.InferExistenceFromError(reportedError);
     readContext.OpenedDirectory = IsHandleOrPathToDirectory(
-        error == ERROR_SUCCESS ? handle : INVALID_HANDLE_VALUE,
+        handle,
         lpFileName,
         dwDesiredAccess,
         dwFlagsAndAttributes,
@@ -3288,11 +3267,6 @@ HANDLE WINAPI Detoured_CreateFileW(
         }
     }
 
-    if (shouldReportAccessCheck)
-    {
-        ReportIfNeeded(accessCheck, opContext, policyResult, error, usn);
-    }
-
     InvalidateReparsePointCacheIfNeeded(
         shouldResolveReparsePointsInPath,
         dwDesiredAccess,
@@ -3313,6 +3287,7 @@ HANDLE WINAPI Detoured_CreateFileW(
     if (accessCheck.ShouldDenyAccess())
     {
         error = accessCheck.DenialError();
+        reportedError = error;
 
         if (handle != INVALID_HANDLE_VALUE)
         {
@@ -3325,6 +3300,11 @@ HANDLE WINAPI Detoured_CreateFileW(
     {
         HandleType handleType = readContext.OpenedDirectory ? HandleType::Directory : HandleType::File;
         RegisterHandleOverlay(handle, accessCheck, policyResult, handleType);
+    }
+
+    if (shouldReportAccessCheck)
+    {
+        ReportIfNeeded(accessCheck, opContext, policyResult, reportedError, error, usn);
     }
 
     // Propagate the correct error code to the caller.
@@ -3344,7 +3324,7 @@ BOOL WINAPI Detoured_CloseHandle(_In_ HANDLE handle)
 
     // Make sure the handle is closed after the object is removed from the map.
     // This way the handle will never be assigned to a another object before removed from the table.
-    CloseHandleOverlay(handle , true);
+    CloseHandleOverlay(handle, true);
 
     return Real_CloseHandle(handle);
 }
@@ -3398,7 +3378,7 @@ BOOL WINAPI Detoured_GetVolumePathNameW(
     _In_  LPCWSTR lpszFileName,
     _Out_ LPWSTR  lpszVolumePathName,
     _In_  DWORD   cchBufferLength
-    )
+)
 {
     // The reason for this scope check is that GetVolumePathNameW calls many other detoured APIs.
     // We do not need to have any reports for file accesses from these APIs, because thay are not what the application called.
@@ -3432,32 +3412,28 @@ DWORD WINAPI Detoured_GetFileAttributesW(_In_  LPCWSTR lpFileName)
         return INVALID_FILE_ATTRIBUTES;
     }
 
-    DWORD attributes = INVALID_FILE_ATTRIBUTES;
-    DWORD error = ERROR_SUCCESS;
-
-    attributes = Real_GetFileAttributesW(lpFileName);
-
-    if (attributes == INVALID_FILE_ATTRIBUTES)
-    {
-        error = GetLastError();
-    }
+    DWORD attributes = Real_GetFileAttributesW(lpFileName);
+    DWORD error = GetLastError();
+    DWORD reportedError = GetReportedError(attributes != INVALID_FILE_ATTRIBUTES, error);
 
     // Now we can make decisions based on the file's existence and type.
     FileReadContext fileReadContext;
-    fileReadContext.InferExistenceFromError(error);
+    fileReadContext.InferExistenceFromError(reportedError);
     fileReadContext.OpenedDirectory = IsDirectoryFromAttributes(
         attributes,
         ShouldTreatDirectoryReparsePointAsFile(fileOperationContext.DesiredAccess, fileOperationContext.FlagsAndAttributes, policyResult));
     fileOperationContext.OpenedFileOrDirectoryAttributes = attributes;
 
     AccessCheckResult accessCheck = policyResult.CheckReadAccess(RequestedReadAccess::Probe, fileReadContext);
-    ReportIfNeeded(accessCheck, fileOperationContext, policyResult, error);
 
     if (accessCheck.ShouldDenyAccess())
     {
         error = accessCheck.DenialError();
+        reportedError = error;
         attributes = INVALID_FILE_ATTRIBUTES;
     }
+
+    ReportIfNeeded(accessCheck, fileOperationContext, policyResult, reportedError, error);
 
     SetLastError(error);
     return attributes;
@@ -3502,16 +3478,12 @@ BOOL WINAPI Detoured_GetFileAttributesExW(
         return FALSE;
     }
 
-    DWORD error = ERROR_SUCCESS;
-    BOOL querySucceeded = TRUE;
     // We could be clever and avoid calling this when already doomed to failure. However:
     // - Unlike CreateFile, this query can't interfere with other processes
     // - We want lpFileInformation to be zeroed according to whatever policy GetFileAttributesEx has.
-    querySucceeded = Real_GetFileAttributesExW(lpFileName, fInfoLevelId, lpFileInformation);
-    if (!querySucceeded)
-    {
-        error = GetLastError();
-    }
+    BOOL querySucceeded = Real_GetFileAttributesExW(lpFileName, fInfoLevelId, lpFileInformation);
+    DWORD error = GetLastError();
+    DWORD reportedError = GetReportedError(querySucceeded, error);
 
     WIN32_FILE_ATTRIBUTE_DATA* fileStandardInfo = (fInfoLevelId == GetFileExInfoStandard && lpFileInformation != nullptr)
         ? (WIN32_FILE_ATTRIBUTE_DATA*)lpFileInformation
@@ -3525,25 +3497,25 @@ BOOL WINAPI Detoured_GetFileAttributesExW(
 
     // Now we can make decisions based on existence and type.
     FileReadContext fileReadContext;
-    fileReadContext.InferExistenceFromError(error);
+    fileReadContext.InferExistenceFromError(reportedError);
     fileReadContext.OpenedDirectory =
         querySucceeded
         && fileStandardInfo != nullptr
         && IsDirectoryFromAttributes(
             fileStandardInfo->dwFileAttributes,
             ShouldTreatDirectoryReparsePointAsFile(fileOperationContext.DesiredAccess, fileOperationContext.FlagsAndAttributes, policyResult));
-    fileOperationContext.OpenedFileOrDirectoryAttributes = querySucceeded && fileStandardInfo != nullptr 
+    fileOperationContext.OpenedFileOrDirectoryAttributes = querySucceeded && fileStandardInfo != nullptr
         ? fileStandardInfo->dwFileAttributes
         : INVALID_FILE_ATTRIBUTES;
 
     AccessCheckResult accessCheck = policyResult.CheckReadAccess(RequestedReadAccess::Probe, fileReadContext);
-    ReportIfNeeded(accessCheck, fileOperationContext, policyResult, error);
 
     // No need to enforce chain of reparse point accesess because if the path points to a symbolic link,
     // then GetFileAttributes returns attributes for the symbolic link.
     if (accessCheck.ShouldDenyAccess())
     {
         error = accessCheck.DenialError();
+        reportedError = error;
         querySucceeded = FALSE;
     }
 
@@ -3554,6 +3526,8 @@ BOOL WINAPI Detoured_GetFileAttributesExW(
 #endif // SUPER_VERBOSE
         OverrideTimestampsForInputFile(fileStandardInfo);
     }
+
+    ReportIfNeeded(accessCheck, fileOperationContext, policyResult, reportedError, error);
 
     SetLastError(error);
     return querySucceeded;
@@ -3597,7 +3571,7 @@ BOOL WINAPI Detoured_CopyFileW(
     _In_ LPCWSTR lpExistingFileName,
     _In_ LPCWSTR lpNewFileName,
     _In_ BOOL bFailIfExists
-    )
+)
 {
     // Don't duplicate complex access-policy logic between CopyFileEx and CopyFile.
     // This forwarder is identical to the internal implementation of CopyFileExW
@@ -3741,7 +3715,6 @@ BOOL WINAPI Detoured_CopyFileExW(
     // Now we can safely try to copy, but note that the corresponding read of the source file may end up disallowed
     // (maybe the source file exists, as CopyFileW requires, but we only allow non-existence probes for this path).
 
-    DWORD error = ERROR_SUCCESS;
     BOOL result = Real_CopyFileExW(
         lpExistingFileName,
         lpNewFileName,
@@ -3749,23 +3722,20 @@ BOOL WINAPI Detoured_CopyFileExW(
         lpData,
         pbCancel,
         dwCopyFlags);
-
-    if (!result)
-    {
-        error = GetLastError();
-    }
+    DWORD error = GetLastError();
+    DWORD reportedError = GetReportedError(result, error);
 
     FileReadContext sourceReadContext;
     sourceReadContext.OpenedDirectory = false; // TODO: Perhaps CopyFile fails with a nice error code in this case.
-    sourceReadContext.InferExistenceFromError(error);
+    sourceReadContext.InferExistenceFromError(reportedError);
 
     sourceOpContext.OpenedFileOrDirectoryAttributes = GetAttributesForFileOrDirectory(false);
     destinationOpContext.OpenedFileOrDirectoryAttributes = GetAttributesForFileOrDirectory(false);
 
     AccessCheckResult sourceAccessCheck = sourcePolicyResult.CheckReadAccess(RequestedReadAccess::Read, sourceReadContext);
 
-    ReportIfNeeded(sourceAccessCheck, sourceOpContext, sourcePolicyResult, error);
-    ReportIfNeeded(destAccessCheck, destinationOpContext, destPolicyResult, error);
+    ReportIfNeeded(sourceAccessCheck, sourceOpContext, sourcePolicyResult, reportedError, error);
+    ReportIfNeeded(destAccessCheck, destinationOpContext, destPolicyResult, reportedError, error);
 
     if (sourceAccessCheck.ShouldDenyAccess())
     {
@@ -4031,11 +4001,11 @@ BOOL WINAPI Detoured_MoveFileWithProgressW(
         // Verify move directory.
         // The destination of move directory must be on the same drive.
         if (!ValidateMoveDirectory(
-                L"MoveFileWithProgress_Source",
-                L"MoveFileWithProgress_Dest",
-                sourcePolicyResult.GetCanonicalizedPath().GetPathString(),
-                destPolicyResult.GetCanonicalizedPath().GetPathString(),
-                filesAndDirectoriesToReport))
+            L"MoveFileWithProgress_Source",
+            L"MoveFileWithProgress_Dest",
+            sourcePolicyResult.GetCanonicalizedPath().GetPathString(),
+            destPolicyResult.GetCanonicalizedPath().GetPathString(),
+            filesAndDirectoriesToReport))
         {
             return FALSE;
         }
@@ -4058,27 +4028,23 @@ BOOL WINAPI Detoured_MoveFileWithProgressW(
 
     // It's now safe to perform the move, which should tell us the existence of the source side (and so, if it may be read or not).
 
-    DWORD error = ERROR_SUCCESS;
     BOOL result = Real_MoveFileWithProgressW(
         lpExistingFileName,
         lpNewFileName,
         lpProgressRoutine,
         lpData,
         dwFlags);
+    DWORD error = GetLastError();
+    DWORD reportedError = GetReportedError(result, error);
 
-    if (!result)
-    {
-        error = GetLastError();
-    }
-
-    ReportIfNeeded(sourceAccessCheck, sourceOpContext, sourcePolicyResult, error);
-    ReportIfNeeded(destAccessCheck, destinationOpContext, destPolicyResult, error);
+    ReportIfNeeded(sourceAccessCheck, sourceOpContext, sourcePolicyResult, reportedError, error);
+    ReportIfNeeded(destAccessCheck, destinationOpContext, destPolicyResult, reportedError, error);
 
     if (moveDirectory)
     {
-        for (auto entry : filesAndDirectoriesToReport)
+        for (auto& entry : filesAndDirectoriesToReport)
         {
-            ReportIfNeeded(entry.GetAccessCheckResult(), entry.GetFileOperationContext(), entry.GetPolicyResult(), error);
+            ReportIfNeeded(entry.GetAccessCheckResult(), entry.GetFileOperationContext(), entry.GetPolicyResult(), reportedError, error);
         }
     }
 
@@ -4300,6 +4266,7 @@ BOOL WINAPI Detoured_DeleteFileW(_In_ LPCWSTR lpFileName)
 
     BOOL result = Real_DeleteFileW(lpFileName);
     error = GetLastError();
+    DWORD reportedError = GetReportedError(result, error);
 
     if (!result && accessCheck.Result != ResultAction::Allow)
     {
@@ -4307,7 +4274,7 @@ BOOL WINAPI Detoured_DeleteFileW(_In_ LPCWSTR lpFileName)
         accessCheck = DeleteFileAsSafeProbe(opContext, policyResult, accessCheck);
     }
 
-    ReportIfNeeded(accessCheck, opContext, policyResult, error);
+    ReportIfNeeded(accessCheck, opContext, policyResult, reportedError, error);
     SetLastError(error);
 
     return result;
@@ -4401,32 +4368,28 @@ BOOL WINAPI Detoured_CreateHardLinkW(
     // (maybe the source file exists, as CreateHardLink requires, but we only allow non-existence probes).
     // Recall that failure of CreateHardLink is orthogonal to access-check failure.
 
-    DWORD error = ERROR_SUCCESS;
-
     BOOL result = Real_CreateHardLinkW(
         lpFileName,
         lpExistingFileName,
         lpSecurityAttributes);
-
-    if (!result)
-    {
-        error = GetLastError();
-    }
+    DWORD error = GetLastError();
+    DWORD reportedError = GetReportedError(result, error);
 
     FileReadContext sourceReadContext;
     sourceReadContext.OpenedDirectory = false; // TODO: Perhaps CreateHardLink fails with a nice error code in this case.
-    sourceReadContext.InferExistenceFromError(error);
+    sourceReadContext.InferExistenceFromError(result ? ERROR_SUCCESS : error);
 
     AccessCheckResult sourceAccessCheck = sourcePolicyResult.CheckReadAccess(RequestedReadAccess::Read, sourceReadContext);
-
-    ReportIfNeeded(sourceAccessCheck, sourceOpContext, sourcePolicyResult, error);
-    ReportIfNeeded(destAccessCheck, destinationOpContext, destPolicyResult, error);
 
     if (sourceAccessCheck.ShouldDenyAccess())
     {
         result = FALSE;
         error = sourceAccessCheck.DenialError();
+        reportedError = error;
     }
+
+    ReportIfNeeded(sourceAccessCheck, sourceOpContext, sourcePolicyResult, reportedError, error);
+    ReportIfNeeded(destAccessCheck, destinationOpContext, destPolicyResult, reportedError, error);
 
     SetLastError(error);
 
@@ -4438,7 +4401,7 @@ BOOL WINAPI Detoured_CreateHardLinkA(
     _In_       LPCSTR                lpFileName,
     _In_       LPCSTR                lpExistingFileName,
     __reserved LPSECURITY_ATTRIBUTES lpSecurityAttributes
-    )
+)
 {
     {
         DetouredScope scope;
@@ -4511,7 +4474,7 @@ BOOLEAN WINAPI Detoured_CreateSymbolicLinkW(
     AccessCheckResult accessCheckSrc = policyResultSrc.CheckWriteAccess();
     accessCheckSrc = AccessCheckResult::Combine(accessCheckSrc, policyResultSrc.CheckSymlinkCreationAccess());
 
-    opContextSrc.OpenedFileOrDirectoryAttributes = 
+    opContextSrc.OpenedFileOrDirectoryAttributes =
         FILE_ATTRIBUTE_NORMAL
         | FILE_ATTRIBUTE_REPARSE_POINT
         | ((dwFlags & SYMBOLIC_LINK_FLAG_DIRECTORY) != 0 ? FILE_ATTRIBUTE_DIRECTORY : 0UL);
@@ -4522,7 +4485,7 @@ BOOLEAN WINAPI Detoured_CreateSymbolicLinkW(
     {
         error = accessCheckSrc.DenialError();
         ReportIfNeeded(accessCheckSrc, opContextSrc, policyResultSrc, error);
-        SetLastError(error);
+        accessCheckSrc.SetLastErrorToDenialError();
         return FALSE;
     }
 
@@ -4531,10 +4494,11 @@ BOOLEAN WINAPI Detoured_CreateSymbolicLinkW(
         lpTargetFileName,
         dwFlags);
     error = GetLastError();
+    DWORD reportedError = GetReportedError(result, error);
 
     // We do not report directory only for ReadAccess. So there is no need to enforce report level to ReportLevel::Report.
 
-    ReportIfNeeded(accessCheckSrc, opContextSrc, policyResultSrc, error);
+    ReportIfNeeded(accessCheckSrc, opContextSrc, policyResultSrc, reportedError, error);
     PathCache_Invalidate(policyResultSrc.GetCanonicalizedPath().GetPathStringWithoutTypePrefix(), false, policyResultSrc);
 
     SetLastError(error);
@@ -4592,7 +4556,7 @@ HANDLE WINAPI Detoured_FindFirstFileA(
 /// <summary>
 /// Enforces allowed access for a path that leads to the target of a reparse point.
 /// </summary>
-HANDLE WINAPI ReportFindFirstFileExWAccesses(
+static HANDLE WINAPI ReportFindFirstFileExWAccesses(
     _In_       LPCWSTR            lpFileName,
     _In_       FINDEX_INFO_LEVELS fInfoLevelId,
     _Out_      LPVOID             lpFindFileData,
@@ -4630,6 +4594,7 @@ HANDLE WINAPI ReportFindFirstFileExWAccesses(
         directoryPolicyResult,
         false /* Need to fully resolve the directory */))
     {
+        lpFindFileData = NULL;
         return INVALID_HANDLE_VALUE;
     }
 
@@ -4712,7 +4677,7 @@ HANDLE WINAPI ReportFindFirstFileExWAccesses(
     // For the enumeration itself, we report ERROR_SUCCESS in the case that no matches were found (the directory itself exists).
     // FindFirstFileEx indicates no matches with ERROR_FILE_NOT_FOUND.
     DWORD enumerationError = (success || error == ERROR_FILE_NOT_FOUND) ? ERROR_SUCCESS : error;
-    ReportIfNeeded(directoryAccessCheck, fileOperationContext, directoryPolicyResult, success ? ERROR_SUCCESS : enumerationError, -1, filter);
+    ReportIfNeeded(directoryAccessCheck, fileOperationContext, directoryPolicyResult, GetReportedError(success, enumerationError), error, -1, filter);
 
     // TODO: Respect ShouldDenyAccess for directoryAccessCheck.
 
@@ -4721,7 +4686,8 @@ HANDLE WINAPI ReportFindFirstFileExWAccesses(
         assert(!filePolicyResult.IsIndeterminate());
 
         FileReadContext readContext;
-        readContext.InferExistenceFromError(success ? ERROR_SUCCESS : error);
+        DWORD reportedError = GetReportedError(success, error);
+        readContext.InferExistenceFromError(reportedError);
         readContext.OpenedDirectory =
             success
             && findFileDataAtLevel != nullptr
@@ -4737,12 +4703,11 @@ HANDLE WINAPI ReportFindFirstFileExWAccesses(
             isEnumeration ? RequestedReadAccess::EnumerationProbe : RequestedReadAccess::Probe,
             readContext);
 
-        ReportIfNeeded(fileAccessCheck, fileOperationContext, filePolicyResult, success ? ERROR_SUCCESS : error);
-
         if (fileAccessCheck.ShouldDenyAccess())
         {
             // Note that we won't hard-deny enumeration probes (isEnumeration == true, requested EnumerationProbe). See CheckReadAccess.
             error = fileAccessCheck.DenialError();
+            reportedError = error;
 
             if (searchHandle != INVALID_HANDLE_VALUE)
             {
@@ -4770,6 +4735,8 @@ HANDLE WINAPI ReportFindFirstFileExWAccesses(
         {
             ScrubShortFileName(findFileDataAtLevel);
         }
+
+        ReportIfNeeded(fileAccessCheck, fileOperationContext, filePolicyResult, reportedError, error);
     }
 
     SetLastError(error);
@@ -4800,7 +4767,7 @@ HANDLE WINAPI Detoured_FindFirstFileExW(
     {
         return Real_FindFirstFileExW(lpFileName, fInfoLevelId, lpFindFileData, fSearchOp, lpSearchFilter, dwAdditionalFlags);
     }
-    
+
     return ReportFindFirstFileExWAccesses(lpFileName, fInfoLevelId, lpFindFileData, fSearchOp, lpSearchFilter, dwAdditionalFlags);
 }
 
@@ -4872,7 +4839,7 @@ BOOL WINAPI Detoured_FindNextFileW(
         fileOperationContext.OpenedFileOrDirectoryAttributes = lpFindFileData->dwFileAttributes;
 
         AccessCheckResult accessCheck = filePolicyResult.CheckReadAccess(RequestedReadAccess::EnumerationProbe, readContext);
-        ReportIfNeeded(accessCheck, fileOperationContext, filePolicyResult, result ? ERROR_SUCCESS : error);
+        ReportIfNeeded(accessCheck, fileOperationContext, filePolicyResult, GetReportedError(result, error), error);
 
         if (filePolicyResult.ShouldOverrideTimestamps(accessCheck))
         {
@@ -4923,10 +4890,10 @@ BOOL WINAPI Detoured_GetFileInformationByHandleEx(
 
     DWORD error = ERROR_SUCCESS;
     BOOL result = Real_GetFileInformationByHandleEx(
-            hFile,
-            fileInformationClass,
-            lpFileInformation,
-            dwBufferSize);
+        hFile,
+        fileInformationClass,
+        lpFileInformation,
+        dwBufferSize);
     error = GetLastError();
 
     if (scope.Detoured_IsDisabled() || IsNullOrInvalidHandle(hFile) || fileInformationClass != FileBasicInfo || lpFileInformation == nullptr)
@@ -5053,20 +5020,14 @@ static BOOL DeleteUsingSetFileInformationByHandle(
         return FALSE;
     }
 
-    DWORD error = ERROR_SUCCESS;
-
     BOOL result = Real_SetFileInformationByHandle(
         hFile,
         FileInformationClass,
         lpFileInformation,
         dwBufferSize);
+    DWORD error = GetLastError();
 
-    if (!result)
-    {
-        error = GetLastError();
-    }
-
-    ReportIfNeeded(sourceAccessCheck, sourceOpContext, sourcePolicyResult, error);
+    ReportIfNeeded(sourceAccessCheck, sourceOpContext, sourcePolicyResult, GetReportedError(result, error), error);
 
     SetLastError(error);
 
@@ -5170,37 +5131,32 @@ static BOOL RenameUsingSetFileInformationByHandle(
     if (renameDirectory)
     {
         if (!ValidateMoveDirectory(
-                L"SetFileInformationByHandle_Source",
-                L"SetFileInformationByHandle_Dest",
-                fullPath.c_str(),
-                targetFileName.c_str(),
-                filesAndDirectoriesToReport))
+            L"SetFileInformationByHandle_Source",
+            L"SetFileInformationByHandle_Dest",
+            fullPath.c_str(),
+            targetFileName.c_str(),
+            filesAndDirectoriesToReport))
         {
             return FALSE;
         }
     }
-
-    DWORD error = ERROR_SUCCESS;
 
     BOOL result = Real_SetFileInformationByHandle(
         hFile,
         FileInformationClass,
         lpFileInformation,
         dwBufferSize);
+    DWORD error = GetLastError();
+    DWORD reportedError = GetReportedError(result, error);
 
-    if (!result)
-    {
-        error = GetLastError();
-    }
-
-    ReportIfNeeded(sourceAccessCheck, sourceOpContext, sourcePolicyResult, error);
-    ReportIfNeeded(destAccessCheck, destinationOpContext, destPolicyResult, error);
+    ReportIfNeeded(sourceAccessCheck, sourceOpContext, sourcePolicyResult, reportedError, error);
+    ReportIfNeeded(destAccessCheck, destinationOpContext, destPolicyResult, reportedError, error);
 
     if (renameDirectory)
     {
-        for (auto entry : filesAndDirectoriesToReport)
+        for (auto& entry : filesAndDirectoriesToReport)
         {
-            ReportIfNeeded(entry.GetAccessCheckResult(), entry.GetFileOperationContext(), entry.GetPolicyResult(), error);
+            ReportIfNeeded(entry.GetAccessCheckResult(), entry.GetFileOperationContext(), entry.GetPolicyResult(), reportedError, error);
         }
     }
 
@@ -5482,12 +5438,12 @@ BOOL WINAPI Detoured_CreateDirectoryW(
         // and many times those directories already do exist (C:\users for example, or even an output directory for a tool). So, one last chance, perhaps we
         // can rephrase this as a probe.
         error = accessCheck.DenialError();
-        accessCheck = CreateDirectoryAsSafeProbe(
+        AccessCheckResult asProbeAccessCheck = CreateDirectoryAsSafeProbe(
             opContext,
             policyResult,
             accessCheck);
-        ReportIfNeeded(accessCheck, opContext, policyResult, error);
-        SetLastError(error);
+        ReportIfNeeded(asProbeAccessCheck, opContext, policyResult, error);
+        accessCheck.SetLastErrorToDenialError();
         return FALSE;
     }
 
@@ -5502,8 +5458,8 @@ BOOL WINAPI Detoured_CreateDirectoryW(
             policyResult,
             accessCheck);
     }
-    
-    ReportIfNeeded(accessCheck, opContext, policyResult, error);
+
+    ReportIfNeeded(accessCheck, opContext, policyResult, GetReportedError(result, error), error);
     SetLastError(error);
 
     return result;
@@ -5623,17 +5579,14 @@ BOOL WINAPI Detoured_RemoveDirectoryW(_In_ LPCWSTR lpPathName)
     PathCache_Invalidate(policyResult.GetCanonicalizedPath().GetPathStringWithoutTypePrefix(), true, policyResult);
 
     BOOL result = Real_RemoveDirectoryW(lpPathName);
-    DWORD error = ERROR_SUCCESS;
-    if (!result)
-    {
-        error = GetLastError();
-    }
+    DWORD error = GetLastError();
+    DWORD reportedError = GetReportedError(result, error);
 
-    ReportIfNeeded(accessCheck, opContext, policyResult, error);
+    ReportIfNeeded(accessCheck, opContext, policyResult, reportedError, error);
 
-    for (auto entry : filesAndDirectoriesToReport)
+    for (auto& entry : filesAndDirectoriesToReport)
     {
-        ReportIfNeeded(entry.GetAccessCheckResult(), entry.GetFileOperationContext(), entry.GetPolicyResult(), error);
+        ReportIfNeeded(entry.GetAccessCheckResult(), entry.GetFileOperationContext(), entry.GetPolicyResult(), reportedError, error);
     }
 
     return result;
@@ -5769,58 +5722,62 @@ DWORD WINAPI Detoured_GetFinalPathNameByHandleA(
     _In_  DWORD cchFilePath,
     _In_  DWORD dwFlags)
 {
+    {
+        DetouredScope scope;
+
+        if (scope.Detoured_IsDisabled() || IgnoreGetFinalPathNameByHandle())
+        {
+            return Real_GetFinalPathNameByHandleA(hFile, lpszFilePath, cchFilePath, dwFlags);
+        }
+    }
+
+    if (g_pManifestTranslatePathTuples->empty())
+    {
+        // No translation tuples, no need to do anything.
+        return Real_GetFinalPathNameByHandleA(hFile, lpszFilePath, cchFilePath, dwFlags);
+    }
+
     unique_ptr<wchar_t[]> wideFilePathBuffer(new wchar_t[cchFilePath]);
-    DWORD err = Detoured_GetFinalPathNameByHandleW(hFile, wideFilePathBuffer.get(), cchFilePath, dwFlags);
+    DWORD length = Detoured_GetFinalPathNameByHandleW(hFile, wideFilePathBuffer.get(), cchFilePath, dwFlags);
 
-    if (err == 0)
+    if (length == 0 || length > cchFilePath)
     {
-        return GetLastError();
+        return length;
     }
 
-    if (err > cchFilePath)
+    int numCharsRequiredIncTerminatingNull = WideCharToMultiByte(
+        CP_ACP,
+        0,
+        wideFilePathBuffer.get(),
+        // Processes the entire input string, including the terminating null character.
+        // The resulting character string has a terminating null character, and the length returned by the function includes this character.
+        -1,
+        // Only check for required buffer size.
+        NULL,
+        0,
+        NULL,
+        NULL);
+
+    if ((unsigned)numCharsRequiredIncTerminatingNull <= cchFilePath)
     {
-        return err;
-    }
+        int numCharsWritten = WideCharToMultiByte(
+            CP_ACP,
+            0,
+            wideFilePathBuffer.get(),
+            -1,
+            lpszFilePath,
+            (int)cchFilePath,
+            NULL,
+            NULL);
 
-    int numCharsRequired = WideCharToMultiByte(CP_ACP, 0, wideFilePathBuffer.get(), -1, NULL, 0, NULL, NULL);
-
-    if ((unsigned)numCharsRequired < cchFilePath)
-    {
-        int error = 0;
-
-        // We do here -1, because:
-        // Docs of WideCharToMultiByte:
-        // Under remarks : "To null-terminate an output string for this function, the application should pass in -1 or explicitly count the terminating null character for the input string."
-        // It is passed - 1 for the input string length, which implies the routine will null terminate the output.
-        // Under return value : "Returns the number of bytes written to the buffer pointed to by lpMultiByteStr if successful."
-        // Since the routine wrote the null terminator, the bytes written return value should include it.
-        // Docs for GetFinalPathNameByHandle:
-        // Section Return Value
-        // If the function succeeds, the return value is the length of the string received by lpszFilePath, in TCHARs. This value does not include the size of the terminating null character.
-        if ((unsigned)(numCharsRequired - 1) == cchFilePath)
+        if (numCharsWritten == 0)
         {
-            // We need a new buffer to get the multibyte string. It will include space for the \0 charachter.
-            int extraCharBuffLen = (int)cchFilePath + 1;
-            unique_ptr<char[]> extraCharFilePathBuffer(new char[(size_t)extraCharBuffLen]);
-            error = WideCharToMultiByte(CP_ACP, 0, wideFilePathBuffer.get(), -1, extraCharFilePathBuffer.get(), extraCharBuffLen, NULL, NULL);
-            if (error != 0)
-            {
-                strncpy_s(lpszFilePath, cchFilePath, extraCharFilePathBuffer.get(), cchFilePath);
-            }
-        }
-        else
-        {
-            error = WideCharToMultiByte(CP_ACP, 0, wideFilePathBuffer.get(), -1, lpszFilePath, (int)cchFilePath, NULL, NULL);
-        }
-
-        if (error == 0)
-        {
-            return (DWORD)error;
+            return (DWORD)numCharsWritten;
         }
     }
 
     // Substract -1 since the \0 char is included.
-    return (DWORD) numCharsRequired - 1;
+    return (DWORD)(numCharsRequiredIncTerminatingNull - 1);
 }
 
 IMPLEMENTED(Detoured_GetFinalPathNameByHandleW)
@@ -5837,32 +5794,56 @@ DWORD WINAPI Detoured_GetFinalPathNameByHandleW(
         return Real_GetFinalPathNameByHandleW(hFile, lpszFilePath, cchFilePath, dwFlags);
     }
 
-    DWORD err = Real_GetFinalPathNameByHandleW(hFile, lpszFilePath, cchFilePath, dwFlags);
+    DWORD length = Real_GetFinalPathNameByHandleW(hFile, lpszFilePath, cchFilePath, dwFlags);
 
-    if (err == 0)
+    if (length == 0)
     {
-        SetLastError(err);
-    }
-    else if (err < cchFilePath)
-    {
-        wstring normalizedPath;
-        TranslateFilePath(wstring(lpszFilePath), normalizedPath);
-        DWORD copyPathLength = (DWORD)normalizedPath.length() + 1; // wcscpy_s expects the destination buffer to account for the null terminator
-
-        if (copyPathLength <= cchFilePath)
-        {
-            wcscpy_s(lpszFilePath, cchFilePath, normalizedPath.c_str());
-            // When GetFinalPathNameByHandleW succeeds the return value does not include the terminating null character
-            return (DWORD)normalizedPath.length();
-        }
-        else
-        {
-            // Provided buffer is too small, GetFinalPathNameByHandleW returns the required buffer size including the terminating null character.
-            return copyPathLength;
-        }
+        // If the function fails for reason other than buffer size, the return value is zero. To get extended error information, call GetLastError.
+        return length;
     }
 
-    return err;
+    if (g_pManifestTranslatePathTuples->empty())
+    {
+        // No translation tuples, no need to do anything.
+        return length;
+    }
+
+    wstring nonNormalizedPath;
+    if (length < cchFilePath)
+    {
+        // Buffer is large enough to hold the final path
+        nonNormalizedPath.assign(lpszFilePath);
+    }
+    else
+    {
+        // Buffer is too small to hold the final path, but length contains the required buffer size including the terminating null character.
+        unique_ptr<wchar_t[]> buffer(new wchar_t[length]);
+        DWORD newLength = Real_GetFinalPathNameByHandleW(hFile, buffer.get(), length, dwFlags);
+
+        if (newLength == 0)
+        {
+            // If the function fails for reason other than buffer size, the return value is zero. To get extended error information, call GetLastError.
+            return newLength;
+        }
+
+        nonNormalizedPath.assign(buffer.get());
+    }
+
+    wstring normalizedPath;
+    TranslateFilePath(nonNormalizedPath, normalizedPath);
+
+    DWORD copyPathLength = (DWORD)normalizedPath.length() + 1; // wcscpy_s expects the destination buffer to account for the null terminator
+    if (copyPathLength <= cchFilePath)
+    {
+        wcscpy_s(lpszFilePath, cchFilePath, normalizedPath.c_str());
+        // When GetFinalPathNameByHandleW succeeds the return value does not include the terminating null character
+        return (DWORD)normalizedPath.length();
+    }
+
+    SetLastError(ERROR_INSUFFICIENT_BUFFER);
+
+    // This value includes the size of the terminating null character.
+    return copyPathLength;
 }
 
 // Detoured_NtQueryDirectoryFile
@@ -5926,7 +5907,7 @@ NTSTATUS NTAPI Detoured_NtQueryDirectoryFile(
 
         // See if the handle is known
         overlay = TryLookupHandleOverlay(FileHandle);
-        
+
         if (overlay == nullptr || overlay->EnumerationHasBeenReported)
         {
             noDetour = true;
@@ -5956,17 +5937,19 @@ NTSTATUS NTAPI Detoured_NtQueryDirectoryFile(
     }
 
     NTSTATUS result = Real_NtQueryDirectoryFile(
-       FileHandle,
-       Event,
-       ApcRoutine,
-       ApcContext,
-       IoStatusBlock,
-       buffer,
-       bufferSize,
-       FileInformationClass,
-       ReturnSingleEntry,
-       FileName,
-       RestartScan);
+        FileHandle,
+        Event,
+        ApcRoutine,
+        ApcContext,
+        IoStatusBlock,
+        buffer,
+        bufferSize,
+        FileInformationClass,
+        ReturnSingleEntry,
+        FileName,
+        RestartScan);
+    DWORD reportedError = RtlNtStatusToDosError(result);
+    DWORD lastError = GetLastError();
 
     if (buffer != FileInformation)
     {
@@ -6008,6 +5991,7 @@ NTSTATUS NTAPI Detoured_NtQueryDirectoryFile(
 
         if (!AdjustOperationContextAndPolicyResultWithFullyResolvedPath(fileOperationContext, directoryPolicyResult, false))
         {
+            SetLastError(ERROR_ACCESS_DENIED);
             return DETOURS_STATUS_ACCESS_DENIED;
         }
 
@@ -6030,7 +6014,7 @@ NTSTATUS NTAPI Detoured_NtQueryDirectoryFile(
         overlay->EnumerationHasBeenReported = NT_SUCCESS(result) && directoryAccessCheck.ShouldReport();
 
         // We can report the status for directory now.
-        ReportIfNeeded(directoryAccessCheck, fileOperationContext, directoryPolicyResult, (DWORD)(NT_SUCCESS(result) ? ERROR_SUCCESS : result), -1, filter.c_str());
+        ReportIfNeeded(directoryAccessCheck, fileOperationContext, directoryPolicyResult, reportedError, lastError, -1, filter.c_str());
     }
 
     return result;
@@ -6116,6 +6100,8 @@ NTSTATUS NTAPI Detoured_ZwQueryDirectoryFile(
         FileName,
         RestartScan
     );
+    DWORD reportedError = RtlNtStatusToDosError(result);
+    DWORD lastError = GetLastError();
 
     if (buffer != FileInformation)
     {
@@ -6154,6 +6140,7 @@ NTSTATUS NTAPI Detoured_ZwQueryDirectoryFile(
 
             if (!AdjustOperationContextAndPolicyResultWithFullyResolvedPath(fileOperationContext, directoryPolicyResult, false))
             {
+                SetLastError(ERROR_ACCESS_DENIED);
                 return DETOURS_STATUS_ACCESS_DENIED;
             }
 
@@ -6176,14 +6163,14 @@ NTSTATUS NTAPI Detoured_ZwQueryDirectoryFile(
             overlay->EnumerationHasBeenReported = NT_SUCCESS(result) && directoryAccessCheck.ShouldReport();
 
             // We can report the status for directory now.
-            ReportIfNeeded(directoryAccessCheck, fileOperationContext, overlay->Policy, (DWORD)(NT_SUCCESS(result) ? ERROR_SUCCESS : result));
+            ReportIfNeeded(directoryAccessCheck, fileOperationContext, overlay->Policy, reportedError, lastError);
         }
     }
 
     return result;
 }
 
-static bool PathFromObjectAttributesViaId(POBJECT_ATTRIBUTES objectAttributes, ULONG fileAttributes, CanonicalizedPath &path)
+static bool PathFromObjectAttributesViaId(POBJECT_ATTRIBUTES objectAttributes, ULONG fileAttributes, CanonicalizedPath& path)
 {
     DetouredScope scope;
 
@@ -6381,12 +6368,15 @@ NTSTATUS NTAPI Detoured_ZwCreateFile(
             EaLength);
     }
 
+    DWORD win32Disposition = MapNtCreateDispositionToWin32Disposition(CreateDisposition);
+    DWORD win32Options = MapNtCreateOptionsToWin32FileFlags(CreateOptions);
+
     FileOperationContext opContext(
         L"ZwCreateFile",
         DesiredAccess,
         ShareAccess,
-        MapNtCreateDispositionToWin32Disposition(CreateDisposition),
-        MapNtCreateOptionsToWin32FileFlags(CreateOptions),
+        win32Disposition,
+        win32Options,
         path.GetPathString());
 
     PolicyResult policyResult;
@@ -6412,10 +6402,10 @@ NTSTATUS NTAPI Detoured_ZwCreateFile(
     // (consider FILE_DELETE_ON_CLOSE and FILE_OVERWRITE).
     // If we are operating on a directory, allow access - BuildXL allows accesses to directories (creation/deletion/etc.) always, as long as they are on a readable mount (at lease).
     if ((WantsWriteAccess(opContext.DesiredAccess) ||
-         CheckIfNtCreateDispositionImpliesWriteOrDelete(CreateDisposition) ||
-         CheckIfNtCreateMayDeleteFile(CreateOptions, DesiredAccess)) &&
+        CheckIfNtCreateDispositionImpliesWriteOrDelete(CreateDisposition) ||
+        CheckIfNtCreateMayDeleteFile(CreateOptions, DesiredAccess)) &&
         // Force directory checking using path, instead of handle, because the value of *FileHandle is still undefined, i.e., neither valid nor not valid.
-        !IsHandleOrPathToDirectory(INVALID_HANDLE_VALUE, path.GetPathString(), opContext.DesiredAccess, CreateOptions, policyResult, /*ref*/opContext.OpenedFileOrDirectoryAttributes))
+        !IsHandleOrPathToDirectory(INVALID_HANDLE_VALUE, path.GetPathString(), opContext.DesiredAccess, win32Options, policyResult, /*ref*/opContext.OpenedFileOrDirectoryAttributes))
     {
         error = GetLastError();
         accessCheck = policyResult.CheckWriteAccess();
@@ -6453,8 +6443,8 @@ NTSTATUS NTAPI Detoured_ZwCreateFile(
                     L"ChangedReadWriteToReadAccess",
                     DesiredAccess,
                     ShareAccess,
-                    MapNtCreateDispositionToWin32Disposition(CreateDisposition),
-                    MapNtCreateOptionsToWin32FileFlags(CreateOptions),
+                    win32Disposition,
+                    win32Options,
                     policyResult.GetCanonicalizedPath().GetPathString());
 
                 ReportFileAccess(
@@ -6472,6 +6462,7 @@ NTSTATUS NTAPI Detoured_ZwCreateFile(
         if (!forceReadOnlyForRequestedRWAccess && accessCheck.ShouldDenyAccess())
         {
             ReportIfNeeded(accessCheck, opContext, policyResult, accessCheck.DenialError());
+            accessCheck.SetLastErrorToDenialError();
             return accessCheck.DenialNtStatus();
         }
 
@@ -6500,8 +6491,6 @@ NTSTATUS NTAPI Detoured_ZwCreateFile(
         sharedAccess = sharedAccess | readSharingIfNeeded | FILE_SHARE_DELETE;
     }
 
-    error = ERROR_SUCCESS;
-
     NTSTATUS result = Real_ZwCreateFile(
         FileHandle,
         desiredAccess,
@@ -6526,7 +6515,7 @@ NTSTATUS NTAPI Detoured_ZwCreateFile(
             INVALID_HANDLE_VALUE, // Do not use *FileHandle because even though it is not NT_SUCCESS, *FileHandle can be different from INVALID_HANDLE_VALUE
             path.GetPathString(),
             opContext.DesiredAccess,
-            CreateOptions,
+            win32Options,
             policyResult,
             /*ref*/ opContext.OpenedFileOrDirectoryAttributes);
 
@@ -6545,7 +6534,7 @@ NTSTATUS NTAPI Detoured_ZwCreateFile(
             }
         }
 
-        ReportIfNeeded(accessCheck, opContext, policyResult, RtlNtStatusToDosError(result));
+        ReportIfNeeded(accessCheck, opContext, policyResult, RtlNtStatusToDosError(result), error);
 
         SetLastError(error);
         return result;
@@ -6553,7 +6542,7 @@ NTSTATUS NTAPI Detoured_ZwCreateFile(
 
     FileReadContext readContext;
     readContext.InferExistenceFromNtStatus(result);
-    readContext.OpenedDirectory = IsHandleOrPathToDirectory(*FileHandle, path.GetPathString(), opContext.DesiredAccess, CreateOptions, policyResult, /*ref*/ opContext.OpenedFileOrDirectoryAttributes);
+    readContext.OpenedDirectory = IsHandleOrPathToDirectory(*FileHandle, path.GetPathString(), opContext.DesiredAccess, win32Options, policyResult, /*ref*/ opContext.OpenedFileOrDirectoryAttributes);
 
     // Note: The MonitorNtCreateFile() flag is temporary until OSG (we too) fixes all newly discovered dependencies.
     if (MonitorNtCreateFile())
@@ -6584,7 +6573,7 @@ NTSTATUS NTAPI Detoured_ZwCreateFile(
             isHandleToReparsePoint ? *FileHandle : INVALID_HANDLE_VALUE,
             desiredAccess,
             sharedAccess,
-            CreateDisposition,
+            win32Disposition,
             FileAttributes,
             true,
             policyResult,
@@ -6613,15 +6602,15 @@ NTSTATUS NTAPI Detoured_ZwCreateFile(
         }
     }
 
-    if (shouldReportAccessCheck)
-    {
-        ReportIfNeeded(accessCheck, opContext, policyResult, RtlNtStatusToDosError(result));
-    }
+    InvalidateReparsePointCacheIfNeeded(
+        shouldResolveReparsePointsInPath,
+        opContext.DesiredAccess,
+        opContext.FlagsAndAttributes,
+        readContext.OpenedDirectory,
+        policyResult.GetCanonicalizedPath().GetPathStringWithoutTypePrefix(),
+        policyResult);
 
-    InvalidateReparsePointCacheIfNeeded(shouldResolveReparsePointsInPath, opContext.DesiredAccess, opContext.FlagsAndAttributes, readContext.OpenedDirectory,
-        policyResult.GetCanonicalizedPath().GetPathStringWithoutTypePrefix(), policyResult);
-
-    bool hasValidHandle = result == ERROR_SUCCESS && !IsNullOrInvalidHandle(*FileHandle);
+    bool hasValidHandle = NT_SUCCESS(result) && !IsNullOrInvalidHandle(*FileHandle);
     if (accessCheck.ShouldDenyAccess())
     {
         error = accessCheck.DenialError();
@@ -6638,6 +6627,11 @@ NTSTATUS NTAPI Detoured_ZwCreateFile(
     {
         HandleType handleType = readContext.OpenedDirectory ? HandleType::Directory : HandleType::File;
         RegisterHandleOverlay(*FileHandle, accessCheck, policyResult, handleType);
+    }
+
+    if (shouldReportAccessCheck)
+    {
+        ReportIfNeeded(accessCheck, opContext, policyResult, RtlNtStatusToDosError(result), error);
     }
 
     SetLastError(error);
@@ -6688,12 +6682,15 @@ NTSTATUS NTAPI Detoured_NtCreateFile(
 
     DWORD error = ERROR_SUCCESS;
 
+    DWORD win32Disposition = MapNtCreateDispositionToWin32Disposition(CreateDisposition);
+    DWORD win32Options = MapNtCreateOptionsToWin32FileFlags(CreateOptions);
+
     FileOperationContext opContext(
         L"NtCreateFile",
         DesiredAccess,
         ShareAccess,
-        MapNtCreateDispositionToWin32Disposition(CreateDisposition),
-        MapNtCreateOptionsToWin32FileFlags(CreateOptions),
+        win32Disposition,
+        win32Options,
         path.GetPathString());
 
     PolicyResult policyResult;
@@ -6722,10 +6719,10 @@ NTSTATUS NTAPI Detoured_NtCreateFile(
     //  - Commit 86e8274b by olkonone changes the way Detours validates directory creation. But the new validation is only applied to CreateDirectoryW.
     //  - Perhaps the validation should be done in NtCreateFile instead of in CreateDirectoryW.
     if ((WantsWriteAccess(opContext.DesiredAccess) ||
-         CheckIfNtCreateDispositionImpliesWriteOrDelete(CreateDisposition) ||
-         CheckIfNtCreateMayDeleteFile(CreateOptions, DesiredAccess)) &&
+        CheckIfNtCreateDispositionImpliesWriteOrDelete(CreateDisposition) ||
+        CheckIfNtCreateMayDeleteFile(CreateOptions, DesiredAccess)) &&
         // Force directory checking using path, instead of handle, because the value of *FileHandle is still undefined, i.e., neither valid nor not valid.
-        !IsHandleOrPathToDirectory(INVALID_HANDLE_VALUE, path.GetPathString(), opContext.DesiredAccess, CreateOptions, policyResult, /*ref*/opContext.OpenedFileOrDirectoryAttributes))
+        !IsHandleOrPathToDirectory(INVALID_HANDLE_VALUE, path.GetPathString(), opContext.DesiredAccess, win32Options, policyResult, /*ref*/opContext.OpenedFileOrDirectoryAttributes))
     {
         error = GetLastError();
         accessCheck = policyResult.CheckWriteAccess();
@@ -6763,8 +6760,8 @@ NTSTATUS NTAPI Detoured_NtCreateFile(
                     L"ChangedReadWriteToReadAccess",
                     DesiredAccess,
                     ShareAccess,
-                    MapNtCreateDispositionToWin32Disposition(CreateDisposition),
-                    MapNtCreateOptionsToWin32FileFlags(CreateOptions),
+                    win32Disposition,
+                    win32Options,
                     path.GetPathString());
 
                 ReportFileAccess(
@@ -6782,6 +6779,7 @@ NTSTATUS NTAPI Detoured_NtCreateFile(
         if (!forceReadOnlyForRequestedRWAccess && accessCheck.ShouldDenyAccess())
         {
             ReportIfNeeded(accessCheck, opContext, policyResult, accessCheck.DenialError());
+            accessCheck.SetLastErrorToDenialError();
             return accessCheck.DenialNtStatus();
         }
 
@@ -6815,8 +6813,6 @@ NTSTATUS NTAPI Detoured_NtCreateFile(
         }
     }
 
-    error = ERROR_SUCCESS;
-
     NTSTATUS result = Real_NtCreateFile(
         FileHandle,
         desiredAccess,
@@ -6841,7 +6837,7 @@ NTSTATUS NTAPI Detoured_NtCreateFile(
             INVALID_HANDLE_VALUE, // Do not use *FileHandle because even though it is not NT_SUCCESS, *FileHandle can be different from INVALID_HANDLE_VALUE
             path.GetPathString(),
             opContext.DesiredAccess,
-            CreateOptions,
+            win32Options,
             policyResult,
             /*ref*/ opContext.OpenedFileOrDirectoryAttributes);
 
@@ -6869,7 +6865,7 @@ NTSTATUS NTAPI Detoured_NtCreateFile(
 
     FileReadContext readContext;
     readContext.InferExistenceFromNtStatus(result);
-    readContext.OpenedDirectory = IsHandleOrPathToDirectory(*FileHandle, path.GetPathString(), opContext.DesiredAccess, CreateOptions, policyResult, /*ref*/ opContext.OpenedFileOrDirectoryAttributes);
+    readContext.OpenedDirectory = IsHandleOrPathToDirectory(*FileHandle, path.GetPathString(), opContext.DesiredAccess, win32Options, policyResult, /*ref*/ opContext.OpenedFileOrDirectoryAttributes);
 
     // Note: The MonitorNtCreateFile() flag is temporary until OSG (we too) fixes all newly discovered dependencies.
     if (MonitorNtCreateFile())
@@ -6899,7 +6895,7 @@ NTSTATUS NTAPI Detoured_NtCreateFile(
             isHandleToReparsePoint ? *FileHandle : INVALID_HANDLE_VALUE,
             desiredAccess,
             sharedAccess,
-            CreateDisposition,
+            win32Disposition,
             FileAttributes,
             true,
             policyResult,
@@ -6929,15 +6925,15 @@ NTSTATUS NTAPI Detoured_NtCreateFile(
         }
     }
 
-    if (shouldReportAccessCheck)
-    {
-        ReportIfNeeded(accessCheck, opContext, policyResult, RtlNtStatusToDosError(result));
-    }
+    InvalidateReparsePointCacheIfNeeded(
+        shouldResolveReparsePointsInPath,
+        opContext.DesiredAccess,
+        opContext.FlagsAndAttributes,
+        readContext.OpenedDirectory,
+        policyResult.GetCanonicalizedPath().GetPathStringWithoutTypePrefix(),
+        policyResult);
 
-    InvalidateReparsePointCacheIfNeeded(shouldResolveReparsePointsInPath, opContext.DesiredAccess, opContext.FlagsAndAttributes, readContext.OpenedDirectory,
-        policyResult.GetCanonicalizedPath().GetPathStringWithoutTypePrefix(), policyResult);
-
-    bool hasValidHandle = result == ERROR_SUCCESS && !IsNullOrInvalidHandle(*FileHandle);
+    bool hasValidHandle = NT_SUCCESS(result) && !IsNullOrInvalidHandle(*FileHandle);
 
     if (accessCheck.ShouldDenyAccess())
     {
@@ -6955,6 +6951,11 @@ NTSTATUS NTAPI Detoured_NtCreateFile(
     {
         HandleType handleType = readContext.OpenedDirectory ? HandleType::Directory : HandleType::File;
         RegisterHandleOverlay(*FileHandle, accessCheck, policyResult, handleType);
+    }
+
+    if (shouldReportAccessCheck)
+    {
+        ReportIfNeeded(accessCheck, opContext, policyResult, RtlNtStatusToDosError(result), error);
     }
 
     SetLastError(error);
@@ -7014,7 +7015,7 @@ NTSTATUS NTAPI Detoured_NtOpenFile(
         OpenOptions,
         (PVOID)NULL, // EaBuffer,
         0L // EaLength
-        );
+    );
 }
 
 IMPLEMENTED(Detoured_NtClose)
@@ -7081,19 +7082,19 @@ BOOL WINAPI Detoured_CreatePipe(
 /// </summary>
 IMPLEMENTED(Detoured_DeviceIoControl)
 BOOL WINAPI Detoured_DeviceIoControl(
-  _In_                HANDLE       hDevice,
-  _In_                DWORD        dwIoControlCode,
-  _In_opt_            LPVOID       lpInBuffer,
-  _In_                DWORD        nInBufferSize,
-  _Out_               LPVOID       lpOutBuffer,
-  _In_                DWORD        nOutBufferSize,
-  _Out_               LPDWORD      lpBytesReturned,
-  _Out_               LPOVERLAPPED lpOverlapped
+    _In_                HANDLE       hDevice,
+    _In_                DWORD        dwIoControlCode,
+    _In_opt_            LPVOID       lpInBuffer,
+    _In_                DWORD        nInBufferSize,
+    _Out_               LPVOID       lpOutBuffer,
+    _In_                DWORD        nOutBufferSize,
+    _Out_               LPDWORD      lpBytesReturned,
+    _Out_               LPOVERLAPPED lpOverlapped
 )
 {
     DetouredScope scope;
 
-    auto result = Real_DeviceIoControl(
+    BOOL result = Real_DeviceIoControl(
         hDevice,
         dwIoControlCode,
         lpInBuffer,
@@ -7104,7 +7105,7 @@ BOOL WINAPI Detoured_DeviceIoControl(
         lpOverlapped);
 
     if (scope.Detoured_IsDisabled()
-        || IgnoreDeviceIoControlGetReparsePoint() 
+        || IgnoreDeviceIoControlGetReparsePoint()
         // We are only interested in the FSCTL_GET_REPARSE_POINT control code.
         || dwIoControlCode != FSCTL_GET_REPARSE_POINT
         // If the call fails, no need to translate anything
@@ -7150,7 +7151,7 @@ BOOL WINAPI Detoured_DeviceIoControl(
 
     // Update the returned structure with the translated path
     SetTargetNameFromReparseData(pReparseDataBuffer, reparsePointType, translation);
-    *lpBytesReturned = (USHORT) translation.length() * 2 * sizeof(WCHAR);
+    *lpBytesReturned = (USHORT)translation.length() * 2 * sizeof(WCHAR);
 
     SetLastError(lastError);
     return result;

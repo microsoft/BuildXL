@@ -4699,7 +4699,7 @@ namespace Test.BuildXL.Processes.Detours
                     errorString: out _);
 
                 SetExpectedFailures(1, 0);
-                AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccess);
+                AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccess, 1);
 
                 VerifyExecutionStatus(context, result, SandboxedProcessPipExecutionStatus.ExecutionFailed);
                 VerifyExitCode(context, result, 1);
@@ -6800,6 +6800,7 @@ namespace Test.BuildXL.Processes.Detours
                     fileAccessData.Status,
                     fileAccessData.ExplicitlyReported,
                     fileAccessData.Error,
+                    fileAccessData.RawError,
                     new Usn(0),
                     fileAccessData.DesiredAccess,
                     fileAccessData.ShareMode,
@@ -6808,7 +6809,7 @@ namespace Test.BuildXL.Processes.Detours
                     m_executable,
                     fileAccessData.Path,
                     "",
-                    FileAccessStatusMethod.PolicyBased);
+                    fileAccessStatusMethod: FileAccessStatusMethod.PolicyBased);
 
                 m_accumulator?.Invoke(reportedAccess);
             }

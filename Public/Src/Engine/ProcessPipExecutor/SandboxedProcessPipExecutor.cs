@@ -1452,15 +1452,16 @@ namespace BuildXL.ProcessPipExecutor
                 FileAccessStatus.Allowed,
                 explicitlyReported: reportExplicitly,
                 0,
+                0,
                 Usn.Zero,
                 isRead ? DesiredAccess.GENERIC_READ : DesiredAccess.GENERIC_WRITE,
                 ShareMode.FILE_SHARE_NONE,
                 isRead ? CreationDisposition.OPEN_ALWAYS : CreationDisposition.CREATE_ALWAYS,
                 FlagsAndAttributes.FILE_ATTRIBUTE_NORMAL,
-                openedFileOrDirectoryAttribute: FlagsAndAttributes.FILE_ATTRIBUTE_NORMAL,
                 manifestPath,
                 path: (path == manifestPath) ? null : path.ToString(m_pathTable),
                 enumeratePattern: null,
+                openedFileOrDirectoryAttribute: FlagsAndAttributes.FILE_ATTRIBUTE_NORMAL,
                 FileAccessStatusMethod.TrustedTool);
 
             return true;
@@ -3880,6 +3881,7 @@ namespace BuildXL.ProcessPipExecutor
                                 r.Status,
                                 explicitlyReported,
                                 r.Error,
+                                r.RawError,
                                 r.Usn,
                                 DesiredAccess.GENERIC_READ,
                                 ShareMode.FILE_SHARE_READ,

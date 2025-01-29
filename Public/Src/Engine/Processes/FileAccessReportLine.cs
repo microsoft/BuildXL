@@ -142,6 +142,7 @@ namespace BuildXL.Processes
             out FileAccessStatus status,
             out bool explicitlyReported,
             out uint error,
+            out uint rawError,
             out Usn usn,
             out DesiredAccess desiredAccess,
             out ShareMode shareMode,
@@ -159,7 +160,7 @@ namespace BuildXL.Processes
             operation = ReportedFileOperation.Unknown;
             requestedAccess = RequestedAccess.None;
             status = FileAccessStatus.None;
-            processId = parentProcessId = error = 0;
+            processId = parentProcessId = error = rawError = 0;
             id = correlationId = 0;
             usn = default;
             explicitlyReported = false;
@@ -174,7 +175,7 @@ namespace BuildXL.Processes
             processArgs = null;
             errorMessage = string.Empty;
 
-            const int MinItemsCount = 15;
+            const int MinItemsCount = 16;
 #if NET5_0_OR_GREATER
             var i = line.IndexOf(':', StringComparison.Ordinal);
 #else
@@ -205,6 +206,7 @@ namespace BuildXL.Processes
                 tryGetNextItem(ref items, out span) && uint.TryParse(span, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var statusValue) &&
                 tryGetNextItem(ref items, out span) && uint.TryParse(span, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var explicitlyReportedValue) &&
                 tryGetNextItem(ref items, out span) && uint.TryParse(span, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out error) &&
+                tryGetNextItem(ref items, out span) && uint.TryParse(span, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out rawError) &&
                 tryGetNextItem(ref items, out span) && ulong.TryParse(span, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var usnValue) &&
                 tryGetNextItem(ref items, out span) && uint.TryParse(span, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var desiredAccessValue) &&
                 tryGetNextItem(ref items, out span) && uint.TryParse(span, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var shareModeValue) &&
@@ -360,6 +362,7 @@ namespace BuildXL.Processes
             // '1' makes the access look as explicitly reported, but this actually doesn't matter since it will get
             // set based on the manifest policy upon reception
             result.Append("1|");
+            result.Append($"{errorCode:x}|");
             result.Append($"{errorCode:x}|");
             result.Append($"{usn.Value:x}|");
             result.Append($"{(uint)desiredAccess:x}|");

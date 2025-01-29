@@ -43,6 +43,7 @@ namespace Tool.ExecutionLogSdk
                                                         status: reportedFileAccess.Status,
                                                         explicitlyReported: reportedFileAccess.ExplicitlyReported,
                                                         error: reportedFileAccess.Error,
+                                                        rawError: reportedFileAccess.RawError,
                                                         usn: reportedFileAccess.Usn,
                                                         desiredAccess: reportedFileAccess.DesiredAccess,
                                                         shareMode: reportedFileAccess.ShareMode,

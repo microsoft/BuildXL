@@ -47,9 +47,19 @@ namespace BuildXL.Processes
         public readonly DesiredAccess DesiredAccess;
 
         /// <summary>
+        /// Reported error code
+        /// </summary>
+        /// <remarks>
+        /// This value is often the same as <see cref="RawError"/>, but it may be different in some cases.
+        /// The reason for this is that the error code is sometimes adjusted to match the expected error code because, e.g.,
+        /// some Windows APIs do not return ERROR_SUCCESS even when the operation is successful. See Bug 2234559 for details.
+        /// </remarks>
+        public readonly uint Error;
+
+        /// <summary>
         /// Last-error code
         /// </summary>
-        public readonly uint Error;
+        public readonly uint RawError;
 
         /// <summary>
         /// USN number. Note that 0 is the default USN number (e.g. when no journal is present),
@@ -146,6 +156,7 @@ namespace BuildXL.Processes
             FileAccessStatus status,
             bool explicitlyReported,
             uint error,
+            uint rawError,
             Usn usn,
             DesiredAccess desiredAccess,
             ShareMode shareMode,
@@ -154,6 +165,7 @@ namespace BuildXL.Processes
             AbsolutePath manifestPath,
             string? path,
             string? enumeratePattern,
+            FlagsAndAttributes openedFileOrDirectoryAttribute = (FlagsAndAttributes)FlagsAndAttributesConstants.InvalidFileAttributes,
             FileAccessStatusMethod fileAccessStatusMethod = FileAccessStatusMethod.PolicyBased)
         {
             Operation = operation;
@@ -162,46 +174,7 @@ namespace BuildXL.Processes
             Status = status;
             ExplicitlyReported = explicitlyReported;
             Error = error;
-            Usn = usn;
-            DesiredAccess = desiredAccess;
-            ShareMode = shareMode;
-            CreationDisposition = creationDisposition;
-            FlagsAndAttributes = flagsAndAttributes;
-            OpenedFileOrDirectoryAttributes = (FlagsAndAttributes)FlagsAndAttributesConstants.InvalidFileAttributes;
-            ManifestPath = manifestPath;
-            Path = path;
-            EnumeratePattern = enumeratePattern;
-            Method = fileAccessStatusMethod;
-        }
-
-        /// <summary>
-        /// Creates an instance from an absolute path
-        /// </summary>
-        [SuppressMessage("Microsoft.Naming", "CA1726:UsePreferredTerms", MessageId = "flags")]
-        public ReportedFileAccess(
-            ReportedFileOperation operation,
-            ReportedProcess process,
-            RequestedAccess requestedAccess,
-            FileAccessStatus status,
-            bool explicitlyReported,
-            uint error,
-            Usn usn,
-            DesiredAccess desiredAccess,
-            ShareMode shareMode,
-            CreationDisposition creationDisposition,
-            FlagsAndAttributes flagsAndAttributes,
-            FlagsAndAttributes openedFileOrDirectoryAttribute,
-            AbsolutePath manifestPath,
-            string? path,
-            string? enumeratePattern,
-            FileAccessStatusMethod fileAccessStatusMethod = FileAccessStatusMethod.PolicyBased)
-        {
-            Operation = operation;
-            Process = process;
-            RequestedAccess = requestedAccess;
-            Status = status;
-            ExplicitlyReported = explicitlyReported;
-            Error = error;
+            RawError = rawError;
             Usn = usn;
             DesiredAccess = desiredAccess;
             ShareMode = shareMode;
@@ -218,21 +191,22 @@ namespace BuildXL.Processes
         public ReportedFileAccess CreateWithStatus(FileAccessStatus status)
         {
             return new ReportedFileAccess(
-                Operation, 
-                Process, 
-                RequestedAccess, 
-                status, 
-                ExplicitlyReported, 
-                Error, 
-                Usn, 
-                DesiredAccess, 
-                ShareMode, 
-                CreationDisposition, 
+                Operation,
+                Process,
+                RequestedAccess,
+                status,
+                ExplicitlyReported,
+                Error,
+                RawError,
+                Usn,
+                DesiredAccess,
+                ShareMode,
+                CreationDisposition,
                 FlagsAndAttributes,
+                ManifestPath,
+                Path,
+                EnumeratePattern,
                 OpenedFileOrDirectoryAttributes,
-                ManifestPath, 
-                Path, 
-                EnumeratePattern, 
                 Method);
         }
 
@@ -246,15 +220,16 @@ namespace BuildXL.Processes
                 Status,
                 ExplicitlyReported,
                 Error,
+                RawError,
                 Usn,
                 DesiredAccess,
                 ShareMode,
                 CreationDisposition,
                 flagsAndAttributes,
-                OpenedFileOrDirectoryAttributes,
                 manifestPath,
                 path,
                 EnumeratePattern,
+                OpenedFileOrDirectoryAttributes,
                 Method);
         }
 
@@ -287,6 +262,7 @@ namespace BuildXL.Processes
                    Status == other.Status &&
                    Process == other.Process &&
                    Error == other.Error &&
+                   // Do not compare RawError, because its value can be non-deterministic.
                    Usn == other.Usn &&
                    ExplicitlyReported == other.ExplicitlyReported &&
                    DesiredAccess == other.DesiredAccess &&
@@ -558,6 +534,7 @@ namespace BuildXL.Processes
             FileAccessStatus status,
             bool explicitlyReported,
             uint error,
+            uint rawError,
             Usn usn,
             DesiredAccess desiredAccess,
             ShareMode shareMode,
@@ -573,6 +550,7 @@ namespace BuildXL.Processes
                 status,
                 explicitlyReported,
                 error,
+                rawError,
                 usn,
                 desiredAccess,
                 shareMode,
@@ -594,6 +572,7 @@ namespace BuildXL.Processes
             FileAccessStatus status,
             bool explicitlyReported,
             uint error,
+            uint rawError,
             Usn usn,
             DesiredAccess desiredAccess,
             ShareMode shareMode,
@@ -612,6 +591,7 @@ namespace BuildXL.Processes
                     status,
                     explicitlyReported,
                     error,
+                    rawError,
                     usn,
                     desiredAccess,
                     shareMode,
@@ -629,6 +609,7 @@ namespace BuildXL.Processes
                 status,
                 explicitlyReported,
                 error,
+                rawError,
                 usn,
                 desiredAccess,
                 shareMode,
@@ -650,6 +631,7 @@ namespace BuildXL.Processes
             FileAccessStatus status,
             bool explicitlyReported,
             uint error,
+            uint rawError,
             Usn usn,
             DesiredAccess desiredAccess,
             ShareMode shareMode,
@@ -669,15 +651,16 @@ namespace BuildXL.Processes
                     status,
                     explicitlyReported,
                     error,
+                    rawError,
                     usn,
                     desiredAccess,
                     shareMode,
                     creationDisposition,
                     flagsAndAttributes,
-                    openedFileOrDirectoryAttribute,
                     absolutePath,
                     null,
-                    enumeratePattern);
+                    enumeratePattern,
+                    openedFileOrDirectoryAttribute);
             }
 
             return new ReportedFileAccess(
@@ -687,15 +670,16 @@ namespace BuildXL.Processes
                 status,
                 explicitlyReported,
                 error,
+                rawError,
                 usn,
                 desiredAccess,
                 shareMode,
                 creationDisposition,
                 flagsAndAttributes,
-                openedFileOrDirectoryAttribute,
                 AbsolutePath.Invalid,
                 path,
-                enumeratePattern);
+                enumeratePattern,
+                openedFileOrDirectoryAttribute);
         }
 
         /// <nodoc />
@@ -719,6 +703,7 @@ namespace BuildXL.Processes
             writer.WriteCompact((int)Status);
             writer.Write(ExplicitlyReported);
             writer.Write(Error);
+            writer.Write(RawError);
             writer.Write(Usn.Value);
             writer.Write((uint)DesiredAccess);
             writer.Write((uint)ShareMode);
@@ -753,6 +738,7 @@ namespace BuildXL.Processes
                 status: (FileAccessStatus)reader.ReadInt32Compact(),
                 explicitlyReported: reader.ReadBoolean(),
                 error: reader.ReadUInt32(),
+                rawError: reader.ReadUInt32(),
                 // In general if process is executed externally, e.g., in VM, the obtained USN cannot be translated to the host.
                 // However, for our low-privilege build, we are going to map the host volumes to the VM, and thus the USN
                 // can still be used.
@@ -786,6 +772,7 @@ namespace BuildXL.Processes
                     (int)RequestedAccess,
                     (int)Status,
                     (int)Error,
+                    // Do not include RawError, because its value can be non-deterministic.
                     Usn.GetHashCode(),
                     (int)DesiredAccess,
                     (int)ShareMode,

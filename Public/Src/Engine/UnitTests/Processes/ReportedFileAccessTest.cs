@@ -49,7 +49,7 @@ namespace Test.BuildXL.Processes
             AbsolutePath file2 = AbsolutePath.Create(pathTable, A("t", "file2.txt"));
 
             var process = new ReportedProcess(0, string.Empty);
-            Test.BuildXL.TestUtilities.Xunit.StructTester.TestEquality(
+            StructTester.TestEquality(
                 baseValue:
                     ReportedFileAccess.Create(
                         ReportedFileOperation.CreateFile,
@@ -57,6 +57,7 @@ namespace Test.BuildXL.Processes
                         RequestedAccess.Read,
                         FileAccessStatus.Allowed,
                         true,
+                        0,
                         0,
                         ReportedFileAccess.NoUsn,
                         DesiredAccess.GENERIC_READ,
@@ -72,20 +73,22 @@ namespace Test.BuildXL.Processes
                         FileAccessStatus.Allowed,
                         true,
                         0,
+                        0,
                         ReportedFileAccess.NoUsn,
                         DesiredAccess.GENERIC_READ,
                         ShareMode.FILE_SHARE_NONE,
                         CreationDisposition.OPEN_ALWAYS,
                         FlagsAndAttributes.FILE_ATTRIBUTE_NORMAL,
                         file1),
-                notEqualValues: new[]
-                                {
+                notEqualValues:
+                                [
                                     ReportedFileAccess.Create(
                                         ReportedFileOperation.CreateFile,
                                         process,
                                         RequestedAccess.Read,
                                         FileAccessStatus.Denied,
                                         true,
+                                        0,
                                         0,
                                         ReportedFileAccess.NoUsn,
                                         DesiredAccess.GENERIC_READ,
@@ -100,6 +103,7 @@ namespace Test.BuildXL.Processes
                                         FileAccessStatus.Allowed,
                                         true,
                                         0,
+                                        0,
                                         ReportedFileAccess.NoUsn,
                                         DesiredAccess.GENERIC_READ,
                                         ShareMode.FILE_SHARE_NONE,
@@ -112,6 +116,7 @@ namespace Test.BuildXL.Processes
                                         RequestedAccess.Read,
                                         FileAccessStatus.Allowed,
                                         true,
+                                        0,
                                         0,
                                         ReportedFileAccess.NoUsn,
                                         DesiredAccess.GENERIC_READ,
@@ -127,6 +132,7 @@ namespace Test.BuildXL.Processes
                                         FileAccessStatus.Denied,
                                         true,
                                         0,
+                                        0,
                                         ReportedFileAccess.NoUsn,
                                         DesiredAccess.GENERIC_READ,
                                         ShareMode.FILE_SHARE_NONE,
@@ -141,6 +147,7 @@ namespace Test.BuildXL.Processes
                                         FileAccessStatus.Allowed,
                                         false,
                                         0,
+                                        0,
                                         ReportedFileAccess.NoUsn,
                                         DesiredAccess.GENERIC_READ,
                                         ShareMode.FILE_SHARE_NONE,
@@ -154,18 +161,19 @@ namespace Test.BuildXL.Processes
                                         FileAccessStatus.Allowed,
                                         true,
                                         0,
+                                        0,
                                         ReportedFileAccess.NoUsn,
                                         DesiredAccess.GENERIC_READ,
                                         ShareMode.FILE_SHARE_NONE,
                                         CreationDisposition.OPEN_ALWAYS,
                                         FlagsAndAttributes.FILE_ATTRIBUTE_NORMAL,
                                         file1)
-                                },
+                                ],
                 eq: (left, right) => left == right,
                 neq: (left, right) => left != right,
                 skipHashCodeForNotEqualValues: true);
 
-            Test.BuildXL.TestUtilities.Xunit.StructTester.TestEquality(
+            StructTester.TestEquality(
                 baseValue:
                     ReportedFileAccess.Create(
                         ReportedFileOperation.CreateFile,
@@ -173,6 +181,7 @@ namespace Test.BuildXL.Processes
                         RequestedAccess.Read,
                         FileAccessStatus.Allowed,
                         true,
+                        0,
                         0,
                         ReportedFileAccess.NoUsn,
                         DesiredAccess.GENERIC_READ,
@@ -189,6 +198,7 @@ namespace Test.BuildXL.Processes
                         FileAccessStatus.Allowed,
                         true,
                         0,
+                        0,
                         ReportedFileAccess.NoUsn,
                         DesiredAccess.GENERIC_READ,
                         ShareMode.FILE_SHARE_NONE,
@@ -196,14 +206,15 @@ namespace Test.BuildXL.Processes
                         FlagsAndAttributes.FILE_ATTRIBUTE_NORMAL,
                         pathTable,
                         A("x", "file5.txt")),
-                notEqualValues: new[]
-                                {
+                notEqualValues:
+                                [
                                     ReportedFileAccess.Create(
                                         ReportedFileOperation.CreateFile,
                                         process,
                                         RequestedAccess.Read,
                                         FileAccessStatus.Denied,
                                         true,
+                                        0,
                                         0,
                                         ReportedFileAccess.NoUsn,
                                         DesiredAccess.GENERIC_READ,
@@ -218,6 +229,7 @@ namespace Test.BuildXL.Processes
                                         RequestedAccess.Read,
                                         FileAccessStatus.Allowed,
                                         true,
+                                        0,
                                         0,
                                         new Usn(0),
                                         DesiredAccess.GENERIC_READ,
@@ -233,6 +245,7 @@ namespace Test.BuildXL.Processes
                                         FileAccessStatus.Allowed,
                                         true,
                                         0,
+                                        0,
                                         ReportedFileAccess.NoUsn,
                                         DesiredAccess.GENERIC_READ,
                                         ShareMode.FILE_SHARE_NONE,
@@ -246,6 +259,7 @@ namespace Test.BuildXL.Processes
                                         FileAccessStatus.Denied,
                                         true,
                                         0,
+                                        0,
                                         ReportedFileAccess.NoUsn,
                                         DesiredAccess.GENERIC_READ,
                                         ShareMode.FILE_SHARE_NONE,
@@ -258,6 +272,7 @@ namespace Test.BuildXL.Processes
                                         RequestedAccess.Read,
                                         FileAccessStatus.Allowed,
                                         true,
+                                        0,
                                         0,
                                         ReportedFileAccess.NoUsn,
                                         DesiredAccess.GENERIC_READ,
@@ -273,6 +288,7 @@ namespace Test.BuildXL.Processes
                                         FileAccessStatus.Allowed,
                                         true,
                                         0,
+                                        0,
                                         ReportedFileAccess.NoUsn,
                                         DesiredAccess.GENERIC_READ,
                                         ShareMode.FILE_SHARE_NONE,
@@ -286,6 +302,7 @@ namespace Test.BuildXL.Processes
                                         RequestedAccess.Read,
                                         FileAccessStatus.Allowed,
                                         false,
+                                        0,
                                         0,
                                         ReportedFileAccess.NoUsn,
                                         DesiredAccess.GENERIC_READ,
@@ -301,6 +318,7 @@ namespace Test.BuildXL.Processes
                                         FileAccessStatus.Allowed,
                                         true,
                                         0,
+                                        0,
                                         ReportedFileAccess.NoUsn,
                                         DesiredAccess.GENERIC_READ,
                                         ShareMode.FILE_SHARE_NONE,
@@ -308,7 +326,7 @@ namespace Test.BuildXL.Processes
                                         FlagsAndAttributes.FILE_ATTRIBUTE_NORMAL,
                                         pathTable,
                                         A("x", "file5.txt"))
-                                },
+                                ],
                 eq: (left, right) => left == right,
                 neq: (left, right) => left != right,
                 skipHashCodeForNotEqualValues: true);
@@ -329,6 +347,7 @@ namespace Test.BuildXL.Processes
                 FileAccessStatus.Allowed,
                 true,
                 0,
+                0,
                 ReportedFileAccess.NoUsn,
                 DesiredAccess.GENERIC_READ,
                 ShareMode.FILE_SHARE_NONE,
@@ -348,6 +367,7 @@ namespace Test.BuildXL.Processes
                 RequestedAccess.Read,
                 FileAccessStatus.CannotDeterminePolicy,
                 true,
+                0,
                 0,
                 new Usn(0),
                 DesiredAccess.GENERIC_READ,
@@ -370,6 +390,7 @@ namespace Test.BuildXL.Processes
                 RequestedAccess.Read,
                 FileAccessStatus.Denied,
                 true,
+                0,
                 0,
                 ReportedFileAccess.NoUsn,
                 DesiredAccess.GENERIC_READ,

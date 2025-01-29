@@ -882,6 +882,7 @@ namespace BuildXL.Processes
             out FileAccessStatus status,
             out bool explicitlyReported, 
             out uint error, 
+            out uint rawError,
             out Usn usn, 
             out DesiredAccess desiredAccess, 
             out ShareMode shareMode, 
@@ -919,6 +920,7 @@ namespace BuildXL.Processes
 
                 explicitlyReported = report.ExplicitlyReport > 0;
                 error = report.Error;
+                rawError = error;
                 usn = ReportedFileAccess.NoUsn;
                 desiredAccess = isWrite ? DesiredAccess.GENERIC_WRITE : DesiredAccess.GENERIC_READ;
                 shareMode = ShareMode.FILE_SHARE_READ;

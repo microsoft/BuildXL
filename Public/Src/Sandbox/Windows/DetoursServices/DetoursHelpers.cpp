@@ -1171,7 +1171,31 @@ void InitProcessKind()
     }
 }
 
-void ReportIfNeeded(AccessCheckResult const& checkResult, FileOperationContext const& context, PolicyResult const& policyResult, DWORD error, USN usn, wchar_t const* filter) {
+DWORD GetReportedError(BOOL result, DWORD error)
+{
+    return result ? ERROR_SUCCESS : error;
+}
+
+void ReportIfNeeded(
+    AccessCheckResult const& checkResult,
+    FileOperationContext const& context,
+    PolicyResult const& policyResult,
+    DWORD error,
+    USN usn,
+    wchar_t const* filter)
+{
+    ReportIfNeeded(checkResult, context, policyResult, error, error, usn, filter);
+}
+
+void ReportIfNeeded(
+    AccessCheckResult const& checkResult,
+    FileOperationContext const& context,
+    PolicyResult const& policyResult,
+    DWORD error,
+    DWORD rawError,
+    USN usn,
+    wchar_t const* filter) 
+{
     if (!checkResult.ShouldReport()) {
         return;
     }
@@ -1182,6 +1206,7 @@ void ReportIfNeeded(AccessCheckResult const& checkResult, FileOperationContext c
         policyResult,
         checkResult,
         error,
+        rawError,
         usn,
         filter);
 }

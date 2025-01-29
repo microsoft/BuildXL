@@ -841,6 +841,12 @@ namespace Test.BuildXL.Processes
             var wmic = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "wbem", "wmic.exe");
             var find = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "find.exe");
 
+            if (!File.Exists(wmic) || !File.Exists(find))
+            {
+                // Microsoft DevBox may not have WMIC.exe installed.
+                return;
+            }
+
             using (var tempFiles = new TempFileStorage(canGetFileNames: false))
             {
                 var pt = new PathTable();
@@ -1042,6 +1048,7 @@ namespace Test.BuildXL.Processes
 
                     // Explicit flag
                     0,
+                    0,
                     (reportUsn || expectUsn) ? usn : ReportedFileAccess.NoUsn,
                     DesiredAccess.GENERIC_READ,
                     ShareMode.FILE_SHARE_READ | ShareMode.FILE_SHARE_WRITE,
@@ -1152,6 +1159,7 @@ namespace Test.BuildXL.Processes
                     RequestedAccess.Read,
                     FileAccessStatus.Allowed,
                     true,
+                    0,
                     0,
                     usn,
                     DesiredAccess.GENERIC_READ,
@@ -1907,6 +1915,7 @@ namespace Test.BuildXL.Processes
                 denied ? FileAccessStatus.Denied : FileAccessStatus.Allowed,
                 explicitlyReported,
                 0,
+                0,
                 ReportedFileAccess.NoUsn,
                 DesiredAccess.GENERIC_READ,
                 ShareMode.FILE_SHARE_READ,
@@ -1927,6 +1936,7 @@ namespace Test.BuildXL.Processes
                 RequestedAccess.Write,
                 denied ? FileAccessStatus.Denied : FileAccessStatus.Allowed,
                 explicitlyReported,
+                0,
                 0,
                 ReportedFileAccess.NoUsn,
                 DesiredAccess.GENERIC_WRITE,

@@ -115,6 +115,11 @@ namespace BuildXL.Processes
             public uint Error { get; set; }
 
             /// <summary>
+            /// Raw error code of the operation.
+            /// </summary>
+            public uint RawError { get; set; }
+
+            /// <summary>
             /// Desired access.
             /// </summary>
             public DesiredAccess DesiredAccess { get; set; }
@@ -209,7 +214,7 @@ namespace BuildXL.Processes
             /// Exit code.
             /// </summary>
             public uint ExitCode { get; set; }
-            
+
             /// <summary>
             /// IO counters.
             /// </summary>

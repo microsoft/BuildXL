@@ -14,7 +14,7 @@ namespace BuildXL.Processes
         /// <summary>
         /// Corresponds to INVALID_FILE_ATTRIBUTES constant.
         /// </summary>
-        public static uint InvalidFileAttributes = uint.MaxValue;
+        public const uint InvalidFileAttributes = uint.MaxValue;
     }
 
     /// <summary>

@@ -346,6 +346,7 @@ namespace BuildXL.Execution.Analyzer
                 m_html.CreateEnumRow("Operation", data.Operation),
                 m_html.CreateEnumRow("FlagsAndAttributes", data.FlagsAndAttributes),
                 m_html.CreateRow("Error", data.Error.ToString(CultureInfo.InvariantCulture)),
+                m_html.CreateRow("RawError", data.RawError.ToString(CultureInfo.InvariantCulture)),
                 m_html.CreateRow("Usn", data.Usn.Value.ToString(CultureInfo.InvariantCulture)),
                 m_html.CreateRow("ManifestPath", data.ManifestPath),
                 m_html.CreateRow("Process", data.Process.ProcessId.ToString(CultureInfo.InvariantCulture)),

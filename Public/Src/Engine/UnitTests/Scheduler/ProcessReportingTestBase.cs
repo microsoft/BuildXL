@@ -93,6 +93,7 @@ namespace Test.BuildXL.Scheduler
                 RandomEnum<FileAccessStatus>(r),
                 true,
                 (uint)r.Next(),
+                (uint)r.Next(),
                 new Usn((ulong)r.Next()),
                 RandomEnum<DesiredAccess>(r),
                 RandomEnum<ShareMode>(r),

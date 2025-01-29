@@ -492,6 +492,7 @@ namespace BuildXL.Scheduler.Tracing
                 Operation = CreateString(data.Operation),
                 FlagsAndAttributes = CreateString(data.FlagsAndAttributes),
                 Error = data.Error,
+                RawError = data.RawError,
                 Usn = data.Usn.Value,
                 ManifestPath = CreateString(data.ManifestPath, pathTable),
                 Process = data.Process.ProcessId,

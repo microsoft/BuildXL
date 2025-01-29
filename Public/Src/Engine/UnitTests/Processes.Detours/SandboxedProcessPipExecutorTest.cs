@@ -682,7 +682,8 @@ namespace Test.BuildXL.Processes.Detours
 
             // 4 warnings with 2 probes collapsed into one, because they reported the same kind
             // of access. Events ignore the function used for the access.
-            AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedTempFileAccess, count: 3);
+            // However, the 2nd probe may have a different error code, and thus it could be 3 or 4 warnings in total.
+            AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedTempFileAccess, count: 3, allowMore: true);
         }
 
         [Fact]

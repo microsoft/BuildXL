@@ -191,7 +191,7 @@ int CallDetouredZwCreateFile()
         &objAttribs,
         &ioStatusBlock,
         &largeInteger,
-        FILE_ATTRIBUTE_NORMAL, 
+        FILE_ATTRIBUTE_NORMAL,
         FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
         FILE_OPEN_IF,
         0,
@@ -222,7 +222,7 @@ int CallDetouredZwOpenFile()
     InitializeObjectAttributes(&objAttribs, &unicodeString, OBJ_CASE_INSENSITIVE, NULL, NULL);
     IO_STATUS_BLOCK ioStatusBlock = { 0 };
     HANDLE handle = INVALID_HANDLE_VALUE;
-    
+
     const NTSTATUS status = ZwOpenFile(
         &handle,
         GENERIC_READ,
@@ -235,7 +235,7 @@ int CallDetouredZwOpenFile()
     {
         ZwClose(handle);
     }
-    
+
     return static_cast<int>(RtlNtStatusToDosError(status));
 }
 
@@ -277,7 +277,7 @@ int InternalCallDetouredSetFileInformationFileLink(BOOL useExtendedFileInfo)
 
     wstring target;
 
-    if (!TryGetNtFullPath(L"input\\SetFileInformationFileLinkTest1.txt", target)) 
+    if (!TryGetNtFullPath(L"input\\SetFileInformationFileLinkTest1.txt", target))
     {
         return static_cast<int>(GetLastError());
     }
@@ -287,7 +287,7 @@ int InternalCallDetouredSetFileInformationFileLink(BOOL useExtendedFileInfo)
     const size_t bufferSize = (useExtendedFileInfo ? sizeof(FILE_LINK_INFORMATION_EX) : sizeof(FILE_LINK_INFORMATION)) + targetLengthInBytes;
     auto const buffer = make_unique<char[]>(bufferSize);
 
-    PVOID fli = useExtendedFileInfo 
+    PVOID fli = useExtendedFileInfo
         ? CreateFileLinkInformationEx(target, targetLength, targetLengthInBytes, buffer)
         : CreateFileLinkInformation(target, targetLength, targetLengthInBytes, buffer);
 
@@ -297,9 +297,9 @@ int InternalCallDetouredSetFileInformationFileLink(BOOL useExtendedFileInfo)
         &ioStatusBlock,
         fli,
         (ULONG)bufferSize,
-        useExtendedFileInfo 
-            ? (FILE_INFORMATION_CLASS)FILE_INFORMATION_CLASS_EXTRA::FileLinkInformationEx
-            : (FILE_INFORMATION_CLASS)FILE_INFORMATION_CLASS_EXTRA::FileLinkInformation);
+        useExtendedFileInfo
+        ? (FILE_INFORMATION_CLASS)FILE_INFORMATION_CLASS_EXTRA::FileLinkInformationEx
+        : (FILE_INFORMATION_CLASS)FILE_INFORMATION_CLASS_EXTRA::FileLinkInformation);
 
     CloseHandle(hFile);
 
@@ -382,7 +382,7 @@ int CallDetouredSetFileDispositionByHandleCore(FILE_INFO_BY_HANDLE_CLASS fileInf
     }
 
     CloseHandle(hFile);
-    
+
     return static_cast<int>(GetLastError());
 }
 
@@ -414,7 +414,7 @@ int CallDetouredZwSetFileDispositionByHandleEx()
         FILE_INFORMATION_CLASS_EXTRA::FileDispositionInformationEx);
 }
 
-int CallDetouredGetFinalPathNameByHandle() 
+int CallDetouredGetFinalPathNameByHandle()
 {
     // input\GetFinalPathNameByHandleTest.txt points to inputTarget\GetFinalPathNameByHandleTest.txt
     HANDLE hFile = CreateFileW(
@@ -434,7 +434,7 @@ int CallDetouredGetFinalPathNameByHandle()
     wchar_t buffer[MAX_PATH] = { 0 };
     DWORD err = GetFinalPathNameByHandleW(hFile, buffer, MAX_PATH, FILE_NAME_NORMALIZED);
 
-    if (err == 0) 
+    if (err == 0)
     {
         err = GetLastError();
         CloseHandle(hFile);
@@ -442,8 +442,8 @@ int CallDetouredGetFinalPathNameByHandle()
     }
 
     CloseHandle(hFile);
-    
-    if (err < MAX_PATH) 
+
+    if (err < MAX_PATH)
     {
         wstring finalPath = wstring();
         if (!TryGetFullPath(buffer, finalPath))
@@ -458,7 +458,7 @@ int CallDetouredGetFinalPathNameByHandle()
         }
 
         HANDLE hFile2 = CreateFileW(buffer, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-        
+
         if (hFile2 == INVALID_HANDLE_VALUE)
         {
             return static_cast<int>(GetLastError());
@@ -477,11 +477,11 @@ int CallProbeForDirectory()
     OBJECT_ATTRIBUTES objAttribs = { 0 };
 
     wstring fullPath = wstring();
-    if (!TryGetNtFullPath(L"input.txt\\", fullPath)) 
+    if (!TryGetNtFullPath(L"input.txt\\", fullPath))
     {
         return static_cast<int>(GetLastError());
     }
-    
+
     UNICODE_STRING unicodeString;
     RtlInitUnicodeString(&unicodeString, fullPath.c_str());
 
@@ -489,22 +489,22 @@ int CallProbeForDirectory()
     LARGE_INTEGER largeInteger = { { 0 } };
     IO_STATUS_BLOCK ioStatusBlock = { 0 };
     const NTSTATUS status = NtCreateFile(
-        &hFile, 
-        FILE_READ_ATTRIBUTES | SYNCHRONIZE, 
-        &objAttribs, 
-        &ioStatusBlock, 
+        &hFile,
+        FILE_READ_ATTRIBUTES | SYNCHRONIZE,
+        &objAttribs,
+        &ioStatusBlock,
         &largeInteger,
-        FILE_ATTRIBUTE_NORMAL | FILE_ATTRIBUTE_DIRECTORY, 
-        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, 
-        FILE_OPEN, 
-        FILE_DIRECTORY_FILE, 
-        NULL, 
+        FILE_ATTRIBUTE_NORMAL | FILE_ATTRIBUTE_DIRECTORY,
+        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+        FILE_OPEN,
+        FILE_DIRECTORY_FILE,
+        NULL,
         NULL);
 
-    if (hFile != INVALID_HANDLE_VALUE) 
-    { 
+    if (hFile != INVALID_HANDLE_VALUE)
+    {
         wprintf(L"Closing");
-        CloseHandle(hFile); 
+        CloseHandle(hFile);
     }
 
     return static_cast<int>(RtlNtStatusToDosError(status));
@@ -578,7 +578,7 @@ int CallAccessInvalidFile()
 int CallGetAttributeNonExistent()
 {
     wstring file;
-    if (!TryGetFullPath(L"GetAttributeNonExistent.txt", file)) 
+    if (!TryGetFullPath(L"GetAttributeNonExistent.txt", file))
     {
         return static_cast<int>(GetLastError());
     }
@@ -616,22 +616,26 @@ int CallDetouredCreateFileWWithGenericAllAccess()
     }
 
     CloseHandle(hFile);
-    
+
     return static_cast<int>(GetLastError());
 }
 
 int CallDetouredMoveFileExWForRenamingDirectory()
 {
     const DWORD attributes = GetFileAttributesW(L"OutputDirectory\\NewDirectory");
-    if (attributes != INVALID_FILE_ATTRIBUTES && ((attributes & FILE_ATTRIBUTE_DIRECTORY) != 0)) 
+    if (attributes != INVALID_FILE_ATTRIBUTES && ((attributes & FILE_ATTRIBUTE_DIRECTORY) != 0))
     {
         // If target directory exists, move first to TempDirectory.
-        MoveFileExW(L"OutputDirectory\\NewDirectory", L"TempDirectory", MOVEFILE_COPY_ALLOWED);
+        const BOOL moveTemp = MoveFileExW(L"OutputDirectory\\NewDirectory", L"TempDirectory", MOVEFILE_COPY_ALLOWED);
+        if (!moveTemp)
+        {
+            return static_cast<int>(GetLastError());
+        }
     }
 
-    MoveFileExW(L"OldDirectory", L"OutputDirectory\\NewDirectory", MOVEFILE_COPY_ALLOWED);
+    const BOOL move = MoveFileExW(L"OldDirectory", L"OutputDirectory\\NewDirectory", MOVEFILE_COPY_ALLOWED);
 
-    return static_cast<int>(GetLastError());
+    return static_cast<int>(move ? ERROR_SUCCESS : GetLastError());
 }
 
 int CallDetouredSetFileInformationByHandleForRenamingDirectory()
@@ -656,9 +660,14 @@ int CallDetouredSetFileInformationByHandleForRenamingDirectory()
             return static_cast<int>(GetLastError());
         }
 
-        SetRenameFileByHandle(hNewDirectory, L"TempDirectory", true);
+        const BOOL renameTemp = SetRenameFileByHandle(hNewDirectory, L"TempDirectory", true);
 
         CloseHandle(hNewDirectory);
+
+        if (!renameTemp)
+        {
+            return static_cast<int>(GetLastError());
+        }
     }
 
     HANDLE hOldDirectory = CreateFileW(
@@ -675,11 +684,11 @@ int CallDetouredSetFileInformationByHandleForRenamingDirectory()
         return static_cast<int>(GetLastError());
     }
 
-    SetRenameFileByHandle(hOldDirectory, L"OutputDirectory\\NewDirectory", true);
+    const BOOL rename = SetRenameFileByHandle(hOldDirectory, L"OutputDirectory\\NewDirectory", true);
 
     CloseHandle(hOldDirectory);
 
-    return static_cast<int>(GetLastError());
+    return static_cast<int>(rename ? ERROR_SUCCESS : GetLastError());
 }
 
 int CallDetouredZwSetFileInformationByHandleForRenamingDirectoryCore(FILE_INFORMATION_CLASS_EXTRA fileInfoClass)
@@ -703,7 +712,7 @@ int CallDetouredZwSetFileInformationByHandleForRenamingDirectoryCore(FILE_INFORM
         {
             return static_cast<int>(GetLastError());
         }
-        
+
         ZwSetRenameFileByHandle(hNewDirectory, L"TempDirectory", FILE_INFORMATION_CLASS_EXTRA::FileRenameInformation);
 
         CloseHandle(hNewDirectory);
@@ -793,8 +802,8 @@ int CallCreateFileWithZeroAccessOnDirectory()
 int CallCreateFileOnNtEscapedPath()
 {
     wstring fullPath = wstring();
-    
-    if (!TryGetNtEscapedFullPath(L"input", fullPath)) 
+
+    if (!TryGetNtEscapedFullPath(L"input", fullPath))
     {
         return static_cast<int>(GetLastError());
     }
@@ -1059,7 +1068,7 @@ int CallCreateSelfForWrite()
 
     STARTUPINFO si{};
     PROCESS_INFORMATION pi{};
-    
+
     ZeroMemory(&si, sizeof(si));
     si.cb = sizeof(si);
     ZeroMemory(&pi, sizeof(pi));
@@ -1068,7 +1077,7 @@ int CallCreateSelfForWrite()
     cmdLine.append(path);
     cmdLine.append(L"\" ");
     cmdLine.append(L"CallDetouredCreateFileWWrite");
-    
+
     if (!CreateProcess(
         NULL,
         &cmdLine[0],
@@ -1092,7 +1101,7 @@ int CallCreateSelfForWrite()
     {
         return static_cast<int>(GetLastError());
     }
-    
+
     if (childExitCode != ERROR_SUCCESS)
     {
         return static_cast<int>(childExitCode);
@@ -1101,7 +1110,7 @@ int CallCreateSelfForWrite()
     // Close process and thread handles. 
     CloseHandle(pi.hProcess);
     CloseHandle(pi.hThread);
-    
+
     return static_cast<int>(GetLastError());
 }
 
@@ -1196,7 +1205,7 @@ int CallCreateFileWithNewLineCharacters()
     for (LPCWSTR filename : filenames)
     {
         const int result = CreateStream(filename);
-        if (result != 0) 
+        if (result != 0)
         {
             return result;
         }
@@ -1471,7 +1480,7 @@ static void CorrelationCallTests(const string& verb)
 // FUNCTION DEFINITIONS
 // ----------------------------------------------------------------------------
 
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
     if (argc != 2)
     {

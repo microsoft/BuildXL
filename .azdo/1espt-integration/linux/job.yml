@@ -9,7 +9,7 @@ jobs:
 - job: Validation_1ESPT_${{ parameters.validationName }}
   displayName: 1ESPipelines BuildXL workflow [Linux] (${{ parameters.validationName }})
   pool:
-    name: BuildXL-DevOpsAgents-Selfhost
+    name: BuildXL-DevOpsAgents-Selfhost-BuildCache
     image: linux-PME-GPT
     os: linux
   timeoutInMinutes: 90

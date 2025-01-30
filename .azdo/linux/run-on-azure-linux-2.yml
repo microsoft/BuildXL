@@ -24,7 +24,7 @@ extends:
   template: v1/1ES.Unofficial.PipelineTemplate.yml@1esPipelines
   parameters:
     pool:
-      name: BuildXL-DevOpsAgents-Selfhost
+      name: BuildXL-DevOpsAgents-Selfhost-BuildCache
       os: linux
       image: 1ES-hosted-azure-linux-2
 
@@ -38,7 +38,7 @@ extends:
     - template: /.azdo/linux/linux-stages-template.yml
       parameters:
         pool:
-          name: BuildXL-DevOpsAgents-Selfhost
+          name: BuildXL-DevOpsAgents-Selfhost-BuildCache
           os: linux
           image: 1ES-hosted-azure-linux-2
         BxlCommonArgs: ${{ parameters.BxlCommonArgs }}

@@ -7,8 +7,10 @@ jobs:
 - job: buildTests
   displayName: Build Unit Test Deployment with BuildXL on Windows
   pool:
-    name: BuildXL-DevOpsAgents-Selfhost
+    name: BuildXL-DevOpsAgents-Selfhost-BuildCache
     os: windows
+    demands: 
+    - ImageOverride -equals 1ESPT-Win2022-PME-3
   steps:
   - checkout: self
 

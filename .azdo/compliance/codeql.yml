@@ -29,7 +29,7 @@ jobs:
   timeoutInMinutes: 120
   cancelTimeoutInMinutes: 1
   pool:
-    name: BuildXL-DevOpsAgents-Selfhost
+    name: BuildXL-DevOpsAgents-Selfhost-BuildCache
     os: windows
   steps:
   - checkout: self

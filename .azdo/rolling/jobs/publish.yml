@@ -9,7 +9,7 @@ jobs:
   timeoutInMinutes: 240
   dependsOn:
   pool:
-    name: BuildXL-DevOpsAgents-Selfhost
+    name: BuildXL-DevOpsAgents-Selfhost-BuildCache
     os: windows
   templateContext:
     outputParentDirectory: $(Agent.TempDirectory)/DownloadedDrop
@@ -158,7 +158,7 @@ jobs:
     # Only force push the main branch
     condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
     pool:
-      name: BuildXL-DevOpsAgents-Selfhost
+      name: BuildXL-DevOpsAgents-Selfhost-BuildCache
       os: windows
 
     steps:

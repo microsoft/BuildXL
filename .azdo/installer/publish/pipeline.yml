@@ -24,7 +24,7 @@ extends:
         parameters:
           platform: linux-x64
           pool: 
-            name: BuildXL-DevOpsAgents-Selfhost
+            name: BuildXL-DevOpsAgents-Selfhost-BuildCache
             image: linux-PME-GPT
             os: linux  
 
@@ -32,5 +32,5 @@ extends:
         parameters:
           platform: win-x64
           pool: 
-            name: BuildXL-DevOpsAgents-Selfhost
+            name: BuildXL-DevOpsAgents-Selfhost-BuildCache
             os: windows  

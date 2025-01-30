@@ -23,7 +23,7 @@ variables:
   - name: Codeql.Enabled
     value: false
 pool:
-  name: BuildXL-DevOpsAgents-Selfhost
+  name: BuildXL-DevOpsAgents-Selfhost-BuildCache
   os: windows
 
 stages:

@@ -25,7 +25,7 @@ parameters:
 - name: pool
   type: object
   default: 
-    name: BuildXL-DevOpsAgents-Selfhost
+    name: BuildXL-DevOpsAgents-Selfhost-BuildCache
     image: linux-PME-GPT
     os: linux
 

@@ -28,7 +28,7 @@ jobs:
 - job: Build_Linux
   displayName: Build linux NPM package (${{ parameters.Flavor }})
   pool:
-    name: BuildXL-DevOpsAgents-Selfhost
+    name: BuildXL-DevOpsAgents-Selfhost-BuildCache
     os: linux
     demands:     
     - ImageOverride -equals linux-PME-GPT
@@ -74,7 +74,7 @@ jobs:
 - job: Publish_Windows
   displayName: 'Publish on Windows'
   pool:
-    name: BuildXL-DevOpsAgents-Selfhost
+    name: BuildXL-DevOpsAgents-Selfhost-BuildCache
     os: windows
   dependsOn: Build_Linux
   steps:

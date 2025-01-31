@@ -377,7 +377,8 @@ namespace Test.BuildXL.Scheduler
             bool allowEmptySchedule = false,
             CancellationToken cancellationToken = default,
             FileTimestampTracker fileTimestampTracker = null,
-            bool expectSchedulerInitSuccess = true)
+            bool expectSchedulerInitSuccess = true,
+            EngineCache cache = null)
         {
             if (m_graphWasModified || LastGraph == null)
             {
@@ -411,7 +412,8 @@ namespace Test.BuildXL.Scheduler
                 allowEmptySchedule: allowEmptySchedule,
                 cancellationToken: cancellationToken,
                 fileTimestampTracker: fileTimestampTracker,
-                expectSchedulerInitSuccess: expectSchedulerInitSuccess);
+                expectSchedulerInitSuccess: expectSchedulerInitSuccess,
+                cache: cache);
         }
 
         public NodeId GetProducerNode(FileArtifact file) => PipGraphBuilder.GetProducerNode(file);
@@ -453,7 +455,8 @@ namespace Test.BuildXL.Scheduler
             bool allowEmptySchedule = false,
             CancellationToken cancellationToken = default,
             FileTimestampTracker fileTimestampTracker = null,
-            bool expectSchedulerInitSuccess = true)
+            bool expectSchedulerInitSuccess = true,
+            EngineCache cache = null)
         {
             XAssert.IsTrue(m_graphWasEverModified || allowEmptySchedule,
     "Attempting to run an empty scheduler. This usually means you forgot to schedule the pips in the test case. Suppress this failure by passing allowEmptySchedule = true");
@@ -534,7 +537,7 @@ namespace Test.BuildXL.Scheduler
                 context: BuildXLContext.CreateInstanceForTestingWithCancellationToken(Context, cancellationToken),
                 fileContentTable: FileContentTable,
                 loggingContext: localLoggingContext,
-                cache: Cache,
+                cache: cache ?? Cache,
                 configuration: config,
                 journalState: m_journalState,
                 fileAccessAllowlist: allowlist,

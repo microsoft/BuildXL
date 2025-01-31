@@ -4345,7 +4345,10 @@ namespace BuildXL.Scheduler
             Contract.Assert(runnablePip.IsCancelled);
             if (runnablePip is ProcessRunnablePip processRunnable)
             {
-                FlagAndReturnScrubbableSharedOpaqueOutputs(runnablePip.Environment, processRunnable);
+                FlagAndReturnScrubbableSharedOpaqueOutputs(runnablePip.Environment, processRunnable,
+                    // This is slightly hacky, but since this is a workaround (see https://dev.azure.com/mseng/1ES/_workitems/edit/2167806), it'll do the job
+                    // Outputs were pushed to the cache if the push to output to cache duration is set.
+                    arePipOutputsHardlinked: runnablePip.Performance.PushOutputsToCacheDurationMs > 0 && m_configuration.Engine.UseHardlinks);
             }
         }
 
@@ -4978,7 +4981,8 @@ namespace BuildXL.Scheduler
                             if (worker.IsLocal)
                             {
                                 // Because the scheduler will re-run this pip, we have to clean all outputs created under shared opaque directories
-                                var sharedOpaqueOutputs = FlagAndReturnScrubbableSharedOpaqueOutputs(environment, processRunnable);
+                                // At this point we already cached content (not the fingerprint yet), so outputs are cached.
+                                var sharedOpaqueOutputs = FlagAndReturnScrubbableSharedOpaqueOutputs(environment, processRunnable, m_configuration.Engine.UseHardlinks);
                                 if (!ScrubSharedOpaqueOutputs(operationContext, m_pipTable.GetPipSemiStableHash(pipId), sharedOpaqueOutputs))
                                 {
                                     return runnablePip.SetPipResult(PipResultStatus.Failed);
@@ -5076,7 +5080,8 @@ namespace BuildXL.Scheduler
                         // We need to do this even if the pip failed, so any writes under shared opaques are flagged anyway.
                         // This allows the scrubber to remove those files as well in the next run.
                         var start = DateTime.UtcNow;
-                        var sharedOpaqueOutputs = FlagAndReturnScrubbableSharedOpaqueOutputs(environment, processRunnable);
+                        // At this point the output content is cached (fingerprint is not yet)
+                        var sharedOpaqueOutputs = FlagAndReturnScrubbableSharedOpaqueOutputs(environment, processRunnable, arePipOutputsHardlinked: m_configuration.Engine.UseHardlinks);
                         SandboxedProcessPipExecutor.LogSubPhaseDuration(operationContext, runnablePip.Pip, SandboxedProcessFactory.SandboxedProcessCounters.SchedulerPhaseFlaggingSharedOpaqueOutputs, DateTime.UtcNow.Subtract(start), $"(count: {sharedOpaqueOutputs.Count})");
 
                         // Set the process as executed. NOTE: We do this here rather than during ExecuteProcess to handle
@@ -5233,7 +5238,7 @@ namespace BuildXL.Scheduler
             return IsTerminating && runnablePip.Step != PipExecutionStep.Start && GetPipRuntimeInfo(runnablePip.PipId).State == PipState.Running && !runnablePip.IsCancelled;
         }
 
-        private List<string> FlagAndReturnScrubbableSharedOpaqueOutputs(IPipExecutionEnvironment environment, ProcessRunnablePip process)
+        private List<string> FlagAndReturnScrubbableSharedOpaqueOutputs(IPipExecutionEnvironment environment, ProcessRunnablePip process, bool arePipOutputsHardlinked)
         {
             List<string> outputPaths = new List<string>();
 
@@ -5241,7 +5246,7 @@ namespace BuildXL.Scheduler
             // since we don't want to delete it next time)
             foreach (var fileArtifact in process.Process.FileOutputs.Where(fa => !fa.IsUndeclaredFileRewrite))
             {
-                MakeSharedOpaqueOutputIfNeeded(fileArtifact.Path);
+                MakeSharedOpaqueOutputIfNeeded(fileArtifact.Path, process.FormattedSemiStableHash, arePipOutputsHardlinked);
 
                 if (IsPathUnderSharedOpaqueDirectory(fileArtifact.Path))
                 {
@@ -5267,7 +5272,13 @@ namespace BuildXL.Scheduler
 
                         if (!environment.Configuration.Sandbox.UnsafeSandboxConfiguration.SkipFlaggingSharedOpaqueOutputs())
                         {
-                            SharedOpaqueOutputHelper.EnforceFileIsSharedOpaqueOutput(path);
+                            var result = SharedOpaqueOutputHelper.TryEnforceFileIsSharedOpaqueOutput(path, arePipOutputsHardlinked);
+                            if (!result.Succeeded)
+                            {
+                                // This is just an info message, since it is part of a temporary solution until https://dev.azure.com/mseng/1ES/_workitems/edit/2167806 is done. TODO: remove
+                                // Users cannot do much about this, so a warning would be too invasive.
+                                Logger.Log.CannotFlagSharedOpaqueOutput(m_loggingContext, process.FormattedSemiStableHash, path, result.Failure.Describe());
+                            }
                         }
 
                         // We do not want to mark the shared opaque outputs when SkipFlaggingSharedOpaqueOutputs is set to true; however, we want to return the list of those ouputs
@@ -7319,7 +7330,7 @@ namespace BuildXL.Scheduler
         }
 
         [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
-        Possible<Unit> IFileContentManagerHost.ReportFileArtifactPlaced(in FileArtifact artifact, FileMaterializationInfo fileMaterializationInfo)
+        Possible<Unit> IFileContentManagerHost.ReportFileArtifactPlaced(PipInfo pipInfo, in FileArtifact artifact, FileMaterializationInfo fileMaterializationInfo)
         {
             var pathAsString = artifact.Path.ToString(Context.PathTable);
             bool artifactIsModified = false;
@@ -7328,7 +7339,8 @@ namespace BuildXL.Scheduler
             // in the next build.
             if (!fileMaterializationInfo.IsUndeclaredFileRewrite)
             {
-                if (MakeSharedOpaqueOutputIfNeeded(artifact.Path))
+                // This is called after the cache placed the artifact, so outputs are hardlinked if the configuration says so
+                if (MakeSharedOpaqueOutputIfNeeded(artifact.Path, pipInfo.UnderlyingPip.FormattedSemiStableHash, m_configuration.Engine.UseHardlinks))
                 {
                     artifactIsModified = true;
                 }
@@ -7395,11 +7407,20 @@ namespace BuildXL.Scheduler
             return Unit.Void;
         }
 
-        private bool MakeSharedOpaqueOutputIfNeeded(AbsolutePath path)
+        private bool MakeSharedOpaqueOutputIfNeeded(AbsolutePath path, string formattedSemiStableHash, bool arePipOutputsHardlinked)
         {
             if (!m_configuration.Sandbox.UnsafeSandboxConfiguration.SkipFlaggingSharedOpaqueOutputs() && IsPathUnderSharedOpaqueDirectory(path))
             {
-                SharedOpaqueOutputHelper.EnforceFileIsSharedOpaqueOutput(path.ToString(Context.PathTable));
+                var pathAsString = path.ToString(Context.PathTable);
+                var result = SharedOpaqueOutputHelper.TryEnforceFileIsSharedOpaqueOutput(pathAsString, arePipOutputsHardlinked);
+
+                if (!result.Succeeded)
+                {
+                    // This is just an info message, since it is part of a temporary solution until https://dev.azure.com/mseng/1ES/_workitems/edit/2167806 is done. TODO: remove
+                    // Users cannot do much about this, so a warning would be too invasive.
+                    Logger.Log.CannotFlagSharedOpaqueOutput(m_loggingContext, formattedSemiStableHash, pathAsString, result.Failure.Describe());
+                }
+
                 return true;
             }
 

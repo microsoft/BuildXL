@@ -552,5 +552,6 @@ namespace BuildXL.Scheduler.Tracing
         // was DependencyViolationReadUndeclaredOutput_AsError = 25009,
 
         UnableToWritePipStandardOutputLog = 14609,
+        CannotFlagSharedOpaqueOutput = 14610,
     }
 }

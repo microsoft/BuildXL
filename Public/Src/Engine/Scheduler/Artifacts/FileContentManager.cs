@@ -2300,7 +2300,7 @@ namespace BuildXL.Scheduler.Artifacts
                                 Possible<ContentMaterializationResult> possiblyPlaced = await PlaceSingleFileAsync(operationContext, state, materializationFileIndex, materializationFile, throttleMaterialization);
 
                                 Possible<Unit> finalResult = possiblyPlaced
-                                                                .Then(_ => m_host.ReportFileArtifactPlaced(file, materializationInfo))
+                                                                .Then(_ => m_host.ReportFileArtifactPlaced(pipInfo, file, materializationInfo))
                                                                 .Then(_ =>
                                                                 {
                                                                     state.SetMaterializationSuccess(
@@ -2798,7 +2798,7 @@ namespace BuildXL.Scheduler.Artifacts
                 if (state != null && EngineEnvironmentSettings.SkipExtraneousPins.Value)
                 {
                     // When actually materializing files, skip the pin and place directly.
-                    possibleResults = await PlaceFilesPinAsync(operationContext, state);
+                    possibleResults = await PlaceFilesPinAsync(pipInfo, operationContext, state);
                 }
                 else
                 {
@@ -3110,6 +3110,7 @@ namespace BuildXL.Scheduler.Artifacts
         }
 
         private async Task<Possible<ContentAvailabilityBatchResult, Failure>> PlaceFilesPinAsync(
+            PipInfo pipInfo,
             OperationContext operationContext,
             PipArtifactsState state)
         {
@@ -3136,7 +3137,7 @@ namespace BuildXL.Scheduler.Artifacts
                     {
                         state.SetMaterializationSuccess(fileAndIndex.index, result.Result.Origin, operationContext);
 
-                        var placed = m_host.ReportFileArtifactPlaced(fileArtifact, fileAndIndex.materializationFile.MaterializationInfo);
+                        var placed = m_host.ReportFileArtifactPlaced(pipInfo, fileArtifact, fileAndIndex.materializationFile.MaterializationInfo);
                         if (placed.Succeeded)
                         {
                             results[resultIndex] = new ContentAvailabilityResult(contentHash, true, result.Result.TrackedFileContentInfo.Length, "ContentPlaced");

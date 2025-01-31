@@ -24,6 +24,11 @@ using Xunit;
 using Xunit.Abstractions;
 using LogEventId = BuildXL.Scheduler.Tracing.LogEventId;
 using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
+using BuildXL.Cache.Interfaces;
+using BuildXL.Cache.MemoizationStoreAdapter;
+using BuildXL.Engine.Cache;
+using BuildXL.Engine.Cache.Fingerprints.TwoPhase;
+using BuildXL.Engine.Cache.Plugin.CacheCore;
 
 namespace IntegrationTest.BuildXL.Scheduler
 {
@@ -33,6 +38,19 @@ namespace IntegrationTest.BuildXL.Scheduler
     {
         public SharedOpaqueDirectoryTests(ITestOutputHelper output) : base(output)
         {
+        }
+
+        private EngineCache CreateMemoizationStoreCache(string cacheDir)
+        {
+            var cacheLog = Path.Combine(ObjectRoot, "cacheLog");
+            var maybeMemoizationStore = new MemoizationStoreCacheFactory().InitializeCacheAsync(
+                new MemoizationStoreCacheFactory.Config() { CacheId = new CacheId("Test"), CacheRootPath = cacheDir, CacheLogPath = cacheLog }).GetAwaiter().GetResult();
+            XAssert.IsTrue(maybeMemoizationStore.Succeeded, "Failed to initialize cache");
+
+            var maybeSession = maybeMemoizationStore.Result.CreateSessionAsync().GetAwaiter().GetResult();
+            XAssert.IsTrue(maybeSession.Succeeded, "Failed to create session");
+
+            return new EngineCache(new CacheCoreArtifactContentCache(maybeSession.Result, rootTranslator: null), new InMemoryTwoPhaseFingerprintStore());
         }
 
         /// <summary>
@@ -3257,6 +3275,53 @@ namespace IntegrationTest.BuildXL.Scheduler
                 .AssertCacheHit(pipA.Process.PipId);    // OD was lazily materialized - the stale output was there
         }
 
+        /// <summary>
+        /// This test will become moot after feature https://dev.azure.com/mseng/1ES/_workitems/edit/2167806 is done. TODO: remove.
+        /// </summary>
+        [Fact]
+        public void HardlinkToSourcesAreNotFlaggedAsSharedOpaques()
+        {
+            // We need the real cache so we get the hardlinking behavior.
+            var cache = CreateMemoizationStoreCache(Path.Combine(ObjectRoot, nameof(HardlinkToSourcesAreNotFlaggedAsSharedOpaques)));
+
+            string sharedOpaqueDir = Path.Combine(ObjectRoot, "sod");
+            AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
+            FileArtifact hardlinkAsOutput = FileArtifact.CreateOutputFile(sharedOpaqueDirPath.Combine(Context.PathTable, "hardlink.txt"));
+            FileArtifact regularOutput = FileArtifact.CreateOutputFile(sharedOpaqueDirPath.Combine(Context.PathTable, "output.txt"));
+
+            FileArtifact source = CreateSourceFile(sharedOpaqueDir);
+
+            var builder = CreatePipBuilder(new Operation[] {
+                Operation.CreateHardlink(source, hardlinkAsOutput, doNotInfer:true),
+                Operation.WriteFile(regularOutput, doNotInfer: true)
+            });
+            builder.AddOutputDirectory(sharedOpaqueDirPath, SealDirectoryKind.SharedOpaque);
+            builder.AddInputFile(source);
+
+            var pip = SchedulePipBuilder(builder);
+
+            // We need the real cache for this test because we need the hardlinking behavior (that is not present in the default
+            // in-memory one)
+            RunScheduler(runNameOrDescription: "Clean", cache: cache).AssertSuccess();
+
+            // The hardlink shouldn't be flagged, because it's a hardlink to a source file
+            XAssert.IsFalse(SharedOpaqueOutputHelper.IsSharedOpaqueOutput(hardlinkAsOutput.Path.ToString(Context.PathTable)));
+            // The regular output should be flagged as shared opaque as usual
+            XAssert.IsTrue(SharedOpaqueOutputHelper.IsSharedOpaqueOutput(regularOutput.Path.ToString(Context.PathTable)));
+
+            // Simulate scrubbing by just removing the regular file.
+            File.Delete(regularOutput.Path.ToString(Context.PathTable));
+
+            // Now let's make sure that the hardlink is not flagged as shared opaque on cache replay
+            RunScheduler(runNameOrDescription: "Cached", cache: cache).AssertSuccess().AssertCacheHit(pip.Process.PipId);
+
+            // The hardlink shouldn't be flagged, because it's a hardlink to a source file
+            XAssert.IsFalse(SharedOpaqueOutputHelper.IsSharedOpaqueOutput(hardlinkAsOutput.Path.ToString(Context.PathTable)));
+            // The regular output should be flagged as shared opaque as usual
+            XAssert.IsTrue(SharedOpaqueOutputHelper.IsSharedOpaqueOutput(regularOutput.Path.ToString(Context.PathTable)));
+        }
+
         private string ToString(AbsolutePath path) => path.ToString(Context.PathTable);
     }
+
 }

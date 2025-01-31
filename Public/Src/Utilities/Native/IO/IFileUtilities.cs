@@ -283,8 +283,9 @@ namespace BuildXL.Native.IO
         /// Gets hard link count.
         /// </summary>
         /// <param name="path">The path to the file.</param>
+        /// <param name="followSymlink">Whether to follow symlinks.</param>
         /// <returns>Number of hard links to the file.</returns>
-        uint GetHardLinkCount(string path);
+        uint GetHardLinkCount(string path, bool followSymlink = true);
 
         /// <summary>
         /// Checks the ACL for writable access control.

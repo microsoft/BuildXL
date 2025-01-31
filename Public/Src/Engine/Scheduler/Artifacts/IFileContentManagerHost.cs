@@ -132,7 +132,7 @@ namespace BuildXL.Scheduler.Artifacts
         /// <summary>
         /// Callback to host to report that a file has been placed to disk.
         /// </summary>
-        Possible<Unit> ReportFileArtifactPlaced(in FileArtifact artifact, FileMaterializationInfo fileMaterializationInfo);
+        Possible<Unit> ReportFileArtifactPlaced(PipInfo pipInfo, in FileArtifact artifact, FileMaterializationInfo fileMaterializationInfo);
 
         /// <summary>
         /// Gets whether the host supports materializing the given file

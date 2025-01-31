@@ -4195,6 +4195,15 @@ namespace BuildXL.Scheduler.Tracing
             EventTask = (ushort)Tasks.PipExecutor,
             Message = "Unnable to write standard output log for {pipSemiStableHash} to {path}. {message}")]
         public abstract void UnableToWritePipStandardOutputLog(LoggingContext context, string pipSemiStableHash, string path, string message);
+        
+        [GeneratedEvent(
+            (ushort)LogEventId.CannotFlagSharedOpaqueOutput,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.PipExecutor,
+            Message = "Cannot flag {path} as a shared opaque output: {message}")]
+        public abstract void CannotFlagSharedOpaqueOutput(LoggingContext context, string pipSemiStableHash, string path, string message);
     }
 }
 #pragma warning restore CA1823 // Unused field

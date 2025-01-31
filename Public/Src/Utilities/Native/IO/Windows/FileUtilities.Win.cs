@@ -2147,7 +2147,7 @@ namespace BuildXL.Native.IO.Windows
         }
 
         /// <inheritdoc />
-        public uint GetHardLinkCount(string path)
+        public uint GetHardLinkCount(string path, bool followSymlink = true)
         {
             SafeFileHandle handle;
             OpenFileResult openResult = m_fileSystem.TryCreateOrOpenFile(
@@ -2155,7 +2155,7 @@ namespace BuildXL.Native.IO.Windows
                 FileDesiredAccess.GenericRead,
                 FileShare.Read | FileShare.Delete,
                 FileMode.Open,
-                FileFlagsAndAttributes.None,
+                followSymlink ? FileFlagsAndAttributes.None : FileFlagsAndAttributes.FileFlagOpenReparsePoint,
                 out handle);
             using (handle)
             {

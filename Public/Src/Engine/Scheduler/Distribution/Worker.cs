@@ -651,16 +651,24 @@ namespace BuildXL.Scheduler.Distribution
                     int value = Math.Max(1, engineCpuUsage.Value * Environment.ProcessorCount);
                     var cpuSemaphoreInfo = new ProcessSemaphoreInfo(
                         m_cpuSemaphoreNameId,
-                        value: value,
+                        value: Math.Min(value, m_cpuSemaphoreLimit),
                         limit: m_cpuSemaphoreLimit);
                     semaphores.Add(cpuSemaphoreInfo);
                 }
 
-                var ramSemaphoreInfo = new ProcessSemaphoreInfo(
-                    m_ramSemaphoreNameId,
-                    value: engineRamMb.Value,
-                    limit: RamSemaphoreLimitMb);
-                semaphores.Add(ramSemaphoreInfo);
+                if (m_scheduleConfig.UseHistoricalRamUsageInfo)
+                {
+                    var ramSemaphoreInfo = new ProcessSemaphoreInfo(
+                        m_ramSemaphoreNameId,
+                        value: Math.Min(engineRamMb.Value, RamSemaphoreLimitMb),
+                        limit: RamSemaphoreLimitMb);
+                    semaphores.Add(ramSemaphoreInfo);
+                }
+
+                if (semaphores.Count == 0)
+                {
+                    return;
+                }
 
                 var resources = ProcessExtensions.GetSemaphoreResources(m_workerSemaphores, semaphores);
                 // Due to the assigned process pips, the worker's RAM and CPU semaphores might be near the limit.
@@ -705,7 +713,7 @@ namespace BuildXL.Scheduler.Distribution
                     semaphores.Add(ramSemaphoreInfo);
                 }
 
-                if (runnableProcess.Environment.Configuration.Schedule.UseHistoricalCpuThrottling)
+                if (config.Schedule.UseHistoricalCpuThrottling)
                 {
                     // If there is no historical data available, we use 100 (1-core) as the cpu usage by default.
                     // Sometimes, the historical data shows the cpu usage as 0 if the process is very lightweight and short-running. 

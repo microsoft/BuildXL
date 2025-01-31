@@ -1,0 +1,59 @@
+trigger: none  # Explicitly scheduled for PRs
+
+resources:
+  repositories:
+  - repository: 1esPipelines
+    type: git
+    name: 1ESPipelineTemplates/1ESPipelineTemplates
+    ref: refs/tags/release
+
+parameters:
+- name: pool
+  type: object
+  default: 
+    name: BuildXL-DevOpsAgents-Selfhost-BuildCache
+    image: linux-PME-GPT
+    os: linux
+
+- name: sdkVersion
+  type: string
+  default: '8.x'
+
+extends:
+  template: v1/1ES.Unofficial.PipelineTemplate.yml@1esPipelines
+  parameters:
+    pool: ${{ parameters.pool }}
+
+    sdl:
+      # Source analyses enabled by default:
+      #   https://eng.ms/docs/cloud-ai-platform/devdiv/one-engineering-system-1es/1es-docs/1es-pipeline-templates/features/sdlanalysis/overview#behavior-in-pipelines-extending-unofficial-template
+      #
+      # TODO: Move SDL source analyses to the rolling pipline when they can be enabled even when there are CB builds.
+      #       Ideally, we should only enable source analyses in the rolling pipeline. However, because our rolling pipeline contains CB builds, SDL source analyses are all disabled,
+      #       in favor of the CB compliance build. Unfortunately, some analyses, like policheck, do not work in network isolation when building in CB.
+      #       SDL source analyses typically take 2.5-4 minutes, and should not be in the critical path of this pipeline run.
+      psscriptanalyzer:
+        enabled: true
+      policheck:
+        enabled: true
+      sourceAnalysisPool:
+        name: Windows-SDL-Agents
+        image: Windows-SDL-Image
+        os: windows
+      sourceAnalysisVariablesToReset:
+        - 1ES.ImageBuildResourceId
+        - 1ES.ImageBuildVersion
+        - 1ES.RequestId
+
+    stages:
+      - stage: Build
+        displayName: Build all qualifiers
+        dependsOn: []
+        jobs:
+        - template: /.azdo/linux/job-build-selfhost-base.yml@self 
+          parameters:
+            validationName: Bootstrap
+            internal: true
+            pool: ${{ parameters.pool }}
+            sdkVersion: ${{ parameters.sdkVersion }}
+            buildXLArguments: /q:ReleaseLinux /q:DebugLinux

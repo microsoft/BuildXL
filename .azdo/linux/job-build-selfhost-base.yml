@@ -83,6 +83,16 @@ jobs:
       # retentionPolicyInDays: {default}
 
     preBuildSteps: 
+    - checkout: self
+      clean: false
+      fetchTags: false
+      fetchDepth: 1
+
+    - bash: |
+        du -h /mnt/vhd.vhdx
+        grep -H '' /usr/local/CloudTest/Logs/*.log
+      displayName: Mounting VHD logs
+
     - template: /.azdo/common/use-latest-dotnet-sdk.yml@self
       parameters:
         sdkVersion: ${{ parameters.sdkVersion }}
@@ -90,11 +100,6 @@ jobs:
     - template: /.azdo/common/generate-access-token.yml@self
       parameters:
         AccessTokenVariable: BuildXL-Pipeline-AccessToken
-
-    - bash: |
-        sudo mkdir /home/subst
-        sudo mount --verbose --bind $(Build.SourcesDirectory) /home/subst
-      displayName: Bind /home/subst to sources directory  
       
     - ${{ each step in parameters.preBuildSteps }}:
       - ${{ step }}
@@ -110,7 +115,6 @@ jobs:
       ${{ else }}:
         arguments: ${{ parameters.buildXLArguments }}
       displayName: ${{ parameters.validationName }}
-      workingDirectory: /home/subst
       ${{ if eq(parameters.internal, true) }}:
         env:
           PAT1esSharedAssets: $(BuildXL-Pipeline-AccessToken)

@@ -78,10 +78,16 @@ namespace npmPackages {
                     {
                         subfolder: r`build/${qualifier.targetRuntime}`,
                         contents: [
+                                    // Main bxl app (minimal deployment)
                                     importFrom("BuildXL.App").withQualifier({
                                         targetFramework: Managed.TargetFrameworks.DefaultTargetFramework,
                                         targetRuntime: qualifier.targetRuntime,
                                         configuration: qualifier.configuration}).minimalDeployment,
+                                    // Execution analyzer
+                                    importFrom("BuildXL.Tools").withQualifier({
+                                        targetFramework: Managed.TargetFrameworks.DefaultTargetFramework,
+                                        targetRuntime: qualifier.targetRuntime,
+                                        configuration: qualifier.configuration}).Execution.Analyzer.exe,
                                 ]
                     },
                 ]

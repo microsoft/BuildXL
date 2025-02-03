@@ -21,8 +21,6 @@ jobs:
       enabled: true
       workerCount: 1
     cache:
-      storageAccountEndpoint: https://l3bxlselfhost.blob.core.windows.net
-      managedIdentityClientId: eb694749-b1d6-45bc-b7af-2bd81603968a
       universe: ptintegrationtests
       logGeneratedConfiguration: true
       # cacheType: {default}

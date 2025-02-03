@@ -54,8 +54,6 @@ jobs:
       
       bash bxl.sh --internal --use-adobuildrunner
       --runner-arg /cacheConfigLogGeneratedConfiguration:true 
-      --runner-arg /cacheConfigStorageAccountEndpoint:https://l3bxlselfhost.blob.core.windows.net
-      --runner-arg /cacheConfigManagedIdentityId:eb694749-b1d6-45bc-b7af-2bd81603968a
       /q:ReleaseLinux /q:DebugLinux "/f:output='/home/subst/Out/Bin/${{ parameters.Flavor }}/npm/*'" "/p:Build.BuildId=0.1.0-${{ parameters.PackageName }}" "/p:[BuildXL.Branding]SourceIdentification=NpmExperimental-$(Build.BuildId)"
     displayName: Build NPM package
     workingDirectory: /home/subst

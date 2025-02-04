@@ -758,7 +758,7 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Storage,
-            Message = "[{pipDescription}] Pip produced a reparse point '{reparsePointPath}', which is not supported. The pip will not be cached. Turning of the 'unsafe_IgnoreFullReparsePointResolving' flag will allow storing reparse points to cache properly.")]
+            Message = "[{pipDescription}] Pip produced a reparse point '{reparsePointPath}', which is not supported. The pip will not be cached. Removing the '/unsafe_IgnoreFullReparsePointResolving' command line flag will allow storing reparse points to cache properly.")]
         public abstract void StorageReparsePointInOutputDirectoryWarning(LoggingContext loggingContext, string pipDescription, string reparsePointPath);
 
         [GeneratedEvent(

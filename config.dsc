@@ -252,6 +252,11 @@ config({
                 { id: "System.Security.Cryptography.ProtectedData", version: "8.0.0"},
                 { id: "System.Configuration.ConfigurationManager", version: "8.0.1"},
                 { id: "System.Diagnostics.EventLog", version: "8.0.1" },
+
+                // WARNING: FluentAssertions moved to a commercial license starting from V8.0.0
+                // NEVER EVER UPDATE THIS PACKAGE BEYOND V7
+                // See: https://github.com/fluentassertions/fluentassertions/pull/2943
+                // See: https://xceed.com/fluent-assertions-faq/
                 { id: "FluentAssertions", version: "5.3.0" },
 
                 { id: "DotNet.Glob", version: "2.0.3" },

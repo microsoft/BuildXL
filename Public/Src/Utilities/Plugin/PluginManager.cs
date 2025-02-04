@@ -21,6 +21,30 @@ using BuildXL.Utilities.Core.Tasks;
 
 namespace BuildXL.Plugin
 {
+    /// <summary>
+    /// A enum for plugin failure reasons to be put into Domino.stats as an int
+    /// (for enabling telemetry-queryable checking of plugin failure reasons).
+    /// This list is not comprehensive! Add to this list as needed!
+    /// Most failure exceptions will be caught in PluginClient.HandleRpcExceptionWithCallAsync
+    /// </summary>
+    public enum PluginFailureReason
+    {
+        /// <summary>
+        /// "Unknown": we don't have a classification for this failure. Check Domino.plugin.log
+        /// Also could be "None" when there is no failure
+        /// </summary>
+        Unknown,
+        /// <summary>
+        /// Plugin failed to load. Check logs for details. (There was more info added here: https://dev.azure.com/mseng/Domino/_git/BuildXL.Internal/pullrequest/739622 but that was reverted via https://dev.azure.com/mseng/Domino/_git/BuildXL.Internal/pullrequest/742682)
+        /// </summary>
+        PluginLoadError,
+        /// <summary>
+        /// The plugin communication round-trip did not come back before the gRPC deadline
+        /// </summary>
+        TimeoutExceeded,
+        // Add more values here as needed (and the assignment of that value elsewhere)
+    }
+
     /// <nodoc />
     public class PluginManager
     {
@@ -49,26 +73,72 @@ namespace BuildXL.Plugin
         public int PluginsCount => m_plugins.Count;
 
         #region statistics
-        /// <nodoc />
-        private long m_pluginLoadingTime = 0;
-        /// <nodoc />
-        public long PluginLoadingTime => m_pluginLoadingTime;
-        private long m_pluginTotalProcessTime = 0;
-        /// <nodoc />
-        public long PluginTotalProcessTime => m_pluginTotalProcessTime;
-        private int m_pluginLoadedSuccessfulCount = 0;
-        /// <nodoc />
-        public int PluginLoadedSuccessfulCount => m_pluginLoadedSuccessfulCount;
-        private int m_pluginLoadedFailureCount = 0;
-        /// <nodoc />
-        public int PluginLoadedFailureCount => m_pluginLoadedFailureCount;
-        private int m_pluginProcessedRequestCounts = 0;
-        /// <nodoc />
-        public int PluginProcessedRequestCounts => m_pluginProcessedRequestCounts;
+        /// <summary>
+        /// How long did the plugin take to load at the beginning of the build
+        /// (last value wins in the case of multiple loaded plugins)
+        /// </summary>
+        public long PluginLoadingTimeMs => m_pluginLoadingTimeMs;
+        private long m_pluginLoadingTimeMs = 0;
 
-        private int m_pluginUnregisteredCounts = 0;
-        /// <nodoc />
+        /// <summary>
+        /// How long did the plugin take to process requests (cumulative across all
+        /// loaded plugins)
+        /// </summary>
+        public long PluginTotalProcessTimeMs => m_pluginTotalProcessTimeMs;
+        private long m_pluginTotalProcessTimeMs = 0;
+
+        /// <summary>
+        /// How many plugins were successfully loaded at the beginning of the build
+        /// </summary>
+        public int PluginLoadedSuccessfulCount => m_pluginLoadedSuccessfulCount;
+        private int m_pluginLoadedSuccessfulCount = 0;
+
+        /// <summary>
+        /// How many plugins failed to load at the beginning of the build
+        /// </summary>
+        public int PluginLoadedFailureCount => m_pluginLoadedFailureCount;
+        private int m_pluginLoadedFailureCount = 0;
+
+        /// <summary>
+        /// How many requests were processed successfully by plugins (cumulative across
+        /// all loaded plugins)
+        /// </summary>
+        public int PluginProcessedRequestCounts => m_pluginProcessedRequestCounts;
+        private int m_pluginProcessedRequestCounts = 0;
+
+        /// <summary>
+        /// How many plugins were unregistered due to failures (when a plugin fails to
+        /// return a response for a request, the assumption is that the plugin can no
+        /// longer be relied on, so it is unregistered for the rest of the build)
+        /// </summary>
         public int PluginUnregisteredCounts => m_pluginUnregisteredCounts;
+        private int m_pluginUnregisteredCounts = 0;
+
+        /// <summary>
+        /// Average time to process a request in milliseconds (includes all successfully
+        /// processed requests across all loaded plugins)
+        /// </summary>
+        public long PluginAverageRequestProcessTimeMs => m_pluginAverageRequestProcessTimeMs;
+        private long m_pluginAverageRequestProcessTimeMs = 0;
+
+        /// <summary>
+        /// A value representing why the plugin failed. This allows telemetry
+        /// queries to easily show failure reasons without reading log files
+        /// (last value wins in the case of multiple loaded plugins)
+        /// </summary>
+        public PluginFailureReason PluginFailureReason
+        {
+            //Using the thread-safe Interlocked.Exchange for enum https://stackoverflow.com/q/7177169/2246411
+            get
+            {
+                return (PluginFailureReason)m_pluginFailureReason;
+            }
+            set
+            {
+                Interlocked.Exchange(ref m_pluginFailureReason, (int)value);
+            }
+        }
+        private int m_pluginFailureReason = (int)PluginFailureReason.Unknown;
         #endregion statistics
 
         /// <nodoc />
@@ -151,12 +221,23 @@ namespace BuildXL.Plugin
                 var response = await call.Invoke();
                 sw.Stop();
                 Interlocked.Increment(ref m_pluginProcessedRequestCounts);
-                Interlocked.Add(ref m_pluginTotalProcessTime, sw.ElapsedMilliseconds);
+                Interlocked.Add(ref m_pluginTotalProcessTimeMs, sw.ElapsedMilliseconds);
 
-                Tracing.Logger.Log.PluginManagerLogMessage(m_loggingContext, $"Received response for requestId:{response.RequestId} for {messageType} in {sw.ElapsedMilliseconds} ms after {response.Attempts} retries");
+                Tracing.Logger.Log.PluginManagerLogMessage(m_loggingContext, $"Received response for requestId:{response.RequestId} for {messageType} in {sw.ElapsedMilliseconds} ms after {response.Attempts} retries " +
+                    $"[{(response.Succeeded ? "SUCCEEDED" : $"FAILED (Failure: {response.Failure.Describe()}")}]");
 
-                if (!response.Succeeded)
+                if (response.Succeeded)
                 {
+                    long movingAverage = m_pluginAverageRequestProcessTimeMs - m_pluginAverageRequestProcessTimeMs / m_pluginProcessedRequestCounts + sw.ElapsedMilliseconds / m_pluginProcessedRequestCounts;
+                    Interlocked.Exchange(ref m_pluginAverageRequestProcessTimeMs, movingAverage);
+                }
+                else
+                {
+                    if (response.Failure.Describe().Contains("DeadlineExceeded"))
+                    {
+                        PluginFailureReason = PluginFailureReason.TimeoutExceeded;
+                    }
+
                     UnRegisterPlugin(plugin);
                 }
 
@@ -183,7 +264,7 @@ namespace BuildXL.Plugin
                 var sw = Stopwatch.StartNew();
                 var result = await PluginFactory.Instance.CreatePluginAsync(pluginCreationArgument);
 
-                Interlocked.Add(ref m_pluginLoadingTime, sw.ElapsedMilliseconds);
+                Interlocked.Add(ref m_pluginLoadingTimeMs, sw.ElapsedMilliseconds);
 
                 if (result.Succeeded)
                 {
@@ -194,6 +275,7 @@ namespace BuildXL.Plugin
                 else
                 {
                     Interlocked.Increment(ref m_pluginLoadedFailureCount);
+                    PluginFailureReason = PluginFailureReason.PluginLoadError;
                     Tracing.Logger.Log.PluginManagerLogMessage(m_loggingContext, $"Failed to load {pluginCreationArgument.PluginPath} because {result.Failure.Describe()}");
                 }
 

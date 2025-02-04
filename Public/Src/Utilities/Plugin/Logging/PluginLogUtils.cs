@@ -30,7 +30,7 @@ namespace BuildXL.Plugin
                 Tracing.Logger.Log.PluginManagerForwardedPluginClientMessage(
                     loggingContext,
                     pluginId,
-                    string.Format(CultureInfo.InvariantCulture, "[{0}]{1}", level, message)));
+                    string.Format(CultureInfo.InvariantCulture, "[{0}] {1}", level, message)));
         }
     }
 }

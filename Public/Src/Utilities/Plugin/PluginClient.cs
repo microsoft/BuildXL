@@ -48,11 +48,6 @@ namespace BuildXL.Plugin
             Logger = logger;
         }
 
-        private static DateTime GetDeadline(int timeout)
-        {
-            return DateTime.UtcNow.Add(TimeSpan.FromMilliseconds(timeout));
-        }
-
         /// <nodoc />
         public Task ShutDown()
         {
@@ -72,16 +67,13 @@ namespace BuildXL.Plugin
 
         private static string GetRequestId() => Interlocked.Increment(ref s_requestId).ToString();
 
-        //private PluginMessage GetPluginMessageByType(PluginMessage.Types.MessageType messageType)
-        //{
-        //     return new PluginMessage() { MessageType = messageType };
-        //}
-
         private static CallOptions GetCallOptions(string requestId)
         {
-            var metaData = new Metadata();
-            metaData.Add(GrpcPluginSettings.PluginReqeustId, requestId);
-            return new CallOptions(deadline: GetDeadline(GrpcPluginSettings.RequestTimeoutInMiilliSeceonds)).WithWaitForReady(true).WithHeaders(metaData);
+            return new CallOptions(deadline: DateTime.UtcNow.AddMilliseconds(GrpcPluginSettings.RequestTimeoutInMilliSeconds))
+            .WithWaitForReady(true).WithHeaders(new Metadata
+            {
+                { GrpcPluginSettings.PluginRequestId, requestId },
+            });
         }
 
         private async Task<PluginResponseResult<T>> HandleRpcExceptionWithCallAsync<T>(Func<Task<T>> asyncCall, string reqId)
@@ -89,22 +81,25 @@ namespace BuildXL.Plugin
             uint numOfRetry = 0;
             Failure<string> failure = null;
 
+            // Deadlines and retries: https://learn.microsoft.com/en-us/aspnet/core/grpc/deadlines-cancellation?view=aspnetcore-8.0#deadlines-and-retries
             while (numOfRetry < MAX_RETRY && Channel.State != ChannelState.Shutdown)
             {
                 try
                 {
+                    Logger.Debug($"Sending request for requestId:{reqId} at {DateTime.UtcNow:HH:mm:ss.fff}");
                     var response = await asyncCall.Invoke();
+                    Logger.Debug($"Received response for requestId:{reqId} at {DateTime.UtcNow:HH:mm:ss.fff}");
                     return new PluginResponseResult<T>(response, PluginResponseState.Succeeded, reqId, numOfRetry);
                 }
                 catch (RpcException e)
                 {
+                    Logger.Debug($"requestId:{reqId} has failed due to RpcException {e}");
                     failure = new Failure<string>(e.Message);
                     if (e.StatusCode == StatusCode.Cancelled)
                     {
                         Logger.Error(e.Message);
                         return new PluginResponseResult<T>(PluginResponseState.Cancelled, reqId, numOfRetry, failure);
                     }
-
                     else if(e.StatusCode == StatusCode.Unimplemented)
                     {
                         Logger.Error($"plugin method is not implementated, this may be because unmatched plugin client is picked up, see details: {e.Message}");
@@ -113,12 +108,14 @@ namespace BuildXL.Plugin
                 }
                 catch (NotImplementedException e)
                 {
+                    Logger.Debug($"requestId:{reqId} has failed due to NotImplementedException {e}");
                     Logger.Error($"plugin method is not implementated, this may be because unmatched plugin client is picked up, see details: {e.Message}");
                     return new PluginResponseResult<T>(PluginResponseState.Fatal, reqId, numOfRetry, failure);
                 }
 #pragma warning disable EPC12
                 catch (Exception e)
                 {
+                    Logger.Debug($"requestId:{reqId} has failed due to Exception {e}");
                     Logger.Error(e.Message);
                     failure = new Failure<string>(e.Message);
                 }
@@ -238,6 +235,7 @@ namespace BuildXL.Plugin
             var response = await HandleRpcExceptionWithCallAsync(
                 async () =>
                 {
+                    Logger.Debug($"Deadline for requestId:{requestId} is {options.Deadline:HH:mm:ss.fff}");
                     var response = await PluginServiceClient.ProcessResultAsync(request, options);
                     return response.ProcessResultMessageResponse;
                 }, requestId);

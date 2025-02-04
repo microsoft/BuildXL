@@ -2339,12 +2339,14 @@ namespace BuildXL.Scheduler
 
             if (m_pluginManager != null)
             {
-                statistics.Add(Statistics.PluginLoadingTime, (long)m_pluginManager.PluginLoadingTime);
-                statistics.Add(Statistics.PluginTotalProcessTime, (long)m_pluginManager.PluginTotalProcessTime);
-                statistics.Add(Statistics.PluginLoadedSuccessfulCounts, (long)m_pluginManager.PluginLoadedSuccessfulCount);
-                statistics.Add(Statistics.PluginLoadedFailureCounts, (long)m_pluginManager.PluginLoadedFailureCount);
-                statistics.Add(Statistics.PluginProcessedRequestCounts, (long)m_pluginManager.PluginProcessedRequestCounts);
-                statistics.Add(Statistics.PluginUnregisteredCounts, (long)m_pluginManager.PluginUnregisteredCounts);
+                statistics.Add(Statistics.PluginLoadingTimeMs, m_pluginManager.PluginLoadingTimeMs);
+                statistics.Add(Statistics.PluginTotalProcessTimeMs, m_pluginManager.PluginTotalProcessTimeMs);
+                statistics.Add(Statistics.PluginLoadedSuccessfulCounts, m_pluginManager.PluginLoadedSuccessfulCount);
+                statistics.Add(Statistics.PluginLoadedFailureCounts, m_pluginManager.PluginLoadedFailureCount);
+                statistics.Add(Statistics.PluginProcessedRequestCounts, m_pluginManager.PluginProcessedRequestCounts);
+                statistics.Add(Statistics.PluginUnregisteredCounts, m_pluginManager.PluginUnregisteredCounts);
+                statistics.Add(Statistics.PluginAverageRequestProcessTimeMs, m_pluginManager.PluginAverageRequestProcessTimeMs);
+                statistics.Add(Statistics.PluginFailureReason, (int)m_pluginManager.PluginFailureReason);
             }
 
             if (!IsDistributedWorker)

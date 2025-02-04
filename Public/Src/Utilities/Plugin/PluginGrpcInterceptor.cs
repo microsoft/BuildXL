@@ -23,14 +23,14 @@ namespace BuildXL.Plugin
 
         private void ParseMetadata(Metadata metadata, out string requestId)
         {
-            requestId = metadata.First(kv => kv.Key.Equals(GrpcPluginSettings.PluginReqeustId)).Value;
+            requestId = metadata.First(kv => kv.Key.Equals(GrpcPluginSettings.PluginRequestId)).Value;
         }
 
         /// <nodoc />
         public override async Task<TResponse> UnaryServerHandler<TRequest, TResponse>(TRequest request, ServerCallContext context, UnaryServerMethod<TRequest, TResponse> continuation)
         { 
             ParseMetadata(context.RequestHeaders, out string requestId);
-            Logger.Debug($"Recevied requestId:{requestId} for {context.Method}");
+            Logger.Debug($"Received requestId:{requestId} for {context.Method}");
 
             Stopwatch sw = Stopwatch.StartNew();
             var result = await continuation(request, context);

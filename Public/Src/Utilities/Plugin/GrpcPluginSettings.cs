@@ -10,11 +10,11 @@ namespace BuildXL.Plugin
     internal static class GrpcPluginSettings
     {
         /// <nodoc />
-        public static int RequestTimeoutInMiilliSeceonds = 3000;
+        public static int RequestTimeoutInMilliSeconds = 3000;
         /// <nodoc />
-        public static int ConnectionTimeoutInMiilliSeceonds = 5000;
+        public static int ConnectionTimeoutInMilliSeconds = 5000;
         /// <nodoc />
-        public const string PluginReqeustId = "req_id";
+        public const string PluginRequestId = "req_id";
         /// <nodoc />
         public const string PluginRequestRetryCount = "req_retry_count";
 

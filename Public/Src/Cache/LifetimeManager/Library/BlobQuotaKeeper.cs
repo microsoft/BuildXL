@@ -331,6 +331,15 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             // Because of this, the current design is that clients will update the last access time of a blob when they get a content cache hit when ulpoading the contents of a new strong fingerprint.
             // On the GC side of things, what this means is that we have to check that the content has not been accessed recently.
             var blobVersion = await GetBlobVersionAsync(context, client);
+            if (blobVersion is null)
+            {
+                // If the version is null, then the content is already gone. We haven't deleted it ourselves, but still gone. This is a safe state to be in, as long as upper layers account
+                // for that fact. We'll tell them we deleted it so that happens.
+
+                Tracer.Debug(context, $"Content blob {contentHash.ToShortString()} does not exist. Proceeding as if it was deleted.");
+                return true;
+            }
+
             if (blobVersion.Value.LastAccessTimeUtc > GetDeletionThreshold(startTime))
             {
                 Tracer.Debug(context,
@@ -375,6 +384,8 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             {
                 // A null value means the blob does not exist. This must mean that the blob has already been deleted so it's safe to proceed as if we had
                 // deleted it.
+                Tracer.Debug(context, $"Fingerprint blob {contentHashList.BlobName} does not exist. Proceeding as if it was deleted.");
+
                 return true;
             }
 

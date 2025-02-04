@@ -35,10 +35,17 @@ jobs:
       projects: 'Private/BuildToolsInstaller'
       arguments: '--no-build --configuration $(buildConfiguration)'
     displayName: 'Run Tests'
+  
+  # We can't use DotNetCoreCLI@2 for publish because it's not possible
+  # to target the csproj we care about, it will scan the whole repository
+  # and use a random one instead.
+  - script: |
+      dotnet publish Private/BuildToolsInstaller/src/BuildToolsInstaller.csproj --configuration $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/publish
+    displayName: 'Publish Project'
 
   - task: ArchiveFiles@2
     inputs:
-      rootFolderOrFile: '$(Build.SourcesDirectory)/Private/BuildToolsInstaller/src/bin/$(buildConfiguration)'
+      rootFolderOrFile: '$(Build.ArtifactStagingDirectory)/publish'
       includeRootFolder: false
       archiveType: 'zip'
       archiveFile: '$(Build.ArtifactStagingDirectory)/$(artifactName)'

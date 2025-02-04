@@ -13,6 +13,7 @@
     <AssemblyName>1ES.$(MSBuildProjectName)</AssemblyName>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+    <SelfContained>true</SelfContained>
   </PropertyGroup>
 
   <ItemGroup>

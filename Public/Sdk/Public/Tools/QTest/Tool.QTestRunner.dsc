@@ -5,30 +5,42 @@ import {Artifact, Cmd, Transformer, Tool} from "Sdk.Transformers";
 
 const root = d`.`;
 const dynamicCodeCovString = "DynamicCodeCov";
+const AUTH_TOKEN_ENV_VAR_NAME_JSON_KEY = '"AuthTokenEnvVarName"';
 
-// QTest have its own logic to enfore the timeout. 
+// QTest have its own logic to enfore the timeout.
 // The internal QTest timeout = qTestTimeoutSec * qTestAttemptCount
-// The maximum value of qTestTimeoutSec is 600(10 mins) and qTestAttemptCount is 100. 
+// The maximum value of qTestTimeoutSec is 600(10 mins) and qTestAttemptCount is 100.
 // So the maxium runtime of QTest is 1000 mins.
 // BuildXL, therefore setting the timeout to 1005 mins, so QTest could have 5 mins for cleaning up.
 @@public
 export const qtestDefaultTimeoutInMilliseconds = 60300000; // 1005 mins
 
+const isWindows: boolean = Context.isWindowsOS();
+
 @@public
 export const qTestTool: Transformer.ToolDefinition = {
-    exe: f`${root}/bin/DBS.QTest.exe`,
+    exe: isWindows ? f`${root}/bin/DBS.QTest.exe` : f`${root}/bin/DBS.QTest.Linux`,
     description: "CloudBuild QTest",
     runtimeDependencies: globR(d`${root}/bin`, "*"),
-    untrackedDirectoryScopes: addIfLazy(Context.getCurrentHost().os === "win", () => [
-        d`${Context.getMount("ProgramData").path}`,
-        d`${Context.getMount("ProgramFilesX86").path}`,
-        d`${Context.getMount("ProgramFiles").path}`,
-        d`${Context.getMount("AppData").path}`,
-        d`${Context.getMount("LocalAppData").path}`,
-        // To ensure that dmps are generated during crashes, QTest now includes procdmp.exe
-        // However, this tool reads dbghelp.dll located in the following directory in CloudBuild machines
-        d`C:/Debuggers`
-    ]),
+    untrackedDirectoryScopes: [
+      ...(isWindows
+        ? [
+          d`${Context.getMount("ProgramData").path}`,
+          d`${Context.getMount("ProgramFilesX86").path}`,
+          d`${Context.getMount("ProgramFiles").path}`,
+          d`${Context.getMount("AppData").path}`,
+          d`${Context.getMount("LocalAppData").path}`,
+          // To ensure that dmps are generated during crashes, QTest now includes procdmp.exe
+          // However, this tool reads dbghelp.dll located in the following directory in CloudBuild machines
+          d`C:/Debuggers`
+        ]
+        : [
+          d`/tmp/.dotnet/shm/`,
+          d`${Context.getUserHomeDirectory().path}/.config/Microsoft/VisualStudio Services/`,
+          d`/usr/share/Microsoft VisualStudio Services/11.0/Cache/`,
+          d`/var/log/keysinuse/`
+      ])
+    ],
     dependsOnWindowsDirectories: true,
     dependsOnAppDataDirectory: true,
     prepareTempDirectory: true,
@@ -143,7 +155,7 @@ function qTestDotNetFrameworkToString(qTestDotNetFramework: QTestDotNetFramework
         case QTestDotNetFramework.frameworkCore30:
             return "FrameworkCore30";
         case QTestDotNetFramework.netcoreApp:
-            return "netcoreApp";    
+            return "netcoreApp";
         case QTestDotNetFramework.unspecified:
         default:
             return "Unspecified";
@@ -232,8 +244,37 @@ function getContextInfoFile(args: QTestArguments) : File {
     // TODO: Renaming the internal flag passing from GBR, will remove the old one when the new one roll out from GBR
     return (args.privilegeLevel === "admin")
         ? undefined
-        : (Environment.getFileValue("[Sdk.BuildXL.CBInternal]qtestContextInfo")
-            || Environment.getFileValue("[Sdk.BuildXL]qtestContextInfo"));
+        : (
+            Environment.getFileValue("[Sdk.BuildXL.CBInternal]qtestContextInfo") ||
+            Environment.getFileValue("[Sdk.BuildXL]qtestContextInfo") ||
+            Environment.getFileValue("QTEST_CONTEXT_INFO_JSON_PATH") // For Linux
+          );
+}
+
+interface IQTestContextInfoJson {
+    AuthTokenEnvVarName?: string
+}
+
+function parseQTestContextInfoJson(qTestContextInfoFile: File): IQTestContextInfoJson {
+    if (qTestContextInfoFile) {
+        const qtestContextInfoFileRawContents: string = File.readAllText(f`${qTestContextInfoFile}`);
+        // TODO: Replace this with a real JSON parser
+        let envVarNameStartIndex: number = qtestContextInfoFileRawContents.indexOf(AUTH_TOKEN_ENV_VAR_NAME_JSON_KEY);
+        if (envVarNameStartIndex !== -1) {
+            envVarNameStartIndex = qtestContextInfoFileRawContents.indexOf(
+                '"',
+                envVarNameStartIndex + AUTH_TOKEN_ENV_VAR_NAME_JSON_KEY.length
+            ) + 1; // Find the starting quotation mark
+            let envVarNameEndIndex: number = qtestContextInfoFileRawContents.indexOf('"', envVarNameStartIndex); // Find the ending quotation mark
+            const authTokenEnvVarName: string = qtestContextInfoFileRawContents.slice(
+                envVarNameStartIndex,
+                envVarNameEndIndex
+            );
+            return { AuthTokenEnvVarName: authTokenEnvVarName };
+        }
+    }
+
+    return {};
 }
 
 /**
@@ -294,6 +335,10 @@ export function runQTest(args: QTestArguments): Result {
         ),
         Cmd.option(
             "--qtestPlatform ",
+            qTestPlatformToString(args.qTestPlatform)
+        ),
+        Cmd.option(
+            "--qtestDotNetCoreRuntimeArchitecture ",
             qTestPlatformToString(args.qTestPlatform)
         ),
         Cmd.option(
@@ -397,6 +442,7 @@ export function runQTest(args: QTestArguments): Result {
         commandLineArgs = commandLineArgs.concat(dotnetProjectArguments);
     }
 
+    const qTestContextInfoFileContents: { AuthTokenEnvVarName?: string } = parseQTestContextInfoJson(qTestContextInfoFile);
     let unsafeOptions = {
         hasUntrackedChildProcesses: args.qTestUnsafeArguments && args.qTestUnsafeArguments.doNotTrackDependencies,
         untrackedPaths: [
@@ -421,7 +467,10 @@ export function runQTest(args: QTestArguments): Result {
             d`C:/Debuggers`
         ],
         requireGlobalDependencies: true,
-        passThroughEnvironmentVariables: isJSProject ? jsProject.passThroughEnvironmentVariables : undefined,
+        passThroughEnvironmentVariables: [
+          ...(isJSProject ? jsProject.passThroughEnvironmentVariables : []),
+          ...(qTestContextInfoFileContents.AuthTokenEnvVarName ? [qTestContextInfoFileContents.AuthTokenEnvVarName] : []),
+        ],
     };
 
     let envVars = [
@@ -500,7 +549,7 @@ export function runQTest(args: QTestArguments): Result {
             tool: args.qTestTool ? args.qTestTool : qTestTool,
             tags: [
                 "test",
-                "telemetry:qtest", 
+                "telemetry:qtest",
                 ...(args.tags || []),
             ],
             description: "QTest Coverage Upload",
@@ -663,7 +712,7 @@ export interface QTestArguments extends Transformer.RunnerArguments {
     /** Specifies what parser to use to parse QTest results */
     qTestParserType?: string;
     /** Specifies the upload behavior to Azure DevOps for QTest logs. Default mode is OnlyFailedTargets.*/
-    qTestAzureDevOpsLogUploadMode?: "AllTargets" | "OnlyFailedTargets" | "None"; 
+    qTestAzureDevOpsLogUploadMode?: "AllTargets" | "OnlyFailedTargets" | "None";
     /** When true, additional options are passed to enable blame collector for collecting dmp files. (Deprecated. Use qTestBlameCollectorMode.) */
     qTestEnableBlameCollector?: boolean;
     /** Specifies behavior of Blame Collector. Default is 'Failure' (Only enable when first attempt fails.) */
@@ -688,7 +737,7 @@ export interface QTestArguments extends Transformer.RunnerArguments {
     safeSourceRewritesAreAllowed?: SourceRewritePolicy;
     /** Nested tool options */
     tools?: {
-        /** 
+        /**
          * Options for tool execution
          * */
         exec?: Transformer.ExecuteArgumentsComposible;

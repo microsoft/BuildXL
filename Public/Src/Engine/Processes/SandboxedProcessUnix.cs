@@ -893,7 +893,8 @@ namespace BuildXL.Processes
             out string path, 
             out string enumeratePattern, 
             out string processArgs, 
-            out string errorMessage)
+            out string errorMessage,
+            bool noRawError = false)
         {
             var errorMessages = new List<string>();
             checked

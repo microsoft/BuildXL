@@ -297,7 +297,8 @@ namespace BuildXL.Processes
             out string path,
             out string enumeratePattern,
             out string processArgs,
-            out string errorMessage);
+            out string errorMessage,
+            bool noRawError = false);
 
         /// <summary>
         /// An alternative to <see cref="ReportLineReceived(string)"/> for reporting file accesses
@@ -717,10 +718,11 @@ namespace BuildXL.Processes
             out string path,
             out string enumeratePattern,
             out string processArgs,
-            out string errorMessage)
+            out string errorMessage,
+            bool noRawError = true)
         {
-            // An augmented file access has the same structure as a regular one, so let's call
-            // the usual parser
+            // For backward compatibility reasons, an augmented file access has a different structure from the regular one.
+            // Augmented file access has no raw error field. See BUG https://dev.azure.com/mseng/1ES/_workitems/edit/2248409
             var result = FileAccessReportLine.TryParse(
                 ref data,
                 out processId,
@@ -743,7 +745,8 @@ namespace BuildXL.Processes
                 out path,
                 out enumeratePattern,
                 out processArgs,
-                out errorMessage);
+                out errorMessage,
+                noRawError: noRawError);
 
             // Augmented file accesses never have the manifest path set, since there is no easy access to the manifest for 
             // processes to use.
@@ -805,7 +808,8 @@ namespace BuildXL.Processes
                 out var path,
                 out var enumeratePattern,
                 out var processArgs,
-                out errorMessage))
+                out errorMessage,
+                noRawError: isAnAugmentedFileAccess)) // See BUG https://dev.azure.com/mseng/1ES/_workitems/edit/2248409
             {
                 return false;
             }

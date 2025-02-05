@@ -129,7 +129,8 @@ namespace Test.BuildXL.Processes
                 out var path,
                 out var enumeratePattern,
                 out var processArgs,
-                out string errorMessage);
+                out string errorMessage,
+                noRawError: true);
 
             XAssert.IsTrue(ok, errorMessage);
 

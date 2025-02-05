@@ -153,7 +153,8 @@ namespace BuildXL.Processes
             out string? path,
             out string? enumeratePattern,
             out string? processArgs,
-            out string? errorMessage)
+            out string? errorMessage,
+            bool noRawError = false)
         {
             // TODO: Task 138817: Refactor passing and parsing of report data from native to managed code
 
@@ -175,7 +176,7 @@ namespace BuildXL.Processes
             processArgs = null;
             errorMessage = string.Empty;
 
-            const int MinItemsCount = 16;
+            int minItemsCount = !noRawError ? 16 : 15;
 #if NET5_0_OR_GREATER
             var i = line.IndexOf(':', StringComparison.Ordinal);
 #else
@@ -206,7 +207,8 @@ namespace BuildXL.Processes
                 tryGetNextItem(ref items, out span) && uint.TryParse(span, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var statusValue) &&
                 tryGetNextItem(ref items, out span) && uint.TryParse(span, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var explicitlyReportedValue) &&
                 tryGetNextItem(ref items, out span) && uint.TryParse(span, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out error) &&
-                tryGetNextItem(ref items, out span) && uint.TryParse(span, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out rawError) &&
+                ((noRawError && setRawError(ref rawError, error)) // If there's no raw error, we set it to the same value as error.
+                 || (tryGetNextItem(ref items, out span) && uint.TryParse(span, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out rawError))) &&
                 tryGetNextItem(ref items, out span) && ulong.TryParse(span, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var usnValue) &&
                 tryGetNextItem(ref items, out span) && uint.TryParse(span, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var desiredAccessValue) &&
                 tryGetNextItem(ref items, out span) && uint.TryParse(span, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var shareModeValue) &&
@@ -300,30 +302,36 @@ namespace BuildXL.Processes
 #endif
             }
 
-            static void tryGetErrorMessage(string line, ReportedFileOperation operation, int itemsLength, out string? errorMessage)
+            void tryGetErrorMessage(string line, ReportedFileOperation operation, int itemsLength, out string? errorMessage)
             {
                 // Make sure the formatting happens only if the condition is false.
-                if (itemsLength < MinItemsCount)
+                if (itemsLength < minItemsCount)
                 {
                     // When the command line arguments of the process are not reported there will be 12 fields
                     // When command line arguments are included, everything after the 12th field is the command line argument
                     // Command line arguments are only reported when the reported file operation is Process
                     if (operation == ReportedFileOperation.Process)
                     {
-                        errorMessage = I($"Unexpected message items (potentially due to pipe corruption) for {operation.ToString()} operation. Message '{line}'. Expected >= {MinItemsCount} items, Received {itemsLength} items");
+                        errorMessage = I($"Unexpected message items (potentially due to pipe corruption) for {operation.ToString()} operation. Message '{line}'. Expected >= {minItemsCount} items, Received {itemsLength} items");
                     }
                     else
                     {
                         // An ill behaved tool can try to do GetFileAttribute on a file with '|' char. This will result in a failure of the API, but we get a report for the access.
                         // Allow that by handling such case.
                         // In Office build there is a call to GetFileAttribute with a small xml document as a file name.
-                        errorMessage = I($"Unexpected message items (potentially due to pipe corruption) for {operation.ToString()} operation. Message '{line}'. Expected >= {MinItemsCount} items, Received {itemsLength} items");
+                        errorMessage = I($"Unexpected message items (potentially due to pipe corruption) for {operation.ToString()} operation. Message '{line}'. Expected >= {minItemsCount} items, Received {itemsLength} items");
                     }
                 }
                 else
                 {
                     errorMessage = null;
                 }
+            }
+
+            bool setRawError(ref uint rawError, uint value)
+            {
+                rawError = value;
+                return true;
             }
         }
 
@@ -333,7 +341,11 @@ namespace BuildXL.Processes
         /// <remarks>
         /// The line format is compatible with a regular file access report line. This is not a hard requirement (since <see cref="ReportType.AugmentedFileAccess"/> 
         /// is used to distinguish this line from regular lines), but is convenient to use the same report line parser for all cases. So future changes 
-        /// can happen here as long as they are kept in sync with <see cref="SandboxedProcessReports.TryParseAugmentedFileAccess"/>
+        /// can happen here as long as they are kept in sync with <see cref="SandboxedProcessReports.TryParseAugmentedFileAccess"/>.
+        /// 
+        /// TODO: BUG https://dev.azure.com/mseng/1ES/_workitems/edit/2248409
+        /// The agumented file access report line does not include the raw error code for backward compatibility reasons. That is, the line format is
+        /// different from the regular file access report line. This is a bug and should be fixed. See the bug link for more details.
         /// </remarks>
         public static string GetReportLineForAugmentedFileAccess(
             ReportedFileOperation reportedFileOperation,
@@ -362,7 +374,6 @@ namespace BuildXL.Processes
             // '1' makes the access look as explicitly reported, but this actually doesn't matter since it will get
             // set based on the manifest policy upon reception
             result.Append("1|");
-            result.Append($"{errorCode:x}|");
             result.Append($"{errorCode:x}|");
             result.Append($"{usn.Value:x}|");
             result.Append($"{(uint)desiredAccess:x}|");

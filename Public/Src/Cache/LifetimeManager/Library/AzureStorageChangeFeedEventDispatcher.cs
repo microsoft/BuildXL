@@ -278,7 +278,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             OperationContext context,
             Page<IBlobChangeFeedEvent> page,
             BlobCacheStorageAccountName accountName,
-            string? pageId)
+            string? continuationToken)
         {
             return context.PerformOperationAsync(
                 Tracer,
@@ -295,7 +295,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                         if (change is null)
                         {
                             // Not sure why this would be null, but the SDK makes it an option.
-                            Tracer.Debug(context, $"Found null change in page=[{pageId ?? "null"}]");
+                            Tracer.Debug(context, $"Found null change in page=[{continuationToken ?? "null"}]");
                             continue;
                         }
 
@@ -364,7 +364,18 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
 
                     return new Result<DateTime?>(maxDate, isNullAllowed: true);
                 },
-                traceOperationStarted: false);
+                traceOperationStarted: false,
+                traceOperationFinished: true,
+                extraEndMessage: r =>
+                {
+                    var output = $"ContinuationToken=[{continuationToken ?? "null"}] PageSize=[{page.Values.Count()}]";
+                    if (r.Succeeded)
+                    {
+                        output += $"MaximumEventTimestamp=[{r.Value?.ToString("O") ?? "null"}]";
+                    }
+
+                    return output;
+                });
         }
 
         /// <summary>

@@ -163,10 +163,11 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                             // We don't want to restore checkpoints on a loop.
                             RestoreCheckpoints = false,
 
-                            // Creating a checkpoint takes a while. We don't want to do it too often, because we are
-                            // forced to stop processing events for the duration of the checkpoint creation. We'll call
-                            // it fine to loose 30m of progress in a crash case.
-                            CreateCheckpointInterval = TimeSpan.FromMinutes(30),
+                            // Contrary to what you might expect, this component doesn't actually self-call
+                            // CreateCheckpoint. That happens inside of the processor that takes this class as
+                            // parameter. There's a good reason for that: we need to ensure we pause all processing
+                            // while we're creating the checkpoint.
+                            CreateCheckpointInterval = config.CheckpointCreationInterval,
 
                             // Checkpoint files are uploaded in parallel. We don't want to overload the storage account
                             // with too many parallel uploads, but we also don't want to do this serially. This is the

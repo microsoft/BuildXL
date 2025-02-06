@@ -144,7 +144,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
         {
             try
             {
-                if (!BlobUtilities.TryExtractBlobName(blob.Name, out var hashString))
+                if (!BlobUtilities.TryExtractContentHashFromBlobName(blob.Name, out var hashString))
                 {
                     return;
                 }

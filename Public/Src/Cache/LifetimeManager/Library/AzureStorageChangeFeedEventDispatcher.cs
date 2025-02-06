@@ -208,7 +208,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                         },
                         caller: "GetChangeFeedPage",
                         traceOperationStarted: false,
-                        extraEndMessage: hasMore => $"ContinuationToken=[{continuationToken}], HasMore=[{(hasMore.Succeeded ? hasMore.Value : null)}], NextContinuationToken=[{((hasMore.Succeeded && hasMore.Value) ? enumerator.Current.ContinuationToken : null)}]");
+                        extraEndMessage: hasMore => $"Account=[{accountName}] ContinuationToken=[{continuationToken}], HasMore=[{(hasMore.Succeeded ? hasMore.Value : null)}], NextContinuationToken=[{((hasMore.Succeeded && hasMore.Value) ? enumerator.Current.ContinuationToken : null)}]");
 
                     if (!hasMoreResult.Succeeded)
                     {
@@ -284,22 +284,22 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                 Tracer,
                 async () =>
                 {
-                    DateTime? maxDate = null;
+                    // REMARK: this function doesn't deal with cancellation because pages shouldn't take significantly
+                    // long to process, and ultimately most of what's happening in the parallel operations isn't really
+                    // cancellable. What can be cancelled will get cancelled, but the rest will just finish.
+
+                    DateTime? maximumEventTimestamp = null;
+                    var processingTasks = new List<Task>(capacity: page.Values.Count);
                     foreach (var change in page.Values)
                     {
-                        if (context.Token.IsCancellationRequested)
-                        {
-                            return new Result<DateTime?>(maxDate, isNullAllowed: true);
-                        }
-
                         if (change is null)
                         {
                             // Not sure why this would be null, but the SDK makes it an option.
-                            Tracer.Debug(context, $"Found null change in page=[{continuationToken ?? "null"}]");
+                            Tracer.Error(context, $"Found null change. Skipping. Account=[{accountName}] ContinuationToken=[{continuationToken ?? "null"}]");
                             continue;
                         }
 
-                        maxDate = maxDate < change.EventTime.UtcDateTime ? change.EventTime.UtcDateTime : maxDate;
+                        maximumEventTimestamp = maximumEventTimestamp < change.EventTime.UtcDateTime ? change.EventTime.UtcDateTime : maximumEventTimestamp;
 
                         // For new we'll ignore everything except blob creations. We'll assume that this GC service is the only thing deleting blobs.
                         if (change.EventType != BlobChangeFeedEventType.BlobCreated)
@@ -307,68 +307,27 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                             continue;
                         }
 
-                        AbsoluteBlobPath blobPath;
-                        try
-                        {
-                            blobPath = AbsoluteBlobPath.ParseFromChangeEventSubject(_buildCacheShardMapping, accountName, change.Subject);
-                        }
-                        catch (Exception e)
-                        {
-                            Tracer.Debug(context, e, $"Failed to parse blob path from subject {change.Subject}.");
-                            continue;
-                        }
-
-                        var namespaceId = new BlobNamespaceId(blobPath.Container.Universe, blobPath.Container.Namespace);
-
-                        var blobLength = change.ContentLength;
-
-                        switch (blobPath.Container.Purpose)
-                        {
-                            case BlobCacheContainerPurpose.Content:
-                            {
-                                // If resharding happened, we don't want to process events for the other shard configuration.
-                                if (blobPath.Container.Matrix.Equals(_contentMatrix, StringComparison.OrdinalIgnoreCase))
-                                {
-                                    _updater.ContentCreated(context, namespaceId, blobPath.Path.Path, blobLength);
-                                }
-
-                                _db.SetNamespaceLastAccessTime(namespaceId, blobPath.Container.Matrix, change.EventTime.UtcDateTime);
-
-                                break;
-                            }
-                            case BlobCacheContainerPurpose.Metadata:
-                            {
-                                // If resharding happened, we don't want to process events for the other shard configuration.
-                                if (blobPath.Container.Matrix.Equals(_metadataMatrix, StringComparison.OrdinalIgnoreCase))
-                                {
-                                    var result = await _updater.ContentHashListCreatedAsync(context, namespaceId, blobPath.Path.Path, blobLength);
-
-                                    // Failing to process a content hash list is a fatal error, so we must abort further processing.
-                                    if (!result.Succeeded)
-                                    {
-                                        return new Result<DateTime?>(result);
-                                    }
-                                }
-
-                                _db.SetNamespaceLastAccessTime(namespaceId, blobPath.Container.Matrix, change.EventTime.UtcDateTime);
-
-                                break;
-                            }
-                            case BlobCacheContainerPurpose.Checkpoint:
-                                // Avoiding on purpose.
-                                break;
-                            default:
-                                throw new NotSupportedException($"{blobPath.Container.Purpose} is not a supported purpose");
-                        }
+                        processingTasks.Add(ProcessBlobCreatedEventAsync(context, accountName, change));
                     }
 
-                    return new Result<DateTime?>(maxDate, isNullAllowed: true);
+                    // This will block depending on the parallelism of the processing tasks inside the
+                    // LifetimeDatabaseUpdater. That's configurable by outside sources. This means that there's three
+                    // sources that bound the parallelism of processing:
+                    //  1. The number of shards (accounts) that we have in the given instance. There's going to be one
+                    //     page being processed per shard (i.e., one call to this method).
+                    //  2. The number of entries in a change feed page. This is bounded by the Azure Storage service,
+                    //     and it's the parallelism we're achieving below.
+                    //  3. The amount of fingerprints that we're willing to process in parallel in the
+                    //     LifetimeDatabaseUpdater. This is configurable by the user.
+                    await Task.WhenAll(processingTasks);
+
+                    return new Result<DateTime?>(maximumEventTimestamp, isNullAllowed: true);
                 },
                 traceOperationStarted: false,
                 traceOperationFinished: true,
                 extraEndMessage: r =>
                 {
-                    var output = $"ContinuationToken=[{continuationToken ?? "null"}] PageSize=[{page.Values.Count()}]";
+                    var output = $"Account=[{accountName}] ContinuationToken=[{continuationToken ?? "null"}] PageSize=[{page.Values.Count}]";
                     if (r.Succeeded)
                     {
                         output += $"MaximumEventTimestamp=[{r.Value?.ToString("O") ?? "null"}]";
@@ -376,6 +335,67 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
 
                     return output;
                 });
+        }
+
+        private async Task ProcessBlobCreatedEventAsync(OperationContext context, BlobCacheStorageAccountName accountName, IBlobChangeFeedEvent change)
+        {
+            // We yield on purpose here because most codepaths in this method are sync. We want to avoid blocking the caller.
+            await Task.Yield();
+
+            AbsoluteBlobPath blobPath;
+            try
+            {
+                blobPath = AbsoluteBlobPath.ParseFromChangeEventSubject(_buildCacheShardMapping, accountName, change.Subject);
+            }
+            catch (Exception e)
+            {
+                Tracer.Debug(context, e, $"Failed to parse blob path from subject {change.Subject}.");
+                return;
+            }
+
+            var namespaceId = new BlobNamespaceId(blobPath.Container.Universe, blobPath.Container.Namespace);
+
+            switch (blobPath.Container.Purpose)
+            {
+                case BlobCacheContainerPurpose.Content:
+                {
+                    // If resharding happened, we don't want to process events for the other shard configuration.
+                    if (!blobPath.Container.Matrix.Equals(_contentMatrix, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return;
+                    }
+
+                    _updater.ContentCreated(context, namespaceId, blobPath.Path.Path, change.ContentLength);
+
+                    _db.SetNamespaceLastAccessTime(namespaceId, blobPath.Container.Matrix, change.EventTime.UtcDateTime);
+                    break;
+                }
+                case BlobCacheContainerPurpose.Metadata:
+                {
+                    // If resharding happened, we don't want to process events for the other shard configuration.
+                    if (!blobPath.Container.Matrix.Equals(_metadataMatrix, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return;
+                    }
+
+                    // Failing to process a content hash list is a fatal error, so we must abort further processing.
+                    await _updater
+                        .ContentHashListCreatedAsync(context, namespaceId, blobPath.Path.Path, change.ContentLength)
+                        .ThrowIfFailureAsync();
+
+
+                    _db.SetNamespaceLastAccessTime(namespaceId, blobPath.Container.Matrix, change.EventTime.UtcDateTime);
+                    break;
+                }
+                case BlobCacheContainerPurpose.Checkpoint:
+                {
+                    // Avoiding on purpose. The checkpoint container are used only for internal purposes and aren't
+                    // meant to be tracked.
+                    break;
+                }
+                default:
+                    throw new NotSupportedException($"{blobPath.Container.Purpose} is not a supported purpose");
+            }
         }
 
         /// <summary>

@@ -10,7 +10,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
         /// <summary>
         /// Extracts the name of a blob, without the ".blob" extension.
         /// </summary>
-        public static bool TryExtractBlobName(string fullName, [NotNullWhen(true)] out string? blobName)
+        public static bool TryExtractContentHashFromBlobName(string fullName, [NotNullWhen(true)] out string? blobName)
         {
             if (!fullName.EndsWith(".blob"))
             {

@@ -59,19 +59,19 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
         {
             if (!_accessors.TryGetValue(namespaceId, out var db))
             {
-                Tracer.Diagnostic(context, $"Ignoring creation of content with name={blobName} because Namespace={namespaceId} isn't being tracked.");
+                Tracer.Diagnostic(context, $"Ignoring creation of {nameof(ContentHash)} because it's namespace isn't tracked. Namespace=[{namespaceId}] Name=[{blobName}]");
                 return;
             }
 
-            if (!BlobUtilities.TryExtractBlobName(blobName, out var hashString))
+            if (!BlobUtilities.TryExtractContentHashFromBlobName(blobName, out var hashString))
             {
+                Tracer.Error(context, $"Failed to extract {nameof(ContentHash)} from a blob name that's expected to be one. Ignoring blob. Name=[{blobName}]");
                 return;
             }
 
             if (!ContentHash.TryParse(hashString, out var hash))
             {
-                // If a random file is created, ignore it.
-                Tracer.Warning(context, $"Failed to parse content hash from BlobName=[{blobName}]. Ignoring blob.");
+                Tracer.Error(context, $"Failed to parse {nameof(ContentHash)} from a blob name that's supposed to be composed of it. Ignoring blob. Name=[{blobName}]");
                 return;
             }
 
@@ -87,7 +87,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             if (!_accessors.TryGetValue(namespaceId, out var db) ||
                 !_topologies.TryGetValue(namespaceId, out var topology))
             {
-                Tracer.Diagnostic(context, $"Ignoring creation of content hash list with path {blobName} because Namespace={namespaceId} isn't being tracked.");
+                Tracer.Diagnostic(context, $"Ignoring creation of {nameof(ContentHashList)} because it's namespace isn't being tracked. Namespace=[{namespaceId}] Name=[{blobName}]");
                 return LifetimeDatabaseCreator.ProcessContentHashListResult.Success;
             }
 
@@ -98,7 +98,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             }
             catch (Exception e)
             {
-                Tracer.Debug(context, e, $"Failed to parse strong fingerprint from BlobName=[{blobName}]. Ignoring blob.");
+                Tracer.Error(context, e, $"Failed to parse {nameof(StrongFingerprint)} from a blob name that's expected to be one. Ignoring blob. Name=[{blobName}]");
                 return LifetimeDatabaseCreator.ProcessContentHashListResult.ContentHashListDoesNotExist;
             }
 
@@ -116,8 +116,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             var tcs = new TaskCompletionSource<Result<LifetimeDatabaseCreator.ProcessContentHashListResult>>();
             var request = new LifetimeDatabaseCreator.ProcessFingerprintRequest(context, containerClient, blobName, blobLength, db, topology);
             _fingerprintCreatedActionBlock.Post((request, tcs));
-            var result = await tcs.Task;
-            return result;
+            return await tcs.Task;
         }
     }
 }

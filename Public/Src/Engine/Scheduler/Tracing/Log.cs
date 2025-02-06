@@ -4204,6 +4204,42 @@ namespace BuildXL.Scheduler.Tracing
             EventTask = (ushort)Tasks.PipExecutor,
             Message = "Cannot flag {path} as a shared opaque output: {message}")]
         public abstract void CannotFlagSharedOpaqueOutput(LoggingContext context, string pipSemiStableHash, string path, string message);
+
+        [GeneratedEvent(
+          (int)LogEventId.SchedulerSimulator,
+          EventGenerators = EventGenerators.TelemetryOnly,
+          EventLevel = Level.Verbose,
+          EventTask = (ushort)Tasks.Scheduler,
+          Keywords = (int)Keywords.UserMessage,
+          Message = "Telemetry Only")]
+        public abstract void SchedulerSimulator(LoggingContext context, string sku, int numWorkers, string durationMin, int coreHours, int coreUtilization, string score50, string score70, string score80, string score90);
+
+        [GeneratedEvent(
+            (int)LogEventId.SchedulerSimulatorResult,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = "{message}")]
+        public abstract void SchedulerSimulatorResult(LoggingContext loggingContext, string message);
+
+        [GeneratedEvent(
+            (int)LogEventId.SchedulerSimulatorCompleted,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = "Scheduler simulator has been completed. InitializeDurationMs: {initializeDurationMs}, SimulationDurationMs: {simulationDurationMs}")]
+        public abstract void SchedulerSimulatorCompleted(LoggingContext loggingContext, int initializeDurationMs, int simulationDurationMs);
+
+        [GeneratedEvent(
+            (int)LogEventId.SchedulerSimulatorFailed,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = "Scheduler simulator has been failed. Exception: {ex}")]
+        public abstract void SchedulerSimulatorFailed(LoggingContext loggingContext, string ex);
     }
 }
 #pragma warning restore CA1823 // Unused field

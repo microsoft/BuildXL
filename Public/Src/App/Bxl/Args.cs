@@ -936,6 +936,9 @@ namespace BuildXL
                             "scheduleMetaPips",
                             sign => schedulingConfiguration.ScheduleMetaPips = sign),
                         OptionHandlerFactory.CreateBoolOption(
+                            "schedulerSimulator",
+                            sign => schedulingConfiguration.SchedulerSimulator = sign),
+                        OptionHandlerFactory.CreateBoolOption(
                             "scriptShowLargest",
                             opt => frontEndConfiguration.ShowLargestFilesStatistics = opt),
                         OptionHandlerFactory.CreateBoolOption(

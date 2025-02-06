@@ -376,6 +376,8 @@ namespace BuildXL
                         (int)SharedLogEventId.StoppedDistributionWorkerForwardedError,
                         (int)SchedulerLogEventId.SchedulerCompleteExceptMaterializeOutputs,
                         (int)SchedulerLogEventId.SchedulerComplete,
+                        (int)SchedulerLogEventId.SchedulerSimulatorCompleted,
+                        (int)SchedulerLogEventId.SchedulerSimulatorResult,
                     },
                     // all warning/errors should be included in a dev log
                     EventLevel.Warning));

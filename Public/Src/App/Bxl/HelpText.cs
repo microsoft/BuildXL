@@ -912,6 +912,10 @@ namespace BuildXL
                 HelpLevel.Verbose
                 );
 
+            hw.WriteOption(
+                "/schedulerSimulator[+|-]",
+                Strings.HelpText_DisplayHelp_SchedulerSimulator);
+
             #endregion
 
             hw.WriteBanner(

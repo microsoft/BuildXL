@@ -1793,6 +1793,21 @@ namespace BuildXL.Scheduler
 
             using (PipExecutionCounters.StartStopwatch(PipExecutorCounter.AfterDrainingWhenDoneDuration))
             {
+                Task simulatorTask = null;
+
+                if (!IsDistributedWorker && m_configuration.Schedule.SchedulerSimulator)
+                {
+                    var simulator = new SchedulerSimulator(
+                        m_loggingContext,
+                        m_configuration,
+                        PipGraph,
+                        m_runnablePipPerformance,
+                        ScheduledGraph,
+                        GetPipPriority,
+                        LocalWorker.InitialAvailableRamMb ?? 0);
+                    simulatorTask = simulator.StartAsync();
+                }
+
                 LogWorkerStats();
                 string[] perProcessPipPerf = m_perPipPerformanceInfoStore.GenerateTopPipPerformanceInfoJsonArray();
                 foreach (string processPipPerf in perProcessPipPerf)
@@ -1896,6 +1911,11 @@ namespace BuildXL.Scheduler
 
                 // Complete writing out PackedExecution log (on orchestrator only, since exporter is only created on orchestrator)
                 m_packedExecutionExporter?.Analyze();
+
+                if (simulatorTask != null)
+                {
+                    await simulatorTask;
+                }
 
                 return !HasFailed && shutdownServicesSucceeded;
             }

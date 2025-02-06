@@ -553,5 +553,9 @@ namespace BuildXL.Scheduler.Tracing
 
         UnableToWritePipStandardOutputLog = 14609,
         CannotFlagSharedOpaqueOutput = 14610,
+        SchedulerSimulator = 14611,
+        SchedulerSimulatorResult = 14612,
+        SchedulerSimulatorCompleted = 14613,
+        SchedulerSimulatorFailed = 14614
     }
 }

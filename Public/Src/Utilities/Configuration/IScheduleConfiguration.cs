@@ -528,5 +528,10 @@ namespace BuildXL.Utilities.Configuration
         /// Use the historical cpu usages of the process pips as a semaphore to limit the number of processes to execute
         /// </summary>
         bool UseHistoricalCpuThrottling { get; }
+
+        /// <summary>
+        /// Whether to conduct simulations using a variety of SKU and worker count combinations to estimate the build duration.
+        /// </summary>
+        bool SchedulerSimulator { get; set; }
     }
 }

@@ -178,7 +178,9 @@ namespace BuildXL.Scheduler.Distribution
         /// Ram semaphore limit in MB
         /// </summary>
         public int RamSemaphoreLimitMb { get; private set; }
-        private int? m_initialAvailableRamMb;
+        
+        /// <nodoc/>
+        public int? InitialAvailableRamMb { get; private set; }
 
         /// <nodoc/>
         public int? EngineRamMb { get; private set; }
@@ -215,7 +217,7 @@ namespace BuildXL.Scheduler.Distribution
         /// <remarks>
         /// If there is no historical ram usage for the process pips, we assume that 80% of memory is used if all process slots are occupied.
         /// </remarks>
-        internal int DefaultWorkingSetMbPerProcess => (int)((m_initialAvailableRamMb ?? 0) * 0.8 / Math.Max(TotalProcessSlots, Environment.ProcessorCount));
+        internal int DefaultWorkingSetMbPerProcess => (int)((InitialAvailableRamMb ?? 0) * 0.8 / Math.Max(TotalProcessSlots, Environment.ProcessorCount));
 
         /// <summary>
         /// Listen for status change events on the worker
@@ -893,13 +895,13 @@ namespace BuildXL.Scheduler.Distribution
                 TotalRamMb = currentTotalRamMb;
             }
 
-            if (!m_initialAvailableRamMb.HasValue && machineAvailableRamMb.HasValue)
+            if (!InitialAvailableRamMb.HasValue && machineAvailableRamMb.HasValue)
             {
                 // We will add BuildXL's current ram usage to the available ram
                 // because we will use the process ram usage as a semaphore.
-                m_initialAvailableRamMb = machineAvailableRamMb + (engineRamMb ?? 0);
+                InitialAvailableRamMb = machineAvailableRamMb + (engineRamMb ?? 0);
 
-                RamSemaphoreLimitMb = (int)Math.Round((double)m_initialAvailableRamMb * m_scheduleConfig.RamSemaphoreMultiplier);
+                RamSemaphoreLimitMb = (int)Math.Round((double)InitialAvailableRamMb * m_scheduleConfig.RamSemaphoreMultiplier);
                 m_ramSemaphoreIndex = m_workerSemaphores.CreateSemaphore(m_ramSemaphoreNameId, RamSemaphoreLimitMb);
             }
 

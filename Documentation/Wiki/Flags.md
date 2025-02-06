@@ -177,6 +177,7 @@ This page lists flags that can be used to configure BuildXL.
 | SandboxKind | Specifies the sandbox kind. Allowed values are 'None' (no sandboxing), 'Default' (default sandboxing), 'WinDetours'. Default is 'Default'. |
 | ScanChangeJournal | Scans volume change journals to determine spec file changes for graph reuse check. Defaults to on. |
 | ScanChangeJournalTimeLimitInSec | Time limit in second for scanning volume change journal. Set to -1 for no limit. Defaults to 30 seconds. |
+| SchedulerSimulator | Whether to conduct simulations using a variety of SKU and worker count combinations to estimate the build duration. |
 | ScriptShowLargest | Indicates whether {ShortProductName} should log information about the largest {ShortScriptName} files. Defaults to off. |
 | ScriptShowSlowest | Indicates whether {ShortProductName} should log information about the slowest {ShortScriptName} elements by phase. Defaults to off. |
 | ScriptTypeCheck | Type checks specifications. Defaults to on. |

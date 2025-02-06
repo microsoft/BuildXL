@@ -525,6 +525,9 @@ namespace BuildXL.Utilities.Configuration
         /// <nodoc />
         public static readonly Setting<bool> MergeCacheLookupMaterializeDispatcher = CreateSetting("BuildXLMergeCacheLookupMaterializeDispatcher", value => value == "1");
 
+        /// <nodoc />
+        public static readonly Setting<int> SchedulerSimulatorMaxWorkers = CreateSetting("BuildXLSchedulerSimulatorMaxWorkers", value => ParseInt32(value) ?? 10);
+
         /// <summary>
         /// The Ninja resolver suppresses the /MP and /FS compiler switches to avoid spawning MSPDBSRV.EXE.
         /// If this setting is true, we avoid this behavior and not intervene the command line. 

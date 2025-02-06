@@ -439,8 +439,8 @@ namespace BuildXL.Native.IO
         public static bool TryFindOpenHandlesToFile(string filePath, out string diagnosticInfo, bool printCurrentFilePath = true)
             => OsFileUtilities.TryFindOpenHandlesToFile(filePath, out diagnosticInfo, printCurrentFilePath);
 
-        /// <see cref="IFileUtilities.GetHardLinkCount(string, bool)"/>
-        public static uint GetHardLinkCount(string path, bool followSymlink = true) => OsFileUtilities.GetHardLinkCount(path, followSymlink);
+        /// <see cref="IFileUtilities.GetHardLinkCount(string)"/>
+        public static uint GetHardLinkCount(string path) => OsFileUtilities.GetHardLinkCount(path);
 
         /// <see cref="IFileUtilities.HasWritableAccessControl(string)"/>
         public static bool HasWritableAccessControl(string path) => OsFileUtilities.HasWritableAccessControl(path);

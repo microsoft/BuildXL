@@ -541,7 +541,7 @@ namespace Test.BuildXL.Scheduler.Utils
         }
 
         /// <inheritdoc />
-        public Possible<Unit> ReportFileArtifactPlaced(PipInfo pipInfo, in FileArtifact artifact, FileMaterializationInfo info)
+        public Possible<Unit> ReportFileArtifactPlaced(in FileArtifact artifact, FileMaterializationInfo info)
         {
             // Do nothing.
             return Unit.Void;

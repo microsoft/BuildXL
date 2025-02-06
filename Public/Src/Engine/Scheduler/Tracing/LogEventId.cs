@@ -552,7 +552,7 @@ namespace BuildXL.Scheduler.Tracing
         // was DependencyViolationReadUndeclaredOutput_AsError = 25009,
 
         UnableToWritePipStandardOutputLog = 14609,
-        CannotFlagSharedOpaqueOutput = 14610,
+        // Available 14610,
         SchedulerSimulator = 14611,
         SchedulerSimulatorResult = 14612,
         SchedulerSimulatorCompleted = 14613,

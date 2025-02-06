@@ -4197,15 +4197,6 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void UnableToWritePipStandardOutputLog(LoggingContext context, string pipSemiStableHash, string path, string message);
         
         [GeneratedEvent(
-            (ushort)LogEventId.CannotFlagSharedOpaqueOutput,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.UserMessage,
-            EventTask = (ushort)Tasks.PipExecutor,
-            Message = "Cannot flag {path} as a shared opaque output: {message}")]
-        public abstract void CannotFlagSharedOpaqueOutput(LoggingContext context, string pipSemiStableHash, string path, string message);
-
-        [GeneratedEvent(
           (int)LogEventId.SchedulerSimulator,
           EventGenerators = EventGenerators.TelemetryOnly,
           EventLevel = Level.Verbose,

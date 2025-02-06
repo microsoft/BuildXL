@@ -508,7 +508,7 @@ namespace Test.BuildXL.Engine
 
             if (OperatingSystemHelper.IsUnixOS)
             {
-                _ = SharedOpaqueOutputHelper.TryEnforceFileIsSharedOpaqueOutput(fullSymlinkPath, arePipOutputsHardlinked: false);
+                SharedOpaqueOutputHelper.EnforceFileIsSharedOpaqueOutput(fullSymlinkPath);
                 XAssert.IsTrue(SharedOpaqueOutputHelper.IsSharedOpaqueOutput(fullSymlinkPath));
             }
 

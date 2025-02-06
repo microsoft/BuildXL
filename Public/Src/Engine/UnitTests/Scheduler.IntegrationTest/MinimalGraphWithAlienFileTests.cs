@@ -262,7 +262,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             // Create a fake stale shared opaque output under the directory we will enumerate
             File.WriteAllText(alienFilePath, "some text");
-            _ = SharedOpaqueOutputHelper.TryEnforceFileIsSharedOpaqueOutput(alienFilePath, arePipOutputsHardlinked: false);
+            SharedOpaqueOutputHelper.EnforceFileIsSharedOpaqueOutput(alienFilePath);
 
             // A stale shared opaque present when the pip is run is only compatible with lazy SO deletion
             Configuration.Schedule.UnsafeLazySODeletion = true;

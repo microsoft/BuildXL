@@ -504,7 +504,7 @@ namespace BuildXL.Scheduler
             // otherwise it will get marked in ReportFileArtifactPlaced.
             if (!environment.Configuration.Schedule.StoreOutputsToCache)
             {
-                MakeSharedOpaqueOutputForCopyFileIfNeeded(environment, operationContext.LoggingContext, copyFile.FormattedSemiStableHash, copyFile.Destination);
+                MakeSharedOpaqueOutputIfNeeded(environment, copyFile.Destination);
             }
 
             var mayBeTracked = await TrackPipOutputAsync(
@@ -807,20 +807,13 @@ namespace BuildXL.Scheduler
             }
         }
 
-        private static void MakeSharedOpaqueOutputForCopyFileIfNeeded(IPipExecutionEnvironment environment, LoggingContext loggingContext, string pipSemistableHash, AbsolutePath path)
+        private static void MakeSharedOpaqueOutputIfNeeded(IPipExecutionEnvironment environment, AbsolutePath path)
         {
             if (!environment.Configuration.Sandbox.UnsafeSandboxConfiguration.SkipFlaggingSharedOpaqueOutputs() &&
                 environment.PipGraphView.IsPathUnderOutputDirectory(path, out bool isItSharedOpaque) && isItSharedOpaque)
             {
                 string expandedPath = path.ToString(environment.Context.PathTable);
-                // This is happening in the context of a copy file pip operation and in all cases we already cached its content
-                var result = SharedOpaqueOutputHelper.TryEnforceFileIsSharedOpaqueOutput(expandedPath, arePipOutputsHardlinked: environment.Configuration.Engine.UseHardlinks);
-                if (!result.Succeeded)
-                {
-                    // This is just an info message, since it is part of a temporary solution until https://dev.azure.com/mseng/1ES/_workitems/edit/2167806 is done. TODO: remove
-                    // Users cannot do much about this, so a warning would be too invasive.
-                    Logger.Log.CannotFlagSharedOpaqueOutput(loggingContext, pipSemistableHash, expandedPath, result.Failure.Describe());
-                }
+                SharedOpaqueOutputHelper.EnforceFileIsSharedOpaqueOutput(expandedPath);
             }
         }
 
@@ -963,7 +956,7 @@ namespace BuildXL.Scheduler
                     }
                 }
 
-                MakeSharedOpaqueOutputForCopyFileIfNeeded(environment, operationContext.LoggingContext, producerPip.FormattedSemiStableHash, destinationFile.Path);
+                MakeSharedOpaqueOutputIfNeeded(environment, destinationFile.Path);
 
                 return outputOrigin.ToPipResult();
             }

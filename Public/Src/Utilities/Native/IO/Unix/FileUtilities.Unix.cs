@@ -691,10 +691,10 @@ namespace BuildXL.Native.IO.Unix
         public bool TryFindOpenHandlesToFile(string filePath, out string diagnosticInfo, bool printCurrentFilePath) => throw new NotImplementedException();
 
         /// <inheritdoc />
-        public uint GetHardLinkCount(string path, bool followSymlink = true)
+        public uint GetHardLinkCount(string path)
         {
             var statBuffer = new StatBuffer();
-            if (StatFile(path, followSymlink, ref statBuffer) != 0)
+            if (StatFile(path, true, ref statBuffer) != 0)
             {
                 throw new BuildXLException(I($"Failed to stat file '{path}' to get its hardlink count - error: {Marshal.GetLastWin32Error()}"));
             }

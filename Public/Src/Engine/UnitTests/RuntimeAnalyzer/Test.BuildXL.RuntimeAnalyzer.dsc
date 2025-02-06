@@ -20,7 +20,6 @@ namespace Test.BuildXL.RuntimeAnalyzer {
             importFrom("BuildXL.Engine").Engine.dll,
             importFrom("BuildXL.Engine").Processes.dll,
             importFrom("BuildXL.Engine").Scheduler.dll,
-            importFrom("BuildXL.Engine").Cache.dll,
             Scheduler.IntegrationTest.dll,
             Scheduler.dll,
             importFrom("BuildXL.Pips").dll,

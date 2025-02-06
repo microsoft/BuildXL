@@ -8,7 +8,6 @@ using BuildXL.Native.IO;
 using BuildXL.Utilities.Core;
 using BuildXL.Processes;
 using static BuildXL.Utilities.Core.FormattableStringEx;
-using BuildXL.Utilities.Core.Tasks;
 
 namespace BuildXL.ProcessPipExecutor
 {
@@ -261,34 +260,15 @@ namespace BuildXL.ProcessPipExecutor
         /// <summary>
         /// Makes sure the given path is flagged as being an output under a shared opaque. Flags the file as such if that was not the case.
         /// </summary>
-        public static Possible<Unit> TryEnforceFileIsSharedOpaqueOutput(string expandedPath, bool arePipOutputsHardlinked)
+        public static void EnforceFileIsSharedOpaqueOutput(string expandedPath)
         {
             // If the file is already marked, then there is nothing to do.
             if (IsSharedOpaqueOutput(expandedPath))
             {
-                return new Possible<Unit>(Unit.Void);
-            }
-
-            // If outputs are already hardlinked by the cache, we expect 2 hardlinks (one for the cache and one for the output itself). Otherwise, we just expect 1 hardlink.
-            // More than that means that the output is hardlinking existing content (like a hardlink to a source file), so we don't fully own it
-            int numHardlinkedOutputs = arePipOutputsHardlinked ? 2 : 1;
-
-            // We only want to flag an output as such if the target (in case of hardlinking) was also produced by the build. We have
-            // cases where a tool produces a hardlink to a source file, and we don't want to flag the source as an output, otherwise we will be
-            // deleting it. This is just a temporary workaround to avoid deleting sources, the downside of this approach is that it will leave the output
-            // without scrubbing for the next build. TODO: remove this workaround once we implement a proper feature to track the case of hardlinked sources.
-            // See https://dev.azure.com/mseng/1ES/_workitems/edit/2167806
-            // This strategy is not bullet proof. If e.g. two hardlinks are produced under the build pointing to the same content, that's enough
-            // to block flagging them. But it's a good enough approximation for now, we conservatively block flagging in this case.
-            uint hardlinkCount = FileUtilities.GetHardLinkCount(expandedPath, followSymlink: !OperatingSystemHelper.IsUnixOS);
-            if (hardlinkCount > numHardlinkedOutputs)
-            {
-                return new Possible<Unit>(new Failure<string>($"Cannot flag '{expandedPath}' as a shared opaque output since its hardlink count ({hardlinkCount}) indicates that there are potential source files" +
-                    $" that are hardlinks to the same content."));
+                return;
             }
 
             SetPathAsSharedOpaqueOutput(expandedPath);
-            return new Possible<Unit>(Unit.Void);
         }
     }
 }

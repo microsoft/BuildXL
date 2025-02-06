@@ -46,14 +46,11 @@ extends:
         - 1ES.RequestId
 
     stages:
-      - stage: Build
-        displayName: Build all qualifiers
-        dependsOn: []
+      - stage: Checkout
         jobs:
-        - template: /.azdo/linux/job-build-selfhost-base.yml@self 
-          parameters:
-            validationName: Bootstrap
-            internal: true
-            pool: ${{ parameters.pool }}
-            sdkVersion: ${{ parameters.sdkVersion }}
-            buildXLArguments: /q:ReleaseLinux /q:DebugLinux
+        - job: CheckoutJob
+          steps:
+          - checkout: self
+            clean: false
+            fetchTags: false
+            fetchDepth: 1

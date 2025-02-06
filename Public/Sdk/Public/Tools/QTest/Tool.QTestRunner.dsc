@@ -260,6 +260,12 @@ interface IQTestContextInfoJson {
 }
 
 function parseQTestContextInfoJson(qTestContextInfoFile: File): IQTestContextInfoJson {
+    if (isWindows) {
+        // On some CB builds with pip fragment generator, reading the file below can trigger a DFA
+        // Because we need this logic only for Linux, we can skip it, at least for now
+        // See work item #2250022
+        return {};
+    }
     if (qTestContextInfoFile) {
         const qtestContextInfoFileRawContents: string = File.readAllText(f`${qTestContextInfoFile}`);
         // TODO: Replace this with a real JSON parser

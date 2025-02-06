@@ -30,7 +30,12 @@ export const pkgs = isMicrosoftInternal ? [
     { id: "Microsoft.Data.Sqlite", version: "1.1.1" },
     { id: "SQLite", version: "3.13.0" },
 
+    // Windows and Linux QTest packages are not aligned wrt versions. QTest folks will work on aligning them, but for the time being
+    // these two may differ on the version number
     { id: "CB.QTest", version: "24.6.26.153636", osSkip: [ "macOS", "unix" ] },
+    // This particular version of CB.QTestLinux is wrongly packed and requires bogus dependencies. But the package is self-contained.
+    // TODO: remove the ignore/skip entries when upgrading to a version where this problem is solved
+    { id: "CB.QTestLinux", version: "25.2.4.162555", osSkip: [ "macOS"  ], dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["*"] },
 
     { id: "BuildXL.Tracing.AriaTenantToken", version: "1.0.0" },
 

@@ -59,7 +59,7 @@ function createSdkDeploymentDefinition(serverDeployment: boolean, minimalDeploym
                             ]
                         },
                     ]),
-                    ...addIfLazy(!serverDeployment && qualifier.targetRuntime === "win-x64", () => [
+                    ...addIfLazy(!serverDeployment && qualifier.targetRuntime === "win-x64" || qualifier.targetRuntime === "linux-x64", () => [
                         {
                             subfolder: "Sdk.QTest",
                             contents: [ 

@@ -248,6 +248,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "CB.QTestLinux",
+          "Version": "25.2.4.162555"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "CLAP",
           "Version": "4.6"
         }

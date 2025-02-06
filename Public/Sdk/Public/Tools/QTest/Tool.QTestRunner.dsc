@@ -22,9 +22,8 @@ export const qTestTool: Transformer.ToolDefinition = {
     exe: isWindows ? f`${root}/bin/DBS.QTest.exe` : f`${root}/bin/DBS.QTest.Linux`,
     description: "CloudBuild QTest",
     runtimeDependencies: globR(d`${root}/bin`, "*"),
-    untrackedDirectoryScopes: [
-      ...(isWindows
-        ? [
+    untrackedDirectoryScopes: isWindows
+      ? [
           d`${Context.getMount("ProgramData").path}`,
           d`${Context.getMount("ProgramFilesX86").path}`,
           d`${Context.getMount("ProgramFiles").path}`,
@@ -34,13 +33,18 @@ export const qTestTool: Transformer.ToolDefinition = {
           // However, this tool reads dbghelp.dll located in the following directory in CloudBuild machines
           d`C:/Debuggers`
         ]
-        : [
+      : [
           d`/tmp/.dotnet/shm/`,
           d`${Context.getUserHomeDirectory().path}/.config/Microsoft/VisualStudio Services/`,
           d`/usr/share/Microsoft VisualStudio Services/11.0/Cache/`,
-          d`/var/log/keysinuse/`
-      ])
-    ],
+          d`/var/log/keysinuse/`,
+        ],
+    untrackedFiles: isWindows
+      ? undefined
+      : [
+          f`/etc/keysinuse/keysinuse.cnf`,
+          f`${Context.getUserHomeDirectory().path}/.dotnet/corefx/cryptography/x509stores/my/defaultcertificate.pfx`
+        ],
     dependsOnWindowsDirectories: true,
     dependsOnAppDataDirectory: true,
     prepareTempDirectory: true,

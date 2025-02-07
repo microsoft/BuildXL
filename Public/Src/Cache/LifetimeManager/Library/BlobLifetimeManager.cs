@@ -3,10 +3,13 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Azure.Storage.Blobs.ChangeFeed;
 using BuildXL.Cache.BuildCacheResource.Model;
 using BuildXL.Cache.ContentStore.Distributed;
 using BuildXL.Cache.ContentStore.Distributed.Blob;
@@ -160,7 +163,8 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                             WorkingDirectory: temp.Path / "CheckpointManager",
                             PrimaryMachineLocation: machineLocation)
                         {
-                            // We don't want to restore checkpoints on a loop.
+                            // We don't want to restore checkpoints on a loop. There's only once GC instance that runs
+                            // at a time, and it's the only one creating checkpoints.
                             RestoreCheckpoints = false,
 
                             // Contrary to what you might expect, this component doesn't actually self-call
@@ -206,8 +210,51 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                         checkpointable.Database = db;
                     }
 
+
                     using (db)
                     {
+                        // When GC is too slow to keep up with the change feed, we can end up in a situation where the
+                        // cache is too old to be garbage collected. This can happen if the GC falls behind the
+                        // retention period for event processing.
+                        //
+                        // In this case, we will fail GC and require manual intervention to recover. This is a safety
+                        // measure to prevent us from deleting data that we should not be deleting.
+                        bool changeFeedRetention = false;
+                        foreach (var accountName in accountNames)
+                        {
+                            var opaqueContinuationToken = db.GetCursor(accountName.AccountName);
+                            if (string.IsNullOrEmpty(opaqueContinuationToken))
+                            {
+                                Tracer.Warning(context, $"Failed to find continuation token. Account=[{accountName}]");
+                                continue;
+                            }
+
+                            var continuationToken = JsonSerializer.Deserialize<ChangeFeedContinuationToken>(opaqueContinuationToken!);
+                            if (continuationToken is null)
+                            {
+                                Tracer.Warning(context, $"Failed to deserialize continuation token. Account=[{accountName}] ContinuationToken=[{opaqueContinuationToken}]");
+                                continue;
+                            }
+
+                            if (continuationToken.CurrentSegmentCursor.SegmentDate is null)
+                            {
+                                Tracer.Warning(context, $"Failed to extract segment date from continuation token. Account=[{accountName}] ContinuationToken=[{opaqueContinuationToken}]");
+                                continue;
+                            }
+
+                            var segmentDate = continuationToken.CurrentSegmentCursor.SegmentDate.Value;
+                            var retentionCutoffDate = startTime - config.ChangeFeedRetentionPeriod;
+                            if (segmentDate < retentionCutoffDate)
+                            {
+                                changeFeedRetention = true;
+                            }
+                        }
+
+                        if (changeFeedRetention)
+                        {
+                            throw new InvalidOperationException("Garbage collection is too old to run. Please follow the recovery steps.");
+                        }
+
                         var accessors = namespaces.ToDictionary(
                             n => n,
                             db.GetAccessor);

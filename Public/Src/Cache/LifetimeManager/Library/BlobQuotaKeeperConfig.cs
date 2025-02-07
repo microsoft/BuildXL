@@ -20,6 +20,11 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
         public int? ChangeFeedPageSize { get; init; } = null;
 
         /// <summary>
+        /// Specifies the retention period for the change feed.
+        /// </summary>
+        public TimeSpan ChangeFeedRetentionPeriod { get; set; } = TimeSpan.FromDays(7);
+
+        /// <summary>
         /// Specifies how often to create checkpoints while consuming the Azure Storage change feed.
         /// </summary>
         /// <remarks>

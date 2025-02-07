@@ -280,6 +280,9 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             BlobCacheStorageAccountName accountName,
             string? continuationToken)
         {
+            DateTime? minimumEventTimestamp = null;
+            DateTime? maximumEventTimestamp = null;
+
             return context.PerformOperationAsync(
                 Tracer,
                 async () =>
@@ -288,7 +291,6 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                     // long to process, and ultimately most of what's happening in the parallel operations isn't really
                     // cancellable. What can be cancelled will get cancelled, but the rest will just finish.
 
-                    DateTime? maximumEventTimestamp = null;
                     var processingTasks = new List<Task>(capacity: page.Values.Count);
                     foreach (var change in page.Values)
                     {
@@ -299,7 +301,8 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                             continue;
                         }
 
-                        maximumEventTimestamp = maximumEventTimestamp < change.EventTime.UtcDateTime ? change.EventTime.UtcDateTime : maximumEventTimestamp;
+                        minimumEventTimestamp = (minimumEventTimestamp is not null && minimumEventTimestamp < change.EventTime.UtcDateTime) ? minimumEventTimestamp : change.EventTime.UtcDateTime;
+                        maximumEventTimestamp = (maximumEventTimestamp is null || maximumEventTimestamp < change.EventTime.UtcDateTime) ? change.EventTime.UtcDateTime : maximumEventTimestamp;
 
                         // For new we'll ignore everything except blob creations. We'll assume that this GC service is the only thing deleting blobs.
                         if (change.EventType != BlobChangeFeedEventType.BlobCreated)
@@ -327,11 +330,12 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                 traceOperationFinished: true,
                 extraEndMessage: r =>
                 {
-                    var output = $"Account=[{accountName}] ContinuationToken=[{continuationToken ?? "null"}] PageSize=[{page.Values.Count}]";
-                    if (r.Succeeded)
-                    {
-                        output += $"MaximumEventTimestamp=[{r.Value?.ToString("O") ?? "null"}]";
-                    }
+                    var output =
+                        $"Account=[{accountName}] " +
+                        $"ContinuationToken=[{continuationToken ?? "null"}] " +
+                        $"PageSize=[{page.Values.Count}] " +
+                        $"MinimumEventTimestamp=[{minimumEventTimestamp?.ToString("O") ?? "null"}] " +
+                        $"MaximumEventTimestamp=[{maximumEventTimestamp?.ToString("O") ?? "null"}]";
 
                     return output;
                 });

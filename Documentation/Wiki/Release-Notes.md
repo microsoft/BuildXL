@@ -3,6 +3,12 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 ---
 ---
 
+# 0.1.0-20250131.4.1 (Release [29585338](https://dev.azure.com/mseng/Domino/_build/results?buildId=29585338&view=results))
+- Change detours so that it always faithfully returns the last error from the real API
+- Fix failed pip stderr logging to logs directory
+- Compress xlg files with zstd
+- Fix a crash in semaphore related codepath
+
 # 0.1.0-20250124.4 (Release [29540324](https://dev.azure.com/mseng/Domino/_build/results?buildId=29540324&view=results))
 - Allow unobserved task exception for BlobL3 cache client
 - Fix scrubber path collapsing for Linux

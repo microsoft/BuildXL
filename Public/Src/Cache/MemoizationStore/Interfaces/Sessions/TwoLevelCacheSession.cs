@@ -213,8 +213,16 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
             CancellationToken cts,
             UrgencyHint urgencyHint)
         {
-            return _localCacheSession.GetSelectors(context, weakFingerprint, cts, urgencyHint)
-                .Concat(_remoteCacheSession.GetSelectors(context, weakFingerprint, cts, urgencyHint));
+            if (_config.AlwaysUpdateFromRemote)
+            {
+                return _remoteCacheSession.GetSelectors(context, weakFingerprint, cts, urgencyHint)
+                    .Concat(_localCacheSession.GetSelectors(context, weakFingerprint, cts, urgencyHint));
+            }
+            else
+            {
+                return _localCacheSession.GetSelectors(context, weakFingerprint, cts, urgencyHint)
+                    .Concat(_remoteCacheSession.GetSelectors(context, weakFingerprint, cts, urgencyHint));
+            }
         }
 
         /// <inheritdoc />
@@ -476,7 +484,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
                     }
                 }
             }
-            
+
             _putElisionCache?.Add(contentHash, _config.RemotePutElisionDuration);
 
             return BoolResult.Success;

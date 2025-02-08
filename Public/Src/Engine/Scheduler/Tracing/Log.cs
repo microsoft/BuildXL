@@ -4161,15 +4161,6 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void PendingEventsRemaingAfterDisposed(LoggingContext loggingContext, long count);
 
         [GeneratedEvent(
-            (int)LogEventId.DynamicRamDetected,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.UserMessage,
-            EventTask = (int)Tasks.PipExecutor,
-            Message = "{workerName} has a dynamic RAM (initial RAM size: {oldRamMb}, current RAM size: {newRamMb}). Memory-based scheduler throttling will not work with the dynamic RAM in VMs.")]
-        public abstract void DynamicRamDetected(LoggingContext context, string workerName, int oldRamMb, int newRamMb);
-
-        [GeneratedEvent(
             (int)LogEventId.RamProjectionDisabled,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,

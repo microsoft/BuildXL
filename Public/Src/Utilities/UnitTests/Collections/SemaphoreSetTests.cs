@@ -22,7 +22,7 @@ namespace Test.BuildXL.Utilities
             int originalLimitsLength = limits.Length;
             for (int i = 0; i < limits.Length; i++)
             {
-                int semaphoreIndex = semaphores.CreateSemaphore(i, limits[i]);
+                int semaphoreIndex = semaphores.CreateOrUpdateSemaphore(i, limits[i]);
                 XAssert.AreEqual(i, semaphoreIndex);
             }
 
@@ -31,7 +31,7 @@ namespace Test.BuildXL.Utilities
                 var limit = limits[i];
                 for (int usage = 1; usage <= limit + 1; usage++)
                 {
-                    int semaphoreIndex = semaphores.CreateSemaphore(i, limits[i]);
+                    int semaphoreIndex = semaphores.CreateOrUpdateSemaphore(i, limits[i]);
                     XAssert.AreEqual(i, semaphoreIndex);
                     var semaphoreIncrements = new int[i + 1];
                     semaphoreIncrements[i] = 1;
@@ -61,7 +61,7 @@ namespace Test.BuildXL.Utilities
             // Create new semaphores in the copy and verify that semaphores can be used in original
             for (int i = 0; i < limits.Length; i++)
             {
-                int semaphoreIndex = copiedSemaphores.CreateSemaphore(i, limits[i]);
+                int semaphoreIndex = copiedSemaphores.CreateOrUpdateSemaphore(i, limits[i]);
                 XAssert.AreEqual(i, semaphoreIndex);
             }
 
@@ -122,7 +122,7 @@ namespace Test.BuildXL.Utilities
             int[] limits = new int[] { 1, 3, 7, 10 };
             for (int i = 0; i < limits.Length; i++)
             {
-                int semaphoreIndex = semaphores.CreateSemaphore(i, limits[i]);
+                int semaphoreIndex = semaphores.CreateOrUpdateSemaphore(i, limits[i]);
                 XAssert.AreEqual(i, semaphoreIndex);
             }
 

@@ -268,7 +268,7 @@ namespace Test.BuildXL.Utilities
 
                 for (int i = 0; i < semaphoreLimits.Length; i++)
                 {
-                    int index = semaphores.CreateSemaphore(i, semaphoreLimits[i]);
+                    int index = semaphores.CreateOrUpdateSemaphore(i, semaphoreLimits[i]);
                     XAssert.AreEqual(index, i);
                 }
 

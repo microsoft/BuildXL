@@ -325,7 +325,7 @@ namespace BuildXL.Scheduler.Distribution
             // For an 8-core machine, the semaphore limit is set to 800 because the pips
             // report their CPU usage per core. If a pip fully utilizes 2 cores, its CPU usage would be 200%.
             m_cpuSemaphoreLimit = 100 * Environment.ProcessorCount;
-            m_cpuSemaphoreIndex = m_workerSemaphores.CreateSemaphore(m_cpuSemaphoreNameId, m_cpuSemaphoreLimit);
+            m_cpuSemaphoreIndex = m_workerSemaphores.CreateOrUpdateSemaphore(m_cpuSemaphoreNameId, m_cpuSemaphoreLimit);
         }
 
         /// <summary>
@@ -891,8 +891,15 @@ namespace BuildXL.Scheduler.Distribution
             }
             else if (currentTotalRamMb.HasValue && TotalRamMb != currentTotalRamMb)
             {
-                Logger.Log.DynamicRamDetected(loggingContext, Name, TotalRamMb.Value, currentTotalRamMb.Value);
+                // Dynamic RAM system is detected.
+                // We need to update the total RAM value and the semaphore limit.
+                int addedRamMb = TotalRamMb.Value - currentTotalRamMb.Value;
                 TotalRamMb = currentTotalRamMb;
+
+                // The semaphore for RAM is already created. When we call this method with another limit,
+                // the same semaphore will be updated with the new limit.
+                RamSemaphoreLimitMb += addedRamMb;
+                m_workerSemaphores.CreateOrUpdateSemaphore(m_ramSemaphoreNameId, RamSemaphoreLimitMb);
             }
 
             if (!InitialAvailableRamMb.HasValue && machineAvailableRamMb.HasValue)
@@ -902,7 +909,7 @@ namespace BuildXL.Scheduler.Distribution
                 InitialAvailableRamMb = machineAvailableRamMb + (engineRamMb ?? 0);
 
                 RamSemaphoreLimitMb = (int)Math.Round((double)InitialAvailableRamMb * m_scheduleConfig.RamSemaphoreMultiplier);
-                m_ramSemaphoreIndex = m_workerSemaphores.CreateSemaphore(m_ramSemaphoreNameId, RamSemaphoreLimitMb);
+                m_ramSemaphoreIndex = m_workerSemaphores.CreateOrUpdateSemaphore(m_ramSemaphoreNameId, RamSemaphoreLimitMb);
             }
 
             if (TotalRamMb.HasValue && machineAvailableRamMb.HasValue)

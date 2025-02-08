@@ -239,13 +239,13 @@ namespace BuildXL.Utilities.Collections
         }
 
         /// <summary>
-        /// Creates a new semaphore with the given limit and key or gets the current one if a semaphore
+        /// Creates a new semaphore with the given limit and key or updates the current one if a semaphore
         /// for the key already exists
         /// </summary>
         /// <param name="key">the key for the semaphore</param>
         /// <param name="limit">the limit for the semaphore</param>
         /// <returns>the semaphore index</returns>
-        public int CreateSemaphore(TKey key, int limit)
+        public int CreateOrUpdateSemaphore(TKey key, int limit)
         {
             if (m_semaphoresIndices.TryGetValue(key, out SemaphoreInfo? semaphoreInfo))
             {

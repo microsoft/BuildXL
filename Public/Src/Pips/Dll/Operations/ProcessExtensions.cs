@@ -134,7 +134,7 @@ namespace BuildXL.Pips.Operations
             {
                 var semaphore = semaphores[i];
                 var limit = getLimit?.Invoke(semaphore) ?? semaphore.Limit;
-                max = Math.Max(max, semaphoreSet.CreateSemaphore(semaphore.Name, limit));
+                max = Math.Max(max, semaphoreSet.CreateOrUpdateSemaphore(semaphore.Name, limit));
             }
 
             if (max < 0)
@@ -147,7 +147,7 @@ namespace BuildXL.Pips.Operations
             {
                 var semaphore = semaphores[i];
                 var limit = getLimit?.Invoke(semaphore) ?? semaphore.Limit;
-                int semaphoreIndex = semaphoreSet.CreateSemaphore(semaphore.Name, limit);
+                int semaphoreIndex = semaphoreSet.CreateOrUpdateSemaphore(semaphore.Name, limit);
                 semaphoreIncrements[semaphoreIndex] = semaphore.Value;
             }
 

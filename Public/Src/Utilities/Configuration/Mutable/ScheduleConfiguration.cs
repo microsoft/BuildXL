@@ -14,6 +14,15 @@ namespace BuildXL.Utilities.Configuration.Mutable
     /// <nodoc />
     public sealed class ScheduleConfiguration : IScheduleConfiguration
     {
+        /// <summary>
+        /// In the past, we decided to use 1.25 * logicalCores to determine the concurrency for the process pips. 
+        /// However, at that time, cachelookup, materialization, and other non-execute steps were all taking a slot from that. 
+        /// As each major step runs in its own queue with a separate concurrency limit, we decided to revise using 1.25 multiplier.
+        /// After doing A/B testing on thousands of builds, using 0.9 instead of 1.25 multiplier decreases the load on the machine and improves the perf:
+        /// https://github.com/microsoft/BuildXL/blob/main/Documentation/Specs/SchedulerPerfExperiments.md
+        /// </summary>
+        public const double DefaultProcessorCountMultiplier = 0.9;
+
         /// <nodoc />
         public ScheduleConfiguration()
         {
@@ -31,12 +40,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             UseHistoricalRamUsageInfo = true;
             ForceUseEngineInfoFromCache = false;
 
-            // In the past, we decided to use 1.25 * logicalCores to determine the concurrency for the process pips. 
-            // However, at that time, cachelookup, materialization, and other non-execute steps were all taking a slot from that. 
-            // As each major step runs in its own queue with a separate concurrency limit, we decided to revise using 1.25 multiplier.
-            // After doing A/B testing on thousands of builds, using 0.9 instead of 1.25 multiplier decreases the load on the machine and improves the perf:
-            // https://github.com/microsoft/BuildXL/blob/main/Documentation/Specs/SchedulerPerfExperiments.md
-            MaxProcesses = (int)Math.Ceiling(0.9 * Environment.ProcessorCount);
+            MaxProcesses = (int)Math.Ceiling(DefaultProcessorCountMultiplier * Environment.ProcessorCount);
 
             MaxIO = Environment.ProcessorCount;
 

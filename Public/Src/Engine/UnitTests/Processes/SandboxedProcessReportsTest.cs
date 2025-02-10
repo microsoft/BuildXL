@@ -11,6 +11,11 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using Microsoft.Win32.SafeHandles;
+using System.IO.Pipes;
+using System.Text;
+using System.Threading.Tasks;
+using BuildXL.Processes.Internal;
 
 namespace Test.BuildXL.Processes
 {
@@ -78,25 +83,24 @@ namespace Test.BuildXL.Processes
 
         public static IEnumerable<object[]> InsufficientItemsSource => Enumerable.Range(0, 16).Select(x => new object[] {x});
 
-        [Fact]
-        public void AugmentedFileAccessReportLineRountrip()
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        public async Task AugmentedFileAccessReportRoundTripAsync()
         {
-            var line = FileAccessReportLine.GetReportLineForAugmentedFileAccess(
-                    ReportedFileOperation.Process,
-                    1234,
-                    RequestedAccess.Enumerate,
-                    FileAccessStatus.Allowed,
-                    0,
-                    Usn.Zero,
-                    DesiredAccess.GENERIC_READ,
-                    ShareMode.FILE_SHARE_NONE,
-                    CreationDisposition.OPEN_ALWAYS,
-                    FlagsAndAttributes.FILE_ATTRIBUTE_NORMAL,
-                    FlagsAndAttributes.FILE_ATTRIBUTE_DIRECTORY,
-                    "C:\\foo\\bar",
-                    enumeratePattern: "*",
-                    processArgs: "some args");
+            const string ReadFile = @"C:\input\input.c";
+            const string WrittenFile = @"C:\output\output.o";
+            string[] messages = await ReportAugmentedFileAccessesAsync(reporter =>
+            {
+                reporter.TryReportFileReads([ReadFile]);
+                reporter.TryReportFileCreations([WrittenFile]);
+            });
 
+            XAssert.AreEqual(3, messages.Length); // 2 reports + 1 end of file
+            VerifyRead(ReadFile, messages[0]);
+            VerifyWrite(WrittenFile, messages[1]);
+        }
+
+        private static string VerifyAugmented(string line)
+        {
             // We need to manually strip the report type
             int splitIndex = line.IndexOf(',');
             XAssert.IsTrue(splitIndex > 0);
@@ -106,7 +110,61 @@ namespace Test.BuildXL.Processes
             XAssert.AreEqual(ReportType.AugmentedFileAccess, (ReportType)Enum.Parse(typeof(ReportType), reportTypeString));
 
             line = line.Substring(splitIndex + 1);
+            return line;
+        }
 
+        private static void VerifyRead(string expectedPath, string line)
+        {
+            line = VerifyAugmented(line);
+            var ok = FileAccessReportLine.TryParse(
+                ref line,
+                out var _,
+                out var parentProcessId,
+                out var id,
+                out var correlationId,
+                out var operation,
+                out var requestedAccess,
+                out var status,
+                out var explicitlyReported,
+                out var error,
+                out var rawError,
+                out var usn,
+                out var desiredAccess,
+                out var shareMode,
+                out var creationDisposition,
+                out var flags,
+                out var openedFileOrDirectoryAttributes,
+                out var absolutePath,
+                out var path,
+                out var enumeratePattern,
+                out var processArgs,
+                out string errorMessage,
+                noRawError: true);
+            XAssert.IsTrue(ok, errorMessage);
+            XAssert.AreEqual(0u, parentProcessId);
+            XAssert.AreEqual(0u, id);
+            XAssert.AreEqual(0u, correlationId);
+            XAssert.AreEqual(ReportedFileOperation.CreateFile, operation);
+            XAssert.AreEqual(RequestedAccess.Read, requestedAccess);
+            XAssert.AreEqual(FileAccessStatus.Allowed, status);
+            XAssert.AreEqual(true, explicitlyReported);
+            XAssert.AreEqual(0u, error);
+            XAssert.AreEqual(error, rawError);
+            XAssert.AreEqual(Usn.Zero, usn);
+            XAssert.AreEqual(DesiredAccess.GENERIC_READ, desiredAccess);
+            XAssert.AreEqual(ShareMode.FILE_SHARE_NONE, shareMode);
+            XAssert.AreEqual(CreationDisposition.OPEN_ALWAYS, creationDisposition);
+            XAssert.AreEqual(FlagsAndAttributes.FILE_ATTRIBUTE_NORMAL, flags);
+            XAssert.AreEqual(FlagsAndAttributes.FILE_ATTRIBUTE_NORMAL, openedFileOrDirectoryAttributes);
+            XAssert.AreEqual(AbsolutePath.Invalid, absolutePath);
+            XAssert.AreEqual(expectedPath, path);
+            XAssert.AreEqual(null, enumeratePattern);
+            XAssert.AreEqual(string.Empty, processArgs);
+        }
+
+        private static void VerifyWrite(string expectedPath, string line)
+        {
+            line = VerifyAugmented(line);
             var ok = FileAccessReportLine.TryParse(
                 ref line,
                 out var processId,
@@ -131,29 +189,61 @@ namespace Test.BuildXL.Processes
                 out var processArgs,
                 out string errorMessage,
                 noRawError: true);
-
             XAssert.IsTrue(ok, errorMessage);
-
-            XAssert.AreEqual(ReportedFileOperation.Process, operation);
-            XAssert.AreEqual(1234u, processId);
             XAssert.AreEqual(0u, parentProcessId);
-            XAssert.AreEqual(SandboxedProcessReports.FileAccessNoId, id);
-            XAssert.AreEqual(SandboxedProcessReports.FileAccessNoId, correlationId);
-            XAssert.AreEqual(RequestedAccess.Enumerate, requestedAccess);
+            XAssert.AreEqual(0u, id);
+            XAssert.AreEqual(0u, correlationId);
+            XAssert.AreEqual(ReportedFileOperation.CreateFile, operation);
+            XAssert.AreEqual(RequestedAccess.Write, requestedAccess);
             XAssert.AreEqual(FileAccessStatus.Allowed, status);
             XAssert.AreEqual(true, explicitlyReported);
             XAssert.AreEqual(0u, error);
             XAssert.AreEqual(error, rawError);
             XAssert.AreEqual(Usn.Zero, usn);
-            XAssert.AreEqual(DesiredAccess.GENERIC_READ, desiredAccess);
+            XAssert.AreEqual(DesiredAccess.GENERIC_WRITE, desiredAccess);
             XAssert.AreEqual(ShareMode.FILE_SHARE_NONE, shareMode);
-            XAssert.AreEqual(CreationDisposition.OPEN_ALWAYS, creationDisposition);
+            XAssert.AreEqual(CreationDisposition.CREATE_ALWAYS, creationDisposition);
             XAssert.AreEqual(FlagsAndAttributes.FILE_ATTRIBUTE_NORMAL, flags);
-            XAssert.AreEqual(FlagsAndAttributes.FILE_ATTRIBUTE_DIRECTORY, openedFileOrDirectoryAttributes);
+            XAssert.AreEqual(FlagsAndAttributes.FILE_ATTRIBUTE_NORMAL, openedFileOrDirectoryAttributes);
             XAssert.AreEqual(AbsolutePath.Invalid, absolutePath);
-            XAssert.AreEqual("C:\\foo\\bar", path);
-            XAssert.AreEqual("*", enumeratePattern);
-            XAssert.AreEqual("some args\r\n", processArgs);
+            XAssert.AreEqual(expectedPath, path);
+            XAssert.AreEqual(null, enumeratePattern);
+            XAssert.AreEqual(string.Empty, processArgs);
+        }
+
+        private static async Task<string[]> ReportAugmentedFileAccessesAsync(Action<AugmentedManifestReporter> reportAction)
+        {
+            using NamedPipeServerStream pipeStream = Pipes.CreateNamedPipeServerStream(
+                PipeDirection.In,
+                PipeOptions.Asynchronous,
+                PipeOptions.None,
+                out SafeFileHandle clientHandle);
+            var messages = new List<string>();
+            using var reader = new StreamAsyncPipeReader(
+                pipeStream,
+                msg =>
+                {
+                    messages.Add(msg);
+                    return true;
+                },
+                Encoding.Unicode,
+                SandboxedProcessInfo.BufferSize);
+            reader.BeginReadLine();
+
+            Task readTask = Task.Run(async () =>
+            {
+                await reader.CompletionAsync(true);
+            });
+
+            Task writeTask = Task.Run(() =>
+            {
+                AugmentedManifestReporter reporter = AugmentedManifestReporter.Create(clientHandle);
+                reportAction(reporter);
+                clientHandle.Dispose();
+            });
+
+            await Task.WhenAll(readTask, writeTask);
+            return messages.ToArray();
         }
     }
 }

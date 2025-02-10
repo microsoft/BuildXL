@@ -2,14 +2,12 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
-using BuildXL.Native.IO;
-using BuildXL.Processes;
-using BuildXL.Utilities.Collections;
 using Microsoft.Build.Framework;
 using Microsoft.Build.Utilities;
 using Microsoft.CodeAnalysis;
@@ -31,12 +29,12 @@ namespace VBCSCompilerLogger
         private const string CscTaskName = "Csc";
         private const string VbcTaskName = "Vbc";
 
-        private readonly ConcurrentBigSet<Diagnostic> m_badSwitchErrors = new();
+        private readonly ConcurrentDictionary<Diagnostic, bool> m_badSwitchErrors = new();
 
         /// <inheritdoc/>
         public override void Initialize(IEventSource eventSource)
         {
-            TryCallIncludeEvaluationPropertiesAndItems(eventSource);
+            VBCSCompilerLogger.TryCallIncludeEvaluationPropertiesAndItems(eventSource);
 
             eventSource.MessageRaised += EventSourceOnMessageRaised;
             eventSource.BuildFinished += EventSourceOnBuildFinished;
@@ -48,10 +46,10 @@ namespace VBCSCompilerLogger
             // That means the Roslyn parsing classes we are using are older than the version of the compiler this
             // build is using.
             // We have to fail the build in this case, since we could be missing switches that imply file accesses
-            if (e.Succeeded && m_badSwitchErrors.Count > 0)
+            if (e.Succeeded && !m_badSwitchErrors.IsEmpty)
             {
                 // Should be safe to retrieve all bad switch errors, the build is done.
-                var allMessages = string.Join(Environment.NewLine, m_badSwitchErrors.UnsafeGetList().Select(diagnostic => $"[{diagnostic.Id}] {diagnostic.GetMessage()}"));
+                var allMessages = string.Join(Environment.NewLine, m_badSwitchErrors.Keys.Select(diagnostic => $"[{diagnostic.Id}] {diagnostic.GetMessage()}"));
 
                 throw new InvalidOperationException("Unrecognized switch(es) passed to the compiler. Even though the compiler supports it, using shared compilation in a sandboxed process requires the build engine to understand all compiler switches." +
                     $"This probably means the version of the compiler is newer than the version the build engine is aware of. Disabling shared compilation will likely fix the problem. Details: {allMessages}");
@@ -101,10 +99,10 @@ namespace VBCSCompilerLogger
                 foreach (Diagnostic badSwitch in badSwitchErrors)
                 {
                     // If we find a bad switch error, delay making a decision until we know if the compiler failed or not.
-                    m_badSwitchErrors.Add(badSwitch);
+                    m_badSwitchErrors.TryAdd(badSwitch, true);
                 }
 
-                string[] embeddedResourceFilePaths = Array.Empty<string>();
+                string[] embeddedResourceFilePaths = [];
                 Contract.RequiresNotNullOrEmpty(parsedCommandLine.BaseDirectory);
 
                 // Determine the paths to the embedded resources. /resource: parameters end up in CommandLineArguments.ManifestResources,
@@ -128,7 +126,7 @@ namespace VBCSCompilerLogger
             }
         }
 
-        private void TryCallIncludeEvaluationPropertiesAndItems(IEventSource eventSource)
+        private static void TryCallIncludeEvaluationPropertiesAndItems(IEventSource eventSource)
         {
             try
             {
@@ -314,8 +312,9 @@ namespace VBCSCompilerLogger
                     OutputKind.WindowsRuntimeMetadata => Path.ChangeExtension(args.SourceFiles[0].Path, ".winmdobj"),
                     // For these cases an .exe will be generated based on the source file that contains a Main method.
                     // We cannot easily predict this statically, so we bail out for this case.
-                    OutputKind.ConsoleApplication or OutputKind.WindowsApplication or OutputKind.WindowsRuntimeApplication => throw new InvalidOperationException("The output filename was not specified and it could not be statically predicted. Static predictions are required for managed compilers when shared compilation is enabled. " +
-                                                "Please specify the output filename or disable shared compilation by setting 'useManagedSharedCompilation' in Bxl main configuration file."),
+                    OutputKind.ConsoleApplication or OutputKind.WindowsApplication or OutputKind.WindowsRuntimeApplication => throw new InvalidOperationException(
+                        "The output filename was not specified and it could not be statically predicted. Static predictions are required for managed compilers when shared compilation is enabled. " +
+                        "Please specify the output filename or disable shared compilation by setting 'useManagedSharedCompilation' in Bxl main configuration file."),
                     _ => throw new InvalidOperationException($"Unrecognized OutputKind: {args.CompilationOptions.OutputKind}"),
                 };
             }
@@ -366,7 +365,7 @@ namespace VBCSCompilerLogger
             return null;
         }
 
-        private static bool PathExistsAsFile(string path) => FileUtilities.FileExistsNoFollow(path);
+        private static bool PathExistsAsFile(string path) => File.Exists(path);
 
         /// <summary>
         /// Resolves all relative path registrations against a base path

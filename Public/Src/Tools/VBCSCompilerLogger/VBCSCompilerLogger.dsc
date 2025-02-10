@@ -13,21 +13,27 @@ namespace VBCSCompilerLogger {
         assemblyName: "VBCSCompilerLogger",
         skipDocumentationGeneration: true,
         skipDefaultReferences: true,
-        sources: globR(d`.`, "*.cs"),
+        allowUnsafeBlocks: true,
+        sources: [...globR(d`.`, "*.cs"), f`../../Engine/Processes/AugmentedManifestReporter.cs`],
+        defineConstants: ["VBCS_COMPILER_LOGGER"],
         references:[
+            //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+            // IMPORTANT: Do not add any reference to BuildXL dlls here.
+            //            The primary user of VBCSCompiler logger is MSBuild.
+            //            MSBuild relies on BuildXL dlls, but the versions of those dlls can be old or different from
+            //            those this logger depend on. When consuming this logger, MSBuild will load the BuildXL dlls
+            //            that come with its deployment, and not what this logger depends on. This can cause a runtime issue.
+            //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
             ...MSBuild.msbuildReferences,
             importFrom("Microsoft.CodeAnalysis.CSharp").pkg,
             importFrom("Microsoft.CodeAnalysis.VisualBasic").pkg,
             importFrom("Microsoft.CodeAnalysis.Common").pkg,
+            // Roslyn API returns ImmutableArray.
             ...addIf(BuildXLSdk.isFullFramework, importFrom("System.Collections.Immutable").pkg),
-            importFrom("BuildXL.Utilities").Utilities.Core.dll,
-            importFrom("BuildXL.Utilities").Native.dll,
-            importFrom("BuildXL.Engine").Processes.dll,
             NetFx.Netstandard.dll, // due to issue https://github.com/dotnet/standard/issues/542
         ],
         runtimeContent:[
             importFrom("System.Reflection.Metadata.ForVBCS").pkg,
-            importFrom("System.Memory").pkg,
             importFrom("System.Runtime.CompilerServices.Unsafe").pkg,
             importFrom("System.Numerics.Vectors").pkg,
         ],
@@ -47,16 +53,23 @@ namespace VBCSCompilerLogger {
     export const loggerWithOldCodeAnalysis = BuildXLSdk.library({
         assemblyName: "VBCSCompilerLoggerOldCodeAnalysis",
         skipDocumentationGeneration: true,
-        sources: globR(d`.`, "*.cs"),
+        allowUnsafeBlocks: true,
+        sources: [...globR(d`.`, "*.cs"), f`../../Engine/Processes/AugmentedManifestReporter.cs`],
+        defineConstants: ["VBCS_COMPILER_LOGGER", "TEST"],
         references:[
+            //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+            // IMPORTANT: Do not add any reference to BuildXL dlls here.
+            //            The primary user of VBCSCompiler logger is MSBuild.
+            //            MSBuild relies on BuildXL dlls, but the versions of those dlls can be old or different from
+            //            those this logger depend on. When consuming this logger, MSBuild will load the BuildXL dlls
+            //            that come with its deployment, and not what this logger depends on. This can cause a runtime issue.
+            //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
             ...MSBuild.msbuildReferences,
             importFrom("Microsoft.CodeAnalysis.CSharp.Old").pkg,
             importFrom("Microsoft.CodeAnalysis.Common.Old").pkg,
             importFrom("Microsoft.CodeAnalysis.VisualBasic.Old").pkg,
+            // Roslyn API returns ImmutableArray.
             ...addIf(BuildXLSdk.isFullFramework, importFrom("System.Collections.Immutable").pkg),
-            importFrom("BuildXL.Utilities").Utilities.Core.dll,
-            importFrom("BuildXL.Utilities").Native.dll,
-            importFrom("BuildXL.Engine").Processes.dll,
         ],
         runtimeContent:[
             importFrom("System.Reflection.Metadata.ForVBCS").pkg,
@@ -64,7 +77,6 @@ namespace VBCSCompilerLogger {
         runtimeContentToSkip: [
             // Avoid deploying the standard reference in favor of the old one
             importFrom("System.Reflection.Metadata").pkg,
-        ],
-        defineConstants: ["TEST"]
+        ]
     });
 }

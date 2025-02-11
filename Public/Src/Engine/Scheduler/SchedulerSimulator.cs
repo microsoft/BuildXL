@@ -44,7 +44,6 @@ namespace BuildXL.Scheduler
         private readonly ObjectPool<PipInfo[]> m_pipInfoArrayPool;
         private readonly ConcurrentDictionary<PipId, RunnablePipPerformanceInfo> m_runnablePipPerformance;
         private readonly int m_initialAvailableRamMb;
-        private readonly List<int> m_initialReadyPipIndexes = new List<int>();
 
         /// <summary>
         /// Maximum number of workers to be used for simulation
@@ -215,12 +214,11 @@ namespace BuildXL.Scheduler
             await Task.Yield();
 
             var stopwatch = StopwatchSlim.Start();
-            long totalExecuteDurationMs = 0;
 
             try
             {
                 // Initialize the pips
-                await Enumerable.Range(1, m_pips.Length - 1).ParallelForEachAsync((i) =>
+                Parallel.For(1, m_pips.Length, (i) =>
                 {
                     var nodeId = new NodeId((uint)i);
                     var pipId = nodeId.ToPipId();
@@ -233,48 +231,44 @@ namespace BuildXL.Scheduler
 
                     var priority = m_getPipPriorityFunc(pipId);
 
+                    int numIncomingEdges = 0;
+                    if (!m_scheduledGraph.IsSourceNode(nodeId))
+                    {
+                        numIncomingEdges = m_scheduledGraph.CountIncomingHeavyEdges(nodeId);
+                    }
+
                     if (m_pipGraph.PipTable.GetPipType(pipId) == PipType.Process)
                     {
                         RunnablePipPerformanceInfo perfInfo = m_runnablePipPerformance[pipId];
 
-                        bool isCacheHit = perfInfo.CacheLookupPerfInfo.CacheMissType == PipCacheMissType.Hit;
+                        var isCacheHit = perfInfo.CacheLookupPerfInfo.CacheMissType == PipCacheMissType.Hit;
+                        var memoryUsageMb = perfInfo.ActualAverageWorkingSetMb;
 
-                        var cacheLookupDurationMs = getStepDuration(pipId, PipExecutionStep.CacheLookup);
+                        var cacheLookupDurationMs = getStepDuration(perfInfo, PipExecutionStep.CacheLookup);
 
-                        var exeDurationMs = getStepDuration(pipId, PipExecutionStep.ExecuteProcess);
+                        var exeDurationMs = getStepDuration(perfInfo, PipExecutionStep.ExecuteProcess);
                         // Total execute duration after cachelookup includes materialization and postprocess steps as well. 
-                        var executeDurationMs = getStepDuration(pipId, PipExecutionStep.MaterializeInputs) + exeDurationMs + getStepDuration(pipId, PipExecutionStep.PostProcess);
-
-                        totalExecuteDurationMs += exeDurationMs;
+                        var executeDurationMs = getStepDuration(perfInfo, PipExecutionStep.MaterializeInputs) + exeDurationMs + getStepDuration(perfInfo, PipExecutionStep.PostProcess);
 
                         m_pips[i] = new ProcessPipInfo
                         {
                             ExecuteDurationMs = executeDurationMs,
                             CacheLookupDurationMs = cacheLookupDurationMs,
-                            MemoryUsageMb = perfInfo.ActualAverageWorkingSetMb,
-                            NumIncomingEdges = m_scheduledGraph.CountIncomingHeavyEdges(nodeId),
+                            MemoryUsageMb = memoryUsageMb,
+                            IsCacheHit = isCacheHit,
+                            NumIncomingEdges = numIncomingEdges,
                             NodeId = nodeId,
-                            Priority = priority,
-                            IsCacheHit = isCacheHit
+                            Priority = priority
                         };
                     }
                     else
                     {
                         m_pips[i] = new PipInfo
                         {
-                            NumIncomingEdges = m_scheduledGraph.CountIncomingHeavyEdges(nodeId),
+                            NumIncomingEdges = numIncomingEdges,
                             NodeId = nodeId,
                             Priority = priority
                         };
-                    }
-
-                    // Identify and store ready nodes for scheduling
-                    if (m_scheduledGraph.IsSourceNode(nodeId) || m_pips[i].NumIncomingEdges == 0)
-                    {
-                        lock (m_initialReadyPipIndexes)
-                        {
-                            m_initialReadyPipIndexes.Add(i);
-                        }
                     }
                 });
 
@@ -331,6 +325,8 @@ namespace BuildXL.Scheduler
                     .OrderBy(kvp => kvp.Key.Item1.Cpus)
                     .ThenBy(kvp => kvp.Key.Item2);
 
+                long totalExecuteDurationMs = m_pips.Where(a => a != null).OfType<ProcessPipInfo>().Sum(a => a.ExecuteDurationMs);
+
                 // Weight for duration in [0..1]. (0 = only cost matters, 1 = only duration matters)
                 double[] weights = { 0.5, 0.7, 0.8, 0.9 };
 
@@ -381,10 +377,8 @@ namespace BuildXL.Scheduler
                 Tracing.Logger.Log.SchedulerSimulatorFailed(m_loggingContext, ex.ToStringDemystified());
             }
 
-            int getStepDuration(PipId pipId, PipExecutionStep step)
+            int getStepDuration(RunnablePipPerformanceInfo perfInfo, PipExecutionStep step)
             {
-                RunnablePipPerformanceInfo perfInfo = m_runnablePipPerformance[pipId];
-
                 // To get the actual duration of the step, we first check the RemoteStepDurations to avoid including the queue duration for remote pips.
                 var duration = perfInfo.RemoteStepDurations.GetOrDefault(step, TimeSpan.Zero);
                
@@ -443,9 +437,12 @@ namespace BuildXL.Scheduler
                     return a.NodeId.Value.CompareTo(b.NodeId.Value);
                 }));
 
-            foreach (var pipIndex in m_initialReadyPipIndexes)
+            foreach (var pip in pips)
             {
-                readyPips.Add(pips[pipIndex]);
+                if (pip?.NumIncomingEdges == 0)
+                {
+                    readyPips.Add(pip);
+                }
             }
 
             // Global simulation clock in milliseconds.

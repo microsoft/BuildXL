@@ -2015,7 +2015,7 @@ namespace BuildXL.Scheduler.Tracing
              (int)LogEventId.AllowedSameContentDoubleWrite,
              EventGenerators = EventGenerators.LocalOnly,
              EventLevel = Level.Verbose,
-             Keywords = (int)Keywords.UserMessage,
+             Keywords = (int)Keywords.Diagnostics,
              EventTask = (int)Tasks.Scheduler,
              Message =
                  PipDependencyAnalysisPrefix +
@@ -2032,7 +2032,7 @@ namespace BuildXL.Scheduler.Tracing
              (int)LogEventId.AllowedRewriteOnUndeclaredFile,
              EventGenerators = EventGenerators.LocalOnly,
              EventLevel = Level.Verbose,
-             Keywords = (int)Keywords.UserMessage,
+             Keywords = (int)Keywords.Diagnostics,
              EventTask = (int)Tasks.Scheduler,
              Message =
                  "Pip {1} wrote to the undeclared file '{2}'. However, the configured policy allows for it and the rewrite is safe.")]

@@ -153,8 +153,7 @@ namespace BuildXL.Processes
             out string? path,
             out string? enumeratePattern,
             out string? processArgs,
-            out string? errorMessage,
-            bool noRawError = false)
+            out string? errorMessage)
         {
             // TODO: Task 138817: Refactor passing and parsing of report data from native to managed code
 
@@ -176,7 +175,7 @@ namespace BuildXL.Processes
             processArgs = null;
             errorMessage = string.Empty;
 
-            int minItemsCount = !noRawError ? 16 : 15;
+            const int MinItemsCount = 16;
 #if NET5_0_OR_GREATER
             var i = line.IndexOf(':', StringComparison.Ordinal);
 #else
@@ -207,8 +206,7 @@ namespace BuildXL.Processes
                 tryGetNextItem(ref items, out span) && uint.TryParse(span, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var statusValue) &&
                 tryGetNextItem(ref items, out span) && uint.TryParse(span, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var explicitlyReportedValue) &&
                 tryGetNextItem(ref items, out span) && uint.TryParse(span, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out error) &&
-                ((noRawError && setRawError(ref rawError, error)) // If there's no raw error, we set it to the same value as error.
-                 || (tryGetNextItem(ref items, out span) && uint.TryParse(span, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out rawError))) &&
+                tryGetNextItem(ref items, out span) && uint.TryParse(span, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out rawError) &&
                 tryGetNextItem(ref items, out span) && ulong.TryParse(span, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var usnValue) &&
                 tryGetNextItem(ref items, out span) && uint.TryParse(span, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var desiredAccessValue) &&
                 tryGetNextItem(ref items, out span) && uint.TryParse(span, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var shareModeValue) &&
@@ -305,33 +303,27 @@ namespace BuildXL.Processes
             void tryGetErrorMessage(string line, ReportedFileOperation operation, int itemsLength, out string? errorMessage)
             {
                 // Make sure the formatting happens only if the condition is false.
-                if (itemsLength < minItemsCount)
+                if (itemsLength < MinItemsCount)
                 {
                     // When the command line arguments of the process are not reported there will be 12 fields
                     // When command line arguments are included, everything after the 12th field is the command line argument
                     // Command line arguments are only reported when the reported file operation is Process
                     if (operation == ReportedFileOperation.Process)
                     {
-                        errorMessage = I($"Unexpected message items (potentially due to pipe corruption) for {operation.ToString()} operation. Message '{line}'. Expected >= {minItemsCount} items, Received {itemsLength} items");
+                        errorMessage = I($"Unexpected message items (potentially due to pipe corruption) for {operation.ToString()} operation. Message '{line}'. Expected >= {MinItemsCount} items, Received {itemsLength} items");
                     }
                     else
                     {
                         // An ill behaved tool can try to do GetFileAttribute on a file with '|' char. This will result in a failure of the API, but we get a report for the access.
                         // Allow that by handling such case.
                         // In Office build there is a call to GetFileAttribute with a small xml document as a file name.
-                        errorMessage = I($"Unexpected message items (potentially due to pipe corruption) for {operation.ToString()} operation. Message '{line}'. Expected >= {minItemsCount} items, Received {itemsLength} items");
+                        errorMessage = I($"Unexpected message items (potentially due to pipe corruption) for {operation.ToString()} operation. Message '{line}'. Expected >= {MinItemsCount} items, Received {itemsLength} items");
                     }
                 }
                 else
                 {
                     errorMessage = null;
                 }
-            }
-
-            bool setRawError(ref uint rawError, uint value)
-            {
-                rawError = value;
-                return true;
             }
         }
     }

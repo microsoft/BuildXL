@@ -219,7 +219,7 @@ namespace BuildXL.Processes
             FlagsAndAttributes flagsAndAttributes,
             FlagsAndAttributes openedFileOrDirectoryAttributes,
             string absolutePath) =>
-            $"{(int)ReportType.AugmentedFileAccess},{reportedFileOperation}:{processId:x}|{0:x}|{0:x}|{(byte)requestedAccess:x}|{(byte)fileAccessStatus:x}|1|{errorCode:x}|{usn.Value:x}|{(uint)desiredAccess:x}|{(uint)shareMode:x}|{(uint)creationDisposition:x}|{(uint)flagsAndAttributes:x}|{(uint)openedFileOrDirectoryAttributes:x}|{0:x}|{absolutePath}\r\n";
+            $"{(int)ReportType.AugmentedFileAccess},{reportedFileOperation}:{processId:x}|{0:x}|{0:x}|{(byte)requestedAccess:x}|{(byte)fileAccessStatus:x}|1|{errorCode:x}|{errorCode:x}|{usn.Value:x}|{(uint)desiredAccess:x}|{(uint)shareMode:x}|{(uint)creationDisposition:x}|{(uint)flagsAndAttributes:x}|{(uint)openedFileOrDirectoryAttributes:x}|{0:x}|{absolutePath}\r\n";
 
         [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
         [return: MarshalAs(UnmanagedType.Bool)]

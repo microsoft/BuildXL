@@ -138,8 +138,7 @@ namespace Test.BuildXL.Processes
                 out var path,
                 out var enumeratePattern,
                 out var processArgs,
-                out string errorMessage,
-                noRawError: true);
+                out string errorMessage);
             XAssert.IsTrue(ok, errorMessage);
             XAssert.AreEqual(0u, parentProcessId);
             XAssert.AreEqual(0u, id);
@@ -187,8 +186,7 @@ namespace Test.BuildXL.Processes
                 out var path,
                 out var enumeratePattern,
                 out var processArgs,
-                out string errorMessage,
-                noRawError: true);
+                out string errorMessage);
             XAssert.IsTrue(ok, errorMessage);
             XAssert.AreEqual(0u, parentProcessId);
             XAssert.AreEqual(0u, id);

@@ -140,6 +140,19 @@ function qTestPlatformToString(qTestPlatform: QTestPlatform) : string {
             return "Unspecified";
     };
 }
+
+function qtestDotNetCoreRuntimeArchitectureToString(qTestDotNetCoreRuntimeArchitecture: QTestDotnetCoreRuntimeArchitecture) : string {
+    switch (qTestDotNetCoreRuntimeArchitecture) {
+        case QTestDotnetCoreRuntimeArchitecture.x86:
+            return "X86";
+        case QTestDotnetCoreRuntimeArchitecture.x64:
+            return "X64";
+        case QTestDotnetCoreRuntimeArchitecture.unspecified:
+        default:
+            return "Unspecified";
+    };
+}
+
 function qTestDotNetFrameworkToString(qTestDotNetFramework: QTestDotNetFramework) : string {
     switch (qTestDotNetFramework) {
         case QTestDotNetFramework.framework40:
@@ -349,7 +362,7 @@ export function runQTest(args: QTestArguments): Result {
         ),
         Cmd.option(
             "--qtestDotNetCoreRuntimeArchitecture ",
-            qTestPlatformToString(args.qTestPlatform)
+            qtestDotNetCoreRuntimeArchitectureToString(args.qtestDotNetCoreRuntimeArchitecture)
         ),
         Cmd.option(
             "--buildPlatform ",
@@ -611,6 +624,16 @@ export const enum QTestPlatform {
     arm,
 }
 
+@@public
+export const enum QTestDotnetCoreRuntimeArchitecture {
+    @@Tool.option("--qtestDotNetCoreRuntimeArchitecture unspecified")
+    unspecified = 1,
+    @@Tool.option("--qtestDotNetCoreRuntimeArchitecture x86")
+    x86,
+    @@Tool.option("--qtestDotNetCoreRuntimeArchitecture x64")
+    x64,
+}
+
 /**
  * Specifies the Framework version that need to be used to execute tests
  */
@@ -662,6 +685,8 @@ export interface QTestArguments extends Transformer.RunnerArguments {
     qTestAdapterPath?: StaticDirectory;
     /** Platform that need to be used to execute tests */
     qTestPlatform?: QTestPlatform;
+    /** This is an optional macro and can be used only for the QTestType "MsTest_Latest". This macro helps configure the Platform command-line option of dotnet.exe. */
+    qtestDotNetCoreRuntimeArchitecture?: QTestDotnetCoreRuntimeArchitecture;
     /** Framework version that need to be used to execute tests */
     qTestDotNetFramework?: QTestDotNetFramework;
     /** Optional directory where all QTest logs can be written to */

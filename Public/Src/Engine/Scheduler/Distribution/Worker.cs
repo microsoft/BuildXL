@@ -637,8 +637,10 @@ namespace BuildXL.Scheduler.Distribution
 
         private void UpdateMachineSemaphores(int? engineRamMb, int? engineCpuUsage)
         {
-            if (engineRamMb == null || engineRamMb == 0 || engineCpuUsage == null)
+            if (engineRamMb == null || engineRamMb == 0 || engineCpuUsage == null || RamSemaphoreLimitMb == 0)
             {
+                // If there was a problem measuring the engine ram/cpu usage or
+                // measuring the total ram size (e.g., RamSemaphoreLimitMb => 0), do not proceed.
                 return;
             }
 

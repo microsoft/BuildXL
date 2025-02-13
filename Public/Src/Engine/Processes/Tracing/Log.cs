@@ -1206,7 +1206,7 @@ namespace BuildXL.Processes.Tracing
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.PipExecutor,
-            Message = EventConstants.PipPrefix + "Failure during dumping unexpected surviving child processes for Process: '{processName}'. Status: {status}")]
+            Message = EventConstants.PipPrefix + "Dumping unexpected surviving child processes for Process: '{processName}'. Status: {status}")]
         public abstract void DumpSurvivingPipProcessChildrenStatus(LoggingContext context, string processName, string status);
 
         [GeneratedEvent(

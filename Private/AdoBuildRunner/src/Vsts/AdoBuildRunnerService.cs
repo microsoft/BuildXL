@@ -88,7 +88,7 @@ namespace BuildXL.AdoBuildRunner.Vsts
         /// Return the name of the pool where the agent running this build is running on.
         /// Returns the empty string if the pool name can't be resolved (possible due to service failures)
         /// </summary>
-        private Task<string> GetRunningPoolNameAsync()
+        public Task<string> GetRunningPoolNameAsync()
         {
             try
             {
@@ -153,30 +153,9 @@ namespace BuildXL.AdoBuildRunner.Vsts
                             + $"Orchestrator build (id={orchestratorBuildId}): SourceBranch='{orchestratorBuild.SourceBranch}', SourceVersion='{orchestratorBuild.SourceVersion}'");
             }
 
-            // (2) Pools should match, or we log a warning to the console
-            try
-            {
-                var workerPoolName = await GetRunningPoolNameAsync();
-                // The pool name can be empty if we failed to resolve it (in either agent) - we do this best effort
-                if (!string.IsNullOrEmpty(workerPoolName) && !string.IsNullOrEmpty(buildInfo.OrchestratorPool))
-                {
-                    if (workerPoolName != buildInfo.OrchestratorPool)
-                    {
-                        m_logger?.Warning($"This agent is running on pool '{workerPoolName}', which is different than the pool the orchestrator is running on '{buildInfo.OrchestratorPool}'");
-                        m_logger?.Warning($"This mismatch can occur when a backup pool is configured for the pool specified for this pipeline.");
-                        m_logger?.Warning($"The workers will fail to connect to the orchestrator if agents from '{workerPoolName}' and '{buildInfo.OrchestratorPool}' are not on the same network");
-                    }
-                }
-            }
-            catch (Exception)
-#pragma warning disable ERP022 // Unobserved exception in a generic exception handler
-            {
-                // Swallow any errors here, we don't want to fail the build if this check fails
-                // Any error messages should have been logged
-            }
 #pragma warning restore ERP022 // Unobserved exception in a generic exception handler
 
-            // (3) One-to-one correspondence between a jobs in a worker pipeline, and an orchestrator
+            // (2) One-to-one correspondence between a jobs in a worker pipeline, and an orchestrator
             if (AdoEnvironment.JobPositionInPhase != AdoEnvironment.TotalJobsInPhase)
             {
                 // Only do this once per 'parallel group', i.e., only for the last agent in a parallel strategy context

@@ -1,6 +1,7 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.AdoBuildRunner.Vsts;
@@ -36,6 +37,14 @@ namespace BuildXL.AdoBuildRunner
             {
                 // Get the build info from the orchestrator build
                 var buildInfo = await AdoBuildRunnerService.WaitForBuildInfo();
+                if (!(await CheckOrchestratorPoolMatches(buildInfo)))
+                {
+                    // The pools don't match, we can't run the worker
+                    // But we want to exit gracefully (with some warnings that have already logged)
+                    Logger.Info($"Skipping the build: the running pool doesn't match the orchestrator pool.");
+                    return 0;
+                }
+
                 Logger.Info($@"Launching distributed build as worker");
                 returnCode = await ExecuteBuild(
                     ConstructArguments(buildInfo, buildArguments)
@@ -53,6 +62,34 @@ namespace BuildXL.AdoBuildRunner
             }
 
             return returnCode;
+        }
+
+        private async Task<bool> CheckOrchestratorPoolMatches(BuildInfo buildInfo)
+        {
+            // Pools should match, or we fail this task
+            try
+            {
+                var workerPoolName = await AdoBuildRunnerService.GetRunningPoolNameAsync();
+                // The pool name can be empty if we failed to resolve it (in either agent) - we do this best effort
+                if (!string.IsNullOrEmpty(workerPoolName) && !string.IsNullOrEmpty(buildInfo.OrchestratorPool))
+                {
+                    if (workerPoolName != buildInfo.OrchestratorPool)
+                    {
+                        Logger?.Warning($"This agent is running on pool '{workerPoolName}', which is different than the pool the orchestrator is running on '{buildInfo.OrchestratorPool}'");
+                        Logger?.Warning($"This mismatch can occur when a backup pool is configured for the pool specified for this pipeline and the pool is in failover mode.");
+                        return false;
+                    }
+                }
+            }
+            catch (Exception)
+#pragma warning disable ERP022 // Unobserved exception in a generic exception handler
+            {
+                // Swallow any other errors, we don't want to fail the build if this check fails
+                // Any error messages should have been logged
+            }
+#pragma warning restore ERP022 // Unobserved exception in a generic exception handler
+
+            return true;
         }
 
         /// <summary>

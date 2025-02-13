@@ -138,8 +138,10 @@ namespace Test.Tool.AdoBuildRunner
             orchTcs.SetResult();    // And now let orchestrator finish
             var orchReturn = await oBuildTask;
 
-            Assert.True(worker.MockLauncher.Launched);
+            // The build is not started and we exit gracefully, logging a warning
             worker.MockLogger.AssertLogContains("is different than the pool the orchestrator is running on");
+            Assert.Equal(0, workerReturn);
+            Assert.False(worker.MockLauncher.Launched);
         }
 
         [Fact]

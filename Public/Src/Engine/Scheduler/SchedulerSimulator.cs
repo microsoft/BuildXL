@@ -323,6 +323,7 @@ namespace BuildXL.Scheduler
 
                 var orderedResults = simulationResults
                     .OrderBy(kvp => kvp.Key.Item1.Cpus)
+                    .ThenBy(kvp => kvp.Key.Item1.Name)
                     .ThenBy(kvp => kvp.Key.Item2);
 
                 long totalExecuteDurationMs = m_pips.Where(a => a != null).OfType<ProcessPipInfo>().Sum(a => a.ExecuteDurationMs);

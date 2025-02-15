@@ -101,6 +101,8 @@ namespace BuildXL.Utilities.Configuration
             // We assume clean outputs in CloudBuild builds.
             config.Engine.AssumeCleanOutputs = true;
 
+            config.Schedule.SchedulerSimulator = true;
+
             return config;
         }
 
@@ -121,6 +123,7 @@ namespace BuildXL.Utilities.Configuration
             config.Sandbox.RetryOnAzureWatsonExitCode = true;
             config.Server = ServerMode.Disabled;
 
+            config.Schedule.SchedulerSimulator = true;
             config.Schedule.UseHistoricalCpuUsageInfo = false;
             config.Schedule.UseHistoricalRamUsageInfo = true;
             config.Schedule.EnableLessAggressiveMemoryProjection = true;

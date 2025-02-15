@@ -662,9 +662,10 @@ namespace BuildXL.Scheduler.Distribution
 
                 if (m_scheduleConfig.UseHistoricalRamUsageInfo)
                 {
+                    int value = Math.Max(1, engineRamMb.Value);
                     var ramSemaphoreInfo = new ProcessSemaphoreInfo(
                         m_ramSemaphoreNameId,
-                        value: Math.Min(engineRamMb.Value, RamSemaphoreLimitMb),
+                        value: Math.Min(value, RamSemaphoreLimitMb),
                         limit: RamSemaphoreLimitMb);
                     semaphores.Add(ramSemaphoreInfo);
                 }
@@ -891,17 +892,20 @@ namespace BuildXL.Scheduler.Distribution
             {
                 TotalRamMb = currentTotalRamMb;
             }
-            else if (currentTotalRamMb.HasValue && TotalRamMb != currentTotalRamMb)
+            else if (currentTotalRamMb.HasValue && TotalRamMb > currentTotalRamMb)
             {
                 // Dynamic RAM system is detected.
-                // We need to update the total RAM value and the semaphore limit.
+                // We need to update the total RAM value and the semaphore limit only if the ram grows.
                 int addedRamMb = TotalRamMb.Value - currentTotalRamMb.Value;
                 TotalRamMb = currentTotalRamMb;
 
-                // The semaphore for RAM is already created. When we call this method with another limit,
-                // the same semaphore will be updated with the new limit.
-                RamSemaphoreLimitMb += addedRamMb;
-                m_workerSemaphores.CreateOrUpdateSemaphore(m_ramSemaphoreNameId, RamSemaphoreLimitMb);
+                if (RamSemaphoreLimitMb != 0)
+                {
+                    // The semaphore for RAM is already created. When we call this method with another limit,
+                    // the same semaphore will be updated with the new limit.
+                    RamSemaphoreLimitMb += addedRamMb;
+                    m_workerSemaphores.CreateOrUpdateSemaphore(m_ramSemaphoreNameId, RamSemaphoreLimitMb);
+                }
             }
 
             if (!InitialAvailableRamMb.HasValue && machineAvailableRamMb.HasValue)

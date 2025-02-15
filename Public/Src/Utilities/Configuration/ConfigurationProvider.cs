@@ -126,8 +126,6 @@ namespace BuildXL.Utilities.Configuration
             config.Schedule.EnableLessAggressiveMemoryProjection = true;
             config.Schedule.MaximumRamUtilizationPercentage = 98;
             config.Schedule.DeprioritizeOnSemaphoreConstraints = true;
-            config.Schedule.DelayedCacheLookupMinMultiplier = 1;
-            config.Schedule.DelayedCacheLookupMaxMultiplier = 2;
 
             return config;
         }

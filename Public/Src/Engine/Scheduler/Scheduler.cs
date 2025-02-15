@@ -3071,7 +3071,6 @@ namespace BuildXL.Scheduler
             if (m_scheduleConfiguration.DelayedCacheLookupEnabled())
             {
                 int totalSlots = PipQueue.NumTotalProcessSlots;
-                int totalPipsWaitingForCacheLookup = Workers.Where(w => w.IsAvailable).Sum(w => w.AcquiredCacheLookupSlots) - Workers.Where(w => w.IsAvailable).Sum(w => w.TotalCacheLookupSlots);;
                 int minElements = (int)(totalSlots * m_scheduleConfiguration.DelayedCacheLookupMinMultiplier.Value);
                 int maxElements = (int)(totalSlots * m_scheduleConfiguration.DelayedCacheLookupMaxMultiplier.Value);
 
@@ -3085,18 +3084,14 @@ namespace BuildXL.Scheduler
                 // Therefore we can throttle the cache lookup queue while the machine is busy executing pips.
                 // To account for this case, we use the ChooseWorkerCpu queue to determine whether to block the DelayedCacheLookup queue.
 
-                // Another scenario this addresses is when a build graph contains many leaf nodes.
-                // When this occurs, there are no pips executing yet, but there will be many waiting for cache lookup.
-                // If worker machines do not connect fast enough, the scheduler may push all of the cache lookups onto the orchestrator machine only.
-                // To avoid this, we can also block the DelayedCacheLookup queue when the cache lookup queue is at capacity.
-                if (PipQueue.GetNumQueuedByKind(DispatcherKind.ChooseWorkerCpu) > maxElements || totalPipsWaitingForCacheLookup > maxElements)
+                if (PipQueue.GetNumQueuedByKind(DispatcherKind.ChooseWorkerCpu) > maxElements)
                 {
-                    // we have enough pips queued in chooseworkercpu or cachelookup queues, pause adding new pips to the cache lookup queue
+                    // we have enough pips queued in chooseworkercpu queues, pause adding new pips to the cache lookup queue
                     PipQueue.SetMaxParallelDegreeByKind(DispatcherKind.DelayedCacheLookup, 0);
                 }
-                else if (PipQueue.GetNumQueuedByKind(DispatcherKind.ChooseWorkerCpu) <= minElements || totalPipsWaitingForCacheLookup <= minElements)
+                else if (PipQueue.GetNumQueuedByKind(DispatcherKind.ChooseWorkerCpu) <= minElements)
                 {
-                    // not enough pips are in the chooseworkercpu or cachelookup queues, start adding the pips to the cache lookup queue
+                    // not enough pips are in the chooseworkercpu queues, start adding the pips to the cache lookup queue
                     PipQueue.SetMaxParallelDegreeByKind(DispatcherKind.DelayedCacheLookup, 1);
                 }
             }

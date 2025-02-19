@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Collections.Generic;
 using BuildXL.Utilities.Core;
 
 namespace BuildXL.Utilities.Configuration
@@ -49,5 +50,25 @@ namespace BuildXL.Utilities.Configuration
         /// Defaults to false.
         /// </remarks>
         bool? TrackDependenciesWithShrinkwrapDepsFile { get; }
+
+        /// <summary>
+        /// The command passed to the plugin. This includes custom commands that may be defined on a per-repo basis. 
+        /// </summary>
+        /// <remarks>
+        /// See https://rushjs.io/pages/maintainer/custom_commands. 
+        /// Defaults to 'build'.
+        /// Only available when <see cref="GraphConstructionMode"/> is set to 'rush-build-graph'. Enforced by the type checker
+        /// </remarks>
+        string RushCommand { get; }
+
+        /// <summary>
+        /// Additional custom parameters to be passed to the plugin.
+        /// </summary>
+        /// <remarks>
+        /// Check https://rushjs.io/pages/maintainer/custom_commands/.
+        /// Additional parameters can be just flags, e.g. 'production', or name value pairs, e.g. {name: 'locale', value: 'en-us'}
+        /// Only available when <see cref="GraphConstructionMode"/> is set to 'rush-build-graph'. Enforced by the type checker
+        /// </remarks>
+        IReadOnlyList<DiscriminatingUnion<string, IAdditionalNameValueParameter>> AdditionalRushParameters { get; }
     }
 }

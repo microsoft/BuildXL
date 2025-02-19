@@ -2,8 +2,10 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
+using System.Linq;
 using BuildXL.FrontEnd.JavaScript;
 using BuildXL.FrontEnd.Rush.ProjectGraph;
 using BuildXL.FrontEnd.Sdk;
@@ -129,8 +131,37 @@ namespace BuildXL.FrontEnd.Rush
 
             var args = $"\"{nodeExeLocation}\" \"{bxlGraphConstructionToolPath.ToString(Context.PathTable, PathFormat.Script)}\" \"{pathToRushJson}\" " +
                 $"\"{outputFile.ToString(Context.PathTable, PathFormat.Script)}\" \"{toolLocation.ToString(Context.PathTable, PathFormat.Script)}\" \"{m_useRushBuildGraphPlugin}\"";
+
+            if (m_useRushBuildGraphPlugin)
+            {
+                // If not specified, 'build' is the default command
+                // Observe that parameters are always passed (if empty, it will be just an empty quoted string)
+                args += $" \"{ResolverSettings.RushCommand ?? "build"}\" \"{UnfoldAdditionalRushParameters(ResolverSettings.AdditionalRushParameters)}\"";
+
+            }
             
             return JavaScriptUtilities.GetCmdArguments(args);
+        }
+
+        /// <summary>
+        /// Builds a string with additional Rush parameters, formatted as expected by the rush-build-graph-plugin (--param value or --param)
+        /// </summary>
+        private static string UnfoldAdditionalRushParameters(IReadOnlyList<DiscriminatingUnion<string, IAdditionalNameValueParameter>> additionalRushParameters)
+        { 
+            if (additionalRushParameters is null)
+            {
+                return string.Empty;
+            }
+
+            return string.Join(
+                " ", 
+                additionalRushParameters
+                    .Select(union => union.GetValue() is string param ? unfoldParamFlag(param) : unfoldParamValue(union.GetValue() as IAdditionalNameValueParameter))
+                    .Where(s => !string.IsNullOrEmpty(s))
+                );
+
+            static string unfoldParamFlag(string param) => string.IsNullOrEmpty(param) ? string.Empty : $"--{param}";
+            static string unfoldParamValue(IAdditionalNameValueParameter param) => string.IsNullOrEmpty(param.Name) ? string.Empty : $"--{param.Name} {param.Value ?? string.Empty}";
         }
 
         private static bool ShouldUseRushBuildGraphPlugin(IRushResolverSettings resolverSettings)

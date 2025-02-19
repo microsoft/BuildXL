@@ -60,6 +60,20 @@ namespace BuildXL.FrontEnd.Rush
                 return false;
             }
 
+            // Just being defensive here, rush-lib does not support passing a Rush command. This should be enforced by the DScript type checker already.
+            if (rushResolverSettings.RushLibBaseLocation?.IsValid == true && rushResolverSettings.RushCommand != null)
+            {
+                Tracing.Logger.Log.InvalidRushResolverSettings(Context.LoggingContext, Location.FromFile(rushResolverSettings.File.ToString(Context.PathTable)), "Passing rush commands is not available when using rush-lib.");
+                return false;
+            }
+
+            // Just being defensive here, rush-lib does not support passing additional Rush parameters. This should be enforced by the DScript type checker already.
+            if (rushResolverSettings.RushLibBaseLocation?.IsValid == true && rushResolverSettings.AdditionalRushParameters != null)
+            {
+                Tracing.Logger.Log.InvalidRushResolverSettings(Context.LoggingContext, Location.FromFile(rushResolverSettings.File.ToString(Context.PathTable)), "Passing additional parameters is not available when using rush-lib.");
+                return false;
+            }
+
             if (!base.ValidateResolverSettings(rushResolverSettings))
             {
                 return false;

@@ -16,30 +16,32 @@ namespace Test.BuildXL.FrontEnd.Rush.BuildGraphPluginMock
         /// Mocks the build graph plugin generation for Rush.
         /// </summary>
         /// <remarks>
-        /// Expected arguments are: "build --drop-graph [outputGraphFile]". This mimics the CLI of the actual rush tool.
+        /// Expected arguments are: "[rush verb] [rush arguments] --drop-graph [outputGraphFile]". This mimics the CLI of the actual rush tool.
         /// Environment variables control how the graph is produced (environment variables are used as opposed to command line arguments 
-        /// to avoid interferring with the actual arguments).  
+        /// to avoid interfering with the actual arguments).  
         /// RUSH_BUILD_GRAPH_MOCK_NODES can be set to a comma-separated list of nodes to include in the graph.
         /// E.g.
         /// "A -> B -> C, D -> C"
         /// If not set, an empty graph is produced
         /// RUSH_BUILD_GRAPH_MOCK_ROOT can be set to the root of the repo, so that generated paths fall under it. An arbitrary default is used if not set.
+        /// Prints to stderr the actual arguments passed to the rush tool, so they can be verified as a graph construction warning
         /// </remarks>
         public static int Main(string[] args)
         {
             if (args.Length < 3)
             {
-                Console.Error.WriteLine("Expected arguments are: build --drop-graph [outputGraphFile]");
+                Console.Error.WriteLine("Expected arguments are: verb [rush arguments] --drop-graph [outputGraphFile]");
                 return 1;
             }
 
-            if (args[0] != "build" || args[1] != "--drop-graph")
+            int dropGraphArg = Array.IndexOf(args, "--drop-graph");
+            if (dropGraphArg == -1 || args.Length <= dropGraphArg + 1)
             {
-                Console.Error.WriteLine("Expected arguments are: build --drop-graph [outputGraphFile]");
+                Console.Error.WriteLine("Expected arguments are: verb [rush arguments] --drop-graph [outputGraphFile]");
                 return 1;
             }
 
-            var outputFilePath = args[2];
+            var outputFilePath = args[dropGraphArg + 1];
 
             var nodes = Environment.GetEnvironmentVariable("RUSH_BUILD_GRAPH_MOCK_NODES");
             var root = Environment.GetEnvironmentVariable("RUSH_BUILD_GRAPH_MOCK_ROOT");
@@ -47,6 +49,10 @@ namespace Test.BuildXL.FrontEnd.Rush.BuildGraphPluginMock
             string graph = SerializeGraph(root, nodes);
 
             File.WriteAllText(outputFilePath, graph);
+
+            // Print the actual arguments passed to the rush tool to stderr
+            // This will show up as a graph construction warning that can be retrieved from the log listener
+            Console.Error.WriteLine(string.Join(" ", args));
 
             return 0;
         }

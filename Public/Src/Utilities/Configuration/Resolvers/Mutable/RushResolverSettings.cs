@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Collections.Generic;
 using BuildXL.Utilities.Core;
 
 namespace BuildXL.Utilities.Configuration.Mutable
@@ -25,6 +26,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
             RushLocation = resolverSettings.RushLocation;
             TrackDependenciesWithShrinkwrapDepsFile = resolverSettings.TrackDependenciesWithShrinkwrapDepsFile;
             GraphConstructionMode = resolverSettings.GraphConstructionMode;
+            RushCommand = resolverSettings.RushCommand;
+            AdditionalRushParameters = resolverSettings.AdditionalRushParameters;
         }
 
         /// <inheritdoc/>
@@ -38,5 +41,11 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc/>
         public string GraphConstructionMode { get; set; }
+
+        /// <inheritdoc/>
+        public string RushCommand { get; set; }
+
+        /// <inheritdoc/>
+        public IReadOnlyList<DiscriminatingUnion<string, IAdditionalNameValueParameter>> AdditionalRushParameters { get; set; }
     }
 }

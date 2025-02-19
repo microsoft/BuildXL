@@ -121,7 +121,9 @@ namespace Test.BuildXL.FrontEnd.Rush
             string childProcessesToBreakawayFromSandbox = null,
             string timeouts = null,
             string warningRegex = null,
-            string errorRegex = null)
+            string errorRegex = null,
+            string rushCommand = null,
+            string additionalRushParameters = null)
         {
             environment ??= new Dictionary<string, string> { 
                 ["PATH"] = PathToNodeFolder,
@@ -149,7 +151,9 @@ namespace Test.BuildXL.FrontEnd.Rush
                 childProcessesToBreakawayFromSandbox,
                 timeouts,
                 warningRegex,
-                errorRegex);
+                errorRegex,
+                rushCommand,
+                additionalRushParameters);
         }
 
         /// <inheritdoc/>
@@ -174,7 +178,9 @@ namespace Test.BuildXL.FrontEnd.Rush
             string childProcessesToBreakawayFromSandbox = null,
             string timeouts = null,
             string warningRegex = null,
-            string errorRegex = null)
+            string errorRegex = null,
+            string rushCommand = null,
+            string additionalRushParameters = null)
         {
             environment ??= new Dictionary<string, DiscriminatingUnion<string, UnitValue>> { 
                 ["PATH"] = new DiscriminatingUnion<string, UnitValue>(PathToNodeFolder),
@@ -218,7 +224,9 @@ namespace Test.BuildXL.FrontEnd.Rush
                     childProcessesToBreakawayFromSandbox,
                     timeouts,
                     warningRegex,
-                    errorRegex));
+                    errorRegex,
+                    rushCommand,
+                    additionalRushParameters));
         }
 
         protected BuildXLEngineResult RunRushProjects(
@@ -331,7 +339,9 @@ namespace Test.BuildXL.FrontEnd.Rush
             string childProcessesToBreakawayFromSandbox = null,
             string timeouts = null,
             string warningRegex = null,
-            string errorRegex = null) => $@"
+            string errorRegex = null,
+            string rushCommand = null,
+            string additionalRushParameters = null) => $@"
 config({{
     resolvers: [
         {{
@@ -356,6 +366,8 @@ config({{
             {(timeouts != null ? $"timeouts: {timeouts}," : string.Empty)}
             {(warningRegex != null ? $"warningRegex: {warningRegex}," : string.Empty)}
             {(errorRegex != null ? $"errorRegex: {errorRegex}," : string.Empty)}
+            {(rushCommand != null ? $"rushCommand: {rushCommand}," : string.Empty)}
+            {(additionalRushParameters != null ? $"additionalRushParameters: {additionalRushParameters}," : string.Empty)}
         }},
         {(addDScriptResolver? "{kind: 'DScript', modules: [f`module.config.dsc`, f`${Context.getBuildEngineDirectory()}/Sdk/Sdk.Transformers/package.config.dsc`]}" : string.Empty)}
     ],

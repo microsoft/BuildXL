@@ -359,6 +359,19 @@ interface RushBuildGraphPluginResolver extends RushResolverBase, JavaScriptResol
      * If not provided, BuildXL will try to look for a rush installation under PATH.
      */
     rushLocation?: File;
+
+    /**
+     * The command passed to the plugin. This includes custom commands that may be defined on a per-repo basis. 
+     * See https://rushjs.io/pages/maintainer/custom_commands. 
+     * Defaults to 'build'
+     */
+    rushCommand?: string;
+
+    /**
+     * Additional custom parameters to be passed to the plugin. Check https://rushjs.io/pages/maintainer/custom_commands/.
+     * Additional parameters can be just flags, e.g. 'production', or name value pairs, e.g. {name: 'locale', value: 'en-us'}
+     */
+    additionalRushParameters?: [string | {name: string, value: string}]
 }
 
 /**

@@ -27,22 +27,33 @@ export interface RushConfiguration {
 /**
  * Builds a RushGraph from a valid rush configuration file
  */
-export function buildGraph(rushConfigurationFile: string, pathToRushOrRushLib: string, useBuildGraphPlugin: boolean, outputGraphFile: string): RushGraph
+export function buildGraph(
+    rushConfigurationFile: string,
+    pathToRushOrRushLib: string,
+    useBuildGraphPlugin: boolean,
+    outputGraphFile: string,
+    rushCommand: string,
+    rushArguments: string): RushGraph
 {
     if (useBuildGraphPlugin) {
-        return buildRushPluginGraph(rushConfigurationFile, pathToRushOrRushLib, outputGraphFile);
+        return buildRushPluginGraph(rushConfigurationFile, pathToRushOrRushLib, outputGraphFile, rushCommand, rushArguments);
     }
     else {
         return buildRushLibGraph(rushConfigurationFile, pathToRushOrRushLib);
     }
 }
 
-export function buildRushPluginGraph(rushConfigurationFile: string, pathToRush: string, outputGraphFile: string): RushGraph {
+export function buildRushPluginGraph(
+    rushConfigurationFile: string,
+    pathToRush: string,
+    outputGraphFile: string,
+    rushCommand: string,
+    rushArguments: string): RushGraph {
     
     let errorFd = 0;
     try {
         let root = path.dirname(rushConfigurationFile);
-        let script  = `"${pathToRush}" build --drop-graph "${outputGraphFile}"`;
+        let script  = `"${pathToRush}" ${rushCommand} ${rushArguments} --drop-graph "${outputGraphFile}"`;
 
         errorFd = Utilities.getErrorFileDescriptor(outputGraphFile);
 

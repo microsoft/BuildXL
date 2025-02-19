@@ -71,7 +71,34 @@ namespace Test.BuildXL.FrontEnd.Rush
             Assert.True(IsDependencyAndDependent(pipC, pipB2));
         }
 
+        [Theory]
+        [InlineData(null, null, "build")]
+        [InlineData("'test'", null, "test")]
+        [InlineData("'test'", "['production']", "test --production")]
+        [InlineData("'test'", "['production', 'non-production']", "test --production --non-production")]
+        [InlineData("'test'", "[{name: 'locale', value: 'eng'}]", "test --locale eng")]
+        [InlineData("'test'", "['production', {name: 'locale', value: 'eng'}, 'non-production']", "test --production --locale eng --non-production")]
+        public void VerifyPluginArguments(string rushCommand, string additionalArgs, string expectedToolArgs)
+        {
+            BuildXLEngineResult result = SchedulePipsUsingBuildGraphPluginMockWithCommand(rushCommand, additionalArgs);
+
+            Assert.True(result.IsSuccess);
+            
+            var message = EventListener.GetLogMessagesForEventId((int)global::BuildXL.FrontEnd.JavaScript.Tracing.LogEventId.GraphConstructionFinishedSuccessfullyButWithWarnings).Single();
+            Assert.Contains(expectedToolArgs, message);
+        }
+
         private BuildXLEngineResult SchedulePipsUsingBuildGraphPluginMock(params string[] dependencyChains)
+        {
+            return SchedulePipsUsingBuildGraphPluginMockInternal(rushCommand: null, additionalRushParameter: null, dependencyChains);
+        }
+
+        private BuildXLEngineResult SchedulePipsUsingBuildGraphPluginMockWithCommand(string rushCommand, string additionalRushParameter)
+        {
+            return SchedulePipsUsingBuildGraphPluginMockInternal(rushCommand, additionalRushParameter, dependencyChains: []);
+        }
+
+        private BuildXLEngineResult SchedulePipsUsingBuildGraphPluginMockInternal(string rushCommand, string additionalRushParameter, string[] dependencyChains)
         {
             // The graph the mock build graph plugin tool generates can be controlled by setting the RUSH_BUILD_GRAPH_MOCK_NODES environment variable.
             var env = dependencyChains.Length == 0 
@@ -85,7 +112,9 @@ namespace Test.BuildXL.FrontEnd.Rush
             var config = Build(
                     rushLocation: PathToBuildGraphPluginMockTool, 
                     rushBaseLibLocation: null, 
-                    environment:  env)
+                    environment:  env,
+                    rushCommand: rushCommand,
+                    additionalRushParameters: additionalRushParameter)
                 .PersistSpecsAndGetConfiguration();
 
             // We don't actually need a real rush-based repo to run this test since we are mocking the drop graph tool.

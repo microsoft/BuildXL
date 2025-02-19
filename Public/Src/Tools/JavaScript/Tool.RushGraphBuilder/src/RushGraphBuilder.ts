@@ -64,7 +64,7 @@ export function buildRushPluginGraph(rushConfigurationFile: string, pathToRush: 
             commands[node.task] = node.command;
 
             let p: JavaScriptProject = {
-                name: node.package,
+                name: node.id,
                 projectFolder: node.workingDirectory,
                 dependencies: node.dependencies,
                 availableScriptCommands: commands,

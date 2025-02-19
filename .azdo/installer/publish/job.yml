@@ -13,7 +13,7 @@ jobs:
   pool: ${{ parameters.pool }}
   variables:
     buildConfiguration: 'Release'
-    artifactName: '1ES.BuildToolsInstaller.${{ parameters.platform }}.zip'
+    artifactName: '1ES.BuildToolsInstaller.${{ parameters.platform }}.v1.zip'
 
   steps:
   - checkout: self

@@ -38,9 +38,10 @@ namespace BuildToolsInstaller.Tests
             return Task.CompletedTask;
         }
 
+        public ConcurrentDictionary<string, string> Variables = new();
         public void SetVariable(string variableName, string value, bool isReadOnly = true)
         {
-            // No-Op for tests
+            Variables[variableName] = value;
         }
 
         public bool TryGetOrganizationName([NotNullWhen(true)] out string? organizationName)

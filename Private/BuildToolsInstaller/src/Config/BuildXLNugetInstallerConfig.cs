@@ -23,13 +23,9 @@ namespace BuildToolsInstaller.Config
     {
         /// <summary>
         /// A specific version to install
+        /// TODO [maly]: Deprecate this!! It's used by 1JS now so we need to migrate them first
         /// </summary>
         public string? Version { get; set; }
-
-        /// <summary>
-        /// Use this feed to download BuildXL from instead of inferring one from the ADO environment
-        /// </summary>
-        public string? FeedOverride { get; set; }
 
         /// <summary>
         /// If worker mode is true, the installer will poll the build properties to resolve
@@ -50,10 +46,65 @@ namespace BuildToolsInstaller.Config
         public int? WorkerTimeoutMin {  get; set; }
 
         /// <summary>
-        /// Set the endpoint where the global config is downloaded from
-        /// This is here for development purposes, should be removed later
-        /// when the download location stabilizes
+        /// Specific arguments for the BuildXLNugetInstaller are given as a string in the main configuration
+        /// Here, we interpret that string as serializing this object as a semi-colon separated list of key-value pairs
         /// </summary>
-        public string? Internal_GlobalConfigOverride { get; set; }
+        internal static BuildXLNugetInstallerConfig? DeserializeFromString(string extraConfiguration, ILogger logger)
+        {
+            // The configuration should be serialized as a semicolon-separated list of key-value pairs
+            // We compare against the property names in a case insensitive manner
+            var properties = extraConfiguration.Split(';');
+            var config = new BuildXLNugetInstallerConfig();
+            foreach (var property in properties)
+            {
+                if (string.IsNullOrEmpty(property))
+                {
+                    continue;
+                }
+
+                // If it's not a valid key-value pair, ignore
+                var keyValue = property.Split('=');
+                if (keyValue.Length != 2)
+                {
+                    // Ignore
+                    logger.Error(property + " is not a valid argument for BuildXLNugetInstallerConfig");
+                    return null;
+                }
+
+                var key = keyValue[0].Trim().ToLower();
+                var value = keyValue[1].Trim();
+                switch (key)
+                {
+                    case "version":
+                        config.Version = value;
+                        break;
+                    case "distributedrole":
+                        if (!Enum.TryParse(value, true, out DistributedRole role))
+                        {
+                            logger.Error($"Unknown {nameof(DistributedRole)}: " + key + " deserializing BuildXLNugetInstallerConfig");
+                            return null;
+                        }
+                        config.DistributedRole = role;
+                        break;
+                    case "invocationkey":
+                        config.InvocationKey = value;
+                        break;
+                    case "workertimeoutmin":
+                        if (!int.TryParse(value, out int timeout))
+                        {
+                            logger.Error($"Invalid value for {nameof(WorkerTimeoutMin)}: " + key + ".");
+                            return null;
+                        }
+                        config.WorkerTimeoutMin = timeout;
+                        break;
+                    default:
+                        // Ignore
+                        logger.Error("Encountered unknown property " + key + " while deserializing BuildXLNugetInstallerConfig");
+                        return null;
+                }
+            }
+
+            return config;
+        }
     }
 }

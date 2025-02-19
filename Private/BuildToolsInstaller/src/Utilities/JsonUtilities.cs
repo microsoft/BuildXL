@@ -17,7 +17,8 @@ namespace BuildToolsInstaller.Utilities
         private static readonly TimeSpan s_delayBetweenRetries = TimeSpan.FromSeconds(2);
         internal static readonly JsonSerializerOptions DefaultSerializerOptions = new()
         {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            // TODO [maly] - Need this while transitioning to CamelCase
+            PropertyNameCaseInsensitive = true,
         };
 
         /// <summary>
@@ -34,7 +35,7 @@ namespace BuildToolsInstaller.Utilities
 
             try
             {
-                string downloadPath = Path.Combine(downloadLocation.FullName, "config.json");
+                string downloadPath = Path.Combine(downloadLocation.FullName, "rings.json");
                 Response downloadResult = await client.DownloadToAsync(downloadPath, token);
 
                 if (downloadResult.IsError)

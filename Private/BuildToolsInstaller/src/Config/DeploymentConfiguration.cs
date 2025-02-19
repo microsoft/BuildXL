@@ -18,45 +18,19 @@ namespace BuildToolsInstaller.Config
     public class RingDefinition
     {
         /// <summary>
-        /// The identifier for the ring
-        /// </summary>
-        public required string Name { get; init; }
-        
-        /// <summary>
         /// An optional description
         /// </summary>
         public string? Description { get; init; }
 
         /// <summary>
-        /// Tools available for this ring
+        /// The version of the tool that is deployed in this ring
         /// </summary>
-        public required IReadOnlyDictionary<BuildTool, ToolDeployment> Tools { get; init; }
-    }
-
-    /// <summary>
-    /// An override to the default version of a tool that would be resolved for a build based on its selected ring
-    /// </summary>
-    public class DeploymentOverride
-    {
-        /// <summary>
-        /// Optional comment describing the override
-        /// </summary>
-        public string? Comment { get; init; }
+        public required string Version { get; init; }
 
         /// <summary>
-        /// The exception is applied to builds running under the repository with this name
+        /// When true, the tool will be installed even if it is already present in the cache
         /// </summary>
-        public required string Repository { get; init; }
-
-        /// <summary>
-        /// If this is defined, the exception applies only to the specified pipelines
-        /// </summary>
-        public IReadOnlyList<int>? PipelineIds { get; init; }
-
-        /// <summary>
-        /// The overrides for this exception
-        /// </summary>
-        public required IReadOnlyDictionary<BuildTool, ToolDeployment> Tools { get; init; }
+        public bool IgnoreCache { get; init; }
     }
 
     /// <summary>
@@ -64,10 +38,14 @@ namespace BuildToolsInstaller.Config
     /// </summary>
     public class DeploymentConfiguration
     {
-        /// <nodoc />
-        public required IReadOnlyList<RingDefinition> Rings { get; init; }
+        /// <summary>
+        /// A mapping of ring names to their RingDefinitions
+        /// </summary>
+        public required IReadOnlyDictionary<string, RingDefinition> Rings { get; init; }
 
-        /// <nodoc />
-        public IReadOnlyList<DeploymentOverride>? Overrides { get; init; }
+        /// <summary>
+        /// A name of a ring to fall back if the version descriptor is not specified
+        /// </summary>
+        public required string Default { get; init; }
     }
 }

@@ -9,13 +9,11 @@ namespace BuildToolsInstaller
     internal interface IToolInstaller
     {
         /// <summary>
-        /// Install to the given directory
+        /// Install a tool based on the given <see cref="InstallationArguments"/>
         /// </summary>
-        public Task<bool> InstallAsync(string selectedVersion, BuildToolsInstallerArgs args);
+        public Task<bool> InstallAsync(InstallationArguments args);
 
-        /// <summary>
-        /// The name of the default ring for this tool
-        /// </summary>
-        public string DefaultRing { get; }
+        // TODO [maly]: Deprecate this! This is used only in the non-parallel install case, where callers don't provide the output variable
+        public string DefaultToolLocationVariable { get; }
     }
 }

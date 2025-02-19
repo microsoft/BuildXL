@@ -8,7 +8,26 @@ using NuGet.Common;
 
 namespace BuildToolsInstaller
 {
-    public record struct BuildToolsInstallerArgs(BuildTool Tool, string? Ring, string ToolsDirectory, string? ConfigFilePath, bool ForceInstallation);
+    /// <summary>
+    /// Collects the arguments given to the executable
+    /// </summary>
+    public record struct InstallerArgs(string ToolsDirectory, string ToolsConfigFile, string? FeedOverride);
+
+    /// <summary>
+    /// Arguments for 'single-tool' mode, which is in use by some customers but in road to deprecation
+    /// </summary>
+    public record struct SingleToolInstallerArgs(BuildTool Tool, string? VersionDescriptor, string ToolsDirectory, string? ConfigFilePath, bool IgnoreCache, string? FeedOverride);
+
+    /// <summary>
+    /// Common arguments given to the specific installers
+    /// </summary>
+    /// <param name="VersionDescriptor">A string that implies a particular version of the tool: this can be a literal version or a ring name</param>
+    /// <param name="OutputVariable">The name of the variable that will hold the installation location for this tool</param>
+    /// <param name="ExtraConfiguration">A string containing an arbitrary payload to the installer</param>
+    /// <param name="ToolsDirectory">Where to download the tool</param>
+    /// <param name="IgnoreCache">If true, any cached version is ignored and the tool is installed fresh</param>
+    /// <param name="FeedOverride">Get packages from this feed instead of the default one</param>
+    public record struct InstallationArguments(string? VersionDescriptor, string OutputVariable, string? ExtraConfiguration, string ToolsDirectory, bool IgnoreCache, string? FeedOverride);
 
     /// <summary>
     /// Entrypoint for the installation logic
@@ -17,42 +36,90 @@ namespace BuildToolsInstaller
     {
         private const int SuccessExitCode = 0;
         private const int FailureExitCode = 1;
-
+        
         /// <summary>
         /// Pick an installer based on the arguments and run it
         /// </summary>
-        public static async Task<int> Run(BuildToolsInstallerArgs arguments)
+        public static async Task<int> Run(SingleToolInstallerArgs arguments)
         {
             // This tool is primarily run on ADO, but could be also run locally, so we switch on IsEnabled when
             // we want to do ADO-specific operations.
             var adoService = AdoService.Instance;
             ILogger logger = adoService.IsEnabled ? new AdoConsoleLogger() : new ConsoleLogger();
 
-            const string ConfigurationWellKnownUri = "https://bxlscripts.z20.web.core.windows.net/config/DeploymentConfig_V0.json";
-            var deploymentConfiguration = await JsonUtilities.DeserializeFromHttpAsync<DeploymentConfiguration>(new Uri(ConfigurationWellKnownUri), logger, default);
-            if (deploymentConfiguration == null)
+            string configurationDirectory;
+            try
+            {
+                configurationDirectory = await ConfigurationDownloader.DownloadConfigurationAsync(logger);
+            }
+            catch (Exception e)
+            {
+                logger.Error($"Failed to download configuration: {e.Message}");
+                return FailureExitCode;
+            }
+
+            IToolInstaller installer = SelectInstaller(arguments.Tool, configurationDirectory, adoService, logger);            
+            return await installer.InstallAsync(new InstallationArguments()
+            {
+                VersionDescriptor = arguments.VersionDescriptor,
+                OutputVariable = installer.DefaultToolLocationVariable,
+                ExtraConfiguration = arguments.ConfigFilePath,
+                ToolsDirectory = arguments.ToolsDirectory,
+                IgnoreCache = arguments.IgnoreCache,
+                FeedOverride = arguments.FeedOverride
+            }) ? SuccessExitCode : FailureExitCode;
+        }
+
+        private static IToolInstaller SelectInstaller(BuildTool tool, string configDirectory, AdoService adoService, ILogger logger)
+        {
+            return tool switch
+            {
+                BuildTool.BuildXL => new BuildXLNugetInstaller(new NugetDownloader(), configDirectory, adoService, logger),
+
+                // Shouldn't happen - the argument comes from a TryParse that should have failed earlier
+                _ => throw new NotImplementedException($"No tool installer for tool {tool}"),
+            };
+        }
+
+        internal static async Task<int> Run(InstallerArgs installerArgs)
+        {
+            // Deserialize the configuration file from the parameter to a ToolsToInstall object, then install in parallel
+            var adoService = AdoService.Instance;
+            ILogger logger = adoService.IsEnabled ? new AdoConsoleLogger() : new ConsoleLogger();
+            var toolsToInstall = await JsonUtilities.DeserializeAsync<ToolsToInstall>(installerArgs.ToolsConfigFile, logger, default);
+            if (toolsToInstall == null)
             {
                 // Error should have been logged.
                 return FailureExitCode;
             }
 
-            IToolInstaller installer = arguments.Tool switch
+            string configurationDirectory;
+            try
             {
-                BuildTool.BuildXL => new BuildXLNugetInstaller(new NugetDownloader(), adoService, logger),
-
-                // Shouldn't happen - the argument comes from a TryParse that should have failed earlier
-                _ => throw new NotImplementedException($"No tool installer for tool {arguments.Tool}"),
-            };
-
-            var selectedRing = arguments.Ring ?? installer.DefaultRing;
-            var resolvedVersion = ConfigurationUtilities.ResolveVersion(deploymentConfiguration, selectedRing, arguments.Tool, adoService, logger);
-            if (resolvedVersion == null)
+                configurationDirectory = await ConfigurationDownloader.DownloadConfigurationAsync(logger);
+            }
+            catch (Exception e)
             {
-                logger.Error("Failed to resolve version to install. Installation has failed.");
+                logger.Error($"Failed to download configuration: {e.Message}");
                 return FailureExitCode;
             }
-            
-            return await installer.InstallAsync(resolvedVersion, arguments) ? SuccessExitCode : FailureExitCode;
+
+            var tasks = toolsToInstall.Tools.Select(async tool =>
+            {
+                var installer = SelectInstaller(tool.Tool, configurationDirectory,  adoService, logger);
+                return await installer.InstallAsync(new InstallationArguments()
+                {
+                    VersionDescriptor = tool.Version,
+                    OutputVariable = tool.OutputVariable,
+                    ExtraConfiguration = tool.AdditionalConfiguration,
+                    ToolsDirectory = installerArgs.ToolsDirectory,
+                    IgnoreCache = tool.IgnoreCache,
+                    FeedOverride = installerArgs.FeedOverride
+                });
+            });
+
+            var results = await Task.WhenAll(tasks);
+            return results.All(r => r) ? SuccessExitCode : FailureExitCode;
         }
     }
 }

@@ -7,7 +7,7 @@ using Xunit;
 
 namespace BuildToolsInstaller.Tests
 {
-    public class AdoUtilitiesTest
+    public class AdoUtilitiesTest : TestBase
     {
         [Fact]
         public void AdoEnvironmentTest()
@@ -16,7 +16,7 @@ namespace BuildToolsInstaller.Tests
             using var modifyEnvironment = new TemporaryTestEnvironment();
 
             // If we're not in ADO, this will simulate that we are
-            var toolsDirectory = Path.Combine(Path.GetTempPath(), "Test");
+            var toolsDirectory = GetTempPathForTest();
             modifyEnvironment.Set("AGENT_TOOLSDIRECTORY", toolsDirectory);
             modifyEnvironment.Set("SYSTEM_COLLECTIONURI", "https://mseng.visualstudio.com/");
             modifyEnvironment.Set("TF_BUILD", "True");

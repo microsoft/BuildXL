@@ -11,65 +11,71 @@ using Xunit;
 
 namespace BuildToolsInstaller.Tests
 {
-    public class DeploymentConfigurationTests
+    public class DeploymentConfigurationTests : TestBase
     {
-        private const string TestConfiguration = @"
+        private const string TestOverrideConfig = @"
 {
-    ""rings"": [
-        {
-            ""name"": ""Dogfood"",
-            ""description"": ""Dogfood ring"",
-            ""tools"": {
-                ""BuildXL"": { ""version"": ""0.1.0-20250101.1"" }
-            }
-        },
-        {
-            ""name"": ""GeneralPublic"",
-            ""tools"": {
-                ""BuildXL"": { ""version"": ""0.1.0-20241025.4"" }
-            }
-        }
-    ],
-
-    ""overrides"":
+""Overrides"":
     [ 
         {
-            ""comment"": ""description of the pin"",
-            ""repository"": ""1JS"",
-            ""tools"": {
-                ""BuildXL"": { ""version"": ""0.1.0-20240801.1"" }
+            ""Comment"": ""description of the pin"",
+            ""Repository"": ""1JS"",
+            ""Tools"": {
+                ""BuildXL"": { ""Version"": ""0.1.0-20240801.1"" }
             }
         },
         {
-            ""repository"": ""BuildXL.Internal"",
-            ""pipelineIds"": [10101, 1010],
-            ""tools"": {
-                ""BuildXL"": { ""version"": ""0.1.0-20240801.1"" }
+            ""Repository"": ""BuildXL.Internal"",
+            ""PipelineIds"": [10101, 1010],
+            ""Tools"": {
+                ""BuildXL"": { ""Version"": ""0.1.0-20240801.1"" }
             }
         }
     ]
 }
 ";
 
+private const string TestConfiguration = @"
+{
+    ""Rings"": {
+        ""Dogfood"": 
+        {
+             ""Version"": ""0.1.0-20250101.1"",
+             ""Description"": ""Dogfood ring""
+        },
+        ""GeneralPublic"": 
+        {
+            ""Version"": ""0.1.0-20250101.2""
+        }
+    },
+    ""Default"": ""Dogfood""
+}
+";
+
+        [Fact]
+        public void DeserializationTestOverrides()
+        {
+            var deserializedOverrides = JsonSerializer.Deserialize<OverrideConfiguration>(TestOverrideConfig, JsonUtilities.DefaultSerializerOptions);
+            Assert.NotNull(deserializedOverrides);
+            Assert.Equal(2, deserializedOverrides.Overrides.Count);
+            Assert.Equal("description of the pin", deserializedOverrides.Overrides[0].Comment);
+            Assert.Equal("1JS", deserializedOverrides.Overrides[0].Repository);
+            Assert.Contains(BuildTool.BuildXL, deserializedOverrides.Overrides[0].Tools.Keys);
+            Assert.Equal("0.1.0-20240801.1", deserializedOverrides.Overrides[0].Tools[BuildTool.BuildXL].Version);
+            Assert.NotNull(deserializedOverrides.Overrides[1].PipelineIds);
+            Assert.Equal(2, deserializedOverrides.Overrides[1].PipelineIds!.Count);
+        }
+
         [Fact]
         public void DeserializationTest()
         {
             var deserialized = JsonSerializer.Deserialize<DeploymentConfiguration>(TestConfiguration, JsonUtilities.DefaultSerializerOptions);
             Assert.NotNull(deserialized);
-            Assert.NotNull(deserialized.Overrides);
             Assert.NotNull(deserialized.Rings);
-            Assert.Equal(2, deserialized.Overrides.Count);
             Assert.Equal(2, deserialized.Rings.Count);
-            Assert.Equal("Dogfood", deserialized.Rings[0].Name);
-            Assert.Equal("Dogfood ring", deserialized.Rings[0].Description);
-            Assert.Contains(BuildTool.BuildXL, deserialized.Rings[0].Tools.Keys);
-            Assert.Equal("0.1.0-20250101.1", deserialized.Rings[0].Tools[BuildTool.BuildXL].Version);
-            Assert.Equal("description of the pin", deserialized.Overrides[0].Comment);
-            Assert.Equal("1JS", deserialized.Overrides[0].Repository);
-            Assert.Contains(BuildTool.BuildXL, deserialized.Overrides[0].Tools.Keys);
-            Assert.Equal("0.1.0-20240801.1", deserialized.Overrides[0].Tools[BuildTool.BuildXL].Version);
-            Assert.NotNull(deserialized.Overrides[1].PipelineIds);
-            Assert.Equal(2, deserialized.Overrides[1].PipelineIds!.Count);
+            Assert.True(deserialized.Rings.ContainsKey("Dogfood"));
+            Assert.Equal("Dogfood ring", deserialized.Rings["Dogfood"].Description);
+            Assert.Equal("0.1.0-20250101.1", deserialized.Rings["Dogfood"].Version);
         }
 
         [Fact]
@@ -77,26 +83,20 @@ namespace BuildToolsInstaller.Tests
         {
             var config = new DeploymentConfiguration()
             {
-                Rings = [
-                    new RingDefinition() {
-                        Name = "A",
-                        Tools = new ReadOnlyDictionary<BuildTool, ToolDeployment>(new Dictionary<BuildTool, ToolDeployment> () {
-                            { BuildTool.BuildXL, new ToolDeployment() { Version = "VersionA" }  }
-                        })
-                    },
-                    new RingDefinition() {
-                        Name = "B",
-                        Tools = new ReadOnlyDictionary<BuildTool, ToolDeployment>(new Dictionary<BuildTool, ToolDeployment> () {
-                            { BuildTool.BuildXL, new ToolDeployment() { Version = "VersionB" }  }
-                        })
-                    }
-                ]
+                Rings = 
+                new Dictionary<string, RingDefinition>() {
+                    { "A", new RingDefinition() { Version = "VersionA", IgnoreCache = true } },
+                    { "B", new RingDefinition() { Version = "VersionB" } },
+                },
+                Default = "A"
             };
 
             var mockAdoService = new MockAdoService() { ToolsDirectory = Path.GetTempPath() };
-            Assert.Equal("VersionA", ConfigurationUtilities.ResolveVersion(config, "A", BuildTool.BuildXL, mockAdoService, new TestLogger()));
-            Assert.Equal("VersionB", ConfigurationUtilities.ResolveVersion(config, "B", BuildTool.BuildXL, mockAdoService, new TestLogger()));
-            Assert.Null(ConfigurationUtilities.ResolveVersion(config, "C", BuildTool.BuildXL, mockAdoService, new TestLogger()));
+            Assert.Equal("VersionA", ConfigurationUtilities.ResolveVersion(config, "A", out var ignoreA, mockAdoService, new TestLogger()));
+            Assert.True(ignoreA);
+            Assert.Equal("VersionB", ConfigurationUtilities.ResolveVersion(config, "B", out var ignoreB, mockAdoService, new TestLogger()));
+            Assert.False(ignoreB);
+            Assert.Null(ConfigurationUtilities.ResolveVersion(config, "C", out _, mockAdoService, new TestLogger()));
         }
 
         [Theory]
@@ -108,17 +108,8 @@ namespace BuildToolsInstaller.Tests
         {
             var pinnedRepo = "PinnedRepo";
             var pinnedPipeline = 1001;
-
-            var config = new DeploymentConfiguration()
+            var overrideConfig = new OverrideConfiguration()
             {
-                Rings = [
-                    new RingDefinition() {
-                        Name = "A",
-                        Tools = new ReadOnlyDictionary<BuildTool, ToolDeployment>(new Dictionary<BuildTool, ToolDeployment> () {
-                            { BuildTool.BuildXL, new ToolDeployment() { Version = "VersionA" }  }
-                        })
-                    }
-                ],
                 Overrides = [
                     new DeploymentOverride() {
                         Repository = pinByRepo ? pinnedRepo : "not_ " + pinnedRepo,
@@ -132,13 +123,16 @@ namespace BuildToolsInstaller.Tests
 
             var mockAdoService = new MockAdoService()
             {
-                ToolsDirectory = Path.GetTempPath(),
+                ToolsDirectory = GetTempPathForTest(),
                 RepositoryName = pinnedRepo,
                 PipelineId = pinnedPipeline
             };
 
-            var expected = pinByRepo ? "PinnedVersion" : "VersionA";
-            Assert.Equal(expected, ConfigurationUtilities.ResolveVersion(config, "A", BuildTool.BuildXL, mockAdoService, new TestLogger()));
+            Assert.Equal(pinByRepo, ConfigurationUtilities.TryGetOverride(overrideConfig, BuildTool.BuildXL, mockAdoService, out var overridden, new TestLogger()));
+            if (pinByRepo)
+            {
+                Assert.Equal("PinnedVersion", overridden);
+            }
         }
     }
 }

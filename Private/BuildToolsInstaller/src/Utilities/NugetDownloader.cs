@@ -57,7 +57,7 @@ namespace BuildToolsInstaller.Utilities
                     await PackageExtractor.ExtractPackageAsync(
                         sourceRepository.PackageSource.Source,
                         packageStream,
-                        new PackagePathResolver(downloadLocation),
+                        new LiteralPathPackagePathResolver(downloadLocation),
                         new PackageExtractionContext(
                             PackageSaveMode.Files,
                             XmlDocFileSaveMode.None,

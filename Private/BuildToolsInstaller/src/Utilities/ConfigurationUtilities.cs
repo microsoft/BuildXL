@@ -8,32 +8,31 @@ namespace BuildToolsInstaller.Utilities
 {
     internal class ConfigurationUtilities
     {
-        public static string? ResolveVersion(DeploymentConfiguration deploymentConfiguration, string ring, BuildTool tool, IAdoService adoService, ILogger logger)
+        /// <summary>
+        /// Resolves a version descriptor to a literal version given in a <see cref="DeploymentConfiguration"/>
+        /// </summary>
+        public static string? ResolveVersion(DeploymentConfiguration deploymentConfiguration, string? versionDescriptor, out bool ignoreCache, IAdoService adoService, ILogger logger)
         {
-            // 1. Check overrides
-            if (TryGetFromOverride(deploymentConfiguration, tool, adoService, out var resolvedVersion, logger))
-            {
-                return resolvedVersion;
-            }
+            // Default the descriptor to the one in the configuration
+            versionDescriptor ??= deploymentConfiguration.Default;
+            ignoreCache = false;
 
-            // 2. Resolve from ring
-            var selectedRing = deploymentConfiguration.Rings.FirstOrDefault(r => r.Name == ring);
-            if (selectedRing == null)
+            //  Resolve from ring
+            if (!deploymentConfiguration.Rings.ContainsKey(versionDescriptor))
             {
-                logger.Error($"Could not find configuration for ring {ring}. Available rings are: [{string.Join(", ", deploymentConfiguration.Rings.Select(r => r.Name))}]");
+                logger.Info($"Could not find configuration for ring {versionDescriptor}. Available rings are: [{string.Join(", ", deploymentConfiguration.Rings.Keys)}]");
                 return null;
             }
 
-            if(!selectedRing.Tools.TryGetValue(tool, out var resolved))
-            {
-                logger.Error($"Could not find configuration for tool {tool} in ring {ring}.");
-                return null;
-            }
-
-            return resolved.Version;
+            ignoreCache = deploymentConfiguration.Rings[versionDescriptor].IgnoreCache;
+            return deploymentConfiguration.Rings[versionDescriptor].Version;
         }
 
-        private static bool TryGetFromOverride(DeploymentConfiguration deploymentConfiguration, BuildTool tool, IAdoService adoService, [NotNullWhen(true)] out string? resolvedVersion, ILogger logger)
+        /// <summary>
+        /// Tries to resolve the version from the overrides given an <see cref="OverrideConfiguration"/>
+        /// Return false if no override matches the current build 
+        /// </summary>
+        public static bool TryGetOverride(OverrideConfiguration deploymentConfiguration, BuildTool tool, IAdoService adoService, [NotNullWhen(true)] out string? resolvedVersion, ILogger logger)
         {
             resolvedVersion = null;
             if (!adoService.IsEnabled || deploymentConfiguration.Overrides is null || deploymentConfiguration.Overrides.Count == 0)

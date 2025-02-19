@@ -13,7 +13,7 @@ namespace BuildToolsInstaller
         /// <nodoc />
         public static async Task<int> Main(string[] arguments)
         {
-            if (Environment.GetEnvironmentVariable("BuildToolsDownloaderDebugOnStart") == "1")
+            if (Environment.GetEnvironmentVariable("BuildToolsInstallerDebugOnStart") == "1")
             {
                 System.Diagnostics.Debugger.Launch();
             }
@@ -34,11 +34,15 @@ namespace BuildToolsInstaller
                 name: "--toolsDirectory",
                 description: "The location where packages should be downloaded. Defaults to AGENT_TOOLSDIRECTORY if defined, or the working directory if not");
 
-            var forceOption = new Option<bool>(
-                name: "--force",
+            var feedOverrideOption = new Option<string?>(
+                name: "--feedOverride",
+                description: "Uses this Nuget feed as the default upstream");
+
+            var ignoreCacheOption = new Option<bool>(
+                name: "--ignoreCache",
                 description: "Forces download and installation (prevents tool caching being applied)");
 
-            var configOption = new Option<string?>(
+            var toolConfigOption = new Option<string?>(
                  name: "--config",
                  description: "Specific tool installer configuration file.",
                  parseArgument: result =>
@@ -62,44 +66,76 @@ namespace BuildToolsInstaller
             rootCommand.AddOption(toolOption);
             rootCommand.AddOption(ringOption);
             rootCommand.AddOption(toolsDirectoryOption);
-            rootCommand.AddOption(configOption);
-            rootCommand.AddOption(forceOption);
+            rootCommand.AddOption(toolConfigOption);
+            rootCommand.AddOption(ignoreCacheOption);
 
             int returnCode = ProgramNotRunExitCode; // Make the compiler happy, we should assign every time
-            rootCommand.SetHandler(async (tool, ring, toolsDirectory, configFile, forceInstallation) =>
+            rootCommand.SetHandler(async (tool, ring, toolsDirectory, configFile, ignoreCache) =>
             {
                 toolsDirectory ??= AdoService.Instance.IsEnabled ? AdoService.Instance.ToolsDirectory : ".";
-                returnCode = await BuildToolsInstaller.Run(new BuildToolsInstallerArgs()
+                returnCode = await BuildToolsInstaller.Run(new SingleToolInstallerArgs()
                 {
                     Tool = tool,
-                    Ring = ring,
+                    VersionDescriptor = ring,
                     ToolsDirectory = toolsDirectory,
                     ConfigFilePath = configFile,
-                    ForceInstallation = forceInstallation
+                    IgnoreCache = ignoreCache
                 });
             },
                 toolOption,
                 ringOption,
                 toolsDirectoryOption,
-                configOption,
-                forceOption
+                toolConfigOption,
+                ignoreCacheOption
             );
 
-            // Configure config cop subcommand
-            var configCopSubCommand = new Command("configcop", "Configuration validation");
-            var pathOption = new Option<string>(
-                name: "--path",
-                description: "The path to the configuration to validate.")
-                { IsRequired = true };
+            // Configure parallel download subcommand
+            // TODO [maly]: This should probably be the default and 'single tool' a subcommand
+            // but I'll do this while we transition
+            var installSubCommand = new Command("install", "Install a set of tools given by a configuration file, in parallel");
 
-            configCopSubCommand.AddOption(pathOption);
-            configCopSubCommand.SetHandler<string>(async path => 
+            var configOption = new Option<string>(
+                name: "--config",
+                description: "Path to the JSON file listing the tools to install.",
+                parseArgument: result =>
+                {
+                    if (result.Tokens.Count() != 1)
+                    {
+                        result.ErrorMessage = "--config should be specified once";
+                        return null!;
+                    }
+
+                    var filePath = result.Tokens.Single().Value;
+                    if (!File.Exists(filePath))
+                    {
+                        result.ErrorMessage = $"The specified file path '{filePath}' does not exist";
+                        return string.Empty;
+                    }
+
+                    return filePath;
+                })
+            { IsRequired = true };
+
+            installSubCommand.AddOption(configOption);
+            installSubCommand.AddOption(toolsDirectoryOption);
+            installSubCommand.AddOption(feedOverrideOption);
+
+            installSubCommand.SetHandler(async (toolsDirectory, toolsConfig, feedOverride) =>
             {
-                returnCode = await ConfigCop.ValidateConfiguration(path); 
-            }, pathOption);
+                toolsDirectory ??= AdoService.Instance.IsEnabled ? AdoService.Instance.ToolsDirectory : "1es-tools";
 
+                returnCode = await BuildToolsInstaller.Run(new InstallerArgs()
+                {
+                    ToolsConfigFile = toolsConfig,
+                    ToolsDirectory = toolsDirectory,
+                    FeedOverride = feedOverride
+                });
+            },
+            toolsDirectoryOption,
+            configOption,
+            feedOverrideOption);
 
-            rootCommand.AddCommand(configCopSubCommand);
+            rootCommand.AddCommand(installSubCommand);
 
             await rootCommand.InvokeAsync(arguments);
             return returnCode;

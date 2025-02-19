@@ -10,8 +10,8 @@ parameters:
 jobs:
 # Basic test: build, test, and run the installer with the default settings (it should use the global configuration)
 # Then run bxl /help from the install location 
-- job: basic_${{ replace(parameters.platform, '-', '_') }}
-  displayName: "[${{ parameters.platform }}] Basic integration test: install and run BuildXL"
+- job: basic_v1_${{ replace(parameters.platform, '-', '_') }}
+  displayName: "[${{ parameters.platform }}] Basic integration test: install and run BuildXL (v1)"
   pool: ${{ parameters.pool }}
   variables:
     buildConfiguration: 'Release'
@@ -44,7 +44,15 @@ jobs:
     inputs:
       targetType: 'inline'
       script: |
-        $config = @{}
+        $config = @{
+          'tools' = @(
+            @{
+              'tool' = 'BuildXL'
+              'outputVariable' = 'BXL_LOCATION'
+            }
+          )
+        }
+
         $configPath = Join-Path $(Agent.TempDirectory) "buildToolInstallerConfig.json"
         $config | ConvertTo-Json | Set-Content -Path $configPath
         Get-Content -Path $configPath
@@ -57,9 +65,8 @@ jobs:
 
         $executablePath = Join-Path -Path $(Build.SourcesDirectory) -ChildPath "Private/BuildToolsInstaller/src/bin/$(buildConfiguration)/$executableName"
 
-        # Run the installer in orchestrator mode and output to "Orch"
         $toolsDirectory = Join-Path $(Agent.TempDirectory) "SomeArbitraryLocation"
-        & $executablePath --toolsDirectory $toolsDirectory --tool BuildXL --config $configPath
+        & $executablePath install --toolsDirectory $toolsDirectory --config $configPath
 
   - task: PowerShell@2
     displayName: Run bxl /help from the installed location
@@ -72,12 +79,12 @@ jobs:
             $executableName = "bxl"
         }
 
-        $executablePath = Join-Path "$(ONEES_BUILDXL_LOCATION)" "$executableName"
+        $executablePath = Join-Path "$(BXL_LOCATION)" "$executableName"
         & $executablePath /help
 
-- job: 
-  displayName: "[${{ parameters.platform }}] Integration test: worker mode"
-  dependsOn: basic_${{ replace(parameters.platform, '-', '_') }}
+- job:
+  displayName: "[${{ parameters.platform }}] Integration test: worker mode (v1)"
+  dependsOn: basic_v1_${{ replace(parameters.platform, '-', '_') }}
   pool: ${{ parameters.pool }}
   variables:
     buildConfiguration: 'Release'
@@ -113,9 +120,14 @@ jobs:
         Write-Host "##[command]Run the installer in orchestrator mode and output to 'Orch'"
 
         $config = @{
-          'version' = '0.1.0-20240802.2'
-          'distributedRole' = 'Orchestrator'
-          'invocationKey'= 'MyBuild_${{ parameters.platform }}'
+          'tools' = @(
+            @{
+              'tool' = 'BuildXL'
+              'version' = '0.1.0-20240802.2'
+              'outputVariable' = 'BXL_ORCH_LOCATION'
+              'additionalConfiguration' = 'distributedRole=Orchestrator;invocationKey=MyBuild_${{ parameters.platform }}'
+            }
+          )
         }
 
         $configPath = Join-Path $(Agent.TempDirectory) "buildToolInstallerConfig.json"
@@ -131,13 +143,18 @@ jobs:
         $executablePath = Join-Path -Path $(Build.SourcesDirectory) -ChildPath "Private/BuildToolsInstaller/src/bin/$(buildConfiguration)/$executableName"
 
         $toolsDirectory = Join-Path $(Agent.ToolsDirectory) "Orch"
-        & $executablePath --toolsDirectory $toolsDirectory --tool BuildXL --config $configPath
+        & $executablePath install --toolsDirectory $toolsDirectory --config $configPath
 
         Write-Host "##[command]Run the installer in worker mode and output to 'Worker'"
         $config = @{
-          'distributedRole' = 'Worker'
-          'invocationKey'= 'MyBuild_${{ parameters.platform }}'
-          'workerTimeoutMin' = 3
+          'tools' = @(
+            @{
+              'tool' = 'BuildXL'
+              'version' = '0.1.0-20240802.2'
+              'outputVariable' = 'BXL_WORKER_LOCATION'
+              'additionalConfiguration' = 'distributedRole=Worker;invocationKey=MyBuild_${{ parameters.platform }};workerTimeoutMin=3'
+            }
+          )
         }
 
         $configPath = Join-Path $(Agent.TempDirectory) "buildToolInstallerConfig_worker.json"
@@ -145,7 +162,7 @@ jobs:
         Get-Content -Path $configPath
 
         $toolsDirectory = Join-Path $(Agent.ToolsDirectory) "Worker"
-        & $executablePath --toolsDirectory $toolsDirectory --tool BuildXL --config $configPath
+        & $executablePath install --toolsDirectory $toolsDirectory --config $configPath
 
   # 3. Compare the contents of the download directories - they should be identical
   - task: Powershell@2
@@ -163,7 +180,6 @@ jobs:
 
         # List the contents of the second directory
         Get-ChildItem -Path $dir2
-
 
         # Get the file names in each directory, sorted alphabetically
         $filesInDir1 = Get-ChildItem -Path $dir1 | Sort-Object Name | Select-Object -ExpandProperty Name

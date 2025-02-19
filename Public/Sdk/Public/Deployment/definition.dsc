@@ -43,6 +43,13 @@ export interface RenamedFile {
 @@public
 export interface NestedDefinition extends Definition {
     subfolder: PathFragment;
+    /**
+     * List of deployable items to skip when deploying this definition.
+     * This is essentially Managed.Arguments.runtimeContentToSkip but for a NestedDefinition.
+     * Nested definitions are handled differently than any other DeployableItem (i.e., any
+     * filter defined elsewhere is ignored and the contents field is evaluated in isolation).
+     */
+    contentToSkip?: DeployableItem[];
 }
 
 /**

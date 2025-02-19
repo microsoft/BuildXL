@@ -128,10 +128,11 @@ function flattenItem(
 
     if (isNestedDefinition(item)) {
         // When we recurse into a directory we have to start with an empty set of visited items
+        // However, we need to respect any filter that might have been provided.
         let nestedResult = <FlattenedResult>{
             flattenedFiles: currentResult.flattenedFiles,
             flattenedOpaques: currentResult.flattenedOpaques,
-            visitedItems: getInitialVisitedItems(deploymentOptions),
+            visitedItems: getInitialVisitedItems(deploymentOptions).add(...(item.contentToSkip || [])),
         };
 
         nestedResult = flattenRecursive({contents: item.contents}, targetFolder.combine(item.subfolder), handleDuplicateFile, nestedResult, deploymentOptions, provenance);

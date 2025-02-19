@@ -1,6 +1,6 @@
 # Merlinbot config schema at https://eng.ms/docs/products/1es-merlinbot/extensions/reviewerrec
 # Enable/Disable recommender
-enabled: true
+enabled: false
 # How many reviewers to add?
 maxReviewers: 1
 # Exclude files/paths in PR to be considered for recommendation  

@@ -85,7 +85,7 @@ const char* add_value_to_env(const char *src, const char *value_to_add, const ch
 
     // no match
     int srcLen = strlen(src);
-    int totalLen = srcLen + strlen(value_to_add) + 1;
+    int totalLen = srcLen + strlen(value_to_add) + 1 + 1; //1 is for ':', the other 1 is for '\0'
     char *newEnvBuffer = (char *)malloc(totalLen);
     if (newEnvBuffer == NULL)
     {

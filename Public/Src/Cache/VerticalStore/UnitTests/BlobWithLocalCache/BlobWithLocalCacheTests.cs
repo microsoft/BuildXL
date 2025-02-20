@@ -2,9 +2,16 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using BuildXL.Cache.BuildCacheResource.Model;
+using BuildXL.Cache.ContentStore.Distributed.Blob;
+using BuildXL.Cache.ContentStore.Distributed.Test.Stores;
+using BuildXL.Cache.ContentStore.Extensions;
+using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.InterfacesTest;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Utilities.Configuration.Mutable;
@@ -98,11 +105,24 @@ namespace BuildXL.Cache.Tests
         private (string configuration, string logPath) SetupTest(string testName, bool remoteIsReadOnly = false)
         {
             // Start emulator to get a blob storage account
-            using var storage = AzuriteStorageProcess.CreateAndStartEmpty(_fixture, TestGlobal.Logger);
+            var shards = Enumerable.Range(0, 10).Select(shard => (BlobCacheStorageAccountName)new BlobCacheStorageShardingAccountName("0123456789", shard, "testing")).ToList();
 
-            // Let's use an env var to communicate the connection string
-            var connectionStringEnvVarName = $"ConnectionString{GetType()}{testName}";
-            Environment.SetEnvironmentVariable(connectionStringEnvVarName, storage.ConnectionString);
+            // Force it to use a non-sharding account
+            shards.Add(new BlobCacheStorageNonShardingAccountName("devstoreaccount1"));
+
+            using var process = AzuriteStorageProcess.CreateAndStart(
+                _fixture,
+                TestGlobal.Logger,
+                accounts: shards.Select(account => account.AccountName).ToList());
+
+            IReadOnlyList<BuildCacheConfiguration> configuration = [BuildCacheConfigurationSecretGenerator.GenerateConfigurationFrom("default", process, shards)];
+
+            Directory.CreateDirectory(Path.Combine(ScratchPath, testName));
+
+            var buildCacheConfigPath = Path.Combine(ScratchPath, testName, "BuildCacheConfiguration.json");
+            File.WriteAllText(buildCacheConfigPath, System.Text.Json.JsonSerializer.Serialize(configuration));
+            var buildCacheConfigurationPathEnvVarName = $"BlobCacheFactoryHostedPoolConfigurationFile{testName}";
+            Environment.SetEnvironmentVariable(buildCacheConfigurationPathEnvVarName, buildCacheConfigPath);
 
             var logDir = Path.Combine(ScratchPath, testName, "logs");
             var baseLogPath = Path.Combine(logDir, "blobWithLocal");
@@ -122,8 +142,9 @@ namespace BuildXL.Cache.Tests
     ""CacheId"": ""TestBlob"",
     ""Universe"" : ""{testName.ToLowerInvariant()}"",
     ""RetentionPolicyInDays"": 6,
-    ""ConnectionStringEnvironmentVariableName"" : ""{connectionStringEnvVarName}""
-    {(remoteIsReadOnly? @",""IsReadOnly"" : true" : string.Empty)}
+    ""HostedPoolBuildCacheConfigurationFileEnvironmentVariableName"" : ""{buildCacheConfigurationPathEnvVarName}"",
+    ""ConnectionStringFileDataProtectionEncrypted"": false
+    {(remoteIsReadOnly ? @",""IsReadOnly"" : true" : string.Empty)}
   }}
 }}
 ";

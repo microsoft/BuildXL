@@ -129,7 +129,11 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                     var file = Environment.GetEnvironmentVariable(configuration.LogToKustoConnectionStringFileEnvironmentVariableName);
                     fileLogger.Debug($"Kusto logging connection string file = '{file}'");
 
-                    var credentials = BlobCacheCredentialsHelper.Load(new AbsolutePath(file), configuration.ConnectionStringFileDataProtectionEncrypted);
+                    var credentials = BlobCacheCredentialsHelper.Load(
+                        new AbsolutePath(file),
+                        configuration.ConnectionStringFileDataProtectionEncrypted ?
+                            BlobCacheCredentialsHelper.FileEncryption.Dpapi
+                            : BlobCacheCredentialsHelper.FileEncryption.None);
 
                     storageLog = AzureBlobStorageLog.CreateWithCredentials(
                         fileLogger,

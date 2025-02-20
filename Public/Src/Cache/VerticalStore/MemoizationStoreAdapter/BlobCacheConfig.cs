@@ -49,34 +49,6 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         /// </summary>
         [DefaultValue(ContentHashListReplacementCheckBehavior.AllowPinElision)]
         public ContentHashListReplacementCheckBehavior ContentHashListReplacementCheckBehavior { get; set; } = ContentHashListReplacementCheckBehavior.AllowPinElision;
-
-        /// <summary>
-        /// Authenticate by using a single or an array of connection strings inside of an environment variable.
-        /// </summary>
-        /// <remarks>
-        /// This is not a good authentication method because in many cases environment variables are logged and not
-        /// encrypted.
-        ///
-        /// The preferred authentication method is to use a managed identity (<see cref="StorageAccountEndpoint"/>
-        /// and <see cref="ManagedIdentityId"/>). However, this is unsupported for sharded scenarios and isn't
-        /// available outside of Azure. Use <see cref="ConnectionStringFileEnvironmentVariableName"/> if that's
-        /// your use-case.
-        /// </remarks>
-        [DefaultValue("BlobCacheFactoryConnectionString")]
-        public string ConnectionStringEnvironmentVariableName { get; set; }
-
-        /// <summary>
-        /// Authenticate by using a file that contains a single or an array of connection strings.
-        /// </summary>
-        /// <remarks>
-        /// The preferred authentication method is to use a managed identity (<see cref="StorageAccountEndpoint"/>
-        /// and <see cref="ManagedIdentityId"/>). However, this is unsupported for sharded scenarios and isn't
-        /// available outside of Azure. Use <see cref="ConnectionStringFileEnvironmentVariableName"/> if that's
-        /// your use-case.
-        /// </remarks>
-        [DefaultValue("BlobCacheFactoryConnectionStringFile")]
-        public string ConnectionStringFileEnvironmentVariableName { get; set; }
-
         /// <summary>
         /// Whether the connection string file should be considered to be DPAPI encrypted.
         /// </summary>
@@ -114,7 +86,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         /// Used for interactive auth purposes.
         /// </remarks>
         [DefaultValue(null)]
-        public IConsole Console{ get; set; }
+        public IConsole Console { get; set; }
 
         /// <summary>
         /// The directory where interactive tokens should be stored and retrieved as a way to provide silent authentication (when possible)
@@ -221,8 +193,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         /// <remarks>
         /// The preferred authentication method is to use a managed identity (<see cref="StorageAccountEndpoint"/>
         /// and <see cref="ManagedIdentityId"/>). However, this is unsupported for sharded scenarios and isn't
-        /// available outside of Azure. Use <see cref="ConnectionStringFileEnvironmentVariableName"/> if that's
-        /// your use-case.
+        /// available outside of Azure.
         /// </remarks>
         [DefaultValue("BlobCacheFactoryHostedPoolConfigurationFile")]
         public string HostedPoolBuildCacheConfigurationFileEnvironmentVariableName { get; set; }

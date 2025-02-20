@@ -60,51 +60,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blob
         /// <summary>
         /// Load credentials from a file.
         /// </summary>
-        public static Dictionary<BlobCacheStorageAccountName, IAzureStorageCredentials> Load(AbsolutePath path, bool dpApiEncrypted)
-        {
-            string credentials = ReadCredentials(path, dpApiEncrypted ? FileEncryption.Dpapi : FileEncryption.None);
-
-            return ParseFromFileFormat(credentials);
-        }
-
-        /// <summary>
-        /// Load credentials from a file.
-        /// </summary>
         public static Dictionary<BlobCacheStorageAccountName, IAzureStorageCredentials> Load(AbsolutePath path, FileEncryption encryption)
         {
             string credentials = ReadCredentials(path, encryption);
 
             return ParseFromFileFormat(credentials);
-        }
-
-
-        public static Dictionary<BlobCacheStorageAccountName, IAzureStorageCredentials> ParseFromEnvironmentFormat(string environmentVariableContents)
-        {
-            var credentials = new Dictionary<BlobCacheStorageAccountName, IAzureStorageCredentials>();
-            credentials.AddRange(
-                environmentVariableContents.Split(' ')
-                    .Select(
-                        secret =>
-                        {
-                            var credential = new SecretBasedAzureStorageCredentials(secret.Trim());
-                            var accountName = BlobCacheStorageAccountName.Parse(credential.GetAccountName());
-                            return new KeyValuePair<BlobCacheStorageAccountName, IAzureStorageCredentials>(accountName, credential);
-                        }));
-
-            return credentials;
-        }
-
-        public static Dictionary<BlobCacheStorageAccountName, IAzureStorageCredentials> FromServicePreauthenticatedUris(IEnumerable<Uri> preauthenticatedUris)
-        {
-            var credentials = new Dictionary<BlobCacheStorageAccountName, IAzureStorageCredentials>();
-            foreach (var uri in preauthenticatedUris)
-            {
-                var credential = new ServiceSasStorageCredentials(uri);
-                var accountName = BlobCacheStorageAccountName.Parse(credential.GetAccountName());
-                credentials.Add(accountName, credential);
-            }
-
-            return credentials;
         }
 
         /// <summary>

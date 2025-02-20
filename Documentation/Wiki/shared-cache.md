@@ -72,10 +72,6 @@ Under github [codespaces](https://github.com/features/codespaces), a VSCode exte
 ### Using interactive browser authentication
 A user-interactive authentication mechanism via a web browser can be used to acquire an Entra ID token. This auth mechanism will only be attempted if the `StorageAccountEndpoint` is provided and BuildXL is run with the `/interactive` flag, indicating that this is a developer build and therefore interactive prompts are allowed. The interactive prompt will try to acquire a token via Entra ID authentication. Similarly to the above auth method, the blob storage account needs to have configured access such that the authenticated user (or containing security group) has `Storage Blob Data Contributor` permissions.
 
-### Using a connection string
-The environment variable `BlobCacheFactoryConnectionString` has to be set in the context of the running BuildXL instance containing the connection string for the blob storage account. Please check [here](https://learn.microsoft.com/en-us/azure/storage/common/storage-configure-connection-string) for details. If you are running your build in an Azure pipeline, the recommendation is to securely store the environment variable containing the connection string in an [Azure Key Vault](https://learn.microsoft.com/en-us/azure/key-vault/general/overview) and allow your pipeline to consume it. BuildXL will only use this method if the aforementioned environment variable is set.
-*Note*: This authentication mechanism is not recommended since it involves managing the secret on the running host.
-
 ## Developer cache
 A developer cache is a configuration where local builds can benefit from cache hits coming from lab builds. The recommended configuration is such that:
 * Developer builds only 'pull' from the cache, but cannot write to it. This is in order to avoid security issues, where dev boxes are typically a less controlled environment than a lab build. Pushing bad content into the cache can have a ripple effect if a malicious actor takes control of a developer box.

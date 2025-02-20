@@ -175,24 +175,6 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             Dictionary<BlobCacheStorageAccountName, IAzureStorageCredentials> credentials = null;
             var token = context.Token;
 
-            // Search for a connection string provided via a file (via an environment variable)
-            var connectionStringFile = Environment.GetEnvironmentVariable(configuration.ConnectionStringFileEnvironmentVariableName);
-            if (!string.IsNullOrEmpty(connectionStringFile))
-            {
-                context.TracingContext.Info("Authenticating with a connection string (file)", nameof(BlobCacheFactory));
-
-                credentials = BlobCacheCredentialsHelper.Load(new AbsolutePath(connectionStringFile), configuration.ConnectionStringFileDataProtectionEncrypted);
-            }
-
-            // Search for a connection string provided via an environment variable
-            var connectionString = Environment.GetEnvironmentVariable(configuration.ConnectionStringEnvironmentVariableName);
-            if (credentials is null && !string.IsNullOrEmpty(connectionString))
-            {
-                context.TracingContext.Info("Authenticating with a connection string (env var)", nameof(BlobCacheFactory));
-
-                credentials = BlobCacheCredentialsHelper.ParseFromEnvironmentFormat(connectionString);
-            }
-
             // All the following auth methods work with a valid URI under configuration.StorageAccountEndpoint
             Uri uri = null;
             // The storage account endpoint can be null, but if it is not, it has to be valid

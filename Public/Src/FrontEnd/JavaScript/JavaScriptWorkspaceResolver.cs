@@ -936,6 +936,8 @@ const schedulingFunction : (project: JavaScriptProject, argument: any) => Transf
                 outputDirectories,
                 inputFiles,
                 inputDirectories,
+                // The group is cacheable if all members are cacheable
+                members.All(member => member.Cacheable),
                 TryGetProjectDisplayName(projectName, commandName, projectFolder));
 
             return projectGroup;

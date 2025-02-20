@@ -21,6 +21,7 @@ namespace BuildXL.FrontEnd.JavaScript.ProjectGraph
             AbsolutePath projectFolder,
             [AllowNull] IReadOnlyCollection<TDependency> dependencies,
             AbsolutePath tempFolder,
+            bool cacheable,
             int timeoutInMilliseconds = 0,
             int warningTimeoutInMilliseconds = 0)
         {   
@@ -33,6 +34,7 @@ namespace BuildXL.FrontEnd.JavaScript.ProjectGraph
             TempFolder = tempFolder;
             TimeoutInMilliseconds = timeoutInMilliseconds;
             WarningTimeoutInMilliseconds = warningTimeoutInMilliseconds;
+            Cacheable = cacheable;
         }
 
         /// <nodoc/>
@@ -53,6 +55,9 @@ namespace BuildXL.FrontEnd.JavaScript.ProjectGraph
         /// <nodoc/>
         /// <remarks>Can be invalid</remarks>
         public AbsolutePath TempFolder { get; }
+
+        /// <nodoc/>
+        public bool Cacheable { get; }
 
         /// <nodoc/>
         public int TimeoutInMilliseconds { get; internal set; }

@@ -22,4 +22,5 @@ export interface JavaScriptProject {
     dependencies: string[];
     outputDirectories: BxlConfig.PathWithTargets[];
     sourceFiles: BxlConfig.PathWithTargets[];
+    cacheable: boolean;
 }

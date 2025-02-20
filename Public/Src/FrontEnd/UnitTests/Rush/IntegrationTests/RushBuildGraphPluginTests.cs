@@ -88,17 +88,41 @@ namespace Test.BuildXL.FrontEnd.Rush
             Assert.Contains(expectedToolArgs, message);
         }
 
+        [Fact]
+        public void TestUncacheableNodes()
+        {
+            BuildXLEngineResult result = SchedulePipsUsingBuildGraphPluginMockWithUncacheableNodes(
+                dependencyChains: new[] { "A -> B", "A -> C" },
+                uncacheableNodes: new[] { "B" });
+            Assert.True(result.IsSuccess);
+            
+            // We should be able to retrieve 3 pips
+            var pipA = result.EngineState.RetrieveProcess("A", "A");
+            var pipB = result.EngineState.RetrieveProcess("B", "B");
+            var pipC = result.EngineState.RetrieveProcess("C", "C");
+
+            // B should be uncacheable. A and C should be cacheable.
+            Assert.False(pipA.DisableCacheLookup);
+            Assert.True(pipB.DisableCacheLookup);
+            Assert.False(pipC.DisableCacheLookup);
+        }
+
         private BuildXLEngineResult SchedulePipsUsingBuildGraphPluginMock(params string[] dependencyChains)
         {
-            return SchedulePipsUsingBuildGraphPluginMockInternal(rushCommand: null, additionalRushParameter: null, dependencyChains);
+            return SchedulePipsUsingBuildGraphPluginMockInternal(rushCommand: null, additionalRushParameter: null, dependencyChains, uncacheableNodes: []);
+        }
+
+        private BuildXLEngineResult SchedulePipsUsingBuildGraphPluginMockWithUncacheableNodes(string[] dependencyChains, string[] uncacheableNodes)
+        {
+            return SchedulePipsUsingBuildGraphPluginMockInternal(rushCommand: null, additionalRushParameter: null, dependencyChains, uncacheableNodes: uncacheableNodes);
         }
 
         private BuildXLEngineResult SchedulePipsUsingBuildGraphPluginMockWithCommand(string rushCommand, string additionalRushParameter)
         {
-            return SchedulePipsUsingBuildGraphPluginMockInternal(rushCommand, additionalRushParameter, dependencyChains: []);
+            return SchedulePipsUsingBuildGraphPluginMockInternal(rushCommand, additionalRushParameter, dependencyChains: [], uncacheableNodes: []);
         }
 
-        private BuildXLEngineResult SchedulePipsUsingBuildGraphPluginMockInternal(string rushCommand, string additionalRushParameter, string[] dependencyChains)
+        private BuildXLEngineResult SchedulePipsUsingBuildGraphPluginMockInternal(string rushCommand, string additionalRushParameter, string[] dependencyChains, string[] uncacheableNodes)
         {
             // The graph the mock build graph plugin tool generates can be controlled by setting the RUSH_BUILD_GRAPH_MOCK_NODES environment variable.
             var env = dependencyChains.Length == 0 
@@ -106,7 +130,8 @@ namespace Test.BuildXL.FrontEnd.Rush
                 : new Dictionary<string, string>() { 
                     ["RUSH_BUILD_GRAPH_MOCK_NODES"] = string.Join(",", dependencyChains),
                     // Windows paths need extra escaping since they end up in a JSON object
-                    ["RUSH_BUILD_GRAPH_MOCK_ROOT"] = RelativeSourceRoot.Replace(@"\", @"\\\\")
+                    ["RUSH_BUILD_GRAPH_MOCK_ROOT"] = RelativeSourceRoot.Replace(@"\", @"\\\\"),
+                    ["RUSH_BUILD_GRAPH_UNCACHEABLE_NODES"] = string.Join(",", uncacheableNodes)
                 };
 
             var config = Build(

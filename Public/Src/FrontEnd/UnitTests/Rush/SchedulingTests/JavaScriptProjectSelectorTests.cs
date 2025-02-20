@@ -117,7 +117,8 @@ namespace Test.BuildXL.FrontEnd.Rush.SchedulingTests
                 AbsolutePath.Create(m_pathTable, @"\\path\to\temp"), 
                 CollectionUtilities.EmptyArray<AbsolutePath>(), 
                 CollectionUtilities.EmptyArray<FileArtifact>(), 
-                CollectionUtilities.EmptyArray<DirectoryArtifact>());
+                CollectionUtilities.EmptyArray<DirectoryArtifact>(),
+                cacheable: true);
         }
     }
 }

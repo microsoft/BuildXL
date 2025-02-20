@@ -2,6 +2,8 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -20,6 +22,7 @@ namespace Test.BuildXL.FrontEnd.Rush.BuildGraphPluginMock
         /// Environment variables control how the graph is produced (environment variables are used as opposed to command line arguments 
         /// to avoid interfering with the actual arguments).  
         /// RUSH_BUILD_GRAPH_MOCK_NODES can be set to a comma-separated list of nodes to include in the graph.
+        /// RUSH_BUILD_GRAPH_UNCACHEABLE_NODES can be set to a comma-separated list of nodes to mark as uncacheable.
         /// E.g.
         /// "A -> B -> C, D -> C"
         /// If not set, an empty graph is produced
@@ -28,6 +31,19 @@ namespace Test.BuildXL.FrontEnd.Rush.BuildGraphPluginMock
         /// </remarks>
         public static int Main(string[] args)
         {
+            if (Environment.GetEnvironmentVariable("BuildGraphPluginMockDebugOnStart") == "1")
+            {
+                if (OperatingSystemHelper.IsUnixOS)
+                {
+                    Console.WriteLine("=== Attach to this process from a debugger, then press ENTER to continue ...");
+                    Console.ReadLine();
+                }
+                else
+                {
+                    Debugger.Launch();
+                }
+            }
+
             if (args.Length < 3)
             {
                 Console.Error.WriteLine("Expected arguments are: verb [rush arguments] --drop-graph [outputGraphFile]");
@@ -45,8 +61,9 @@ namespace Test.BuildXL.FrontEnd.Rush.BuildGraphPluginMock
 
             var nodes = Environment.GetEnvironmentVariable("RUSH_BUILD_GRAPH_MOCK_NODES");
             var root = Environment.GetEnvironmentVariable("RUSH_BUILD_GRAPH_MOCK_ROOT");
+            var uncacheableNodes = Environment.GetEnvironmentVariable("RUSH_BUILD_GRAPH_UNCACHEABLE_NODES");
 
-            string graph = SerializeGraph(root, nodes);
+            string graph = SerializeGraph(root, nodes, uncacheableNodes);
 
             File.WriteAllText(outputFilePath, graph);
 
@@ -69,10 +86,11 @@ namespace Test.BuildXL.FrontEnd.Rush.BuildGraphPluginMock
     ""commonTempFolder"": ""{BuildPath(root, "temp")}""
 }}";
 
-        private static string SerializeGraph(string root, string nodes)
+        private static string SerializeGraph(string root, string nodes, string uncacheableNodeList)
         {
             // Store here all the nodes (keys) and their dependencies (values)
             var graph = new MultiValueDictionary<string, string>();
+            var uncacheableSet = new HashSet<string>();
 
             if (nodes != null)
             {
@@ -101,6 +119,11 @@ namespace Test.BuildXL.FrontEnd.Rush.BuildGraphPluginMock
                 }
             }
 
+            if (uncacheableNodeList != null)
+            {
+                uncacheableSet.AddRange(uncacheableNodeList.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries));
+            }
+
             // Now build the JSON representation of the graph. This format should be in sync with the actual build graph plugin format.
             var jsonNodes = new StringBuilder();
             foreach (var kvp in graph)
@@ -114,6 +137,7 @@ namespace Test.BuildXL.FrontEnd.Rush.BuildGraphPluginMock
     ""dependencies"": [ {string.Join(", ", kvp.Value.Select(v => @$"""{v}"""))} ],
     ""workingDirectory"": ""{BuildPath(root,node)}"",
     ""command"": ""echo {node}""
+    {(uncacheableSet.Contains(node) ? @",""cacheable"": false" : string.Empty)}
 }},");
             }
 

@@ -415,6 +415,12 @@ namespace BuildXL.FrontEnd.JavaScript
             // We allow undeclared inputs to be read
             processBuilder.Options |= Process.Options.AllowUndeclaredSourceReads;
 
+            // Flag the pip as a permanent miss if it is not cacheable
+            if (!project.Cacheable)
+            {
+                processBuilder.Options |= Process.Options.DisableCacheLookup;
+            }
+
             if (m_resolverSettings.EnforceSourceReadsUnderPackageRoots == true)
             {
                 using var sourceReadsScopesWrapper = Pools.AbsolutePathSetPool.GetInstance();

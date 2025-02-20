@@ -32,9 +32,10 @@ namespace BuildXL.FrontEnd.JavaScript.ProjectGraph
             IReadOnlyCollection<AbsolutePath> outputDirectories,
             IEnumerable<FileArtifact> inputFiles,
             IEnumerable<DirectoryArtifact> inputDirectories,
+            bool cacheable,
             [AllowNull] string projectNameDisplayString = null,
             int timeoutInMilliseconds = 0,
-            int warningTimeoutInMilliseconds = 0) : base(name, projectFolder, null, tempFolder, timeoutInMilliseconds, warningTimeoutInMilliseconds)
+            int warningTimeoutInMilliseconds = 0) : base(name, projectFolder, null, tempFolder, cacheable, timeoutInMilliseconds, warningTimeoutInMilliseconds)
         {
             Contract.RequiresNotNullOrEmpty(scriptCommandName);
             Contract.RequiresNotNull(outputDirectories);
@@ -64,7 +65,8 @@ namespace BuildXL.FrontEnd.JavaScript.ProjectGraph
                 deserializedJavaScriptProject.TempFolder,
                 outputDirectories,
                 inputFiles,
-                inputDirectories: CollectionUtilities.EmptyArray<DirectoryArtifact>(),
+                inputDirectories: CollectionUtilities.EmptyArray<DirectoryArtifact>(), 
+                deserializedJavaScriptProject.Cacheable,
                 projectNameDisplayString,
                 deserializedJavaScriptProject.TimeoutInMilliseconds,
                 deserializedJavaScriptProject.WarningTimeoutInMilliseconds);

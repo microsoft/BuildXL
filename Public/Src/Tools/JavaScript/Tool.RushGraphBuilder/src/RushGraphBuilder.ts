@@ -84,7 +84,9 @@ export function buildRushPluginGraph(
                 // The resolver uses this today to add a shared opaque for it, so we should be covered.
                 tempFolder: node.workingDirectory,
                 outputDirectories: bxlConfig.outputDirectories,
-                sourceFiles: bxlConfig.sourceFiles
+                sourceFiles: bxlConfig.sourceFiles,
+                // Nodes are cacheable by default, unless explicitly specified
+                cacheable: node.cacheable === undefined ? true : node.cacheable
                 };
     
             projects.push(p);
@@ -132,7 +134,9 @@ export function buildRushLibGraph(rushConfigurationFile: string, pathToRushLib: 
             availableScriptCommands: project.packageJson.scripts,
             tempFolder: project.projectRushTempFolder,
             outputDirectories: bxlConfig.outputDirectories,
-            sourceFiles: bxlConfig.sourceFiles
+            sourceFiles: bxlConfig.sourceFiles,
+            // rush-lib doesn't have the capability to make projects uncacheable
+            cacheable: true,
             };
 
         projects.push(p);

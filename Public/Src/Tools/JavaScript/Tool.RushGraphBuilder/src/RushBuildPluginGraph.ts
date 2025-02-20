@@ -19,4 +19,7 @@ export interface RushBuildPluginNode {
     dependencies: string[];
     workingDirectory: string;
     command: string;
+    // Cacheable is an optional field since not all rush versions have it
+    // When absent, the default value is true
+    cacheable?: boolean;
 }

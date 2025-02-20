@@ -85,7 +85,9 @@ function lageToBuildXL(lage: Report): JavaScriptGraph {
         availableScriptCommands: commands,
         tempFolder: repoFolder,
         outputDirectories: bxlConfig.outputDirectories,
-        sourceFiles: bxlConfig.sourceFiles
+        sourceFiles: bxlConfig.sourceFiles,
+        // Lage nodes are always cacheable
+        cacheable: true
       };
   
       return project;

@@ -108,7 +108,8 @@ namespace BuildXL.FrontEnd.Yarn
                     return new JavaScriptGraphConstructionFailure(ResolverSettings, Context.PathTable);
                 }
 
-                var maybeProject = CreateJavaScriptProject(kvp.Key, kvp.Value.WorkspaceDependencies, kvp.Value.Location);
+                // For now 'cacheable' is not exposed in the literal
+                var maybeProject = CreateJavaScriptProject(kvp.Key, kvp.Value.WorkspaceDependencies, kvp.Value.Location, cacheable: true);
                 if (!maybeProject.Succeeded)
                 {
                     return maybeProject.Failure;
@@ -141,6 +142,7 @@ namespace BuildXL.FrontEnd.Yarn
                 using (var reader = new JsonTextReader(sr))
                 {
                     // Expected schema is here: https://classic.yarnpkg.com/en/docs/cli/workspaces/#toc-yarn-workspaces-info
+                    // Plus 'cacheable' property
                     var deserializedGraph = serializer.Deserialize<Dictionary<string, JToken>>(reader);
 
                     var projects = new List<DeserializedJavaScriptProject>(deserializedGraph.Count);
@@ -155,7 +157,9 @@ namespace BuildXL.FrontEnd.Yarn
                             return new JavaScriptGraphConstructionFailure(ResolverSettings, Context.PathTable);
                         }
 
-                        var maybeProject = CreateJavaScriptProject(kvp.Key, dependencies, relativeProjectFolder);
+                        bool cacheable = kvp.Value["cacheable"]?.ToObject<bool>() ?? true;
+
+                        var maybeProject = CreateJavaScriptProject(kvp.Key, dependencies, relativeProjectFolder, cacheable);
                         if (!maybeProject.Succeeded)
                         {
                             return maybeProject.Failure;
@@ -178,7 +182,7 @@ namespace BuildXL.FrontEnd.Yarn
             }
         }
 
-        private Possible<DeserializedJavaScriptProject> CreateJavaScriptProject(string name, IReadOnlyCollection<string> dependencies, RelativePath projectFolder)
+        private Possible<DeserializedJavaScriptProject> CreateJavaScriptProject(string name, IReadOnlyCollection<string> dependencies, RelativePath projectFolder, bool cacheable)
         {
             var maybeCustomScripts = new Possible<IReadOnlyDictionary<string, string>>((IReadOnlyDictionary<string, string>)null);
             
@@ -211,6 +215,7 @@ namespace BuildXL.FrontEnd.Yarn
                 dependencies: dependencies,
                 availableScriptCommands: maybeCustomScripts.Result,
                 tempFolder: ResolverSettings.Root,
+                cacheable: cacheable,
                 outputDirectories: CollectionUtilities.EmptyArray<PathWithTargets>(),
                 sourceFiles: CollectionUtilities.EmptyArray<PathWithTargets>()
             );

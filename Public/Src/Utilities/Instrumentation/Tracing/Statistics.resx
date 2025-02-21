@@ -297,11 +297,17 @@
   <data name="PluginProcessedRequestCounts" xml:space="preserve">
     <value>PluginProcessedRequestCounts</value>
   </data>
+  <data name="PluginRequestsOverThreshold" xml:space="preserve">
+    <value>PluginRequestsOverThreshold</value>
+  </data>
   <data name="PluginTotalProcessTimeMs" xml:space="preserve">
     <value>PluginTotalProcessTimeMs</value>
   </data>
   <data name="PluginAverageRequestProcessTimeMs" xml:space="preserve">
     <value>PluginAverageRequestProcessTimeMs</value>
+  </data>
+  <data name="PluginLongestRequestProcessTimeMs" xml:space="preserve">
+    <value>PluginLongestRequestProcessTimeMs</value>
   </data>
   <data name="PluginFailureReason" xml:space="preserve">
     <value>PluginFailureReason</value>

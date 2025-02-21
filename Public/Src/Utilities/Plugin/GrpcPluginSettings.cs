@@ -9,8 +9,10 @@ namespace BuildXL.Plugin
     /// <nodoc />
     internal static class GrpcPluginSettings
     {
-        /// <nodoc />
-        public static int RequestTimeoutInMilliSeconds = 3000;
+        /// <summary>
+        /// The number of milliseconds before the request "expires" (referred to in gRPC as a "deadline").
+        /// </summary>
+        public static int RequestTimeoutInMilliSeconds = 30000; // 30s might be considered a little extreme at this point, but it will be monitored (and adjusted) before being used in production (OE: 9836612)
         /// <nodoc />
         public static int ConnectionTimeoutInMilliSeconds = 5000;
         /// <nodoc />

@@ -2364,8 +2364,10 @@ namespace BuildXL.Scheduler
                 statistics.Add(Statistics.PluginLoadedSuccessfulCounts, m_pluginManager.PluginLoadedSuccessfulCount);
                 statistics.Add(Statistics.PluginLoadedFailureCounts, m_pluginManager.PluginLoadedFailureCount);
                 statistics.Add(Statistics.PluginProcessedRequestCounts, m_pluginManager.PluginProcessedRequestCounts);
+                statistics.Add(Statistics.PluginRequestsOverThreshold, m_pluginManager.PluginRequestsOverThreshold);
                 statistics.Add(Statistics.PluginUnregisteredCounts, m_pluginManager.PluginUnregisteredCounts);
                 statistics.Add(Statistics.PluginAverageRequestProcessTimeMs, m_pluginManager.PluginAverageRequestProcessTimeMs);
+                statistics.Add(Statistics.PluginLongestRequestProcessTimeMs, m_pluginManager.PluginLongestRequestProcessTimeMs);
                 statistics.Add(Statistics.PluginFailureReason, (int)m_pluginManager.PluginFailureReason);
             }
 

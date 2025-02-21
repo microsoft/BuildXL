@@ -107,6 +107,14 @@ namespace BuildXL.Plugin
         private int m_pluginProcessedRequestCounts = 0;
 
         /// <summary>
+        /// How many requests processed by the plugin were over a certain threshold 
+        /// (cumulative across all loaded plugins)
+        /// </summary>
+        public long PluginRequestsOverThreshold => m_pluginRequestsOverThreshold;
+        private long m_pluginRequestsOverThreshold = 0;
+        private const long Threshold = 3000; //The previous GrpcPluginSettings timeout was 3000 ms
+
+        /// <summary>
         /// How many plugins were unregistered due to failures (when a plugin fails to
         /// return a response for a request, the assumption is that the plugin can no
         /// longer be relied on, so it is unregistered for the rest of the build)
@@ -120,6 +128,12 @@ namespace BuildXL.Plugin
         /// </summary>
         public long PluginAverageRequestProcessTimeMs => m_pluginAverageRequestProcessTimeMs;
         private long m_pluginAverageRequestProcessTimeMs = 0;
+
+        /// <summary>
+        /// The process request time (in milliseconds) of the longest request to the plugin
+        /// </summary>
+        public long PluginLongestRequestProcessTimeMs => m_pluginLongestRequestProcessTimeMs;
+        private long m_pluginLongestRequestProcessTimeMs = 0;
 
         /// <summary>
         /// A value representing why the plugin failed. This allows telemetry
@@ -228,6 +242,17 @@ namespace BuildXL.Plugin
 
                 if (response.Succeeded)
                 {
+                    if (sw.ElapsedMilliseconds > m_pluginLongestRequestProcessTimeMs)
+                    {
+                        Interlocked.Exchange(ref m_pluginLongestRequestProcessTimeMs, sw.ElapsedMilliseconds);
+                    }
+
+                    if (sw.ElapsedMilliseconds > Threshold)
+                    {
+                        Interlocked.Increment(ref m_pluginRequestsOverThreshold);
+                        Tracing.Logger.Log.PluginManagerLogMessage(m_loggingContext, $"Request requestId:{response.RequestId} exceeded the stat threshold of {Threshold} ms ({sw.ElapsedMilliseconds} ms)");
+                    }
+
                     long movingAverage = m_pluginAverageRequestProcessTimeMs - m_pluginAverageRequestProcessTimeMs / m_pluginProcessedRequestCounts + sw.ElapsedMilliseconds / m_pluginProcessedRequestCounts;
                     Interlocked.Exchange(ref m_pluginAverageRequestProcessTimeMs, movingAverage);
                 }

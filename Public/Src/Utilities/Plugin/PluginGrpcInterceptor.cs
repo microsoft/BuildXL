@@ -1,6 +1,7 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
@@ -30,11 +31,11 @@ namespace BuildXL.Plugin
         public override async Task<TResponse> UnaryServerHandler<TRequest, TResponse>(TRequest request, ServerCallContext context, UnaryServerMethod<TRequest, TResponse> continuation)
         { 
             ParseMetadata(context.RequestHeaders, out string requestId);
-            Logger.Debug($"Received requestId:{requestId} for {context.Method}");
+            Logger.Debug($"Received requestId:{requestId} for {context.Method} at {DateTime.UtcNow:HH:mm:ss.fff}");
 
             Stopwatch sw = Stopwatch.StartNew();
             var result = await continuation(request, context);
-            Logger.Debug($"Sent response for requestId:{requestId} method: {context.Method}, process took {sw.ElapsedMilliseconds} ms");
+            Logger.Debug($"Sent response for requestId:{requestId} at {DateTime.UtcNow:HH:mm:ss.fff} method: {context.Method}, process took {sw.ElapsedMilliseconds} ms");
             return result;
         }
 

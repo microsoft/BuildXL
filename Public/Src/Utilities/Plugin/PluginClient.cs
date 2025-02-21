@@ -105,6 +105,11 @@ namespace BuildXL.Plugin
                         Logger.Error($"plugin method is not implementated, this may be because unmatched plugin client is picked up, see details: {e.Message}");
                         return new PluginResponseResult<T>(PluginResponseState.Fatal, reqId, numOfRetry, failure);
                     }
+                    else if (e.StatusCode == StatusCode.DeadlineExceeded)
+                    {
+                        Logger.Error($"Deadline has been exceeded. Deadlines are global across all retries so retrying won't work");
+                        return new PluginResponseResult<T>(PluginResponseState.Failed, reqId, numOfRetry, failure);
+                    }
                 }
                 catch (NotImplementedException e)
                 {

@@ -251,11 +251,11 @@ namespace BuildXL.Scheduler.Fingerprints
 
         /// <nodoc />
         public static Possible<ObservedPathSet, DeserializeFailure> TryDeserialize(
-            PathTable pathTable,
-            BuildXLReader reader,
-            PathExpander pathExpander = null,
-            Func<BuildXLReader, AbsolutePath> pathReader = null,
-            Func<BuildXLReader, StringId> stringReader = null)
+    PathTable pathTable,
+    BuildXLReader reader,
+    PathExpander pathExpander = null,
+    Func<BuildXLReader, AbsolutePath> pathReader = null,
+    Func<BuildXLReader, StringId> stringReader = null)
         {
             try
             {
@@ -265,7 +265,6 @@ namespace BuildXL.Scheduler.Fingerprints
                 ObservedPathEntry[] paths = new ObservedPathEntry[pathCount];
 
                 string lastStr = null;
-                AbsolutePath lastPath = default(AbsolutePath);
                 for (int i = 0; i < pathCount; i++)
                 {
                     var flags = (ObservedPathEntryFlags)reader.ReadByte();
@@ -318,19 +317,6 @@ namespace BuildXL.Scheduler.Fingerprints
 
                     paths[i] = new ObservedPathEntry(newPath, flags, enumeratePatternRegex);
 
-                    if (lastPath.IsValid)
-                    {
-#if DEBUG
-                        if (comparer.Compare(lastPath, newPath) >= 0)
-                        {
-                            return new DeserializeFailure($"Paths not sorted: " +
-                                $"old = '{lastPath.ToString(pathTable)}', new = '{newPath.ToString(pathTable)}';" +
-                                $"old str = '{lastStr}', new str = '{full}'");
-                        }
-#endif
-                    }
-
-                    lastPath = newPath;
                     lastStr = full;
                 }
 
@@ -348,7 +334,11 @@ namespace BuildXL.Scheduler.Fingerprints
                     return new DeserializeFailure("UnsafeOptions are null");
                 }
 
-                // Note that we validated sort order above.
+                // This preserves the sort order that was serialized, which may not actually be a locally accurate sort order since sorting
+                // can vary based on machine and this may have been serialized on another machine. The sort order is only here for consistency
+                // rather than actually needing a particular order. So just maintaining it from serialization should be fine.
+                // At one point in the past these was an assert that the sort order was maintained in debug builds. But that was removed
+                // because it crashes debug builds of the analyzer when reloading graphs across operating systems.
                 return new ObservedPathSet(
                     SortedReadOnlyArray<ObservedPathEntry, ObservedPathEntryExpandedPathComparer>.FromSortedArrayUnsafe(
                         ReadOnlyArray<ObservedPathEntry>.FromWithoutCopy(paths),

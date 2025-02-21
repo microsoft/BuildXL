@@ -249,7 +249,12 @@ namespace BuildXL.Scheduler.Tracing
         {
             PathSetHash = reader.ReadContentHash();
             var maybePathSet = ObservedPathSet.TryDeserialize(reader.PathTable, reader, pathReader: r => r.ReadAbsolutePath(), stringReader: r => ((BinaryLogReader.EventReader)r).ReadDynamicStringId());
-            Contract.Assert(maybePathSet.Succeeded);
+            if (!maybePathSet.Succeeded)
+            {
+                // For ease of debugging, throw the underlying failure instead of letting the Contract exception from looking at the result below bubble up.
+                maybePathSet.Failure.Throw();
+            }
+            
             PathSet = maybePathSet.Result;
             PriorStrongFingerprints = reader.ReadReadOnlyList(r => r.ReadStrongFingerprint());
             Succeeded = reader.ReadBoolean();

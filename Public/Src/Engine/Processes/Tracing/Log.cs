@@ -204,7 +204,7 @@ namespace BuildXL.Processes.Tracing
             EventLevel = Level.Error,
             Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
             EventTask = (int)Tasks.PipExecutor,
-            Message = EventConstants.PipPrefix + "Process terminated because it took too long: {2}; the timeout is set to {3}. {4} \r\n Process Output: \r\n {5}")]
+            Message = EventConstants.PipPrefix + "Process terminated because it took too long: {2}; the timeout is set to {3}. {4}\r\nProcess Output:\r\n{5}")]
         public abstract void PipProcessTookTooLongError(LoggingContext context, long pipSemiStableHash, string pipDescription, string actual, string time, string dumpDetails, string outputToLog);
 
         [GeneratedEvent(

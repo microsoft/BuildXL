@@ -47,6 +47,7 @@ export const qTestTool: Transformer.ToolDefinition = {
         ],
     dependsOnWindowsDirectories: true,
     dependsOnAppDataDirectory: true,
+    dependsOnCurrentHostOSDirectories: true,
     prepareTempDirectory: true,
     timeoutInMilliseconds: qtestDefaultTimeoutInMilliseconds,
 };

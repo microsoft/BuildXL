@@ -29,6 +29,7 @@ namespace BuildXL.Utilities
         [
             new("ubuntu", new Version("20.04")),
             new("ubuntu", new Version("22.04")),
+            new("ubuntu", new Version("24.04")),
             new("mariner", new Version("2.0"))
         ];
 

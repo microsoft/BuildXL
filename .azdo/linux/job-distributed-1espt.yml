@@ -79,11 +79,7 @@ jobs:
     buildXL:
       # We don't use the automatic installation for selfhost builds
       install: false
-
-      # invoker: exe means we need to provide the directory where AdoBuildRunner is located
-      invoker: exe
-      engineLocation: $(BootstrapLocation)
-      
+      invocationPrefix: $(BootstrapLocation)/AdoBuildRunner
       arguments: ${{ parameters.BxlDistributedArgs }}
       env:
         TRANSFORMERS_SDK_DIR: /home/subst/Public/Sdk/Public/Transformers

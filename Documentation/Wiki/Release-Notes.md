@@ -2,6 +2,21 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20250214.3 (Release [29615590](https://dev.azure.com/mseng/Domino/_build/results?buildId=29615590&view=results))
+- Add support for dynamic memory in VMs
+- Improvements to the build simulator 
+- Demote allowed rewrite messages to diagnostic
+- Add new argument to qtest runner for qtestDotNetCoreRuntimeArchitecture
+- Various bug fixes
+
+# 0.1.0-20250207.7.2 (Release [29607268](https://dev.azure.com/mseng/Domino/_build/results?buildId=29607268&view=results))
+- Add execution analyzer to bxl npm packages
+- Make handling augmented file accesses backward compatible
+- Build simulator for SKU selection
+- Revert change to Avoid scrubbing sources when a hardlink points to it
+- Support dynamic memory in VMs
+- Improve the speed of the simulator with the event-driven queue
+- Miscellaneous bug fixes
 
 # 0.1.0-20250131.4.1 (Release [29585338](https://dev.azure.com/mseng/Domino/_build/results?buildId=29585338&view=results))
 - Change detours so that it always faithfully returns the last error from the real API

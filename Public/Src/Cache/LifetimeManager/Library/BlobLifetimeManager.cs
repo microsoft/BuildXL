@@ -246,6 +246,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                             var retentionCutoffDate = startTime - config.ChangeFeedRetentionPeriod;
                             if (segmentDate < retentionCutoffDate)
                             {
+                                Tracer.Error(context, $"Change feed retention period has been exceeded. Account=[{accountName}] Cutoff=[{retentionCutoffDate}] ContinuationToken=[{opaqueContinuationToken}]");
                                 changeFeedRetention = true;
                             }
                         }

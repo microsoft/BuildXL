@@ -153,7 +153,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             SemaphoreSlim semaphore,
             DateTime startTime)
         {
-            var tryDeleteContentHashActionBlock = ActionBlockSlim.CreateWithAsyncAction<(ContentHash hash, TaskCompletionSource<object?> tcs, OperationContext context)>(
+            var tryDeleteContentHashActionBlock = ActionBlockSlim.CreateWithAsyncAction<(ContentHash hash, TaskSourceSlim<object?> tcs, OperationContext context)>(
                 configuration: new ActionBlockSlimConfiguration(contentDegreeOfParallelism),
                 async (tpl) =>
                 {
@@ -229,7 +229,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                         foreach (var contentHash in chl.Hashes)
                         {
                             // We don't care about the result of the operation. We just want something we can await.
-                            var tcs = new TaskCompletionSource<object?>();
+                            var tcs = TaskSourceSlim.Create<object?>();
                             tryDeleteContentHashActionBlock.Post((contentHash, tcs, opContext));
                             tasks.Add(tcs.Task);
                         }

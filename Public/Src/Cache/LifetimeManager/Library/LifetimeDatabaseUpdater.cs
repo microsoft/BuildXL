@@ -12,6 +12,7 @@ using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Cache.MemoizationStore.Stores;
+using BuildXL.Utilities.Core.Tasks;
 using BuildXL.Utilities.ParallelAlgorithms;
 
 namespace BuildXL.Cache.BlobLifetimeManager.Library
@@ -24,7 +25,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
         private readonly Dictionary<BlobNamespaceId, RocksDbLifetimeDatabase.IAccessor> _accessors;
         private readonly IClock _clock;
 
-        private readonly ActionBlockSlim<(LifetimeDatabaseCreator.ProcessFingerprintRequest, TaskCompletionSource<Result<LifetimeDatabaseCreator.ProcessContentHashListResult>>)> _fingerprintCreatedActionBlock;
+        private readonly ActionBlockSlim<(LifetimeDatabaseCreator.ProcessFingerprintRequest, TaskSourceSlim<Result<LifetimeDatabaseCreator.ProcessContentHashListResult>>)> _fingerprintCreatedActionBlock;
 
         public LifetimeDatabaseUpdater(
             Dictionary<BlobNamespaceId, IBlobCacheTopology> topologies,
@@ -36,7 +37,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             _accessors = accessors;
             _clock = clock;
 
-            _fingerprintCreatedActionBlock = ActionBlockSlim.CreateWithAsyncAction<(LifetimeDatabaseCreator.ProcessFingerprintRequest, TaskCompletionSource<Result<LifetimeDatabaseCreator.ProcessContentHashListResult>>)>(
+            _fingerprintCreatedActionBlock = ActionBlockSlim.CreateWithAsyncAction<(LifetimeDatabaseCreator.ProcessFingerprintRequest, TaskSourceSlim<Result<LifetimeDatabaseCreator.ProcessContentHashListResult>>)>(
                 new ActionBlockSlimConfiguration(DegreeOfParallelism: fingerprintsDegreeOfParallelism),
                 async tpl =>
                 {
@@ -113,7 +114,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
 
             var (containerClient, _) = await topology.GetContainerClientAsync(context, BlobCacheShardingKey.FromWeakFingerprint(strongFingerprint.WeakFingerprint));
 
-            var tcs = new TaskCompletionSource<Result<LifetimeDatabaseCreator.ProcessContentHashListResult>>();
+            var tcs = TaskSourceSlim.Create<Result<LifetimeDatabaseCreator.ProcessContentHashListResult>>();
             var request = new LifetimeDatabaseCreator.ProcessFingerprintRequest(context, containerClient, blobName, blobLength, db, topology);
             _fingerprintCreatedActionBlock.Post((request, tcs));
             return await tcs.Task;

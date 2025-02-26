@@ -71,7 +71,7 @@ config({
 
                 { id: "Microsoft.NETFramework.ReferenceAssemblies.net472", version: "1.0.0" },
 
-                { id: "System.Diagnostics.DiagnosticSource", version: "8.0.0" },
+                { id: "System.Diagnostics.DiagnosticSource", version: "9.0.2" },
 
                 // Roslyn
                 // The old compiler used by integration tests only.
@@ -230,13 +230,14 @@ config({
                 // CloudStore dependencies
                 { id: "Microsoft.Bcl", version: "1.1.10" },
                 { id: "Microsoft.Bcl.Async", version: "1.0.168" },
-                { id: "Microsoft.Bcl.AsyncInterfaces", version: "8.0.0" },
+                { id: "Microsoft.Bcl.AsyncInterfaces", version: "9.0.2" },
+                { id: "Microsoft.Bcl.AsyncInterfaces", version: "8.0.0", alias: "Microsoft.Bcl.AsyncInterfaces.v8" },
                 { id: "Microsoft.Bcl.Build", version: "1.0.14" },
                 { id: "Microsoft.Bcl.HashCode", version: "1.1.1" },
                 
                 { id: "Pipelines.Sockets.Unofficial", version: "2.2.0" },
                 { id: "System.Diagnostics.PerformanceCounter", version: "6.0.0" },
-                { id: "System.Threading.Channels", version: "7.0.0" },
+                { id: "System.Threading.Channels", version: "9.0.2" },
                 { id: "System.Threading.RateLimiting", version: "7.0.0" },
 
                 { id: "System.Linq.Async", version: "4.0.0"},
@@ -270,7 +271,7 @@ config({
                 { id: "Microsoft.Extensions.Caching.Memory", version: "1.0.0" },
                 { id: "Microsoft.Extensions.Caching.Abstractions", version: "1.0.0" },
                 { id: "System.Security.Cryptography.Xml", version: "8.0.0" },
-                { id: "System.Text.Encodings.Web", version: "8.0.0" },
+                { id: "System.Text.Encodings.Web", version: "9.0.2" },
                 { id: "System.Security.Permissions", version: "7.0.0" },
                 { id: "System.Windows.Extensions", version: "7.0.0" },
                 { id: "System.Drawing.Common", version: "7.0.0" },
@@ -306,7 +307,7 @@ config({
                 { id: "System.Buffers", version: "4.5.1" }, /* Change Sync: BuildXLSdk.cacheBindingRedirects() */ // A different version, because StackExchange.Redis uses it.
                 { id: "System.Memory", version: "4.5.5" }, /* Change Sync: BuildXLSdk.cacheBindingRedirects() */
                 { id: "System.Runtime.CompilerServices.Unsafe", version: "6.0.0" }, /* Change Sync: BuildXLSdk.cacheBindingRedirects() */
-                { id: "System.IO.Pipelines", version: "7.0.0-rc.1.22426.10" },
+                { id: "System.IO.Pipelines", version: "9.0.2" },
                 { id: "System.Numerics.Vectors", version: "4.5.0" }, /* Change Sync: BuildXLSdk.cacheBindingRedirects() */
 
                 // Extra dependencies to make MSBuild work

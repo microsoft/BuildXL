@@ -19,8 +19,8 @@ namespace Test.Tool.MsBuildGraphBuilder {
                 name: "System.Text.Json",
                 publicKeyToken: "cc7b13ffcd2ddd51",
                 culture: "neutral",
-                oldVersion: "0.0.0.0-8.0.0.5",
-                newVersion: "8.0.0.5",  // Corresponds to: { id: "System.Text.Json", version: "8.0.5" },
+                oldVersion: "0.0.0.0-9.0.0.2",
+                newVersion: "9.0.0.2",  // Corresponds to: { id: "System.Text.Json", version: "9.0.2" },
             }
         ],
         references:[
@@ -38,6 +38,9 @@ namespace Test.Tool.MsBuildGraphBuilder {
                     dep.name !== "System.Runtime.CompilerServices.Unsafe" && 
                     dep.name !== "System.Collections.Immutable.dll")),
             ...MSBuild.msbuildReferences,
+        ],
+        runtimeContentToSkip: [
+            importFrom("Microsoft.Bcl.AsyncInterfaces").pkg
         ],
     });
 }

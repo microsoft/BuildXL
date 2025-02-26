@@ -743,6 +743,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "Microsoft.Bcl.AsyncInterfaces",
+          "Version": "9.0.2"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "Microsoft.Bcl.Build",
           "Version": "1.0.14"
         }
@@ -987,7 +996,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.ComponentDetection.Contracts",
-          "Version": "5.2.2"
+          "Version": "5.2.4"
         }
       }
     },
@@ -1797,7 +1806,16 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Sbom.Adapters",
-          "Version": "3.0.1"
+          "Version": "3.1.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Sbom.Common",
+          "Version": "3.1.0"
         }
       }
     },
@@ -1806,7 +1824,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Sbom.Contracts",
-          "Version": "3.0.1"
+          "Version": "3.1.0"
         }
       }
     },
@@ -1815,7 +1833,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Sbom.Extensions",
-          "Version": "3.0.1"
+          "Version": "3.1.0"
         }
       }
     },
@@ -1824,7 +1842,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Sbom.Parsers.Spdx22SbomParser",
-          "Version": "3.0.1"
+          "Version": "3.1.0"
         }
       }
     },
@@ -2759,6 +2777,24 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "Serilog",
+          "Version": "4.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Serilog.Sinks.Console",
+          "Version": "6.0.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "SharpZipLib",
           "Version": "1.3.3"
         }
@@ -3048,7 +3084,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Diagnostics.DiagnosticSource",
-          "Version": "8.0.0"
+          "Version": "9.0.2"
         }
       }
     },
@@ -3300,7 +3336,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.IO.Pipelines",
-          "Version": "7.0.0-rc.1.22426.10"
+          "Version": "9.0.2"
         }
       }
     },
@@ -4074,7 +4110,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Text.Encodings.Web",
-          "Version": "8.0.0"
+          "Version": "9.0.2"
         }
       }
     },
@@ -4083,7 +4119,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Text.Json",
-          "Version": "8.0.5"
+          "Version": "9.0.2"
         }
       }
     },
@@ -4119,7 +4155,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Threading.Channels",
-          "Version": "7.0.0"
+          "Version": "9.0.2"
         }
       }
     },

@@ -107,7 +107,6 @@ namespace Test.Tool.DropDaemon
             XAssert.IsTrue(result.IsSuccessful);
         }
 
-
         private static string GetSbomGenerationErrorDetails(IList<EntityError> errors)
         {
             var sb = new StringBuilder();

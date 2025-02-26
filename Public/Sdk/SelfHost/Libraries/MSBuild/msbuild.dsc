@@ -3,6 +3,7 @@
 
 import * as Managed from "Sdk.Managed";
 import * as BuildXLSdk from "Sdk.BuildXL";
+import * as Deployment from "Sdk.Deployment";
 
 export declare const qualifier: BuildXLSdk.Net8QualifierWithNet472;
 
@@ -28,7 +29,7 @@ export const msbuildRuntimeContent = [
     importFrom("System.Runtime.CompilerServices.Unsafe").pkg,
     importFrom("System.Threading.Tasks.Dataflow").pkg,
     importFrom("System.Threading.Tasks.Extensions").pkg,
-    importFrom("Microsoft.Bcl.AsyncInterfaces").pkg,
+    importFrom("Microsoft.Bcl.AsyncInterfaces.v8").pkg,
 
     ...BuildXLSdk.isDotNetCoreOrStandard ? [
         importFrom("System.Text.Encoding.CodePages").pkg,
@@ -48,14 +49,23 @@ function getFrameworkFolder() : string {
 }  
 
 @@public
-export const deployment = [
+export const deployment : Deployment.NestedDefinition[] = [
     {
         subfolder: a`msbuild`,
-        contents: [{
-            subfolder: getFrameworkFolder(),
-            contents: [
-                ...msbuildRuntimeContent,
-                ...msbuildReferences,]
-        }]
+        contents: [
+            {
+                subfolder: getFrameworkFolder(),
+                contents: [
+                    ...msbuildRuntimeContent,
+                    ...msbuildReferences,
+                ],
+                // The filter must be defined at the same level as content that it applies to.
+                contentToSkip: [
+                    // MsBuild.exe needs "Microsoft.Bcl.AsyncInterfaces.v8". 
+                    // We skip the newer version of this package to resolve a deployment collision.
+                    importFrom("Microsoft.Bcl.AsyncInterfaces").pkg,
+                ]
+            }
+        ]
     },
 ];

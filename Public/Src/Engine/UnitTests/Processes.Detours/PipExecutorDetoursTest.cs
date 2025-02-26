@@ -119,6 +119,7 @@ namespace Test.BuildXL.Processes.Detours
                     SandboxKind = disableDetours ? SandboxKind.None : SandboxKind.Default,
                     MonitorNtCreateFile = monitorNtCreate,
                     IgnoreGetFinalPathNameByHandle = ignoreGetFinalPathNameByHandle,
+                    IgnoreDeviceIoControlGetReparsePoint = ignoreDeviceIoControlGetReparsePoint,
                     MonitorZwCreateOpenQueryFile = monitorZwCreateOpenQueryFile,
                     IgnorePreloadedDlls = ignorePreloadedDlls,
                     ProbeDirectorySymlinkAsDirectory = probeDirectorySymlinkAsDirectory,
@@ -127,7 +128,6 @@ namespace Test.BuildXL.Processes.Detours
                 FailUnexpectedFileAccesses = unexpectedFileAccessesAreErrors,
                 DirectoriesToEnableFullReparsePointParsing = directoriesToEnableFullReparsePointParsing,
                 PreserveFileSharingBehaviour = preserveFileSharingBehaviour,
-                IgnoreDeviceIoControlGetReparsePoint = ignoreDeviceIoControlGetReparsePoint,
             };
 
             var loggingContext = CreateLoggingContextForTest();

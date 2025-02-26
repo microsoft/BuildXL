@@ -341,7 +341,7 @@ namespace BuildXL.ProcessPipExecutor
                     EnableLinuxSandboxLogging = m_verboseProcessLoggingEnabled,
                     AlwaysRemoteInjectDetoursFrom32BitProcess = m_sandboxConfig.AlwaysRemoteInjectDetoursFrom32BitProcess,
                     UnconditionallyEnableLinuxPTraceSandbox = m_sandboxConfig.UnconditionallyEnableLinuxPTraceSandbox,
-                    IgnoreDeviceIoControlGetReparsePoint = m_sandboxConfig.IgnoreDeviceIoControlGetReparsePoint,
+                    IgnoreDeviceIoControlGetReparsePoint = m_sandboxConfig.UnsafeSandboxConfiguration.IgnoreDeviceIoControlGetReparsePoint,
                 };
 
             if (!MonitorFileAccesses)

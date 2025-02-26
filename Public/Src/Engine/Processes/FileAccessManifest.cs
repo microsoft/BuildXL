@@ -90,7 +90,6 @@ namespace BuildXL.Processes
             UseLargeNtClosePreallocatedList = false;
             UseExtraThreadToDrainNtClose = true;
             LogProcessData = false;
-            IgnoreGetFinalPathNameByHandle = true; // TODO: This is false in BuildXL's configuration. Changing the default here will impact QuickBuild
             LogProcessDetouringStatus = false;
             HardExitOnErrorInDetours = false;
             CheckDetoursMessageCount = false;
@@ -106,7 +105,8 @@ namespace BuildXL.Processes
             EnableLinuxSandboxLogging = false;
             AlwaysRemoteInjectDetoursFrom32BitProcess = false;
             UnconditionallyEnableLinuxPTraceSandbox = false;
-            IgnoreDeviceIoControlGetReparsePoint = true; // TODO: Change this when customers onboard the feature.
+            IgnoreDeviceIoControlGetReparsePoint = true;
+            IgnoreGetFinalPathNameByHandle = true;
         }
 
         private bool GetFlag(FileAccessManifestFlag flag) => (m_fileAccessManifestFlag & flag) != 0;

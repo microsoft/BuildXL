@@ -1255,8 +1255,6 @@ static bool DllProcessAttach()
             ATTACH(OpenEncryptedFileRawW);
             ATTACH(OpenEncryptedFileRawA);
             ATTACH(OpenFileById);
-            ATTACH(GetFinalPathNameByHandleW);
-            ATTACH(GetFinalPathNameByHandleA);
 
             ATTACH(NtCreateFile);
             ATTACH(NtOpenFile);
@@ -1271,7 +1269,17 @@ static bool DllProcessAttach()
             ATTACH(ZwSetInformationFile);
 
             ATTACH(CreatePipe);
-            ATTACH(DeviceIoControl);
+
+            if (!IgnoreGetFinalPathNameByHandle())
+            {
+                ATTACH(GetFinalPathNameByHandleW);
+                ATTACH(GetFinalPathNameByHandleA);
+            }
+
+            if (!IgnoreDeviceIoControlGetReparsePoint())
+            {
+                ATTACH(DeviceIoControl);
+            }
 #pragma warning( pop )
         }
         else {

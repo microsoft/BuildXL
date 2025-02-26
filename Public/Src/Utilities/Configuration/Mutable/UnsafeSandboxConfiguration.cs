@@ -30,7 +30,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
             PreserveOutputs = PreserveOutputsMode.Disabled;
             PreserveOutputsTrustLevel = (int)PreserveOutputsTrustValue.Lowest;
             IgnorePreserveOutputsPrivatization = false;
-            IgnoreGetFinalPathNameByHandle = false;
+            IgnoreGetFinalPathNameByHandle = true;
+            IgnoreDeviceIoControlGetReparsePoint = true;
             MonitorZwCreateOpenQueryFile = true;
             IgnoreDynamicWritesOnAbsentProbes = DynamicWriteOnAbsentProbePolicy.IgnoreDirectoryProbes; // TODO: eventually change this to IgnoreNothing
             IgnoreUndeclaredAccessesUnderSharedOpaques = false;
@@ -58,6 +59,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
             IgnoreDynamicWritesOnAbsentProbes = DynamicWriteOnAbsentProbePolicy.IgnoreNothing,
             ProbeDirectorySymlinkAsDirectory = false,
             DoNotApplyAllowListToDynamicOutputs = false,
+            IgnoreDeviceIoControlGetReparsePoint = true,
+            IgnoreGetFinalPathNameByHandle = true,
         };
 
         /// <nodoc />
@@ -80,6 +83,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             PreserveOutputsTrustLevel = template.PreserveOutputsTrustLevel;
             IgnorePreserveOutputsPrivatization = template.IgnorePreserveOutputsPrivatization;
             IgnoreGetFinalPathNameByHandle = template.IgnoreGetFinalPathNameByHandle;
+            IgnoreDeviceIoControlGetReparsePoint = template.IgnoreDeviceIoControlGetReparsePoint;
             IgnoreDynamicWritesOnAbsentProbes = template.IgnoreDynamicWritesOnAbsentProbes;
             DoubleWritePolicy = template.DoubleWritePolicy;
             IgnoreUndeclaredAccessesUnderSharedOpaques = template.IgnoreUndeclaredAccessesUnderSharedOpaques;
@@ -137,6 +141,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool IgnoreGetFinalPathNameByHandle { get; set; }
+
+        /// <inheritdoc />
+        public bool IgnoreDeviceIoControlGetReparsePoint { get; set; }
 
         /// <inheritdoc />
         public DynamicWriteOnAbsentProbePolicy IgnoreDynamicWritesOnAbsentProbes { get; set; }

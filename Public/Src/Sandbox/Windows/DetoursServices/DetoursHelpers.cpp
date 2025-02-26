@@ -53,10 +53,10 @@ void TranslateFilePath(_In_ const std::wstring& inFileName, _Out_ std::wstring& 
         return;
     }
 
-    const std::wstring prefix(L"\\??\\");
+    const std::wstring prefix(NT_PATH_PREFIX);
     bool hasPrefix = !tempStr.compare(0, prefix.size(), prefix);
 
-    const std::wstring prefixNt(L"\\\\?\\");
+    const std::wstring prefixNt(NT_LONG_PATH_PREFIX);
     bool hasPrefixNt = !tempStr.compare(0, prefixNt.size(), prefixNt);
 
     tempStr.assign(canonicalizedPath.GetPathStringWithoutTypePrefix());
@@ -93,11 +93,11 @@ void TranslateFilePath(_In_ const std::wstring& inFileName, _Out_ std::wstring& 
             {
                 // The path to be translated can be a directory path that does not have trailing '\\'.
 
-                if (lowCaseFinalPath.back() != L'\\'
-                    && lowCaseTargetPath.back() == L'\\'
+                if (!IsDirectorySeparator(lowCaseFinalPath.back() )
+                    && IsDirectorySeparator(lowCaseTargetPath.back())
                     && lowCaseFinalPath.length() == (targetLen - 1))
                 {
-                    std::wstring lowCaseFinalPathWithBs = lowCaseFinalPath + L'\\';
+                    std::wstring lowCaseFinalPathWithBs = lowCaseFinalPath + NT_DIRECTORY_SEPARATOR;
                     comp = lowCaseFinalPathWithBs.compare(0, targetLen, lowCaseTargetPath);
                     mayBeDirectoryPath = true;
                 }

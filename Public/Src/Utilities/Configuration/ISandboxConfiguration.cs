@@ -301,11 +301,6 @@ namespace BuildXL.Utilities.Configuration
         public bool UnconditionallyEnableLinuxPTraceSandbox { get; }
 
         /// <summary>
-        /// Ignores DeviceIoControl calls, in particular the case of FSCTL_GET_REPARSE_POINT
-        /// </summary>
-        bool IgnoreDeviceIoControlGetReparsePoint { get; }
-
-        /// <summary>
         /// Force set the execute permission bit for the root process of process pips in Linux builds.
         /// </summary>
         public bool ForceAddExecutionPermission {  get; }

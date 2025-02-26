@@ -147,6 +147,7 @@ namespace BuildXL.Scheduler.Fingerprints
             fingerprinter.Add(nameof(UnsafeConfiguration.SandboxKind), UnsafeConfiguration.SandboxKind.ToString());
             fingerprinter.Add(nameof(UnsafeConfiguration.ExistingDirectoryProbesAsEnumerations), getBoolString(UnsafeConfiguration.ExistingDirectoryProbesAsEnumerations));
             fingerprinter.Add(nameof(UnsafeConfiguration.IgnoreGetFinalPathNameByHandle), getBoolString(UnsafeConfiguration.IgnoreGetFinalPathNameByHandle));
+            fingerprinter.Add(nameof(UnsafeConfiguration.IgnoreDeviceIoControlGetReparsePoint), getBoolString(UnsafeConfiguration.IgnoreDeviceIoControlGetReparsePoint));
             fingerprinter.Add(nameof(UnsafeConfiguration.IgnoreNonCreateFileReparsePoints), getBoolString(UnsafeConfiguration.IgnoreNonCreateFileReparsePoints));
             fingerprinter.Add(nameof(UnsafeConfiguration.IgnoreReparsePoints), getBoolString(UnsafeConfiguration.IgnoreReparsePoints));
             fingerprinter.Add(nameof(UnsafeConfiguration.IgnoreFullReparsePointResolving), getBoolString(UnsafeConfiguration.IgnoreFullReparsePointResolving));

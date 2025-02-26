@@ -521,9 +521,6 @@ namespace BuildXL
                                 configuration.Help = ParseHelpOption(opt);
                             }),
                         OptionHandlerFactory.CreateBoolOption(
-                            "ignoreDeviceIoControlGetReparsePoint",
-                            sign => { sandboxConfiguration.IgnoreDeviceIoControlGetReparsePoint = sign; }),
-                        OptionHandlerFactory.CreateBoolOption(
                             "honorDirectoryCasingOnDisk",
                             sign => configuration.Cache.HonorDirectoryCasingOnDisk = sign),
                         OptionHandlerFactory.CreateOption(
@@ -1174,6 +1171,14 @@ namespace BuildXL
                             CommandLineUtilities.ParseInt32Option(opt, (int)PreserveOutputsTrustValue.Lowest, int.MaxValue),
                             isUnsafe: true),
                         OptionHandlerFactory.CreateBoolOption(
+                            "unsafe_RunPathTranslationForGetFinalPathNameByHandle",
+                            sign => { sandboxConfiguration.UnsafeSandboxConfigurationMutable.IgnoreGetFinalPathNameByHandle = !sign; },
+                            isUnsafe: true),
+                        OptionHandlerFactory.CreateBoolOption(
+                            "unsafe_RunPathTranslationForDeviceIoControlGetReparsePoint",
+                            sign => { sandboxConfiguration.UnsafeSandboxConfigurationMutable.IgnoreDeviceIoControlGetReparsePoint = !sign; },
+                            isUnsafe: true),
+                        OptionHandlerFactory.CreateBoolOption(
                             "unsafe_UnexpectedFileAccessesAreErrors",
                             sign =>
                             {
@@ -1551,8 +1556,8 @@ namespace BuildXL
                 cl.Options, 
                 m_handlers,
                 out var unrecognizedOption,
-                specialCaseUnsafeOptions, 
-                (string unsafeOptionName) => { configuration.CommandLineEnabledUnsafeOptions.Add(unsafeOptionName); }))
+                specialCaseUnsafeOptions,
+                configuration.CommandLineEnabledUnsafeOptions.Add))
             {
                 throw CommandLineUtilities.Error(Strings.Args_Args_NotRecognized, unrecognizedOption.Name);
             }

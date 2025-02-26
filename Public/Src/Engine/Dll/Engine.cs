@@ -2370,6 +2370,8 @@ namespace BuildXL.Engine
                 { "unsafe_AllowDuplicateTemporaryDirectory", Logger.Log.ConfigUnsafeAllowDuplicateTemporaryDirectory },
                 { "unsafe_SkipFlaggingSharedOpaqueOutputs", Logger.Log.ConfigUnsafeSkipFlaggingSharedOpaqueOutputs },
                 { "unsafe_IgnorePreserveOutputsPrivatization", Logger.Log.ConfigUnsafeIgnorePreserveOutputsPrivatization },
+                { "unsafe_RunPathTranslationForGetFinalPathNameByHandle", Logger.Log.ConfigUnsafeRunPathTranslationForGetFinalPathNameByHandle },
+                { "unsafe_RunPathTranslationForDeviceIoControlGetReparsePoint", Logger.Log.ConfigUnsafeRunPathTranslationForDeviceIoControlReparsePoint },
                 { "unsafe_DoNotApplyAllowListToDynamicOutputs", loggingContext => { } /* Special case: unsafe option we do not want logged because the option is temporary and the default value is unsafe */ },
             };
         }

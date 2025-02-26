@@ -21,34 +21,33 @@ namespace BuildXL.Pips.Graph
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1815:OverrideEqualsAndOperatorEqualsOnValueTypes")]
     public struct ExtraFingerprintSalts : IEquatable<ExtraFingerprintSalts>
     {
-        private static readonly ExtraFingerprintSalts s_defaultValue = new ExtraFingerprintSalts(
-                        ignoreSetFileInformationByHandle: false,
-                        ignoreZwRenameFileInformation: false,
-                        ignoreZwOtherFileInformation: false,
-                        ignoreNonCreateFileReparsePoints: false,
-                        ignoreReparsePoints: true, // TODO: Change this value when the default value for ignoreReparsePoints changes.
-                        ignoreFullReparsePointResolving: true, // TODO: Change this value when the default value for ignoreFullReparsePointResolving changes.
-                        ignorePreloadedDlls: true, // TODO: Change this value when the default value for ignorePreloadedDlls changes.
-                        ignoreGetFinalPathNameByHandle: true, // TODO: Change this value when the default value for ignoreGetFinalPathNameByHandle changes.
-                        existingDirectoryProbesAsEnumerations: false,
-                        disableDetours: false,
-                        monitorNtCreateFile: true,
-                        monitorZwCreateOpenQueryFile: false, // TODO:  Change this value when the default value for monitorZwCreateOpenQueryFile changes.
-                        fingerprintVersion: PipFingerprintingVersion.TwoPhaseV2,
-                        fingerprintSalt: null,
-                        observationReclassificationRulesHash: null,
-                        searchPathToolsHash: null,
-                        monitorFileAccesses: true,
-                        unexpectedFileAccessesAreErrors: true,
-                        maskUntrackedAccesses: true,
-                        normalizeReadTimestamps: true,
-                        pipWarningsPromotedToErrors: false,
-                        validateDistribution: false,
-                        explicitlyReportDirectoryProbes: false,
-                        ignoreDeviceIoControlGetReparsePoint: true, // Remove this flag from the fingerprint once we validated there are no breaking changes
-                        honorDirectoryCasingOnDisk: false,
-                        linuxOSName: OperatingSystemHelper.IsLinuxOS ? OperatingSystemHelperExtension.GetLinuxDistribution().Id : string.Empty
-            );
+        private static readonly ExtraFingerprintSalts s_defaultValue = new(
+            ignoreSetFileInformationByHandle: false,
+            ignoreZwRenameFileInformation: false,
+            ignoreZwOtherFileInformation: false,
+            ignoreNonCreateFileReparsePoints: false,
+            ignoreReparsePoints: true, // TODO: Change this value when the default value for ignoreReparsePoints changes.
+            ignoreFullReparsePointResolving: true, // TODO: Change this value when the default value for ignoreFullReparsePointResolving changes.
+            ignorePreloadedDlls: true, // TODO: Change this value when the default value for ignorePreloadedDlls changes.
+            ignoreGetFinalPathNameByHandle: true,
+            existingDirectoryProbesAsEnumerations: false,
+            disableDetours: false,
+            monitorNtCreateFile: true,
+            monitorZwCreateOpenQueryFile: false, // TODO:  Change this value when the default value for monitorZwCreateOpenQueryFile changes.
+            fingerprintVersion: PipFingerprintingVersion.TwoPhaseV2,
+            fingerprintSalt: null,
+            observationReclassificationRulesHash: null,
+            searchPathToolsHash: null,
+            monitorFileAccesses: true,
+            unexpectedFileAccessesAreErrors: true,
+            maskUntrackedAccesses: true,
+            normalizeReadTimestamps: true,
+            pipWarningsPromotedToErrors: false,
+            validateDistribution: false,
+            explicitlyReportDirectoryProbes: false,
+            ignoreDeviceIoControlGetReparsePoint: true,
+            honorDirectoryCasingOnDisk: false,
+            linuxOSName: OperatingSystemHelper.IsLinuxOS ? OperatingSystemHelperExtension.GetLinuxDistribution().Id : string.Empty);
 
         /// <summary>
         /// Returns a default value for this struct.
@@ -95,7 +94,7 @@ namespace BuildXL.Pips.Graph
                 searchPathToolsHash,
                 observationReclassificationRulesHash,
                 config.Sandbox.ExplicitlyReportDirectoryProbes,
-                config.Sandbox.IgnoreDeviceIoControlGetReparsePoint,
+                config.Sandbox.UnsafeSandboxConfiguration.IgnoreDeviceIoControlGetReparsePoint,
                 config.Cache.HonorDirectoryCasingOnDisk,
                 OperatingSystemHelper.IsLinuxOS ? OperatingSystemHelperExtension.GetLinuxDistribution().Id : string.Empty
                 )
@@ -169,8 +168,7 @@ namespace BuildXL.Pips.Graph
             bool explicitlyReportDirectoryProbes,
             bool ignoreDeviceIoControlGetReparsePoint,
             bool honorDirectoryCasingOnDisk,
-            string linuxOSName
-            )
+            string linuxOSName)
         {
             IgnoreSetFileInformationByHandle = ignoreSetFileInformationByHandle;
             IgnoreZwRenameFileInformation = ignoreZwRenameFileInformation;

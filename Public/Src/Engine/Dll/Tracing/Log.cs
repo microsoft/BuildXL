@@ -1123,6 +1123,24 @@ namespace BuildXL.Engine.Tracing
         public abstract void ConfigUnsafeUnexpectedFileAccessesAsWarnings(LoggingContext context);
 
         [GeneratedEvent(
+            (ushort)LogEventId.ConfigUnsafeRunPathTranslationForGetFinalPathNameByHandle,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Engine,
+            Message = "/unsafe_RunPathTranslationForGetFinalPathNameByHandle enabled: the final path returned by GetFinalPathNameByHandle will be translated using the user-specified directory translations. This is unsafe because the returned path can have unexpected properties.")]
+        public abstract void ConfigUnsafeRunPathTranslationForGetFinalPathNameByHandle(LoggingContext context);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.ConfigUnsafeRunPathTranslationForDeviceIoControlGetReparsePoint,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Engine,
+            Message = "/unsafe_RunPathTranslationForDeviceIoControlGetReparsePoint enabled: the reparse point target returned by DeviceIoControl will be translated using the user-specified directory translations. This is unsafe because the returned target path can have unexpected properties.")]
+        public abstract void ConfigUnsafeRunPathTranslationForDeviceIoControlReparsePoint(LoggingContext context);
+
+        [GeneratedEvent(
             (ushort)LogEventId.ConfigUnsafeOptimizedAstConversion,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,

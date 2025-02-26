@@ -156,9 +156,26 @@ namespace BuildXL.Utilities.Configuration
         bool UnexpectedFileAccessesAreErrors { get; }
 
         /// <summary>
-        /// Whether BuildXL is to detour the GetFinalPathNameByHandle API. Not detouring GetFinalPathNameByHandle is an unsafe configuration. Default to off (i.e., Detour the GetFinalPathNameByHandle API).
+        /// Whether BuildXL is to detour the GetFinalPathNameByHandle API.
         /// </summary>
+        /// <remarks>
+        /// Precisely, this option controls whether or not BuildXL Detours performs path translation for the final path returned by the GetFinalPathNameByHandle API.
+        /// Internally, when this option is set to true, BuildXL Detours simply does not detours the GetFinalPathNameByHandle API. Performing path translation for the final path
+        /// is unsafe because the detoured process can get a path with unexpected properties. For example, due to some translations, the final path that is supposed to be a real file turns out to be
+        /// a reparse point.
+        /// </remarks>
         bool IgnoreGetFinalPathNameByHandle { get; }
+
+        /// <summary>
+        /// Whether BuildXL is to detour the DeviceIoControl for IOCTL_GET_REPARSE_POINT command.
+        /// </summary>
+        /// <remarks>
+        /// Precisely, this option controls whether or not BuildXL Detours performs path translation for the path obtained by invoking DeviceIoControl on IOCTL_GET_REPARSE_POINT.
+        /// Internally, when this option is set to true, BuildXL Detours simply does not detours the DeviceIoControl API at all. Performing path translation for the path
+        /// is unsafe because the detoured process can get a path with unexpected properties. For example, due to some translations, the path that is supposed to be a real file turns out to be
+        /// yet another reparse point.
+        /// </remarks>
+        bool IgnoreDeviceIoControlGetReparsePoint { get; }
 
         /// <summary>
         /// Whether BuildXL flags writes under opaque directories (exclusive or shared) that make existing absent probes to become present probes.
@@ -246,6 +263,7 @@ namespace BuildXL.Utilities.Configuration
             writer.Write((byte)@this.SandboxKind);
             writer.Write(@this.ExistingDirectoryProbesAsEnumerations);
             writer.Write(@this.IgnoreGetFinalPathNameByHandle);
+            writer.Write(@this.IgnoreDeviceIoControlGetReparsePoint);
             writer.Write(@this.IgnoreNonCreateFileReparsePoints);
             writer.Write(@this.IgnoreReparsePoints);
             writer.Write(@this.IgnoreSetFileInformationByHandle);
@@ -294,6 +312,7 @@ namespace BuildXL.Utilities.Configuration
                 SandboxKind = (SandboxKind)reader.ReadByte(),
                 ExistingDirectoryProbesAsEnumerations = reader.ReadBoolean(),
                 IgnoreGetFinalPathNameByHandle = reader.ReadBoolean(),
+                IgnoreDeviceIoControlGetReparsePoint = reader.ReadBoolean(),
                 IgnoreNonCreateFileReparsePoints = reader.ReadBoolean(),
                 IgnoreReparsePoints = reader.ReadBoolean(),
                 IgnoreSetFileInformationByHandle = reader.ReadBoolean(),
@@ -334,6 +353,7 @@ namespace BuildXL.Utilities.Configuration
             return IsAsSafeOrSafer(lhs.DisableDetours(), rhs.DisableDetours(), SafeDefaults.DisableDetours())
                 && IsAsSafeOrSafer(lhs.ExistingDirectoryProbesAsEnumerations, rhs.ExistingDirectoryProbesAsEnumerations, SafeDefaults.ExistingDirectoryProbesAsEnumerations)
                 && IsAsSafeOrSafer(lhs.IgnoreGetFinalPathNameByHandle, rhs.IgnoreGetFinalPathNameByHandle, SafeDefaults.IgnoreGetFinalPathNameByHandle)
+                && IsAsSafeOrSafer(lhs.IgnoreDeviceIoControlGetReparsePoint, rhs.IgnoreDeviceIoControlGetReparsePoint, SafeDefaults.IgnoreDeviceIoControlGetReparsePoint)
                 && IsAsSafeOrSafer(lhs.IgnoreNonCreateFileReparsePoints, rhs.IgnoreNonCreateFileReparsePoints, SafeDefaults.IgnoreNonCreateFileReparsePoints)
                 && IsAsSafeOrSafer(lhs.IgnoreReparsePoints, rhs.IgnoreReparsePoints, SafeDefaults.IgnoreReparsePoints)
                 && IsAsSafeOrSafer(lhs.IgnoreFullReparsePointResolving, rhs.IgnoreFullReparsePointResolving, SafeDefaults.IgnoreFullReparsePointResolving)

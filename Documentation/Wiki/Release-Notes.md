@@ -2,6 +2,13 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20250222.1 (Release [29640286](https://dev.azure.com/mseng/Domino/_build/results?buildId=29640286&view=results))
+-	Fixes for Ubuntu 24.04
+-	Fixes and improved support for Rush graph builder plugin
+-	Pips can be specified as uncacheable in Rush graph plugin
+-	Fix opening execution analyzer (xlg) files on different OS than producing build
+-	Additional counters for pip output processing plugin
+
 # 0.1.0-20250214.3 (Release [29615590](https://dev.azure.com/mseng/Domino/_build/results?buildId=29615590&view=results))
 - Add support for dynamic memory in VMs
 - Improvements to the build simulator 

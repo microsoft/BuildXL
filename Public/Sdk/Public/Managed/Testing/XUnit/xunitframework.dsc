@@ -72,7 +72,7 @@ const additionalNetCoreRuntimeContent = isDotNetCore(qualifier.targetFramework)
         
         // Note that below we are using different console runner due to this bug https://github.com/xunit/xunit/pull/1846
         // that the xunit maintainer does not want to fix. Let's consider removing this patch when we upgrade to xunit 3.0.
-        xunitNetCoreConsolePackage.getFile(r`/lib/netcoreapp2.0/xunit.console.dll`)
+        xunitNetCoreConsolePackage.getFile(r`/tools/netcoreapp3.1/xunit.console.dll`)
       ] 
     : [];
     

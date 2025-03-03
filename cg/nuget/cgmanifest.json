@@ -1068,7 +1068,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.DotNet.XUnitConsoleRunner",
-          "Version": "2.5.1-beta.19270.4"
+          "Version": "2.5.1-beta.22179.1"
         }
       }
     },

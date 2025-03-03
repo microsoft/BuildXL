@@ -58,7 +58,7 @@ config({
                 : {
                     "buildxl-selfhost" : "https://pkgs.dev.azure.com/mseng/PipelineTools/_packaging/BuildXL.External.Dependencies/nuget/v3/index.json",
                     "nuget.org" : "https://api.nuget.org/v3/index.json",
-                    "dotnet-arcade" : "https://dotnetfeed.blob.core.windows.net/dotnet-core/index.json",
+                    "dotnet-arcade" : "https://pkgs.dev.azure.com/dnceng/public/_packaging/dotnet-eng/nuget/v3/index.json",
                   },
 
             packages: [
@@ -208,7 +208,8 @@ config({
                 { id: "xunit.runner.visualstudio", version: "2.5.3" },
                 { id: "xunit.runner.utility", version: "2.5.3" },
                 { id: "xunit.runner.reporters", version: "2.5.3" },
-                { id: "Microsoft.DotNet.XUnitConsoleRunner", version: "2.5.1-beta.19270.4" },
+                // comes from https://dev.azure.com/dnceng/public/_artifacts/feed/dotnet-eng/NuGet/Microsoft.DotNet.XUnitConsoleRunner/versions
+                { id: "Microsoft.DotNet.XUnitConsoleRunner", version: "2.5.1-beta.22179.1" },
 
                 // SQL
                 { id: "Microsoft.Data.SqlClient", version: "5.2.1" },

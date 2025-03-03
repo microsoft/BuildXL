@@ -18,6 +18,7 @@ namespace Library {
             
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Utilities.Core.dll,
+            importFrom("BuildXL.Utilities").Branding.dll,
             importFrom("BuildXL.Utilities").KeyValueStore.dll,
             importFrom("BuildXL.Utilities").Native.dll,
             

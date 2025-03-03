@@ -22,6 +22,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Timers;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Tasks;
 
@@ -68,6 +69,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             string cacheInstance,
             BuildCacheConfiguration? buildCacheConfiguration)
         {
+            Tracer.Info(context, $"Starting GC. CacheInstance=[{cacheInstance}] RunId=[{runId}] BuildXLVersion=[{BuildXL.Utilities.Branding.Version}]");
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(context.Token);
             context = context.WithCancellationToken(cts.Token);
 

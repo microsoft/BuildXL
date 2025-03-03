@@ -14,7 +14,7 @@ namespace BuildXL.Cache.ContentStore.Utils
     /// <summary>
     /// Performance statistics in a strongly typed form.
     /// </summary>
-    internal readonly record struct PerformanceStatistics(
+    public readonly record struct PerformanceStatistics(
         int CpuQueueLength,
         int CpuUsagePercentage,
         int CpuWMIUsagePercentage,
@@ -108,7 +108,7 @@ namespace BuildXL.Cache.ContentStore.Utils
         }
     }
 
-    internal class MachinePerformanceCollector : IDisposable
+    public class MachinePerformanceCollector : IDisposable
     {
         private readonly PerformanceCollector _collector;
         private readonly PerformanceCollector.Aggregator _perfStatsAggregator;

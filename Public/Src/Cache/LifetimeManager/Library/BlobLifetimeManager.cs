@@ -73,6 +73,9 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(context.Token);
             context = context.WithCancellationToken(cts.Token);
 
+            using var performanceCollector = new BlobLifetimeManagerStatisticsCollector();
+            await performanceCollector.StartupAsync(context).ThrowIfFailureAsync();
+
             var shardingScheme = new ShardingScheme(ShardingAlgorithm.JumpHash, accountNames);
             var (metadataMatrix, contentMatrix) = shardingScheme.GenerateMatrix();
 

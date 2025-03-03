@@ -86,7 +86,7 @@ export const pkgs = isMicrosoftInternal ? [
     { id: "Microsoft.Sbom.Common", version: "3.1.0" },
     { id: "Microsoft.Sbom.Parsers.Spdx22SbomParser", version: "3.1.0" },
     { id: "Microsoft.Sbom.Adapters", version: "3.1.0" },
-    { id: "Microsoft.ComponentDetection.Contracts", version: "5.2.4" },
+    { id: "Microsoft.ComponentDetection.Contracts", version: "5.2.6" },
     { id: "Microsoft.Sbom.Contracts", version: "3.1.0" },
     { id: "Microsoft.Sbom.Extensions", version: "3.1.0" },
 

@@ -204,6 +204,7 @@ export function compile(inputArgs: Arguments) : Result {
                 // which, unfortunately, is not allowed for pips declaring 'trustStaticallyDeclaredAccesses'.
                 dependsOnCurrentHostOSDirectories: !args.shared,
                 untrackedDirectoryScopes: [
+                    d`/sbin`,
                     d`/usr`,
                     d`/var`,
                     d`/bin`,

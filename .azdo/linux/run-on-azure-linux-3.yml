@@ -10,7 +10,7 @@ parameters:
     /logoutput:FullOutputOnError 
     /p:[Sdk.BuildXL]xunitSemaphoreCount=8 
     /forceAddExecutionPermission-
-    /p:BUILDXL_FINGERPRINT_SALT=AzureLinux2
+    /p:BUILDXL_FINGERPRINT_SALT=AzureLinux3
   '
 
 resources:
@@ -26,7 +26,7 @@ extends:
     pool:
       name: BuildXL-DevOpsAgents-Selfhost-BuildCache
       os: linux
-      image: 1ES-hosted-azure-linux-2
+      image: 1ES-hosted-azure-linux-3
 
     sdl:
       sourceAnalysisPool:
@@ -40,12 +40,12 @@ extends:
         pool:
           name: BuildXL-DevOpsAgents-Selfhost-BuildCache
           os: linux
-          image: 1ES-hosted-azure-linux-2
+          image: 1ES-hosted-azure-linux-3
         BxlCommonArgs: ${{ parameters.BxlCommonArgs }}
         BxlDistributedArgs: '
           /c:/home/subst/Private/AdoDistributionTests/config.dsc
-          /p:BUILDXL_FINGERPRINT_SALT=AzureLinux2
-          /p:BUILDXL_GRAPH_FINGERPRINT_SALT=AzureLinux2
+          /p:BUILDXL_FINGERPRINT_SALT=AzureLinux3
+          /p:BUILDXL_GRAPH_FINGERPRINT_SALT=AzureLinux3
           /replicateOutputsToWorkers+ 
           /p:BuildXLMinimumWaitForRemoteWorkerMin=5
         '
@@ -80,4 +80,4 @@ extends:
             sudo iptables -A INPUT -p tcp --dport 7094 -j ACCEPT
             # Open Cache_ephemeral_leader_encrypted outbound port
             sudo iptables -A OUTPUT -p tcp --sport 7094 -j ACCEPT
-          displayName: Configure firewall for AzureLinux 2
+          displayName: Configure firewall for AzureLinux 3

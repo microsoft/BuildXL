@@ -81,12 +81,6 @@ namespace NugetPackages {
     const buildXLNativeIdentity = { id: `${packageNamePrefix}.Native`, version: Branding.Nuget.packageVersion };
     const buildXLPipsIdentity = { id: `${packageNamePrefix}.Pips`, version: Branding.Nuget.packageVersion };
 
-    // Old cache packages to be phased out
-    const buildXLCacheHashingIdentity = { id: `${packageNamePrefix}.Cache.Hashing`, version: Branding.Nuget.packageVersion };
-    const buildXLCacheInterfacesIdentity = { id: `${packageNamePrefix}.Cache.Interfaces`, version: Branding.Nuget.packageVersion };
-    const buildXLCacheLibrariesIdentity = { id: `${packageNamePrefix}.Cache.Libraries`, version: Branding.Nuget.packageVersion };
-    const buildXLCacheServiceIdentity = { id: `${packageNamePrefix}.Cache.Service`, version: Branding.Nuget.packageVersion };
-
     // Cache Packages
     const buildXLContentStoreDistributedIdentity = { id: `${packageNamePrefix}.Cache.ContentStore.Distributed`, version: Branding.Nuget.packageVersion };
     const buildXLContentStoreLibraryIdentity = { id: `${packageNamePrefix}.Cache.ContentStore.Library`, version: Branding.Nuget.packageVersion };
@@ -298,14 +292,10 @@ namespace NugetPackages {
             buildXLUtilitiesCoreIdentity,
             buildXLNativeIdentity,
 
-            buildXLCacheHashingIdentity,
-            buildXLCacheInterfacesIdentity,
-
-            // TODO: Update to use new cache packages to replace the ones above once consumers of this package switch over
-            // buildXLContentStoreHashingIdentity,
-            // buildXLContentStoreUtilitiesCoreIdentity,
-            // buildXLContentStoreInterfacesIdentity,
-            // buildXLMemoizationStoreInterfacesIdentity,
+            buildXLContentStoreHashingIdentity,
+            buildXLContentStoreUtilitiesCoreIdentity,
+            buildXLContentStoreInterfacesIdentity,
+            buildXLMemoizationStoreInterfacesIdentity,
         ],
         deploymentOptions: reducedDeploymentOptions,
     };
@@ -378,31 +368,26 @@ namespace NugetPackages {
             buildXLUtilitiesCoreIdentity,
             buildXLNativeIdentity,
 
-            buildXLCacheHashingIdentity,
-            buildXLCacheInterfacesIdentity,
-            buildXLCacheLibrariesIdentity,
-            
-            // TODO: Update to use new cache packages to replace the ones above once consumers of this package switch over
-            // buildXLContentStoreHashingIdentity,
-            // buildXLContentStoreUtilitiesCoreIdentity,
+            buildXLContentStoreHashingIdentity,
+            buildXLContentStoreUtilitiesCoreIdentity,
 
-            // buildXLContentStoreInterfacesIdentity,
-            // buildXLMemoizationStoreInterfacesIdentity,
+            buildXLContentStoreInterfacesIdentity,
+            buildXLMemoizationStoreInterfacesIdentity,
 
-            // buildXLContentStoreDistributedIdentity,
-            // buildXLContentStoreLibraryIdentity,
-            // buildXLContentStoreGrpcIdentity,
-            // buildXLContentStoreVstsIdentity,
-            // buildXLMemoizationStoreDistributedIdentity,
-            // buildXLMemoizationStoreLibraryIdentity,
-            // ...addIfLazy(BuildXLSdk.Flags.isVstsArtifactsEnabled, () => [ 
-            //     buildXLMemoizationStoreVstsIdentity,
-            //     buildXLContentStoreVstsInterfacesIdentity
-            // ]),
-            // buildXLMemoizationStoreVstsInterfacesIdentity,
-            // buildXLCacheHostServicesIdentity,
-            // buildXLCacheHostConfigurationIdentity,
-            // buildXLCacheLoggingIdentity
+            buildXLContentStoreDistributedIdentity,
+            buildXLContentStoreLibraryIdentity,
+            buildXLContentStoreGrpcIdentity,
+            buildXLContentStoreVstsIdentity,
+            buildXLMemoizationStoreDistributedIdentity,
+            buildXLMemoizationStoreLibraryIdentity,
+            ...addIfLazy(BuildXLSdk.Flags.isVstsArtifactsEnabled, () => [ 
+                buildXLMemoizationStoreVstsIdentity,
+                buildXLContentStoreVstsInterfacesIdentity
+            ]),
+            buildXLMemoizationStoreVstsInterfacesIdentity,
+            buildXLCacheHostServicesIdentity,
+            buildXLCacheHostConfigurationIdentity,
+            buildXLCacheLoggingIdentity
         ]
     };
 
@@ -434,70 +419,6 @@ namespace NugetPackages {
     const cacheTools = !canBuildAllPackagesOnThisHost ? undefined : pack({
         id: `${packageNamePrefix}.Cache.Tools`,
         deployment: Cache.NugetPackages.tools,
-    });
-
-    // Old cache packages that will be replaced in the future with the ones below them that contain a single assembly per package
-    // These are maintained for compatibility
-    const cacheLibraries = !canBuildAllPackagesOnThisHost ? undefined : pack({
-        id: buildXLCacheLibrariesIdentity.id,
-        deployment: Cache.NugetPackages.libraries,
-        dependencies: [
-            buildXLCacheInterfacesIdentity,
-            buildXLUtilitiesIdentity,
-            buildXLUtilitiesCoreIdentity,
-            buildXLNativeIdentity,
-
-            importFrom("Azure.Messaging.EventHubs").withQualifier(net472packageQualifier).pkg,
-            importFrom("Azure.Core.Amqp").withQualifier(net472packageQualifier).pkg,
-            importFrom("Azure.Identity").withQualifier(net472packageQualifier).pkg,
-            importFrom("Microsoft.Azure.Amqp").withQualifier(net472packageQualifier).pkg,
-            importFrom("System.Threading.Tasks.Dataflow").withQualifier(net472packageQualifier).pkg,
-            ...BuildXLSdk.withQualifier(net472packageQualifier).bclAsyncPackages,
-            ...importFrom("BuildXL.Cache.ContentStore").withQualifier(net472packageQualifier).getGrpcPackagesWithoutNetStandard(),
-            ...importFrom("BuildXL.Cache.ContentStore").withQualifier(net6PackageQualifier).getGrpcDotNetPackages(),
-            // Including the following reference is the most correct thing to do, but it causes a conflict in NuGet 
-            // because we reference things inconsistently. If someone depends on the ProtoBuf.Net functionality, they 
-            // must themselves refer to the required packages.
-            // ...importFrom("BuildXL.Cache.ContentStore").withQualifier(net472packageQualifier).getProtobufNetPackages(false),
-            ...importFrom("BuildXL.Cache.ContentStore").withQualifier(net472packageQualifier).getSerializationPackagesWithoutNetStandard(),
-            ...importFrom("BuildXL.Cache.ContentStore").withQualifier(net472packageQualifier).getSystemTextJsonWithoutNetStandard(),
-            ...addIfLazy(BuildXLSdk.Flags.isMicrosoftInternal, () => [
-                importFrom("Microsoft.VisualStudio.Services.ArtifactServices.Shared").withQualifier(net472packageQualifier).pkg,
-                importFrom("Microsoft.VisualStudio.Services.ArtifactServices.Shared").withQualifier(net6PackageQualifier).pkg,
-                importFrom("Microsoft.VisualStudio.Services.BlobStore.Client").withQualifier(net472packageQualifier).pkg,
-            ]),
-            ...importFrom("Sdk.Selfhost.RocksDbSharp").withQualifier(net472packageQualifier).getRocksDbPackagesWithoutNetStandard(),
-            importFrom("NLog").withQualifier(net472packageQualifier).pkg,
-            importFrom("Polly").withQualifier(net472packageQualifier).pkg,
-            importFrom("Polly.Contrib.WaitAndRetry").withQualifier(net472packageQualifier).pkg,
-            ...importFrom("BuildXL.Cache.ContentStore").withQualifier(net472packageQualifier).getAzureBlobStorageSdkPackagesWithoutNetStandard(),
-        ]
-    });
-
-    const cacheInterfaces = !canBuildAllPackagesOnThisHost ? undefined : pack({
-        id: buildXLCacheInterfacesIdentity.id,
-        deployment: Cache.NugetPackages.interfaces,
-        dependencies: [
-            buildXLCacheHashingIdentity,
-            buildXLUtilitiesIdentity,
-            buildXLUtilitiesCoreIdentity,
-            buildXLNativeIdentity,
-
-            importFrom("System.Threading.Tasks.Dataflow").withQualifier(net472packageQualifier).pkg,
-            ...BuildXLSdk.withQualifier(net472packageQualifier).bclAsyncPackages,
-        ]
-    });
-
-    const cacheHashing = !canBuildAllPackagesOnThisHost ? undefined : pack({
-        id: buildXLCacheHashingIdentity.id,
-        deployment: Cache.NugetPackages.hashing,
-        dependencies: [
-            ...BuildXLSdk.withQualifier(net472packageQualifier).bclAsyncPackages,
-            importFrom("System.Threading.Tasks.Dataflow").withQualifier(net472packageQualifier).pkg,
-            importFrom("RuntimeContracts").withQualifier(net472packageQualifier).pkg,
-            importFrom("System.Memory").withQualifier(net472packageQualifier).pkg,
-            importFrom("System.Threading.Tasks.Extensions").withQualifier(net472packageQualifier).pkg,
-        ]
     });
 
     // New cache packages that contain a single assembly per package
@@ -729,12 +650,9 @@ namespace NugetPackages {
                     winX64
                 ),
                 cacheTools,
-                cacheLibraries,
                 ...cacheLibrariesPackages,
-                cacheInterfaces,
                 ...cacheInterfacesPackages,
                 cacheService,
-                cacheHashing,
                 ...cacheHashingPackages,
                 blobLifetimeManagerLibrary,
                 buildCacheResourceHelper,

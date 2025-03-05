@@ -1,17 +1,10 @@
 BuildXL.win-x64
-BuildXL.Cache.Hashing
-BuildXL.Cache.Interfaces
 BuildXL.Cache.Tools
-BuildXL.Cache.Libraries
 BuildXL.Utilities
 BuildXL.Utilities.Core
 BuildXL.Native
 BuildXL.Processes
 BuildXL.Cache.BuildCacheResource.Helper
-BuildXL.Cache.Hashing
-BuildXL.Cache.Interfaces
-BuildXL.Cache.Libraries
-BuildXL.Cache.Service
 BuildXL.Cache.ContentStore.Distributed
 BuildXL.Cache.ContentStore.Library
 BuildXL.Cache.ContentStore.Grpc

@@ -1,0 +1,38 @@
+trigger: none  # Explicitly scheduled for PRs
+
+resources:
+  repositories:
+  - repository: 1esPipelines
+    type: git
+    name: 1ESPipelineTemplates/1ESPipelineTemplates
+    ref: refs/tags/release
+
+extends:
+  template: v1/1ES.Official.PipelineTemplate.yml@1esPipelines
+  parameters:
+    pool:
+      name: BuildXL-DevOpsAgents-Selfhost-BuildCache
+      os: windows
+      demands: 
+      - ImageOverride -equals 1ESPT-Win2022-PME-3
+    sdl:
+      git:
+        fetchDepth: 0
+        fetchTags: true
+      pool:
+        demands: 
+        - WorkFolder -equals F:\
+    
+    stages:
+      - stage: Checkout
+        jobs:
+        - job: CheckoutJob
+          variables:
+          - name: 1ES.ImageBuildResourceId
+            value: ''
+          - name: 1ES.ImageBuildVersion
+            value: ''
+          - name: 1ES.RequestId
+            value: ''
+          steps:
+          - checkout: none

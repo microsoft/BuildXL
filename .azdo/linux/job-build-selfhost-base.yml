@@ -53,6 +53,14 @@ parameters:
   type: string
   default: '8.x'
 
+- name: fetchDepth
+  type: string
+  default: 1
+
+- name: fetchTags
+  type: string
+  default: false
+
 jobs:
 - job: Selfhost_${{ parameters.validationName }}
   displayName: Build and Validate Selfhost (${{ parameters.validationName }})
@@ -85,8 +93,8 @@ jobs:
     preBuildSteps: 
     - checkout: self
       clean: false
-      fetchTags: false
-      fetchDepth: 1
+      fetchTags: ${{ parameters.fetchTags }}
+      fetchDepth: ${{ parameters.fetchDepth }}
 
     - bash: |
         du -h /mnt/vhd.vhdx

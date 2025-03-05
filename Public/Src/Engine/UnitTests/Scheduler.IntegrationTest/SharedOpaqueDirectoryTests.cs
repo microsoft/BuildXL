@@ -2107,6 +2107,46 @@ namespace IntegrationTest.BuildXL.Scheduler
         }
 
         [Fact]
+        public void TempFileMatchesNestedSharedOpaque()
+        {
+            // Shared opaque nested within another shared opaque
+            var sharedOpaqueDir = Path.Combine(ObjectRoot, $"sod-{nameof(NestedSharedOpaqueDirectories)}");
+            var sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
+            var sharedOpaqueDirArtifact = DirectoryArtifact.CreateWithZeroPartialSealId(sharedOpaqueDirPath);
+
+            var sharedOpaqueSubDir = Path.Combine(sharedOpaqueDir, "subDir");
+            var sharedOpaqueSubDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueSubDir);
+            var sharedOpaqueSubDirArtifact = DirectoryArtifact.CreateWithZeroPartialSealId(sharedOpaqueSubDirPath);
+
+
+            var fileOverlappingNestedOpaque = new FileArtifact(sharedOpaqueSubDirPath).CreateNextWrittenVersion();
+
+            var builderA = CreatePipBuilder(
+            [
+                // Fabricate some operations to generate an access on the nested shared opaque itself.
+                // The specific accesses may not be particularly important, just the fact that they are
+                // valid and appear at the exact path as the shared opaque.
+                
+                // Delete the directory
+                Operation.DeleteDir(fileOverlappingNestedOpaque, doNotInfer: true),
+
+                // write/delete a temp file
+                Operation.WriteFile(fileOverlappingNestedOpaque, doNotInfer: true),
+                Operation.DeleteFile(fileOverlappingNestedOpaque, doNotInfer: true),
+            ]);
+
+            builderA.AddOutputDirectory(sharedOpaqueDirArtifact, SealDirectoryKind.SharedOpaque);
+            builderA.AddOutputDirectory(sharedOpaqueSubDirArtifact, SealDirectoryKind.SharedOpaque);
+            var pipA = SchedulePipBuilder(builderA);
+
+            RunScheduler().AssertSuccess();
+
+            // Run again and make sure things don't break on cache reply. A failure to interpret the deserialized
+            // cache metadata is how the bug this test aims to catch was originally discovered.
+            RunScheduler().AssertSuccess();
+        }
+
+        [Fact]
         public void SharedOpaqueContainsExclusiveOpaque()
         {
             Configuration.Engine.AllowDuplicateTemporaryDirectory = true;

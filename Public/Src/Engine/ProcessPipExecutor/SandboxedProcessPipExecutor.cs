@@ -4446,8 +4446,18 @@ namespace BuildXL.ProcessPipExecutor
 
             // TODO: consider adding a cache from manifest paths to containing shared opaques. It is likely
             // that many writes for a given pip happens under the same cones.
+            bool isFirstNode = true;
             foreach (var currentNode in m_context.PathTable.EnumerateHierarchyBottomUp(initialNode))
             {
+                // In order to attribute accesses on shared opaque directory paths themselves to the parent
+                // shared opaque directory, this will skip checking the first node when enumerating the path
+                // as long as it is the same as the access 
+                if (isFirstNode && access.Path == null)
+                {
+                    isFirstNode = false;
+                    continue;
+                }
+
                 var currentPath = new AbsolutePath(currentNode);
 
                 if (dynamicWriteAccesses.ContainsKey(currentPath))

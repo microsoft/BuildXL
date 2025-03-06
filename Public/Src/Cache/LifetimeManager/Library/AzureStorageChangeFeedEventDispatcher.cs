@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 using Azure;
 using Azure.Storage.Blobs.ChangeFeed;
@@ -18,6 +19,8 @@ using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Timers;
 using BuildXL.Cache.ContentStore.Tracing;
+using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Core.Tasks;
 using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationContext;
 
@@ -160,111 +163,196 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                 });
         }
 
-        private async Task<BoolResult> ConsumeAccountChanges(
+        private async Task<BoolResult> ReadPagesFromStorageAsync(
             OperationContext context,
-            DateTime now,
-            CancellationTokenSource cts,
             BlobCacheStorageAccountName accountName,
-            IAzureStorageCredentials creds,
-            Lock<BoolResult> consumePageLock)
+            IAzureStorageCredentials credentials,
+            string? continuationToken,
+            Channel<Result<Page<IBlobChangeFeedEvent>?>> channel)
         {
-            OperationContext nestedContext = context.CreateNested("StorageAccountChangeFeed").WithCancellationToken(cts.Token);
-
-            var changeFeedClient = CreateChangeFeedClient(creds);
-
-            IAsyncEnumerable<Page<IBlobChangeFeedEvent>> pagesEnumerable;
-            var continuationToken = _db.GetCursor(accountName.AccountName);
-
+            var changeFeedClient = CreateChangeFeedClient(credentials);
+            IAsyncEnumerable<Page<IBlobChangeFeedEvent>> enumerable;
             if (continuationToken is null)
             {
                 var creationDate = _db.GetCreationTime();
 
-                Tracer.Debug(nestedContext, $"Starting enumeration of change feed for account=[{accountName.AccountName}] " +
+                Tracer.Debug(context, $"Starting enumeration of change feed for account=[{accountName.AccountName}] " +
                     $"with startTimeUtc=[{creationDate.ToString() ?? "null"}]");
 
-                pagesEnumerable = changeFeedClient.GetChangesAsync(creationDate, _changeFeedPageSize);
+                enumerable = changeFeedClient.GetChangesAsync(creationDate, _changeFeedPageSize);
             }
             else
             {
-                Tracer.Debug(nestedContext, $"Starting enumeration of change feed for account=[{accountName.AccountName}] with cursor=[{continuationToken ?? "null"}]");
-                pagesEnumerable = changeFeedClient.GetChangesAsync(continuationToken, _changeFeedPageSize);
+                Tracer.Debug(context, $"Starting enumeration of change feed for account=[{accountName.AccountName}] with cursor=[{continuationToken ?? "null"}]");
+                enumerable = changeFeedClient.GetChangesAsync(continuationToken, _changeFeedPageSize);
             }
 
-            var enumerator = pagesEnumerable.GetAsyncEnumerator();
-
-            while (!nestedContext.Token.IsCancellationRequested)
+            await using var enumerator = enumerable.GetAsyncEnumerator(context.Token);
+            try
             {
-                bool doneProcessingItems = false;
-                Result<BoolResult?> lockResult = await consumePageLock.UseAsync(async _ =>
+                while (!context.Token.IsCancellationRequested)
                 {
-                    doneProcessingItems = true;
-
-                    var hasMoreResult = await nestedContext.PerformOperationAsync(
+                    var hasMoreResult = await context.PerformOperationAsync(
                         Tracer,
                         async () =>
                         {
                             var hasMore = await enumerator.MoveNextAsync();
-                            return new Result<bool>(hasMore);
+                            Page<IBlobChangeFeedEvent>? page = null;
+                            if (hasMore)
+                            {
+                                page = enumerator.Current;
+                                continuationToken = page.ContinuationToken;
+                            }
+
+                            return new Result<Page<IBlobChangeFeedEvent>?>(page);
                         },
                         caller: "GetChangeFeedPage",
                         traceOperationStarted: false,
-                        extraEndMessage: hasMore => $"Account=[{accountName}] ContinuationToken=[{continuationToken}], HasMore=[{(hasMore.Succeeded ? hasMore.Value : null)}], NextContinuationToken=[{((hasMore.Succeeded && hasMore.Value) ? enumerator.Current.ContinuationToken : null)}]");
+                        extraEndMessage: r => $"Account=[{accountName}] ContinuationToken=[{continuationToken ?? "null"}], HasMore=[{(r.Succeeded ? r.Value : null)}], NextContinuationToken=[{((r.Succeeded && r.Value is not null) ? enumerator.Current.ContinuationToken : null)}]");
 
-                    if (!hasMoreResult.Succeeded)
+                    await channel.Writer.WriteAsync(hasMoreResult, context.Token);
+                    hasMoreResult.ThrowIfFailure(unwrap: true);
+
+                    if (hasMoreResult.Value is null)
                     {
-                        // We failed to download the next page.
-                        return hasMoreResult;
+                        // We've finished consuming the change feed. This is uncommon.
+                        break;
                     }
-
-                    if (!hasMoreResult.Value)
-                    {
-                        // We've finished consuming the change feed.
-                        return BoolResult.Success;
-                    }
-
-                    var page = enumerator.Current;
-                    var maxDateProcessed = await ProcessPageAsync(nestedContext, page, accountName, continuationToken);
-
-                    if (nestedContext.Token.IsCancellationRequested)
-                    {
-                        return new BoolResult("Cancellation was requested");
-                    }
-
-                    if (!maxDateProcessed.Succeeded)
-                    {
-                        return maxDateProcessed;
-                    }
-
-                    continuationToken = page.ContinuationToken;
-
-                    if (continuationToken is not null)
-                    {
-                        _db.SetCursor(accountName.AccountName, continuationToken);
-                    }
-
-                    if (maxDateProcessed.Value > now)
-                    {
-                        return BoolResult.Success;
-                    }
-
-                    doneProcessingItems = false;
-                    return BoolResult.Success;
-                });
-
-                if (!lockResult.Succeeded || !lockResult.Value.Succeeded)
-                {
-                    // We've failed to process a page. This is unrecoverable. Cancel further page processing.
-                    await cts.CancelTokenAsyncIfSupported();
-                    return lockResult.Succeeded ? lockResult.Value : lockResult;
                 }
 
-                if (doneProcessingItems)
+                channel.Writer.Complete();
+                return BoolResult.Success;
+            }
+            catch (Exception ex)
+            {
+                var exception = new InvalidOperationException($"Failure reading pages from Storage's event feed", ex);
+                channel.Writer.Complete(exception);
+                return new BoolResult(exception, "Failure reading pages from Storage's event feed");
+            }
+            finally
+            {
+                channel.Writer.TryComplete(error: new InvalidOperationException("This should never happen"));
+            }
+        }
+
+        private async Task<BoolResult> ConsumeAccountChanges(
+            OperationContext context,
+            DateTime now,
+            CancellationTokenSource gcCancellationSource,
+            BlobCacheStorageAccountName accountName,
+            IAzureStorageCredentials credentials,
+            Lock<BoolResult> consumePageLock)
+        {
+            var continuationToken = _db.GetCursor(accountName.AccountName);
+
+            using var cancellableNestedContext = context
+                .CreateNested(nameof(ConsumeAccountChanges))
+                .WithCancellationToken(gcCancellationSource.Token);
+            context = cancellableNestedContext.Context;
+
+            var channel = Channel.CreateBounded<Result<Page<IBlobChangeFeedEvent>?>>(
+                new BoundedChannelOptions(capacity: 10)
                 {
-                    return lockResult;
+                    SingleWriter = true,
+                    SingleReader = true,
+                    AllowSynchronousContinuations = false,
+                    FullMode = BoundedChannelFullMode.Wait,
+                });
+
+            using var readerCancellationSource = new CancellationTokenSource();
+            using var readerCancellableContext = cancellableNestedContext
+                .Context
+                .CreateNested(nameof(ReadPagesFromStorageAsync))
+                .WithCancellationToken(readerCancellationSource.Token);
+            var readerTask = ReadPagesFromStorageAsync(readerCancellableContext, accountName, credentials, continuationToken, channel);
+
+            try
+            {
+                while (!context.Token.IsCancellationRequested)
+                {
+                    // Wait until we have downloaded a page we can use 
+                    var hasReadPage = await channel.Reader.WaitToReadAsync(context.Token);
+                    if (!hasReadPage)
+                    {
+                        // The channel was completed. If it had completed in a failure mode, we'd have thrown above.
+                        // Therefore, we can only land here if we actually have a page ready to process.
+                        return BoolResult.Success;
+                    }
+
+                    bool doneProcessingItems = true;
+                    Result<BoolResult?> lockResult = await consumePageLock.UseAsync(async _ =>
+                    {
+                        var readPageResult = await channel.Reader.ReadAsync(context.Token);
+                        if (!readPageResult.Succeeded)
+                        {
+                            // We have failed to read a page. This is unrecoverable. Cancel further page processing.
+                            return readPageResult;
+                        }
+
+                        if (readPageResult.Value is null)
+                        {
+                            // We've finished consuming the change feed.
+                            return BoolResult.Success;
+                        }
+
+                        var page = readPageResult.Value!;
+                        var maxDateProcessed = await ProcessPageAsync(context, page, accountName, continuationToken);
+                        if (context.Token.IsCancellationRequested)
+                        {
+                            return new BoolResult("Cancellation was requested");
+                        }
+
+                        if (!maxDateProcessed.Succeeded)
+                        {
+                            return maxDateProcessed;
+                        }
+
+                        continuationToken = page.ContinuationToken;
+                        if (continuationToken is not null)
+                        {
+                            _db.SetCursor(accountName.AccountName, continuationToken);
+                        }
+
+                        // This ensures we only process pages until a fixed point in time across all accounts, so we have a
+                        // "consistent" view of the change feed (note: it's actually impossible to have consistency).
+                        if (maxDateProcessed.Value > now)
+                        {
+                            return BoolResult.Success;
+                        }
+
+                        doneProcessingItems = false;
+                        return BoolResult.Success;
+                    });
+
+                    if (!lockResult.Succeeded || !lockResult.Value.Succeeded)
+                    {
+                        // We've failed to process a page. This is unrecoverable. Cancel further page processing.
+                        await gcCancellationSource.CancelTokenAsyncIfSupported();
+                        return lockResult.Succeeded ? lockResult.Value : lockResult;
+                    }
+
+                    if (doneProcessingItems)
+                    {
+                        return lockResult;
+                    }
+                }
+            }
+            finally
+            {
+                await readerCancellationSource.CancelTokenAsyncIfSupported();
+
+                try
+                {
+                    await readerTask.ThrowIfFailureAsync();
+                }
+                catch (Exception ex) when (ex is OperationCanceledException || ex is TaskCanceledException)
+                {
+                    // Ignoring on purpose. This is expected to happen as part of normal operation as per above
+                    // cancellation.
                 }
             }
 
-            return nestedContext.Token.IsCancellationRequested
+            return context.Token.IsCancellationRequested
                 ? new BoolResult("Cancellation was requested")
                 : BoolResult.Success;
         }

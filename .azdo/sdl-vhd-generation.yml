@@ -19,7 +19,7 @@ extends:
       git:
         fetchDepth: 0
         fetchTags: true
-      pool:
+      sourceAnalysisPool:
         demands: 
         - WorkFolder -equals F:\
     

@@ -15,13 +15,11 @@ extends:
       os: windows
       demands: 
       - ImageOverride -equals 1ESPT-Win2022-PME-3
+      - WorkFolder -equals F:\
     sdl:
       git:
         fetchDepth: 0
         fetchTags: true
-      sourceAnalysisPool:
-        demands: 
-        - WorkFolder -equals F:\
     
     stages:
       - stage: Checkout

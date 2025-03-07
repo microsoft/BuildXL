@@ -42,6 +42,9 @@ extends:
       #       Ideally, we should only enable source analyses in the rolling pipeline. However, because our rolling pipeline contains CB builds, SDL source analyses are all disabled,
       #       in favor of the CB compliance build. Unfortunately, some analyses, like policheck, do not work in network isolation when building in CB.
       #       SDL source analyses typically take 2.5-4 minutes, and should not be in the critical path of this pipeline run.
+      git:
+        fetchTags: false
+        fetchDepth: 1
       psscriptanalyzer:
         enabled: true
       policheck:
@@ -50,6 +53,9 @@ extends:
         name: Windows-SDL-Agents
         image: Windows-SDL-Image
         os: windows
+        demands:
+        - VhdResourceId -equals /subscriptions/e9fe5373-81ff-4b89-8db2-c8681633aa87/resourceGroups/BuildXL-DevOpsAgents/providers/Microsoft.CloudTest/images/windows-sdl-vhd
+        - WorkFolder -equals F:\
 
     stages:
     - template: /.azdo/linux/linux-stages-template.yml

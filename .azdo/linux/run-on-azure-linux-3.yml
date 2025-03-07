@@ -12,6 +12,13 @@ parameters:
     /forceAddExecutionPermission-
     /p:BUILDXL_FINGERPRINT_SALT=AzureLinux3
   '
+- name: pool
+  type: object
+  default: 
+    name: BuildXL-DevOpsAgents-Selfhost-BuildCache
+    image: 1ES-hosted-azure-linux-3
+    os: linux
+    demands: VhdResourceId -equals /subscriptions/e9fe5373-81ff-4b89-8db2-c8681633aa87/resourceGroups/BuildXL-DevOpsAgents/providers/Microsoft.CloudTest/images/linux-vhd
 
 resources:
   repositories:
@@ -23,24 +30,24 @@ resources:
 extends:
   template: v1/1ES.Unofficial.PipelineTemplate.yml@1esPipelines
   parameters:
-    pool:
-      name: BuildXL-DevOpsAgents-Selfhost-BuildCache
-      os: linux
-      image: 1ES-hosted-azure-linux-3
+    pool: ${{ parameters.pool }}
 
     sdl:
+      git:
+        fetchTags: false
+        fetchDepth: 1
       sourceAnalysisPool:
         name: Windows-SDL-Agents
         image: Windows-SDL-Image
         os: windows
+        demands:
+        - VhdResourceId -equals /subscriptions/e9fe5373-81ff-4b89-8db2-c8681633aa87/resourceGroups/BuildXL-DevOpsAgents/providers/Microsoft.CloudTest/images/windows-sdl-vhd
+        - WorkFolder -equals F:\
 
     stages:
     - template: /.azdo/linux/linux-stages-template.yml
       parameters:
-        pool:
-          name: BuildXL-DevOpsAgents-Selfhost-BuildCache
-          os: linux
-          image: 1ES-hosted-azure-linux-3
+        pool: ${{ parameters.pool }}
         BxlCommonArgs: ${{ parameters.BxlCommonArgs }}
         BxlDistributedArgs: '
           /c:/home/subst/Private/AdoDistributionTests/config.dsc

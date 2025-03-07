@@ -83,7 +83,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
             var metadata = metadataWrapper.Instance;
             metadata[LastContentPinnedTime] = now.ToString("o", System.Globalization.CultureInfo.InvariantCulture);
 
-            var client = await GetStrongFingerprintClientAsync(context, strongFingerprint);
+            var client = await _blobCacheTopology.GetClientAsync(context, strongFingerprint);
             var result = await _storageClientAdapter.CompareUpdateContentAsync(
                 context,
                 client,
@@ -178,7 +178,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
 
         private async Task<Result<bool>> UpdateMetadataAsync(OperationContext context, StrongFingerprint strongFingerprint, Dictionary<string, string>? metadata)
         {
-            var client = await GetStrongFingerprintClientAsync(context, strongFingerprint);
+            var client = await _blobCacheTopology.GetClientAsync(context, strongFingerprint);
             var result = await _storageClientAdapter.UpdateMetadataAsync(
                 context,
                 client,
@@ -195,14 +195,14 @@ namespace BuildXL.Cache.MemoizationStore.Stores
                 async () =>
                 {
                     var selectors = new List<Selector>();
-                    var client = await GetContainerClientAsync(context, weakFingerprint);
+                    var client = await _blobCacheTopology.GetContainerClientAsync(context, weakFingerprint);
                     var blobs = await _storageClientAdapter.ListMruOrderedBlobsAsync(
                         context,
                         client,
-                        GetWeakFingerprintPrefix(weakFingerprint));
+                        BlobCacheTopologyExtensions.GetWeakFingerprintPrefix(weakFingerprint));
                     foreach (var blob in blobs)
                     {
-                        selectors.Add(ParseSelector(blob));
+                        selectors.Add(BlobCacheTopologyExtensions.ExtractSelectorFromPath(blob));
                     }
 
                     return Result.Success(new LevelSelectors(selectors, false));
@@ -217,7 +217,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
                 Tracer,
                 async () =>
                 {
-                    var client = await GetStrongFingerprintClientAsync(context, strongFingerprint);
+                    var client = await _blobCacheTopology.GetClientAsync(context, strongFingerprint);
                     BlobStorageClientAdapter.State<byte[]> state;
 
                     DateTime? lastContentPinnedTime = null;
@@ -248,109 +248,12 @@ namespace BuildXL.Cache.MemoizationStore.Stores
                             async strongFingerprintTask =>
                             {
                                 var strongFingerprint = await strongFingerprintTask;
-                                return await _storageClientAdapter.TouchAsync(context, await GetStrongFingerprintClientAsync(context, strongFingerprint), hard: false);
+                                return await _storageClientAdapter.TouchAsync(context, await _blobCacheTopology.GetClientAsync(context, strongFingerprint), hard: false);
                             });
 
                     return (await TaskUtilities.SafeWhenAll(tasks)).And();
                 },
                 traceOperationStarted: false);
-        }
-
-        private static string GetWeakFingerprintPrefix(Fingerprint weakFingerprint)
-        {
-            return weakFingerprint.Serialize();
-        }
-
-        private async Task<BlobContainerClient> GetContainerClientAsync(OperationContext context, Fingerprint weakFingerprint)
-        {
-            return (await _blobCacheTopology.GetContainerClientAsync(context, BlobCacheShardingKey.FromWeakFingerprint(weakFingerprint))).Client;
-        }
-
-        private async Task<BlobClient> GetStrongFingerprintClientAsync(OperationContext context, StrongFingerprint strongFingerprint)
-        {
-            var client = await GetContainerClientAsync(context, strongFingerprint.WeakFingerprint);
-
-            string blobPath = GetBlobPath(strongFingerprint);
-            return client.GetBlobClient(blobPath);
-        }
-
-        /// <summary>
-        /// CODESYNC: <see cref="ExtractStrongFingerprintFromPath(string)"/> should reflect any changes in how we serialize the blob path.
-        /// </summary>
-        public static string GetBlobPath(StrongFingerprint strongFingerprint)
-        {
-            var selector = strongFingerprint.Selector;
-
-            // WARNING: the serialization format that follows must sync with _selectorRegex
-            var contentHashName = selector.ContentHash.Serialize();
-
-            var selectorName = selector.Output is null
-                ? $"{contentHashName}"
-                : $"{contentHashName}_{Convert.ToBase64String(selector.Output, Base64FormattingOptions.None)}";
-
-            // WARNING: the policy on blob naming complicates things. A blob name must not be longer than 1024
-            // characters long.
-            // See: https://learn.microsoft.com/en-us/rest/api/storageservices/naming-and-referencing-containers--blobs--and-metadata#blob-names
-            var blobPath = $"{GetWeakFingerprintPrefix(strongFingerprint.WeakFingerprint)}/{selectorName}";
-            return blobPath;
-        }
-
-        /// <nodoc />
-        public static StrongFingerprint ExtractStrongFingerprintFromPath(string blobPath)
-        {
-            var match = SelectorRegex.Match(blobPath);
-            if (!match.Success)
-            {
-                throw new Exception($"Regex was not a match for path {blobPath}");
-            }
-
-            var serializedWeakFingerprint = match.Groups["weakFingerprint"].Value;
-            if (!Fingerprint.TryParse(serializedWeakFingerprint, out var weakFingerprint))
-            {
-                throw new Exception($"Failed to parse weak fingerprint from {serializedWeakFingerprint}. Full path: {blobPath}");
-            }
-
-            var serializedSelectorContentHash = match.Groups["selectorContentHash"].Value;
-            if (!ContentHash.TryParse(serializedSelectorContentHash, out var contentHash))
-            {
-                throw new Exception($"Failed to parse content hash from {serializedSelectorContentHash}. Full path: {blobPath}");
-            }
-
-            var serializedSelectorOutput = match.Groups["selectorOutput"].Value;
-            byte[]? selectorOutput = null;
-            if (!string.IsNullOrEmpty(serializedSelectorOutput))
-            {
-                selectorOutput = Convert.FromBase64String(serializedSelectorOutput);
-            }
-
-            return new StrongFingerprint(weakFingerprint, new Selector(contentHash, selectorOutput));
-        }
-
-        /// <summary>
-        /// WARNING: MUST SYNC WITH <see cref="GetStrongFingerprintClientAsync(OperationContext, StrongFingerprint)"/>
-        /// </summary>
-        private static readonly Regex SelectorRegex = new Regex(@"(?<weakFingerprint>[A-Z0-9]+)/(?<selectorContentHash>[^_]+)(?:_(?<selectorOutput>.*))?");
-
-        private Selector ParseSelector(BlobPath name)
-        {
-            try
-            {
-                var match = SelectorRegex.Match(name.Path);
-
-                var contentHash = new ContentHash(match.Groups["selectorContentHash"].Value);
-
-                // The output can be null, empty, or something else. This is important because we need to ensure that
-                // the user reads whatever they wrote in the first place.
-                var outputGroup = match.Groups["selectorOutput"];
-                var selectorOutput = outputGroup.Success ? outputGroup.Value : null;
-                var output = selectorOutput is null ? null : Convert.FromBase64String(selectorOutput);
-
-                return new Selector(contentHash, output);
-            }
-            catch (Exception ex)
-            {
-                throw new ArgumentException($"Failed parsing a {nameof(Selector)} out of '{name}'", paramName: nameof(name), ex);
-            }
         }
 
         /// <inheritdoc/>

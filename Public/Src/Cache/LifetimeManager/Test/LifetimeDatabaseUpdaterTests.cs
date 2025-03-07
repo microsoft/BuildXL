@@ -66,7 +66,13 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
                     var getReuslt1 = await session.GetContentHashListAsync(context, strongFingerprint, context.Token).ThrowIfFailureAsync();
                     getReuslt1.ContentHashListWithDeterminism.ContentHashList!.Hashes.Should().BeEquivalentTo(hashes1);
 
-                    await updater.ContentHashListCreatedAsync(context, namespaceId, AzureBlobStorageMetadataStore.GetBlobPath(strongFingerprint), blobLength: 100).ThrowIfFailureAsync();
+                    var (_, strongFingerprintPath) = await topology.GetClientWithPathAsync(context, strongFingerprint);
+                    var fingerprintCreationEvent = new LifetimeDatabaseUpdater.FingerprintCreationEvent(
+                        context,
+                        strongFingerprintPath,
+                        BlobLength: 100,
+                        EventTimestampUtc: DateTime.UtcNow);
+                    await updater.ContentHashListCreatedAsync(fingerprintCreationEvent).ThrowIfFailureAsync();
 
                     accessor.GetContentHashList(strongFingerprint, out _)!.Hashes.Should().BeEquivalentTo(hashes1.Append(selectorPut.ContentHash));
 
@@ -84,7 +90,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
                     var getReuslt2 = await session.GetContentHashListAsync(context, strongFingerprint, context.Token).ThrowIfFailureAsync();
                     getReuslt2.ContentHashListWithDeterminism.ContentHashList!.Hashes.Should().BeEquivalentTo(hashes2);
 
-                    await updater.ContentHashListCreatedAsync(context, namespaceId, AzureBlobStorageMetadataStore.GetBlobPath(strongFingerprint), blobLength: 100).ThrowIfFailureAsync();
+                    await updater.ContentHashListCreatedAsync(fingerprintCreationEvent).ThrowIfFailureAsync();
 
                     accessor.GetContentHashList(strongFingerprint, out _)!.Hashes.Should().BeEquivalentTo(hashes2.Append(selectorPut.ContentHash));
 

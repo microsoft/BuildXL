@@ -24,7 +24,6 @@ using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
-using BuildXL.Cache.MemoizationStore.Stores;
 using ContentStoreTest.Distributed.Redis;
 using ContentStoreTest.Test;
 using FluentAssertions;
@@ -69,9 +68,9 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
                     };
 
                     var accounts = new List<BlobCacheStorageAccountName>();
-                    await foreach (var client in topology.EnumerateClientsAsync(context, BlobCacheContainerPurpose.Metadata))
+                    await foreach (var (client, containerPath) in topology.EnumerateClientsAsync(context, BlobCacheContainerPurpose.Metadata))
                     {
-                        accounts.Add(BlobCacheStorageAccountName.Parse(client.AccountName));
+                        accounts.Add(containerPath.Account);
                     }
 
                     var pages = new List<Page<IBlobChangeFeedEvent>>();
@@ -116,7 +115,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
                 var putResult = await session.PutRandomAsync(context, HashType.Vso0, provideHash: false, size: contentSize, CancellationToken.None).ThrowIfFailure();
                 hashes[i] = putResult.ContentHash;
 
-                var (blobClient, _) = await topology.GetContentBlobClientAsync(context, putResult.ContentHash);
+                var blobClient = await topology.GetClientAsync(context, putResult.ContentHash);
                 var fullName = $"/blobServices/default/containers/{blobClient.BlobContainerName}/blobs/{blobClient.Name}";
 
                 var change = new MockChange()
@@ -135,12 +134,11 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
             var fp = StrongFingerprint.Random();
 
             var r = await session.AddOrGetContentHashListAsync(context, fp, chl, CancellationToken.None).ThrowIfFailure();
-            var (containerClient, _) = await topology.GetContainerClientAsync(context, BlobCacheShardingKey.FromWeakFingerprint(fp.WeakFingerprint));
-            var blobName = AzureBlobStorageMetadataStore.GetBlobPath(fp);
-            var size = (await containerClient.GetBlobClient(blobName).GetPropertiesAsync()).Value.ContentLength;
+            var client = await topology.GetClientAsync(context, fp);
+            var size = (await client.GetPropertiesAsync()).Value.ContentLength;
             var fpChange = new MockChange()
             {
-                Subject = $"/blobServices/default/containers/{containerClient.Name}/blobs/{blobName}",
+                Subject = $"/blobServices/default/containers/{client.BlobContainerName}/blobs/{client.Name}",
                 EventTime = clock.GetUtcNow(),
                 EventType = BlobChangeFeedEventType.BlobCreated,
                 ContentLength = size,
@@ -165,7 +163,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
                 RocksDbLifetimeDatabase db,
                 LifetimeDatabaseUpdater updater,
                 IClock clock,
-                CheckpointManager checkpointManager, 
+                CheckpointManager checkpointManager,
                 int? changeFeedPageSize,
                 BuildCacheConfiguration? buildCacheConfiguration)
             {

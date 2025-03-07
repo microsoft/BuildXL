@@ -8,6 +8,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blob;
 
 public readonly record struct AbsoluteContainerPath(BlobCacheStorageAccountName Account, BlobCacheContainerName Container)
 {
+    public BlobNamespaceId NamespaceId => Container.NamespaceId;
+
     public override string ToString()
     {
         return $"{Account}/{Container}";

@@ -39,8 +39,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
         internal record ProcessFingerprintRequest(
             OperationContext Context,
             BlobContainerClient Container,
-            string BlobName,
-            long BlobLength,
+            LifetimeDatabaseUpdater.FingerprintCreationEvent FingerprintCreationEvent,
             RocksDbLifetimeDatabase.IAccessor Database,
             IBlobCacheTopology Topology);
 
@@ -112,11 +111,11 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                         });
 
                     var clientEnumerationTasks = new List<Task>();
-                    await foreach (var container in topology.EnumerateClientsAsync(context, BlobCacheContainerPurpose.Content))
+                    await foreach (var (container, containerPath) in topology.EnumerateClientsAsync(context, BlobCacheContainerPurpose.Content))
                     {
                         var enumerationTask = Task.Run(async () =>
                         {
-                            Tracer.Debug(context, $"Starting enumeration of content blobs for account=[${container.AccountName}], container=[{container.Name}]");
+                            Tracer.Debug(context, $"Starting enumeration of content blobs. Account=[${containerPath.Account}] Container=[{containerPath.Container}]");
 
                             await foreach (var blob in container.GetBlobsAsync(cancellationToken: context.Token))
                             {
@@ -183,7 +182,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                                 degreeOfParallelism: degreeOfParallelism,
                                 async request =>
                                 {
-                                    var processResult = await DownloadAndProcessContentHashListAsync(request.Context, request.Container, request.BlobName, request.BlobLength, request.Database, request.Topology, clock);
+                                    var processResult = await DownloadAndProcessContentHashListAsync(request, clock);
                                     if (!processResult.Succeeded)
                                     {
                                         errorResult &= new BoolResult(processResult);
@@ -195,20 +194,36 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                                 cancellationToken: cts.Token);
 
                     var clientEnumerationTasks = new List<Task>();
-                    await foreach (var container in topology.EnumerateClientsAsync(context, BlobCacheContainerPurpose.Metadata))
+
+                    // We ue MinValue as a way to simbolize that we don't have a timestamp for the event because the
+                    // fingerprint exists from potentially before the change feed was created.
+                    var eventTimestampUtc = DateTime.MinValue;
+
+                    await foreach (var (containerClient, containerPath) in topology.EnumerateClientsAsync(context, BlobCacheContainerPurpose.Metadata))
                     {
                         var enumerationTask = Task.Run(async () =>
                         {
-                            Tracer.Debug(context, $"Starting enumeration of fingerprints for account=[${container.AccountName}], container=[{container.Name}]");
+                            Tracer.Debug(context, $"Starting enumeration of fingerprints for account=[${containerClient.AccountName}], container=[{containerClient.Name}]");
 
-                            await foreach (var blob in container.GetBlobsAsync(cancellationToken: context.Token))
+                            await foreach (var blob in containerClient.GetBlobsAsync(cancellationToken: context.Token))
                             {
                                 if (cts.IsCancellationRequested)
                                 {
                                     break;
                                 }
 
-                                processFingerprintActionBlock.Post(new ProcessFingerprintRequest(context, container, blob.Name, blob.Properties.ContentLength!.Value, database, topology));
+                                var blobPath = BlobPath.CreateAbsolute(blob.Name);
+                                var absoluteBlobPath = new AbsoluteBlobPath(containerPath, blobPath);
+                                processFingerprintActionBlock.Post(new ProcessFingerprintRequest(
+                                    context,
+                                    containerClient,
+                                    new LifetimeDatabaseUpdater.FingerprintCreationEvent(
+                                        context,
+                                        absoluteBlobPath,
+                                        blob.Properties.ContentLength!.Value,
+                                        EventTimestampUtc: eventTimestampUtc),
+                                    database,
+                                    topology));
                             }
                         });
 
@@ -269,14 +284,13 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
         }
 
         internal static Task<Result<ProcessContentHashListResult>> DownloadAndProcessContentHashListAsync(
-            OperationContext context,
-            BlobContainerClient container,
-            string blobName,
-            long blobLength,
-            RocksDbLifetimeDatabase.IAccessor database,
-            IBlobCacheTopology topology,
+            ProcessFingerprintRequest request,
             IClock clock)
         {
+            var (context, container, fingerprintCreationEvent, database, topology) = request;
+            var (blobName, blobLength) = (fingerprintCreationEvent.BlobName, fingerprintCreationEvent.BlobLength);
+
+            int contentHashListSize = -1;
             return context.PerformOperationAsync(
                 Tracer,
                 async () =>
@@ -308,6 +322,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                     stream.Position = 0;
                     var metadataEntry = SerializationPool.Deserialize(stream, MetadataEntry.Deserialize);
                     var contentHashList = metadataEntry.ContentHashListWithDeterminism;
+                    contentHashListSize = contentHashList.ContentHashList?.Hashes.Count ?? -1;
 
                     // We use "now" as last access time because we just downloaded the blob, and thus we just affected the CHL's blob last access time.
                     // Adding a minute to account for clocks not being in sync. In the grand scheme of things, an error of one minute shouldn't make a difference.
@@ -343,7 +358,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                     return ProcessContentHashListResult.Success;
                 },
                 traceOperationStarted: false,
-                extraEndMessage: result => $"ReturnCode=[{(result.Succeeded ? result.Value : "Failure")}], Account=[{container.AccountName}], Container=[{container.Name}], Blob=[{blobName}]");
+                extraEndMessage: result => $"ReturnCode=[{(result.Succeeded ? result.Value : "Failure")}] Path=[{fingerprintCreationEvent.BlobPath}] EventTimestamp=[{fingerprintCreationEvent.EventTimestampUtc}] Hashes=[{contentHashListSize}]");
         }
 
         private static async Task<Result<bool>> ProcessContentHashListAsync(
@@ -357,7 +372,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
         {
             var hashes = new List<(ContentHash hash, long size)>();
 
-            var strongFingerprint = AzureBlobStorageMetadataStore.ExtractStrongFingerprintFromPath(blobName);
+            var strongFingerprint = BlobCacheTopologyExtensions.ExtractStrongFingerprintFromPath(blobName);
 
             // The selector of a fingerprint is implicitly a piece of content that should be kept alive by the cache
             // as long as the content hash list exists. Treating it as if it was part of the CHL.
@@ -383,7 +398,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                     var length = 0L;
                     if (!exists)
                     {
-                        var (client, _) = await topology.GetContentBlobClientAsync(context, contentHash);
+                        var client = await topology.GetClientAsync(context, contentHash);
 
                         try
                         {

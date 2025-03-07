@@ -804,7 +804,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
 
         private MetadataEntry? GetContentHashList(StrongFingerprint strongFingerprint, ColumnFamilyHandle fingerprintsCf, out string? blobPath)
         {
-            blobPath = AzureBlobStorageMetadataStore.GetBlobPath(strongFingerprint);
+            blobPath = BlobCacheTopologyExtensions.GetStrongFingerprintBlobPath(strongFingerprint);
             using var key = _serializationPool.SerializePooled(blobPath, static (string s, ref SpanWriter writer) => writer.Write(s));
 
             return Get(key.WrittenSpan, fingerprintsCf, MetadataEntry.Deserialize);

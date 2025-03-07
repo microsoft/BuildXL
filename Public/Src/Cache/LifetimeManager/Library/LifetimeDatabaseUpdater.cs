@@ -11,7 +11,6 @@ using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
-using BuildXL.Cache.MemoizationStore.Stores;
 using BuildXL.Utilities.Core.Tasks;
 using BuildXL.Utilities.ParallelAlgorithms;
 
@@ -44,8 +43,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                     var (request, tcs) = tpl;
                     try
                     {
-                        var result = await LifetimeDatabaseCreator.DownloadAndProcessContentHashListAsync(
-                            request.Context, request.Container, request.BlobName, request.BlobLength, request.Database, request.Topology, clock);
+                        var result = await LifetimeDatabaseCreator.DownloadAndProcessContentHashListAsync(request, clock);
 
                         tcs.SetResult(result);
                     }
@@ -56,53 +54,66 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                 });
         }
 
-        public void ContentCreated(OperationContext context, BlobNamespaceId namespaceId, string blobName, long length)
+        public void ContentCreated(OperationContext context, AbsoluteBlobPath blobPath, long length)
         {
-            if (!_accessors.TryGetValue(namespaceId, out var db))
+            var blobName = blobPath.Path.Path;
+
+            if (!_accessors.TryGetValue(blobPath.NamespaceId, out var db))
             {
-                Tracer.Diagnostic(context, $"Ignoring creation of {nameof(ContentHash)} because it's namespace isn't tracked. Namespace=[{namespaceId}] Name=[{blobName}]");
+                Tracer.Diagnostic(context, $"Ignoring creation of {nameof(ContentHash)} because it's namespace isn't tracked. Namespace=[{blobPath.NamespaceId}] Path=[{blobPath}]");
                 return;
             }
 
             if (!BlobUtilities.TryExtractContentHashFromBlobName(blobName, out var hashString))
             {
-                Tracer.Error(context, $"Failed to extract {nameof(ContentHash)} from a blob name that's expected to be one. Ignoring blob. Name=[{blobName}]");
+                Tracer.Error(context, $"Failed to extract {nameof(ContentHash)} from a blob name that's expected to be one. Ignoring blob. Path=[{blobPath}]");
                 return;
             }
 
             if (!ContentHash.TryParse(hashString, out var hash))
             {
-                Tracer.Error(context, $"Failed to parse {nameof(ContentHash)} from a blob name that's supposed to be composed of it. Ignoring blob. Name=[{blobName}]");
+                Tracer.Error(context, $"Failed to parse {nameof(ContentHash)} from a blob name that's supposed to be composed of it. Ignoring blob. Path=[{blobPath}]");
                 return;
             }
 
             db.AddContent(hash, length);
         }
 
-        internal async Task<Result<LifetimeDatabaseCreator.ProcessContentHashListResult>> ContentHashListCreatedAsync(
-            OperationContext context,
-            BlobNamespaceId namespaceId,
-            string blobName,
-            long blobLength)
+        internal record FingerprintCreationEvent(
+            OperationContext Context,
+            AbsoluteBlobPath BlobPath,
+            long BlobLength,
+            DateTime EventTimestampUtc)
         {
+            public string BlobName => BlobPath.Path.Path;
+        }
+
+        internal async Task<Result<LifetimeDatabaseCreator.ProcessContentHashListResult>> ContentHashListCreatedAsync(
+            FingerprintCreationEvent fingerprintCreationEvent)
+        {
+            var (context, blobPath, blobLength, eventTimestampUtc) = fingerprintCreationEvent;
+            var blobName = blobPath.Path.Path;
+            var namespaceId = blobPath.NamespaceId;
+
             if (!_accessors.TryGetValue(namespaceId, out var db) ||
                 !_topologies.TryGetValue(namespaceId, out var topology))
             {
-                Tracer.Diagnostic(context, $"Ignoring creation of {nameof(ContentHashList)} because it's namespace isn't being tracked. Namespace=[{namespaceId}] Name=[{blobName}]");
+                Tracer.Diagnostic(context, $"Ignoring creation of {nameof(ContentHashList)} because it's namespace isn't being tracked. Namespace=[{namespaceId}] Path=[{blobPath}]");
                 return LifetimeDatabaseCreator.ProcessContentHashListResult.Success;
             }
 
             StrongFingerprint strongFingerprint;
             try
             {
-                strongFingerprint = AzureBlobStorageMetadataStore.ExtractStrongFingerprintFromPath(blobName);
+                strongFingerprint = BlobCacheTopologyExtensions.ExtractStrongFingerprintFromPath(blobName);
             }
             catch (Exception e)
             {
-                Tracer.Error(context, e, $"Failed to parse {nameof(StrongFingerprint)} from a blob name that's expected to be one. Ignoring blob. Name=[{blobName}]");
+                Tracer.Error(context, e, $"Failed to parse {nameof(StrongFingerprint)} from a blob name that's expected to be one. Ignoring blob. Path=[{blobPath}]");
                 return LifetimeDatabaseCreator.ProcessContentHashListResult.ContentHashListDoesNotExist;
             }
 
+            // TODO: this should be moved inside of the async worker, so we avoid hanging the hot path on this
             var oldContentHashList = db.GetContentHashList(strongFingerprint, out _);
             if (oldContentHashList is not null)
             {
@@ -112,10 +123,9 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                 db.DeleteContentHashList(blobName, oldContentHashList.Hashes);
             }
 
-            var (containerClient, _) = await topology.GetContainerClientAsync(context, BlobCacheShardingKey.FromWeakFingerprint(strongFingerprint.WeakFingerprint));
-
+            var containerClient = await topology.GetContainerClientAsync(context, strongFingerprint);
             var tcs = TaskSourceSlim.Create<Result<LifetimeDatabaseCreator.ProcessContentHashListResult>>();
-            var request = new LifetimeDatabaseCreator.ProcessFingerprintRequest(context, containerClient, blobName, blobLength, db, topology);
+            var request = new LifetimeDatabaseCreator.ProcessFingerprintRequest(context, containerClient, fingerprintCreationEvent, db, topology);
             _fingerprintCreatedActionBlock.Post((request, tcs));
             return await tcs.Task;
         }

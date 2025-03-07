@@ -104,7 +104,7 @@ public class ShardedBlobCacheTopology : IBlobCacheTopology
         _containerMapping = namingScheme.GenerateContainerNameMapping();
     }
 
-    public async Task<(BlobContainerClient Client, AbsoluteContainerPath Path)> GetContainerClientAsync(OperationContext context, BlobCacheShardingKey key)
+    public async Task<(BlobContainerClient Client, AbsoluteContainerPath Path)> GetShardContainerClientWithPathAsync(OperationContext context, BlobCacheShardingKey key)
     {
         var account = _scheme.Locate(key.Key);
         Contract.Assert(account is not null, $"Attempt to determine account for key `{key}` failed");
@@ -151,14 +151,15 @@ public class ShardedBlobCacheTopology : IBlobCacheTopology
         }
     }
 
-    public async IAsyncEnumerable<BlobContainerClient> EnumerateClientsAsync(
+    
+    public async IAsyncEnumerable<(BlobContainerClient Client, AbsoluteContainerPath Path)> EnumerateClientsAsync(
         OperationContext context,
         BlobCacheContainerPurpose purpose)
     {
         foreach (var absoluteContainerPath in EnumerateContainers(context, purpose))
         {
             var client = await GetOrCreateClientAsync(context, absoluteContainerPath);
-            yield return client;
+            yield return (Client: client, Path: absoluteContainerPath);
         }
     }
 
@@ -185,9 +186,9 @@ public class ShardedBlobCacheTopology : IBlobCacheTopology
             });
     }
 
-    public async Task<(BlobClient Client, AbsoluteBlobPath Path)> GetContentBlobClientAsync(OperationContext context, ContentHash contentHash)
+    public async Task<(BlobClient Client, AbsoluteBlobPath Path)> GetClientWithPathAsync(OperationContext context, ContentHash contentHash)
     {
-        var (container, containerPath) = await GetContainerClientAsync(context, BlobCacheShardingKey.FromContentHash(contentHash));
+        var (container, containerPath) = await GetShardContainerClientWithPathAsync(context, BlobCacheShardingKey.FromContentHash(contentHash));
         var blobPath = BlobPath.CreateAbsolute($"{contentHash}.blob");
         var client = container.GetBlobClient(blobPath.Path);
         return new(client, new AbsoluteBlobPath(containerPath, blobPath));

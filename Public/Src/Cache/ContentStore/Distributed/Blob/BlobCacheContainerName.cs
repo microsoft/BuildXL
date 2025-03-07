@@ -56,6 +56,11 @@ public abstract class BlobCacheContainerName
     public string Namespace { get; }
 
     /// <summary>
+    /// The namespace ID. A combination of <see cref="Universe"/> and <see cref="Namespace"/>.
+    /// </summary>
+    public BlobNamespaceId NamespaceId => new BlobNamespaceId(Universe, Namespace);
+
+    /// <summary>
     /// The full container name. This is equivalent to calling <see cref="ToString"/>.
     /// </summary>
     public string ContainerName { get; }

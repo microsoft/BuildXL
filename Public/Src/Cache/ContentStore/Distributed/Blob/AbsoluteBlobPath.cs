@@ -20,6 +20,8 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blob
 
         public BlobCacheContainerName Container => ContainerPath.Container;
 
+        public BlobNamespaceId NamespaceId => Container.NamespaceId;
+
         public static AbsoluteBlobPath ParseFromChangeEventSubject(IReadOnlyDictionary<BlobCacheStorageAccountName, BuildCacheShard> buildCacheShardMapping, BlobCacheStorageAccountName account, string subject)
         {
             var match = BlobChangeFeedEventSubjectRegex.Match(subject);

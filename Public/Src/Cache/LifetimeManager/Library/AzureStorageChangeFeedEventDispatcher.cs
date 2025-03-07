@@ -445,8 +445,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                 return;
             }
 
-            var namespaceId = new BlobNamespaceId(blobPath.Container.Universe, blobPath.Container.Namespace);
-
+            var eventTimestampUtc = change.EventTime.UtcDateTime;
             switch (blobPath.Container.Purpose)
             {
                 case BlobCacheContainerPurpose.Content:
@@ -457,9 +456,9 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                         return;
                     }
 
-                    _updater.ContentCreated(context, namespaceId, blobPath.Path.Path, change.ContentLength);
+                    _updater.ContentCreated(context, blobPath, change.ContentLength);
 
-                    _db.SetNamespaceLastAccessTime(namespaceId, blobPath.Container.Matrix, change.EventTime.UtcDateTime);
+                    _db.SetNamespaceLastAccessTime(blobPath.NamespaceId, blobPath.Container.Matrix, eventTimestampUtc);
                     break;
                 }
                 case BlobCacheContainerPurpose.Metadata:
@@ -472,11 +471,15 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
 
                     // Failing to process a content hash list is a fatal error, so we must abort further processing.
                     await _updater
-                        .ContentHashListCreatedAsync(context, namespaceId, blobPath.Path.Path, change.ContentLength)
+                        .ContentHashListCreatedAsync(new LifetimeDatabaseUpdater.FingerprintCreationEvent(
+                            context,
+                            blobPath,
+                            change.ContentLength,
+                            EventTimestampUtc: eventTimestampUtc))
                         .ThrowIfFailureAsync();
 
 
-                    _db.SetNamespaceLastAccessTime(namespaceId, blobPath.Container.Matrix, change.EventTime.UtcDateTime);
+                    _db.SetNamespaceLastAccessTime(blobPath.NamespaceId, blobPath.Container.Matrix, eventTimestampUtc);
                     break;
                 }
                 case BlobCacheContainerPurpose.Checkpoint:

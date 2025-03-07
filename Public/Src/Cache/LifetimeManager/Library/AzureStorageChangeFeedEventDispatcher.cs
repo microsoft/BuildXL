@@ -32,8 +32,11 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
     internal interface IBlobChangeFeedEvent
     {
         DateTimeOffset EventTime { get; }
+
         BlobChangeFeedEventType EventType { get; }
+
         string Subject { get; }
+
         long ContentLength { get; }
     }
 
@@ -359,7 +362,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
 
         internal virtual IChangeFeedClient CreateChangeFeedClient(IAzureStorageCredentials creds)
         {
-            return new AzureChangeFeedClientWrapper(creds.CreateBlobChangeFeedClient());
+            return new AzureChangeFeedClientAdapter(creds.CreateBlobChangeFeedClient());
         }
 
         private Task<Result<DateTime?>> ProcessPageAsync(
@@ -493,53 +496,74 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             }
         }
 
-        /// <summary>
-        /// Wrapper around <see cref="BlobChangeFeedClient"/> to be able to use our own defined interfaces.
-        /// </summary>
-        private class AzureChangeFeedClientWrapper : IChangeFeedClient
+        /// <inheritdoc />
+        private class AzureChangeFeedClientAdapter : IChangeFeedClient
         {
-            private readonly BlobChangeFeedClient _client;
+            private readonly BlobChangeFeedClient _instance;
 
-            public AzureChangeFeedClientWrapper(BlobChangeFeedClient client) => _client = client;
+            public AzureChangeFeedClientAdapter(BlobChangeFeedClient instance)
+            {
+                _instance = instance;
+            }
 
+            /// <inheritdoc />
             public async IAsyncEnumerable<Page<IBlobChangeFeedEvent>> GetChangesAsync(string? continuationToken, int? pageSizeHint)
             {
-                var enunmerator = _client.GetChangesAsync(continuationToken).AsPages(pageSizeHint: pageSizeHint).GetAsyncEnumerator();
-                while (await enunmerator.MoveNextAsync())
+                await using var enumerator = _instance
+                    .GetChangesAsync(continuationToken)
+                    .AsPages(pageSizeHint: pageSizeHint)
+                    .GetAsyncEnumerator();
+
+                while (await enumerator.MoveNextAsync())
                 {
-                    var page = enunmerator.Current;
-                    var changes = page.Values.Select(c => new BlobChangeFeedEventWrapper(c)).ToArray();
-                    var newPage = Page<IBlobChangeFeedEvent>.FromValues(changes, page.ContinuationToken, page.GetRawResponse());
-                    yield return newPage;
+                    yield return CreateAdapter(enumerator);
                 }
             }
 
+            /// <inheritdoc />
             public async IAsyncEnumerable<Page<IBlobChangeFeedEvent>> GetChangesAsync(DateTime? startTimeUtc, int? pageSizeHint)
             {
-                var enunmerator = _client.GetChangesAsync(start: startTimeUtc).AsPages(pageSizeHint: pageSizeHint).GetAsyncEnumerator();
-                while (await enunmerator.MoveNextAsync())
+                await using var enumerator = _instance
+                    .GetChangesAsync(start: startTimeUtc)
+                    .AsPages(pageSizeHint: pageSizeHint)
+                    .GetAsyncEnumerator();
+
+                while (await enumerator.MoveNextAsync())
                 {
-                    var page = enunmerator.Current;
-                    var changes = page.Values.Select(c => new BlobChangeFeedEventWrapper(c)).ToArray();
-                    var newPage = Page<IBlobChangeFeedEvent>.FromValues(changes, page.ContinuationToken, page.GetRawResponse());
-                    yield return newPage;
+                    yield return CreateAdapter(enumerator);
                 }
+            }
+
+            private static Page<IBlobChangeFeedEvent> CreateAdapter(IAsyncEnumerator<Page<BlobChangeFeedEvent>> enumerator)
+            {
+                var page = enumerator.Current;
+                var changes = page.Values.Select(c => new BlobChangeFeedEventAdapter(c)).ToArray();
+                var newPage = Page<IBlobChangeFeedEvent>.FromValues(changes, page.ContinuationToken, page.GetRawResponse());
+                return newPage;
             }
         }
 
-        /// <summary>
-        /// Wrapper around <see cref="BlobChangeFeedEvent"/> to be able to use our own defined interfaces.
-        /// </summary>
-        internal class BlobChangeFeedEventWrapper : IBlobChangeFeedEvent
+        /// <inheritdoc />
+        internal class BlobChangeFeedEventAdapter : IBlobChangeFeedEvent
         {
-            private readonly BlobChangeFeedEvent _inner;
+            private readonly BlobChangeFeedEvent _instance;
 
-            public BlobChangeFeedEventWrapper(BlobChangeFeedEvent inner) => _inner = inner;
+            public BlobChangeFeedEventAdapter(BlobChangeFeedEvent instance)
+            {
+                _instance = instance;
+            }
 
-            public DateTimeOffset EventTime => _inner.EventTime;
-            public BlobChangeFeedEventType EventType => _inner.EventType;
-            public string Subject => _inner.Subject;
-            public long ContentLength => _inner.EventData.ContentLength;
+            /// <inheritdoc />
+            public DateTimeOffset EventTime => _instance.EventTime;
+
+            /// <inheritdoc />
+            public BlobChangeFeedEventType EventType => _instance.EventType;
+
+            /// <inheritdoc />
+            public string Subject => _instance.Subject;
+
+            /// <inheritdoc />
+            public long ContentLength => _instance.EventData.ContentLength;
         }
     }
 }

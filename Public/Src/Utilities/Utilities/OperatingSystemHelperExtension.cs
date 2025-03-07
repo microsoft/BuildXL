@@ -30,7 +30,8 @@ namespace BuildXL.Utilities
             new("ubuntu", new Version("20.04")),
             new("ubuntu", new Version("22.04")),
             new("ubuntu", new Version("24.04")),
-            new("mariner", new Version("2.0"))
+            new("mariner", new Version("2.0")),
+            new("azurelinux", new Version("3.0"))
         ];
 
         private static readonly Lazy<Version> CurrentMacOSVersion = new Lazy<Version>(() => GetOSVersionMacOS());

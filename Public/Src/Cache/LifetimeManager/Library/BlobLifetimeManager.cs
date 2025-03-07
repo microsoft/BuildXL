@@ -224,7 +224,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                         //
                         // In this case, we will fail GC and require manual intervention to recover. This is a safety
                         // measure to prevent us from deleting data that we should not be deleting.
-                        bool changeFeedRetention = false;
+                        var continuationTokenExceptions = new List<Exception>();
                         foreach (var accountName in accountNames)
                         {
                             var opaqueContinuationToken = db.GetCursor(accountName.AccountName);
@@ -251,14 +251,17 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                             var retentionCutoffDate = startTime - config.ChangeFeedRetentionPeriod;
                             if (segmentDate < retentionCutoffDate)
                             {
-                                Tracer.Error(context, $"Change feed retention period has been exceeded. Account=[{accountName}] Cutoff=[{retentionCutoffDate}] ContinuationToken=[{opaqueContinuationToken}]");
-                                changeFeedRetention = true;
+                                var msg = $"Change feed retention period has been exceeded. Account=[{accountName}] Cutoff=[{retentionCutoffDate}] ContinuationToken=[{opaqueContinuationToken}]";
+                                Tracer.Error(context, msg);
+                                continuationTokenExceptions.Add(new InvalidOperationException(msg));
                             }
                         }
 
-                        if (changeFeedRetention)
+                        if (continuationTokenExceptions.Count > 0)
                         {
-                            throw new InvalidOperationException("Garbage collection is too old to run. Please follow the recovery steps.");
+                            const string ErrorMessage = "Garbage collection is too old to run. Please follow the recovery steps.";
+                            Tracer.Error(context, ErrorMessage);
+                            throw new AggregateException(ErrorMessage, continuationTokenExceptions);
                         }
 
                         var accessors = namespaces.ToDictionary(

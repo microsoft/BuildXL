@@ -454,7 +454,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                 case BlobCacheContainerPurpose.Content:
                 {
                     // If resharding happened, we don't want to process events for the other shard configuration.
-                    if (!blobPath.Container.Matrix.Equals(_contentMatrix, StringComparison.OrdinalIgnoreCase))
+                    if (!blobPath.HasMatrixMatch(_contentMatrix))
                     {
                         return;
                     }
@@ -467,7 +467,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                 case BlobCacheContainerPurpose.Metadata:
                 {
                     // If resharding happened, we don't want to process events for the other shard configuration.
-                    if (!blobPath.Container.Matrix.Equals(_metadataMatrix, StringComparison.OrdinalIgnoreCase))
+                    if (!blobPath.HasMatrixMatch(_metadataMatrix))
                     {
                         return;
                     }

@@ -335,10 +335,10 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             ColumnFamilyHandle contentCf,
             ColumnFamilyHandle fingerprintCf)
         {
-            var batch = new WriteBatch();
+            using var batch = new WriteBatch();
 
             // Make sure we don't dispose of any of the pooled spans until the batch is complete.
-            var disposables = new List<IDisposable> { batch };
+            var disposables = new List<IDisposable>(capacity: 2 * hashes.Count + 2);
 
             try
             {
@@ -386,10 +386,10 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             ColumnFamilyHandle contentCf,
             ColumnFamilyHandle fingerprintCf)
         {
-            var batch = new WriteBatch();
+            using var batch = new WriteBatch();
 
             // Make sure we don't dispose of any of the pooled spans until the batch is complete.
-            var disposables = new List<IDisposable> { batch };
+            var disposables = new List<IDisposable>(capacity: 2 * hashes.Count + 1);
 
             try
             {

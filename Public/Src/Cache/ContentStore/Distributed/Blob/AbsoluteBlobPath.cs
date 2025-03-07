@@ -22,6 +22,11 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blob
 
         public BlobNamespaceId NamespaceId => Container.NamespaceId;
 
+        public bool HasMatrixMatch(string matrix)
+        {
+            return Container.Matrix.Equals(matrix, StringComparison.OrdinalIgnoreCase);
+        }
+
         public static AbsoluteBlobPath ParseFromChangeEventSubject(IReadOnlyDictionary<BlobCacheStorageAccountName, BuildCacheShard> buildCacheShardMapping, BlobCacheStorageAccountName account, string subject)
         {
             var match = BlobChangeFeedEventSubjectRegex.Match(subject);
@@ -53,7 +58,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blob
 
                 container = new FixedCacheBlobContainerName(buildCacheContainer.Name, buildCacheContainer.Type.ToContainerPurpose());
             }
-            
+
             var path = new BlobPath(match.Groups["path"].Value, relative: false);
 
             return new(new(Account: account, Container: container), Path: path);

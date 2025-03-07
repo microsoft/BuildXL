@@ -186,14 +186,6 @@ public class ShardedBlobCacheTopology : IBlobCacheTopology
             });
     }
 
-    public async Task<(BlobClient Client, AbsoluteBlobPath Path)> GetClientWithPathAsync(OperationContext context, ContentHash contentHash)
-    {
-        var (container, containerPath) = await GetShardContainerClientWithPathAsync(context, BlobCacheShardingKey.FromContentHash(contentHash));
-        var blobPath = BlobPath.CreateAbsolute($"{contentHash}.blob");
-        var client = container.GetBlobClient(blobPath.Path);
-        return new(client, new AbsoluteBlobPath(containerPath, blobPath));
-    }
-
     private Task<Result<BlobContainerClient>> CreateClientAsync(OperationContext context, BlobCacheStorageAccountName account, BlobCacheContainerName container)
     {
         var msg = $"Account=[{account}] Container=[{container}]";

@@ -2,6 +2,12 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20250226.3 (Release [29655797](https://dev.azure.com/mseng/Domino/_build/results?buildId=29655797&view=results))
+- Fixes for Ubuntu 24.04
+- Removal of leading spaces on newlines for timeout error message
+- Add depends on current host os option for qtest tool
+- [Detours] Detours stops doing path translation for APIs returned value by default
+
 # 0.1.0-20250222.1 (Release [29640286](https://dev.azure.com/mseng/Domino/_build/results?buildId=29640286&view=results))
 -	Fixes for Ubuntu 24.04
 -	Fixes and improved support for Rush graph builder plugin

@@ -13,11 +13,9 @@ namespace Processes {
     export declare const qualifier: BuildXLSdk.DefaultQualifierWithNet472;
     const bxlSdk = importFrom("Sdk.BuildXL");
 
-    @@public
-    export const test_BuildXL_Processes_dll = BuildXLSdk.test({
+    const testArgs : BuildXLSdk.TestArguments = {
         assemblyName: "Test.BuildXL.Processes",
         allowUnsafeBlocks: true,
-        sources: globR(d`.`, "*.cs"),
         runTestArgs: {
             // These tests require Detours to run itself, so we won't detour the test runner process itself
             unsafeTestRunArguments: {
@@ -107,5 +105,29 @@ namespace Processes {
                 }
             ]),
         ]
+    };
+
+    @@public
+    export const test_BuildXL_Processes_dll = BuildXLSdk.test(Object.merge<BuildXLSdk.TestArguments>(testArgs, {
+        sources: globR(d`.`, "*.cs")
+    }));
+
+    // We run again all these tests but with the EBPF sandbox
+    const testArgsEBPF : BuildXLSdk.TestArguments = Object.merge<BuildXLSdk.TestArguments>(testArgs, {
+        assemblyName: "Test.BuildXL.Processes.EBPF",
+        sources: globR(d`.`, "*.cs")
+            // These tests are ptrace specific
+            .filter(file => file.name !== a`PTraceSandboxedProcessTest.cs`),
+        runTestArgs: {
+            tags: ["EBPF"],
+            testRunData: {
+                // CODESYNC: Public/Src/Utilities/UnitTests/TestUtilities/BuildXLTestBase.cs
+                useEBPFSandbox: true,
+            },
+        }
     });
+
+    // We only run the ebpf version of this test dll on Linux
+    @@public
+    export const test_BuildXL_Processes_ebpf_dll = Context.isWindowsOS() ? undefined : BuildXLSdk.test(testArgsEBPF);
 }

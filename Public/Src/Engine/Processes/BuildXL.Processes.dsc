@@ -44,6 +44,7 @@ namespace Processes {
             "BuildXL.Engine",
             "Test.BuildXL.Engine",
             "Test.BuildXL.Processes",
+            "Test.BuildXL.Processes.EBPF",
             "Test.BuildXL.Processes.Detours",
             "ExternalToolTest.BuildXL.Scheduler",
             "BuildXL.ProcessPipExecutor",
@@ -54,6 +55,7 @@ namespace Processes {
             ]),
             ...addIfLazy(Context.getCurrentHost().os === "unix" && qualifier.targetRuntime === "linux-x64", () => [
                 importFrom("BuildXL.Sandbox.Linux").Deployment.natives,
+                importFrom("BuildXL.Sandbox.Linux.eBPF").Deployment.natives,
             ]),
         ],
     });

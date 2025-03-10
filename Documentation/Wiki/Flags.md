@@ -54,6 +54,7 @@ This page lists flags that can be used to configure BuildXL.
 | EnableDedupChunk | When enabled, DedupChunk hashing algorithm is used instead of VSO0. Defaults to off. |
 | EnableIncrementalFrontEnd | Enables incremental spec analysis based on number of changed specs. Defaults to on. |
 | EnableLazyOutputs | Enables lazy materialization (deployment) of pips' outputs from local cache. Defaults to on. |
+| EnableLinuxEBPFSandbox | Enables an EBPF-based sandbox on Linux. This sandbox is disabled by default and is considered experimental at this point. When this sandbox is enabled, it replaces the default interpose-based sandbox. |
 | EnableLinuxPTraceSandbox | Enables the ptrace sandbox on Linux when a statically linked binary is detected. Note that this will have a negative impact on performance, but is necessary to ensure correctness on some Linux builds. |
 | EnablePlugins | When enabled, plugins are allowed to be loaded. Defaults to off. |
 | EnableProcessRemoting | Enable process remoting via AnyBuild. Defaults to off. |

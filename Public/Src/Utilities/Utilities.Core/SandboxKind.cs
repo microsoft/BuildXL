@@ -27,5 +27,10 @@ namespace BuildXL.Utilities.Core
         /// Linux-specific: using LD_PRELOAD interposing
         /// </summary>
         LinuxDetours,
+
+        /// <summary>
+        /// Linux-specific: using EBPF for tracing syscalls
+        /// </summary>
+        LinuxEBPF,
     }
 }

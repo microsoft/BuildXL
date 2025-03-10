@@ -44,9 +44,10 @@ const char *kProcessExecReportFormat = "%d|%s|%d|%d|%d|%d|%d|%d|%d|%d|%s|%s\n";
 /**
  * 1. Report Type
  * 2. Process ID
- * 3. Message
+ * 3. Severity
+ * 4. Message
  */
-const char *kDebugMessageReportFormat = "%d|%d|%s\n";
+const char *kDebugMessageReportFormat = "%d|%d|%d|%s\n";
 
 int ReportBuilder::SandboxEventToString(buildxl::linux::SandboxEvent &event, buildxl::linux::AccessReport report, char* buffer, unsigned int max_length) {    
     // TODO [pgunasekara]: use std::format when it's available with gcc 13+
@@ -101,10 +102,18 @@ bool ReportBuilder::SandboxEventReportString(buildxl::linux::SandboxEvent &event
     return true;
 }
 
-int ReportBuilder::DebugReportReportString(pid_t pid, const char* message, char* buffer, unsigned int max_length) {
+int ReportBuilder::DebugReportReportString(DebugEventSeverity severity, pid_t pid, const char* message, char* buffer, unsigned int max_length) {
     int prefix_len = sizeof(unsigned int);
     int max_report_len = max_length - prefix_len;
-    int report_string_len = snprintf(&buffer[prefix_len], max_report_len, kDebugMessageReportFormat, buildxl::common::ReportType::kDebugMessage, pid, message);
+
+    int report_string_len = snprintf(
+        &buffer[prefix_len],
+        max_report_len,
+        kDebugMessageReportFormat,
+        buildxl::common::ReportType::kDebugMessage,
+        pid,
+        (int)severity,
+        message);
 
     if (report_string_len >= max_length) {
         // For debug messages it's acceptable to truncate the message
@@ -117,7 +126,14 @@ int ReportBuilder::DebugReportReportString(pid_t pid, const char* message, char*
         // Let's leave an ending \0
         strncpy(truncated_message, message, truncated_size - 1);
 
-        report_string_len = snprintf(&buffer[prefix_len], max_report_len, kDebugMessageReportFormat, buildxl::common::ReportType::kDebugMessage, pid, truncated_message);
+        report_string_len = snprintf(
+            &buffer[prefix_len],
+            max_report_len,
+            kDebugMessageReportFormat,
+            buildxl::common::ReportType::kDebugMessage,
+            pid,
+            (int)severity,
+            truncated_message);
     }
 
     // Set the prefix with the report length

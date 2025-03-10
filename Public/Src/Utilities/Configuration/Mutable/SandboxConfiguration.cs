@@ -53,6 +53,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
             UnconditionallyEnableLinuxPTraceSandbox = false;
             // TODO: flip the default once we have verified this is not a breaking change
             ForceAddExecutionPermission = true;
+            // TODO: flip the default once we are confident enough
+            EnableEBPFLinuxSandbox = false;
         }
 
         /// <nodoc />
@@ -103,6 +105,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             AlwaysRemoteInjectDetoursFrom32BitProcess = template.AlwaysRemoteInjectDetoursFrom32BitProcess;
             UnconditionallyEnableLinuxPTraceSandbox = template.UnconditionallyEnableLinuxPTraceSandbox;
             ForceAddExecutionPermission = template.ForceAddExecutionPermission;
+            EnableEBPFLinuxSandbox = template.EnableEBPFLinuxSandbox;
         }
 
         /// <inheritdoc />
@@ -267,5 +270,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc/>
         public bool ForceAddExecutionPermission {  get; set; }
+
+        /// <inheritdoc/>
+        public bool EnableEBPFLinuxSandbox { get; set; }
     }
 }

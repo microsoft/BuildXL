@@ -369,6 +369,9 @@ namespace BuildXL
                             "enableProcessRemoting",
                             sign => schedulingConfiguration.EnableProcessRemoting = sign),
                         OptionHandlerFactory.CreateBoolOption(
+                            "enableLinuxEBPFSandbox",
+                            sign => sandboxConfiguration.EnableEBPFLinuxSandbox = sign),
+                        OptionHandlerFactory.CreateBoolOption(
                             "enableLinuxPTraceSandbox",
                             sign => sandboxConfiguration.EnableLinuxPTraceSandbox = PtraceSandboxProcessChecker.AreRequiredToolsInstalled(out _) && sign),
                         OptionHandlerFactory.CreateBoolOption(

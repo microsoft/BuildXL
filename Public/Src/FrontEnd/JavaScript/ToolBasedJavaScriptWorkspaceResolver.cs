@@ -401,7 +401,8 @@ namespace BuildXL.FrontEnd.JavaScript
                arguments: toolArguments,
                workingDirectory: ResolverSettings.Root.ToString(Context.PathTable),
                description: $"{Name} graph builder",
-               buildParameters);
+               buildParameters,
+               useEBPFLinuxSandbox: Configuration.Sandbox.EnableEBPFLinuxSandbox);
         }
 
         private void DeleteGraphBuilderRelatedFiles(AbsolutePath outputFile)

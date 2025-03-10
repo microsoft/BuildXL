@@ -67,6 +67,10 @@ namespace BuildXL.SandboxedProcessExecutor
                 {
                     configuration.SandboxedProcessExecutorTestHookFile = ParsePathOption(option);
                 }
+                else if (OptionEquals(option, "enableEBPFLinuxSandbox"))
+                {
+                    configuration.EnableEBPFLinuxSandbox = ParseBooleanOption(option);
+                }
                 else if (s_helpStrings.Any(s => OptionEquals(option, s)))
                 {
                     // If the analyzer was called with '/help' argument - print help and exit

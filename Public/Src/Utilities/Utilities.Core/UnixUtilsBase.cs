@@ -18,7 +18,7 @@ public abstract class UnixUtilsBase
     private readonly bool m_isToolInstalled;
 
     /// <summary>
-    /// Cache of results from <see cref="CheckConditionAgainstStandardOutput(string, string, Func{string, bool})"/>.
+    /// Cache of results from <see cref="CheckConditionAgainstStandardOutput(string, string, Func{string, bool}, bool)"/>.
     /// </summary>
     private readonly ConcurrentDictionary<string, bool> m_cache = new();
 
@@ -36,7 +36,7 @@ public abstract class UnixUtilsBase
     /// <remarks>
     /// The provided cache is used for retrieval/storage
     /// </remarks>
-    protected bool CheckConditionAgainstStandardOutput(string binaryPath, string arguments, Func<string, bool> condition)
+    protected bool CheckConditionAgainstStandardOutput(string binaryPath, string arguments, Func<string, bool> condition, bool runAsSudo = false)
     {
         if (!OperatingSystemHelper.IsLinuxOS || !m_isToolInstalled || !File.Exists(binaryPath))
         {
@@ -52,9 +52,20 @@ public abstract class UnixUtilsBase
             return result;
         }
 
+        string filename;
+        if (runAsSudo)
+        {
+            filename = "/usr/bin/sudo";
+            arguments = $"{m_toolPath} {arguments}";
+        }
+        else
+        {
+            filename = m_toolPath;
+        }
+
         var processInfo = new System.Diagnostics.ProcessStartInfo
         {
-            FileName = m_toolPath,
+            FileName = filename,
             Arguments = arguments,
             RedirectStandardOutput = true,
             RedirectStandardError = true,

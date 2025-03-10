@@ -36,7 +36,8 @@ namespace Native {
     @@public
     export const nativeLinux = [
         ...addIfLazy(BuildXLSdk.isTargetRuntimeLinux && BuildXLSdk.isHostOsLinux, () => [
-            importFrom("BuildXL.Sandbox.Linux").Deployment.natives
+            importFrom("BuildXL.Sandbox.Linux").Deployment.natives,
+            importFrom("BuildXL.Sandbox.Linux.eBPF").Deployment.natives
         ])
     ];
 

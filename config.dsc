@@ -480,6 +480,21 @@ config({
                     url: 'https://github.com/git-for-windows/git/releases/download/v2.43.0.windows.1/MinGit-2.43.0-64-bit.zip',
                     hash: 'VSO0:15D4663615814ADAE92F449B78A2668C515BD475DFDAC30384EFF84C8413546700',
                     archiveType: "zip"
+                },
+
+                // eBPF sandbox
+                // CODESYNC: Public/Src/Sandbox/Linux/ebpf/BuildXL.Sandbox.Linux.eBPF.dsc
+                {
+                    moduleName: "libbpf",
+                    url: "https://github.com/libbpf/libbpf/archive/refs/tags/v1.4.7.tar.gz",
+                    hash: "VSO0:5F1C0937CD30C223AA6C0527992637610804D924024AA66E7E4004E0574ED47900",
+                    archiveType: "tgz"
+                },
+                {
+                    moduleName: "bpftool",
+                    url: "https://github.com/libbpf/bpftool/releases/download/v7.5.0/bpftool-v7.5.0-amd64.tar.gz",
+                    hash: "VSO0:DC8B3E7A8B7BC8DC8F7943656AD11FEDA58064FFAB0D8EF3DE8B75FFA0237E0800",
+                    archiveType: "tgz"
                 }
             ],
         },
@@ -632,6 +647,14 @@ config({
             isWritable: true,
             isReadable: true,
             isScrubbable: true,
+        },
+        {
+            name: a`ebpfheaders`,
+            path: p`Out/headers/linux-x64`,
+            trackSourceFileChanges: false,
+            isWritable: true,
+            isReadable: true,
+            isScrubbable: true
         },
         ...(Environment.getStringValue("BUILDXL_DROP_CONFIG") !== undefined ? 
         [

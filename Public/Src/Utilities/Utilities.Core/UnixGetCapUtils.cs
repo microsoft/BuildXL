@@ -34,4 +34,10 @@ public class UnixGetCapUtils : UnixUtilsBase
     /// <remarks>getcap returns an empty string unless capabilities are found or the file being checked does not exist.</remarks>
     public bool BinaryContainsCapabilities(string binaryPath) =>
         CheckConditionAgainstStandardOutput(binaryPath, binaryPath, (stdout) => !string.IsNullOrEmpty(stdout));
+    
+    /// <summary>
+    /// Returns true if the provided binary contains the specified capability
+    /// </summary>
+    public bool BinaryContainsCapabilities(string binaryPath, UnixCapability capability) =>
+        CheckConditionAgainstStandardOutput(binaryPath, binaryPath, (stdout) => stdout.Contains(capability.CapabilityString()));
 }

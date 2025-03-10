@@ -6,6 +6,7 @@ using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using System.Diagnostics;
 
 namespace BuildXL.Processes
 {
@@ -56,6 +57,11 @@ namespace BuildXL.Processes
         /// that should be set before executing the process.
         /// </summary>
         public IEnumerable<(string, string)> AdditionalEnvVarsToSet(SandboxedProcessInfo info, string uniqueName);
+
+        /// <summary>
+        /// A concrete sandbox connection can override this method to massage the process start info before executing the process.
+        /// </summary>
+        public void OverrideProcessStartInfo(ProcessStartInfo processStartInfo);
 
         /// <summary>
         /// SandboxedProcess uses this method to notify the connection that the root process of the pip exited.

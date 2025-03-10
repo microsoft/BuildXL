@@ -6433,7 +6433,9 @@ namespace BuildXL.Scheduler
                         var sandboxKind = m_configuration.Sandbox.UnsafeSandboxConfiguration.SandboxKind;
                         Contract.Assert(sandboxKind == SandboxKind.Default || sandboxKind == SandboxKind.LinuxDetours,
                                         $"Unknown Unix sandbox kind: {m_configuration.Sandbox.UnsafeSandboxConfiguration.SandboxKind}");
-                        sandboxConnection = new SandboxConnectionLinuxDetours(sandboxFailureCallback);
+                        sandboxConnection = m_configuration.Sandbox.EnableEBPFLinuxSandbox
+                            ? new SandboxConnectionLinuxEBPF(sandboxFailureCallback)
+                            : new SandboxConnectionLinuxDetours(sandboxFailureCallback);
                     }
 
                     SandboxConnection = sandboxConnection;

@@ -17,6 +17,11 @@ namespace Test.BuildXL.Processes
 {
     public class SandboxedProcessTestBase : PipTestBase, ISandboxedProcessFileStorage
     {
+        /// <summary>
+        /// Whether the EBPF-based sandbox is being used for the running tests
+        /// </summary>
+        protected bool UsingEBPFSandbox { get; }
+
         protected static readonly HashSet<string> PotentiallyExternallyInjectedChildProcesses = new HashSet<string>(
             new[]
             {
@@ -27,6 +32,7 @@ namespace Test.BuildXL.Processes
 
         public SandboxedProcessTestBase(ITestOutputHelper output) : base(output)
         {
+            UsingEBPFSandbox = IsUsingEBPFSandbox();
         }
 
         /// <remarks>
@@ -39,7 +45,6 @@ namespace Test.BuildXL.Processes
             IDetoursEventListener detoursListener = null,
             bool disableConHostSharing = false,
             Dictionary<string, string> overrideEnvVars = null,
-            ISandboxConnection sandboxConnection = null,
             string workingDirectory = null)
         {
             var envVars = Override(
@@ -56,7 +61,10 @@ namespace Test.BuildXL.Processes
                 this,
                 process.Executable.Path.ToString(Context.PathTable),
                 detoursEventListener: detoursListener,
-                sandboxConnection: sandboxConnection ?? GetSandboxConnection(),
+                sandboxConnection: GetSandboxConnection(
+                    OperatingSystemHelper.IsLinuxOS && UsingEBPFSandbox 
+                    ? SandboxKind.LinuxEBPF 
+                    : SandboxKind.Default),
                 disableConHostSharing: disableConHostSharing,
                 fileAccessManifest: fileAccessManifest,
                 loggingContext: LoggingContext,

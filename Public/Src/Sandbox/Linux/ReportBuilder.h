@@ -25,18 +25,32 @@ enum class EventReportType {
  */
 class ReportBuilder {
 private:
-    static int SandboxEventToString(buildxl::linux::SandboxEvent &event, buildxl::linux::AccessReport report, char* buffer, unsigned int max_length);
+    static int SandboxEventToString(
+        buildxl::linux::SandboxEvent &event,
+        buildxl::linux::AccessReport report,
+        char* buffer,
+        unsigned int max_length);
 
 public:
     /**
      * Generate a report string for a file operation.
      */
-    static bool SandboxEventReportString(buildxl::linux::SandboxEvent &event, buildxl::linux::AccessReport report, char* buffer, unsigned int max_length, unsigned int &report_length);
+    static bool SandboxEventReportString(
+        buildxl::linux::SandboxEvent &event,
+        buildxl::linux::AccessReport report,
+        char* buffer,
+        unsigned int max_length,
+        unsigned int &report_length);
 
     /**
      * Generate a report for a debug message.
      */
-    static int DebugReportReportString(pid_t pid, const char* message, char* buffer, unsigned int max_length);
+    static int DebugReportReportString(
+        DebugEventSeverity severity,
+        pid_t pid,
+        const char* message,
+        char* buffer,
+        unsigned int max_length);        
 };
 
 } // namespace linux

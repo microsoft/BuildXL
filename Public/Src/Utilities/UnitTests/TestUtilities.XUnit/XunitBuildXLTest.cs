@@ -48,11 +48,22 @@ namespace Test.BuildXL.TestUtilities.Xunit
         /// Windows: Always returns null and causes no overhead for testing.
         /// Linux: Returns a new sandboxed connection on each call for the Linux sandbox
         /// </summary>
-        public static ISandboxConnection GetSandboxConnection()
+        public static ISandboxConnection GetSandboxConnection(SandboxKind sandboxKind = SandboxKind.Default)
         {
             if (OperatingSystemHelper.IsLinuxOS)
             {
-                return new SandboxConnectionLinuxDetours(FailureCallback, isInTestMode: true);
+                // On Linux there are two sandboxes available to pick from
+                switch (sandboxKind) {
+                    case SandboxKind.Default:
+                    case SandboxKind.LinuxDetours:
+                        return new SandboxConnectionLinuxDetours(FailureCallback, isInTestMode: true);
+                    case SandboxKind.LinuxEBPF:
+                        return new SandboxConnectionLinuxEBPF(FailureCallback, isInTestMode: true);
+                    case SandboxKind.None:
+                        return null;
+                    default:
+                        throw new Exception($"Incompatible sandbox. Requested {sandboxKind} on a Linux OS");
+                }
             }
 
             return null;

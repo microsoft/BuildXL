@@ -32,6 +32,7 @@ namespace Linux.Compilers {
         sourceFile: SourceFile,
         defines?: string[],
         headers?: File[],
+        additionalDependencies?: Transformer.InputArtifact[], 
         includeDirectories?: Directory[]
     }
 
@@ -46,11 +47,15 @@ namespace Linux.Compilers {
         const compiler = isCpp ? gxxTool : gccTool;
         const outDir = Context.getNewOutputDirectory(compiler.exe.name);
         const objFile = p`${outDir}/${args.sourceFile.name.changeExtension(".o")}`;
+        const dependencies = [
+            ...(args.headers || []),
+            ...(args.additionalDependencies || [])
+        ];
         
         const result = Transformer.execute({
             tool: compiler,
             workingDirectory: outDir,
-            dependencies: args.headers || [],
+            dependencies: dependencies,
             arguments: [
                 Cmd.argument(Artifact.input(args.sourceFile)),
                 Cmd.option("-o", Artifact.output(objFile)),
@@ -75,7 +80,7 @@ namespace Linux.Compilers {
     export interface LinkerArguments {
         tool: Transformer.ToolDefinition,
         outputName: PathAtom,
-        objectFiles: DerivedFile[],
+        objectFiles: (DerivedFile | File)[],
         libraries?: string[],
     }
 

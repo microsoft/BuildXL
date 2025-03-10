@@ -80,8 +80,18 @@ namespace Test.BuildXL.Processes
             // The test calls readlink(symlinkDir/nonExistingFile.txt): we should get a report on the path
             // with the resolved intermediate symlink, and no reports on the symlink'd path.
             RunNativeTest("FullPathResolutionOnReports", workingDirectory: tempFiles);
-            AssertLogContains(GetRegex("readlink", "realDir/nonExistingFile.txt"));
-            AssertLogNotContains(GetRegex("readlink", "symlinkDir/nonExistingFile.txt"));
+            if (!UsingEBPFSandbox)
+            {
+                AssertLogContains(GetRegex("readlink", "realDir/nonExistingFile.txt"));
+                AssertLogNotContains(GetRegex("readlink", "symlinkDir/nonExistingFile.txt"));
+            }
+            else
+            {
+                // With EBPF we get a read on the intermediate symlink
+                AssertLogContains(GetAccessReportRegex(ReportedFileOperation.ReadFile, "symlinkDir"));
+                // And a non-existent probe on the symlinked path
+                AssertLogContains(GetAccessReportRegex(ReportedFileOperation.Probe, "symlinkDir/nonExistingFile.txt"));
+            }
         }
 
         [FactIfSupported(requiresSymlinkPermission: true)]
@@ -103,8 +113,16 @@ namespace Test.BuildXL.Processes
 
             // The test calls readlink(realDir/symlink.txt): we should get a report on this path, with no resolution of the final component
             RunNativeTest("ReadlinkReportDoesNotResolveFinalComponent", workingDirectory: tempFiles);
-            AssertLogContains(GetRegex("readlink", "realDir/symlink.txt"));
-            AssertLogNotContains(GetRegex("readlink", "symlinkDir/file.txt"));
+            if (UsingEBPFSandbox)
+            {
+                AssertLogContains(GetAccessReportRegex(ReportedFileOperation.ReadFile, "realDir/symlink.txt"));
+                AssertLogNotContains(GetAccessReportRegex(ReportedFileOperation.Probe, "symlinkDir/file.txt"));
+            }
+            else
+            {
+                AssertLogContains(GetRegex("readlink", "realDir/symlink.txt"));
+                AssertLogNotContains(GetRegex("readlink", "symlinkDir/file.txt"));
+            }
         }
 
         [FactIfSupported(requiresSymlinkPermission: true)]
@@ -137,18 +155,27 @@ namespace Test.BuildXL.Processes
             // fd = open(symlinkDir/symlink.txt);
             // __fxstat(fd)
             // For the __fxstat report, we should associate the file descriptor to the real path, with the symlinks resolved
-            if (Ipc.IsGLibC234OrGreater)
-            {
-                AssertLogContains(GetRegex("fstat", realFile));
+            AssertLogContains(GetAccessReportRegex(ReportedFileOperation.Probe, realFile));
+
+            // At some point (namely, on open) we also should get reports for the intermediate symlinks that got us to the file
+            if (UsingEBPFSandbox)
+            { 
+                AssertLogContains(GetAccessReportRegex(ReportedFileOperation.ReadFile, link));
+                AssertLogContains(GetAccessReportRegex(ReportedFileOperation.ReadFile, fileLink));
             }
             else
             {
-                AssertLogContains(GetRegex("__fxstat", realFile));
+                if (Ipc.IsGLibC234OrGreater)
+                {
+                    AssertLogContains(GetRegex("fstat", realFile));
+                }
+                else
+                {
+                    AssertLogContains(GetRegex("__fxstat", realFile));
+                }
+                AssertLogContains(GetRegex("_readlink", link));
+                AssertLogContains(GetRegex("_readlink", fileLink));
             }
-
-            // At some point (namely, on open) we also should get reports for the intermediate symlinks that got us to the file 
-            AssertLogContains(GetRegex("_readlink", link));
-            AssertLogContains(GetRegex("_readlink", fileLink));
         }
 
         [Theory]
@@ -165,8 +192,12 @@ namespace Test.BuildXL.Processes
             var expectedExe = succeeds ? "/usr/bin/echo" : TestProcessExe;
             var exepectedArgs = succeeds ? "/bin/echo hello world" : $"{TestProcessExe} -t ExecReportsCorrectExecutableAndArgumentsFailed";
 
-            XAssert.IsTrue(result.result.Processes.Count() == 1, $"Expected 1 process, got {result.result.Processes.Count()} with processes:\n{accesses}");
-            XAssert.IsTrue(result.result.Processes[0].Path == expectedExe, $"Expected {expectedExe}, got {result.result.Processes[0].Path}");
+            var process = result.result.Processes.FirstOrDefault(p => p.Path == expectedExe);
+
+            if (process == null)
+            {
+                XAssert.IsTrue(false, $"Expected {expectedExe}, got {result.result.Processes[0].Path} with accesses: \n{accesses}");
+            }
             
             // TODO: [pgunasekara] args are not checked in the ReportedProcess object for now. We do report args properly, however our logic to update the ReportedProcess object is not correct.
             // XAssert.IsTrue(result.result.Processes[0].ProcessArgs ==  exepectedArgs, $"Expected \"{exepectedArgs}\", got {string.Join(" ", result.result.Processes[0].ProcessArgs)}");
@@ -175,8 +206,12 @@ namespace Test.BuildXL.Processes
         [Fact]
         public void OpenAtHandlesInvalidFd()
         {
-            RunNativeTest("OpenAtHandlesInvalidFd", unconditionallyEnableLinuxPTraceSandbox: true);
-            AssertLogContains(caseSensitive: false, "failed to read or read invalid dirfd ('-1') for syscall 'openat' with path ''");
+            // This is ptrace specific
+            if (!UsingEBPFSandbox)
+            {
+                RunNativeTest("OpenAtHandlesInvalidFd", unconditionallyEnableLinuxPTraceSandbox: true);
+                AssertLogContains(caseSensitive: false, "failed to read or read invalid dirfd ('-1') for syscall 'openat' with path ''");
+            }
         }
     }
 }

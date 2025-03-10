@@ -15,6 +15,7 @@ using System.Text.RegularExpressions;
 using System.Xml;
 using System.Xml.Linq;
 using BuildXL.Native.Streams;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
@@ -28,6 +29,14 @@ namespace Test.BuildXL.TestUtilities
         Justification = "Test follow different pattern with Initialize and Cleanup.")]
     public abstract class BuildXLTestBase
     {
+        /// <summary>
+        /// The name of the test data value that indicates whether to use the EBPF-based sandbox for these tests
+        /// </summary>
+        /// <remarks>
+        /// Only relevant when running on Linux
+        /// </remarks>
+        const string UseEBPFTesDataValue = "useEBPFSandbox";
+
         // CODESYNC: Public\Sdk\Public\Managed\testing.dsc
         private const string TestRunDataXmlFileName = "testRunData.xml";
         private const string TestRunDataElementName = "TestRunData";
@@ -458,7 +467,8 @@ namespace Test.BuildXL.TestUtilities
         /// Verifies that the test's event trace matches the given regex.
         /// </summary>
         /// <param name="regex">Regex to match to event trace</param>
-        protected void AssertLogContains(Regex regex)
+        /// <param name="count">Number of expected matches</param>
+        protected void AssertLogContains(Regex regex, int? count = null)
         {
             Contract.Requires(regex != null);
             string originalLog = EventListener.GetLog();
@@ -469,6 +479,17 @@ namespace Test.BuildXL.TestUtilities
                 AssertTrue(
                             false,
                             "Did not find any matches for regex '{0}' in the output log:\n\r----------\n\r{1}\n\r----------\n\r",
+                            regex.ToString(),
+                            originalLog);
+            }
+
+            if (count != null && count != matches)
+            {
+                AssertTrue(
+                            false,
+                            "Expected matches {0} but got {1} for regex '{2}' in the output log:\n\r----------\n\r{3}\n\r----------\n\r",
+                            count,
+                            matches,
                             regex.ToString(),
                             originalLog);
             }
@@ -657,6 +678,25 @@ namespace Test.BuildXL.TestUtilities
 
             var testDataFile = Path.Combine(GetTestAssemblyDirectory(), TestRunDataXmlFileName);
             return ReadTestDataFromXml(testDataFile);
+        }
+
+        /// <summary>
+        /// Whether the EBPF sandbox is requested
+        /// </summary>
+        public bool IsUsingEBPFSandbox()
+        {
+            // For now we only run EBPF tests in Ubuntu 24.04. TODO: generalize
+            bool is2404 = OperatingSystemHelperExtension.GetLinuxDistribution()?.Equals(new LinuxDistribution("ubuntu", new Version("24.04"))) == true;
+            return ExistsTestData() && !string.IsNullOrEmpty(GetTestDataValue(UseEBPFTesDataValue)) && is2404;
+        }
+
+        /// <summary>
+        /// Whether a 'testRunData' was specified in the build spec
+        /// </summary>
+        protected static bool ExistsTestData()
+        {
+            var testDataFile = Path.Combine(GetTestAssemblyDirectory(), TestRunDataXmlFileName);
+            return File.Exists(testDataFile);
         }
 
         private Dictionary<string, string> ReadTestDataFromXml(string testDataFile)

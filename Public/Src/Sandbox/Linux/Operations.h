@@ -59,6 +59,17 @@ enum class FileOperation {
     kMax,
 };
 
+/**
+ * The severity of a debug message sent to the managed code.
+ * 
+ * CODESYNC: Public/Src/Engine/Processes/SandboxReportLinux.cs
+ */
+enum class DebugEventSeverity {
+    kInfo = 0,
+    kWarning = 1,
+    kError = 2,
+};
+
 } // namespace linux
 } // namespace buildxl
 

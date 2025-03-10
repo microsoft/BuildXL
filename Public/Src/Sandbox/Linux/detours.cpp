@@ -287,7 +287,7 @@ INTERPOSE(int, fexecve, int fd, char *const argv[], char *const envp[])({
     // is sent on __init__
 
     result_t<int> result(0);
-    if (bxl->should_breakaway(fd, argv))
+    if (bxl->ShouldBreakaway(fd, argv))
     {
         result = bxl->fwd_fexecve(fd, argv, bxl->removeEnvs(envp));
     }
@@ -318,7 +318,7 @@ INTERPOSE(int, execv, const char *file, char *const argv[])({
     // is sent on __init__
 
     result_t<int> result(0);
-    if (bxl->should_breakaway(file, argv))
+    if (bxl->ShouldBreakaway(file, argv))
     {
         result = bxl->fwd_execve(file, argv, bxl->removeEnvs(environ));
     }
@@ -349,7 +349,7 @@ INTERPOSE(int, execve, const char *file, char *const argv[], char *const envp[])
     // is sent on __init__
 
     result_t<int> result(0);
-    if (bxl->should_breakaway(file, argv))
+    if (bxl->ShouldBreakaway(file, argv))
     {
         result =  bxl->fwd_execve(file, argv, bxl->removeEnvs(envp));
     }
@@ -386,7 +386,7 @@ INTERPOSE(int, execvp, const char *file, char *const argv[])({
     if (path_resolution_result)
     {
         result_t<int> result(0);
-        if (bxl->should_breakaway(pathname.c_str(), argv))
+        if (bxl->ShouldBreakaway(pathname.c_str(), argv))
         {
             result = bxl->fwd_execve(pathname.c_str(), argv, bxl->removeEnvs(environ));
         }
@@ -444,7 +444,7 @@ INTERPOSE(int, execvpe, const char *file, char *const argv[], char *const envp[]
     if (path_resolution_result)
     {
         result_t<int> result(0);
-        if (bxl->should_breakaway(pathname.c_str(), argv))
+        if (bxl->ShouldBreakaway(pathname.c_str(), argv))
         {
             result = bxl->fwd_execve(pathname.c_str(), argv, bxl->removeEnvs(envp));
         }
@@ -506,7 +506,7 @@ INTERPOSE(int, execl, const char *pathname, const char *arg, ...)({
     va_end(args);
 
     result_t<int> result(0);
-    if (bxl->should_breakaway(pathname, (char **)argv))
+    if (bxl->ShouldBreakaway(pathname, (char **)argv))
     {
         result = bxl->fwd_execve(pathname, (char **)argv, bxl->removeEnvs(environ));
     }
@@ -555,7 +555,7 @@ INTERPOSE(int, execlp, const char *file, const char *arg, ...)({
     if (path_resolution_result)
     {
         result_t<int> result(0);
-        if (bxl->should_breakaway(pathname.c_str(), (char **)argv))
+        if (bxl->ShouldBreakaway(pathname.c_str(), (char **)argv))
         {
             result = bxl->fwd_execve(pathname.c_str(), (char **)argv, bxl->removeEnvs(environ));
         }
@@ -619,7 +619,7 @@ INTERPOSE(int, execle, const char *pathname, const char *arg, ...)({
     va_end(args);
 
     result_t<int> result(0);
-    if (bxl->should_breakaway(pathname, (char **)argv))
+    if (bxl->ShouldBreakaway(pathname, (char **)argv))
     {
         result = bxl->fwd_execve(pathname, (char **)argv, bxl->removeEnvs(envp));
     }

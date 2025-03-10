@@ -1264,6 +1264,15 @@ namespace BuildXL.Processes.Tracing
         internal abstract void PTraceRunnerError(LoggingContext loggingContext, string pipDescription, string content);
 
         [GeneratedEvent(
+            (ushort)LogEventId.SandboxErrorMessage,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Scheduler,
+            Message = "[{pipDescription}] BuildXL Sandbox error: {content}")]
+        internal abstract void SandboxErrorMessage(LoggingContext loggingContext, string pipDescription, string content);
+
+        [GeneratedEvent(
             (ushort)LogEventId.ReportArgsMismatch,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,

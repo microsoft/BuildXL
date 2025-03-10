@@ -194,9 +194,10 @@ namespace Test.BuildXL.Processes
             }
 
             XAssert.IsTrue(matches.ToList().Count == count,
-                $"Did not find expected count ({count}) of file access '{assertString}'{Environment.NewLine}Reported Accesses:{Environment.NewLine}{string.Join(Environment.NewLine, result.result.FileAccesses.Select(fa => $"[{fa.Process.ProcessId}]{fa.Operation}:{fa.ManifestPath.ToString(Context.PathTable)}").ToList())}");
+                $"Found ({matches.ToList().Count}) of file accesses, but expecting ({count}) '{assertString}'{Environment.NewLine}Reported Accesses:{Environment.NewLine}{string.Join(Environment.NewLine, result.result.FileAccesses.Select(fa => $"[{fa.Process.ProcessId}]{fa.Operation}:{fa.ManifestPath.ToString(Context.PathTable)}").ToList())}");
         }
 
         protected Regex GetRegex(string fileOperation, string path) => new Regex($@".*\(\( *{fileOperation}: *[0-9]* *\)\).*{Regex.Escape(path)}.*", RegexOptions.IgnoreCase);
+        protected Regex GetAccessReportRegex(ReportedFileOperation fileOperation, string path) => new Regex($@".*Access report received: {fileOperation.ToString()}:.*{Regex.Escape(path)}.*", RegexOptions.IgnoreCase);
     }
 }

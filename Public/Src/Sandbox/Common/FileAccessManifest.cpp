@@ -229,7 +229,7 @@ inline BYTE FileAccessManifest::ParseByte(size_t& offset) {
     return b;
 }
 
-bool FileAccessManifest::ShouldBreakaway(const PathChar *path, const PathChar *const argv[])
+bool FileAccessManifest::ShouldBreakaway(const PathChar *path, std::basic_string<PathChar> &arguments)
 {
     if (breakaway_child_processes_.empty() || path == nullptr)
     {
@@ -250,7 +250,7 @@ bool FileAccessManifest::ShouldBreakaway(const PathChar *path, const PathChar *c
             }
             else
             {
-                return ContainsRequiredArgs(it->GetRequiredArgs(), it->GetRequiredArgsIgnoreCase(), argv);
+                return ContainsRequiredArgs(it->GetRequiredArgs(), it->GetRequiredArgsIgnoreCase(), arguments);
             }
         }
     }
@@ -258,11 +258,8 @@ bool FileAccessManifest::ShouldBreakaway(const PathChar *path, const PathChar *c
     return false;
 }
 
-bool FileAccessManifest::ContainsRequiredArgs(const std::basic_string<PathChar>& requiredArgs, bool requiredArgsIgnoreCase, const PathChar *const argv[])
+bool FileAccessManifest::ContainsRequiredArgs(const std::basic_string<PathChar>& requiredArgs, bool requiredArgsIgnoreCase, std::basic_string<PathChar> &arguments)
 {
-    // Argument matching needs to happen against the whole set of arguments, so we need to put the command line back together
-    std::basic_string<PathChar> arguments = GetCommandLineFromArgv(argv);
-
     if (requiredArgsIgnoreCase)
     {
         return FindCaseInsensitively(arguments, requiredArgs) != arguments.end();

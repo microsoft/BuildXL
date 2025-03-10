@@ -246,7 +246,8 @@ namespace BuildXL.FrontEnd.Ninja
                 workingDirectory: SpecFile.GetParent(Context.PathTable).ToString(Context.PathTable),
                 description: "Ninja graph builder",
                 RetrieveBuildParameters(),
-                onResult: cleanUpOnResult);
+                onResult: cleanUpOnResult,
+                useEBPFLinuxSandbox: Configuration.Sandbox.EnableEBPFLinuxSandbox);
         }
 
         private void SerializeToolArguments(AbsolutePath outputFile, AbsolutePath argumentsFile)

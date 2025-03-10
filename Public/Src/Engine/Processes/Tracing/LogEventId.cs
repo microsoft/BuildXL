@@ -145,6 +145,7 @@ namespace BuildXL.Processes.Tracing
         ReportArgsMismatch = 10107,
         ReceivedReportFromUnknownPid = 10108,
         ReceivedFileAccessReportBeforeSemaphoreInit = 10109,
+        SandboxErrorMessage = 10110,
 
         FailedToCreateHardlinkOnMerge = 12209,
         DoubleWriteAllowedDueToPolicy = 12210,

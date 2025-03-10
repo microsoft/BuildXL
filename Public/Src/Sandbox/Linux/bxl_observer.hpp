@@ -378,9 +378,14 @@ public:
     }
 
     /**
-     * Reads and returns the command line for the provided process ID.
+     * Reads and returns the command line for the provided process ID provided that IsReportingProcessArgs is enabled.
     */
     std::string GetProcessCommandLine(pid_t pid);
+
+    /**
+     * Reads and returns the command line for the provided process ID.
+    */
+    std::string DoGetProcessCommandLine(pid_t pid);
 
     /**
      * Converts an argument vector containing the command line into a single string.
@@ -424,8 +429,9 @@ public:
     void set_ptrace_permissions();
     // Checks against the breakaway list to see whether there is a match
     // TODO: implement breakaway handling for ptrace
-    bool should_breakaway(const char *path, char *const argv[]);
-    bool should_breakaway(int fd, char *const argv[]);
+    bool ShouldBreakaway(const char *path, std::string &args, pid_t pid = -1, pid_t ppid = -1);
+    bool ShouldBreakaway(const char *path, char *const argv[]);
+    bool ShouldBreakaway(int fd, char *const argv[]);
 
     // Clears the specified entry on the file descriptor table
     void reset_fd_table_entry(int fd);
@@ -464,7 +470,9 @@ public:
         return sandboxLoggingEnabled_;
     }
 
+    void LogDebugMessage(pid_t pid, buildxl::linux::DebugEventSeverity severity, const char *fmt, va_list args);
     void LogDebug(pid_t pid, const char *fmt, ...);
+    void LogError(const char *fmt, ...);
     
     mode_t get_mode(const char *path)
     {

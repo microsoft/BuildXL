@@ -304,5 +304,13 @@ namespace BuildXL.Utilities.Configuration
         /// Force set the execute permission bit for the root process of process pips in Linux builds.
         /// </summary>
         public bool ForceAddExecutionPermission {  get; }
+
+        /// <summary>
+        /// Enables the EBPF Linux sandbox.
+        /// </summary>
+        /// <remarks>
+        /// This sandbox replaces the interpose/ptrace sandboxes. Disabled by default for now.
+        /// </remarks>
+        public bool EnableEBPFLinuxSandbox { get; }
     }
 }

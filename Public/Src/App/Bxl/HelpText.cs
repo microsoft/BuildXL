@@ -889,6 +889,12 @@ namespace BuildXL
                 );
 
             hw.WriteOption(
+                "/enableLinuxEBPFSandbox[+|-]",
+                Strings.HelpText_DisplayHelp_EnableLinuxEBPFSandbox,
+                HelpLevel.Verbose
+                );
+
+            hw.WriteOption(
                 "/enableLinuxPTraceSandbox[+|-]",
                 Strings.HelpText_DisplayHelp_EnableLinuxPTraceSandbox,
                 HelpLevel.Verbose

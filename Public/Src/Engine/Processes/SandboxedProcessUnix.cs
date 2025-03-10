@@ -30,78 +30,6 @@ using static BuildXL.Utilities.Core.FormattableStringEx;
 namespace BuildXL.Processes
 {
     /// <summary>
-    /// Represents a parsed report from the Linux Sandbox.
-    /// </summary>
-    public struct SandboxReportLinux
-    {
-        /// <summary>
-        /// The type of report sent back that will specify how the report should be interpreted.
-        /// </summary>
-        public ReportType ReportType;
-
-        /// <summary>
-        /// The name of the system call that generated this report.
-        /// </summary>
-        public string SystemCall;
-
-        /// <summary>
-        /// The reported file operation.
-        /// </summary>
-        public ReportedFileOperation FileOperation;
-
-        /// <summary>
-        /// The process id of the process that generated this report.
-        /// </summary>
-        /// <remarks>
-        /// On a fork/clone event, this will be the child process id.
-        /// </remarks>
-        public uint ProcessId;
-
-        /// <summary>
-        /// The parent process id of the process that generated this report.
-        /// </summary>
-        /// /// <remarks>
-        /// On a fork/clone event, this will be the process id of the caller of fork/clone.
-        /// </remarks>
-        public uint ParentProcessId;
-
-        /// <summary>
-        /// If the report was an exec operation, then the command line arguments will be stored here.
-        /// </summary>
-        public string CommandLineArguments;
-
-        /// <summary>
-        /// If the system call failed and set errno, this will be the errno value.
-        /// </summary>
-        public uint Error;
-        
-        /// <summary>
-        /// Represents a path if this is a file access report, or a message if this is a debug report.
-        /// </summary>
-        public string Data;
-
-        /// <summary>
-        /// Represents whether the reported path was a directory.
-        /// </summary>
-        public bool IsDirectory;
-
-        /// <summary>
-        /// The requested access for this report.
-        /// </summary>
-        public RequestedAccess RequestedAccess;
-
-        /// <summary>
-        /// The file access status for this report.
-        /// </summary>
-        public uint FileAccessStatus;
-
-        /// <summary>
-        /// Whether the sandbox indicated that this report should be explicitly reported.
-        /// </summary>
-        public uint ExplicitlyReport;
-    }
-
-    /// <summary>
     /// Implementation of <see cref="ISandboxedProcess"/> for Unix-based systems (currently: Linux).
     /// </summary>
     public sealed class SandboxedProcessUnix : UnsandboxedProcess
@@ -333,6 +261,9 @@ namespace BuildXL.Processes
                     mask: FileAccessPolicy.MaskNothing,
                     values: FileAccessPolicy.AllowReadAlways);
             }
+
+            // Let the sandbox connection modify the process start info if needed
+            info.SandboxConnection?.OverrideProcessStartInfo(process.StartInfo);
 
             return process;
         }
@@ -721,7 +652,16 @@ namespace BuildXL.Processes
             {
                 case ReportType.DebugMessage:
                 {
-                    LogDebug(report.Data);
+                    switch (report.Severity)
+                    {
+                        case DebugEventSeverity.Error:
+                        case DebugEventSeverity.Warning:
+                            Logger.Log.SandboxErrorMessage(m_loggingContext, m_reports.PipDescription, report.Data);
+                            break;
+                        case DebugEventSeverity.Info:
+                            LogDebug(report.Data);
+                            break;
+                    }
 
                     // Debug messages don't need additional processing, so we can return here without posting it.
                     return;

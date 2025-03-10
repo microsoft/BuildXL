@@ -500,8 +500,20 @@ fi
 
 compileWithBxl ${arg_Positional[@]} ${arg_UserProvidedBxlArguments[@]}
 
-if [[ -n "$arg_DeployDev" ]]; then
-    deployBxl "$MY_DIR/Out/Bin/${outputConfiguration}/${DeploymentFolder}" "$MY_DIR/Out/Selfhost/Dev"
+# TODO: temporary until we can make bxl do the same
+ebpfRunner=$MY_DIR/Out/Bin/${outputConfiguration}/${DeploymentFolder}/bxl-ebpf-runner
+
+if [ -e "$ebpfRunner" ]; then
+    if getcap $ebpfRunner | grep -q 'cap_sys_admin=ep'; then
+        print_info "EBPF runner $ebpfRunner capabilities already set"
+    else
+        print_info "Setting capabilities for the ebpf runner. This may require an interactive prompt"
+        sudo setcap 'cap_sys_admin=ep' $ebpfRunner
+    fi
+
+    if [[ -n "$arg_DeployDev" ]]; then
+        deployBxl "$MY_DIR/Out/Bin/${outputConfiguration}/${DeploymentFolder}" "$MY_DIR/Out/Selfhost/Dev"
+    fi
 fi
 
 popd

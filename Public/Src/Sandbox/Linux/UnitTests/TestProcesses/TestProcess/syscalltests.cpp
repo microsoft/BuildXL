@@ -80,9 +80,21 @@ GEN_TEST_FN(fork)
     return HandleChild(fork());
 }
 
+static int vfork_and_exit()
+{
+    int pid = vfork();
+    if (pid == 0)
+    {
+        // vfork only allows an exec* or an exit in the child process, so we must do that explicitly
+        exit(0);
+    }
+
+    return 0;
+}
+
 GEN_TEST_FN(vfork)
 {
-    return HandleChild(vfork());
+    return HandleChild(vfork_and_exit());
 }
 
 static int CloneChild(void *arg)
@@ -1176,9 +1188,18 @@ GEN_TEST_FN(readlinkat)
 
 GEN_TEST_FN(realpath)
 {
-    char buf[PATH_MAX] = { 0 };
-    char* result = realpath("./", buf);
-    CHECK_RESULT_NULL(result, realpath);
+    WITH_TEMPORARY_FILE
+    ({
+        std::string linkpath(cwd); 
+        linkpath.append("/testfile2");
+
+        int sresult = symlink(testFile.c_str(), linkpath.c_str());
+        CHECK_RESULT(sresult, symlink);
+
+        char buf[PATH_MAX] = { 0 };
+        char* result = realpath(linkpath.c_str(), buf);
+        CHECK_RESULT_NULL(result, realpath);
+    })
 
     return EXIT_SUCCESS;
 }

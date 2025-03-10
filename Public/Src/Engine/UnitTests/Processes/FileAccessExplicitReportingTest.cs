@@ -256,7 +256,7 @@ namespace Test.BuildXL.Processes
             }
         }
 
-        private static bool TryVerifySingleReport(PathTable pathTable, ReportedFileAccess actualReport, AccessType access, Dictionary<AbsolutePath, ExpectedReportEntry> pathsToExpectations, out AbsolutePath actualReportedPath)
+        private bool TryVerifySingleReport(PathTable pathTable, ReportedFileAccess actualReport, AccessType access, Dictionary<AbsolutePath, ExpectedReportEntry> pathsToExpectations, out AbsolutePath actualReportedPath)
         {
             string actualReportedPathString = actualReport.GetPath(pathTable);
             if (!AbsolutePath.TryCreate(pathTable, actualReportedPathString, out actualReportedPath))
@@ -278,19 +278,22 @@ namespace Test.BuildXL.Processes
 
             // on MacOS we cannot distinguish Read vs. Probe for absent files so we always report Probe in those cases
             var expectedAccess = OperatingSystemHelper.IsUnixOS && actualReport.IsNonexistent
-                ? RequestedAccess.Probe
-                : access == AccessType.Read ? RequestedAccess.Read : RequestedAccess.Probe;
-            XAssert.AreEqual(
+                ? new[] { RequestedAccess.Probe }
+                : access == AccessType.Read 
+                    // With EBPF, probes are reported in addition to reads
+                    ? UsingEBPFSandbox ? new[] { RequestedAccess.Read, RequestedAccess.Probe } : new[] { RequestedAccess.Read }
+                    : new[] { RequestedAccess.Probe };
+            XAssert.Contains(
                 expectedAccess,
-                actualReport.RequestedAccess,
-                "Incorrect access type for path " + actualReportedPathString);
+                actualReport.RequestedAccess);
 
-            if (expectedAccess == RequestedAccess.Read)
+            if (expectedAccess.Contains(RequestedAccess.Read))
             {
                 var allowedOperations = !OperatingSystemHelper.IsUnixOS
                     ? new[] { ReportedFileOperation.CreateFile }
                     : expected.Exists
-                        ? new[] { ReportedFileOperation.ReadFile }
+                        // With EBPF, probes are reported in addition to reads
+                        ? UsingEBPFSandbox? new[] { ReportedFileOperation.ReadFile, ReportedFileOperation.Probe} : new[] { ReportedFileOperation.ReadFile }
                         : new[] { ReportedFileOperation.Probe };
 
                 XAssert.Contains(allowedOperations, actualReport.Operation);

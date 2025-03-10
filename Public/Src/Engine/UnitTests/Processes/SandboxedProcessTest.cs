@@ -218,7 +218,7 @@ namespace Test.BuildXL.Processes
             using (ISandboxedProcess process = await StartProcessAsync(info))
             {
                 // process is running in an infinite loop, let's kill it
-                TestOutput.WriteLine("Starting ISandboxedProcess.KillAsync()");
+                TestOutput.WriteLine($"Starting ISandboxedProcess.KillAsync({process.ProcessId})");
                 try
                 {
                     if (OperatingSystemHelper.IsLinuxOS)
@@ -1234,8 +1234,9 @@ namespace Test.BuildXL.Processes
             var existentFile = CreateSourceFile();
 
             var fam = new FileAccessManifest(Context.PathTable);
-            fam.ReportFileAccesses = false;
+            fam.ReportFileAccesses = true;
             fam.FailUnexpectedFileAccesses = false;
+            fam.ExplicitlyReportDirectoryProbes = true;
 
             // Pick a random operation (create directory) and make sure we perform it on an 
             // existing file
@@ -1247,10 +1248,21 @@ namespace Test.BuildXL.Processes
 
             var result = await RunProcess(info);
 
-            // We should get a report where we see the creation attemp that results in a file exists error
-            result.AllUnexpectedFileAccesses.Single(fa => 
-                fa.Operation == ReportedFileOperation.CreateDirectory && 
-                fa.Error == (uint) global::BuildXL.Interop.Unix.IO.Errno.EEXIST);
+            if (UsingEBPFSandbox)
+            {
+                // Under EBPF we don't see a create directory failure but an existent probe on the directory (the create dir operation
+                // doesn't even get called)
+                result.FileAccesses.Single(fa => 
+                    fa.Operation == ReportedFileOperation.Probe &&
+                    fa.ManifestPath == existentFile.Path);
+            }
+            else
+            {
+                // We should get a report where we see the creation attemp that results in a file exists error
+                result.FileAccesses.Single(fa => 
+                    fa.Operation == ReportedFileOperation.CreateDirectory && 
+                    fa.Error == (uint) global::BuildXL.Interop.Unix.IO.Errno.EEXIST);
+            }
 
             // Now perform the same operation but in a way it should succeed
             info = ToProcessInfo(
@@ -1262,7 +1274,7 @@ namespace Test.BuildXL.Processes
             result = await RunProcess(info);
 
             // We should get a report where we see the creation attemp with a successful error code
-            result.AllUnexpectedFileAccesses.Single(fa => 
+            result.FileAccesses.Single(fa => 
                 fa.Operation == ReportedFileOperation.CreateDirectory && 
                 fa.Error == 0);
         }
@@ -1383,13 +1395,16 @@ namespace Test.BuildXL.Processes
 
             // validate the results: we are expecting 1 process with command line args
             var launchedProcesses = ExcludeInjectedOnes(result.Processes).ToList();
-            XAssert.AreEqual(1, launchedProcesses.Count, "The number of processes launched is not correct");
+            // But with EBPF we get a clone report on the launcher as well
+            XAssert.AreEqual(UsingEBPFSandbox? 2 : 1, launchedProcesses.Count, 
+                $"The number of processes launched is not correct : {string.Join(",", launchedProcesses.Select(p => $"[{p.ProcessId}]{p.Path}"))}");
             var expectedReportedArgs = reportProcessArgs
                 ? TestProcessExecutable.Path.ToString(Context.PathTable) + " " + echoOp.ToCommandLine(Context.PathTable)
                 : string.Empty;
             XAssert.AreEqual(
                 expectedReportedArgs,
-                launchedProcesses[0].ProcessArgs,
+                // For EBPF, the first process is always the injected one from the launcher. We need to look at the second one.
+                launchedProcesses[UsingEBPFSandbox? 1 : 0].ProcessArgs,
                 "The captured processes arguments are incorrect");
         }
 
@@ -1553,7 +1568,8 @@ namespace Test.BuildXL.Processes
                 fa.Operation == ReportedFileOperation.Process).Select(fa => fa.Process.ProcessId).Distinct();
 
             // We should see two different pids (root and spawned processes)
-            XAssert.AreEqual(2, processReportsPids.Count());
+            // For EBPF we see one extra fork for the ebpf launcher
+            XAssert.AreEqual(UsingEBPFSandbox? 3 : 2, processReportsPids.Count());
         }
 
         [FactIfSupported(requiresLinuxBasedOperatingSystem: true)]
@@ -1574,14 +1590,15 @@ namespace Test.BuildXL.Processes
             var result = await RunProcess(info);
 
             // We should get a message about detecting vfork
-            m_eventListener.GetLogMessagesForEventId((int)global::BuildXL.Processes.Tracing.LogEventId.LogDetoursDebugMessage).First(message => message.Contains("Intercepted vfork"));
+            m_eventListener.GetLogMessagesForEventId((int)global::BuildXL.Processes.Tracing.LogEventId.LogDetoursDebugMessage).First(message => message.Contains("vforkSpawn"));
 
             // Retrieve the pids of the process reports
             var processReportsPids = result.FileAccesses.Where(fa =>
                 fa.Operation == ReportedFileOperation.Process).Select(fa => fa.Process.ProcessId).Distinct();
 
             // We should see three different pids: root - the test process -, vforkSpawn, and the test process again)
-            XAssert.AreEqual(3, processReportsPids.Count());
+            // For the case of EBPF, we also see the launcher process
+            XAssert.AreEqual(UsingEBPFSandbox ? 4 : 3, processReportsPids.Count());
         }
 
         private void AssertReportedAccessesIsEmpty(PathTable pathTable, IEnumerable<ReportedFileAccess> result)
@@ -1743,7 +1760,8 @@ namespace Test.BuildXL.Processes
                 .Select(reportedAccess => AbsolutePath.TryCreate(Context.PathTable, reportedAccess.GetPath(Context.PathTable), out AbsolutePath result) ? result : AbsolutePath.Invalid)
                 .ToArray();
 
-            XAssert.AreEqual(3, result.Processes.Count, "The parent and child process should have been detoured.");
+            // WIth EBPF we see an extra process event that belongs to the launcher
+            XAssert.AreEqual(UsingEBPFSandbox? 4 : 3, result.Processes.Count, "The parent and child process should have been detoured.");
 
             // We should see the access that happens on the main test process
             XAssert.IsTrue(observedAccesses.Contains(parentInput.Path), "Input file of parent process should have been observed");

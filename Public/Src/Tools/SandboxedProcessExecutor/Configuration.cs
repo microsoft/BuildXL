@@ -42,6 +42,14 @@ namespace BuildXL.SandboxedProcessExecutor
         public string RemoteSandboxedProcessDataFile { get; set; }
 
         /// <summary>
+        /// Enables the EBPF Linux sandbox.
+        /// </summary>
+        /// <remarks>
+        /// This sandbox replaces the interpose/ptrace sandboxes. Disabled by default for now.
+        /// </remarks>
+        public bool EnableEBPFLinuxSandbox { get; set; }
+
+        /// <summary>
         /// Validates configuration.
         /// </summary>
         public bool Validate(out string errorMessage)

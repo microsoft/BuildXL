@@ -173,7 +173,7 @@ AccessCheckResult BxlObserver::CreateAccess(buildxl::linux::SandboxEvent& event,
 
     // Check if non-file, we don't want to report these.
     if (!isFileEvent) {
-        LOG_DEBUG("Won't report an access for syscall %s because the paths for the event couldn't be resolved.", event.DebugGetSystemCall()); 
+        LOG_DEBUG("Won't report an access for syscall %s because the paths for the event couldn't be resolved. Path type: %d. Path resolution %d, Path %s", event.DebugGetSystemCall(), event.GetPathType(), event.GetRequiredPathResolution(), event.GetSrcPath().c_str()); 
         return sNotChecked;
     }
     
@@ -408,39 +408,48 @@ bool BxlObserver::SendReport(buildxl::linux::SandboxEvent &event, buildxl::linux
     return true;
 }
 
-void BxlObserver::LogDebug(pid_t pid, const char *fmt, ...)
-{
-    if (LogDebugEnabled())
-    {
-        char message[PIPE_BUF] = { 0 };
-        char report[PIPE_BUF] = { 0 };
-
+void BxlObserver::LogDebug(pid_t pid, const char *fmt, ...) {
+    if (LogDebugEnabled()) {
         va_list args;
         va_start(args, fmt);
-        int numWritten = vsnprintf(message, PIPE_BUF, fmt, args);
+        LogDebugMessage(getpid(), buildxl::linux::DebugEventSeverity::kInfo, fmt, args);
         va_end(args);
-
-        // Sanitize the debug message so we don't confuse the parser on managed code:
-        // Pipes (|) are used to delimit the message parts and we expect one line (\n) per report, so
-        // replace those occurrences with something else.
-        for (int i = 0 ; i < PIPE_BUF; i++)
-        {
-            if (message[i] == '|')
-            {
-                message[i] = '!';
-            }
-            
-            if (message[i] == '\n' || message[i] == '\r')
-            {
-                message[i] = '.';
-            }
-        }
-
-        // Get report string
-        int size = buildxl::linux::ReportBuilder::DebugReportReportString(pid, message, report, PIPE_BUF);
-
-        Send(report, size, /* useSecondaryPipe */ false, /* countReport */ false);
     }
+}
+
+void BxlObserver::LogError(const char *fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    LogDebugMessage(getpid(), buildxl::linux::DebugEventSeverity::kError, fmt, args);
+    va_end(args);
+}
+
+void BxlObserver::LogDebugMessage(pid_t pid, buildxl::linux::DebugEventSeverity severity, const char *fmt, va_list args) {
+    char message[PIPE_BUF] = { 0 };
+    char report[PIPE_BUF] = { 0 };
+
+    int numWritten = vsnprintf(message, PIPE_BUF, fmt, args);
+
+    // Sanitize the debug message so we don't confuse the parser on managed code:
+    // Pipes (|) are used to delimit the message parts and we expect one line (\n) per report, so
+    // replace those occurrences with something else.
+    for (int i = 0 ; i < PIPE_BUF; i++)
+    {
+        if (message[i] == '|')
+        {
+            message[i] = '!';
+        }
+        
+        if (message[i] == '\n' || message[i] == '\r')
+        {
+            message[i] = '.';
+        }
+    }
+
+    // Get report string
+    int size = buildxl::linux::ReportBuilder::DebugReportReportString(severity, pid, message, report, PIPE_BUF);
+
+    Send(report, size, /* useSecondaryPipe */ false, /* countReport */ false);
 }
 
 // Checks whether cache contains (event, path) pair and returns the result of this check.
@@ -575,6 +584,10 @@ std::string BxlObserver::GetProcessCommandLine(pid_t pid) {
         return "";
     }
 
+    return DoGetProcessCommandLine(pid);
+}
+
+std::string BxlObserver::DoGetProcessCommandLine(pid_t pid) {
     char path[PATH_MAX] = { 0 };
     int max_size = PIPE_BUF + sizeof(uint) - 1;
     char cmd_line_buffer[max_size] = { 0 };
@@ -772,23 +785,31 @@ bool BxlObserver::contains_capabilities(const char *path)
     return !result.empty();
 }
 
-bool BxlObserver::should_breakaway(int fd, char *const argv[])
+bool BxlObserver::ShouldBreakaway(int fd, char *const argv[])
 {
-    return should_breakaway(fd_to_path(fd).c_str(), argv);
+    return ShouldBreakaway(fd_to_path(fd).c_str(), argv);
 }
 
-bool BxlObserver::should_breakaway(const char *path, char *const argv[])
+bool BxlObserver::ShouldBreakaway(const char *path, char *const argv[])
 {
-    bool result = fam_->ShouldBreakaway(path, argv);
+    auto commandLine = GetCommandLineFromArgv(argv);    
 
+    return ShouldBreakaway(path, commandLine);
+    
+}
+
+bool BxlObserver::ShouldBreakaway(const char *path, std::string &args, pid_t pid, pid_t ppid)
+{
+    bool result = fam_->ShouldBreakaway(path, args);
+    
     if (result)
     {
         // Send a "process is about to break away" report so that the managed side can track it.
         auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
             /* system_call */   "breakaway",
             /* event_type */    buildxl::linux::EventType::kBreakAway,
-            /* pid */           getpid(),
-            /* ppid */          getppid(),
+            /* pid */           pid == -1 ? getpid() : pid,
+            /* ppid */          ppid == -1 ? getppid() : ppid,
             /* error */         0,
             /* src_path */      path);
         event.SetSourceAccessCheck(AccessCheckResult(RequestedAccess::None, ResultAction::Allow, ReportLevel::Report));
@@ -978,7 +999,7 @@ void BxlObserver::relative_to_absolute(const char *pathname, int dirfd, int asso
         {
             if (!getcurrentworkingdirectory(fullpath, PATH_MAX, associatedPid))
             {
-                _fatal("Could not get CWD; errno: %d", errno);
+                _fatal("Could not get CWD; errno: %d, path: '%s'", errno, fullpath);
             }
             len = strlen(fullpath);
         }

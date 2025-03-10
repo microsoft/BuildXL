@@ -81,5 +81,13 @@ export const mounts = Context.getCurrentHost().os !== "win" ? [
         isWritable: false,
         isReadable: true,
         isScrubbable: false,
+    },
+    {
+        name: a`bpf`,
+        path: p`/sys/kernel/btf`,
+        trackSourceFileChanges: false,
+        isWritable: false,
+        isReadable: true,
+        isScrubbable: false,
     }
 ] : [];

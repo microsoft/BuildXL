@@ -37,6 +37,7 @@ namespace Processes.External {
         ],
         internalsVisibleTo: [
             "Test.BuildXL.Processes",
+            "Test.BuildXL.Processes.EBPF",
             "ExternalToolTest.BuildXL.Scheduler",
         ],
     });

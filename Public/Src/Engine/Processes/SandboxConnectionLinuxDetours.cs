@@ -21,6 +21,7 @@ using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.ParallelAlgorithms;
 using Microsoft.Win32.SafeHandles;
 using static BuildXL.Interop.Unix.Sandbox;
+using Process = System.Diagnostics.Process;
 
 namespace BuildXL.Processes
 {
@@ -732,14 +733,16 @@ namespace BuildXL.Processes
                         case ReportType.DebugMessage:
                         {
                             /*
-                             * Debug report format: %d|%d|%s\n
+                             * Debug report format: %d|%d|%d|%s\n
                              * 
                              * 1. Report Type
                              * 2. Process ID
-                             * 3. Message
+                             * 3. Severity
+                             * 4. Message
                             */
                             report.ProcessId = AssertInt(nextField(restOfMessage, out restOfMessage));
-                            report.Data = s_encoding.GetString(s_encoding.GetBytes(nextField(restOfMessage, out restOfMessage).ToArray()));
+                            report.Severity = (DebugEventSeverity)AssertInt(nextField(restOfMessage, out restOfMessage));
+                            report.Data = s_encoding.GetString(s_encoding.GetBytes(nextField(restOfMessage, out restOfMessage).ToArray())).Replace('!', '|');
 
                             break;
                         }
@@ -1004,5 +1007,11 @@ namespace BuildXL.Processes
 
         /// <inheritdoc />
         public bool NotifyPipFinished(long pipId, SandboxedProcessUnix process) => m_pipProcesses.TryRemove(pipId, out _);
+
+        /// <inheritdoc/>
+        public void OverrideProcessStartInfo(ProcessStartInfo processStartInfo)
+        {
+            return;
+        }
     }
 }

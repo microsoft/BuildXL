@@ -102,7 +102,8 @@ namespace BuildXL.FrontEnd.Utilities
             string description,
             BuildParameters.IBuildParameters buildParameters,
             Action beforeLaunch = null,   // Invoked right before the process starts
-            Action onResult = null      // Action to be taken after getting a successful result
+            Action onResult = null,      // Action to be taken after getting a successful result
+            bool useEBPFLinuxSandbox = false
             )
         {
             var toolBuildStorage = new ToolBuildStorage(buildStorageDirectory);
@@ -143,7 +144,9 @@ namespace BuildXL.FrontEnd.Utilities
             {
                 if (OperatingSystemHelper.IsLinuxOS)
                 {
-                    info.SandboxConnection = new SandboxConnectionLinuxDetours(sandboxConnectionFailureCallback);
+                    info.SandboxConnection = useEBPFLinuxSandbox 
+                        ? new SandboxConnectionLinuxEBPF(sandboxConnectionFailureCallback) 
+                        : new SandboxConnectionLinuxDetours(sandboxConnectionFailureCallback);
                 }
 
                 var process = await SandboxedProcessFactory.StartAsync(info, forceSandboxing: true);

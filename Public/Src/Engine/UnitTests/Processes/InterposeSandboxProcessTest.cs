@@ -85,9 +85,9 @@ namespace Test.BuildXL.Processes
             
             foreach (var symlink in new [] { symlinkPath1, symlinkPath2, symlinkPath3 })
             {
-                var symlinkAccesses = accesses.Where(a => a.Path.Equals(symlink));
-                XAssert.AreEqual(1, symlinkAccesses.Count());
-                XAssert.AreEqual(DesiredAccess.GENERIC_READ, symlinkAccesses.Single().Access);
+                var symlinkAccesses = accesses.Where(a => a.Path.Equals(symlink) && a.Access == DesiredAccess.GENERIC_READ);
+                // With EBPF we get both a probe and a read
+                XAssert.AreEqual(UsingEBPFSandbox? 2 : 1, symlinkAccesses.Count());
             }
 
             // For symlink4, we should get a probe on the full path (because realpath implies a probe), plus a readlink on the symlink
@@ -114,7 +114,10 @@ namespace Test.BuildXL.Processes
 
             // There should be only one absent file access
             // NOTE: on some Linux distributions, /proc/<pid>/stat is absent when the test process runs so it shows up as non-existent. We can ignore these.
-            var absentPathAccesses = result.FileAccesses!.Where(a => a.IsNonexistent && !a.ManifestPath.ToString(Context.PathTable).StartsWith(UnixPaths.Proc));
+            // /etc/ld.so.preload comes back as well, which we can also ignore
+            var absentPathAccesses = result.FileAccesses!.Where(a => 
+                a.IsNonexistent && 
+                (!a.ManifestPath.ToString(Context.PathTable).StartsWith(UnixPaths.Proc) && !a.ManifestPath.ToString(Context.PathTable).StartsWith(UnixPaths.Etc)));
             XAssert.AreEqual(1, absentPathAccesses.Count(), $"Expected 1 absent path access, but got {absentPathAccesses.Count()} with paths: {Environment.NewLine}{string.Join(Environment.NewLine, absentPathAccesses.Select(a => a.ManifestPath.ToString(Context.PathTable)))}");
 
             // readlink on absent path is reported backed as probe

@@ -86,20 +86,27 @@ namespace Test.BuildXL.Processes
             foreach (var symlink in new [] { symlinkPath1, symlinkPath2, symlinkPath3 })
             {
                 var symlinkAccesses = accesses.Where(a => a.Path.Equals(symlink) && a.Access == DesiredAccess.GENERIC_READ);
-                // With EBPF we get both a probe and a read
-                XAssert.AreEqual(UsingEBPFSandbox? 2 : 1, symlinkAccesses.Count());
+                XAssert.AreEqual(1, symlinkAccesses.Count());
             }
 
             // For symlink4, we should get a probe on the full path (because realpath implies a probe), plus a readlink on the symlink
             var symlink4Accesses = accesses.Where(a => a.Path.Equals(symlinkPath4)).ToList();
-            XAssert.AreEqual(2, symlink4Accesses.Count);
+            // With EBPF we just get a read on the symlink, for probes we only get absent ones and this is not the case
+            XAssert.AreEqual(UsingEBPFSandbox? 1 : 2, symlink4Accesses.Count);
             XAssert.AreEqual(DesiredAccess.GENERIC_READ, symlink4Accesses[0].Access);
-            XAssert.AreEqual(DesiredAccess.GENERIC_READ, symlink4Accesses[1].Access);
+            if (!UsingEBPFSandbox)
+            {
+                XAssert.AreEqual(DesiredAccess.GENERIC_READ, symlink4Accesses[1].Access);
+            }
 
             // We get probes on the queried and returned paths
-            XAssert.AreEqual(1, accesses.Where(a => a.Path == filePath).Count());
             XAssert.AreEqual(1, accesses.Where(a => a.Path.Contains("nonexistentfile.txt")).Count());
-            XAssert.AreEqual(1, accesses.Where(a => a.Path == realPath3).Count());
+            // With EBPF we don't get probes on the resolved paths. This is expected, the final paths are not actually probed, those are just metadata on the symlinks
+            if (!UsingEBPFSandbox)
+            {
+                XAssert.AreEqual(1, accesses.Where(a => a.Path == filePath).Count());
+                XAssert.AreEqual(1, accesses.Where(a => a.Path == realPath3).Count());
+            }
         }
 
         [Fact]

@@ -368,14 +368,21 @@ int BPF_PROG(security_path_link_entry, struct dentry *old_dentry, const struct p
 /**
  * path_lookupat_exit() - Handles path resolutions.
  * 
- * Used for existing objects when called by system calls like `stat` or `chmod`.
- * Observe we are tracing *exit* in this case, since we want to know the outcome of the lookup
- */
+ * Used for tracing absent probes when called by system calls like `stat` or `chmod`. Present ones
+ * are handled by security_inode_get_attr()
+  */
 SEC("fexit/path_lookupat")
 int BPF_PROG(path_lookupat_exit, struct nameidata *nd, unsigned flags, struct path *path, int ret)
 {
     pid_t pid = bpf_get_current_pid_tgid() >> 32;
     if (!is_valid_pid(pid)) {
+        return 0;
+    }
+
+    // We really only care about absent probes, as present ones will be handled by the security layer
+    // So if the lookup succeeds (exit code 0) we don't send any event
+    if (ret == 0)
+    {
         return 0;
     }
 
@@ -396,13 +403,20 @@ int BPF_PROG(path_lookupat_exit, struct nameidata *nd, unsigned flags, struct pa
  * path_parentat_exit() - Handles path resolutions.
  * 
  * Returns the parent directory and final component to the caller.
- * Observe we are tracing *exit* in this case, since we want to know the outcome of the lookup.
- */
+ * Used for tracing absent probes when called by system calls like rmdir/mkdir
+  */
 SEC("fexit/path_parentat")
 int BPF_PROG(path_parentat, struct nameidata *nd, unsigned flags, struct path *parent, int ret)
 {
     pid_t pid = bpf_get_current_pid_tgid() >> 32;
     if (!is_valid_pid(pid)) {
+        return 0;
+    }
+
+    // We really only care about absent probes, as present ones will be handled by the security layer
+    // So if the lookup succeeds (exit code 0) we don't send any event
+    if (ret == 0)
+    {
         return 0;
     }
 
@@ -423,7 +437,6 @@ int BPF_PROG(path_parentat, struct nameidata *nd, unsigned flags, struct path *p
  * path_openat_exit() - Handles path resolutions.
  * 
  * Used for `open` system calls essentially on the final component.
- * Observe we are tracing *exit* in this case, since we want to know the outcome of the open
  */
 SEC("fexit/path_openat")
 int BPF_PROG(path_openat_exit, struct nameidata *nd, const struct open_flags *op, unsigned flags, struct file * ret)
@@ -561,6 +574,39 @@ int BPF_PROG(security_path_mknod_enter, const struct path *dir, struct dentry *d
         event->metadata.operation_type = kCreate;
         event->metadata.mode = mode;
         deref_path_info(event->src_path, dentry, BPF_CORE_READ(dir, mnt));
+    )
+
+    return 0;
+}
+
+/**
+ * security_inode_getattr_exit() - Checks permission for retrieving the attributes of an inode
+ * 
+ * This function is traced to identify present probes
+ */
+SEC("fexit/security_inode_getattr")
+int BPF_PROG(security_inode_getattr_exit, const struct path *path, int ret)
+{
+    pid_t pid = bpf_get_current_pid_tgid() >> 32;
+    if (!is_valid_pid(pid)) {
+        return 0;
+    }
+
+    // We only care about reporting the successful cases. Unsuccesful ones are
+    // covered by path_lookupat
+    if (ret != 0)
+    {
+        return 0;
+    }
+
+    RESERVE_SUBMIT_FILE_ACCESS
+    (
+        event->metadata.kernel_function = KERNEL_FUNCTION(security_inode_getattr);
+        event->metadata.pid = pid;
+        event->metadata.error = 0;
+        event->metadata.operation_type = kGenericProbe;
+        event->metadata.mode = get_mode_from_path(path);
+        path_to_string(event->src_path, path);
     )
 
     return 0;

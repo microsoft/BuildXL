@@ -83,6 +83,7 @@ typedef enum kernel_function
     KERNEL_FUNCTION(security_path_mknod),
     KERNEL_FUNCTION(security_path_chown),
     KERNEL_FUNCTION(security_path_chmod),
+    KERNEL_FUNCTION(security_inode_getattr),
     KERNEL_FUNCTION(do_rmdir),
     KERNEL_FUNCTION(do_mkdirat),
     KERNEL_FUNCTION(do_execveat_common),
@@ -111,6 +112,7 @@ inline const char* kernel_function_to_string(kernel_function kf) {
         CONVERT_KERNEL_FUNCTION_TO_STRING(security_path_mknod)
         CONVERT_KERNEL_FUNCTION_TO_STRING(security_path_chown)
         CONVERT_KERNEL_FUNCTION_TO_STRING(security_path_chmod)
+        CONVERT_KERNEL_FUNCTION_TO_STRING(security_inode_getattr)
         CONVERT_KERNEL_FUNCTION_TO_STRING(do_rmdir)
         CONVERT_KERNEL_FUNCTION_TO_STRING(do_mkdirat)
         CONVERT_KERNEL_FUNCTION_TO_STRING(do_execveat_common)

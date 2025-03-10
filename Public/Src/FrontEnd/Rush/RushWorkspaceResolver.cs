@@ -136,7 +136,7 @@ namespace BuildXL.FrontEnd.Rush
             {
                 // If not specified, 'build' is the default command
                 // Observe that parameters are always passed (if empty, it will be just an empty quoted string)
-                args += $" \"{ResolverSettings.RushCommand ?? "build"}\" \"{UnfoldAdditionalRushParameters(ResolverSettings.AdditionalRushParameters)}\"";
+                args += $" \"{ResolverSettings.RushCommand ?? "build"}\" {UnfoldAdditionalRushParameters(ResolverSettings.AdditionalRushParameters)}";
 
             }
             
@@ -150,18 +150,22 @@ namespace BuildXL.FrontEnd.Rush
         { 
             if (additionalRushParameters is null)
             {
-                return string.Empty;
+                // We always send an empty string to rush-build-graph-plugin
+                return "\"\"";
             }
 
-            return string.Join(
+            return CommandLineEscaping.EscapeAsCommandLineWord(string.Join(
                 " ", 
                 additionalRushParameters
                     .Select(union => union.GetValue() is string param ? unfoldParamFlag(param) : unfoldParamValue(union.GetValue() as IAdditionalNameValueParameter))
-                    .Where(s => !string.IsNullOrEmpty(s))
+                    .Where(s => !string.IsNullOrEmpty(s)))
                 );
 
-            static string unfoldParamFlag(string param) => string.IsNullOrEmpty(param) ? string.Empty : $"--{param}";
-            static string unfoldParamValue(IAdditionalNameValueParameter param) => string.IsNullOrEmpty(param.Name) ? string.Empty : $"--{param.Name} {param.Value ?? string.Empty}";
+            static string unfoldParamFlag(string param) => string.IsNullOrEmpty(param) ? string.Empty : param;
+            static string unfoldParamValue(IAdditionalNameValueParameter param) 
+                => string.IsNullOrEmpty(param.Name) 
+                    ? string.Empty 
+                    : $"{param.Name} {(string.IsNullOrEmpty(param.Value) ? string.Empty : CommandLineEscaping.EscapeAsCommandLineWord(param.Value))}";
         }
 
         private static bool ShouldUseRushBuildGraphPlugin(IRushResolverSettings resolverSettings)

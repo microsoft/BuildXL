@@ -369,9 +369,10 @@ interface RushBuildGraphPluginResolver extends RushResolverBase, JavaScriptResol
 
     /**
      * Additional custom parameters to be passed to the plugin. Check https://rushjs.io/pages/maintainer/custom_commands/.
-     * Additional parameters can be just flags, e.g. 'production', or name value pairs, e.g. {name: 'locale', value: 'en-us'}
+     * Additional parameters can be just flags, e.g. '--production', or name value pairs, e.g. {name: '--locale', value: 'en-us'}
+     * Parameter values need to start with a '-' and contain no spaces.
      */
-    additionalRushParameters?: [string | {name: string, value: string}]
+    additionalRushParameters?: (string | {name: string, value: string})[]
 }
 
 /**

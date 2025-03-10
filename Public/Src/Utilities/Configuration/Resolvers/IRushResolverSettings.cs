@@ -66,7 +66,7 @@ namespace BuildXL.Utilities.Configuration
         /// </summary>
         /// <remarks>
         /// Check https://rushjs.io/pages/maintainer/custom_commands/.
-        /// Additional parameters can be just flags, e.g. 'production', or name value pairs, e.g. {name: 'locale', value: 'en-us'}
+        /// Additional parameters can be just flags, e.g. '--production', or name value pairs, e.g. {name: '--locale', value: 'en-us'}
         /// Only available when <see cref="GraphConstructionMode"/> is set to 'rush-build-graph'. Enforced by the type checker
         /// </remarks>
         IReadOnlyList<DiscriminatingUnion<string, IAdditionalNameValueParameter>> AdditionalRushParameters { get; }

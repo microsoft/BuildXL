@@ -74,10 +74,14 @@ namespace Test.BuildXL.FrontEnd.Rush
         [Theory]
         [InlineData(null, null, "build")]
         [InlineData("'test'", null, "test")]
-        [InlineData("'test'", "['production']", "test --production")]
-        [InlineData("'test'", "['production', 'non-production']", "test --production --non-production")]
-        [InlineData("'test'", "[{name: 'locale', value: 'eng'}]", "test --locale eng")]
-        [InlineData("'test'", "['production', {name: 'locale', value: 'eng'}, 'non-production']", "test --production --locale eng --non-production")]
+        [InlineData("'test'", "['--production']", "test --production")]
+        [InlineData("'test'", "['--production', '-non-production']", "test --production -non-production")]
+        [InlineData("'test'", "[{name: '--locale', value: 'eng'}]", "test --locale eng")]
+        [InlineData("'test'", "['-production', {name: '--locale', value: 'eng'}, '-non-production']", "test -production --locale eng -non-production")]
+        [InlineData(
+            "'test'", 
+            "[{name: '--locale', value: 'should \"escape here\"'}, {name: '--another-locale', value: 'with spaces'}, '--production']", 
+            "test --locale should \"escape here\" --another-locale with spaces --production")]
         public void VerifyPluginArguments(string rushCommand, string additionalArgs, string expectedToolArgs)
         {
             BuildXLEngineResult result = SchedulePipsUsingBuildGraphPluginMockWithCommand(rushCommand, additionalArgs);

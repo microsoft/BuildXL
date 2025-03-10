@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
+using System.Linq;
 using BuildXL.FrontEnd.JavaScript;
 using BuildXL.FrontEnd.JavaScript.ProjectGraph;
 using BuildXL.FrontEnd.Rush.ProjectGraph;
@@ -9,9 +10,9 @@ using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Utilities.GenericProjectGraphResolver;
 using BuildXL.FrontEnd.Workspaces.Core;
 using BuildXL.Native.IO;
-using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.FrontEnd.Rush
 {
@@ -74,11 +75,38 @@ namespace BuildXL.FrontEnd.Rush
                 return false;
             }
 
+            // Additional parameters are optional, but if they are specified, parameter names have to start with a dash and not contain spaces.
+            if (rushResolverSettings.AdditionalRushParameters != null)
+            {
+                foreach (var parameter in rushResolverSettings.AdditionalRushParameters)
+                {
+                    if (!IsValidAdditionalParameter(parameter, out var error))
+                    {
+                        Tracing.Logger.Log.InvalidRushResolverSettings(Context.LoggingContext, Location.FromFile(rushResolverSettings.File.ToString(Context.PathTable)), error);
+                        return false;
+                    }
+                }
+            }
+
             if (!base.ValidateResolverSettings(rushResolverSettings))
             {
                 return false;
             }
 
+            return true;
+        }
+
+        private static bool IsValidAdditionalParameter(DiscriminatingUnion<string, IAdditionalNameValueParameter> parameter, out string error)
+        {
+            // Parameter names need to start with a dash and not contain spaces or quotes.
+            string paramName = parameter.GetValue() is string flagParam ? flagParam : ((IAdditionalNameValueParameter)parameter.GetValue()).Name;
+            if (!(paramName.StartsWith('-') && !(new[] { ' ', '\"'}.Any(c => paramName.Contains(c)))))
+            {
+                error = $"Invalid additional parameter '{paramName}'. It should start with '-' and not contain spaces or quotes.";
+                return false;
+            }
+
+            error = string.Empty;
             return true;
         }
 

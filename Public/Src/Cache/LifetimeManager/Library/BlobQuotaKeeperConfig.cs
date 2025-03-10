@@ -22,7 +22,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
         /// <summary>
         /// Specifies the retention period for the change feed.
         /// </summary>
-        public TimeSpan ChangeFeedRetentionPeriod { get; set; } = TimeSpan.FromDays(7);
+        public TimeSpan ChangeFeedRetentionPeriod { get; set; } = TimeSpan.FromDays(14);
 
         /// <summary>
         /// Specifies how often to create checkpoints while consuming the Azure Storage change feed.

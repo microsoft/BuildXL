@@ -504,6 +504,11 @@ namespace BuildXL.Scheduler.Tracing
         /// </summary>
         public string LinuxOSName;
 
+        /// <summary>
+        /// Whether the EBPF sandbox is being used
+        /// </summary>
+        public bool UsingEBPFSandbox;
+
         /// <inheritdoc />
         public ExecutionLogEventMetadata<BuildSessionConfigurationEventData> Metadata => ExecutionLogMetadata.BuildSessionConfiguration;
 
@@ -539,6 +544,7 @@ namespace BuildXL.Scheduler.Tracing
             IgnoreDeviceIoControlGetReparsePoint = salts.IgnoreDeviceIoControlGetReparsePoint;
             HonorDirectoryCasingOnDisk = salts.HonorDirectoryCasingOnDisk;
             LinuxOSName = salts.LinuxOSName;
+            UsingEBPFSandbox = salts.UsingEBPFSandbox;
         }
 
         /// <summary>
@@ -575,7 +581,8 @@ namespace BuildXL.Scheduler.Tracing
                        explicitlyReportDirectoryProbes: ExplicitlyReportDirectoryProbes,
                        ignoreDeviceIoControlGetReparsePoint: IgnoreDeviceIoControlGetReparsePoint,
                        honorDirectoryCasingOnDisk: HonorDirectoryCasingOnDisk,
-                       linuxOSName: LinuxOSName
+                       linuxOSName: LinuxOSName,
+                       usingEBPFSandbox: UsingEBPFSandbox
                    )
                    {
                        // Constructor appends EngineEnvironmentSettings.FingerprintSalt
@@ -615,6 +622,7 @@ namespace BuildXL.Scheduler.Tracing
             writer.Write(IgnoreDeviceIoControlGetReparsePoint);
             writer.Write(HonorDirectoryCasingOnDisk);
             writer.Write(LinuxOSName);
+            writer.Write(UsingEBPFSandbox);
         }
 
         /// <inheritdoc />
@@ -647,6 +655,7 @@ namespace BuildXL.Scheduler.Tracing
             IgnoreDeviceIoControlGetReparsePoint = reader.ReadBoolean();
             HonorDirectoryCasingOnDisk = reader.ReadBoolean();
             LinuxOSName = reader.ReadString();
+            UsingEBPFSandbox = reader.ReadBoolean();
         }
     }
 

@@ -47,7 +47,8 @@ namespace BuildXL.Pips.Graph
             explicitlyReportDirectoryProbes: false,
             ignoreDeviceIoControlGetReparsePoint: true,
             honorDirectoryCasingOnDisk: false,
-            linuxOSName: OperatingSystemHelper.IsLinuxOS ? OperatingSystemHelperExtension.GetLinuxDistribution().Id : string.Empty);
+            linuxOSName: OperatingSystemHelper.IsLinuxOS ? OperatingSystemHelperExtension.GetLinuxDistribution().Id : string.Empty,
+            usingEBPFSandbox: false);
 
         /// <summary>
         /// Returns a default value for this struct.
@@ -96,7 +97,8 @@ namespace BuildXL.Pips.Graph
                 config.Sandbox.ExplicitlyReportDirectoryProbes,
                 config.Sandbox.UnsafeSandboxConfiguration.IgnoreDeviceIoControlGetReparsePoint,
                 config.Cache.HonorDirectoryCasingOnDisk,
-                OperatingSystemHelper.IsLinuxOS ? OperatingSystemHelperExtension.GetLinuxDistribution().Id : string.Empty
+                OperatingSystemHelper.IsLinuxOS ? OperatingSystemHelperExtension.GetLinuxDistribution().Id : string.Empty,
+                OperatingSystemHelper.IsLinuxOS && config.Sandbox.EnableEBPFLinuxSandbox
                 )
         {
         }
@@ -142,6 +144,7 @@ namespace BuildXL.Pips.Graph
         /// <param name="ignoreDeviceIoControlGetReparsePoint">Whether /ignoreDeviceIoControlGetReparsePoint was passed to BuildXL.</param>
         /// <param name="honorDirectoryCasingOnDisk">Whether /honorDirectoryCasingOnDisk was passed to BuildXL.</param>
         /// <param name="linuxOSName">The linux os name (Ubuntu or Mariner), string.Empty if current environment is windows</param>
+        /// <param name="usingEBPFSandbox">Whether the EBPF sandbox is being used (on Linux)</param>
         public ExtraFingerprintSalts(
             bool ignoreSetFileInformationByHandle,
             bool ignoreZwRenameFileInformation,
@@ -168,7 +171,8 @@ namespace BuildXL.Pips.Graph
             bool explicitlyReportDirectoryProbes,
             bool ignoreDeviceIoControlGetReparsePoint,
             bool honorDirectoryCasingOnDisk,
-            string linuxOSName)
+            string linuxOSName,
+            bool usingEBPFSandbox)
         {
             IgnoreSetFileInformationByHandle = ignoreSetFileInformationByHandle;
             IgnoreZwRenameFileInformation = ignoreZwRenameFileInformation;
@@ -199,6 +203,7 @@ namespace BuildXL.Pips.Graph
             IgnoreDeviceIoControlGetReparsePoint = ignoreDeviceIoControlGetReparsePoint;
             HonorDirectoryCasingOnDisk = honorDirectoryCasingOnDisk;
             LinuxOSName = linuxOSName;
+            UsingEBPFSandbox = usingEBPFSandbox;
         }
 #pragma warning restore CS1572
 
@@ -340,6 +345,11 @@ namespace BuildXL.Pips.Graph
         /// </summary>
         public string LinuxOSName { get; }
 
+        /// <summary>
+        /// Whether the EBPF sandbox is being used
+        /// </summary>
+        public bool UsingEBPFSandbox { get; }
+
         /// <nodoc />
         public static bool operator ==(ExtraFingerprintSalts left, ExtraFingerprintSalts right)
         {
@@ -386,7 +396,8 @@ namespace BuildXL.Pips.Graph
                 && other.ExplicitlyReportDirectoryProbes.Equals(ExplicitlyReportDirectoryProbes)
                 && other.IgnoreDeviceIoControlGetReparsePoint.Equals(IgnoreDeviceIoControlGetReparsePoint)
                 && other.HonorDirectoryCasingOnDisk.Equals(HonorDirectoryCasingOnDisk)
-                && string.Equals(LinuxOSName, other.LinuxOSName);
+                && string.Equals(LinuxOSName, other.LinuxOSName)
+                && UsingEBPFSandbox == other.UsingEBPFSandbox;
         }
 
         /// <inheritdoc />
@@ -426,6 +437,7 @@ namespace BuildXL.Pips.Graph
                 hashCode = (hashCode * 397) ^ IgnoreDeviceIoControlGetReparsePoint.GetHashCode();
                 hashCode = (hashCode * 397) ^ HonorDirectoryCasingOnDisk.GetHashCode();
                 hashCode = (hashCode * 397) ^ (string.IsNullOrEmpty(LinuxOSName) ? 0 : LinuxOSName.GetHashCode());
+                hashCode = (hashCode * 397) ^ (UsingEBPFSandbox.GetHashCode());
 
                 return hashCode;
             }
@@ -508,6 +520,11 @@ namespace BuildXL.Pips.Graph
             if (!string.IsNullOrEmpty(LinuxOSName))
             {
                 fingerprinter.Add(nameof(LinuxOSName), LinuxOSName);
+            }
+
+            if (UsingEBPFSandbox)
+            {
+                fingerprinter.Add(nameof(UsingEBPFSandbox), 1);
             }
         }
 

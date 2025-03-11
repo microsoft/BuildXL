@@ -207,7 +207,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                                 continuationToken = page.ContinuationToken;
                             }
 
-                            return new Result<Page<IBlobChangeFeedEvent>?>(page);
+                            return new Result<Page<IBlobChangeFeedEvent>?>(page, isNullAllowed: true);
                         },
                         caller: "GetChangeFeedPage",
                         traceOperationStarted: false,

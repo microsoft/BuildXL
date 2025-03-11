@@ -34,7 +34,7 @@ BxlObserver *g_bxl;
 static volatile sig_atomic_t g_stop;
 static volatile int g_exit_code;
 int g_root_pid = 0;
-struct ring_buffer *g_file_access_ring_buffer = NULL;
+struct ring_buffer *g_file_access_ring_buffer = NULL, *g_debug_ring_buffer = NULL;
 int g_pid_map_fd = -1;
 sem_t g_background_thread_semaphore;
 
@@ -52,7 +52,7 @@ static int LibBpfPrintFn(enum libbpf_print_level level, const char *format, va_l
         }
 
         // We log everything from warning and above as an error for now
-        g_bxl->LogError(format, args);
+        g_bxl->LogError(getpid(), format, args);
 
         return 1;
     }
@@ -80,13 +80,13 @@ void LogDebugEvent(ebpf_event *event)
     {
         case EXEC: 
         {
-            const ebpf_event_exec * execEvent = (const ebpf_event_exec *)event;
+            const ebpf_event_exec * exec_event = (const ebpf_event_exec *)event;
             g_bxl->LogDebug(
-                execEvent->metadata.pid, 
+                exec_event->metadata.pid, 
                 "kernel function: %s, operation: %s, exe path: '%s', args: '%s'",
-                kernel_function_to_string(execEvent->metadata.kernel_function), 
-                operation_type_to_string(execEvent->metadata.operation_type), 
-                execEvent->exe_path,
+                kernel_function_to_string(exec_event->metadata.kernel_function), 
+                operation_type_to_string(exec_event->metadata.operation_type), 
+                exec_event->exe_path,
                 // TODO: not sending exec args for now
                 "");
             break;
@@ -108,18 +108,24 @@ void LogDebugEvent(ebpf_event *event)
         }
         case DOUBLE_PATH:
         {
-            const ebpf_event_double * doubleEvent = (const ebpf_event_double *)event;
+            const ebpf_event_double * double_event = (const ebpf_event_double *)event;
             g_bxl->LogDebug(
-                doubleEvent->metadata.pid, 
+                double_event->metadata.pid, 
                 "kernel function: %s, operation: %s, S_ISREG: %d, S_ISDIR: %d, errno: %d %s, source path: '%s', dest path '%s'",
-                kernel_function_to_string(doubleEvent->metadata.kernel_function),
-                operation_type_to_string(doubleEvent->metadata.operation_type),
+                kernel_function_to_string(double_event->metadata.kernel_function),
+                operation_type_to_string(double_event->metadata.operation_type),
                 S_ISREG(event->metadata.mode), 
                 S_ISDIR(event->metadata.mode),
-                doubleEvent->metadata.error,
-                strerror(doubleEvent->metadata.error * -1),
-                doubleEvent->src_path,
-                doubleEvent->dst_path);
+                double_event->metadata.error,
+                strerror(double_event->metadata.error * -1),
+                double_event->src_path,
+                double_event->dst_path);
+            break;
+        }
+        case DEBUG:
+        {
+            const ebpf_event_debug *debug_event = (const ebpf_event_debug *)event;
+            g_bxl->LogDebug(debug_event->pid, "Debug message: %s", debug_event->message);
             break;
         }
         default:
@@ -295,6 +301,25 @@ void *WaitForRootProcessToExit(void *argv) {
 }
 
 /**
+ * Block on the debug event ring buffer and handle debug events.
+ */
+void *PollDebugBuffer(void *arg) {
+    while (!g_stop) {
+        int err = ring_buffer__poll(g_debug_ring_buffer, /* timeout_ms */ 60000);
+        if (err == -EINTR) {
+            err = 0;
+            break;
+        }
+        if (err < 0) {
+            LogError("Error polling debug ring buffer %d\n", err);
+            break;
+        }
+    }
+
+    return NULL;
+}
+
+/**
  * Perform libbpf related cleanup.
  */
 void Cleanup(struct sandbox_bpf *skel) {
@@ -346,6 +371,14 @@ int main(int argc, char **argv) {
         return -1;
     }
 
+    // Set up debug event ring buffer
+    g_debug_ring_buffer = ring_buffer__new(bpf_map__fd(skel->maps.debug_buffer), HandleEvent, /* ctx */ NULL, /* opts */ NULL);
+    if (!g_debug_ring_buffer) {
+        LogError("Failed to create debug ring buffer\n");
+        Cleanup(skel);
+        return -1;
+    }
+
     // Set up pid map
     g_pid_map_fd = bpf_object__find_map_fd_by_name(skel->obj, "pid_map");
     if (g_pid_map_fd < 0) {
@@ -365,6 +398,14 @@ int main(int argc, char **argv) {
     pthread_t thread;
     if (pthread_create(&thread, NULL, WaitForRootProcessToExit, (void *)argv) != 0) {
         LogError("Process exit monitoring thread failed to start %s\n", strerror(errno));
+        Cleanup(skel);
+        return -1;
+    }
+
+    // Child thread listening for debug events
+    pthread_t debug_message_thread;
+    if (pthread_create(&debug_message_thread, NULL, PollDebugBuffer, NULL) != 0) {
+        LogError("Debug message thread failed to start %s\n", strerror(errno));
         Cleanup(skel);
         return -1;
     }

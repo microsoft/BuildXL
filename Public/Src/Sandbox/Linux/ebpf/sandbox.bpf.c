@@ -22,7 +22,13 @@ struct {
     __uint(max_entries, 4096 *  1024  /* PATH_MAX * 1024 entries */);
 } file_access_ring_buffer SEC(".maps");
 
-// TODO [pgunasekara]: add map for high priority events
+/**
+ * Used to send debug events to the userspace.
+ */
+struct {
+    __uint(type, BPF_MAP_TYPE_RINGBUF);
+    __uint(max_entries, sizeof(ebpf_event_debug) *  1024  /* 1024 entries */);
+} debug_buffer SEC(".maps");
 
 // TODO: remove magic numbers?
 const long wakeup_data_size = 4096 * 128;
@@ -31,12 +37,36 @@ static __always_inline long get_flags() {
     return sz >= wakeup_data_size ? BPF_RB_FORCE_WAKEUP : BPF_RB_NO_WAKEUP;
 }
 
+/**
+ * Attempts to reserve space on the debug ring buffer to report a buffer reservation failure
+ * on the main ring buffer used to send file access events.
+ */
+static void report_buffer_reservation_failure() {
+    ebpf_event_debug *debug_event = bpf_ringbuf_reserve(&debug_buffer, sizeof(ebpf_event_debug), 0);
+
+    if (!debug_event) {
+        bpf_printk("[ERROR] Unable to reserve ring buffer.");
+        return;
+    }
+
+    debug_event->event_type = DEBUG;
+    debug_event->pid = bpf_get_current_pid_tgid() >> 32;;
+    __builtin_strcpy(debug_event->message, "[ERROR] Unable to reserve ring buffer.");
+    bpf_ringbuf_submit(debug_event, /* flags */ 0);
+}
+
+/**
+ * Attempts to reserve the ring buffer for a file access.
+ *
+ * If the ring buffer reserve call fails, then a debug event is sent to the debug buffer.
+ * If reserving the debug buffer also fails, then we write to the trace pipe.
+ */
 #define RESERVE_SUBMIT_FILE_ACCESS(code)                                                                        \
 {                                                                                                               \
     ebpf_event *event = bpf_ringbuf_reserve(&file_access_ring_buffer, sizeof(ebpf_event), 0);                   \
                                                                                                                 \
     if (!event) {                                                                                               \
-        bpf_printk("[ERROR] Unable to reserve ring buffer.");                                                   \
+        report_buffer_reservation_failure();                                                                    \
         return 0;                                                                                               \
     }                                                                                                           \
                                                                                                                 \
@@ -52,7 +82,7 @@ static __always_inline long get_flags() {
     ebpf_event_double *event = bpf_ringbuf_reserve(&file_access_ring_buffer, sizeof(ebpf_event_double), 0);     \
                                                                                                                 \
     if (!event) {                                                                                               \
-        bpf_printk("[ERROR] Unable to reserve ring buffer.");                                                   \
+        report_buffer_reservation_failure();                                                                    \
         return 0;                                                                                               \
     }                                                                                                           \
                                                                                                                 \
@@ -68,7 +98,7 @@ static __always_inline long get_flags() {
     ebpf_event_exec *event = bpf_ringbuf_reserve(&file_access_ring_buffer, sizeof(ebpf_event_exec), 0);         \
                                                                                                                 \
     if (!event) {                                                                                               \
-        bpf_printk("[ERROR] Unable to reserve ring buffer.");                                                   \
+        report_buffer_reservation_failure();                                                                    \
         return 0;                                                                                               \
     }                                                                                                           \
                                                                                                                 \
@@ -81,7 +111,7 @@ static __always_inline long get_flags() {
 
 /**
  * wake_up_new_task() - Hook for clone syscall on wake_up_new_task.
- * 
+ *
  * We need to make sure we report the clone before the child process starts to avoid some race conditions:
  * - We need to guarantee that we see the process creation arriving as a report line before
  *   any other access report coming from the child (the process creation reported from the parent may non deterministically arrive later than reports from the child).
@@ -100,7 +130,7 @@ int BPF_PROG(wake_up_new_task, struct task_struct *new_task)
     struct task_struct *current_task = (struct task_struct *)bpf_get_current_task();
     pid_t current_tgid = BPF_CORE_READ(current_task, tgid);
     pid_t new_tgid = BPF_CORE_READ(new_task, tgid);
-    
+
     // We don't care about new threads, just about new processes.
     // Same thread group as the current task means this is just a new thread
     if (current_tgid == new_tgid)
@@ -117,8 +147,8 @@ int BPF_PROG(wake_up_new_task, struct task_struct *new_task)
 
     // Add the child that is about to be woken up to the set of processes we care about
     bpf_map_update_elem(&pid_map, &new_pid, &new_pid, BPF_ANY);
-    RESERVE_SUBMIT_FILE_ACCESS                                                                  
-    ( 
+    RESERVE_SUBMIT_FILE_ACCESS
+    (
         event->metadata.kernel_function = KERNEL_FUNCTION(wake_up_new_task);
         event->metadata.operation_type = kClone;
         event->metadata.pid = current_pid;
@@ -163,7 +193,7 @@ int BPF_PROG(bprm_execve_enter, struct linux_binprm *bprm)
 
 /**
  * exit_exit() - High level kernel function for exit syscall.
- * 
+ *
  * Only valid for x64 architecture.
  */
 SEC("fexit/__x64_sys_exit")
@@ -188,7 +218,7 @@ int BPF_PROG(exit_exit, const struct pt_regs *regs, long ret)
 
 /**
  * exit_group_exit() - High level kernel function for exit syscall.
- * 
+ *
  * This can be called for a group of processes rather than a single one
  * Only valid for x64 architecture.
  */
@@ -214,7 +244,7 @@ int BPF_PROG(exit_group_exit, const struct pt_regs *regs, long ret)
 
 /**
  * security_path_rename() - Security hook for rename syscall.
- * 
+ *
  * Rename can be a directory or a path that the user side will determine based
  * on the returned mode.
  */
@@ -274,7 +304,7 @@ int BPF_PROG(do_mkdirat_exit, int dfd, struct filename *name, umode_t mode, int 
 
 /**
  * vfs_rmdir_exit() - rmdir system call hook at the VFS layer.
- * 
+ *
  * The exit code is used to determine whether the file that was accesssed was a directory or not.
  */
 SEC("fexit/do_rmdir")
@@ -401,7 +431,7 @@ int BPF_PROG(path_lookupat_exit, struct nameidata *nd, unsigned flags, struct pa
 
 /**
  * path_parentat_exit() - Handles path resolutions.
- * 
+ *
  * Returns the parent directory and final component to the caller.
  * Used for tracing absent probes when called by system calls like rmdir/mkdir
   */
@@ -435,7 +465,7 @@ int BPF_PROG(path_parentat, struct nameidata *nd, unsigned flags, struct path *p
 
 /**
  * path_openat_exit() - Handles path resolutions.
- * 
+ *
  * Used for `open` system calls essentially on the final component.
  */
 SEC("fexit/path_openat")
@@ -492,7 +522,7 @@ int BPF_PROG(security_file_open_enter, struct file *file)
 
 /**
  * security_file_permission_enter() - Security hook for any system calls that may access an already open file.
- * 
+ *
  * Depending on the mask, this can be a read or a write operation.
  */
 SEC("fentry/security_file_permission")
@@ -556,7 +586,7 @@ int BPF_PROG(security_path_symlink_enter, const struct path *dir, struct dentry 
 
 /**
  * security_path_mknod_enter() - Checks permission for creating special files.
- * 
+ *
  * This may also be called for regular files.
  */
 SEC("fentry/security_path_mknod")
@@ -626,7 +656,7 @@ int BPF_PROG(do_readlink_exit, int dfd, const char *pathname, char *buf, int buf
         return 0;
     }
 
-    // If the function is not successful, then we don't really care. Probes will be captured by pathlookup 
+    // If the function is not successful, then we don't really care. Probes will be captured by pathlookup
     // When successful, the function returns the number of bytes copied, and negative on error.
     if (ret < 0)
     {

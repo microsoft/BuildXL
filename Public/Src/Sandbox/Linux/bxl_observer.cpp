@@ -412,15 +412,15 @@ void BxlObserver::LogDebug(pid_t pid, const char *fmt, ...) {
     if (LogDebugEnabled()) {
         va_list args;
         va_start(args, fmt);
-        LogDebugMessage(getpid(), buildxl::linux::DebugEventSeverity::kInfo, fmt, args);
+        LogDebugMessage(pid, buildxl::linux::DebugEventSeverity::kInfo, fmt, args);
         va_end(args);
     }
 }
 
-void BxlObserver::LogError(const char *fmt, ...) {
+void BxlObserver::LogError(pid_t pid, const char *fmt, ...) {
     va_list args;
     va_start(args, fmt);
-    LogDebugMessage(getpid(), buildxl::linux::DebugEventSeverity::kError, fmt, args);
+    LogDebugMessage(pid, buildxl::linux::DebugEventSeverity::kError, fmt, args);
     va_end(args);
 }
 

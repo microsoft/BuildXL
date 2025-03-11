@@ -207,7 +207,7 @@ bool SyscallHandler::HandleExecEvent(BxlObserver *bxl, const ebpf_event_exec *ev
 }
 
 bool SyscallHandler::HandleDebugEvent(BxlObserver *bxl, const ebpf_event_debug *event) {
-    bxl->LogDebug(event->pid, event->message);
+    bxl->LogError(event->pid, event->message);
     return true;
 }
 

@@ -472,7 +472,7 @@ public:
 
     void LogDebugMessage(pid_t pid, buildxl::linux::DebugEventSeverity severity, const char *fmt, va_list args);
     void LogDebug(pid_t pid, const char *fmt, ...);
-    void LogError(const char *fmt, ...);
+    void LogError(pid_t pid, const char *fmt, ...);
     
     mode_t get_mode(const char *path)
     {

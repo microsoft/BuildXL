@@ -2,6 +2,11 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20250306.1 (Release [29687533](https://dev.azure.com/mseng/Domino/_build/results?buildId=29687533&view=results))
+-	Attribute an access with same path as the root of a shared opaque to its parent
+-	Stop publishing old cache packages in favor of single-dll ones
+-	Bug fixes
+
 # 0.1.0-20250226.3 (Release [29655797](https://dev.azure.com/mseng/Domino/_build/results?buildId=29655797&view=results))
 - Fixes for Ubuntu 24.04
 - Removal of leading spaces on newlines for timeout error message

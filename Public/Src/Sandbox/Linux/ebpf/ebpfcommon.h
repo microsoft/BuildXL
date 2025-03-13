@@ -66,7 +66,6 @@ typedef enum kernel_function
 {
     KERNEL_FUNCTION(wake_up_new_task) = 0,
     KERNEL_FUNCTION(exit),
-    KERNEL_FUNCTION(exit_group),
     KERNEL_FUNCTION(path_lookupat),
     KERNEL_FUNCTION(path_openat),
     KERNEL_FUNCTION(path_parentat),
@@ -95,7 +94,6 @@ inline const char* kernel_function_to_string(kernel_function kf) {
     switch (kf) {
         CONVERT_KERNEL_FUNCTION_TO_STRING(wake_up_new_task)
         CONVERT_KERNEL_FUNCTION_TO_STRING(exit)
-        CONVERT_KERNEL_FUNCTION_TO_STRING(exit_group)
         CONVERT_KERNEL_FUNCTION_TO_STRING(path_lookupat)
         CONVERT_KERNEL_FUNCTION_TO_STRING(path_openat)
         CONVERT_KERNEL_FUNCTION_TO_STRING(path_parentat)

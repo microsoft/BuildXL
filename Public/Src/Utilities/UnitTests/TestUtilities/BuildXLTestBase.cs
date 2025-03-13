@@ -669,6 +669,15 @@ namespace Test.BuildXL.TestUtilities
             return result;
         }
 
+        /// <summary>
+        /// <see cref="GetTestDataValue(string)"/>
+        /// </summary>
+        protected bool TryGetTestDataValue(string key, out string value)
+        {
+            var testData = GetTestData();
+            return testData.TryGetValue(key, out value);
+        }
+
         private Dictionary<string, string> GetTestData()
         {
             if (m_testData != null)
@@ -687,7 +696,7 @@ namespace Test.BuildXL.TestUtilities
         {
             // For now we only run EBPF tests in Ubuntu 24.04. TODO: generalize
             bool is2404 = OperatingSystemHelperExtension.GetLinuxDistribution()?.Equals(new LinuxDistribution("ubuntu", new Version("24.04"))) == true;
-            return ExistsTestData() && !string.IsNullOrEmpty(GetTestDataValue(UseEBPFTesDataValue)) && is2404;
+            return ExistsTestData() && TryGetTestDataValue(UseEBPFTesDataValue, out _) && is2404;
         }
 
         /// <summary>

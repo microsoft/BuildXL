@@ -45,6 +45,15 @@ namespace Test.BuildXL.TestUtilities.Xunit
         }
 
         /// <summary>
+        /// Returns a sandbox connection that is aware of the existence of EBPF and returns it whenever
+        /// <see cref="UsingEBPFSandbox"/> holds. TODO: remove when EBPF becomes the default
+        /// </summary>
+        public ISandboxConnection GetEBPFAwareSandboxConnection() => GetSandboxConnection(
+            OperatingSystemHelper.IsLinuxOS && UsingEBPFSandbox
+                ? SandboxKind.LinuxEBPF 
+                : SandboxKind.Default);
+
+        /// <summary>
         /// Windows: Always returns null and causes no overhead for testing.
         /// Linux: Returns a new sandboxed connection on each call for the Linux sandbox
         /// </summary>
@@ -78,6 +87,11 @@ namespace Test.BuildXL.TestUtilities.Xunit
         /// Event mask for filtering listener events
         /// </summary>
         protected virtual EventMask ListenerEventMask => null;
+
+        /// <summary>
+        /// Whether the EBPF-based sandbox is being used for the running tests
+        /// </summary>
+        protected bool UsingEBPFSandbox { get; }
 
         /// <summary>
         /// Please use the overload that takes a <see cref="ITestOutputHelper"/>
@@ -118,6 +132,8 @@ namespace Test.BuildXL.TestUtilities.Xunit
 
             // Many tests declare outputs outside of known mounts.
             AllowErrorEventMaybeLogged(global::BuildXL.Pips.Tracing.LogEventId.WriteDeclaredOutsideOfKnownMount);
+
+            UsingEBPFSandbox = IsUsingEBPFSandbox();
         }
 
         /// <summary>

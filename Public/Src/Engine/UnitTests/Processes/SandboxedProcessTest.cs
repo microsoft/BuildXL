@@ -1337,7 +1337,7 @@ namespace Test.BuildXL.Processes
             }
 
             var pt = new PathTable();
-            var info = new SandboxedProcessInfo(pt, this, "DoesNotExistIHope", disableConHostSharing: false, sandboxConnection: GetSandboxConnection(), loggingContext: LoggingContext)
+            var info = new SandboxedProcessInfo(pt, this, "DoesNotExistIHope", disableConHostSharing: false, sandboxConnection: GetEBPFAwareSandboxConnection(), loggingContext: LoggingContext)
             {
                 PipSemiStableHash = 0,
                 PipDescription = DiscoverCurrentlyExecutingXunitTestMethodFQN(),
@@ -1436,7 +1436,7 @@ namespace Test.BuildXL.Processes
                 var pt = new PathTable();
                 var info =
                     // 'time' uses vfork on macOS
-                    new SandboxedProcessInfo(pt, tempFiles, "/usr/bin/time", disableConHostSharing: false, sandboxConnection: GetSandboxConnection(), loggingContext: LoggingContext)
+                    new SandboxedProcessInfo(pt, tempFiles, "/usr/bin/time", disableConHostSharing: false, sandboxConnection: GetEBPFAwareSandboxConnection(), loggingContext: LoggingContext)
                     {
                         PipSemiStableHash = 0,
                         PipDescription = DiscoverCurrentlyExecutingXunitTestMethodFQN(),
@@ -1468,7 +1468,16 @@ namespace Test.BuildXL.Processes
                 XAssert.Contains(op2paths.Keys, ReportedFileOperation.Process, ReportedFileOperation.ProcessExit);
 
                 // assert both 'time' and 'touch' processes have been reported
-                XAssert.Contains(op2paths[ReportedFileOperation.Process], "time", "touch");
+                if (UsingEBPFSandbox)
+                {
+                    // For EBPF there is not clone event for 'touch'. This clone event is injected
+                    // for the interpose case as part of doing exec (but it is not a real one)
+                    XAssert.Contains(op2paths[ReportedFileOperation.Process], "time");
+                }
+                else
+                {
+                    XAssert.Contains(op2paths[ReportedFileOperation.Process], "time", "touch");
+                }
                 XAssert.Contains(op2paths[ReportedFileOperation.ProcessExit], "time", "touch");
 
                 // assert that all accesses to 'tempFileName' were done by the 'touch' process
@@ -1851,7 +1860,7 @@ namespace Test.BuildXL.Processes
                 info.FileAccessManifest.ReportFileAccesses = true;
                 info.FileAccessManifest.FailUnexpectedFileAccesses = false;
                 info.MonitoringConfig = new SandboxedProcessResourceMonitoringConfig(enabled: true, refreshInterval: TimeSpan.FromTicks(1));
-                info.SandboxConnection = GetSandboxConnection();
+                info.SandboxConnection = GetEBPFAwareSandboxConnection();
 
                 var result = await RunProcess(info);
 

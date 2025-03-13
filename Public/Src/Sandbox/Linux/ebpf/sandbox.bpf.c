@@ -223,13 +223,22 @@ int BPF_PROG(bprm_execve_enter, struct linux_binprm *bprm)
 }
 
 /**
- * exit_exit() - High level kernel function for exit syscall.
- *
- * Only valid for x64 architecture.
+ * taskstats_exit() - This function is called on the task's
+ * exit path.
+ * 
+ * Called by both syscall exit() and exit_group(). This call happens before releasing the mm
+ * structure on the task, which we still need to inspect in order to get the path of 
+ * the executing process.
  */
-SEC("fexit/__x64_sys_exit")
-int BPF_PROG(exit_exit, const struct pt_regs *regs, long ret)
+SEC("fentry/taskstats_exit")
+int BPF_PROG(taskstats_exit, struct task_struct *tsk, int group_dead)
 {
+    // We only care about reporting an exit when the thread group is determined to be dead
+    if (!group_dead)
+    {
+        return 0;
+    }
+
     pid_t pid = bpf_get_current_pid_tgid() >> 32;
     if (!is_valid_pid(pid)) {
         return 0;
@@ -241,34 +250,7 @@ int BPF_PROG(exit_exit, const struct pt_regs *regs, long ret)
         event->metadata.pid = pid;
         event->metadata.kernel_function = KERNEL_FUNCTION(exit);
         event->metadata.operation_type = kExit;
-        get_task_exec_path((struct task_struct*) bpf_get_current_task(), event->src_path);
-        bpf_map_delete_elem(&pid_map, &pid);
-    )
-
-    return 0;
-}
-
-/**
- * exit_group_exit() - High level kernel function for exit syscall.
- *
- * This can be called for a group of processes rather than a single one
- * Only valid for x64 architecture.
- */
-SEC("fexit/__x64_sys_exit_group")
-int BPF_PROG(exit_group_exit, const struct pt_regs *regs, long ret)
-{
-    pid_t pid = bpf_get_current_pid_tgid() >> 32;
-    if (!is_valid_pid(pid)) {
-        return 0;
-    }
-
-    // We don't want to cache exits, use unconditional reserve + submit macro
-    RESERVE_SUBMIT_FILE_ACCESS
-    (
-        event->metadata.pid = pid;
-        event->metadata.kernel_function = KERNEL_FUNCTION(exit_group);
-        event->metadata.operation_type = kExit;
-        get_task_exec_path((struct task_struct*) bpf_get_current_task(), event->src_path);
+        get_task_exec_path(tsk, event->src_path);
         bpf_map_delete_elem(&pid_map, &pid);
     )
 

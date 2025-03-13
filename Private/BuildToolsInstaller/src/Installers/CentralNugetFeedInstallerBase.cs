@@ -2,8 +2,10 @@
 // Licensed under the MIT License.
 
 using System.Diagnostics.Contracts;
+using System.Text.Json;
 using BuildToolsInstaller.Config;
 using BuildToolsInstaller.Utilities;
+using Microsoft.Extensions.Logging;
 using NuGet.Configuration;
 using NuGet.Protocol;
 using NuGet.Protocol.Core.Types;
@@ -21,7 +23,7 @@ namespace BuildToolsInstaller.Installers
         /// <summary>
         /// The name of the package to install
         /// </summary>
-        protected abstract string PackageName { get; }
+        protected DeploymentConfiguration DeploymentConfig = null!;
 
         /// <summary>
         /// A display name for the tool. Used in the installation paths, logging, etc.
@@ -44,15 +46,28 @@ namespace BuildToolsInstaller.Installers
         public async Task<bool> InstallAsync(InstallationArguments args)
         {
             await Task.Yield();
+
+            if (!await InitializeGlobalConfiguration(args))
+            {
+                return false;
+            }
+
             if (!await TryInitializeConfigAsync(args.ExtraConfiguration))
             {
+                return false;
+            }
+
+            if (!DeploymentConfig.Packages.TryGetValue(args.PackageSelector, out string? packageName))
+            {
+                Logger.Error($"The package for tool {ToolName} with selector '{args.PackageSelector}' not found in the configuration. Installation can't proceed.");
                 return false;
             }
 
             try
             {
                 var versionDescriptor = args.VersionDescriptor;
-                var maybeResolvedVersion = await TryResolveVersionAsync(versionDescriptor);
+                var maybeResolvedVersion = await TryResolveVersionAsync(packageName, versionDescriptor);
+
                 if (maybeResolvedVersion == null)
                 {
                     // Error should have been logged
@@ -83,7 +98,7 @@ namespace BuildToolsInstaller.Installers
                         else if (currentInstallationStatus != InstallationStatus.None)
                         {
                             // We already installed it in this run. Skip the download.
-                            Logger.Info($"Skipping download: {PackageName} version {resolvedVersion} already installed at {downloadLocation}.");
+                            Logger.Info($"Skipping download: {packageName} version {resolvedVersion} already installed at {downloadLocation}.");
                             return currentInstallationStatus;
                         }
                         else if (Path.Exists(downloadLocation))
@@ -92,15 +107,15 @@ namespace BuildToolsInstaller.Installers
                             // Assume this was placed before we run so this is 'cached'.
                             // TODO: Actual caching logic, when we decide where is it that 
                             // we put the cached versions at image creation time. 
-                            Logger.Info($"Skipping download: {PackageName} version {resolvedVersion} available from cached location {downloadLocation}.");
+                            Logger.Info($"Skipping download: {packageName} version {resolvedVersion} available from cached location {downloadLocation}.");
                             return InstallationStatus.InstalledFromCache;
                         }
 
                         // If we got here, we need to download the tool, so this is a fresh installation
-                        var feed = args.FeedOverride ?? InferSourceRepository(AdoService);
+                        var feed = args.FeedOverride ?? NugetHelper.InferSourceRepository(AdoService);
 
-                        var repository = CreateSourceRepository(feed);
-                        if (await m_downloader.TryDownloadNugetToDiskAsync(repository, PackageName, resolvedVersion, downloadLocation, Logger))
+                        var repository = NugetHelper.CreateSourceRepository(feed);
+                        if (await m_downloader.TryDownloadNugetToDiskAsync(repository, packageName, resolvedVersion, downloadLocation, Logger))
                         {
                             return InstallationStatus.FreshInstall;
                         }
@@ -132,10 +147,28 @@ namespace BuildToolsInstaller.Installers
             }
             catch (Exception ex)
             {
-                Logger.Error($"Failed trying to download nuget package '{PackageName}' : '{ex}'");
+                Logger.Error($"Failed trying to download nuget package '{packageName}' : '{ex}'");
             }
 
             return false;
+        }
+
+        private async Task<bool> InitializeGlobalConfiguration(InstallationArguments args)
+        {
+            var ringConfigPath = Path.Combine(ConfigurationUtilities.GetConfigurationPathForTool(ConfigDirectory, Tool), "deployment-config.json");
+            var serializerOptions = new JsonSerializerOptions(JsonUtilities.DefaultSerializerOptions)
+            {
+                Converters = { new CaseInsensitiveDictionaryConverter<string>() }
+            };
+            var maybeDeploymentConfig = await JsonUtilities.DeserializeAsync<DeploymentConfiguration>(ringConfigPath, Logger, serializerOptions);
+            if (maybeDeploymentConfig == null)
+            {
+                Logger.Error("Failed to load deployment configuration. Installation has failed.");
+                return false;
+            }
+
+            DeploymentConfig = maybeDeploymentConfig;
+            return true;
         }
 
         private bool TryDeleteInstallationDirectory(string engineLocation)
@@ -159,37 +192,6 @@ namespace BuildToolsInstaller.Installers
         }
 
         /// <summary>
-        /// Construct the implicit source repository for installers, a well-known feed that should be installed in the organization
-        /// </summary>
-        private static string InferSourceRepository(IAdoService adoService)
-        {
-            if (!adoService.IsEnabled)
-            {
-                throw new InvalidOperationException("Automatic source repository inference is only supported when running on an ADO Build");
-            }
-
-            if (!adoService.TryGetOrganizationName(out var adoOrganizationName))
-            {
-                throw new InvalidOperationException("Could not retrieve organization name");
-            }
-
-            // This feed is installed in every organization as part of 1ESPT onboarding
-            // TODO [maly]: Change Guardian feed to 1ESTools feed
-            return $"https://pkgs.dev.azure.com/{adoOrganizationName}/_packaging/Guardian1ESPTUpstreamOrgFeed/nuget/v3/index.json";
-        }
-
-        /// <nodoc />
-        private static SourceRepository CreateSourceRepository(string feedUrl)
-        {
-            var packageSource = new PackageSource(feedUrl, "SourceFeed");
-
-            // Because the feed is known (either the well-known mirror or the user-provided override),
-            // we can simply use a PAT that we assume will grant the appropriate privileges instead of going through a credential provider.
-            packageSource.Credentials = new PackageSourceCredential(feedUrl, "IrrelevantUsername", GetPatFromEnvironment(), true, string.Empty);
-            return Repository.Factory.GetCoreV3(packageSource);
-        }
-
-        /// <summary>
         /// The installer is given an configuration string, iheritors should this methid to initialize their configuration
         /// based on it
         /// </summary>
@@ -198,13 +200,8 @@ namespace BuildToolsInstaller.Installers
         /// <summary>
         /// Given a version descriptor, this method should resolve the version to install from NuGet
         /// </summary>
-        protected abstract Task<(NuGetVersion Version, bool IgnoreCache)?> TryResolveVersionAsync(string? versionDescriptor);
+        protected abstract Task<(NuGetVersion Version, bool IgnoreCache)?> TryResolveVersionAsync(string packageName, string? versionDescriptor);
 
         internal string GetDownloadLocation(string toolDirectory, string version) => Path.Combine(toolDirectory, ToolName, version);
-
-        private static string GetPatFromEnvironment()
-        {
-            return Environment.GetEnvironmentVariable("BUILDTOOLSDOWNLOADER_NUGET_PAT") ?? Environment.GetEnvironmentVariable("SYSTEM_ACCESSTOKEN") ?? "";
-        }
     }
 }

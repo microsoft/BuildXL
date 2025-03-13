@@ -44,6 +44,13 @@ namespace BuildToolsInstaller.Config
         public required IReadOnlyDictionary<string, RingDefinition> Rings { get; init; }
 
         /// <summary>
+        /// A mapping of arbitrary keys to the Nuget package names that will be retrieved
+        /// This is used when the package changes in different environments, e.g., the operating system
+        /// the installer is running on.
+        /// </summary>
+        public required IReadOnlyDictionary<string, string> Packages { get; init; }
+
+        /// <summary>
         /// A name of a ring to fall back if the version descriptor is not specified
         /// </summary>
         public required string Default { get; init; }

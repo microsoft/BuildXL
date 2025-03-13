@@ -8,6 +8,11 @@ namespace BuildToolsInstaller.Utilities
 {
     internal class ConfigurationUtilities
     {
+        public static string GetConfigurationPathForTool(string configurationRootDirectory, BuildTool tool)
+        {
+            return Path.Combine(configurationRootDirectory, "tools", tool.ToString().ToLower());
+        }
+
         /// <summary>
         /// Resolves a version descriptor to a literal version given in a <see cref="DeploymentConfiguration"/>
         /// </summary>

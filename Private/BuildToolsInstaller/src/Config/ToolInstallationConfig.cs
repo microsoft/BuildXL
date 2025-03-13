@@ -42,6 +42,12 @@ namespace BuildToolsInstaller.Config
         public string? Version { get; init; }
 
         /// <summary>
+        /// A key from which to select the package name from the configuration.
+        /// If not specified, it defaults to the OS name (namely: "Linux", "Windows")
+        /// </summary>
+        public required string PackageSelector { get; init; }
+
+        /// <summary>
         /// The name of the environment variable that will hold the path to the installed tool
         /// </summary>
         public required string OutputVariable { get; init; }

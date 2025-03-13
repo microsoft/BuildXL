@@ -3,6 +3,7 @@
 
 using System.IO;
 using System.Runtime.CompilerServices;
+using BuildToolsInstaller.Utilities;
 
 namespace BuildToolsInstaller.Tests
 {
@@ -19,8 +20,9 @@ namespace BuildToolsInstaller.Tests
         protected string WriteMockedConfiguration([CallerMemberName] string caller = "")
         {
             var directory = GetTempPathForTest(caller);
-            Directory.CreateDirectory(Path.Combine(directory, "buildxl"));
-            File.WriteAllText(Path.Combine(directory, "buildxl", "rings.json"),
+            var configForTool = Path.Combine(ConfigurationUtilities.GetConfigurationPathForTool(directory, BuildTool.BuildXL));
+            Directory.CreateDirectory(configForTool);
+            File.WriteAllText(Path.Combine(configForTool, "deployment-config.json"),
  @$"{{
   ""Rings"": {{
     ""Dogfood"": {{
@@ -33,9 +35,13 @@ namespace BuildToolsInstaller.Tests
       ""Version"": ""0.1.0-20250124.1""
     }}
   }},
+  ""Packages"": {{
+     ""Linux"": ""BuildXL.linux-x64"",
+     ""Windows"": ""BuildXL.win-x64""
+    }},
    ""Default"": ""GeneralPublic""
 }}");
-            File.WriteAllText(Path.Combine(directory, "buildxl", "overrides.json"), "{ \"Overrides\": [] }");
+            File.WriteAllText(Path.Combine(configForTool, "overrides.json"), "{ \"Overrides\": [] }");
             return directory;
         }
     }

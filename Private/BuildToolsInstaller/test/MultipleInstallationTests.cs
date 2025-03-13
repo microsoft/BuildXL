@@ -28,7 +28,8 @@ namespace BuildToolsInstaller.Tests
                 {
                     Tool = BuildTool.BuildXL,
                     Version = $"0.1.0-20250131.{i}",
-                    OutputVariable = $"ONEES_TOOL_LOCATION_BUILDXL_{i}"
+                    OutputVariable = $"ONEES_TOOL_LOCATION_BUILDXL_{i}",
+                    PackageSelector = "Linux"
                 })
                 .ToList()
             };
@@ -45,6 +46,7 @@ namespace BuildToolsInstaller.Tests
                 return await installer.InstallAsync(new InstallationArguments()
                 {
                     VersionDescriptor = tool.Version,
+                    PackageSelector = tool.PackageSelector,
                     OutputVariable = tool.OutputVariable,
                     ToolsDirectory = toolsDirectory,
                 });
@@ -67,7 +69,8 @@ namespace BuildToolsInstaller.Tests
                 {
                     Tool = BuildTool.BuildXL,
                     OutputVariable = $"ONEES_TOOL_LOCATION_BUILDXL",
-                    Version = "Dogfood"
+                    Version = "Dogfood",
+                    PackageSelector = "Linux"
                 })
                 .ToList()
             };
@@ -84,6 +87,7 @@ namespace BuildToolsInstaller.Tests
                 return await installer.InstallAsync(new InstallationArguments()
                 {
                     VersionDescriptor = tool.Version,
+                    PackageSelector = tool.PackageSelector,
                     OutputVariable = tool.OutputVariable,
                     ToolsDirectory = toolsDirectory,
                 });

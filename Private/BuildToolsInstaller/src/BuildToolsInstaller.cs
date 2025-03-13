@@ -11,7 +11,7 @@ namespace BuildToolsInstaller
     /// <summary>
     /// Collects the arguments given to the executable
     /// </summary>
-    public record struct InstallerArgs(string ToolsDirectory, string ToolsConfigFile, string? FeedOverride);
+    public record struct InstallerArgs(string ToolsDirectory, string ToolsConfigFile, string? GlobalConfigLocation, string? FeedOverride);
 
     /// <summary>
     /// Arguments for 'single-tool' mode, which is in use by some customers but in road to deprecation
@@ -27,7 +27,7 @@ namespace BuildToolsInstaller
     /// <param name="ToolsDirectory">Where to download the tool</param>
     /// <param name="IgnoreCache">If true, any cached version is ignored and the tool is installed fresh</param>
     /// <param name="FeedOverride">Get packages from this feed instead of the default one</param>
-    public record struct InstallationArguments(string? VersionDescriptor, string OutputVariable, string? ExtraConfiguration, string ToolsDirectory, bool IgnoreCache, string? FeedOverride);
+    public record struct InstallationArguments(string? VersionDescriptor, string PackageSelector, string OutputVariable, string? ExtraConfiguration, string ToolsDirectory, bool IgnoreCache, string? FeedOverride);
 
     /// <summary>
     /// Entrypoint for the installation logic
@@ -36,7 +36,8 @@ namespace BuildToolsInstaller
     {
         private const int SuccessExitCode = 0;
         private const int FailureExitCode = 1;
-        
+        private const string ConfigurationPackageName = "Tools.Config";
+
         /// <summary>
         /// Pick an installer based on the arguments and run it
         /// </summary>
@@ -47,10 +48,10 @@ namespace BuildToolsInstaller
             var adoService = AdoService.Instance;
             ILogger logger = adoService.IsEnabled ? new AdoConsoleLogger() : new ConsoleLogger();
 
-            string configurationDirectory;
+            string? configurationDirectory;
             try
             {
-                configurationDirectory = await ConfigurationDownloader.DownloadConfigurationAsync(logger);
+                configurationDirectory = await DownloadConfigurationAsync(adoService, arguments.FeedOverride, logger);
             }
             catch (Exception e)
             {
@@ -58,11 +59,18 @@ namespace BuildToolsInstaller
                 return FailureExitCode;
             }
 
-            IToolInstaller installer = SelectInstaller(arguments.Tool, configurationDirectory, adoService, logger);            
+            if (configurationDirectory == null)
+            {
+                // Errors should have been logged
+                return FailureExitCode;
+            }
+
+            IToolInstaller installer = SelectInstaller(arguments.Tool, configurationDirectory, adoService, logger);
             return await installer.InstallAsync(new InstallationArguments()
             {
                 VersionDescriptor = arguments.VersionDescriptor,
                 OutputVariable = installer.DefaultToolLocationVariable,
+                PackageSelector = OperatingSystem.IsWindows() ? "Windows" : "Linux",
                 ExtraConfiguration = arguments.ConfigFilePath,
                 ToolsDirectory = arguments.ToolsDirectory,
                 IgnoreCache = arguments.IgnoreCache,
@@ -93,14 +101,20 @@ namespace BuildToolsInstaller
                 return FailureExitCode;
             }
 
-            string configurationDirectory;
+            string? configurationDirectory;
             try
             {
-                configurationDirectory = await ConfigurationDownloader.DownloadConfigurationAsync(logger);
+                configurationDirectory = await DownloadConfigurationAsync(adoService, installerArgs.FeedOverride, logger);
             }
             catch (Exception e)
             {
                 logger.Error($"Failed to download configuration: {e.Message}");
+                return FailureExitCode;
+            }
+
+            if (configurationDirectory == null)
+            {
+                // Errors should have been logged
                 return FailureExitCode;
             }
 
@@ -110,6 +124,7 @@ namespace BuildToolsInstaller
                 return await installer.InstallAsync(new InstallationArguments()
                 {
                     VersionDescriptor = tool.Version,
+                    PackageSelector = tool.PackageSelector,
                     OutputVariable = tool.OutputVariable,
                     ExtraConfiguration = tool.AdditionalConfiguration,
                     ToolsDirectory = installerArgs.ToolsDirectory,
@@ -120,6 +135,30 @@ namespace BuildToolsInstaller
 
             var results = await Task.WhenAll(tasks);
             return results.All(r => r) ? SuccessExitCode : FailureExitCode;
+        }
+
+        /// <summary>
+        /// Download the latest known version of the configuration package from the central feed
+        /// </summary>
+        private static async Task<string?> DownloadConfigurationAsync(AdoService service, string? feedOverride, ILogger logger)
+        {
+            var downloadPath  = Path.Combine(Path.GetTempPath(), "downloaded_config");
+            logger.Info("Resolving latest version of the configuration package");
+            var upstream = NugetHelper.CreateSourceRepository(feedOverride ?? NugetHelper.InferSourceRepository(service));
+            var configVersion = await NugetHelper.GetLatestVersionAsync(upstream, ConfigurationPackageName, logger);
+            if (configVersion == null)
+            {
+                logger.Error("Failed to resolve the latest version of the configuration package");
+                return null;
+            }
+
+            var downloader = new NugetDownloader();
+            if (!await downloader.TryDownloadNugetToDiskAsync(upstream, ConfigurationPackageName, configVersion, downloadPath, logger))
+            {
+                return null;
+            }
+
+            return downloadPath;
         }
     }
 }

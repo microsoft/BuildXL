@@ -6,6 +6,7 @@ using System.IO;
 using System.Threading.Tasks;
 using Xunit;
 using BuildToolsInstaller.Config;
+using System.Linq;
 
 namespace BuildToolsInstaller.Tests
 {
@@ -41,7 +42,8 @@ namespace BuildToolsInstaller.Tests
                     OutputVariable = "ONEES_TOOL_BUILDXL_LOCATION",
                     ExtraConfiguration = configTempPath,
                     ToolsDirectory = mockAdoService.ToolsDirectory,
-                    IgnoreCache = false
+                    IgnoreCache = false,
+                    PackageSelector = "Linux"
                 });
 
                 Assert.True(result, log.FullLog);
@@ -91,6 +93,7 @@ namespace BuildToolsInstaller.Tests
                 var result = await buildXLInstaller.InstallAsync(new InstallationArguments()
                 {
                     VersionDescriptor = monikerUsed,
+                    PackageSelector = "Linux",
                     OutputVariable = $"ONEES_TOOL_LOCATION_BUILDXL",
                     ToolsDirectory = mockAdoService.ToolsDirectory,
                     IgnoreCache = false,
@@ -107,6 +110,51 @@ namespace BuildToolsInstaller.Tests
                 Assert.Equal(versionUsed, download.Version);
 
                 Assert.Equal(download.DownloadLocation, mockAdoService.Variables["ONEES_TOOL_LOCATION_BUILDXL"]);
+            }
+            finally
+            {
+                File.Delete(configTempPath);
+            }
+        }
+
+        [Theory]
+        [InlineData("Windows", "BuildXL.win-x64")]
+        [InlineData("windows", "BuildXL.win-x64")]
+        [InlineData("Linux", "BuildXL.linux-x64")]
+        [InlineData("linux", "BuildXL.linux-x64")]
+        public async Task PackageSelectorTest(string packageSelector, string expectedPackage)
+        {
+            var downloadDirectory = GetTempPathForTest(packageSelector+expectedPackage);
+            if (Directory.Exists(downloadDirectory))
+            {
+                Directory.Delete(downloadDirectory, true);
+            }
+
+            var configTempPath = Path.GetTempFileName();
+            try
+            {
+                var mockDownloader = new MockNugetDownloader();
+                var log = new TestLogger();
+
+                var mockAdoService = new MockAdoService()
+                {
+                    ToolsDirectory = downloadDirectory
+                };
+
+                var buildXLInstaller = new BuildXLNugetInstaller(mockDownloader, WriteMockedConfiguration(), mockAdoService, log);
+                var result = await buildXLInstaller.InstallAsync(new InstallationArguments()
+                {
+                    VersionDescriptor = GeneralPublicRing,
+                    PackageSelector = packageSelector,
+                    OutputVariable = $"ONEES_TOOL_LOCATION_BUILDXL",
+                    ToolsDirectory = mockAdoService.ToolsDirectory,
+                    IgnoreCache = false,
+                    FeedOverride = "http://dummy-feed"
+                });
+                Assert.True(result, log.FullLog);
+
+                Assert.Single(mockDownloader.Downloads);
+                Assert.Contains(expectedPackage, mockDownloader.Downloads.Select(d => d.Package).ToList());
             }
             finally
             {
@@ -140,6 +188,7 @@ namespace BuildToolsInstaller.Tests
                 var result = await buildXLInstaller.InstallAsync(new InstallationArguments
                 {
                     VersionDescriptor = version,
+                    PackageSelector = "Linux",
                     OutputVariable = $"ONEES_TOOL_LOCATION_BUILDXL",
                     ExtraConfiguration = configTempPath,
                     ToolsDirectory = toolsDirectory,

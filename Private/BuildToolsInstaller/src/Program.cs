@@ -116,16 +116,41 @@ namespace BuildToolsInstaller
                 })
             { IsRequired = true };
 
+            var globalConfigOption = new Option<string>(
+                name: "--globalConfigDirectory",
+                description: "Path to the directory containing the global configuration files. If absent, the latest configuraiton package is downloaded from NuGet. This override is provided for local testing and configuration validation.",
+                parseArgument: result =>
+                {
+                    if (result.Tokens.Count() != 1)
+                    {
+                        result.ErrorMessage = "--globalConfigDirectory should be specified once";
+                        return null!;
+                    }
+
+                    var path = result.Tokens.Single().Value;
+                    if (!Directory.Exists(path))
+                    {
+                        result.ErrorMessage = $"The specified file path '{path}' does not exist";
+                        return string.Empty;
+                    }
+
+                    return path;
+                })
+            { IsRequired = false };
+
+
             installSubCommand.AddOption(configOption);
+            installSubCommand.AddOption(globalConfigOption);
             installSubCommand.AddOption(toolsDirectoryOption);
             installSubCommand.AddOption(feedOverrideOption);
 
-            installSubCommand.SetHandler(async (toolsDirectory, toolsConfig, feedOverride) =>
+            installSubCommand.SetHandler(async (toolsDirectory, toolsConfig, globalConfig, feedOverride) =>
             {
                 toolsDirectory ??= AdoService.Instance.IsEnabled ? AdoService.Instance.ToolsDirectory : "1es-tools";
 
                 returnCode = await BuildToolsInstaller.Run(new InstallerArgs()
                 {
+                    GlobalConfigLocation = globalConfig,
                     ToolsConfigFile = toolsConfig,
                     ToolsDirectory = toolsDirectory,
                     FeedOverride = feedOverride
@@ -133,7 +158,8 @@ namespace BuildToolsInstaller
             },
             toolsDirectoryOption,
             configOption,
-            feedOverrideOption);
+            feedOverrideOption,
+            globalConfigOption);
 
             rootCommand.AddCommand(installSubCommand);
 

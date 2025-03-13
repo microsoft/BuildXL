@@ -49,6 +49,7 @@ jobs:
             @{
               'tool' = 'BuildXL'
               'outputVariable' = 'BXL_LOCATION'
+              'packageSelector' = '${{ parameters.pool.os }}'
             }
           )
         }
@@ -125,6 +126,7 @@ jobs:
               'tool' = 'BuildXL'
               'version' = '0.1.0-20240802.2'
               'outputVariable' = 'BXL_ORCH_LOCATION'
+              'packageSelector' = '${{ parameters.pool.os }}'
               'additionalConfiguration' = 'distributedRole=Orchestrator;invocationKey=MyBuild_${{ parameters.platform }}'
             }
           )
@@ -152,6 +154,7 @@ jobs:
               'tool' = 'BuildXL'
               'version' = '0.1.0-20240802.2'
               'outputVariable' = 'BXL_WORKER_LOCATION'
+              'packageSelector' = '${{ parameters.pool.os }}'
               'additionalConfiguration' = 'distributedRole=Worker;invocationKey=MyBuild_${{ parameters.platform }};workerTimeoutMin=3'
             }
           )

@@ -19,7 +19,6 @@ namespace BuildToolsInstaller
         private BuildXLNugetInstallerConfig? m_config;
         private const int DefaultWorkerTimeoutMin = 20;
         private const int PropertiesPollDelaySeconds = 5;
-        protected override string PackageName => OperatingSystem.IsWindows() ? "BuildXL.win-x64" : "BuildXL.linux-x64";
         protected override BuildTool Tool => BuildTool.BuildXL;
         public override string DefaultToolLocationVariable => "ONEES_BUILDXL_LOCATION";
 
@@ -64,7 +63,7 @@ namespace BuildToolsInstaller
             return true;
         }
 
-        protected override async Task<(NuGetVersion Version, bool IgnoreCache)?> TryResolveVersionAsync(string? versionDescriptor)
+        protected override async Task<(NuGetVersion Version, bool IgnoreCache)?> TryResolveVersionAsync(string packageName, string? versionDescriptor)
         {
             var resolvedVersionProperty = "BuildXLResolvedVersion_" + (Config.InvocationKey ?? string.Empty);
             bool ignoreCache = false;
@@ -117,14 +116,7 @@ namespace BuildToolsInstaller
                 }
                 if (versionDescriptor == null || IsValidRing(versionDescriptor))
                 {
-                    var ringConfig = await GetRingConfigurationAsync(Logger);
-                    if (ringConfig == null)
-                    {
-                        Logger.Error("Failed to deserialize the ring configuration. Installation has failed.");
-                        return null;
-                    }
-
-                    resolvedVersion = ConfigurationUtilities.ResolveVersion(ringConfig, versionDescriptor, out ignoreCache, AdoService, Logger);
+                    resolvedVersion = ConfigurationUtilities.ResolveVersion(DeploymentConfig, versionDescriptor, out ignoreCache, AdoService, Logger);
                     if (resolvedVersion == null)
                     {
                         Logger.Error($"Failed to resolve version to install for ring {versionDescriptor}. Installation has failed.");
@@ -140,7 +132,7 @@ namespace BuildToolsInstaller
 
             if (!NuGetVersion.TryParse(resolvedVersion, out resolvedNugetVersion))
             {
-                Logger.Error($"The provided version for the {PackageName} package is malformed: {versionDescriptor}.");
+                Logger.Error($"The provided version for the {packageName} package is malformed: {versionDescriptor}.");
                 return null;
             }
 
@@ -155,18 +147,17 @@ namespace BuildToolsInstaller
             return (resolvedNugetVersion, ignoreCache);
         }
 
-        private Task<DeploymentConfiguration?> GetRingConfigurationAsync(ILogger logger)
-        {
-            // TODO: Recheck that this is the final path we use
-            var ringConfigPath = Path.Combine(ConfigDirectory, "buildxl", "rings.json");
-            return JsonUtilities.DeserializeAsync<DeploymentConfiguration>(ringConfigPath, logger);
-        }
-
         private Task<OverrideConfiguration?> GetOverridesConfigurationAsync(ILogger logger)
         {
-            // TODO: Recheck that this is the final path we use
-            var overridesConfigPath = Path.Combine(ConfigDirectory, "buildxl", "overrides.json");
-            return JsonUtilities.DeserializeAsync<OverrideConfiguration>(overridesConfigPath, logger);
+            var overridesConfigPath = Path.Combine(ConfigurationUtilities.GetConfigurationPathForTool(ConfigDirectory, BuildTool.BuildXL), "overrides.json");
+            if (File.Exists(overridesConfigPath))
+            {
+                return JsonUtilities.DeserializeAsync<OverrideConfiguration>(overridesConfigPath, logger);
+            }
+            else
+            {
+                return Task.FromResult<OverrideConfiguration?>(new() { Overrides = [] });
+            }
         }
 
         private bool IsValidRing(string selectedVersion)

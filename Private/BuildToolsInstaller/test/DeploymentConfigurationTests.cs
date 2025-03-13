@@ -48,6 +48,10 @@ private const string TestConfiguration = @"
             ""Version"": ""0.1.0-20250101.2""
         }
     },
+    ""Packages"": {
+        ""Linux"": ""BuildXL.linux-x64"",
+        ""Windows"": ""BuildXL.win-x64""
+    },
     ""Default"": ""Dogfood""
 }
 ";
@@ -69,13 +73,20 @@ private const string TestConfiguration = @"
         [Fact]
         public void DeserializationTest()
         {
-            var deserialized = JsonSerializer.Deserialize<DeploymentConfiguration>(TestConfiguration, JsonUtilities.DefaultSerializerOptions);
+            var serializerOptions = new JsonSerializerOptions(JsonUtilities.DefaultSerializerOptions)
+            {
+                Converters = { new CaseInsensitiveDictionaryConverter<string>() }
+            };
+
+            var deserialized = JsonSerializer.Deserialize<DeploymentConfiguration>(TestConfiguration, serializerOptions);
             Assert.NotNull(deserialized);
             Assert.NotNull(deserialized.Rings);
             Assert.Equal(2, deserialized.Rings.Count);
             Assert.True(deserialized.Rings.ContainsKey("Dogfood"));
             Assert.Equal("Dogfood ring", deserialized.Rings["Dogfood"].Description);
             Assert.Equal("0.1.0-20250101.1", deserialized.Rings["Dogfood"].Version);
+            Assert.Equal("BuildXL.win-x64", deserialized.Packages.GetValueOrDefault("Windows"));
+            Assert.Equal("BuildXL.win-x64", deserialized.Packages.GetValueOrDefault("WINDOWS"));
         }
 
         [Fact]
@@ -83,10 +94,14 @@ private const string TestConfiguration = @"
         {
             var config = new DeploymentConfiguration()
             {
-                Rings = 
+                Rings =
                 new Dictionary<string, RingDefinition>() {
                     { "A", new RingDefinition() { Version = "VersionA", IgnoreCache = true } },
                     { "B", new RingDefinition() { Version = "VersionB" } },
+                },
+                Packages = new Dictionary<string, string> {
+                    { "Linux", "LinuxPackage" },
+                    {  "Windows", "WindowsPackage" }
                 },
                 Default = "A"
             };

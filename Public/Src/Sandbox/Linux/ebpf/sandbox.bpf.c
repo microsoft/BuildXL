@@ -11,6 +11,7 @@
 #include "bpf/bpf_tracing.h"
 #include "ebpfcommon.h"
 #include "ebpfutilities.h"
+#include "eventcache.h"
 
 char LICENSE[] SEC("license") = "Dual MIT/GPL";
 
@@ -77,6 +78,21 @@ static void report_buffer_reservation_failure() {
     bpf_ringbuf_submit(event, get_flags());                                                                     \
 }
 
+/**
+ * Check against the event cache for the given operation+path before reserving and sending out the event.
+ * This is very useful for operations where the same path is sent multiple times within a short period of time. 
+ * E.g. writing to a given file using multiple write calls is a good example of this. We don't necessarily need
+ * to make each traced call go through this, but it is generally a good idea assuming we have to the corresponding
+ * struct path associated with the operation
+ */
+#define RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(operation, path, code)                                            \
+{                                                                                                               \
+    if (should_send_path(operation, path))                                                                      \
+    {                                                                                                           \
+        RESERVE_SUBMIT_FILE_ACCESS(code)                                                                        \
+    }                                                                                                           \
+}
+
 #define RESERVE_SUBMIT_FILE_ACCESS_DOUBLE(code)                                                                 \
 {                                                                                                               \
     ebpf_event_double *event = bpf_ringbuf_reserve(&file_access_ring_buffer, sizeof(ebpf_event_double), 0);     \
@@ -91,6 +107,18 @@ static void report_buffer_reservation_failure() {
     code                                                                                                        \
                                                                                                                 \
     bpf_ringbuf_submit(event, get_flags());                                                                     \
+}
+
+/**
+ * Check RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE for details.
+ * In this case we send the event if at least one of the two paths are not in the cache
+ */
+#define RESERVE_SUBMIT_FILE_ACCESS_DOUBLE_WITH_CACHE(operation, path_src, path_dst, code)                       \
+{                                                                                                               \
+    if (should_send_path(operation, path_src) || should_send_path(operation, path_dst))                         \
+    {                                                                                                           \
+        RESERVE_SUBMIT_FILE_ACCESS_DOUBLE(code)                                                                 \
+    }                                                                                                           \
 }
 
 #define RESERVE_SUBMIT_EXEC(code)                                                                               \
@@ -147,6 +175,8 @@ int BPF_PROG(wake_up_new_task, struct task_struct *new_task)
 
     // Add the child that is about to be woken up to the set of processes we care about
     bpf_map_update_elem(&pid_map, &new_pid, &new_pid, BPF_ANY);
+
+    // We don't want to cache clones, use unconditional reserve + submit macro
     RESERVE_SUBMIT_FILE_ACCESS
     (
         event->metadata.kernel_function = KERNEL_FUNCTION(wake_up_new_task);
@@ -175,6 +205,7 @@ int BPF_PROG(bprm_execve_enter, struct linux_binprm *bprm)
         return 0;
     }
 
+    // We don't want to cache execs, use unconditional reserve + submit macro
     RESERVE_SUBMIT_EXEC
     (
         event->metadata.kernel_function = KERNEL_FUNCTION(security_bprm_committed_creds);
@@ -204,6 +235,7 @@ int BPF_PROG(exit_exit, const struct pt_regs *regs, long ret)
         return 0;
     }
 
+    // We don't want to cache exits, use unconditional reserve + submit macro
     RESERVE_SUBMIT_FILE_ACCESS
     (
         event->metadata.pid = pid;
@@ -230,6 +262,7 @@ int BPF_PROG(exit_group_exit, const struct pt_regs *regs, long ret)
         return 0;
     }
 
+    // We don't want to cache exits, use unconditional reserve + submit macro
     RESERVE_SUBMIT_FILE_ACCESS
     (
         event->metadata.pid = pid;
@@ -257,7 +290,10 @@ int BPF_PROG(security_path_rename_enter, const struct path *old_dir, struct dent
         return 0;
     }
 
-    RESERVE_SUBMIT_FILE_ACCESS_DOUBLE({
+    struct path old_path = {.dentry = old_dentry, .mnt = BPF_CORE_READ(old_dir, mnt)};
+    struct path new_path = {.dentry = new_dentry, .mnt = BPF_CORE_READ(new_dir, mnt)};
+
+    RESERVE_SUBMIT_FILE_ACCESS_DOUBLE_WITH_CACHE(kRename, &old_path, &new_path,
         event->metadata.kernel_function = KERNEL_FUNCTION(security_path_rename);
         event->metadata.pid = pid;
         event->metadata.operation_type = kRename;
@@ -265,7 +301,7 @@ int BPF_PROG(security_path_rename_enter, const struct path *old_dir, struct dent
         event->metadata.mode = get_mode(old_dentry);
         deref_path_info(event->src_path, old_dentry, old_dir->mnt);
         deref_path_info(event->dst_path, new_dentry, new_dir->mnt);
-    })
+    )
 
 	return 0;
 }
@@ -288,6 +324,7 @@ int BPF_PROG(do_mkdirat_exit, int dfd, struct filename *name, umode_t mode, int 
         return 0;
     }
 
+    // We don't want to cache mkdir as we need every successful operation on managed side
     RESERVE_SUBMIT_FILE_ACCESS
     (
         event->metadata.kernel_function = KERNEL_FUNCTION(do_mkdirat);
@@ -322,6 +359,7 @@ int BPF_PROG(do_rmdir_exit, int dfd, struct filename *name, int ret)
         return 0;
     }
 
+    // We don't want to cache rmdir as we need every successful operation on managed side
     RESERVE_SUBMIT_FILE_ACCESS
     (
         event->metadata.kernel_function = KERNEL_FUNCTION(do_rmdir);
@@ -349,8 +387,9 @@ int BPF_PROG(security_path_unlink_enter, const struct path *dir, struct dentry *
         return 0;
     }
 
-    RESERVE_SUBMIT_FILE_ACCESS
-    (
+    struct path path = {.dentry = dentry, .mnt = BPF_CORE_READ(dir, mnt)};
+
+    RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(kGenericWrite, &path,
         event->metadata.kernel_function = KERNEL_FUNCTION(security_path_unlink);
         event->metadata.pid = pid;
         event->metadata.operation_type = kGenericWrite;
@@ -378,12 +417,13 @@ int BPF_PROG(security_path_link_entry, struct dentry *old_dentry, const struct p
         return 0;
     }
 
+    struct path new_path = {.dentry = new_dentry, .mnt = BPF_CORE_READ(new_dir, mnt)};
+
     // The link operation involves a write on the newly created link
     // Observe this operation involves a probe on the source as well (old_dentry). But that
     // access is going to get catch by path_lookupat (and reporting it here is harder because
     // we have the old dentry but not the old mount)
-    RESERVE_SUBMIT_FILE_ACCESS
-    (
+    RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(kGenericWrite, &new_path,
         event->metadata.kernel_function = KERNEL_FUNCTION(security_path_link);
         event->metadata.pid = pid;
         event->metadata.operation_type = kGenericWrite;
@@ -416,6 +456,9 @@ int BPF_PROG(path_lookupat_exit, struct nameidata *nd, unsigned flags, struct pa
         return 0;
     }
 
+    // This operation is hard to check against the cache since for absent probes there is no in-memory structure to
+    // represent the path, and using strings is not very performant. For now just keep them out
+    // of the cache, we shouldn't get a big number of absent probes on the same path for the same process
     RESERVE_SUBMIT_FILE_ACCESS
     (
         event->metadata.kernel_function = KERNEL_FUNCTION(path_lookupat);
@@ -450,6 +493,9 @@ int BPF_PROG(path_parentat, struct nameidata *nd, unsigned flags, struct path *p
         return 0;
     }
 
+    // This operation is hard to cache since for absent probes there is no in-memory structure to
+    // represent the path, and using strings is not very performant. For now just keep them out
+    // of the cache, we shouldn't get a big number of absent probes on the same path for the same process
     RESERVE_SUBMIT_FILE_ACCESS
     (
         event->metadata.kernel_function = KERNEL_FUNCTION(path_parentat);
@@ -476,6 +522,20 @@ int BPF_PROG(path_openat_exit, struct nameidata *nd, const struct open_flags *op
         return 0;
     }
 
+    // When openat succeeded, the return value points to the corresponding file structure. Let's check the cache to see whether
+    // we have sent this before.
+    if (!IS_ERR(ret))
+    {
+        struct path path = BPF_CORE_READ(ret, f_path);
+        if (!should_send_path(kGenericProbe, &path))
+        {
+            return 0;
+        }
+    }
+
+    // When this operation fails, it is hard to check the cache since for absent paths there is no in-memory structure to
+    // represent them, and using strings is not very performant. For now just keep them out
+    // of the cache, we shouldn't get a big number of failed opens on the same path for the same process
     RESERVE_SUBMIT_FILE_ACCESS
     (
         event->metadata.kernel_function = KERNEL_FUNCTION(path_openat);
@@ -508,8 +568,7 @@ int BPF_PROG(security_file_open_enter, struct file *file)
     // this is like a probe for bxl, since the file exists but has not been accessed yet
     operation_type eventType = fmode & FMODE_CREATED ? kCreate : kGenericProbe;
 
-    RESERVE_SUBMIT_FILE_ACCESS
-    (
+    RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(eventType, &path,
         event->metadata.kernel_function = KERNEL_FUNCTION(security_file_open);
         event->metadata.pid = pid;
         event->metadata.operation_type = eventType;
@@ -539,8 +598,7 @@ int BPF_PROG(security_file_permission_enter, struct file *file, int mask)
     // security_file_permission
     operation_type eventType = mask == MAY_READ ? kGenericRead : kGenericWrite;
 
-    RESERVE_SUBMIT_FILE_ACCESS
-    (
+    RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(eventType, &path,
         event->metadata.kernel_function = KERNEL_FUNCTION(security_file_permission);
         event->metadata.pid = pid;
         event->metadata.operation_type = eventType;
@@ -555,7 +613,7 @@ int BPF_PROG(security_file_permission_enter, struct file *file, int mask)
  * security_path_symlink_enter() - Security hook for creating symlinks.
  */
 SEC("fentry/security_path_symlink")
-int BPF_PROG(security_path_symlink_enter, const struct path *dir, struct dentry *dentry,
+int BPF_PROG(security_path_symlink_enter, const struct path *parent_dir, struct dentry *dentry,
 			  const char *old_name)
 {
     pid_t pid = bpf_get_current_pid_tgid() >> 32;
@@ -571,13 +629,14 @@ int BPF_PROG(security_path_symlink_enter, const struct path *dir, struct dentry 
         return 0;
     }
 
-    RESERVE_SUBMIT_FILE_ACCESS
-    (
+    struct path path = {.dentry = dentry, .mnt = BPF_CORE_READ(parent_dir, mnt)};
+    
+    RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(kGenericWrite, &path,
         event->metadata.kernel_function = KERNEL_FUNCTION(security_path_symlink);
         event->metadata.pid = pid;
         event->metadata.operation_type = kGenericWrite;
         event->metadata.mode = get_mode(dentry);
-        path_to_string(event->src_path, dir);
+        path_to_string(event->src_path, parent_dir);
         combine_paths(event->src_path, atom);
     )
 
@@ -590,20 +649,21 @@ int BPF_PROG(security_path_symlink_enter, const struct path *dir, struct dentry 
  * This may also be called for regular files.
  */
 SEC("fentry/security_path_mknod")
-int BPF_PROG(security_path_mknod_enter, const struct path *dir, struct dentry *dentry, umode_t mode, unsigned int dev)
+int BPF_PROG(security_path_mknod_enter, const struct path *parent_dir, struct dentry *dentry, umode_t mode, unsigned int dev)
 {
     pid_t pid = bpf_get_current_pid_tgid() >> 32;
     if (!is_valid_pid(pid)) {
         return 0;
     }
 
-    RESERVE_SUBMIT_FILE_ACCESS
-    (
+    struct path path = {.dentry = dentry, .mnt = BPF_CORE_READ(parent_dir, mnt)};
+
+    RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(kCreate, &path,
         event->metadata.kernel_function = KERNEL_FUNCTION(security_path_mknod);
         event->metadata.pid = pid;
         event->metadata.operation_type = kCreate;
         event->metadata.mode = mode;
-        deref_path_info(event->src_path, dentry, BPF_CORE_READ(dir, mnt));
+        deref_path_info(event->src_path, dentry, BPF_CORE_READ(parent_dir, mnt));
     )
 
     return 0;
@@ -629,8 +689,7 @@ int BPF_PROG(security_inode_getattr_exit, const struct path *path, int ret)
         return 0;
     }
 
-    RESERVE_SUBMIT_FILE_ACCESS
-    (
+    RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(kGenericProbe, path,
         event->metadata.kernel_function = KERNEL_FUNCTION(security_inode_getattr);
         event->metadata.pid = pid;
         event->metadata.error = 0;
@@ -677,6 +736,9 @@ int BPF_PROG(do_readlink_exit, int dfd, const char *pathname, char *buf, int buf
         return 0;
     }
 
+    // This operation is hard to check against the cache since its arguments don't give us any in-memory structure to
+    // represent the path, and using strings is not very performant. For now just keep them out
+    // of the cache
     RESERVE_SUBMIT_FILE_ACCESS
     (
         event->metadata.kernel_function = KERNEL_FUNCTION(do_readlinkat);
@@ -692,11 +754,11 @@ int BPF_PROG(do_readlink_exit, int dfd, const char *pathname, char *buf, int buf
 }
 
 /**
- * pick_link_enter() - symlink traversal
+ * pick_link_exit() - symlink traversal
  * we cannot use security_inode_follow_link because it only takes a dentry and we are missing the mount
  */
 SEC("fexit/pick_link")
-int BPF_PROG(pick_link_enter, struct nameidata *nd, struct path *link,
+int BPF_PROG(pick_link_exit, struct nameidata *nd, struct path *link,
     struct inode *inode, int flags, char * ret)
 {
     pid_t pid = bpf_get_current_pid_tgid() >> 32;
@@ -710,8 +772,7 @@ int BPF_PROG(pick_link_enter, struct nameidata *nd, struct path *link,
         return 0;
     }
 
-    RESERVE_SUBMIT_FILE_ACCESS
-    (
+    RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(kGenericRead, link,
         event->metadata.kernel_function = KERNEL_FUNCTION(pick_link_enter);
         event->metadata.pid = pid;
         event->metadata.operation_type = kGenericRead;
@@ -734,13 +795,13 @@ int BPF_PROG(security_path_chown, const struct path *path)
         return 0;
     }
 
-    RESERVE_SUBMIT_FILE_ACCESS({
+    RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(kGenericWrite, path,
         event->metadata.kernel_function = KERNEL_FUNCTION(security_path_chown);
         event->metadata.pid = pid;
         event->metadata.operation_type = kGenericWrite;
         event->metadata.mode = get_mode_from_path(path);
         path_to_string(event->src_path, path);
-    })
+    )
 
 	return 0;
 }
@@ -756,13 +817,13 @@ int BPF_PROG(security_path_chmod, const struct path *path)
         return 0;
     }
 
-    RESERVE_SUBMIT_FILE_ACCESS({
+    RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(kGenericWrite, path,
         event->metadata.kernel_function = KERNEL_FUNCTION(security_path_chmod);
         event->metadata.pid = pid;
         event->metadata.operation_type = kGenericWrite;
         event->metadata.mode = get_mode_from_path(path);
         path_to_string(event->src_path, path);
-    })
+    )
 
 	return 0;
 }
@@ -780,8 +841,7 @@ int BPF_PROG(security_file_truncate, struct file *file)
 
     struct path path = BPF_CORE_READ(file, f_path);
 
-    RESERVE_SUBMIT_FILE_ACCESS
-    (
+    RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(kGenericWrite, &path,
         event->metadata.kernel_function = KERNEL_FUNCTION(security_file_truncate);
         event->metadata.pid = pid;
         path_to_string(event->src_path, &path);
@@ -804,8 +864,7 @@ int BPF_PROG(vfs_utimes, const struct path *path)
         return 0;
     }
 
-    RESERVE_SUBMIT_FILE_ACCESS
-    (
+    RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(kGenericWrite, path,
         event->metadata.kernel_function = KERNEL_FUNCTION(vfs_utimes);
         event->metadata.pid = pid;
         path_to_string(event->src_path, path);

@@ -212,7 +212,8 @@ namespace NugetPackages {
 
             // BuildXL.SBOMUtilities
             ...addIf(BuildXLSdk.Flags.isMicrosoftInternal, 
-                importFrom("BuildXL.Utilities").withQualifier(net8PackageQualifier).SBOMUtilities.dll
+                importFrom("BuildXL.Utilities").withQualifier(net8PackageQualifier).SBOMUtilities.dll,
+                importFrom("BuildXL.Utilities").withQualifier(net9PackageQualifier).SBOMUtilities.dll
             ),
 
             // BuildXL.Instrumentation.Tracing

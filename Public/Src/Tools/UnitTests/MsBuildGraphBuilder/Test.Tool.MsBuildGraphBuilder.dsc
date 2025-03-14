@@ -31,12 +31,7 @@ namespace Test.Tool.MsBuildGraphBuilder {
             ...MSBuild.msbuildReferences,
         ],
         runtimeContent: [
-            // Remove some of the dependencies to avoid a clash between two different versions being deployed.
-            ...MSBuild.msbuildRuntimeContent.filter(
-                dep => typeof dep === "File" || 
-                    (dep.name !== "System.Numerics.Vectors" && 
-                    dep.name !== "System.Runtime.CompilerServices.Unsafe" && 
-                    dep.name !== "System.Collections.Immutable.dll")),
+            ...MSBuild.msbuildRuntimeContent,
             ...MSBuild.msbuildReferences,
         ],
         runtimeContentToSkip: [

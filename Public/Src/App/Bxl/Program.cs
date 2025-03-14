@@ -37,7 +37,11 @@ namespace BuildXL
         public static int Main(string[] rawArgs)
         {
             // TODO:#1208464 - this can be removed once BuildXL targets .net or newer 4.7 where TLS 1.2 is enabled by default
+#pragma warning disable SYSLIB0014 // Type or member is obsolete. This setting is not used by HttpClient but it is
+                                   // used by other classes (which are also obsolete starting Net9) that are present
+                                   // in our codebase.
             ServicePointManager.SecurityProtocol = ServicePointManager.SecurityProtocol | SecurityProtocolType.Tls12;
+#pragma warning restore SYSLIB0014 // Type or member is obsolete
 
             Program p = new Program(rawArgs);
 

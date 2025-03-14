@@ -5,6 +5,7 @@ const coreVersion = "3.1.0";
 const core50Version = "5.0.0";
 const core60Version = "6.0.33";
 const core80Version = "8.0.12";
+const core90Version = "9.0.1";
 
 // Microsoft.NETCore.Platforms has become out of sync with the rest of the packages that use core60Version
 // Updaters of this file might want to try to restore the sync: for now we are using the latest version we can
@@ -63,26 +64,55 @@ export const pkgs = [
         // This dll has a partial copy of System.Text.Json which causes collisions with real System.Text.Json
         filesToExclude: [r`analyzers/dotnet/cs/System.Text.Json.SourceGeneration.dll`] },
 
-    { id: "Microsoft.NETCore.Platforms", version: core80VersionPlatforms, alias: "Microsoft.NETCore.Platforms.8.0" },
+    // .NET Core win-x64 runtime deps
+    { id: "Microsoft.NETCore.App.Host.win-x64", version: core80Version, osSkip: [ "macOS", "unix" ], alias: "Microsoft.NETCore.App.Host.win-x64.8.0" },
+    { id: "Microsoft.NETCore.App.Runtime.win-x64", version: core80Version, osSkip: [ "macOS", "unix" ], alias: "Microsoft.NETCore.App.Runtime.win-x64.8.0" },
+
+    // .NET Core osx-x64 runtime deps
+    { id: "Microsoft.NETCore.App.Host.osx-x64", version: core80Version, alias: "Microsoft.NETCore.App.Host.osx-x64.8.0" },
+    { id: "Microsoft.NETCore.App.Runtime.osx-x64", version: core80Version, alias: "Microsoft.NETCore.App.Runtime.osx-x64.8.0"},
+
+
+    // .NET Core linux-x64 runtime deps
+    { id: "Microsoft.NETCore.App.Runtime.linux-x64", version: core80Version, alias: "Microsoft.NETCore.App.Runtime.linux-x64.8.0" },
+    { id: "Microsoft.NETCore.App.Host.linux-x64", version: core80Version, alias: "Microsoft.NETCore.App.Host.linux-x64.8.0" },
+
+
+    // .NET 9
+    // Note: Microsoft.NETCore.DotNetHostResolver packages are out of sync with the rest of the packages. For now we are using
+    // the latest version we can. If version core90Version packages became available, we should use them instead. In such a case,
+    // we should also but preserve core80Version packages for .Net 8.
+    // CODESYNC: Public\Sdk\Public\Managed\Frameworks\net9\net9.0.dsc
+
+    // .NET Core 9.0 Dependencies
+    { id: "Microsoft.NETCore.App.Ref", version: core90Version, alias: "Microsoft.NETCore.App.Ref90",
+        // This dll has a partial copy of System.Text.Json which causes collisions with real System.Text.Json
+        filesToExclude: [r`analyzers/dotnet/cs/System.Text.Json.SourceGeneration.dll`] },
+
+    // See the comment re the version used.
+    { id: "Microsoft.NETCore.Platforms", version: core80VersionPlatforms, alias: "Microsoft.NETCore.Platforms.9.0" },
     
     // .NET Core Self-Contained Deployment
     { id: "Microsoft.NETCore.DotNetHostPolicy", version: core80Version, alias: "Microsoft.NETCore.DotNetHostPolicy.8.0" },
 
     // .NET Core win-x64 runtime deps
-    { id: "Microsoft.NETCore.App.Host.win-x64", version: core80Version, osSkip: [ "macOS", "unix" ], alias: "Microsoft.NETCore.App.Host.win-x64.8.0" },
-    { id: "Microsoft.NETCore.App.Runtime.win-x64", version: core80Version, osSkip: [ "macOS", "unix" ], alias: "Microsoft.NETCore.App.Runtime.win-x64.8.0" },
+    { id: "Microsoft.NETCore.App.Host.win-x64", version: core90Version, osSkip: [ "macOS", "unix" ], alias: "Microsoft.NETCore.App.Host.win-x64.9.0" },
+    { id: "Microsoft.NETCore.App.Runtime.win-x64", version: core90Version, osSkip: [ "macOS", "unix" ], alias: "Microsoft.NETCore.App.Runtime.win-x64.9.0" },
+    // See the comment re the version used.
     { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver", version: core80Version, osSkip: [ "macOS", "unix" ], alias: "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver.8.0" },
     { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy", version: core80Version, osSkip: [ "macOS", "unix" ], alias: "runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy.8.0" },
 
     // .NET Core osx-x64 runtime deps
-    { id: "Microsoft.NETCore.App.Host.osx-x64", version: core80Version, alias: "Microsoft.NETCore.App.Host.osx-x64.8.0" },
-    { id: "Microsoft.NETCore.App.Runtime.osx-x64", version: core80Version, alias: "Microsoft.NETCore.App.Runtime.osx-x64.8.0"},
+    { id: "Microsoft.NETCore.App.Host.osx-x64", version: core90Version, alias: "Microsoft.NETCore.App.Host.osx-x64.9.0" },
+    { id: "Microsoft.NETCore.App.Runtime.osx-x64", version: core90Version, alias: "Microsoft.NETCore.App.Runtime.osx-x64.9.0"},
+    // See the comment re the version used.
     { id: "runtime.osx-x64.Microsoft.NETCore.DotNetHostResolver", version: core80Version, alias: "runtime.osx-x64.Microsoft.NETCore.DotNetHostResolver.8.0" },
     { id: "runtime.osx-x64.Microsoft.NETCore.DotNetHostPolicy", version: core80Version, alias: "runtime.osx-x64.Microsoft.NETCore.DotNetHostPolicy.8.0" },
 
     // .NET Core linux-x64 runtime deps
-    { id: "Microsoft.NETCore.App.Runtime.linux-x64", version: core80Version, alias: "Microsoft.NETCore.App.Runtime.linux-x64.8.0" },
-    { id: "Microsoft.NETCore.App.Host.linux-x64", version: core80Version, alias: "Microsoft.NETCore.App.Host.linux-x64.8.0" },
+    { id: "Microsoft.NETCore.App.Runtime.linux-x64", version: core90Version, alias: "Microsoft.NETCore.App.Runtime.linux-x64.9.0" },
+    { id: "Microsoft.NETCore.App.Host.linux-x64", version: core90Version, alias: "Microsoft.NETCore.App.Host.linux-x64.9.0" },
+    // See the comment re the version used.
     { id: "runtime.linux-x64.Microsoft.NETCore.DotNetHostResolver", version: core80Version, alias: "runtime.linux-x64.Microsoft.NETCore.DotNetHostResolver.8.0" },
     { id: "runtime.linux-x64.Microsoft.NETCore.DotNetHostPolicy", version: core80Version, alias: "runtime.linux-x64.Microsoft.NETCore.DotNetHostPolicy.8.0" },
 

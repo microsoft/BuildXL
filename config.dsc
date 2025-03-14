@@ -341,7 +341,7 @@ config({
                 { id: "boost", version: "1.71.0.0" },
 
                 // Needed for SBOM Generation
-                { id: "Microsoft.Extensions.Logging.Abstractions", version: "8.0.0" },
+                { id: "Microsoft.Extensions.Logging.Abstractions", version: "9.0.0" },
                 { id: "packageurl-dotnet", version: "1.1.0" },
                 { id: "System.Reactive", version: "6.0.1" },
 
@@ -390,6 +390,7 @@ config({
         // .NET Runtimes.
         { kind: "SourceResolver", modules: [f`Public\Sdk\SelfHost\Libraries\Dotnet-Runtime-6-External\module.config.dsc`] },
         { kind: "SourceResolver", modules: [f`Public\Sdk\SelfHost\Libraries\Dotnet-Runtime-8-External\module.config.dsc`] },
+        { kind: "SourceResolver", modules: [f`Public\Sdk\SelfHost\Libraries\Dotnet-Runtime-9-External\module.config.dsc`] },
 
         {
             kind: "Download",
@@ -400,6 +401,26 @@ config({
                     moduleName: "Apple.Darwin.Xnu",
                     url: "https://github.com/apple/darwin-xnu/archive/xnu-4903.221.2.tar.gz",
                     hash: "VSO0:D6D26AEECA99240D2D833B6B8B811609B9A6E3516C0EE97A951B64F9AA4F90F400",
+                    archiveType: "tgz",
+                },
+
+                // DotNet Core Runtime 9.0.2
+                {
+                    moduleName: "DotNet-Runtime.win-x64.9.0", 
+                    url: "https://builds.dotnet.microsoft.com/dotnet/Runtime/9.0.2/dotnet-runtime-9.0.2-win-x64.zip",
+                    hash: "VSO0:3BB884A9A8C8E70A836EBFDB58B951D7D25DF4E73FF85E446D5EF10F2A1343F000",
+                    archiveType: "zip",
+                },
+                {
+                    moduleName: "DotNet-Runtime.osx-x64.9.0",
+                    url: "https://builds.dotnet.microsoft.com/dotnet/Runtime/9.0.2/dotnet-runtime-9.0.2-osx-x64.tar.gz",
+                    hash: "VSO0:99A695E5D1ECBDC32A167EB5D0D6623173BCB9CA82BD04FF3D4F20964C78FE9100",
+                    archiveType: "tgz",
+                },
+                {
+                    moduleName: "DotNet-Runtime.linux-x64.9.0",
+                    url: "https://builds.dotnet.microsoft.com/dotnet/Runtime/9.0.2/dotnet-runtime-9.0.2-linux-x64.tar.gz",
+                    hash: "VSO0:6A775F79CBC3FFFBD9F88C7F3C78D08EDDCE6194F4B2619E779C9125F8698DE700",
                     archiveType: "tgz",
                 },
 
@@ -519,6 +540,11 @@ config({
                 targetFramework: "net472",
                 targetRuntime: "win-x64",
             },
+            DebugNet9: {
+                configuration: "debug",
+                targetFramework: "net9.0",
+                targetRuntime: "win-x64",
+            },
             DebugNet8: {
                 configuration: "debug",
                 targetFramework: "net8.0",
@@ -534,6 +560,11 @@ config({
                 targetFramework: "net8.0",
                 targetRuntime: "osx-x64",
             },
+            DebugDotNetCoreMacNet9: {
+                configuration: "debug",
+                targetFramework: "net9.0",
+                targetRuntime: "osx-x64",
+            },
             DebugDotNetCoreMacNet8: {
                 configuration: "debug",
                 targetFramework: "net8.0",
@@ -542,6 +573,11 @@ config({
             DebugLinux: {
                 configuration: "debug",
                 targetFramework: "net8.0",
+                targetRuntime: "linux-x64",
+            },
+            DebugLinuxNet9: {
+                configuration: "debug",
+                targetFramework: "net9.0",
                 targetRuntime: "linux-x64",
             },
             DebugLinuxNet8: {

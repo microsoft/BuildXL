@@ -271,8 +271,8 @@ export function getDotNetCoreVersion(cscArguments: Arguments): Shared.DotNetCore
         return "net8.0";
     }
 
-    if (cscArguments.defines.some(e => e === "NET8_0")) {
-        return "net8.0";
+    if (cscArguments.defines.some(e => e === "NET9_0")) {
+        return "net9.0";
     }
 
     return "net8.0";

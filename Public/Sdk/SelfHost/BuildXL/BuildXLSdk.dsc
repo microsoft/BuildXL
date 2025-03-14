@@ -133,13 +133,13 @@ export interface InternalsVisibleToArguments {
  * Returns true if the current qualifier is targeting .NET Core or .NET Standard
  */
 @@public
-export const isDotNetCoreOrStandard : boolean = qualifier.targetFramework === "netstandard2.0" || qualifier.targetFramework === "net6.0" || qualifier.targetFramework === "net8.0";
+export const isDotNetCoreOrStandard : boolean = qualifier.targetFramework === "netstandard2.0" || qualifier.targetFramework === "net6.0" || qualifier.targetFramework === "net8.0" || qualifier.targetFramework === "net9.0";
 
 /**
  * Returns true if the current qualifier is targeting .NET Core
  */
 @@public
-export const isDotNetCore : boolean = qualifier.targetFramework === "net6.0" || qualifier.targetFramework === "net8.0";
+export const isDotNetCore : boolean = qualifier.targetFramework === "net6.0" || qualifier.targetFramework === "net8.0" || qualifier.targetFramework === "net9.0";
 
 @@public
 export const isFullFramework : boolean = qualifier.targetFramework === "net472";
@@ -170,7 +170,7 @@ export const targetFrameworkMatchesCurrentHost =
 export const restrictTestRunToSomeQualifiers =
     qualifier.configuration !== "debug" ||
     // Running tests for .NET Core App 3.0, .NET 5 and 4.7.2 frameworks only.
-    (qualifier.targetFramework !== "net6.0" && qualifier.targetFramework !== "net8.0" && qualifier.targetFramework !== "net472") ||
+    (qualifier.targetFramework !== "net6.0" && qualifier.targetFramework !== "net8.0" && qualifier.targetFramework !== "net9.0" && qualifier.targetFramework !== "net472") ||
     !targetFrameworkMatchesCurrentHost;
 
 /***
@@ -575,8 +575,8 @@ export function cacheBindingRedirects() {
                 name: "Microsoft.Bcl.AsyncInterfaces",
                 publicKeyToken: "cc7b13ffcd2ddd51",
                 culture: "neutral",
-                oldVersion: "0.0.0.0-6.0.0.0",
-                newVersion: "6.0.0.0", // Corresponds to: { id: "Microsoft.Bcl.AsyncInterfaces", version: "6.0.0" },
+                oldVersion: "0.0.0.0-9.0.0.0",
+                newVersion: "9.0.0.0", // Corresponds to: { id: "Microsoft.Bcl.AsyncInterfaces", version: "9.0.0" },
             },
             {
                 name: "System.Threading.Tasks.Extensions", // Version=4.2.0.1, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51
@@ -909,7 +909,7 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
     }
 
     // Required members are needed for all target frameworks prior net7.
-    if (qualifier.targetFramework !== "net8.0" && args.addPolySharpAttributes !== false) {
+    if (qualifier.targetFramework !== "net8.0" && qualifier.targetFramework !== "net9.0" && args.addPolySharpAttributes !== false) {
         polySharpAttributeFiles = polySharpAttributeFiles.concat([polySharpAttributes.required, polySharpAttributes.setsRequiredMembers, polySharpAttributes.compilerFeatureRequired, polySharpAttributes.stringSyntax]);
     }
 

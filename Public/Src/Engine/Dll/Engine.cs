@@ -2279,7 +2279,11 @@ namespace BuildXL.Engine
             // the default value is 2 which is way too low for us.  The primary consumer of Http at this point is Cache.
             // Each cache query makes approximately 1 GetSelectorsCall, 1 concurrent GetContentHashList call
             // and up to 2 additional blob calls to (pre-)fetch files.
+#pragma warning disable SYSLIB0014 // Type or member is obsolete. This setting is not used by HttpClient but it is
+                                   // used by other classes (which are also obsolete starting Net9) that are present
+                                   // in our codebase. The default value used by HttpClient is int.MaxValue.
             ServicePointManager.DefaultConnectionLimit = int.MaxValue;
+#pragma warning restore SYSLIB0014 // Type or member is obsolete
         }
 
         /// <summary>

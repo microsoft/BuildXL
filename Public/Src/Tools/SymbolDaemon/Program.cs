@@ -22,7 +22,9 @@ namespace Tool.SymbolDaemon
         public static int Main(string[] args)
         {
             // TODO:#1208464 - this can be removed once SymbolDaemon targets .net 4.7 or newer where TLS 1.2 is enabled by default
+#pragma warning disable SYSLIB0014 // Type or member is obsolete
             ServicePointManager.SecurityProtocol = ServicePointManager.SecurityProtocol | SecurityProtocolType.Tls12;
+#pragma warning restore SYSLIB0014 // Type or member is obsolete
 
             try
             {

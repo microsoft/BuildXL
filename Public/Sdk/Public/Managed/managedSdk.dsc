@@ -52,7 +52,7 @@ export function assembly(args: Arguments, targetType: Csc.TargetType) : Result {
     let framework = args.framework || Frameworks.framework;
     if (!framework)
     {
-        Contract.fail("You must specify a .NET framework. For exmple: 'importFrom(\"Sdk.Managed.Frameworks.Net472\").framework' ");
+        Contract.fail("You must specify a .NET framework. For example: 'importFrom(\"Sdk.Managed.Frameworks.Net472\").framework' ");
     }
     if (framework.targetFramework !== qualifier.targetFramework)
     {
@@ -81,10 +81,16 @@ export function assembly(args: Arguments, targetType: Csc.TargetType) : Result {
         ...addIf(qualifier.targetRuntime === "win-x64" && qualifier.targetFramework === "netstandard2.0" && qualifier.configuration === "debug", "CompileNetStandard20", "CompileWin"),
         ...addIf(qualifier.targetRuntime === "win-x64" && qualifier.targetFramework === "net6.0" && qualifier.configuration === "debug", "CompileDebugNet6Win", "CompileWin"),
         ...addIf(qualifier.targetRuntime === "win-x64" && qualifier.targetFramework === "net8.0" && qualifier.configuration === "debug", "CompileDebugNet8Win", "CompileWin"),
+        ...addIf(qualifier.targetRuntime === "win-x64" && qualifier.targetFramework === "net9.0" && qualifier.configuration === "debug", "CompileDebugNet9Win", "CompileWin"),
         
         ...addIf(qualifier.targetRuntime === "osx-x64" && qualifier.targetFramework === "net6.0" && qualifier.configuration === "debug", "CompileNet6Osx", "CompileOsx"),
+        ...addIf(qualifier.targetRuntime === "osx-x64" && qualifier.targetFramework === "net8.0" && qualifier.configuration === "debug", "CompileNet8Osx", "CompileOsx"),
+        ...addIf(qualifier.targetRuntime === "osx-x64" && qualifier.targetFramework === "net8.0" && qualifier.configuration === "debug", "CompileNet9Osx", "CompileOsx"),
         
-        ...addIf(qualifier.targetRuntime === "linux-x64" && qualifier.targetFramework === "net6.0" && qualifier.configuration === "debug", "CompileNet6Linux", "CompileLinux")];
+        ...addIf(qualifier.targetRuntime === "linux-x64" && qualifier.targetFramework === "net6.0" && qualifier.configuration === "debug", "CompileNet6Linux", "CompileLinux"),
+        ...addIf(qualifier.targetRuntime === "linux-x64" && qualifier.targetFramework === "net8.0" && qualifier.configuration === "debug", "CompileNet8Linux", "CompileLinux"),
+        ...addIf(qualifier.targetRuntime === "linux-x64" && qualifier.targetFramework === "net9.0" && qualifier.configuration === "debug", "CompileNet9Linux", "CompileLinux"),
+    ];
 
     // csc
     let outputFileName = name + targetTypeToFileExtension(targetType, args.deploymentStyle);

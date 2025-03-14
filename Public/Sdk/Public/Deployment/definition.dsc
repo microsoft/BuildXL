@@ -29,7 +29,7 @@ export interface DeploymentOptions {
 export type DeployableItem = File | StaticDirectory | RenamedFile | Definition | NestedDefinition | Deployable;
 
 /**
- * Indicates a renamed file in the deployment definiton
+ * Indicates a renamed file in the deployment definition
  */
 @@public
 export interface RenamedFile {
@@ -73,7 +73,7 @@ export interface FlattenedResult {
 
 /** 
  * Helper type alias for handling duplicate file deployments. It can decide to return one or the other, but commonly it should just fail.
- * The canaonical implementation is Diagnostics.reportDuplicateError 
+ * The canonical implementation is Diagnostics.reportDuplicateError 
  */
 @@public
 export type HandleDuplicateFileDeployment =  (targetFile: RelativePath, sourceA: DeployedFileWithProvenance, sourceB: DeployedFileWithProvenance, message?: string) => DeployedFileAction;

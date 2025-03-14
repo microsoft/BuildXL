@@ -683,7 +683,9 @@ namespace Tool.ServicePipDaemon
 
             if (minServicePointParallelism.HasValue)
             {
+#pragma warning disable SYSLIB0014 // Type or member is obsolete
                 ServicePointManager.DefaultConnectionLimit = Math.Max(minServicePointParallelism.Value, ServicePointManager.DefaultConnectionLimit);
+#pragma warning restore SYSLIB0014 // Type or member is obsolete
             }
         }
 

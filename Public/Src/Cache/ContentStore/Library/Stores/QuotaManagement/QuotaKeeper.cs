@@ -360,7 +360,7 @@ namespace BuildXL.Cache.ContentStore.Stores
         /// <summary>
         /// Gets the current number of content bytes.
         /// </summary>
-        public long CurrentSize => Thread.VolatileRead(ref _allContentSize);
+        public long CurrentSize => Volatile.Read(ref _allContentSize);
 
         /// <summary>
         /// Helper method for handling <see cref="QuotaRequest"/>

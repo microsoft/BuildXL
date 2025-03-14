@@ -77,6 +77,7 @@ function getQTestDotNetFramework() : Qtest.QTestDotNetFramework {
             return Qtest.QTestDotNetFramework.framework46;
         case "net6.0":
         case "net8.0":
+        case "net9.0":
             return Qtest.QTestDotNetFramework.frameworkCore30;
         default:
             Contract.fail("QTest does not support " + qualifier.targetFramework);

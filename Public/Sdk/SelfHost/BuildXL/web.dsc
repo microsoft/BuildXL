@@ -10,7 +10,8 @@ namespace WebFramework {
         return Shared.Factory.createFrameworkPackage(
             importPackage(
                 () => importFrom("Microsoft.AspNetCore.App.Ref.6.0.0").pkg, 
-                () => importFrom("Microsoft.AspNetCore.App.Ref.8.0.0").pkg),
+                () => importFrom("Microsoft.AspNetCore.App.Ref.8.0.0").pkg,
+                () => importFrom("Microsoft.AspNetCore.App.Ref.9.0.0").pkg),
             getRuntimePackage(),
             a`${qualifier.targetRuntime}`,
             a`${qualifier.targetFramework}`
@@ -22,24 +23,28 @@ namespace WebFramework {
             case "win-x64":
                 return importPackage(
                     () => importFrom("Microsoft.AspNetCore.App.Runtime.win-x64.6.0.0").pkg,
-                    () => importFrom("Microsoft.AspNetCore.App.Runtime.win-x64.8.0.0").pkg);
+                    () => importFrom("Microsoft.AspNetCore.App.Runtime.win-x64.8.0.0").pkg,
+                    () => importFrom("Microsoft.AspNetCore.App.Runtime.win-x64.9.0.0").pkg);
             case "osx-x64":
                 return importPackage(
                     () => importFrom("Microsoft.AspNetCore.App.Runtime.osx-x64.6.0.0").pkg,
-                    () => importFrom("Microsoft.AspNetCore.App.Runtime.osx-x64.8.0.0").pkg);
+                    () => importFrom("Microsoft.AspNetCore.App.Runtime.osx-x64.8.0.0").pkg,
+                    () => importFrom("Microsoft.AspNetCore.App.Runtime.osx-x64.9.0.0").pkg);
             case "linux-x64":
                 return importPackage(
                     () => importFrom("Microsoft.AspNetCore.App.Runtime.linux-x64.6.0.0").pkg,
-                    () => importFrom("Microsoft.AspNetCore.App.Runtime.linux-x64.8.0.0").pkg);
+                    () => importFrom("Microsoft.AspNetCore.App.Runtime.linux-x64.8.0.0").pkg,
+                    () => importFrom("Microsoft.AspNetCore.App.Runtime.linux-x64.9.0.0").pkg);
             default:
                 Contract.fail("Unsupported target framework");
         }
     }
 
-    function importPackage(net60: () => Shared.ManagedNugetPackage, net80: () => Shared.ManagedNugetPackage) : Shared.ManagedNugetPackage {
+    function importPackage(net60: () => Shared.ManagedNugetPackage, net80: () => Shared.ManagedNugetPackage, net90: () => Shared.ManagedNugetPackage) : Shared.ManagedNugetPackage {
         switch (qualifier.targetFramework) {
             case "net6.0": return net60();
             case "net8.0": return net80();
+            case "net9.0": return net90();
             default: Contract.fail(`Unsupported target framework ${qualifier.targetFramework}.`);
         }
     }

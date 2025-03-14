@@ -404,23 +404,23 @@ config({
                     archiveType: "tgz",
                 },
 
-                // DotNet Core Runtime 9.0.2
+                // DotNet Core Runtime 9.0.3
                 {
                     moduleName: "DotNet-Runtime.win-x64.9.0", 
-                    url: "https://builds.dotnet.microsoft.com/dotnet/Runtime/9.0.2/dotnet-runtime-9.0.2-win-x64.zip",
-                    hash: "VSO0:3BB884A9A8C8E70A836EBFDB58B951D7D25DF4E73FF85E446D5EF10F2A1343F000",
+                    url: "https://download.visualstudio.microsoft.com/download/pr/00ea272c-9902-4b5c-b638-18793f44622f/c33b500211f70908ed8370e65a7b3472/dotnet-runtime-9.0.3-win-x64.zip",
+                    hash: "VSO0:20101BAF51C8753C0993CE6ECB32B820681562D1C439C559085F92C466012E7200",
                     archiveType: "zip",
                 },
                 {
                     moduleName: "DotNet-Runtime.osx-x64.9.0",
-                    url: "https://builds.dotnet.microsoft.com/dotnet/Runtime/9.0.2/dotnet-runtime-9.0.2-osx-x64.tar.gz",
-                    hash: "VSO0:99A695E5D1ECBDC32A167EB5D0D6623173BCB9CA82BD04FF3D4F20964C78FE9100",
+                    url: "https://download.visualstudio.microsoft.com/download/pr/b4b321f3-ee2b-46e5-96eb-8c809a901ecb/252a64bf8c5b5b196764c5b301357249/dotnet-runtime-9.0.3-osx-x64.tar.gz",
+                    hash: "VSO0:E8D9E49AE812D4BADA9C00E85C276A731AF668A110C4A32C20DC922FEA020DC500",
                     archiveType: "tgz",
                 },
                 {
                     moduleName: "DotNet-Runtime.linux-x64.9.0",
-                    url: "https://builds.dotnet.microsoft.com/dotnet/Runtime/9.0.2/dotnet-runtime-9.0.2-linux-x64.tar.gz",
-                    hash: "VSO0:6A775F79CBC3FFFBD9F88C7F3C78D08EDDCE6194F4B2619E779C9125F8698DE700",
+                    url: "https://download.visualstudio.microsoft.com/download/pr/a58fcc04-99ee-4dea-aa5d-d6d22c4040dc/4433f4e97ad4658bd76f52acc1cb9c21/dotnet-runtime-9.0.3-linux-x64.tar.gz",
+                    hash: "VSO0:C75E6362F55C335D36330F994563670E47620DE2DEA85746F746F9762B57D4DD00",
                     archiveType: "tgz",
                 },
 

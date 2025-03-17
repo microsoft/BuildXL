@@ -213,8 +213,19 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                         traceOperationStarted: false,
                         extraEndMessage: r => $"Account=[{accountName}] ContinuationToken=[{continuationToken ?? "null"}], HasMore=[{(r.Succeeded ? r.Value : null)}], NextContinuationToken=[{((r.Succeeded && r.Value is not null) ? enumerator.Current.ContinuationToken : null)}]");
 
-                    await channel.Writer.WriteAsync(hasMoreResult, context.Token);
                     hasMoreResult.ThrowIfFailure(unwrap: true);
+
+                    try
+                    {
+                        await channel.Writer.WriteAsync(hasMoreResult, context.Token);
+                    }
+                    catch
+                    {
+                        // We failed to write to the channel. This is unrecoverable, and we'll fail. We should still
+                        // dispose of the response.
+                        hasMoreResult.Value?.GetRawResponse().Dispose();
+                        throw;
+                    }
 
                     if (hasMoreResult.Value is null)
                     {
@@ -299,32 +310,47 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                         }
 
                         var page = readPageResult.Value!;
-                        var maxDateProcessed = await ProcessPageAsync(context, page, accountName, continuationToken);
-                        if (context.Token.IsCancellationRequested)
+                        try
                         {
-                            return new BoolResult("Cancellation was requested");
-                        }
+                            var maxDateProcessed = await ProcessPageAsync(context, page, accountName, continuationToken);
+                            if (context.Token.IsCancellationRequested)
+                            {
+                                return new BoolResult("Cancellation was requested");
+                            }
 
-                        if (!maxDateProcessed.Succeeded)
-                        {
-                            return maxDateProcessed;
-                        }
+                            if (!maxDateProcessed.Succeeded)
+                            {
+                                return maxDateProcessed;
+                            }
 
-                        continuationToken = page.ContinuationToken;
-                        if (continuationToken is not null)
-                        {
-                            _db.SetCursor(accountName.AccountName, continuationToken);
-                        }
+                            continuationToken = page.ContinuationToken;
+                            if (continuationToken is not null)
+                            {
+                                _db.SetCursor(accountName.AccountName, continuationToken);
+                            }
 
-                        // This ensures we only process pages until a fixed point in time across all accounts, so we have a
-                        // "consistent" view of the change feed (note: it's actually impossible to have consistency).
-                        if (maxDateProcessed.Value > now)
-                        {
+                            // This ensures we only process pages until a fixed point in time across all accounts, so we have a
+                            // "consistent" view of the change feed (note: it's actually impossible to have consistency).
+                            if (maxDateProcessed.Value > now)
+                            {
+                                return BoolResult.Success;
+                            }
+
+                            doneProcessingItems = false;
                             return BoolResult.Success;
                         }
-
-                        doneProcessingItems = false;
-                        return BoolResult.Success;
+                        finally
+                        {
+                            try
+                            {
+                                page.GetRawResponse().Dispose();
+                            }
+                            catch (Exception ex)
+                            {
+                                // We don't want to fail this operation because of a failure to dispose the response.
+                                Tracer.Error(context, ex, $"Failed to dispose page. Account=[{accountName}] ContinuationToken=[{continuationToken ?? "null"}] PageSize=[{page.Values.Count}]");
+                            }
+                        }
                     });
 
                     if (!lockResult.Succeeded || !lockResult.Value.Succeeded)

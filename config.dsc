@@ -424,23 +424,23 @@ config({
                     archiveType: "tgz",
                 },
 
-                // DotNet Core Runtime 8.0.11
+                // DotNet Core Runtime 8.0.14
                 {
                     moduleName: "DotNet-Runtime.win-x64.8.0", 
-                    url: "https://download.visualstudio.microsoft.com/download/pr/92f9abc6-1e19-40cd-82cf-670be98d3533/46e1346503f4b54418bf9d5f861f1d43/dotnet-runtime-8.0.11-win-x64.zip",
-                    hash: "VSO0:B05E6BD49224FC0BFF524B81CD014449C2A6224EB1D23D02F73F9B4C26C924EB00",
+                    url: "https://download.visualstudio.microsoft.com/download/pr/c150ceab-27e2-489e-94e1-a3c55d13a07f/41fe3d1d9850f0d8140d1d38cd84b04c/dotnet-runtime-8.0.14-win-x64.zip",
+                    hash: "VSO0:083C9B7C7C7AA00EC13C92FA0416F2513B81758040F234873B9510CC00131CB600",
                     archiveType: "zip",
                 },
                 {
                     moduleName: "DotNet-Runtime.osx-x64.8.0",
-                    url: "https://download.visualstudio.microsoft.com/download/pr/f32ae8ed-e8e3-4d1b-8425-852696e4dbe6/1f67d82ebd50b27574ccc4a06b2500b8/dotnet-runtime-8.0.11-osx-x64.tar.gz",
-                    hash: "VSO0:FFD7267B1F7F4541F3F2C0CA2FC95EFDC8068E309E16183DF69E8D8BF681344300",
+                    url: "https://download.visualstudio.microsoft.com/download/pr/521020c8-7a44-4b39-b34d-8c82b1b8a5b0/d5e9928ff69dcc6b2c491fc87853109f/dotnet-runtime-8.0.14-osx-x64.tar.gz",
+                    hash: "VSO0:3B49B92B05AC1ABC3633CDFC654D29A2DDF750E5F4E00AA76C82A00FF8560C7300",
                     archiveType: "tgz",
                 },
                 {
                     moduleName: "DotNet-Runtime.linux-x64.8.0",
-                    url: "https://download.visualstudio.microsoft.com/download/pr/805cdca8-ac43-4d76-8ce8-efd11f1997f2/17aeb8b0cd34c6f8d80217bf6a4ed3cd/dotnet-runtime-8.0.11-linux-x64.tar.gz",
-                    hash: "VSO0:82876FB1F40B19C7ABDF2F9304496ED317D90761B9C51B400424CB742F7A9C2600",
+                    url: "https://download.visualstudio.microsoft.com/download/pr/a52595b3-f025-4bcd-a3fe-b6091e276d76/4c0d27fd34b79bf7c21ba401b84c76e4/dotnet-runtime-8.0.14-linux-x64.tar.gz",
+                    hash: "VSO0:574B8D4455D1FDBF8A7FE4CC2A910539C103E1043762F814823FEAE1A1DB667600",
                     archiveType: "tgz",
                 },
 

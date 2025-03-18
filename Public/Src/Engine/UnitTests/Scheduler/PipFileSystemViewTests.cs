@@ -4,6 +4,7 @@
 using System.Collections.Generic;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Native.IO;
+using BuildXL.Processes;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration.Mutable;
 using Test.BuildXL.Scheduler.Utils;
@@ -39,11 +40,16 @@ namespace Test.BuildXL.Scheduler
         private static readonly string s_l = A("c", "a", "j", "k", "l");
         private static readonly HashSet<string> s_emptySet = new();
 
+        private Harness CreateHarness()
+        {
+            return new Harness(TestOutputDirectory, GetEBPFAwareSandboxConnection());
+        }
+
         [Fact]
         public void Basic()
         {
             // PipOne tests
-            var harness1 = new Harness(TestOutputDirectory);
+            var harness1 = CreateHarness();
             harness1.AddPath(s_c);
             harness1.AddPath(s_d);
             harness1.AddPath(s_e);
@@ -53,18 +59,18 @@ namespace Test.BuildXL.Scheduler
             harness1.EnumerateDirAndAssert(s_a, expectedPaths: new HashSet<string> { s_b });
 
             // PipTwo tests
-            var harness2 = new Harness(TestOutputDirectory);
+            var harness2 = CreateHarness();
             harness2.AddPath(s_h);
             harness2.EnumerateDirAndAssert(s_b, expectedPaths: new HashSet<string> { s_g });
 
             // PipThree tests
-            var harness3 = new Harness(TestOutputDirectory);
+            var harness3 = CreateHarness();
             harness3.AddPath(s_b);
             harness3.EnumerateDirAndAssert(s_b, expectedPaths: s_emptySet);
             harness3.EnumerateDirAndAssert(s_a, expectedPaths: new HashSet<string> { s_b });
 
             // PipFour tests
-            var harness4 = new Harness(TestOutputDirectory);
+            var harness4 = CreateHarness();
             harness4.AddPath(s_l);
             harness4.EnumerateDirAndAssert(s_a, expectedPaths: new HashSet<string> { s_j });
         }
@@ -72,7 +78,7 @@ namespace Test.BuildXL.Scheduler
         [Fact]
         public void SealDirectories()
         {
-            var harness1 = new Harness(TestOutputDirectory);
+            var harness1 = CreateHarness();
             harness1.AddSealDir(harness1.SealDir(root: s_b, outputDir: false, s_c, s_d));
 
             harness1.EnumerateDirAndAssert(s_a, expectedPaths: new HashSet<string> { s_b });
@@ -80,11 +86,11 @@ namespace Test.BuildXL.Scheduler
             harness1.EnumerateDirAndAssert(s_c, expectedPaths: s_emptySet);
             harness1.EnumerateDirAndAssert(s_k, expectedPaths: s_emptySet);
 
-            var harness2 = new Harness(TestOutputDirectory);
+            var harness2 = CreateHarness();
             harness2.AddSealDir(harness2.SealDir(root: s_j, outputDir: false, s_l));
             harness2.EnumerateDirAndAssert(s_j, expectedPaths: new HashSet<string> { s_k });
 
-            var harness3 = new Harness(TestOutputDirectory);
+            var harness3 = CreateHarness();
             harness3.AddSealDir(harness3.SealDir(root: s_a, outputDir: false, s_h));
             harness3.EnumerateDirAndAssert(s_a, expectedPaths: new HashSet<string> { s_b });
             harness3.EnumerateDirAndAssert(s_b, expectedPaths: new HashSet<string> { s_g });
@@ -95,7 +101,7 @@ namespace Test.BuildXL.Scheduler
         [Fact]
         public void NonExistentPath()
         {
-            var harness = new Harness(TestOutputDirectory);
+            var harness = CreateHarness();
 
             harness.EnumerateDirAndAssert(s_d, expectedPaths: s_emptySet);
 
@@ -110,7 +116,7 @@ namespace Test.BuildXL.Scheduler
         [Fact]
         public void NonExistingMemberOfDynamicDirectoryExcludedFromEnumeration()
         {
-            var harness  = new Harness(TestOutputDirectory);
+            var harness  = CreateHarness();
             var outputDirectory = Path.Combine(TestOutputDirectory, "outputDir");
             var existingMember = Path.Combine(outputDirectory, "existing");
             var nonExistingMember = Path.Combine(outputDirectory, "nonExisting");
@@ -155,7 +161,7 @@ namespace Test.BuildXL.Scheduler
 
             public DummyPipExecutionEnvironment Env { get; init; }
 
-            public Harness(string testOutputDirectory)
+            public Harness(string testOutputDirectory, ISandboxConnection connection)
             {
                 Context = BuildXLContext.CreateInstanceForTesting();
                 var config = ConfigurationHelpers.GetDefaultForTesting(Context.PathTable, AbsolutePath.Create(Context.PathTable, System.IO.Path.Combine(testOutputDirectory, "config.dc")));
@@ -170,7 +176,7 @@ namespace Test.BuildXL.Scheduler
                     subst: isSubstUsed
                         ? (substSource, substTarget) 
                         : default((string, string)?),
-                    sandboxConnection: GetSandboxConnection());
+                    sandboxConnection: connection);
 
                 Table = Context.PathTable;
 

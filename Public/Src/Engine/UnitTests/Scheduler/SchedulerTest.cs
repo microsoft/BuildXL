@@ -382,7 +382,7 @@ namespace Test.BuildXL.Scheduler
                 Contract.Assert(cacheLayer != null);
 
                 Contract.Assume(scheduler != null);
-                scheduler.InitForOrchestrator(LoggingContext, sandboxConnection: GetSandboxConnection());
+                scheduler.InitForOrchestrator(LoggingContext, sandboxConnection: GetEBPFAwareSandboxConnection());
                 scheduler.Start(LoggingContext);
 
                 bool success = scheduler.WhenDone().Result;

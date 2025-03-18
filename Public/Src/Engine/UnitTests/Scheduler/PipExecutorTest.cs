@@ -2856,7 +2856,7 @@ EXIT /b 3
                             subst: TryGetSubstSourceAndTarget(out var substSource, out var substTarget)
                                 ? (substSource, substTarget)
                                 : default((string, string)?),
-                            sandboxConnection: GetSandboxConnection());
+                            sandboxConnection: GetEBPFAwareSandboxConnection());
             env.ContentFingerprinter.FingerprintTextEnabled = true;
             return env;
         }
@@ -2891,7 +2891,7 @@ EXIT /b 3
                 subst: TryGetSubstSourceAndTarget(out var substSource, out var substTarget) 
                     ? (substSource, substTarget) 
                     : default((string, string)?),
-                sandboxConnection: GetSandboxConnection());
+                sandboxConnection: GetEBPFAwareSandboxConnection());
             env.ContentFingerprinter.FingerprintTextEnabled = true;
 
             return env;

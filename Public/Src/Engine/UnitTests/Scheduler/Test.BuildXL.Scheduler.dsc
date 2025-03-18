@@ -20,12 +20,86 @@ namespace Scheduler {
 
     @@public
     export const dll = BuildXLSdk.test({
-        // These tests require Detours to run itself, so we won't detour the test runner process itself
+        // These tests require the sandbox to run itself, so we won't sandbox the test runner process itself
         assemblyName: "Test.BuildXL.Scheduler",
         sources: globR(d`.`, "*.cs"),
         runTestArgs: {
             unsafeTestRunArguments: {
                 runWithUntrackedDependencies: true
+            },
+            parallelGroups: categoriesToRunInParallel,
+        },
+        skipTestRun: qualifier.targetFramework === "net472" || !BuildXLSdk.targetFrameworkMatchesCurrentHost,
+        references: [
+            ...addIf(BuildXLSdk.isFullFramework,
+                BuildXLSdk.NetFx.System.Reflection.dll,
+                BuildXLSdk.NetFx.Netstandard.dll
+            ),
+            ...addIfLazy(!BuildXLSdk.isDotNetCore, () => [
+                importFrom("System.Text.Json").pkg,
+            ]),
+            EngineTestUtilities.dll,
+            importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
+            importFrom("BuildXL.Cache.ContentStore").UtilitiesCore.dll,
+            importFrom("BuildXL.Cache.ContentStore").Interfaces.dll,
+            importFrom("BuildXL.Cache.MemoizationStore").Interfaces.dll,
+            importFrom("BuildXL.Cache.VerticalStore").Interfaces.dll,
+            importFrom("BuildXL.Engine").Cache.dll,
+            importFrom("BuildXL.Engine").Engine.dll,
+            importFrom("BuildXL.Engine").ProcessPipExecutor.dll,
+            importFrom("BuildXL.Engine").Processes.dll,
+            importFrom("BuildXL.Engine").Processes.External.dll,
+            importFrom("BuildXL.Engine").Scheduler.dll,
+            importFrom("BuildXL.Pips").dll,
+            importFrom("BuildXL.Utilities").dll,
+            importFrom("BuildXL.Utilities").Configuration.dll,
+            importFrom("BuildXL.Utilities.Instrumentation").Tracing.dll,
+            importFrom("BuildXL.Utilities").Ipc.dll,
+            importFrom("BuildXL.Utilities").Ipc.Providers.dll,
+            importFrom("BuildXL.Utilities").Native.dll,
+            importFrom("BuildXL.Utilities").Storage.dll,
+            importFrom("BuildXL.Utilities").Plugin.dll,
+            importFrom("BuildXL.Utilities").Utilities.Core.dll,
+            importFrom("BuildXL.Utilities.UnitTests").StorageTestUtilities.dll,
+            importFrom("BuildXL.Utilities.UnitTests").TestProcess.exe,
+            importFrom("BuildXL.FrontEnd").Sdk.dll,
+            importFrom("Newtonsoft.Json").pkg,
+            importFrom("BuildXL.Utilities").Configuration.dll,
+
+            ...importFrom("BuildXL.Cache.ContentStore").getProtobufPackages(),
+        ],
+        runtimeContent: [
+            importFrom("BuildXL.Utilities.UnitTests").testProcessExe
+        ],
+    });
+
+    @@public
+    export const scheduler_ebpf_tests = Context.isWindowsOS() ? undefined : BuildXLSdk.test({
+        // These tests require the sandbox to run itself, so we won't sandbox the test runner process itself
+        assemblyName: "Test.BuildXL.Scheduler.EBPF",
+        sources: [
+            // These are the only test classes that have relevant sandbox related tests
+            f`PipExecutorTest.cs`,
+            f`PipQueueTest.cs`,
+            f`SchedulerTest.cs`,
+            // Below just utilities
+            f`InMemoryCacheFactory.cs`,
+            f`GlobalSuppressions.cs`,
+            f`PipTestBase.cs`,
+            f`TestPipGraphFragment.cs`,
+            f`TestScheduler.cs`,
+            f`ScheduleRunData.cs`,
+            f`TestPipQueue.cs`,
+            f`IncrementalSchedulingTests.cs`,
+            ...globR(d`Utils`, "*.cs")],
+        runTestArgs: {
+            tags: ["EBPF"],
+            unsafeTestRunArguments: {
+                runWithUntrackedDependencies: true
+            },
+            testRunData: {
+                // CODESYNC: Public/Src/Utilities/UnitTests/TestUtilities/BuildXLTestBase.cs
+                useEBPFSandbox: true,
             },
             parallelGroups: categoriesToRunInParallel,
         },

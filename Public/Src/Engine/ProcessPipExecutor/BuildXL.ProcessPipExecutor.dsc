@@ -30,6 +30,7 @@ namespace ProcessPipExecutor {
             "Test.BuildXL.Processes.EBPF",
             "Test.BuildXL.Processes.Detours",
             "Test.BuildXL.Scheduler",
+            "Test.BuildXL.Scheduler.EBPF",
             "ExternalToolTest.BuildXL.Scheduler",
             "IntegrationTest.BuildXL.Scheduler",
         ]

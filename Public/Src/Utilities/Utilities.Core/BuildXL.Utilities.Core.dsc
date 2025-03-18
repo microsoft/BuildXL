@@ -29,6 +29,7 @@ namespace Utilities.Core {
             "BuildXL.Utilities",
             "Test.BuildXL.Pips",
             "Test.BuildXL.Scheduler",
+            "Test.BuildXL.Scheduler.EBPF",
             "Test.BuildXL.Utilities",
             "Test.BuildXL.Utilities.Collections",
             "Test.BuildXL.FrontEnd.Script",

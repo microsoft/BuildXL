@@ -84,6 +84,7 @@ namespace Test.BuildXL.Processes
                     UnixPaths.UsrLib,
                     UnixPaths.Lib,
                     UnixPaths.Lib64,
+                    UnixPaths.UsrLib64,
                     UnixPaths.Private,
                     UnixPaths.Etc,
                     UnixPaths.Proc,

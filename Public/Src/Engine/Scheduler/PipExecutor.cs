@@ -1325,6 +1325,7 @@ namespace BuildXL.Scheduler
                     operationContext,
                     processDescription,
                     runnableFromCacheCheckResult.Fingerprint.ToString(),
+                    cacheHitData.PathSetHash.ToHex(),
                     cacheHitData.StrongFingerprint.ToString(),
                     cacheHitData.Metadata.Id);
 

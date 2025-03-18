@@ -334,8 +334,8 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Storage,
-            Message = "[{pipDescription}] Cache hit (weak fingerprint '{weakFingerprint}'; strong fingerprint '{strongFingerprint}'; unique ID {uniqueId:X}): Process outputs will be deployed from cache.")]
-        internal abstract void ScheduleProcessPipCacheHit(LoggingContext loggingContext, string pipDescription, string weakFingerprint, string strongFingerprint, ulong uniqueId);
+            Message = "[{pipDescription}] Cache hit (weak fingerprint '{weakFingerprint}'; path set '{pathSetHash}'; strong fingerprint '{strongFingerprint}'; unique ID '{uniqueId:X}'): Process outputs will be deployed from cache.")]
+        internal abstract void ScheduleProcessPipCacheHit(LoggingContext loggingContext, string pipDescription, string weakFingerprint, string pathSetHash, string strongFingerprint, ulong uniqueId);
 
         [GeneratedEvent(
             (ushort)LogEventId.AugmentedWeakFingerprint,

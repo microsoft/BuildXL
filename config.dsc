@@ -596,6 +596,11 @@ config({
                 targetFramework: "net472",
                 targetRuntime: "win-x64",
             },
+            ReleaseNet9: {
+                configuration: "release",
+                targetFramework: "net9.0",
+                targetRuntime: "win-x64",
+            },
             ReleaseNet8: {
                 configuration: "release",
                 targetFramework: "net8.0",
@@ -611,6 +616,11 @@ config({
                 targetFramework: "net8.0",
                 targetRuntime: "osx-x64",
             },
+            ReleaseDotNetCoreMacNet9: {
+                configuration: "release",
+                targetFramework: "net9.0",
+                targetRuntime: "osx-x64",
+            },
             ReleaseDotNetCoreMacNet8: {
                 configuration: "release",
                 targetFramework: "net8.0",
@@ -619,6 +629,11 @@ config({
             ReleaseLinux: {
                 configuration: "release",
                 targetFramework: "net8.0",
+                targetRuntime: "linux-x64",
+            },
+            ReleaseLinuxNet9: {
+                configuration: "release",
+                targetFramework: "net9.0",
                 targetRuntime: "linux-x64",
             },
             ReleaseLinuxNet8: {

@@ -66,7 +66,18 @@ __attribute__((always_inline)) static bool should_send_path(operation_type opera
 
     // Just get the memory address of dentry and mount to build the key
     struct cache_event_key key = {.dentry = ptr_to_long(dentry), .vfsmount = ptr_to_long(vfsmount), .operation_type = operation};
-    return bpf_map_update_elem(&event_map, &key, &NO_VALUE, BPF_NOEXIST) == 0;
+
+    // If the key is not there, we should send the event and add the key as well
+    // We could use BPF_NOEXIST and save one lookup operation, but it looks like this flag is not working properly in some circumstances and
+    // the lookup comes back with a successful error code when the element exists.
+    if (bpf_map_lookup_elem(&event_map, &key) == NULL)
+    {
+        bpf_map_update_elem(&event_map, &key, &NO_VALUE, BPF_ANY);
+        return true;
+    }
+    
+    // If the lookup found the key, don't send the event
+    return false;
 }
 
 #endif // __EVENT_CACHE_H

@@ -99,6 +99,22 @@ int OpenAtHandlesInvalidFd()
     return EXIT_SUCCESS;
 }
 
+int AccessLongPath()
+{
+    // Generate a path longer than 4k chars
+    // This looks like '/foo/foo/foo...'
+    std::string path;
+    for (int i = 0 ; i < 8192; i++)
+    {
+        path.append("/foo");
+    }
+
+    int fd = access(path.c_str(), F_OK);
+
+    // The above call should always fail, but we're testing whether the sandbox is resilient to bad inputs, so we don't care about the return value.
+    return EXIT_SUCCESS;
+}
+
 int main(int argc, char **argv)
 {
     int opt;
@@ -242,6 +258,7 @@ int main(int argc, char **argv)
     IF_COMMAND(ExecReportsCorrectExecutableAndArgumentsSuccess);
     IF_COMMAND(ExecReportsCorrectExecutableAndArgumentsFailed);
     IF_COMMAND(OpenAtHandlesInvalidFd);
+    IF_COMMAND(AccessLongPath);
 
     // Invalid command
     exit(-1);

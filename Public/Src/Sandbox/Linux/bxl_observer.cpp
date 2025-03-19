@@ -394,7 +394,7 @@ bool BxlObserver::SendReport(buildxl::linux::SandboxEvent &event, buildxl::linux
 
         if (!success) {
             // TODO: once 'send' is capable of sending more than PIPE_BUF at once, allocate a bigger buffer and send that
-            _fatal("Message truncated to fit PIPE_BUF (%d): %s", PIPE_BUF, buffer);
+            _fatal("Message truncated to fit (%d) bytes: %s. Path '%s'", PIPE_BUF, buffer, report.path.c_str());
         }
 
         // CODESYNC: Public/Src/Engine/Processes/SandboxedProcessUnix.cs

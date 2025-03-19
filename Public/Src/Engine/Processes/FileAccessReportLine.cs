@@ -151,6 +151,7 @@ namespace BuildXL.Processes
             out FlagsAndAttributes openedFileOrDirectoryAttributes,
             out AbsolutePath absolutePath,
             out string? path,
+            out bool isPathTruncated,
             out string? enumeratePattern,
             out string? processArgs,
             out string? errorMessage)
@@ -174,6 +175,8 @@ namespace BuildXL.Processes
             enumeratePattern = null;
             processArgs = null;
             errorMessage = string.Empty;
+            // This is the Windows codepath, and paths are never truncated on Windows.
+            isPathTruncated = false;
 
             const int MinItemsCount = 16;
 #if NET5_0_OR_GREATER

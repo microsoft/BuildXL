@@ -179,5 +179,7 @@ namespace BuildXL.Processes.Tracing
 
         EnvironmentPreparationError = 14302,
         ProcessBreakaway = 14303,
+
+        PathTooLongIsIgnored = 14304,
     }
 }

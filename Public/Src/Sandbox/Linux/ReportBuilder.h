@@ -30,6 +30,21 @@ private:
         buildxl::linux::AccessReport report,
         char* buffer,
         unsigned int max_length);
+    
+    static int SandboxEventWithTruncatedPathToString(
+            buildxl::linux::SandboxEvent &event,
+            buildxl::linux::AccessReport report,
+            char* buffer,
+            unsigned int max_length,
+            std::string& truncatedPath);
+
+    static int SandboxEventToStringInternal(
+            buildxl::linux::SandboxEvent &event,
+            buildxl::linux::AccessReport report,
+            char* buffer,
+            unsigned int max_length,
+            std::string& path,
+            bool isPathTruncated);
 
 public:
     /**

@@ -213,5 +213,16 @@ namespace Test.BuildXL.Processes
                 AssertLogContains(caseSensitive: false, "failed to read or read invalid dirfd ('-1') for syscall 'openat' with path ''");
             }
         }
+
+        [Fact]
+        public void LongPathsEmitWarning()
+        {
+            // We don't support indicating truncated paths on EBPF yet
+            if (!UsingEBPFSandbox)
+            {
+                RunNativeTest("AccessLongPath");
+                AssertWarningEventLogged(global::BuildXL.Processes.Tracing.LogEventId.PathTooLongIsIgnored);
+            }
+        }
     }
 }

@@ -21,9 +21,10 @@ namespace linux {
  * 8. File Access Status
  * 9. Report Explicitly
  * 10. Is Directory
- * 11. Path
+ * 11. Is path truncated
+ * 12. Path
  */
-const char *kFileAccessReportFormat = "%d|%s|%d|%d|%d|%d|%d|%d|%d|%d|%s\n";
+const char *kFileAccessReportFormat = "%d|%s|%d|%d|%d|%d|%d|%d|%d|%d|%d|%s\n";
 
 /**
  * 1. Report Type
@@ -36,10 +37,11 @@ const char *kFileAccessReportFormat = "%d|%s|%d|%d|%d|%d|%d|%d|%d|%d|%s\n";
  * 8. File Access Status
  * 9. Report Explicitly
  * 10. Is Directory
- * 11. Path
- * 12. CommandLineArguments
+ * 11. Is path truncated
+ * 12. Path
+ * 13. CommandLineArguments
  */
-const char *kProcessExecReportFormat = "%d|%s|%d|%d|%d|%d|%d|%d|%d|%d|%s|%s\n";
+const char *kProcessExecReportFormat = "%d|%s|%d|%d|%d|%d|%d|%d|%d|%d|%d|%s|%s\n";
 
 /**
  * 1. Report Type
@@ -49,7 +51,33 @@ const char *kProcessExecReportFormat = "%d|%s|%d|%d|%d|%d|%d|%d|%d|%d|%s|%s\n";
  */
 const char *kDebugMessageReportFormat = "%d|%d|%d|%s\n";
 
-int ReportBuilder::SandboxEventToString(buildxl::linux::SandboxEvent &event, buildxl::linux::AccessReport report, char* buffer, unsigned int max_length) {    
+int ReportBuilder::SandboxEventToString(
+    buildxl::linux::SandboxEvent &event, 
+    buildxl::linux::AccessReport report, 
+    char* buffer,
+    unsigned int max_length)
+{
+    return SandboxEventToStringInternal(event, report, buffer, max_length, report.path, /* isPathTruncated*/ false);
+}
+
+int ReportBuilder::SandboxEventWithTruncatedPathToString(
+    buildxl::linux::SandboxEvent &event, 
+    buildxl::linux::AccessReport report, 
+    char* buffer,
+    unsigned int max_length,
+    std::string& truncatedPath)
+{
+    return SandboxEventToStringInternal(event, report, buffer, max_length, truncatedPath, /* isPathTruncated*/ true);
+}
+
+int ReportBuilder::SandboxEventToStringInternal(
+    buildxl::linux::SandboxEvent &event, 
+    buildxl::linux::AccessReport report, 
+    char* buffer,
+    unsigned int max_length,
+    std::string& path,
+    bool isPathTruncated) 
+{
     // TODO [pgunasekara]: use std::format when it's available with gcc 13+
     switch (event.GetEventType()) {
         case buildxl::linux::EventType::kExec: {
@@ -64,7 +92,8 @@ int ReportBuilder::SandboxEventToString(buildxl::linux::SandboxEvent &event, bui
                 report.access_check_result.GetFileAccessStatus(),
                 report.access_check_result.Level == ReportLevel::ReportExplicit,
                 event.IsDirectory(),
-                report.path.c_str(),
+                isPathTruncated,
+                path.c_str(),
                 event.GetCommandLine().c_str()
             );
         }
@@ -80,7 +109,8 @@ int ReportBuilder::SandboxEventToString(buildxl::linux::SandboxEvent &event, bui
                 report.access_check_result.GetFileAccessStatus(),
                 report.access_check_result.Level == ReportLevel::ReportExplicit,
                 event.IsDirectory(),
-                report.path.c_str()
+                isPathTruncated,
+                path.c_str()
             );
         }
     }
@@ -93,7 +123,26 @@ bool ReportBuilder::SandboxEventReportString(buildxl::linux::SandboxEvent &event
 
     // File access reports cannot exceed the max length for a string that fits into a pipe buffer
     if (report_string_len >= max_report_len) {
-        return false;
+        // This is very likely caused by a path that is too big. Today we are limiting a message by PATH_MAX. This is a problem when tools try to use paths bigger than that.
+        // One solution is to allow splitting the report into multiple events and putting those together on managed side. Today we don't support that functionality.
+        // Send the path truncated but indicate that truncation happened so managed side can make a decision from it.
+        if (report_string_len - report.path.length() < max_report_len)
+        {
+            int truncated_size = report.path.length() - (report_string_len - max_report_len) - 1;
+            
+            // Truncate the path and build a new report now indicating that the path has been truncated.
+            auto truncatedPath = report.path.substr(0, truncated_size);
+            report_string_len = SandboxEventWithTruncatedPathToString(event, report, &buffer[prefix_len], max_report_len, truncatedPath);
+            if (report_string_len >= max_report_len)
+            {
+                // This should never happen. The error will be caught on the caller anyway.
+                return false;
+            }
+        }
+        else 
+        {
+            return false;
+        }
     }
 
     // Set the prefix with the report length

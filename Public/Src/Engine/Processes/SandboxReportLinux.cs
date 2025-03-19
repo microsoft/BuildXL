@@ -78,6 +78,11 @@ namespace BuildXL.Processes
         public bool IsDirectory;
 
         /// <summary>
+        /// Represents whether the path that was sent was truncated to make it fit into the event max length.
+        /// </summary>
+        public bool IsPathTruncated;
+
+        /// <summary>
         /// The requested access for this report.
         /// </summary>
         public RequestedAccess RequestedAccess;

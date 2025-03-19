@@ -831,6 +831,7 @@ namespace BuildXL.Processes
             out FlagsAndAttributes openedFileOrDirectoryAttributes, 
             out AbsolutePath manifestPath, 
             out string path, 
+            out bool isPathTruncated,
             out string enumeratePattern, 
             out string processArgs, 
             out string errorMessage)
@@ -877,6 +878,8 @@ namespace BuildXL.Processes
                     ? $"Illegal access report: '{AccessReportToString(report)}' :: {string.Join(";", errorMessages)}"
                     : string.Empty;
 
+                isPathTruncated = report.IsPathTruncated;
+                
                 return errorMessage == string.Empty;
             }
         }

@@ -710,7 +710,8 @@ namespace BuildXL.Processes
                              * 8. File Access Status
                              * 9. Report Explicitly
                              * 10. Is Directory
-                             * 11. Path
+                             * 11. Is path truncated
+                             * 12. Path
                             */
                             report.SystemCall = s_encoding.GetString(s_encoding.GetBytes(nextField(restOfMessage, out restOfMessage).ToArray()));
                             report.FileOperation = FileOperationLinux.ToReportedFileOperation((FileOperationLinux.Operations)AssertInt(nextField(restOfMessage, out restOfMessage)));
@@ -721,6 +722,7 @@ namespace BuildXL.Processes
                             report.FileAccessStatus = AssertInt(nextField(restOfMessage, out restOfMessage));
                             report.ExplicitlyReport = AssertInt(nextField(restOfMessage, out restOfMessage)); // explicitLogging?
                             report.IsDirectory = AssertInt(nextField(restOfMessage, out restOfMessage)) != 0;
+                            report.IsPathTruncated = AssertInt(nextField(restOfMessage, out restOfMessage)) != 0;
                             report.Data = s_encoding.GetString(s_encoding.GetBytes(nextField(restOfMessage, out restOfMessage).ToArray()));
 
                             if (report.FileOperation == ReportedFileOperation.ProcessExec) {

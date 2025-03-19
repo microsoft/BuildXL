@@ -1307,6 +1307,14 @@ namespace BuildXL.Processes.Tracing
             EventTask = (ushort)Tasks.Plugin,
             Message = "Could not prepare environment variables. Error: {error}")]
         public abstract void EnvironmentPreparationFailed(LoggingContext logging, string error);
-        
+
+        [GeneratedEvent(
+            (ushort)LogEventId.PathTooLongIsIgnored,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Scheduler,
+            Message = "[{pipDescription}] The pip tried to access a path longer than 4096 bytes, which exceeds the limit supported by BuildXL. The access will be ignored. Path: '{path}'")]
+        public abstract void PathTooLongIsIgnored(LoggingContext logging, string pipDescription, string path);  
     }
 }

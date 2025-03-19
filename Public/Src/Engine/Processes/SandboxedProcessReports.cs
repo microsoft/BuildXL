@@ -295,6 +295,7 @@ namespace BuildXL.Processes
             out FlagsAndAttributes openedFileOrDirectoryAttributes,
             out AbsolutePath manifestPath,
             out string path,
+            out bool isPathTruncated,
             out string enumeratePattern,
             out string processArgs,
             out string errorMessage);
@@ -715,6 +716,7 @@ namespace BuildXL.Processes
             out FlagsAndAttributes openedFileOrDirectoryAttributes,
             out AbsolutePath manifestPath,
             out string path,
+            out bool isPathTruncated,
             out string enumeratePattern,
             out string processArgs,
             out string errorMessage)
@@ -740,6 +742,7 @@ namespace BuildXL.Processes
                 out openedFileOrDirectoryAttributes,
                 out manifestPath,
                 out path,
+                out isPathTruncated,
                 out enumeratePattern,
                 out processArgs,
                 out errorMessage);
@@ -802,6 +805,7 @@ namespace BuildXL.Processes
                 out var openedFileOrDirectoryAttributes,
                 out var manifestPath,
                 out var path,
+                out var isPathTruncated,
                 out var enumeratePattern,
                 out var processArgs,
                 out errorMessage))
@@ -814,6 +818,19 @@ namespace BuildXL.Processes
             {
                 return true;
             }
+
+            // If the path was truncated we print a warning and ignore the access. Observe that a path
+            // can only be truncated by the Linux sandbox.
+            // A truncated path means that the path exceeded 4k. Even though the Linux OS does not set a
+            // bound to a path length, most APIs work with paths shorter than that. Which means that
+            // it is very unlikely that such path can point to a real artifact on disk. The most likely
+            // cause of getting a path exceeding 4k is that a tool put together an incorrect/malformed one.
+            if (isPathTruncated)
+            {
+                Tracing.Logger.Log.PathTooLongIsIgnored(m_loggingContext, PipDescription, path);
+                return true;
+            }
+
 
             if (OperatingSystemHelper.IsWindowsOS)
             {

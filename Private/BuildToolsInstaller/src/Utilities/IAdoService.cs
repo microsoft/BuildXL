@@ -35,6 +35,18 @@ namespace BuildToolsInstaller.Utilities
         /// <nodoc />
         public int PipelineId { get; }
 
+        /// <nodoc />
+        string PhaseName { get; }
+
+        /// <nodoc />
+        public int JobAttempt { get; }
+
+        /// <summary>
+        /// Used by communicating installers to coordinate with each other across job boundaries
+        /// It assumes the 'worker' job has the same name than the 'main'/'orchestrator' job
+        /// </summary>
+        public string DistributedCoordinationKey => $"{PhaseName}_{JobAttempt}";
+
         /// <summary>
         /// Sets a build property with the specified value using the ADO REST API
         /// </summary>

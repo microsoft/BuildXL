@@ -1,15 +1,11 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using BuildToolsInstaller.Config;
-using BuildToolsInstaller.Utilities;
-using Microsoft.Extensions.Logging;
+using BuildToolsInstaller.Installers;
 using Xunit;
 
 namespace BuildToolsInstaller.Tests
@@ -26,9 +22,9 @@ namespace BuildToolsInstaller.Tests
             {
                 Tools = Enumerable.Range(0, 1000).Select(i => new ToolInstallationConfig()
                 {
-                    Tool = BuildTool.BuildXL,
+                    Tool = ToolName,
                     Version = $"0.1.0-20250131.{i}",
-                    OutputVariable = $"ONEES_TOOL_LOCATION_BUILDXL_{i}",
+                    OutputVariable = $"ONEES_TOOL_LOCATION_{ToolName}_{i}",
                     PackageSelector = "Linux"
                 })
                 .ToList()
@@ -40,7 +36,7 @@ namespace BuildToolsInstaller.Tests
             var log = new TestLogger();
             var mockAdoService = new MockAdoService() { ToolsDirectory = toolsDirectory };
 
-            var installer = new BuildXLNugetInstaller(mockDownloader, configurationPath, mockAdoService, log);
+            var installer = new ToolInstaller(ToolName, mockDownloader, configurationPath, mockAdoService, log);
             var tasks = toolsToInstall.Tools.Select(async tool =>
             {
                 return await installer.InstallAsync(new InstallationArguments()
@@ -62,14 +58,14 @@ namespace BuildToolsInstaller.Tests
         {
             var configurationPath = WriteMockedConfiguration();
 
-            // Let's try to install the same version of BuildXL a thousand times
+            // Let's try to install the same version a thousand times
             var toolsToInstall = new ToolsToInstall()
             {
                 Tools = Enumerable.Range(0, 1000).Select(i => new ToolInstallationConfig()
                 {
-                    Tool = BuildTool.BuildXL,
-                    OutputVariable = $"ONEES_TOOL_LOCATION_BUILDXL",
-                    Version = "Dogfood",
+                    Tool = ToolName,
+                    OutputVariable = $"ONEES_TOOL_LOCATION_{ToolName}",
+                    Version = "Ring0",
                     PackageSelector = "Linux"
                 })
                 .ToList()
@@ -81,7 +77,7 @@ namespace BuildToolsInstaller.Tests
             var log = new TestLogger();
             var mockAdoService = new MockAdoService() { ToolsDirectory = toolsDirectory };
 
-            var installer = new BuildXLNugetInstaller(mockDownloader, configurationPath, mockAdoService, log);
+            var installer = new ToolInstaller(ToolName, mockDownloader, configurationPath, mockAdoService, log);
             var tasks = toolsToInstall.Tools.Select(async tool =>
             {
                 return await installer.InstallAsync(new InstallationArguments()

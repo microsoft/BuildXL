@@ -12,10 +12,19 @@ jobs:
   displayName: "[${{ parameters.platform }}] Build, test, and publish BuildToolsInstaller"
   pool: ${{ parameters.pool }}
   variables:
-    buildConfiguration: 'Release'
+    buildConfiguration: 'Release' 
     artifactName: '1ES.BuildToolsInstaller.${{ parameters.platform }}.v1.zip'
 
   steps:
+  - powershell: |
+      // We really want to prevent deploying breaking changes to the original installer location 
+      if ("$(artifactName)" -eq "1ES.BuildToolsInstaller.${{ parameters.platform }}.zip") 
+      {
+        Write-Error "Can't deploy to 1ES.BuildToolsInstaller.${{ parameters.platform }}.zip"
+        exit 1
+      }
+    displayName: Hard fail if we are trying to publish to the original installer location
+
   - checkout: self
     fetchDepth: 1
     fetchTags: false

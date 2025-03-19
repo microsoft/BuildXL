@@ -3,6 +3,7 @@
 
 using System.CommandLine;
 using BuildToolsInstaller.Utilities;
+using NuGet.Versioning;
 
 namespace BuildToolsInstaller
 {
@@ -18,17 +19,9 @@ namespace BuildToolsInstaller
                 System.Diagnostics.Debugger.Launch();
             }
 
+            int returnCode = ProgramNotRunExitCode; // Make the compiler happy, we should assign every time
             var rootCommand = new RootCommand("Build tools installer");
-            
-            // Configure root command
-            var toolOption = new Option<BuildTool>(
-                name: "--tool",
-                description: "The tool to install.")
-                { IsRequired = true };
-
-            var ringOption = new Option<string?>(
-                name: "--ring",
-                description: "Selects a deployment ring for the tool");
+            var installSubCommand = new Command("install", "Install a set of tools given by a configuration file, in parallel");
 
             var toolsDirectoryOption = new Option<string?>(
                 name: "--toolsDirectory",
@@ -37,62 +30,6 @@ namespace BuildToolsInstaller
             var feedOverrideOption = new Option<string?>(
                 name: "--feedOverride",
                 description: "Uses this Nuget feed as the default upstream");
-
-            var ignoreCacheOption = new Option<bool>(
-                name: "--ignoreCache",
-                description: "Forces download and installation (prevents tool caching being applied)");
-
-            var toolConfigOption = new Option<string?>(
-                 name: "--config",
-                 description: "Specific tool installer configuration file.",
-                 parseArgument: result =>
-                 {
-                     if (result.Tokens.Count() != 1)
-                     {
-                         result.ErrorMessage = "--toolsDirectory should be specified once";
-                         return null;
-                     }
-
-                     var filePath = result.Tokens.Single().Value;
-                     if (!File.Exists(filePath))
-                     {
-                         result.ErrorMessage = $"The specified config file path '{filePath}' does not exist";
-                         return null;
-                     }
-
-                     return filePath;
-                 });
-
-            rootCommand.AddOption(toolOption);
-            rootCommand.AddOption(ringOption);
-            rootCommand.AddOption(toolsDirectoryOption);
-            rootCommand.AddOption(toolConfigOption);
-            rootCommand.AddOption(ignoreCacheOption);
-
-            int returnCode = ProgramNotRunExitCode; // Make the compiler happy, we should assign every time
-            rootCommand.SetHandler(async (tool, ring, toolsDirectory, configFile, ignoreCache) =>
-            {
-                toolsDirectory ??= AdoService.Instance.IsEnabled ? AdoService.Instance.ToolsDirectory : ".";
-                returnCode = await BuildToolsInstaller.Run(new SingleToolInstallerArgs()
-                {
-                    Tool = tool,
-                    VersionDescriptor = ring,
-                    ToolsDirectory = toolsDirectory,
-                    ConfigFilePath = configFile,
-                    IgnoreCache = ignoreCache
-                });
-            },
-                toolOption,
-                ringOption,
-                toolsDirectoryOption,
-                toolConfigOption,
-                ignoreCacheOption
-            );
-
-            // Configure parallel download subcommand
-            // TODO [maly]: This should probably be the default and 'single tool' a subcommand
-            // but I'll do this while we transition
-            var installSubCommand = new Command("install", "Install a set of tools given by a configuration file, in parallel");
 
             var configOption = new Option<string>(
                 name: "--config",
@@ -118,7 +55,7 @@ namespace BuildToolsInstaller
 
             var globalConfigOption = new Option<string>(
                 name: "--globalConfigDirectory",
-                description: "Path to the directory containing the global configuration files. If absent, the latest configuraiton package is downloaded from NuGet. This override is provided for local testing and configuration validation.",
+                description: "Path to the directory containing the global configuration files. If absent, the latest configuration package is downloaded from NuGet. This override is provided for local testing and configuration validation.",
                 parseArgument: result =>
                 {
                     if (result.Tokens.Count() != 1)
@@ -138,13 +75,34 @@ namespace BuildToolsInstaller
                 })
             { IsRequired = false };
 
+            var configVersionOption = new Option<NuGetVersion?>(
+                name: "--configVersion",
+                description: "Specify a version of the configuration package to download instead of using the latest",
+                parseArgument: result =>
+                {
+                    var version = result.Tokens.LastOrDefault()?.Value;
+                    if (!NuGetVersion.TryParse(version, out var nugetVersion))
+                    {
+                        result.ErrorMessage = $"Could not parse the NuGet version '{version}'";
+                        return default;
+                    }
+
+                    return nugetVersion;
+                })
+            { IsRequired = false };
+
+            var workerModeOption = new Option<bool>(
+                name: "--workerMode",
+                description: "If set, the installer will run in worker mode. This is only valid when running in ADO builds. In this mode, the installer will wait for an installer in a corresponding orchestrator job to provide the version of the configuration to use.");
 
             installSubCommand.AddOption(configOption);
             installSubCommand.AddOption(globalConfigOption);
             installSubCommand.AddOption(toolsDirectoryOption);
             installSubCommand.AddOption(feedOverrideOption);
+            installSubCommand.AddOption(configVersionOption);
+            installSubCommand.AddOption(workerModeOption);
 
-            installSubCommand.SetHandler(async (toolsDirectory, toolsConfig, globalConfig, feedOverride) =>
+            installSubCommand.SetHandler(async (toolsDirectory, toolsConfig, globalConfig, feedOverride, configVersion, workerMode) =>
             {
                 toolsDirectory ??= AdoService.Instance.IsEnabled ? AdoService.Instance.ToolsDirectory : "1es-tools";
 
@@ -153,13 +111,17 @@ namespace BuildToolsInstaller
                     GlobalConfigLocation = globalConfig,
                     ToolsConfigFile = toolsConfig,
                     ToolsDirectory = toolsDirectory,
-                    FeedOverride = feedOverride
+                    FeedOverride = feedOverride,
+                    ConfigVersion = configVersion,
+                    WorkerMode = workerMode
                 });
             },
             toolsDirectoryOption,
             configOption,
+            globalConfigOption,
             feedOverrideOption,
-            globalConfigOption);
+            configVersionOption,
+            workerModeOption);
 
             rootCommand.AddCommand(installSubCommand);
 

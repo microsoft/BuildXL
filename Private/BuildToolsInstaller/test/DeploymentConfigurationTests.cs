@@ -13,47 +13,48 @@ namespace BuildToolsInstaller.Tests
 {
     public class DeploymentConfigurationTests : TestBase
     {
-        private const string TestOverrideConfig = @"
-{
+        private const string ToolName = "MyTool";
+        private const string TestOverrideConfig = @$"
+{{
 ""Overrides"":
     [ 
-        {
+        {{
             ""Comment"": ""description of the pin"",
-            ""Repository"": ""1JS"",
-            ""Tools"": {
-                ""BuildXL"": { ""Version"": ""0.1.0-20240801.1"" }
-            }
-        },
-        {
-            ""Repository"": ""BuildXL.Internal"",
+            ""Repository"": ""SpecialRepo"",
+            ""Tools"": {{
+                ""{ToolName}"": {{ ""Version"": ""0.1.0-20240801.1"" }}
+            }}
+        }},
+        {{
+            ""Repository"": ""AnotherRepository"",
             ""PipelineIds"": [10101, 1010],
-            ""Tools"": {
-                ""BuildXL"": { ""Version"": ""0.1.0-20240801.1"" }
-            }
-        }
+            ""Tools"": {{
+                ""{ToolName}"": {{ ""Version"": ""0.1.0-20240801.1"" }}
+            }}
+        }}
     ]
-}
+}}
 ";
 
-private const string TestConfiguration = @"
-{
-    ""Rings"": {
-        ""Dogfood"": 
-        {
+private const string TestConfiguration = @$"
+{{
+    ""Rings"": {{
+        ""Ring0"": 
+        {{
              ""Version"": ""0.1.0-20250101.1"",
-             ""Description"": ""Dogfood ring""
-        },
-        ""GeneralPublic"": 
-        {
+             ""Description"": ""ring zero""
+        }},
+        ""Ring1"": 
+        {{
             ""Version"": ""0.1.0-20250101.2""
-        }
-    },
-    ""Packages"": {
-        ""Linux"": ""BuildXL.linux-x64"",
-        ""Windows"": ""BuildXL.win-x64""
-    },
-    ""Default"": ""Dogfood""
-}
+        }}
+    }},
+    ""Packages"": {{
+        ""Linux"": ""{ToolName}.linux-x64"",
+        ""Windows"": ""{ToolName}.win-x64""
+    }},
+    ""Default"": ""Ring1""
+}}
 ";
 
         [Fact]
@@ -63,9 +64,9 @@ private const string TestConfiguration = @"
             Assert.NotNull(deserializedOverrides);
             Assert.Equal(2, deserializedOverrides.Overrides.Count);
             Assert.Equal("description of the pin", deserializedOverrides.Overrides[0].Comment);
-            Assert.Equal("1JS", deserializedOverrides.Overrides[0].Repository);
-            Assert.Contains(BuildTool.BuildXL, deserializedOverrides.Overrides[0].Tools.Keys);
-            Assert.Equal("0.1.0-20240801.1", deserializedOverrides.Overrides[0].Tools[BuildTool.BuildXL].Version);
+            Assert.Equal("SpecialRepo", deserializedOverrides.Overrides[0].Repository);
+            Assert.Contains(ToolName, deserializedOverrides.Overrides[0].Tools.Keys);
+            Assert.Equal("0.1.0-20240801.1", deserializedOverrides.Overrides[0].Tools[ToolName].Version);
             Assert.NotNull(deserializedOverrides.Overrides[1].PipelineIds);
             Assert.Equal(2, deserializedOverrides.Overrides[1].PipelineIds!.Count);
         }
@@ -82,11 +83,11 @@ private const string TestConfiguration = @"
             Assert.NotNull(deserialized);
             Assert.NotNull(deserialized.Rings);
             Assert.Equal(2, deserialized.Rings.Count);
-            Assert.True(deserialized.Rings.ContainsKey("Dogfood"));
-            Assert.Equal("Dogfood ring", deserialized.Rings["Dogfood"].Description);
-            Assert.Equal("0.1.0-20250101.1", deserialized.Rings["Dogfood"].Version);
-            Assert.Equal("BuildXL.win-x64", deserialized.Packages.GetValueOrDefault("Windows"));
-            Assert.Equal("BuildXL.win-x64", deserialized.Packages.GetValueOrDefault("WINDOWS"));
+            Assert.True(deserialized.Rings.ContainsKey("Ring0"));
+            Assert.Equal("ring zero", deserialized.Rings["Ring0"].Description);
+            Assert.Equal("0.1.0-20250101.1", deserialized.Rings["Ring0"].Version);
+            Assert.Equal($"{ToolName}.win-x64", deserialized.Packages.GetValueOrDefault("Windows"));
+            Assert.Equal($"{ToolName}.win-x64", deserialized.Packages.GetValueOrDefault("WINDOWS"));
         }
 
         [Fact]
@@ -129,8 +130,8 @@ private const string TestConfiguration = @"
                     new DeploymentOverride() {
                         Repository = pinByRepo ? pinnedRepo : "not_ " + pinnedRepo,
                         PipelineIds = pinByPipeline ? [ pinnedPipeline ] : null,
-                        Tools = new ReadOnlyDictionary<BuildTool, ToolDeployment>(new Dictionary<BuildTool, ToolDeployment> () {
-                            { BuildTool.BuildXL, new ToolDeployment() { Version = "PinnedVersion" }  }
+                        Tools = new ReadOnlyDictionary<string, ToolDeployment>(new Dictionary<string, ToolDeployment> () {
+                            { ToolName, new ToolDeployment() { Version = "PinnedVersion" }  }
                         })
                     }
                 ]
@@ -143,7 +144,7 @@ private const string TestConfiguration = @"
                 PipelineId = pinnedPipeline
             };
 
-            Assert.Equal(pinByRepo, ConfigurationUtilities.TryGetOverride(overrideConfig, BuildTool.BuildXL, mockAdoService, out var overridden, new TestLogger()));
+            Assert.Equal(pinByRepo, ConfigurationUtilities.TryGetOverride(overrideConfig, ToolName, mockAdoService, out var overridden, new TestLogger()));
             if (pinByRepo)
             {
                 Assert.Equal("PinnedVersion", overridden);

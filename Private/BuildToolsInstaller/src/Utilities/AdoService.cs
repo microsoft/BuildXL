@@ -66,6 +66,12 @@ namespace BuildToolsInstaller.Utilities
 
         /// <nodoc />
         public int PipelineId => int.Parse(Environment.GetEnvironmentVariable("SYSTEM_DEFINITIONID")!);
+
+        /// <nodoc />
+        public string PhaseName => Environment.GetEnvironmentVariable("SYSTEM_PHASENAME")!;
+
+        /// <nodoc />
+        public int JobAttempt => int.Parse(Environment.GetEnvironmentVariable("SYSTEM_JOBATTEMPT")!);
         #endregion
 
         private BuildHttpClient BuildClient => m_httpClient ??= new BuildHttpClient(new Uri(ServerUri), new VssBasicCredential(string.Empty, AccessToken));

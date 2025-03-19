@@ -5,15 +5,11 @@ using System.Diagnostics.Contracts;
 using System.Text.Json;
 using BuildToolsInstaller.Config;
 using BuildToolsInstaller.Utilities;
-using Microsoft.Extensions.Logging;
-using NuGet.Configuration;
-using NuGet.Protocol;
-using NuGet.Protocol.Core.Types;
 using NuGet.Versioning;
 
 namespace BuildToolsInstaller.Installers
 {
-    public abstract class CentralNugetFeedInstallerBase : IToolInstaller
+    public class ToolInstaller : IToolInstaller
     {
         protected readonly IAdoService AdoService;
         private readonly INugetDownloader m_downloader;
@@ -25,17 +21,12 @@ namespace BuildToolsInstaller.Installers
         /// </summary>
         protected DeploymentConfiguration DeploymentConfig = null!;
 
-        /// <summary>
-        /// A display name for the tool. Used in the installation paths, logging, etc.
-        /// </summary>
-        protected string ToolName => Tool.ToString();
 
-        protected abstract BuildTool Tool { get; }
+        public string Tool { get; }
 
-        public abstract string DefaultToolLocationVariable { get; }
-
-        public CentralNugetFeedInstallerBase(INugetDownloader downloader, string configDirectory, IAdoService adoService, ILogger logger)
+        public ToolInstaller(string tool, INugetDownloader downloader, string configDirectory, IAdoService adoService, ILogger logger)
         {
+            Tool = tool;
             AdoService = adoService;
             m_downloader = downloader;
             ConfigDirectory = configDirectory;
@@ -52,14 +43,9 @@ namespace BuildToolsInstaller.Installers
                 return false;
             }
 
-            if (!await TryInitializeConfigAsync(args.ExtraConfiguration))
-            {
-                return false;
-            }
-
             if (!DeploymentConfig.Packages.TryGetValue(args.PackageSelector, out string? packageName))
             {
-                Logger.Error($"The package for tool {ToolName} with selector '{args.PackageSelector}' not found in the configuration. Installation can't proceed.");
+                Logger.Error($"The package for tool {Tool} with selector '{args.PackageSelector}' not found in the configuration. Installation can't proceed.");
                 return false;
             }
 
@@ -191,17 +177,65 @@ namespace BuildToolsInstaller.Installers
             return true;
         }
 
-        /// <summary>
-        /// The installer is given an configuration string, iheritors should this methid to initialize their configuration
-        /// based on it
-        /// </summary>
-        protected abstract Task<bool> TryInitializeConfigAsync(string? extraConfiguration);
+        private async Task<(NuGetVersion Version, bool IgnoreCache)?> TryResolveVersionAsync(string packageName, string? versionDescriptor)
+        {
+            var resolvedVersionProperty = AdoService.PhaseName;
+            bool ignoreCache = false;
+            string? resolvedVersion = null;
+            NuGetVersion? resolvedNugetVersion = null;
 
-        /// <summary>
-        /// Given a version descriptor, this method should resolve the version to install from NuGet
-        /// </summary>
-        protected abstract Task<(NuGetVersion Version, bool IgnoreCache)?> TryResolveVersionAsync(string packageName, string? versionDescriptor);
+            var overrides = await GetOverridesConfigurationAsync(Logger);
+            if (overrides != null)
+            {
+                // Found an overrides file - let's see if there is a rule for this tool
+                if (ConfigurationUtilities.TryGetOverride(overrides, Tool, AdoService, out var overridenVersion, Logger))
+                {
+                    // The version is selected from an explicit override
+                    resolvedVersion = overridenVersion;
+                }
+            }
 
-        internal string GetDownloadLocation(string toolDirectory, string version) => Path.Combine(toolDirectory, ToolName, version);
+            if (versionDescriptor == null || ConfigurationUtilities.IsValidDescriptor(DeploymentConfig, versionDescriptor))
+            {
+                resolvedVersion = versionDescriptor == null ?
+                    ConfigurationUtilities.ResolveDefaultVersion(DeploymentConfig, out ignoreCache, AdoService, Logger) :
+                    ConfigurationUtilities.ResolveVersion(DeploymentConfig, versionDescriptor, out ignoreCache, AdoService, Logger);
+
+                if (resolvedVersion == null)
+                {
+                    Logger.Error($"Failed to resolve version to install for ring {versionDescriptor}. Installation has failed.");
+                    return null;
+                }
+            }
+            else
+            {
+                // If it's not a ring, then it should be a valid Nuget version, which we'll parse below
+                resolvedVersion = versionDescriptor;
+            }
+
+
+            if (!NuGetVersion.TryParse(resolvedVersion, out resolvedNugetVersion))
+            {
+                Logger.Error($"The provided version for the {packageName} package is malformed: {versionDescriptor}.");
+                return null;
+            }
+
+            return (resolvedNugetVersion, ignoreCache);
+        }
+
+        private Task<OverrideConfiguration?> GetOverridesConfigurationAsync(ILogger logger)
+        {
+            var overridesConfigPath = Path.Combine(ConfigurationUtilities.GetConfigurationPathForTool(ConfigDirectory, Tool), "overrides.json");
+            if (File.Exists(overridesConfigPath))
+            {
+                return JsonUtilities.DeserializeAsync<OverrideConfiguration>(overridesConfigPath, logger);
+            }
+            else
+            {
+                return Task.FromResult<OverrideConfiguration?>(new() { Overrides = [] });
+            }
+        }
+
+        internal string GetDownloadLocation(string toolDirectory, string version) => Path.Combine(toolDirectory, Tool, version);
     }
 }

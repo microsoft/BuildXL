@@ -32,8 +32,7 @@ namespace BuildToolsInstaller.Config
         /// <summary>
         /// The tool to install
         /// </summary>
-        [JsonConverter(typeof(JsonStringEnumConverter))]
-        public BuildTool Tool { get; init; }
+        public required string Tool { get; init; }
 
         /// <summary>
         /// A version 'specification', from which the version to install will be resolved.
@@ -51,12 +50,6 @@ namespace BuildToolsInstaller.Config
         /// The name of the environment variable that will hold the path to the installed tool
         /// </summary>
         public required string OutputVariable { get; init; }
-
-        /// <summary>
-        /// Each tool is responsible for interpreting this value, which might for instance point to an additional
-        /// configuration file, or hold some serialized arguments to be used for the installer.
-        /// </summary>
-        public string? AdditionalConfiguration { get; init; }
 
         /// <summary>
         /// If true, the tool will be installed even if it is already present in the cache

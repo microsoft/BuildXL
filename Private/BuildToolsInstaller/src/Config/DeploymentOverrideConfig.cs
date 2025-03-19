@@ -25,9 +25,9 @@ namespace BuildToolsInstaller.Config
         public IReadOnlyList<int>? PipelineIds { get; init; }
 
         /// <summary>
-        /// The overrides for this exception
+        /// The overrides for this exception - maps a tool name to a ToolDeployment
         /// </summary>
-        public required IReadOnlyDictionary<BuildTool, ToolDeployment> Tools { get; init; }
+        public required IReadOnlyDictionary<string, ToolDeployment> Tools { get; init; }
     }
 
     public class OverrideConfiguration

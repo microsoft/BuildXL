@@ -107,7 +107,7 @@ jobs:
   
   # Integration test:
   # 1. Run installer in 'orchestrator' (default) mode. This should pick up the latest version from the configuration.
-  #    Install a fixed version (0.1.0-20240802.2) so we can verify the worker picks up the same one without it coming from
+  #    Use a fixed version of the configuration (2025.3.17-29727110) so we can verify the worker picks up the same one without it coming from
   #    the global configuration 
   # 2. Run installer in 'worker' mode outputting to a separate location. This should install the same version as the one specified by the orchestrator
   #    Note that we don't specify the version override in the configuration, so it really is communicated by the other invocation
@@ -124,10 +124,9 @@ jobs:
           'tools' = @(
             @{
               'tool' = 'BuildXL'
-              'version' = '0.1.0-20240802.2'
+              'version' = 'GeneralPublic'
               'outputVariable' = 'BXL_ORCH_LOCATION'
               'packageSelector' = '${{ parameters.pool.os }}'
-              'additionalConfiguration' = 'distributedRole=Orchestrator;invocationKey=MyBuild_${{ parameters.platform }}'
             }
           )
         }
@@ -145,17 +144,19 @@ jobs:
         $executablePath = Join-Path -Path $(Build.SourcesDirectory) -ChildPath "Private/BuildToolsInstaller/src/bin/$(buildConfiguration)/$executableName"
 
         $toolsDirectory = Join-Path $(Agent.ToolsDirectory) "Orch"
-        & $executablePath install --toolsDirectory $toolsDirectory --config $configPath
+
+        # Use a fixed version for the orchestrator installation - this has a GeneralPublic BuildXL version of '0.1.0-20250306.1'
+        $configVersion = "2025.3.17-29727110"
+        & $executablePath install --configVersion $configVersion  --toolsDirectory $toolsDirectory --config $configPath
 
         Write-Host "##[command]Run the installer in worker mode and output to 'Worker'"
         $config = @{
           'tools' = @(
             @{
               'tool' = 'BuildXL'
-              'version' = '0.1.0-20240802.2'
+              'version' = 'GeneralPublic'
               'outputVariable' = 'BXL_WORKER_LOCATION'
               'packageSelector' = '${{ parameters.pool.os }}'
-              'additionalConfiguration' = 'distributedRole=Worker;invocationKey=MyBuild_${{ parameters.platform }};workerTimeoutMin=3'
             }
           )
         }
@@ -165,7 +166,9 @@ jobs:
         Get-Content -Path $configPath
 
         $toolsDirectory = Join-Path $(Agent.ToolsDirectory) "Worker"
-        & $executablePath install --toolsDirectory $toolsDirectory --config $configPath
+
+        # Install in worker mode: even without specifying the fixed config version, this should pick up the same version as the orchestrator
+        & $executablePath install --toolsDirectory $toolsDirectory --config $configPath --workerMode
 
   # 3. Compare the contents of the download directories - they should be identical
   - task: Powershell@2

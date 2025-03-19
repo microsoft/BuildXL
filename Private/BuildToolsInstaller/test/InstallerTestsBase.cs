@@ -11,8 +11,9 @@ namespace BuildToolsInstaller.Tests
     {
 
         // Used in the config below and in tests that use that as the verion descriptor
-        protected const string GeneralPublicVersion = "0.1.0-20250124.2";
-        protected const string GeneralPublicRing = "GeneralPublic";
+        protected const string DefaultVersion = "0.1.0-20250124.2";
+        protected const string DefaultRing = "Ring1";
+        protected const string ToolName = "MyTool";
 
         /// <summary>
         /// Writes a mock version of the configuration to a temporary path
@@ -20,26 +21,26 @@ namespace BuildToolsInstaller.Tests
         protected string WriteMockedConfiguration([CallerMemberName] string caller = "")
         {
             var directory = GetTempPathForTest(caller);
-            var configForTool = Path.Combine(ConfigurationUtilities.GetConfigurationPathForTool(directory, BuildTool.BuildXL));
+            var configForTool = Path.Combine(ConfigurationUtilities.GetConfigurationPathForTool(directory, ToolName));
             Directory.CreateDirectory(configForTool);
             File.WriteAllText(Path.Combine(configForTool, "deployment-config.json"),
  @$"{{
   ""Rings"": {{
-    ""Dogfood"": {{
+    ""Ring0"": {{
       ""Version"": ""0.1.0-20250124.3""
     }},
-    ""GeneralPublic"": {{
-      ""Version"": ""{GeneralPublicVersion}""
+    ""{DefaultRing}"": {{
+      ""Version"": ""{DefaultVersion}""
     }},
-    ""Golden"": {{
+    ""Ring2"": {{
       ""Version"": ""0.1.0-20250124.1""
     }}
   }},
   ""Packages"": {{
-     ""Linux"": ""BuildXL.linux-x64"",
-     ""Windows"": ""BuildXL.win-x64""
+     ""Linux"": ""{ToolName}.linux-x64"",
+     ""Windows"": ""{ToolName}.win-x64""
     }},
-   ""Default"": ""GeneralPublic""
+   ""Default"": ""Ring1""
 }}");
             File.WriteAllText(Path.Combine(configForTool, "overrides.json"), "{ \"Overrides\": [] }");
             return directory;

@@ -4,7 +4,7 @@
 namespace BuildToolsInstaller
 {
     /// <summary>
-    /// A component that knows how to retrieve and install a <see cref="BuildTool"/>
+    /// A component that knows how to retrieve and install a build tool
     /// </summary>
     internal interface IToolInstaller
     {
@@ -12,8 +12,5 @@ namespace BuildToolsInstaller
         /// Install a tool based on the given <see cref="InstallationArguments"/>
         /// </summary>
         public Task<bool> InstallAsync(InstallationArguments args);
-
-        // TODO [maly]: Deprecate this! This is used only in the non-parallel install case, where callers don't provide the output variable
-        public string DefaultToolLocationVariable { get; }
     }
 }

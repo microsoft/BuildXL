@@ -25,6 +25,8 @@ namespace BuildToolsInstaller.Tests
         public string RepositoryName { get; init; } = "TestRepo";
 
         public int PipelineId { get; init; } = 13012;
+        public string PhaseName { get; init; } = "MyJob";
+        public int JobAttempt { get; init; } = 1;
 
         public ConcurrentDictionary<string, string> Properties = new();
         public Task<string?> GetBuildPropertyAsync(string key)
@@ -68,6 +70,10 @@ namespace BuildToolsInstaller.Tests
         public string RepositoryName => throw Error;
 
         public int PipelineId => throw Error;
+
+        public string PhaseName => throw Error;
+
+        public int JobAttempt => throw Error;
 
         public Task<string?> GetBuildPropertyAsync(string key) => throw Error;
 

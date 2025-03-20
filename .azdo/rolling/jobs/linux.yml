@@ -73,6 +73,8 @@ jobs:
         /p:[BuildXL.Branding]SourceIdentification=$(Branding_SourceIdentification)
         /q:DebugLinux
         /q:ReleaseLinux
+        /q:DebugLinuxNet9
+        /q:ReleaseLinuxNet9
         "/f:output='/home/subst/Out/Bin/*'ortag='test'"
       workingDirectory: /home/subst
     env:

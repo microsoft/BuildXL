@@ -3,15 +3,14 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 ---
 ---
 # 0.1.0-20250314.2 (Release [29719034](https://dev.azure.com/mseng/Domino/_build/results?buildId=29719034&view=results))
--	eBPF sandbox for Linux builds - work in progress
+- eBPF sandbox for Linux builds - work in progress
 - Fix Rush plugin handling for additional Rush parameters
 - Added .net 9 support
-- Log path set for cache hits
 
 # 0.1.0-20250306.1 (Release [29687533](https://dev.azure.com/mseng/Domino/_build/results?buildId=29687533&view=results))
--	Attribute an access with same path as the root of a shared opaque to its parent
--	Stop publishing old cache packages in favor of single-dll ones
--	Bug fixes
+- Attribute an access with same path as the root of a shared opaque to its parent
+- Stop publishing old cache packages in favor of single-dll ones
+- Bug fixes
 
 # 0.1.0-20250226.3 (Release [29655797](https://dev.azure.com/mseng/Domino/_build/results?buildId=29655797&view=results))
 - Fixes for Ubuntu 24.04

@@ -8,11 +8,11 @@ const aspVersion = "9.0.0";
 const asp6RefVersion = "6.0.36";
 const asp6RuntimeVersion = "6.0.36";
 
-const asp8RefVersion = "8.0.11";
-const asp8RuntimeVersion = "8.0.11";
+const asp8RefVersion = "8.0.14";
+const asp8RuntimeVersion = "8.0.14";
 
-const asp9RefVersion = "9.0.1";
-const asp9RuntimeVersion = "9.0.1";
+const asp9RefVersion = "9.0.3";
+const asp9RuntimeVersion = "9.0.3";
 
 export const pkgs = [
     // aspnet web api

@@ -132,7 +132,7 @@ namespace BuildXL.FrontEnd.Core
         /// <summary>
         /// Tries to save package's hash file to disk.
         /// </summary>
-        public static Possible<Unit> TrySaveTo(string path, PackageHashFile hashFile)
+        internal static Possible<Unit> TrySaveTo(string path, PackageHashFile hashFile)
         {
             var sb = new StringBuilder();
             sb.AppendLine(HashFileFormatVersion)
@@ -149,6 +149,7 @@ namespace BuildXL.FrontEnd.Core
                 ExceptionUtilities.HandleRecoverableIOException(
                     () =>
                     {
+                        // CodeQL [SM04881] The path is prepared by the caller and is controlled elsewhere in FrontEnd
                         File.WriteAllText(path, sb.ToString());
                     },
                     e => throw new BuildXLException("Failed to save a package hash file.", e));

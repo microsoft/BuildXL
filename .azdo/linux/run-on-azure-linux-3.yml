@@ -19,7 +19,6 @@ parameters:
     image: 1ES-hosted-azure-linux-3
     os: linux
     demands: 
-    - VhdResourceId -equals /subscriptions/e9fe5373-81ff-4b89-8db2-c8681633aa87/resourceGroups/BuildXL-DevOpsAgents/providers/Microsoft.CloudTest/images/linux-vhd
     - ImageVersionOverride -equals 3.0.0
 resources:
   repositories:

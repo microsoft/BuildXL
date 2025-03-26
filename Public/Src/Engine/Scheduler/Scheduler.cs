@@ -3296,6 +3296,31 @@ namespace BuildXL.Scheduler
             {
                 m_hitHighFileDescriptorUsagePerfSmell = true;
                 Logger.Log.HighFileDescriptorCount(m_executePhaseLoggingContext, perfInfo.MachineOpenFileDescriptors, FileDescriptorCountThreshold);
+
+                // Temporary - investigating bug #2258751
+                if (EngineEnvironmentSettings.DumpOpenFilesOnDescriptorSpike)
+                {
+                    try
+                    {
+                        // We hit collection failures when hitting the open file descriptor limit - see bug #2076905 
+                        // Let's try to dump all the open files to a file in the log directory to diagnose
+                        string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                        var outDirectory = $"{m_configuration.Logging.LogsDirectory.ToString(Context.PathTable)}/debug_open_files";
+                        Directory.CreateDirectory(outDirectory);
+                        string outputFile = $"{outDirectory}/{timestamp}.txt";
+                        var process = new System.Diagnostics.Process();
+                        process.StartInfo.UseShellExecute = false;
+                        process.StartInfo.CreateNoWindow = true;
+                        process.StartInfo.FileName = "/bin/bash";
+                        process.StartInfo.Arguments = $@"-c ""lsof -n -p {System.Diagnostics.Process.GetCurrentProcess().Id} > {outputFile} 2>&1""";
+                        process.Start();
+                        process.WaitForExit();
+                    }
+                    catch (Exception e)
+                    {
+                        Analysis.IgnoreResult(e, "We don't want to surface this exception");
+                    }
+                }
             }
         }
 

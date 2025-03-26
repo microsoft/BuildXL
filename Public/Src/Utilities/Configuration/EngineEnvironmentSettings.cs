@@ -556,6 +556,11 @@ namespace BuildXL.Utilities.Configuration
         public static readonly Setting<bool> CancelLargestRamUseFirst = CreateSetting("BuildXLCancelLargestRamUseFirst", value => value == "1");
 
         /// <summary>
+        /// Investigating bug #2258751 - to be removed after
+        /// </summary>
+        public static readonly Setting<bool> DumpOpenFilesOnDescriptorSpike = CreateSetting("BuildXLDumpOpenFilesOnDescriptorSpike", value => value == "1");
+
+        /// <summary>
         /// List of env variables if present are used to override the BUILDXL_USERNAME.
         /// </summary>
         /// <remarks>

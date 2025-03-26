@@ -11,6 +11,7 @@ parameters:
     /p:[Sdk.BuildXL]xunitSemaphoreCount=8 
     /forceAddExecutionPermission-
     /p:BUILDXL_FINGERPRINT_SALT=AzureLinux3
+    /p:BuildXLDumpOpenFilesOnDescriptorSpike=1
   '
 - name: pool
   type: object

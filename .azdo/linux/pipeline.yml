@@ -20,6 +20,7 @@ parameters:
     /logoutput:FullOutputOnError 
     /p:[Sdk.BuildXL]xunitSemaphoreCount=8 
     /forceAddExecutionPermission-
+    /p:BuildXLDumpOpenFilesOnDescriptorSpike=1
   '
 - name: pool
   type: object

@@ -424,14 +424,6 @@ namespace BuildXL.Utilities.Configuration
         public bool LogCachedPipOutputs { get; }
 
         /// <summary>
-        /// Whether to send log events to Kusto.
-        /// </summary>
-        /// <remarks>
-        /// False by default
-        /// </remarks>
-        public bool LogToKusto { get; }
-
-        /// <summary>
         /// The blob URI to send log events to.
         /// </summary>
         /// <remarks>

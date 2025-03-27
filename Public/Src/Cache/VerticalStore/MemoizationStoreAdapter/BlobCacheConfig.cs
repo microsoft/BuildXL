@@ -228,7 +228,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         /// </summary>
         public bool TryPopulateFrom(Guid activityId, IConfiguration configuration, BuildXLContext buildXLContext, out Failure failure)
         {
-            var logToKusto = configuration.Logging.LogToKusto;
+            var logToKusto = !string.IsNullOrEmpty(configuration.Logging.LogToKustoBlobUri) && !string.IsNullOrEmpty(configuration.Logging.LogToKustoIdentityId);
             // For legacy reasons, cache logs require 'Master' when the build role is orchestrator
             Role = configuration.Distribution.BuildRole.IsOrchestrator() ? "Master" : configuration.Distribution.BuildRole.ToString();
             BuildId = configuration.Logging.RelatedActivityId ?? activityId.ToString();

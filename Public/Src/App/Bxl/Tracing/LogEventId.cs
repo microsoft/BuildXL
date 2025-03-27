@@ -79,5 +79,7 @@ namespace BuildXL.App.Tracing
         FailedToObtainLinuxDistroInfo = 15011,
         RecoverableConsoleError = 15012,
         Username = 15013,
+
+        LogToKustoDisabledWarning = 15014,
     }
 }

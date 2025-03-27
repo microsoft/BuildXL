@@ -974,7 +974,14 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
     <value>Always use remote detours injection when launching processes from a 32-bit process. Defaults to true.</value>
   </data>
   <data name="HelpText_DisplayHelp_LogToKusto" xml:space="preserve">
-    <value>Whether to send log events to Kusto. If enabled, a valid authentication mechanism should be available with enough permissions to write into the blob storage account where logs are piped to Kusto. Use /logToKustoBlobUri:https://{storage-account-name}/{container-name} and /logToKustoIdentityId:{Identity guid} to specify the destination of the log messages.</value>
+    <value>This flag is deprecated. Use /logToKustoBlobUri:https://{storage-account-name}/{container-name} and /logToKustoIdentityId:{Identity guid} to specify the destination of the log messages. Log to kusto will be enabled if both options are provided.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_LogToKustoBlobUri" xml:space="preserve">
+    <value>Specifies the blob storage account URI to send log events to Kusto. The format is /logToKustoBlobUri:https://{storage-account-name}/{container-name}. This option must be used with /logToKustoIdentityId.</value>
+    <value></value>
+  </data>
+  <data name="HelpText_DisplayHelp_LogToKustoIdentityId" xml:space="preserve">
+    <value>Specifies the identity ID to use when sending log events to Kusto. The format is /logToKustoIdentityId:{Identity guid}. This option must be used with /logToKustoBlobUri.</value>
   </data>
   <data name="App_ConfigureFileLogging_CannotCreateBlobListener" xml:space="preserve">
     <value>The option /logToKusto has been specified, but the connection to the blob storage account for sending log events to Kusto could not be established: {0}</value>

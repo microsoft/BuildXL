@@ -1616,9 +1616,17 @@ namespace BuildXL
                         ConfigureAdditionalFileLoggers(m_configuration.CustomLog);
                     }
 
-                    if (m_configuration.LogToKusto)
+                    if (!string.IsNullOrEmpty(m_configuration.LogToKustoBlobUri) && !string.IsNullOrEmpty(m_configuration.LogToKustoIdentityId))
                     {
                         ConfigureKustoLogging(loggingContext);
+                    }
+                    else if (!string.IsNullOrEmpty(m_configuration.LogToKustoBlobUri))
+                    {
+                        Logger.Log.LogToKustoDisabledWarning(loggingContext, nameof(m_configuration.LogToKustoIdentityId));
+                    }
+                    else if (!string.IsNullOrEmpty(m_configuration.LogToKustoIdentityId))
+                    {
+                        Logger.Log.LogToKustoDisabledWarning(loggingContext, nameof(m_configuration.LogToKustoBlobUri));
                     }
 
                     // We don't surface logs in the worker consoles to avoid user-level duplicate messages:

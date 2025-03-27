@@ -204,8 +204,18 @@ namespace BuildXL
                 HelpLevel.Verbose);
 
             hw.WriteOption(
-                "/logToKusto[+|-]",
+                "/logToKusto",
                 Strings.HelpText_DisplayHelp_LogToKusto,
+                HelpLevel.Verbose);
+
+            hw.WriteOption(
+                "/logToKustoBlobUri:<uri>",
+                Strings.HelpText_DisplayHelp_LogToKustoBlobUri,
+                HelpLevel.Verbose);
+
+            hw.WriteOption(
+                "/logToKustoIdentityId:<identityId>",
+                Strings.HelpText_DisplayHelp_LogToKustoIdentityId,
                 HelpLevel.Verbose);
 
             hw.WriteOption(

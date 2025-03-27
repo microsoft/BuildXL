@@ -592,6 +592,14 @@ namespace BuildXL.App.Tracing
             Message = "Console writer encountered recoverable error. Overwriting console will be disabled. Error: {errorMessage}",
             Keywords = (int)Keywords.UserMessage)]
         public abstract void RecoverableConsoleError(LoggingContext context, string errorMessage);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.LogToKustoDisabledWarning,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Message = "Log to Kusto is disabled because option {option} is not provided.",
+            Keywords = (int)Keywords.UserMessage)]
+        public abstract void LogToKustoDisabledWarning(LoggingContext context, string option);
     }
 
     /// <summary>

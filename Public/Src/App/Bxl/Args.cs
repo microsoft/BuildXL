@@ -614,11 +614,12 @@ namespace BuildXL
                             }),
                         OptionHandlerFactory.CreateBoolOption(
                             "logToKusto",
-                            opt => loggingConfiguration.LogToKusto = opt),
+                            opt => {/* DO NOTHING - Flag is ignored. LogToKustoBlobUri and LogToKustoIdentityId now control the switch */}),
                         OptionHandlerFactory.CreateBoolOption(
                             "cacheLogToKusto",
                             opt => {/* DO NOTHING - Flag is deprecated. LogToKusto drives this decision now */}),
-                         OptionHandlerFactory.CreateOption(
+                        // LogToKusto will be enabled if logToKustoBlobUri and logToKustoIdentityId are set
+                        OptionHandlerFactory.CreateOption(
                             "logToKustoBlobUri",
                             opt => loggingConfiguration.LogToKustoBlobUri = opt.Value),
                         OptionHandlerFactory.CreateOption(

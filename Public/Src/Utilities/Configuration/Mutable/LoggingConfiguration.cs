@@ -62,7 +62,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
 #endif
 
             PerfCollectorFrequencyMs = 5_000;
-            LogToKusto = false;
             LogEventsToConsole = new List<int>();
             DisplayWarningErrorTime = false;
             EnableCloudBuildEtwLoggingIntegration = false;
@@ -163,7 +162,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
             DumpFailedPipsLogLimit = template.DumpFailedPipsLogLimit;
             DumpFailedPipsWithDynamicData = template.DumpFailedPipsWithDynamicData;
             LogCachedPipOutputs = template.LogCachedPipOutputs;
-            LogToKusto = template.LogToKusto;
             LogToKustoBlobUri = template.LogToKustoBlobUri;
             LogToKustoIdentityId = template.LogToKustoIdentityId;
             LogEventsToConsole = new List<int>(template.LogEventsToConsole);
@@ -417,9 +415,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc/>
         public bool LogCachedPipOutputs { get; set; }
-
-        /// <inheritdoc/>
-        public bool LogToKusto { get; set; }
 
         /// <inheritdoc/>
         public string LogToKustoBlobUri { get; set; }

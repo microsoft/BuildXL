@@ -1,7 +1,8 @@
-.create-or-alter function with (docstring = "BuildXLInfo",folder = "perf") BuildXLInfo(startDate:datetime,endDate:datetime,version:string="",infrastructure:string="",customer:string="",cbQueue:string="",cbStamp:string="",buildId:string="",bucketGroup:string="",ignoreTwoMonthOldVersions:bool=false,ignoreCbTest:bool=false,ignoreKnownCrashCauses:bool=true,ignoreInfraErrors:bool=false,ignoreCloneBuilds:bool=true,ignoreCustomBuilds:bool=true,onlySuccess:bool=false) {
+.create-or-alter function with (folder = "perf", docstring = "BuildXLInfo", skipvalidation = "true") BuildXLInfo(startDate:datetime, endDate:datetime, version:string="", infrastructure:string="", customer:string="", cbQueue:string="", adoPipeline:string="", cbStamp:string="", buildId:string="", bucketGroup:string="", ignoreTwoMonthOldVersions:bool=false, ignoreCbTest:bool=false, ignoreKnownCrashCauses:bool=true, ignoreInfraErrors:bool=false, ignoreCloneBuilds:bool=false, ignoreCustomBuilds:bool=true, onlySuccess:bool=false) {
 let infras=parse_csv(infrastructure);
 let customers=parse_csv(customer);
 let cbQueues=parse_csv(cbQueue);
+let adoPipelines=parse_csv(adoPipeline);
 let cbStamps=parse_csv(cbStamp);
 let bucketGroups=parse_csv(bucketGroup);
 let buildIds=parse_csv(buildId);
@@ -11,7 +12,7 @@ cluster('cbuild').database('Domino').dominoinvocation
 | where EventInfo_Time between (startDate .. endDate)
 | extend IsWorker = iff(isempty(Role), CommandLine has "distributedBuildRole:worker", Role == "Worker")
 | extend IsWorkerOrOrchestrator = iff(isempty(Role), CommandLine has "distributedBuildRole", Role != "None")  // I do not want to check twice for both distributedBuildRole:orchestrator and distributedBuildRole:master 
-| project EventInfo_Time, Environment, BuildInfo_Build, UserName = iff(UserName startswith "CBA-", "CBA-", UserName), toguid(RelatedSessionIdentifier), toguid(SessionId), MachineName, BuildInfo_IsDeveloperBuild, IsWorker, IsWorkerOrOrchestrator, MachineCores=toint(MachineInfo_ProcessorCount)
+| project EventInfo_Time, Environment, BuildInfo_Build, UserName = iff(UserName startswith "CBA-", "CBA-", UserName), toguid(RelatedSessionIdentifier), toguid(SessionId), MachineName, BuildInfo_IsDeveloperBuild, IsWorker, IsWorkerOrOrchestrator, MachineCores=toint(MachineInfo_ProcessorCount), MachineRamMb=toint(MachineInfo_InstalledMemoryMB)
 | extend IsOrchestrator = IsWorkerOrOrchestrator and not(IsWorker)
 | where not(ignoreCustomBuilds) or BuildInfo_IsDeveloperBuild == "False" // Ignore developer builds with custom bxl changes
 | parse BuildInfo_Build with * "-" VersionDate "." VersionSuffix "]"
@@ -23,7 +24,7 @@ cluster('cbuild').database('Domino').dominoinvocation
 | parse-kv Environment as (infra: string, org: string, codebase:string, cloudBuildQueue: string) with (pair_delimiter=';', kv_delimiter='=')
 | project-rename Infra=infra, CBQueue=cloudBuildQueue
 // Perform filtering as early in the query as possible to prune data prior to subsequent joins
-| where isempty(infrastructure) or Infra in (infras)
+| where isempty(infrastructure) or tostring(infras) contains Infra
 | where isempty(cbQueue) or CBQueue in (cbQueues)
 | extend Customer = strcat(
     coalesce(org,
@@ -78,9 +79,11 @@ cluster('cbuild').database('Domino').dominoinvocation
     Orchestrator=take_anyif(MachineName, IsOrchestrator),
     NumOrchestratorOrWorkers=dcountif(MachineName, IsWorkerOrOrchestrator),
     Environment=coalesce(take_anyif(Environment, not(IsWorker)), min(Environment)),
+    Engine=take_any(BuildInfo_Build),
     Version=coalesce(take_anyif(Version, not(IsWorker)), min(Version)),
     VersionDate=coalesce(take_anyif(VersionDate, not(IsWorker)), min(VersionDate)), // We might use different buildxl versions in distributed builds. 
     MachineCores=coalesce(take_anyif(MachineCores, not(IsWorker)), min(MachineCores)), 
+    MachineRamMb=coalesce(take_anyif(MachineRamMb, not(IsWorker)), min(MachineRamMb)), 
     // For distributed builds we only consider it an internal error if a non-worker had an internal error
     NonWorkerInternalError = iff(sum(NonWorkerInternalError) > 0, 1, 0),
     OrchestratorInternalError = iff(sum(OrchestratorInternalError) > 0, 1, 0),
@@ -113,24 +116,28 @@ cluster('cbuild').database('Domino').dominoinvocation
 //
 | join kind=leftouter hint.shufflekey=BuildId (database("CloudBuildProd").BuildInfo
     | where EndTime between (startDate .. endDateLater)
-    | project toguid(BuildId), IsClonedBuild, CBStartTime=StartTime, CBStamp=OwnerStampId, CBReturnCode=ReturnCode, CBReturnType=ReturnType, CBException=BuildException
+    | project toguid(BuildId), IsClonedBuild, CBStartTime=StartTime, CBStamp=OwnerStampId, CBReturnCode=ReturnCode, CBReturnType=ReturnType, CBException=BuildException, CBComputeProvider=ComputeProvider, CBRequester=Requester, CBValidationMarker=ValidationMarker
     | summarize arg_max(CBStartTime, *) by BuildId) on BuildId
 | join kind=leftouter hint.shufflekey=BuildId (database("CloudBuildCBTest").BuildInfo
     | where EndTime between (startDate .. endDateLater)
-    | project toguid(BuildId), IsClonedBuild, CBStartTime=StartTime, CBStamp=OwnerStampId, CBReturnCode=ReturnCode, CBReturnType=ReturnType, CBException=BuildException
+    | project toguid(BuildId), IsClonedBuild, CBStartTime=StartTime, CBStamp=OwnerStampId, CBReturnCode=ReturnCode, CBReturnType=ReturnType, CBException=BuildException, CBComputeProvider=ComputeProvider, CBRequester=Requester, CBValidationMarker=ValidationMarker
     | summarize arg_max(CBStartTime, *) by BuildId) on BuildId
 // Merge together CloudBuild fields to present a unified view between CBProd and CBTest
 | extend CBStamp = coalesce(CBStamp, CBStamp1)
+| extend CBRequester = coalesce(CBRequester, CBRequester1)
 | extend CBStartTime = coalesce(CBStartTime, CBStartTime1)
 | extend CBReturnCode = coalesce(CBReturnCode, CBReturnCode1)
 | extend CBReturnType = coalesce(CBReturnType, CBReturnType1)
 | extend CBException = coalesce(CBException, CBException1)
+| extend CBValidationMarker = coalesce(CBValidationMarker, CBValidationMarker1)
+| extend CBComputeProvider = coalesce(CBComputeProvider, CBComputeProvider1)
 | extend IsClonedBuild = coalesce(IsClonedBuild, IsClonedBuild1)
 | where Infra != "cb" or isnotempty(CBStartTime) // Ignore CB builds that are in-progress.
 | where isempty(CBReturnCode) or CBReturnCode !in ("CanceledFromADO", "CanceledByUser", "CanceledByAdmin") // Ignore cancelled CB builds. Those consists of non-gracefully terminated buildxl invocations.
 | where not(ignoreCloneBuilds) or isempty(IsClonedBuild) or IsClonedBuild  == 0 // Ignore cloned builds that are intended for validation.
 | where isempty(CBStartTime) or CBStartTime > startDate // If the given startDate does not cover the whole CB build, ignore it as it will likely miss some buildxl events.
 | extend Infra = iff(Infra == "cb" and isnotempty(CBStartTime1), "cbtest", Infra)
+| extend Infra = strcat(Infra,iff(CBComputeProvider == "ResourceManager", "RM", ""))
 | where not(ignoreCbTest) or Infra != "cbtest"
 | where isempty(infrastructure) or Infra in (infras)
 | where isempty(cbStamp) or CBStamp in (cbStamps)
@@ -158,13 +165,14 @@ cluster('cbuild').database('Domino').dominoinvocation
 | where not(ignoreInfraErrors) or (InternalError == 0 and LatestNonWorkerExitKind in ("BuildSucceeded", "UserError")) // Filter out the builds with infra errors
 | extend IsSucceeded = LatestNonWorkerExitKind == "BuildSucceeded" and (isempty(CBReturnCode) or CBReturnCode == "Success")
 | where not(onlySuccess) or IsSucceeded
-| parse-kv Environment as (adoproject:string, pipelineid: int, adobuildid: int, adojobid:string, ABTesting:string) with (pair_delimiter=';', kv_delimiter='=')
+| parse-kv Environment as (adoproject:string, pipelineid: string, adobuildid: int, adojobid:string, ABTesting:string) with (pair_delimiter=';', kv_delimiter='=')
+| where isempty(adoPipeline) or pipelineid in (adoPipelines)
 | extend Url = case(Infra == "cb", strcat("https://cloudbuild.microsoft.com/build/", BuildId),
+                    Infra == "cbRM", strcat("https://cloudbuild.microsoft.com/build/", BuildId),
                     Infra == "cbtest", strcat("https://cbtest.microsoft.com/build/", BuildId),
                     Infra == "ado", strcat("https://dev.azure.com/", Org, "/", adoproject, "/_build/results?view=logs&buildId=", adobuildid, "&j=", adojobid),
                     "")
 | extend LocalStartTime = datetime_utc_to_local(StartTime, 'US/Pacific')
-| project-away IsClonedBuild1, CBReturnType1, CBReturnCode1, CBStamp1, CBStartTime1, BuildId1, BuildId2, adoproject, adobuildid, adojobid, _*
+| project-away IsClonedBuild1, CBReturnType1, CBReturnCode1, CBStamp1, CBStartTime1, CBRequester1, BuildId1, BuildId2, adoproject, adobuildid, adojobid, _*
 | project-rename AdoPipelineId=pipelineid
-| where BucketGroup != "ProblematicWorkerExit.HighCountProblematicWorkers"
-}
+} 

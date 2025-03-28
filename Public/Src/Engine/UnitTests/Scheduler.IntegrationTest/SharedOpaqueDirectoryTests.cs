@@ -2734,7 +2734,9 @@ namespace IntegrationTest.BuildXL.Scheduler
             {
                 // If there is dependency, delete operation will be blocked by detours (due to restrictions in FileAccessManifest),
                 // and as a result the pip will fail.
-                AssertErrorEventLogged(ProcessesLogEventId.PipProcessError, count: 1);
+                // However, for EBPF we don't have blocking capabilities, and we'll just get a DFA
+                AssertErrorEventLogged(ProcessesLogEventId.PipProcessError, count: UsingEBPFSandbox? 0 : 1);
+                AssertWarningEventLogged(global::BuildXL.Scheduler.Tracing.LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, count: UsingEBPFSandbox? 1 : 0);
             }
         }
 

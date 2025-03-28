@@ -157,7 +157,7 @@ public:
 
     // Performs an access check for a write-access, based only on static policy in the manifest (not existence, etc.)
     // May only be called when !IsIndeterminate().
-    AccessCheckResult CheckWriteAccess() const;
+    AccessCheckResult CheckWriteAccess(bool basedOnPolicy = false) const;
 
     // Performs an access check for creating a symlink, based only on static policy in the manifest (not existence, etc.)
     // May only be called when !IsIndeterminate().

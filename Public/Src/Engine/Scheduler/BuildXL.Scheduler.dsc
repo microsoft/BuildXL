@@ -67,6 +67,7 @@ namespace Scheduler {
             "Test.Tool.Analyzers",
             "Test.Bxl",
             "IntegrationTest.BuildXL.Scheduler",
+            "IntegrationTest.BuildXL.Scheduler.EBPF",
             "Test.BuildXL.Distribution",
         ],
     });

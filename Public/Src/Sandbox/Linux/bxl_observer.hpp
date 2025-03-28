@@ -367,6 +367,8 @@ public:
     const char* GetSecondaryReportsPath() { return secondaryReportPath_; }
     const char* GetDetoursLibPath() { return detoursLibFullPath_; }
 
+    buildxl::common::FileAccessManifest* GetFileAccessManifest() { return fam_;}
+
     bool IsReportingProcessArgs() const { return !fam_ || CheckReportProcessArgs(fam_->GetFlags()); }
 
     void report_intermediate_symlinks(const char *pathname, pid_t associatedPid, pid_t associatedParentPid);
@@ -400,8 +402,9 @@ public:
      * @param event The SandboxEvent to check.
      * @param report The AccessReportGroup to populate with the access report.
      * @param check_cache Whether to cache events. Events are cached based on event type and path.
+     * @param basedOnlyOnPolicy Whether the access check has to happen purely based on file access policies (as opposed of existence-based)
      */
-    AccessCheckResult CreateAccess(buildxl::linux::SandboxEvent& event, bool check_cache = true);
+    AccessCheckResult CreateAccess(buildxl::linux::SandboxEvent& event, bool check_cache = true, bool basedOnlyOnPolicy = false);
 
     /**
      * Sends a file access report to the managed side of the sandbox using the provided access report. 
@@ -412,11 +415,12 @@ public:
      * Creates and sends a file access report to the managed side based on a sandbox event, ignoring the result of the access check.
      * Used for interposings that we don't need to block (like stats) or where we can't block (like the PTrace sandbox) 
      */
-    void CreateAndReportAccess(buildxl::linux::SandboxEvent& event, bool check_cache = true);
+    void CreateAndReportAccess(buildxl::linux::SandboxEvent& event, bool check_cache = true, bool basedOnlyOnPolicy = false);
 
     // Send a special message to managed code if the policy to override allowed writes based on file existence is set
     // and the write is allowed by policy
-    void report_firstAllowWriteCheck(const char *full_path);
+    void report_firstAllowWriteCheck(const char *full_path, int path_mode = -1, int pid = -1, int ppid = -1);
+    void create_firstAllowWriteCheck(const char *full_path, int path_mode, int pid, int ppid, buildxl::linux::SandboxEvent& firstAllowWriteEvent);
 
     // Checks and reports when a process that requires ptrace is about to be executed
     // Observe that as soon as this method determines ptrace is required and sends the corresponding report

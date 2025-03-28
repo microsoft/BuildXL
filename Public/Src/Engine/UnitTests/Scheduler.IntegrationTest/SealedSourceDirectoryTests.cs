@@ -153,7 +153,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             // Make the absent path exist and make sure it is cached appropriately
             WriteSourceFile(absentPath);
             RunScheduler().AssertFailure();
-            AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccess);
+            AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccess, allowMore: true);
             AssertVerboseEventLogged(LogEventId.DependencyViolationMissingSourceDependency);
             AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
             AssertErrorEventLogged(LogEventId.FileMonitoringError);

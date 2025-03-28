@@ -8,8 +8,7 @@ import * as LinuxSandboxTestProcess from "BuildXL.Sandbox.Linux.UnitTests";
 namespace Scheduler.IntegrationTest {
     export declare const qualifier : BuildXLSdk.DefaultQualifier;
     
-    @@public
-    export const dll = BuildXLSdk.test({
+    const testArgs : BuildXLSdk.TestArguments = {
         assemblyName: "IntegrationTest.BuildXL.Scheduler",
         sources: globR(d`.`, "*.cs"),
         runTestArgs: {
@@ -57,5 +56,24 @@ namespace Scheduler.IntegrationTest {
                 }
             ]),
         ],
+    };
+
+    @@public
+    export const dll = BuildXLSdk.test(testArgs);
+
+    // We (temporarily) duplicate the integration tests to run with the EBPF sandbox
+    const ebpfTestArgs : BuildXLSdk.TestArguments = Object.merge<BuildXLSdk.TestArguments>(testArgs,
+    {
+        assemblyName: "IntegrationTest.BuildXL.Scheduler.EBPF",
+        runTestArgs: {
+            tags: ["EBPF"],
+            testRunData: {
+                // CODESYNC: Public/Src/Utilities/UnitTests/TestUtilities/BuildXLTestBase.cs
+                useEBPFSandbox: true,
+            }
+        }
     });
+
+    @@public
+    export const ebpfDll = Context.isWindowsOS() ? undefined : BuildXLSdk.test(ebpfTestArgs);
 }

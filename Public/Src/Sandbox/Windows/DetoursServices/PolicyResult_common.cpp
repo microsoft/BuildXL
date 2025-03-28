@@ -160,10 +160,10 @@ AccessCheckResult PolicyResult::CreateAccessCheckResult(bool isAllowed) const
     return CreateAccessCheckResult(result, reportLevel);
 }
 
-AccessCheckResult PolicyResult::CheckExistingFileReadAccess() const { return CheckReadAccess(RequestedReadAccess::Read, FileReadContext(FileExistence::Existent)); }
-AccessCheckResult PolicyResult::CheckWriteAccess() const            { return CreateAccessCheckResult(AllowWrite(false)); }
-AccessCheckResult PolicyResult::CheckSymlinkCreationAccess() const  { return CreateAccessCheckResult(AllowSymlinkCreation()); }
-AccessCheckResult PolicyResult::CheckCreateDirectoryAccess() const  { return CreateAccessCheckResult(AllowCreateDirectory()); }
+AccessCheckResult PolicyResult::CheckExistingFileReadAccess() const         { return CheckReadAccess(RequestedReadAccess::Read, FileReadContext(FileExistence::Existent)); }
+AccessCheckResult PolicyResult::CheckWriteAccess(bool basedOnPolicy) const  { return CreateAccessCheckResult(AllowWrite(basedOnPolicy)); }
+AccessCheckResult PolicyResult::CheckSymlinkCreationAccess() const          { return CreateAccessCheckResult(AllowSymlinkCreation()); }
+AccessCheckResult PolicyResult::CheckCreateDirectoryAccess() const          { return CreateAccessCheckResult(AllowCreateDirectory()); }
 AccessCheckResult PolicyResult::CheckDirectoryAccess(bool enforceCreationAccess) const
 {
     return enforceCreationAccess

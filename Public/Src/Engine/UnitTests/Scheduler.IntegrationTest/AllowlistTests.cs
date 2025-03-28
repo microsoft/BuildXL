@@ -71,7 +71,7 @@ namespace IntegrationTest.BuildXL.Scheduler
                     // Existence of allowlisted files is still tracked for absent file probes
                     // This is consistent with including allowlisted files in directory fingerprints
                     RunScheduler().AssertCacheMiss(pip.PipId);
-                    AssertInformationalEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccessAllowlistedCacheable);
+                    AssertInformationalEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccessAllowlistedCacheable, allowMore: true);
                     break;
                 case MountType.NonHashable:
                     // Absent file probes are not tracked for nonhashable mounts

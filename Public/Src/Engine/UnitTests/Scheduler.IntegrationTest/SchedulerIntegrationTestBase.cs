@@ -137,6 +137,9 @@ namespace Test.BuildXL.Scheduler
             // Disable currently enabled unsafe option.
             Configuration.Sandbox.UnsafeSandboxConfigurationMutable.IgnoreCreateProcessReport = false;
 
+            // Honor the test infra regarding the use of the EBPF sandbox
+            Configuration.Sandbox.EnableEBPFLinuxSandbox = UsingEBPFSandbox;
+
             // Populate file system capabilities.
             // Here, for example, we use copy-on-write instead of hardlinks when Unix file system supports copy-on-write.
             // Particular tests can override this by setting Configuration.Engine.UseHardlinks.

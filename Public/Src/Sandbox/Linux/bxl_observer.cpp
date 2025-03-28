@@ -141,6 +141,7 @@ void BxlObserver::InitFam(pid_t pid)
 
 void BxlObserver::Init()
 {
+    // TODO [pgunasekara]: this piece can be moved into the constructor once the interpose library is removed.
     // If message counting is enabled, open the associated semaphore (this should already be created by the managed side)
     if (CheckCheckDetoursMessageCount(fam_->GetFlags()))
     {
@@ -161,7 +162,7 @@ void BxlObserver::Init()
 }
 
 // Access Reporting
-AccessCheckResult BxlObserver::CreateAccess(buildxl::linux::SandboxEvent& event, bool check_cache) {
+AccessCheckResult BxlObserver::CreateAccess(buildxl::linux::SandboxEvent& event, bool check_cache, bool basedOnPolicy) {
     if (!event.IsValid()) {
         LOG_DEBUG("Won't report an access for syscall %s because the event is invalid.", event.DebugGetSystemCall()); 
         return sNotChecked;
@@ -187,7 +188,7 @@ AccessCheckResult BxlObserver::CreateAccess(buildxl::linux::SandboxEvent& event,
     auto access_should_be_blocked = false;
 
     if (IsValid()) {
-        result = buildxl::linux::AccessChecker::CheckAccessAndGetReport(fam_, event);
+        result = buildxl::linux::AccessChecker::CheckAccessAndGetReport(fam_, event, basedOnPolicy);
         access_should_be_blocked = result.ShouldDenyAccess() && IsFailingUnexpectedAccesses();
 
         if (!access_should_be_blocked) {
@@ -219,8 +220,8 @@ void BxlObserver::ReportAccess(buildxl::linux::SandboxEvent& event) {
     SendReport(event);
 }
 
-void BxlObserver::CreateAndReportAccess(buildxl::linux::SandboxEvent& event, bool check_cache) {
-    CreateAccess(event, check_cache);
+void BxlObserver::CreateAndReportAccess(buildxl::linux::SandboxEvent& event, bool check_cache, bool basedOnlyOnPolicy) {
+    CreateAccess(event, check_cache, basedOnlyOnPolicy);
     ReportAccess(event);
 }
 
@@ -626,21 +627,27 @@ bool BxlObserver::is_non_file(const mode_t mode)
     return mode != 0 && !S_ISDIR(mode) && !S_ISREG(mode) && !S_ISLNK(mode);
 }
 
-void BxlObserver::report_firstAllowWriteCheck(const char *full_path)
+void BxlObserver::create_firstAllowWriteCheck(const char *full_path, int path_mode, int pid, int ppid, buildxl::linux::SandboxEvent& firstAllowWriteEvent)
 {
-    mode_t mode = get_mode(full_path);
+    mode_t mode = path_mode == -1 ? get_mode(full_path) : path_mode;
     bool file_exists = mode != 0 && !S_ISDIR(mode);
     AccessCheckResult access_check(RequestedAccess::Write, file_exists ? ResultAction::Deny : ResultAction::Allow, ReportLevel::Report);
-    auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
+    firstAllowWriteEvent = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
         /* system_call */   "firstAllowWriteCheckInProcess",
         /* event_type */    buildxl::linux::EventType::kFirstAllowWriteCheckInProcess,
-        /* pid */           getpid(),
-        /* ppid */          getppid(),
+        /* pid */           pid == -1 ? getpid() : pid,
+        /* ppid */          ppid == -1 ? getppid() : ppid,
         /* error */         0,
         /* src_path */      full_path);
 
-    event.SetMode(mode);
-    event.SetSourceAccessCheck(access_check);
+    firstAllowWriteEvent.SetMode(mode);
+    firstAllowWriteEvent.SetSourceAccessCheck(access_check);
+}
+
+void BxlObserver::report_firstAllowWriteCheck(const char *full_path, int path_mode, int pid, int ppid)
+{
+    buildxl::linux::SandboxEvent event;
+    create_firstAllowWriteCheck(full_path, -1, -1, -1, event);
 
     SendReport(event);
 }

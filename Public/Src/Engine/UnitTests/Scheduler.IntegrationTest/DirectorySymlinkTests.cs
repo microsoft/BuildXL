@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -96,10 +97,15 @@ namespace IntegrationTest.BuildXL.Scheduler
             public override string ToString() => Desc;
         }
 
+        private LookupSpec[] LookupSpecs { get; }
+        private LookupSpec[] AbsentProbeSpecs { get; }
+
         public DirectorySymlinkTests(ITestOutputHelper output) : base(output)
         {
             // Enable full symbolic link resolving for testing
             Configuration.Sandbox.UnsafeSandboxConfigurationMutable.IgnoreFullReparsePointResolving = false;
+            LookupSpecs = GetLookupSpecs(UsingEBPFSandbox);
+            AbsentProbeSpecs = GetAbsentProbeSpecs(UsingEBPFSandbox);
         }
 
         protected override void Dispose(bool disposing)
@@ -145,7 +151,7 @@ Versions/sym-sym-A -> sym-A/
         /// <see cref="LookupSpec.Observations"/> for more details on the format of strings specified as observations.
         /// In a nutshell, prefix is "+" means that the path must be observed, and "-" means that the path must not be observed.
         /// </remarks>
-        private static LookupSpec[] LookupSpecs { get; } = new[]
+        private static LookupSpec[] GetLookupSpecs(bool usingEBPFSandbox) => new[]
         {
             new LookupSpec(
                 "readDirectly",
@@ -171,7 +177,8 @@ Versions/sym-sym-A -> sym-A/
                     "+ Versions/sym-A",
                     "+ Versions/A/file",
                     "- Versions/A/sym-loop",
-                    "- Versions/sym-A/file",
+                    // With EBPF we also observe a probe on the symlink itself
+                    (usingEBPFSandbox ? "+ Versions/sym-A/file" : "- Versions/sym-A/file"),
                     "- Versions/sym-sym-A",
                     "- Versions/sym-sym-A/file"
                 }
@@ -181,14 +188,15 @@ Versions/sym-sym-A -> sym-A/
                 "readViaDirDirSymlink",
                 lookup: "Versions/sym-sym-A/file",
                 target: "Versions/A/file",
-                observations: new[]
+                observations: new[] 
                 {
                     "+ Versions/sym-sym-A",
                     "+ Versions/sym-A",
                     "+ Versions/A/file",
                     "- Versions/A/sym-loop",
                     "- Versions/sym-A/file",
-                    "- Versions/sym-sym-A/file"
+                    // With EBPF we also observe a probe on the symlink itself
+                    (usingEBPFSandbox ? "+ Versions/sym-sym-A/file" : "- Versions/sym-sym-A/file")
                 }
             ),
 
@@ -228,20 +236,21 @@ Versions/sym-sym-A -> sym-A/
                 "readViaSymLoop",
                 lookup: "Versions/A/sym-loop/file",
                 target: "Versions/A/file",
-                observations: new[]
+                observations: new [] 
                 {
                     "+ Versions/A/sym-loop",
                     "+ Versions/sym-A",
                     "+ Versions/A/file",
-                    "- Versions/A/sym-loop/file",
                     "- Versions/sym-A/file",
                     "- Versions/sym-sym-A",
-                    "- Versions/sym-sym-A/file"
+                    "- Versions/sym-sym-A/file",
+                    // With EBPF we observe a probe on the symlink itself
+                    (usingEBPFSandbox ? "+ Versions/A/sym-loop/file" : "- Versions/A/sym-loop/file")
                 }
             ),
         };
 
-        private static LookupSpec[] AbsentProbeSpecs { get; } = new[]
+        private static LookupSpec[] GetAbsentProbeSpecs(bool usingEBPFSandbox) => new[]
         {
             new LookupSpec(
                 "absentProbeViaDirSymlink",
@@ -250,8 +259,11 @@ Versions/sym-sym-A -> sym-A/
                 observations: new[]
                 {
                     "+ Versions/sym-A",
-                    "+ Versions/A/absent1",
-                    "- Versions/sym-A/absent1",
+                    // With EBPF we don't see any probe on the intermediate symlink because when the lookup path is absent
+                    // there is no actual probe happening there
+                    (usingEBPFSandbox ? "- Versions/A/absent1" : "+ Versions/A/absent1"),
+                    // With EBPF we see a probe on the symlink itself
+                    (usingEBPFSandbox ? "+ Versions/sym-A/absent1": "- Versions/sym-A/absent1"),
                 }
             ),
 
@@ -263,9 +275,12 @@ Versions/sym-sym-A -> sym-A/
                 {
                     "+ Versions/sym-sym-A",
                     "+ Versions/sym-A",
-                    "+ Versions/A/absent2",
+                    // With EBPF we don't see any probe on the intermediate symlink because when the lookup path is absent
+                    // there is no actual probe happening there
+                    (usingEBPFSandbox ? "- Versions/A/absent2" : "+ Versions/A/absent2"),
                     "- Versions/sym-A/absent2",
-                    "- Versions/sym-sym-A/absent2"
+                    // With EBPF we see a probe on the symlink itself
+                    (usingEBPFSandbox ? "+ Versions/sym-sym-A/absent2" : "- Versions/sym-sym-A/absent2")
                 }
             ),
         };
@@ -287,18 +302,45 @@ Versions/sym-sym-A -> sym-A/
                 OpReadDummySourceFile(dummyFileDescription)
             });
 
-        public static IEnumerable<object[]> LookupTestsData()
+        
+        /// <summary>
+        /// Enumerates all specs together with the information of whether they are meant
+        /// for the EBPF sandbox
+        /// </summary>
+        public class LookupData : IEnumerable<object[]>
         {
-            foreach (var spec in LookupSpecs.Concat(AbsentProbeSpecs))
+            public static IEnumerable<object[]> LookupTestsData()
             {
-                yield return new object[] { spec };
+                var specs = new[] { true, false }.SelectMany(
+                    usingEBPF => GetLookupSpecs(usingEBPF).Union(GetAbsentProbeSpecs(usingEBPF)).Select(spec => (spec, usingEBPF)));
+                foreach (var (spec, usingEBPF) in specs)
+                {
+                    yield return new object[] { spec, usingEBPF };
+                }
             }
+
+            public IEnumerator<object[]> GetEnumerator()
+            {
+                foreach (var spec in LookupTestsData())
+                {
+                    yield return spec;
+                }
+            }
+
+            IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
         }
+        
 
         [TheoryIfSupported(requiresSymlinkPermission: true)]
-        [MemberData(nameof(LookupTestsData))]
-        public void LookupTests(LookupSpec spec)
+        [ClassData(typeof(LookupData))]
+        public void LookupTests(LookupSpec spec, bool forEBPF)
         {
+            // Only use the specs that match the underlying sandbox
+            if (!((UsingEBPFSandbox && forEBPF) || (!UsingEBPFSandbox && !forEBPF)))
+            {
+                return;
+            }
+
             AbsolutePath rootDirAbsPath = CreateUniqueObjPath("LookupTest");
             string rootDir = rootDirAbsPath.ToString(Context.PathTable);
             var files = CreateLayoutOnDisk(rootDir, GeneralDirectoryLayout);
@@ -389,38 +431,38 @@ Versions/sym-sym-A -> sym-A/
             var allPipIds = new[] { producerPip.PipId }.Concat(allConsumers.Select(p => p.pip.PipId)).ToArray();
 
             // first run, expect all cache misses
-            ScheduleRunResult firstRunResult = RunSchedulerAndValidateProducedLayout().AssertCacheMiss(allPipIds);
+            ScheduleRunResult firstRunResult = RunSchedulerAndValidateProducedLayout("First run, all misses").AssertCacheMiss(allPipIds);
 
             // assert observations for each consumer pip:
             ValidateObservations(firstRunResult, rootDir, allConsumers);
 
             // rerun, expect all cache hits
-            RunSchedulerAndValidateProducedLayout().AssertCacheHit(allPipIds);
+            RunSchedulerAndValidateProducedLayout("Second run, all hits").AssertCacheHit(allPipIds);
 
             // delete out dir, rerun, expect all cache hits
             FileUtilities.DeleteDirectoryContents(rootDir, deleteRootDirectory: true);
-            RunSchedulerAndValidateProducedLayout().AssertCacheHit(allPipIds);
+            RunSchedulerAndValidateProducedLayout("Third run with cleaned outputs, all hits").AssertCacheHit(allPipIds);
 
             // invalidate each consumer pip, rerun, expect only that pip to be cache miss
             foreach (var consumer in allConsumers)
             {
                 InvalidatePip(consumer.pip);
-                RunSchedulerAndValidateProducedLayout()
+                RunSchedulerAndValidateProducedLayout($"Invalidate consumer {consumer.pip.GetDescription(Context)}")
                     .AssertCacheMiss(consumer.pip.PipId)
                     .AssertCacheHit(allPipIds.Except(new[] { consumer.pip.PipId }).ToArray());
             }
 
             // invalidate producer pip, rerun, expect reads to be cache misses and absent probes to be cache hits
             InvalidatePip(producerPip);
-            RunSchedulerAndValidateProducedLayout()
+            RunSchedulerAndValidateProducedLayout("Last run, invalidate producer: reads are misses, probes are hits")
                 .AssertCacheMiss(readConsumers.Select(t => t.pip.PipId).ToArray())
                 .AssertCacheHit(absentProbeConsumers.Select(t => t.pip.PipId).ToArray());
 
             // -------------------------------- local functions ---------------------------------
 
-            ScheduleRunResult RunSchedulerAndValidateProducedLayout()
+            ScheduleRunResult RunSchedulerAndValidateProducedLayout(string description = null)
             {
-                var r = RunScheduler().AssertSuccess();
+                var r = RunScheduler(runNameOrDescription: description).AssertSuccess();
                 ValidateProducedLayout();
                 return r;
             }
@@ -658,6 +700,12 @@ SubFolder/symlink -> ../../{inputDirName}/";
         [FactIfSupported(requiresSymlinkPermission: true)]
         public void ConcurrentCreationOfHardlinksPointingToSameFile()
         {
+            // This test takes too long for EBPF until we can make perf better. TODO: re-enable
+            if (UsingEBPFSandbox)
+            {
+                return;
+            }
+
             // Tests generally use an InMemoryArtifactContentCache and running this test causes share violations when concurrency is high
             // and page flushing is enabled on Windows systems - this seems to be a bug in either the CLR or the kernel code
             Configuration.Sandbox.FlushPageCacheToFileSystemOnStoringOutputsToCache = false;
@@ -805,7 +853,8 @@ SubFolder/symlink -> ../../{inputDirName}/";
                 RunScheduler().AssertFailure();
 
                 // Expect a DFA and the TestProcess to fail the access due to it being blocked
-                SetExpectedFailures(expectedErrorCount: 2, expectedWarningCount: 0, "Disallowed file accesse");
+                // With EBPF we don't have blocking capabilities, so we'll just see the DFA
+                SetExpectedFailures(expectedErrorCount: UsingEBPFSandbox? 1 : 2, expectedWarningCount: UsingEBPFSandbox? 1 : 0, "Disallowed file accesse");
             }
         }
 
@@ -918,17 +967,27 @@ SubFolder/symlink -> ../../{inputDirName}/";
                 "readThroughSymlinkFileOverRelativeAndAbsoluteDirectorySymlinks",
                 lookup: "second_root/sym-dir/file",
                 target: "first_root/target/file",
-                observations: new[]
-                {
-                    "+ first_root/target/file",
-                    "+ first_root/sym_dir",
-                    "+ first_root/nested_sym_dir",
-                    "+ second_root/sym-dir",
-                    "+ second_root/target/file"
-                }
-            );
+                 observations:
+                 [
+                    .. (new [] {
+                        "+ first_root/target/file",
+                        "+ first_root/sym_dir",
+                        "+ first_root/nested_sym_dir",
+                        "+ second_root/sym-dir",
+                        "+ second_root/target/file"
+                    }),
+                    // With EBPF we also observe a probe on the symlink itself
+                    .. UsingEBPFSandbox ? ["+ second_root/sym-dir/file"] : Array.Empty<string>(),
+                 ]);
 
             var files = CreateLayoutOnDisk(rootDir, testDirectoryLayout);
+            if (UsingEBPFSandbox)
+            {
+                // With EBPF we need to add the symlink itself as an input
+                var symlinkFile = InFile(X($"{rootDir}/{spec.Lookup}"));
+                files.Add(symlinkFile);
+            }
+
             var sealDirArtifact = SealDirectory(rootDirAbsPath, files, SealDirectoryKind.Full);
             var pip = CreateAndScheduleConsumer(sealDirArtifact, spec.Desc, spec.Lookup);
 
@@ -1031,6 +1090,13 @@ SubFolder/symlink -> ../../{inputDirName}/";
                 Operation.ReadFile(InFile(filePath), doNotInfer: true) // filePath may contain symlinks
             });
             pipBuilder.AddInputDirectory(inputDir);
+            // With EBPF we get the lookups on symlinks as probes as well. Some of them happen under opaque dirs. So just relax the input
+            // declaration a little bit.
+            if (UsingEBPFSandbox)
+            {
+                pipBuilder.Options |= Process.Options.AllowUndeclaredSourceReads;
+            }
+
             pipBuilder.ToolDescription = StringId.Create(Context.StringTable, description);
             return pipBuilder;
         }

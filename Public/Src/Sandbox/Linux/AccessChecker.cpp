@@ -31,22 +31,22 @@ PolicySearchCursor AccessChecker::FindManifestRecord(const buildxl::common::File
     return FindFileAccessPolicyInTreeEx(fam->GetUnixManifestTreeRoot(), path_without_root_sentinel, len);
 }
 
-std::tuple<AccessCheckResult, PolicyResult> AccessChecker::GetResult(const buildxl::common::FileAccessManifest *fam, CheckerType checker, const char* path, bool is_directory, bool exists) {
+std::tuple<AccessCheckResult, PolicyResult> AccessChecker::GetResult(const buildxl::common::FileAccessManifest *fam, CheckerType checker, const char* path, bool is_directory, bool exists, bool basedOnPolicy) {
     auto policy = PolicyForPath(fam, path);
     AccessCheckResult result = AccessCheckResult::Invalid();
 
-    PerformAccessCheck(checker, policy, is_directory, exists, &result);
+    PerformAccessCheck(checker, policy, is_directory, exists, basedOnPolicy, &result);
 
     return { result, policy };
 }
 
-AccessCheckResult AccessChecker::GetAccessCheckAndSetProperties(const buildxl::common::FileAccessManifest *fam, buildxl::linux::SandboxEvent &event, CheckerType checker) {
-    auto [result, policy] = GetResult(fam, checker, event.GetSrcPath().c_str(), event.IsDirectory(), event.PathExists());
+AccessCheckResult AccessChecker::GetAccessCheckAndSetProperties(const buildxl::common::FileAccessManifest *fam, buildxl::linux::SandboxEvent &event, CheckerType checker, bool basedOnPolicy) {
+    auto [result, policy] = GetResult(fam, checker, event.GetSrcPath().c_str(), event.IsDirectory(), event.PathExists(), basedOnPolicy);
     event.SetSourceAccessCheck(result);
     return result;
 }
 
-AccessCheckResult AccessChecker::CheckAccessAndGetReport(const buildxl::common::FileAccessManifest *fam, buildxl::linux::SandboxEvent &event) {
+AccessCheckResult AccessChecker::CheckAccessAndGetReport(const buildxl::common::FileAccessManifest *fam, buildxl::linux::SandboxEvent &event, bool basedOnPolicy) {
     switch (event.GetEventType())
     {
         case buildxl::linux::EventType::kClone:
@@ -62,7 +62,7 @@ AccessCheckResult AccessChecker::CheckAccessAndGetReport(const buildxl::common::
         case buildxl::linux::EventType::kCreate:
             return HandleCreate(fam, event);
         case buildxl::linux::EventType::kGenericWrite:
-            return HandleGenericWrite(fam, event);
+            return HandleGenericWrite(fam, event, basedOnPolicy);
         case buildxl::linux::EventType::kGenericRead:
             return HandleGenericRead(fam, event);
         case buildxl::linux::EventType::kGenericProbe:
@@ -189,9 +189,9 @@ AccessCheckResult AccessChecker::HandleRename(const buildxl::common::FileAccessM
     return combined_access_check;
 }
 
-AccessCheckResult AccessChecker::HandleGenericWrite(const buildxl::common::FileAccessManifest *fam, buildxl::linux::SandboxEvent &event) {
+AccessCheckResult AccessChecker::HandleGenericWrite(const buildxl::common::FileAccessManifest *fam, buildxl::linux::SandboxEvent &event, bool basedOnPolicy) {
     event.SetSourceFileOperation(buildxl::linux::FileOperation::kWriteFile);
-    return GetAccessCheckAndSetProperties(fam, event, CheckerType::kWrite);
+    return GetAccessCheckAndSetProperties(fam, event, CheckerType::kWrite, basedOnPolicy);
 }
 
 AccessCheckResult AccessChecker::HandleGenericRead(const buildxl::common::FileAccessManifest *fam, buildxl::linux::SandboxEvent &event) {
@@ -207,7 +207,7 @@ AccessCheckResult AccessChecker::HandleGenericProbe(const buildxl::common::FileA
 /**
  * Checker Functions
  */
-void AccessChecker::PerformAccessCheck(CheckerType type, PolicyResult policy, bool is_dir, bool exists, AccessCheckResult *check_result) {
+void AccessChecker::PerformAccessCheck(CheckerType type, PolicyResult policy, bool is_dir, bool exists, bool basedOnPolicy, AccessCheckResult *check_result) {
     switch(type) {
         case CheckerType::kExecute:
             CheckExecute(policy, is_dir, check_result);
@@ -216,7 +216,7 @@ void AccessChecker::PerformAccessCheck(CheckerType type, PolicyResult policy, bo
             CheckRead(policy, is_dir, check_result);
             break;
         case CheckerType::kWrite:
-            CheckWrite(policy, is_dir, check_result);
+            CheckWrite(policy, is_dir, check_result, basedOnPolicy);
             break;
         case CheckerType::kProbe:
             CheckProbe(policy, is_dir, exists, check_result);
@@ -269,10 +269,10 @@ void AccessChecker::CheckEnumerateDir(PolicyResult policy, bool is_dir, AccessCh
         policy.ReportDirectoryEnumeration() ? ReportLevel::ReportExplicit : ReportLevel::Ignore);
 }
 
-void AccessChecker::CheckWrite(PolicyResult policy, bool is_dir, AccessCheckResult *check_result) {
+void AccessChecker::CheckWrite(PolicyResult policy, bool is_dir, AccessCheckResult *check_result, bool basedOnPolicy) {
     *check_result = is_dir
         ? policy.CheckReadAccess(RequestedReadAccess::Probe, FileReadContext(FileExistence::Existent, is_dir))
-        : policy.CheckWriteAccess();
+        : policy.CheckWriteAccess(basedOnPolicy);
 }
 
 void AccessChecker::CheckCreateSymlink(PolicyResult policy, bool is_dir, AccessCheckResult *check_result) {

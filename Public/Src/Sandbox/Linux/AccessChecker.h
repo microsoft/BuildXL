@@ -35,15 +35,15 @@ public:
     /**
      * Get an access check for the provided SandboxEvent.
      */
-    static AccessCheckResult CheckAccessAndGetReport(const buildxl::common::FileAccessManifest *fam, buildxl::linux::SandboxEvent &event);
+    static AccessCheckResult CheckAccessAndGetReport(const buildxl::common::FileAccessManifest *fam, buildxl::linux::SandboxEvent &event, bool basedOnPolicy);
+    static PolicyResult PolicyForPath(const buildxl::common::FileAccessManifest *fam, const char* absolute_path);
 private:
     static AccessCheckResult GetAllowedAccessCheckResult();
 
-    static PolicyResult PolicyForPath(const buildxl::common::FileAccessManifest *fam, const char* absolute_path);
     static PolicySearchCursor FindManifestRecord(const buildxl::common::FileAccessManifest *fam, const char* absolute_path, size_t path_length);
 
-    static std::tuple<AccessCheckResult, PolicyResult> GetResult(const buildxl::common::FileAccessManifest *fam, CheckerType checker, const char* path, bool is_directory, bool exists);
-    static AccessCheckResult GetAccessCheckAndSetProperties(const buildxl::common::FileAccessManifest *fam, buildxl::linux::SandboxEvent &event, CheckerType checker);
+    static std::tuple<AccessCheckResult, PolicyResult> GetResult(const buildxl::common::FileAccessManifest *fam, CheckerType checker, const char* path, bool is_directory, bool exists, bool basedOnPolicy = false);
+    static AccessCheckResult GetAccessCheckAndSetProperties(const buildxl::common::FileAccessManifest *fam, buildxl::linux::SandboxEvent &event, CheckerType checker, bool basedOnPolicy = false);
 
     /** Handler Functions */
     static AccessCheckResult HandleProcessCreate(const buildxl::common::FileAccessManifest *fam, buildxl::linux::SandboxEvent &event);
@@ -57,17 +57,17 @@ private:
     static AccessCheckResult HandleUnlink(const buildxl::common::FileAccessManifest *fam, buildxl::linux::SandboxEvent &event);
     static AccessCheckResult HandleReadlink(const buildxl::common::FileAccessManifest *fam, buildxl::linux::SandboxEvent &event);
     static AccessCheckResult HandleRename(const buildxl::common::FileAccessManifest *fam, buildxl::linux::SandboxEvent &event);
-    static AccessCheckResult HandleGenericWrite(const buildxl::common::FileAccessManifest *fam, buildxl::linux::SandboxEvent &event);
+    static AccessCheckResult HandleGenericWrite(const buildxl::common::FileAccessManifest *fam, buildxl::linux::SandboxEvent &event, bool basedOnPolicy);
     static AccessCheckResult HandleGenericRead(const buildxl::common::FileAccessManifest *fam, buildxl::linux::SandboxEvent &event);
     static AccessCheckResult HandleGenericProbe(const buildxl::common::FileAccessManifest *fam, buildxl::linux::SandboxEvent &event);
 
     /** Checker Functions */
-    static void PerformAccessCheck(CheckerType type, PolicyResult policy, bool is_dir, bool exists, AccessCheckResult *check_result);
+    static void PerformAccessCheck(CheckerType type, PolicyResult policy, bool is_dir, bool exists, bool basedOnPolicy, AccessCheckResult *check_result);
     static void CheckExecute(PolicyResult policy, bool is_dir, AccessCheckResult *check_result);
     static void CheckProbe(PolicyResult policy, bool is_dir, bool exists, AccessCheckResult *check_result);
     static void CheckRead(PolicyResult policy, bool is_dir, AccessCheckResult *check_result);
     static void CheckEnumerateDir(PolicyResult policy, bool is_dir, AccessCheckResult *check_result);
-    static void CheckWrite(PolicyResult policy, bool is_dir, AccessCheckResult *check_result);
+    static void CheckWrite(PolicyResult policy, bool is_dir, AccessCheckResult *check_result, bool basedOnPolicy);
     static void CheckCreateSymlink(PolicyResult policy, bool is_dir, AccessCheckResult *check_result);
     static void CheckCreateDirectory(PolicyResult policy, bool is_dir, AccessCheckResult *check_result);
     static void CheckCreateDirectoryNoEnforcement(PolicyResult policy, bool is_dir, bool exists, AccessCheckResult *check_result);

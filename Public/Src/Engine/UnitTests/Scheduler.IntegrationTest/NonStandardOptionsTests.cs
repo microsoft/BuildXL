@@ -190,7 +190,8 @@ namespace IntegrationTest.BuildXL.Scheduler
             // Pip allowed to run successfully, but will not be cached due to file monitoring violations
             RunScheduler().AssertCacheMiss(pip.PipId);
 
-            AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccess, 2);
+            // We get extra accesses in the EBPF case
+            AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccess, UsingEBPFSandbox? 4 : 2);
             AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations, 4);
             AssertVerboseEventLogged(LogEventId.DependencyViolationMissingSourceDependency, 2);
             AssertWarningEventLogged(LogEventId.FileMonitoringWarning, 2);

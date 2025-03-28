@@ -334,6 +334,7 @@ int main(int argc, char **argv) {
     // We want to do this before we initialize libbpf because we want to redirect
     // libbpf messages to BxlObserver.
     g_bxl = BxlObserver::GetInstance();
+    g_bxl->Init();
 
     auto start = std::chrono::high_resolution_clock::now();
 

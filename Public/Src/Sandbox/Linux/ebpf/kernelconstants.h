@@ -18,6 +18,9 @@
 // CODESYNC: linux/limits.h
 #define PATH_MAX 4096
 
+// Copied from include/uapi/asm-generic/errno-base.h
+#define	ENOENT		 2	/* No such file or directory */
+
 // Copied from fcntl.h
 #define O_ACCMODE	00000003
 #define O_RDONLY	00000000
@@ -91,6 +94,14 @@ typedef unsigned int fmode_t;
 #define S_ISUID  0004000
 #define S_ISGID  0002000
 #define S_ISVTX  0001000
+
+#define S_ISLNK(m)	(((m) & S_IFMT) == S_IFLNK)
+#define S_ISREG(m)	(((m) & S_IFMT) == S_IFREG)
+#define S_ISDIR(m)	(((m) & S_IFMT) == S_IFDIR)
+#define S_ISCHR(m)	(((m) & S_IFMT) == S_IFCHR)
+#define S_ISBLK(m)	(((m) & S_IFMT) == S_IFBLK)
+#define S_ISFIFO(m)	(((m) & S_IFMT) == S_IFIFO)
+#define S_ISSOCK(m)	(((m) & S_IFMT) == S_IFSOCK)
 
 // Copied from err.h
 #define MAX_ERRNO	4095

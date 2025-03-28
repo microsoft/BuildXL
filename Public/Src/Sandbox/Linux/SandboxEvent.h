@@ -104,14 +104,6 @@ private:
     bool is_sealed_;
     
     /**
-     * Empty constructor for an invalid event.
-     */
-    SandboxEvent() :
-        is_valid_(false),
-        is_sealed_(false)
-    { /* Empty constructor for invalid object */ }
-
-    /**
      * Default constructor
      */
     SandboxEvent(
@@ -134,6 +126,15 @@ private:
         return SandboxEvent();
     }
 public:
+    
+    /**
+     * Empty constructor for an invalid event.
+     */
+    SandboxEvent() :
+        is_valid_(false),
+        is_sealed_(false)
+    { /* Empty constructor for invalid object */ }
+
     /**
      * Copy Constructor
     */

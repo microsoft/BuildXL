@@ -102,6 +102,12 @@ namespace IntegrationTest.BuildXL.Scheduler
         [InlineData(false)]
         public void UnallowedDirectoryCreation(bool failOnUnexpectedFileAccesses)
         {
+            // We don't have blocking capabilities with EBPF
+            if (UsingEBPFSandbox && failOnUnexpectedFileAccesses)
+            {
+                return;
+            }
+
             // If we allow directory creation under writable mounts, the test is not applicable because the directory it tries to create 
             // is in the scope of a writable mount, i.e., it will always be an allowed operation.
             Configuration.Sandbox.EnforceAccessPoliciesOnDirectoryCreation = true;

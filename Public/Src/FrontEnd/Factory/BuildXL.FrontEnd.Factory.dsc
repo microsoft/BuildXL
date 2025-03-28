@@ -36,6 +36,7 @@ namespace Factory {
         ],
         internalsVisibleTo: [
             "IntegrationTest.BuildXL.Scheduler",
+            "IntegrationTest.BuildXL.Scheduler.EBPF",
             "Test.Bxl",
         ],
     });

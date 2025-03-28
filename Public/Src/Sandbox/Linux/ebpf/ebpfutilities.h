@@ -433,4 +433,12 @@ __attribute__((always_inline)) static inline int get_task_exec_path(struct task_
     return 0;
 }
 
+/**
+ * Returns whether the mode is set and it is not a file, nor a directory neither a symlink
+ */
+__attribute__((always_inline)) static inline bool is_non_file(mode_t mode)
+{
+    return mode != 0 && !S_ISDIR(mode) && !S_ISREG(mode) && !S_ISLNK(mode);
+}
+
 #endif // __EBPF_UTILITIES_H

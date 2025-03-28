@@ -386,7 +386,15 @@ namespace IntegrationTest.BuildXL.Scheduler
                 Operation.WriteFile(CreateOutputFileArtifact())
             }).Process;
             RunScheduler().AssertFailure();
-            AssertErrorEventLogged(ProcessesLogEventId.PipProcessError);
+            // With EBPF we don't have blocking capabilities
+            if (!UsingEBPFSandbox)
+            {
+                AssertErrorEventLogged(ProcessesLogEventId.PipProcessError);
+            }
+            else
+            {
+                AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
+            }
             AssertErrorEventLogged(LogEventId.FileMonitoringError);
         }
     }

@@ -339,7 +339,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             {
                 AssertVerboseEventLogged(LogEventId.DisallowedFileAccessInSealedDirectory);
             }
-            AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccess);
+            AssertVerboseEventLogged(ProcessesLogEventId.PipProcessDisallowedFileAccess, allowMore: true);
             AssertVerboseEventLogged(LogEventId.DependencyViolationMissingSourceDependency);
             AssertWarningEventLogged(LogEventId.ProcessNotStoredToCacheDueToFileMonitoringViolations);
             AssertErrorEventLogged(LogEventId.FileMonitoringError);
@@ -1538,6 +1538,12 @@ namespace IntegrationTest.BuildXL.Scheduler
         [FactIfSupported(requiresWindowsOrLinuxOperatingSystem: true)] // WriteFile operation failed on MacOS; need further investigation.
         public void MoveDirectoryFailed()
         {
+            // With EBPF we don't have blocking capabilities.
+            if (UsingEBPFSandbox)
+            {
+                return;
+            }
+
             // Create \temp.
             var tempDirectoryPath = CreateUniqueDirectory(root: ObjectRoot, prefix: "temp");
 

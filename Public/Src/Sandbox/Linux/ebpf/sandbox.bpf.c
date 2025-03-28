@@ -369,13 +369,20 @@ int BPF_PROG(security_path_unlink_enter, const struct path *dir, struct dentry *
         return 0;
     }
 
+    // If what's being removed is not a file, we don't need to report anything
+    mode_t mode = get_mode(dentry);
+    if (is_non_file(mode))
+    {
+        return 0;
+    }
+
     struct path path = {.dentry = dentry, .mnt = BPF_CORE_READ(dir, mnt)};
 
     RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(kGenericWrite, &path,
         event->metadata.kernel_function = KERNEL_FUNCTION(security_path_unlink);
         event->metadata.pid = pid;
         event->metadata.operation_type = kGenericWrite;
-        event->metadata.mode = get_mode(dentry);
+        event->metadata.mode = mode;
         deref_path_info(event->src_path, dentry, dir->mnt);
     )
 
@@ -504,6 +511,15 @@ int BPF_PROG(path_openat_exit, struct nameidata *nd, const struct open_flags *op
         return 0;
     }
 
+    // Unclear if we can trust the mode when the file is not found, so pin the mode to 0 in that case so it represent a non-existent file
+    mode_t mode = PTR_ERR(ret) != -ENOENT ? BPF_CORE_READ(nd, inode, i_mode) : 0;
+
+    // Don't bother reporting writes to non-files. 
+    if (is_non_file(mode))
+    {
+        return 0;
+    }
+
     // When openat succeeded, the return value points to the corresponding file structure. Let's check the cache to see whether
     // we have sent this before.
     if (!IS_ERR(ret))
@@ -524,7 +540,7 @@ int BPF_PROG(path_openat_exit, struct nameidata *nd, const struct open_flags *op
         event->metadata.pid = pid;
         event->metadata.error = PTR_ERR(ret);
         event->metadata.operation_type = kGenericProbe;
-        event->metadata.mode = IS_ERR(ret) ? 0 : BPF_CORE_READ(nd, inode, i_mode);
+        event->metadata.mode = mode;
         nameidata_to_string(event->src_path, nd);
     )
 
@@ -543,18 +559,22 @@ int BPF_PROG(security_file_open_enter, struct file *file)
     }
 
     struct path path = BPF_CORE_READ(file, f_path);
-    // This is not to be confused with the mode on the inode
-    unsigned int fmode = BPF_CORE_READ(file, f_mode);
 
-    // A file open can create the file if not there (tracked by FMODE_CREATED). Otherwise
-    // this is like a probe for bxl, since the file exists but has not been accessed yet
-    operation_type eventType = fmode & FMODE_CREATED ? kCreate : kGenericProbe;
+    mode_t mode = get_mode_from_file(file);
 
-    RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(eventType, &path,
+    // Don't bother reporting writes to non-files
+    if (is_non_file(mode))
+    {
+        return 0;
+    }
+
+    // Always send this as a probe, even if the open call ends up creating the file
+    // For the latter, we will catch this in the mknod call.
+    RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(kGenericProbe, &path,
         event->metadata.kernel_function = KERNEL_FUNCTION(security_file_open);
         event->metadata.pid = pid;
-        event->metadata.operation_type = eventType;
-        event->metadata.mode = get_mode_from_file(file);
+        event->metadata.operation_type = kGenericProbe;
+        event->metadata.mode = mode;
         path_to_string(event->src_path, &path);
     )
 
@@ -576,6 +596,14 @@ int BPF_PROG(security_file_permission_enter, struct file *file, int mask)
 
     struct path path = BPF_CORE_READ(file, f_path);
 
+    mode_t mode = get_mode_from_file(file);
+
+    // Don't bother reporting writes to non-files
+    if (is_non_file(mode))
+    {
+        return 0;
+    }
+
     // From all the possible values of mask, only MAY_READ and MAY_WRITE seem to be used by the kernel when calling
     // security_file_permission
     operation_type eventType = mask == MAY_READ ? kGenericRead : kGenericWrite;
@@ -584,7 +612,7 @@ int BPF_PROG(security_file_permission_enter, struct file *file, int mask)
         event->metadata.kernel_function = KERNEL_FUNCTION(security_file_permission);
         event->metadata.pid = pid;
         event->metadata.operation_type = eventType;
-        event->metadata.mode = get_mode_from_file(file);
+        event->metadata.mode = mode;
         path_to_string(event->src_path, &path);
     )
 
@@ -628,13 +656,19 @@ int BPF_PROG(security_path_symlink_enter, const struct path *parent_dir, struct 
 /**
  * security_path_mknod_enter() - Checks permission for creating special files.
  *
- * This may also be called for regular files.
+ * Note that this hook is called even if mknod operation is being done for a regular file.
  */
 SEC("fentry/security_path_mknod")
 int BPF_PROG(security_path_mknod_enter, const struct path *parent_dir, struct dentry *dentry, umode_t mode, unsigned int dev)
 {
     pid_t pid = bpf_get_current_pid_tgid() >> 32;
     if (!is_valid_pid(pid)) {
+        return 0;
+    }
+
+    // Don't bother reporting writes to non-files
+    if (is_non_file(mode))
+    {
         return 0;
     }
 
@@ -671,12 +705,19 @@ int BPF_PROG(security_inode_getattr_exit, const struct path *path, int ret)
         return 0;
     }
 
+    // Don't bother reporting writes to non-files
+    mode_t mode = get_mode_from_path(path);
+    if (is_non_file(mode))
+    {
+        return 0;
+    }
+
     RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(kGenericProbe, path,
         event->metadata.kernel_function = KERNEL_FUNCTION(security_inode_getattr);
         event->metadata.pid = pid;
         event->metadata.error = 0;
         event->metadata.operation_type = kGenericProbe;
-        event->metadata.mode = get_mode_from_path(path);
+        event->metadata.mode = mode;
         path_to_string(event->src_path, path);
     )
 
@@ -777,11 +818,18 @@ int BPF_PROG(security_path_chown, const struct path *path)
         return 0;
     }
 
+    // Don't bother reporting writes to non-files
+    mode_t mode = get_mode_from_path(path);
+    if (is_non_file(mode))
+    {
+        return 0;
+    }
+
     RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(kGenericWrite, path,
         event->metadata.kernel_function = KERNEL_FUNCTION(security_path_chown);
         event->metadata.pid = pid;
         event->metadata.operation_type = kGenericWrite;
-        event->metadata.mode = get_mode_from_path(path);
+        event->metadata.mode = mode;
         path_to_string(event->src_path, path);
     )
 
@@ -799,11 +847,18 @@ int BPF_PROG(security_path_chmod, const struct path *path)
         return 0;
     }
 
+    // Don't bother reporting writes to non-files
+    mode_t mode = get_mode_from_path(path);
+    if (is_non_file(mode))
+    {
+        return 0;
+    }
+    
     RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(kGenericWrite, path,
         event->metadata.kernel_function = KERNEL_FUNCTION(security_path_chmod);
         event->metadata.pid = pid;
         event->metadata.operation_type = kGenericWrite;
-        event->metadata.mode = get_mode_from_path(path);
+        event->metadata.mode = mode;
         path_to_string(event->src_path, path);
     )
 
@@ -823,13 +878,20 @@ int BPF_PROG(security_file_truncate, struct file *file)
 
     struct path path = BPF_CORE_READ(file, f_path);
 
+    // Don't bother reporting writes to non-files
+    mode_t mode = get_mode_from_path(&path);
+    if (is_non_file(mode))
+    {
+        return 0;
+    }
+
     RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(kGenericWrite, &path,
         event->metadata.kernel_function = KERNEL_FUNCTION(security_file_truncate);
         event->metadata.pid = pid;
         path_to_string(event->src_path, &path);
         // A truncate always involves a write operation
         event->metadata.operation_type = kGenericWrite;
-        event->metadata.mode = get_mode_from_file(file);
+        event->metadata.mode = mode;
     )
 
     return 0;
@@ -846,12 +908,19 @@ int BPF_PROG(vfs_utimes, const struct path *path)
         return 0;
     }
 
+    // Don't bother reporting writes to non-files
+    mode_t mode = get_mode_from_path(path);
+    if (is_non_file(mode))
+    {
+        return 0;
+    }
+
     RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(kGenericWrite, path,
         event->metadata.kernel_function = KERNEL_FUNCTION(vfs_utimes);
         event->metadata.pid = pid;
         path_to_string(event->src_path, path);
         event->metadata.operation_type = kGenericWrite;
-        event->metadata.mode = get_mode_from_path(path);
+        event->metadata.mode = mode;
     )
 
     return 0;

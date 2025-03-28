@@ -34,6 +34,7 @@ namespace Utilities.Core {
             "Test.BuildXL.Utilities.Collections",
             "Test.BuildXL.FrontEnd.Script",
             "IntegrationTest.BuildXL.Scheduler",
+            "IntegrationTest.BuildXL.Scheduler.EBPF",
         ],
     });
 }

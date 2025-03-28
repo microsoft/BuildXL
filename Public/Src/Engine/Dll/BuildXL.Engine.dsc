@@ -59,6 +59,7 @@ namespace Engine {
         internalsVisibleTo: [
             "BxlPipGraphFragmentGenerator",
             "IntegrationTest.BuildXL.Scheduler",
+            "IntegrationTest.BuildXL.Scheduler.EBPF",
             "Test.BuildXL.Engine",
             "Test.BuildXL.Distribution",
             "Test.BuildXL.EngineTestUtilities",

@@ -31,6 +31,16 @@ struct {
     __uint(max_entries, sizeof(ebpf_event_debug) *  1024  /* 1024 entries */);
 } debug_buffer SEC(".maps");
 
+/**
+ * Used to hold processes that will breakaway from the sandbox.
+ */
+struct {
+    __uint(type, BPF_MAP_TYPE_HASH);
+    __type(key, pid_t);
+    __type(value, int);
+    __uint(max_entries, 512);
+} breakaway_pids SEC(".maps");
+
 // TODO: remove magic numbers?
 const long wakeup_data_size = 4096 * 128;
 static __always_inline long get_flags() {
@@ -80,7 +90,7 @@ static void report_buffer_reservation_failure() {
 
 /**
  * Check against the event cache for the given operation+path before reserving and sending out the event.
- * This is very useful for operations where the same path is sent multiple times within a short period of time. 
+ * This is very useful for operations where the same path is sent multiple times within a short period of time.
  * E.g. writing to a given file using multiple write calls is a good example of this. We don't necessarily need
  * to make each traced call go through this, but it is generally a good idea assuming we have to the corresponding
  * struct path associated with the operation
@@ -129,12 +139,18 @@ static void report_buffer_reservation_failure() {
         report_buffer_reservation_failure();                                                                    \
         return 0;                                                                                               \
     }                                                                                                           \
+    bool discard = false;                                                                                       \
                                                                                                                 \
     event->event_type = EXEC;                                                                                   \
                                                                                                                 \
     code                                                                                                        \
                                                                                                                 \
-    bpf_ringbuf_submit(event, get_flags());                                                                     \
+    if (discard) {                                                                                              \
+        bpf_ringbuf_discard(event, /* flags */ 0);                                                              \
+    }                                                                                                           \
+    else {                                                                                                      \
+        bpf_ringbuf_submit(event, get_flags());                                                                 \
+    }                                                                                                           \
 }
 
 /**
@@ -192,32 +208,123 @@ int BPF_PROG(wake_up_new_task, struct task_struct *new_task)
 }
 
 /**
+ * execve_common() - Common code for execve and execveat syscalls.
+ */
+static inline int execve_common(pid_t pid, enum kernel_function syscall, int fd, const char *filename, char *const *argv) {
+    // We don't want to cache execs, use unconditional reserve + submit macro
+    RESERVE_SUBMIT_EXEC
+    ({
+        exec_event_metadata event_with_metadata = {0};
+        event_with_metadata.event = event;
+
+        event->metadata.kernel_function = syscall;
+        event->metadata.operation_type = kExec;
+        event->metadata.pid = pid;
+        event->metadata.error = 0;
+        // Since this is the entry point to execve/execveat, the arguments are in user memory
+        if (fd == 0) {
+            // execve
+            event_with_metadata.exe_path_len = bpf_core_read_user_str(event->exe_path, PATH_MAX, filename);
+        }
+        else {
+            // execveat
+            event_with_metadata.exe_path_len = fd_string_to_string(event->exe_path, fd, filename, /* user_strings */ true);
+        }
+
+        // Sometimes this event comes with an empty path which can be ignored
+        if (event->exe_path[0] == '\0') {
+            discard = true;
+        }
+        else {
+            // TODO: check whether args are being reported using FAM flag
+            event_with_metadata.args_len = argv_to_string(argv, event->args);
+
+            // Validate whether the current pid will need to break away
+            process_needs_breakaway(&event_with_metadata);
+
+            if (event_with_metadata.needs_breakaway) {
+                // We need to breakaway, so we need to add the pid to the breakaway pids map
+                bpf_map_update_elem(&breakaway_pids, &pid, &pid, BPF_ANY);
+            }
+            else {
+                // In case this map was already populated with a stale entry, clean it up here
+                bpf_map_delete_elem(&breakaway_pids, &pid);
+            }
+        }
+    })
+
+    return 0;
+}
+
+/**
+ * execve_ksys_enter() - High level kernel function for execve syscall.
+ * 
+ * kprobes are used here instead of fentry because reading the filename and argv
+ * requires reading user memory which cannot be done in fentry programs
+ * because they are not sleepable and the bpf_core_read_user_str helper is sleepable.
+ */
+SEC("ksyscall/execve")
+int BPF_KPROBE_SYSCALL(execve_ksys_enter, const char *filename, char *const *argv, char *const *envp) {
+    pid_t pid = bpf_get_current_pid_tgid() >> 32;
+    if (!is_valid_pid(pid)) {
+        return 0;
+    }
+
+    return execve_common(pid, KERNEL_FUNCTION(execve), 0, filename, argv);
+}
+
+/**
+ * execveat_ksys_enter() - High level kernel function for execveat syscall.
+ * 
+ * See execve_ksys_enter() for details on why we use kprobes instead of fentry.
+ */
+SEC("ksyscall/execveat")
+int BPF_KPROBE_SYSCALL(execveat_ksys_enter, int fd, const char *filename, char *const *argv, char *const *envp, int flags) {
+    pid_t pid = bpf_get_current_pid_tgid() >> 32;
+    if (!is_valid_pid(pid)) {
+        return 0;
+    }
+
+    // TODO: do we need to do anything with flags passed into this syscall
+    return execve_common(pid, KERNEL_FUNCTION(execveat), fd, filename, argv);
+}
+
+/**
  * security_bprm_committed_creds_enter() - Security hook for execve syscall on security_bprm_committed_creds.
  *
  * By the time this function is called, the execve syscall is successful.
  * There's no need to observe the exit value because we already know it's going to proceed with the exec.
  */
 SEC("fentry/security_bprm_committed_creds")
-int BPF_PROG(bprm_execve_enter, struct linux_binprm *bprm)
-{
+int BPF_PROG(bprm_execve_enter, struct linux_binprm *bprm) {
     pid_t pid = bpf_get_current_pid_tgid() >> 32;
     if (!is_valid_pid(pid)) {
         return 0;
     }
 
-    // We don't want to cache execs, use unconditional reserve + submit macro
-    RESERVE_SUBMIT_EXEC
-    (
-        event->metadata.kernel_function = KERNEL_FUNCTION(security_bprm_committed_creds);
-        event->metadata.operation_type = kExec;
-        event->metadata.pid = pid;
-        event->metadata.error = 0;
-        event->metadata.mode = 0;
-        bpf_core_read_str(event->exe_path, PATH_MAX, bprm->filename);
-        // TODO: get exec args
-        // Currently exec args are filled in from the user side,
-        // but in the future we want to do this on the kernel side
-    )
+    // This is the point of no return for the execve syscall.
+    // If this pid is marked for breakaway, we need to remove it from the breakaway pids map
+    // And report it as a breakaway process to the user side.
+    // We only need to send a breakaway report instead of an exec report because
+    // the execve syscall was already reported by the ksyscall/execve[at] probe.
+    int *result = bpf_map_lookup_elem(&breakaway_pids, &pid);
+
+    if (result) {
+        // We need to breakaway, so we will remove the pid from the pid map to ignore future file accesses
+        bpf_map_delete_elem(&breakaway_pids, &pid);
+        bpf_map_delete_elem(&pid_map, &pid);
+
+        // We don't want to cache breakaway events, use unconditional reserve + submit macro
+        RESERVE_SUBMIT_FILE_ACCESS
+        ({
+            event->metadata.kernel_function = KERNEL_FUNCTION(security_bprm_committed_creds);
+            event->metadata.operation_type = kBreakAway;
+            event->metadata.pid = pid;
+            event->metadata.error = 0;
+            event->metadata.mode = 0;
+            bpf_core_read_str(event->src_path, PATH_MAX, bprm->filename);
+        })
+    }
 
     return 0;
 }
@@ -225,9 +332,9 @@ int BPF_PROG(bprm_execve_enter, struct linux_binprm *bprm)
 /**
  * taskstats_exit() - This function is called on the task's
  * exit path.
- * 
+ *
  * Called by both syscall exit() and exit_group(). This call happens before releasing the mm
- * structure on the task, which we still need to inspect in order to get the path of 
+ * structure on the task, which we still need to inspect in order to get the path of
  * the executing process.
  */
 SEC("fentry/taskstats_exit")
@@ -426,7 +533,7 @@ int BPF_PROG(security_path_link_entry, struct dentry *old_dentry, const struct p
 
 /**
  * path_lookupat_exit() - Handles path resolutions.
- * 
+ *
  * Used for tracing absent probes when called by system calls like `stat` or `chmod`. Present ones
  * are handled by security_inode_get_attr()
   */
@@ -640,7 +747,7 @@ int BPF_PROG(security_path_symlink_enter, const struct path *parent_dir, struct 
     }
 
     struct path path = {.dentry = dentry, .mnt = BPF_CORE_READ(parent_dir, mnt)};
-    
+
     RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(kGenericWrite, &path,
         event->metadata.kernel_function = KERNEL_FUNCTION(security_path_symlink);
         event->metadata.pid = pid;
@@ -687,7 +794,7 @@ int BPF_PROG(security_path_mknod_enter, const struct path *parent_dir, struct de
 
 /**
  * security_inode_getattr_exit() - Checks permission for retrieving the attributes of an inode
- * 
+ *
  * This function is traced to identify present probes
  */
 SEC("fexit/security_inode_getattr")
@@ -770,7 +877,7 @@ int BPF_PROG(do_readlink_exit, int dfd, const char *pathname, char *buf, int buf
         // The call was successful, which means the symlink is legit (and therefore a regular file)
         event->metadata.mode = S_IFREG;
         event->metadata.error = 0;
-        fd_string_to_string(event->src_path, dfd, temp);
+        fd_string_to_string(event->src_path, dfd, temp, /* user_strings */ false);
     )
 
     return 0;

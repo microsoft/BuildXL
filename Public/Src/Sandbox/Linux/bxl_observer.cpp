@@ -792,43 +792,47 @@ bool BxlObserver::contains_capabilities(const char *path)
     return !result.empty();
 }
 
-bool BxlObserver::ShouldBreakaway(int fd, char *const argv[])
+bool BxlObserver::SendBreakawayReportIfNeeded(int fd, char *const argv[])
 {
-    return ShouldBreakaway(fd_to_path(fd).c_str(), argv);
+    return SendBreakawayReportIfNeeded(fd_to_path(fd).c_str(), argv);
 }
 
-bool BxlObserver::ShouldBreakaway(const char *path, char *const argv[])
+bool BxlObserver::SendBreakawayReportIfNeeded(const char *path, char *const argv[])
 {
     auto commandLine = GetCommandLineFromArgv(argv);    
 
-    return ShouldBreakaway(path, commandLine);
-    
+    return SendBreakawayReportIfNeeded(path, commandLine);
 }
 
-bool BxlObserver::ShouldBreakaway(const char *path, std::string &args, pid_t pid, pid_t ppid)
+bool BxlObserver::SendBreakawayReportIfNeeded(const char *path, std::string &args, pid_t pid, pid_t ppid)
 {
     bool result = fam_->ShouldBreakaway(path, args);
     
     if (result)
     {
-        // Send a "process is about to break away" report so that the managed side can track it.
-        auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
-            /* system_call */   "breakaway",
-            /* event_type */    buildxl::linux::EventType::kBreakAway,
-            /* pid */           pid == -1 ? getpid() : pid,
-            /* ppid */          ppid == -1 ? getppid() : ppid,
-            /* error */         0,
-            /* src_path */      path);
-        event.SetSourceAccessCheck(AccessCheckResult(RequestedAccess::None, ResultAction::Allow, ReportLevel::Report));
-        
-        // It should be fine to use the primary pipe, a delay in reporting the breakaway can at most cost that we wait a little
-        // longer to tear down the sandbox if the message arrives after the main process has exited (since we'll wait for this process
-        // until it is identified as a breakaway). Today the secondary pipe is created only when ptrace is enabled, and unconditionally
-        // creating it for this case sounds like a waste.
-        SendReport(event, /* use_secondary_pipe */ false);
+        SendBreakawayReport(path, pid, ppid);
     }
 
     return result;
+}
+
+void BxlObserver::SendBreakawayReport(const char *path, pid_t pid, pid_t ppid)
+{
+    // Send a "process is about to break away" report so that the managed side can track it.
+    auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
+        /* system_call */   "breakaway",
+        /* event_type */    buildxl::linux::EventType::kBreakAway,
+        /* pid */           pid == -1 ? getpid() : pid,
+        /* ppid */          ppid == -1 ? getppid() : ppid,
+        /* error */         0,
+        /* src_path */      path);
+    event.SetSourceAccessCheck(AccessCheckResult(RequestedAccess::None, ResultAction::Allow, ReportLevel::Report));
+    
+    // It should be fine to use the primary pipe, a delay in reporting the breakaway can at most cost that we wait a little
+    // longer to tear down the sandbox if the message arrives after the main process has exited (since we'll wait for this process
+    // until it is identified as a breakaway). Today the secondary pipe is created only when ptrace is enabled, and unconditionally
+    // creating it for this case sounds like a waste.
+    SendReport(event, /* use_secondary_pipe */ false);
 }
 
 std::string BxlObserver::execute_and_pipe_stdout(const char *path, const char *process, char *const args[])

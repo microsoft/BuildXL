@@ -1,11 +1,12 @@
 // Copyright (c) Microsoft Corporation
 // SPDX-License-Identifier: GPL-2.0 OR MIT
 
-#ifndef __EBPF_UTILITIES_H
-#define __EBPF_UTILITIES_H
+#ifndef __PUBLIC_SRC_SANDBOX_LINUX_EBPF_EBPFUTILITIES_H
+#define __PUBLIC_SRC_SANDBOX_LINUX_EBPF_EBPFUTILITIES_H
 
 #include "vmlinux.h"
 #include "kernelconstants.h"
+#include "ebpfstringutilities.h"
 
 /*
  * Dictionary containing currently active process ids. Root process id is pre-populated by the userspace.
@@ -51,7 +52,7 @@ struct
 } tmp_paths SEC(".maps");
 
 // We use one entry per cpu
-// Used by deref_path_info and combine_paths
+// Used by deref_path_info, combine_paths, and argv_to_string
 // The dereference needs two paths, so the size here is PATH_MAX * 2, and the resulting element is logically split in halves
 // More generally, it is very useful to use a PATH_MAX * 2 sized buffer for path-related operations (when two paths are involved, or when 
 // a temporary path is kept while operating with another one), as the verifier will be happy with the given boundaries
@@ -357,10 +358,12 @@ __attribute__((always_inline)) static inline uint32_t get_cwd(struct task_struct
 // Returns a string representation of the path carried by file descriptor followed but a filename.
 // These input arguments are used to perform a path lookup, which means that the dentry/inode is not resolved
 // yet
-__attribute__((always_inline)) static inline uint32_t fd_string_to_string(char* path, int fd, const char* filename)
+__attribute__((always_inline)) static inline uint32_t fd_string_to_string(char* path, int fd, const char* filename, bool user_strings)
 {
     // Copy the filename to the destination, as a way to bound it to PATH_MAX and keep the verifier happy
-    int length = bpf_core_read_str(path, PATH_MAX, filename);
+    int length = user_strings
+        ? bpf_core_read_user_str(path, PATH_MAX, filename)
+        : bpf_core_read_str(path, PATH_MAX, filename);
 
     if (length <= 0)
     {
@@ -397,11 +400,10 @@ __attribute__((always_inline)) static inline uint32_t fd_string_to_string(char* 
 // Returns a string representation of the path carried by file descriptor followed by a struct filename.
 // These input arguments are used to perform a path lookup, which means that the dentry/inode is not resolved
 // yet
-__attribute__((always_inline)) static inline uint32_t fd_filename_to_string(char* path, int fd, const struct filename* filename_struct)
-{
+__attribute__((always_inline)) static inline uint32_t fd_filename_to_string(char* output_path, int fd, const struct filename* filename_struct) {
     const char *filename = BPF_CORE_READ(filename_struct, name);
 
-    return fd_string_to_string(path, fd, filename);
+    return fd_string_to_string(output_path, fd, filename, /* user_strings */ false);
 }
 
 // Returns a string representation of the path carried by a nameidata instance.
@@ -441,4 +443,143 @@ __attribute__((always_inline)) static inline bool is_non_file(mode_t mode)
     return mode != 0 && !S_ISDIR(mode) && !S_ISREG(mode) && !S_ISLNK(mode);
 }
 
-#endif // __EBPF_UTILITIES_H
+/**
+ * argv_to_string() - Converts an argv array to a string representation.
+ * @argv: The argv array to convert. This pointer is in user memory.
+ * @dest: The destination buffer to store the resulting string. This pointer is in kernel memory.
+ * 
+ * Each argument will be separated by a space.
+ * Final string is null terminated.
+ * NOTE: the destination buffer is assumed to always be PATH_MAX in size.
+ */
+static int argv_to_string(char *const *argv, char* dest)
+{
+    if (!argv) {
+        return 0;
+    }
+    
+    int index = 0;
+    int remaining_length = PATH_MAX - 1;
+    uint32_t map_id = bpf_get_smp_processor_id();
+
+    // Using temporary path storage here to read each argument
+    char *temp = bpf_map_lookup_elem(&derefpaths, &map_id);
+    if (temp == NULL) {
+        return 0;
+    }
+    
+    for (int i = 0; i < MAX_ARGV_ARGUMENTS; i++) {
+        char *arg;
+        // Get a pointer to the current argument
+        if (bpf_probe_read_user(&arg, sizeof(arg), &argv[i]) != 0) {
+            break;
+        }
+        
+        // Copy string to temporary location starting on the second half of the string
+        long copied_len = bpf_probe_read_user_str(&temp[PATH_MAX], PATH_MAX, arg);
+        if (copied_len <= 0) {
+            break;
+        }
+
+        // Copy the string to the first half of the temporary array to concatenate it with the rest of the arguments
+        // We'll add a space here if it's the second argument onwards
+        if (i > 0) {
+            temp[index & (PATH_MAX - 1)] = ' ';
+            index++;
+        }
+        
+        // NOTE: this is a kernel str because we are copying from the derefpaths map now
+        long copied_len2 = bpf_probe_read_kernel_str(&temp[index & (PATH_MAX - 1)], PATH_MAX, &temp[PATH_MAX]);
+        index += copied_len2 - 1; // -1 since this an index, not a length
+        if (index >= PATH_MAX - 1) {
+            break;
+        }
+    }
+    
+    // Copy the path to the final destination
+    // index + 1 is used here because index is used as a length not an index here
+    // -1 from the final result to exclude the null terminating character from the length
+    return bpf_probe_read_kernel_str(dest, ((index + 1) & (PATH_MAX - 1)), &temp[0]) - 1;
+}
+
+/**
+ * Map containing breakaway processes populated from the user side.
+ */
+struct {
+    __uint(type, BPF_MAP_TYPE_ARRAY);
+    __uint(key_size, sizeof(uint32_t));
+    __uint(value_size, sizeof(breakaway_process));
+    __uint(max_entries, MAX_BREAKAWAY_PROCESSES);
+    __uint(map_flags , BPF_F_RDONLY_PROG);
+} breakaway_processes SEC(".maps");
+
+/**
+ * breakaway_map_callback() - Callback function to check if the current process needs to breakaway.
+ *
+ * This function is called for each entry in the breakaway processes map.
+ * It checks if the current process matches the breakaway process criteria.
+ */
+static long breakaway_map_callback(struct bpf_map *map, const uint32_t *key, breakaway_process *value, exec_event_metadata **ctx) {
+    exec_event_metadata *event = *ctx;
+
+    if (value->tool[0] == '\0') {
+        // Reached the end of the map, the rest of the elements are not populated
+        return 1;
+    }
+
+    char *toolname = &event->event->exe_path[event->exe_name_start_index & (PATH_MAX - 1)];
+
+    bool exe_match = string_contains(toolname, event->exe_name_len, value->tool, value->tool_len, /* case_sensitive */ true);
+    // Args can be ignored if they weren't specified in the breakaway process map
+    bool args_match = value->arguments[0] == '\0' 
+        ? true 
+        : string_contains(value->arguments, value->arguments_len, event->event->args, event->args_len, /* case_sensitive */ !value->args_ignore_case);
+
+    event->needs_breakaway = exe_match && args_match;
+
+    // If we already found a match, we can return 1 here to terminate the loop early
+    return event->needs_breakaway ? 1 : 0;
+}
+
+/**
+ * basename_loop_callback() - Loop callback to find the basename of the executable path.
+ *
+ * The basename is the last component of the path, which is the executable name.
+ * Finds the starting index of the basename in the path.
+ */
+static long basename_loop_callback(u64 index, exec_event_metadata **ctx) {
+    exec_event_metadata *event = *ctx;
+    u64 i = (event->exe_path_len - index) & (PATH_MAX - 1);
+
+    // Since bpf_loop can only start at 0 and increment, keep track of the last '/'
+    // If the next character is a '\0' then it's a trailing '/' which can be ignored.
+    if (event->event->exe_path[i] == '/' && event->event->exe_path[i + 1 & (PATH_MAX - 1)] != '\0') {
+        event->exe_name_start_index = i + 1;
+        return 1;
+    }
+
+    return 0;
+}
+
+/**
+ * process_needs_breakaway() - Verifies if the given process needs to breakaway.
+ * 
+ * This function uses bpf_loop instead of a for/while loop because using an escape
+ * hatch allows us to reduce the amount of time needed to verify the program.
+ * Additionally, bpf_loop lets us have much bigger loops without hitting the instruction limit.
+ */
+static void process_needs_breakaway(exec_event_metadata *event) {
+    event->needs_breakaway = false;
+
+    // The path that we have is the full path to the executable
+    // Breakaway processes match with the executable path atom so we need to find the basename
+    bpf_loop((event->exe_path_len & (PATH_MAX - 1)), basename_loop_callback, &event, 0);
+
+    // -1 to Ignore the null terminating character
+    event->exe_name_len = event->exe_path_len - event->exe_name_start_index - 1;
+
+    // Check if the process needs to breakaway
+    bpf_for_each_map_elem(&breakaway_processes, breakaway_map_callback, &event, 0);
+}
+
+#endif // __PUBLIC_SRC_SANDBOX_LINUX_EBPF_EBPFUTILITIES_H

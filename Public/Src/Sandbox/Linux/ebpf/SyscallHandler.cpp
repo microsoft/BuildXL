@@ -111,6 +111,11 @@ bool SyscallHandler::HandleSingleEvent(BxlObserver *bxl, const ebpf_event *event
             CreateAndReportAccess(bxl,sandboxEvent);
             break;
         }
+        case kBreakAway:
+        {
+            bxl->SendBreakawayReport(event->src_path, event->metadata.pid, /** ppid */ 0);
+            break;
+        }
         default:
             fprintf(stderr, "Unhandled operation type %d", event->metadata.operation_type);
             exit(1);
@@ -217,17 +222,15 @@ bool SyscallHandler::HandleDoubleEvent(BxlObserver *bxl, const ebpf_event_double
 }
 
 bool SyscallHandler::HandleExecEvent(BxlObserver *bxl, const ebpf_event_exec *event) {
-    auto commandLineArgs = bxl->DoGetProcessCommandLine(event->metadata.pid);
-
     auto sandboxEvent = SandboxEvent::ExecSandboxEvent(
         /* system_call */   kernel_function_to_string(event->metadata.kernel_function),
         /* pid */           event->metadata.pid,
         /* ppid */          0,
         /* path */          event->exe_path,
-        /* command_line */  bxl->IsReportingProcessArgs() ? commandLineArgs : "");
+        /* command_line */  bxl->IsReportingProcessArgs() ? event->args : "");
     CreateAndReportAccess(bxl,sandboxEvent, /* check_cache */ false);
 
-    return bxl->ShouldBreakaway(sandboxEvent.GetSrcPath().c_str(), commandLineArgs, event->metadata.pid, 0);
+    return true;
 }
 
 bool SyscallHandler::HandleDebugEvent(BxlObserver *bxl, const ebpf_event_debug *event) {

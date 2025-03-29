@@ -7,6 +7,8 @@
 ## Notes
 - The `SEC(?...)` convention in libbpf will prevent the specified program from autoloading. Reference: https://github.com/libbpf/libbpf/blob/42a6ef63161a8dc4288172b27f3870e50b3606f7/src/libbpf.c#L822C1-L826C1
 - `SEC(?...s/...)` convention indicates that this program is sleepable. While it doesn't mean that the bpf program itself will sleep, it allows us to call sleepable helpers such as `bpf_copy_from_user`.
+    - To find out whether a program is sleepable, refer to the table on the [Program Types](https://docs.kernel.org/bpf/libbpf/program_types.html) documentation
+- Using tracepoint programs requires `CAP_DAC_OVERRIDE` to be set or to be run as root so that it can read from `/sys/kernel`.
 
 ## Verifier tips
 - The verifier is pretty strict when it comes to accessing arrays. General tips:

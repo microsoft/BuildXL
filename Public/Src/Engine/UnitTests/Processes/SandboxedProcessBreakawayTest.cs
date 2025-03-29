@@ -20,7 +20,10 @@ namespace Test.BuildXL.Processes
     public sealed class SandboxedProcessBreakawayTest : SandboxedProcessTestBase
     {
         public SandboxedProcessBreakawayTest(ITestOutputHelper output)
-            : base(output) { }
+            : base(output)
+        {
+            RegisterEventSource(global::BuildXL.Processes.ETWLogger.Log);
+        }
 
         private static IEnumerable<object[]> OSAgnosticChildBreakawayData()
         {

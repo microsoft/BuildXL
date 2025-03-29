@@ -368,6 +368,7 @@ public:
     const char* GetDetoursLibPath() { return detoursLibFullPath_; }
 
     buildxl::common::FileAccessManifest* GetFileAccessManifest() { return fam_;}
+    const std::vector<buildxl::common::BreakawayChildProcess>& GetBreakawayChildProcesses() const { return fam_->GetBreakawayChildProcesses(); };
 
     bool IsReportingProcessArgs() const { return !fam_ || CheckReportProcessArgs(fam_->GetFlags()); }
 
@@ -433,9 +434,10 @@ public:
     void set_ptrace_permissions();
     // Checks against the breakaway list to see whether there is a match
     // TODO: implement breakaway handling for ptrace
-    bool ShouldBreakaway(const char *path, std::string &args, pid_t pid = -1, pid_t ppid = -1);
-    bool ShouldBreakaway(const char *path, char *const argv[]);
-    bool ShouldBreakaway(int fd, char *const argv[]);
+    bool SendBreakawayReportIfNeeded(const char *path, std::string &args, pid_t pid = -1, pid_t ppid = -1);
+    bool SendBreakawayReportIfNeeded(const char *path, char *const argv[]);
+    bool SendBreakawayReportIfNeeded(int fd, char *const argv[]);
+    void SendBreakawayReport(const char *path, pid_t pid, pid_t ppid);
 
     // Clears the specified entry on the file descriptor table
     void reset_fd_table_entry(int fd);

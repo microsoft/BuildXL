@@ -35,7 +35,7 @@ static volatile sig_atomic_t g_stop;
 static volatile int g_exit_code;
 int g_root_pid = 0;
 struct ring_buffer *g_file_access_ring_buffer = NULL, *g_debug_ring_buffer = NULL;
-int g_pid_map_fd = -1;
+int g_pid_map_fd = -1, g_breakaway_processes_map_fd = -1;
 sem_t g_background_thread_semaphore;
 
 /**
@@ -87,8 +87,7 @@ void LogDebugEvent(ebpf_event *event)
                 kernel_function_to_string(exec_event->metadata.kernel_function), 
                 operation_type_to_string(exec_event->metadata.operation_type), 
                 exec_event->exe_path,
-                // TODO: not sending exec args for now
-                "");
+                exec_event->args);
             break;
         }
         case SINGLE_PATH:
@@ -160,11 +159,7 @@ int HandleEvent(void *ctx, void *data, size_t data_sz) {
 
     switch (event->event_type) {
         case EXEC: {
-            auto shouldBreakaway = buildxl::linux::ebpf::SyscallHandler::HandleExecEvent(g_bxl, (const ebpf_event_exec *)event);
-            // TODO: In a future iteration breakaway will be handled on the kernel side
-            if (shouldBreakaway) {
-                bpf_map_delete_elem(g_pid_map_fd, &event->metadata.pid);
-            }
+            buildxl::linux::ebpf::SyscallHandler::HandleExecEvent(g_bxl, (const ebpf_event_exec *)event);
             break;
         }
         case SINGLE_PATH:
@@ -252,7 +247,7 @@ int RunRootProcess(int map_fd, const char *file, char *const argv[], char *const
         SendInitForkEvent(pid, getpid(), file);
 
         // Add child pid to map
-        bpf_map_update_elem(map_fd, &pid, &pid, BPF_ANY);
+        bpf_map_update_elem(map_fd, &g_root_pid, &g_root_pid, BPF_ANY);
         // Unlock the semaphore so the child process can proceed
         sem_post(semaphore);
     }
@@ -298,6 +293,25 @@ void *WaitForRootProcessToExit(void *argv) {
     g_stop = 1;
 
     return NULL;
+}
+
+/**
+ * Populates a set of breakaway processes from the file access manifest to be used by the kernel side.
+ */
+void PopulateBreakawayProcessesMap() {
+    auto breakaway_processes = g_bxl->GetBreakawayChildProcesses();
+    auto breakaway_processes_count = std::min(breakaway_processes.size(), static_cast<size_t>(MAX_BREAKAWAY_PROCESSES));;
+
+    for (int i = 0; i < breakaway_processes_count; i++) {
+        breakaway_process process = {0};
+        strncpy(process.tool, breakaway_processes[i].GetExecutable().c_str(), sizeof(process.tool));
+        process.tool_len = breakaway_processes[i].GetExecutable().length();
+        strncpy(process.arguments, breakaway_processes[i].GetRequiredArgs().c_str(), sizeof(process.arguments));
+        process.arguments_len = breakaway_processes[i].GetRequiredArgs().length();
+        process.args_ignore_case = breakaway_processes[i].GetRequiredArgsIgnoreCase();
+
+        bpf_map_update_elem(g_breakaway_processes_map_fd, &i, &process, BPF_ANY);
+    }
 }
 
 /**
@@ -348,7 +362,7 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    sandbox_bpf::load(skel);
+    sandbox_bpf::load(skel);    
 
     /* Attach tracepoint handler */
     err = sandbox_bpf::attach(skel);
@@ -383,10 +397,19 @@ int main(int argc, char **argv) {
     // Set up pid map
     g_pid_map_fd = bpf_object__find_map_fd_by_name(skel->obj, "pid_map");
     if (g_pid_map_fd < 0) {
-        LogError("finding a map in obj file failed\n");
+        LogError("Finding pid_map in bpf object failed.\n");
         Cleanup(skel);
         return -1;
     }
+
+    g_breakaway_processes_map_fd = bpf_object__find_map_fd_by_name(skel->obj, "breakaway_processes");
+    if (g_breakaway_processes_map_fd < 0) {
+        LogError("Finding breakaway_processes map in bpf object failed.\n");
+        Cleanup(skel);
+        return -1;
+    }
+
+    PopulateBreakawayProcessesMap();
 
     // Initialize the background thread semaphore
     if(sem_init(&g_background_thread_semaphore, /* pshared */ 0, /* initial value */ 0) == -1) {

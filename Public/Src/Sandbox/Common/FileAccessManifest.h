@@ -119,19 +119,20 @@ public:
     FileAccessManifest(char *payload, size_t payload_size);
     ~FileAccessManifest();
 
-    inline FileAccessManifestFlag GetFlags() const                          { return flags_; }
-    inline FileAccessManifestExtraFlag GetExtraFlags() const                { return extra_flags_; }
-    inline const char* GetInternalErrorDumpLocation() const                 { return error_dump_location_.c_str(); }
-    inline uint64_t GetPipId() const                                        { return pip_id_; }
-    inline PCManifestReport GetReport() const                               { return report_; }
-    inline PCManifestDllBlock GetDll() const                                { return dll_; }
-    inline PCManifestSubstituteProcessExecutionShim GetShimInfo() const     { return shim_info_; }
-    inline PCManifestRecord GetManifestTreeRoot() const                     { return manifest_tree_; }
-    inline PCManifestRecord GetUnixManifestTreeRoot() const                 { return manifest_tree_->BucketCount > 0 ? manifest_tree_->GetChildRecord(0) : manifest_tree_; }
+    inline FileAccessManifestFlag GetFlags() const                                  { return flags_; }
+    inline FileAccessManifestExtraFlag GetExtraFlags() const                        { return extra_flags_; }
+    inline const char* GetInternalErrorDumpLocation() const                         { return error_dump_location_.c_str(); }
+    inline uint64_t GetPipId() const                                                { return pip_id_; }
+    inline PCManifestReport GetReport() const                                       { return report_; }
+    inline PCManifestDllBlock GetDll() const                                        { return dll_; }
+    inline PCManifestSubstituteProcessExecutionShim GetShimInfo() const             { return shim_info_; }
+    inline PCManifestRecord GetManifestTreeRoot() const                             { return manifest_tree_; }
+    inline PCManifestRecord GetUnixManifestTreeRoot() const                         { return manifest_tree_->BucketCount > 0 ? manifest_tree_->GetChildRecord(0) : manifest_tree_; }
     // TODO [pgunasekara]: accept a length argument as reference instead of a pointer.
-    inline const char *GetReportsPath(int *length) const                    { *length = report_->Size; return report_->Report.ReportPath; }
+    inline const char *GetReportsPath(int *length) const                            { *length = report_->Size; return report_->Report.ReportPath; }
+    const std::vector<BreakawayChildProcess>& GetBreakawayChildProcesses() const    { return breakaway_child_processes_; };
     bool ShouldBreakaway(const PathChar *path, std::basic_string<PathChar> &arguments);
-    
+
     // Debugging Helpers
     std::basic_string<PathChar> ManifestTreeToString(PCManifestRecord node = nullptr, const int indent = 0, const int index = 0);
 };

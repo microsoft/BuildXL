@@ -472,6 +472,7 @@ namespace BuildXL.Processes
                 // If the read or write handles are already closed, no need to send a sentinel
                 if (reportProcessor.IsReadHandleDisposed() || writeHandle.Value.IsClosed || writeHandle.Value.IsInvalid)
                 {
+                    LogDebug($"WriteSentinel: Not sending sentinel. IsReadHandleDisposed {reportProcessor.IsReadHandleDisposed()}, writeHandle.Value.IsClosed {writeHandle.Value.IsClosed}, writeHandle.Value.IsInvalid {writeHandle.Value.IsInvalid}.");
                     return;
                 }
                 
@@ -481,6 +482,7 @@ namespace BuildXL.Processes
                 {
                     if (reportProcessor.IsReadHandleDisposed())
                     {
+                        LogDebug($"WriteSentinel: Not sending sentinel. Acquired lock but read handle is disposed.");
                         return;
                     }
 

@@ -41,6 +41,7 @@ namespace BuildXL.Processes
         private IAsyncPipeReader m_injectionRequestReader;
         private bool m_stopping;
 
+        private readonly Action<string> m_debugReporter;
         private readonly LoggingContext m_loggingContext;
 
         public ProcessTreeContext(
@@ -50,13 +51,14 @@ namespace BuildXL.Processes
             string dllNameX64,
             string dllNameX86,
             int numRetriesPipeReadOnCancel,
-            Action<string> debugPipeReporter,
+            Action<string> debugReporter,
             LoggingContext loggingContext)
         {
             // We cannot create this object in a wow64 process
             Contract.Assume(!ProcessUtilities.IsWow64Process(), "ProcessTreeContext:ctor - Cannot run injection server in a wow64 32 bit process");
             Contract.Requires(loggingContext != null);
 
+            m_debugReporter = debugReporter;
             m_loggingContext = loggingContext;
             SafeFileHandle childHandle = null;
             NamedPipeServerStream serverStream = null;
@@ -107,7 +109,7 @@ namespace BuildXL.Processes
                         Encoding.Unicode,
                         BufferSize,
                         numOfRetriesOnCancel: numRetriesPipeReadOnCancel,
-                        debugPipeReporter: new AsyncPipeReader.DebugReporter(debugMsg => debugPipeReporter?.Invoke($"InjectionRequestReader: {debugMsg}")));
+                        debugPipeReporter: new AsyncPipeReader.DebugReporter(debugMsg => debugReporter?.Invoke($"InjectionRequestReader: {debugMsg}")));
                 }
             }
             catch (Exception exception)
@@ -267,6 +269,7 @@ namespace BuildXL.Processes
                         return true;
                     }
 
+                    // Inject data & DLLs and map the drives .
                     uint injectionError = Injector.Inject(processId, inheritedHandles);
                     if (injectionError != 0)
                     {
@@ -279,15 +282,35 @@ namespace BuildXL.Processes
             string eventName = succeeded ? eventPathSuccess : eventPathFailure;
             EventWaitHandle e;
 
-            // Inject data & DLLs and map the drives and signal the caller indicating that we are done
+            // Signal the caller indicating that we are done.
             if (EventWaitHandle.TryOpenExisting(eventName, out e))
             {
                 e.Set();
                 e.Dispose();
+                return true;
             }
-            else if (succeeded)
+
+            // For some reason, the event may be temporarily unavailable. Let's wait for a while and try again, but this time
+            // throw an exception if it fails.
+            try
             {
-                ReportFailedInjection(processId, string.Format(CultureInfo.InvariantCulture, "Cannot open event '{0}'", eventName));
+                // The event may be created by the caller, but it may not be available yet. We need to wait for a while.
+                // There is some setup cost when using try-catch because the JIT compiler adds some instructions
+                // to set up the exception handling infrastructure. While there is a small overhead even when no exceptions
+                // occur, this part of the code is not in the performance-critical path. Moreover, the benefit of knowing
+                // the failure when opening an existing event outweighs the cost of the try-catch.
+                Thread.Sleep(1000);
+                e = EventWaitHandle.OpenExisting(eventName);
+                e.Set();
+                e.Dispose();
+            }
+            catch (Exception ex)
+            {
+                if (succeeded)
+                {
+                    // The injection succeeded, but we cannot signal the event, we need to report the error.
+                    ReportFailedInjection(processId, string.Format(CultureInfo.InvariantCulture, "Detours injection actually succeeded, but cannot open event '{0}' to signal the caller: {1}", eventName, ex.ToString()));
+                }
             }
 
             return true;
@@ -302,6 +325,7 @@ namespace BuildXL.Processes
 
             HasDetoursInjectionFailures = true;
             Tracing.Logger.Log.BrokeredDetoursInjectionFailed(m_loggingContext, processId, error);
+            m_debugReporter?.Invoke($"Detours (remote) injection failed for process {processId}: {error}");
         }
     }
 }

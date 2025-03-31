@@ -356,7 +356,7 @@ namespace BuildXL.Processes.Tracing
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.PipExecutor,
-            Message = "Failed to instrument process ID {0} for file monitoring on behalf of an existing instrumented process, error: {1}. Most likely reason for this error is the run time for the process exceeded the allowed timeout for the process to complete.")]
+            Message = "Failed to instrument process ID {0} for file monitoring on behalf of an existing instrumented process, error: {1}")]
         public abstract void BrokeredDetoursInjectionFailed(LoggingContext context, uint processId, string error);
 
         [GeneratedEvent(

@@ -160,7 +160,7 @@ namespace BuildXL.Processes
                     info.CreateJobObjectForCurrentProcess,
                     info.DiagnosticsEnabled,
                     m_numRetriesPipeReadOnCancel,
-                    DebugPipeConnection,
+                    DebugReport,
                     info.ExternallyProvidedJobObject);
         }
 
@@ -530,7 +530,7 @@ namespace BuildXL.Processes
                         reportEncoding,
                         m_bufferSize,
                         numOfRetriesOnCancel: m_numRetriesPipeReadOnCancel,
-                        debugPipeReporter: new AsyncPipeReader.DebugReporter(errorMsg => DebugPipeConnection($"ReportReader: {errorMsg}")));
+                        debugPipeReporter: new AsyncPipeReader.DebugReporter(errorMsg => DebugReport($"ReportReader: {errorMsg}")));
                 }
 
                 m_reportReader.BeginReadLine();
@@ -549,7 +549,7 @@ namespace BuildXL.Processes
             }
         }
 
-        private void DebugPipeConnection(string data) => m_reports.ReportLineReceived($"{(int)ReportType.DebugMessage},{data}");
+        private void DebugReport(string data) => m_reports.ReportLineReceived($"{(int)ReportType.DebugMessage},{data}");
 
         private static async Task FeedStandardInputAsync(DetouredProcess detouredProcess, TextReader? reader, TaskSourceSlim<bool> stdInTcs)
         {

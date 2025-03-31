@@ -78,7 +78,7 @@ namespace BuildXL.Processes.Internal
         private readonly bool m_setJobBreakawayOk;
         private readonly bool m_createJobObjectForCurrentProcess;
         private readonly int m_numRetriesPipeReadOnCancel;
-        private readonly Action<string> m_debugPipeReporter;
+        private readonly Action<string> m_debugReporter;
         private int m_killedCallFlag;
 
         /// Gather information for diagnosing flaky tests
@@ -350,7 +350,7 @@ namespace BuildXL.Processes.Internal
             bool createJobObjectForCurrentProcess,
             bool diagnosticsEnabled,
             int numRetriesPipeReadOnCancel,
-            Action<string> debugPipeReporter,
+            Action<string> debugReporter,
             JobObject externallyProvidedJobObject)
         {
             Contract.Requires(bufferSize >= 128);
@@ -383,7 +383,7 @@ namespace BuildXL.Processes.Internal
             m_loggingContext = loggingContext;
             m_timeoutDumpDirectory = timeoutDumpDirectory;
             m_numRetriesPipeReadOnCancel = numRetriesPipeReadOnCancel;
-            m_debugPipeReporter = debugPipeReporter;
+            m_debugReporter = debugReporter;
             m_job = externallyProvidedJobObject;
             m_jobObjectCreatedExternally = (externallyProvidedJobObject != null);
 
@@ -543,7 +543,7 @@ namespace BuildXL.Processes.Internal
                             dllNameX64,
                             dllNameX86,
                             m_numRetriesPipeReadOnCancel,
-                            m_debugPipeReporter,
+                            m_debugReporter,
                             m_loggingContext);
 
                         if (!m_jobObjectCreatedExternally)

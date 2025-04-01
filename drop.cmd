@@ -1,7 +1,7 @@
 @echo off
 setlocal
 
-set DEFAULT_DROP_EXE_LOCATION=%~dp0Out\SelfHost\Drop.App\lib\net45
+set DEFAULT_DROP_EXE_LOCATION=%~dp0Out\SelfHost\Drop.App
 
 if EXIST %DEFAULT_DROP_EXE_LOCATION%\drop.exe (
 	set DROP_EXE_LOCATION=%DEFAULT_DROP_EXE_LOCATION%
@@ -17,7 +17,7 @@ if NOT DEFINED DROP_EXE_LOCATION (
 
 	REM Create the drop app folder, download the latest version and unzip it
 	mkdir %~dp0Out\SelfHost\Drop.App
-	curl "https://artifacts.dev.azure.com/cloudbuild/_apis/drop/client/exe" --output %~dp0Out\SelfHost\Drop.App.zip
+	curl -L "https://vsblob.dev.azure.com/cloudbuild/_apis/clienttools/drop/download?osName=windows&arch=amd64" --output %~dp0Out\SelfHost\Drop.App.zip
 	tar -xf %~dp0Out\SelfHost\Drop.App.zip -C %~dp0Out\SelfHost\Drop.App
 	del %~dp0Out\SelfHost\Drop.App.zip
 

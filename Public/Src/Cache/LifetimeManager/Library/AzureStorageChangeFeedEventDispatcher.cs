@@ -223,7 +223,16 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                     {
                         // We failed to write to the channel. This is unrecoverable, and we'll fail. We should still
                         // dispose of the response.
-                        hasMoreResult.Value?.GetRawResponse().Dispose();
+                        try
+                        {
+                            hasMoreResult?.Value?.GetRawResponse()?.Dispose();
+                        }
+                        catch (Exception ex)
+                        {
+                            // We don't want to fail this operation because of a failure to dispose the response.
+                            Tracer.Error(context, ex, $"Failed to dispose page after failing to write. Account=[{accountName}] ContinuationToken=[{continuationToken ?? "null"}] PageSize=[{hasMoreResult?.Value?.Values.Count}]");
+                        }
+
                         throw;
                     }
 
@@ -239,13 +248,13 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             }
             catch (Exception ex)
             {
-                var exception = new InvalidOperationException($"Failure reading pages from Storage's event feed", ex);
+                var exception = new InvalidOperationException($"Failure reading pages from Storage's event feed. Account=[{accountName}] ContinuationToken=[{continuationToken ?? "null"}]", ex);
                 channel.Writer.Complete(exception);
-                return new BoolResult(exception, "Failure reading pages from Storage's event feed");
+                return new BoolResult(exception, $"Failure reading pages from Storage's event feed. Account=[{accountName}] ContinuationToken=[{continuationToken ?? "null"}]");
             }
             finally
             {
-                channel.Writer.TryComplete(error: new InvalidOperationException("This should never happen"));
+                channel.Writer.TryComplete(error: new InvalidOperationException($"This should never happen. Account=[{accountName}] ContinuationToken=[{continuationToken ?? "null"}]"));
             }
         }
 
@@ -343,7 +352,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                         {
                             try
                             {
-                                page.GetRawResponse().Dispose();
+                                page?.GetRawResponse()?.Dispose();
                             }
                             catch (Exception ex)
                             {

@@ -11,7 +11,7 @@ import * as Shared from "Sdk.Managed.Shared";
 
 namespace FileDownloader {
 
-    export declare const qualifier : BuildXLSdk.NetCoreAppQualifier;
+    export declare const qualifier: BuildXLSdk.Net6PlusQualifier;
     
     @@public
     export const downloader = BuildXLSdk.executable({

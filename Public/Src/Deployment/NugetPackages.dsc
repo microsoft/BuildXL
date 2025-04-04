@@ -294,19 +294,16 @@ namespace NugetPackages {
         assemblies: [
             // BuildXL.Utilities
             importFrom("BuildXL.Pips").withQualifier(net472packageQualifier).dll,
-            importFrom("BuildXL.Pips").withQualifier(net6PackageQualifier).dll,
             importFrom("BuildXL.Pips").withQualifier(net8PackageQualifier).dll,
             importFrom("BuildXL.Pips").withQualifier(net9PackageQualifier).dll,
 
             // BuildXL.Ipc
             importFrom("BuildXL.Utilities").withQualifier(net472packageQualifier).Ipc.dll,
-            importFrom("BuildXL.Utilities").withQualifier(net6PackageQualifier).Ipc.dll,
             importFrom("BuildXL.Utilities").withQualifier(net8PackageQualifier).Ipc.dll,
             importFrom("BuildXL.Utilities").withQualifier(net9PackageQualifier).Ipc.dll,
 
             // BuildXL.Storage
             importFrom("BuildXL.Utilities").withQualifier(net472packageQualifier).Storage.dll,
-            importFrom("BuildXL.Utilities").withQualifier(net6PackageQualifier).Storage.dll,
             importFrom("BuildXL.Utilities").withQualifier(net8PackageQualifier).Storage.dll,
             importFrom("BuildXL.Utilities").withQualifier(net9PackageQualifier).Storage.dll,
         ],
@@ -329,7 +326,6 @@ namespace NugetPackages {
         assemblies: [
             // BuildXL.Processes
             importFrom("BuildXL.Engine").withQualifier(net472packageQualifier).Processes.dll,
-            importFrom("BuildXL.Engine").withQualifier(net6PackageQualifier).Processes.dll,
             importFrom("BuildXL.Engine").withQualifier(net8PackageQualifier).Processes.dll,
             importFrom("BuildXL.Engine").withQualifier(net9PackageQualifier).Processes.dll,
         ],
@@ -369,15 +365,6 @@ namespace NugetPackages {
             importFrom("BuildXL.Cache.VerticalStore").withQualifier(net472packageQualifier).VerticalAggregator.dll,
             importFrom("BuildXL.Cache.VerticalStore").withQualifier(net472packageQualifier).ImplementationSupport.dll,
             importFrom("BuildXL.Utilities").withQualifier(net472packageQualifier).Storage.dll,
-            
-            importFrom("BuildXL.Cache.VerticalStore").withQualifier(net6PackageQualifier).InMemory.dll,
-            importFrom("BuildXL.Cache.VerticalStore").withQualifier(net6PackageQualifier).Interfaces.dll,
-            importFrom("BuildXL.Cache.VerticalStore").withQualifier(net6PackageQualifier).BasicFilesystem.dll,
-            importFrom("BuildXL.Cache.VerticalStore").withQualifier(net6PackageQualifier).BuildCacheAdapter.dll,
-            importFrom("BuildXL.Cache.VerticalStore").withQualifier(net6PackageQualifier).MemoizationStoreAdapter.dll,
-            importFrom("BuildXL.Cache.VerticalStore").withQualifier(net6PackageQualifier).VerticalAggregator.dll,
-            importFrom("BuildXL.Cache.VerticalStore").withQualifier(net6PackageQualifier).ImplementationSupport.dll,
-            importFrom("BuildXL.Utilities").withQualifier(net6PackageQualifier).Storage.dll,
 
             importFrom("BuildXL.Cache.VerticalStore").withQualifier(net8PackageQualifier).InMemory.dll,
             importFrom("BuildXL.Cache.VerticalStore").withQualifier(net8PackageQualifier).Interfaces.dll,

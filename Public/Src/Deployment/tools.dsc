@@ -12,7 +12,7 @@ namespace Tools {
     export declare const qualifier : { configuration: "debug" | "release"};
 
     namespace Helpers {
-        export declare const qualifier: BuildXLSdk.NetCoreAppQualifier;
+        export declare const qualifier: BuildXLSdk.DefaultQualifier;
 
         export function getTargetLocation(toolName: string) : RelativePath {
             return r`${qualifier.targetFramework}/${qualifier.configuration}/tools/${toolName}/${qualifier.targetRuntime}`;
@@ -21,7 +21,7 @@ namespace Tools {
     
     namespace AdoBuildRunner {
 
-        export declare const qualifier: BuildXLSdk.NetCoreAppQualifier;
+        export declare const qualifier: BuildXLSdk.DefaultQualifier;
 
         export const deployment : Deployment.Definition = {
             contents: [

@@ -6,7 +6,7 @@ import * as Managed  from "Sdk.Managed";
 
 namespace PackedTable {
 
-    export declare const qualifier: BuildXLSdk.NetCoreAppQualifier;
+    export declare const qualifier: BuildXLSdk.Net6PlusQualifier;
 
     @@public
     export const dll = BuildXLSdk.library({

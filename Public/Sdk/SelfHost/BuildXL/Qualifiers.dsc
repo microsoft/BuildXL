@@ -14,22 +14,12 @@ export interface FullFrameworkQualifier extends Qualifier {
 }
 
 /**
- * Qualifier that only supports .net standard
- */
-@@public
-export interface NetStandardQualifier extends Qualifier {
-    configuration: "debug" | "release";
-    targetFramework: "netstandard2.0";
-    targetRuntime: "win-x64" | "osx-x64" | "linux-x64";
-}
-
-/**
  * Qualifier for projects that support DotNetCore
  */
 @@public
 export interface DefaultQualifier extends Qualifier {
     configuration: "debug" | "release";
-    targetFramework: "net6.0" | "net8.0" | "net9.0"; // Temporarily having 3 target frameworks until the migration to the new one is fully done.
+    targetFramework: "net8.0" | "net9.0";
     targetRuntime: "win-x64" | "osx-x64" | "linux-x64";
 }
 
@@ -73,14 +63,7 @@ export interface PlatformDependentQualifier extends Qualifier {
 }
 
 @@public
-export interface NetCoreAppQualifier extends Qualifier {
-    configuration: "debug" | "release";
-    targetFramework: "net6.0" | "net8.0" | "net9.0";
-    targetRuntime: "win-x64" | "osx-x64" | "linux-x64";
-}
-
-@@public
-export interface NetCoreQualifier extends Qualifier {
+export interface Net6PlusQualifier extends Qualifier {
     configuration: "debug" | "release";
     targetFramework: "net6.0" | "net8.0" | "net9.0";
     targetRuntime: "win-x64" | "osx-x64" | "linux-x64";

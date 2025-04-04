@@ -208,7 +208,7 @@ namespace Cache.NugetPackages {
 
     // BlobLifetimeManager.Library
     export const blobLifetimeManagerLibrary : Managed.Assembly[] = [
-        importFrom("BuildXL.Cache.BlobLifetimeManager").Library.withQualifier({ targetFramework: "net6.0", targetRuntime: "win-x64" }).dll,
+        importFrom("BuildXL.Cache.BlobLifetimeManager").Library.withQualifier({ targetFramework: "net8.0", targetRuntime: "win-x64" }).dll,
     ];
 
     // BuildCacheResourceHelper

@@ -259,7 +259,7 @@ namespace Default {
 
 // TODO: Merge into Default.deployment when all of CloudStore builds on DotNetCore
 namespace DotNetCore {
-    export declare const qualifier: BuildXLSdk.NetCoreAppQualifier;
+    export declare const qualifier: BuildXLSdk.Net6PlusQualifier;
 
     @@public
     export const deployment: Deployment.NestedDefinition =

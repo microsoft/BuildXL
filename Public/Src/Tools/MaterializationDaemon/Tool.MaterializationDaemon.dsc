@@ -8,7 +8,7 @@ import * as Managed from "Sdk.Managed";
 import * as Deployment from "Sdk.Deployment";
 import { NetFx } from "Sdk.BuildXL";
 
-export declare const qualifier : BuildXLSdk.NetCoreAppQualifier;
+export declare const qualifier : BuildXLSdk.DefaultQualifier;
 
 @@public
 export const exe = !BuildXLSdk.isDaemonToolingEnabled ? undefined : BuildXLSdk.executable({

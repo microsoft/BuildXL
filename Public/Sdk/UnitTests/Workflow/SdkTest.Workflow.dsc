@@ -14,7 +14,10 @@ namespace StandardSdk.Workflow {
     // TODO: Enable the test for Linux builds. https://dev.azure.com/mseng/1ES/_workitems/edit/2075778
     export const workflowTest = Context.getCurrentHost().os === "win" && BuildXLSdk.sdkTest({
         testFiles: [f`Test.Workflow.dsc` ],
-        sdkFolders: [ d`${Context.getMount("SdkRoot").path}/Workflow` ],
+        sdkFolders: [ 
+            d`${Context.getMount("SdkRoot").path}/Workflow`,
+            d`${Context.getMount("SdkRoot").path}/Deployment`
+        ],
         autoFixLkgs: false
     });
 
@@ -28,7 +31,10 @@ namespace StandardSdk.Workflow {
 
     export const nugetTest = shouldRunNuGetTest && BuildXLSdk.sdkTest({
         testFiles: [f`Test.Workflow.NuGet.dsc` ],
-        sdkFolders: [ d`${Context.getMount("SdkRoot").path}/Workflow` ],
+        sdkFolders: [ 
+            d`${Context.getMount("SdkRoot").path}/Workflow`,
+            d`${Context.getMount("SdkRoot").path}/Deployment`
+        ],
         autoFixLkgs: false
     });
 }

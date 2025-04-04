@@ -45,6 +45,12 @@ function createSdkDeploymentDefinition(serverDeployment: boolean, minimalDeploym
                             importFrom("Sdk.Json").deployment
                         ]
                     },
+                    {
+                        subfolder: "Sdk.Workflow",
+                        contents: [ 
+                            importFrom("Sdk.Workflow").deployment
+                        ]
+                    },
                     // If any new deployment is added below, please consider adding an 'evaluation only' version of it. This
                     // consists of just the specs, but not binaries. The evaluation only SDK is used to deploy SDKs alongside
                     // the VSCode plugin. The plugin only needs specs to evaluate, and adding binaries will make the vsix 

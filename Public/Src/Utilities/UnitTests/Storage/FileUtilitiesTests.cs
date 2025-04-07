@@ -240,6 +240,12 @@ namespace Test.BuildXL.Storage
         [FactIfSupported(requiresSymlinkPermission: true, requiresAdmin: true)]
         public void CreateDirectoryWithDanglingIntermediateSymlinkTest()
         {
+            if (OperatingSystemHelper.IsMacOS)
+            {
+                // TODO work item #2260567: This test is temporarily disabled on macos
+                return;
+            }
+
             // create root directory 'a'
             string rootDir = GetFullPath(R("a"));
             FileUtilities.DeleteDirectoryContents(rootDir);

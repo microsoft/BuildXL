@@ -41,6 +41,12 @@ namespace BuildXL.Cache.ContentStore.Test.Stores
         [FactIfSupported(requiresUnixBasedOperatingSystem: true, requiresAdmin: true)]
         public async Task PutAttemptHardLinkCacheInDifferentMountFallBackToCopy()
         {
+            if (BuildXL.Utilities.Core.OperatingSystemHelper.IsMacOS)
+            {
+                // TODO work item #2260567: This test is temporarily disabled on macos
+                return;
+            }
+
             using (var testDirectory = new DisposableDirectory(FileSystem))
             {
                 var context = new Context(Logger);

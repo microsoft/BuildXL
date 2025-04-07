@@ -234,7 +234,7 @@ namespace Sdk.Tests {
     }
 
     /** Checks if a task, task1, is in the references of another task, task2. */
-    function taskInTaskReferences(task1: Workflow.TaskOutput, task2: Workflow.TaskOutput)
+    function taskInTaskReferences(task1: Workflow.TaskOutput, task2: Workflow.TaskOutput) : boolean
     {
         const allReferences = computeTaskOutputClosure(task2.taskReferences);
         return taskInTaskOutputs(task1, ...allReferences);
@@ -250,7 +250,7 @@ namespace Sdk.Tests {
         return result.toArray();
     }
 
-    function computeTaskOutputClosureAux(taskOutput: Workflow.TaskOutput, result: MutableSet<Workflow.TaskOutput>)
+    function computeTaskOutputClosureAux(taskOutput: Workflow.TaskOutput, result: MutableSet<Workflow.TaskOutput>) : void
     {
         const referencedTasks: Workflow.TaskOutput[] = taskOutput.taskReferences || [];
         for (let t of referencedTasks) {

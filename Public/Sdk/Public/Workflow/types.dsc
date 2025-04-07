@@ -236,7 +236,7 @@ function computeProjectOutputClosure(projectOutputs: ProjectOutput[]) : ProjectO
     return result.toArray();
 }
 
-function computeProjectOutputClosureAux(projectOutput: ProjectOutput, result: MutableSet<ProjectOutput>)
+function computeProjectOutputClosureAux(projectOutput: ProjectOutput, result: MutableSet<ProjectOutput>) : void
 {
     const referencedProjects: ProjectOutput[] = (projectOutput.references || [])
         .filter(r => typeof(r) === "object" && r["outputs"] !== undefined)
@@ -259,7 +259,7 @@ function computeTaskOutputClosure(taskOutputs: TaskOutput[]) : TaskOutput[]
     return result.toArray();
 }
 
-function computeTaskOutputClosureAux(taskOutput: TaskOutput, result: MutableSet<TaskOutput>)
+function computeTaskOutputClosureAux(taskOutput: TaskOutput, result: MutableSet<TaskOutput>) : void
 {
     const referencedTasks: TaskOutput[] = taskOutput.taskReferences || [];
     for (let t of referencedTasks) {

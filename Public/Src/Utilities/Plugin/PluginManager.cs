@@ -240,23 +240,21 @@ namespace BuildXL.Plugin
                 Tracing.Logger.Log.PluginManagerLogMessage(m_loggingContext, $"Received response for requestId:{response.RequestId} for {messageType} in {sw.ElapsedMilliseconds} ms after {response.Attempts} retries " +
                     $"[{(response.Succeeded ? "SUCCEEDED" : $"FAILED (Failure: {response.Failure.Describe()}")}]");
 
-                if (response.Succeeded)
+                if (sw.ElapsedMilliseconds > m_pluginLongestRequestProcessTimeMs)
                 {
-                    if (sw.ElapsedMilliseconds > m_pluginLongestRequestProcessTimeMs)
-                    {
-                        Interlocked.Exchange(ref m_pluginLongestRequestProcessTimeMs, sw.ElapsedMilliseconds);
-                    }
-
-                    if (sw.ElapsedMilliseconds > Threshold)
-                    {
-                        Interlocked.Increment(ref m_pluginRequestsOverThreshold);
-                        Tracing.Logger.Log.PluginManagerLogMessage(m_loggingContext, $"Request requestId:{response.RequestId} exceeded the stat threshold of {Threshold} ms ({sw.ElapsedMilliseconds} ms)");
-                    }
-
-                    long movingAverage = m_pluginAverageRequestProcessTimeMs - m_pluginAverageRequestProcessTimeMs / m_pluginProcessedRequestCounts + sw.ElapsedMilliseconds / m_pluginProcessedRequestCounts;
-                    Interlocked.Exchange(ref m_pluginAverageRequestProcessTimeMs, movingAverage);
+                    Interlocked.Exchange(ref m_pluginLongestRequestProcessTimeMs, sw.ElapsedMilliseconds);
                 }
-                else
+
+                if (sw.ElapsedMilliseconds > Threshold)
+                {
+                    Interlocked.Increment(ref m_pluginRequestsOverThreshold);
+                    Tracing.Logger.Log.PluginManagerLogMessage(m_loggingContext, $"Request requestId:{response.RequestId} exceeded the stat threshold of {Threshold} ms ({sw.ElapsedMilliseconds} ms)");
+                }
+
+                long movingAverage = m_pluginAverageRequestProcessTimeMs - m_pluginAverageRequestProcessTimeMs / m_pluginProcessedRequestCounts + sw.ElapsedMilliseconds / m_pluginProcessedRequestCounts;
+                Interlocked.Exchange(ref m_pluginAverageRequestProcessTimeMs, movingAverage);
+
+                if (!response.Succeeded)
                 {
                     if (response.Failure.Describe().Contains("DeadlineExceeded"))
                     {

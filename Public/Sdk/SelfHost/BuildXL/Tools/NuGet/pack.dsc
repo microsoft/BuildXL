@@ -335,7 +335,7 @@ function buildNupkg(args: PackageSpecification, dependencies : Dependency[], pac
 /**
  * Verifies that all packages built by this SDK contain assemblies with the prefix "BuildXL."
  */
-function assertAssemblyPrefix(args : PackageSpecification) {
+function assertAssemblyPrefix(args : PackageSpecification) : void {
     // Enforce a requirement that all assemblies inside BuildXL packages must start with the 'BuildXL.' prefix 
     // so that the filtering logic for inferring packages below properly picks up BuildXL references.
     for (let asm of args.assemblies) {

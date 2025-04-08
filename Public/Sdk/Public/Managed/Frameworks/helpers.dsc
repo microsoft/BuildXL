@@ -129,7 +129,7 @@ namespace Helpers {
     const tool8Template = getDotNetCoreToolTemplate("net8.0");
     const tool9Template = getDotNetCoreToolTemplate("net9.0");
 
-    function getCachedDotNetCoreToolTemplate(dotNetCoreVersion: DotNetCoreVersion) {
+    function getCachedDotNetCoreToolTemplate(dotNetCoreVersion: DotNetCoreVersion) : Transformer.ExecuteArgumentsComposible {
         switch (dotNetCoreVersion) {
             case "net6.0": return tool6Template;
             case "net8.0": return tool8Template;

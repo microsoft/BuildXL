@@ -44,7 +44,7 @@ namespace Sandbox {
     ];
     const headers = incDirs.mapMany(d => ["*.h", "*.hpp"].mapMany(q => glob(d, q)));
 
-    function compile(sourceFile: SourceFile) {
+    function compile(sourceFile: SourceFile) : DerivedFile {
         const compilerArgs : Native.Linux.Compilers.CompilerArguments =  {
             defines: [],
             headers: headers,

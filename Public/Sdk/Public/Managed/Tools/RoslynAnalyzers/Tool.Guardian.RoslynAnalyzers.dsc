@@ -16,7 +16,7 @@ const suppressions = glob(complianceBaselineSuppressionLocation, "*.gdnsuppress"
  * Guardian use RoslynAnalyzers to copy these outputfiles, then do analyze and break operations
  */
 @@public
-export function createRoslynCalls(logRootDirectory: Directory, files: File[], uniquePath: RelativePath) {
+export function createRoslynCalls(logRootDirectory: Directory, files: File[], uniquePath: RelativePath) : void {
     if (!Environment.hasVariable("TOOLPATH_GUARDIAN")) {
         Contract.fail("Guardian drop root must be provided with the 'TOOLPATH_GUARDIAN' environment variable.");
     }

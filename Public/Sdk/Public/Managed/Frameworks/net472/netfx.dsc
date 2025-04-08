@@ -15,8 +15,379 @@ function createFacade(binary: RelativePath) : Managed.Assembly {
     return Managed.Factory.createAssembly(pkgContents, r`${relativeRoot}/Facades/${binary}`, "net472", [], true);
 }
 
+export interface NetFxAssemblies {
+    Accessibility: { dll: Managed.Assembly };
+    CustomMarshalers: { dll: Managed.Assembly };
+    ISymWrapper: { dll: Managed.Assembly };
+    Netstandard: { dll: Managed.Assembly };
+    Microsoft: {
+        Activities: {
+            Build: { dll: Managed.Assembly };
+        },
+        Build: {
+            Conversion: {
+                V40: { dll: Managed.Assembly };
+            },
+            dll:  Managed.Assembly;
+            Engine: { dll: Managed.Assembly };
+            Framework: { dll: Managed.Assembly };
+            Tasks: {
+                V40: { dll: Managed.Assembly };
+            },
+            Utilities: {
+                V40: { dll: Managed.Assembly };
+            },
+        },
+        CSharp: { dll: Managed.Assembly };
+        JScript: { dll: Managed.Assembly };
+        VisualBasic: {
+            Compatibility: {
+                Data: { dll: Managed.Assembly };
+                dll:  Managed.Assembly;
+            },
+            dll:  Managed.Assembly;
+        },
+        VisualC: {
+            dll:  Managed.Assembly;
+            STLCLR: { dll: Managed.Assembly };
+        },
+        Win32: {
+            Primitives: { dll: Managed.Assembly }
+        }
+    },
+    MsCorLib: { dll: Managed.Assembly };
+    PresentationBuildTasks: { dll: Managed.Assembly };
+    PresentationCore: { dll: Managed.Assembly };
+    PresentationFramework: {
+        Aero: { dll: Managed.Assembly };
+        Aero2: { dll: Managed.Assembly };
+        AeroLite: { dll: Managed.Assembly };
+        Classic: { dll: Managed.Assembly };
+        dll:  Managed.Assembly;
+        Luna: { dll: Managed.Assembly };
+        Royale: { dll: Managed.Assembly };
+    },
+    ReachFramework: { dll: Managed.Assembly };
+    sysglobl: { dll: Managed.Assembly };
+    System: {
+        Activities: {
+            Core: {
+                Presentation: { dll: Managed.Assembly };
+            },
+            dll:  Managed.Assembly;
+            DurableInstancing: { dll: Managed.Assembly };
+            Presentation: { dll: Managed.Assembly };
+        },
+        AddIn: {
+            Contract: { dll: Managed.Assembly };
+            dll:  Managed.Assembly;
+        },
+        AppContext: { dll: Managed.Assembly };
+        Collections: {
+            Concurrent: { dll: Managed.Assembly };
+            NonGeneric: { dll: Managed.Assembly };
+            Specialized: { dll: Managed.Assembly };
+            dll:  Managed.Assembly;
+        },
+        Console: { dll: Managed.Assembly };
+        ComponentModel: {
+            Annotations: { dll: Managed.Assembly };
+            Composition: {
+                dll:  Managed.Assembly;
+                Registration: { dll: Managed.Assembly };
+            },
+            DataAnnotations: { dll: Managed.Assembly };
+            dll:  Managed.Assembly;
+            EventBasedAsync: { dll: Managed.Assembly };
+            Primitives: { dll: Managed.Assembly };
+            TypeConverter: { dll: Managed.Assembly }
+        },
+        Configuration: {
+            dll:  Managed.Assembly;
+            Install: { dll: Managed.Assembly };
+        },
+        Core: { dll: Managed.Assembly };
+        Data: {
+            Common: { dll: Managed.Assembly };
+            DataSetExtensions: { dll: Managed.Assembly };
+            dll:  Managed.Assembly;
+            Entity: {
+                Design: { dll: Managed.Assembly };
+                dll:  Managed.Assembly;
+            },
+            Linq: { dll: Managed.Assembly };
+            OracleClient: { dll: Managed.Assembly };
+            Services: {
+                Client: { dll: Managed.Assembly };
+                Design: { dll: Managed.Assembly };
+                dll:  Managed.Assembly;
+            },
+            SqlXml: { dll: Managed.Assembly };
+        },
+        Deployment: { dll: Managed.Assembly };
+        Design: { dll: Managed.Assembly };
+        Device: { dll: Managed.Assembly };
+        Diagnostics: {
+            Contracts: { dll: Managed.Assembly };
+            Debug: { dll: Managed.Assembly };
+            FileVersionInfo: { dll: Managed.Assembly };
+            Process: { dll: Managed.Assembly };
+            StackTrace: { dll: Managed.Assembly };
+            TextWriterTraceListener: { dll: Managed.Assembly };
+            TraceSource: { dll: Managed.Assembly };
+            Tools: { dll: Managed.Assembly };
+            Tracing: { dll: Managed.Assembly };
+        },
+        DirectoryServices: {
+            AccountManagement: { dll: Managed.Assembly };
+            dll:  Managed.Assembly;
+            Protocols: { dll: Managed.Assembly };
+        },
+        dll:  Managed.Assembly;
+        Drawing: {
+            Design: { dll: Managed.Assembly };
+            Primitives: { dll: Managed.Assembly };
+            dll:  Managed.Assembly;
+        },
+        Dynamic: {
+            dll:  Managed.Assembly;
+            Runtime: { dll: Managed.Assembly };
+        },
+        EnterpriseServices: {
+            dll:  Managed.Assembly;
+            Thunk: { dll: Managed.Assembly };
+            Wrapper: { dll: Managed.Assembly };
+        },
+        Globalization: {
+            dll:  Managed.Assembly;
+            Calendars: { dll: Managed.Assembly };
+            Extensions:{ dll: Managed.Assembly }
+        },
+        IdentityModel: {
+            dll:  Managed.Assembly;
+            Selectors: { dll: Managed.Assembly };
+            Services: { dll: Managed.Assembly };
+        },
+        IO: {
+            dll:  Managed.Assembly;
+            Compression: {
+                dll:  Managed.Assembly;
+                FileSystem: { dll: Managed.Assembly };
+                ZipFile: { dll: Managed.Assembly }
+            },
+            FileSystem: {
+                dll:  Managed.Assembly;
+                DriveInfo: { dll: Managed.Assembly };
+                Primitives: { dll: Managed.Assembly };
+                Watcher: { dll: Managed.Assembly };
+
+            },
+            Log: { dll: Managed.Assembly };
+            IsolatedStorage: { dll: Managed.Assembly };
+            MemoryMappedFiles: { dll: Managed.Assembly };
+            Pipes: { dll: Managed.Assembly };
+            UnmanagedMemoryStream: { dll: Managed.Assembly };
+        },
+        Linq: {
+            dll:  Managed.Assembly;
+            Expressions: { dll: Managed.Assembly };
+            Parallel: { dll: Managed.Assembly };
+            Queryable: { dll: Managed.Assembly };
+        },
+        Management: {
+            dll:  Managed.Assembly;
+            Instrumentation: { dll: Managed.Assembly };
+        },
+        Messaging: { dll: Managed.Assembly };
+        Net: {
+            dll:  Managed.Assembly;
+            Http: {
+                dll:  Managed.Assembly;
+                Rtc: { dll: Managed.Assembly };
+                WebRequest: { dll: Managed.Assembly };
+            },
+            NameResolution: { dll: Managed.Assembly };
+            NetworkInformation: { dll: Managed.Assembly };
+            Ping: { dll: Managed.Assembly };
+            Primitives: { dll: Managed.Assembly };
+            Requests: { dll: Managed.Assembly };
+            Security: { dll: Managed.Assembly };
+            Sockets: { dll: Managed.Assembly };
+            WebHeaderCollection: { dll: Managed.Assembly };
+            WebSockets: {
+                dll:  Managed.Assembly;
+                Client: { dll: Managed.Assembly };
+            },
+        },
+        Numerics: { dll: Managed.Assembly };
+        ObjectModel: { dll: Managed.Assembly };
+        Printing: { dll: Managed.Assembly };
+        Reflection: {
+            Context: { dll: Managed.Assembly };
+            dll:  Managed.Assembly;
+            Emit: {
+                dll:  Managed.Assembly;
+                ILGeneration: { dll: Managed.Assembly };
+                Lightweight: { dll: Managed.Assembly };
+            },
+            Extensions: { dll: Managed.Assembly };
+            Primitives: { dll: Managed.Assembly };
+        },
+        Resources: {
+            Reader: { dll: Managed.Assembly };
+            ResourceManager: { dll: Managed.Assembly };
+            Writer: { dll: Managed.Assembly };
+        },
+        Runtime: {
+            dll:  Managed.Assembly;
+            Caching: { dll: Managed.Assembly };
+            CompilerServices: {
+                VisualC: { dll: Managed.Assembly }
+            },
+            DurableInstancing: { dll: Managed.Assembly };
+            Extensions: { dll: Managed.Assembly };
+            Handles: { dll: Managed.Assembly };
+            InteropServices: {
+                dll:  Managed.Assembly;
+                RuntimeInformation: { dll: Managed.Assembly };
+                WindowsRuntime: { dll: Managed.Assembly };
+            },
+            Numerics: { dll: Managed.Assembly };
+            Remoting: { dll: Managed.Assembly };
+            Serialization: {
+                dll:  Managed.Assembly;
+                Formatters: {
+                    dll:  Managed.Assembly;
+                    Soap: { dll: Managed.Assembly };
+                },
+                Json: { dll: Managed.Assembly };
+                Primitives: { dll: Managed.Assembly };
+                Xml: { dll: Managed.Assembly };
+            },
+        },
+        Security: {
+            dll:  Managed.Assembly;
+            Claims: { dll: Managed.Assembly };
+            Cryptography: {
+                Algorithms: { dll: Managed.Assembly };
+                Csp: { dll: Managed.Assembly };
+                Encoding: { dll: Managed.Assembly };
+                Primitives: { dll: Managed.Assembly };
+                X509Certificates: { dll: Managed.Assembly };
+            },
+            Principal: { dll: Managed.Assembly };
+            SecureString: { dll: Managed.Assembly };
+        },
+        ServiceModel: {
+            Activation: { dll: Managed.Assembly };
+            Activities: { dll: Managed.Assembly };
+            Channels: { dll: Managed.Assembly };
+            Discovery: { dll: Managed.Assembly };
+            dll:  Managed.Assembly;
+            Duplex: { dll: Managed.Assembly };
+            Http: { dll: Managed.Assembly };
+            NetTcp: { dll: Managed.Assembly };
+            Primitives: { dll: Managed.Assembly };
+            Routing: { dll: Managed.Assembly };
+            Security: { dll: Managed.Assembly };
+            Web: { dll: Managed.Assembly };
+        },
+        ServiceProcess: { dll: Managed.Assembly };
+        Speech: { dll: Managed.Assembly };
+        Text: {
+            Encoding: {
+                dll:  Managed.Assembly;
+                Extensions: { dll: Managed.Assembly };
+            },
+            RegularExpressions: { dll: Managed.Assembly };
+        },
+        Threading: {
+            dll:  Managed.Assembly;
+            Tasks: {
+                dll:  Managed.Assembly;
+                Parallel: { dll: Managed.Assembly };
+            },
+            Overlapped: { dll: Managed.Assembly };
+            Thread: { dll: Managed.Assembly };
+            ThreadPool: { dll: Managed.Assembly };
+            Timer: { dll: Managed.Assembly };
+        },
+        Transactions: { dll: Managed.Assembly };
+        ValueTuple: { dll: Managed.Assembly };
+        Web: {
+            Abstractions: { dll: Managed.Assembly };
+            ApplicationServices: { dll: Managed.Assembly };
+            DataVisualization: {
+                Design: { dll: Managed.Assembly };
+                dll:  Managed.Assembly;
+            },
+            dll:  Managed.Assembly;
+            DynamicData: {
+                Design: { dll: Managed.Assembly };
+                dll:  Managed.Assembly;
+            },
+            Entity: {
+                Design: { dll: Managed.Assembly };
+                dll:  Managed.Assembly;
+            },
+            Extensions: {
+                Design: { dll: Managed.Assembly };
+                dll:  Managed.Assembly;
+            },
+            Mobile: { dll: Managed.Assembly };
+            RegularExpressions: { dll: Managed.Assembly };
+            Routing: { dll: Managed.Assembly };
+            Services: { dll: Managed.Assembly };
+        },
+        Windows: {
+            Controls: {
+                Ribbon: { dll: Managed.Assembly };
+            },
+            dll:  Managed.Assembly;
+            Forms: {
+                DataVisualization: {
+                    Design: { dll: Managed.Assembly };
+                    dll:  Managed.Assembly;
+                },
+                dll:  Managed.Assembly;
+            },
+            Input: {
+                Manipulations: { dll: Managed.Assembly };
+            },
+            Presentation: { dll: Managed.Assembly };
+        },
+        Workflow: {
+            Activities: { dll: Managed.Assembly };
+            ComponentModel: { dll: Managed.Assembly };
+            Runtime: { dll: Managed.Assembly };
+        },
+        WorkflowServices: { dll: Managed.Assembly };
+        Xaml: { dll: Managed.Assembly };
+        Xml: {
+            dll:  Managed.Assembly;
+            Linq: { dll: Managed.Assembly };
+            ReaderWriter: { dll: Managed.Assembly };
+            Serialization: { dll: Managed.Assembly };
+            XDocument: { dll: Managed.Assembly };
+            XmlDocument: { dll: Managed.Assembly };
+            XmlSerializer: { dll: Managed.Assembly };
+            XPath: {
+                dll:  Managed.Assembly;
+                XDocument: { dll: Managed.Assembly };
+            },
+        },
+    },
+    UIAutomationClient: { dll: Managed.Assembly };
+    UIAutomationClientsideProviders: { dll: Managed.Assembly };
+    UIAutomationProvider: { dll: Managed.Assembly };
+    UIAutomationTypes: { dll: Managed.Assembly };
+    WindowsBase: { dll: Managed.Assembly };
+    WindowsFormsIntegration: { dll: Managed.Assembly };
+    XamlBuildTask: { dll: Managed.Assembly };
+};
+
 @@public
-export const NetFx = {
+export const NetFx : NetFxAssemblies = {
     Accessibility: {
         dll: createAssembly(r`Accessibility.dll`),
     },

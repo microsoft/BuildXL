@@ -129,6 +129,21 @@ export interface InternalsVisibleToArguments {
     publicKey?: string,
 }
 
+export interface PolySharpAttributes {
+    notNull: File;
+    isExternalInit: File;
+    skipLocalInit: File;
+    moduleInitializer: File;
+    callerArgumentExpression: File;
+    interpolatedStringHandlerArgument: File;
+    interpolatedStringHandler: File;
+    stackTraceHidden: File;
+    required: File;
+    setsRequiredMembers: File;
+    compilerFeatureRequired: File;
+    stringSyntax: File;
+}
+
 /**
  * Returns true if the current qualifier is targeting .NET Core or .NET Standard
  */
@@ -479,7 +494,7 @@ const compilerServices = p`PolySharpAttributes/System.Runtime.CompilerServices`;
 export const notNullAttributesFile = f`${codeAnalysis}/NotNullAttributes.cs`;
 
 @@public
-export const polySharpAttributes = {
+export const polySharpAttributes : PolySharpAttributes = {
     // Needed for .net standard and full framework
     notNull: notNullAttributesFile,
     isExternalInit: f`${compilerServices}/IsExternalInit.cs`,
@@ -532,7 +547,7 @@ export function cacheTest(args: TestArguments) : TestResult {
  * Gets binding redirects required for running tests from the IDE.
  */
 @@public
-export function bxlBindingRedirects() {
+export function bxlBindingRedirects() : Managed.AssemblyBindingRedirect[] {
     return [
             // Different packages reference different version of this assembly.
             {
@@ -549,7 +564,7 @@ export function bxlBindingRedirects() {
  * Gets binding redirects required for running tests from the IDE.
  */
 @@public
-export function cacheBindingRedirects() {
+export function cacheBindingRedirects() : Managed.AssemblyBindingRedirect[] {
     return [
         ...bxlBindingRedirects(),
             // System.Memory 4.5.5 is a bit weird, because net461 version references System.Buffer.dll v.4.0.3.0
@@ -639,7 +654,7 @@ export function sdkTest(testFiles:ScriptSdkTestRunner.TestArguments): Managed.Te
 }
 
 @@public
-export function getFrameworkSpecificPublicApiFiles(root: Path) {
+export function getFrameworkSpecificPublicApiFiles(root: Path) : File[] {
     return [
         f`${root}/${qualifier.targetFramework}/PublicAPI.Shipped.txt`,
         f`${root}/${qualifier.targetFramework}/PublicAPI.Unshipped.txt`,
@@ -954,7 +969,7 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
     return args;
 }
 
-function getInProcLogGenerators() {
+function getInProcLogGenerators() : Managed.Binary[] {
     const sourceLogGen = importFrom("BuildXL.Utilities.Instrumentation").LogGenerator.withQualifier({targetFramework: "netstandard2.0"}).deployed;
     return getRootContent(sourceLogGen.contents);
 }

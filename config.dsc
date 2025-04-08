@@ -20,6 +20,7 @@ config({
     frontEnd: {
         enabledPolicyRules: [
             "NoTransformers",
+            "EnforceSomeTypeSanity"
         ]
     },
 

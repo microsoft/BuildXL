@@ -5,6 +5,6 @@
  * Empty function for external build
  */
 @@public
-export function createRoslynCalls(logRootDirectory: Directory, files: File[], uniquePath: RelativePath) {
+export function createRoslynCalls(logRootDirectory: Directory, files: File[], uniquePath: RelativePath) : void {
 
 }

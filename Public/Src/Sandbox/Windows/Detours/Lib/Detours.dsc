@@ -25,26 +25,32 @@ namespace Detours.Lib {
     export const libRunnerDefaultValue = Native.Templates.nativeBuildersLibRunnerTemplate.merge({ libDeterminism: true });
     export const linkRunnerDefaultValue = Native.Templates.nativeBuildersLinkRunnerTemplate.merge({ linkDeterminism: true });
     
-    export const detoursNativeBinaryInnerTemplates = Native.Templates.defaultNativeBinaryInnerTemplates.merge(
+    export const detoursNativeBinaryInnerTemplates = Native.Templates.defaultNativeBinaryInnerTemplates.merge<Native.Binary.NativeBinaryTemplates>(
         {
             clRunner: clRunnerDefaultValue,
             libRunner: libRunnerDefaultValue,
             linkRunner: linkRunnerDefaultValue,
         });
-    
-    export const staticLibraryBuilderDefaultValue = {
+
+    export interface BuilderDefaultValues {
+        innerTemplates: Native.Binary.NativeBinaryTemplates;
+        platform: string;
+        linkTimeCodeGeneration?: Native.Link.LinkTimeCodeGenerationOption;
+    }
+
+    export const staticLibraryBuilderDefaultValue : BuilderDefaultValues = {
         innerTemplates: detoursNativeBinaryInnerTemplates,
         platform: qualifier.platform,
         linkTimeCodeGeneration: qualifier.configuration === "release" ? Native.Link.LinkTimeCodeGenerationOption.use : undefined,
     };
     
-    export const nativeDllBuilderDefaultValue = {
+    export const nativeDllBuilderDefaultValue : BuilderDefaultValues = {
         innerTemplates: detoursNativeBinaryInnerTemplates,
         platform: qualifier.platform,
         linkTimeCodeGeneration: qualifier.configuration === "release" ? Native.Link.LinkTimeCodeGenerationOption.use : undefined,
     };
     
-    export const nativeExeBuilderDefaultValue = {
+    export const nativeExeBuilderDefaultValue : BuilderDefaultValues = {
         innerTemplates: detoursNativeBinaryInnerTemplates,
         platform: qualifier.platform,
         linkTimeCodeGeneration: qualifier.configuration === "release" ? Native.Link.LinkTimeCodeGenerationOption.use : undefined,

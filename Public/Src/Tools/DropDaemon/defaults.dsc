@@ -3,6 +3,7 @@
 
 import * as BuildXLSdk from "Sdk.BuildXL";
 import * as Deployment from "Sdk.Deployment";
+import * as Managed from "Sdk.Managed";
 
 export declare const qualifier: BuildXLSdk.Net8Qualifier;
 
@@ -21,11 +22,11 @@ export function selectDeployment(evaluationOnly: boolean) : Deployment.Definitio
 } 
 
 @@public
-export function dropDaemonBindingRedirects() {
+export function dropDaemonBindingRedirects() : Managed.AssemblyBindingRedirect[] {
     return BuildXLSdk.isDropToolingEnabled ? DropDaemon.dropDaemonBindingRedirects() : undefined;
 } 
 
 @@public
-export function dropDaemonSbomPackages() {
+export function dropDaemonSbomPackages() : Managed.ManagedNugetPackage[] {
     return BuildXLSdk.isDropToolingEnabled ? DropDaemon.dropDaemonSbomPackages() : undefined;
 } 

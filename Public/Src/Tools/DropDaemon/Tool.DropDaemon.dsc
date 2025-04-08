@@ -125,7 +125,7 @@ export namespace DropDaemon {
     }
 
     @@public
-    export function dropDaemonBindingRedirects() {
+    export function dropDaemonBindingRedirects() : Managed.AssemblyBindingRedirect[] {
         return [
             ...BuildXLSdk.cacheBindingRedirects(),
             {
@@ -153,7 +153,7 @@ export namespace DropDaemon {
     }
 
     @@public
-    export function dropDaemonSbomPackages() {
+    export function dropDaemonSbomPackages() : Managed.ManagedNugetPackage[] {
         // Any package needed for SBOM generation should
         // be specified here, as the test module uses this function
         // to import them for testing the SBOM generation library.

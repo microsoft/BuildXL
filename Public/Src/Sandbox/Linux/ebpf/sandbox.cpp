@@ -261,17 +261,34 @@ int RunRootProcess(int map_fd, const char *file, char *const argv[], char *const
 void *WaitForRootProcessToExit(void *argv) {
     int status = 0;
     // TODO: assert that g_root_pid is not 0
-    sem_wait(&g_background_thread_semaphore);
+    sem_wait(&g_background_thread_semaphore);    
 
-    // TODO: this waitpid should happen in a loop to handle other events such as signals, etc.
-    waitpid(g_root_pid, &status, 0);
+    while (true) {
+        int ret = waitpid(g_root_pid, &status, 0);
 
-    if (WIFEXITED(status)) {
-        g_exit_code = WEXITSTATUS(status);
-    }
-    else {
-        // Something else happened and the child exited because of a signal/core dump/etc
-        g_exit_code = -1;
+        if (ret == -1) {
+            // this case shouldn't happen, but it usually means the child process
+            // has already exit without us knowing about it
+            g_exit_code = 0;
+            break;
+        }
+
+        // Handle normal termination and termination by signal
+        // WIFEXITED indicates a normal exit
+        // WIFSIGNALED indicates an abnormal exit by signal
+        // Other signals such as SIGSTOP and SIGCONT are ignored here because
+        // they do not result in program termination.
+        if (WIFEXITED(status)) {
+            // Root process had a normal exit
+            g_exit_code = WEXITSTATUS(status);
+            break;
+        }
+        else if (WIFSIGNALED(status)) {
+            // Root process was terminated by a signal
+            // The exit code is set to that signal
+            g_exit_code = WTERMSIG(status);
+            break;
+        }
     }
 
     // Consume any remaining items in the ring buffer

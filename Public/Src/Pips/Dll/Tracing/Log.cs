@@ -1171,6 +1171,23 @@ namespace BuildXL.Pips.Tracing
             string assertedFile);
 
         [GeneratedEvent(
+            (int)LogEventId.ScheduleFailAddDuplicateValuePips,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
+            EventTask = (int)Tasks.Scheduler,
+            Message =
+                EventConstants.ProvenancePrefix +
+                "Value pip '{pipDescription}' is being added twice. The pip may have been added from an evaluated specification or from binary fragment graph.")]
+        public abstract void ScheduleFailAddDuplicateValuePips(
+            LoggingContext context,
+            string file,
+            int line,
+            int column,
+            long pipSemiStableHash,
+            string pipDescription);
+
+        [GeneratedEvent(
             (int)LogEventId.WriteDeclaredOutsideOfKnownMount,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,

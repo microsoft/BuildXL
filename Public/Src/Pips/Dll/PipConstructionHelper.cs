@@ -233,7 +233,13 @@ namespace BuildXL.Pips
 
             if (m_pipGraph != null)
             {
-                return m_pipGraph.AddCopyFile(pip, GetValuePipId());
+                var valuePipId = GetValuePipId();
+                if (!valuePipId.IsValid)
+                {
+                    return false;
+                }
+
+                return m_pipGraph.AddCopyFile(pip, valuePipId);
             }
 
             return true;
@@ -263,7 +269,13 @@ namespace BuildXL.Pips
 
             if (m_pipGraph != null)
             {
-                return m_pipGraph.AddWriteFile(pip, GetValuePipId());
+                var valuePipId = GetValuePipId();
+                if (!valuePipId.IsValid)
+                {
+                    return false;
+                }
+
+                return m_pipGraph.AddWriteFile(pip, valuePipId);
             }
 
             return true;
@@ -302,7 +314,14 @@ namespace BuildXL.Pips
 
             if (m_pipGraph != null)
             {
-                sealedDirectory = m_pipGraph.AddSealDirectory(pip, GetValuePipId());
+                var valuePipId = GetValuePipId();
+                if (!valuePipId.IsValid)
+                {
+                    sealedDirectory = DirectoryArtifact.Invalid;
+                    return false;
+                }
+
+                sealedDirectory = m_pipGraph.AddSealDirectory(pip, valuePipId);
                 if (!sealedDirectory.IsValid)
                 {
                     return false;
@@ -353,7 +372,14 @@ namespace BuildXL.Pips
             // The seal directory is ready to be initialized, since the directory artifact has been reserved already
             pip.SetDirectoryArtifact(sharedOpaqueDirectory);
 
-            sharedOpaqueDirectory = m_pipGraph.AddSealDirectory(pip, GetValuePipId());
+            var valuePipId = GetValuePipId();
+            if (!valuePipId.IsValid)
+            {
+                sharedOpaqueDirectory = DirectoryArtifact.Invalid;
+                return false;
+            }
+
+            sharedOpaqueDirectory = m_pipGraph.AddSealDirectory(pip, valuePipId);
             if (!sharedOpaqueDirectory.IsValid)
             {
                 return false;
@@ -442,7 +468,13 @@ namespace BuildXL.Pips
         {
             if (m_pipGraph != null)
             {
-                var success = m_pipGraph.AddProcess(pip, GetValuePipId());
+                var valuePipId = GetValuePipId();
+                if (!valuePipId.IsValid)
+                {
+                    return false;
+                }
+
+                var success = m_pipGraph.AddProcess(pip, valuePipId);
                 processOutputs.ProcessPipId = pip.PipId;
                 return success;
             }
@@ -481,7 +513,13 @@ namespace BuildXL.Pips
 
             if (m_pipGraph != null)
             {
-                var success = m_pipGraph.AddIpcPip(ipcPip, GetValuePipId());
+                var valuePipId = GetValuePipId();
+                if (!valuePipId.IsValid)
+                {
+                    return false;
+                }
+
+                var success = m_pipGraph.AddIpcPip(ipcPip, valuePipId);
                 return success;
             }
 
@@ -559,12 +597,13 @@ namespace BuildXL.Pips
         {
             if (m_pipGraph != null)
             {
+                bool added = m_valuePip.PipId.IsValid;
                 if (!m_valuePip.PipId.IsValid)
                 {
-                    m_pipGraph.AddOutputValue(m_valuePip);
+                    added = m_pipGraph.AddOutputValue(m_valuePip);
                 }
 
-                Contract.Assert(m_valuePip.PipId.IsValid);
+                Contract.Assert(m_valuePip.PipId.IsValid || !added);
             }
 
             return m_valuePip.PipId;

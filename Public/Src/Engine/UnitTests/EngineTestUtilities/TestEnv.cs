@@ -95,6 +95,8 @@ namespace Test.BuildXL.TestUtilities
         /// <nodoc />
         public FrontEndContext FrontEndContext => FrontEndContext.CreateInstanceForTesting();
 
+        private int m_valueId = 0;
+
         /// <summary>
         /// Creates a new test environment which schedules pips with full scheduler validation, but which cannot execute pips.
         /// </summary>
@@ -426,7 +428,7 @@ namespace Test.BuildXL.TestUtilities
         {
             AbsolutePath specFile = SourceRoot.CreateRelative(Context.PathTable, "TestSpecFile.dsc");
 
-            var valueId = FullSymbol.Create(Context.SymbolTable, valueName);
+            var valueId = FullSymbol.Create(Context.SymbolTable, $"{valueName}_{m_valueId++}");
             var locationData = new LocationData(specFile, 0, 0);
 
             var modulePip = ModulePip.CreateForTesting(Context.StringTable, specFile);

@@ -2367,7 +2367,25 @@ namespace BuildXL.Pips.Graph
                             "before any value to value dependencies. Therefore adding a ValuePip for an output should never collide");
                     }
 
-                    NodeId valueNode = Values.GetOrAdd(value.Key, (value, this), (key, data) => CreateValuePip(data)).Item.Value;
+                    var getOrAddResult = Values.GetOrAdd(value.Key, (value, this), (key, data) => CreateValuePip(data));
+                    if (getOrAddResult.IsFound)
+                    {
+                        // PipExists only checks if the pip id is valid or not.
+                        // The output value pip may have been added by consuming a pip graph fragment. However, the same pip can be added
+                        // when evaluating a DScript spec that was also used to generate the pip graph fragment. Because there is no pip
+                        // unification between pips coming from pip graph fragments and pip coming from DScript specs, the same output value
+                        // pip can be added twice.
+                        Logger.Log.ScheduleFailAddDuplicateValuePips(
+                            LoggingContext,
+                            value.LocationData.Path.ToString(Context.PathTable),
+                            value.LocationData.Line,
+                            value.LocationData.Position,
+                            value.SemiStableHash,
+                            value.GetDescription(Context));
+                        return false;
+                    }
+
+                    NodeId valueNode = getOrAddResult.Item.Value;
 
                     // Find parent specfile node
                     NodeId specFileNode;

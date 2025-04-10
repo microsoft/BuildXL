@@ -75,6 +75,14 @@ namespace BuildXL.Interop
             : Unix.Process.ForceQuit(pid);
 
         /// <summary>
+        /// Sends a polite request to the process to terminate itself.
+        /// The process may choose to ignore this request.
+        /// </summary>
+        public static bool GentleKill(int pid) => IsWinOS
+            ? throw new NotImplementedException("GentleKill is not implemented for Windows")
+            : Unix.Process.GentleKill(pid);
+
+        /// <summary>
         /// Forcefully terminates this process.
         /// </summary>
         public static void ForceQuit() => ForceQuit(System.Diagnostics.Process.GetCurrentProcess().Id);

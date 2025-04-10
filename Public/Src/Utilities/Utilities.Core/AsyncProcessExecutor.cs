@@ -304,9 +304,43 @@ namespace BuildXL.Utilities.Core
         }
 
         /// <summary>
+        /// Sends a SIGTERM to the process and waits up to 2 seconds for it to exit.
+        /// </summary>
+        /// <remarks>
+        /// Only supported on Linux. On Windows, this method always returns false.
+        /// </remarks>
+        private async Task<bool> GentleKillAsync(int timeoutMilliseconds = 2000)
+        {
+            Contract.RequiresNotNull(Process);
+
+            if (OperatingSystemHelper.IsWindowsOS)
+            {
+                return false;
+            }
+
+            if (!Process.HasExited)
+            {
+                Log($"GentleKillAsync({Process.Id})");
+                Dispatch.GentleKill(Process.Id);
+                try
+                {
+                    await WhenExited.WithTimeoutAsync(TimeSpan.FromMilliseconds(timeoutMilliseconds));
+                    return true;
+                }
+                catch (TimeoutException)
+                {
+                    Log($"GentleKillAsync({Process.Id}) timed out");
+                    return false;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
         /// Kills process.
         /// </summary>
-        public Task KillAsync(bool dumpProcessTree)
+        public async Task KillAsync(bool dumpProcessTree, bool gentleKill = false, int gentleKillTimeoutMilliseconds = 2000)
         {
             Contract.RequiresNotNull(Process);
 
@@ -314,14 +348,25 @@ namespace BuildXL.Utilities.Core
             {
                 if (!Process.HasExited)
                 {
-                    if (dumpProcessTree)
+                    // Gentle kill will not try to dump the process tree if successful because
+                    // attempting to dump the process tree might make the process terminate
+                    // without a clean exit
+                    if (gentleKill)
                     {
-                        Log($"Dumping process tree for root process {Process.Id}");
-                        m_dumpProcessTree?.Invoke();
+                        Killed = await GentleKillAsync(gentleKillTimeoutMilliseconds);
                     }
 
-                    Log($"calling Kill({Process.Id})");
-                    Process.Kill();
+                    if (!Killed)
+                    {
+                        if (dumpProcessTree)
+                        {
+                            Log($"Dumping process tree for root process {Process.Id}");
+                            m_dumpProcessTree?.Invoke();
+                        }
+                        
+                        Log($"Calling Kill({Process.Id})");
+                        Process.Kill();
+                    }                    
                 }
             }
             catch (Exception e) when (e is Win32Exception || e is InvalidOperationException)
@@ -333,7 +378,7 @@ namespace BuildXL.Utilities.Core
             m_stderrFlushedTcs.TrySetResult(Unit.Void);
             Killed = true;
 
-            return WhenExited;
+            await WhenExited;
         }
 
         /// <inheritdoc />

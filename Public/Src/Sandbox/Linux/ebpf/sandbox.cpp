@@ -138,6 +138,11 @@ void LogDebugEvent(ebpf_event *event)
  * Handles SigIntHandler signal.
  */
 void SigIntHandler(int signo) {
+    // Forward signal to root process
+    if (g_root_pid != 0) {
+        kill(g_root_pid, signo);
+    }
+
     g_stop = 1;
 }
 
@@ -389,7 +394,7 @@ int main(int argc, char **argv) {
         return -err;
     }
 
-    if (signal(SIGINT, SigIntHandler) == SIG_ERR) {
+    if (signal(SIGINT, SigIntHandler) == SIG_ERR || signal(SIGTERM, SigIntHandler) == SIG_ERR || signal(SIGQUIT, SigIntHandler) == SIG_ERR) {
         LogError("Failed to set signal handler with error: %s\n", strerror(errno));
         Cleanup(skel);
         return -err;

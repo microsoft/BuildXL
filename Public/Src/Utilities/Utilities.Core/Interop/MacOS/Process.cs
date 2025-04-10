@@ -79,6 +79,26 @@ namespace BuildXL.Interop.Unix
             public int ProcessId;
         }
 
+        /// <summary>
+        /// Represents the different signals that can be sent to a process.
+        /// </summary>
+        /// <remarks>
+        /// CODESYNC: linux kernel/include/uapi/asm-generic/signal.h
+        /// </remarks>
+        internal enum UnixSignal
+        {
+            /// <summary>
+            /// This signal is sent to force a process to terminate.
+            /// It cannot be caught or ignored
+            /// </summary>
+            SIGKILL = 9,
+            /// <summary>
+            /// This signal is sent to a process to request it to terminate gracefully.
+            /// The process can choose to ignore this signal.
+            /// </summary>
+            SIGTERM = 15
+        }
+
         /// <remarks>
         /// Implemented by calling "kill -0".
         /// This should be much cheaper than calling Process.GetProcessById().
@@ -89,7 +109,12 @@ namespace BuildXL.Interop.Unix
         /// Implemented by sending SIGKILL to a process with id <paramref name="pid"/>.
         /// The return value indicates whether the KILL signal was sent successfully.
         /// </remarks>
-        public static bool ForceQuit(int pid) => Impl_Common.kill(pid, 9) == 0;
+        public static bool ForceQuit(int pid) => Impl_Common.kill(pid, (int)UnixSignal.SIGKILL) == 0;
+
+        /// <summary>
+        /// Send a SIGTERM to the specified process id.
+        /// </summary>
+        public static bool GentleKill(int pid) => Impl_Common.kill(pid, (int)UnixSignal.SIGTERM) == 0;
 
         /// <summary>
         /// Populates a process resource usage information buffer with memory usage information only.

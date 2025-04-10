@@ -322,7 +322,7 @@ namespace BuildXL.Processes
         protected override bool Killed => Interlocked.Read(ref m_processKilledFlag) > 0;
 
         /// <inheritdoc />
-        protected override async Task KillAsyncInternal(bool dumpProcessTree)
+        protected override async Task KillAsyncInternal(bool dumpProcessTree, bool gentleKill = false, int gentleKillTimeoutMilliseconds = 2000)
         {
             // In the case that the process gets shut down by either its timeout or e.g. SandboxedProcessPipExecutor
             // detecting resource usage issues and calling KillAsync(), we flag the process with m_processKilled so we
@@ -338,7 +338,9 @@ namespace BuildXL.Processes
                 LogDebug("KillAsyncInternal: KillActivePTraceRunners()");
                 KillActivePTraceRunners();
                 LogDebug("KillAsyncInternal: System.Diagnostics.Process.Kill()");
-                await base.KillAsyncInternal(dumpProcessTree);
+                await base.KillAsyncInternal(dumpProcessTree, gentleKill: gentleKill || SandboxConnection.Kind == SandboxKind.LinuxEBPF, gentleKillTimeoutMilliseconds);
+                // a process exit report may not have been reported during the SIGTERM timeout, so set this flag to ensure the sandbox does not hang.
+                m_processExitReceived = true;
                 LogDebug("KillAsyncInternal: KillAllChildProcesses()");
                 KillAllChildProcesses();
                 LogDebug("KillAsyncInternal: SandboxConnection.NotifyRootProcessExited()");

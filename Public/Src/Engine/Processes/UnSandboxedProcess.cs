@@ -362,12 +362,12 @@ namespace BuildXL.Processes
         /// <summary>
         /// Kills the process indicating whether a dump should be produced before killing it.
         /// </summary>        
-        protected virtual Task KillAsyncInternal(bool dumpProcessTree)
+        protected virtual Task KillAsyncInternal(bool dumpProcessTree, bool gentleKill = false, int gentleKillTimeoutMilliseconds = 2000)
         {
             Contract.Requires(Started);
 
             LogDebug($"UnsandboxedProcess::KillAsync({ProcessId})");
-            return m_processExecutor.KillAsync(dumpProcessTree);
+            return m_processExecutor.KillAsync(dumpProcessTree, gentleKill, gentleKillTimeoutMilliseconds);
         }
 
         /// <summary>

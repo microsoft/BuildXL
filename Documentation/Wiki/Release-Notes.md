@@ -2,6 +2,10 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20250407.2 (Release [29808108](https://dev.azure.com/mseng/Domino/_build/results?buildId=29808108&view=results))
+-	Add Sdk.Workflow to the out-of-the-box DScript SDKs
+-	Add some debug logging option for diagnostics
+
 # 0.1.0-20250328.2 (Release [29774166](https://dev.azure.com/mseng/Domino/_build/results?buildId=29774166&view=results))
 - Warn on truncated paths greater than 4096 characters on Linux sandbox.
 - \[ebpf\] Add support for breakaway processes

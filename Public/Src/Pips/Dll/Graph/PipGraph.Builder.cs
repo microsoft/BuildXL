@@ -2375,14 +2375,11 @@ namespace BuildXL.Pips.Graph
                         // when evaluating a DScript spec that was also used to generate the pip graph fragment. Because there is no pip
                         // unification between pips coming from pip graph fragments and pip coming from DScript specs, the same output value
                         // pip can be added twice.
-                        Logger.Log.ScheduleFailAddDuplicateValuePips(
-                            LoggingContext,
-                            value.LocationData.Path.ToString(Context.PathTable),
-                            value.LocationData.Line,
-                            value.LocationData.Position,
-                            value.SemiStableHash,
-                            value.GetDescription(Context));
-                        return false;
+                        var pipId = getOrAddResult.Item.Value.ToPipId();
+                        Contract.Assert(pipId.IsValid, "Existing output value pip has invalid pip id");
+                        value.PipId = pipId;
+
+                        return true;
                     }
 
                     NodeId valueNode = getOrAddResult.Item.Value;

@@ -91,7 +91,6 @@ namespace BuildXL.Pips.Tracing
         MultiplePipsUsingSameTemporaryDirectory = 14411,
         ScheduleFailAddPipAssertionNotSupportedInCompositeOpaques = 14414,
         WriteDeclaredOutsideOfKnownMount = 14415,
-        ScheduleFailAddDuplicateValuePips = 14417,
 
         // CredScan
         CredentialsDetectedInEnvVar = 14420,

@@ -157,5 +157,10 @@ namespace BuildXL.Cache.ContentStore.Utils
 
             return CompactTimeEpoch.AddMinutes(compactTimeMinutes);
         }
+
+        public static DateTime TruncateToHour(this DateTime dateTime)
+        {
+            return new DateTime(dateTime.Year, dateTime.Month, dateTime.Day, dateTime.Hour, 0, 0, dateTime.Kind);
+        }
     }
 }

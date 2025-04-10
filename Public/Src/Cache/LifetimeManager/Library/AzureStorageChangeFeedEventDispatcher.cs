@@ -20,6 +20,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Timers;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Core.Tasks;
 using OperationContext = BuildXL.Cache.ContentStore.Tracing.Internal.OperationContext;
@@ -199,19 +200,52 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                         Tracer,
                         async () =>
                         {
-                            var hasMore = await enumerator.MoveNextAsync();
-                            Page<IBlobChangeFeedEvent>? page = null;
-                            if (hasMore)
+                            try
                             {
-                                page = enumerator.Current;
-                                continuationToken = page.ContinuationToken;
-                            }
+                                var hasMore = await enumerator.MoveNextAsync();
+                                Page<IBlobChangeFeedEvent>? page = null;
+                                if (hasMore)
+                                {
+                                    page = enumerator.Current;
 
-                            return new Result<Page<IBlobChangeFeedEvent>?>(page, isNullAllowed: true);
+                                    if (page.Values.Count >= 1)
+                                    {
+                                        var firstEventTime = page.Values[0].EventTime.UtcDateTime;
+                                        var currentHour = _clock.UtcNow.TruncateToHour();
+                                        if (firstEventTime >= currentHour)
+                                        {
+                                            // When we reach the current hour, we stop reading. This is because the
+                                            // change feed for the current hour might be concurrently modified by the
+                                            // Storage system. This means that we might be reading a page that is
+                                            // incomplete. We don't want to do that.
+                                            //
+                                            // This means we just stop reading here and we'll re-process starting from
+                                            // the continuation token of the current page next time GC runs.
+                                            return new Result<Page<IBlobChangeFeedEvent>?>(null, isNullAllowed: true);
+                                        }
+                                    }
+
+                                    continuationToken = page.ContinuationToken;
+                                }
+
+                                return new Result<Page<IBlobChangeFeedEvent>?>(page, isNullAllowed: true);
+                            }
+                            catch (RequestFailedException exception) when (exception.ErrorCode == "ConditionNotMet")
+                            {
+                                // This happens when we have managed to read up to the current time. For example, let's
+                                // say it's 12 PM on 4/10/2025. GC gets up to date, and starts reading the log
+                                // corresponding to the current hour. This log is concurrently being modified by the
+                                // Storage system that syncs it. We might happen to read a page that has just been
+                                // concurrently modified. 
+                                //
+                                // This means we just stop reading here and we'll re-process starting from
+                                // the continuation token of the current page next time GC runs.
+                                return new Result<Page<IBlobChangeFeedEvent>?>(null, isNullAllowed: true);
+                            }
                         },
                         caller: "GetChangeFeedPage",
                         traceOperationStarted: false,
-                        extraEndMessage: r => $"Account=[{accountName}] ContinuationToken=[{continuationToken ?? "null"}], HasMore=[{(r.Succeeded ? r.Value : null)}], NextContinuationToken=[{((r.Succeeded && r.Value is not null) ? enumerator.Current.ContinuationToken : null)}]");
+                        extraEndMessage: r => $"Account=[{accountName}] ContinuationToken=[{continuationToken ?? "null"}]");
 
                     hasMoreResult.ThrowIfFailure(unwrap: true);
 

@@ -755,6 +755,16 @@ config({
                 isWritable: false,
                 trackSourceFileChanges: true
             }
+        ] : []),
+        ...(Environment.getFlag("ENABLE_ESRP") && Environment.hasVariable("SIGN_TOOL_PATH") ? 
+        [
+            { 
+                name: a`EsrpTool`,
+                path: p`${Environment.expandEnvironmentVariablesInString(Environment.getStringValue("SIGN_TOOL_PATH"))}`.parent,
+                isReadable: true,
+                isWritable: false,
+                trackSourceFileChanges: true
+            }
         ] : [])
     ],
 

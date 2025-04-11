@@ -13,6 +13,7 @@ using Microsoft.VisualStudio.Services.BlobStore.WebApi;
 using Microsoft.VisualStudio.Services.BlobStore.WebApi.Contracts;
 using Microsoft.VisualStudio.Services.Content.Common;
 using Microsoft.VisualStudio.Services.Drop.App.Core;
+using Microsoft.VisualStudio.Services.Drop.App.Core.Telemetry;
 using Microsoft.VisualStudio.Services.Drop.WebApi;
 using Microsoft.VisualStudio.Services.ItemStore.Common;
 
@@ -79,7 +80,7 @@ namespace Tool.ServicePipDaemon
         }
 
         /// <inheritdoc />
-        public Task DownloadAsync(string dropName, DropServiceClientDownloadContext downloadContext, CancellationToken cancellationToken, bool releaseLocalCache = false)
+        public Task<DownloadTelemetryRecord> DownloadAsync(string dropName, DropServiceClientDownloadContext downloadContext, CancellationToken cancellationToken, bool releaseLocalCache = false)
         {
             return RetryAsync(
                 nameof(IDropServiceClient.DownloadAsync),

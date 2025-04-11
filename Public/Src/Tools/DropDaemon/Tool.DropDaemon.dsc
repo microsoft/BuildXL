@@ -33,7 +33,6 @@ export namespace DropDaemon {
             importFrom("BuildXL.Utilities").Branding.dll,
             importFrom("BuildXL.Tools").ServicePipDaemon.dll,
             importFrom("ArtifactServices.App.Shared").pkg,
-            importFrom("ArtifactServices.App.Shared.Cache").pkg,
             importFrom("Drop.App.Core").pkg,
             importFrom("Drop.Client").pkg,
             importFrom("ItemStore.Shared").pkg,

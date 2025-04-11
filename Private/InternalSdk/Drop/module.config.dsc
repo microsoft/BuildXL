@@ -7,11 +7,6 @@ module({
 });
 
 module({
-    name: "ArtifactServices.App.Shared.Cache",
-	projects: [f`ArtifactServices.App.Shared.Cache.dsc`]
-});
-
-module({
     name: "Drop.App.Core",
 	projects: [f`Drop.App.Core.dsc`]
 });
@@ -27,18 +22,18 @@ module({
 });
 
 module({
-    name: "Symbol.App.Core",
-	projects: [f`Symbol.App.Core.dsc`]
+    name: "Microsoft.Azure.Storage.Common",
+	projects: [f`Microsoft.Azure.Storage.Common.dsc`]
 });
 
 module({
-    name: "Symbol.Client",
-	projects: [f`Symbol.Client.dsc`]
+    name: "Microsoft.FileFormats",
+	projects: [f`Microsoft.FileFormats.dsc`]
 });
 
 module({
-    name: "Microsoft.Windows.Debuggers.SymstoreInterop",
-	projects: [f`Microsoft.Windows.Debuggers.SymstoreInterop.dsc`]
+    name: "Microsoft.SymbolStore",
+	projects: [f`Microsoft.SymbolStore.dsc`]
 });
 
 module({
@@ -47,6 +42,21 @@ module({
 });
 
 module({
-    name: "Microsoft.Azure.Storage.Common",
-	projects: [f`Microsoft.Azure.Storage.Common.dsc`]
+    name: "Microsoft.VisualStudio.Services.Symbol.App.Core",
+	projects: [f`Microsoft.VisualStudio.Services.Symbol.App.Core.dsc`]
+});
+
+module({
+    name: "Microsoft.VisualStudio.Services.Symbol.App.Indexer",
+	projects: [f`Microsoft.VisualStudio.Services.Symbol.App.Indexer.dsc`]
+});
+
+module({
+    name: "Microsoft.Windows.Debuggers.SymstoreInterop",
+	projects: [f`Microsoft.Windows.Debuggers.SymstoreInterop.dsc`]
+});
+
+module({
+    name: "Symbol.Client",
+	projects: [f`Symbol.Client.dsc`]
 });

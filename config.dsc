@@ -164,25 +164,25 @@ config({
                 { id: "Azure.Core.Amqp", version: "1.3.0"},
                 { id: "Azure.Messaging.EventHubs", version: "5.9.0" },
                 { id: "Microsoft.Azure.KeyVault.Core", version: "2.0.4" },
-                { id: "Microsoft.IdentityModel.Logging", version: "7.6.2" },
-                { id: "Microsoft.IdentityModel.Tokens", version: "7.6.2" },
-                { id: "System.IdentityModel.Tokens.Jwt", version: "7.6.2"},
-                { id: "Microsoft.IdentityModel.JsonWebTokens", version: "7.6.2" },
+                { id: "Microsoft.IdentityModel.Logging", version: "8.1.2" },
+                { id: "Microsoft.IdentityModel.Tokens", version: "8.1.2" },
+                { id: "System.IdentityModel.Tokens.Jwt", version: "8.1.2" },
+                { id: "Microsoft.IdentityModel.JsonWebTokens", version: "8.1.2" },
 
                 // Key Vault
                 { id: "Azure.Security.KeyVault.Secrets", version: "4.5.0" },
                 { id: "Azure.Security.KeyVault.Certificates", version: "4.5.1" },
                 { id: "Azure.Identity", version: "1.11.4" },
-                { id: "Microsoft.Identity.Client", version: "4.65.0" },
-                { id: "Microsoft.IdentityModel.Abstractions", version: "7.6.2" },
-                { id: "Microsoft.Identity.Client.Extensions.Msal", version: "4.65.0" },
-                { id: "Azure.Core", version: "1.43.0" },
+                { id: "Microsoft.Identity.Client", version: "4.68.0" },
+                { id: "Microsoft.IdentityModel.Abstractions", version: "8.1.2" },
+                { id: "Microsoft.Identity.Client.Extensions.Msal", version: "4.68.0" },
+                { id: "Azure.Core", version: "1.44.1" },
                 { id: "Azure.Identity.Broker", version: "1.1.0" },
-                { id: "System.Memory.Data", version: "1.0.2" },
-                { id: "System.ClientModel", version: "1.0.0" },
+                { id: "System.Memory.Data", version: "6.0.0" },
+                { id: "System.ClientModel", version: "1.2.1" },
 
                 // Authentication
-                { id: "Microsoft.Identity.Client.Broker", version: "4.65.0" },
+                { id: "Microsoft.Identity.Client.Broker", version: "4.68.0" },
                 { id: "Microsoft.Identity.Client.NativeInterop", version: "0.16.2" },
                 { id: "Azure.ResourceManager", version: "1.13.0"},
                 
@@ -219,7 +219,7 @@ config({
                 { id: "Microsoft.IdentityModel.Protocols.OpenIdConnect", version: "6.35.0" },
                 { id: "Microsoft.IdentityModel.Protocols", version: "6.35.0" },
                 { id: "Microsoft.SqlServer.Server", version: "1.0.0" },
-                { id: "System.Runtime.Caching", version: "8.0.1" },
+                { id: "System.Runtime.Caching", version: "9.0.3" },
 
                 // microsoft test platform
                 { id: "Microsoft.TestPlatform.TestHost", version: "16.4.0"},
@@ -252,9 +252,9 @@ config({
                 { id: "BuildXL.Azurite.Executables", version: "1.0.0-CI-20230614-171424" },
 
                 // Testing
-                { id: "System.Security.Cryptography.ProtectedData", version: "8.0.0"},
-                { id: "System.Configuration.ConfigurationManager", version: "8.0.1"},
-                { id: "System.Diagnostics.EventLog", version: "8.0.1" },
+                { id: "System.Security.Cryptography.ProtectedData", version: "9.0.3" },
+                { id: "System.Configuration.ConfigurationManager", version: "9.0.3" },
+                { id: "System.Diagnostics.EventLog", version: "9.0.3" },
 
                 // WARNING: FluentAssertions moved to a commercial license starting from V8.0.0
                 // NEVER EVER UPDATE THIS PACKAGE BEYOND V7
@@ -377,7 +377,7 @@ config({
                 { id: "Microsoft.Extensions.Options.ConfigurationExtensions", version: "8.0.0" },
                 { id: "Polly.Core", version: "8.0.0" },
                 { id: "Polly.Extensions", version: "8.0.0" },
-                { id: "Microsoft.Bcl.TimeProvider", version: "8.0.0" },
+                { id: "Microsoft.Bcl.TimeProvider", version: "8.0.1" },
                 { id: "Polly.RateLimiting", version: "8.0.0" },
                 { id: "Microsoft.IO.RecyclableMemoryStream", version: "2.3.2" },
 

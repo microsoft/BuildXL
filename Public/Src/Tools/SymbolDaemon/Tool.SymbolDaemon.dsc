@@ -32,7 +32,6 @@ export const exe = !BuildXLSdk.isSymbolToolingEnabled ? undefined : BuildXLSdk.e
         importFrom("BuildXL.Tools").ServicePipDaemon.dll,
         importFrom("ItemStore.Shared").pkg,
         importFrom("ArtifactServices.App.Shared").pkg,
-        importFrom("ArtifactServices.App.Shared.Cache").pkg,
         importFrom("Microsoft.ApplicationInsights").pkg,
         importFrom("Microsoft.AspNet.WebApi.Client").pkg,
         importFrom("Microsoft.VisualStudio.Services.ArtifactServices.Shared").pkg,
@@ -40,7 +39,9 @@ export const exe = !BuildXLSdk.isSymbolToolingEnabled ? undefined : BuildXLSdk.e
         importFrom("Microsoft.VisualStudio.Services.Client").pkg,
         importFrom("Microsoft.VisualStudio.Services.InteractiveClient").pkg,
         importFrom("Newtonsoft.Json").pkg,
-        importFrom("Symbol.App.Core").pkg,
+        importFrom("Microsoft.VisualStudio.Services.Symbol.App.Core").pkg,
+        importFrom("Microsoft.VisualStudio.Services.Symbol.App.Indexer").pkg,
+
         importFrom("Symbol.Client").pkg,
         importFrom("Microsoft.Azure.Storage.Common").pkg,
         importFrom("Microsoft.Windows.Debuggers.SymstoreInterop").pkg,

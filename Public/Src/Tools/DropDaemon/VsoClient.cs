@@ -64,7 +64,7 @@ namespace Tool.DropDaemon
 
         private static IAppTraceSource Tracer => DropAppTraceSource.SingleInstance;
 
-        private static CacheContextBase CacheContext => null; // not needed for anything but "get", which we don't do
+        private static ICacheContext CacheContext => null; // not needed for anything but "get", which we don't do
 
         private readonly VssCredentialsFactory m_credentialFactory;
 

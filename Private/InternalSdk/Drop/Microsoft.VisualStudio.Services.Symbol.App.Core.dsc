@@ -17,7 +17,7 @@ namespace Contents {
 @@public
 export const pkg: Managed.ManagedNugetPackage =
     Managed.Factory.createNugetPackage(
-        "Symbol.App.Core",
+        "Microsoft.VisualStudio.Services.Symbol.App.Core",
         "0.0.0",
         Contents.all,
         [],

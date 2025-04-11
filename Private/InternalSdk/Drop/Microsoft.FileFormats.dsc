@@ -17,7 +17,7 @@ namespace Contents {
 @@public
 export const pkg: Managed.ManagedNugetPackage =
     Managed.Factory.createNugetPackage(
-        "ArtifactServices.App.Shared.Cache",
+        "Microsoft.FileFormats",
         "0.0.0",
         Contents.all,
         [],

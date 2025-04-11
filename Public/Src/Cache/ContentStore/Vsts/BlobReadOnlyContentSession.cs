@@ -504,7 +504,7 @@ namespace BuildXL.Cache.ContentStore.Vsts
                                 logSegmentStop: (destinationPath, offset, endOffset) => { },
                                 logSegmentFailed: (destinationPath, offset, endOffset, message) =>
                                     Tracer.Debug(context, $"Download {destinationPath} [{offset}, {endOffset}) failed. (message: {message})"),
-                                segmentFactory: async (offset, length, token) =>
+                                segmentFactory: async (attempt, offset, length, token) =>
                                 {
                                     var offsetStream = await GetStreamInternalAsync(
                                         context,

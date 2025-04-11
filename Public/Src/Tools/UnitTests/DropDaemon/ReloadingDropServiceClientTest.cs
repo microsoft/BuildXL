@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
@@ -14,6 +15,7 @@ using Microsoft.VisualStudio.Services.BlobStore.WebApi.Contracts;
 using Microsoft.VisualStudio.Services.Common;
 using Microsoft.VisualStudio.Services.Content.Common;
 using Microsoft.VisualStudio.Services.Drop.App.Core;
+using Microsoft.VisualStudio.Services.Drop.App.Core.Telemetry;
 using Microsoft.VisualStudio.Services.Drop.WebApi;
 using Microsoft.VisualStudio.Services.ItemStore.Common;
 using Test.BuildXL.TestUtilities.Xunit;
@@ -164,10 +166,10 @@ namespace Test.Tool.DropDaemon
             return Task.FromResult(new DropItem());
         }
 
-        Task IDropDownloader.DownloadAsync(string dropName, DropServiceClientDownloadContext downloadContext, CancellationToken cancellationToken, bool releaseLocalCache)
+        Task<DownloadTelemetryRecord> IDropDownloader.DownloadAsync(string dropName, DropServiceClientDownloadContext downloadContext, CancellationToken cancellationToken, bool releaseLocalCache)
         {
             m_dropOperation();
-            return Task.CompletedTask;
+            return Task.FromResult(new DownloadTelemetryRecord(new Uri("http://xyz"), "name", "proxy", WellKnownDomainIds.DefaultDomainId));
         }
 
         #region Unimplemented/Unused methods

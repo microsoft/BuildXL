@@ -3,8 +3,8 @@
 
 const isMicrosoftInternal = Environment.getFlag("[Sdk.BuildXL]microsoftInternal");
 
-const artifactNugetVersion = "19.244.35206-buildid28914915";
-const azureDevopsNugetVersion = "19.244.0-internal202408064";
+const artifactNugetVersion = "19.254.35907-buildid29691232";
+const azureDevopsNugetVersion = "19.254.0-internal202503071";
 
 // These packages are Microsoft internal packages.
 // These consist of internally repackaged products that we can't push to a public feed and have to rely on users installing locally.
@@ -41,6 +41,8 @@ export const pkgs = isMicrosoftInternal ? [
 
     // Artifact packages and dependencies
     { id: "Microsoft.VisualStudio.Services.ArtifactServices.Shared", version: artifactNugetVersion, dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: [
+        "Microsoft.BuildXL.Cache.ContentStore.Hashing",
+        "Microsoft.BuildXL.Cache.ContentStore.UtilitiesCore",
         "Microsoft.BuildXL.Cache.Hashing",
         "Microsoft.BuildXL.Cache.Interfaces",
         "Microsoft.Azure.Cosmos.Table",
@@ -48,7 +50,7 @@ export const pkgs = isMicrosoftInternal ? [
         "DotNetFxRefAssemblies.Corext",
         "Mono.Unix",
         "Microsoft.Identity.Client.Desktop" ] },
-    { id: "Microsoft.VisualStudio.Services.BlobStore.Client", version: artifactNugetVersion, dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["Microsoft.BuildXL.Cache.Hashing", "Microsoft.BuildXL.Cache.Interfaces", "DotNetFxRefAssemblies.Corext"] },
+    { id: "Microsoft.VisualStudio.Services.BlobStore.Client", version: artifactNugetVersion, dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["Microsoft.BuildXL.Cache.Hashing", "Microsoft.BuildXL.Cache.ContentStore.Hashing", "Microsoft.BuildXL.Cache.Interfaces", "Microsoft.BuildXL.Cache.ContentStore.UtilitiesCore", "DotNetFxRefAssemblies.Corext"] },
     { id: "Microsoft.VisualStudio.Services.Client", version: azureDevopsNugetVersion, dependentPackageIdsToSkip: [ "Microsoft.Net.Http", "Microsoft.AspNet.WebApi.Client", "Microsoft.Data.SqlClient", "System.Security.Cryptography.OpenSsl", "System.Security.Principal.Windows" ] },
     { id: "Microsoft.VisualStudio.Services.InteractiveClient", version: azureDevopsNugetVersion, dependentPackageIdsToSkip: [ "Ben.Demystifier" ], dependentPackageIdsToIgnore: [ "Ben.Demystifier" ] },
     { id: "Microsoft.Azure.Storage.Common", version: "11.2.3" },
@@ -62,16 +64,18 @@ export const pkgs = isMicrosoftInternal ? [
     // DropDaemon Artifact dependencies.
     // Here, even though the packages depend on Cache bits other than Hashing, we make sure that the codepaths that actually depend on them are never activated. This is to ensure that there is no cyclic dependency between BXL and AzureDevOps.
     // This is further enforced by not including Cache bits in DropDaemon, other than BuildXL.Cache.Hashing.
-    { id: "ArtifactServices.App.Shared", version: artifactNugetVersion, dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["Microsoft.BuildXL.Cache.Hashing", "DotNetFxRefAssemblies.Corext"] },
-    { id: "ArtifactServices.App.Shared.Cache", version: artifactNugetVersion, dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["Microsoft.BuildXL.Cache.Hashing", "Microsoft.BuildXL.Cache.Interfaces", "Microsoft.BuildXL.Cache.Libraries", "Microsoft.BuildXL.Utilities", "Microsoft.BuildXL.Utilities.Core", "Microsoft.BuildXL.Native", "DotNetFxRefAssemblies.Corext", "System.Data.SQLite.Core"] },
-    { id: "Drop.App.Core", version: artifactNugetVersion, dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["Microsoft.BuildXL.Cache.Hashing", "Microsoft.BuildXL.Cache.Interfaces", "Microsoft.BuildXL.Cache.Libraries", "Microsoft.BuildXL.Utilities", "Microsoft.BuildXL.Utilities.Core", "Microsoft.BuildXL.Native", "DotNetFxRefAssemblies.Corext", "System.Data.SQLite.Core"] },
-    { id: "Drop.Client", version: artifactNugetVersion, dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["Microsoft.BuildXL.Cache.Hashing", "DotNetFxRefAssemblies.Corext"] },
-    { id: "ItemStore.Shared", version: artifactNugetVersion, dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["Microsoft.BuildXL.Cache.Hashing", "Microsoft.BuildXL.Cache.Interfaces", "DotNetFxRefAssemblies.Corext"] },
-    { id: "Microsoft.VisualStudio.Services.BlobStore.Client.Cache", version: artifactNugetVersion, dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["Microsoft.BuildXL.Cache.Hashing", "Microsoft.BuildXL.Cache.Interfaces", "Microsoft.BuildXL.Cache.Libraries", "DotNetFxRefAssemblies.Corext"] },
+    { id: "ArtifactServices.App.Shared", version: artifactNugetVersion, dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["Microsoft.BuildXL.Cache.Hashing", "Microsoft.BuildXL.Cache.ContentStore.Hashing", "Microsoft.BuildXL.Cache.Interfaces", "Microsoft.BuildXL.Cache.ContentStore.Interfaces", "Microsoft.BuildXL.Cache.ContentStore.UtilitiesCore", "DotNetFxRefAssemblies.Corext"] },
+    { id: "Drop.App.Core", version: artifactNugetVersion, dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["Microsoft.BuildXL.Cache.Hashing", "Microsoft.BuildXL.Cache.Interfaces", "Microsoft.BuildXL.Cache.Libraries", "Microsoft.BuildXL.Utilities", "Microsoft.BuildXL.Utilities.Core", "Microsoft.BuildXL.Native", "Microsoft.BuildXL.Cache.ContentStore.Hashing", "Microsoft.BuildXL.Cache.ContentStore.Interfaces", "Microsoft.BuildXL.Cache.ContentStore.UtilitiesCore", "DotNetFxRefAssemblies.Corext", "System.Data.SQLite.Core"] },
+    { id: "Drop.Client", version: artifactNugetVersion, dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["Microsoft.BuildXL.Cache.Hashing", "Microsoft.BuildXL.Cache.ContentStore.Hashing", "Microsoft.BuildXL.Cache.ContentStore.UtilitiesCore", "DotNetFxRefAssemblies.Corext"] },
+    { id: "ItemStore.Shared", version: artifactNugetVersion, dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["Microsoft.BuildXL.Cache.Hashing", "Microsoft.BuildXL.Cache.Interfaces", "Microsoft.BuildXL.Cache.ContentStore.Hashing", "Microsoft.BuildXL.Cache.ContentStore.UtilitiesCore", "DotNetFxRefAssemblies.Corext"] },
+    { id: "Microsoft.VisualStudio.Services.BlobStore.Client.Cache", version: artifactNugetVersion, dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["Microsoft.BuildXL.Cache.Hashing", "Microsoft.BuildXL.Cache.Interfaces", "Microsoft.BuildXL.Cache.Libraries", "Microsoft.BuildXL.Cache.ContentStore.Hashing", "Microsoft.BuildXL.Cache.ContentStore.Interfaces", "Microsoft.BuildXL.Cache.ContentStore.UtilitiesCore", "DotNetFxRefAssemblies.Corext"] },
     { id: "Microsoft.Windows.Debuggers.SymstoreInterop", version: "1.0.1-netstandard2.0" },
-    { id: "Symbol.App.Core", version: artifactNugetVersion, dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["Microsoft.BuildXL.Cache.Hashing", "Microsoft.BuildXL.Cache.Interfaces", "Microsoft.BuildXL.Cache.Libraries", "DotNetFxRefAssemblies.Corext"] },
-    { id: "Symbol.Client", version: artifactNugetVersion, dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["Microsoft.BuildXL.Cache.Hashing", "DotNetFxRefAssemblies.Corext"] },
+    { id: "Symbol.Client", version: artifactNugetVersion, dependentPackageIdsToSkip: ["*"], dependentPackageIdsToIgnore: ["Microsoft.BuildXL.Cache.Hashing", "Microsoft.BuildXL.Cache.ContentStore.Hashing", "Microsoft.BuildXL.Cache.ContentStore.UtilitiesCore", "DotNetFxRefAssemblies.Corext"] },
     { id: "TransientFaultHandling.Core", version: "5.1.1209.1" },
+    { id: "Microsoft.VisualStudio.Services.Symbol.App.Core", version: "0.2.391" },
+    { id: "Microsoft.VisualStudio.Services.Symbol.App.Indexer", version: "0.2.391" },
+    { id: "Microsoft.SymbolStore", version: "1.0.560502" },
+    { id: "Microsoft.FileFormats", version: "1.0.560502" },
 
     // Cpp Sdk
     { id: "VisualCppTools.Internal.VS2017Layout", version: "14.39.33521", osSkip: [ "macOS", "unix" ] },

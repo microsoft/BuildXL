@@ -299,15 +299,9 @@ namespace BuildXL
                     {
                         StringBuilder sb = wrap.Instance;
 
-                        // Only display cache hits when this isn't a worker.
-                        // For workers in the ADO console, we only display the process pips executing.
-                        // This is because most of the other counters are not calculated as expected on the worker machines.
-                        // In order to avoid projecting incorrect values, we eliminate them in the ADO console status of the workers.
-                        sb.Append(m_notWorker ? @"{{8,{0}}}Processes:[{{4,{0}}} done ({{5}} hit)," : @"Processes:[{{0,{0}}} executing]");
-
-                        // We display all the counters such as processes executing, waiting, skipped etc for dev machines(fancyConsole and non-fancyConsole scenarios) and ADO logs of the orchestrator machine.
-                        if(m_notWorker)
+                        if (m_notWorker)
                         {
+                            sb.Append(@"{{8,{0}}}Processes: [{{4,{0}}} done ({{5}} hit),");
                             if (pipsFailed > 0)
                             {
                                 sb.Append(@" {{0,{0}}} succeeded, {{1,{0}}} failed,");
@@ -337,7 +331,22 @@ namespace BuildXL
                                 sb.Append(@" Files:[{{11}}/{{12}}]");
                             }
                         }
-
+                        else
+                        {
+                            // For workers in the ADO console, we only display the process pips executing.
+                            // This is because most of the other counters are not calculated as expected on the worker machines.
+                            // In order to avoid projecting incorrect values, we eliminate them in the ADO console status of the workers.
+                            if (Interlocked.Increment(ref m_seeOrchestratroMessageUpdateTicker) % SeeOrchestratorUpdateFrequency == 1)
+                            {
+                                // ...but every once in a while, instead of printing the amount of running processes, let's just print this informational message
+                                sb.Append(@"This agent is running the build as a distributed worker. Please check the orchestrator console for global details on the build progress");
+                            }
+                            else
+                            {
+                                sb.Append(@"Currently running {{0,{0}}} processes on this worker...");
+                            }
+                        }
+ 
                         string statusLine = sb.ToString();
                         sb.Length = 0;
                         string updatingStatus = null;
@@ -372,7 +381,8 @@ namespace BuildXL
                         {
                             sb.AppendFormat(
                                 CultureInfo.InvariantCulture,
-                                format);
+                                format,
+                                procsExecuting);
                         }
 
                         // Ensures backgroundTaskConsoleStatusMessage is displayed in ADO and when the fancyConsole option is disabled, when build progress is 100% and only service pips run.
@@ -590,8 +600,9 @@ namespace BuildXL
 
             var keyWords = eventData.Keywords;
 
-            if ((keyWords & Keywords.Overwritable) != 0 ||
-                (keyWords & Keywords.OverwritableOnly) != 0)
+            if (!m_optimizeForAzureDevOps &&
+                ((keyWords & Keywords.Overwritable) != 0 ||
+                (keyWords & Keywords.OverwritableOnly) != 0))
             {
                 OutputUpdatable(eventData.Level, finalMessage, updatableMessage ?? finalMessage,
                     (keyWords & Keywords.OverwritableOnly) != 0);
@@ -654,6 +665,12 @@ namespace BuildXL
         /// Count of errors that have been logged
         /// </summary>
         private long m_errorsLogged;
+
+        /// <summary>
+        /// We want to print a message on workers referring to the orchestrator console every once in a while
+        /// </summary>
+        private long m_seeOrchestratroMessageUpdateTicker = 0;
+        private const int SeeOrchestratorUpdateFrequency = 25;
 
         private sealed class PipInfo
         {

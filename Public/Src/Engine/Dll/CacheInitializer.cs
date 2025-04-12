@@ -693,9 +693,17 @@ namespace BuildXL.Engine
         {
             if (!m_initializationTask.IsCompleted)
             {
-                Tracing.Logger.Log.CacheIsStillBeingInitialized(m_loggingContext);
+                if (m_cacheInitCounter > 0)
+                {
+                    // Log this message when this method keeps firing, meaning 
+                    // the initialization is taking a while.
+                    // We don't want to log it in the first cycle, which happens
+                    // the first time the task is awaited.
+                    Tracing.Logger.Log.CacheIsStillBeingInitialized(m_loggingContext);
+                }
 
                 m_cacheInitCounter++;
+
                 // If cache initialization is taking an abnormal amount of time, dump the bxl process here
                 if (m_cacheInitCounter == CreateDumpFileCounter)
                 {

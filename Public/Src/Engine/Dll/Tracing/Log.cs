@@ -81,18 +81,18 @@ namespace BuildXL.Engine.Tracing
         [GeneratedEvent(
             (ushort)LogEventId.StartExecute,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Verbose,
+            EventLevel = Level.Informational,
             Message = EventConstants.PhasePrefix + "Starting execution",
             EventTask = (ushort)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Start,
-            Keywords = (int)(Keywords.UserMessage | Keywords.Progress))]
+            Keywords = (int)(Keywords.UserMessage | Keywords.Progress | Keywords.Overwritable))]
         public abstract void ExecutePhaseStart(LoggingContext context);
 
         [GeneratedEvent(
             (ushort)LogEventId.EndExecute,
             EventGenerators = EventGenerators.LocalOnly,
             Message = EventConstants.PhasePrefix + "Done executing pips in {executeStatistics.ElapsedMilliseconds} ms.",
-            EventLevel = Level.Verbose,
+            EventLevel = Level.Informational,
             EventTask = (ushort)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Stop,
             Keywords = (int)(Keywords.UserMessage | Keywords.Progress))]
@@ -673,14 +673,14 @@ namespace BuildXL.Engine.Tracing
             EventLevel = Level.Warning,
             Keywords = (int)(Keywords.UserMessage),
             EventTask = (ushort)Tasks.Distribution,
-            Message = "Received a Hello from {ip}:{port} but coulna a RemoteWorker slot couldn't be assigned.{details}")]
+            Message = "Received a Hello from {ip}:{port} but a RemoteWorker slot couldn't be assigned.{details}")]
         public abstract void DistributionHelloNoSlot(LoggingContext context, string ip, int port, string details);
 
         [GeneratedEvent(
             (ushort)LogEventId.DistributionExitReceived,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,
-            Keywords = (int)Keywords.UserMessage,
+            Keywords = (int)(Keywords.UserMessage | Keywords.Progress),
             EventTask = (ushort)Tasks.Distribution,
             Message = "{exitMessage}. Shutting down...")]
         public abstract void DistributionExitReceived(LoggingContext context, string exitMessage);
@@ -2285,7 +2285,7 @@ If you can't update and need this feature after July 2018 please reach out to th
             (int)LogEventId.StartInitializingCache,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.UserMessage,
+            Keywords = (int)(Keywords.UserMessage | Keywords.Overwritable),
             EventTask = (int)Tasks.Engine,
             EventOpcode = (byte)EventOpcode.Start,
             Message = EventConstants.PhasePrefix + "Initializing the cache")]

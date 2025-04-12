@@ -68,7 +68,12 @@ namespace BuildXL.Engine.Distribution.Grpc
             var failure = string.IsNullOrEmpty(message.Failure) ? Optional<string>.Empty : message.Failure;
 
             var eventStats = m_workerService.RetrieveWorkerEventStats();
-            m_workerService.ExitRequested($"Received exit call from the orchestrator: {message.Failure}", failure);       
+            string exitMsg = "Received exit call from the orchestrator";
+            if (!string.IsNullOrEmpty(message.Failure))
+            {
+                exitMsg += $": {message.Failure}";
+            }
+            m_workerService.ExitRequested(exitMsg, failure);       
             WorkerExitResponse workerExitResponse = new WorkerExitResponse();
             workerExitResponse.EventCounts.AddRange(eventStats);
 

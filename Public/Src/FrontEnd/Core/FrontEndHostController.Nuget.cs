@@ -744,6 +744,7 @@ namespace BuildXL.FrontEnd.Core
                 {
                     using (var client = new HttpClient())
                     {
+                        // CodeQL [SM00414] We can't restrict the provided URI by design, and we validate the hash of the downloads anyway. The recommended remediation is msft-internal and can't be applied here.
                         var response = await client.GetAsync(sourceUri);
                         var stream = await response.Content.ReadAsStreamAsync();
 

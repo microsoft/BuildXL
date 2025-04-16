@@ -5,7 +5,9 @@ import {Artifact, Cmd, Tool, Transformer} from "Sdk.Transformers";
 
 /** Default tool for executing script. */
 const scriptTool: Transformer.ToolDefinition = {
-    exe: OS.isWindows ? Environment.getFileValue("COMSPEC") : Environment.getFileValue("SHELL"),
+    exe: OS.isWindows
+        ? Environment.getFileValue("COMSPEC")
+        : (Environment.hasVariable("SHELL") ? Environment.getFileValue("SHELL") : f`/bin/bash`),
     dependsOnCurrentHostOSDirectories: true,
     dependsOnAppDataDirectory: true,
     prepareTempDirectory: true

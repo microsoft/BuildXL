@@ -111,7 +111,9 @@ namespace NuGet
 
         const result = Transformer.execute({
             tool: {
-                exe: OS.isWindows ? Environment.getFileValue("COMSPEC") : Environment.getFileValue("SHELL"),
+                exe: OS.isWindows
+                    ? Environment.getFileValue("COMSPEC")
+                    : (Environment.hasVariable("SHELL") ? Environment.getFileValue("SHELL") : f`/bin/bash`),
                 dependsOnCurrentHostOSDirectories: true,
                 nestedTools: [DotNet.tool],
             },

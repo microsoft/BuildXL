@@ -1625,7 +1625,7 @@ namespace BuildXL.Scheduler
         }
 
         #endregion Constructor
-
+        
         #region Execution
 
         /// <summary>
@@ -3019,13 +3019,15 @@ namespace BuildXL.Scheduler
                (int)Math.Ceiling(m_configuration.Distribution.EarlyWorkerReleaseMultiplier * m_remoteWorkers.Where(a => a.IsAvailable).Sum(a => a.TotalProcessSlots));
 
             // Release worker if numProcessPipsWaiting can be satisfied by remaining workers
-            if (numProcessPipsWaiting >= 0 && numProcessPipsWaiting < totalProcessSlots - workerToReleaseCandidate.TotalProcessSlots)
+            var remainingSlotsPostRelease = totalProcessSlots - workerToReleaseCandidate.TotalProcessSlots;
+            if (numProcessPipsWaiting >= 0 && numProcessPipsWaiting < remainingSlotsPostRelease)
             {
                 Logger.Log.InitiateWorkerRelease(
                         m_loggingContext,
                         workerToReleaseCandidate.Name,
                         numProcessPipsWaiting,
-                        totalProcessSlots,
+                        remainingSlotsPostRelease,
+                        workerToReleaseCandidate.TotalProcessSlots,
                         workerToReleaseCandidate.AcquiredCacheLookupSlots,
                         workerToReleaseCandidate.AcquiredProcessSlots,
                         workerToReleaseCandidate.AcquiredIpcSlots);

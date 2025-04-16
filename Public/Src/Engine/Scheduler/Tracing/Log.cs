@@ -847,11 +847,11 @@ namespace BuildXL.Scheduler.Tracing
         [GeneratedEvent(
             (ushort)LogEventId.InitiateWorkerRelease,
             EventGenerators = EventGenerators.LocalOnly,
-            Message = "{workerName} will be released because {numProcessPipsWaiting} (numProcessPipsWaiting) < {totalSlots} (totalSlots). Worker's Acquired Slots: {cachelookup} (cachelookup), {execute} (execute), {ipc} (ipc).",
+            Message = "{workerName} will be released because {numProcessPipsWaiting} (numProcessPipsWaiting) < {remainingSlots} (slots after release). Worker's Slots: {workerSlots} (total process slots), {cachelookup} (cachelookup), {execute} (execute), {ipc} (ipc).",
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Distribution,
             Keywords = (int)Keywords.UserMessage)]
-        public abstract void InitiateWorkerRelease(LoggingContext context, string workerName, long numProcessPipsWaiting, int totalSlots, int cachelookup, int execute, int ipc);
+        public abstract void InitiateWorkerRelease(LoggingContext context, string workerName, long numProcessPipsWaiting, int remainingSlots, int workerSlots, int cachelookup, int execute, int ipc);
 
         [GeneratedEvent(
             (ushort)LogEventId.WorkerReleasedEarly,

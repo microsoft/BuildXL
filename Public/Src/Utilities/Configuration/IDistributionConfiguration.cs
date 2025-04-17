@@ -99,7 +99,9 @@ namespace BuildXL.Utilities.Configuration
         bool EarlyWorkerRelease { get; }
 
         /// <summary>
-        /// Specifies the capacity multiplier when we start releasing the workers.
+        /// Multiplier for how aggressively to release workers. Larger values will release workers more aggressively. A value of 1
+        /// will release a worker when the number of unfinished (including currently running) pips can be satisfied by the concurrency
+        /// with one fewer worker.
         /// </summary>
         double EarlyWorkerReleaseMultiplier { get; }
 

@@ -984,6 +984,16 @@ namespace BuildXL
                 "/immediateWorkerRelease:[+|-]",
                 Strings.HelpText_DisplayHelp_ImmediateWorkerRelease,
                 HelpLevel.Verbose);
+
+            hw.WriteOption(
+                "/earlyWorkerRelease:[+|-]",
+                Strings.HelpText_DisplayHelp_EarlyWorkerRelease,
+                HelpLevel.Verbose);
+
+            hw.WriteOption(
+                "/earlyWorkerReleaseMultiplier:<double>",
+                Strings.HelpText_DisplayHelp_EarlyWorkerReleaseMultiplier,
+                HelpLevel.Verbose);
             #endregion
 
             hw.WriteBanner(

@@ -6,7 +6,7 @@ import * as Managed from "Sdk.Managed";
 import * as Branding from "BuildXL.Branding";
 
 namespace ConsoleLogger {
-    export declare const qualifier : BuildXLSdk.DefaultQualifierWithNet472;
+    export declare const qualifier : BuildXLSdk.DefaultQualifier;
     
     @@public
     export const dll = BuildXLSdk.library({

@@ -185,7 +185,7 @@ export function getAzureBlobStorageSdkPackagesWithoutNetStandard() : (Managed.Ma
 }
 
 namespace Default {
-    export declare const qualifier: BuildXLSdk.DefaultQualifierWithNet472;
+    export declare const qualifier: BuildXLSdk.DefaultQualifierWithNet6AndNet472;
 
     @@public
     export const deployment: Deployment.Definition =

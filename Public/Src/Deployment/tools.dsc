@@ -38,7 +38,7 @@ namespace Tools {
     }
 
     namespace DistributedBuildRunner {
-        export declare const qualifier: BuildXLSdk.DefaultQualifierWithNet472;
+        export declare const qualifier: BuildXLSdk.DefaultQualifier;
 
         export const deployment : Deployment.Definition = {
             contents: [

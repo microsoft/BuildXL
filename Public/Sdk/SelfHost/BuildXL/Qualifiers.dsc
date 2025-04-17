@@ -29,6 +29,16 @@ export interface DefaultQualifier extends Qualifier {
 @@public
 export interface DefaultQualifierWithNet472 extends Qualifier {
     configuration: "debug" | "release";
+    targetFramework: "net8.0" | "net9.0" | "net472";
+    targetRuntime: "win-x64" | "osx-x64" | "linux-x64";
+}
+
+/**
+ * Qualifier for projects that support DotNetCore 6+ and .NET472
+ */
+@@public
+export interface DefaultQualifierWithNet6AndNet472 extends Qualifier {
+    configuration: "debug" | "release";
     targetFramework: "net6.0" | "net8.0" | "net9.0" | "net472";
     targetRuntime: "win-x64" | "osx-x64" | "linux-x64";
 }

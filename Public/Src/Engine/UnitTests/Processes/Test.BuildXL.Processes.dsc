@@ -9,7 +9,7 @@ const DetoursTest64 = DetoursTest.withQualifier({platform: "x64"});
 
 namespace Processes {
     
-    // BuildXL.Processes is still used as Net472 by Cloudbuild. So maintain the tests for net472
+    // BuildXL.Processes is still used as Net472 by MsBuild. So maintain the tests for net472
     export declare const qualifier: BuildXLSdk.DefaultQualifierWithNet472;
     const bxlSdk = importFrom("Sdk.BuildXL");
 

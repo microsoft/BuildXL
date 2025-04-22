@@ -72,8 +72,8 @@ namespace Test.Tool.DropDaemon
         [Theory]
         [InlineData(true, true)]
         [InlineData(true, false)]
+        // If 'create' fails, finalize should not be called and the daemon just returns success (so that's why there is no false-false case).
         [InlineData(false, true)]
-        [InlineData(false, false)]
         public void TestCreateFinalize(bool shouldCreateSucceed, bool shouldFinalizeSucceed)
         {
             var dropClient = new MockDropClient(createSucceeds: shouldCreateSucceed, finalizeSucceeds: shouldFinalizeSucceed);
@@ -85,8 +85,17 @@ namespace Test.Tool.DropDaemon
                 rpcResult = daemon.Finalize();
                 AssertRpcResult(shouldFinalizeSucceed, rpcResult);
 
+                // There should always be an etw event for create, but the corresponding finalize event
+                // should only be present if create was successful.
                 AssertDequeueEtwEvent(etwListener, shouldCreateSucceed, EventKind.DropCreation);
-                AssertDequeueEtwEvent(etwListener, shouldFinalizeSucceed, EventKind.DropFinalization);
+                if (shouldCreateSucceed)
+                {
+                    AssertDequeueEtwEvent(etwListener, shouldFinalizeSucceed, EventKind.DropFinalization);
+                }
+                else
+                {
+                    Assert.True(etwListener.IsEmpty);
+                }
             });
         }
 
@@ -144,7 +153,22 @@ namespace Test.Tool.DropDaemon
                     var rpcResult = daemon.AddFileAsync(new DropItemForFile(dropName, "file.txt")).Result;
                     AssertRpcResult(shouldSucceed: false, rpcResult: rpcResult);
                 }
+            });
 
+            // Finalize is only called if create was successful, so we need a new daemon that does not fail create call.
+            dropClient = GetFailingMockDropClient(
+                createExceptionFactory: null,
+                addExceptionFactory: null,
+                finalizeExceptionFactory: () => new DropServiceException("injected drop service failure"));
+            WithSetup(dropClient, (daemon, etwListener, dropConfig) =>
+            {
+                var dropName = GetDropFullName(dropConfig);
+                // create
+                {
+                    var rpcResult = daemon.Create(dropName);
+                    AssertRpcResult(shouldSucceed: true, rpcResult: rpcResult);
+                    AssertDequeueEtwEvent(etwListener, succeeded: true, kind: EventKind.DropCreation);
+                }
                 // finalize
                 {
                     var rpcResult = daemon.Finalize();
@@ -174,6 +198,24 @@ namespace Test.Tool.DropDaemon
                 // add file
                 {
                     Assert.Throws<Exception>(() => daemon.AddFileAsync(new DropItemForFile(dropName, "file.txt")).GetAwaiter().GetResult());
+                }
+
+
+            });
+
+            // Finalize is only called if create was successful, so we need a new daemon that does not fail create call.
+            dropClient = GetFailingMockDropClient(
+                createExceptionFactory: null,
+                addExceptionFactory: null,
+                finalizeExceptionFactory: () => new Exception(ExceptionMessage));
+            WithSetup(dropClient, (daemon, etwListener, dropConfig) =>
+            {
+                var dropName = GetDropFullName(dropConfig);
+                // create
+                {
+                    var rpcResult = daemon.Create(dropName);
+                    AssertRpcResult(shouldSucceed: true, rpcResult: rpcResult);
+                    AssertDequeueEtwEvent(etwListener, succeeded: true, kind: EventKind.DropCreation);
                 }
 
                 // finalize
@@ -246,10 +288,10 @@ namespace Test.Tool.DropDaemon
                 AssertDequeueEtwEvent(etwListener, succeeded: true, kind: EventKind.DropFinalization);
 
                 daemon.RequestStop();
-                
+
                 // Stop called for finalization, 
                 // but nothing happens because finalize was called before 
-                Assert.True(etwListener.IsEmpty);            
+                Assert.True(etwListener.IsEmpty);
             });
         }
 
@@ -469,7 +511,7 @@ namespace Test.Tool.DropDaemon
             var expectedDropPaths = new HashSet<string>();
             var regex = new Regex(filter, RegexOptions.IgnoreCase | RegexOptions.Compiled);
             expectedDropPaths.AddRange(files.Where(a => regex.IsMatch(a.fileName)).Select(a => a.remoteFileName));
-            
+
             if (!Directory.Exists(directoryPath))
             {
                 Directory.CreateDirectory(directoryPath);
@@ -482,7 +524,7 @@ namespace Test.Tool.DropDaemon
             });
 
             var ipcProvider = IpcFactory.GetProvider();
-            
+
             // this lambda mocks BuildXL server receiving 'GetSealedDirectoryContent' API call and returning a response
             var ipcExecutor = new LambdaIpcOperationExecutor(op =>
             {
@@ -645,12 +687,12 @@ namespace Test.Tool.DropDaemon
             });
 
             var ipcProvider = IpcFactory.GetProvider();
-            
+
             // this lambda mocks BuildXL server receiving 'GetSealedDirectoryContent' API call and returning a response
             var ipcExecutor = new LambdaIpcOperationExecutor(op =>
             {
                 var cmd = ReceiveGetSealedDirectoryContentCommandAndCheckItMatchesDirectoryId(op.Payload, fakeDirectoryId);
-                
+
                 var file = new SealedDirectoryFile(
                     Path.Combine(directoryPath, "file.txt"),
                     new FileArtifact(new AbsolutePath(1), isSourceFile ? 0 : 1),
@@ -674,9 +716,9 @@ namespace Test.Tool.DropDaemon
                                 $"addartifacts --ipcServerMoniker {moniker.Id} --service {dropConfig.Service} --name {dropConfig.Name} --directory {directoryPath} --directoryId {fakeDirectoryId} --directoryDropPath {remoteDirectoryPath} --directoryFilter .* --directoryRelativePathReplace ## --directoryFilterUseRelativePath false",
                                 new UnixParser());
                             var ipcResult = addArtifactsCommand.Command.ServerAction(addArtifactsCommand, daemon).GetAwaiter().GetResult();
-                            
+
                             XAssert.IsTrue(dropPaths.Count == 0);
-                            
+
                             // if an absent file is a source file, drop operation should have failed; otherwise, we simply skip it
                             XAssert.AreEqual(!isSourceFile, ipcResult.Succeeded);
                             XAssert.AreEqual(isSourceFile ? IpcResultStatus.InvalidInput : IpcResultStatus.Success, ipcResult.ExitCode);
@@ -766,7 +808,7 @@ namespace Test.Tool.DropDaemon
              *  dir\dir2\d
              *  dir3\e
              */
-            
+
             var expectedDropPaths = new HashSet<string>(expectedFiles);
             var dropPaths = new List<string>();
             var fakeDirectoryId = "123:1:12345";
@@ -869,11 +911,17 @@ namespace Test.Tool.DropDaemon
         }
 
         private MockDropClient GetFailingMockDropClient(Func<Exception> exceptionFactory)
+         => GetFailingMockDropClient(
+            createExceptionFactory: exceptionFactory,
+            addExceptionFactory: exceptionFactory,
+            finalizeExceptionFactory: exceptionFactory);
+
+        private MockDropClient GetFailingMockDropClient(Func<Exception> createExceptionFactory, Func<Exception> addExceptionFactory, Func<Exception> finalizeExceptionFactory)
         {
             return new MockDropClient(
-                createFunc: () => MockDropClient.CreateFailingTask<DropItem>(exceptionFactory),
-                addFileFunc: (item) => MockDropClient.CreateFailingTask<AddFileResult>(exceptionFactory),
-                finalizeFunc: () => MockDropClient.CreateFailingTask<FinalizeResult>(exceptionFactory));
+                createFunc: () => createExceptionFactory != null ? MockDropClient.CreateFailingTask<DropItem>(createExceptionFactory) : Task.FromResult(new DropItem()),
+                addFileFunc: (item) => addExceptionFactory != null ? MockDropClient.CreateFailingTask<AddFileResult>(addExceptionFactory) : Task.FromResult(AddFileResult.Associated),
+                finalizeFunc: () => finalizeExceptionFactory != null ? MockDropClient.CreateFailingTask<FinalizeResult>(finalizeExceptionFactory) : Task.FromResult(new FinalizeResult()));
         }
 
         private DropOperationBaseEvent AssertDequeueEtwEvent(DropEtwListener etwListener, bool succeeded, EventKind kind)
@@ -929,7 +977,7 @@ namespace Test.Tool.DropDaemon
 
             public void RequestStop() { }
 
-            public MockClient (IClient client)
+            public MockClient(IClient client)
             {
                 InternalClient = client;
                 SendFn = ipcOperation => IpcResult.Success("true");

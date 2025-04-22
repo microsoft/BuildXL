@@ -680,9 +680,17 @@ namespace Tool.DropDaemon
                     WrapDropErrorsIntoDropEtwEvent(() => InternalCreateAsync(configAndClient.lazyVsoClientTask.Value)),
                     configAndClient.lazyVsoClientTask.Value);
 
-            return dropCreationEvent.Succeeded
-                ? IpcResult.Success(I($"Drop '{configAndClient.dropConfig.Name}' created."))
-                : new IpcResult(ParseIpcStatus(dropCreationEvent.AdditionalInformation), dropCreationEvent.ErrorMessage);
+            if (dropCreationEvent.Succeeded)
+            {
+                return IpcResult.Success(I($"Drop '{configAndClient.dropConfig.Name}' created."));
+            }
+            else
+            {
+                // Remove the client so finalization and telemetry upload is skipped for this drop.
+                m_vsoClients.RemoveKey(name);
+                (await configAndClient.lazyVsoClientTask.Value).Dispose();
+                return new IpcResult(ParseIpcStatus(dropCreationEvent.AdditionalInformation), dropCreationEvent.ErrorMessage);
+            }
         }
 
         /// <summary>
@@ -1144,7 +1152,13 @@ namespace Tool.DropDaemon
                }).ToArray();
 
             var results = await TaskUtilities.SafeWhenAll(finalizationTasks);
-            return IpcResult.Merge(results);
+            return results.Length > 0 
+                ? IpcResult.Merge(results)
+                // Ideally, we would return 'null' because we did no work, but the caller expects a result.
+                // This code path is only possible if finalize is called by FinalizedByCreatorServicePipDaemon.RequestStop
+                // (i.e., we did not create any drops). The result has no effect on the build status since it is a failed
+                // build at this point; so Returning IpcResult.Success is appropriate here.
+                : IpcResult.Success();
         }
 
         private async Task<IIpcResult> FinalizeSingleDropAsync(DropConfig dropConfig, Task<IDropClient> dropClientTask = null, bool isFinalizeOnStop = false)

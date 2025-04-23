@@ -384,8 +384,9 @@ function createScriptFileFromInlineScript(content: string[]) : File
             "#!/bin/bash",
             "",
             ...content,
-            "if [ $? -ne 0 ]; then",
-            "    exit $?",
+            "exitcode=$?",
+            "if [ $exitcode -ne 0 ]; then",
+            "    exit $exitcode",
             "fi",
             "exit 0"
           ];

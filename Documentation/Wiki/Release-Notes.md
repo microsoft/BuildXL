@@ -2,6 +2,13 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20250411.3 (Release [29829762](https://dev.azure.com/mseng/Domino/_build/results?buildId=29829762&view=results))
+- Improve early worker release messages
+- Improve ADO worker console messages
+- Add support for linux .so symbol files
+- Dedup output value pips
+- Various bug fixes and improvements
+
 # 0.1.0-20250407.2 (Release [29808108](https://dev.azure.com/mseng/Domino/_build/results?buildId=29808108&view=results))
 -	Add Sdk.Workflow to the out-of-the-box DScript SDKs
 -	Add some debug logging option for diagnostics

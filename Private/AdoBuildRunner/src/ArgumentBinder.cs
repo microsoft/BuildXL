@@ -42,6 +42,10 @@ namespace BuildXL.AdoBuildRunner
                     name: "--cacheConfigCacheSizeInMB",
                     description: "The cache size in megabytes");
 
+        private readonly Option<int?> m_cacheConfigConstructionTimeoutSec = new(
+                            name: "--cacheConfigConstructionTimeoutSeconds",
+                            description: "A timeout for the remote cache construction, in seconds. Defaults to 30s");
+
         private readonly Option<bool> m_cacheConfigLogGeneratedConfiguration = new(
                     name: "--cacheConfigLogGeneratedConfiguration",
                     description: "Whether to log the generated cache configuration for debug purposes",
@@ -150,6 +154,7 @@ namespace BuildXL.AdoBuildRunner
             add(m_maximumWaitForWorkerSeconds);
             add(m_workerAlwaysSucceeds);
             add(m_cacheConfigSizeInMb);
+            add(m_cacheConfigConstructionTimeoutSec);
             add(m_cacheConfigCacheType);
             add(m_cacheConfigUniverse);
             add(m_cacheConfigLogGeneratedConfiguration);

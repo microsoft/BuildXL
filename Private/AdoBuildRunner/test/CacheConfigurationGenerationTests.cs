@@ -63,6 +63,18 @@ namespace Test.Tool.AdoBuildRunner
             Assert.Equal(expectedCacheConfigResult.Replace("\r\n", "\n").Trim(), CacheConfigGenerator.GenerateCacheConfig(cacheConfiguration).Replace("\r\n", "\n").Trim());
         }
 
+
+        [Fact]
+        public void GenerateCacheConfigTestWithCustomTimeout()
+        {
+            var cacheConfiguration = new MockCacheConfigGeneration();
+            cacheConfiguration.HostedPoolBuildCacheConfigurationFile = null;
+            cacheConfiguration.RemoteConstructionTimeoutSeconds = 60;
+            cacheConfiguration.CacheType = CacheType.Blob;
+            var expected = CacheConfigJsonResults.BlobCacheConfigWithoutCacheResourceAndTimeout(60000);
+            Assert.Equal(expected.Replace("\r\n", "\n").Trim(), CacheConfigGenerator.GenerateCacheConfig(cacheConfiguration).Replace("\r\n", "\n").Trim());
+        }
+
         [Theory]
         [InlineData("https://contoso.com", true, true)]
         [InlineData("https://contoso.com", false, true)]
@@ -144,6 +156,35 @@ namespace Test.Tool.AdoBuildRunner
     ""ImplicitPin"": 0
   }
 }";
+            public static string BlobCacheConfigWithoutCacheResourceAndTimeout(int timeoutMillis) => $@"{{
+  ""RemoteIsReadOnly"": false,
+  ""SkipDeterminismRecovery"": true,
+  ""WriteThroughCasData"": true,
+  ""FailIfRemoteFails"": true,
+  ""RemoteConstructionTimeoutMilliseconds"": {timeoutMillis},
+  ""Assembly"": ""BuildXL.Cache.VerticalAggregator"",
+  ""Type"": ""BuildXL.Cache.VerticalAggregator.VerticalCacheAggregatorFactory"",
+  ""RemoteCache"": {{
+    ""Assembly"": ""BuildXL.Cache.MemoizationStoreAdapter"",
+    ""CacheLogPath"": ""[BuildXLSelectedLogPath].Remote.log"",
+    ""Type"": ""BuildXL.Cache.MemoizationStoreAdapter.BlobCacheFactory"",
+    ""CacheId"": ""12345Remote"",
+    ""Universe"": ""MyCacheUniverse"",
+    ""RetentionPolicyInDays"": 30,
+    ""StorageAccountEndpoint"": ""https://test.cacheresource.com/"",
+    ""ManagedIdentityId"": ""00000000-0000-0000-0000-000000000000""
+  }},
+  ""LocalCache"": {{
+    ""MaxCacheSizeInMB"": 200,
+    ""Assembly"": ""BuildXL.Cache.MemoizationStoreAdapter"",
+    ""UseStreamCAS"": false,
+    ""Type"": ""BuildXL.Cache.MemoizationStoreAdapter.MemoizationStoreCacheFactory"",
+    ""CacheLogPath"": ""[BuildXLSelectedLogPath]"",
+    ""CacheRootPath"": ""[BuildXLSelectedRootPath]"",
+    ""CacheId"": ""12345Local"",
+    ""ImplicitPin"": 0
+  }}
+}}";
 
             public const string BlobCacheConfigWithCacheResourceAndNoCacheResourceName = @"{
   ""RemoteIsReadOnly"": false,
@@ -243,6 +284,8 @@ namespace Test.Tool.AdoBuildRunner
   ""HostedPoolActiveBuildCacheName"": ""MyCacheResource"",
   ""ConnectionStringFileDataProtectionEncrypted"": ""false""
 }";
+
+
         }
     }
 }

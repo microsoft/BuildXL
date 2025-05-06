@@ -78,7 +78,7 @@ namespace BuildXL.AdoBuildRunner
                 { "SkipDeterminismRecovery", true },
                 { "WriteThroughCasData", true },
                 { "FailIfRemoteFails", true },
-                { "RemoteConstructionTimeoutMilliseconds", 30000 },
+                { "RemoteConstructionTimeoutMilliseconds",  (configuration.RemoteConstructionTimeoutSeconds ?? 30) * 1_000 },
                 { "Assembly", "BuildXL.Cache.VerticalAggregator" },
                 { "Type", "BuildXL.Cache.VerticalAggregator.VerticalCacheAggregatorFactory" },
             };

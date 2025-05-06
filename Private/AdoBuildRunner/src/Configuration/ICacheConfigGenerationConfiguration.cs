@@ -39,6 +39,9 @@ namespace BuildXL.AdoBuildRunner
         /// <nodoc/>
         public int? CacheSizeInMB { get; }
 
+        /// <nodoc />
+        public int? RemoteConstructionTimeoutSeconds { get; }
+
         /// <nodoc/>
         public string? CacheId { get; }
 

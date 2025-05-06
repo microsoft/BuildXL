@@ -42,6 +42,8 @@ namespace Test.Tool.AdoBuildRunner
         /// <nodoc/>
         public string? HostedPoolBuildCacheConfigurationFile { get; set; }
 
+        public int? RemoteConstructionTimeoutSeconds { get; set; }
+
         /// <nodoc/>
         public MockCacheConfigGeneration()
         {

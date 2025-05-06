@@ -31,9 +31,6 @@ namespace BuildXL.AdoBuildRunner
         public CacheType? CacheType { get; set; }
 
         /// <nodoc/>
-        public bool GenerateCacheConfig { get; set; }
-
-        /// <nodoc/>
         public bool? LogGeneratedConfiguration { get; set; }
 
         /// <nodoc/>
@@ -41,6 +38,9 @@ namespace BuildXL.AdoBuildRunner
 
         /// <nodoc/>
         public string? HostedPoolBuildCacheConfigurationFile { get; set; }
+
+        /// <nodoc />
+        public int? RemoteConstructionTimeoutSeconds { get; set; }
 
         /// <nodoc/>
         public CacheConfigGenerationConfiguration()

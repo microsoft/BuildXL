@@ -17,10 +17,8 @@ parameters:
   type: object
   default: 
     name: BuildXL-DevOpsAgents-Selfhost-BuildCache
-    image: 1ES-hosted-azure-linux-3
+    image: 1es-pt-azurelinux3-v2
     os: linux
-    demands: 
-    - ImageVersionOverride -equals 3.0.0
 resources:
   repositories:
   - repository: 1esPipelines

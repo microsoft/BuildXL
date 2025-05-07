@@ -1,4 +1,0 @@
-src/bin/*
-test/bin/*
-*.nupkg
-launchSettings.json

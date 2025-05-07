@@ -6427,7 +6427,7 @@ namespace BuildXL.Scheduler
                     (int NumPips, bool[] Workers) tuple;
                     if (!m_moduleWorkerMapping.TryGetValue(pipState.ModuleId, out tuple))
                     {
-                        tuple = (0, new bool[m_configuration.Distribution.BuildWorkers.Count + 1]);
+                        tuple = (0, new bool[m_configuration.Distribution.RemoteWorkerCount + 1]);
                     }
 
                     m_moduleWorkerMapping[pipState.ModuleId] = (tuple.NumPips + 1, tuple.Workers);

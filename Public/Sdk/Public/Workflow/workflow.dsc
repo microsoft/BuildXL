@@ -128,7 +128,13 @@ export interface RunTaskArguments
     /**
      * Names of process names that can break away from the sandbox when spawned by a task.
      */
-    brakeawayProcesses?: PathAtom[];
+    breakawayProcesses?: PathAtom[];
+
+    /**
+     * Environment variables that need to be passthrough
+     * These environment variables will not be in process' fingerprint
+    */
+    passThroughEnvironmentVariables?: (string | Transformer.EnvironmentVariable)[];
 
     /** Tags for the task. */
     tags?: string[];
@@ -312,7 +318,8 @@ function runTaskCore(tool: Transformer.ToolDefinition, arguments: Argument[], wo
             requireGlobalDependencies: true,
             untrackedScopes: runArgs.untrackedScopes,
             untrackedPaths: runArgs.untrackedPaths,
-            childProcessesToBreakawayFromSandbox: runArgs.brakeawayProcesses
+            childProcessesToBreakawayFromSandbox: runArgs.breakawayProcesses,
+            passThroughEnvironmentVariables: runArgs.passThroughEnvironmentVariables
         },
         description: runArgs.description
     });

@@ -5,6 +5,9 @@ set -e
 MY_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "$MY_DIR/Public/Src/App/Bxl/Unix/env.sh"
 
+# Capture the distribution release number (e.g. 24.04)
+DISTRIB_RELEASE=$(cat /etc/*-release | sed -n -e 's/^DISTRIB_RELEASE=//p')
+
 declare DEFAULT_CACHE_CONFIG_FILE_NAME=DefaultCacheConfig.json
 
 declare arg_Positional=()
@@ -221,6 +224,15 @@ function setBxlCmdArgs {
         # user-specified config files
         "/c:$MY_DIR/config.dsc"
     )
+
+    # TODO: generalize this for other distributions
+    # For now we only force the ebpf daemon on 24.04 since our ebpf programs still don't fully work on other distributions.
+    if [[ "${DISTRIB_RELEASE}" == "24.04" ]]; then
+        g_bxlCmdArgs+=(
+            # When running the selfhost, ebpf tests assume the ebpf daemon in running. TODO: remove when interpose can be retired
+            "/p:BuildXLForceLaunchEBPFDaemon=1"
+        )
+    fi
 
     if [[ "${OSTYPE}" == "linux-gnu" ]]; then
         g_bxlCmdArgs+=(
@@ -504,15 +516,25 @@ compileWithBxl ${arg_Positional[@]} ${arg_UserProvidedBxlArguments[@]}
 ebpfRunner=$MY_DIR/Out/Bin/${outputConfiguration}/${DeploymentFolder}/bxl-ebpf-runner
 
 if [ -e "$ebpfRunner" ]; then
-    if getcap $ebpfRunner | grep -q 'cap_sys_admin=ep'; then
+    # TODO: investigate mounting the bpf system with different permissions so we don't need cap_dac_override
+    if getcap $ebpfRunner | grep -q 'cap_sys_admin,cap_dac_override=ep'; then
         print_info "EBPF runner $ebpfRunner capabilities already set"
     else
         print_info "Setting capabilities for the ebpf runner. This may require an interactive prompt"
-        sudo setcap 'cap_sys_admin=ep' $ebpfRunner
+        sudo setcap 'cap_sys_admin,cap_dac_override=ep' $ebpfRunner
     fi
 
     if [[ -n "$arg_DeployDev" ]]; then
         deployBxl "$MY_DIR/Out/Bin/${outputConfiguration}/${DeploymentFolder}" "$MY_DIR/Out/Selfhost/Dev"
+
+        deployedEbpfRunner="$MY_DIR/Out/Selfhost/Dev/bxl-ebpf-runner"
+
+        if getcap $deployedEbpfRunner | grep -q 'cap_sys_admin,cap_dac_override=ep'; then
+            print_info "EBPF runner $deployedEbpfRunner capabilities already set"
+        else
+            print_info "Setting capabilities for the ebpf runner. This may require an interactive prompt"
+            sudo setcap 'cap_sys_admin,cap_dac_override=ep' $deployedEbpfRunner
+        fi
     fi
 fi
 

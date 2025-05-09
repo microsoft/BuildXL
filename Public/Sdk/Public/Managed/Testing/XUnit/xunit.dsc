@@ -61,6 +61,8 @@ export function runConsoleTest(args: TestRunArguments): Result {
 
     let arguments : Argument[] = CreateCommandLineArgument(testDeployment.primaryFile, args, testClass, testMethod);
 
+    let passthroughEnvVars = args.passThroughEnvVars || [];
+
     let unsafeArgs: Transformer.UnsafeExecuteArguments = {
         untrackedScopes: [
             ...addIf(args.untrackTestDirectory === true, testDeployment.contents.root),
@@ -73,7 +75,9 @@ export function runConsoleTest(args: TestRunArguments): Result {
                 ? <File>path 
                 : File.fromPath(testDeployment.contents.root.combine(<RelativePath>path)))) 
         || [],
-        passThroughEnvironmentVariables: args.passThroughEnvVars || []
+        // Some EBPF-related test infra makes decisions based on whether we are running on ADO or not
+        // TODO: remove TF_BUILD when we retire interpose
+        passThroughEnvironmentVariables: [...passthroughEnvVars, "TF_BUILD"]
     };
 
     let execArguments : Transformer.ExecuteArguments = {

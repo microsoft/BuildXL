@@ -6461,8 +6461,8 @@ namespace BuildXL.Scheduler
                         Contract.Assert(sandboxKind == SandboxKind.Default || sandboxKind == SandboxKind.LinuxDetours,
                                         $"Unknown Unix sandbox kind: {m_configuration.Sandbox.UnsafeSandboxConfiguration.SandboxKind}");
                         sandboxConnection = m_configuration.Sandbox.EnableEBPFLinuxSandbox
-                            ? new SandboxConnectionLinuxEBPF(sandboxFailureCallback)
-                            : new SandboxConnectionLinuxDetours(sandboxFailureCallback);
+                            ? new SandboxConnectionLinuxEBPF(SandboxFailureCallback, ebpfDaemonTask: EBPFDaemon.GetEBPFDaemonTask())
+                            : new SandboxConnectionLinuxDetours(SandboxFailureCallback);
                     }
 
                     SandboxConnection = sandboxConnection;
@@ -6475,12 +6475,13 @@ namespace BuildXL.Scheduler
             }
 
             return false;
+        }
 
-            void sandboxFailureCallback(int status, string description)
-            {
-                Logger.Log.SandboxFailureNotificationReceived(loggingContext, status, description);
-                RequestTermination();
-            }
+        /// <nodoc/>
+        protected void SandboxFailureCallback(int status, string description)
+        {
+            Logger.Log.SandboxFailureNotificationReceived(m_loggingContext, status, description);
+            RequestTermination();
         }
 
         private bool TryInitSchedulerRuntimeState(LoggingContext loggingContext, SchedulerState schedulerState)
@@ -8334,12 +8335,23 @@ namespace BuildXL.Scheduler
 
         #endregion
 
-        /// <inheritdoc />
+        /// <inheritdoc/>
         public void Dispose()
+        {
+            Dispose(true);
+        }
+
+        /// <inheritdoc />
+        public virtual void Dispose(bool disposing)
         {
             lock (m_statusLock)
             {
                 m_isDisposed = true;
+            }
+
+            if (!disposing)
+            {
+                return;
             }
 
             m_cancellationTokenRegistration.Dispose();

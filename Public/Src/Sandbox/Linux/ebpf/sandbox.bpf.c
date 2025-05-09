@@ -15,55 +15,60 @@
 
 char LICENSE[] SEC("license") = "Dual MIT/GPL";
 
-/*
- * Ring buffer used to communicate file accesses to userspace.
- */
-struct {
-    __uint(type, BPF_MAP_TYPE_RINGBUF);
-    __uint(max_entries, 4096 *  1024  /* PATH_MAX * 1024 entries */);
-} file_access_ring_buffer SEC(".maps");
-
-/**
- * Used to send debug events to the userspace.
- */
-struct {
-    __uint(type, BPF_MAP_TYPE_RINGBUF);
-    __uint(max_entries, sizeof(ebpf_event_debug) *  1024  /* 1024 entries */);
-} debug_buffer SEC(".maps");
-
-/**
- * Used to hold processes that will breakaway from the sandbox.
- */
-struct {
-    __uint(type, BPF_MAP_TYPE_HASH);
-    __type(key, pid_t);
-    __type(value, int);
-    __uint(max_entries, 512);
-} breakaway_pids SEC(".maps");
-
 // TODO: remove magic numbers?
 const long wakeup_data_size = 4096 * 128;
-static __always_inline long get_flags() {
-    long sz = bpf_ringbuf_query(&file_access_ring_buffer, BPF_RB_AVAIL_DATA);
+static __always_inline long get_flags(void *ringbuffer) {
+    long sz = bpf_ringbuf_query(ringbuffer, BPF_RB_AVAIL_DATA);
     return sz >= wakeup_data_size ? BPF_RB_FORCE_WAKEUP : BPF_RB_NO_WAKEUP;
 }
 
 /**
- * Attempts to reserve space on the debug ring buffer to report a buffer reservation failure
- * on the main ring buffer used to send file access events.
+ * Attempts to reserve space on the debug ring buffer to report a problem
  */
-static void report_buffer_reservation_failure() {
-    ebpf_event_debug *debug_event = bpf_ringbuf_reserve(&debug_buffer, sizeof(ebpf_event_debug), 0);
+__attribute__((always_inline)) static inline void report_ring_buffer_error(pid_t runner_pid, const char* error_message) {
+    void *debug_ring_buffer = bpf_map_lookup_elem(&debug_buffer_per_pip, &runner_pid);
+    if (debug_ring_buffer == NULL) {
+        bpf_printk("[ERROR] Couldn't find debug ring buffer for pip %d", runner_pid);
+        return;
+    } 
+
+    ebpf_event_debug *debug_event = bpf_ringbuf_reserve(debug_ring_buffer, sizeof(ebpf_event_debug), 0);
 
     if (!debug_event) {
-        bpf_printk("[ERROR] Unable to reserve ring buffer.");
+        bpf_printk("[ERROR] Unable to reserve debug ring buffer for pip %d and pid %d", runner_pid, bpf_get_current_pid_tgid() >> 32);
         return;
     }
 
     debug_event->event_type = DEBUG;
-    debug_event->pid = bpf_get_current_pid_tgid() >> 32;;
-    __builtin_strcpy(debug_event->message, "[ERROR] Unable to reserve ring buffer.");
+    debug_event->pid = bpf_get_current_pid_tgid() >> 32;
+    debug_event->runner_pid = runner_pid;
+    __builtin_strcpy(debug_event->message, error_message);
     bpf_ringbuf_submit(debug_event, /* flags */ 0);
+}
+
+__attribute__((always_inline)) static inline void report_buffer_reservation_failure(pid_t runner_pid, void* ring_buffer)
+{
+    report_ring_buffer_error(runner_pid, "[ERROR] Unable to reserve ring buffer for pip");
+    long avail = bpf_ringbuf_query(ring_buffer, BPF_RB_AVAIL_DATA);
+    long size = bpf_ringbuf_query(ring_buffer, BPF_RB_RING_SIZE);
+    long con_pos = bpf_ringbuf_query(ring_buffer, BPF_RB_CONS_POS);
+    long prod_pos = bpf_ringbuf_query(ring_buffer, BPF_RB_PROD_POS);
+    bpf_printk("Buffer reservation failure. [%d] Available data %ld, size %ld, consumer pos %ld, producer ps %ld", runner_pid, avail, size, con_pos, prod_pos);
+}
+
+__attribute__((always_inline)) static inline void report_file_access_buffer_not_found(pid_t runner_pid)
+{
+    report_ring_buffer_error(runner_pid, "[ERROR] Could not find file access ring buffer.");
+}
+
+__attribute__((always_inline)) static inline void report_event_cache_not_found(pid_t runner_pid)
+{
+    report_ring_buffer_error(runner_pid, "[ERROR] Could not find event cache.");
+}
+
+__attribute__((always_inline)) static inline void report_breakaway_map_not_found(pid_t runner_pid)
+{
+    report_ring_buffer_error(runner_pid, "[ERROR] Could not find breakaway map.");
 }
 
 /**
@@ -72,20 +77,24 @@ static void report_buffer_reservation_failure() {
  * If the ring buffer reserve call fails, then a debug event is sent to the debug buffer.
  * If reserving the debug buffer also fails, then we write to the trace pipe.
  */
-#define RESERVE_SUBMIT_FILE_ACCESS(code)                                                                        \
+#define RESERVE_SUBMIT_FILE_ACCESS(runner_pid, code)                                                            \
 {                                                                                                               \
-    ebpf_event *event = bpf_ringbuf_reserve(&file_access_ring_buffer, sizeof(ebpf_event), 0);                   \
-                                                                                                                \
-    if (!event) {                                                                                               \
-        report_buffer_reservation_failure();                                                                    \
+    void *file_access_ring_buffer = bpf_map_lookup_elem(&file_access_per_pip, &runner_pid);                     \
+    if (file_access_ring_buffer == NULL) {                                                                      \
+        report_file_access_buffer_not_found(runner_pid);                                                        \
         return 0;                                                                                               \
     }                                                                                                           \
+    ebpf_event *event = bpf_ringbuf_reserve(file_access_ring_buffer, sizeof(ebpf_event), 0);                    \
                                                                                                                 \
+    if (!event) {                                                                                               \
+        report_buffer_reservation_failure(runner_pid, file_access_ring_buffer);                                 \
+        return 0;                                                                                               \
+    }                                                                                                           \
     event->event_type = SINGLE_PATH;                                                                            \
                                                                                                                 \
     code                                                                                                        \
                                                                                                                 \
-    bpf_ringbuf_submit(event, get_flags());                                                                     \
+    bpf_ringbuf_submit(event, get_flags(file_access_ring_buffer));                                              \
 }
 
 /**
@@ -95,20 +104,25 @@ static void report_buffer_reservation_failure() {
  * to make each traced call go through this, but it is generally a good idea assuming we have to the corresponding
  * struct path associated with the operation
  */
-#define RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(operation, path, code)                                            \
+#define RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(operation, path, runner_pid, code)                                \
 {                                                                                                               \
-    if (should_send_path(operation, path))                                                                      \
+    if (should_send_path(runner_pid, operation, path))                                                          \
     {                                                                                                           \
-        RESERVE_SUBMIT_FILE_ACCESS(code)                                                                        \
+        RESERVE_SUBMIT_FILE_ACCESS(runner_pid, code)                                                            \
     }                                                                                                           \
 }
 
-#define RESERVE_SUBMIT_FILE_ACCESS_DOUBLE(code)                                                                 \
+#define RESERVE_SUBMIT_FILE_ACCESS_DOUBLE(runner_pid, code)                                                     \
 {                                                                                                               \
-    ebpf_event_double *event = bpf_ringbuf_reserve(&file_access_ring_buffer, sizeof(ebpf_event_double), 0);     \
+    void *file_access_ring_buffer = bpf_map_lookup_elem(&file_access_per_pip, &runner_pid);                     \
+    if (file_access_ring_buffer == NULL) {                                                                      \
+        report_file_access_buffer_not_found(runner_pid);                                                        \
+        return 0;                                                                                               \
+    }                                                                                                           \
+    ebpf_event_double *event = bpf_ringbuf_reserve(file_access_ring_buffer, sizeof(ebpf_event_double), 0);      \
                                                                                                                 \
     if (!event) {                                                                                               \
-        report_buffer_reservation_failure();                                                                    \
+        report_buffer_reservation_failure(runner_pid, file_access_ring_buffer);                                 \
         return 0;                                                                                               \
     }                                                                                                           \
                                                                                                                 \
@@ -116,27 +130,32 @@ static void report_buffer_reservation_failure() {
                                                                                                                 \
     code                                                                                                        \
                                                                                                                 \
-    bpf_ringbuf_submit(event, get_flags());                                                                     \
+    bpf_ringbuf_submit(event, get_flags(file_access_ring_buffer));                                              \
 }
 
 /**
  * Check RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE for details.
  * In this case we send the event if at least one of the two paths are not in the cache
  */
-#define RESERVE_SUBMIT_FILE_ACCESS_DOUBLE_WITH_CACHE(operation, path_src, path_dst, code)                       \
+#define RESERVE_SUBMIT_FILE_ACCESS_DOUBLE_WITH_CACHE(operation, path_src, path_dst, runner_pid, code)           \
 {                                                                                                               \
-    if (should_send_path(operation, path_src) || should_send_path(operation, path_dst))                         \
+    if (should_send_path(runner_pid, operation, path_src) || should_send_path(runner_pid, operation, path_dst)) \
     {                                                                                                           \
-        RESERVE_SUBMIT_FILE_ACCESS_DOUBLE(code)                                                                 \
+        RESERVE_SUBMIT_FILE_ACCESS_DOUBLE(runner_pid, code)                                                     \
     }                                                                                                           \
 }
 
 #define RESERVE_SUBMIT_EXEC(code)                                                                               \
 {                                                                                                               \
-    ebpf_event_exec *event = bpf_ringbuf_reserve(&file_access_ring_buffer, sizeof(ebpf_event_exec), 0);         \
+    void *file_access_ring_buffer = bpf_map_lookup_elem(&file_access_per_pip, &runner_pid);                     \
+    if (file_access_ring_buffer == NULL) {                                                                      \
+        report_file_access_buffer_not_found(runner_pid);                                                            \
+        return 0;                                                                                               \
+    }                                                                                                           \
+    ebpf_event_exec *event = bpf_ringbuf_reserve(file_access_ring_buffer, sizeof(ebpf_event_exec), 0);          \
                                                                                                                 \
     if (!event) {                                                                                               \
-        report_buffer_reservation_failure();                                                                    \
+        report_buffer_reservation_failure(runner_pid, file_access_ring_buffer) ;                                    \
         return 0;                                                                                               \
     }                                                                                                           \
     bool discard = false;                                                                                       \
@@ -149,7 +168,7 @@ static void report_buffer_reservation_failure() {
         bpf_ringbuf_discard(event, /* flags */ 0);                                                              \
     }                                                                                                           \
     else {                                                                                                      \
-        bpf_ringbuf_submit(event, get_flags());                                                                 \
+        bpf_ringbuf_submit(event, get_flags(file_access_ring_buffer));                                          \
     }                                                                                                           \
 }
 
@@ -169,7 +188,7 @@ static void report_buffer_reservation_failure() {
  * started yet. At the same time, if the parent process decides to exit right after this, it still hasn't done so.
  */
 SEC("fentry/wake_up_new_task")
-int BPF_PROG(wake_up_new_task, struct task_struct *new_task)
+int BPF_PROG(LOADING_WITNESS, struct task_struct *new_task)
 {
     struct task_struct *current_task = (struct task_struct *)bpf_get_current_task();
     pid_t current_tgid = BPF_CORE_READ(current_task, tgid);
@@ -183,18 +202,30 @@ int BPF_PROG(wake_up_new_task, struct task_struct *new_task)
     }
 
     pid_t current_pid = bpf_get_current_pid_tgid() >> 32;
-    if (!(is_valid_pid(current_pid))) {
+    pid_t runner_pid;
+    if (!(is_valid_pid(current_pid, &runner_pid))) {
         return 0;
     }
 
     pid_t new_pid = BPF_CORE_READ(new_task, pid);
 
+    // If not monitoring child processes, 
+    // then skip reporting and skip adding this PID to the pid_map
+    if (!monitor_process(new_pid, runner_pid)) {
+        // report_ring_buffer_error(runner_pid, "[INFO]: Not monitoring child processes");
+        return 0;
+    }
+
     // Add the child that is about to be woken up to the set of processes we care about
-    bpf_map_update_elem(&pid_map, &new_pid, &new_pid, BPF_ANY);
+    // Observe the pip id is the same as its parent process, since this is running in the context of the same pip
+    if (bpf_map_update_elem(&pid_map, &new_pid, &runner_pid, BPF_ANY))
+    {
+        report_ring_buffer_error(runner_pid, "[ERROR]: Could not update pid_map to add new pid");
+        return 0;
+    }
 
     // We don't want to cache clones, use unconditional reserve + submit macro
-    RESERVE_SUBMIT_FILE_ACCESS
-    (
+    RESERVE_SUBMIT_FILE_ACCESS(runner_pid,
         event->metadata.kernel_function = KERNEL_FUNCTION(wake_up_new_task);
         event->metadata.operation_type = kClone;
         event->metadata.pid = current_pid;
@@ -210,10 +241,22 @@ int BPF_PROG(wake_up_new_task, struct task_struct *new_task)
 /**
  * execve_common() - Common code for execve and execveat syscalls.
  */
-static inline int execve_common(pid_t pid, enum kernel_function syscall, int fd, const char *filename, char *const *argv) {
+__attribute__((always_inline)) static inline int execve_common(pid_t pid, enum kernel_function syscall, int fd, const char *filename, char *const *argv, pid_t runner_pid) {
+
+    // Don't monitor child processes
+    if (!monitor_process(pid, runner_pid)) {
+        // The reason for deleting a pid on exec (rather than on the original fork) is to follow
+        // the same convention we used for interpose and on Windows.
+        // We want to trace up until the first execve call (not including the initial execve called from the runner process)
+        // If we see another execve on the root process after the initial one, we want to stop monitoring it.
+        // No exit reports need to be generated by the ebpf programs because the runner process will watch for termination of the root process.
+        bpf_map_delete_elem(&pid_map, &pid);
+        return 0;
+    }
+
     // We don't want to cache execs, use unconditional reserve + submit macro
-    RESERVE_SUBMIT_EXEC
-    ({
+    RESERVE_SUBMIT_EXEC(
+    {
         exec_event_metadata event_with_metadata = {0};
         event_with_metadata.event = event;
 
@@ -240,7 +283,10 @@ static inline int execve_common(pid_t pid, enum kernel_function syscall, int fd,
             event_with_metadata.args_len = argv_to_string(argv, event->args);
 
             // Validate whether the current pid will need to break away
-            process_needs_breakaway(&event_with_metadata);
+            if (process_needs_breakaway(&event_with_metadata, runner_pid) != 0)
+            {
+                report_breakaway_map_not_found(runner_pid);
+            }
 
             if (event_with_metadata.needs_breakaway) {
                 // We need to breakaway, so we need to add the pid to the breakaway pids map
@@ -266,11 +312,12 @@ static inline int execve_common(pid_t pid, enum kernel_function syscall, int fd,
 SEC("ksyscall/execve")
 int BPF_KPROBE_SYSCALL(execve_ksys_enter, const char *filename, char *const *argv, char *const *envp) {
     pid_t pid = bpf_get_current_pid_tgid() >> 32;
-    if (!is_valid_pid(pid)) {
+    pid_t runner_pid;
+    if (!is_valid_pid(pid, &runner_pid)) {
         return 0;
     }
 
-    return execve_common(pid, KERNEL_FUNCTION(execve), 0, filename, argv);
+    return execve_common(pid, KERNEL_FUNCTION(execve), 0, filename, argv, runner_pid);
 }
 
 /**
@@ -281,12 +328,14 @@ int BPF_KPROBE_SYSCALL(execve_ksys_enter, const char *filename, char *const *arg
 SEC("ksyscall/execveat")
 int BPF_KPROBE_SYSCALL(execveat_ksys_enter, int fd, const char *filename, char *const *argv, char *const *envp, int flags) {
     pid_t pid = bpf_get_current_pid_tgid() >> 32;
-    if (!is_valid_pid(pid)) {
+    pid_t runner_pid;
+    if (!is_valid_pid(pid, &runner_pid)) {
         return 0;
     }
 
     // TODO: do we need to do anything with flags passed into this syscall
-    return execve_common(pid, KERNEL_FUNCTION(execveat), fd, filename, argv);
+
+    return execve_common(pid, KERNEL_FUNCTION(execveat), fd, filename, argv, runner_pid);
 }
 
 /**
@@ -298,7 +347,8 @@ int BPF_KPROBE_SYSCALL(execveat_ksys_enter, int fd, const char *filename, char *
 SEC("fentry/security_bprm_committed_creds")
 int BPF_PROG(bprm_execve_enter, struct linux_binprm *bprm) {
     pid_t pid = bpf_get_current_pid_tgid() >> 32;
-    if (!is_valid_pid(pid)) {
+    pid_t runner_pid;
+    if (!is_valid_pid(pid, &runner_pid)) {
         return 0;
     }
 
@@ -315,8 +365,7 @@ int BPF_PROG(bprm_execve_enter, struct linux_binprm *bprm) {
         bpf_map_delete_elem(&pid_map, &pid);
 
         // We don't want to cache breakaway events, use unconditional reserve + submit macro
-        RESERVE_SUBMIT_FILE_ACCESS
-        ({
+        RESERVE_SUBMIT_FILE_ACCESS(runner_pid, {
             event->metadata.kernel_function = KERNEL_FUNCTION(security_bprm_committed_creds);
             event->metadata.operation_type = kBreakAway;
             event->metadata.pid = pid;
@@ -347,13 +396,13 @@ int BPF_PROG(taskstats_exit, struct task_struct *tsk, int group_dead)
     }
 
     pid_t pid = bpf_get_current_pid_tgid() >> 32;
-    if (!is_valid_pid(pid)) {
+    pid_t runner_pid;
+    if (!is_valid_pid(pid, &runner_pid)) {
         return 0;
     }
 
     // We don't want to cache exits, use unconditional reserve + submit macro
-    RESERVE_SUBMIT_FILE_ACCESS
-    (
+    RESERVE_SUBMIT_FILE_ACCESS(runner_pid,
         event->metadata.pid = pid;
         event->metadata.kernel_function = KERNEL_FUNCTION(exit);
         event->metadata.operation_type = kExit;
@@ -375,14 +424,15 @@ int BPF_PROG(security_path_rename_enter, const struct path *old_dir, struct dent
     const struct path *new_dir, struct dentry *new_dentry, unsigned int flags)
 {
     pid_t pid = bpf_get_current_pid_tgid() >> 32;
-    if (!is_valid_pid(pid)) {
+    pid_t runner_pid;
+    if (!is_valid_pid(pid, &runner_pid)) {
         return 0;
     }
 
     struct path old_path = {.dentry = old_dentry, .mnt = BPF_CORE_READ(old_dir, mnt)};
     struct path new_path = {.dentry = new_dentry, .mnt = BPF_CORE_READ(new_dir, mnt)};
 
-    RESERVE_SUBMIT_FILE_ACCESS_DOUBLE_WITH_CACHE(kRename, &old_path, &new_path,
+    RESERVE_SUBMIT_FILE_ACCESS_DOUBLE_WITH_CACHE(kRename, &old_path, &new_path, runner_pid,
         event->metadata.kernel_function = KERNEL_FUNCTION(security_path_rename);
         event->metadata.pid = pid;
         event->metadata.operation_type = kRename;
@@ -402,7 +452,8 @@ SEC("fexit/do_mkdirat")
 int BPF_PROG(do_mkdirat_exit, int dfd, struct filename *name, umode_t mode, int ret)
 {
     pid_t pid = bpf_get_current_pid_tgid() >> 32;
-    if (!is_valid_pid(pid)) {
+    pid_t runner_pid;
+    if (!is_valid_pid(pid, &runner_pid)) {
         return 0;
     }
 
@@ -414,8 +465,7 @@ int BPF_PROG(do_mkdirat_exit, int dfd, struct filename *name, umode_t mode, int 
     }
 
     // We don't want to cache mkdir as we need every successful operation on managed side
-    RESERVE_SUBMIT_FILE_ACCESS
-    (
+    RESERVE_SUBMIT_FILE_ACCESS(runner_pid, 
         event->metadata.kernel_function = KERNEL_FUNCTION(do_mkdirat);
         event->metadata.operation_type = kCreate;
         event->metadata.pid = pid;
@@ -437,7 +487,8 @@ SEC("fexit/do_rmdir")
 int BPF_PROG(do_rmdir_exit, int dfd, struct filename *name, int ret)
 {
     pid_t pid = bpf_get_current_pid_tgid() >> 32;
-    if (!is_valid_pid(pid)) {
+    pid_t runner_pid;
+    if (!is_valid_pid(pid, &runner_pid)) {
         return 0;
     }
 
@@ -449,8 +500,7 @@ int BPF_PROG(do_rmdir_exit, int dfd, struct filename *name, int ret)
     }
 
     // We don't want to cache rmdir as we need every successful operation on managed side
-    RESERVE_SUBMIT_FILE_ACCESS
-    (
+    RESERVE_SUBMIT_FILE_ACCESS(runner_pid,
         event->metadata.kernel_function = KERNEL_FUNCTION(do_rmdir);
         event->metadata.operation_type = kUnlink;
         event->metadata.pid = pid;
@@ -472,7 +522,8 @@ SEC("fentry/security_path_unlink")
 int BPF_PROG(security_path_unlink_enter, const struct path *dir, struct dentry *dentry)
 {
     pid_t pid = bpf_get_current_pid_tgid() >> 32;
-    if (!is_valid_pid(pid)) {
+    pid_t runner_pid;
+    if (!is_valid_pid(pid, &runner_pid)) {
         return 0;
     }
 
@@ -485,7 +536,7 @@ int BPF_PROG(security_path_unlink_enter, const struct path *dir, struct dentry *
 
     struct path path = {.dentry = dentry, .mnt = BPF_CORE_READ(dir, mnt)};
 
-    RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(kGenericWrite, &path,
+    RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(kGenericWrite, &path, runner_pid,
         event->metadata.kernel_function = KERNEL_FUNCTION(security_path_unlink);
         event->metadata.pid = pid;
         event->metadata.operation_type = kGenericWrite;
@@ -504,7 +555,8 @@ int BPF_PROG(security_path_link_entry, struct dentry *old_dentry, const struct p
 		       struct dentry *new_dentry)
 {
     pid_t pid = bpf_get_current_pid_tgid() >> 32;
-    if (!is_valid_pid(pid)) {
+    pid_t runner_pid;
+    if (!is_valid_pid(pid, &runner_pid)) {
         return 0;
     }
 
@@ -519,7 +571,7 @@ int BPF_PROG(security_path_link_entry, struct dentry *old_dentry, const struct p
     // Observe this operation involves a probe on the source as well (old_dentry). But that
     // access is going to get catch by path_lookupat (and reporting it here is harder because
     // we have the old dentry but not the old mount)
-    RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(kGenericWrite, &new_path,
+    RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(kGenericWrite, &new_path, runner_pid,
         event->metadata.kernel_function = KERNEL_FUNCTION(security_path_link);
         event->metadata.pid = pid;
         event->metadata.operation_type = kGenericWrite;
@@ -541,7 +593,8 @@ SEC("fexit/path_lookupat")
 int BPF_PROG(path_lookupat_exit, struct nameidata *nd, unsigned flags, struct path *path, int ret)
 {
     pid_t pid = bpf_get_current_pid_tgid() >> 32;
-    if (!is_valid_pid(pid)) {
+    pid_t runner_pid;
+    if (!is_valid_pid(pid, &runner_pid)) {
         return 0;
     }
 
@@ -555,8 +608,7 @@ int BPF_PROG(path_lookupat_exit, struct nameidata *nd, unsigned flags, struct pa
     // This operation is hard to check against the cache since for absent probes there is no in-memory structure to
     // represent the path, and using strings is not very performant. For now just keep them out
     // of the cache, we shouldn't get a big number of absent probes on the same path for the same process
-    RESERVE_SUBMIT_FILE_ACCESS
-    (
+    RESERVE_SUBMIT_FILE_ACCESS(runner_pid,
         event->metadata.kernel_function = KERNEL_FUNCTION(path_lookupat);
         event->metadata.pid = pid;
         event->metadata.operation_type = kGenericProbe;
@@ -578,7 +630,8 @@ SEC("fexit/path_parentat")
 int BPF_PROG(path_parentat, struct nameidata *nd, unsigned flags, struct path *parent, int ret)
 {
     pid_t pid = bpf_get_current_pid_tgid() >> 32;
-    if (!is_valid_pid(pid)) {
+    pid_t runner_pid;
+    if (!is_valid_pid(pid, &runner_pid)) {
         return 0;
     }
 
@@ -592,8 +645,7 @@ int BPF_PROG(path_parentat, struct nameidata *nd, unsigned flags, struct path *p
     // This operation is hard to cache since for absent probes there is no in-memory structure to
     // represent the path, and using strings is not very performant. For now just keep them out
     // of the cache, we shouldn't get a big number of absent probes on the same path for the same process
-    RESERVE_SUBMIT_FILE_ACCESS
-    (
+    RESERVE_SUBMIT_FILE_ACCESS(runner_pid,
         event->metadata.kernel_function = KERNEL_FUNCTION(path_parentat);
         event->metadata.pid = pid;
         event->metadata.error = ret;
@@ -614,7 +666,8 @@ SEC("fexit/path_openat")
 int BPF_PROG(path_openat_exit, struct nameidata *nd, const struct open_flags *op, unsigned flags, struct file * ret)
 {
     pid_t pid = bpf_get_current_pid_tgid() >> 32;
-    if (!is_valid_pid(pid)) {
+    pid_t runner_pid;
+    if (!is_valid_pid(pid, &runner_pid)) {
         return 0;
     }
 
@@ -632,7 +685,7 @@ int BPF_PROG(path_openat_exit, struct nameidata *nd, const struct open_flags *op
     if (!IS_ERR(ret))
     {
         struct path path = BPF_CORE_READ(ret, f_path);
-        if (!should_send_path(kGenericProbe, &path))
+        if (!should_send_path(runner_pid, kGenericProbe, &path))
         {
             return 0;
         }
@@ -641,8 +694,7 @@ int BPF_PROG(path_openat_exit, struct nameidata *nd, const struct open_flags *op
     // When this operation fails, it is hard to check the cache since for absent paths there is no in-memory structure to
     // represent them, and using strings is not very performant. For now just keep them out
     // of the cache, we shouldn't get a big number of failed opens on the same path for the same process
-    RESERVE_SUBMIT_FILE_ACCESS
-    (
+    RESERVE_SUBMIT_FILE_ACCESS(runner_pid,
         event->metadata.kernel_function = KERNEL_FUNCTION(path_openat);
         event->metadata.pid = pid;
         event->metadata.error = PTR_ERR(ret);
@@ -661,7 +713,8 @@ SEC("fentry/security_file_open")
 int BPF_PROG(security_file_open_enter, struct file *file)
 {
     pid_t pid = bpf_get_current_pid_tgid() >> 32;
-    if (!is_valid_pid(pid)) {
+    pid_t runner_pid;
+    if (!is_valid_pid(pid, &runner_pid)) {
         return 0;
     }
 
@@ -677,7 +730,7 @@ int BPF_PROG(security_file_open_enter, struct file *file)
 
     // Always send this as a probe, even if the open call ends up creating the file
     // For the latter, we will catch this in the mknod call.
-    RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(kGenericProbe, &path,
+    RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(kGenericProbe, &path, runner_pid,
         event->metadata.kernel_function = KERNEL_FUNCTION(security_file_open);
         event->metadata.pid = pid;
         event->metadata.operation_type = kGenericProbe;
@@ -697,7 +750,8 @@ SEC("fentry/security_file_permission")
 int BPF_PROG(security_file_permission_enter, struct file *file, int mask)
 {
     pid_t pid = bpf_get_current_pid_tgid() >> 32;
-    if (!is_valid_pid(pid)) {
+    pid_t runner_pid;
+    if (!is_valid_pid(pid, &runner_pid)) {
         return 0;
     }
 
@@ -715,7 +769,7 @@ int BPF_PROG(security_file_permission_enter, struct file *file, int mask)
     // security_file_permission
     operation_type eventType = mask == MAY_READ ? kGenericRead : kGenericWrite;
 
-    RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(eventType, &path,
+    RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(eventType, &path, runner_pid,
         event->metadata.kernel_function = KERNEL_FUNCTION(security_file_permission);
         event->metadata.pid = pid;
         event->metadata.operation_type = eventType;
@@ -734,7 +788,8 @@ int BPF_PROG(security_path_symlink_enter, const struct path *parent_dir, struct 
 			  const char *old_name)
 {
     pid_t pid = bpf_get_current_pid_tgid() >> 32;
-    if (!is_valid_pid(pid)) {
+    pid_t runner_pid;
+    if (!is_valid_pid(pid, &runner_pid)) {
         return 0;
     }
 
@@ -747,8 +802,8 @@ int BPF_PROG(security_path_symlink_enter, const struct path *parent_dir, struct 
     }
 
     struct path path = {.dentry = dentry, .mnt = BPF_CORE_READ(parent_dir, mnt)};
-
-    RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(kGenericWrite, &path,
+    
+    RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(kGenericWrite, &path, runner_pid,
         event->metadata.kernel_function = KERNEL_FUNCTION(security_path_symlink);
         event->metadata.pid = pid;
         event->metadata.operation_type = kGenericWrite;
@@ -769,7 +824,8 @@ SEC("fentry/security_path_mknod")
 int BPF_PROG(security_path_mknod_enter, const struct path *parent_dir, struct dentry *dentry, umode_t mode, unsigned int dev)
 {
     pid_t pid = bpf_get_current_pid_tgid() >> 32;
-    if (!is_valid_pid(pid)) {
+    pid_t runner_pid;
+    if (!is_valid_pid(pid, &runner_pid)) {
         return 0;
     }
 
@@ -781,7 +837,7 @@ int BPF_PROG(security_path_mknod_enter, const struct path *parent_dir, struct de
 
     struct path path = {.dentry = dentry, .mnt = BPF_CORE_READ(parent_dir, mnt)};
 
-    RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(kCreate, &path,
+    RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(kCreate, &path, runner_pid,
         event->metadata.kernel_function = KERNEL_FUNCTION(security_path_mknod);
         event->metadata.pid = pid;
         event->metadata.operation_type = kCreate;
@@ -801,7 +857,8 @@ SEC("fexit/security_inode_getattr")
 int BPF_PROG(security_inode_getattr_exit, const struct path *path, int ret)
 {
     pid_t pid = bpf_get_current_pid_tgid() >> 32;
-    if (!is_valid_pid(pid)) {
+    pid_t runner_pid;
+    if (!is_valid_pid(pid, &runner_pid)) {
         return 0;
     }
 
@@ -819,7 +876,7 @@ int BPF_PROG(security_inode_getattr_exit, const struct path *path, int ret)
         return 0;
     }
 
-    RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(kGenericProbe, path,
+    RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(kGenericProbe, path, runner_pid,
         event->metadata.kernel_function = KERNEL_FUNCTION(security_inode_getattr);
         event->metadata.pid = pid;
         event->metadata.error = 0;
@@ -841,7 +898,8 @@ SEC("fexit/do_readlinkat")
 int BPF_PROG(do_readlink_exit, int dfd, const char *pathname, char *buf, int bufsiz, int ret)
 {
     pid_t pid = bpf_get_current_pid_tgid() >> 32;
-    if (!is_valid_pid(pid)) {
+    pid_t runner_pid;
+    if (!is_valid_pid(pid, &runner_pid)) {
         return 0;
     }
 
@@ -869,8 +927,7 @@ int BPF_PROG(do_readlink_exit, int dfd, const char *pathname, char *buf, int buf
     // This operation is hard to check against the cache since its arguments don't give us any in-memory structure to
     // represent the path, and using strings is not very performant. For now just keep them out
     // of the cache
-    RESERVE_SUBMIT_FILE_ACCESS
-    (
+    RESERVE_SUBMIT_FILE_ACCESS(runner_pid,
         event->metadata.kernel_function = KERNEL_FUNCTION(do_readlinkat);
         event->metadata.pid = pid;
         event->metadata.operation_type = kGenericRead;
@@ -892,7 +949,8 @@ int BPF_PROG(pick_link_exit, struct nameidata *nd, struct path *link,
     struct inode *inode, int flags, char * ret)
 {
     pid_t pid = bpf_get_current_pid_tgid() >> 32;
-    if (!is_valid_pid(pid)) {
+    pid_t runner_pid;
+    if (!is_valid_pid(pid, &runner_pid)) {
         return 0;
     }
 
@@ -902,7 +960,7 @@ int BPF_PROG(pick_link_exit, struct nameidata *nd, struct path *link,
         return 0;
     }
 
-    RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(kGenericRead, link,
+    RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(kGenericRead, link, runner_pid,
         event->metadata.kernel_function = KERNEL_FUNCTION(pick_link_enter);
         event->metadata.pid = pid;
         event->metadata.operation_type = kGenericRead;
@@ -921,7 +979,8 @@ SEC("fentry/security_path_chown")
 int BPF_PROG(security_path_chown, const struct path *path)
 {
     pid_t pid = bpf_get_current_pid_tgid() >> 32;
-    if (!is_valid_pid(pid)) {
+    pid_t runner_pid;
+    if (!is_valid_pid(pid, &runner_pid)) {
         return 0;
     }
 
@@ -932,7 +991,7 @@ int BPF_PROG(security_path_chown, const struct path *path)
         return 0;
     }
 
-    RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(kGenericWrite, path,
+    RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(kGenericWrite, path, runner_pid,
         event->metadata.kernel_function = KERNEL_FUNCTION(security_path_chown);
         event->metadata.pid = pid;
         event->metadata.operation_type = kGenericWrite;
@@ -950,7 +1009,8 @@ SEC("fentry/security_path_chmod")
 int BPF_PROG(security_path_chmod, const struct path *path)
 {
     pid_t pid = bpf_get_current_pid_tgid() >> 32;
-    if (!is_valid_pid(pid)) {
+    pid_t runner_pid;
+    if (!is_valid_pid(pid, &runner_pid)) {
         return 0;
     }
 
@@ -961,7 +1021,7 @@ int BPF_PROG(security_path_chmod, const struct path *path)
         return 0;
     }
     
-    RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(kGenericWrite, path,
+    RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(kGenericWrite, path, runner_pid,
         event->metadata.kernel_function = KERNEL_FUNCTION(security_path_chmod);
         event->metadata.pid = pid;
         event->metadata.operation_type = kGenericWrite;
@@ -979,7 +1039,8 @@ SEC("fentry/security_file_truncate")
 int BPF_PROG(security_file_truncate, struct file *file)
 {
     pid_t pid = bpf_get_current_pid_tgid() >> 32;
-    if (!is_valid_pid(pid)) {
+    pid_t runner_pid;
+    if (!is_valid_pid(pid, &runner_pid)) {
         return 0;
     }
 
@@ -992,7 +1053,7 @@ int BPF_PROG(security_file_truncate, struct file *file)
         return 0;
     }
 
-    RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(kGenericWrite, &path,
+    RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(kGenericWrite, &path, runner_pid,
         event->metadata.kernel_function = KERNEL_FUNCTION(security_file_truncate);
         event->metadata.pid = pid;
         path_to_string(event->src_path, &path);
@@ -1011,7 +1072,8 @@ SEC("fentry/vfs_utimes")
 int BPF_PROG(vfs_utimes, const struct path *path)
 {
     pid_t pid = bpf_get_current_pid_tgid() >> 32;
-    if (!is_valid_pid(pid)) {
+    pid_t runner_pid;
+    if (!is_valid_pid(pid, &runner_pid)) {
         return 0;
     }
 
@@ -1022,7 +1084,7 @@ int BPF_PROG(vfs_utimes, const struct path *path)
         return 0;
     }
 
-    RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(kGenericWrite, path,
+    RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(kGenericWrite, path, runner_pid,
         event->metadata.kernel_function = KERNEL_FUNCTION(vfs_utimes);
         event->metadata.pid = pid;
         path_to_string(event->src_path, path);

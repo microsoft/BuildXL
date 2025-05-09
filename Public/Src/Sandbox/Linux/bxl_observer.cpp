@@ -421,8 +421,12 @@ void BxlObserver::LogDebug(pid_t pid, const char *fmt, ...) {
 void BxlObserver::LogError(pid_t pid, const char *fmt, ...) {
     va_list args;
     va_start(args, fmt);
-    LogDebugMessage(pid, buildxl::linux::DebugEventSeverity::kError, fmt, args);
+    LogErrorArgList(pid, fmt, args);
     va_end(args);
+}
+
+void BxlObserver::LogErrorArgList(pid_t pid, const char *fmt, va_list args) {
+    LogDebugMessage(pid, buildxl::linux::DebugEventSeverity::kError, fmt, args);
 }
 
 void BxlObserver::LogDebugMessage(pid_t pid, buildxl::linux::DebugEventSeverity severity, const char *fmt, va_list args) {
@@ -528,7 +532,7 @@ bool BxlObserver::Send(const char *buf, size_t bufsiz, bool useSecondaryPipe, bo
     int logFd = real_open(reportsPath, O_WRONLY | O_APPEND, 0);
     if (logFd == -1)
     {
-        _fatal("Could not open file '%s'; errno: %d", reportsPath, errno);
+        _fatal("Could not open file '%s'; errno: %d; buf=%s", reportsPath, errno, buf);
     }
 
     // update message counting semaphore whenever a report is sent

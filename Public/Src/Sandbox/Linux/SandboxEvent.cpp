@@ -44,10 +44,14 @@ SandboxEvent::SandboxEvent(
         ppid_ = ppid < 0 ? getppid() : ppid; // ppid can be 0, so we only check for a negative value.
 
         source_access_report_.path = src_path;
+        EscapeString(source_access_report_.path);
         source_access_report_.fd = src_fd;
 
         destination_access_report_.path = dst_path;
+        EscapeString(destination_access_report_.path);
         destination_access_report_.fd = dst_fd;
+
+        EscapeString(command_line_);
 
         // The following events we can classify immediately.
         // Others will be classified when the access check is performed.
@@ -272,6 +276,24 @@ void SandboxEvent::SetDestinationAccessCheck(AccessCheckResult check_result) {
     assert(!is_sealed_);
 
     destination_access_report_.access_check_result = check_result;
+}
+
+void SandboxEvent::EscapeString(std::string& str) {
+    if (str.empty()) {
+        return;
+    }
+
+    for (int i = 0; i < str.length(); i++) {
+        // Replace all instances of '|' with '!'
+        if (str[i] == '|') {
+            str[i] = '!';
+        }
+
+        // Replace any newlines with '.'
+        if (str[i] == '\n' || str[i] == '\r') {
+            str[i] = '.';
+        }
+    }
 }
 
 void SandboxEvent::DisableLogging() {

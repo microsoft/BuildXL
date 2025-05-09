@@ -48,7 +48,11 @@ namespace Test.Tool.JavascriptGraphBuilder {
                     ...addIfLazy(Context.isWindowsOS() && Environment.getDirectoryValue("CommonProgramFiles") !== undefined,
                         () => [f`${Environment.getDirectoryValue("CommonProgramFiles")}/SSL/openssl.cnf`]),
                     // node may access the npmrc under the source root
-                    f`${Context.getMount("SourceRoot").path}/.npmrc`
+                    f`${Context.getMount("SourceRoot").path}/.npmrc`,
+                    // On Linux, yarn may access these files under the HOME folder
+                    ...addIfLazy(!Context.isWindowsOS(), () => [
+                        f`${Environment.getPathValue("HOME")}/.yarnrc`,
+                        f`${Environment.getPathValue("HOME")}/.npmrc`])
                 ]
             }
         }

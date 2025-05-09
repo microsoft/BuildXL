@@ -7,9 +7,9 @@
 #include "vmlinux.h"
 #include "kernelconstants.h"
 #include "ebpfstringutilities.h"
-
+#include "ebpfcommon.h"
 /*
- * Dictionary containing currently active process ids. Root process id is pre-populated by the userspace.
+ * Map containing currently active process id -> runner pid. Root process id is pre-populated by the userspace.
  * Observe these pids are the ones corresponding to the root namespace. So the assumption is that
  * BuildXL is running in the root namespace, otherwise pids won't match.
  * TODO: Ideally we should always return pids corresponding with the same namespace where BuildXL was launched
@@ -18,15 +18,153 @@
 struct {
     __uint(type, BPF_MAP_TYPE_HASH);
     __type(key, pid_t);
-    __type(value, int);
-    __uint(max_entries, 512);
+    // The value is the pid of the runner that this sandboxed process belongs to
+    __type(value, pid_t);
+    // This is the max value of concurrent processes that can run in a linux OS
+    // We will probably be always very far from reaching this number, but at the same time this map is pretty lightweight (int -> long)
+    // so this shouldn't have a big memory footprint
+    __uint(max_entries, 4194304);
+    // We need to share the pid_map across all runners
+    __uint(pinning, LIBBPF_PIN_BY_NAME);
 } pid_map SEC(".maps");
 
+/**
+ * Additional options to pass to the sandbox per pip.
+ */
+struct {
+    __uint(type, BPF_MAP_TYPE_HASH);
+    // The key is the pid of the runner process that this sandboxed process belongs to
+    __type(key, pid_t);
+    __type(value, sandbox_options);
+    // TODO: This should be set to the max number of pips that can be running at the same time
+    __uint(max_entries, 1024);
+    // We need to share the options across all runners
+    __uint(pinning, LIBBPF_PIN_BY_NAME);
+} sandbox_options_per_pip SEC(".maps");
 
-// Whether the given pid is one we care about (i.e. is part of the pid map we keep)
-__attribute__((always_inline)) static int is_valid_pid(pid_t pid) {
-    pid_t *elem = bpf_map_lookup_elem(&pid_map, &pid);
-    return elem ? *elem == pid : 0;
+/*
+ * Ring buffer used to communicate file accesses to userspace.
+ * We have one of these per runner pid and is held in the map-of-maps file_access_per_pip
+ * This map is dynamically created in user space when a pip is about to start
+ */
+struct file_access_ring_buffer {
+    __uint(type, BPF_MAP_TYPE_RINGBUF);
+    __uint(max_entries, 4096 *  2048  /* PATH_MAX * 2048 entries */);
+} file_access_ring_buffer SEC(".maps");
+
+/**
+ * Ring buffer used to send debug events to the userspace. Same per-pip settings as the above map
+  */
+struct debug_ring_buffer {
+    __uint(type, BPF_MAP_TYPE_RINGBUF);
+    // We typically don't need this to be very big, as the first error sent is usually enough to signal that there is something
+    // going wrong
+    __uint(max_entries, 4096 * 1024);
+} debug_ring_buffer SEC(".maps");
+
+/**
+ * This is a map of maps where the key is a PID of the runner associated with this sandboxed process
+ * and its value is the file access ring buffer associated with each pip.
+ * We need one file access ring buffer per pip (that is, per runner) since each runner
+ * subscribes to its own file access ring buffer and applies file manifest specific logic
+ * We set max entries dynamically at creation time
+ */
+struct {
+    __uint(type, BPF_MAP_TYPE_HASH_OF_MAPS);
+    __type(key, pid_t);
+    // We need all runners to share this map
+    __uint(pinning, LIBBPF_PIN_BY_NAME);
+    // TODO: remove in favor of a dynamic setup
+    __uint(max_entries, 1024);
+    __array(values, struct file_access_ring_buffer);
+} file_access_per_pip SEC(".maps");
+
+/**
+ * Similar to file_access_per_pip, holds one debug ring buffer per sandboxed process.
+ * We set max entries dynamically at creation time
+ */
+struct {
+    __uint(type, BPF_MAP_TYPE_HASH_OF_MAPS);
+    __type(key, pid_t);
+    // We need all runners to share this map
+    __uint(pinning, LIBBPF_PIN_BY_NAME);
+    // TODO: remove in favor of a dynamic setup
+    __uint(max_entries, 1024);
+    __array(values, struct debug_ring_buffer);
+} debug_buffer_per_pip SEC(".maps");
+
+/**
+ * Used to hold processes that will breakaway from the sandbox.
+ * Used on kernel side only, this map is not exposed to user side
+ */
+struct {
+    __uint(type, BPF_MAP_TYPE_HASH);
+    __type(key, pid_t);
+    __type(value, pid_t);
+    // The upper bound represents the max number of pids that matches a breakaway definition from the time
+    // execve is traced to the point where wakeup_new_task happens. So in theory we should be fine with a pretty
+    // small number, but considering this is an int -> int map, memory shouldn't be a big concern
+    __uint(max_entries, 512);
+} breakaway_pids SEC(".maps");
+
+/**
+ * Map containing breakaway processes populated from the user side. We have one of this per pip and are held in a 
+ * map of maps
+ */
+struct breakaway_processes {
+    __uint(type, BPF_MAP_TYPE_ARRAY);
+    __uint(key_size, sizeof(pid_t));
+    __uint(value_size, sizeof(breakaway_process));
+    __uint(max_entries, MAX_BREAKAWAY_PROCESSES);
+} breakaway_processes SEC(".maps");
+
+/**
+ * Similar to file_access_per_pip, holds one maps of breakaway processes per sandboxed process.
+ * We set max entries dynamically at creation time
+ */
+struct {
+    __uint(type, BPF_MAP_TYPE_HASH_OF_MAPS);
+    __type(key, pid_t);
+    // We need all runners to share this map
+    __uint(pinning, LIBBPF_PIN_BY_NAME);
+    // TODO: remove in favor of a dynamic setup
+    __uint(max_entries, 1024);
+    __array(values, struct breakaway_processes);
+} breakaway_processes_per_pip SEC(".maps");
+
+// Whether the given pid is one we care about (i.e. is part of the pid map we keep). If the pid is valid,
+// sets runner_pid to its associated value
+__attribute__((always_inline)) static bool is_valid_pid(const pid_t pid, pid_t *runner_pid) {
+    pid_t *value = bpf_map_lookup_elem(&pid_map, &pid);
+    if (value)
+    {
+        *runner_pid = *value;
+        return true;
+    }
+
+    return false;
+}
+
+__attribute__((always_inline)) static inline bool monitor_process(const pid_t pid, pid_t runner_pid) {
+    struct sandbox_options *options = bpf_map_lookup_elem(&sandbox_options_per_pip, &runner_pid);
+
+    // If for some reason options was not set, assume that child processes are monitored
+    if (!options) {
+        return true;
+    }
+
+    // If this is not the root process, then this flag is not applicable
+    // We will always monitor child processes of children
+    if (pid == options->root_pid) {
+        // Only the first exec on the root process is counted against the monitoring child processes flag
+        // If another exec comes on the same process, we will not monitor child processes if the flag set.
+        if (!options->root_pid_init_exec_occured) {
+            options->root_pid_init_exec_occured = 1;
+            return true;
+        }
+    }
+
+    return options->is_monitoring_child_processes;
 }
 
 // Returns the parent pid of the current task
@@ -43,6 +181,7 @@ __attribute__((always_inline)) static int get_ppid() {
 
 // We use one entry per cpu
 // Used to store temporary paths
+// TODO: change for a BPF_MAP_TYPE_PERCPU_ARRAY just to reduce cognitive load
 struct
 {
     __uint(type, BPF_MAP_TYPE_ARRAY);
@@ -58,10 +197,10 @@ struct
 // a temporary path is kept while operating with another one), as the verifier will be happy with the given boundaries
 struct
 {
-    __uint(type, BPF_MAP_TYPE_ARRAY);
+    __uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
     __uint(key_size, sizeof(uint32_t));
     __uint(value_size, PATH_MAX * 2);
-    __uint(max_entries, MAX_PROC);
+    __uint(max_entries, 1);
 } derefpaths SEC(".maps");
 
 // Returns a string representation of the content of a struct path (dentry and vfsmount being its two components)
@@ -72,7 +211,6 @@ __attribute__((always_inline)) static inline uint32_t deref_path_info(char *dest
     char *temp = NULL;
     unsigned int i;
     unsigned int size = 0;
-    uint32_t map_id = bpf_get_smp_processor_id();
     const void *path = NULL;
     const void *newdentry = NULL;
     const void *mnt = NULL;
@@ -84,7 +222,8 @@ __attribute__((always_inline)) static inline uint32_t deref_path_info(char *dest
     mnt = container_of(vfsmount, struct mount, mnt);
  
     // retrieve temporary filepath storage
-    temp = bpf_map_lookup_elem(&derefpaths, &map_id);
+    int index = 0;
+    temp = bpf_map_lookup_elem(&derefpaths, &index);
     if (!temp)
     {
         return 0;
@@ -93,7 +232,7 @@ __attribute__((always_inline)) static inline uint32_t deref_path_info(char *dest
     for (i = 0; i < FILEPATH_NUMDIRS; i++)
     {
         dname = (char *)BPF_CORE_READ((struct dentry *)dentry, d_name.name);
-       
+        
         if (!dname)
         {
             // If we didn't have a mount set, this means we reach the root of the filesystem
@@ -197,10 +336,17 @@ __attribute__((always_inline)) static inline uint32_t deref_path_info(char *dest
                     );
         temp[tsize & (PATH_MAX - 1)] = '+';
     }
+    else if (size == 0)
+    {
+        // This means we only found '/' characters along the way. Assume this represents the root dir
+        size++;
+        temp[(PATH_MAX - size) & (PATH_MAX -1)] = '\0';
+        size++;
+        temp[(PATH_MAX - size) & (PATH_MAX -1)] = '/';
+    }
     else if (size == 1)
     {
-        // smallest size is 1 as a 0 length read above would have bailed
-        // so the shortest valid read would be a single null character.
+        // This means the shortest valid read would be a single null character.
         // assume this represents the root dir
         size++;
         temp[(PATH_MAX - size) & (PATH_MAX -1)] = '/';
@@ -234,9 +380,8 @@ __attribute__((always_inline)) static inline uint32_t deref_path_info(char *dest
     }
  
     // copy the path from the temporary location to the destination
-    char *msg = &temp[(PATH_MAX - size) & (PATH_MAX -1)];
     dlen = bpf_core_read_str(dest, PATH_MAX, &temp[(PATH_MAX - size) & (PATH_MAX -1)]);
-   
+
     if (dlen <= 0)
     {
         return 0;
@@ -320,8 +465,8 @@ __attribute__((always_inline)) static inline uint32_t combine_paths(char* path, 
     uint32_t tsize = 0;
 
     char *temp_path = NULL;
-    uint32_t map_id = bpf_get_smp_processor_id();    
-    temp_path = bpf_map_lookup_elem(&derefpaths, &map_id);
+    int index = 0;
+    temp_path = bpf_map_lookup_elem(&derefpaths, &index);
     if (!temp_path)
     {
         return 0;
@@ -460,10 +605,9 @@ static int argv_to_string(char *const *argv, char* dest)
     
     int index = 0;
     int remaining_length = PATH_MAX - 1;
-    uint32_t map_id = bpf_get_smp_processor_id();
 
     // Using temporary path storage here to read each argument
-    char *temp = bpf_map_lookup_elem(&derefpaths, &map_id);
+    char *temp = bpf_map_lookup_elem(&derefpaths, &index);
     if (temp == NULL) {
         return 0;
     }
@@ -501,17 +645,6 @@ static int argv_to_string(char *const *argv, char* dest)
     // -1 from the final result to exclude the null terminating character from the length
     return bpf_probe_read_kernel_str(dest, ((index + 1) & (PATH_MAX - 1)), &temp[0]) - 1;
 }
-
-/**
- * Map containing breakaway processes populated from the user side.
- */
-struct {
-    __uint(type, BPF_MAP_TYPE_ARRAY);
-    __uint(key_size, sizeof(uint32_t));
-    __uint(value_size, sizeof(breakaway_process));
-    __uint(max_entries, MAX_BREAKAWAY_PROCESSES);
-    __uint(map_flags , BPF_F_RDONLY_PROG);
-} breakaway_processes SEC(".maps");
 
 /**
  * breakaway_map_callback() - Callback function to check if the current process needs to breakaway.
@@ -562,13 +695,14 @@ static long basename_loop_callback(u64 index, exec_event_metadata **ctx) {
 }
 
 /**
- * process_needs_breakaway() - Verifies if the given process needs to breakaway.
+ * process_needs_breakaway() - Verifies if the given process needs to breakaway by updating
+ * the given event `needs_breakaway` field. Returns non-zero if the breakaway map could not be retrieved
  * 
  * This function uses bpf_loop instead of a for/while loop because using an escape
  * hatch allows us to reduce the amount of time needed to verify the program.
  * Additionally, bpf_loop lets us have much bigger loops without hitting the instruction limit.
  */
-static void process_needs_breakaway(exec_event_metadata *event) {
+static int process_needs_breakaway(exec_event_metadata *event, pid_t runner_pid) {
     event->needs_breakaway = false;
 
     // The path that we have is the full path to the executable
@@ -578,8 +712,16 @@ static void process_needs_breakaway(exec_event_metadata *event) {
     // -1 to Ignore the null terminating character
     event->exe_name_len = event->exe_path_len - event->exe_name_start_index - 1;
 
+    // Retrieve the corresponding breakaway map given the runner id
+    void *breakaway_processes = bpf_map_lookup_elem(&breakaway_processes_per_pip, &runner_pid);
+    if (breakaway_processes == NULL) {
+        return -1;
+    } 
+
     // Check if the process needs to breakaway
-    bpf_for_each_map_elem(&breakaway_processes, breakaway_map_callback, &event, 0);
+    bpf_for_each_map_elem(breakaway_processes, breakaway_map_callback, &event, 0);
+    
+    return 0;
 }
 
 #endif // __PUBLIC_SRC_SANDBOX_LINUX_EBPF_EBPFUTILITIES_H

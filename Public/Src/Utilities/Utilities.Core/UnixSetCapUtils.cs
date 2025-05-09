@@ -3,6 +3,7 @@
 
 using System;
 using System.IO;
+using System.Linq;
 
 namespace BuildXL.Utilities.Core;
 
@@ -29,6 +30,10 @@ public class UnixSetCapUtils : UnixUtilsBase
     /// This requires an interactive prompt for sudo password.
     /// Do not call this if you're not sure whether it's possible to interactively prompt from the engine.
     /// </remarks>
-    public bool SetCapability(string binaryPath, UnixCapability capability) 
-        => CheckConditionAgainstStandardOutput(binaryPath, $"{capability.CapabilityString()} {binaryPath}", string.IsNullOrEmpty, runAsSudo: true);
+    public bool SetCapability(string binaryPath, params UnixCapability[] capabilities) 
+        => CheckConditionAgainstStandardOutput(
+            binaryPath, 
+            $"\"{string.Join(" ", capabilities.Select(cap => cap.CapabilityString()))}\" {binaryPath}", 
+            condition: string.IsNullOrEmpty, 
+            runAsSudo: true);
 }

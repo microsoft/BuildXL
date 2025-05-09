@@ -315,6 +315,24 @@ namespace BuildXL.Processes
         }
 
         /// <summary>
+        /// Entry point for reporting sandbox infrastructure messages. See <see cref="ExtendedDetoursEventListener"/>
+        /// </summary>
+        /// <remarks>
+        /// The message is reported to the detours listener if one is registered.
+        /// </remarks>
+        public bool ReportSandboxInfraMessage(ExtendedDetoursEventListener.SandboxInfraMessage sandboxInfraMessage)
+        {
+            if (m_detoursEventListener != null &&
+                m_detoursEventListener is ExtendedDetoursEventListener extendedDetoursEventListener &&
+                (m_detoursEventListener.GetMessageHandlingFlags() & MessageHandlingFlags.DebugMessageNotify) != 0)
+            {
+                extendedDetoursEventListener.HandleSandboxInfraMessage(sandboxInfraMessage);
+            }
+
+            return true;
+        }
+
+        /// <summary>
         /// Callback invoked when a new report item is received from the native monitoring code
         /// <returns>true if the processing should continue. Otherwise false, which should cause exiting of the processing of data.</returns>
         /// </summary>

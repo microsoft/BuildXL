@@ -125,6 +125,11 @@ private:
     static inline SandboxEvent Invalid() {
         return SandboxEvent();
     }
+
+    /**
+     * Escapes '|' and '\r\n' characters in the provided string.
+     */
+    void EscapeString(std::string& str);
 public:
     
     /**

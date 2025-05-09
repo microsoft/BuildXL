@@ -25,6 +25,8 @@
 
 #define KERNEL_FUNCTION(name) KERNEL_##name
 #define CONVERT_KERNEL_FUNCTION_TO_STRING(fn) case KERNEL_FUNCTION(fn): return #fn;
+#define TO_STRING(s) #s
+#define EXPAND_AND_STRINGIFY(x) TO_STRING(x)
 
 // Copied from Public/Src/Sandbox/Linux/Operations.h. TODO: Unify
 typedef enum operation_type {
@@ -87,6 +89,9 @@ inline const char* operation_type_to_string(operation_type o) {
             return "[unknown operation]";
     }
 }
+
+// This function is arbitrarily picked as the witness for having loaded all our ebpf programs
+#define LOADING_WITNESS wake_up_new_task
 
 // This is the list of kernel functions we trace. In general, we prefer hooking into security_* as much as possible since
 // that's a common layer for many kernel functions and we can 1) trace less functions overall, compared to tracing higher-level ones (like
@@ -217,7 +222,30 @@ typedef struct exec_event_metadata {
 typedef struct ebpf_event_debug {
     ebpf_event_type event_type;
     int pid;
+    int runner_pid;
     char message[PATH_MAX];
 } ebpf_event_debug;
+
+typedef struct sandbox_options {
+    int root_pid;
+    int root_pid_init_exec_occured;
+    int is_monitoring_child_processes;
+} sandbox_options;
+
+/**
+ * An event key represents an operation + path, and used as a way to identify 'equivalent' events and prevent sending duplicates to user space.
+ * For identifying the path, we use a combination of its dentry and vfsmount pair, and just use their memory
+ * location (as unsigned long) to identify them. The rationale is that a dentry + mount pair is already pointing to a univocally
+ * determined object in memory representing the path (which assumes that when the kernel lookup calls resolve a given path-as-string
+ * it always ends up with the same dentry+mount instances for the same string). Even if this is not the case in all possible contexts, that it is
+ * true in *most* contexts is enough to avoid sending too many equivalent events to user space.
+ * Consider that using path-as-strings for the key is probably not a great idea, as the lookup logic for bpf maps use bitwise equality and there is no good way to represent
+ * a PATH_MAX long string in the key and make that efficient. Luckily, most operations we care about give us access to the corresponding dentry and mount.
+ */
+typedef struct cache_event_key {
+    unsigned long dentry;
+    unsigned long vfsmount;
+    operation_type op_type;
+} cache_event_key;
 
 #endif // __PUBLIC_SRC_SANDBOX_LINUX_EBPF_EBPFCOMMON_H

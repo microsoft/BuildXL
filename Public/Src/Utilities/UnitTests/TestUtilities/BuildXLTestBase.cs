@@ -35,7 +35,7 @@ namespace Test.BuildXL.TestUtilities
         /// <remarks>
         /// Only relevant when running on Linux
         /// </remarks>
-        const string UseEBPFTesDataValue = "useEBPFSandbox";
+        private const string UseEBPFTesDataValue = "useEBPFSandbox";
 
         // CODESYNC: Public\Sdk\Public\Managed\testing.dsc
         private const string TestRunDataXmlFileName = "testRunData.xml";

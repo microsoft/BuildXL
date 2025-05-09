@@ -234,7 +234,11 @@ bool SyscallHandler::HandleExecEvent(BxlObserver *bxl, const ebpf_event_exec *ev
 }
 
 bool SyscallHandler::HandleDebugEvent(BxlObserver *bxl, const ebpf_event_debug *event) {
-    bxl->LogError(event->pid, event->message);
+    // Add the pip id (as seen by EBPF) to all debug messages
+    char messageWithPipId[PATH_MAX];
+    snprintf(messageWithPipId, PATH_MAX, "[%lu] [%d] %s", event->runner_pid, event->pid, event->message);
+
+    bxl->LogError(event->pid, messageWithPipId);
     return true;
 }
 

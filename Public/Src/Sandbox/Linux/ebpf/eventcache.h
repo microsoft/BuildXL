@@ -12,37 +12,35 @@
 #include "ebpfcommon.h"
 #include "ebpfutilities.h"
 
-/**
- * An event key represents an operation + path, and used as a way to identify 'equivalent' events and prevent sending duplicates to user space.
- * For identifying the path, we use a combination of its dentry and vfsmount pair, and just use their memory
- * location (as unsigned long) to identify them. The rationale is that a dentry + mount pair is already pointing to a univocally
- * determined object in memory representing the path (which assumes that when the kernel lookup calls resolve a given path-as-string
- * it always ends up with the same dentry+mount instances for the same string). Even if this is not the case in all possible contexts, that it is
- * true in *most* contexts is enough to avoid sending too many equivalent events to user space.
- * Consider that using path-as-strings for the key is probably not a great idea, as the lookup logic for bpf maps use bitwise equality and there is no good way to represent
- * a PATH_MAX long string in the key and make that efficient. Luckily, most operations we care about give us access to the corresponding dentry and mount.
- */
-struct cache_event_key {
-    unsigned long dentry;
-    unsigned long vfsmount;
-    operation_type operation_type;
-};
+__attribute__((always_inline)) static inline void report_event_cache_not_found(pid_t runner_pid);
 
-// We keep a LRU map per CPU so we do not send out events that are considered equivalent. Sending too many events can cause the ring buffer to not be able 
-// to keep up and allocations will start to fail. We use BPF_MAP_TYPE_LRU_PERCPU_HASH maps and BPF_F_NO_COMMON_LRU so we keep evictions as fast as possible. 
-// Please refer to https://docs.kernel.org/bpf/map_hash.html for details.
-// We don't really care about having accurate eviction or across-CPU duplication, we just need a way to avoid sending events for very repetitive operations on the same set of paths in 
+// We keep a LRU map so we do not send out events that are considered equivalent. Sending too many events can cause the ring buffer to not be able
+// to keep up and allocations will start to fail. Please refer to https://docs.kernel.org/bpf/map_hash.html for details.
+// We don't really care about having accurate eviction or across-CPU duplication, we just need a way to avoid sending events for very repetitive operations on the same set of paths in
 // a short period of time.
-struct {
-    __uint(type, BPF_MAP_TYPE_LRU_PERCPU_HASH);
+struct event_cache {
+    __uint(type, BPF_MAP_TYPE_LRU_HASH);
     // We want to keep a balance between not sending repetitive paths and keeping this map small enough so eviction is not that expensive.
     // We could bump this up if we see allocation problems for repetitive paths
-    __uint(max_entries, 32);
-    __type(key, struct cache_event_key);
+    __uint(max_entries, 65536);
+    __type(key, cache_event_key);
     // We don't really care about the value, we use this map as a set
     __type(value, short);
-    __uint(map_flags, BPF_F_NO_COMMON_LRU);
-} event_map SEC(".maps");
+} event_cache SEC(".maps");
+
+/**
+ * Similar to file_access_per_pip, holds one event cache per pip. Cached events shouldn't be shared cross-pips
+ * We set max entries dynamically at creation time
+ */
+struct {
+    __uint(type, BPF_MAP_TYPE_HASH_OF_MAPS);
+    __type(key, pid_t);
+    // We need all runners to share this map
+    __uint(pinning, LIBBPF_PIN_BY_NAME);
+    // TODO: remove in favor of a dynamic setup
+    __uint(max_entries, 1024);
+    __array(values, struct event_cache);
+} event_cache_per_pip SEC(".maps");
 
 /**
  * The constant we use as map values. We are using the map as a set, so the value is not important.
@@ -59,23 +57,29 @@ __attribute__((always_inline)) static inline unsigned long ptr_to_long(const voi
  * effect, adds it to the cache if it wasn't there.
  * Consider that behind scenes a LRU cache is used, so whether an element is kept in the cache depends on usage/frequency
  */
-__attribute__((always_inline)) static bool should_send_path(operation_type operation, const struct path* path) 
+__attribute__((always_inline)) static bool should_send_path(pid_t runner_pid, operation_type operation, const struct path* path)
 {
     struct dentry *dentry = BPF_CORE_READ(path, dentry);
     struct vfsmount *vfsmount = BPF_CORE_READ(path, mnt);
 
     // Just get the memory address of dentry and mount to build the key
-    struct cache_event_key key = {.dentry = ptr_to_long(dentry), .vfsmount = ptr_to_long(vfsmount), .operation_type = operation};
+    struct cache_event_key key = {.dentry = ptr_to_long(dentry), .vfsmount = ptr_to_long(vfsmount), .op_type = operation};
+
+    void *event_cache = bpf_map_lookup_elem(&event_cache_per_pip, &runner_pid);
+    if (event_cache == NULL) {
+        report_event_cache_not_found(runner_pid);
+        return 0;
+    }
 
     // If the key is not there, we should send the event and add the key as well
     // We could use BPF_NOEXIST and save one lookup operation, but it looks like this flag is not working properly in some circumstances and
     // the lookup comes back with a successful error code when the element exists.
-    if (bpf_map_lookup_elem(&event_map, &key) == NULL)
+    if (bpf_map_lookup_elem(event_cache, &key) == NULL)
     {
-        bpf_map_update_elem(&event_map, &key, &NO_VALUE, BPF_ANY);
+        bpf_map_update_elem(event_cache, &key, &NO_VALUE, BPF_ANY);
         return true;
     }
-    
+
     // If the lookup found the key, don't send the event
     return false;
 }

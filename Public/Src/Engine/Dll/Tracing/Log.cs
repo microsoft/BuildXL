@@ -817,6 +817,26 @@ namespace BuildXL.Engine.Tracing
         public abstract void ErrorCacheDisabledDistributedBuild(LoggingContext context, string errorMessage);
 
         [GeneratedEvent(
+            (ushort)LogEventId.ErrorEBPFCannotStart,
+            EventGenerators = EventGenerators.LocalOnly,
+            Message = "EBPF sandbox cannot be initialized: {errorMessage}",
+            EventLevel = Level.Error,
+            EventTask = (ushort)Tasks.Engine,
+            EventOpcode = (byte)EventOpcode.Info,
+            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
+        public abstract void ErrorEBPFCannotStart(LoggingContext context, string errorMessage);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.ErrorEBPFFailedUnexpectedly,
+            EventGenerators = EventGenerators.LocalOnly,
+            Message = "EBPF daemon failed unexpectedly: {errorMessage}",
+            EventLevel = Level.Error,
+            EventTask = (ushort)Tasks.Engine,
+            EventOpcode = (byte)EventOpcode.Info,
+            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
+        public abstract void ErrorEBPFFailedUnexpectedly(LoggingContext context, string errorMessage);
+
+        [GeneratedEvent(
             (ushort)SharedLogEventId.DistributionWorkerForwardedError,
             EventGenerators = EventGenerators.LocalOnly,
             Message = "Worker {workerForwardedEvent.WorkerName} logged error:\n{workerForwardedEvent.Text}",

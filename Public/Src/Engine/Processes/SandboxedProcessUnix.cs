@@ -78,6 +78,11 @@ namespace BuildXL.Processes
         /// </summary>
         public string ExecutableAbsolutePath => Process.StartInfo.FileName;
 
+        /// <inheritdoc/>
+        protected override bool HasSandboxFailures => m_infraErrorReceived;
+
+        private bool m_infraErrorReceived = false;
+
         /// <summary>
         /// Gets file path for standard input.
         /// </summary>
@@ -135,7 +140,7 @@ namespace BuildXL.Processes
 
         /// <nodoc />
         public SandboxedProcessUnix(SandboxedProcessInfo info)
-            : base(info)
+            : base(info, useGentleKill: info.SandboxConnection?.Kind == SandboxKind.LinuxEBPF)
         {
             Contract.Requires(info.FileAccessManifest != null);
             Contract.Requires(info.SandboxConnection != null);
@@ -322,7 +327,7 @@ namespace BuildXL.Processes
         protected override bool Killed => Interlocked.Read(ref m_processKilledFlag) > 0;
 
         /// <inheritdoc />
-        protected override async Task KillAsyncInternal(bool dumpProcessTree, bool gentleKill = false, int gentleKillTimeoutMilliseconds = 2000)
+        protected override async Task KillAsyncInternal(bool dumpProcessTree)
         {
             // In the case that the process gets shut down by either its timeout or e.g. SandboxedProcessPipExecutor
             // detecting resource usage issues and calling KillAsync(), we flag the process with m_processKilled so we
@@ -338,7 +343,7 @@ namespace BuildXL.Processes
                 LogDebug("KillAsyncInternal: KillActivePTraceRunners()");
                 KillActivePTraceRunners();
                 LogDebug("KillAsyncInternal: System.Diagnostics.Process.Kill()");
-                await base.KillAsyncInternal(dumpProcessTree, gentleKill: gentleKill || SandboxConnection.Kind == SandboxKind.LinuxEBPF, gentleKillTimeoutMilliseconds);
+                await base.KillAsyncInternal(dumpProcessTree);
                 // a process exit report may not have been reported during the SIGTERM timeout, so set this flag to ensure the sandbox does not hang.
                 m_processExitReceived = true;
                 LogDebug("KillAsyncInternal: KillAllChildProcesses()");
@@ -656,16 +661,35 @@ namespace BuildXL.Processes
                 {
                     switch (report.Severity)
                     {
-                        case DebugEventSeverity.Error:
-                        case DebugEventSeverity.Warning:
+                        case SandboxInfraSeverity.Error:
+                        case SandboxInfraSeverity.Warning:
                             Logger.Log.SandboxErrorMessage(m_loggingContext, m_reports.PipDescription, report.Data);
                             break;
-                        case DebugEventSeverity.Info:
+                        case SandboxInfraSeverity.Info:
                             LogDebug(report.Data);
                             break;
                     }
 
-                    // Debug messages don't need additional processing, so we can return here without posting it.
+                    // If we got an infra error, set the sandbox failure flag so the pip ends up failing appropriately 
+                    if (report.Severity == SandboxInfraSeverity.Error)
+                    {
+                        m_infraErrorReceived = true;
+                    }
+
+                    if (ReportsCompleted())
+                    {
+                        return;
+                    }
+
+                    // Report this infra error so any (extended) detours listener can pick it up
+                    m_reports.ReportSandboxInfraMessage(
+                        new ExtendedDetoursEventListener.SandboxInfraMessage() { 
+                            Message = report.Data,
+                            PipDescription = PipDescription,
+                            PipId = PipId,
+                            Severity = report.Severity
+                        });
+
                     return;
                 }
                 case ReportType.FileAccess:

@@ -145,7 +145,7 @@ namespace BuildXL.FrontEnd.Utilities
                 if (OperatingSystemHelper.IsLinuxOS)
                 {
                     info.SandboxConnection = useEBPFLinuxSandbox 
-                        ? new SandboxConnectionLinuxEBPF(sandboxConnectionFailureCallback) 
+                        ? new SandboxConnectionLinuxEBPF(sandboxConnectionFailureCallback, ebpfDaemonTask: EBPFDaemon.GetEBPFDaemonTask()) 
                         : new SandboxConnectionLinuxDetours(sandboxConnectionFailureCallback);
                 }
 

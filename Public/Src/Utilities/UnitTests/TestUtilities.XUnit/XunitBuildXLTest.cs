@@ -67,7 +67,9 @@ namespace Test.BuildXL.TestUtilities.Xunit
                     case SandboxKind.LinuxDetours:
                         return new SandboxConnectionLinuxDetours(FailureCallback, isInTestMode: true);
                     case SandboxKind.LinuxEBPF:
-                        return new SandboxConnectionLinuxEBPF(FailureCallback, isInTestMode: true);
+                        // EBPF should be already running, since the containing xunit pip should be running under ebpf. So no need to await the
+                        // ebpf daemon task
+                        return new SandboxConnectionLinuxEBPF(FailureCallback, isInTestMode: true, ebpfDaemonTask: null);
                     case SandboxKind.None:
                         return null;
                     default:

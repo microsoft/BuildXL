@@ -1315,6 +1315,33 @@ namespace BuildXL.Processes.Tracing
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Scheduler,
             Message = "[{pipDescription}] The pip tried to access a path longer than 4096 bytes, which exceeds the limit supported by BuildXL. The access will be ignored. Path: '{path}'")]
-        public abstract void PathTooLongIsIgnored(LoggingContext logging, string pipDescription, string path);  
+        public abstract void PathTooLongIsIgnored(LoggingContext logging, string pipDescription, string path);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.EBPFIsStillBeingInitialized,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Informational,
+            Keywords = (int)(Keywords.UserMessage | Keywords.Overwritable),
+            EventTask = (int)Tasks.Engine,
+            Message = "EBPF is still being initialized..")]
+        public abstract void EBPFIsStillBeingInitialized(LoggingContext context);
+
+        [GeneratedEvent(
+            (int)LogEventId.SynchronouslyWaitedForEBPF,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Engine,
+            Message = "Synchronously waited {0}ms for EBPF to finish initializing. {1}ms of EBPF initialization overlapped other processing")]
+        public abstract void SynchronouslyWaitedForEBPF(LoggingContext context, int waitTimeMs, int overlappedTimeMs);
+
+        [GeneratedEvent(
+            (int)LogEventId.EBPFDisposed,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Engine,
+            Message = "EBPF disposed: {info}")]
+        public abstract void EBPFDisposed(LoggingContext context, string info);
     }
 }

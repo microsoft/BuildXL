@@ -78,6 +78,11 @@ namespace BuildXL.Pips
         public static readonly SortedReadOnlyArray<FileArtifact, OrdinalPathOnlyFileArtifactComparer> EmptyStaticDirContents =
             SortedReadOnlyArray<FileArtifact, OrdinalPathOnlyFileArtifactComparer>.CloneAndSort(new FileArtifact[0], OrdinalPathOnlyFileArtifactComparer.Instance);
 
+        /// <summary>
+        /// This is the default symbol used for test pips that are created using the PipConstructionHelper.
+        /// </summary>
+        public static readonly string DefaultTestValueSymbol = "testValue";
+
         /// <nodoc />
         private PipConstructionHelper(
             PipExecutionContext context,
@@ -100,7 +105,7 @@ namespace BuildXL.Pips
             m_moduleName = moduleName;
             m_valuePip = valuePip;
             PipRelativePath = pipRelativePath;
-            
+
             m_semiStableHash = semiStableHashSeed;
             m_folderIdResolver = new ReserveFoldersResolver(this);
         }
@@ -206,7 +211,7 @@ namespace BuildXL.Pips
                 ModuleId.Create(context.StringTable, moduleName),
                 moduleName,
                 RelativePath.Create(context.StringTable, specRelativePath ?? "spec"),
-                FullSymbol.Create(context.SymbolTable, symbol ?? "testValue"),
+                FullSymbol.Create(context.SymbolTable, symbol ?? DefaultTestValueSymbol),
                 new LocationData(specPath ?? AbsolutePath.Create(context.PathTable, "d:\\src\\spec.dsc"), 0, 0),
                 qualifierId ?? QualifierId.Unqualified);
         }

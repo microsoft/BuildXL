@@ -423,6 +423,10 @@ namespace BuildXL.Engine.Tracing
         DistributionCompareEventStats = 7139,
         DistributionEventStatsNotFound = 7140,
         DistributionReportExecutionLogFailed = 7141,
+
+        ErrorEBPFCannotStart = 7143,
+        ErrorEBPFFailedUnexpectedly = 7144,
+
         // max 7200
     }
 }

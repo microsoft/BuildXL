@@ -36,6 +36,8 @@ namespace Test.BuildXL.Scheduler
 
         private readonly TestPipQueue m_testPipQueue;
 
+        private readonly IConfiguration m_configuration;
+
         public TestScheduler(
             PipGraph graph,
             TestPipQueue pipQueue,
@@ -74,6 +76,7 @@ namespace Test.BuildXL.Scheduler
                 globalReclassificationRules: globalReclassificationRules)
         {
             m_testPipQueue = pipQueue;
+            m_configuration = configuration;
 
             if (successfulPips != null)
             {
@@ -199,6 +202,20 @@ namespace Test.BuildXL.Scheduler
                     XAssert.AreEqual(expectedPipResult.Value.Value, actualPipResult);
                 }
             }
+        }
+
+        /// <inheritdoc/>
+        protected override bool InitSandboxConnection(LoggingContext loggingContext, ISandboxConnection sandboxConnection = null)
+        {
+            // The test scheduler runs in a context where if the EBPF sandbox is enabled, the EBPF daemon is already running, so there is no need
+            // to wait for the daemon task to complete (and in this context the daemon task is not actually created).
+            // So create a sandbox connection that does not wait for it and pass it downstream
+            if (UnixSandboxingEnabled && sandboxConnection == null && m_configuration.Sandbox.EnableEBPFLinuxSandbox)
+            {
+                return base.InitSandboxConnection(loggingContext, new SandboxConnectionLinuxEBPF(SandboxFailureCallback, ebpfDaemonTask: null));
+            }
+
+            return base.InitSandboxConnection(loggingContext, sandboxConnection);
         }
     }
 }

@@ -4,6 +4,7 @@
 #ifndef BUILDXL_SANDBOX_EBPF_SYSCALL_HANDLER_H
 #define BUILDXL_SANDBOX_EBPF_SYSCALL_HANDLER_H
 
+#include <cstdint>
 #include "ebpfcommon.h"
 #include "bxl_observer.hpp"
 #include "SandboxEvent.h"

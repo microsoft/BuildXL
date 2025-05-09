@@ -561,6 +561,12 @@ namespace BuildXL.Utilities.Configuration
         public static readonly Setting<bool> DumpOpenFilesOnDescriptorSpike = CreateSetting("BuildXLDumpOpenFilesOnDescriptorSpike", value => value == "1");
 
         /// <summary>
+        /// Temporary environment variable until we can retire the interpose sandbox. Used only for BuildXL selfhost, since
+        /// integration tests (that runs EBPF) need the daemon launched regardless of which sandbox is being used for the main build
+        /// </summary>
+        public static readonly Setting<bool> ForceLaunchEBPFDaemon = CreateSetting("BuildXLForceLaunchEBPFDaemon", value => value == "1");
+
+        /// <summary>
         /// List of env variables if present are used to override the BUILDXL_USERNAME.
         /// </summary>
         /// <remarks>

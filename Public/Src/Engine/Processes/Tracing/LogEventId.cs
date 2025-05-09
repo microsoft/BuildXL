@@ -181,5 +181,9 @@ namespace BuildXL.Processes.Tracing
         ProcessBreakaway = 14303,
 
         PathTooLongIsIgnored = 14304,
+
+        EBPFIsStillBeingInitialized = 14305,
+        SynchronouslyWaitedForEBPF = 14306,
+        EBPFDisposed = 14307,
     }
 }

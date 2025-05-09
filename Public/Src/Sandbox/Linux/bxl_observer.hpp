@@ -285,7 +285,6 @@ private:
     char** ensure_env_value_with_log(char *const envp[], char const *envName, const char *envValue);
     ssize_t read_path_for_fd(int fd, char *buf, size_t bufsiz, pid_t associatedPid = 0);
 
-    bool IsMonitoringChildProcesses() const { return !fam_ || CheckMonitorChildProcesses(fam_->GetFlags()); }
     bool IsPTraceEnabled() const { return fam_ && (CheckEnableLinuxPTraceSandbox(fam_->GetExtraFlags()) || CheckUnconditionallyEnableLinuxPTraceSandbox(fam_->GetExtraFlags())); }
     bool IsPTraceForced(const char *path);
 
@@ -370,6 +369,7 @@ public:
     buildxl::common::FileAccessManifest* GetFileAccessManifest() { return fam_;}
     const std::vector<buildxl::common::BreakawayChildProcess>& GetBreakawayChildProcesses() const { return fam_->GetBreakawayChildProcesses(); };
 
+    bool IsMonitoringChildProcesses() const { return !fam_ || CheckMonitorChildProcesses(fam_->GetFlags()); }
     bool IsReportingProcessArgs() const { return !fam_ || CheckReportProcessArgs(fam_->GetFlags()); }
 
     void report_intermediate_symlinks(const char *pathname, pid_t associatedPid, pid_t associatedParentPid);
@@ -479,6 +479,7 @@ public:
     void LogDebugMessage(pid_t pid, buildxl::linux::DebugEventSeverity severity, const char *fmt, va_list args);
     void LogDebug(pid_t pid, const char *fmt, ...);
     void LogError(pid_t pid, const char *fmt, ...);
+    void LogErrorArgList(pid_t pid, const char *fmt, va_list args);
     
     mode_t get_mode(const char *path)
     {

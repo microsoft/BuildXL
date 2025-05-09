@@ -4,12 +4,12 @@
 namespace BuildXL.Processes
 {
     /// <summary>
-    /// Severity of a debug event.
+    /// Severity of a debug/infra event.
     /// </summary>
     /// <remarks>
     /// CODESYNC: Public/Src/Sandbox/Linux/Operations.h
     /// </remarks>
-    public enum DebugEventSeverity
+    public enum SandboxInfraSeverity
     {
         /// <nodoc />
         Info = 0,
@@ -100,6 +100,6 @@ namespace BuildXL.Processes
         /// <summary>
         /// Severity of the event applicable only for <see cref="ReportType.DebugMessage"/>. 
         /// </summary>
-        public DebugEventSeverity Severity;
+        public SandboxInfraSeverity Severity;
     }
 }

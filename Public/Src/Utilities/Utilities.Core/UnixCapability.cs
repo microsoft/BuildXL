@@ -13,7 +13,11 @@ public enum UnixCapability
     /// <summary>
     /// Add capability to perform a range of system administration operations.
     /// </summary>
-    CAP_SYS_ADMIN
+    CAP_SYS_ADMIN,
+    /// <summary>
+    /// Processes which have it in their effective capability set, DAC (read/write/execute) permission checks are bypassed completely.
+    /// </summary>
+    CAP_DAC_OVERRIDE,
 }
 
 /// <summary>
@@ -29,6 +33,7 @@ public static class UnixCapabilityExtensions
         return capability switch
         {
             UnixCapability.CAP_SYS_ADMIN => "cap_sys_admin=ep",
+            UnixCapability.CAP_DAC_OVERRIDE => "cap_dac_override=ep",
             _ => throw new ArgumentOutOfRangeException(nameof(capability), capability, "Unknown capability")
         };
     }

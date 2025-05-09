@@ -1640,7 +1640,7 @@ namespace BuildXL.Engine
         {
             Contract.Requires(engineState == null || Configuration.Engine.ReuseEngineState);
 
-            BuildXLEngineResult result = DoRun(loggingContext, engineState, disposeFrontEnd);
+            BuildXLEngineResult result = DoRunAsync(loggingContext, engineState, disposeFrontEnd).GetAwaiter().GetResult();
 
             // When failed, we cannot dispose the engine state in the DoRun method because its finally clause still need
             // the engine state (i.e., the pip table) to complete the stats logging.
@@ -1650,7 +1650,7 @@ namespace BuildXL.Engine
         }
 
         [SuppressMessage("Microsoft.Maintainability", "CA1505:AvoidUnmaintainableCode")]
-        private BuildXLEngineResult DoRun(LoggingContext loggingContext, EngineState engineState = null, bool disposeFrontEnd = true)
+        private async Task<BuildXLEngineResult> DoRunAsync(LoggingContext loggingContext, EngineState engineState = null, bool disposeFrontEnd = true)
         {
             Contract.Requires(engineState == null || Configuration.Engine.ReuseEngineState);
             if (m_distributionService != null && !m_distributionService.Initialize())
@@ -1764,6 +1764,8 @@ namespace BuildXL.Engine
                             // Cache initialization can be long-running, so we pass around this init task so that consumers can choose
                             // to wait on close to when it is actually needed.
                             CacheInitializationTask cacheInitializationTask = null;
+                            EBPFDaemonTask ebpfDaemonTask = null;
+
                             ConstructScheduleResult constructScheduleResult = ConstructScheduleResult.None;
 
                             if (Configuration.Engine.TrackBuildsInUserFolder &&
@@ -1850,8 +1852,7 @@ namespace BuildXL.Engine
                                 // Ensure the EngineCache initialized correctly if this is a distributed build
                                 if (Configuration.Distribution.BuildRole != DistributedBuildRoles.None)
                                 {
-                                    Possible<CacheInitializer> possibleCacheInitializerForDistribution =
-                                        cacheInitializationTask.GetAwaiter().GetResult();
+                                    Possible<CacheInitializer> possibleCacheInitializerForDistribution = await cacheInitializationTask;
 
                                     if (!possibleCacheInitializerForDistribution.Succeeded)
                                     {
@@ -1868,6 +1869,7 @@ namespace BuildXL.Engine
                                     cacheInitializationTask,
                                     journalState,
                                     engineState,
+                                    out ebpfDaemonTask,
                                     out engineSchedule,
                                     out rootFilter);
                                 success &= constructScheduleResult != ConstructScheduleResult.Failure;
@@ -2036,8 +2038,8 @@ namespace BuildXL.Engine
                                     : TrySaveFileContentTable(loggingContext);
 
                                 // Saving file content table and post execution tasks are happening in parallel.
-                                success &= postExecutionTasks.GetAwaiter().GetResult();
-                                success &= savingFileContentTableTask.GetAwaiter().GetResult();
+                                success &= await postExecutionTasks;
+                                success &= await savingFileContentTableTask;
 
                                 ValidateSuccessMatches(success, engineLoggingContext);
 
@@ -2049,7 +2051,7 @@ namespace BuildXL.Engine
                                     return BuildXLEngineResult.Failed(engineState);
                                 }
 #if NET6_0_OR_GREATER
-                                var configLoggingResult = configLoggingTask.GetAwaiter().GetResult();
+                                var configLoggingResult = await configLoggingTask;
                                 if (!configLoggingResult.Succeeded)
                                 {
                                     // Serialization / logging might throw. If it does happen, it has no impact on a build process,
@@ -2060,10 +2062,39 @@ namespace BuildXL.Engine
                             }
                             finally
                             {
+                                if (ebpfDaemonTask != null)
+                                {
+                                    // If EBPF is on, the daemon task has probably been awaited already by running pips. But since we are about to tear everything down
+                                    // let's get a definitive answer regarding whether there was any problem with EBPF
+                                    var ebpfDaemon = await ebpfDaemonTask;
+                                    // Log some counters about ebpf initialization times
+                                    LoggingHelpers.LogCategorizedStatistic(loggingContext, "EBPFInitialization", "TimeWaitedMs", ebpfDaemonTask.InitializationTime.Milliseconds);
+                                    LoggingHelpers.LogCategorizedStatistic(loggingContext, "EBPFInitialization", "OverlappedInitializationMs", ebpfDaemonTask.OverlappedInitialization.Milliseconds);
+
+                                    if (ebpfDaemon.Succeeded)
+                                    {
+                                        // These errors are not expected. They are indicating a situation where EBPF was initialized successfully
+                                        // but then the daemon failed at some point while the build was running. Pips may have failed as well as a result
+                                        // but log these errors to provide more insights into the failure.
+                                        var afterInitErrors = ebpfDaemon.Result.EBPFErrors;
+                                        if (afterInitErrors.Count > 0)
+                                        {
+                                            Logger.Log.ErrorEBPFFailedUnexpectedly(loggingContext, string.Join(Environment.NewLine, afterInitErrors));
+                                            success = false;
+                                        }
+                                    }
+                                    else
+                                    {
+                                        success = false;
+                                    }
+
+                                    ebpfDaemonTask.Dispose();
+                                }
+
                                 // Ensure the task that saves the graph to the content cache has finished
                                 try
                                 {
-                                    m_graphCacheContentCachePut?.GetAwaiter().GetResult();
+                                    await (m_graphCacheContentCachePut ?? Task.CompletedTask);
                                 }
                                 catch (Exception e)
                                 {
@@ -2071,8 +2102,8 @@ namespace BuildXL.Engine
                                 }
 
                                 // Ensure the execution log supporting graph files have finished copying to the logs directory
-                                m_executionLogGraphCopy?.GetAwaiter().GetResult();
-                                m_previousInputFilesCopy?.GetAwaiter().GetResult();
+                                await (m_executionLogGraphCopy ?? Task.CompletedTask);
+                                await (m_previousInputFilesCopy ?? Task.CompletedTask);
 
                                 LogStats(loggingContext, engineSchedule, cacheInitializationTask, constructScheduleResult);
 
@@ -2123,10 +2154,13 @@ namespace BuildXL.Engine
 
                                 using (Context.EngineCounters.StartStopwatch(EngineCounter.EngineCacheInitDisposeDuration))
                                 {
-                                    // ReSharper disable once ReturnValueOfPureMethodIsNotUsed
-                                    cacheInitializationTask?.GetAwaiter().GetResult().Then(
-                                        cacheInitializer =>
+                                    if (cacheInitializationTask != null)
+                                    {
+                                        // ReSharper disable once ReturnValueOfPureMethodIsNotUsed
+                                        var maybeCacheInitializer = await cacheInitializationTask;
+                                        if (maybeCacheInitializer.Succeeded)
                                         {
+                                            var cacheInitializer = maybeCacheInitializer.Result;
                                             // Check for successful cache session close, otherwise fail the build
                                             Possible<string, Failure> cacheCloseResult = cacheInitializer.Close();
                                             if (!cacheCloseResult.Succeeded)
@@ -2137,8 +2171,8 @@ namespace BuildXL.Engine
                                                 success = false;
                                             }
                                             Context.EngineCounters.MeasuredDispose(cacheInitializer, EngineCounter.EngineCacheDisposeDuration);
-                                            return Unit.Void;
-                                        });
+                                        }
+                                    }
                                 }
 
                                 cacheInitializationTask?.Dispose();
@@ -2675,6 +2709,7 @@ namespace BuildXL.Engine
             CacheInitializationTask cacheInitializationTask,
             JournalState journalState,
             EngineState engineState,
+            out EBPFDaemonTask eBPFDaemonTask,
             out EngineSchedule engineSchedule,
             out RootFilter rootFilter)
         {
@@ -2685,6 +2720,8 @@ namespace BuildXL.Engine
             bool enablePartialEvaluation = Configuration.FrontEnd.UsePartialEvaluation();
 
             bool reusedGraph = false;
+
+            eBPFDaemonTask = null;
 
             if (Configuration.Engine.Phase == EnginePhases.None)
             {
@@ -2791,6 +2828,23 @@ namespace BuildXL.Engine
 
                 m_enginePerformanceInfo.CacheInitializationDurationMs = (long)cacheInitializationTask.InitializationTime.TotalMilliseconds;
             }
+
+            // Start EBPF daemon if needed. IF EBPF is not enabled, this will just return a completed task
+            // We will await this task when the first pip is about to run, but in the meantime it can overlap with other work
+            // Observe we do this here after the Context was maybe invalidated and a new one was loaded
+            // We don't create an ebpf daemon for test instances of the Engine because BuildXL should have already started
+            // the daemon.
+            if (TestHooks == null)
+            {
+                eBPFDaemonTask = EBPFDaemon.CreateEBPFDaemonTask(
+                    // TODO: remove the forced option when interpose can be retired.
+                    Configuration.Sandbox.EnableEBPFLinuxSandbox || EngineEnvironmentSettings.ForceLaunchEBPFDaemon,
+                    Configuration.Layout.ObjectDirectory,
+                    Context.PathTable,
+                    loggingContext,
+                    Context.CancellationToken);
+            }
+            
 
             if (Configuration.Engine.ExitOnNewGraph && !reusedGraph)
             {

@@ -48,9 +48,9 @@ namespace BuildXL.Processes
         private const int EndOfReportsSentinel = -22;
 
         /// <summary>
-        /// Location of the Linux EBPF launcher. CODESYNC: Public/Src/Sandbox/Linux/ebpf/BuildXL.Sandbox.Linux.eBPF.dsc
+        /// Location of the Linux EBPF runner. CODESYNC: Public/Src/Sandbox/Linux/ebpf/BuildXL.Sandbox.Linux.eBPF.dsc
         /// </summary>
-        public static readonly string EBPFLauncher = SandboxedProcessUnix.EnsureDeploymentFile("bxl-ebpf-runner");
+        public static readonly string EBPFRunner = SandboxedProcessUnix.EnsureDeploymentFile("bxl-ebpf-runner");
 
         /// <summary>
         /// Environment variable containing the path to the file access manifest to be read by the detoured process.
@@ -416,7 +416,7 @@ namespace BuildXL.Processes
                         
                         // If it was not removed and it was never removed before, then we have a problem:
                         // we missed the process start event for it. In the case of EBPF, this can happen if the pip was abruptly terminated
-                        // before it has the chance to send a process start event (since this happens on the ebpf launcher)
+                        // before it has the chance to send a process start event (since this happens on the ebpf runner)
                         // This happening for the root process is particularly sensitive, if no active processes are left we should send the proper
                         // sentinel to try to tear down the sandbox. Failing to doing so can make the sandbox non-terminating.
                         else if (!m_rootProcessWasRemoved)
@@ -598,7 +598,7 @@ namespace BuildXL.Processes
                              * 4. Message
                             */
                             report.ProcessId = AssertInt(nextField(restOfMessage, out restOfMessage));
-                            report.Severity = (DebugEventSeverity)AssertInt(nextField(restOfMessage, out restOfMessage));
+                            report.Severity = (SandboxInfraSeverity)AssertInt(nextField(restOfMessage, out restOfMessage));
                             report.Data = s_encoding.GetString(s_encoding.GetBytes(nextField(restOfMessage, out restOfMessage).ToArray())).Replace('!', '|');
 
                             break;
@@ -607,7 +607,7 @@ namespace BuildXL.Processes
                             break;
                     }
 
-                    Contract.Assert(restOfMessage.IsEmpty);  // We should have reached the end of the message
+                    Contract.Assert(restOfMessage.IsEmpty, $"Rest of message: {restOfMessage.ToString()}");  // We should have reached the end of the message
 
                     // update active processes
                     if (report.FileOperation == ReportedFileOperation.Process)
@@ -696,24 +696,35 @@ namespace BuildXL.Processes
 
         private static readonly Encoding s_encoding = Encoding.UTF8;
 
-        /// <nodoc />
-        public SandboxConnectionLinuxEBPF(ManagedFailureCallback failureCallback = null, bool isInTestMode = false)
+        private readonly EBPFDaemonTask m_ebpfDaemonTask;
+
+        /// <summary>
+        /// If an EBPF daemon task is provided, the task will be awaited before the first pip is about to run.
+        /// </summary>
+        /// <remarks>
+        /// The daemon task may not be provided when this connection is associated to the EBPF daemon (launched as soon as the build starts)
+        /// </remarks>
+        public SandboxConnectionLinuxEBPF(ManagedFailureCallback failureCallback = null, bool isInTestMode = false, EBPFDaemonTask ebpfDaemonTask = null)
         {
             m_failureCallback = failureCallback;
             IsInTestMode = isInTestMode;
             Native.Processes.ProcessUtilities.SetNativeConfiguration(UnsandboxedProcess.IsInDebugMode);
+            m_ebpfDaemonTask = ebpfDaemonTask;
 
             // Validate that the ebpf loader has the admin capability set.
             // For now we only want to do this for ADO builds because they won't require an interactive prompt
-            if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("TF_BUILD")))
+            // TODO: for now we are setting DAC_OVERRIDE to allow the executable to pin maps (which requires writing under th BPF file system). Consider
+            // mounting the file system explicitly as a way to avoid setting this cap.
+            if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("TF_BUILD")))
             {
                 var getCapUtils = UnixGetCapUtils.CreateGetCap();
-                if (!getCapUtils.BinaryContainsCapabilities(EBPFLauncher, UnixCapability.CAP_SYS_ADMIN))
+                if (!getCapUtils.BinaryContainsCapabilities(EBPFRunner, UnixCapability.CAP_SYS_ADMIN) || 
+                    !getCapUtils.BinaryContainsCapabilities(EBPFRunner, UnixCapability.CAP_DAC_OVERRIDE))
                 {
                     var setCapUtils = UnixSetCapUtils.CreateSetCap();
-                    if (!setCapUtils.SetCapability(EBPFLauncher, UnixCapability.CAP_SYS_ADMIN))
+                    if (!setCapUtils.SetCapability(EBPFRunner, UnixCapability.CAP_SYS_ADMIN, UnixCapability.CAP_DAC_OVERRIDE))
                     {
-                        throw new BuildXLException($"Failed to set CAP_SYS_ADMIN capability on {EBPFLauncher}");
+                        throw new BuildXLException($"Failed to set CAP_SYS_ADMIN and CAP_DAC_OVERRIDE capabilities on {EBPFRunner}");
                     }
                 }
             }
@@ -737,7 +748,7 @@ namespace BuildXL.Processes
             (_, string famPath) = GetPaths(uniqueName);
 
             yield return (BuildXLFamPathEnvVarName, famPath);
-            yield return ("__BUILDXL_EBPF_PATH", EBPFLauncher);
+            yield return ("__BUILDXL_EBPF_PATH", EBPFRunner);
         }
 
         /// <summary>
@@ -800,6 +811,16 @@ namespace BuildXL.Processes
 
             info.Start();
 
+            // If a daemon task was provided, wait for it to finish
+            if (m_ebpfDaemonTask != null)
+            {
+                var result = m_ebpfDaemonTask.GetAwaiter().GetResult();
+                if (!result.Succeeded)
+                {
+                    throw new BuildXLException($"EBPF daemon failed to initialize: {result.Failure.DescribeIncludingInnerFailures()}");
+                }
+            }
+
             void createNewFifo(string fifo)
             {
                 Analysis.IgnoreResult(FileUtilities.TryDeleteFile(fifo, retryOnFailure: false));
@@ -841,7 +862,7 @@ namespace BuildXL.Processes
         public void OverrideProcessStartInfo(ProcessStartInfo processStartInfo)
         {
             processStartInfo.Arguments = $"{processStartInfo.FileName} {processStartInfo.Arguments}";
-            processStartInfo.FileName = EBPFLauncher;
+            processStartInfo.FileName = EBPFRunner;
         }
     }
 }

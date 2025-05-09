@@ -83,17 +83,17 @@ namespace BuildXL.Processes
         /// <summary>
         /// Logging context from the <see cref="SandboxedProcessInfo"/> object passed to the constructor.
         /// </summary>
-        protected LoggingContext LoggingContext { get; }
+        protected LoggingContext LoggingContext => m_info.LoggingContext;
 
         /// <summary>
         /// Pip description from the <see cref="SandboxedProcessInfo"/> object passed to the constructor.
         /// </summary>
-        public string? PipDescription { get; }
+        public string? PipDescription => m_info.PipDescription;
 
         /// <summary>
         /// Pip's semi-stable hash from the <see cref="SandboxedProcessInfo"/> object passed to the constructor.
         /// </summary>
-        public long PipSemiStableHash { get; }
+        public long PipSemiStableHash => m_info.PipSemiStableHash;
 
         /// <summary>
         /// Unique name for this process during this build.  May change build over build, but need not be unique across different builds.
@@ -112,12 +112,12 @@ namespace BuildXL.Processes
         /// <summary>
         /// Returns the path table from the supplied <see cref="SandboxedProcessInfo"/>.
         /// </summary>
-        internal PathTable PathTable { get; }
+        internal PathTable PathTable => m_info.PathTable;
 
         /// <summary>
         /// Whether /logObservedFileAccesses has been requested
         /// </summary>
-        protected bool ShouldReportFileAccesses { get; }
+        protected bool ShouldReportFileAccesses => m_info.FileAccessManifest.ReportFileAccesses;
 
         /// <summary>
         /// Whether there were any failures regarding sandboxing (e.g., sandbox
@@ -125,24 +125,26 @@ namespace BuildXL.Processes
         /// </summary>
         protected virtual bool HasSandboxFailures => false;
 
-        private string? TimeoutDumpDirectory { get; }
+        private string? TimeoutDumpDirectory => m_info.TimeoutDumpDirectory;
 
-        private IDetoursEventListener? DetoursListener { get; }
+        private IDetoursEventListener? DetoursListener => m_info.DetoursEventListener;
+
+        private readonly bool m_useGentleKill;
+
+        private readonly int m_gentleKillTimeoutMilliseconds;
+
+        private readonly SandboxedProcessInfo m_info;
 
         /// <remarks>
         /// IMPORTANT: For memory efficiency reasons don't keep a reference to <paramref name="info"/>
         ///            or its  <see cref="SandboxedProcessInfo.FileAccessManifest"/> property
         ///            (at least not after the process has been started)
         /// </remarks>
-        public UnsandboxedProcess(SandboxedProcessInfo info)
+        public UnsandboxedProcess(SandboxedProcessInfo info, bool useGentleKill = false, int gentleKillTimeoutMilliseconds = 2000)
         {
-            PathTable = info.PathTable;
-            LoggingContext = info.LoggingContext;
-            PipDescription = info.PipDescription;
-            PipSemiStableHash = info.PipSemiStableHash;
-            TimeoutDumpDirectory = info.TimeoutDumpDirectory;
-            ShouldReportFileAccesses = info.FileAccessManifest.ReportFileAccesses;
-            DetoursListener = info.DetoursEventListener;
+            m_info = info;
+            m_useGentleKill = useGentleKill;
+            m_gentleKillTimeoutMilliseconds = gentleKillTimeoutMilliseconds;
             UniqueName = $"Pip{info.FileAccessManifest.PipId:X}.{Interlocked.Increment(ref m_uniqueNameCounter)}";
 
             info.Timeout ??= s_defaultProcessTimeout;
@@ -357,17 +359,18 @@ namespace BuildXL.Processes
         /// <inheritdoc/>
         public Task KillAsync() => 
             // Observe we never dump the process tree here, since the expectation is that KillAsync is called on pip cancellation only
+            // When EBPF is on, we always want a gentle kill, so we give the EBPF runner the opportunity to do house keeping before tearing down the pip
             KillAsyncInternal(dumpProcessTree: false);
 
         /// <summary>
         /// Kills the process indicating whether a dump should be produced before killing it.
         /// </summary>        
-        protected virtual Task KillAsyncInternal(bool dumpProcessTree, bool gentleKill = false, int gentleKillTimeoutMilliseconds = 2000)
+        protected virtual Task KillAsyncInternal(bool dumpProcessTree)
         {
             Contract.Requires(Started);
 
             LogDebug($"UnsandboxedProcess::KillAsync({ProcessId})");
-            return m_processExecutor.KillAsync(dumpProcessTree, gentleKill, gentleKillTimeoutMilliseconds);
+            return m_processExecutor.KillAsync(dumpProcessTree, m_useGentleKill, m_gentleKillTimeoutMilliseconds);
         }
 
         /// <summary>

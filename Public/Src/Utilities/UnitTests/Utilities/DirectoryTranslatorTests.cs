@@ -87,7 +87,7 @@ namespace Test.BuildXL.Utilities
                     "' < '" + A(getAtoms(new string[] { "A" })) + "'", error);
         }
 
-        [Fact]
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)] // Junctions are not supported on non-windows platforms
         public void TestDirectoryTranslatorUsedForJunctionsInCloudBuild()
         {
             var context = BuildXLContext.CreateInstanceForTesting();
@@ -219,18 +219,12 @@ namespace Test.BuildXL.Utilities
             }
         }
 
-        [TheoryIfSupported(requiresAdmin: true)]
+        [TheoryIfSupported(requiresAdmin: true, requiresWindowsBasedOperatingSystem: true)]
         [InlineData(true, false, false)] // Don't expect success when we cannot read through the junction
         [InlineData(true, true, true)]
         [InlineData(false, true, false)]
         public void TestDirectoryTranslatorJunctionNotWriteable(bool createJunction, bool onlyRevokeWrite, bool expectSuccessfulValidation)
         {
-            if (OperatingSystemHelper.IsMacOS)
-            {
-                // TODO work item #2260567: This test is temporarily disabled on macos
-                return;
-            }
-
             string uniqueTestCaseDirSuffix = $"createJunction_{createJunction}_onlyRevokeWrite_{onlyRevokeWrite}";
             var context = BuildXLContext.CreateInstanceForTesting();
             var pathTable = context.PathTable;

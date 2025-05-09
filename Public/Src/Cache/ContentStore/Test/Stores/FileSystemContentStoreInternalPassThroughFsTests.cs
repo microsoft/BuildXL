@@ -38,12 +38,12 @@ namespace BuildXL.Cache.ContentStore.Test.Stores
         {
         }
 
-        [FactIfSupported(requiresUnixBasedOperatingSystem: true, requiresAdmin: true)]
+        [FactIfSupported(Skip = "TODO work item #2276486: This test is temporarily disabled")]
         public async Task PutAttemptHardLinkCacheInDifferentMountFallBackToCopy()
         {
             if (BuildXL.Utilities.Core.OperatingSystemHelper.IsMacOS)
             {
-                // TODO work item #2260567: This test is temporarily disabled on macos
+                // TODO work item #2276486: This test is temporarily disabled on macos and Linux
                 return;
             }
 

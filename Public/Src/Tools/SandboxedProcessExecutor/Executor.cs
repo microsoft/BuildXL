@@ -430,7 +430,7 @@ namespace BuildXL.SandboxedProcessExecutor
             if (OperatingSystemHelper.IsLinuxOS)
             {
                 m_sandboxConnection = m_configuration.EnableEBPFLinuxSandbox
-                    ? new SandboxConnectionLinuxEBPF(SandboxConnectionFailureCallback)
+                    ? new SandboxConnectionLinuxEBPF(SandboxConnectionFailureCallback, ebpfDaemonTask: EBPFDaemon.GetEBPFDaemonTask())
                     : new SandboxConnectionLinuxDetours(SandboxConnectionFailureCallback);
             }
 

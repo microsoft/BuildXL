@@ -745,7 +745,7 @@ namespace BuildXL.Processes
                              * 4. Message
                             */
                             report.ProcessId = AssertInt(nextField(restOfMessage, out restOfMessage));
-                            report.Severity = (DebugEventSeverity)AssertInt(nextField(restOfMessage, out restOfMessage));
+                            report.Severity = (SandboxInfraSeverity)AssertInt(nextField(restOfMessage, out restOfMessage));
                             report.Data = s_encoding.GetString(s_encoding.GetBytes(nextField(restOfMessage, out restOfMessage).ToArray())).Replace('!', '|');
 
                             break;
@@ -754,7 +754,7 @@ namespace BuildXL.Processes
                             break;
                     }
 
-                    Contract.Assert(restOfMessage.IsEmpty);  // We should have reached the end of the message
+                    Contract.Assert(restOfMessage.IsEmpty, $"Rest of message: {restOfMessage.ToString()}");  // We should have reached the end of the message
 
                     // Flag that a ptrace runner was requested for this pip at least once.
                     // Observe the first time this is set to true, it is guaranteed that ptrace is not tracing any part

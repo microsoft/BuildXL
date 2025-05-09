@@ -231,7 +231,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "CB.QTest",
-          "Version": "25.4.29.161443"
+          "Version": "25.5.8.151344"
         }
       }
     },
@@ -240,7 +240,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "CB.QTestLinux",
-          "Version": "25.4.29.161254"
+          "Version": "25.5.8.151113"
         }
       }
     },

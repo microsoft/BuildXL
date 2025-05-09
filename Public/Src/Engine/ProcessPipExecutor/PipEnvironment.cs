@@ -53,9 +53,14 @@ namespace BuildXL.ProcessPipExecutor
         {
             m_loggingContext = loggingContext;
 
-            FullEnvironmentVariables = 
+            FullEnvironmentVariables =
                 GetFactory(ReportDuplicateVariable)
-                .PopulateFromEnvironment();
+                .PopulateFromEnvironment()
+                // Allow the RelatedSessionId to pass through to child processes at execute time.
+                // This happens here rather than in BuildParameters to avoid passing it around to all Factory
+                // methods as well as to ensure it can only ever be used as a passthrough variable that will not
+                // impact caching
+                .Override([new (BuildParameters.RelatedSessionIdVariableName, loggingContext.Session.RelatedId)]);
 
 #if PLATFORM_WIN
             var comspec = Path.Combine(SpecialFolderUtilities.SystemDirectory, "cmd.exe");

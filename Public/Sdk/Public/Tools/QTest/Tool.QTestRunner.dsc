@@ -492,6 +492,7 @@ export function runQTest(args: QTestArguments): Result {
         ],
         requireGlobalDependencies: true,
         passThroughEnvironmentVariables: [
+          "BUILD_SESSION_ID",
           ...(isJSProject ? jsProject.passThroughEnvironmentVariables : []),
           ...(qTestContextInfoFileContents.AuthTokenEnvVarName ? [qTestContextInfoFileContents.AuthTokenEnvVarName] : []),
         ],

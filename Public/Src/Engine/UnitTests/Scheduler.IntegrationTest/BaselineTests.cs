@@ -1669,15 +1669,20 @@ namespace IntegrationTest.BuildXL.Scheduler
             {
                 Operation.ReadEnvVar(passedEnvironmentVariable),
                 Operation.ReadEnvVar(unpassedEnvironmentVariable),
+                Operation.ReadEnvVar(BuildParameters.RelatedSessionIdVariableName),
                 Operation.WriteFile(CreateOutputFileArtifact()),
             };
 
             var builder = CreatePipBuilder(ops);
+            builder.SetPassthroughEnvironmentVariable(StringId.Create(Context.StringTable, BuildParameters.RelatedSessionIdVariableName));
             builder.Options |= Process.Options.RequireGlobalDependencies;
             var process = SchedulePipBuilder(builder).Process;
 
-            RunScheduler().AssertSuccess();
-            string log = EventListener.GetLog();
+            var result = RunScheduler().AssertSuccess();
+            var pipProcessOutputEvents = EventListener.GetLogMessagesForEventId((int)ProcessesLogEventId.PipProcessOutput);
+            XAssert.AreEqual(1, pipProcessOutputEvents.Length, "Should have one pip process output event");
+            string log = pipProcessOutputEvents[0];
+            XAssert.IsTrue(log.Contains(result.Session.RelatedId));
             XAssert.IsTrue(log.Contains(passedOriginalValue));
             XAssert.IsFalse(log.Contains(unpassedValue));
 

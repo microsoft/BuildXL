@@ -596,7 +596,8 @@ namespace Test.BuildXL.TestUtilities
         /// </summary>
         public static LoggingContext CreateLoggingContextForTest(ILogger logger = null)
         {
-            return new LoggingContext(loggerComponentInfo: "BuildXLTest", environment: "BuildXLTest", logger: logger);
+            var sessionInfo = new LoggingContext.SessionInfo(Guid.NewGuid(), "BuildXLTest", Guid.NewGuid());
+            return new LoggingContext(activityId: sessionInfo.ActivityId, session: sessionInfo, loggerComponentInfo: sessionInfo.Environment, logger: logger);
         }
 
         /// <summary>

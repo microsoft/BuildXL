@@ -35,6 +35,11 @@ namespace BuildXL.Utilities.Core
         public const string IsInCloudBuildVariableName = "BUILDXL_IS_IN_CLOUDBUILD";
 
         /// <summary>
+        /// Name of the variable used to pass the session id through to child processes for sake of tracing
+        /// </summary>
+        public const string RelatedSessionIdVariableName = "BUILD_SESSION_ID";
+
+        /// <summary>
         /// These environment variables should not be read from config, since
         /// they refer to temporary directories that we reserve the right to redirect.
         /// Uses only uppercase strings to maintain consistency.

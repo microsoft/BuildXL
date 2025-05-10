@@ -110,11 +110,12 @@ export const pkgs = isMicrosoftInternal ? [
     { id: "Strings.Interop", version: "1.10.0" },
     { id: "RE2.Managed", version: "1.10.0" },
     { id: "Microsoft.Automata.SRM", version: "2.0.0-alpha3" },
-    { id: "Microsoft.Security.RegularExpressions", version: "1.7.1.6" } ,
-    { id: "Microsoft.Security.CredScan.KnowledgeBase.SharedDomains", version: "1.7.1.6" },
-    { id: "Microsoft.Security.CredScan.KnowledgeBase", version: "1.7.1.6" },
-    { id: "Microsoft.Security.CredScan.KnowledgeBase.Client", version: "1.7.1.6" },
-    { id: "Microsoft.Security.CredScan.KnowledgeBase.Ruleset", version: "1.7.1.6" },
+    { id: "Microsoft.Security.RegularExpressions", version: "2.3.8" } ,
+    { id: "Microsoft.Security.CredScan.KnowledgeBase.SharedDomains", version: "2.3.8" },
+    { id: "Microsoft.Security.CredScan.KnowledgeBase", version: "2.3.8" },
+    { id: "Microsoft.Security.CredScan.KnowledgeBase.Client", version: "2.3.8" },
+    { id: "Microsoft.Security.CredScan.KnowledgeBase.Ruleset", version: "2.3.8" },
+    { id: "Microsoft.Security.Utilities.Internal", version: "1.9.1" },
 
     // Authentication
     { id: "Microsoft.Artifacts.Authentication", version: "0.2.2" },

@@ -1950,7 +1950,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Security.CredScan.KnowledgeBase",
-          "Version": "1.7.1.6"
+          "Version": "2.3.8"
         }
       }
     },
@@ -1959,7 +1959,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Security.CredScan.KnowledgeBase.Client",
-          "Version": "1.7.1.6"
+          "Version": "2.3.8"
         }
       }
     },
@@ -1968,7 +1968,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Security.CredScan.KnowledgeBase.Ruleset",
-          "Version": "1.7.1.6"
+          "Version": "2.3.8"
         }
       }
     },
@@ -1977,7 +1977,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Security.CredScan.KnowledgeBase.SharedDomains",
-          "Version": "1.7.1.6"
+          "Version": "2.3.8"
         }
       }
     },
@@ -1986,7 +1986,16 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Security.RegularExpressions",
-          "Version": "1.7.1.6"
+          "Version": "2.3.8"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Security.Utilities.Internal",
+          "Version": "1.9.1"
         }
       }
     },

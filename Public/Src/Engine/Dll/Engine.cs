@@ -2906,7 +2906,7 @@ namespace BuildXL.Engine
                         () => FileContentTable,
                         Configuration.Logging.GetTimerUpdatePeriodInMs(),
                         reuseResult?.IsPartialReuse == true,
-                        FrontEndController.RegisteredFrontEnds))
+                        FrontEndController))
                     {
                         PipGraph newlyEvaluatedGraph;
                         if (TestHooks?.FrontEndEngineAbstraction != null)
@@ -2977,7 +2977,7 @@ namespace BuildXL.Engine
                             Logger.Log.ErrorCacheInitializationForEngineScheduleConstruction(loggingContext, possibleCacheInitializer.Failure.Describe());
                             return ConstructScheduleResult.Failure;
                         }
-                        
+
                         CacheInitializer cacheInitializerForGraphConstruction = possibleCacheInitializer.Result;
                         engineSchedule = EngineSchedule.Create(
                             loggingContext,

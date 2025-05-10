@@ -10,6 +10,7 @@ using BuildXL.Pips.Graph;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using System.Diagnostics.CodeAnalysis;
+using BuildXL.Pips.Builders;
 
 namespace BuildXL.FrontEnd.Sdk
 {
@@ -64,8 +65,12 @@ namespace BuildXL.FrontEnd.Sdk
         /// <summary>
         /// Wait for the completion of CredentialScanner and log the detected credentials.
         /// </summary>
-        /// <returns>True when there are no secrets detected by the supplied IBuildXLCredentialScanner.</returns>
-        bool CompleteCredentialScanner();
+        void CompleteCredentialScanner();
+
+        /// <summary>
+        /// The result from the credential scanner for this evaluation. Available only after CompleteCredentialScanner() is called
+        /// </summary>
+        IBuildXLCredentialScanResult CredentialScanResult { get; }
 
         /// <summary>
         /// The collection of frontends that are registered with the controller.

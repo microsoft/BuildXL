@@ -386,7 +386,7 @@ namespace Test.BuildXL.Scheduler
             {
                 LastGraph = PipGraphBuilder.Build();
                 // Scheduler should not proceed further if the a credential is detected among the environment variables.
-                if (!FrontEndContext.CredentialScanner.Complete(Context))
+                if (FrontEndContext.CredentialScanner.Complete(Context).CredentialDetected)
                 {
                     return new ScheduleRunResult()
                     {

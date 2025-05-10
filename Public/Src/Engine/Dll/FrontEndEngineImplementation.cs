@@ -49,6 +49,7 @@ namespace BuildXL.Engine
         private readonly bool m_isPartialReuse;
         
         private readonly IReadOnlyDictionary<string, bool> m_frontendsEnvironmentRestriction;
+        private readonly IFrontEndController m_frontEndController;
 
         /// <summary>
         /// All build parameters at creation time.
@@ -111,7 +112,7 @@ namespace BuildXL.Engine
             Func<FileContentTable> getFileContentTable,
             int timerUpdatePeriod,
             bool isPartialReuse,
-            IEnumerable<IFrontEnd> registeredFrontends)
+            IFrontEndController frontEndController)
         {
             Contract.Requires(loggingContext != null);
             Contract.Requires(pathTable != null);
@@ -120,7 +121,7 @@ namespace BuildXL.Engine
             Contract.Requires(mountsTable != null);
             Contract.Requires(inputTracker != null);
             Contract.Requires(getFileContentTable != null);
-            Contract.Requires(registeredFrontends != null);
+            Contract.Requires(frontEndController != null);
 
             m_loggingContext = loggingContext;
             PathTable = pathTable;
@@ -128,7 +129,8 @@ namespace BuildXL.Engine
             m_inputTracker = inputTracker;
             m_getFileContentTable = getFileContentTable;
             m_isPartialReuse = isPartialReuse;
-            m_frontendsEnvironmentRestriction = registeredFrontends.ToDictionary(frontend => frontend.Name, frontEnd => frontEnd.ShouldRestrictBuildParameters);
+            m_frontendsEnvironmentRestriction = frontEndController.RegisteredFrontEnds.ToDictionary(frontend => frontend.Name, frontEnd => frontEnd.ShouldRestrictBuildParameters);
+            m_frontEndController = frontEndController;
             GetTimerUpdatePeriod = timerUpdatePeriod;
             Layout = configuration.Layout;
             m_directoryTranslator = directoryTranslator;
@@ -664,8 +666,47 @@ namespace BuildXL.Engine
         public override void FinishTrackingBuildParameters()
         {
             m_finishedBuildParameterTracking = true;
-            Logger.Log.EnvironmentVariablesImpactingBuild(m_loggingContext, EffectiveEnvironmentVariables.Create(this));
+            m_frontEndController.CompleteCredentialScanner();
+            Logger.Log.EnvironmentVariablesImpactingBuild(m_loggingContext, ComputeEnvVarsForLogging());
             Logger.Log.MountsImpactingBuild(m_loggingContext, EffectiveMounts.Create(this));
+        }
+
+        private EffectiveEnvironmentVariables ComputeEnvVarsForLogging()
+        {
+            EffectiveEnvironmentVariables effectiveEnvVars = default;
+            (effectiveEnvVars.UsedVariables,    effectiveEnvVars.UsedCount)     = GetVariablesData(ComputeEnvironmentVariablesImpactingBuild());
+            (effectiveEnvVars.UnusedVariables,  effectiveEnvVars.UnusedCount)   = GetVariablesData(ComputeUnusedAllowedEnvironmentVariables());
+            return effectiveEnvVars;
+        }
+
+        private (string, int) GetVariablesData(IReadOnlyDictionary<string, TrackedValue> environmentVariables)
+        {
+            var count = 0;
+            using var pooledStringBuilder = Pools.StringBuilderPool.GetInstance();
+            var stringBuilder = pooledStringBuilder.Instance;
+            foreach (var environmentVariable in environmentVariables)
+            {
+                if (count != 0)
+                {
+                    stringBuilder.AppendLine();
+                }
+
+                var value = environmentVariable.Value.Value;
+                if (m_frontEndController.CredentialScanResult.EnvVarsWithDetections.Contains(environmentVariable.Key))
+                {
+                    value = "*** <credential detected>";
+                }
+
+                stringBuilder.AppendFormat("{0}={1}", environmentVariable.Key, value);
+                if (environmentVariable.Value.FirstLocation.IsValid)
+                {
+                    stringBuilder.AppendFormat(" [{0}]", environmentVariable.Value.FirstLocation.ToString(PathTable));
+                }
+
+                count++;
+            }
+
+            return (stringBuilder.ToString(), count);
         }
 
         /// <summary>

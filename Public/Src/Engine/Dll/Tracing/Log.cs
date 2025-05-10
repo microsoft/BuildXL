@@ -11,6 +11,7 @@ using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Instrumentation.Common;
 using static BuildXL.Utilities.Core.FormattableStringEx;
+using BuildXL.Pips.Builders;
 
 #pragma warning disable 1591
 #nullable enable
@@ -3290,43 +3291,6 @@ If you can't update and need this feature after July 2018 please reach out to th
         /// delimited list of {Key}={Value} entries.
         /// </summary>
         public string UnusedVariables;
-
-        /// <summary>
-        /// Creates an effective environment variables from the given environment variables collection
-        /// </summary>
-        internal static EffectiveEnvironmentVariables Create(FrontEndEngineImplementation frontEndEngineImplementation)
-        {
-            EffectiveEnvironmentVariables effectiveEnvVars = default;
-            GetVariablesText(frontEndEngineImplementation.PathTable, frontEndEngineImplementation.ComputeEnvironmentVariablesImpactingBuild(), out effectiveEnvVars.UsedVariables, out effectiveEnvVars.UsedCount);
-            GetVariablesText(frontEndEngineImplementation.PathTable, frontEndEngineImplementation.ComputeUnusedAllowedEnvironmentVariables(), out effectiveEnvVars.UnusedVariables, out effectiveEnvVars.UnusedCount);
-            return effectiveEnvVars;
-        }
-
-        private static void GetVariablesText(PathTable pathTable, IReadOnlyDictionary<string, FrontEndEngineImplementation.TrackedValue> environmentVariables, out string text, out int count)
-        {
-            count = 0;
-            using (var pooledStringBuilder = Pools.StringBuilderPool.GetInstance())
-            {
-                var stringBuilder = pooledStringBuilder.Instance;
-                foreach (var environmentVariable in environmentVariables)
-                {
-                    if (count != 0)
-                    {
-                        stringBuilder.AppendLine();
-                    }
-
-                    stringBuilder.AppendFormat("{0}={1}", environmentVariable.Key, environmentVariable.Value.Value);
-                    if (environmentVariable.Value.FirstLocation.IsValid)
-                    {
-                        stringBuilder.AppendFormat(" [{0}]", environmentVariable.Value.FirstLocation.ToString(pathTable));
-                    }
-
-                    count++;
-                }
-
-                text = stringBuilder.ToString();
-            }
-        }
     }
 
     /// <summary>

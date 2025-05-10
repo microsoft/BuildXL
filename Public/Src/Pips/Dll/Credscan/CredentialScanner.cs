@@ -122,7 +122,7 @@ namespace BuildXL.Pips.Builders
         /// Wait for the completion of the action block and log the detected credentials.
         /// </summary>
         /// <returns> Returns true when there are no credentials detected.</returns>
-        public bool Complete(PipExecutionContext context)
+        public IBuildXLCredentialScanResult Complete(PipExecutionContext context)
         {
             using (m_counters.StartStopwatch(CredScanCounter.CompleteDuration))
             {
@@ -145,10 +145,22 @@ namespace BuildXL.Pips.Builders
                 {
                    Logger.Log.CredScanDetection(m_loggingContext, process.GetDescription(context), envVarKey);
                 }
-
-                return false;
             }
-            return true;
+
+            return new CredentialScannerResult(this);
+        }
+
+        /// <nodoc />
+        public class CredentialScannerResult : IBuildXLCredentialScanResult
+        {
+            private readonly ReadOnlyHashSet<string> m_detectedVariables;
+            internal CredentialScannerResult(CredentialScanner result) => m_detectedVariables = new ReadOnlyHashSet<string>(result.m_envVarsWithCredentials.Select(v => v.envVarKey));
+
+            /// <inheritdoc />
+            public bool CredentialDetected => m_detectedVariables.Count > 0;
+
+            /// <inheritdoc />
+            public IReadOnlySet<string> EnvVarsWithDetections => m_detectedVariables;
         }
     }
 #endif

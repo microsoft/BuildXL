@@ -97,7 +97,7 @@ namespace BuildXL.PipGraphFragmentGenerator
                     () => FileContentTable.CreateStub(loggingContext),
                     5000,
                     false,
-                    controller.RegisteredFrontEnds);
+                    controller);
 
                 var pipGraphBuilder = pipGraphFragmentGeneratorConfig.TopSort
                     ? new PipGraphFragmentBuilderTopSort(engineContext, config, mountsTable.MountPathExpander)

@@ -39,6 +39,8 @@ using static BuildXL.Utilities.Core.FormattableStringEx;
 using Diagnostic = TypeScript.Net.Diagnostics.Diagnostic;
 using Logger = BuildXL.FrontEnd.Core.Tracing.Logger;
 using WorkspaceStatistics = BuildXL.FrontEnd.Core.Tracing.WorkspaceStatistics;
+using BuildXL.Pips.Builders;
+using System.Threading;
 
 #pragma warning disable CS0162 // Disable warning CS0162: Unreachable code detected, for the .NET Core ifdef
 
@@ -109,7 +111,7 @@ namespace BuildXL.FrontEnd.Core
         private readonly FrontEndFactory m_frontEndFactory;
 
         private EvaluationScheduler m_evaluationScheduler;
-
+        private IBuildXLCredentialScanResult m_credentialScanResult;
         private readonly IFrontEndStatistics m_frontEndStatistics;
 
         private readonly PerformanceCollector m_collector;
@@ -783,9 +785,19 @@ namespace BuildXL.FrontEnd.Core
         }
 
         /// <inheritdoc/>
-        public bool CompleteCredentialScanner()
+        public void CompleteCredentialScanner()
         {
-            return FrontEndContext.CredentialScanner.Complete(FrontEndContext);
+            m_credentialScanResult = FrontEndContext.CredentialScanner.Complete(FrontEndContext);
+        }
+
+        /// <inheritdoc />
+        public IBuildXLCredentialScanResult CredentialScanResult 
+        {
+            get
+            {
+                Contract.AssertNotNull(m_credentialScanResult, "Credential scan result accessed before completing");
+                return m_credentialScanResult;
+            }
         }
 
         private bool TryGetQualifiers(IConfiguration configuration, IReadOnlyList<string> requestedQualifierExpressions, out QualifierId[] qualifierIds)

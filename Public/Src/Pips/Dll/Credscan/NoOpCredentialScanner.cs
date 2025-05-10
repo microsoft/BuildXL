@@ -1,6 +1,7 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Collections.Generic;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Core;
@@ -24,13 +25,22 @@ namespace BuildXL.Pips.Builders
         {
         }
 
-        /// <summary>
-        /// This method is used to check if the credscan operation has been successfully completed or not and if secrets were detected or not.
-        /// Since this is a NoOp interface this method always return true. Ensuring that graph construction proceeds with no issues.
-        /// </summary>
-        public bool Complete(PipExecutionContext context)
+        /// <inheritdoc />
+        IBuildXLCredentialScanResult IBuildXLCredentialScanner.Complete(PipExecutionContext context)
         {
-            return true;
+            return new NoOpCredScanResult();
         }
+    }
+
+    /// <nodoc />
+    public class NoOpCredScanResult : IBuildXLCredentialScanResult
+    {
+        private static readonly ReadOnlyHashSet<string> s_empty = new();
+
+        /// <inheritdoc />
+        public bool CredentialDetected => false;
+
+        /// <inheritdoc />
+        public IReadOnlySet<string> EnvVarsWithDetections => s_empty;
     }
 }

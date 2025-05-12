@@ -107,7 +107,10 @@ export function runConsoleTest(args: TestRunArguments): Result {
                 {name: "COMPlus_DefaultStackSize", value: "200000"},
             ],
             unsafe: {
-                untrackedPaths: addIf(Environment.hasVariable("HOME"), f`${Environment.getDirectoryValue("HOME")}/.CFUserTextEncoding`),
+                untrackedPaths: addIf(Environment.hasVariable("HOME"),
+                    f`${Environment.getDirectoryValue("HOME")}/.CFUserTextEncoding`,
+                    f`${Environment.getDirectoryValue("HOME")}/.sudo_as_admin_successful`
+                ),
                 untrackedScopes: [ d`/mnt`, d`/init`, d`/usr` ],
                 passThroughEnvironmentVariables: [
                     "HOME",

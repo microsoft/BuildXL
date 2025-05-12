@@ -46,7 +46,7 @@ int g_root_pid = 0, g_runner_pid = 0;
 struct ring_buffer *g_file_access_ring_buffer = nullptr, *g_debug_ring_buffer = nullptr;
 int g_pid_map_fd, g_sandbox_options_per_pip_map_fd, g_file_access_per_pip_fd = -1;
 int g_debug_buffer_per_pip_fd, g_breakaway_processes_map_fd, g_event_cache_per_pip_fd, g_breakaway_processes_per_pip_fd = -1;
-sem_t g_background_thread_semaphore;
+sem_t g_root_process_populated_semaphore;
 bool g_ebpf_already_loaded = false;
 buildxl::common::SPSCQueue<ebpf_event *> g_event_queue;
 pthread_t g_event_queue_thread;
@@ -266,8 +266,6 @@ void SigIntHandler(int signo) {
     if (g_root_pid != 0) {
         kill(g_root_pid, signo);
     }
-
-    g_stop = 1;
 }
 
 /**
@@ -399,14 +397,16 @@ int PopulateOptionsMapFromFam()
  */
 int RunRootProcess(const char *file, char *const argv[], char *const envp[]) {
     // Place a semaphore in shared memory, so both parent and child can see it
-    sem_t* semaphore = (sem_t*) mmap(NULL, sizeof(*semaphore), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
-    if (semaphore == MAP_FAILED)
+    // This semaphore is used so the pid representing the root of the pip can be retrieved
+    // and added into the bpf pid map before the pip root actually starts running
+    sem_t* pid_added_semaphore = (sem_t*) mmap(NULL, sizeof(*pid_added_semaphore), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+    if (pid_added_semaphore == MAP_FAILED)
     {
         return -1;
     }
 
     // The semaphore is initialized locked
-    if (sem_init(semaphore, /* shared */ 1, /* initial value */ 0) == -1)
+    if (sem_init(pid_added_semaphore, /* shared */ 1, /* initial value */ 0) == -1)
     {
         g_bxl->LogDebug(getpid(), "Can't init semaphore");
         return -1;
@@ -416,18 +416,18 @@ int RunRootProcess(const char *file, char *const argv[], char *const envp[]) {
     if (pid == 0) {
         // Child
         // Wait on the semaphore to make sure the parent process has already populated the map
-        sem_wait(semaphore);
+        sem_wait(pid_added_semaphore);
         // Now the child's pid is populated and we can proceed
-        sem_post(semaphore);
-        sem_destroy(semaphore);
+        sem_post(pid_added_semaphore);
+        sem_destroy(pid_added_semaphore);
 
         execve(file, argv, envp);
         return -1;
     }
     else  {
         g_root_pid = pid;
-
-        sem_post(&g_background_thread_semaphore);
+        // Signal that the root pid is already populated
+        sem_post(&g_root_process_populated_semaphore);
 
         // Our managed side tracking expects a 'clone/fork' event before an exec in order to assign the right pids and update the active process collection. Doing
         // this on managed side is racy (since the pid to use will be available only after the root process has started and events may have arrived already)
@@ -450,7 +450,7 @@ int RunRootProcess(const char *file, char *const argv[], char *const envp[]) {
         }
         
         // Unlock the semaphore so the child process can proceed
-        sem_post(semaphore);
+        sem_post(pid_added_semaphore);
     }
 
     return 0;
@@ -461,8 +461,10 @@ int RunRootProcess(const char *file, char *const argv[], char *const envp[]) {
  */
 void *WaitForRootProcessToExit(void *argv) {
     int status = 0;
-    // TODO: assert that g_root_pid is not 0
-    sem_wait(&g_background_thread_semaphore);    
+
+    // Wait until the root pid has been populated
+    sem_wait(&g_root_process_populated_semaphore);
+    assert(g_root_pid != 0);
 
     while (true) {
         int ret = waitpid(g_root_pid, &status, 0);
@@ -920,9 +922,9 @@ int main(int argc, char **argv) {
         return -1;
     }
 
-    // Initialize the background thread semaphore
-    if(sem_init(&g_background_thread_semaphore, /* pshared */ 0, /* initial value */ 0) == -1) {
-        LogError("Failed to initialize background thread semaphore with error %s\n", strerror(errno));
+    // Initialize the semaphore that signals that the root pid has been populated
+    if(sem_init(&g_root_process_populated_semaphore, /* pshared */ 0, /* initial value */ 0) == -1) {
+        LogError("Failed to initialize root pid semaphore with error %s\n", strerror(errno));
         Cleanup(skel);
         return -1;
     }
@@ -975,11 +977,11 @@ int main(int argc, char **argv) {
         // When the ring buffer is empty, poll will block for the specified timeout
         // If the timeout is hit, poll will return 0
         err = ring_buffer__poll(g_file_access_ring_buffer, /* timeout_ms */ 100);
-        if (err == -EINTR) {
-            err = 0;
-            break;
-        }
-        if (err < 0) {
+        // We might get back an EINTR if the process gets any signal. But in this 
+        // case we should keep polling. If any of those signals actually means that
+        // the process has exited, we are controlling that from WaitForRootProcessToExit,
+        // and that thread will set g_stop accordingly
+        if (err < 0 && err != -EINTR) {
             LogError("Error polling ring buffer %d\n", err);
             break;
         }

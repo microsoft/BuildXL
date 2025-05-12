@@ -87,6 +87,10 @@ namespace BuildXL.Utilities.Core
 
         private int m_processId = -1;
 
+        private readonly bool m_useGenteKillOnTimeout;
+
+        private readonly int? m_gentleKillTimeoutMs;
+
         private int GetProcessIdSafe()
         {
             const int ErrorValue = -1;
@@ -142,7 +146,9 @@ namespace BuildXL.Utilities.Core
             string provenance = null,
             Action<string> logger = null,
             Action dumpProcessTree = null,
-            bool forceAddExecutionPermission = true)
+            bool forceAddExecutionPermission = true,
+            bool useGenteKillOnTimeout = false,
+            int? gentleKillTImeoutMs = null)
         {
             Contract.RequiresNotNull(process);
             Contract.Requires(process.EnableRaisingEvents, $"{nameof(AsyncProcessExecutor)} requires EnableRaisingEvents in the underlying process to be true, as it registers to the Exited event for completion");
@@ -150,6 +156,8 @@ namespace BuildXL.Utilities.Core
             m_logger = logger;
             m_outputBuilder = outputBuilder;
             m_errorBuilder = errorBuilder;
+            m_useGenteKillOnTimeout = useGenteKillOnTimeout;
+            m_gentleKillTimeoutMs = gentleKillTImeoutMs;
 
             Process = process;
             Process.Exited += (sender, e) => m_processExitedTcs.TrySetResult(Unit.Void);
@@ -266,7 +274,7 @@ namespace BuildXL.Utilities.Core
                 Log($"timed out after {ExitTime.Subtract(StartTime)} (timeout: {m_timeout})");
                 TimedOut = true;
                 // We always want to dump the process tree on timeout
-                await KillAsync(dumpProcessTree: true);
+                await KillAsync(dumpProcessTree: true, gentleKill: m_useGenteKillOnTimeout, gentleKillTimeoutMilliseconds: m_gentleKillTimeoutMs);
             }
             else
             {
@@ -304,12 +312,12 @@ namespace BuildXL.Utilities.Core
         }
 
         /// <summary>
-        /// Sends a SIGTERM to the process and waits up to 2 seconds for it to exit.
+        /// Sends a SIGTERM to the process and waits up to the specified timeout for it to exit.
         /// </summary>
         /// <remarks>
         /// Only supported on Linux. On Windows, this method always returns false.
         /// </remarks>
-        private async Task<bool> GentleKillAsync(int timeoutMilliseconds = 2000)
+        private async Task<bool> GentleKillAsync(int timeoutMilliseconds)
         {
             Contract.RequiresNotNull(Process);
 
@@ -329,7 +337,7 @@ namespace BuildXL.Utilities.Core
                 }
                 catch (TimeoutException)
                 {
-                    Log($"GentleKillAsync({Process.Id}) timed out");
+                    Log($"GentleKillAsync({Process.Id}) timed out after {timeoutMilliseconds} milliseconds");
                     return false;
                 }
             }
@@ -340,7 +348,7 @@ namespace BuildXL.Utilities.Core
         /// <summary>
         /// Kills process.
         /// </summary>
-        public async Task KillAsync(bool dumpProcessTree, bool gentleKill = false, int gentleKillTimeoutMilliseconds = 2000)
+        public async Task KillAsync(bool dumpProcessTree, bool gentleKill = false, int? gentleKillTimeoutMilliseconds = null)
         {
             Contract.RequiresNotNull(Process);
 
@@ -353,7 +361,7 @@ namespace BuildXL.Utilities.Core
                     // without a clean exit
                     if (gentleKill)
                     {
-                        Killed = await GentleKillAsync(gentleKillTimeoutMilliseconds);
+                        Killed = await GentleKillAsync(gentleKillTimeoutMilliseconds ?? 2000);
                     }
 
                     if (!Killed)

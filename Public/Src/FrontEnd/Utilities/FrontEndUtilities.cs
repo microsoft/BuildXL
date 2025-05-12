@@ -123,7 +123,9 @@ namespace BuildXL.FrontEnd.Utilities
                     pathToTool,
                     fileAccessManifest,
                     disableConHostSharing: false,
-                    loggingContext: context.LoggingContext)
+                    loggingContext: context.LoggingContext,
+                    // We always want to use gentle kill for EBPF to give the ebpf runner a chance to do proper tear down
+                    useGentleKill: useEBPFLinuxSandbox)
                 {
                     Arguments = arguments,
                     WorkingDirectory = workingDirectory,

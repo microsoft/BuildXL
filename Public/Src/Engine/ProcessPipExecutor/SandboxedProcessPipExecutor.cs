@@ -860,7 +860,9 @@ namespace BuildXL.ProcessPipExecutor
                         sidebandWriter: sidebandWriter,
                         detoursEventListener: m_detoursListener,
                         fileSystemView: fileSystemView,
-                        forceAddExecutionPermission: m_sandboxConfig.ForceAddExecutionPermission)
+                        forceAddExecutionPermission: m_sandboxConfig.ForceAddExecutionPermission,
+                        // We always want to use gentle kill for EBPF to give the ebpf runner a chance to do proper tear down
+                        useGentleKill: sandboxConnection?.Kind == SandboxKind.LinuxEBPF)
                     {
                         Arguments = arguments,
                         WorkingDirectory = m_workingDirectory,

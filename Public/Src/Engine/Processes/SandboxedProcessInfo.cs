@@ -164,7 +164,9 @@ namespace BuildXL.Processes
             bool createJobObjectForCurrentProcess = true,
             ISandboxFileSystemView? fileSystemView = null,
             SandboxedProcessResourceMonitoringConfig? monitoringConfig = null,
-            bool forceAddExecutionPermission = true)
+            bool forceAddExecutionPermission = true,
+            bool useGentleKill = false,
+            int? gentleKillTimeoutMs = null)
         {
             PathTable = pathTable;
             FileAccessManifest = fileAccessManifest ?? new FileAccessManifest(pathTable);
@@ -184,6 +186,8 @@ namespace BuildXL.Processes
             FileSystemView = fileSystemView;
             MonitoringConfig = monitoringConfig;
             ForceAddExecutionPermission = forceAddExecutionPermission;
+            UseGentleKill = useGentleKill;
+            GentleKillTimeoutMs = gentleKillTimeoutMs;
         }
 
         /// <summary>
@@ -299,6 +303,23 @@ namespace BuildXL.Processes
         /// Force set the execute permission bit for the root process of process pips in Linux builds.
         /// </summary>
         public bool ForceAddExecutionPermission { get; }
+
+        /// <summary>
+        /// Whether to use a gentle kill (a SIGTERM) before sending a hard kill (SIGABRT) when
+        /// terminating the process
+        /// </summary>
+        /// <remarks>
+        /// Only honored on Linux
+        /// </remarks>
+        public bool UseGentleKill { get; }
+
+        /// <summary>
+        /// The timeout for sending a hard kill after a gentle kill was sent
+        /// </summary>
+        /// <remarks>
+        /// Only honored on Linux
+        /// </remarks>
+        public int? GentleKillTimeoutMs { get; }
 
         /// <summary>
         /// Encoded command line arguments
@@ -591,7 +612,12 @@ namespace BuildXL.Processes
                 writer.WriteNullableReadOnlyList(ExternalVmSandboxStaleFilesToClean, (w, s) => w.Write(s));
                 writer.Write(CreateSandboxTraceFile);
                 writer.Write(ForceAddExecutionPermission);
-
+                writer.Write(UseGentleKill);
+                writer.Write(GentleKillTimeoutMs.HasValue);
+                if (GentleKillTimeoutMs.HasValue)
+                {
+                    writer.Write(GentleKillTimeoutMs.Value);
+                }
                 // File access manifest should be serialized the last.
                 writer.Write(FileAccessManifest, (w, v) => FileAccessManifest.Serialize(stream));
             }
@@ -639,6 +665,12 @@ namespace BuildXL.Processes
                 var externalVmSandboxStaleFilesToClean = reader.ReadNullableReadOnlyList(r => r.ReadString());
                 var createSandboxTraceFile = reader.ReadBoolean();
                 bool forceAddExecutionPermission = reader.ReadBoolean();
+                bool useGentleKill = reader.ReadBoolean();
+                int? gentleKillTimeoutMs = null;
+                if (reader.ReadBoolean())
+                {
+                    gentleKillTimeoutMs = reader.ReadInt32();
+                }
 
                 var fam = reader.ReadNullable(r => FileAccessManifest.Deserialize(stream));
                 return new SandboxedProcessInfo(
@@ -651,7 +683,9 @@ namespace BuildXL.Processes
                     sidebandWriter: sidebandWritter,
                     detoursEventListener: detoursEventListener,
                     createJobObjectForCurrentProcess: createJobObjectForCurrentProcess,
-                    forceAddExecutionPermission: forceAddExecutionPermission)
+                    forceAddExecutionPermission: forceAddExecutionPermission,
+                    useGentleKill: useGentleKill,
+                    gentleKillTimeoutMs: gentleKillTimeoutMs)
                 {
                     m_arguments = arguments,
                     m_commandLine = commandLine,

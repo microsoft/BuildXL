@@ -129,22 +129,17 @@ namespace BuildXL.Processes
 
         private IDetoursEventListener? DetoursListener => m_info.DetoursEventListener;
 
-        private readonly bool m_useGentleKill;
-
-        private readonly int m_gentleKillTimeoutMilliseconds;
-
-        private readonly SandboxedProcessInfo m_info;
+        /// <nodoc/>
+        protected readonly SandboxedProcessInfo m_info;
 
         /// <remarks>
         /// IMPORTANT: For memory efficiency reasons don't keep a reference to <paramref name="info"/>
         ///            or its  <see cref="SandboxedProcessInfo.FileAccessManifest"/> property
         ///            (at least not after the process has been started)
         /// </remarks>
-        public UnsandboxedProcess(SandboxedProcessInfo info, bool useGentleKill = false, int gentleKillTimeoutMilliseconds = 2000)
+        public UnsandboxedProcess(SandboxedProcessInfo info)
         {
             m_info = info;
-            m_useGentleKill = useGentleKill;
-            m_gentleKillTimeoutMilliseconds = gentleKillTimeoutMilliseconds;
             UniqueName = $"Pip{info.FileAccessManifest.PipId:X}.{Interlocked.Increment(ref m_uniqueNameCounter)}";
 
             info.Timeout ??= s_defaultProcessTimeout;
@@ -185,7 +180,9 @@ namespace BuildXL.Processes
                         LogProcessState($"Unable to generate core dump: {m_dumpCreationException.GetLogEventMessage()}");
                     }
                 },
-                forceAddExecutionPermission: info.ForceAddExecutionPermission);
+                forceAddExecutionPermission: info.ForceAddExecutionPermission,
+                info.UseGentleKill,
+                info.GentleKillTimeoutMs);
         }
 
         /// <summary>
@@ -370,7 +367,7 @@ namespace BuildXL.Processes
             Contract.Requires(Started);
 
             LogDebug($"UnsandboxedProcess::KillAsync({ProcessId})");
-            return m_processExecutor.KillAsync(dumpProcessTree, m_useGentleKill, m_gentleKillTimeoutMilliseconds);
+            return m_processExecutor.KillAsync(dumpProcessTree, m_info.UseGentleKill, m_info.GentleKillTimeoutMs);
         }
 
         /// <summary>

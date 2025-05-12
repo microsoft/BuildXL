@@ -140,7 +140,7 @@ namespace BuildXL.Processes
 
         /// <nodoc />
         public SandboxedProcessUnix(SandboxedProcessInfo info)
-            : base(info, useGentleKill: info.SandboxConnection?.Kind == SandboxKind.LinuxEBPF)
+            : base(info)
         {
             Contract.Requires(info.FileAccessManifest != null);
             Contract.Requires(info.SandboxConnection != null);
@@ -969,10 +969,10 @@ namespace BuildXL.Processes
 
                 if (completedTask == runnersCancellation) 
                 {
-                    // This task is completedwhen this sandbox process is exiting:
+                    // This task is completed when this sandbox process is exiting:
                     // this means this runner got left over even though the pip is done.
                     // Let's silently kill it.
-                    await runner.KillAsync(dumpProcessTree: false);
+                    await runner.KillAsync(dumpProcessTree: false, m_info.UseGentleKill, m_info.GentleKillTimeoutMs);
                     return runner;
                 }
 

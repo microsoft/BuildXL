@@ -2089,6 +2089,34 @@ namespace IntegrationTest.BuildXL.Scheduler
             AssertErrorEventLogged(ProcessesLogEventId.PipProcessError, count: 1);
         }
 
+        [FactIfSupported(requiresLinuxBasedOperatingSystem: true)]
+        public void GentleTimeoutIsUsedForEBPFPips()
+        {
+            FileArtifact dummyFile = CreateSourceFile();
+            ProcessBuilder builder = CreatePipBuilder(new[] {
+                // This file will never exist, so the pip will wait forever
+                Operation.WaitUntilFileExists(dummyFile),
+                // Dummy output
+                Operation.WriteFile(CreateOutputFileArtifact())
+            });
+
+            // Let's timeout the pip at 10ms
+            builder.Timeout = TimeSpan.FromMilliseconds(10);
+            builder.AddUntrackedFile(dummyFile);
+
+            SchedulePipBuilder(builder);
+            // We should fail because of the timeout
+            RunScheduler().AssertFailure();
+
+            // These are the usual errors/warnings on timeout
+            AssertErrorEventLogged(ProcessesLogEventId.PipProcessTookTooLongError, count: 1);
+            AllowWarningEventMaybeLogged(ProcessesLogEventId.PipFailedToCreateDumpFile);    // We don't care
+
+            // Assert we are not getting a child process surviving error. For EBPF pips, this is the 
+            // indicator the ebpf runner was gently killed and the pip had a chance to emit an exit event
+            AssertErrorEventLogged(ProcessesLogEventId.PipProcessChildrenSurvivedError, 0);
+        }
+
         /// <summary>
         /// This is a test for custom file-access logic for Windows-based tools that was hardcoded into the engine.
         /// See <see cref="SandboxedProcessPipExecutor.GetSpecialCaseRulesForSpecialTools(AbsolutePath, AbsolutePath)"/>

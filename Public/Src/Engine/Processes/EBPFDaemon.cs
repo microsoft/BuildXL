@@ -144,7 +144,10 @@ namespace BuildXL.Processes
                     fileAccessManifest,
                     disableConHostSharing: false,
                     loggingContext: loggingContext,
-                    detoursEventListener: ebpfListener)
+                    detoursEventListener: ebpfListener,
+                    useGentleKill: true,
+                    // This process will be responsible for tearing down EBPF, and therefore it needs more time for it than the default
+                    gentleKillTimeoutMs: 5000)
                 {
                     // Let's run a process that goes to sleep forever (10 days)
                     // We should never get a build that runs longer than 10 days...

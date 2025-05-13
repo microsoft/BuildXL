@@ -19,8 +19,8 @@ namespace Test.Tool.MsBuildGraphBuilder {
                 name: "System.Text.Json",
                 publicKeyToken: "cc7b13ffcd2ddd51",
                 culture: "neutral",
-                oldVersion: "0.0.0.0-9.0.0.2",
-                newVersion: "9.0.0.2",  // Corresponds to: { id: "System.Text.Json", version: "9.0.2" },
+                oldVersion: "0.0.0.0-9.0.0.4",
+                newVersion: "9.0.0.4",  // Corresponds to: { id: "System.Text.Json", version: "9.0.4" },
             }
         ],
         references:[

@@ -37,7 +37,8 @@ using Microsoft.VisualStudio.Services.Drop.App.Core.Tracing;
 using Microsoft.VisualStudio.Services.Drop.WebApi;
 using Microsoft.VisualStudio.Services.WebApi;
 using Newtonsoft.Json.Linq;
-using SBOMCore;
+using SbomCore;
+using Serilog;
 using Tool.ServicePipDaemon;
 using static BuildXL.Ipc.ExternalApi.Commands.GetBuildManifesFileListResult;
 using static BuildXL.Utilities.Core.FormattableStringEx;
@@ -79,7 +80,7 @@ namespace Tool.DropDaemon
         private int m_artifactTracerInitialized = 0;
 
         /// SBOM Generation
-        private readonly ISBOMGenerator m_sbomGenerator;
+        private readonly ISbomGenerator m_sbomGenerator;
         private BsiMetadataExtractor m_bsiMetadataExtractor;
         private readonly string m_sbomGenerationOutputDirectory;
 
@@ -634,7 +635,7 @@ namespace Tool.DropDaemon
                    client)
         {
             DropServiceConfig = serviceConfig;
-            m_sbomGenerator = new SBOMGenerator(logger: new SBOMLoggingWrapper(Logger));
+            m_sbomGenerator = new SbomGenerator(logger: new SBOMLoggingWrapper(Logger));
             m_sbomGenerationOutputDirectory = !string.IsNullOrWhiteSpace(daemonConfig?.LogDir) ? daemonConfig.LogDir : Path.GetTempPath();
             m_logFileNameCounter = 0;
             if (!string.IsNullOrWhiteSpace(daemonConfig?.LogDir))
@@ -906,7 +907,7 @@ namespace Tool.DropDaemon
 
                 if (!maybePackages.Succeeded)
                 {
-                    return new IpcResult(IpcResultStatus.ManifestGenerationError, $"Errors were encountered in ComponentDetectionToSBOMPackageAdapter. Details: {maybePackages.Failure.Describe()}");
+                    return new IpcResult(IpcResultStatus.ManifestGenerationError, $"Errors were encountered in ComponentDetectionToSbomPackageAdapter. Details: {maybePackages.Failure.Describe()}");
                 }
 
                 var packages = maybePackages.Result;
@@ -1033,7 +1034,15 @@ namespace Tool.DropDaemon
             }
 
             logger.Info($"[GetSbomPackages] Retrieving component detection package list from file at {bcdeOutputJsonPath}");
-            var (adapterReport, packages) = new ComponentDetectionToSBOMPackageAdapter().TryConvert(bcdeOutputJsonPath);
+
+            var serilogLogger = new LoggerConfiguration()
+                .MinimumLevel.Information()
+                .WriteTo.SbomLoggingSerilogSink(logger)
+                .CreateLogger();
+
+            var (adapterReport, packages) =
+                new ComponentDetectionToSbomPackageAdapter(new Microsoft.Sbom.Common.OSUtils(serilogLogger, new Microsoft.Sbom.Common.EnvironmentWrapper()))
+                .TryConvert(bcdeOutputJsonPath);
 
             int failureCount = 0;
             int warningCount = 0;
@@ -1047,7 +1056,7 @@ namespace Tool.DropDaemon
                     {
                         if (!string.IsNullOrEmpty(reportItem.Details))
                         {
-                            logger.Info("[ComponentDetectionToSBOMPackageAdapter] Success. " + reportItem.Details);
+                            logger.Info("[ComponentDetectionToSbomPackageAdapter] Success. " + reportItem.Details);
                         }
                         break;
                     }
@@ -1057,7 +1066,7 @@ namespace Tool.DropDaemon
                         if (!string.IsNullOrEmpty(reportItem.Details))
                         {
                             adapterReportWarnings.AppendLine(reportItem.Details);
-                            logger.Warning("[ComponentDetectionToSBOMPackageAdapter] " + reportItem.Details);
+                            logger.Warning("[ComponentDetectionToSbomPackageAdapter] " + reportItem.Details);
                         }
                         break;
                     }
@@ -1067,7 +1076,7 @@ namespace Tool.DropDaemon
                         if (!string.IsNullOrEmpty(reportItem.Details))
                         {
                             adapterReportFailureDetails.AppendLine(reportItem.Details);
-                            logger.Error("[ComponentDetectionToSBOMPackageAdapter] " + reportItem.Details);
+                            logger.Error("[ComponentDetectionToSbomPackageAdapter] " + reportItem.Details);
                         }
                         break;
                     }
@@ -1076,13 +1085,13 @@ namespace Tool.DropDaemon
 
             if (warningCount > 0)
             {
-                var warningMsg = $"[GetSbomPackages] ComponentDetectionToSBOMPackageAdapter executed with {warningCount} warnings. Details: {adapterReportWarnings}";
+                var warningMsg = $"[GetSbomPackages] ComponentDetectionToSbomPackageAdapter executed with {warningCount} warnings. Details: {adapterReportWarnings}";
                 Analysis.IgnoreResult(await ApiClient.LogMessage(warningMsg, isWarning: true));
             }
 
             if (failureCount > 0)
             {
-                var errorMsg = $"[GetSbomPackages] ComponentDetectionToSBOMPackageAdapter reported {failureCount} failures. Details: {adapterReportFailureDetails}";
+                var errorMsg = $"[GetSbomPackages] ComponentDetectionToSbomPackageAdapter reported {failureCount} failures. Details: {adapterReportFailureDetails}";
                 return new Failure<string>(errorMsg);
             }
 

@@ -15,7 +15,7 @@ namespace BuildXL.Utilities.SBOMUtilities
     public class BsiMetadataExtractor
     {
         /// <summary>
-        /// Generates an <see cref="SBOMMetadata"/> entity from a BuildSessionInfo file.
+        /// Generates an <see cref="SbomMetadata"/> entity from a BuildSessionInfo file.
         /// </summary>
         /// <param name="pathToBuildSessionInfo">The full path to the JSON file with the BuildSessionInfo</param>
         /// <param name="buildEnvironmentName">The build environment name for the SBOM Metadata</param>
@@ -24,7 +24,7 @@ namespace BuildXL.Utilities.SBOMUtilities
         /// <exception cref="ArgumentNullException">If the specified path is null</exception>
         /// <exception cref="ArgumentException">If the specified path does not point to an existing file</exception>
         /// <exception cref="DeserializationException">If errors are encountered during deserialization of the JSON file</exception>
-        public static SBOMMetadata ProduceSbomMetadata(string pathToBuildSessionInfo, string buildEnvironmentName, string packageName = null, string packageVersion = null) => new BsiMetadataExtractor(pathToBuildSessionInfo).ProduceSbomMetadata(buildEnvironmentName, packageName, packageVersion);
+        public static SbomMetadata ProduceSbomMetadata(string pathToBuildSessionInfo, string buildEnvironmentName, string packageName = null, string packageVersion = null) => new BsiMetadataExtractor(pathToBuildSessionInfo).ProduceSbomMetadata(buildEnvironmentName, packageName, packageVersion);
 
         private readonly BuildSessionInfoData m_backingBsi;
 
@@ -58,14 +58,14 @@ namespace BuildXL.Utilities.SBOMUtilities
         }
 
         /// <summary>
-        /// Generates an <see cref="SBOMMetadata"/> entity from the BuildSessionInfo file that backs this <see cref="BsiMetadataExtractor"/>.
+        /// Generates an <see cref="SbomMetadata"/> entity from the BuildSessionInfo file that backs this <see cref="BsiMetadataExtractor"/>.
         /// </summary>
         /// <param name="buildEnvironmentName">The build environment name for the SBOM Metadata</param>
         /// <param name="packageName">The package name for the SBOM Metadata.</param>
         /// <param name="packageVersion">The package version for the SBOM Metadata. If left unspecified, the build id will be used as the version. </param>
-        public SBOMMetadata ProduceSbomMetadata(string buildEnvironmentName, string packageName, string packageVersion = null)
+        public SbomMetadata ProduceSbomMetadata(string buildEnvironmentName, string packageName, string packageVersion = null)
         {
-            return new SBOMMetadata()
+            return new SbomMetadata()
             {
                 BuildEnvironmentName = buildEnvironmentName,
                 BuildName = m_backingBsi.BuildQueue,

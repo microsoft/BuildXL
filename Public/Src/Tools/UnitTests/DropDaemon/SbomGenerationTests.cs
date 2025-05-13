@@ -1,22 +1,24 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Collections.Generic;
-using System.IO;
-using System.Threading.Tasks;
-using System.Linq;
-using Tool.DropDaemon;
 using Microsoft.ManifestGenerator;
-using Microsoft.Sbom.Contracts;
-using Microsoft.Sbom.Contracts.Enums;
-using SBOMCore;
-using Test.BuildXL.TestUtilities.Xunit;
-using Xunit;
-using Xunit.Abstractions;
-using Microsoft.Sbom.Contracts.Entities;
 using Microsoft.Sbom.Adapters;
 using Microsoft.Sbom.Adapters.Report;
+using Microsoft.Sbom.Common;
+using Microsoft.Sbom.Contracts;
+using Microsoft.Sbom.Contracts.Entities;
+using Microsoft.Sbom.Contracts.Enums;
+using SbomCore;
+using Serilog;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
+using Test.BuildXL.TestUtilities.Xunit;
+using Tool.DropDaemon;
+using Xunit;
+using Xunit.Abstractions;
 
 namespace Test.Tool.DropDaemon
 {
@@ -34,9 +36,13 @@ namespace Test.Tool.DropDaemon
         {
             // Test for absent file in one case, for malformed JSON in the other
             var path = missingFile ? Path.GetTempFileName() : GenerateBcdeOutput(Path.GetTempFileName(), malformed: true);
-            var (adapterReport, packages) = new ComponentDetectionToSBOMPackageAdapter().TryConvert(path);
-            
-            XAssert.IsNotNull(packages, "ComponentDetectionToSBOMPackageAdapter shouldn't return null on failure");
+            var serilogLogger = new LoggerConfiguration()
+                .MinimumLevel.Information()
+                .WriteTo.Console()
+                .CreateLogger();
+            var (adapterReport, packages) = new ComponentDetectionToSbomPackageAdapter(new OSUtils(serilogLogger, new EnvironmentWrapper())).TryConvert(path);
+
+            XAssert.IsNotNull(packages, "ComponentDetectionToSbomPackageAdapter shouldn't return null on failure");
 
             // This will make us fail
             XAssert.IsTrue(adapterReport.Report.Any(r => r.Type == AdapterReportItemType.Failure), "Expecting a failure in the adapter report");
@@ -51,9 +57,9 @@ namespace Test.Tool.DropDaemon
         [Fact]
         public async Task GenerateSbom()
         {
-            var sbomGenerator = new SBOMGenerator();
+            var sbomGenerator = new SbomGenerator();
 
-            var metadata = new SBOMMetadata()
+            var metadata = new SbomMetadata()
             {
                 BuildEnvironmentName = "BuildXL",
                 BuildName = "chelo",
@@ -88,13 +94,17 @@ namespace Test.Tool.DropDaemon
             };
             IEnumerable<SbomFile> files = new List<SbomFile>() { myfile };
 
-            var (adapterReport, packages) = new ComponentDetectionToSBOMPackageAdapter().TryConvert(GenerateBcdeOutput(Path.GetTempFileName()));
+            var serilogLogger = new LoggerConfiguration()
+                .MinimumLevel.Information()
+                .WriteTo.Console()
+                .CreateLogger();
+            var (adapterReport, packages) = new ComponentDetectionToSbomPackageAdapter(new OSUtils(serilogLogger, new EnvironmentWrapper())).TryConvert(GenerateBcdeOutput(Path.GetTempFileName()));
             XAssert.IsNotNull(packages);
             foreach (var reportItem in adapterReport.Report)
             {
                 if (reportItem.Type == AdapterReportItemType.Failure)
                 {
-                    XAssert.Fail("ComponentDetectionToSBOMPackageAdapter failure: " + reportItem.Details);
+                    XAssert.Fail("ComponentDetectionToSbomPackageAdapter failure: " + reportItem.Details);
                 }
             }
 

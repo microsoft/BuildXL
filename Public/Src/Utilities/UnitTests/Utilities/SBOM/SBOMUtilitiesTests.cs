@@ -20,14 +20,14 @@ namespace Test.BuildXL.Utilities
         [Theory]
         [InlineData(true)]
         [InlineData(false)]
-        public void SBOMMetadataFromBuildSessionInfoFile(bool useStaticMethod)
+        public void SbomMetadataFromBuildSessionInfoFile(bool useStaticMethod)
         {
             var path = Path.GetTempFileName();
             var uri = "https://mseng.visualstudio.com/DefaultCollection/Domino/_git/BuildXL.Internal";
             File.WriteAllText(path, SampleBsiJson(uri));
             var packageName = "myPackageName";
             var packageVersion = "1.0";
-            SBOMMetadata metadata;
+            SbomMetadata metadata;
 
             if (useStaticMethod)
             {

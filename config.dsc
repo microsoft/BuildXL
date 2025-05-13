@@ -221,6 +221,10 @@ config({
                 { id: "Microsoft.SqlServer.Server", version: "1.0.0" },
                 { id: "System.Runtime.Caching", version: "9.0.3" },
 
+                // Sbom dependencies
+                { id: "Serilog", version: "4.2.0" },
+                { id: "Serilog.Sinks.Console", version: "6.0.0" },
+
                 // microsoft test platform
                 { id: "Microsoft.TestPlatform.TestHost", version: "16.4.0"},
                 { id: "Microsoft.TestPlatform.ObjectModel", version: "17.7.2"},
@@ -232,7 +236,7 @@ config({
                 // CloudStore dependencies
                 { id: "Microsoft.Bcl", version: "1.1.10" },
                 { id: "Microsoft.Bcl.Async", version: "1.0.168" },
-                { id: "Microsoft.Bcl.AsyncInterfaces", version: "9.0.2" },
+                { id: "Microsoft.Bcl.AsyncInterfaces", version: "9.0.4" },
                 { id: "Microsoft.Bcl.AsyncInterfaces", version: "8.0.0", alias: "Microsoft.Bcl.AsyncInterfaces.v8" },
                 { id: "Microsoft.Bcl.Build", version: "1.0.14" },
                 { id: "Microsoft.Bcl.HashCode", version: "1.1.1" },
@@ -273,7 +277,7 @@ config({
                 { id: "Microsoft.Extensions.Caching.Memory", version: "1.0.0" },
                 { id: "Microsoft.Extensions.Caching.Abstractions", version: "1.0.0" },
                 { id: "System.Security.Cryptography.Xml", version: "8.0.0" },
-                { id: "System.Text.Encodings.Web", version: "9.0.2" },
+                { id: "System.Text.Encodings.Web", version: "9.0.4" },
                 { id: "System.Security.Permissions", version: "7.0.0" },
                 { id: "System.Windows.Extensions", version: "7.0.0" },
                 { id: "System.Drawing.Common", version: "7.0.0" },
@@ -309,7 +313,7 @@ config({
                 { id: "System.Buffers", version: "4.5.1" }, /* Change Sync: BuildXLSdk.cacheBindingRedirects() */ // A different version, because StackExchange.Redis uses it.
                 { id: "System.Memory", version: "4.5.5" }, /* Change Sync: BuildXLSdk.cacheBindingRedirects() */
                 { id: "System.Runtime.CompilerServices.Unsafe", version: "6.0.0" }, /* Change Sync: BuildXLSdk.cacheBindingRedirects() */
-                { id: "System.IO.Pipelines", version: "9.0.2" },
+                { id: "System.IO.Pipelines", version: "9.0.4" },
                 { id: "System.Numerics.Vectors", version: "4.5.0" }, /* Change Sync: BuildXLSdk.cacheBindingRedirects() */
 
                 // Extra dependencies to make MSBuild work

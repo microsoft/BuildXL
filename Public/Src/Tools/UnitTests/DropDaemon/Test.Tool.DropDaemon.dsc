@@ -39,6 +39,7 @@ namespace Test.Tool.DropDaemon {
 
             // SBOM related
             ...importFrom("BuildXL.Tools.DropDaemon").dropDaemonSbomPackages(),
+            importFrom("Serilog.Sinks.Console").pkg, // This is an SBOM specific dependency, but it is only needed for tests
         ],
 
         // TODO: The SBOM package expects a netcore 7 JSON package, even for netcore 6. Remove when we stop supporting net6

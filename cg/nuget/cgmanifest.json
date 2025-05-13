@@ -771,7 +771,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Bcl.AsyncInterfaces",
-          "Version": "9.0.2"
+          "Version": "9.0.4"
         }
       }
     },
@@ -1023,7 +1023,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.ComponentDetection.Contracts",
-          "Version": "5.2.6"
+          "Version": "5.2.19"
         }
       }
     },
@@ -1895,17 +1895,8 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "Microsoft.SBOMCore",
-          "Version": "4.0.15"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
           "Name": "Microsoft.Sbom.Adapters",
-          "Version": "3.1.0"
+          "Version": "4.0.2"
         }
       }
     },
@@ -1914,7 +1905,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Sbom.Common",
-          "Version": "3.1.0"
+          "Version": "4.0.2"
         }
       }
     },
@@ -1923,7 +1914,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Sbom.Contracts",
-          "Version": "3.1.0"
+          "Version": "4.0.2"
         }
       }
     },
@@ -1932,7 +1923,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Sbom.Extensions",
-          "Version": "3.1.0"
+          "Version": "4.0.2"
         }
       }
     },
@@ -1941,7 +1932,16 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Sbom.Parsers.Spdx22SbomParser",
-          "Version": "3.1.0"
+          "Version": "4.0.2"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.SbomCore",
+          "Version": "6.0.2"
         }
       }
     },
@@ -3462,7 +3462,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.IO.Pipelines",
-          "Version": "9.0.2"
+          "Version": "9.0.4"
         }
       }
     },
@@ -4236,7 +4236,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Text.Encodings.Web",
-          "Version": "9.0.2"
+          "Version": "9.0.4"
         }
       }
     },
@@ -4245,7 +4245,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Text.Json",
-          "Version": "9.0.2"
+          "Version": "9.0.4"
         }
       }
     },

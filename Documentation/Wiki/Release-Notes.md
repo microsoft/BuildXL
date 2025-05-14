@@ -2,6 +2,19 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20250509.3.3 (Release [29953975](https://dev.azure.com/mseng/Domino/_build/results?buildId=29953975&view=results))
+- Update Sbom Packages
+- Pass RelatedSessionId through from BuildXL to QTest
+- Index the linux debug symbol correctly
+- \[Workflow SDK\] Add support for passthrough environment variables
+- Use correct distributed worker count in PopulateModuleWorkerMapping
+- Expose cache construction timeout in AdoBuildRunner
+
+# 0.1.0-20250422.2 (Release [29870837](https://dev.azure.com/mseng/Domino/_build/results?buildId=29870837&view=results))
+- \[Workflow SDK\] Fix workflow script exit code
+- Don't finalize a drop if creation failed
+- Helper text for early worker release parameter
+
 # 0.1.0-20250417.2 (Release [29852491](https://dev.azure.com/mseng/Domino/_build/results?buildId=29852491&view=results))
 - Improve justification when doing early worker release
 - Add early worker release help text

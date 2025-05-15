@@ -243,18 +243,18 @@ namespace Test.BuildXL.FrontEnd.Rush
             }
 
             // Run 'rush init'. This bootstraps the 'repo' with rush template files, including rush.json
-            if (!RushInit(config))
+            if (!RushInit(config, out string output))
             {
-                throw new InvalidOperationException("Rush init failed.");
+                throw new InvalidOperationException($"Rush init failed.{Environment.NewLine}{output}");
             }
 
             // Update rush.json with the projects that need to be part of the 'repo'
             AddProjectsToRushConfig(config, rushPathAndProjectNames);
 
             // Run 'rush update' so dependencies are configured
-            if (!RushUpdate(config))
+            if (!RushUpdate(config, out output))
             {
-                throw new InvalidOperationException("Rush update failed.");
+                throw new InvalidOperationException($"Rush update failed.{Environment.NewLine}{output}");
             }
 
             return RunEngine(config, testCache, detoursListener);
@@ -382,9 +382,9 @@ config({{
                 $"{memberName}: Map.empty<string, (PassthroughEnvironmentVariable | string)>(){ string.Join(string.Empty, dictionary.Select(property => $".add('{property.Key}', {(property.Value?.GetValue() is UnitValue ? "Unit.unit()" : $"'{property.Value?.GetValue()}'")})")) },");
         }
 
-        private bool RushInit(ICommandLineConfiguration config)
+        private bool RushInit(ICommandLineConfiguration config, out string output)
         {
-            var result = RushRun(config, "init --overwrite-existing");
+            var result = RushRun(config, "init --overwrite-existing", out output);
 
             if (result)
             {
@@ -395,11 +395,11 @@ config({{
                 // Also update the pnpm version to make it work correctly with node
                 var updatedRushJson = rushJson
                     .Replace(
-                    "\"nodeSupportedVersionRange\": \">=12.13.0 <13.0.0 || >=14.15.0 <15.0.0\"",
-                    "\"nodeSupportedVersionRange\": \">=10.13.0 <=18.6.0\"")
+                    "\"nodeSupportedVersionRange\": \">=18.20.3 <19.0.0 || >=20.14.0 <21.0.0\"",
+                    "\"nodeSupportedVersionRange\": \">=10.13.0 <=22.15.0\"")
                     .Replace(
-                    "\"pnpmVersion\": \"2.15.1\"",
-                    "\"pnpmVersion\": \"5.0.2\"");
+                    "\"pnpmVersion\": \"8.15.8\"",
+                    "\"pnpmVersion\": \"10.10.0\"");
 
                 File.WriteAllText(pathToRushJson, updatedRushJson);
 
@@ -420,12 +420,12 @@ config({{
             return result;
         }
 
-        private bool RushUpdate(ICommandLineConfiguration config)
+        private bool RushUpdate(ICommandLineConfiguration config, out string output)
         {
-            return RushRun(config, "update");
+            return RushRun(config, "update", out output);
         }
 
-        private bool RushRun(ICommandLineConfiguration config, string rushArgs)
+        private bool RushRun(ICommandLineConfiguration config, string rushArgs, out string output)
         {
             string arguments = $"{PathToRush} {rushArgs}";
             string filename = PathToNode;
@@ -434,13 +434,14 @@ config({{
             // concurrent npm install operations happen. Found reported bugs about this that look similar enough
             // to the problem that manifested here.
             // So we just report exit codes.
+            bool debugCaptureOutput = false;
             var startInfo = new ProcessStartInfo
             {
                 FileName = filename,
                 Arguments = arguments,
                 WorkingDirectory = config.Layout.SourceDirectory.ToString(PathTable),
-                RedirectStandardError = false,
-                RedirectStandardOutput = false,
+                RedirectStandardError = debugCaptureOutput,
+                RedirectStandardOutput = debugCaptureOutput,
                 UseShellExecute = false,
             };
 
@@ -457,7 +458,7 @@ config({{
                 startInfo.Environment["HOME"] = RushUserProfile;
             }
             startInfo.Environment["APPDATA"] = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-            startInfo.Environment["RUSH_TEMP_FOLDER"] = RushTempFolder;
+            startInfo.Environment["RUSH_PNPM_STORE_PATH"] = RushTempFolder;
             startInfo.Environment["RUSH_ABSOLUTE_SYMLINKS"] = "1";
 
             // Passthrough the PAT for internal builds (only set for ADO builds)
@@ -468,10 +469,38 @@ config({{
                 startInfo.Environment["CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT_B64"] = npmFeedPat;
             }
 
-            var runRush = Process.Start(startInfo);
-            runRush.WaitForExit();
+            using (var runRush = new Process { StartInfo = startInfo })
+            {
+                var outputBuilder = new StringWriter();
+                var errorBuilder = new StringWriter();
 
-            return runRush.ExitCode == 0;
+                if (debugCaptureOutput)
+                {
+                    runRush.OutputDataReceived += (sender, args) => { if (args.Data != null) { outputBuilder.WriteLine(args.Data); } };
+                    runRush.ErrorDataReceived += (sender, args) => { if (args.Data != null) { errorBuilder.WriteLine(args.Data); } };
+                }
+
+                runRush.Start();
+
+                if (debugCaptureOutput)
+                {
+                    runRush.BeginOutputReadLine();
+                    runRush.BeginErrorReadLine();
+                }
+
+                runRush.WaitForExit();
+
+                if (debugCaptureOutput)
+                { 
+                    output = errorBuilder.ToString() + Environment.NewLine + outputBuilder.ToString();
+                }
+                else
+                {
+                    output = "Output reporting disable. Toggle 'debugCaptureOutput' to enable output for sake of debugging tests";
+                }
+
+                return runRush.ExitCode == 0;
+            }
         }
     }
 }

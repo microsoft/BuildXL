@@ -11,10 +11,10 @@ namespace Test.Rush {
     
     // Install Rush for tests
     const rushTest = Context.getNewOutputDirectory(a`rush-test`);
-    const rush = Node.runNpmPackageInstall(rushTest, [], {name: "@microsoft/rush", version: "5.47.0"});
+    const rush = Node.runNpmPackageInstall(rushTest, [], {name: "@microsoft/rush", version: "5.153.1"});
 
     const rushLibTest = Context.getNewOutputDirectory(a`rushlib-test`);
-    const rushlib = Node.runNpmPackageInstall(rushLibTest, [], {name: "@microsoft/rush-lib", version: "5.47.0"});
+    const rushlib = Node.runNpmPackageInstall(rushLibTest, [], {name: "@microsoft/rush-lib", version: "5.153.1"});
 
     // TODO: to enable this, we should use an older version of NodeJs for Linux
     const isRunningOnSupportedSystem = Context.getCurrentHost().cpuArchitecture === "x64";

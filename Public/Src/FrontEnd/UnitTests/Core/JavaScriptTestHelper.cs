@@ -27,7 +27,7 @@ namespace Test.BuildXL.FrontEnd.Core
             string[] dependencies = null,
             (string, string)[] scriptCommands = null)
         {
-            var dependenciesWithVersions = dependencies?.Select(dep => (dep, "0.0.1"))?.ToArray();
+            var dependenciesWithVersions = dependencies?.Select(dep => (dep, builder.UseSpecificVersionNumbers ? "0.0.1" : "workspace:*"))?.ToArray();
             return AddJavaScriptProjectWithExplicitVersions(builder, packageName, packageFolder, content, dependenciesWithVersions, scriptCommands);
         }
 

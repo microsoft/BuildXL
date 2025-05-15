@@ -363,7 +363,7 @@ namespace Test.BuildXL.FrontEnd.Rush
             catch (InvalidOperationException e)
             {
                 exceptionOccured = true;
-                Assert.Equal("Rush update failed.", e.Message);
+                Assert.True(e.Message.StartsWith("Rush update failed."));
             }
 
             Assert.True(exceptionOccured, "Rush update should have failed due to Duplicate Project Names but didn't");

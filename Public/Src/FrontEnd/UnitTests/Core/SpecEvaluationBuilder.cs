@@ -424,5 +424,17 @@ namespace Test.BuildXL.FrontEnd.Core
             m_parseOnly = parseOnly;
             return this;
         }
+
+        /// <summary>
+        /// Whether the spec generator should use specific version numbers or workspace references when specifying dependencies
+        /// </summary>
+        public bool UseSpecificVersionNumbers
+        {
+            get
+            {
+                // Rush tests use a different versioning scheme for their referenced package versions
+                return !m_test.GetType().ToString().StartsWith("Test.BuildXL.FrontEnd.Rush", StringComparison.OrdinalIgnoreCase);
+            }
+        }
     }
 }

@@ -479,20 +479,20 @@ config({
                 // NodeJs
                 {
                     moduleName: "NodeJs.win-x64",
-                    url: "https://nodejs.org/dist/v18.6.0/node-v18.6.0-win-x64.zip",
-                    hash: "VSO0:EA729EEA528055396523F3F5BD61EDD769C251EB7B4483AABFEB511333E60AA000",
+                    url: "https://nodejs.org/dist/v22.15.0/node-v22.15.0-win-x64.zip",
+                    hash: "VSO0:74978BAE2CEA5B33E144919A9EF1634067B213C7E78D822E43DB3048BF3DC8C200",
                     archiveType: "zip",
                 },
                 {
                     moduleName: "NodeJs.osx-x64",
-                    url: "https://nodejs.org/dist/v18.6.0/node-v18.6.0-darwin-x64.tar.gz",
-                    hash: "VSO0:653B5954AD06BB6C9B7141853649602790FCB0031B81FDB82241333E2EE1350200",
+                    url: "https://nodejs.org/dist/v22.15.0/node-v22.15.0-darwin-x64.tar.gz",
+                    hash: "VSO0:9B190DBB92C6F576E178CAFD85C0156719CF65F8D39D7C83E4AB12FC132E269500",
                     archiveType: "tgz",
                 },
                 {
                     moduleName: "NodeJs.linux-x64",
-                    url: "https://nodejs.org/dist/v18.6.0/node-v18.6.0-linux-x64.tar.gz",
-                    hash: "VSO0:15A59CD4CC7C08A91FDF0C028F1C1129DC4B635749514739E1B2C6224E6420FB00",
+                    url: "https://nodejs.org/dist/v22.15.0/node-v22.15.0-linux-x64.tar.gz",
+                    hash: "VSO0:CBE67C4B307810EB6D62ED80DDD8F9146353BAE2E448B6A4359553384A19BA5000",
                     archiveType: "tgz",
                 },
                 {

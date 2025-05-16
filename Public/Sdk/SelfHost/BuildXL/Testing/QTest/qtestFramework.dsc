@@ -177,7 +177,7 @@ function runTest(args : TestRunArguments) : File[] {
         qTestAttemptCount: 1,
         qTestIgnoreQTestSkip: true,
         qTestAdditionalOptions: additionalOptions,
-        qTestTimeoutSec: 600,
+        qTestTimeoutSec: 600 * (args.timeoutMultiplier ? args.timeoutMultiplier: 1),
         useVsTest150: true,
         // Setting file can be passed through vstestSettingsFile or vstestSettingsFileForCoverage.
         // For BuildXL selfhost, ensure that the setting file disable parallelism. QTest by default run unit test methods in sequence,

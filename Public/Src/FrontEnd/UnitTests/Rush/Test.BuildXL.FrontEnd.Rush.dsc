@@ -56,6 +56,7 @@ namespace Test.Rush {
                     ],
                 }
             },
+            timeoutMultiplier: 2,
             passThroughEnvVars: [
                 ...(BuildXLSdk.NpmRc.getNpmPasswordEnvironmentVariableName() !== undefined ? [ BuildXLSdk.NpmRc.getNpmPasswordEnvironmentVariableName() ] : [])
             ]

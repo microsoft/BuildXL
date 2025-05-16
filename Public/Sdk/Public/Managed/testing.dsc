@@ -279,6 +279,9 @@ export interface TestRunArguments {
 
     /** Environment variables to be set as pass-through to the underlying test runner */
     passThroughEnvVars?: string[];
+
+    /** Multiplier to allow some test pips to run longer */
+    timeoutMultiplier?: number;
 }
 
 @@public

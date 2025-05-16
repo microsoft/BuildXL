@@ -38,7 +38,8 @@ export function runConsoleTest(args: TestRunArguments): Result {
         runtimeDirectoryDependencies: [
             xunitConsolePackage,
         ],
-        dependsOnCurrentHostOSDirectories: true
+        dependsOnCurrentHostOSDirectories: true,
+        timeoutInMilliseconds: 600 * 1000 * (args.timeoutMultiplier ? args.timeoutMultiplier : 1),
     });
 
     const testMethod = args.method || Environment.getStringValue("[UnitTest]Filter.testMethod");
@@ -81,7 +82,7 @@ export function runConsoleTest(args: TestRunArguments): Result {
     };
 
     let execArguments : Transformer.ExecuteArguments = {
-        tool: args.tool || tool,
+        tool: (args.tool || tool),
         tags: [
             "test", 
             ...(args.tags || [])

@@ -880,7 +880,7 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   <data name="HelpText_DisplayHelp_UseHistoricalCpuThrottling" xml:space="preserve">
     <value>Use the historical cpu usages of the process pips as a semaphore to limit the number of processes to execute.</value>
   </data>
-    <data name="HelpText_DisplayHelp_SchedulerSimulator" xml:space="preserve">
+  <data name="HelpText_DisplayHelp_SchedulerSimulator" xml:space="preserve">
     <value>Whether to conduct simulations using a variety of SKU and worker count combinations to estimate the build duration.</value>
   </data>
   <data name="HelpText_DisplayHelp_VmConcurrencyLimit" xml:space="preserve">
@@ -1008,13 +1008,13 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
     <value>Sets execution behaviors for a pip. Supported properties: \n PipFingerprintSalt - adds a pip specific salt value or '*' for a random salt. Ex: /pipProperty:Pip4354554[PipFingerprintingSalt=*] \n EnableVerboseProcessLogging - Enables verbose sandbox logging for specific pips. This is equivalent to switching /logObservedFileAccesses and /logProcesses for these pips, and also enabling verbose debug logging in the sandbox. Example: /pipProperty:Pip232325435435[EnableVerboseProcessLogging]</value>
   </data>
   <data name="Args_PipProperty_InvalidProperty" xml:space="preserve">
-    <value>The specified property '{0}' in the /pipProperty argument is not a valid property.</value>
+    <value>The specified property '{0}' in the /pipProperty argument is not a valid property. Valid properties: {1}.</value>
   </data>
   <data name="Args_PipProperty_FailedToParsePipProperty" xml:space="preserve">
-    <value>Failed to parse pip properties passed via /pipProperty argument</value>
+    <value>Failed to parse pip properties passed via /pipProperty argument. Expected format: /pipProperty:Pip123456[PipProperty1, PipProperty2=value, ...]</value>
   </data>
   <data name="Args_PipProperty_PipSpecificPropertiesNotFound" xml:space="preserve">
-    <value>Failed to parse pip properties passed via /pipProperty argument</value>
+    <value>Failed to parse pip properties passed via /pipProperty argument.</value>
   </data>
   <data name="Args_UnsafeOption_IgnoreNonCreateFileReparsePoints_NotAllowed" xml:space="preserve">
     <value>/unsafe_IgnoreNonCreateFileReparsePoints not allowed on non-Windows OS.</value>
@@ -1157,10 +1157,10 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   <data name="HelpText_DisplayHelp_ImmediateWorkerRelease" xml:space="preserve">
     <value>Immediately drops the specified number of workers from a distributed build session. Useful in conjunction with AB testing to test different worker counts.</value>
   </data>
-    <data name="HelpText_DisplayHelp_EarlyWorkerRelease" xml:space="preserve">
+  <data name="HelpText_DisplayHelp_EarlyWorkerRelease" xml:space="preserve">
     <value>Whether remote workers should be released early in case of insufficient amount of work.</value>
   </data>
-    <data name="HelpText_DisplayHelp_EarlyWorkerReleaseMultiplier" xml:space="preserve">
+  <data name="HelpText_DisplayHelp_EarlyWorkerReleaseMultiplier" xml:space="preserve">
     <value>Multiplier for how aggressively to release workers. Larger values will release workers more aggressively. A value of 1 will release a worker when the number of unfinished (including currently running) pips can be satisfied by the concurrency with one fewer worker.</value>
   </data>
 </root>

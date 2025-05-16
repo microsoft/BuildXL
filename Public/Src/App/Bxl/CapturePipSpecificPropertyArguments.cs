@@ -71,7 +71,7 @@ namespace BuildXL
                                         .ToArray();
                     if (property.Length != 2)
                     {
-                        throw CommandLineUtilities.Error(Strings.Args_PipProperty_InvalidProperty, pipProperty);
+                        throw CommandLineUtilities.Error(GetInvalidPropertyErrorMessage(pipProperty));
                     }
                     // Ex: /pipFingerprintSalt=tooSalty
                     // propertyValue captures the tooSalty and pipPropertyToBeChecked captures propertyName
@@ -89,10 +89,15 @@ namespace BuildXL
                 else
                 {
                     // throws an error when the property is not in the allowlist. 
-                    throw CommandLineUtilities.Error(Strings.Args_PipProperty_InvalidProperty, pipProperty);
+                    throw CommandLineUtilities.Error(GetInvalidPropertyErrorMessage(pipProperty));
                 }
             }
         }
     
+        private static string GetInvalidPropertyErrorMessage(string pipProperty)
+        {
+            var allValidProperties = Enum.GetValues<PipSpecificPropertiesConfig.PipSpecificProperty>();
+            return string.Format(Strings.Args_PipProperty_InvalidProperty, pipProperty, string.Join(", ", allValidProperties.Select(p => p.ToString())));
+        }
     }
 }

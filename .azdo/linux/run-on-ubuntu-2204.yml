@@ -18,30 +18,26 @@ parameters:
     name: BuildXL-DevOpsAgents-Selfhost-BuildCache
     image: ubuntu-22.04-PME-GPT
     os: linux
-    demands: VhdResourceId -equals /subscriptions/e9fe5373-81ff-4b89-8db2-c8681633aa87/resourceGroups/BuildXL-DevOpsAgents/providers/Microsoft.CloudTest/images/linux-vhd
+    vhd:
+      resourceId: /subscriptions/e9fe5373-81ff-4b89-8db2-c8681633aa87/resourceGroups/BuildXL-DevOpsAgents/providers/Microsoft.CloudTest/images/linux-vhd
     
 resources:
   repositories:
   - repository: 1esPipelines
     type: git
-    name: Domino/1ESPipelines
-    ref: refs/heads/main
-
+    name: 1ESPipelineTemplates/1ESPipelineTemplates
+    ref: refs/tags/release
 extends:
   template: v1/1ES.Unofficial.PipelineTemplate.yml@1esPipelines
   parameters:
     pool: ${{ parameters.pool }}
-
-    featureFlags:
-      optimizeSdlCheckout: true
-      
     sdl:
       sourceAnalysisPool:
         name: Windows-SDL-Agents
         image: Windows-SDL-Image
         os: windows
-        demands:
-        - VhdResourceId -equals /subscriptions/e9fe5373-81ff-4b89-8db2-c8681633aa87/resourceGroups/BuildXL-DevOpsAgents/providers/Microsoft.CloudTest/images/windows-sdl-vhd
+        vhd:
+          resourceId: /subscriptions/e9fe5373-81ff-4b89-8db2-c8681633aa87/resourceGroups/BuildXL-DevOpsAgents/providers/Microsoft.CloudTest/images/windows-sdl-vhd
 
     stages:
     - template: /.azdo/linux/linux-stages-template.yml

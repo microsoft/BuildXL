@@ -4,8 +4,8 @@ resources:
   repositories:
   - repository: 1esPipelines
     type: git
-    name: Domino/1ESPipelines
-    ref: refs/heads/main
+    name: 1ESPipelineTemplates/1ESPipelineTemplates
+    ref: refs/tags/release
 
 parameters:
 - name: BuildSelfhost
@@ -28,16 +28,13 @@ parameters:
     name: BuildXL-DevOpsAgents-Selfhost-BuildCache
     image: linux-PME-GPT
     os: linux
-    demands: VhdResourceId -equals /subscriptions/e9fe5373-81ff-4b89-8db2-c8681633aa87/resourceGroups/BuildXL-DevOpsAgents/providers/Microsoft.CloudTest/images/linux-vhd
+    vhd:
+      resourceId: /subscriptions/e9fe5373-81ff-4b89-8db2-c8681633aa87/resourceGroups/BuildXL-DevOpsAgents/providers/Microsoft.CloudTest/images/linux-vhd
 
 extends:
   template: v1/1ES.Unofficial.PipelineTemplate.yml@1esPipelines
   parameters:
     pool: ${{ parameters.pool }}
-
-    featureFlags:
-      optimizeSdlCheckout: true
-
     sdl:
       # Source analyses enabled by default:
       #   https://eng.ms/docs/cloud-ai-platform/devdiv/one-engineering-system-1es/1es-docs/1es-pipeline-templates/features/sdlanalysis/overview#behavior-in-pipelines-extending-unofficial-template
@@ -54,8 +51,8 @@ extends:
         name: Windows-SDL-Agents
         image: Windows-SDL-Image
         os: windows
-        demands:
-        - VhdResourceId -equals /subscriptions/e9fe5373-81ff-4b89-8db2-c8681633aa87/resourceGroups/BuildXL-DevOpsAgents/providers/Microsoft.CloudTest/images/windows-sdl-vhd
+        vhd:
+          resourceId: /subscriptions/e9fe5373-81ff-4b89-8db2-c8681633aa87/resourceGroups/BuildXL-DevOpsAgents/providers/Microsoft.CloudTest/images/windows-sdl-vhd
 
     stages:
     - template: /.azdo/linux/linux-stages-template.yml

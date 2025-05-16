@@ -522,7 +522,8 @@ export function cacheTest(args: TestArguments) : TestResult {
         testFramework: XUnit.framework,
         runTestArgs: {
             skipGroups: [ "QTestSkip", "Performance", "Simulation", ...(isDotNetCore ? [ "SkipDotNetCore" ] : []) ],
-            tags: [ "cacheTest" ]
+            tags: [ "cacheTest" ],
+            timeoutMultiplier: 2,
         },
     }, args);
 

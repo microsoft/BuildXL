@@ -85,12 +85,12 @@ export const pkgs = isMicrosoftInternal ? [
     // expose updated versions that point to the latest (net8 only) SBOM packages
     { id: "Microsoft.SbomCore", version: "6.0.2", dependentPackageIdsToSkip: ["Microsoft.Sbom.Parsers.Spdx22SbomParser"] },
     { id: "Microsoft.Parsers.ManifestGenerator", version: "3.8.11", dependentPackageIdsToIgnore: ["BuildXL.Cache.Hashing"], dependentPackageIdsToSkip: ["Microsoft.Sbom.Contracts", "Microsoft.Sbom.Extensions"] },
-    { id: "Microsoft.Sbom.Common", version: "4.0.2" },
-    { id: "Microsoft.Sbom.Parsers.Spdx22SbomParser", version: "4.0.2" },
-    { id: "Microsoft.Sbom.Adapters", version: "4.0.2" },
-    { id: "Microsoft.ComponentDetection.Contracts", version: "5.2.19", dependentPackageIdsToSkip: ["System.Threading.Tasks.Dataflow"] },
-    { id: "Microsoft.Sbom.Contracts", version: "4.0.2" },
-    { id: "Microsoft.Sbom.Extensions", version: "4.0.2" },
+    { id: "Microsoft.Sbom.Common", version: "4.0.3" },
+    { id: "Microsoft.Sbom.Parsers.Spdx22SbomParser", version: "4.0.3" },
+    { id: "Microsoft.Sbom.Adapters", version: "4.0.3" },
+    { id: "Microsoft.ComponentDetection.Contracts", version: "5.2.20", dependentPackageIdsToSkip: ["System.Threading.Tasks.Dataflow"] },
+    { id: "Microsoft.Sbom.Contracts", version: "4.0.3" },
+    { id: "Microsoft.Sbom.Extensions", version: "4.0.3" },
 
     // Process remoting
     { id: "AnyBuild.SDK", version: "0.2.0" },

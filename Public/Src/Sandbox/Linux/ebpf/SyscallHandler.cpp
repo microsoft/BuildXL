@@ -10,6 +10,16 @@ namespace buildxl {
 namespace linux {
 namespace ebpf {
 
+SyscallHandler::SyscallHandler()
+{
+}
+
+SyscallHandler* SyscallHandler::GetInstance()
+{
+    static SyscallHandler s_singleton;
+    return &s_singleton;
+}
+
 bool SyscallHandler::HandleSingleEvent(BxlObserver *bxl, const ebpf_event *event) {
     switch(event->metadata.operation_type) {
         case kClone:
@@ -23,11 +33,19 @@ bool SyscallHandler::HandleSingleEvent(BxlObserver *bxl, const ebpf_event *event
             // We have a single operation for now that can emit a kClone (wake_up_new_task), and this is unlikely to change, 
             // so do not bother checking IsEventCacheable
             CreateAndReportAccess(bxl, sandboxEvent, /* checkCache */ false);
+
+            // Update the set of active pids to add the newly created child
+            m_activePids.emplace(event->metadata.child_pid);
+
             break;
         }
         case kExit:
         {
             bxl->SendExitReport(event->metadata.pid, 0);
+
+            // Update the set of active pids to remove the exiting pid
+            m_activePids.erase(event->metadata.pid);
+
             break;
         }
         case kGenericWrite:

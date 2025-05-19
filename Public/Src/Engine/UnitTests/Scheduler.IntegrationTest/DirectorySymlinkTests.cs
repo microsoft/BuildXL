@@ -46,7 +46,7 @@ namespace IntegrationTest.BuildXL.Scheduler
                 Desc = desc;
                 Lookup = lookup;
                 Target = target;
-                Observations = observations;
+                Observations = observations.Where(o => o != null).ToArray();
             }
 
             internal enum TransalteAction
@@ -177,8 +177,8 @@ Versions/sym-sym-A -> sym-A/
                     "+ Versions/sym-A",
                     "+ Versions/A/file",
                     "- Versions/A/sym-loop",
-                    // With EBPF we also observe a probe on the symlink itself
-                    (usingEBPFSandbox ? "+ Versions/sym-A/file" : "- Versions/sym-A/file"),
+                    // With EBPF we observe might observe a probe on the symlink itself, depending on internal filesystem caching
+                    (usingEBPFSandbox ? null : "- Versions/sym-A/file"),
                     "- Versions/sym-sym-A",
                     "- Versions/sym-sym-A/file"
                 }
@@ -188,15 +188,15 @@ Versions/sym-sym-A -> sym-A/
                 "readViaDirDirSymlink",
                 lookup: "Versions/sym-sym-A/file",
                 target: "Versions/A/file",
-                observations: new[] 
+                observations: new[]
                 {
                     "+ Versions/sym-sym-A",
                     "+ Versions/sym-A",
                     "+ Versions/A/file",
                     "- Versions/A/sym-loop",
                     "- Versions/sym-A/file",
-                    // With EBPF we also observe a probe on the symlink itself
-                    (usingEBPFSandbox ? "+ Versions/sym-sym-A/file" : "- Versions/sym-sym-A/file")
+                    // With EBPF we observe might observe a probe on the symlink itself, depending on internal filesystem caching
+                    (usingEBPFSandbox ? null : "- Versions/sym-sym-A/file")
                 }
             ),
 
@@ -236,7 +236,7 @@ Versions/sym-sym-A -> sym-A/
                 "readViaSymLoop",
                 lookup: "Versions/A/sym-loop/file",
                 target: "Versions/A/file",
-                observations: new [] 
+                observations: new []
                 {
                     "+ Versions/A/sym-loop",
                     "+ Versions/sym-A",
@@ -244,8 +244,8 @@ Versions/sym-sym-A -> sym-A/
                     "- Versions/sym-A/file",
                     "- Versions/sym-sym-A",
                     "- Versions/sym-sym-A/file",
-                    // With EBPF we observe a probe on the symlink itself
-                    (usingEBPFSandbox ? "+ Versions/A/sym-loop/file" : "- Versions/A/sym-loop/file")
+                    // With EBPF we observe might observe a probe on the symlink itself, depending on internal filesystem caching
+                    (usingEBPFSandbox ? null : "- Versions/A/sym-loop/file")
                 }
             ),
         };
@@ -262,8 +262,8 @@ Versions/sym-sym-A -> sym-A/
                     // With EBPF we don't see any probe on the intermediate symlink because when the lookup path is absent
                     // there is no actual probe happening there
                     (usingEBPFSandbox ? "- Versions/A/absent1" : "+ Versions/A/absent1"),
-                    // With EBPF we see a probe on the symlink itself
-                    (usingEBPFSandbox ? "+ Versions/sym-A/absent1": "- Versions/sym-A/absent1"),
+                    // With EBPF we observe might observe a probe on the symlink itself, depending on internal filesystem caching
+                    (usingEBPFSandbox ? null : "- Versions/sym-A/absent1"),
                 }
             ),
 
@@ -279,8 +279,8 @@ Versions/sym-sym-A -> sym-A/
                     // there is no actual probe happening there
                     (usingEBPFSandbox ? "- Versions/A/absent2" : "+ Versions/A/absent2"),
                     "- Versions/sym-A/absent2",
-                    // With EBPF we see a probe on the symlink itself
-                    (usingEBPFSandbox ? "+ Versions/sym-sym-A/absent2" : "- Versions/sym-sym-A/absent2")
+                    // With EBPF we observe might observe a probe on the symlink itself, depending on internal filesystem caching
+                    (usingEBPFSandbox ? null : "- Versions/sym-sym-A/absent2")
                 }
             ),
         };

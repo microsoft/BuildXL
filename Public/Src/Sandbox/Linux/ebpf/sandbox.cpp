@@ -34,12 +34,15 @@
 
 // Max size for the name of a bpf program
 #define MAX_PROG_FULL_NAME 128
+// The poison pill is used to signal the event queue thread to stop
+#define POISON_PILL (ebpf_event*) -1
 
 /** Constants */
 const int PINNED_MAPS_SIZE = 6;
 
 /** Globals */
 BxlObserver *g_bxl;
+buildxl::linux::ebpf::SyscallHandler *g_syscallHandler;
 static volatile sig_atomic_t g_stop;
 static volatile int g_exit_code;
 int g_root_pid = 0, g_runner_pid = 0;
@@ -293,7 +296,7 @@ void HandleEvent(ebpf_event *event) {
             // let the log debug event call above log it, so we can investigate otherwise.
             if (IsPathFullyResolved(event->src_path))
             {
-                buildxl::linux::ebpf::SyscallHandler::HandleSingleEvent(g_bxl, event);                
+                g_syscallHandler->HandleSingleEvent(g_bxl, event);                
             }
             break;
         case DOUBLE_PATH:
@@ -324,7 +327,7 @@ void *HandleEventQueue(void *arg) {
         while (!g_event_queue.Dequeue(event)) {
         }
 
-        if (event == (ebpf_event*) -1) {
+        if (event == POISON_PILL) {
             // Received poison pill: exit the thread.
             break;
         }
@@ -385,7 +388,7 @@ int PopulateOptionsMapFromFam()
 
     if (bpf_map_update_elem(g_sandbox_options_per_pip_map_fd, &key, &options, BPF_ANY))
     {
-        g_bxl->LogDebug(getpid(), "Can't add options to map");
+        g_bxl->LogDebug(getpid(), "Can't add options to map: %s", strerror(errno));
         return 1;
     }
 
@@ -438,7 +441,7 @@ int RunRootProcess(const char *file, char *const argv[], char *const envp[]) {
         int key = g_runner_pid;
         if (bpf_map_update_elem(g_pid_map_fd, &g_root_pid, &key, BPF_ANY))
         {
-            g_bxl->LogDebug(getpid(), "Can't add new pip id to map");
+            g_bxl->LogDebug(getpid(), "Can't add new pip id to map: %s", strerror(errno));
             return 1;
         }
         
@@ -454,6 +457,92 @@ int RunRootProcess(const char *file, char *const argv[], char *const envp[]) {
     }
 
     return 0;
+}
+
+/**
+ * Deletes a per-pip map for the provided key.
+ * This is used to remove the reference to the pip from the outer per-pip maps.
+ * If the map is not found, we log an error only if emitErrors is true.
+ */
+void DeletePerPipMap(int map_per_pip_fd, int key, const char *description, bool emitErrors)
+{
+    if (bpf_map_delete_elem(map_per_pip_fd, &key))
+    {
+        if (emitErrors)
+        {
+            LogError("Error deleting map '%s' for runner PID %d:%s\n", description, key, strerror(errno));
+        }
+    }
+    else
+    {
+        g_bxl->LogDebug(getpid(), "Removed map '%s' for runner PID %d", description, key);
+    }
+}
+
+/**
+ * This should be called before the runner exits
+ * * Stops tracing any processes that depend on the currently active ringbuffers
+ * * Consumes all remaining events in the ringbuffers
+ * * Waits for the event queue to consume pending events and send them through the FIFO
+ * * Deletes all pip-specific EBPF maps
+ * * Sends the exit event for this runner
+ */
+void TeardownPip(void *argv, bool emitErrors)
+{
+    // Make sure we stop tracing any remaining active process that belongs to this pip
+    // We are about to remove the maps that belong to this pip, so any further tracing will
+    // find that the map is gone. If there are any surviving processes, those will be flagged
+    // on managed side.
+    for (auto it = g_syscallHandler->GetActivePidsBegin(); it != g_syscallHandler->GetActivePidsEnd(); it++)
+    {
+        pid_t pid = *it;
+        // Pids may have naturally exited when we reach this point, so we cannot actually verify we deleted them
+        bpf_map_delete_elem(g_pid_map_fd, &pid);
+    }
+    
+    // Consume any remaining items in the ring buffers
+    // Let's account for interrupted system calls
+    // and retry until we consume everything
+    int res = 0;
+    do {
+        res = ring_buffer__consume(g_file_access_ring_buffer);
+    } while (res == -EINTR);
+
+    do {
+        res = ring_buffer__consume(g_debug_ring_buffer);
+    } while (res == -EINTR);
+
+    // Add poison pill to signal the event queue thread to exit.
+    g_event_queue.Enqueue(POISON_PILL);
+
+    // Wait for the event queue thread to finish consuming the rest of the ring buffer.
+    pthread_join(g_event_queue_thread, NULL);
+
+    // Remove the pip reference from the outer per-pip maps
+    int key = g_runner_pid;
+    DeletePerPipMap(g_file_access_per_pip_fd, key, "file access", emitErrors);
+    DeletePerPipMap(g_debug_buffer_per_pip_fd, key, "debug buffer", emitErrors);
+    DeletePerPipMap(g_event_cache_per_pip_fd, key, "event cache", emitErrors);
+    DeletePerPipMap(g_breakaway_processes_per_pip_fd, key, "breakaway processes", emitErrors);
+    DeletePerPipMap(g_sandbox_options_per_pip_map_fd, key, "sandbox options", emitErrors);
+
+    // Just being consistent with the injected exec event, we use the root exe
+    // as the file path
+    char* file = ((char**) argv)[1];
+    // Inject an exit event for the runner process before we tear down EBPF
+    auto exit_event = buildxl::linux::SandboxEvent::ExitSandboxEvent(
+        /* system_call */   "__teardown__exit",
+        /* path */          file,
+        /* pid */           getpid(),
+        /* ppid */          getppid());
+    exit_event.SetMode(g_bxl->get_mode(file));
+    exit_event.SetRequiredPathResolution(buildxl::linux::RequiredPathResolution::kDoNotResolve);
+
+    // After sending this event it is not safe to write into the pipe anymore
+    // since the pip will be considered terminated and the pipe removed
+    g_bxl->CreateAndReportAccess(exit_event);
+
+    g_stop = 1;
 }
 
 /**
@@ -494,71 +583,9 @@ void *WaitForRootProcessToExit(void *argv) {
         }
     }
 
-    // Consume any remaining items in the ring buffers
-    ring_buffer__consume(g_file_access_ring_buffer);
-    ring_buffer__consume(g_debug_ring_buffer);
-
-    // Add poison pill to signal the event queue thread to exit.
-    g_event_queue.Enqueue((ebpf_event*) -1);
-
-    // Wait for the event queue thread to finish consuming the rest of the ring buffer.
-    pthread_join(g_event_queue_thread, NULL);
-
-    // Remove the pip reference from the outer per-pip maps
-    int key = g_runner_pid;
-    if (bpf_map_delete_elem(g_file_access_per_pip_fd, &key))
-    {
-        LogError("Error deleting ring buffer for runner PID %d:%s\n", key, strerror(errno));
-    }
-    else
-    {
-        g_bxl->LogDebug(getpid(), "Removed file access ring buffer for runner PID %d", key);
-    }
-
-    if (bpf_map_delete_elem(g_debug_buffer_per_pip_fd, &key))
-    {
-        LogError("Error deleting debug ring buffer for runner PID %d:%s\n", key, strerror(errno));
-    }
-    else
-    {
-        g_bxl->LogDebug(getpid(), "Removed debug ring buffer for runner PID %d", key);
-    }
-
-    if (bpf_map_delete_elem(g_event_cache_per_pip_fd, &key))
-    {
-        LogError("Error deleting event cache for runner PID %d:%s\n", key, strerror(errno));
-    }
-    else
-    {
-        g_bxl->LogDebug(getpid(), "Removed event cache for runner PID %d", key);
-    }
-
-    if (bpf_map_delete_elem(g_breakaway_processes_per_pip_fd, &key))
-    {
-        LogError("Error deleting breakaway map for runner PID %d:%s\n", key, strerror(errno));
-    }
-    else
-    {
-        g_bxl->LogDebug(getpid(), "Removed breakaway map for runner PID %d", key);
-    }
-
-    // Just being consistent with the injected exec event, we use the root exe
-    // as the file path
-    char* file = ((char**) argv)[1];
-    // Inject an exit event for the runner process before we tear down EBPF
-    auto exit_event = buildxl::linux::SandboxEvent::ExitSandboxEvent(
-        /* system_call */   "__teardown__exit",
-        /* path */          file,
-        /* pid */           getpid(),
-        /* ppid */          getppid());
-    exit_event.SetMode(g_bxl->get_mode(file));
-    exit_event.SetRequiredPathResolution(buildxl::linux::RequiredPathResolution::kDoNotResolve);
-
-    // After sending this event it is not safe to write into the pipe anymore
-    // since the pip will be considered terminated and the pipe removed
-    g_bxl->CreateAndReportAccess(exit_event);
-
-    g_stop = 1;
+    // We are tearing down the pip and we are expecting all the per-pip maps to contain an
+    // entry for the runner pid. If we don't find it, we log an error
+    TeardownPip(argv, /* emit errors */ true);
 
     return NULL;
 }
@@ -847,6 +874,7 @@ int main(int argc, char **argv) {
     // We want to do this before we initialize libbpf because we want to redirect
     // libbpf messages to BxlObserver.
     g_bxl = BxlObserver::GetInstance();
+    g_syscallHandler = buildxl::linux::ebpf::SyscallHandler::GetInstance();
     g_bxl->Init();
     g_runner_pid = getpid();
 
@@ -968,6 +996,12 @@ int main(int argc, char **argv) {
     int res = RunRootProcess(argv[1], &argv[1], environ);
     if (res != 0) {
         LogError("Failed to start root process\n");
+        // Make sure we tear down everything pip related. In particular, RunRootProcess emits
+        // the first clone/exec event, and the teardown makes sure we emit an exit event.
+        // Not all per-pip maps may be populated, so we don't want to emit errors
+        // in the case one entry is missing. This is fine, consider here we are already under an error case, and
+        // an error was logged already.
+        TeardownPip(argv, /* emit errors */ false);
         Cleanup(skel);
         return -1;
     }

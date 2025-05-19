@@ -28,7 +28,7 @@ static __always_inline long get_flags(void *ringbuffer) {
 __attribute__((always_inline)) static inline void report_ring_buffer_error(pid_t runner_pid, const char* error_message) {
     void *debug_ring_buffer = bpf_map_lookup_elem(&debug_buffer_per_pip, &runner_pid);
     if (debug_ring_buffer == NULL) {
-        bpf_printk("[ERROR] Couldn't find debug ring buffer for pip %d", runner_pid);
+        bpf_printk("[ERROR] Couldn't find debug ring buffer for pip %d. Error %s", runner_pid, error_message);
         return;
     } 
 

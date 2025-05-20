@@ -2,7 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 namespace Vsts {
-    export declare const qualifier : BuildXLSdk.DefaultQualifierWithNet472AndNetStandard20;
+    export declare const qualifier : BuildXLSdk.AllSupportedQualifiers;
 
     @@public
     export const dll = !BuildXLSdk.Flags.isVstsArtifactsEnabled ? undefined : BuildXLSdk.library({

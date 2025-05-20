@@ -5,7 +5,7 @@ import * as Deployment from "Sdk.Deployment";
 import * as BuildXLSdk from "Sdk.BuildXL";
 
 namespace Cache {
-    export declare const qualifier: BuildXLSdk.DefaultQualifierWithNet6AndNet472;
+    export declare const qualifier: BuildXLSdk.DefaultQualifierWithNet472;
 
     /** We copy the sdk's for now. In the future the sdks can contain compiled helpers */
     const deployment : Deployment.Definition = {

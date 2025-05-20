@@ -57,7 +57,6 @@ function getXunitConsoleRuntimeConfigNetCoreAppFiles(): File[] {
 
 function getTargetFramework(): Framework {
     switch (qualifier.targetFramework) {
-        case "net6.0": return importFrom("Sdk.Managed.Frameworks.Net6.0").withQualifier({targetFramework: "net6.0"}).framework;
         case "net8.0": return importFrom("Sdk.Managed.Frameworks.Net8.0").withQualifier({targetFramework: "net8.0"}).framework;
         case "net9.0": return importFrom("Sdk.Managed.Frameworks.Net9.0").withQualifier({targetFramework: "net9.0"}).framework;
         default: Contract.fail(`Unknown targetFramework version '${qualifier.targetFramework}'.`);

@@ -72,7 +72,7 @@ param(
     [ValidateSet("Release", "Debug")]
     [string]$DeployConfig = "Debug", # must match defaultQualifier.configuration in config.dsc 
 
-    [ValidateSet("net472", "net6.0", "net8.0", "net9.0", "win-x64", "osx-x64")]
+    [ValidateSet("net472", "net8.0", "net9.0", "win-x64", "osx-x64")]
     [string]$DeployRuntime = "win-x64", # must correspond to defaultQualifier.targetFramework in config.dsc 
 
     [Parameter(Mandatory = $false)]
@@ -313,7 +313,7 @@ if ($Vs -or $VsAll) {
     }
     else {
         # by default (-vs) we build only .NET Core and only projects targeting one of the .NET Core frameworks
-        $AdditionalBuildXLArguments += "/q:Debug /vsTargetFramework:netstandard2.0 /vsTargetFramework:netstandard2.1 /vsTargetFramework:net6.0 /vsTargetFramework:net8.0 /vsTargetFramework:net9.0";
+        $AdditionalBuildXLArguments += "/q:Debug /vsTargetFramework:netstandard2.0 /vsTargetFramework:netstandard2.1 /vsTargetFramework:net8.0 /vsTargetFramework:net9.0";
     }
 }
 
@@ -572,9 +572,6 @@ if ($DeployConfig -eq "Release") {
     if ($DeployRuntime -eq "net472") {
         $AdditionalBuildXLArguments += "/q:ReleaseNet472"
     }
-    elseif ($DeployRuntime -eq "net6.0") {
-        $AdditionalBuildXLArguments += "/q:ReleaseDotNet6"
-    }
     elseif ($DeployRuntime -eq "net8.0") {
         $AdditionalBuildXLArguments += "/q:ReleaseNet8"
     }
@@ -594,9 +591,6 @@ if ($DeployConfig -eq "Release") {
 else {
     if ($DeployRuntime -eq "net472") {
         $AdditionalBuildXLArguments += "/q:DebugNet472"
-    }
-    elseif ($DeployRuntime -eq "net6.0") {
-        $AdditionalBuildXLArguments += "/q:DebugDotNet6"
     }
     elseif ($DeployRuntime -eq "net8.0") {
         $AdditionalBuildXLArguments += "/q:DebugNet8"

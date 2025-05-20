@@ -2448,7 +2448,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             FileArtifact bCFile = CreateFileArtifactWithName("b.c", dirString);
             WriteSourceFile(bCFile);
 
-            // If useDotNetEnumerateOnWindows for net6.0 framework is true, EnumerateDir calls NtQueryDirectoryFile with no pattern,
+            // If useDotNetEnumerateOnWindows for dotnet is true, EnumerateDir calls NtQueryDirectoryFile with no pattern,
             // which BuildXL treats as "*" pattern (.NET does the filtering in the managed layer, which is not visible by Detours).
             // Thus, when useDotNetEnumerateOnWindows is true, the pip will have a cache miss even though EnumerateDir specified "*.h" as a pattern.
             // When useDotNetEnumerateOnWindows is false, EnumerateDir calls FindFirstFile/FindNextFile to enumerate the directory.

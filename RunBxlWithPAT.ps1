@@ -27,7 +27,7 @@ Param(
  [string]$Use = "LKG",
  [ValidateSet("Release", "Debug")]
  [string]$DeployConfig = "Debug",
- [ValidateSet("net472", "net5.0", "net6.0", "win-x64", "osx-x64")]
+ [ValidateSet("net472", "net8.0", "net9.0", "win-x64", "osx-x64")]
  [string]$DeployRuntime = "win-x64",
  [Parameter(Mandatory=$false)]
  [ValidateSet("Dev", "RunCheckinTests", "RunCheckinTestSamples", "ChangeJournalService")]

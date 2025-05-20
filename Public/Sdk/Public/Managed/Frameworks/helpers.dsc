@@ -77,20 +77,7 @@ namespace Helpers {
     }
 
     function getRuntimePackagesContent(version: DotNetCoreVersion, host: Context.CurrentHostInformation) : StaticDirectory {
-        if (version === 'net6.0')
-        {
-            switch (host.os) {
-                case "win":
-                    return importFrom("DotNet-Runtime-6.win-x64").extracted;
-                case "macOS":
-                    return importFrom("DotNet-Runtime-6.osx-x64").extracted;
-                case "unix":
-                    return importFrom("DotNet-Runtime-6.linux-x64").extracted;
-                default:
-                    Contract.fail(`The current DotNetCore Runtime package doesn't support the current target runtime: ${host.os}. Ensure you run on a supported OS -or- update the DotNet-Runtime package to have the version embdded.`);
-            }
-        }
-        else if (version === 'net8.0')
+        if (version === 'net8.0')
         {
             switch (host.os) {
                 case "win":
@@ -125,13 +112,11 @@ namespace Helpers {
         return getDotNetCoreToolTemplate(version);
     }
 
-    const tool6Template = getDotNetCoreToolTemplate("net6.0");
     const tool8Template = getDotNetCoreToolTemplate("net8.0");
     const tool9Template = getDotNetCoreToolTemplate("net9.0");
 
     function getCachedDotNetCoreToolTemplate(dotNetCoreVersion: DotNetCoreVersion) : Transformer.ExecuteArgumentsComposible {
         switch (dotNetCoreVersion) {
-            case "net6.0": return tool6Template;
             case "net8.0": return tool8Template;
             case "net9.0": return tool9Template;
             default: Contract.fail(`Unknown .NET Core version '${dotNetCoreVersion}'.`);

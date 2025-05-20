@@ -5,7 +5,7 @@ import * as BuildXLSdk from "Sdk.BuildXL";
 import { NetFx } from "Sdk.BuildXL";
 
 export {BuildXLSdk, NetFx};
-export declare const qualifier: BuildXLSdk.DefaultQualifierWithNet6AndNet472;
+export declare const qualifier: BuildXLSdk.DefaultQualifierWithNet472;
 
 @@public
 export const testProcessExe = TestProcess.exe;

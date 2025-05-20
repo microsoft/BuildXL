@@ -79,15 +79,12 @@ export function assembly(args: Arguments, targetType: Csc.TargetType) : Result {
     let helperTags = [
         ...addIf(qualifier.targetRuntime === "win-x64" && qualifier.targetFramework === "net472" && qualifier.configuration === "debug", "CompileDebugNet472", "CompileWin"),
         ...addIf(qualifier.targetRuntime === "win-x64" && qualifier.targetFramework === "netstandard2.0" && qualifier.configuration === "debug", "CompileNetStandard20", "CompileWin"),
-        ...addIf(qualifier.targetRuntime === "win-x64" && qualifier.targetFramework === "net6.0" && qualifier.configuration === "debug", "CompileDebugNet6Win", "CompileWin"),
         ...addIf(qualifier.targetRuntime === "win-x64" && qualifier.targetFramework === "net8.0" && qualifier.configuration === "debug", "CompileDebugNet8Win", "CompileWin"),
         ...addIf(qualifier.targetRuntime === "win-x64" && qualifier.targetFramework === "net9.0" && qualifier.configuration === "debug", "CompileDebugNet9Win", "CompileWin"),
         
-        ...addIf(qualifier.targetRuntime === "osx-x64" && qualifier.targetFramework === "net6.0" && qualifier.configuration === "debug", "CompileNet6Osx", "CompileOsx"),
         ...addIf(qualifier.targetRuntime === "osx-x64" && qualifier.targetFramework === "net8.0" && qualifier.configuration === "debug", "CompileNet8Osx", "CompileOsx"),
         ...addIf(qualifier.targetRuntime === "osx-x64" && qualifier.targetFramework === "net8.0" && qualifier.configuration === "debug", "CompileNet9Osx", "CompileOsx"),
         
-        ...addIf(qualifier.targetRuntime === "linux-x64" && qualifier.targetFramework === "net6.0" && qualifier.configuration === "debug", "CompileNet6Linux", "CompileLinux"),
         ...addIf(qualifier.targetRuntime === "linux-x64" && qualifier.targetFramework === "net8.0" && qualifier.configuration === "debug", "CompileNet8Linux", "CompileLinux"),
         ...addIf(qualifier.targetRuntime === "linux-x64" && qualifier.targetFramework === "net9.0" && qualifier.configuration === "debug", "CompileNet9Linux", "CompileLinux"),
     ];

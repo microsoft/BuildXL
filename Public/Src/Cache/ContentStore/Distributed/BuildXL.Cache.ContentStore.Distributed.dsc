@@ -3,7 +3,7 @@
 import * as ManagedSdk from "Sdk.Managed";
 
 namespace Distributed {
-    export declare const qualifier : BuildXLSdk.DefaultQualifierWithNet472AndNetStandard20;
+    export declare const qualifier : BuildXLSdk.AllSupportedQualifiers;
     
     @@public
     export const eventHubPackages = [

@@ -555,11 +555,6 @@ config({
                 targetFramework: "net8.0",
                 targetRuntime: "win-x64",
             },
-            DebugDotNet6: {
-                configuration: "debug",
-                targetFramework: "net6.0",
-                targetRuntime: "win-x64",
-            },
             DebugDotNetCoreMac: {
                 configuration: "debug",
                 targetFramework: "net8.0",
@@ -609,11 +604,6 @@ config({
             ReleaseNet8: {
                 configuration: "release",
                 targetFramework: "net8.0",
-                targetRuntime: "win-x64",
-            },
-            ReleaseDotNet6: {
-                configuration: "release",
-                targetFramework: "net6.0",
                 targetRuntime: "win-x64",
             },
             ReleaseDotNetCoreMac: {

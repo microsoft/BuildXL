@@ -36,13 +36,6 @@ export const pkgs = [
     
     // Microsoft.AsptNetCore.App.Runtime.* packages embed some packages we also consume 
     // directly. Exclude all these packages, and use the proper nuget package directly as needed
-    { id: "Microsoft.AspNetCore.App.Runtime.win-x64", version: asp6RuntimeVersion, alias: "Microsoft.AspNetCore.App.Runtime.win-x64.6.0.0", 
-        filesToExclude: [r`runtimes/win-x64/lib/net6.0/Microsoft.Extensions.Logging.Abstractions.dll`, r`runtimes/win-x64/lib/net6.0/Microsoft.Extensions.Logging.dll`]},
-    { id: "Microsoft.AspNetCore.App.Runtime.linux-x64", version: asp6RuntimeVersion, alias: "Microsoft.AspNetCore.App.Runtime.linux-x64.6.0.0", 
-        filesToExclude: [r`runtimes/linux-x64/lib/net6.0/Microsoft.Extensions.Logging.Abstractions.dll`, r`runtimes/linux-x64/lib/net6.0/Microsoft.Extensions.Logging.dll`] },
-    { id: "Microsoft.AspNetCore.App.Runtime.osx-x64", version: asp6RuntimeVersion, alias: "Microsoft.AspNetCore.App.Runtime.osx-x64.6.0.0", 
-        filesToExclude: [r`runtimes/osx-x64/lib/net6.0/Microsoft.Extensions.Logging.Abstractions.dll`, r`runtimes/osx-x64/lib/net6.0/Microsoft.Extensions.Logging.dll`] },
-
     { id: "Microsoft.AspNetCore.App.Ref", version: asp8RefVersion, alias: "Microsoft.AspNetCore.App.Ref.8.0.0" },
     { id: "Microsoft.AspNetCore.App.Runtime.win-x64", version: asp8RuntimeVersion, alias: "Microsoft.AspNetCore.App.Runtime.win-x64.8.0.0", 
         filesToExclude: [r`runtimes/win-x64/lib/net8.0/Microsoft.Extensions.Logging.Abstractions.dll`, r`runtimes/win-x64/lib/net8.0/Microsoft.Extensions.Logging.dll`] },

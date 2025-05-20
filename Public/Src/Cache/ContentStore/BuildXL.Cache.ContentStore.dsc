@@ -185,7 +185,7 @@ export function getAzureBlobStorageSdkPackagesWithoutNetStandard() : (Managed.Ma
 }
 
 namespace Default {
-    export declare const qualifier: BuildXLSdk.DefaultQualifierWithNet6AndNet472;
+    export declare const qualifier: BuildXLSdk.DefaultQualifierWithNet472;
 
     @@public
     export const deployment: Deployment.Definition =
@@ -259,7 +259,7 @@ namespace Default {
 
 // TODO: Merge into Default.deployment when all of CloudStore builds on DotNetCore
 namespace DotNetCore {
-    export declare const qualifier: BuildXLSdk.Net6PlusQualifier;
+    export declare const qualifier: BuildXLSdk.Net8PlusQualifier;
 
     @@public
     export const deployment: Deployment.NestedDefinition =

@@ -6,7 +6,7 @@ import {Transformer} from "Sdk.Transformers";
 import * as XUnit from "Sdk.Managed.Testing.XUnit";
 
 namespace Core {
-    export declare const qualifier: BuildXLSdk.Net6PlusQualifier;
+    export declare const qualifier: BuildXLSdk.Net8PlusQualifier;
 
     @@public
     export const dll = BuildXLSdk.test({

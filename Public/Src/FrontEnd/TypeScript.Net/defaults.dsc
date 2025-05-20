@@ -6,5 +6,5 @@ import * as BuildXLSdk from "Sdk.BuildXL";
 import { NetFx } from "Sdk.BuildXL";
 
 namespace TypeScript.Net {
-    export declare const qualifier: BuildXLSdk.DefaultQualifierWithNet6AndNet472;
+    export declare const qualifier: BuildXLSdk.DefaultQualifierWithNet472;
 }

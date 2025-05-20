@@ -4,7 +4,7 @@
 import * as XUnit from "Sdk.Managed.Testing.XUnit";
 
 namespace DistributedTest {
-    export declare const qualifier : BuildXLSdk.DefaultQualifierWithNet6AndNet472;
+    export declare const qualifier : BuildXLSdk.DefaultQualifierWithNet472;
     
     @@public
     export const dll = BuildXLSdk.cacheTest({

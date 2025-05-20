@@ -6,7 +6,7 @@ import * as BuildXLSdk from "Sdk.BuildXL";
 
 namespace LauncherServer {
 
-    export declare const qualifier: BuildXLSdk.Net6PlusQualifier;
+    export declare const qualifier: BuildXLSdk.Net8PlusQualifier;
 
     @@public
     export const exe = BuildXLSdk.executable({

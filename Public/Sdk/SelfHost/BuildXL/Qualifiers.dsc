@@ -34,32 +34,12 @@ export interface DefaultQualifierWithNet472 extends Qualifier {
 }
 
 /**
- * Qualifier for projects that support DotNetCore 6+ and .NET472
- */
-@@public
-export interface DefaultQualifierWithNet6AndNet472 extends Qualifier {
-    configuration: "debug" | "release";
-    targetFramework: "net6.0" | "net8.0" | "net9.0" | "net472";
-    targetRuntime: "win-x64" | "osx-x64" | "linux-x64";
-}
-
-/**
- * Qualifier for projects that support DotNetCore, .NET472 and NetStandard2.0
- */
-@@public
-export interface DefaultQualifierWithNet472AndNetStandard20 extends Qualifier {
-    configuration: "debug" | "release";
-    targetFramework: "net6.0" | "net8.0" | "net9.0" | "net472" | "netstandard2.0";
-    targetRuntime: "win-x64" | "osx-x64" | "linux-x64";
-}
-
-/**
  * Qualifier for projects that support DotNetCore, .NET472 and NetStandard2.0
  */
 @@public
 export interface AllSupportedQualifiers extends Qualifier {
     configuration: "debug" | "release";
-    targetFramework: "net6.0" | "net8.0" | "net9.0" | "net472" | "netstandard2.0";
+    targetFramework: "net8.0" | "net9.0" | "net472" | "netstandard2.0";
     targetRuntime: "win-x64" | "osx-x64" | "linux-x64";
 }
 
@@ -73,16 +53,9 @@ export interface PlatformDependentQualifier extends Qualifier {
 }
 
 @@public
-export interface Net6PlusQualifier extends Qualifier {
+export interface Net8PlusQualifier extends Qualifier {
     configuration: "debug" | "release";
-    targetFramework: "net6.0" | "net8.0" | "net9.0";
-    targetRuntime: "win-x64" | "osx-x64" | "linux-x64";
-}
-
-@@public
-export interface Net6Qualifier extends Qualifier {
-    configuration: "debug" | "release";
-    targetFramework: "net6.0";
+    targetFramework: "net8.0" | "net9.0";
     targetRuntime: "win-x64" | "osx-x64" | "linux-x64";
 }
 

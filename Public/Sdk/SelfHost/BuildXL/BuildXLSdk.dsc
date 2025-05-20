@@ -148,13 +148,13 @@ export interface PolySharpAttributes {
  * Returns true if the current qualifier is targeting .NET Core or .NET Standard
  */
 @@public
-export const isDotNetCoreOrStandard : boolean = qualifier.targetFramework === "netstandard2.0" || qualifier.targetFramework === "net6.0" || qualifier.targetFramework === "net8.0" || qualifier.targetFramework === "net9.0";
+export const isDotNetCoreOrStandard : boolean = qualifier.targetFramework === "netstandard2.0" || qualifier.targetFramework === "net8.0" || qualifier.targetFramework === "net9.0";
 
 /**
  * Returns true if the current qualifier is targeting .NET Core
  */
 @@public
-export const isDotNetCore : boolean = qualifier.targetFramework === "net6.0" || qualifier.targetFramework === "net8.0" || qualifier.targetFramework === "net9.0";
+export const isDotNetCore : boolean = qualifier.targetFramework === "net8.0" || qualifier.targetFramework === "net9.0";
 
 @@public
 export const isFullFramework : boolean = qualifier.targetFramework === "net472";
@@ -185,7 +185,7 @@ export const targetFrameworkMatchesCurrentHost =
 export const restrictTestRunToSomeQualifiers =
     qualifier.configuration !== "debug" ||
     // Running tests for .NET Core App 3.0, .NET 5 and 4.7.2 frameworks only.
-    (qualifier.targetFramework !== "net6.0" && qualifier.targetFramework !== "net8.0" && qualifier.targetFramework !== "net9.0" && qualifier.targetFramework !== "net472") ||
+    (qualifier.targetFramework !== "net8.0" && qualifier.targetFramework !== "net9.0" && qualifier.targetFramework !== "net472") ||
     !targetFrameworkMatchesCurrentHost;
 
 /***

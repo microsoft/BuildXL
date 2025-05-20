@@ -7,7 +7,7 @@ namespace Scheduler {
 
     // BuildXL.Processes is still used as Net472 by Cloudbuild and the unittest for that relies on this test dll.
     // Therefore we compile, but don't run the test in net472
-    export declare const qualifier: BuildXLSdk.DefaultQualifierWithNet6AndNet472;
+    export declare const qualifier: BuildXLSdk.DefaultQualifierWithNet472;
 
     @@public
     export const categoriesToRunInParallel = [

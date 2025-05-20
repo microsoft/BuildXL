@@ -2,7 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 namespace Plugin {
-    export declare const qualifier: BuildXLSdk.DefaultQualifierWithNet6AndNet472;
+    export declare const qualifier: BuildXLSdk.DefaultQualifierWithNet472;
     
     @@public
     export const dll = BuildXLSdk.library({

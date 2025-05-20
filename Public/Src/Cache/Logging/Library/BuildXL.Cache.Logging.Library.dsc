@@ -5,7 +5,7 @@ import * as Managed from "Sdk.Managed.Shared";
 import { NetFx } from "Sdk.BuildXL";
 
 namespace Library {
-    export declare const qualifier : BuildXLSdk.DefaultQualifierWithNet472AndNetStandard20;
+    export declare const qualifier : BuildXLSdk.AllSupportedQualifiers;
 
     @@public
     export const dll = BuildXLSdk.library({

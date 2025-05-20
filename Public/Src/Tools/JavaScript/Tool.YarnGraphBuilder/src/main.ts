@@ -123,6 +123,8 @@ try {
                 tempFolder: repoFolder,
                 outputDirectories: bxlConfig.outputDirectories,
                 sourceFiles: bxlConfig.sourceFiles,
+                // Not supported by Yarn
+                sourceDirectories: [],
                 // Yarn nodes are always cacheable
                 cacheable: true,
             };

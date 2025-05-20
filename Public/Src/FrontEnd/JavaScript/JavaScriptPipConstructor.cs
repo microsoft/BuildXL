@@ -441,6 +441,9 @@ namespace BuildXL.FrontEnd.JavaScript
                 // Add all resolver-specific allowed scopes
                 sourceReadsScopes.AddRange(GetResolverSpecificAllowedSourceReadsScopes());
 
+                // Add all the source directories that the project is allowed to read from, as they come from the build graph
+                sourceReadsScopes.AddRange(project.SourceDirectories);
+
                 // If full reparse point resolving is enabled, then we also implicitly add the final paths (in the case reparse points are present) and intermediate reparse points
                 // of all project folder related paths. This naturally matches the expectation for this resolver specific behavior, since read accesses are going to
                 // get fully resolved when checking them against scopes.

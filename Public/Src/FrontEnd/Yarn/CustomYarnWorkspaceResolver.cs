@@ -217,7 +217,8 @@ namespace BuildXL.FrontEnd.Yarn
                 tempFolder: ResolverSettings.Root,
                 cacheable: cacheable,
                 outputDirectories: CollectionUtilities.EmptyArray<PathWithTargets>(),
-                sourceFiles: CollectionUtilities.EmptyArray<PathWithTargets>()
+                sourceFiles: CollectionUtilities.EmptyArray<PathWithTargets>(),
+                sourceDirectories: CollectionUtilities.EmptyArray<AbsolutePath>()
             );
         }
 

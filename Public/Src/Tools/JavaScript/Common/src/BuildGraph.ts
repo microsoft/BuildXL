@@ -20,6 +20,7 @@ export interface JavaScriptProject {
     projectFolder: string;
     tempFolder: string;
     dependencies: string[];
+    sourceDirectories: string[];
     outputDirectories: BxlConfig.PathWithTargets[];
     sourceFiles: BxlConfig.PathWithTargets[];
     cacheable: boolean;

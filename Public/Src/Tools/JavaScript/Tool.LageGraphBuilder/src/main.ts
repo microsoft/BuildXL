@@ -65,7 +65,16 @@ export interface PackageTaskInfo {
     task: string;
     command: string[];
     workingDirectory: string;
+    /** 
+     * task-to-task execution dependencies. 
+     * Strings are expected to be a collection of ids of other tasks in the graph 
+     */
     dependencies: string[];
+    /** 
+     * External source package dependencies, or internal source dependencies where there is no execution involved
+     * Strings are expected to be a collection of paths representing directories
+     */
+    sourceDependencies: string[];
 }
 
 function lageToBuildXL(lage: Report): JavaScriptGraph {
@@ -86,6 +95,7 @@ function lageToBuildXL(lage: Report): JavaScriptGraph {
         tempFolder: repoFolder,
         outputDirectories: bxlConfig.outputDirectories,
         sourceFiles: bxlConfig.sourceFiles,
+        sourceDirectories: task === undefined ? [] : task.sourceDependencies,
         // Lage nodes are always cacheable
         cacheable: true
       };

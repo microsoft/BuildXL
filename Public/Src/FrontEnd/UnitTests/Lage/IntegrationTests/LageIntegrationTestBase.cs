@@ -34,7 +34,7 @@ namespace Test.BuildXL.FrontEnd.Lage
         /// <summary>
         /// Keep in sync with deployment.
         /// </summary>
-        protected string PathToLage => Path.Combine(TestDeploymentDir, "lage", ".bin", OperatingSystemHelper.IsWindowsOS ? "lage.cmd" : "lage").Replace("\\", "/");
+        protected virtual string PathToLage => Path.Combine(TestDeploymentDir, "lage", ".bin", OperatingSystemHelper.IsWindowsOS ? "lage.cmd" : "lage").Replace("\\", "/");
 
         /// <summary>
         /// Keep in sync with deployment.
@@ -45,7 +45,7 @@ namespace Test.BuildXL.FrontEnd.Lage
         protected string PathToNodeFolder => Path.GetDirectoryName(PathToNode).Replace("\\", "/");
 
         /// <nodoc/>
-        protected string PathToLageFolder => Path.Combine(TestDeploymentDir, "lage").Replace("\\", "/");
+        protected virtual string PathToLageFolder => Path.Combine(TestDeploymentDir, "lage").Replace("\\", "/");
 
         /// <summary>
         /// Default out dir to use in projects
@@ -84,7 +84,8 @@ namespace Test.BuildXL.FrontEnd.Lage
             string root = "d`.`",
             string executeCommands = null,
             string since = null,
-            string lageLocation = null)
+            string lageLocation = null,
+            bool? enforceSourceReadsUnderPackageRoots = null)
         {
             environment ??= new Dictionary<string, DiscriminatingUnion<string, UnitValue>> { 
                 ["PATH"] = new DiscriminatingUnion<string, UnitValue>(PathToNodeFolder),
@@ -105,7 +106,8 @@ namespace Test.BuildXL.FrontEnd.Lage
                     root: root,
                     executeCommands: executeCommands,
                     since: since,
-                    lageLocation: lageLocation));
+                    lageLocation: lageLocation,
+                    enforceSourceReadsUnderPackageRoots));
         }
 
         protected BuildXLEngineResult RunLageProjects(
@@ -185,7 +187,8 @@ module.exports = {
             string root,
             string executeCommands,
             string since,
-            string lageLocation) => $@"
+            string lageLocation,
+            bool? enforceSourceReadsUnderPackageRoots) => $@"
 config({{
     resolvers: [
         {{
@@ -197,6 +200,7 @@ config({{
             {(executeCommands == null ? string.Empty : $"execute: {executeCommands},")}
             {(since == null ? string.Empty : $"since: '{since}',")}
             {(lageLocation == null ? string.Empty : $"lageLocation: f`{lageLocation}`,")}
+            {(enforceSourceReadsUnderPackageRoots != null ? $"enforceSourceReadsUnderPackageRoots: {enforceSourceReadsUnderPackageRoots.Value.ToString().ToLowerInvariant()}," : string.Empty)}
         }}
     ],
 }});";

@@ -29,6 +29,7 @@ namespace BuildXL.FrontEnd.JavaScript.ProjectGraph
             AbsolutePath tempFolder,
             IReadOnlyCollection<PathWithTargets> outputDirectories,
             IReadOnlyCollection<PathWithTargets> sourceFiles,
+            IReadOnlyCollection<AbsolutePath> sourceDirectories,
             bool cacheable,
             int timeoutInMilliseconds = 0,
             int warningTimeoutInMilliseconds = 0) : base(name, projectFolder, dependencies, tempFolder, cacheable, timeoutInMilliseconds, warningTimeoutInMilliseconds)
@@ -40,6 +41,7 @@ namespace BuildXL.FrontEnd.JavaScript.ProjectGraph
             AvailableScriptCommands = availableScriptCommands ?? CollectionUtilities.EmptyDictionary<string, string>();
             OutputDirectories = outputDirectories;
             SourceFiles = sourceFiles;
+            SourceDirectories = sourceDirectories ?? CollectionUtilities.EmptyArray<AbsolutePath>();
         }
 
         /// <nodoc/>
@@ -48,7 +50,7 @@ namespace BuildXL.FrontEnd.JavaScript.ProjectGraph
             Contract.Requires(customScriptCommands != null);
 
             return new DeserializedJavaScriptProject(
-                Name, ProjectFolder, Dependencies, customScriptCommands, TempFolder, OutputDirectories, SourceFiles, Cacheable, TimeoutInMilliseconds, WarningTimeoutInMilliseconds);
+                Name, ProjectFolder, Dependencies, customScriptCommands, TempFolder, OutputDirectories, SourceFiles, SourceDirectories, Cacheable, TimeoutInMilliseconds, WarningTimeoutInMilliseconds);
         }
 
         /// <summary>
@@ -61,5 +63,13 @@ namespace BuildXL.FrontEnd.JavaScript.ProjectGraph
 
         /// <nodoc/>
         public IReadOnlyCollection<PathWithTargets> SourceFiles { get; }
+
+        /// <summary>
+        /// Directory scopes the project is allowed to read from.
+        /// </summary>
+        /// <remarks>
+        /// Only honored when EnforceSourceReadsUnderPackageRoots knob in the resolver settings is enabled.
+        /// </remarks>
+        public IReadOnlyCollection<AbsolutePath> SourceDirectories { get; }
     }
 }

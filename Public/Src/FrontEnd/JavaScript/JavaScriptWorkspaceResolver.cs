@@ -919,10 +919,11 @@ const schedulingFunction : (project: JavaScriptProject, argument: any) => Transf
         /// </summary>
         protected JavaScriptProject CreateGroupProject(string commandName, string projectName, IReadOnlyList<JavaScriptProject> members, AbsolutePath projectFolder, AbsolutePath tempFolder)
         {
-            // Source files and output directories are the union of the corresponding ones of each member
+            // Source files, output and source directories are the union of the corresponding ones of each member
             var inputFiles = members.SelectMany(member => member.InputFiles).ToHashSet();
             var inputDirectories = members.SelectMany(member => member.InputDirectories).ToHashSet();
             var outputDirectories = members.SelectMany(member => member.OutputDirectories).ToHashSet();
+            var sourceDirectories = members.SelectMany(member => member.SourceDirectories).ToHashSet();
 
             // The script sequence is composed from every script command
             string computedScript = ComputeScriptSequence(members.Select(member => member.ScriptCommand));
@@ -936,6 +937,7 @@ const schedulingFunction : (project: JavaScriptProject, argument: any) => Transf
                 outputDirectories,
                 inputFiles,
                 inputDirectories,
+                sourceDirectories,
                 // The group is cacheable if all members are cacheable
                 members.All(member => member.Cacheable),
                 TryGetProjectDisplayName(projectName, commandName, projectFolder));

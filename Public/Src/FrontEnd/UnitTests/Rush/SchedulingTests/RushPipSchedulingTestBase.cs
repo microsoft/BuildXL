@@ -97,6 +97,7 @@ namespace Test.BuildXL.FrontEnd.Rush
                 outputDirectories ?? CollectionUtilities.EmptyArray<AbsolutePath>(),
                 inputFiles ?? CollectionUtilities.EmptyArray<FileArtifact>(),
                 inputDirectories ?? CollectionUtilities.EmptyArray<DirectoryArtifact>(),
+                sourceDirectories: CollectionUtilities.EmptyArray<AbsolutePath>(),
                 cacheable: true
             );
 

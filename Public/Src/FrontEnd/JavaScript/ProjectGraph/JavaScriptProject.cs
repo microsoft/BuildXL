@@ -32,6 +32,7 @@ namespace BuildXL.FrontEnd.JavaScript.ProjectGraph
             IReadOnlyCollection<AbsolutePath> outputDirectories,
             IEnumerable<FileArtifact> inputFiles,
             IEnumerable<DirectoryArtifact> inputDirectories,
+            IEnumerable<AbsolutePath> sourceDirectories,
             bool cacheable,
             [AllowNull] string projectNameDisplayString = null,
             int timeoutInMilliseconds = 0,
@@ -41,6 +42,7 @@ namespace BuildXL.FrontEnd.JavaScript.ProjectGraph
             Contract.RequiresNotNull(outputDirectories);
             Contract.RequiresNotNull(inputFiles);
             Contract.RequiresNotNull(inputDirectories);
+            Contract.RequiresNotNull(sourceDirectories);
 
             ScriptCommand = scriptCommand;
             ScriptCommandName = scriptCommandName;
@@ -48,6 +50,7 @@ namespace BuildXL.FrontEnd.JavaScript.ProjectGraph
             m_inputFiles.AddRange(inputFiles);
             m_inputDirectories.AddRange(inputDirectories);
             m_projectNameDisplayString = projectNameDisplayString;
+            SourceDirectories = sourceDirectories.ToList();
         }
 
         /// <nodoc/>
@@ -65,7 +68,8 @@ namespace BuildXL.FrontEnd.JavaScript.ProjectGraph
                 deserializedJavaScriptProject.TempFolder,
                 outputDirectories,
                 inputFiles,
-                inputDirectories: CollectionUtilities.EmptyArray<DirectoryArtifact>(), 
+                inputDirectories: CollectionUtilities.EmptyArray<DirectoryArtifact>(),
+                sourceDirectories: deserializedJavaScriptProject.SourceDirectories,
                 deserializedJavaScriptProject.Cacheable,
                 projectNameDisplayString,
                 deserializedJavaScriptProject.TimeoutInMilliseconds,
@@ -137,5 +141,13 @@ namespace BuildXL.FrontEnd.JavaScript.ProjectGraph
 
         /// <nodoc/>
         public IReadOnlyCollection<DirectoryArtifact> InputDirectories => m_inputDirectories;
+
+        /// <summary>
+        /// Directory scopes the project is allowed to read from.
+        /// </summary>
+        /// <remarks>
+        /// Only honored when EnforceSourceReadsUnderPackageRoots knob in the resolver settings is enabled.
+        /// </remarks>
+        public IReadOnlyCollection<AbsolutePath> SourceDirectories { get; }
     }
 }

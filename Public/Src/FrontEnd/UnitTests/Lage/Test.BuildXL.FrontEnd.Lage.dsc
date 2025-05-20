@@ -66,6 +66,10 @@ namespace Test.Lage {
                 subfolder: r`yarn`,
                 contents: [importFrom("Yarn").getYarn()],
             },
+            {
+                subfolder: r`lage-mock`,
+                contents: [Mock.exe],
+            }
         ],
     });
 }

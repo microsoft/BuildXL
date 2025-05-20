@@ -85,6 +85,8 @@ export function buildRushPluginGraph(
                 tempFolder: node.workingDirectory,
                 outputDirectories: bxlConfig.outputDirectories,
                 sourceFiles: bxlConfig.sourceFiles,
+                // Not supported by Rush
+                sourceDirectories: [],
                 // Nodes are cacheable by default, unless explicitly specified
                 cacheable: node.cacheable === undefined ? true : node.cacheable
                 };
@@ -135,6 +137,8 @@ export function buildRushLibGraph(rushConfigurationFile: string, pathToRushLib: 
             tempFolder: project.projectRushTempFolder,
             outputDirectories: bxlConfig.outputDirectories,
             sourceFiles: bxlConfig.sourceFiles,
+            // Not supported by Rush
+            sourceDirectories: [],
             // rush-lib doesn't have the capability to make projects uncacheable
             cacheable: true,
             };

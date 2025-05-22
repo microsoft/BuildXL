@@ -36,7 +36,6 @@ export namespace DropDaemon {
             importFrom("Drop.App.Core").pkg,
             importFrom("Drop.Client").pkg,
             importFrom("ItemStore.Shared").pkg,
-            importFrom("Microsoft.ApplicationInsights").pkg,
             importFrom("Microsoft.AspNet.WebApi.Client").pkg,
             importFrom("Microsoft.VisualStudio.Services.ArtifactServices.Shared").pkg,
             importFrom("Microsoft.VisualStudio.Services.BlobStore.Client").pkg,

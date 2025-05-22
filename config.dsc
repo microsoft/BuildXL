@@ -350,9 +350,6 @@ config({
                 { id: "packageurl-dotnet", version: "1.1.0" },
                 { id: "System.Reactive", version: "6.0.1" },
 
-                // CredScan
-                { id: "Crc32.NET", version: "1.2.0" },
-
                 // Windows CoW on ReFS
                 { id: "CopyOnWrite", version: "0.3.8" },
 

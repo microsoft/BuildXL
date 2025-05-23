@@ -570,7 +570,7 @@ const emptyFile = Transformer.writeAllText({
 });
 
 @@public
-export function createAssemblyLayout(assembly: Managed.Assembly, useRuntime?: boolean) : Deployment.Definition {
+export function createAssemblyLayout(assembly: Managed.Assembly, useRuntime?: boolean, includeReferenceAssemblies?: boolean) : Deployment.Definition {
     // When the assembly is undefined, return empty deployment.
     if (assembly === undefined) {
         return {
@@ -609,8 +609,13 @@ export function createAssemblyLayout(assembly: Managed.Assembly, useRuntime?: bo
         });
     }
 
-    // if we have a ref assembly
-    if (assembly.runtime !== assembly.compile)
+    // Including reference assemblies is disabled by default. The behavior of consumers of packages
+    // with reference assemblies is not well defined. The ref assemblies will only have assembly references
+    // on other types that are included in their public surface area. Internal references that are only needed
+    // at runtime of the implementation assembly are not included on the reference assembly. This can throw
+    // off consumers when they create binding redirects for specific versions of referenced assemblies because it
+    // does not see the full set of runtime dependencies. To simplify, we do not package reference assemblies by default.
+    if (includeReferenceAssemblies && assembly.runtime !== assembly.compile)
     {
         // nuget does not support ref assemblies per runtime, so hack by only doing windows
         if (!useRuntime || assembly.targetRuntime === "win-x64")

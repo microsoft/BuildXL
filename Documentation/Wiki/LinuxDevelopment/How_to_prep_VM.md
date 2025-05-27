@@ -1,11 +1,11 @@
 # How to prepare a fresh Linux VM
 
 ## Install Prerequisites
-### Ubuntu 22.04
+### Ubuntu 22.04 and 24.04
 ```bash
 # install packages
 sudo apt-get update 
-sudo apt-get install –y git build-essential libc6-dev openssh-server curl dotnet8
+sudo apt-get install –y git build-essential libc6-dev openssh-server curl dotnet8 clang libelf-dev
 
 # link libdl.so
 sudo ln -vs /lib/x86_64-linux-gnu/libdl.so.2 /usr/lib/x86_64-linux-gnu/libdl.so

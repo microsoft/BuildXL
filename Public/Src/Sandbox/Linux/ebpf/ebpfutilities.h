@@ -49,7 +49,7 @@ struct {
  */
 struct file_access_ring_buffer {
     __uint(type, BPF_MAP_TYPE_RINGBUF);
-    __uint(max_entries, 4096 *  2048  /* PATH_MAX * 2048 entries */);
+    __uint(max_entries, FILE_ACCESS_RINGBUFFER_SIZE);
 } file_access_ring_buffer SEC(".maps");
 
 /**
@@ -57,9 +57,7 @@ struct file_access_ring_buffer {
   */
 struct debug_ring_buffer {
     __uint(type, BPF_MAP_TYPE_RINGBUF);
-    // We typically don't need this to be very big, as the first error sent is usually enough to signal that there is something
-    // going wrong
-    __uint(max_entries, 4096 * 128);
+    __uint(max_entries, DEBUG_RINGBUFFER_SIZE);
 } debug_ring_buffer SEC(".maps");
 
 /**

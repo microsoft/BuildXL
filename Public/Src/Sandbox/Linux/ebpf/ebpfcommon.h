@@ -23,6 +23,17 @@
 // +1 here for the null terminator
 #define FILENAME_MAX 256
 
+// Size of the ring buffers used to communicate file accesses and debug events to userspace.
+// PATH_MAX * 512 entries
+// This number was chosen based on experiments with customer builds, where we found that 512 entries is a good balance between memory usage and the number of events we can handle. We tipically
+// never go below 60% of available space in the ring buffer, so this should be enough for most scenarios.
+#define FILE_ACCESS_RINGBUFFER_SIZE (4096 * 512) 
+// Size of the debug ring buffer used to communicate debug events to userspace.
+// PATH_MAX * 64 entries
+// We don't need this to be very big, as the first error sent is usually enough to signal that there is something
+// going wrong. Debugging scenarios (where we send a lot of debug events) are not expected to be very common, so we can afford to have a smaller buffer here.
+#define DEBUG_RINGBUFFER_SIZE (4096 * 64) 
+
 #define KERNEL_FUNCTION(name) KERNEL_##name
 #define CONVERT_KERNEL_FUNCTION_TO_STRING(fn) case KERNEL_FUNCTION(fn): return #fn;
 #define TO_STRING(s) #s

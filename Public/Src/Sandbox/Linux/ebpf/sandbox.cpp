@@ -696,7 +696,7 @@ int SetupMaps(struct sandbox_bpf *skel) {
     }
 
     LIBBPF_OPTS(bpf_map_create_opts, file_access_options);
-    int file_access_fd =  bpf_map_create(BPF_MAP_TYPE_RINGBUF, "file_access_ring_buffer", 0, 0, 4096 *  2048  /* PATH_MAX * 2048 entries */, &file_access_options);
+    int file_access_fd =  bpf_map_create(BPF_MAP_TYPE_RINGBUF, "file_access_ring_buffer", 0, 0, FILE_ACCESS_RINGBUFFER_SIZE, &file_access_options);
     if (file_access_fd < 0)
     {
         LogError("Failed to create ring buffer\n");
@@ -734,7 +734,7 @@ int SetupMaps(struct sandbox_bpf *skel) {
     }
     
     LIBBPF_OPTS(bpf_map_create_opts, debug_buffer_options);
-    int debug_buffer_fd =  bpf_map_create(BPF_MAP_TYPE_RINGBUF, "debug_ring_buffer", 0, 0, 4096 * 1024, &debug_buffer_options);
+    int debug_buffer_fd =  bpf_map_create(BPF_MAP_TYPE_RINGBUF, "debug_ring_buffer", 0, 0, DEBUG_RINGBUFFER_SIZE, &debug_buffer_options);
     if (debug_buffer_fd < 0)
     {
         LogError("Failed to create debug ring buffer: [%d]%s\n", errno, strerror(errno));

@@ -71,6 +71,16 @@ __attribute__((always_inline)) static inline void report_breakaway_map_not_found
     report_ring_buffer_error(runner_pid, "[ERROR] Could not find breakaway map.");
 }
 
+// Call this function to report the free capacity of the ring buffer in the kernel debug pipe. For debugging purposes only.
+__attribute__((always_inline)) static inline void debug_ringbuffer_capacity(pid_t runner_pid, void* ring_buffer)
+{
+    ulong avail = bpf_ringbuf_query(ring_buffer, BPF_RB_AVAIL_DATA);
+    ulong size = bpf_ringbuf_query(ring_buffer, BPF_RB_RING_SIZE);
+
+    ulong available_percentage = ((size - avail) * 100 )/ size;
+    bpf_printk("[%d] Free capacity: %ld%%\n", runner_pid, available_percentage);
+}
+
 /**
  * Attempts to reserve the ring buffer for a file access.
  *

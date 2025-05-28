@@ -591,15 +591,6 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.AspNetCore.App.Ref",
-          "Version": "6.0.36"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.AspNetCore.App.Ref",
           "Version": "8.0.14"
         }
       }

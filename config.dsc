@@ -390,7 +390,6 @@ config({
         importFile(f`config.microsoftInternal.dsc`).resolver,
 
         // .NET Runtimes.
-        { kind: "SourceResolver", modules: [f`Public\Sdk\SelfHost\Libraries\Dotnet-Runtime-6-External\module.config.dsc`] },
         { kind: "SourceResolver", modules: [f`Public\Sdk\SelfHost\Libraries\Dotnet-Runtime-8-External\module.config.dsc`] },
         { kind: "SourceResolver", modules: [f`Public\Sdk\SelfHost\Libraries\Dotnet-Runtime-9-External\module.config.dsc`] },
 
@@ -443,26 +442,6 @@ config({
                     moduleName: "DotNet-Runtime.linux-x64.8.0",
                     url: "https://download.visualstudio.microsoft.com/download/pr/a52595b3-f025-4bcd-a3fe-b6091e276d76/4c0d27fd34b79bf7c21ba401b84c76e4/dotnet-runtime-8.0.14-linux-x64.tar.gz",
                     hash: "VSO0:574B8D4455D1FDBF8A7FE4CC2A910539C103E1043762F814823FEAE1A1DB667600",
-                    archiveType: "tgz",
-                },
-
-                // DotNet Core Runtime 6.0.36
-                {
-                    moduleName: "DotNet-Runtime.win-x64.6.0", 
-                    url: "https://download.visualstudio.microsoft.com/download/pr/268f4e36-89a9-42bb-905e-777014173306/061b9dfad5c34f7d262ea82c20396b7f/dotnet-runtime-6.0.36-win-x64.zip",
-                    hash: "VSO0:9618983691E7139653B4D954BD29D7FBDE68FDB56D976A9485D5A3A3DD5E27D000",
-                    archiveType: "zip",
-                },
-                {
-                    moduleName: "DotNet-Runtime.osx-x64.6.0",
-                    url: "https://download.visualstudio.microsoft.com/download/pr/4aab6108-c6f0-4b7a-b1b0-37f6b0fa621c/122b1b42895150267dbba61df69a2455/dotnet-runtime-6.0.36-osx-x64.tar.gz",
-                    hash: "VSO0:56D6E8B136E29598E5BCA00776BBF80EB3F1A89AF00B328548622425D7077B9800",
-                    archiveType: "tgz",
-                },
-                {
-                    moduleName: "DotNet-Runtime.linux-x64.6.0",
-                    url: "https://download.visualstudio.microsoft.com/download/pr/d0d7fabb-4221-441a-84ae-e94f59c8ab42/a7cd6251bd8ce5fac4baa1c057e4c5ed/dotnet-runtime-6.0.36-linux-x64.tar.gz",
-                    hash: "VSO0:9D11B13408CCE313302E0A085BB78EA88C6DCDC6A262DAF4C3DB03C0D6BD0D5400",
                     archiveType: "tgz",
                 },
 

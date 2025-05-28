@@ -5,9 +5,6 @@ const aspVersion = "9.0.0";
 
 // Versions used by framework reference packages for reference assemblies
 // and runtime assemblies respectively
-const asp6RefVersion = "6.0.36";
-const asp6RuntimeVersion = "6.0.36";
-
 const asp8RefVersion = "8.0.14";
 const asp8RuntimeVersion = "8.0.14";
 
@@ -31,8 +28,6 @@ export const pkgs = [
     { id: "Microsoft.Extensions.Primitives", version: aspVersion },
 
     { id: "Microsoft.Net.Http", version: "2.2.29" },
-
-    { id: "Microsoft.AspNetCore.App.Ref", version: asp6RefVersion, alias: "Microsoft.AspNetCore.App.Ref.6.0.0" },
     
     // Microsoft.AsptNetCore.App.Runtime.* packages embed some packages we also consume 
     // directly. Exclude all these packages, and use the proper nuget package directly as needed

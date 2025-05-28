@@ -2,6 +2,15 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20250519.1 (Release [29975184](https://dev.azure.com/mseng/Domino/_build/results?buildId=29975184&view=results))
+-	Linux eBPF sandbox:
+    - Add eBPF daemon
+    - Make sure gentle kill is used on timeout
+    - Proper teardown and other fixes
+-	Don’t log secrets when logging variables impacting build
+-	Update CredScan packages
+-	Update QTest version
+
 # 0.1.0-20250509.3.3 (Release [29953975](https://dev.azure.com/mseng/Domino/_build/results?buildId=29953975&view=results))
 - Update Sbom Packages
 - Pass RelatedSessionId through from BuildXL to QTest

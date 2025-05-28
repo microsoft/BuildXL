@@ -77,25 +77,60 @@ __attribute__((always_inline)) static inline void report_breakaway_map_not_found
  * If the ring buffer reserve call fails, then a debug event is sent to the debug buffer.
  * If reserving the debug buffer also fails, then we write to the trace pipe.
  */
-#define RESERVE_SUBMIT_FILE_ACCESS(runner_pid, code)                                                            \
+#define RESERVE_SUBMIT_FILE_ACCESS(runner_pid, path_length, code)                                               \
 {                                                                                                               \
+    if (path_length < 0 || path_length >= PATH_MAX) {                                                           \
+        report_ring_buffer_error(runner_pid, "[ERROR] Path length is invalid");                                 \
+        return 0;                                                                                               \
+    }                                                                                                           \
+                                                                                                                \
     void *file_access_ring_buffer = bpf_map_lookup_elem(&file_access_per_pip, &runner_pid);                     \
     if (file_access_ring_buffer == NULL) {                                                                      \
         report_file_access_buffer_not_found(runner_pid);                                                        \
         return 0;                                                                                               \
     }                                                                                                           \
-    ebpf_event *event = bpf_ringbuf_reserve(file_access_ring_buffer, sizeof(ebpf_event), 0);                    \
                                                                                                                 \
-    if (!event) {                                                                                               \
+    /* Perform a dynamic reservation, enough for the metadata and the path length we are about to send */       \
+    struct bpf_dynptr ptr;                                                                                      \
+    if (bpf_ringbuf_reserve_dynptr(                                                                             \
+        file_access_ring_buffer,                                                                                \
+        (sizeof(ebpf_event_metadata) + path_length) & (PATH_MAX - 1),                                           \
+        /* flags*/ 0,                                                                                           \
+        &ptr)) {                                                                                                \
+                                                                                                                \
         report_buffer_reservation_failure(runner_pid, file_access_ring_buffer);                                 \
+        bpf_ringbuf_discard_dynptr(&ptr, 0);                                                                    \
         return 0;                                                                                               \
     }                                                                                                           \
-    event->event_type = SINGLE_PATH;                                                                            \
                                                                                                                 \
+    /* Expose a 'metadata' value from the underlying dynamic object to the macro code just for ease of use */   \
+    /* (we can do this because it is a fixed size) */                                                           \
+    ebpf_event_metadata* metadata = (ebpf_event_metadata*) bpf_dynptr_data(                                     \
+        &ptr, /* offset */ 0, sizeof(ebpf_event_metadata));                                                     \
+                                                                                                                \
+    if (metadata == NULL) {                                                                                     \
+        report_ring_buffer_error(runner_pid, "[ERROR] Unable to retrieve metadata from dynptr");                \
+        bpf_ringbuf_discard_dynptr(&ptr, 0);                                                                    \
+        return 0;                                                                                               \
+    }                                                                                                           \
+                                                                                                                \
+    metadata->event_type = SINGLE_PATH;                                                                         \
     code                                                                                                        \
                                                                                                                 \
-    bpf_ringbuf_submit(event, get_flags(file_access_ring_buffer));                                              \
+    bpf_ringbuf_submit_dynptr(&ptr, get_flags(file_access_ring_buffer));                                        \
 }
+
+/**
+ * Writes a path to the dynamic structure that we are going to send out representing a single path file access.
+ * Designed to be used inside the code block provided to RESERVE_SUBMIT_FILE_ACCESS.
+ */
+#define WRITE_SRC_PATH(path)                                                                                    \
+    if (bpf_dynptr_write(&ptr, sizeof(ebpf_event_metadata), path, path_length & (PATH_MAX - 1), 0))             \
+    {                                                                                                           \
+        report_ring_buffer_error(runner_pid, "[ERROR] Unable to write path to dynptr");                         \
+        bpf_ringbuf_discard_dynptr(&ptr, 0);                                                                    \
+        return 0;                                                                                               \
+    }
 
 /**
  * Check against the event cache for the given operation+path before reserving and sending out the event.
@@ -104,72 +139,99 @@ __attribute__((always_inline)) static inline void report_breakaway_map_not_found
  * to make each traced call go through this, but it is generally a good idea assuming we have to the corresponding
  * struct path associated with the operation
  */
-#define RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(operation, path, runner_pid, code)                                \
+#define RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(operation, path, path_length, runner_pid, code)                   \
 {                                                                                                               \
     if (should_send_path(runner_pid, operation, path))                                                          \
     {                                                                                                           \
-        RESERVE_SUBMIT_FILE_ACCESS(runner_pid, code)                                                            \
+        RESERVE_SUBMIT_FILE_ACCESS(runner_pid, path_length, code)                                               \
     }                                                                                                           \
 }
 
-#define RESERVE_SUBMIT_FILE_ACCESS_DOUBLE(runner_pid, code)                                                     \
+#define RESERVE_SUBMIT_FILE_ACCESS_DOUBLE(runner_pid, src_path_length, dst_path_length, code)                   \
 {                                                                                                               \
     void *file_access_ring_buffer = bpf_map_lookup_elem(&file_access_per_pip, &runner_pid);                     \
     if (file_access_ring_buffer == NULL) {                                                                      \
         report_file_access_buffer_not_found(runner_pid);                                                        \
         return 0;                                                                                               \
     }                                                                                                           \
-    ebpf_event_double *event = bpf_ringbuf_reserve(file_access_ring_buffer, sizeof(ebpf_event_double), 0);      \
-                                                                                                                \
-    if (!event) {                                                                                               \
+    struct bpf_dynptr ptr;                                                                                      \
+    if (bpf_ringbuf_reserve_dynptr(                                                                             \
+            file_access_ring_buffer,                                                                            \
+            sizeof(ebpf_event_metadata) + sizeof(int) + src_path_length + dst_path_length,                      \
+            /* flags*/ 0,                                                                                       \
+            &ptr)) {                                                                                            \
         report_buffer_reservation_failure(runner_pid, file_access_ring_buffer);                                 \
+        bpf_ringbuf_discard_dynptr(&ptr, 0);                                                                    \
         return 0;                                                                                               \
     }                                                                                                           \
                                                                                                                 \
-    event->event_type = DOUBLE_PATH;                                                                            \
+    /* Expose a 'metadata' value from the underlying dynamic object to the macro code just for ease of use */   \
+    /* (we can do this because it is a fixed size) */                                                           \
+    ebpf_event_metadata* metadata = (ebpf_event_metadata*) bpf_dynptr_data(                                     \
+        &ptr, /* offset */ 0, sizeof(ebpf_event_metadata));                                                     \
+                                                                                                                \
+    if (metadata == NULL) {                                                                                     \
+        report_ring_buffer_error(runner_pid, "[ERROR] Unable to retrieve metadata from dynptr");                \
+        bpf_ringbuf_discard_dynptr(&ptr, 0);                                                                    \
+        return 0;                                                                                               \
+    }                                                                                                           \
+    metadata->event_type = DOUBLE_PATH;                                                                         \
                                                                                                                 \
     code                                                                                                        \
                                                                                                                 \
-    bpf_ringbuf_submit(event, get_flags(file_access_ring_buffer));                                              \
+    bpf_ringbuf_submit_dynptr(&ptr, get_flags(file_access_ring_buffer));                                        \
 }
 
 /**
  * Check RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE for details.
  * In this case we send the event if at least one of the two paths are not in the cache
  */
-#define RESERVE_SUBMIT_FILE_ACCESS_DOUBLE_WITH_CACHE(operation, path_src, path_dst, runner_pid, code)           \
+#define RESERVE_SUBMIT_FILE_ACCESS_DOUBLE_WITH_CACHE(operation, path_src, path_dst, runner_pid, src_path_length, dst_path_length, code) \
 {                                                                                                               \
     if (should_send_path(runner_pid, operation, path_src) || should_send_path(runner_pid, operation, path_dst)) \
     {                                                                                                           \
-        RESERVE_SUBMIT_FILE_ACCESS_DOUBLE(runner_pid, code)                                                     \
+        RESERVE_SUBMIT_FILE_ACCESS_DOUBLE(runner_pid, src_path_length, dst_path_length, code)                   \
     }                                                                                                           \
 }
 
-#define RESERVE_SUBMIT_EXEC(code)                                                                               \
+#define RESERVE_SUBMIT_EXEC(runner_pid, exe_path_length, args_length, code)                                     \
 {                                                                                                               \
     void *file_access_ring_buffer = bpf_map_lookup_elem(&file_access_per_pip, &runner_pid);                     \
     if (file_access_ring_buffer == NULL) {                                                                      \
-        report_file_access_buffer_not_found(runner_pid);                                                            \
+        report_file_access_buffer_not_found(runner_pid);                                                        \
         return 0;                                                                                               \
     }                                                                                                           \
-    ebpf_event_exec *event = bpf_ringbuf_reserve(file_access_ring_buffer, sizeof(ebpf_event_exec), 0);          \
                                                                                                                 \
-    if (!event) {                                                                                               \
-        report_buffer_reservation_failure(runner_pid, file_access_ring_buffer) ;                                    \
+    /* The event is a dynamic structure, so we need to reserve space for the metadata and the paths */          \
+    /* Perform a dynamic reservation, enough for the metadata and the paths we are about to send */             \
+    struct bpf_dynptr ptr;                                                                                      \
+    if (bpf_ringbuf_reserve_dynptr(                                                                             \
+        file_access_ring_buffer,                                                                                \
+        (sizeof(ebpf_event_metadata) + sizeof(int) + exe_path_length + args_length),                            \
+        /* flags*/ 0,                                                                                           \
+        &ptr)) {                                                                                                \
+                                                                                                                \
+        report_buffer_reservation_failure(runner_pid, file_access_ring_buffer);                                 \
+        bpf_ringbuf_discard_dynptr(&ptr, 0);                                                                    \
         return 0;                                                                                               \
     }                                                                                                           \
-    bool discard = false;                                                                                       \
                                                                                                                 \
-    event->event_type = EXEC;                                                                                   \
+    /* Expose a 'metadata' value from the underlying dynamic object to the macro code just for ease of use */   \
+    /* (we can do this because it is a fixed size) */                                                           \
+    ebpf_event_metadata* metadata = (ebpf_event_metadata*) bpf_dynptr_data(                                     \
+        &ptr, /* offset */ 0, sizeof(ebpf_event_metadata));                                                     \
+                                                                                                                \
+    if (metadata == NULL) {                                                                                     \
+        report_ring_buffer_error(runner_pid, "[ERROR] Unable to retrieve metadata from dynptr");                \
+        bpf_ringbuf_discard_dynptr(&ptr, 0);                                                                    \
+        return 0;                                                                                               \
+    }                                                                                                           \
+                                                                                                                \
+    metadata->event_type = EXEC;                                                                                \
                                                                                                                 \
     code                                                                                                        \
                                                                                                                 \
-    if (discard) {                                                                                              \
-        bpf_ringbuf_discard(event, /* flags */ 0);                                                              \
-    }                                                                                                           \
-    else {                                                                                                      \
-        bpf_ringbuf_submit(event, get_flags(file_access_ring_buffer));                                          \
-    }                                                                                                           \
+    bpf_ringbuf_submit_dynptr(&ptr, get_flags(file_access_ring_buffer));                                        \
 }
 
 /**
@@ -224,15 +286,23 @@ int BPF_PROG(LOADING_WITNESS, struct task_struct *new_task)
         return 0;
     }
 
+    char* temp_path = bpf_map_lookup_elem(&tmp_paths, &ZERO);
+    if (!temp_path)
+    {
+        return 0;
+    }
+
+    int path_length = get_task_exec_path(new_task, temp_path);
+
     // We don't want to cache clones, use unconditional reserve + submit macro
-    RESERVE_SUBMIT_FILE_ACCESS(runner_pid,
-        event->metadata.kernel_function = KERNEL_FUNCTION(wake_up_new_task);
-        event->metadata.operation_type = kClone;
-        event->metadata.pid = current_pid;
-        event->metadata.child_pid = new_pid;
+    RESERVE_SUBMIT_FILE_ACCESS(runner_pid, path_length,
+        metadata->kernel_function = KERNEL_FUNCTION(wake_up_new_task);
+        metadata->operation_type = kClone;
+        metadata->pid = current_pid;
+        metadata->child_pid = new_pid;
         // At this point task creation always succeed
-        event->metadata.error = 0;
-        get_task_exec_path(new_task, event->src_path);
+        metadata->error = 0;
+        WRITE_SRC_PATH(temp_path);
     )
 
     return 0;
@@ -254,48 +324,97 @@ __attribute__((always_inline)) static inline int execve_common(pid_t pid, enum k
         return 0;
     }
 
-    // We don't want to cache execs, use unconditional reserve + submit macro
-    RESERVE_SUBMIT_EXEC(
+    // Retrieve the exec path
+    char* exe_path = bpf_map_lookup_elem(&tmp_paths, &ZERO);
+    if (!exe_path)
     {
+        return 0;
+    }
+    // Since this is the entry point to execve/execveat, the arguments are in user memory
+    int path_length = fd == 0
+        // execve
+        ? bpf_core_read_user_str(exe_path, PATH_MAX, filename)
+        // execveat
+        : fd_string_to_string(exe_path, fd, filename, /* user_strings */ true);
+
+    if (path_length <= 0 || path_length >= PATH_MAX || exe_path[0] == '\0') {
+        return 0;
+    }
+
+    // Retrieve the args
+    char* args = bpf_map_lookup_elem(&tmp_paths, &ONE);
+    if (!args)
+    {
+        return 0;
+    }
+    int args_length = argv_to_string(argv, args);
+
+    if (args_length <= 0 || args_length >= PATH_MAX) {
+        return 0;
+    }
+
+    // There seems to be a quirk in the verifier, where without this bogus declaration
+    // it will complain with a 'Dynptr has to be an uninitialized dynptr' (corresponding to the 
+    // dynptr that the reserve macro below will declare). Root cause is unclear. The pocket theory is that without this declaration 
+    // on the stack there is some sort of compiler optimization that either manages to remove the dynptr
+    // from the stack, or just make the verifier confused. Not any declaration seems to work, and a struct pointing to some
+    // of the arguments seems necessary to make it work.
+    struct path dummy_path = {.dentry = (struct dentry*)filename};
+
+    // We don't want to cache execs, use unconditional reserve + submit macro
+    RESERVE_SUBMIT_EXEC(runner_pid, path_length, args_length,
+    {
+        metadata->kernel_function = syscall;
+        metadata->operation_type = kExec;
+        metadata->pid = pid;
+        metadata->error = 0;
+
+        // Write the path_length field, which is the immediate next one after the metadata in an exec event
+        // Note: this is the only place where we submit an exec event, so it is not worth adding macros for this and
+        // just use the raw bpf_dynptr_write call.
+        if (bpf_dynptr_write(&ptr, sizeof(ebpf_event_metadata), &path_length, sizeof(int), /* flags*/ 0)) {
+            report_ring_buffer_error(runner_pid, "[ERROR] Unable to write exe path length to dynptr");
+            bpf_ringbuf_discard_dynptr(&ptr, 0);
+            return 0;
+        }
+
+        // Write the exe path to the dynamic structure
+        if (bpf_dynptr_write(&ptr, sizeof(ebpf_event_metadata) + sizeof(int), exe_path, path_length & (PATH_MAX - 1), 0))
+        {
+            report_ring_buffer_error(runner_pid, "[ERROR] Unable to write exec path to dynptr");
+            bpf_ringbuf_discard_dynptr(&ptr, 0);
+            return 0;
+        }
+        
+        // Write the args to the dynamic structure
+        if (bpf_dynptr_write(&ptr, sizeof(ebpf_event_metadata) + sizeof(int) + path_length, args, args_length & (PATH_MAX - 1), 0))
+        {
+            report_ring_buffer_error(runner_pid, "[ERROR] Unable to write args to dynptr");
+            bpf_ringbuf_discard_dynptr(&ptr, 0);
+            return 0;
+        }
+
+        // Populate the exec event with the metadata, which is used to check for breakaway
         exec_event_metadata event_with_metadata = {0};
-        event_with_metadata.event = event;
+        event_with_metadata.exe_path_len = path_length;
+        // TODO: check whether args are being reported using FAM flag
+        event_with_metadata.args_len = args_length;
+        event_with_metadata.exe_path = exe_path;
+        event_with_metadata.args = args;
 
-        event->metadata.kernel_function = syscall;
-        event->metadata.operation_type = kExec;
-        event->metadata.pid = pid;
-        event->metadata.error = 0;
-        // Since this is the entry point to execve/execveat, the arguments are in user memory
-        if (fd == 0) {
-            // execve
-            event_with_metadata.exe_path_len = bpf_core_read_user_str(event->exe_path, PATH_MAX, filename);
+        // Validate whether the current pid will need to break away
+        if (process_needs_breakaway(&event_with_metadata, runner_pid) != 0)
+        {
+            report_breakaway_map_not_found(runner_pid);
+        }
+
+        if (event_with_metadata.needs_breakaway) {
+            // We need to breakaway, so we need to add the pid to the breakaway pids map
+            bpf_map_update_elem(&breakaway_pids, &pid, &pid, BPF_ANY);
         }
         else {
-            // execveat
-            event_with_metadata.exe_path_len = fd_string_to_string(event->exe_path, fd, filename, /* user_strings */ true);
-        }
-
-        // Sometimes this event comes with an empty path which can be ignored
-        if (event->exe_path[0] == '\0') {
-            discard = true;
-        }
-        else {
-            // TODO: check whether args are being reported using FAM flag
-            event_with_metadata.args_len = argv_to_string(argv, event->args);
-
-            // Validate whether the current pid will need to break away
-            if (process_needs_breakaway(&event_with_metadata, runner_pid) != 0)
-            {
-                report_breakaway_map_not_found(runner_pid);
-            }
-
-            if (event_with_metadata.needs_breakaway) {
-                // We need to breakaway, so we need to add the pid to the breakaway pids map
-                bpf_map_update_elem(&breakaway_pids, &pid, &pid, BPF_ANY);
-            }
-            else {
-                // In case this map was already populated with a stale entry, clean it up here
-                bpf_map_delete_elem(&breakaway_pids, &pid);
-            }
+            // In case this map was already populated with a stale entry, clean it up here
+            bpf_map_delete_elem(&breakaway_pids, &pid);
         }
     })
 
@@ -334,7 +453,6 @@ int BPF_KPROBE_SYSCALL(execveat_ksys_enter, int fd, const char *filename, char *
     }
 
     // TODO: do we need to do anything with flags passed into this syscall
-
     return execve_common(pid, KERNEL_FUNCTION(execveat), fd, filename, argv, runner_pid);
 }
 
@@ -364,14 +482,21 @@ int BPF_PROG(bprm_execve_enter, struct linux_binprm *bprm) {
         bpf_map_delete_elem(&breakaway_pids, &pid);
         bpf_map_delete_elem(&pid_map, &pid);
 
+        char* temp_path = bpf_map_lookup_elem(&tmp_paths, &ZERO);
+        if (!temp_path)
+        {
+            return 0;
+        }
+        int path_length = bpf_core_read_str(temp_path, PATH_MAX, bprm->filename);
+
         // We don't want to cache breakaway events, use unconditional reserve + submit macro
-        RESERVE_SUBMIT_FILE_ACCESS(runner_pid, {
-            event->metadata.kernel_function = KERNEL_FUNCTION(security_bprm_committed_creds);
-            event->metadata.operation_type = kBreakAway;
-            event->metadata.pid = pid;
-            event->metadata.error = 0;
-            event->metadata.mode = 0;
-            bpf_core_read_str(event->src_path, PATH_MAX, bprm->filename);
+        RESERVE_SUBMIT_FILE_ACCESS(runner_pid, path_length, {
+            metadata->kernel_function = KERNEL_FUNCTION(security_bprm_committed_creds);
+            metadata->operation_type = kBreakAway;
+            metadata->pid = pid;
+            metadata->error = 0;
+            metadata->mode = 0;
+            WRITE_SRC_PATH(temp_path);
         })
     }
 
@@ -401,12 +526,19 @@ int BPF_PROG(taskstats_exit, struct task_struct *tsk, int group_dead)
         return 0;
     }
 
+    char* temp_path = bpf_map_lookup_elem(&tmp_paths, &ZERO);
+    if (!temp_path)
+    {
+        return 0;
+    }
+    int path_length = get_task_exec_path(tsk, temp_path);
+
     // We don't want to cache exits, use unconditional reserve + submit macro
-    RESERVE_SUBMIT_FILE_ACCESS(runner_pid,
-        event->metadata.pid = pid;
-        event->metadata.kernel_function = KERNEL_FUNCTION(exit);
-        event->metadata.operation_type = kExit;
-        get_task_exec_path(tsk, event->src_path);
+    RESERVE_SUBMIT_FILE_ACCESS(runner_pid, path_length,
+        metadata->pid = pid;
+        metadata->kernel_function = KERNEL_FUNCTION(exit);
+        metadata->operation_type = kExit;
+        WRITE_SRC_PATH(temp_path);
         bpf_map_delete_elem(&pid_map, &pid);
     )
 
@@ -432,14 +564,56 @@ int BPF_PROG(security_path_rename_enter, const struct path *old_dir, struct dent
     struct path old_path = {.dentry = old_dentry, .mnt = BPF_CORE_READ(old_dir, mnt)};
     struct path new_path = {.dentry = new_dentry, .mnt = BPF_CORE_READ(new_dir, mnt)};
 
-    RESERVE_SUBMIT_FILE_ACCESS_DOUBLE_WITH_CACHE(kRename, &old_path, &new_path, runner_pid,
-        event->metadata.kernel_function = KERNEL_FUNCTION(security_path_rename);
-        event->metadata.pid = pid;
-        event->metadata.operation_type = kRename;
+    char* src_path = bpf_map_lookup_elem(&tmp_paths, &ZERO);
+    if (!src_path)
+    {
+        return 0;
+    }
+    int src_path_length = deref_path_info(src_path, old_dentry, old_dir->mnt);
+
+    char* dst_path = bpf_map_lookup_elem(&tmp_paths, &ONE);
+    if (!dst_path)
+    {
+        return 0;
+    }
+    int dst_path_length = deref_path_info(dst_path, new_dentry, new_dir->mnt);
+
+    if (src_path_length <= 0 || src_path_length >= PATH_MAX || dst_path_length <= 0 || dst_path_length >= PATH_MAX) {
+        return 0;
+    }
+
+    // See the comment in execve_common() for why we need this bogus declaration
+    struct path dummy_path = {.dentry = old_dir->dentry};
+
+    RESERVE_SUBMIT_FILE_ACCESS_DOUBLE_WITH_CACHE(kRename, &old_path, &new_path, runner_pid, src_path_length, dst_path_length,
+        metadata->kernel_function = KERNEL_FUNCTION(security_path_rename);
+        metadata->pid = pid;
+        metadata->operation_type = kRename;
         // New file/directory doesn't exist yet, so we get the mode from old_dentry
-        event->metadata.mode = get_mode(old_dentry);
-        deref_path_info(event->src_path, old_dentry, old_dir->mnt);
-        deref_path_info(event->dst_path, new_dentry, new_dir->mnt);
+        metadata->mode = get_mode(old_dentry);
+
+        // Write the src path length field, which is the immediate next one after the metadata in a double event
+        if (bpf_dynptr_write(&ptr, sizeof(ebpf_event_metadata), &src_path_length, sizeof(int), /* flags*/ 0)) {
+            report_ring_buffer_error(runner_pid, "[ERROR] Unable to write src path length to dynptr");
+            bpf_ringbuf_discard_dynptr(&ptr, 0);
+            return 0;
+        }
+
+        // Write the src path to the dynamic structure
+        if (bpf_dynptr_write(&ptr, sizeof(ebpf_event_metadata) + sizeof(int), src_path, src_path_length & (PATH_MAX - 1), 0))
+        {
+            report_ring_buffer_error(runner_pid, "[ERROR] Unable to write src path to dynptr");
+            bpf_ringbuf_discard_dynptr(&ptr, 0);
+            return 0;
+        }
+        
+        // Write the dst path to the dynamic structure
+        if (bpf_dynptr_write(&ptr, sizeof(ebpf_event_metadata) + sizeof(int) + src_path_length, dst_path, dst_path_length & (PATH_MAX - 1), 0))
+        {
+            report_ring_buffer_error(runner_pid, "[ERROR] Unable to write dst path to dynptr");
+            bpf_ringbuf_discard_dynptr(&ptr, 0);
+            return 0;
+        }
     )
 
 	return 0;
@@ -464,15 +638,22 @@ int BPF_PROG(do_mkdirat_exit, int dfd, struct filename *name, umode_t mode, int 
         return 0;
     }
 
+    char* temp_path = bpf_map_lookup_elem(&tmp_paths, &ZERO);
+    if (!temp_path)
+    {
+        return 0;
+    }
+    int path_length = fd_filename_to_string(temp_path, dfd, name);
+
     // We don't want to cache mkdir as we need every successful operation on managed side
-    RESERVE_SUBMIT_FILE_ACCESS(runner_pid, 
-        event->metadata.kernel_function = KERNEL_FUNCTION(do_mkdirat);
-        event->metadata.operation_type = kCreate;
-        event->metadata.pid = pid;
-        event->metadata.error = 0;
+    RESERVE_SUBMIT_FILE_ACCESS(runner_pid, path_length,
+        metadata->kernel_function = KERNEL_FUNCTION(do_mkdirat);
+        metadata->operation_type = kCreate;
+        metadata->pid = pid;
+        metadata->error = 0;
         // The call succeeded, so the path is a directory
-        event->metadata.mode = S_IFDIR;
-        fd_filename_to_string(event->src_path, dfd, name);
+        metadata->mode = S_IFDIR;
+        WRITE_SRC_PATH(temp_path);
     )
 
     return 0;
@@ -499,17 +680,24 @@ int BPF_PROG(do_rmdir_exit, int dfd, struct filename *name, int ret)
         return 0;
     }
 
+    char* temp_path = bpf_map_lookup_elem(&tmp_paths, &ZERO);
+    if (!temp_path)
+    {
+        return 0;
+    }
+    int path_length = fd_filename_to_string(temp_path, dfd, name);
+
     // We don't want to cache rmdir as we need every successful operation on managed side
-    RESERVE_SUBMIT_FILE_ACCESS(runner_pid,
-        event->metadata.kernel_function = KERNEL_FUNCTION(do_rmdir);
-        event->metadata.operation_type = kUnlink;
-        event->metadata.pid = pid;
-        event->metadata.error = ret;
+    RESERVE_SUBMIT_FILE_ACCESS(runner_pid, path_length,
+        metadata->kernel_function = KERNEL_FUNCTION(do_rmdir);
+        metadata->operation_type = kUnlink;
+        metadata->pid = pid;
+        metadata->error = ret;
         // if the call was successful, the directory is gone, so getting the mode will give us back
         // a 0, and it won't reflect that this pertained to a directory. Hardcode a regular directory
         // value in that case
-        event->metadata.mode = S_IFDIR;
-        fd_filename_to_string(event->src_path, dfd, name);
+        metadata->mode = S_IFDIR;
+        WRITE_SRC_PATH(temp_path);
     )
 
     return 0;
@@ -536,12 +724,19 @@ int BPF_PROG(security_path_unlink_enter, const struct path *dir, struct dentry *
 
     struct path path = {.dentry = dentry, .mnt = BPF_CORE_READ(dir, mnt)};
 
-    RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(kGenericWrite, &path, runner_pid,
-        event->metadata.kernel_function = KERNEL_FUNCTION(security_path_unlink);
-        event->metadata.pid = pid;
-        event->metadata.operation_type = kGenericWrite;
-        event->metadata.mode = mode;
-        deref_path_info(event->src_path, dentry, dir->mnt);
+    char* temp_path = bpf_map_lookup_elem(&tmp_paths, &ZERO);
+    if (!temp_path)
+    {
+        return 0;
+    }
+    int path_length = deref_path_info(temp_path, dentry, dir->mnt);
+
+    RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(kGenericWrite, &path, path_length, runner_pid, 
+        metadata->kernel_function = KERNEL_FUNCTION(security_path_unlink);
+        metadata->pid = pid;
+        metadata->operation_type = kGenericWrite;
+        metadata->mode = mode;
+        WRITE_SRC_PATH(temp_path);
     )
 
 	return 0;
@@ -567,17 +762,24 @@ int BPF_PROG(security_path_link_entry, struct dentry *old_dentry, const struct p
 
     struct path new_path = {.dentry = new_dentry, .mnt = BPF_CORE_READ(new_dir, mnt)};
 
+    char* temp_path = bpf_map_lookup_elem(&tmp_paths, &ZERO);
+    if (!temp_path)
+    {
+        return 0;
+    }
+    path_to_string(temp_path, new_dir);
+    int path_length = combine_paths(temp_path, (const char *)new_name);
+
     // The link operation involves a write on the newly created link
     // Observe this operation involves a probe on the source as well (old_dentry). But that
     // access is going to get catch by path_lookupat (and reporting it here is harder because
     // we have the old dentry but not the old mount)
-    RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(kGenericWrite, &new_path, runner_pid,
-        event->metadata.kernel_function = KERNEL_FUNCTION(security_path_link);
-        event->metadata.pid = pid;
-        event->metadata.operation_type = kGenericWrite;
-        event->metadata.mode = get_mode(new_dentry);
-        path_to_string(event->src_path, new_dir);
-        combine_paths(event->src_path, (const char *)new_name);
+    RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(kGenericWrite, &new_path, path_length, runner_pid, 
+        metadata->kernel_function = KERNEL_FUNCTION(security_path_link);
+        metadata->pid = pid;
+        metadata->operation_type = kGenericWrite;
+        metadata->mode = get_mode(new_dentry);
+        WRITE_SRC_PATH(temp_path);
     )
 
 	return 0;
@@ -605,16 +807,23 @@ int BPF_PROG(path_lookupat_exit, struct nameidata *nd, unsigned flags, struct pa
         return 0;
     }
 
+    char* temp_path = bpf_map_lookup_elem(&tmp_paths, &ZERO);
+    if (!temp_path)
+    {
+        return 0;
+    }
+    int path_length = nameidata_to_string(temp_path, nd);
+
     // This operation is hard to check against the cache since for absent probes there is no in-memory structure to
     // represent the path, and using strings is not very performant. For now just keep them out
     // of the cache, we shouldn't get a big number of absent probes on the same path for the same process
-    RESERVE_SUBMIT_FILE_ACCESS(runner_pid,
-        event->metadata.kernel_function = KERNEL_FUNCTION(path_lookupat);
-        event->metadata.pid = pid;
-        event->metadata.operation_type = kGenericProbe;
-        event->metadata.error = ret;
-        event->metadata.mode = ret == 0 ? BPF_CORE_READ(nd, inode, i_mode) : 0;
-        nameidata_to_string(event->src_path, nd);
+    RESERVE_SUBMIT_FILE_ACCESS(runner_pid, path_length,
+        metadata->kernel_function = KERNEL_FUNCTION(path_lookupat);
+        metadata->pid = pid;
+        metadata->operation_type = kGenericProbe;
+        metadata->error = ret;
+        metadata->mode = ret == 0 ? BPF_CORE_READ(nd, inode, i_mode) : 0;
+        WRITE_SRC_PATH(temp_path);
     )
 
     return 0;
@@ -642,16 +851,23 @@ int BPF_PROG(path_parentat, struct nameidata *nd, unsigned flags, struct path *p
         return 0;
     }
 
+    char* temp_path = bpf_map_lookup_elem(&tmp_paths, &ZERO);
+    if (!temp_path)
+    {
+        return 0;
+    }
+    int path_length = nameidata_to_string(temp_path, nd);
+
     // This operation is hard to cache since for absent probes there is no in-memory structure to
     // represent the path, and using strings is not very performant. For now just keep them out
     // of the cache, we shouldn't get a big number of absent probes on the same path for the same process
-    RESERVE_SUBMIT_FILE_ACCESS(runner_pid,
-        event->metadata.kernel_function = KERNEL_FUNCTION(path_parentat);
-        event->metadata.pid = pid;
-        event->metadata.error = ret;
-        event->metadata.operation_type = kGenericProbe;
-        event->metadata.mode = ret == 0 ? BPF_CORE_READ(nd, inode, i_mode) : 0;
-        nameidata_to_string(event->src_path, nd);
+    RESERVE_SUBMIT_FILE_ACCESS(runner_pid, path_length,
+        metadata->kernel_function = KERNEL_FUNCTION(path_parentat);
+        metadata->pid = pid;
+        metadata->error = ret;
+        metadata->operation_type = kGenericProbe;
+        metadata->mode = ret == 0 ? BPF_CORE_READ(nd, inode, i_mode) : 0;
+        WRITE_SRC_PATH(temp_path);
     )
 
     return 0;
@@ -691,16 +907,23 @@ int BPF_PROG(path_openat_exit, struct nameidata *nd, const struct open_flags *op
         }
     }
 
+    char* temp_path = bpf_map_lookup_elem(&tmp_paths, &ZERO);
+    if (!temp_path)
+    {
+        return 0;
+    }
+    int path_length = nameidata_to_string(temp_path, nd);
+
     // When this operation fails, it is hard to check the cache since for absent paths there is no in-memory structure to
     // represent them, and using strings is not very performant. For now just keep them out
     // of the cache, we shouldn't get a big number of failed opens on the same path for the same process
-    RESERVE_SUBMIT_FILE_ACCESS(runner_pid,
-        event->metadata.kernel_function = KERNEL_FUNCTION(path_openat);
-        event->metadata.pid = pid;
-        event->metadata.error = PTR_ERR(ret);
-        event->metadata.operation_type = kGenericProbe;
-        event->metadata.mode = mode;
-        nameidata_to_string(event->src_path, nd);
+    RESERVE_SUBMIT_FILE_ACCESS(runner_pid, path_length,
+        metadata->kernel_function = KERNEL_FUNCTION(path_openat);
+        metadata->pid = pid;
+        metadata->error = PTR_ERR(ret);
+        metadata->operation_type = kGenericProbe;
+        metadata->mode = mode;
+        WRITE_SRC_PATH(temp_path);
     )
 
     return 0;
@@ -728,14 +951,21 @@ int BPF_PROG(security_file_open_enter, struct file *file)
         return 0;
     }
 
+    char* temp_path = bpf_map_lookup_elem(&tmp_paths, &ZERO);
+    if (!temp_path)
+    {
+        return 0;
+    }
+    int path_length = path_to_string(temp_path, &path);
+
     // Always send this as a probe, even if the open call ends up creating the file
     // For the latter, we will catch this in the mknod call.
-    RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(kGenericProbe, &path, runner_pid,
-        event->metadata.kernel_function = KERNEL_FUNCTION(security_file_open);
-        event->metadata.pid = pid;
-        event->metadata.operation_type = kGenericProbe;
-        event->metadata.mode = mode;
-        path_to_string(event->src_path, &path);
+    RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(kGenericProbe, &path, path_length, runner_pid,
+        metadata->kernel_function = KERNEL_FUNCTION(security_file_open);
+        metadata->pid = pid;
+        metadata->operation_type = kGenericProbe;
+        metadata->mode = mode;
+        WRITE_SRC_PATH(temp_path);
     )
 
     return 0;
@@ -769,12 +999,19 @@ int BPF_PROG(security_file_permission_enter, struct file *file, int mask)
     // security_file_permission
     operation_type eventType = mask == MAY_READ ? kGenericRead : kGenericWrite;
 
-    RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(eventType, &path, runner_pid,
-        event->metadata.kernel_function = KERNEL_FUNCTION(security_file_permission);
-        event->metadata.pid = pid;
-        event->metadata.operation_type = eventType;
-        event->metadata.mode = mode;
-        path_to_string(event->src_path, &path);
+    char* temp_path = bpf_map_lookup_elem(&tmp_paths, &ZERO);
+    if (!temp_path)
+    {
+        return 0;
+    }
+    int path_length = path_to_string(temp_path, &path);
+
+    RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(eventType, &path, path_length, runner_pid,
+        metadata->kernel_function = KERNEL_FUNCTION(security_file_permission);
+        metadata->pid = pid;
+        metadata->operation_type = eventType;
+        metadata->mode = mode;
+        WRITE_SRC_PATH(temp_path);
     )
 
     return 0;
@@ -803,13 +1040,20 @@ int BPF_PROG(security_path_symlink_enter, const struct path *parent_dir, struct 
 
     struct path path = {.dentry = dentry, .mnt = BPF_CORE_READ(parent_dir, mnt)};
     
-    RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(kGenericWrite, &path, runner_pid,
-        event->metadata.kernel_function = KERNEL_FUNCTION(security_path_symlink);
-        event->metadata.pid = pid;
-        event->metadata.operation_type = kGenericWrite;
-        event->metadata.mode = get_mode(dentry);
-        path_to_string(event->src_path, parent_dir);
-        combine_paths(event->src_path, atom);
+    char* temp_path = bpf_map_lookup_elem(&tmp_paths, &ZERO);
+    if (!temp_path)
+    {
+        return 0;
+    }
+    path_to_string(temp_path, parent_dir);
+    int path_length = combine_paths(temp_path, atom);
+
+    RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(kGenericWrite, &path, path_length, runner_pid,
+        metadata->kernel_function = KERNEL_FUNCTION(security_path_symlink);
+        metadata->pid = pid;
+        metadata->operation_type = kGenericWrite;
+        metadata->mode = get_mode(dentry);
+        WRITE_SRC_PATH(temp_path);
     )
 
     return 0;
@@ -837,12 +1081,19 @@ int BPF_PROG(security_path_mknod_enter, const struct path *parent_dir, struct de
 
     struct path path = {.dentry = dentry, .mnt = BPF_CORE_READ(parent_dir, mnt)};
 
-    RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(kCreate, &path, runner_pid,
-        event->metadata.kernel_function = KERNEL_FUNCTION(security_path_mknod);
-        event->metadata.pid = pid;
-        event->metadata.operation_type = kCreate;
-        event->metadata.mode = mode;
-        deref_path_info(event->src_path, dentry, BPF_CORE_READ(parent_dir, mnt));
+    char* temp_path = bpf_map_lookup_elem(&tmp_paths, &ZERO);
+    if (!temp_path)
+    {
+        return 0;
+    }
+    int path_length = deref_path_info(temp_path, dentry, BPF_CORE_READ(parent_dir, mnt));
+
+    RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(kCreate, &path, path_length, runner_pid,
+        metadata->kernel_function = KERNEL_FUNCTION(security_path_mknod);
+        metadata->pid = pid;
+        metadata->operation_type = kCreate;
+        metadata->mode = mode;
+        WRITE_SRC_PATH(temp_path);
     )
 
     return 0;
@@ -876,13 +1127,23 @@ int BPF_PROG(security_inode_getattr_exit, const struct path *path, int ret)
         return 0;
     }
 
-    RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(kGenericProbe, path, runner_pid,
-        event->metadata.kernel_function = KERNEL_FUNCTION(security_inode_getattr);
-        event->metadata.pid = pid;
-        event->metadata.error = 0;
-        event->metadata.operation_type = kGenericProbe;
-        event->metadata.mode = mode;
-        path_to_string(event->src_path, path);
+    char* temp_path = bpf_map_lookup_elem(&tmp_paths, &ZERO);
+    if (!temp_path)
+    {
+        return 0;
+    }
+    int path_length = path_to_string(temp_path, path);
+
+    // See the comment in execve_common() for why we need this bogus declaration
+    struct path dummy_path = {.dentry = path->dentry};
+
+    RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(kGenericProbe, path, path_length, runner_pid,
+        metadata->kernel_function = KERNEL_FUNCTION(security_inode_getattr);
+        metadata->pid = pid;
+        metadata->error = 0;
+        metadata->operation_type = kGenericProbe;
+        metadata->mode = mode;
+        WRITE_SRC_PATH(temp_path);
     )
 
     return 0;
@@ -912,29 +1173,35 @@ int BPF_PROG(do_readlink_exit, int dfd, const char *pathname, char *buf, int buf
 
     // Need to copy the filename from user space
     // retrieve temporary filepath storage
-    uint32_t map_id = bpf_get_smp_processor_id();
-    char* temp = bpf_map_lookup_elem(&tmp_paths, &map_id);
-    if (!temp)
+    char* temp_pathname = bpf_map_lookup_elem(&tmp_paths, &ZERO);
+    if (!temp_pathname)
     {
         return 0;
     }
-    int length = bpf_core_read_user_str(temp, PATH_MAX, pathname);
+    int length = bpf_core_read_user_str(temp_pathname, PATH_MAX, pathname);
     if (length <= 0)
     {
         return 0;
     }
 
+    char* temp_path = bpf_map_lookup_elem(&tmp_paths, &ONE);
+    if (!temp_path)
+    {
+        return 0;
+    }
+    int path_length = fd_string_to_string(temp_path, dfd, temp_pathname, /* user_strings */ false);
+
     // This operation is hard to check against the cache since its arguments don't give us any in-memory structure to
     // represent the path, and using strings is not very performant. For now just keep them out
     // of the cache
-    RESERVE_SUBMIT_FILE_ACCESS(runner_pid,
-        event->metadata.kernel_function = KERNEL_FUNCTION(do_readlinkat);
-        event->metadata.pid = pid;
-        event->metadata.operation_type = kGenericRead;
+    RESERVE_SUBMIT_FILE_ACCESS(runner_pid, path_length,
+        metadata->kernel_function = KERNEL_FUNCTION(do_readlinkat);
+        metadata->pid = pid;
+        metadata->operation_type = kGenericRead;
         // The call was successful, which means the symlink is legit (and therefore a regular file)
-        event->metadata.mode = S_IFREG;
-        event->metadata.error = 0;
-        fd_string_to_string(event->src_path, dfd, temp, /* user_strings */ false);
+        metadata->mode = S_IFREG;
+        metadata->error = 0;
+        WRITE_SRC_PATH(temp_path);
     )
 
     return 0;
@@ -960,17 +1227,26 @@ int BPF_PROG(pick_link_exit, struct nameidata *nd, struct path *link,
         return 0;
     }
 
-    RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(kGenericRead, link, runner_pid,
-        event->metadata.kernel_function = KERNEL_FUNCTION(pick_link_enter);
-        event->metadata.pid = pid;
-        event->metadata.operation_type = kGenericRead;
-        event->metadata.mode = get_mode_from_path(link);
-        path_to_string(event->src_path, link);
+    char* temp_path = bpf_map_lookup_elem(&tmp_paths, &ZERO);
+    if (!temp_path)
+    {
+        return 0;
+    }
+    int path_length = path_to_string(temp_path, link);
+
+    // See the comment in execve_common() for why we need this bogus declaration
+    struct path dummy_path = {.dentry = link->dentry};
+
+    RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(kGenericRead, link, path_length, runner_pid,
+        metadata->kernel_function = KERNEL_FUNCTION(pick_link_enter);
+        metadata->pid = pid;
+        metadata->operation_type = kGenericRead;
+        metadata->mode = get_mode_from_path(link);
+        WRITE_SRC_PATH(temp_path);
     )
 
     return 0;
 }
-
 
 /**
  * security_path_chown() - Security hook for chown.
@@ -991,12 +1267,22 @@ int BPF_PROG(security_path_chown, const struct path *path)
         return 0;
     }
 
-    RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(kGenericWrite, path, runner_pid,
-        event->metadata.kernel_function = KERNEL_FUNCTION(security_path_chown);
-        event->metadata.pid = pid;
-        event->metadata.operation_type = kGenericWrite;
-        event->metadata.mode = mode;
-        path_to_string(event->src_path, path);
+    char* temp_path = bpf_map_lookup_elem(&tmp_paths, &ZERO);
+    if (!temp_path)
+    {
+        return 0;
+    }
+    int path_length = path_to_string(temp_path, path);
+
+    // See the comment in execve_common() for why we need this bogus declaration
+    struct path dummy_path = {.dentry = path->dentry};
+
+    RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(kGenericWrite, path, path_length, runner_pid,
+        metadata->kernel_function = KERNEL_FUNCTION(security_path_chown);
+        metadata->pid = pid;
+        metadata->operation_type = kGenericWrite;
+        metadata->mode = mode;
+        WRITE_SRC_PATH(temp_path);
     )
 
 	return 0;
@@ -1021,12 +1307,22 @@ int BPF_PROG(security_path_chmod, const struct path *path)
         return 0;
     }
     
-    RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(kGenericWrite, path, runner_pid,
-        event->metadata.kernel_function = KERNEL_FUNCTION(security_path_chmod);
-        event->metadata.pid = pid;
-        event->metadata.operation_type = kGenericWrite;
-        event->metadata.mode = mode;
-        path_to_string(event->src_path, path);
+    char* temp_path = bpf_map_lookup_elem(&tmp_paths, &ZERO);
+    if (!temp_path)
+    {
+        return 0;
+    }
+    int path_length = path_to_string(temp_path, path);
+
+    // See the comment in execve_common() for why we need this bogus declaration
+    struct path dummy_path = {.dentry = path->dentry};
+
+    RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(kGenericWrite, path, path_length, runner_pid,
+        metadata->kernel_function = KERNEL_FUNCTION(security_path_chmod);
+        metadata->pid = pid;
+        metadata->operation_type = kGenericWrite;
+        metadata->mode = mode;
+        WRITE_SRC_PATH(temp_path);
     )
 
 	return 0;
@@ -1053,13 +1349,20 @@ int BPF_PROG(security_file_truncate, struct file *file)
         return 0;
     }
 
-    RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(kGenericWrite, &path, runner_pid,
-        event->metadata.kernel_function = KERNEL_FUNCTION(security_file_truncate);
-        event->metadata.pid = pid;
-        path_to_string(event->src_path, &path);
+    char* temp_path = bpf_map_lookup_elem(&tmp_paths, &ZERO);
+    if (!temp_path)
+    {
+        return 0;
+    }
+    int path_length = path_to_string(temp_path, &path);
+
+    RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(kGenericWrite, &path, path_length, runner_pid,
+        metadata->kernel_function = KERNEL_FUNCTION(security_file_truncate);
+        metadata->pid = pid;
+        WRITE_SRC_PATH(temp_path);
         // A truncate always involves a write operation
-        event->metadata.operation_type = kGenericWrite;
-        event->metadata.mode = mode;
+        metadata->operation_type = kGenericWrite;
+        metadata->mode = mode;
     )
 
     return 0;
@@ -1084,12 +1387,22 @@ int BPF_PROG(vfs_utimes, const struct path *path)
         return 0;
     }
 
-    RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(kGenericWrite, path, runner_pid,
-        event->metadata.kernel_function = KERNEL_FUNCTION(vfs_utimes);
-        event->metadata.pid = pid;
-        path_to_string(event->src_path, path);
-        event->metadata.operation_type = kGenericWrite;
-        event->metadata.mode = mode;
+    char* temp_path = bpf_map_lookup_elem(&tmp_paths, &ZERO);
+    if (!temp_path)
+    {
+        return 0;
+    }
+    int path_length = path_to_string(temp_path, path);
+
+    // See the comment in execve_common() for why we need this bogus declaration
+    struct path dummy_path = {.dentry = path->dentry};
+
+    RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(kGenericWrite, path, path_length, runner_pid,
+        metadata->kernel_function = KERNEL_FUNCTION(vfs_utimes);
+        metadata->pid = pid;
+        WRITE_SRC_PATH(temp_path);
+        metadata->operation_type = kGenericWrite;
+        metadata->mode = mode;
     )
 
     return 0;

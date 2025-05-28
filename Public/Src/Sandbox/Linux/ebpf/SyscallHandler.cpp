@@ -147,14 +147,17 @@ bool SyscallHandler::HandleDoubleEvent(BxlObserver *bxl, const ebpf_event_double
     switch (event->metadata.operation_type) {
         case kRename:
         {
+            const char* src_path = get_src_path(event);
+            const char* dst_path = get_dst_path(event);
+
             // Handling for this event is different based on whether it's a file or directory.
             // If a directory, the source directory no longer exists because the rename has already happened.
             // We can enumerate the destination directory instead.
             if (S_ISDIR(event->metadata.mode)) {
                 std::vector<std::string> filesAndDirectories;
-                std::string sourcePath(event->src_path);
-                std::string destinationPath(event->dst_path);
-                bxl->EnumerateDirectory(event->dst_path, /* recursive */ true, filesAndDirectories);
+                std::string sourcePath(src_path);
+                std::string destinationPath(dst_path);
+                bxl->EnumerateDirectory(dst_path, /* recursive */ true, filesAndDirectories);
 
                 for (auto fileOrDirectory : filesAndDirectories) {
                     // Destination
@@ -195,10 +198,10 @@ bool SyscallHandler::HandleDoubleEvent(BxlObserver *bxl, const ebpf_event_double
                 }
             }
             else {
-                auto mode = bxl->get_mode(event->dst_path);
+                auto mode = bxl->get_mode(dst_path);
                 // Source
                 // Send this special event on write, similar to what we do with a kWrite coming from EBPF
-                ReportFirstAllowWriteCheck(bxl, kGenericWrite, event->src_path, mode, event->metadata.pid);
+                ReportFirstAllowWriteCheck(bxl, kGenericWrite, src_path, mode, event->metadata.pid);
 
                 auto sandboxEventSource = SandboxEvent::AbsolutePathSandboxEvent(
                     /* system_call */   kernel_function_to_string(event->metadata.kernel_function),
@@ -206,7 +209,7 @@ bool SyscallHandler::HandleDoubleEvent(BxlObserver *bxl, const ebpf_event_double
                     /* pid */           event->metadata.pid,
                     /* ppid */          0,
                     /* error */         0,
-                    /* src_path */      event->src_path);
+                    /* src_path */      src_path);
                 // Source should be absent now, infer the mode from the destination
                 sandboxEventSource.SetMode(mode);
                 sandboxEventSource.SetRequiredPathResolution(RequiredPathResolution::kDoNotResolve);
@@ -214,7 +217,7 @@ bool SyscallHandler::HandleDoubleEvent(BxlObserver *bxl, const ebpf_event_double
 
                 // Destination
                 // Send this special event on creation, similar to what we do with a kCreate coming from EBPF
-                ReportFirstAllowWriteCheck(bxl, kCreate, event->dst_path, mode, event->metadata.pid);
+                ReportFirstAllowWriteCheck(bxl, kCreate, dst_path, mode, event->metadata.pid);
 
                 auto sandboxEventDestination = SandboxEvent::AbsolutePathSandboxEvent(
                     /* system_call */   kernel_function_to_string(event->metadata.kernel_function),
@@ -222,7 +225,7 @@ bool SyscallHandler::HandleDoubleEvent(BxlObserver *bxl, const ebpf_event_double
                     /* pid */           event->metadata.pid,
                     /* ppid */          0,
                     /* error */         0,
-                    /* src_path */      event->dst_path);
+                    /* src_path */      dst_path);
                 sandboxEventDestination.SetMode(mode);
                 sandboxEventDestination.SetRequiredPathResolution(RequiredPathResolution::kDoNotResolve);
                 CreateAndReportAccess(bxl, sandboxEventDestination, /* check cache */ true);
@@ -244,8 +247,8 @@ bool SyscallHandler::HandleExecEvent(BxlObserver *bxl, const ebpf_event_exec *ev
         /* system_call */   kernel_function_to_string(event->metadata.kernel_function),
         /* pid */           event->metadata.pid,
         /* ppid */          0,
-        /* path */          event->exe_path,
-        /* command_line */  bxl->IsReportingProcessArgs() ? event->args : "");
+        /* path */          get_exe_path(event),
+        /* command_line */  bxl->IsReportingProcessArgs() ? get_args(event) : "");
     CreateAndReportAccess(bxl,sandboxEvent, /* check_cache */ false);
 
     return true;
@@ -254,7 +257,7 @@ bool SyscallHandler::HandleExecEvent(BxlObserver *bxl, const ebpf_event_exec *ev
 bool SyscallHandler::HandleDebugEvent(BxlObserver *bxl, const ebpf_event_debug *event) {
     // Add the pip id (as seen by EBPF) to all debug messages
     char messageWithPipId[PATH_MAX];
-    snprintf(messageWithPipId, PATH_MAX, "[%lu] [%d] %s", event->runner_pid, event->pid, event->message);
+    snprintf(messageWithPipId, PATH_MAX, "[%d] [%d] %s", event->runner_pid, event->pid, event->message);
 
     bxl->LogError(event->pid, messageWithPipId);
     return true;

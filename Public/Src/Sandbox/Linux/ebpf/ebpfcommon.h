@@ -174,6 +174,7 @@ typedef enum ebpf_event_type {
 } ebpf_event_type;
 
 typedef struct ebpf_event_metadata {
+    ebpf_event_type event_type;
     // The 'conceptual' operation the event represents (e.g. a read, an exec, etc.)
     enum operation_type operation_type;
     // The kernel function we trace. Mostly for debugging purposes
@@ -185,33 +186,59 @@ typedef struct ebpf_event_metadata {
 } ebpf_event_metadata;
 
 typedef struct ebpf_event {
-    ebpf_event_type event_type;
     ebpf_event_metadata metadata;
-    char src_path[PATH_MAX];
+    char src_path[];
 } ebpf_event;
 
 typedef struct ebpf_event_double {
-    ebpf_event_type event_type;
     ebpf_event_metadata metadata;
-    char src_path[PATH_MAX];
-    char dst_path[PATH_MAX];
+    // The length of the source path, including the null terminator
+    // This is used to calculate the offset of the destination path
+    int src_path_length;
+    // Source an destination paths are concatenated in the same buffer
+    // The destination path starts at src_path_length
+    // We use flexible arrays to avoid having to allocate a fixed size for the paths
+    // Check below here for helpers to retrieve the paths
+    char src_and_dst_path[];
 } ebpf_event_double;
 
+// Helpers to retrieve the source and destination paths from a double path event
+inline const char* get_src_path(const ebpf_event_double* event) {
+    return &(event->src_and_dst_path[0]);
+}
+
+inline const char* get_dst_path(const ebpf_event_double* event) {
+    return &(event->src_and_dst_path[event->src_path_length]);
+}
+
 typedef struct ebpf_event_exec {
-    ebpf_event_type event_type;
     ebpf_event_metadata metadata;
-    // We use PATH_MAX + FILENAME_MAX here to enable us to do some string operations
-    // on the kernel side without having the verifier complain about the size of the buffer
-    char exe_path[PATH_MAX + FILENAME_MAX];
-    char args[PATH_MAX];
+    // The length of the exe path, including the null terminator
+    // This is used to calculate the offset of the args
+    int exe_path_length;
+    // Exe and args are concatenated in the same buffer
+    // The args start at exe_path_length
+    // We use flexible arrays to avoid having to allocate a fixed size for the paths
+    // Check below here for helpers to retrieve the paths
+    char exe_path_and_args[];
 } ebpf_event_exec;
+
+// Helpers to retrieve the exe path and args from an exec event
+inline const char* get_exe_path(const ebpf_event_exec* event) {
+    return &(event->exe_path_and_args[0]);
+}
+
+inline const char* get_args(const ebpf_event_exec* event) {
+    return &(event->exe_path_and_args[event->exe_path_length]);
+}
 
 /**
  * This structure is only used internally by the bpf program to track lengths
  * of strings.
  */
 typedef struct exec_event_metadata {
-    ebpf_event_exec *event;
+    char* exe_path;
+    char* args;
     int exe_path_len;
     int exe_name_start_index;
     int exe_name_len;

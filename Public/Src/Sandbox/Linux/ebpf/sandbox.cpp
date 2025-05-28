@@ -102,7 +102,7 @@ void Cleanup(struct sandbox_bpf *skel) {
 
 void LogDebugEvent(ebpf_event *event)
 {
-    switch (event->event_type) 
+    switch (event->metadata.event_type) 
     {
         case EXEC: 
         {
@@ -112,9 +112,9 @@ void LogDebugEvent(ebpf_event *event)
                 "[%d] kernel function: %s, operation: %s, exe path: '%s', args: '%s'",
                 exec_event->metadata.pid,
                 kernel_function_to_string(exec_event->metadata.kernel_function), 
-                operation_type_to_string(exec_event->metadata.operation_type), 
-                exec_event->exe_path,
-                exec_event->args);
+                operation_type_to_string(exec_event->metadata.operation_type),
+                get_exe_path(exec_event),
+                get_args(exec_event));
             break;
         }
         case SINGLE_PATH:
@@ -146,8 +146,8 @@ void LogDebugEvent(ebpf_event *event)
                 S_ISDIR(event->metadata.mode),
                 double_event->metadata.error,
                 strerror(double_event->metadata.error * -1),
-                double_event->src_path,
-                double_event->dst_path);
+                get_src_path(double_event),
+                get_dst_path(double_event));
             break;
         }
         // We do nothing with Debug messages because they are going to get logged as is anyway downstream
@@ -285,7 +285,7 @@ bool IsPathFullyResolved(const char* path)
 void HandleEvent(ebpf_event *event) {
     LogDebugEvent(event);
 
-    switch (event->event_type) {
+    switch (event->metadata.event_type) {
         case EXEC: {
             buildxl::linux::ebpf::SyscallHandler::HandleExecEvent(g_bxl, (const ebpf_event_exec *)event);
             break;
@@ -303,7 +303,7 @@ void HandleEvent(ebpf_event *event) {
         {
             // Same consideration for fully resolved paths as in the single path case
             const ebpf_event_double* double_event = (const ebpf_event_double *)event;
-            if (IsPathFullyResolved(double_event->src_path) && IsPathFullyResolved(double_event->dst_path))
+            if (IsPathFullyResolved(get_src_path(double_event)) && IsPathFullyResolved(get_dst_path(double_event)))
             {
                 buildxl::linux::ebpf::SyscallHandler::HandleDoubleEvent(g_bxl, double_event);
             }
@@ -313,7 +313,7 @@ void HandleEvent(ebpf_event *event) {
             buildxl::linux::ebpf::SyscallHandler::HandleDebugEvent(g_bxl, (const ebpf_event_debug *)event);
             break;
         default:
-            LogError("Unhandled event type %d", event->event_type);
+            LogError("Unhandled event type %d", event->metadata.event_type);
             break;
     }
 }
@@ -1025,9 +1025,6 @@ int main(int argc, char **argv) {
     Cleanup(skel);
     end = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-
-    // Sometimes the pipe is gone already
-    // g_bxl->LogDebug(getpid(), "Sandbox cleanup time: %d ms", duration.count());
 
     return g_exit_code;
 }

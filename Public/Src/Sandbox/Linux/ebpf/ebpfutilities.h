@@ -59,7 +59,7 @@ struct debug_ring_buffer {
     __uint(type, BPF_MAP_TYPE_RINGBUF);
     // We typically don't need this to be very big, as the first error sent is usually enough to signal that there is something
     // going wrong
-    __uint(max_entries, 4096 * 1024);
+    __uint(max_entries, 4096 * 128);
 } debug_ring_buffer SEC(".maps");
 
 /**
@@ -179,16 +179,20 @@ __attribute__((always_inline)) static int get_ppid() {
     return ppid;
 }
 
-// We use one entry per cpu
-// Used to store temporary paths
-// TODO: change for a BPF_MAP_TYPE_PERCPU_ARRAY just to reduce cognitive load
+// Used to store temporary paths. We need 2 entries for the case of exec and rename, which require dealing with two paths
+// simultaneously
 struct
 {
-    __uint(type, BPF_MAP_TYPE_ARRAY);
+    __uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
     __uint(key_size, sizeof(uint32_t));
-    __uint(value_size, PATH_MAX);
-    __uint(max_entries, MAX_PROC);
+    // using PATH_MAX * 2 to keep the verifier happy.
+    __uint(value_size, PATH_MAX * 2);
+    __uint(max_entries, 2);
 } tmp_paths SEC(".maps");
+
+// Useful for retrieving the couple of available temporary paths from tmp_paths
+const static int ZERO = 0;
+const static int ONE = 1;
 
 // We use one entry per cpu
 // Used by deref_path_info, combine_paths, and argv_to_string
@@ -642,8 +646,7 @@ static int argv_to_string(char *const *argv, char* dest)
     
     // Copy the path to the final destination
     // index + 1 is used here because index is used as a length not an index here
-    // -1 from the final result to exclude the null terminating character from the length
-    return bpf_probe_read_kernel_str(dest, ((index + 1) & (PATH_MAX - 1)), &temp[0]) - 1;
+    return bpf_probe_read_kernel_str(dest, ((index + 1) & (PATH_MAX - 1)), &temp[0]);
 }
 
 /**
@@ -660,13 +663,13 @@ static long breakaway_map_callback(struct bpf_map *map, const uint32_t *key, bre
         return 1;
     }
 
-    char *toolname = &event->event->exe_path[event->exe_name_start_index & (PATH_MAX - 1)];
+    char *toolname = &event->exe_path[event->exe_name_start_index & (PATH_MAX - 1)];
 
     bool exe_match = string_contains(toolname, event->exe_name_len, value->tool, value->tool_len, /* case_sensitive */ true);
     // Args can be ignored if they weren't specified in the breakaway process map
-    bool args_match = value->arguments[0] == '\0' 
-        ? true 
-        : string_contains(value->arguments, value->arguments_len, event->event->args, event->args_len, /* case_sensitive */ !value->args_ignore_case);
+     bool args_match = value->arguments[0] == '\0' 
+         ? true 
+         : string_contains(value->arguments, value->arguments_len, event->args, event->args_len, /* case_sensitive */ !value->args_ignore_case);
 
     event->needs_breakaway = exe_match && args_match;
 
@@ -686,7 +689,7 @@ static long basename_loop_callback(u64 index, exec_event_metadata **ctx) {
 
     // Since bpf_loop can only start at 0 and increment, keep track of the last '/'
     // If the next character is a '\0' then it's a trailing '/' which can be ignored.
-    if (event->event->exe_path[i] == '/' && event->event->exe_path[i + 1 & (PATH_MAX - 1)] != '\0') {
+    if (event->exe_path[i] == '/' && event->exe_path[i + 1 & (PATH_MAX - 1)] != '\0') {
         event->exe_name_start_index = i + 1;
         return 1;
     }

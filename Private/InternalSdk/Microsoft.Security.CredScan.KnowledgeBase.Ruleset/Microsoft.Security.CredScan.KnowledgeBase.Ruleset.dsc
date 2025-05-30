@@ -17,10 +17,10 @@ namespace Contents {
 @@public
 export const pkg: Managed.ManagedNugetPackage =
     Managed.Factory.createNugetPackage(
-        "Microsoft.Security.CredScan.ClientLib",
+        "Microsoft.Security.CredScan.KnowledgeBase.Ruleset",
         "0.0.0",
         Contents.all,
         [],
         [],
         []
-    );    
+    );

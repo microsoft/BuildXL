@@ -15,7 +15,6 @@ using Logger = BuildXL.Pips.Tracing.Logger;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Tracing;
 using BuildXL.Utilities.Collections;
-
 #if (MICROSOFT_INTERNAL && NETCOREAPP)
 using Microsoft.Security.CredScan.ClientLib;
 using Microsoft.Security.CredScan.KnowledgeBase.Client;

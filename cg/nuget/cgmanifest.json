@@ -275,6 +275,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "Crc32.NET",
+          "Version": "1.2.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "DeduplicationSigned",
           "Version": "1.0.14"
         }
@@ -655,6 +664,15 @@
         "NuGet": {
           "Name": "Microsoft.AspNetCore.App.Runtime.win-x64",
           "Version": "9.0.3"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Automata.SRM",
+          "Version": "2.0.0-alpha3"
         }
       }
     },
@@ -1895,8 +1913,53 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "Microsoft.Security.CredScan.ClientLib",
-          "Version": "2.4.0"
+          "Name": "Microsoft.Security.CredScan.KnowledgeBase",
+          "Version": "2.3.8"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Security.CredScan.KnowledgeBase.Client",
+          "Version": "2.3.8"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Security.CredScan.KnowledgeBase.Ruleset",
+          "Version": "2.3.8"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Security.CredScan.KnowledgeBase.SharedDomains",
+          "Version": "2.3.8"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Security.RegularExpressions",
+          "Version": "2.3.8"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Security.Utilities.Internal",
+          "Version": "1.9.1"
         }
       }
     },
@@ -2759,6 +2822,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "RE2.Managed",
+          "Version": "1.10.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "RocksDbNative",
           "Version": "8.1.1-20241011.2"
         }
@@ -2833,6 +2905,15 @@
         "NuGet": {
           "Name": "StreamJsonRpc",
           "Version": "2.8.28"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Strings.Interop",
+          "Version": "1.10.0"
         }
       }
     },

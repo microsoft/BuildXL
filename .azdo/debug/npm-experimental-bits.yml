@@ -17,6 +17,18 @@ parameters:
 - name: PackageName
   type: string
 
+# Whether to push the package to the BuildXL.experimental NPM feed
+- name: pushToNpm
+  type: boolean
+
+# Whether to push the package to the BuildXL.experimental Nuget feed
+- name: pushToNuget
+  type: boolean
+
+- name: linuxImage
+  type: string
+  default: linux-PME-GPT
+
 resources:
   repositories:
   - repository: BuildXL.Internal
@@ -26,12 +38,12 @@ resources:
 
 jobs:
 - job: Build_Linux
-  displayName: Build linux NPM package (${{ parameters.Flavor }})
+  displayName: Build packages and push to pipeline artifacts (${{ parameters.Flavor }})
   pool:
     name: BuildXL-DevOpsAgents-Selfhost-BuildCache
     os: linux
     demands:     
-    - ImageOverride -equals linux-PME-GPT
+    - ImageOverride -equals ${{ parameters.linuxImage }}
 
   steps:
   - checkout: BuildXL.Internal
@@ -54,20 +66,29 @@ jobs:
       
       bash bxl.sh --internal --use-adobuildrunner
       --runner-arg /cacheConfigLogGeneratedConfiguration:true 
-      /q:ReleaseLinux /q:DebugLinux "/f:output='/home/subst/Out/Bin/${{ parameters.Flavor }}/npm/*'" "/p:Build.BuildId=0.1.0-${{ parameters.PackageName }}" "/p:[BuildXL.Branding]SourceIdentification=NpmExperimental-$(Build.BuildId)"
-    displayName: Build NPM package
+      /q:ReleaseLinux /q:DebugLinux "/f:output='/home/subst/Out/Bin/${{ parameters.Flavor }}/npm/*'" "/f:output='/home/subst/Out/Bin/${{ parameters.Flavor }}/pkgs/*'" "/p:Build.BuildId=0.1.0-${{ parameters.PackageName }}" "/p:[BuildXL.Branding]SourceIdentification=NpmExperimental-$(Build.BuildId)"
+    displayName: Build packages
     workingDirectory: /home/subst
     env:
       AdoBuildRunnerInvocationKey: Build
       SYSTEM_ACCESSTOKEN: $(System.AccessToken)
       PAT1esSharedAssets: $(BuildXL-Pipeline-AccessToken)
       PATCloudBuild: $(BuildXL-Pipeline-AccessToken)
-  
-  - task: PublishPipelineArtifact@1
-    displayName: 'Publish package to consume on Windows job'
-    inputs:
-      artifactName: 'LinuxNpmPackage'
-      path: '$(Build.SourcesDirectory)/Out/Bin/${{ parameters.Flavor }}/npm/linux-x64'
+
+  - ${{ if eq(parameters.pushToNpm, true) }}:
+    - task: PublishPipelineArtifact@1
+      displayName: 'Publish npm package to consume on Windows job'
+      inputs:
+        artifactName: 'LinuxNpmPackage'
+        path: '$(Build.SourcesDirectory)/Out/Bin/${{ parameters.Flavor }}/npm/linux-x64'
+
+  - ${{ if eq(parameters.pushToNuget, true) }}:
+    - task: PublishPipelineArtifact@1
+      displayName: 'Publish npm package to consume on Windows job'
+      inputs:
+        artifactName: 'LinuxNugetPackage'
+        path: '$(Build.SourcesDirectory)/Out/Bin/${{ parameters.Flavor }}/pkgs'
+
 
 - job: Publish_Windows
   displayName: 'Publish on Windows'
@@ -78,23 +99,41 @@ jobs:
   dependsOn: Build_Linux
   steps:
   - checkout: none
-  - task: DownloadPipelineArtifact@2
-    displayName: 'Download Artifact'
-    inputs:
-      artifactName: 'LinuxNpmPackage'
-      path: '$(System.DefaultWorkingDirectory)/LinuxNpmPackage'
 
-  - task: NodeTool@0
-    inputs:
-      versionSource: 'spec'
-    displayName: Install node
+  - ${{ if eq(parameters.pushToNuget, true) }}:
+    - task: DownloadPipelineArtifact@2
+      displayName: 'Download Nuget Artifact'
+      inputs:
+        artifactName: 'LinuxNugetPackage'
+        path: '$(System.DefaultWorkingDirectory)/LinuxNugetPackage'
 
-  - task: Npm@1
-    displayName: 'Publish npm package to BuildXL.experimental feed (Linux)'
-    inputs:
-      command: custom
-      workingDir: '$(System.DefaultWorkingDirectory)/LinuxNpmPackage'
-      verbose: true
-      customCommand: 'publish'
-      customRegistry: useFeed
-      customFeed: '9ed2c125-1cd5-4a17-886b-9d267f3a5fab/21928c99-428b-4ccc-8a3e-0d11b5cc80db'
+    - task: NuGetCommand@2
+      displayName: 'Push nuget package to BuildXL.experimental feed (Linux)'
+      inputs:
+        command: push
+        packagesToPush: '$(System.DefaultWorkingDirectory)/LinuxNugetPackage/BuildXL.linux-x64.0.1.0-${{ parameters.PackageName }}.nupkg'
+        nuGetFeedType: 'internal'
+        publishVstsFeed: 'Domino/BuildXL.experimental'
+
+  - ${{ if eq(parameters.pushToNpm, true) }}:
+    - task: DownloadPipelineArtifact@2
+      displayName: 'Download Npm Artifact'
+      inputs:
+        artifactName: 'LinuxNpmPackage'
+        path: '$(System.DefaultWorkingDirectory)/LinuxNpmPackage'
+
+    - task: NodeTool@0
+      inputs:
+        versionSource: 'spec'
+      displayName: Install node
+
+    - task: Npm@1
+      displayName: 'Publish npm package to BuildXL.experimental feed (Linux)'
+      inputs:
+        command: custom
+        workingDir: '$(System.DefaultWorkingDirectory)/LinuxNpmPackage'
+        verbose: true
+        customCommand: 'publish'
+        customRegistry: useFeed
+        customFeed: '9ed2c125-1cd5-4a17-886b-9d267f3a5fab/21928c99-428b-4ccc-8a3e-0d11b5cc80db'
+

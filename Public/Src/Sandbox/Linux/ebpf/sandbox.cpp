@@ -50,7 +50,7 @@ struct ring_buffer *g_file_access_ring_buffer = nullptr, *g_debug_ring_buffer = 
 int g_pid_map_fd, g_sandbox_options_per_pip_map_fd, g_file_access_per_pip_fd = -1;
 int g_debug_buffer_per_pip_fd, g_breakaway_processes_map_fd, g_event_cache_per_pip_fd, g_breakaway_processes_per_pip_fd = -1;
 sem_t g_root_process_populated_semaphore;
-bool g_ebpf_already_loaded = false;
+bool g_ebpf_already_loaded, g_ebpf_should_force_ebpf_loading = false;
 buildxl::common::SPSCQueue<ebpf_event *> g_event_queue;
 pthread_t g_event_queue_thread;
 
@@ -95,7 +95,7 @@ static int LogError(const char *fmt, ...) {
  */
 void Cleanup(struct sandbox_bpf *skel) {
     // Unload EBPF programs if this runner was the one loading them to begin with
-    if (!g_ebpf_already_loaded) {
+    if (g_ebpf_should_force_ebpf_loading || !g_ebpf_already_loaded) {
         sandbox_bpf::destroy(skel);
     }
 }
@@ -214,6 +214,17 @@ void GetProgramFullName(const struct bpf_prog_info *prog_info, int prog_fd, char
     if (prog_btf) {
         btf__free(prog_btf);
     }
+}
+
+bool ShouldForceEBPFLoading()
+{
+    // If the environment variable is set, we always load EBPF. Mostly for testing purposes.
+    if (getenv(BxlUnconditionallyLoadEBPF) != nullptr) {
+        g_bxl->LogDebug(getpid(), "Unconditionally loading EBPF programs because environment variable %s is set", BxlUnconditionallyLoadEBPF);
+        return true;
+    }
+
+    return false;
 }
 
 /**
@@ -640,7 +651,7 @@ void *PollDebugBuffer(void *arg) {
 int SetupMaps(struct sandbox_bpf *skel) {
     // If ebpf is already loaded, we need to reuse the pinned maps. This is something the ebpf helpers will do on load(), but
     // that logic is intertwined with loading the bpf object to the kernel, which is something that already happened and we want to avoid
-    if (g_ebpf_already_loaded)
+    if (g_ebpf_should_force_ebpf_loading || g_ebpf_already_loaded)
     {   
         // These are the `PINNED_MAPS_SIZE` pinned maps we have. Retrieve their pin paths and reuse them
         bpf_map* pinned_maps[PINNED_MAPS_SIZE] = {
@@ -819,7 +830,6 @@ int SetupMaps(struct sandbox_bpf *skel) {
     {
         g_bxl->LogDebug(getpid(), "Added breakaway process map %d", key);
     }
-
     
     if (PopulateBreakawayProcessesMap())
     {
@@ -866,6 +876,91 @@ void CleanupPinnedMaps(struct sandbox_bpf *skel) {
     }
 }
 
+unsigned int GetMaxConcurrency()
+{
+    unsigned int max_procs;
+    // Check whether max concurrency is set in the designated environment variable. Its presence means that
+    // BuildXL is hinting this value to the runner.
+    const char *maxConcurrency = getenv(BxlMaxConcurrency);
+    if (is_null_or_empty(maxConcurrency))
+    {
+        // This variable might not be set if the runner is not launched by BuildXL.
+        // In this case we try to use the number of physical cores
+        max_procs = std::thread::hardware_concurrency();
+        // A value of 0 means the number couldn't be retrieved
+        if (max_procs == 0) {
+            // Just use an arbitrary default in that case
+            max_procs = 32;
+        }
+    }
+    else
+    {
+        max_procs = std::atoi(maxConcurrency);
+    }
+
+    return max_procs;
+}
+
+// Configures the per-pip maps sizes based on the maximum concurrency.
+int ConfigurePerPipMapSizes(struct sandbox_bpf *skel) {
+
+    unsigned int concurrency = GetMaxConcurrency();
+
+    // In this case we are going to load EBPF programs, but we still share the same per-pip maps with an already loaded instance.
+    // We cannot resize maps to a different value, so retrieve the existing size and use that.
+    if (g_ebpf_already_loaded && g_ebpf_should_force_ebpf_loading)
+    {
+        // Any per-pip map size is fine, since we use the same size for all of them
+        const char* pin_path = bpf_map__get_pin_path(skel->maps.file_access_per_pip);
+        if (pin_path == nullptr) {
+            LogError("Failed to retrieve pin path for map file_access_per_pip\n");
+            return 1;
+        }
+        int pin_fd = bpf_obj_get(pin_path);
+        if (pin_fd < 0) {
+            LogError("Failed to get pin fd for map file_access_per_pip: %s\n", strerror(errno));
+            return 1;
+        }
+
+        struct bpf_map_info map_info;
+    	__u32 map_info_len = sizeof(map_info);
+	    int err;
+    	memset(&map_info, 0, map_info_len);
+	    err = bpf_map_get_info_by_fd(pin_fd, &map_info, &map_info_len);
+        if (err) {
+            LogError("Failed to get map info for file_access_per_pip: %s\n", strerror(errno));
+            close(pin_fd);
+            return 1;
+        }
+        
+        g_bxl->LogDebug(getpid(), "EBPF was force loaded. Concurrency was originally requested to be '%u', but the existing one '%d' was used", concurrency, map_info.max_entries);
+
+        concurrency = map_info.max_entries;
+        close(pin_fd);
+    }
+    
+    bpf_map* per_pip_maps[] = {
+        skel->maps.file_access_per_pip, 
+        skel->maps.debug_buffer_per_pip, 
+        skel->maps.breakaway_processes_per_pip,
+        skel->maps.sandbox_options_per_pip,
+        skel->maps.event_cache_per_pip
+    };
+
+    for (int i = 0 ; i < 5; i++) {
+        bpf_map* per_pip_map = per_pip_maps[i];
+
+        if (bpf_map__set_max_entries(per_pip_map, concurrency))
+        {
+            return 1;
+        }
+    }
+
+    g_bxl->LogDebug(getpid(), "EBPF map sizes set to '%u'", concurrency);
+
+    return 0;
+}
+
 int main(int argc, char **argv) {
     struct sandbox_bpf *skel;
     int err = 0;
@@ -884,7 +979,8 @@ int main(int argc, char **argv) {
     libbpf_set_print(LibBpfPrintFn);
 
     g_ebpf_already_loaded = IsEbpfAlreadyLoaded();
-    
+    g_ebpf_should_force_ebpf_loading = ShouldForceEBPFLoading();
+
     /* Open load and verify BPF application */
     skel = sandbox_bpf::open();
     if (!skel) {
@@ -899,18 +995,18 @@ int main(int argc, char **argv) {
     // Subsequent pips (wrapped in this same runner) will just find EBPF loaded and will just reuse the same instance.
     // But observe that if e.g. a unit test that needs EBPF is ran outside of BuildXL, that should still work because each
     // runner instance is capable of loading EBPF if that's not already loaded.
-    if (!g_ebpf_already_loaded)
+    if (g_ebpf_should_force_ebpf_loading || !g_ebpf_already_loaded)
     {
-        // Set the number of entries in the per-pip outer map to be the number of physical cores
-        // BuildXL should never schedule more concurrent process pips than the number of cores
-        unsigned int max_procs = std::thread::hardware_concurrency();
-        // A value of 0 means the number couldn't be retrieved
-        if (max_procs == 0) {
-            // Just use an arbitrary default in that case
-            max_procs = 32;
+        g_bxl->LogDebug(getpid(), "Loading EBPF programs");
+
+        // Configure the per-pip maps sizes based on the maximum concurrency
+        if (ConfigurePerPipMapSizes(skel))
+        {
+            LogError("Failed to configure per-pip map sizes\n");
+            Cleanup(skel);
+            return -1;
         }
 
-        g_bxl->LogDebug(getpid(), "Loading EBPF programs");
         err = sandbox_bpf::load(skel);
         if (err)
         {
@@ -930,7 +1026,11 @@ int main(int argc, char **argv) {
         // Being defensive: we just loaded EBPF, so make sure
         // pinned maps are clean (which could have been left with data from
         // some unhandled/unclean exit).
-        CleanupPinnedMaps(skel);
+        // If we are in a forced loading scenario, we don't want to clean up the pinned maps since this is likely a test running as part of a build
+        if (!g_ebpf_already_loaded)
+        {
+            CleanupPinnedMaps(skel);
+        }
     }
     else {
         g_bxl->LogDebug(getpid(), "EBPF programs already loaded");

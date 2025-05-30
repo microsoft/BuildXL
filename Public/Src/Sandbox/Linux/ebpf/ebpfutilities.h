@@ -36,8 +36,6 @@ struct {
     // The key is the pid of the runner process that this sandboxed process belongs to
     __type(key, pid_t);
     __type(value, sandbox_options);
-    // TODO: This should be set to the max number of pips that can be running at the same time
-    __uint(max_entries, 1024);
     // We need to share the options across all runners
     __uint(pinning, LIBBPF_PIN_BY_NAME);
 } sandbox_options_per_pip SEC(".maps");
@@ -72,8 +70,9 @@ struct {
     __type(key, pid_t);
     // We need all runners to share this map
     __uint(pinning, LIBBPF_PIN_BY_NAME);
-    // TODO: remove in favor of a dynamic setup
-    __uint(max_entries, 1024);
+    // The max number of entries is the max number of runners that can run concurrently, which is typically way over dimensioned
+    // Each entry in this map is a ring buffer - significantly big in theory - so we don't want to preallocate memory for it
+    __uint(map_flags, BPF_F_NO_PREALLOC);
     __array(values, struct file_access_ring_buffer);
 } file_access_per_pip SEC(".maps");
 
@@ -86,8 +85,9 @@ struct {
     __type(key, pid_t);
     // We need all runners to share this map
     __uint(pinning, LIBBPF_PIN_BY_NAME);
-    // TODO: remove in favor of a dynamic setup
-    __uint(max_entries, 1024);
+    // The max number of entries is the max number of runners that can run concurrently, which is typically way over dimensioned
+    // Each entry in this map is a ring buffer - significantly big in theory - so we don't want to preallocate memory for it
+    __uint(map_flags, BPF_F_NO_PREALLOC);
     __array(values, struct debug_ring_buffer);
 } debug_buffer_per_pip SEC(".maps");
 
@@ -125,8 +125,9 @@ struct {
     __type(key, pid_t);
     // We need all runners to share this map
     __uint(pinning, LIBBPF_PIN_BY_NAME);
-    // TODO: remove in favor of a dynamic setup
-    __uint(max_entries, 1024);
+    // The max number of entries is the max number of runners that can run concurrently, which is typically way over dimensioned
+    // Most pips won't have breakaway processes, so we set the map flags to avoid preallocating memory
+    __uint(map_flags, BPF_F_NO_PREALLOC);
     __array(values, struct breakaway_processes);
 } breakaway_processes_per_pip SEC(".maps");
 

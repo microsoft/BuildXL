@@ -56,6 +56,14 @@ namespace BuildXL.Processes
         public static readonly string BuildXLFamPathEnvVarName = "__BUILDXL_FAM_PATH";
 
         /// <summary>
+        /// Environment variable containing whether EBPF should be unconditionally loaded, regardless of an existing EBPF daemon already loaded.
+        /// </summary>
+        /// <remarks>
+        /// This is used for testing purposes in order to validate EBPF loading characteristics.
+        /// </remarks>
+        public static readonly string BuildXLUnconditionallyLoadEBPF = "__BUILDXL_UNCONDITIONALLY_LOAD_EBPF";
+
+        /// <summary>
         /// Environment variable containing the PID for the ptracerunner process to trace when it is launched.
         /// </summary>
         public static readonly string BuildXLTracedProcessPid = "__BUILDXL_TRACED_PID";

@@ -37,8 +37,10 @@ struct {
     __type(key, pid_t);
     // We need all runners to share this map
     __uint(pinning, LIBBPF_PIN_BY_NAME);
-    // TODO: remove in favor of a dynamic setup
-    __uint(max_entries, 1024);
+    // The max number of entries is the max number of runners that can run concurrently, which is typically way over dimensioned
+    // This map value is not really that big, so it is not completely clear whether preallocation will actually increase memory footprint significantly.
+    // We can revisit this if we see performance problems.
+    __uint(map_flags, BPF_F_NO_PREALLOC);
     __array(values, struct event_cache);
 } event_cache_per_pip SEC(".maps");
 

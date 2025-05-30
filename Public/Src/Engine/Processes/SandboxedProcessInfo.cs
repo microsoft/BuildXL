@@ -166,7 +166,8 @@ namespace BuildXL.Processes
             SandboxedProcessResourceMonitoringConfig? monitoringConfig = null,
             bool forceAddExecutionPermission = true,
             bool useGentleKill = false,
-            int? gentleKillTimeoutMs = null)
+            int? gentleKillTimeoutMs = null,
+            int? maxConcurrency = null)
         {
             PathTable = pathTable;
             FileAccessManifest = fileAccessManifest ?? new FileAccessManifest(pathTable);
@@ -188,6 +189,7 @@ namespace BuildXL.Processes
             ForceAddExecutionPermission = forceAddExecutionPermission;
             UseGentleKill = useGentleKill;
             GentleKillTimeoutMs = gentleKillTimeoutMs;
+            MaxConcurrency = maxConcurrency;
         }
 
         /// <summary>
@@ -320,6 +322,14 @@ namespace BuildXL.Processes
         /// Only honored on Linux
         /// </remarks>
         public int? GentleKillTimeoutMs { get; }
+
+        /// <summary>
+        /// Maximum number of processes (requiring an associated sandbox) the scheduler will ever run concurrently.
+        /// </summary>
+        /// <remarks>
+        /// Only used by EBPF sandboxing.
+        /// </remarks>
+        public int? MaxConcurrency { get; }
 
         /// <summary>
         /// Encoded command line arguments
@@ -618,6 +628,11 @@ namespace BuildXL.Processes
                 {
                     writer.Write(GentleKillTimeoutMs.Value);
                 }
+                writer.Write(MaxConcurrency.HasValue);
+                if (MaxConcurrency.HasValue)
+                {
+                    writer.Write(MaxConcurrency.Value);
+                }
                 // File access manifest should be serialized the last.
                 writer.Write(FileAccessManifest, (w, v) => FileAccessManifest.Serialize(stream));
             }
@@ -671,7 +686,11 @@ namespace BuildXL.Processes
                 {
                     gentleKillTimeoutMs = reader.ReadInt32();
                 }
-
+                int? maxConcurrency = null;
+                if (reader.ReadBoolean())
+                {
+                    maxConcurrency = reader.ReadInt32();
+                }
                 var fam = reader.ReadNullable(r => FileAccessManifest.Deserialize(stream));
                 return new SandboxedProcessInfo(
                     new PathTable(),
@@ -685,7 +704,8 @@ namespace BuildXL.Processes
                     createJobObjectForCurrentProcess: createJobObjectForCurrentProcess,
                     forceAddExecutionPermission: forceAddExecutionPermission,
                     useGentleKill: useGentleKill,
-                    gentleKillTimeoutMs: gentleKillTimeoutMs)
+                    gentleKillTimeoutMs: gentleKillTimeoutMs,
+                    maxConcurrency: maxConcurrency)
                 {
                     m_arguments = arguments,
                     m_commandLine = commandLine,

@@ -74,7 +74,8 @@ namespace Test.BuildXL.Processes.Detours
                 fam,
                 true,
                 LoggingContext,
-                sidebandWriter: sharedOpaqueOutputLogger)
+                sidebandWriter: sharedOpaqueOutputLogger,
+                maxConcurrency: 5)
             {
                 Arguments = @"/arg1:val1 /arg2:val2",
                 WorkingDirectory = A("C", "Source"),
@@ -159,6 +160,7 @@ namespace Test.BuildXL.Processes.Detours
                 }
 
                 XAssert.AreEqual(info.CreateSandboxTraceFile, readInfo.CreateSandboxTraceFile);
+                XAssert.AreEqual(info.MaxConcurrency, readInfo.MaxConcurrency);
             }
         }
 

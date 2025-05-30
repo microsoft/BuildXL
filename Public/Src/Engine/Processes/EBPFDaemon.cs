@@ -52,7 +52,7 @@ namespace BuildXL.Processes
         /// The result of the task will be the a <see cref="EBPFDaemon"/> instance on success, or a <see cref="Failure"/> otherwise. If any errors occur after a successful initialization, they will be reported 
         /// in the <see cref="EBPFErrors"/> property.
         /// </remarks>
-        public static EBPFDaemonTask CreateEBPFDaemonTask(bool enableEBPFLinuxSandbox, AbsolutePath tempDirectory, PathTable pathTable, LoggingContext loggingContext, CancellationToken cancellationToken)
+        public static EBPFDaemonTask CreateEBPFDaemonTask(bool enableEBPFLinuxSandbox, AbsolutePath tempDirectory, PathTable pathTable, LoggingContext loggingContext, int maxConcurrency, CancellationToken cancellationToken)
         {
             Contract.Assert(tempDirectory.IsValid, "The temp directory must be valid.");
 
@@ -76,7 +76,7 @@ namespace BuildXL.Processes
                     initializationTask = Task.Run(async () =>
                     {
                         return await daemon
-                            .RunInfiniteEBPFProcessAsync(tempDirectory, pathTable, loggingContext, cancellationToken)
+                            .RunInfiniteEBPFProcessAsync(tempDirectory, pathTable, loggingContext, maxConcurrency, cancellationToken)
                             .ContinueWith(t =>
                                 {
                                     if (t.IsCanceled)
@@ -99,7 +99,7 @@ namespace BuildXL.Processes
         /// Retrieves the current instance of the EBPF daemon task.
         /// </summary>
         /// <remarks>
-        /// A prior call to <see cref="CreateEBPFDaemonTask(bool, AbsolutePath, PathTable, LoggingContext, CancellationToken)"/> should be made before this method is called.
+        /// A prior call to <see cref="CreateEBPFDaemonTask(bool, AbsolutePath, PathTable, LoggingContext, int, CancellationToken)"/> should be made before this method is called.
         /// </remarks>
         public static EBPFDaemonTask GetEBPFDaemonTask()
         {
@@ -115,7 +115,7 @@ namespace BuildXL.Processes
             m_ebpfErrors.Enqueue(error);
         }
 
-        private async Task<Possible<Unit>> RunInfiniteEBPFProcessAsync(AbsolutePath workingDirectory, PathTable pathTable, LoggingContext loggingContext, CancellationToken cancellationToken)
+        private async Task<Possible<Unit>> RunInfiniteEBPFProcessAsync(AbsolutePath workingDirectory, PathTable pathTable, LoggingContext loggingContext, int maxConcurrency, CancellationToken cancellationToken)
         {
             Contract.Assert(OperatingSystemHelper.IsLinuxOS);
 
@@ -147,7 +147,11 @@ namespace BuildXL.Processes
                     detoursEventListener: ebpfListener,
                     useGentleKill: true,
                     // This process will be responsible for tearing down EBPF, and therefore it needs more time for it than the default
-                    gentleKillTimeoutMs: 5000)
+                    gentleKillTimeoutMs: 5000,
+                    // The EBPF daemon requires a sandbox on its own, so add one
+                    // The max concurrency is used to configure EBPF map sizes at loading time. So it is only
+                    // relevant to pass it here, since the daemon will be the one loading EBPF.
+                    maxConcurrency: maxConcurrency + 1)
                 {
                     // Let's run a process that goes to sleep forever (10 days)
                     // We should never get a build that runs longer than 10 days...

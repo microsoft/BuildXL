@@ -2842,6 +2842,9 @@ namespace BuildXL.Engine
                     Configuration.Layout.ObjectDirectory,
                     Context.PathTable,
                     loggingContext,
+                    // The max degree of parallelism is defined by the max number of processes that can run in parallel and require a sandbox. These are regular process
+                    // pips plus light pips.
+                    Configuration.Schedule.MaxLight + Configuration.Schedule.MaxProcesses,
                     Context.CancellationToken);
             }
             

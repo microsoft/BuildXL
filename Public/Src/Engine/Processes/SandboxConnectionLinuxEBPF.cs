@@ -55,7 +55,18 @@ namespace BuildXL.Processes
         /// <summary>
         /// Environment variable containing the path to the file access manifest to be read by the detoured process.
         /// </summary>
+        /// <remarks>
+        /// CODESYNC: Public/Src/Sandbox/Linux/common.h
+        /// </remarks>
         public static readonly string BuildXLFamPathEnvVarName = "__BUILDXL_FAM_PATH";
+
+        /// <summary>
+        /// Environment variable containing the maximum amount of processes the BuildXL scheduler will ever run concurrently.
+        /// </summary>
+        /// <remarks>
+        /// CODESYNC: Public/Src/Sandbox/Linux/common.h
+        /// </remarks>
+        public static readonly string BuildXLMaxConcurrencyEnvVarName = "__BUILDXL_MAX_CONCURRENCY";
 
         /// <summary>
         /// Encapsulates a background thread that is processing incoming messages
@@ -748,7 +759,10 @@ namespace BuildXL.Processes
             (_, string famPath) = GetPaths(uniqueName);
 
             yield return (BuildXLFamPathEnvVarName, famPath);
-            yield return ("__BUILDXL_EBPF_PATH", EBPFRunner);
+            if (info.MaxConcurrency != null)
+            {
+                yield return (BuildXLMaxConcurrencyEnvVarName, info.MaxConcurrency.ToString());
+            }
         }
 
         /// <summary>

@@ -180,6 +180,7 @@ function getLkg() {
     print_info "Getting package: $BUILDXL_LKG_NAME.$BUILDXL_LKG_VERSION"
 
     local _BUILDXL_BOOTSTRAP_OUT="$MY_DIR/Out/BootStrap"
+    mkdir -p "$_BUILDXL_BOOTSTRAP_OUT"
     export BUILDXL_BIN="$_BUILDXL_BOOTSTRAP_OUT/$BUILDXL_LKG_NAME.$BUILDXL_LKG_VERSION"
     # Set the DOTNET_NOLOGO environment variable to prevent the dotnet CLI from printing the first run logo which can interfere with parsing the output
     # Some commands accept this as an argument, but dotnet nuget locals does not

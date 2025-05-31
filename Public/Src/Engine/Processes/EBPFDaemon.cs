@@ -161,6 +161,7 @@ namespace BuildXL.Processes
                     PipDescription = "EBPF daemon",
                     EnvironmentVariables = BuildParameters.GetFactory().PopulateFromDictionary(CollectionUtilities.EmptyDictionary<string, string>()),
                     SandboxConnection = new SandboxConnectionLinuxEBPF(ebpfDaemonTask: null),
+                    Timeout = TimeSpan.FromDays(10), // We want this process to run 'indefinitely'
                 };
             info.FileAccessManifest.MonitorChildProcesses = false;
 

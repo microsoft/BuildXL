@@ -8,7 +8,7 @@
   "main": "out/main.js",
   "dependencies": {
     "typescript": "3.4.3",
-    "semver": "7.2.1",
+    "semver": "7.5.2",
     "path": "0.12.7",
     "fs": "0.0.2",
     "@types/node": "13.11.1"

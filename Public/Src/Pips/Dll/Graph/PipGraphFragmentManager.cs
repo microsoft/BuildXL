@@ -94,9 +94,9 @@ namespace BuildXL.Pips.Graph
                         {
                             return m_taskFactory.Value.StartNew(() => AddPipToGraph(fragmentContext, provenance, pipId, pip));
                         },
-                        (opaque, filesInOpaque) =>
+                        (provenance, opaque, filesInOpaque) =>
                         {
-                            return AddOutputsUnderOpaqueExistenceAssertion(opaque, filesInOpaque);
+                            return AddOutputsUnderOpaqueExistenceAssertion(provenance, opaque, filesInOpaque);
                         },
                         description);
 
@@ -126,6 +126,7 @@ namespace BuildXL.Pips.Graph
         }
 
         private bool AddOutputsUnderOpaqueExistenceAssertion(
+            PipGraphFragmentProvenance provenance,
             DirectoryArtifact opaque,
             IReadOnlyList<AbsolutePath> filesInOpaque)
         {
@@ -135,7 +136,13 @@ namespace BuildXL.Pips.Graph
                 success &= m_pipGraph.TryAssertOutputExistenceInOpaqueDirectory(opaque, fileInOpaque, out _);
             }
 
-            return success;
+            if (!success)
+            {
+                Logger.Log.FailedToAddOutputExistenceAssertionFragmentToGraph(m_loggingContext, provenance.Description);
+                return false;
+            }
+
+            return true;
         }
 
         private bool AddPipToGraph(PipGraphFragmentContext fragmentContext, PipGraphFragmentProvenance provenance, PipId pipId, Pip pip)

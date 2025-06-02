@@ -161,6 +161,40 @@ namespace Test.BuildXL.Scheduler
         }
 
         [Fact]
+        public void TestAddingOutputFileAssertionsButNoOutputDirectoryFailed()
+        {
+            var fragment1 = CreatePipGraphFragmentTest(nameof(TestAddingOutputFileAssertionsButNoOutputDirectoryFailed) + "1");
+            var processBuilder1 = fragment1.GetProcessBuilder();
+            var argumentsBuilder1 = new ArgumentsBuilder(processBuilder1);
+            var outputDirectoryPath = fragment1.CreateOutputDirectory("OutDll").Path;
+            argumentsBuilder1
+                .AddInputFileOption("/input:", fragment1.CreateSourceFile("lib.cc"))
+                .AddOutputDirectoryOption("/output:", outputDirectoryPath)
+                .Finish();
+            (Process process1, ProcessOutputs _) = fragment1.ScheduleProcessBuilder(processBuilder1);
+
+            // Fragment2 asserts that a file exists in output directory D.
+            var fragment2 = CreatePipGraphFragmentTest(nameof(TestAddingOutputFileAssertionsButNoOutputDirectoryFailed) + "2");
+            var directoryInput = fragment2.CreateOutputDirectory(AbsolutePath.Create(fragment2.Context.PathTable, outputDirectoryPath.ToString(fragment1.Context.PathTable)));
+            var fileInput = directoryInput.Path.CreateRelative(fragment2.Context.PathTable, "lib.dll");
+            fragment2.PipGraph.TryAssertOutputExistenceInOpaqueDirectory(directoryInput, fileInput, out FileArtifact fileArtifactInput);
+            var processBuilder2 = fragment2.GetProcessBuilder();
+            var argumentsBuilder2 = new ArgumentsBuilder(processBuilder2);
+            argumentsBuilder2
+                .AddInputFileOption("/input:", fileArtifactInput)
+                .AddInputFileOption("/input:", fragment2.CreateSourceFile("main.cc"))
+                .AddOutputFileOption("/output:", fragment2.CreateOutputFile("main.exe").Path)
+                .Finish();
+            (Process process2, ProcessOutputs _) = fragment2.ScheduleProcessBuilder(processBuilder2);
+
+            // Serialize and deserialize the fragments in a wrong order to make sure that the graph construction failed.
+            // Fragment2 asserts that the file lib.dll exists in the output directory OutDll produced somewhere, in this case fragment1.
+            // But fragment1 is deserialized after fragment2, so the assertion will fail.
+            var graph = SerializeAndDeserializeFragments(fragment2, fragment1);
+            XAssert.IsNull(graph);
+        }
+
+        [Fact]
         public void TestAddingAndUnifyingIpcPip()
         {
             var fragment = CreatePipGraphFragmentTest(nameof(TestAddingAndUnifyingIpcPip));
@@ -438,17 +472,14 @@ namespace Test.BuildXL.Scheduler
                     AbsolutePath.Create(Context.PathTable, GetIndexedFragmentPath(fragment, i)),
                     fragment.ModuleName,
                     i > 0 && dependent
-                    ? new[] { AbsolutePath.Create(Context.PathTable, GetIndexedFragmentPath(fragments[i - 1], i - 1)) }
-                    : new AbsolutePath[0]);
+                        ? [AbsolutePath.Create(Context.PathTable, GetIndexedFragmentPath(fragments[i - 1], i - 1))]
+                        : System.Array.Empty<AbsolutePath>());
 
                 XAssert.IsTrue(success, $"Adding fragment {fragment.ModuleName} from file '{GetFragmentPath(fragment)}' to graph is unsuccessful");
             }
 
-            Task.WaitAll(fragmentManager.GetAllFragmentTasks().Select(t => t.Item2).ToArray());
-
-            XAssert.IsTrue(fragmentManager.GetAllFragmentTasks().All(t => t.Item2.Result), "Adding all fragments to graph is unsuccessful");
-
-            return PipGraphBuilder.Build();
+            var results = Task.WhenAll(fragmentManager.GetAllFragmentTasks().Select(t => t.Item2)).GetAwaiter().GetResult();
+            return results.All(r => r) ? PipGraphBuilder.Build() : null;
         }
 
         #endregion Serialization

@@ -2003,11 +2003,21 @@ namespace BuildXL.Pips.Graph
                 Contract.Requires(outputDirectoryArtifact.IsOutputDirectory());
                 Contract.Requires(outputInOpaque.IsWithin(Context.PathTable, outputDirectoryArtifact.Path));
 
-                var success = TryGetOutputDirectoryPip(outputDirectoryArtifact, out NodeId producerPipResult);
-                Contract.Assert(success);
-
                 // File artifacts under opaque directories always have rewrite count 1
                 fileArtifact = FileArtifact.CreateOutputFile(outputInOpaque);
+
+                var success = TryGetOutputDirectoryPip(outputDirectoryArtifact, out NodeId producerPipResult);
+                if (!success)
+                {
+                    // This can happen when adding output file existence assertion in an output directory produced in a different
+                    // pip graph fragment, but the user failed to declare a dependency of the current fragment on the fragment that
+                    // produced the output directory.
+                    Logger.Log.ScheduleFailAddOutputExistenceAssertionInOpaqueDirectoryWithoutProducer(
+                        LoggingContext,
+                        fileArtifact.Path.ToString(Context.PathTable),
+                        outputDirectoryArtifact.Path.ToString(Context.PathTable));
+                    return false;
+                }
 
                 // Let's retrieve the producer of the opaque
                 var producerPipId = producerPipResult.ToPipId();

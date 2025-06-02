@@ -73,6 +73,15 @@ namespace BuildXL.Pips.Tracing
         public abstract void FailedToAddFragmentPipToGraph(LoggingContext context, string fragmentName, string pipDescription);
 
         [GeneratedEvent(
+            (ushort)LogEventId.FailedToAddOutputExistenceAssertionFragmentToGraph,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
+            EventTask = (ushort)Tasks.Engine,
+            Message = "Failed to add output existence assertions from fragment '{fragmentName}'")]
+        public abstract void FailedToAddOutputExistenceAssertionFragmentToGraph(LoggingContext context, string fragmentName);
+
+        [GeneratedEvent(
             (ushort)LogEventId.ExceptionOnAddingFragmentPipToGraph,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
@@ -1169,6 +1178,16 @@ namespace BuildXL.Pips.Tracing
             string pipDescription,
             string pipValueId,
             string assertedFile);
+
+        [GeneratedEvent(
+            (int)LogEventId.ScheduleFailAddOutputExistenceAssertionInOpaqueDirectoryWithoutProducer,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
+            EventTask = (int)Tasks.Scheduler,
+            Message = "Failed to add existence assertion for file '{assertedOutputFile}' in output directory '{outputDirectory}' because the producer of the output directory is not found. " + 
+            "This can happen if the producer of the output directory is in another graph fragment that is not specified as a dependency to the currently processed graph fragment, or there is no graph fragment containing the producer.")]
+        public abstract void ScheduleFailAddOutputExistenceAssertionInOpaqueDirectoryWithoutProducer(LoggingContext context, string assertedOutputFile, string outputDirectory);
 
         [GeneratedEvent(
             (int)LogEventId.WriteDeclaredOutsideOfKnownMount,

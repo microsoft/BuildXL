@@ -79,7 +79,7 @@ namespace BuildXL.Pips.Operations
         public async Task<bool> DeserializeAsync(
             AbsolutePath filePath,
             Func<PipGraphFragmentContext, PipGraphFragmentProvenance, PipId, Pip, Task<bool>> handleDeserializedPip,
-            Func<DirectoryArtifact, IReadOnlyList<AbsolutePath>, bool> handleOutputsUnderOpaqueExistenceAssertion,
+            Func<PipGraphFragmentProvenance, DirectoryArtifact, IReadOnlyList<AbsolutePath>, bool> handleOutputsUnderOpaqueExistenceAssertion,
             string fragmentDescriptionOverride)
         {
             Contract.Requires(filePath.IsValid);
@@ -102,7 +102,7 @@ namespace BuildXL.Pips.Operations
         public async Task<bool> DeserializeAsync(
             Stream stream,
             Func<PipGraphFragmentContext, PipGraphFragmentProvenance, PipId, Pip, Task<bool>> handleDeserializedPip,
-            Func<DirectoryArtifact, IReadOnlyList<AbsolutePath>, bool> handleOutputsUnderOpaqueExistenceAssertion,
+            Func<PipGraphFragmentProvenance, DirectoryArtifact, IReadOnlyList<AbsolutePath>, bool> handleOutputsUnderOpaqueExistenceAssertion,
             string fragmentDescriptionOverride,
             AbsolutePath filePathOrigin)
         {
@@ -121,7 +121,7 @@ namespace BuildXL.Pips.Operations
                         DirectoryArtifact opaque = reader.ReadDirectoryArtifact();
                         var outputsUnderOpaqueExistenceAssertionCount = reader.ReadInt32();
                         IReadOnlyList<AbsolutePath> outputsUnderOpaqueExistenceAssertion = reader.ReadReadOnlyList((reader => reader.ReadAbsolutePath()));
-                        if (!handleOutputsUnderOpaqueExistenceAssertion(opaque, outputsUnderOpaqueExistenceAssertion))
+                        if (!handleOutputsUnderOpaqueExistenceAssertion(provenance,opaque, outputsUnderOpaqueExistenceAssertion))
                         {
                             return false;
                         }

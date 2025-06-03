@@ -842,15 +842,6 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "Microsoft.Cloud.InstrumentationFramework",
-          "Version": "3.5.1.1"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
           "Name": "Microsoft.CodeAnalysis.Analyzers",
           "Version": "3.3.1"
         }

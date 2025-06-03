@@ -13,9 +13,6 @@ const azureDevopsNugetVersion = "19.254.0-internal202503071";
 export const pkgs = isMicrosoftInternal ? [
     { id: "BuildXL.DeviceMap", version: "0.0.1" },
 
-    // Metrics library used by .net core CaSaaS
-    // Todo: Migrade to OpenTelemetry. See https://eng.ms/docs/products/geneva/collect/instrument/ifx/ifx-retirement
-    {id: "Microsoft.Cloud.InstrumentationFramework", version: "3.5.1.1"},
     // Temporary workaround for Bond issue. Microsoft.Cloud.InstrumentationFramework is using 13.0.0.
     // Remove Bond once migration to OpenTelemetry is done.
     { id: "Bond.Core.CSharp", version: "13.0.0" },
@@ -130,10 +127,6 @@ export const resolver = {
     modules: [
         f`Private/InternalSdk/BuildXL.DeviceMap/module.config.dsc`,
         f`Private/InternalSdk/CB.QTest/module.config.dsc`,
-        ...addIf(isMicrosoftInternal,
-            f`Private/InternalSdk/InstrumentationFramework/module.config.dsc`
-        ),
-
         f`Private/InternalSdk/Drop/module.config.dsc`,
         f`Private/InternalSdk/BuildXL.Tracing.AriaTenantToken/module.config.dsc`,
         f`Private/InternalSdk/AnyBuild.SDK/module.config.dsc`,

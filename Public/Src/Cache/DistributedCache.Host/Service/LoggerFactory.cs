@@ -81,15 +81,7 @@ namespace BuildXL.Cache.Host.Service
                 // The current implementation now supports the mdm metrics as well.
                 else if (!string.IsNullOrEmpty(loggingSettings.MdmAccountName))
                 {
-                    Tracer.Debug(context, "Creating MetricsLogger with an in-proc MdmOperationLogger.");
-                    operationLogger = MdmOperationLogger.Create(
-                        context,
-                        loggingSettings.MdmAccountName,
-                        GetDefaultDimensions(arguments),
-                        loggingSettings.SaveMetricsAsynchronously,
-                        loggingSettings.MetricsNagleQueueCapacityLimit,
-                        loggingSettings.MetricsNagleQueueBatchSize);
-                    replacementLogger = new MetricsAdapter(nLogAdapter, operationLogger);
+                    Tracer.Warning(context, "MetricsLogger was created to support CAS as a Service (casaas) which is now deprecated. No logger will be created");
                 }
 
                 // Replacing a logger passed to the context to allow the components that saved the context to its internal state

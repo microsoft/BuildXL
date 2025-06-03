@@ -21,19 +21,11 @@ namespace Test {
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Utilities.Core.dll,
             ...BuildXLSdk.bclAsyncPackages,
-            
-            ...addIfLazy(BuildXLSdk.Flags.isMicrosoftInternal, () => [
-                importFrom("Microsoft.Cloud.InstrumentationFramework").pkg,
-                ]),
-
             ...BuildXLSdk.fluentAssertionsWorkaround,
             ...addIf(BuildXLSdk.isFullFramework,
                 NetFx.System.Xml.dll,
                 NetFx.System.Xml.Linq.dll
             ),
-        ],
-        runtimeContent: [
-            Library.Deployment.runtimeContent,
         ],
         runTestArgs: {
             skipGroups: BuildXLSdk.isDotNetCoreOrStandard ? [ "SkipDotNetCore" ] : []

@@ -65,7 +65,7 @@ jobs:
       sed -i "s|_packaging/BuildXL/npm|_packaging/BuildXL.experimental/npm|g" ./Public/Src/Deployment/npm/.npmrc ./Public/Src/Deployment/npm/package-linux.json  # Replace BuildXL with BuildXL.experimental for the feed
       
       bash bxl.sh --internal --use-adobuildrunner
-      --runner-arg /cacheConfigLogGeneratedConfiguration:true 
+      --runner-arg /cacheConfigLogGeneratedConfiguration:true /p:BuildXLForceLaunchEBPFDaemon=0 
       /q:ReleaseLinux /q:DebugLinux "/f:output='/home/subst/Out/Bin/${{ parameters.Flavor }}/npm/*'" "/f:output='/home/subst/Out/Bin/${{ parameters.Flavor }}/pkgs/*'" "/p:Build.BuildId=0.1.0-${{ parameters.PackageName }}" "/p:[BuildXL.Branding]SourceIdentification=NpmExperimental-$(Build.BuildId)"
     displayName: Build packages
     workingDirectory: /home/subst

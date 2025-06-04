@@ -158,33 +158,6 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "Bond.CSharp",
-          "Version": "13.0.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Bond.Core.CSharp",
-          "Version": "13.0.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Bond.Runtime.CSharp",
-          "Version": "13.0.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
           "Name": "BuildXL.Azurite.Executables",
           "Version": "1.0.0-CI-20230614-171424"
         }

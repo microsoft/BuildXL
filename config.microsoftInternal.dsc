@@ -13,12 +13,6 @@ const azureDevopsNugetVersion = "19.254.0-internal202503071";
 export const pkgs = isMicrosoftInternal ? [
     { id: "BuildXL.DeviceMap", version: "0.0.1" },
 
-    // Temporary workaround for Bond issue. Microsoft.Cloud.InstrumentationFramework is using 13.0.0.
-    // Remove Bond once migration to OpenTelemetry is done.
-    { id: "Bond.Core.CSharp", version: "13.0.0" },
-    { id: "Bond.CSharp", version: "13.0.0" },
-    { id: "Bond.Runtime.CSharp", version: "13.0.0" },
-
     // Runtime dependencies used for macOS deployments
     { id: "runtime.osx-x64.BuildXL", version: "3.8.99" },
     { id: "Aria.Cpp.SDK.win-x64", version: "8.5.6", osSkip: [ "macOS", "unix" ] },

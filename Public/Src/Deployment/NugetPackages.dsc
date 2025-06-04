@@ -392,31 +392,6 @@ namespace NugetPackages {
         ]
     };
 
-    const cacheServiceDeployment : Deployment.Definition = {
-        contents: [
-            {
-                subfolder: r`tools`,
-                // CacheService is a .NET CORE-only application.
-                contents: [
-                    {
-                        subfolder: r`net8.0`,
-                        contents: [importFrom("BuildXL.Cache.DistributedCache.Host").withQualifier({ targetFramework: "net8.0", targetRuntime: "win-x64" }).LauncherServer.exe]
-                    },
-                    {
-                        subfolder: r`net9.0`,
-                        contents: [importFrom("BuildXL.Cache.DistributedCache.Host").withQualifier({ targetFramework: "net9.0", targetRuntime: "win-x64" }).LauncherServer.exe]
-                    }
-                ]
-            }
-        ],
-    };
-
-    const cacheService = !canBuildAllPackagesOnThisHost ? undefined : pack({
-        id: `${packageNamePrefix}.CacheService.win-x64`,
-        deployment: cacheServiceDeployment,
-        deploymentOptions: reducedDeploymentOptions
-    });
-
     const cacheTools = !canBuildAllPackagesOnThisHost ? undefined : pack({
         id: `${packageNamePrefix}.Cache.Tools`,
         deployment: Cache.NugetPackages.tools,
@@ -653,7 +628,6 @@ namespace NugetPackages {
                 cacheTools,
                 ...cacheLibrariesPackages,
                 ...cacheInterfacesPackages,
-                cacheService,
                 ...cacheHashingPackages,
                 blobLifetimeManagerLibrary,
                 buildCacheResourceHelper,

@@ -209,6 +209,7 @@ int main(int argc, char **argv)
     IF_COMMAND_STR(readlink);
     IF_COMMAND_STR(readlinkat);
     IF_COMMAND_STR(realpath);
+    IF_COMMAND_STR(realpathOnNonSymlink);
     IF_COMMAND_STR(opendir);
     IF_COMMAND_STR(fdopendir);
     IF_COMMAND_STR(utime);

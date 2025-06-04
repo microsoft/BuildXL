@@ -1204,6 +1204,18 @@ GEN_TEST_FN(realpath)
     return EXIT_SUCCESS;
 }
 
+GEN_TEST_FN(realpathOnNonSymlink)
+{
+    WITH_TEMPORARY_FILE
+    ({
+        char buf[PATH_MAX] = { 0 };
+        char* result = realpath(testFile.c_str(), buf);
+        CHECK_RESULT_NULL(result, realpath);
+    })
+
+    return EXIT_SUCCESS;
+}
+
 GEN_TEST_FN(opendir)
 {
     GET_CWD

@@ -100,6 +100,7 @@ GEN_TEST_FN(symlinkat);
 GEN_TEST_FN(readlink);
 GEN_TEST_FN(readlinkat);
 GEN_TEST_FN(realpath);
+GEN_TEST_FN(realpathOnNonSymlink);
 GEN_TEST_FN(opendir);
 GEN_TEST_FN(fdopendir);
 GEN_TEST_FN(utime);

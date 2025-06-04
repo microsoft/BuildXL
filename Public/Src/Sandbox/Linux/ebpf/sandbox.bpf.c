@@ -1174,9 +1174,11 @@ int BPF_PROG(do_readlink_exit, int dfd, const char *pathname, char *buf, int buf
         return 0;
     }
 
-    // If the function is not successful, then we don't really care. Probes will be captured by pathlookup
-    // When successful, the function returns the number of bytes copied, and negative on error.
-    if (ret < 0)
+    // If readlink failed with a file not found, we don't need to report anything since this access is going to get
+    // caught by path_lookupat
+    // Observe we are not tracing security_inode_readlink, so if the path exists (but it is not a symlink), we still
+    // need to report it here.
+    if (ret == -ENOENT)
     {
         return 0;
     }
@@ -1207,10 +1209,17 @@ int BPF_PROG(do_readlink_exit, int dfd, const char *pathname, char *buf, int buf
     RESERVE_SUBMIT_FILE_ACCESS(runner_pid, path_length,
         metadata->kernel_function = KERNEL_FUNCTION(do_readlinkat);
         metadata->pid = pid;
-        metadata->operation_type = kGenericRead;
-        // The call was successful, which means the symlink is legit (and therefore a regular file)
-        metadata->mode = S_IFREG;
-        metadata->error = 0;
+        // When successful, the function returns the number of bytes copied, and negative on error.
+        // On error, we report a probe, since the path was not actually read.
+        metadata->operation_type = ret < 0 ? kGenericProbe : kGenericRead;
+        // If the call was successful, it means the symlink is legit (and therefore a regular file)
+        // If the call failed, we set the mode to 0 since we don't really know what it is. The mode
+        // will be retrieved and set on user side, which is not ideal (since there is the small chance of a race, 
+        // where the status of the path changed), but this is probably good enough.
+        metadata->mode = ret < 0 ? 0 : S_IFREG;
+        // If the call failed, we set the error code to the return value, otherwise we set it to 0 since in that
+        // case ret just represents the number of bytes copied
+        metadata->error = ret < 0 ? ret : 0;
         WRITE_SRC_PATH(temp_path);
     )
 

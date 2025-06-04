@@ -658,6 +658,20 @@ namespace Test.BuildXL.Processes
         }
 
         [Fact]
+        public void CallTestrealpathOnNonSymlink()
+        {
+            var result = RunNativeTest(GetNativeTestName(MethodBase.GetCurrentMethod().Name));
+            AssertLogContains(GetAccessReportRegex(ReportedFileOperation.Probe, Path.Combine(result.rootDirectory, "testfile")));
+
+            // With eBPF, in addition to a probe on the path itself, we see the whole resolution of realpath which includes all the upper directories
+            // Check just the parent.
+            if (UsingEBPFSandbox)
+            {
+                AssertLogContains(GetAccessReportRegex(ReportedFileOperation.Probe, result.rootDirectory));
+            }
+        }
+
+        [Fact]
         public void CallTestopendir()
         {
             var result = RunNativeTest(GetNativeTestName(MethodBase.GetCurrentMethod().Name));

@@ -13,12 +13,6 @@ jobs:
     os: windows
     demands: ImageOverride -equals 1ESPT-Win2022-PME-3
   templateContext:
-    sdl:
-      binskim:
-        enabled: true
-        scanOutputDirectoryOnly: true
-        break: true
-        severity: warning
     outputParentDirectory: $(Agent.TempDirectory)/DownloadedDrop
     outputs:
     - output: artifactsDrop

@@ -165,9 +165,6 @@ jobs:
     os: linux
   
   templateContext:
-    sdl:
-      binskim:
-          preReleaseVersion: ''
     outputs:
     - output: artifactsDrop
       displayName: Publish Packages to Intermediate Drop

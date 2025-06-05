@@ -59,8 +59,6 @@ extends:
         compiled:
           enabled: false
           justificationForDisabling: 'CodeQL would not be effective on this pipeline because builds are incremental. We will create a separate clean build pipeline for CodeQL.'
-      binskim:
-        preReleaseVersion: '4.3.1'
 
     stages:
     - stage: prepare

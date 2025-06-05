@@ -9,9 +9,6 @@ jobs:
     os: linux
 
   templateContext:
-    sdl:
-      binskim:
-        preReleaseVersion: ''
     outputs:
       - output: artifactsDrop
         displayName: Publish Intermediate Linux Debug/Release binaries to Drop

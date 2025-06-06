@@ -114,7 +114,7 @@ namespace BuildXL.Processes
                             hProcess: processHandle.DangerousGetHandle(),
                             processId: (uint)processId,
                             hFile: fs.SafeFileHandle,
-                            dumpType: (uint)ProcessUtilitiesWin.MINIDUMP_TYPE.MiniDumpWithFullMemory,
+                            dumpType: (uint)ProcessUtilitiesWin.HEAP_DUMP_FLAGS,
                             expParam: IntPtr.Zero,
                             userStreamParam: IntPtr.Zero,
                             callbackParam: IntPtr.Zero);

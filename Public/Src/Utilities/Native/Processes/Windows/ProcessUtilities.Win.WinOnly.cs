@@ -388,8 +388,27 @@ namespace BuildXL.Native.Processes.Windows
             MiniDumpWithTokenInformation = 0x00040000,
             MiniDumpWithModuleHeaders = 0x00080000,
             MiniDumpFilterTriage = 0x00100000,
-            MiniDumpValidTypeFlags = 0x001fffff,
+            MiniDumpWithAvxXStateContext = 0x00200000,
+            MiniDumpWithIptTrace = 0x00400000,
+            MiniDumpScanInaccessiblePartialPages = 0x00800000,
+            MiniDumpValidTypeFlags = 0x01ffffff
         }
+
+        /// <summary>
+        /// Corresponds to the standard heap dump created by Windows Error Reporting by default.
+        /// See: onecore/windows/feedback/core/WerCommon/Inc/WerPrivate/WerConstants.h 
+        /// </summary>
+        public const MINIDUMP_TYPE HEAP_DUMP_FLAGS =
+            MINIDUMP_TYPE.MiniDumpWithProcessThreadData |
+            MINIDUMP_TYPE.MiniDumpWithHandleData |
+            MINIDUMP_TYPE.MiniDumpWithPrivateReadWriteMemory |
+            MINIDUMP_TYPE.MiniDumpWithUnloadedModules |
+            MINIDUMP_TYPE.MiniDumpWithPrivateWriteCopyMemory |
+            MINIDUMP_TYPE.MiniDumpWithFullMemoryInfo |
+            MINIDUMP_TYPE.MiniDumpWithThreadInfo |
+            MINIDUMP_TYPE.MiniDumpWithTokenInformation |
+            MINIDUMP_TYPE.MiniDumpWithIptTrace |
+            MINIDUMP_TYPE.MiniDumpIgnoreInaccessibleMemory;
 
         /// <summary>
         /// Contains information related to a unicode string

@@ -630,6 +630,14 @@ interface JavaScriptResolver extends ResolverBase, UntrackingSettings {
      * Regex that would be used to extract errors from the output. 
      */
     errorRegex?: string;
+
+    /**
+     * The name of the environment variable BuildXL will use to communicate the number of times pips have been retried so far.
+     * When defined, the first time a pip is executed the value of this environment variable will be 0. If a retry happens by virtue of 'retryExitCodes',
+     * the variable will have value 1, and so on for subsequent retries.
+     * This variable will automatically become a passthrough one and will have no effects on caching.
+     */
+    retryAttemptEnvironmentVariable?: string;
 }
 
 /**

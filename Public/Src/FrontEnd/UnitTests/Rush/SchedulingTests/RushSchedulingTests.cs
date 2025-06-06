@@ -278,6 +278,20 @@ namespace Test.BuildXL.FrontEnd.Rush
         }
 
         [Fact]
+        public void RetryAttemptEnvironmentVariableIsHonored()
+        {
+            var project = CreateRushProject();
+
+            var retryAttemptEnvVar = Start(new RushResolverSettings { RetryAttemptEnvironmentVariable = "foo" })
+                .Add(project)
+                .ScheduleAll()
+                .RetrieveSuccessfulProcess(project)
+                .RetryAttemptEnvironmentVariable;
+
+            XAssert.AreEqual(retryAttemptEnvVar, StringId.Create(StringTable, "foo"));
+        }
+
+        [Fact]
         public void UncacheableExitCodesAreHonored()
         {
             var project = CreateRushProject();

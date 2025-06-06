@@ -129,5 +129,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc/>
         public string ErrorRegex { get; set; }
-    }
+
+        /// <inheritdoc/>
+        public string RetryAttemptEnvironmentVariable { get; set; }
+}
 }

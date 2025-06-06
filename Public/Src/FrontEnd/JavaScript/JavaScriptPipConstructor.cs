@@ -415,6 +415,12 @@ namespace BuildXL.FrontEnd.JavaScript
             // We allow undeclared inputs to be read
             processBuilder.Options |= Process.Options.AllowUndeclaredSourceReads;
 
+            // Honor the retry environment variable if specified
+            if (!string.IsNullOrEmpty(m_resolverSettings.RetryAttemptEnvironmentVariable))
+            {
+                processBuilder.SetRetryAttemptEnvironmentVariable(StringId.Create(m_context.StringTable, m_resolverSettings.RetryAttemptEnvironmentVariable));
+            }
+
             // Flag the pip as a permanent miss if it is not cacheable
             if (!project.Cacheable)
             {

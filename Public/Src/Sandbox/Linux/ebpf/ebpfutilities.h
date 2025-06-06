@@ -24,6 +24,8 @@ struct {
     // We will probably be always very far from reaching this number, but at the same time this map is pretty lightweight (int -> long)
     // so this shouldn't have a big memory footprint
     __uint(max_entries, 4194304);
+    // We don't want to preallocate memory for this map, as the max bound is way higher than the usual number of processes that will run concurrently
+    __uint(map_flags, BPF_F_NO_PREALLOC);
     // We need to share the pid_map across all runners
     __uint(pinning, LIBBPF_PIN_BY_NAME);
 } pid_map SEC(".maps");

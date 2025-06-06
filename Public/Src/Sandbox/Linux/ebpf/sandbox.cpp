@@ -782,7 +782,7 @@ int SetupMaps(struct sandbox_bpf *skel) {
     }
 
     LIBBPF_OPTS(bpf_map_create_opts, event_cache_options);
-    int event_cache_fd =  bpf_map_create(BPF_MAP_TYPE_LRU_HASH, "event_cache", sizeof(struct cache_event_key), sizeof(short), 65535, &event_cache_options);
+    int event_cache_fd =  bpf_map_create(BPF_MAP_TYPE_LRU_HASH, "event_cache", sizeof(struct cache_event_key), sizeof(short), EVENT_CACHE_MAP_SIZE, &event_cache_options);
     if (event_cache_fd < 0)
     {
         LogError("Failed to event cache: [%d]%s\n", errno, strerror(errno));

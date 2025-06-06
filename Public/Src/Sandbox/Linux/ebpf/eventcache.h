@@ -22,7 +22,7 @@ struct event_cache {
     __uint(type, BPF_MAP_TYPE_LRU_HASH);
     // We want to keep a balance between not sending repetitive paths and keeping this map small enough so eviction is not that expensive.
     // We could bump this up if we see allocation problems for repetitive paths
-    __uint(max_entries, 65536);
+    __uint(max_entries, EVENT_CACHE_MAP_SIZE);
     __type(key, cache_event_key);
     // We don't really care about the value, we use this map as a set
     __type(value, short);

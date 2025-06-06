@@ -33,6 +33,8 @@
 // We don't need this to be very big, as the first error sent is usually enough to signal that there is something
 // going wrong. Debugging scenarios (where we send a lot of debug events) are not expected to be very common, so we can afford to have a smaller buffer here.
 #define DEBUG_RINGBUFFER_SIZE (4096 * 64) 
+// Size of the event cache map. This is used to avoid sending repetitive events for the same operation+path.
+#define EVENT_CACHE_MAP_SIZE (1024) 
 
 #define KERNEL_FUNCTION(name) KERNEL_##name
 #define CONVERT_KERNEL_FUNCTION_TO_STRING(fn) case KERNEL_FUNCTION(fn): return #fn;

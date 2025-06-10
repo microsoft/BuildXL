@@ -67,10 +67,29 @@ static int LibBpfPrintFn(enum libbpf_print_level level, const char *format, va_l
             return vfprintf(stderr, format, args);
         }
 
-       // We log everything from warning and above as an error for now
-       g_bxl->LogErrorArgList(getpid(), format, args);
+        // libbpf log messages occasionally contain new line characters.
+        // BuildXL does not send these, but it's necessary to render these
+        // so that the log message is readable.
+        // Render the formatted message, split it and send it line by line.
+        va_list args_copy;
+        va_copy(args_copy, args); // calling vsprintf will consume the va_list, copy it to use again.
+        int buffer_size = vsnprintf(nullptr, 0, format, args);
 
-       return 1;
+        char *buffer = new char[buffer_size + 1];
+        vsnprintf(buffer, buffer_size, format, args_copy);
+        va_end(args_copy);
+
+        // Split the buffer by new lines and send each line separately
+        std::stringstream stream(buffer);
+        std::string line;
+        while (std::getline(stream, line, '\n')) {
+            // We log everything from warning and above as an error for now
+            g_bxl->LogError(getpid(), "%s", line.c_str());
+        }
+
+        delete[] buffer;
+
+        return buffer_size;
     }
 
     return 0;
@@ -82,9 +101,7 @@ static int LibBpfPrintFn(enum libbpf_print_level level, const char *format, va_l
 static int LogError(const char *fmt, ...) {
     va_list args;
     va_start(args, fmt);
-    // There is no actual constant for errors. But we always treat anything above
-    // a warning level (inclusive) as an error
-    LibBpfPrintFn(LIBBPF_WARN, fmt, args);
+    g_bxl->LogErrorArgList(getpid(), fmt, args);
     va_end(args);
 
     return 1;

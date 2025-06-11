@@ -2,6 +2,12 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20250606.3 (Release [30054531](https://dev.azure.com/mseng/Domino/_build/results?buildId=30054531&view=results))
+-	Align process dumper with Windows Error Reporting recommended flags
+-	[EBPF] Reduce memory footprint for BPF maps
+-	Allow JS resolvers to specify the retry attempt environment variable
+-	Bug fixes
+
 # 0.1.0-20250519.1 (Release [29975184](https://dev.azure.com/mseng/Domino/_build/results?buildId=29975184&view=results))
 -	Linux eBPF sandbox:
     - Add eBPF daemon

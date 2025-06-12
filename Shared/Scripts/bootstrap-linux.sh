@@ -75,7 +75,7 @@ debugprint "Required packages:"
                 rm packages-microsoft-prod.deb
             fi
 
-            installPackages "build-essential" "libc6-dev" "openssh-server" "curl" "dotnet-sdk-8.0" "libelf1" "libelf-dev" "zlib1g-dev"
+            installPackages "build-essential" "libc6-dev" "openssh-server" "curl" "dotnet-sdk-8.0" "libelf1" "libelf-dev" "zlib1g-dev" "git" "clang"
         ;;
         "mariner" | "azurelinux")
             installPackages "rsync" "glibc-static.x86_64" "time" "dotnet-sdk-8.0" "clang" "elfutils-libelf" "elfutils-libelf-devel" "zlib-devel"
@@ -88,6 +88,7 @@ debugprint "Installing Git Credential Manager"
 source ~/.bashrc
 sudo dotnet workload update
 dotnet tool install -g git-credential-manager
+echo 'export PATH="$PATH:~/.dotnet/tools"' >>~/.bashrc
 source ~/.bashrc
 
 debugprint "Configuring Git Credential Manager to use git credential cache and use oauth authentication"

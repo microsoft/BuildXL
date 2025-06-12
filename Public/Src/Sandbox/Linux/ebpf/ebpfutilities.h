@@ -571,7 +571,7 @@ __attribute__((always_inline)) static inline uint32_t nameidata_to_string(char* 
 }
 
 // Returns the path to the current executable by inspecting the given task
-__attribute__((always_inline)) static inline int get_task_exec_path(struct task_struct* task, char* dest)
+__attribute__((always_inline)) static inline unsigned int get_task_exec_path(struct task_struct* task, char* dest)
 {
     dest[0] = '\0';
 

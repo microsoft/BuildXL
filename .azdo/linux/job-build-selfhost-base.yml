@@ -69,14 +69,6 @@ jobs:
 
   timeoutInMinutes: 90
   templateContext:
-    sdl:
-      credscan:
-        enabled: false
-      antimalwareScan:
-        enabled: false
-      publishLogs:
-        enabled: false
-    
     outputs:
     - ${{ each output in parameters.outputs }}:
       - ${{ output }}

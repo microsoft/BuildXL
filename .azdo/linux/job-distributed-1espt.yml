@@ -44,13 +44,6 @@ jobs:
       # The pool running this job is expected to have at least one build cache associated to it, so
       # unless specified otherwise, this build will be using it by default
       logGeneratedConfiguration: true
-    sdl:
-      credscan:
-        enabled: false
-      antimalwareScan:
-        enabled: false
-      publishLogs:
-        enabled: false
     
     # Pre-build steps: get the engine & prepare workspace
     preBuildSteps:

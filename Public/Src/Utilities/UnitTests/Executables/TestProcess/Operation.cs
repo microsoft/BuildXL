@@ -1796,7 +1796,6 @@ namespace Test.BuildXL.Executables.TestProcess
             {
                 // The first time this operation does nothing
                 File.WriteAllText(PathAsString, "marker");
-                Environment.Exit(0);
             }
             else
             {

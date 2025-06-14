@@ -2444,6 +2444,7 @@ namespace BuildXL.Scheduler
                              + File.ReadAllText(path, result.EncodedStandardOutput.Item2);
                 }
             }
+
             Logger.Log.PipWillBeRetriedDueToExitCode(
                 operationContext,
                 pip.SemiStableHash,
@@ -2451,7 +2452,8 @@ namespace BuildXL.Scheduler
                 result.ExitCode,
                 remainingUserRetries,
                 stdErr,
-                stdOut);
+                stdOut,
+                result.ExitCode == ExitCodes.Timeout ? " (corresponding to a timed out process)" : string.Empty);
         }
 
         /// <summary>

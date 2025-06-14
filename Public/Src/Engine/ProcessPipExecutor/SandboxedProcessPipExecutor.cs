@@ -1723,18 +1723,16 @@ namespace BuildXL.ProcessPipExecutor
                 }
             }
 
-            if (result.TimedOut)
+            if (result.TimedOut && result.DumpCreationException != null)
             {
-                if (result.DumpCreationException != null)
-                {
-                    Logger.Log.PipFailedToCreateDumpFile(
-                        loggingContext,
-                        m_pip.SemiStableHash,
-                        m_pipDescription,
-                        result.DumpCreationException.GetLogEventMessage());
-                }
+                Logger.Log.PipFailedToCreateDumpFile(
+                    loggingContext,
+                    m_pip.SemiStableHash,
+                    m_pipDescription,
+                    result.DumpCreationException.GetLogEventMessage());
             }
-            else
+
+            if (!result.TimedOut)
             {
                 TimeSpan warningTimeout = GetEffectiveTimeout(
                     m_pip.WarningTimeout,
@@ -1745,69 +1743,69 @@ namespace BuildXL.ProcessPipExecutor
                 {
                     LogTookTooLongWarning(m_timeout, processTotalWallClockTime, warningTimeout);
                 }
+            }
 
-                // There are cases where the process exit code is not successful and the injection has failed.
-                // (ExitCode code is set by Windows - TerminateProcess, kill(), process crash).
-                // The build needs to fail in this case(s) as well and log that we had injection failure.
-                if (result.HasDetoursInjectionFailures)
-                {
-                    Logger.Log.PipProcessFinishedDetourFailures(loggingContext, m_pip.SemiStableHash, m_pipDescription);
-                }
+            // There are cases where the process exit code is not successful and the injection has failed.
+            // (ExitCode code is set by Windows - TerminateProcess, kill(), process crash).
+            // The build needs to fail in this case(s) as well and log that we had injection failure.
+            if (result.HasDetoursInjectionFailures)
+            {
+                Logger.Log.PipProcessFinishedDetourFailures(loggingContext, m_pip.SemiStableHash, m_pipDescription);
+            }
 
-                if (exitedSuccessfullyAndGracefully)
+            if (exitedSuccessfullyAndGracefully)
+            {
+                Logger.Log.PipProcessFinished(loggingContext, m_pip.SemiStableHash, m_pipDescription, result.ExitCode);
+                allOutputsPresent = CheckExpectedOutputs();
+            }
+            else
+            {
+                if (!canceled)
                 {
-                    Logger.Log.PipProcessFinished(loggingContext, m_pip.SemiStableHash, m_pipDescription, result.ExitCode);
-                    allOutputsPresent = CheckExpectedOutputs();
-                }
-                else
-                {
-                    if (!canceled)
+                    LogFinishedFailed(result);
+                    (bool success, Dictionary<string, int> setPipProperties) = await TrySetPipPropertiesAsync(result);
+                    pipProperties = setPipProperties;
+
+                    if (!success)
                     {
-                        LogFinishedFailed(result);
-                        (bool success, Dictionary<string, int> setPipProperties) = await TrySetPipPropertiesAsync(result);
-                        pipProperties = setPipProperties;
-
-                        if (!success)
+                        Contract.Assert(loggingContext.ErrorWasLogged, "Error should be logged upon TrySetPipPropertiesAsync failure.");
+                        // There was an error logged when extracting properties from the pip. The pip needs to fail and not retry
+                        loggingSuccess = false;
+                    }
+                    else
+                    {
+                        if (exitedWithRetryAbleUserError)
                         {
-                            Contract.Assert(loggingContext.ErrorWasLogged, "Error should be logged upon TrySetPipPropertiesAsync failure.");
-                            // There was an error logged when extracting properties from the pip. The pip needs to fail and not retry
+                            Tuple<AbsolutePath, Encoding> encodedStandardError = null;
+                            Tuple<AbsolutePath, Encoding> encodedStandardOutput = null;
+
+                            if (await TrySaveAndLogStandardOutputAsync(result) && await TrySaveAndLogStandardErrorAsync(result))
+                            {
+                                encodedStandardOutput = GetEncodedStandardConsoleStream(result.StandardOutput);
+                                encodedStandardError = GetEncodedStandardConsoleStream(result.StandardError);
+                                return SandboxedProcessPipExecutionResult.RetryProcessDueToUserSpecifiedExitCode(
+                                    result.ExitCode,
+                                    primaryProcessTimes,
+                                    jobAccounting,
+                                    result.DetouringStatuses,
+                                    sandboxPrepMs,
+                                    sw.ElapsedMilliseconds,
+                                    result.ProcessStartTime,
+                                    maxDetoursHeapSize,
+                                    encodedStandardError,
+                                    encodedStandardOutput,
+                                    pipProperties,
+                                    sharedDynamicDirectoryWriteAccesses,
+                                    unexpectedFileAccesses: fileAccessReportingContext);
+                            }
+
+                            Contract.Assert(loggingContext.ErrorWasLogged, "Error should be logged upon TrySaveAndLogStandardOutput/Error failure.");
+                            // There was an error logged when saving stdout or stderror.
                             loggingSuccess = false;
                         }
-                        else
+                        else if (azWatsonDeadProcess != null)
                         {
-                            if (exitedWithRetryAbleUserError)
-                            {
-                                Tuple<AbsolutePath, Encoding> encodedStandardError = null;
-                                Tuple<AbsolutePath, Encoding> encodedStandardOutput = null;
-
-                                if (await TrySaveAndLogStandardOutputAsync(result) && await TrySaveAndLogStandardErrorAsync(result))
-                                {
-                                    encodedStandardOutput = GetEncodedStandardConsoleStream(result.StandardOutput);
-                                    encodedStandardError = GetEncodedStandardConsoleStream(result.StandardError);
-                                    return SandboxedProcessPipExecutionResult.RetryProcessDueToUserSpecifiedExitCode(
-                                        result.ExitCode,
-                                        primaryProcessTimes,
-                                        jobAccounting,
-                                        result.DetouringStatuses,
-                                        sandboxPrepMs,
-                                        sw.ElapsedMilliseconds,
-                                        result.ProcessStartTime,
-                                        maxDetoursHeapSize,
-                                        encodedStandardError,
-                                        encodedStandardOutput,
-                                        pipProperties,
-                                        sharedDynamicDirectoryWriteAccesses,
-                                        unexpectedFileAccesses: fileAccessReportingContext);
-                                }
-
-                                Contract.Assert(loggingContext.ErrorWasLogged, "Error should be logged upon TrySaveAndLogStandardOutput/Error failure.");
-                                // There was an error logged when saving stdout or stderror.
-                                loggingSuccess = false;
-                            }
-                            else if (azWatsonDeadProcess != null)
-                            {
-                                loggingSuccess = false;
-                            }
+                            loggingSuccess = false;
                         }
                     }
                 }

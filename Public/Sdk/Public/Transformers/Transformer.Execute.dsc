@@ -114,7 +114,9 @@ namespace Transformer {
         /** A custom set of success exit codes. Any other exit code would indicate failure. If unspecified, by default, 0 is the only successful exit code. */
         successExitCodes?: number[];
 
-        /** A custom set of exit codes that causes pip to be retried by BuildXL. If an exit code is also in the successExitCode, then the pip is not retried on exiting with that exit code. */
+        /** A custom set of exit codes that causes pip to be retried by BuildXL. If an exit code is also in the successExitCode, then the pip is not retried on exiting with that exit code.
+         *  Pips that timeout may be retried by specifying exit code 27021977 (which is the exit code for timeout).
+        */
         retryExitCodes?: number[];
 
         /** If a pip runs and returns ones of these exit codes, then downstream pips are skipped. */

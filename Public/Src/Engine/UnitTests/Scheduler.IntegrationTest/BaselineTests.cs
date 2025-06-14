@@ -2755,6 +2755,50 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler().AssertCacheMiss(pip.Process.PipId);
         }
 
+        /// <summary>
+        /// Validates that a user can specify the process timeout exit code as a retryable exit code.
+        /// </summary>
+        /// <remarks>
+        /// This functionality is useful for when a process hangs due to a race condition and may succeed on retry
+        /// </remarks>
+        [Fact]
+        public void RetryTimeoutExitCode()
+        {
+            // Create a process tree with a parent and child. The child watches for the parent to write a file and then exits
+            // The first time the parent is run, it does not exit and thus also has a surviving child process.
+            // Upon retry, the parent writes the output and does not hang
+            FileArtifact stateFile = FileArtifact.CreateOutputFile(ObjectRootPath.Combine(Context.PathTable, "stateFile.txt"));
+            var retryMarker = CreateOutputDirectoryArtifact();
+            var outputFile = CreateOutputFileArtifact();
+
+            ProcessBuilder builder = CreatePipBuilder([
+                Operation.ReadFile(CreateSourceFile()),
+                Operation.CreateDirOnRetry(stateFile, retryMarker),
+                // Add a dangling child process for good measure
+                Operation.Spawn(Context.PathTable, waitToFinish: false, new [] { Operation.WaitUntilFileExists(outputFile) }),
+                Operation.WaitUntilPathExists(FileArtifact.CreateOutputFile(retryMarker.Path)),
+                Operation.WriteFile(outputFile)
+                ]);
+            builder.AddUntrackedFile(stateFile.Path);
+            builder.Timeout = TimeSpan.FromSeconds(1);
+            builder.RetryExitCodes = ReadOnlyArray<int>.From(new[] { global::BuildXL.Processes.ExitCodes.Timeout });
+            builder.SetProcessRetries(1);
+            ProcessWithOutputs process = SchedulePipBuilder(builder);
+
+            // Expect success since retries have been configured
+            RunScheduler().AssertSuccess();
+            AssertVerboseEventLogged(SchedulerLogEventId.PipWillBeRetriedDueToExitCode, count: 1);
+
+            Assert.True(global::BuildXL.Processes.ExitCodes.Timeout == 27021977, 
+                "This exit code should never change as end users may have a dependency by specifying it as a retry exit code");
+
+            if (OperatingSystemHelper.IsUnixOS)
+            {
+                // Creating dump is not supported on non-Windows.
+                AllowWarningEventMaybeLogged(ProcessesLogEventId.PipFailedToCreateDumpFile);
+            }
+        }
+
         private Operation ProbeOp(string root, string relativePath = "")
         {
             return Operation.Probe(CreateFileArtifactWithName(root: root, name: relativePath), doNotInfer: true);

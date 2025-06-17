@@ -53,6 +53,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             Timeouts = resolverSettings.Timeouts;
             ErrorRegex = resolverSettings.ErrorRegex;
             WarningRegex = resolverSettings.WarningRegex;
+            RetryAttemptEnvironmentVariable = resolverSettings.RetryAttemptEnvironmentVariable;
         }
 
         /// <inheritdoc/>

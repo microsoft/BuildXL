@@ -98,7 +98,7 @@ namespace BuildXL.Engine.Distribution
         public override bool EverAvailable => AttachCompletionTask.Status == TaskStatus.RanToCompletion && AttachCompletionTask.GetAwaiter().GetResult();
 
         /// <inheritdoc/>
-        public override bool EverConnected => m_firstCallCompletion.Task.Status == TaskStatus.RanToCompletion && m_firstCallCompletion.Task.GetAwaiter().GetResult();  
+        public override bool EverConnected => m_firstCallCompletion.Task.Status == TaskStatus.RanToCompletion && m_firstCallCompletion.Task.GetAwaiter().GetResult();
 
         /// <inheritdoc/>
         public override int WaitingBuildRequestsCount => m_buildRequests.Count;
@@ -122,7 +122,7 @@ namespace BuildXL.Engine.Distribution
                 m_workerClient.SetWorkerLocation(m_serviceLocation);
                 m_serviceLocationTcs.TrySetResult(Unit.Void);
             }
-        } 
+        }
 
         private volatile int m_currentBatchSize;
 
@@ -175,7 +175,7 @@ namespace BuildXL.Engine.Distribution
             // due to failures, where workers may be disposed after being initiated but before the scheduler is activated. In such cases, making 
             // this thread a background thread allows the bxl process to exit cleanly without waiting for this thread to complete, avoiding potential hang-ups.
             m_sendThread = new Thread(SendBuildRequests);
-            m_sendThread.IsBackground = true; 
+            m_sendThread.IsBackground = true;
         }
 
         private void SendBuildRequests()
@@ -242,7 +242,7 @@ namespace BuildXL.Engine.Distribution
 
                     var dateTimeBeforeSend = DateTime.UtcNow;
                     TimeSpan sendDuration;
-                    
+
                     var pipRequest = new PipBuildRequest();
                     pipRequest.Pips.AddRange(m_buildRequestList);
                     pipRequest.Hashes.AddRange(m_hashList);
@@ -409,7 +409,7 @@ namespace BuildXL.Engine.Distribution
             m_cancellationTokenRegistration = Environment.Context.CancellationToken.Register(() => m_attachCompletion.TrySetResult(false));
 
             base.InitializeForDistribution(parent, config, pipGraph, executionLogTarget, schedulerCompletion, statusChangedAction);
-            m_isInitialized = true; 
+            m_isInitialized = true;
         }
 
         /// <inheritdoc />
@@ -436,12 +436,26 @@ namespace BuildXL.Engine.Distribution
                 }
 
                 // The attach call was unsuccessful. 
+                m_attachCompletion.TrySetResult(false);
                 m_firstCallCompletion.TrySetResult(false);
             }
         }
 
         private async Task<bool> TryAttachAsync()
         {
+            if (Environment.Configuration.Distribution.ReplicateOutputsToWorkers() && !Environment.Configuration.Distribution.FireForgetMaterializeOutput())
+            {
+                // This combination of flags is unfortunate: with ReplicateOutputsToWorkers we try to materialize outputs in all workers,
+                // even 'unavailable' ones. If FireForgetMaterializeOutput is disabled, this might block the scheduler completion
+                // waiting for that worker to attach. In this case, we want to trigger the cancellation explicitly after WorkerAttachTimeout has elapsed:
+                // this will make the RemoteWorker abandon the build, and the scheduler will be able to continue.
+                //
+                // We should not allow this situation to come to pass: see work item #2290359.
+                // As of writing this comment, some customers might be running this mode explicitly, so to to be safe in the transition,
+                // we introduce this special handling before removing that scenario altogether.
+                m_attachCancellation.CancelAfter(EngineEnvironmentSettings.WorkerAttachTimeout);
+            }
+
             try
             {
 #if NET_FRAMEWORK
@@ -450,7 +464,7 @@ namespace BuildXL.Engine.Distribution
                 await WaitForServiceLocationTask.WaitAsync(m_attachCancellation.Token);
 #endif
             }
-            catch (TaskCanceledException)
+            catch (OperationCanceledException)
             {
                 return false;
             }
@@ -494,7 +508,7 @@ namespace BuildXL.Engine.Distribution
                     // We might cancel Attach call due to the followings:
                     // (i) Scheduler early-released the worker.
                     // (ii) The scheduler has already finished all the work. 
-
+                    // (iii) The attachment timeout was hit
                     return false;
                 }
 
@@ -601,7 +615,7 @@ namespace BuildXL.Engine.Distribution
         public override async Task EarlyReleaseAsync()
         {
             m_isEarlyReleaseInitiated = true;
-            
+
             // Unblock scheduler
             await Task.Yield();
 
@@ -633,7 +647,7 @@ namespace BuildXL.Engine.Distribution
 
             if (!EverAvailable && !IsEarlyReleaseInitiated)
             {
-                m_infraFailure = $"{Name} failed to connect to the orchestrator within the timeout ({EngineEnvironmentSettings.MinimumWaitForRemoteWorker.Value.TotalMinutes} minutes), typically due to a delay between orchestrator startup and worker bxl process initiation. Such delays can be expected in certain multi-stage distributed builds.";
+                m_infraFailure = $"{Name} failed to connect to the orchestrator (minimum wait: {EngineEnvironmentSettings.MinimumWaitForRemoteWorker.Value.TotalMinutes} min, timeout: {EngineEnvironmentSettings.WorkerAttachTimeout.Value.TotalMinutes} min), typically due to a delay between orchestrator startup and worker bxl process initiation. Such delays can be expected in certain multi-stage distributed builds.";
             }
 
             WorkerExitResponse workerExitResponse = null;
@@ -803,7 +817,7 @@ namespace BuildXL.Engine.Distribution
             m_pipCompletionTasks.Add(pipId, pipCompletionTask);
 
             var pip = runnable.Pip;
-            if (pip.PipType == PipType.Process && 
+            if (pip.PipType == PipType.Process &&
                 ((Process)pip).Priority == Process.IntegrationTestPriority &&
                 pip.Tags.Any(a => a.ToString(Environment.Context.StringTable) == TagFilter.TriggerWorkerConnectionTimeout) &&
                 runnable.Performance.RetryCountOnRemoteWorkers == 0)
@@ -811,8 +825,8 @@ namespace BuildXL.Engine.Distribution
                 // We execute a pip which has 'buildxl.internal:triggerWorkerConnectionTimeout' in the integration tests for distributed build. 
                 // It is expected to lose the connection with the worker, so that we force the pips 
                 // assigned to that worker to retry on different workers.
-                OnConnectionFailureAsync(null, 
-                    new ConnectionFailureEventArgs(ConnectionFailureType.ReconnectionTimeout, 
+                OnConnectionFailureAsync(null,
+                    new ConnectionFailureEventArgs(ConnectionFailureType.ReconnectionTimeout,
                     "Triggered connection timeout for integration tests"));
             }
 
@@ -860,7 +874,7 @@ namespace BuildXL.Engine.Distribution
             bool materializingOutputs = step == PipExecutionStep.MaterializeOutputs
                 || step == PipExecutionStep.HandleResult
                 || step == PipExecutionStep.Done;
-                
+
             bool requiresHashes = materializingOutputs
                 || step == PipExecutionStep.MaterializeInputs
                 || step == PipExecutionStep.CacheLookup
@@ -1053,7 +1067,7 @@ namespace BuildXL.Engine.Distribution
                     executionResult = await m_pipCompletionTasks[pipId].Completion.Task;
                 }
                 else
-                { 
+                {
                     var completionTask = m_pipCompletionTasks[pipId].Completion.Task;
 
                     var timeoutWatch = new StopwatchVar();
@@ -1079,7 +1093,7 @@ namespace BuildXL.Engine.Distribution
             if (operationTimedOut
                 // For integration tests, simulate a timeout on the first try
                 || runnable.Pip is Process processPip && processPip.Priority == Process.IntegrationTestPriority &&
-                   runnable.Pip.Tags.Any(a => a.ToString(Environment.Context.StringTable) == TagFilter.TriggerWorkerRemotePipTimeout) 
+                   runnable.Pip.Tags.Any(a => a.ToString(Environment.Context.StringTable) == TagFilter.TriggerWorkerRemotePipTimeout)
                     && runnable.Performance.RetryCountOnRemoteWorkers == 0)
             {
                 Environment.Counters.IncrementCounter(PipExecutorCounter.PipsTimedOutRemotely);
@@ -1269,7 +1283,7 @@ namespace BuildXL.Engine.Distribution
                 pipCompletionTask.RunnablePip.ThreadId = pipCompletionData.ThreadId;
                 pipCompletionTask.RunnablePip.StepStartTime = new DateTime(pipCompletionData.StartTimeTicks);
                 pipCompletionTask.RunnablePip.StepDuration = new TimeSpan(pipCompletionData.ExecuteStepTicks);
-                
+
                 var receiveResultDuration = TimeSpan.FromTicks(DateTime.UtcNow.Ticks - pipCompletionData.BeforeSendTicks);
                 pipCompletionTask.AddGrpcDuration(receiveResultDuration);
                 pipCompletionTask.TrySet(result);

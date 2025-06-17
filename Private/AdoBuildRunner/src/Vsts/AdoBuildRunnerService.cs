@@ -322,5 +322,14 @@ namespace BuildXL.AdoBuildRunner.Vsts
         /// Returns a unique key for a property associated to this build session
         /// </summary>
         private string GetPropertyKey(string propertyName) => $"{BuildContext.InvocationKey}-{propertyName}";
+
+        /// <summary>
+        /// Sets an ADO variable to consume on subsequent tasks
+        /// </summary>
+        public void SetVariable(string variableName, string value)
+        {
+            Console.WriteLine($"##[debug] Setting $({variableName})={value}");
+            Console.WriteLine($"##vso[task.setvariable variable={variableName};]{value}");
+        }
     }
 }

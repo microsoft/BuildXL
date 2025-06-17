@@ -23,6 +23,12 @@ namespace BuildXL.AdoBuildRunner
         /// </summary>        
         public override async Task<int> ExecuteDistributedBuild(string[] buildArguments)
         {
+            void skipLogUpload()
+            {
+                // We consume this variable in the 1ESPT Workflow to avoid running the log upload task with a non-existing directory
+                AdoBuildRunnerService.SetVariable("BuildXLWorkflowSkipLogUpload", "true");
+            }
+
             // Before we start, check if the build is already done.
             // This might happen if the worker is very late to a very fast build
             int returnCode;
@@ -31,6 +37,7 @@ namespace BuildXL.AdoBuildRunner
             {
                 Logger.Warning($@"The orchestrator exited with exit code {orchExitCode} before the runner could launch this distributed build as a worker. This means that this agent was late to the build, possibly due to (comparatively) long pre-build task durations.");
                 Logger.Warning($@"Skipping the worker invocation altogether and finishing with exit code 0");
+                skipLogUpload();
                 returnCode = 0;
             }
             else
@@ -42,6 +49,7 @@ namespace BuildXL.AdoBuildRunner
                     // The pools don't match, we can't run the worker
                     // But we want to exit gracefully (with some warnings that have already logged)
                     Logger.Info($"Skipping the build: the running pool doesn't match the orchestrator pool.");
+                    skipLogUpload();
                     return 0;
                 }
 

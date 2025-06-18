@@ -105,7 +105,7 @@ namespace BuildXL.Engine.Distribution
                 }
 
                 var workerId = i + 1; // 0 represents the local worker.
-                m_remoteWorkers[i] = new RemoteWorker(loggingContext, (uint)workerId, this, serviceLocation, context, config.Schedule);
+                m_remoteWorkers[i] = new RemoteWorker(loggingContext, (uint)workerId, this, serviceLocation, context, config);
             }
 
             m_orchestratorServer = new Grpc.GrpcOrchestratorServer(loggingContext, this, invocationId);

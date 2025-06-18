@@ -139,6 +139,8 @@ namespace BuildXL.Engine.Distribution
         private WorkerExecutionLogReader m_buildManifestReader;
         private WorkerExecutionLogReader m_executionLogReader;
 
+        private Infra m_runningInfra;
+
         /// <summary>
         /// Constructor
         /// </summary>
@@ -148,8 +150,8 @@ namespace BuildXL.Engine.Distribution
             OrchestratorService orchestratorService,
             ServiceLocation serviceLocation,
             PipExecutionContext context,
-            IScheduleConfiguration scheduleConfig)
-            : base(workerId, context, scheduleConfig)
+            IConfiguration config)
+            : base(workerId, context, config.Schedule)
         {
             m_appLoggingContext = appLoggingContext;
             m_orchestratorService = orchestratorService;
@@ -159,6 +161,7 @@ namespace BuildXL.Engine.Distribution
                 OnConnectionFailureAsync,
                 m_orchestratorService.Counters);
 
+            m_runningInfra = config.Infra;
             if (serviceLocation != null)
             {
                 // It's importat to use the setter,
@@ -656,8 +659,23 @@ namespace BuildXL.Engine.Distribution
             {
                 var buildEndData = new BuildEndData();
 
+                buildEndData.Failure = string.Empty;
                 // The infrastructure failures should be given higher priority when forwarding them to workers.
-                buildEndData.Failure = m_infraFailure ?? (Environment.HasFailed ? "Distributed build failed. See errors on orchestrator." : string.Empty);
+                if (m_infraFailure != null)
+                {
+                    buildEndData.Failure = m_infraFailure;
+                }
+                else if (Environment.HasFailed
+                    // On ADO Builds we want the worker agents to succeed when the build is a failure
+                    // (except the above case, where the worker itself encountered an infrastructure failure)
+                    // so the result of the build is reflected solely on the orchestrator.
+                    // Note this also makes the early-release case (where the worker exits cleanly on release but
+                    // the build might fail later) more consistent with the non-released case.
+                    && m_runningInfra != Infra.Ado)
+                {
+                    buildEndData.Failure = "Distributed build failed. See errors on orchestrator.";
+                }
+                
                 var exitCallResult = await m_workerClient.ExitAsync(buildEndData);
                 if (!exitCallResult.Succeeded)
                 {

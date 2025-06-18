@@ -1008,17 +1008,26 @@ namespace BuildXL.Processes
         }
 
         /// <inheritdoc />
-        public void NotifyRootProcessExited(long pipId, SandboxedProcessUnix process)
+        public bool NotifyRootProcessExited(long pipId, SandboxedProcessUnix process)
         {
             if (m_pipProcesses.TryGetValue(pipId, out var info))
             {
                 info.Process.LogDebug($"NotifyRootProcessExited. Removing pid {process.ProcessId}");
                 info.RemovePid(process.ProcessId);
             }
+
+            // We are not actually tracking orphan processes for interpose at the connection level. Just
+            // return true to be conservative and keep the interpose behavior unmodified.
+            return true;
         }
 
+
         /// <inheritdoc />
-        public bool NotifyPipFinished(long pipId, SandboxedProcessUnix process) => m_pipProcesses.TryRemove(pipId, out _);
+        public bool NotifyPipFinished(long pipId, SandboxedProcessUnix process)
+        {
+            m_pipProcesses.TryRemove(pipId, out _);
+            return true;
+        }
 
         /// <inheritdoc/>
         public void OverrideProcessStartInfo(ProcessStartInfo processStartInfo)

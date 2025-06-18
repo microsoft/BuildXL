@@ -16,7 +16,9 @@ using System.Threading.Tasks;
 using BuildXL.Interop;
 using BuildXL.Interop.Unix;
 using BuildXL.Native.IO;
+using BuildXL.Processes.Tracing;
 using BuildXL.Utilities.Core;
+using BuildXL.Utilities.Core.Tasks;
 using BuildXL.Utilities.Instrumentation.Common;
 using Microsoft.Win32.SafeHandles;
 using static BuildXL.Interop.Unix.Sandbox;
@@ -74,12 +76,12 @@ namespace BuildXL.Processes
         internal sealed class Info : IDisposable
         {
             private readonly Thread m_workerThread;
-                
+
             // We use these two to synchronize sending a sentinel via the write handle and disposing the read handle. Trying to write to a FIFO with no read handles open
             // produces an error (a broken pipe)
             private bool m_readHandleDisposed = false;
             internal object ReadHandleLock { get; } = new();
-                
+
             internal SandboxedProcessUnix Process { get; }
             internal string ReportsFifoPath { get; }
             internal string FamPath { get; }
@@ -88,8 +90,7 @@ namespace BuildXL.Processes
             private readonly bool m_isInTestMode;
 
             /// <remarks>
-            /// This dictionary is accessed both from the report processor threads as well as the thread
-            /// backing <see cref="m_activeProcessesChecker"/>, hence it must be thread-safe.
+            /// This dictionary is accessed from the report processor threads, hence it must be thread-safe.
             ///
             /// Implementation detail: ConcurrentDictionary is used to implement a thread-safe set (because no
             /// ConcurrentSet class exists).  Therefore, the values in this dictionary are completely ignored;
@@ -111,19 +112,20 @@ namespace BuildXL.Processes
             /// see the root process start event.
             /// </summary>
             private bool m_rootProcessWasRemoved = false;
-            
+
             private readonly object m_removePidLock = new object();
 
-            private readonly CancellableTimedAction m_activeProcessesChecker;
             private readonly Lazy<SafeFileHandle> m_lazyWriteHandle;
-
-            private static readonly TimeSpan s_activeProcessesCheckerInterval = TimeSpan.FromSeconds(1);
 
             // These are just the byte representations of the sentinel values, so we don't need to compute them over and over
             private static readonly byte[] s_noActiveProcessesSentinelAsBytes = BitConverter.GetBytes(NoActiveProcessesSentinel);
             private static readonly byte[] s_endOfReportsSentinelAsBytes = BitConverter.GetBytes(EndOfReportsSentinel);
 
             private static ArrayPool<byte> ByteArrayPool { get; } = new ArrayPool<byte>(4096);
+
+            private bool m_areOrphansActive = false;
+
+            public bool AreOrphansActive => m_areOrphansActive;
 
             internal Info(ManagedFailureCallback failureCallback, SandboxedProcessUnix process, string reportsFifoPath, string famPath, bool isInTestMode)
             {
@@ -135,10 +137,6 @@ namespace BuildXL.Processes
 
                 m_activeProcesses = new ConcurrentDictionary<int, byte>();
                 m_breakawayProcesses = new ConcurrentDictionary<int, byte>();
-
-                m_activeProcessesChecker = new CancellableTimedAction(
-                    CheckActiveProcesses,
-                    intervalMs: Math.Min((int)process.ChildProcessTimeout.TotalMilliseconds, (int)s_activeProcessesCheckerInterval.TotalMilliseconds));
 
                 // create a write handle (used to keep the fifo open, i.e.,
                 // the 'read' syscall won't receive EOF until we close this writer
@@ -181,8 +179,7 @@ namespace BuildXL.Processes
             /// * Messages are read from the FIFO and processed via <see cref="ProcessBytes(PooledObjectWrapper{byte[]}, int)"/>.
             /// * A write handle <see cref="m_lazyWriteHandle"/> is kept open to avoid reaching EOF if other writers (running tools) happen to close the FIFO
             /// * The potential end of the receive loop is triggered by removing the last active process from <see cref="m_activeProcesses"/>. This
-            ///   can happen because the <see cref="m_activeProcessesChecker"/> detected than an active process is no longer alive or because 
-            ///   a process exited report is seen. When this case is reached a special message <see cref="NoActiveProcessesSentinel"/> is sent from this
+            ///   is triggered when a process exited report is seen. When this case is reached a special message <see cref="NoActiveProcessesSentinel"/> is sent from this
             ///   same loop. Sentinels are just special messages used for synchronization purposes.
             /// * Sending <see cref="NoActiveProcessesSentinel"/> *may* result in ending this processing loop: when <see cref="NoActiveProcessesSentinel"/> is sent, 
             ///   other messages may still be on the processing pipe (e.g. observe that the active process checker runs in a separate 
@@ -303,39 +300,6 @@ namespace BuildXL.Processes
                 });
             }
 
-            private void CheckActiveProcesses()
-            {
-                foreach (var pid in m_activeProcesses.Keys)
-                {
-                    if (!Dispatch.IsProcessAlive(pid))
-                    {
-                        LogDebug($"CheckActiveProcesses. Process {pid} is not alive, removing.");
-                        RemovePid(pid);
-                        continue;
-                    }
-
-                    // We shouldn't wait for a breakaway process after the main root process exited.
-                    if (m_breakawayProcesses.TryGetValue(pid, out _))
-                    {
-                        LogDebug($"CheckActiveProcesses. Process {pid} is a breakaway, removing.");
-                        RemovePid(pid);
-                    }
-                }
-            }
-
-            /// <summary>
-            /// Request to stop receiving access reports. 
-            /// Any currently pending reports will be processed asynchronously.
-            /// </summary>
-            internal void RequestStop()
-            {
-                LogDebug($"RequestStop: closing the write handle for FIFO '{ReportsFifoPath}'");
-
-                m_lazyWriteHandle.Value.Close();
-                m_lazyWriteHandle.Value.Dispose();
-
-                m_activeProcessesChecker.Cancel();
-            }
 
             private void WriteSentinel(Lazy<SafeFileHandle> writeHandle, byte[] sentinelBytes)
             {
@@ -344,7 +308,7 @@ namespace BuildXL.Processes
                 {
                     return;
                 }
-                
+
                 // Synchronize sending the sentinel so we don't dispose the read handle without coordination
                 // Without any read handle open, writing to the FIFO causes an broken pipe error
                 lock (ReadHandleLock)
@@ -415,7 +379,7 @@ namespace BuildXL.Processes
                 {
                     removed = m_activeProcesses.TryRemove(pid, out var _);
                     LogDebug($"RemovePid({pid}) :: removed: {removed}; size: {m_activeProcesses.Count}");
-                    
+
                     // If the process that we tried to remove is the root process, we do a defensive check here to see if we ever added it.
                     if (pid == Process.ProcessId)
                     {
@@ -424,7 +388,7 @@ namespace BuildXL.Processes
                         {
                             m_rootProcessWasRemoved = true;
                         }
-                        
+
                         // If it was not removed and it was never removed before, then we have a problem:
                         // we missed the process start event for it. In the case of EBPF, this can happen if the pip was abruptly terminated
                         // before it has the chance to send a process start event (since this happens on the ebpf runner)
@@ -449,22 +413,13 @@ namespace BuildXL.Processes
                     // We just reached 0 active processes. Notify this through the FIFO so we can check on the other end
                     // whether this means we are done processing reports. There might be reports still to be processed, including start process reports,
                     // so pushing this sentinel makes sure we process all pending reports before reaching a decision
-                    
+
                     WriteSentinel(m_lazyWriteHandle, s_noActiveProcessesSentinelAsBytes);
                 }
                 else if (removed && pid == Process.ProcessId)
                 {
-                    LogDebug($"Root process {pid} was removed. Starting the active process checker.");
-
-                    // We just removed the root process and there are still active processes left
-                    //   => start periodically checking if they are still alive, because we don't
-                    //      have a reliable mechanism for receiving those events straight from the
-                    //      child processes (e.g., if they crash, we might not hear about it)
-                    //
-                    // Observe also that we do have a reliable mechanism for detecting when the
-                    // root process exits (even if it crashes): see NotifyRootProcessExited below,
-                    // which is guaranteed to be called by SandboxedProcessUnix.
-                    m_activeProcessesChecker.Start();
+                    LogDebug($"Root process {pid} was removed but there are still active processes left.");
+                    m_areOrphansActive = true;
                 }
             }
 
@@ -480,21 +435,15 @@ namespace BuildXL.Processes
             /// <nodoc />
             public void Dispose()
             {
-                RequestStop();
-
-                try
-                {
-                    m_activeProcessesChecker.Join();
-                }
-                catch (ThreadStateException)
-                {
-                    // The active process checker is only started once the main thread exits and child processes are still active. So we can start disposing the connection
-                    // without that being the case
-                }
+                LogDebug($"Dispose: closing the write handle for FIFO '{ReportsFifoPath}'");
+                // We can now close, dispose and remove the fifo and fam paths
+                m_lazyWriteHandle.Value.Close();
+                m_lazyWriteHandle.Value.Dispose();
 
                 m_activeProcesses.Clear();
                 Analysis.IgnoreResult(FileUtilities.TryDeleteFile(ReportsFifoPath, retryOnFailure: false));
                 Analysis.IgnoreResult(FileUtilities.TryDeleteFile(FamPath, retryOnFailure: false));
+
                 if (m_isInTestMode)
                 {
                     // The worker thread should complete in all but most extreme cases.  One such extreme case
@@ -531,13 +480,8 @@ namespace BuildXL.Processes
                             // active processes
                             LogDebug($"NoActiveProcessesSentinel received for fifo {ReportsFifoPath} but {m_activeProcesses.Count} processes were detected. This means new start process reports arrived afterwards. The sentinel is ignored.");
 
-                            // Observe that this is a case where at some point we reached 0 active processes but new process start events arrived afterwards
-                            // The root process has exited already (since we reached 0 processes), and we might be in a case where the active process checker
-                            // has not started (when the last process to exit before reaching 0 was the root process). Start it now to account for the orphan 
-                            // processes that started since then.
-                            // If the active process checker was started already, this call has no effect.
-                            LogDebug($"NoActiveProcessesSentinel was ignored. Starting the active process checker to account for newly added orphan processes.");
-                            m_activeProcessesChecker.Start();
+                            // If there are still active processes at that point, we do have orphans that are still alive.
+                            m_areOrphansActive = true;
                         }
 
                         return;
@@ -558,7 +502,7 @@ namespace BuildXL.Processes
                     {
                         ReportType = reportType
                     };
-                    
+
                     switch (reportType)
                     {
                         case ReportType.FileAccess:
@@ -591,7 +535,8 @@ namespace BuildXL.Processes
                             report.IsPathTruncated = AssertInt(nextField(restOfMessage, out restOfMessage)) != 0;
                             report.Data = s_encoding.GetString(s_encoding.GetBytes(nextField(restOfMessage, out restOfMessage).ToArray()));
 
-                            if (report.FileOperation == ReportedFileOperation.ProcessExec) {
+                            if (report.FileOperation == ReportedFileOperation.ProcessExec)
+                            {
                                 // Process exec may contain a command line as well
                                 report.CommandLineArguments = s_encoding.GetString(s_encoding.GetBytes(nextField(restOfMessage, out restOfMessage).ToArray()));
                             }
@@ -635,6 +580,8 @@ namespace BuildXL.Processes
                     {
                         LogDebug($"Received FileOperation.ProcessBreakaway for pid {report.ProcessId})");
                         m_breakawayProcesses[(int)report.ProcessId] = 0;
+                        // When a process breaks away, from a tracking perspective is equivalent to a process exit
+                        RemovePid((int)report.ProcessId);
                     }
 
                     // Let's check for linux-specific reports that we want to ignore
@@ -655,7 +602,7 @@ namespace BuildXL.Processes
                     {
                         if (message[i] == '|')
                         {
-                            rest = i + 1 == message.Length ? ReadOnlySpan<char>.Empty : message.Slice(i+1); // Defend against | being the last character, although we don't expect this
+                            rest = i + 1 == message.Length ? ReadOnlySpan<char>.Empty : message.Slice(i + 1); // Defend against | being the last character, although we don't expect this
                             return message.Slice(0, i);
                         }
                     }
@@ -670,7 +617,7 @@ namespace BuildXL.Processes
                 // Check whether a given path is an anonymous file (a file that lives in RAM and only exists until all references to that file are dropped)
                 // The path to an anonymous file reported by stat will always be '/memfd:<fileName> (deleted)'
                 if (path.StartsWith("/memfd:", StringComparison.Ordinal))
-                {                     
+                {
                     return true;
                 }
 
@@ -820,9 +767,6 @@ namespace BuildXL.Processes
                 throw new BuildXLException($"Process with PidId {process.PipId} already exists");
             }
 
-            // Make sure we dispose the process info after report processing is completed
-            reportCompletion.ContinueWith(t => info.Dispose(), TaskContinuationOptions.OnlyOnRanToCompletion | TaskContinuationOptions.RunContinuationsAsynchronously);
-
             info.Start();
 
             // If a daemon task was provided, wait for it to finish
@@ -858,17 +802,29 @@ namespace BuildXL.Processes
         }
 
         /// <inheritdoc />
-        public void NotifyRootProcessExited(long pipId, SandboxedProcessUnix process)
+        public bool NotifyRootProcessExited(long pipId, SandboxedProcessUnix process)
         {
             if (m_pipProcesses.TryGetValue(pipId, out var info))
             {
                 info.Process.LogDebug($"NotifyRootProcessExited. Removing pid {process.ProcessId}");
                 info.RemovePid(process.ProcessId);
+                return info.AreOrphansActive;
             }
+            
+            return false;
         }
 
         /// <inheritdoc />
-        public bool NotifyPipFinished(long pipId, SandboxedProcessUnix process) => m_pipProcesses.TryRemove(pipId, out _);
+        public bool NotifyPipFinished(long pipId, SandboxedProcessUnix process)
+        {
+            // Dispose the process info for this pip. This will also dispose the write handle to the FIFO and 
+            // delete the FIFO and manifest files.
+            var success = m_pipProcesses.TryRemove(pipId, out var info);
+            Contract.Assert(success, $"Pip with id {pipId} was not found in the sandbox connection");
+            info.Dispose();
+
+            return true;
+        }
 
         /// <summary>
         /// Overrides the process start info to run the process through the sandbox.

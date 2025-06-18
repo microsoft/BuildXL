@@ -219,13 +219,15 @@ namespace BuildXL.Processes
         /// <inheritdoc />
         public void Dispose()
         {
+            // If a cancellation was requested, disposing the registration might need to wait until the process is killed (which is the action
+            // triggered by the registration).
+            m_registration.Dispose();
+            // Make sure the process is killed and disposed. If it was already killed, this will just dispose it.
             if (m_process != null)
             {
                 m_process.KillAsync().GetAwaiter().GetResult();
                 m_process.Dispose();
-                m_process = null;
             }
-            m_registration.Dispose();
         }
     }
 

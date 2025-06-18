@@ -66,7 +66,8 @@ namespace BuildXL.Processes
         /// <summary>
         /// SandboxedProcess uses this method to notify the connection that the root process of the pip exited.
         /// </summary>
-        void NotifyRootProcessExited(long pipId, SandboxedProcessUnix process);
+        /// <returns>Whether there are any orphan processes that are still alive after the root process has exited</returns>
+        bool NotifyRootProcessExited(long pipId, SandboxedProcessUnix process);
 
         /// <summary>
         /// Notifies the sandbox that <paramref name="process"/> is done processing access reports

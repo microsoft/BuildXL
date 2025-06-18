@@ -91,6 +91,8 @@ namespace BuildXL.Utilities.Core
 
         private readonly int? m_gentleKillTimeoutMs;
 
+        private Task m_timeoutTask;
+
         private int GetProcessIdSafe()
         {
             const int ErrorValue = -1;
@@ -234,6 +236,8 @@ namespace BuildXL.Utilities.Core
                 }
 
                 Process.Start();
+                // The process just started. Let's start measuring the time to timeout here.
+                m_timeoutTask = Task.Delay(m_timeout);
             }
             catch (Win32Exception e)
             {
@@ -265,11 +269,12 @@ namespace BuildXL.Utilities.Core
         public async Task WaitForExitAsync()
         {
             Log($"waiting to exit");
-            var finishedTask = await Task.WhenAny(Task.Delay(m_timeout), WhenExited);
+            var finishedTask = await Task.WhenAny(m_timeoutTask, WhenExited);
             ExitTime = DateTime.UtcNow;
 
             var timedOut = finishedTask != WhenExited;
-            if (timedOut)
+            // If both m_timeoutTask and WhenExited completed before we even reached Task.WhenAny, let's only kill the process if it has not exited yet.
+            if (timedOut && !WhenExited.IsCompleted)
             {
                 Log($"timed out after {ExitTime.Subtract(StartTime)} (timeout: {m_timeout})");
                 TimedOut = true;

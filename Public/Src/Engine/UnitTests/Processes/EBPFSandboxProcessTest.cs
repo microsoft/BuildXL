@@ -69,7 +69,6 @@ namespace Test.BuildXL.Processes
                     }),
                     SandboxConnection = new SandboxConnectionLinuxEBPF(ebpfDaemonTask: null),
                 };
-            info.FileAccessManifest.MonitorChildProcesses = false;
 
             var process = SandboxedProcessFactory.StartAsync(info, forceSandboxing: true).GetAwaiter().GetResult();
             var result = process.GetResultAsync().GetAwaiter().GetResult();

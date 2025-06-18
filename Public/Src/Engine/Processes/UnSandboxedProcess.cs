@@ -31,7 +31,10 @@ namespace BuildXL.Processes
     {
         private ISet<ReportedFileAccess> EmptyFileAccessesSet => new HashSet<ReportedFileAccess>();
 
-        private static readonly TimeSpan s_defaultProcessTimeout = TimeSpan.FromMinutes(Defaults.ProcessTimeoutInMinutes);
+        /// <summary>
+        /// The <see cref="Defaults.ProcessTimeoutInMinutes"/> as a <see cref="TimeSpan"/>
+        /// </summary>
+        protected static readonly TimeSpan s_defaultProcessTimeout = TimeSpan.FromMinutes(Defaults.ProcessTimeoutInMinutes);
 
         private readonly SandboxedProcessOutputBuilder m_output;
         private readonly SandboxedProcessOutputBuilder m_error;
@@ -292,18 +295,26 @@ namespace BuildXL.Processes
         /// <inheritdoc />
         public virtual int GetLastConfirmedMessageCount() => 0;
 
-        /// <inheritdoc />
-        public async Task<SandboxedProcessResult> GetResultAsync()
+        /// <summary>
+        /// Waits for the process to exit and ensures that, if killed, the <see cref="KillAsync"/> method is called.
+        /// </summary>
+        protected async Task WaitForExitAndEnsureKilledAsync()
         {
-            Contract.Requires(Started);
-
+            LogDebug($"UnsandboxedProcess::WaitForExitAndEnsureKilledAsync({ProcessId})");
             await m_processExecutor.WaitForExitAsync();
+            LogDebug($"UnsandboxedProcess::WaitForExitAndEnsureKilledAsync({ProcessId}) completed. Process exited: {Process?.HasExited}, Killed: {m_processExecutor.Killed}");
             if (m_processExecutor.Killed)
             {
                 // call here this.KillAsync() because a subclass may override it
                 // to do some extra processing when a process is killed
                 await KillAsync();
             }
+        }
+
+        /// <inheritdoc />
+        public async Task<SandboxedProcessResult> GetResultAsync()
+        {
+            Contract.Requires(Started);
 
             LogDebug("Waiting for reports to be received");
             SandboxedProcessReports? reports = await (GetReportsAsync() ?? Task.FromResult<SandboxedProcessReports?>(null));
@@ -320,25 +331,25 @@ namespace BuildXL.Processes
             LogDebug("GetResultAsync: Freezing outputs and returning result");
             return new SandboxedProcessResult
             {
-                ExitCode                            = m_processExecutor.TimedOut ? ExitCodes.Timeout : (Process?.ExitCode ?? ExitCodes.Timeout),
-                Killed                              = Killed,
-                TimedOut                            = m_processExecutor.TimedOut,
-                HasDetoursInjectionFailures         = HasSandboxFailures,
-                JobAccountingInformation            = GetJobAccountingInfo(),
-                StandardOutput                      = m_output.Freeze(),
-                StandardError                       = m_error.Freeze(),
-                TraceFile                           = traceBuilder?.Freeze(),
+                ExitCode = m_processExecutor.TimedOut ? ExitCodes.Timeout : (Process?.ExitCode ?? ExitCodes.Timeout),
+                Killed = Killed,
+                TimedOut = m_processExecutor.TimedOut,
+                HasDetoursInjectionFailures = HasSandboxFailures,
+                JobAccountingInformation = GetJobAccountingInfo(),
+                StandardOutput = m_output.Freeze(),
+                StandardError = m_error.Freeze(),
+                TraceFile = traceBuilder?.Freeze(),
                 HasReadWriteToReadFileAccessRequest = reports?.HasReadWriteToReadFileAccessRequest ?? false,
-                AllUnexpectedFileAccesses           = reports?.FileUnexpectedAccesses ?? EmptyFileAccessesSet,
-                FileAccesses                        = fileAccesses,
-                DetouringStatuses                   = reports?.ProcessDetoursStatuses,
-                ExplicitlyReportedFileAccesses      = reports?.ExplicitlyReportedFileAccesses ?? EmptyFileAccessesSet,
-                Processes                           = CoalesceProcesses(reports?.Processes),
-                MessageProcessingFailure            = reports?.MessageProcessingFailure,
-                DumpCreationException               = m_dumpCreationException,
-                DumpFileDirectory                   = TimeoutDumpDirectory,
-                PrimaryProcessTimes                 = GetProcessTimes(),
-                SurvivingChildProcesses             = CoalesceProcesses(GetSurvivingChildProcesses())
+                AllUnexpectedFileAccesses = reports?.FileUnexpectedAccesses ?? EmptyFileAccessesSet,
+                FileAccesses = fileAccesses,
+                DetouringStatuses = reports?.ProcessDetoursStatuses,
+                ExplicitlyReportedFileAccesses = reports?.ExplicitlyReportedFileAccesses ?? EmptyFileAccessesSet,
+                Processes = CoalesceProcesses(reports?.Processes),
+                MessageProcessingFailure = reports?.MessageProcessingFailure,
+                DumpCreationException = m_dumpCreationException,
+                DumpFileDirectory = TimeoutDumpDirectory,
+                PrimaryProcessTimes = GetProcessTimes(),
+                SurvivingChildProcesses = CoalesceProcesses(GetSurvivingChildProcesses())
             };
         }
 
@@ -466,8 +477,14 @@ namespace BuildXL.Processes
 
         /// <summary>
         /// Returns any collected sandboxed process reports or null.
+        /// TODO: simplify the signature so the returned task is not nullable.
         /// </summary>
-        internal virtual Task<SandboxedProcessReports?>? GetReportsAsync() => Task.FromResult<SandboxedProcessReports?>(null);
+        internal virtual async Task<SandboxedProcessReports?>? GetReportsAsync()
+        {
+            LogDebug($"[UnsandboxedProcess]GetReportsAsync");
+            await WaitForExitAndEnsureKilledAsync();
+            return null;
+        }
 
         /// <summary>
         /// Returns a trace file builder if one was created.

@@ -568,9 +568,10 @@ bool BxlObserver::Send(const char *buf, size_t bufsiz, bool useSecondaryPipe, bo
     return true;
 }
 
-bool BxlObserver::SendExitReport(pid_t pid, pid_t ppid)
+bool BxlObserver::SendExitReport(pid_t pid, pid_t ppid, const char* programPath)
 {
-    auto event = buildxl::linux::SandboxEvent::ExitSandboxEvent("exit", GetProgramPath(), pid, ppid);
+    const char* path = (programPath == NULL) ? GetProgramPath() : programPath;
+    auto event = buildxl::linux::SandboxEvent::ExitSandboxEvent("exit", path, pid, ppid);
     event.SetSourceAccessCheck(AccessCheckResult(RequestedAccess::Read, ResultAction::Allow, ReportLevel::Report));
 
     return SendReport(event);

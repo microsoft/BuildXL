@@ -59,7 +59,8 @@ namespace Test.BuildXL.Processes
                 disableConHostSharing: disableConHostSharing,
                 fileAccessManifest: fileAccessManifest,
                 loggingContext: LoggingContext,
-                sidebandWriter: null)
+                sidebandWriter: null,
+                useGentleKill: IsUsingEBPFSandbox())
             {
                 PipSemiStableHash = 0x1234,
                 PipDescription = pipDescription,

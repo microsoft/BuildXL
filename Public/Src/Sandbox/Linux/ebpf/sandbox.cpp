@@ -45,6 +45,8 @@ BxlObserver *g_bxl;
 buildxl::linux::ebpf::SyscallHandler *g_syscallHandler;
 static volatile sig_atomic_t g_stop;
 static volatile int g_exit_code;
+static volatile sig_atomic_t g_exit_signal_received = 0;
+static volatile sig_atomic_t g_root_process_exited = 0;
 int g_root_pid = 0, g_runner_pid = 0;
 struct ring_buffer *g_file_access_ring_buffer = nullptr, *g_debug_ring_buffer = nullptr;
 int g_pid_map_fd, g_sandbox_options_per_pip_map_fd, g_file_access_per_pip_fd = -1;
@@ -293,7 +295,15 @@ bool IsEbpfAlreadyLoaded()
  * Handles SigIntHandler signal.
  */
 void SigIntHandler(int signo) {
-    // Forward signal to root process
+    g_exit_signal_received = 1;
+    // If the root process exited, we might be waiting for orphaned children to exit.
+    // In that case, we don't want to forward the signal to the root process, since by
+    // setting g_exit_signal_received above, the runner will shortly end naturally.
+    if (g_root_process_exited) {
+        return;
+    }
+
+    // Otherwise, if the root process hasn't exited, forward the signal to it
     if (g_root_pid != 0) {
         kill(g_root_pid, signo);
     }
@@ -315,7 +325,7 @@ void HandleEvent(ebpf_event *event) {
 
     switch (event->metadata.event_type) {
         case EXEC: {
-            buildxl::linux::ebpf::SyscallHandler::HandleExecEvent(g_bxl, (const ebpf_event_exec *)event);
+            g_syscallHandler->HandleExecEvent((const ebpf_event_exec *)event);
             break;
         }
         case SINGLE_PATH:
@@ -324,7 +334,7 @@ void HandleEvent(ebpf_event *event) {
             // let the log debug event call above log it, so we can investigate otherwise.
             if (IsPathFullyResolved(event->src_path))
             {
-                g_syscallHandler->HandleSingleEvent(g_bxl, event);                
+                g_syscallHandler->HandleSingleEvent(event);                
             }
             break;
         case DOUBLE_PATH:
@@ -333,12 +343,12 @@ void HandleEvent(ebpf_event *event) {
             const ebpf_event_double* double_event = (const ebpf_event_double *)event;
             if (IsPathFullyResolved(get_src_path(double_event)) && IsPathFullyResolved(get_dst_path(double_event)))
             {
-                buildxl::linux::ebpf::SyscallHandler::HandleDoubleEvent(g_bxl, double_event);
+                g_syscallHandler->HandleDoubleEvent(double_event);
             }
             break;
         }
         case DEBUG:
-            buildxl::linux::ebpf::SyscallHandler::HandleDebugEvent(g_bxl, (const ebpf_event_debug *)event);
+            g_syscallHandler->HandleDebugEvent((const ebpf_event_debug *)event);
             break;
         default:
             LogError("Unhandled event type %d", event->metadata.event_type);
@@ -388,20 +398,6 @@ int HandleBpfRingBufferEvent(void *ctx, void *data, size_t data_sz) {
     g_event_queue.Enqueue(new_event);
 
     return 0;
-}
-
-/**
- * Sends the initial fork event to the managed side for the provided pid and ppid.
- */
-void SendInitForkEvent(pid_t pid, pid_t ppid, const char *file) {
-    auto fork_event = buildxl::linux::SandboxEvent::CloneSandboxEvent(
-        /* system_call */   "__init__fork",
-        /* pid */           pid,
-        /* ppid */          ppid,
-        /* src_path */      file);
-    fork_event.SetMode(g_bxl->get_mode(file));
-    fork_event.SetRequiredPathResolution(buildxl::linux::RequiredPathResolution::kDoNotResolve);
-    g_bxl->CreateAndReportAccess(fork_event);
 }
 
 int PopulateOptionsMapFromFam()
@@ -457,13 +453,9 @@ int RunRootProcess(const char *file, char *const argv[], char *const envp[]) {
     }
     else  {
         g_root_pid = pid;
+        g_syscallHandler = new buildxl::linux::ebpf::SyscallHandler(g_bxl, g_root_pid, file);
         // Signal that the root pid is already populated
         sem_post(&g_root_process_populated_semaphore);
-
-        // Our managed side tracking expects a 'clone/fork' event before an exec in order to assign the right pids and update the active process collection. Doing
-        // this on managed side is racy (since the pid to use will be available only after the root process has started and events may have arrived already)
-        SendInitForkEvent(getpid(), getppid(), file);
-        SendInitForkEvent(pid, getpid(), file);
 
         // Add child pid to the pid map, associating it with pid of the runner for this pip.
         int key = g_runner_pid;
@@ -492,44 +484,21 @@ int RunRootProcess(const char *file, char *const argv[], char *const envp[]) {
  * This is used to remove the reference to the pip from the outer per-pip maps.
  * If the map is not found, we log an error only if emitErrors is true.
  */
-void DeletePerPipMap(int map_per_pip_fd, int key, const char *description, bool emitErrors)
+int DeletePerPipMap(int map_per_pip_fd, int key, const char *description)
 {
     if (bpf_map_delete_elem(map_per_pip_fd, &key))
     {
-        if (emitErrors)
-        {
             LogError("Error deleting map '%s' for runner PID %d:%s\n", description, key, strerror(errno));
-        }
+            return 1;
     }
-    else
-    {
-        g_bxl->LogDebug(getpid(), "Removed map '%s' for runner PID %d", description, key);
-    }
+
+    return 0;
 }
 
-/**
- * This should be called before the runner exits
- * * Stops tracing any processes that depend on the currently active ringbuffers
- * * Consumes all remaining events in the ringbuffers
- * * Waits for the event queue to consume pending events and send them through the FIFO
- * * Deletes all pip-specific EBPF maps
- * * Sends the exit event for this runner
- */
-void TeardownPip(void *argv, bool emitErrors)
+/* Consumes any remaining items in the ring buffers */
+void FlushRingBufferEvents()
 {
-    // Make sure we stop tracing any remaining active process that belongs to this pip
-    // We are about to remove the maps that belong to this pip, so any further tracing will
-    // find that the map is gone. If there are any surviving processes, those will be flagged
-    // on managed side.
-    for (auto it = g_syscallHandler->GetActivePidsBegin(); it != g_syscallHandler->GetActivePidsEnd(); it++)
-    {
-        pid_t pid = *it;
-        // Pids may have naturally exited when we reach this point, so we cannot actually verify we deleted them
-        bpf_map_delete_elem(g_pid_map_fd, &pid);
-    }
-    
-    // Consume any remaining items in the ring buffers
-    // Let's account for interrupted system calls
+     // Let's account for interrupted system calls
     // and retry until we consume everything
     int res = 0;
     do {
@@ -539,44 +508,30 @@ void TeardownPip(void *argv, bool emitErrors)
     do {
         res = ring_buffer__consume(g_debug_ring_buffer);
     } while (res == -EINTR);
+}
+
+/**
+ * This should be called before the runner exits
+ * * Consumes all remaining events in the ringbuffers
+ * * Waits for the event queue to consume pending events and send them through the FIFO
+ */
+void FlushRingBufferAndSignalQueue()
+{
+    FlushRingBufferEvents();
 
     // Add poison pill to signal the event queue thread to exit.
     g_event_queue.Enqueue(POISON_PILL);
 
     // Wait for the event queue thread to finish consuming the rest of the ring buffer.
     pthread_join(g_event_queue_thread, NULL);
-
-    // Remove the pip reference from the outer per-pip maps
-    int key = g_runner_pid;
-    DeletePerPipMap(g_file_access_per_pip_fd, key, "file access", emitErrors);
-    DeletePerPipMap(g_debug_buffer_per_pip_fd, key, "debug buffer", emitErrors);
-    DeletePerPipMap(g_event_cache_per_pip_fd, key, "event cache", emitErrors);
-    DeletePerPipMap(g_breakaway_processes_per_pip_fd, key, "breakaway processes", emitErrors);
-    DeletePerPipMap(g_sandbox_options_per_pip_map_fd, key, "sandbox options", emitErrors);
-
-    // Just being consistent with the injected exec event, we use the root exe
-    // as the file path
-    char* file = ((char**) argv)[1];
-    // Inject an exit event for the runner process before we tear down EBPF
-    auto exit_event = buildxl::linux::SandboxEvent::ExitSandboxEvent(
-        /* system_call */   "__teardown__exit",
-        /* path */          file,
-        /* pid */           getpid(),
-        /* ppid */          getppid());
-    exit_event.SetMode(g_bxl->get_mode(file));
-    exit_event.SetRequiredPathResolution(buildxl::linux::RequiredPathResolution::kDoNotResolve);
-
-    // After sending this event it is not safe to write into the pipe anymore
-    // since the pip will be considered terminated and the pipe removed
-    g_bxl->CreateAndReportAccess(exit_event);
-
-    g_stop = 1;
 }
 
 /**
- * Wait for root process to exit and perform clean up operations.
+ * Wait for the process tree to exit and perform clean up operations.
+ * Observe that process tree is defined as the root process and all its children that were ever spawned under that tree.
+ * This means we will also wait for any orphaned children that is not technically part of the OS process tree.
  */
-void *WaitForRootProcessToExit(void *argv) {
+void *WaitForProcessTreeToExit(void *argv) {
     int status = 0;
 
     // Wait until the root pid has been populated
@@ -611,9 +566,30 @@ void *WaitForRootProcessToExit(void *argv) {
         }
     }
 
-    // We are tearing down the pip and we are expecting all the per-pip maps to contain an
-    // entry for the runner pid. If we don't find it, we log an error
-    TeardownPip(argv, /* emit errors */ true);
+    g_root_process_exited = 1;
+
+    // Now wait for all the children to exit. This include orphaned children. But it does not include breakaway processes
+    // (the syscall handler takes care of tracking all this)
+    // If an exit signal is received, let the loop exit so the runner can exit gracefully, preserving the original exit code 
+    // (since we don't want the runner to be killed because of orphaned children, which, as seen from the outside, are not part of the 
+    // process tree anymore)
+    while (!g_exit_signal_received) {
+        // Since we control the ring buffer wake up frequency from the kernel side, there is always the chance
+        // of a tail of events that are waiting to be flushed. After the root process exits, make sure we
+        // periodically flush the ring buffers to ensure we do not miss any events.
+        if (g_syscallHandler->WaitForNoActiveProcesses(100) == 0) {
+            // No more children to wait for
+            break;
+        };
+
+        FlushRingBufferEvents();
+    }
+    
+    // The whole process tree is done. Make sure we flush the ring buffers from the event queue before exiting
+    // and signal the user side draining queue to stop processing events.
+    FlushRingBufferAndSignalQueue();
+
+    g_stop = 1;
 
     return NULL;
 }
@@ -662,51 +638,41 @@ void *PollDebugBuffer(void *arg) {
     return NULL;
 }
 
-/** 
- * Creates the process event and debug ring buffer maps
- * */
-int SetupMaps(struct sandbox_bpf *skel) {
-    // If ebpf is already loaded, we need to reuse the pinned maps. This is something the ebpf helpers will do on load(), but
-    // that logic is intertwined with loading the bpf object to the kernel, which is something that already happened and we want to avoid
-    if (g_ebpf_should_force_ebpf_loading || g_ebpf_already_loaded)
-    {   
-        // These are the `PINNED_MAPS_SIZE` pinned maps we have. Retrieve their pin paths and reuse them
-        bpf_map* pinned_maps[PINNED_MAPS_SIZE] = {
-            skel->maps.pid_map, 
-            skel->maps.file_access_per_pip, 
-            skel->maps.debug_buffer_per_pip,
-            skel->maps.breakaway_processes_per_pip,
-            skel->maps.sandbox_options_per_pip,
-            skel->maps.event_cache_per_pip
-        };
+// Reuses the pinned maps, assuming bpf is already loaded.
+int ReuseMaps(struct sandbox_bpf *skel) {
+    // These are the `PINNED_MAPS_SIZE` pinned maps we have. Retrieve their pin paths and reuse them
+    bpf_map* pinned_maps[PINNED_MAPS_SIZE] = {
+        skel->maps.pid_map, 
+        skel->maps.file_access_per_pip, 
+        skel->maps.debug_buffer_per_pip,
+        skel->maps.breakaway_processes_per_pip,
+        skel->maps.sandbox_options_per_pip,
+        skel->maps.event_cache_per_pip
+    };
 
-        for (int i = 0 ; i < PINNED_MAPS_SIZE; i++)
+    for (int i = 0 ; i < PINNED_MAPS_SIZE; i++)
+    {
+        bpf_map* pinned_map = pinned_maps[i];
+        int pin_fd = bpf_obj_get(bpf_map__get_pin_path(pinned_map));
+        if (pin_fd < 0)
         {
-            bpf_map* pinned_map = pinned_maps[i];
-            int pin_fd = bpf_obj_get(bpf_map__get_pin_path(pinned_map));
-            if (pin_fd < 0)
-            {
-                LogError("Error getting pin path: %s\n", strerror(errno));
-                return -1;    
-            }
-            int err = bpf_map__reuse_fd(pinned_map, pin_fd);
-            close(pin_fd);
-            if (err)
-            {
-                LogError("Cannot reuse pinned map\n");
-                return -1;    
-            }
+            LogError("Error getting pin path: %s\n", strerror(errno));
+            return -1;    
+        }
+        int err = bpf_map__reuse_fd(pinned_map, pin_fd);
+        close(pin_fd);
+        if (err)
+        {
+            LogError("Cannot reuse pinned map\n");
+            return -1;    
         }
     }
 
-    // Retrieve the pid map
-    g_pid_map_fd = bpf_object__find_map_fd_by_name(skel->obj, "pid_map");
-    if (g_pid_map_fd < 0) {
-        LogError("finding pid_map in obj file failed\n");
-        Cleanup(skel);
-        return -1;
-    }
+    return 0;
+}
 
+// Sets up the global file descriptors for the per-pip maps.
+int BindPerPipMaps(struct sandbox_bpf *skel) {
     // Retrieve sandbox options map
     g_sandbox_options_per_pip_map_fd = bpf_object__find_map_fd_by_name(skel->obj, "sandbox_options_per_pip");
     if (g_sandbox_options_per_pip_map_fd < 0) {
@@ -719,6 +685,64 @@ int SetupMaps(struct sandbox_bpf *skel) {
     g_file_access_per_pip_fd = bpf_object__find_map_fd_by_name(skel->obj, "file_access_per_pip");
     if (g_file_access_per_pip_fd < 0) {
         LogError("finding file_access_per_pip in obj file failed\n");
+        Cleanup(skel);
+        return -1;
+    }
+
+    // Retrieve the per-pip debug ring buffer and create a debug ring buffer for the current pip
+    g_debug_buffer_per_pip_fd =  bpf_object__find_map_fd_by_name(skel->obj, "debug_buffer_per_pip");
+    if (g_debug_buffer_per_pip_fd < 0)
+    {
+        LogError("Failed to retrieve debug ring buffer per pip\n");
+        Cleanup(skel);
+        return -1;
+    }
+
+    // Retrieve the per-pip event cache and create an event cache for the current pip
+    g_event_cache_per_pip_fd =  bpf_object__find_map_fd_by_name(skel->obj, "event_cache_per_pip");
+    if (g_event_cache_per_pip_fd < 0)
+    {
+        LogError("Failed to retrieve event cache per pip\n");
+        Cleanup(skel);
+        return -1;
+    }
+
+    // Retrieve the per-pip breakaway process map
+    g_breakaway_processes_per_pip_fd = bpf_object__find_map_fd_by_name(skel->obj, "breakaway_processes_per_pip");
+    if (g_breakaway_processes_per_pip_fd < 0) {
+        LogError("Finding breakaway_processes per pip in bpf object failed.\n");
+        Cleanup(skel);
+        return -1;
+    }
+
+    return 0;
+}
+
+/** 
+ * Creates the process event and debug ring buffer maps. Adds the maps this runner needs to all the per-pip outer maps.
+ * */
+int SetupMaps(struct sandbox_bpf *skel) {
+    // If ebpf is already loaded, we need to reuse the pinned maps. This is something the ebpf helpers will do on load(), but
+    // that logic is intertwined with loading the bpf object to the kernel, which is something that already happened and we want to avoid
+    if (g_ebpf_should_force_ebpf_loading || g_ebpf_already_loaded)
+    {
+        if (ReuseMaps(skel))
+        {
+            Cleanup(skel);
+            return -1;
+        }
+    }
+
+    if (BindPerPipMaps(skel))
+    {
+        Cleanup(skel);
+        return -1;
+    }
+
+    // Retrieve the pid map
+    g_pid_map_fd = bpf_object__find_map_fd_by_name(skel->obj, "pid_map");
+    if (g_pid_map_fd < 0) {
+        LogError("finding pid_map in obj file failed\n");
         Cleanup(skel);
         return -1;
     }
@@ -751,15 +775,6 @@ int SetupMaps(struct sandbox_bpf *skel) {
     {
         g_bxl->LogDebug(getpid(), "Added file access ring buffer for runner PID %d", key);
     }
-
-    // Retrieve the per-pip debug ring buffer and create a debug ring buffer for the current pip
-    g_debug_buffer_per_pip_fd =  bpf_object__find_map_fd_by_name(skel->obj, "debug_buffer_per_pip");
-    if (g_debug_buffer_per_pip_fd < 0)
-    {
-        LogError("Failed to retrieve debug ring buffer per pip\n");
-        Cleanup(skel);
-        return -1;
-    }
     
     LIBBPF_OPTS(bpf_map_create_opts, debug_buffer_options);
     int debug_buffer_fd =  bpf_map_create(BPF_MAP_TYPE_RINGBUF, "debug_ring_buffer", 0, 0, DEBUG_RINGBUFFER_SIZE, &debug_buffer_options);
@@ -789,15 +804,6 @@ int SetupMaps(struct sandbox_bpf *skel) {
         g_bxl->LogDebug(getpid(), "Added debug ring buffer for runner PID %d", key);
     }
 
-    // Retrieve the per-pip event cache and create an event cache for the current pip
-    g_event_cache_per_pip_fd =  bpf_object__find_map_fd_by_name(skel->obj, "event_cache_per_pip");
-    if (g_event_cache_per_pip_fd < 0)
-    {
-        LogError("Failed to retrieve event cache per pip\n");
-        Cleanup(skel);
-        return -1;
-    }
-
     LIBBPF_OPTS(bpf_map_create_opts, event_cache_options);
     int event_cache_fd =  bpf_map_create(BPF_MAP_TYPE_LRU_HASH, "event_cache", sizeof(struct cache_event_key), sizeof(short), EVENT_CACHE_MAP_SIZE, &event_cache_options);
     if (event_cache_fd < 0)
@@ -817,14 +823,6 @@ int SetupMaps(struct sandbox_bpf *skel) {
     else
     {
         g_bxl->LogDebug(getpid(), "Added event cache for runner PID %d", key);
-    }
-
-    // Retrieve the per-pip breakaway process map
-    g_breakaway_processes_per_pip_fd = bpf_object__find_map_fd_by_name(skel->obj, "breakaway_processes_per_pip");
-    if (g_breakaway_processes_per_pip_fd < 0) {
-        LogError("Finding breakaway_processes per pip in bpf object failed.\n");
-        Cleanup(skel);
-        return -1;
     }
 
     LIBBPF_OPTS(bpf_map_create_opts, breakaway_processes_options);
@@ -857,6 +855,7 @@ int SetupMaps(struct sandbox_bpf *skel) {
     return 0;
 }
 
+// Defensively cleans up all the pinned maps that we have created.
 void CleanupPinnedMaps(struct sandbox_bpf *skel) {
     // We don't care about cleaning up the debug ring buffer map, ring buffers should get clean up automatically
     bpf_map* pinned_maps[PINNED_MAPS_SIZE] = {
@@ -978,32 +977,22 @@ int ConfigurePerPipMapSizes(struct sandbox_bpf *skel) {
     return 0;
 }
 
-int main(int argc, char **argv) {
-    struct sandbox_bpf *skel;
-    int err = 0;
+void DeletePerPipMaps(sandbox_bpf *skel, pid_t runner_pid) {
+    // Remove the pip reference from the outer per-pip maps
+    DeletePerPipMap(g_file_access_per_pip_fd, runner_pid, "file access");
+    DeletePerPipMap(g_debug_buffer_per_pip_fd, runner_pid, "debug buffer");
+    DeletePerPipMap(g_event_cache_per_pip_fd, runner_pid, "event cache");
+    DeletePerPipMap(g_breakaway_processes_per_pip_fd, runner_pid, "breakaway processes");
+    DeletePerPipMap(g_sandbox_options_per_pip_map_fd, runner_pid, "sandbox options");
+}
 
-    // Initialize the BxlObserver
-    // We want to do this before we initialize libbpf because we want to redirect
-    // libbpf messages to BxlObserver.
-    g_bxl = BxlObserver::GetInstance();
-    g_syscallHandler = buildxl::linux::ebpf::SyscallHandler::GetInstance();
-    g_bxl->Init();
-    g_runner_pid = getpid();
-
+int Start(sandbox_bpf *skel, char **argv) {
     auto start = std::chrono::high_resolution_clock::now();
-
-    /* Set up libbpf errors and debug info callback */
-    libbpf_set_print(LibBpfPrintFn);
-
+    
     g_ebpf_already_loaded = IsEbpfAlreadyLoaded();
     g_ebpf_should_force_ebpf_loading = ShouldForceEBPFLoading();
-
-    /* Open load and verify BPF application */
-    skel = sandbox_bpf::open();
-    if (!skel) {
-        LogError("Failed to open BPF skeleton\n");
-        return 1;
-    }
+    
+    int err = 0;
 
     // If our EBPF programs are not loaded, we only want to do this once
     // since this is time consuming and we are on a hot path.
@@ -1074,9 +1063,9 @@ int main(int argc, char **argv) {
         return -1;
     }
 
-    // Start child thread that waits for the root process to exit
+    // Start child thread that waits for the  process tree to exit
     pthread_t thread;
-    if (pthread_create(&thread, NULL, WaitForRootProcessToExit, (void *)argv) != 0) {
+    if (pthread_create(&thread, NULL, WaitForProcessTreeToExit, (void *)argv) != 0) {
         LogError("Process exit monitoring thread failed to start %s\n", strerror(errno));
         Cleanup(skel);
         return -1;
@@ -1113,12 +1102,6 @@ int main(int argc, char **argv) {
     int res = RunRootProcess(argv[1], &argv[1], environ);
     if (res != 0) {
         LogError("Failed to start root process\n");
-        // Make sure we tear down everything pip related. In particular, RunRootProcess emits
-        // the first clone/exec event, and the teardown makes sure we emit an exit event.
-        // Not all per-pip maps may be populated, so we don't want to emit errors
-        // in the case one entry is missing. This is fine, consider here we are already under an error case, and
-        // an error was logged already.
-        TeardownPip(argv, /* emit errors */ false);
         Cleanup(skel);
         return -1;
     }
@@ -1138,10 +1121,40 @@ int main(int argc, char **argv) {
         }
     }
 
-    start = std::chrono::high_resolution_clock::now();
+    // Not particularly necessary, but let's do due diligence.
+    // If we never saw the root process exit event, the handler will emit it on the destructor. But in theory it should
+    // not be possible to reach this point without the root process exiting.
+    delete g_syscallHandler;
+
+    // At this point all the process tree should have exited, and the event queue thread should have processed all the events.
+    // Let's remove the entries from the per-pip maps that we have created for this pip.
+    DeletePerPipMaps(skel, g_runner_pid);
+
     Cleanup(skel);
-    end = std::chrono::high_resolution_clock::now();
-    duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
 
     return g_exit_code;
+}
+
+// Main function for the sandbox runner.
+int main(int argc, char **argv) {
+    struct sandbox_bpf *skel;
+
+    // Initialize the BxlObserver
+    // We want to do this before we initialize libbpf because we want to redirect
+    // libbpf messages to BxlObserver.
+    g_bxl = BxlObserver::GetInstance();
+    g_bxl->Init();
+    g_runner_pid = getpid();
+
+    /* Set up libbpf errors and debug info callback */
+    libbpf_set_print(LibBpfPrintFn);
+
+    /* Open load and verify BPF application */
+    skel = sandbox_bpf::open();
+    if (!skel) {
+        LogError("Failed to open BPF skeleton\n");
+        return 1;
+    }
+
+    return Start(skel, argv);
 }

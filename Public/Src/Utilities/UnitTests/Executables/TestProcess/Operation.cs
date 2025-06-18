@@ -281,6 +281,11 @@ namespace Test.BuildXL.Executables.TestProcess
             /// Renames a file or directory
             /// </summary>
             Rename,
+
+            /// <summary>
+            /// Sleeps for a specified amount of time
+            /// </summary>
+            Sleep,
         }
 
         /// <summary>
@@ -584,6 +589,9 @@ namespace Test.BuildXL.Executables.TestProcess
                         return;
                     case Type.Rename:
                         DoRename();
+                        return;
+                    case Type.Sleep:
+                        DoSleep();
                         return;
                 }
             }
@@ -1104,6 +1112,14 @@ namespace Test.BuildXL.Executables.TestProcess
         public static Operation Rename(FileOrDirectoryArtifact fileOrDirectorySource, FileOrDirectoryArtifact fileOrDirectoryDestination)
         {
             return new Operation(Type.Rename, path: fileOrDirectorySource, linkPath: fileOrDirectoryDestination);
+        }
+
+        /// <summary>
+        /// Creates an operation that sleeps for the specified number of milliseconds.
+        /// </summary>
+        public static Operation Sleep(int milliseconds)
+        {
+            return new Operation(Type.Sleep, content: milliseconds.ToString());
         }
 
         /*** FILESYSTEM OPERATION FUNCTIONS ***/
@@ -1831,6 +1847,11 @@ namespace Test.BuildXL.Executables.TestProcess
 
                 Thread.Sleep(TimeSpan.FromMilliseconds(500));
             }
+        }
+
+        private void DoSleep()
+        {
+            Thread.Sleep(TimeSpan.FromMilliseconds(int.Parse(Content)));
         }
 
         /*** COMMAND LINE PARSING FUNCTION ***/

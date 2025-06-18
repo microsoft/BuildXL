@@ -57,6 +57,8 @@ namespace BuildXL.Processes
         private readonly IList<Task<AsyncProcessExecutor>> m_ptraceRunners;
         private readonly TaskSourceSlim<bool> m_ptraceRunnersCancellation = TaskSourceSlim.Create<bool>();
 
+        private readonly TaskCompletionSource<Unit> m_rootProcessFinishedTask = new TaskCompletionSource<Unit>(); // No real result needed, but net472 does not support a completion source without a type parameter.
+
         /// <summary>
         /// Id of the underlying pip.
         /// </summary>
@@ -329,6 +331,7 @@ namespace BuildXL.Processes
         /// <inheritdoc />
         protected override async Task KillAsyncInternal(bool dumpProcessTree)
         {
+            LogDebug($"SandboxedProcessUnix::KillAsync({ProcessId})");
             // In the case that the process gets shut down by either its timeout or e.g. SandboxedProcessPipExecutor
             // detecting resource usage issues and calling KillAsync(), we flag the process with m_processKilled so we
             // don't process any more kernel reports that get pushed into report structure asynchronously!
@@ -346,6 +349,9 @@ namespace BuildXL.Processes
                 await base.KillAsyncInternal(dumpProcessTree);
                 // a process exit report may not have been reported during the SIGTERM timeout, so set this flag to ensure the sandbox does not hang.
                 m_processExitReceived = true;
+                // Signal that the root proces exited
+                m_rootProcessFinishedTask.TrySetResult(Unit.Void); 
+
                 LogDebug("KillAsyncInternal: KillAllChildProcesses()");
                 KillAllChildProcesses();
                 LogDebug("KillAsyncInternal: SandboxConnection.NotifyRootProcessExited()");
@@ -363,19 +369,69 @@ namespace BuildXL.Processes
         /// </summary>
         internal override async Task<SandboxedProcessReports?>? GetReportsAsync()
         {
-            SandboxConnection.NotifyRootProcessExited(PipId, this);
+            LogDebug($"[SandboxedProcessUnix]GetReportsAsync");
+            // It is not ideal from a design standpoint that this class is aware of the sandbox connection kind,
+            // but interpose should be eventually retired so it is not worth doing a refactoring just for that.
+            // The main difference between EBPF and interpose with respect to waiting for the root process to exit
+            // is that EBPF wraps the root process in a runner that will wait for the whole process tree to exit,
+            // including orphaned processes. This is because the runner needs to be kept alive to get the reports
+            // from these potential orphans. On the other hand, interpose does not wrap the root process in a runner,
+            // so OS process tree ending matches the exit from the process executor.
+            if (SandboxConnection.Kind == SandboxKind.LinuxEBPF)
+            {
+                // Just wait for the root process to finish, which is signaled by the task, considering a potential timeout.
+                LogDebug($"GetReportsAsync: Waiting for root process {ProcessId} to finish.");
+                var result = await Task.WhenAny(m_rootProcessFinishedTask.Task, Task.Delay(m_info.Timeout ?? s_defaultProcessTimeout));
+                if (result != m_rootProcessFinishedTask.Task)
+                {
+                    LogDebug($"GetReportsAsync: Process {ProcessId} did not finish within the timeout, killing it.");
+                    // The root process did not finish within the timeout, so we kill it
+                    await WaitForExitAndEnsureKilledAsync();
+                }
+            }
+            else
+            {
+                // For interpose, we need to wait for the process tree to finish
+                LogDebug($"GetReportsAsync: Waiting for process tree {ProcessId} to finish.");
+                await WaitForExitAndEnsureKilledAsync();
+            }
+            
+            // The process was either killed (which means the root process as well) on timeout or the root process finished naturally. Notify it.
+            bool areOrphansActive = SandboxConnection.NotifyRootProcessExited(PipId, this);
 
+            // Now we account for potential child processes. Reports will be completed when they are also finished,
+            // or a timeout (now the timeout is about surviving child processes) is hit.
             if (!Killed)
             {
                 LogDebug("GetReportsAsync: Waiting for pending reports.");
-                var awaitedTask = await Task.WhenAny(m_pendingReports.Completion, m_processTreeTimeoutTask!);
-                if (awaitedTask == m_processTreeTimeoutTask)
+                // If there are orphans after the root process exited, we need to wait for them to finish
+                // The completion event represents the end of all the processes that were ever tracked.
+                if (areOrphansActive)
                 {
-                    LogDebug("GetReportsAsync: Attempting to dump process tree after timeout.");
-                    // The process tree timed out, so let's try to dump it
-                    await KillAsyncInternal(dumpProcessTree: true);
+                    var awaitedTask = await Task.WhenAny(m_pendingReports.Completion, m_processTreeTimeoutTask!);
+                    if (awaitedTask == m_processTreeTimeoutTask)
+                    {
+                        LogDebug("GetReportsAsync: Attempting to dump process tree after timeout.");
+                        // The process tree timed out, so let's try to dump it
+                        await KillAsyncInternal(dumpProcessTree: true);
+                    }
+                }
+                else
+                {
+                    // If there are no orphans, we can just wait for the pending reports to complete,
+                    // since we know the root process exited, this task will eventually complete.
+                    await m_pendingReports.Completion;
                 }
             }
+
+            // The whole process tree should be gone already. For EBPF, make sure of it by waiting for the process to exit
+            // and ensuring that it is killed (if appropriate)
+            if (SandboxConnection.Kind == SandboxKind.LinuxEBPF && !Killed)
+            { 
+                LogDebug($"GetReportsAsync: Waiting for process tree {ProcessId} to finish.");
+                await WaitForExitAndEnsureKilledAsync();
+            }
+            
 
             LogDebug("GetReportsAsync: Waiting for pending reports to complete.");
             // in any case must wait for pending reports to complete, because we must not freeze m_reports before that happens
@@ -383,7 +439,11 @@ namespace BuildXL.Processes
 
             // at this point this pip is done executing (it's only left to construct SandboxedProcessResult,
             // which is done by the base class) so notify the sandbox connection about it.
-            SandboxConnection.NotifyPipFinished(PipId, this);
+            if (!SandboxConnection.NotifyPipFinished(PipId, this))
+            {
+                // Errors should be logged already
+                m_infraErrorReceived = true;
+            }
 
             LogDebug("GetReportsAsync: Returning reports.");
 
@@ -638,7 +698,7 @@ namespace BuildXL.Processes
                         bool shouldWait = ShouldWaitForSurvivingChildProcesses();
                         if (shouldWait)
                         {
-                            LogDebug($"Main process exited but some child processes are still alive. Waiting the specified nested child process timeout to see whether they end naturally.");
+                            LogDebug($"Main process exited but some child processes are still alive. Waiting {ChildProcessTimeout.TotalMilliseconds}ms to see whether they end naturally.");
                             await Task.Delay(ChildProcessTimeout);
                         }
 
@@ -753,7 +813,10 @@ namespace BuildXL.Processes
                         // Set the process exit time once we receive it from the native side
                         if (report.FileOperation == ReportedFileOperation.ProcessExit && report.ProcessId == ProcessId)
                         {
+                            LogDebug($"Process exit report received for root process {report.ProcessId}");
                             m_processExitReceived = true;
+                            // Signal that the root proces exited
+                            m_rootProcessFinishedTask.TrySetResult(Unit.Void); 
                         }
 
                         if (report.FileOperation == ReportedFileOperation.ProcessTreeCompletedAck)

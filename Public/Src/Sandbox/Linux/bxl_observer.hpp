@@ -357,7 +357,7 @@ public:
     // Specialization for the exit report event. 
     // We may need to send an exit report on exit handlers after destructors
     // have been called. This method avoids accessing shared structures.
-    bool SendExitReport(pid_t pid, pid_t ppid);
+    bool SendExitReport(pid_t pid, pid_t ppid, const char* programPath = NULL);
     char** ensureEnvs(char *const envp[]);
     char** removeEnvs(char *const envp[]);
 

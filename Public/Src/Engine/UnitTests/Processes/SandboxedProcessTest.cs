@@ -696,6 +696,24 @@ namespace Test.BuildXL.Processes
         }
 
         [Fact]
+        public async Task AccessesFromOrphanProcessesAreCaptured()
+        {
+            var outFile = CreateOutputFileArtifact(prefix: "orphan");
+            // Spawn a process that waits for 500ms and writes to a file. The root process does not wait for it, making it an orphan process.
+            var spawnOperation = Operation.Spawn(Context.PathTable, waitToFinish: false, Operation.Sleep(500), Operation.WriteFile(outFile, "orphan content"));
+            var info = ToProcessInfo(ToProcess(spawnOperation));
+            // Give the nested process enought time to finish writing to the file.
+            info.NestedProcessTerminationTimeout = TimeSpan.FromSeconds(1);
+            info.DiagnosticsEnabled = true;
+
+            var result = await RunProcess(info);
+            // The file written by the orphan process is statically declared, so BuildXL will enforce the file is written
+            XAssert.AreEqual(0, result.ExitCode);
+            // no survivors
+            XAssert.IsNull(result.SurvivingChildProcesses);
+        }
+
+        [Fact]
         public async Task StandardError()
         {
             const string errorMessage = "Error";

@@ -476,7 +476,7 @@ namespace BuildXL
                             opt => loggingConfiguration.FingerprintStoreMaxEntryAgeMinutes = CommandLineUtilities.ParseInt32Option(opt, 0, int.MaxValue)),
                         OptionHandlerFactory.CreateBoolOption(
                             "fireForgetMaterializeOutput",
-                            sign => distributionConfiguration.FireForgetMaterializeOutput = sign),
+                            sign => {  /* DO NOTHING - Flag is deprecated */ }),
                         OptionHandlerFactory.CreateBoolOption(
                             "flushPageCacheToFileSystemOnStoringOutputsToCache",
                             sign => sandboxConfiguration.FlushPageCacheToFileSystemOnStoringOutputsToCache = sign),

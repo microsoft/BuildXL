@@ -1184,7 +1184,7 @@ namespace BuildXL.Engine
             }
 
             // When replicating outputs to workers, workers cannot be released early.
-            if (mutableConfig.Distribution.ReplicateOutputsToWorkers == true)
+            if (mutableConfig.Distribution.ReplicateOutputsToWorkers())
             {
                 mutableConfig.Distribution.EarlyWorkerRelease = false;
             }

@@ -74,9 +74,8 @@ namespace Test.BuildXL.Distribution
         }
 
         [Fact]
-        public async Task FireForgetMaterializeOutputsNotReportedBackToOrchestrator()
+        public async Task MaterializeOutputsNotReportedBackToOrchestrator()
         {
-            Configuration.Distribution.FireForgetMaterializeOutput = true;
             var testRun = await CreateRunAttachAndStart();
 
             testRun.ReceiveBuildRequest((1, PipExecutionStep.MaterializeOutputs), (2, PipExecutionStep.MaterializeOutputs));

@@ -279,7 +279,7 @@ namespace BuildXL.Engine.Distribution
                 // don't try to send more events to the orchestrator.
                 //
                 // Events can occur after the shutdown in communications is started: in
-                // builds with FireForgetMaterializeOutputs we may still be executing output
+                // builds with MaterializeOutput steps (which are fire-and-forget) we may still be executing output
                 // materialization while closing down communications with the orchestrator 
                 // (which called Exit on the worker already after sending the MaterializeOutput requests).
             }

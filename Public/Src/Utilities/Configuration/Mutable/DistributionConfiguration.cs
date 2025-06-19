@@ -44,7 +44,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
             LowWorkersWarningThreshold = template.LowWorkersWarningThreshold;
             EarlyWorkerRelease = template.EarlyWorkerRelease;
             EarlyWorkerReleaseMultiplier = template.EarlyWorkerReleaseMultiplier;
-            FireForgetMaterializeOutput = template.FireForgetMaterializeOutput;
             MaxRetryLimitOnRemoteWorkers = template.MaxRetryLimitOnRemoteWorkers;
             VerifySourceFilesOnWorkers = template.VerifySourceFilesOnWorkers;
         }
@@ -94,9 +93,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public double EarlyWorkerReleaseMultiplier { get; set; }
-
-        /// <inheritdoc />
-        public bool? FireForgetMaterializeOutput { get; set; }
 
         /// <inheritdoc />
         public int MaxRetryLimitOnRemoteWorkers { get; set; }

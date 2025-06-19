@@ -106,11 +106,6 @@ namespace BuildXL.Utilities.Configuration
         double EarlyWorkerReleaseMultiplier { get; }
 
         /// <summary>
-        /// Indicates whether the orchestrator should wait for the results of materializeoutput step on remote workers.
-        /// </summary>
-        bool? FireForgetMaterializeOutput { get; }
-
-        /// <summary>
         /// Indicates number of times the orchestrator should retry the pip on the remote workers due to the stopped worker, network failure, failure to send the build request, etc.
         /// </summary>
         int MaxRetryLimitOnRemoteWorkers { get; }

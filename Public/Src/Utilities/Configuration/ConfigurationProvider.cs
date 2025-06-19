@@ -95,9 +95,6 @@ namespace BuildXL.Utilities.Configuration
             // The default is EmptyWorkingSet option due to the large page file size on CB machines.
             config.Schedule.ManageMemoryMode = ManageMemoryMode.EmptyWorkingSet;
 
-            // Fire forget materialize output is enabled by default in CloudBuild as it improves the perf during meta build.
-            config.Distribution.FireForgetMaterializeOutput = true;
-
             // We assume clean outputs in CloudBuild builds.
             config.Engine.AssumeCleanOutputs = true;
 
@@ -214,10 +211,8 @@ namespace BuildXL.Utilities.Configuration
             }
 
             // Unless otherwise specified, distributed metabuilds in CloudBuild should replicate outputs to all machines
-            // TODO: Remove this once reduced metabuild materialization is fully tested
             if (mutableConfig.Distribution.ReplicateOutputsToWorkers == null
-                && mutableConfig.Logging.Environment == ExecutionEnvironment.OfficeMetaBuildLab
-                && mutableConfig.Distribution.BuildRole.IsOrchestrator())
+                && mutableConfig.Logging.Environment == ExecutionEnvironment.OfficeMetaBuildLab)
             {
                 mutableConfig.Distribution.ReplicateOutputsToWorkers = true;
             }

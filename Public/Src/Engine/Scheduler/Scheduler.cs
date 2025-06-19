@@ -435,7 +435,7 @@ namespace BuildXL.Scheduler
             // Because retrieving pip states is expensive, we first calculate how many pips there are in non-materialize queues.
             // If it is 0, then we get the pip states. If there is no ready, waiting, and running pips; it means that the scheduler is done with all work
             // or it is only busy with materializeOutput step.
-            // As we mark the pips as completed if materializeOutputsInBackground/fireForgetMaterializeOutput is enabled, they have "Done" state.
+            // As we mark the pips as completed immediately, they have "Done" state.
 
             long numRunningOrQueuedOrRemote = PipQueue.NumRunningOrQueuedOrRemote;
             long numRunningOrQueuedExceptMaterialize = numRunningOrQueuedOrRemote - PipQueue.GetNumRunningPipsByKind(DispatcherKind.Materialize) - PipQueue.GetNumQueuedByKind(DispatcherKind.Materialize);
@@ -2846,12 +2846,12 @@ namespace BuildXL.Scheduler
                     PerformEarlyReleaseWorker(numProcessPipsPending, numProcessPipsAllocatedSlots);
                 }
 
-                if (m_configuration.Distribution.FireForgetMaterializeOutput() &&
-                    m_materializeOutputsQueued &&
+                if (m_materializeOutputsQueued &&
                     !AnyPendingPipsExceptMaterializeOutputs() &&
                     !m_schedulerCompletionExceptMaterializeOutputsTimeUtc.HasValue)
                 {
                     // There are no pips running anything except materializeOutputs.
+                    // These pips are fire-and-forget: we open the floodgates to send them as soon as possible
                     Logger.Log.SchedulerCompleteExceptMaterializeOutputs(m_loggingContext);
                     var maxMessages = (int)(EngineEnvironmentSettings.MaxMessagesPerBatch * EngineEnvironmentSettings.MaterializeOutputsBatchMultiplier);
                     foreach (var worker in m_remoteWorkers)

@@ -15,13 +15,5 @@ namespace BuildXL.Utilities.Configuration
         {
             return configuration.ReplicateOutputsToWorkers ?? false;
         }
-
-        /// <summary>
-        /// Whether workers should send results of materializeoutput step to the orchestrator.
-        /// </summary>
-        public static bool FireForgetMaterializeOutput(this IDistributionConfiguration configuration)
-        {
-            return configuration.FireForgetMaterializeOutput ?? false;
-        }
     }
 }

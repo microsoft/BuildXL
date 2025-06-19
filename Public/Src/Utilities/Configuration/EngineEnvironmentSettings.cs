@@ -265,7 +265,7 @@ namespace BuildXL.Utilities.Configuration
         /// Minimum waiting time for a remote worker to attach.
         /// </summary>
         /// <remarks>
-        /// In /fireForgetMaterializeOutputs+ builds it is desirable to wait a minimum period for worker attachment
+        /// In builds with MaterializeOutputs steps, which we fire-and-forget, it is desirable to wait a minimum period for worker attachment
         /// because the scheduler might be marked as complete ("except for materialize outputs") fast enough so that workers
         /// still aren't attached - in this case we would fail the worker in the metabuild stage of the build, losing it for the product build.
         /// This setting only impacts metabuild-style builds, where success in this build is required for the worker to participate in subsequent builds

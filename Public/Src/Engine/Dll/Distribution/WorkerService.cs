@@ -212,7 +212,7 @@ namespace BuildXL.Engine.Distribution
 
             if (success && !PendingScheduleRequests.IsEmpty)
             {
-                // We might meet this condition on fireForgetMaterializeOutputBuilds: if the orchestrator calls Exit on a worker
+                // We might meet this condition on builds with MaterializeOutputs steps: if the orchestrator calls Exit on a worker
                 // after fire-forgetting all the materializations, we might still be processing materialization requests and in a stage
                 // where they haven't reached the pip queue.
                 // We should avoid marking the pip queue as complete if this is the case, so let's wait for everything to be queued
@@ -534,7 +534,7 @@ namespace BuildXL.Engine.Distribution
             // fire-and-forget, where we need to make sure to add them to the 'pending' collections before unblocking
             // an orchestrator that might quicky call exit on this worker before we finish that processing.
             // This race, though presumably unlikely, would be silent and hard to diagnose, so we'll pay the extra cost.
-            if (!((m_config.Distribution.ReplicateOutputsToWorkers ?? false) && (m_config.Distribution.FireForgetMaterializeOutput ?? false)))
+            if (!m_config.Distribution.ReplicateOutputsToWorkers())
             {
                 await Task.Yield();
             }
@@ -575,7 +575,7 @@ namespace BuildXL.Engine.Distribution
                     m_hasFailures = true;
                 }
 
-                if (step == PipExecutionStep.MaterializeOutputs && m_config.Distribution.FireForgetMaterializeOutput())
+                if (step == PipExecutionStep.MaterializeOutputs)
                 {
                     // We do not report 'MaterializeOutput' step results back to orchestrator.
                     return;

@@ -131,6 +131,11 @@ export interface RunTaskArguments
     breakawayProcesses?: PathAtom[];
 
     /**
+     * Names of child processes that can survive after the task execution and are allowed to be cleaned up by the sandbox.
+     */
+    allowedSurvivingChildProcessNames?: (PathAtom | string)[];
+
+    /**
      * Environment variables that need to be passthrough
      * These environment variables will not be in process' fingerprint
     */
@@ -314,6 +319,7 @@ function runTaskCore(tool: Transformer.ToolDefinition, arguments: Argument[], wo
         allowUndeclaredSourceReads: runArgs.strictFileMonitoring !== true,
         disableCacheLookup: runArgs.disableCacheLookup,
         acquireSemaphores: runArgs.semaphores,
+        allowedSurvivingChildProcessNames: runArgs.allowedSurvivingChildProcessNames,
         unsafe: {
             requireGlobalDependencies: true,
             untrackedScopes: runArgs.untrackedScopes,

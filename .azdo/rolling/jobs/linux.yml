@@ -9,6 +9,9 @@ jobs:
     os: linux
 
   templateContext:
+    sdl:
+      binskim:
+        preReleaseVersion: '' # Use old version of binskim for Linux builds, binskim 4.3.1 has issues running on Linux
     outputs:
       - output: artifactsDrop
         displayName: Publish Intermediate Linux Debug/Release binaries to Drop

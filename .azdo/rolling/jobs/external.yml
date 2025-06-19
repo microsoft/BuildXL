@@ -18,12 +18,7 @@ jobs:
   templateContext:
     sdl:
       baseline:
-        baselineFile: $(Build.SourcesDirectory)\.config\guardian\.gdnbaselines
-      binskim:
-        enabled: true
-        scanOutputDirectoryOnly: true
-        break: true
-        severity: warning
+        baselineFile: $(Build.SourcesDirectory)\.config\guardian\.gdnbaselines   
       spotBugs:
         enabled: false
 
@@ -165,6 +160,9 @@ jobs:
     os: linux
   
   templateContext:
+    sdl:
+      binskim:
+        preReleaseVersion: '' # Use old version of binskim for Linux builds, binskim 4.3.1 has issues running on Linux
     outputs:
     - output: artifactsDrop
       displayName: Publish Packages to Intermediate Drop

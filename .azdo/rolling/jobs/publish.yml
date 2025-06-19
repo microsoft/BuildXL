@@ -13,6 +13,14 @@ jobs:
     os: windows
     demands: ImageOverride -equals 1ESPT-Win2022-PME-3
   templateContext:
+    sdl:
+      binskim:
+        scanOutputDirectoryOnly: true
+        preReleaseVersion: '4.3.1'
+        # Only scan the releases directory, buildxl binaries are in releases directory.
+        # Exclude SDK binaries as well, binskim 4.3.1 reports errors on SDK dependencies.
+        # Exclude linux binaries. Binskim 4.3.1 reports errors on linux dependencies microsoft binaries. Also prevent potential issue with running binskim for linux binaries on Windows.
+        analyzeTargetGlob: '+:file|$(Agent.TempDirectory)\DownloadedDrop\release\**\*.dll;+:file|$(Agent.TempDirectory)\DownloadedDrop\release\**\*.exe;-:f|$(Agent.TempDirectory)\DownloadedDrop\release\**\linux-x64\**\*.*;-:f|$(Agent.TempDirectory)\DownloadedDrop\release\**\Sdk\**\*.*'
     outputParentDirectory: $(Agent.TempDirectory)/DownloadedDrop
     outputs:
     - output: artifactsDrop

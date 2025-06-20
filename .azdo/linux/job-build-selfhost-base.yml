@@ -83,11 +83,6 @@ jobs:
       # retentionPolicyInDays: {default}
 
     preBuildSteps: 
-    - checkout: self
-      clean: false
-      fetchTags: ${{ parameters.fetchTags }}
-      fetchDepth: ${{ parameters.fetchDepth }}
-
     - bash: |
         du -h /mnt/vhd.vhdx
         grep -H '' /usr/local/CloudTest/Logs/*.log

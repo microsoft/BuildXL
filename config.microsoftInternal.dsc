@@ -23,8 +23,8 @@ export const pkgs = isMicrosoftInternal ? [
 
     // Windows and Linux QTest packages are not aligned wrt versions. QTest folks will work on aligning them, but for the time being
     // these two may differ on the version number
-    { id: "CB.QTest", version: "25.6.1.221135", osSkip: [ "macOS", "unix" ] },
-    { id: "CB.QTestLinux", version: "25.6.1.221223", osSkip: [ "macOS"  ] },
+    { id: "CB.QTest", version: "25.5.8.151344", osSkip: [ "macOS", "unix" ] },
+    { id: "CB.QTestLinux", version: "25.5.8.151113", osSkip: [ "macOS"  ] },
 
     { id: "BuildXL.Tracing.AriaTenantToken", version: "1.0.0" },
 

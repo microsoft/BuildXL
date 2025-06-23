@@ -8,6 +8,17 @@ import * as Xml from "Sdk.Xml";
 const TestRunDataXmlFileName = a`testRunData.xml`;
 const TestRunDataElementName = "TestRunData";
 
+namespace TestEnvironment {
+    export declare const qualifier: {};
+    /**
+     * The name of the environment variable that can be set to enable the Linux EBPFSandbox for tests.
+     * This is temporary until we can enable EBPF by default
+     * CODESYNC: bxl.sh and Public/Src/Utilities/UnitTests/TestUtilities/BuildXLTestBase.cs
+     */
+    @@public
+    export const EnableLinuxEBPFSandboxForTestsEnvVar = "EnableLinuxEBPFSandboxForTests";
+}
+
 /**
  * Compiles an assembly using some of the given test frameworks defaults,
  * deploys the assembly and its closure to a testRun folder and then
@@ -282,6 +293,9 @@ export interface TestRunArguments {
 
     /** Multiplier to allow some test pips to run longer */
     timeoutMultiplier?: number;
+
+    /** Whether this process should allow undeclared reads from source files. */
+    allowUndeclaredSourceReads?: boolean,
 }
 
 @@public

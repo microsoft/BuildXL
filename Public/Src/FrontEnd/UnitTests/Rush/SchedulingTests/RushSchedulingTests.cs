@@ -445,7 +445,7 @@ namespace Test.BuildXL.FrontEnd.Rush
         [FactIfSupported(requiresLinuxBasedOperatingSystem: true)]
         public void UndeclaredReadReparsePointsAreAutomaticallyIncluded()
         {
-            using (var tempStorage = new TempFileStorage(canGetFileNames: true, rootPath: TestRoot))
+            using (var tempStorage = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
             {
                 var root = tempStorage.GetUniqueDirectory("repo-root");
 

@@ -29,4 +29,5 @@ jobs:
       continueOnError: true
       displayName: Upload built engine for validations to consume
 
-    buildXLArguments: --minimal --deploy-dev --release ${{ parameters.BxlCommonArgs }}
+    # We temporarily disable the EBPFSandbox when building with the LKG, until we produce official bits that can run EBPF
+    buildXLArguments: --minimal --deploy-dev --release ${{ parameters.BxlCommonArgs }} /enableLinuxEBPFSandbox-

@@ -12,6 +12,7 @@ parameters:
     /forceAddExecutionPermission-
     /p:BUILDXL_FINGERPRINT_SALT=Ubuntu24
     /p:BuildXLDumpOpenFilesOnDescriptorSpike=1
+    /enableLinuxEBPFSandbox
   '
 - name: pool
   type: object

@@ -27,13 +27,10 @@ namespace ProcessPipExecutor {
         ],
         internalsVisibleTo: [
             "Test.BuildXL.Processes",
-            "Test.BuildXL.Processes.EBPF",
             "Test.BuildXL.Processes.Detours",
             "Test.BuildXL.Scheduler",
-            "Test.BuildXL.Scheduler.EBPF",
             "ExternalToolTest.BuildXL.Scheduler",
             "IntegrationTest.BuildXL.Scheduler",
-            "IntegrationTest.BuildXL.Scheduler.EBPF",
         ]
     });
 }

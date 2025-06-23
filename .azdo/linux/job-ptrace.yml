@@ -24,12 +24,14 @@ jobs:
     pool: ${{ parameters.pool }}
     sdkVersion: ${{ parameters.sdkVersion }}
     
+    # Enabling EBPF for validating ptrace doesn't make much sense
     buildXLArguments: >-
       --minimal
       --use-dev 
       ${{ parameters.BxlCommonArgs }}
       /forceEnableLinuxPTraceSandbox+
       /injectCacheMisses:0.3
+      /enableLinuxEBPFSandbox-
     preBuildSteps:
     - task: DownloadPipelineArtifact@2
       inputs:

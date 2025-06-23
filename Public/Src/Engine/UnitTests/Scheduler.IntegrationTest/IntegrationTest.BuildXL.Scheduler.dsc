@@ -7,14 +7,22 @@ import * as LinuxSandboxTestProcess from "BuildXL.Sandbox.Linux.UnitTests";
 
 namespace Scheduler.IntegrationTest {
     export declare const qualifier : BuildXLSdk.DefaultQualifier;
-    
+
     const testArgs : BuildXLSdk.TestArguments = {
         assemblyName: "IntegrationTest.BuildXL.Scheduler",
         sources: globR(d`.`, "*.cs"),
         runTestArgs: {
             unsafeTestRunArguments: {
                 // These tests require Detours to run itself, so we won't detour the test runner process itself
-                runWithUntrackedDependencies: true
+                runWithUntrackedDependencies: !BuildXLSdk.Flags.IsEBPFSandboxForTestsEnabled,
+                untrackedScopes: [
+                    // Access to the cryptography store
+                    ...addIfLazy(!Context.isWindowsOS(), () => [d`${Environment.getDirectoryValue("HOME")}/.dotnet`])
+                ],
+                untrackedPaths:[
+                    // CODESYNC: Public/Src/Engine/UnitTests/Scheduler/PipTestBase.cs
+                    r`TestProcess/Unix/Test.BuildXL.Executables.TestProcessAlternative`
+                ],
             },
             parallelBucketCount: 30
         },
@@ -60,20 +68,4 @@ namespace Scheduler.IntegrationTest {
 
     @@public
     export const dll = BuildXLSdk.test(testArgs);
-
-    // We (temporarily) duplicate the integration tests to run with the EBPF sandbox
-    const ebpfTestArgs : BuildXLSdk.TestArguments = Object.merge<BuildXLSdk.TestArguments>(testArgs,
-    {
-        assemblyName: "IntegrationTest.BuildXL.Scheduler.EBPF",
-        runTestArgs: {
-            tags: ["EBPF"],
-            testRunData: {
-                // CODESYNC: Public/Src/Utilities/UnitTests/TestUtilities/BuildXLTestBase.cs
-                useEBPFSandbox: true,
-            }
-        }
-    });
-
-    @@public
-    export const ebpfDll = Context.isWindowsOS() ? undefined : BuildXLSdk.test(ebpfTestArgs);
 }

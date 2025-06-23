@@ -32,8 +32,9 @@ namespace Test.BuildXL.Utilities
             File.WriteAllLines(scriptPath,
             [
                 "#!/bin/bash",
-                "trap 'exit 5' SIGTERM",
+                "trap 'kill $sleep_pid 2>/dev/null;exit 5' SIGTERM",
                 "sleep 10 &",
+                "sleep_pid=$!",
                 "wait"
             ]);
 

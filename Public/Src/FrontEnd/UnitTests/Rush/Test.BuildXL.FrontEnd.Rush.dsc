@@ -25,12 +25,19 @@ namespace Test.Rush {
         // QTest is not supporting opaque directories as part of the deployment
         testFramework: importFrom("Sdk.Managed.Testing.XUnit").framework,
         runTestArgs: {
+            // Under linux (EBPF) these tests probe files all over the place (yarn most likely to blame)
+            // TODO: we should try to keep accesses under control, otherwise these tests will almost never be a cache hit
+            allowUndeclaredSourceReads: BuildXLSdk.Flags.IsEBPFSandboxForTestsEnabled,
             unsafeTestRunArguments: {
                 // These tests require Detours to run itself, so we won't detour the test runner process itself
-                runWithUntrackedDependencies: true,
+                runWithUntrackedDependencies: !BuildXLSdk.Flags.IsEBPFSandboxForTestsEnabled,
                 untrackedPaths: [
-                    BuildXLSdk.NpmRc.getUserNpmRc()
-                ]
+                    BuildXLSdk.NpmRc.getUserNpmRc(),
+                    r`rush/rush`
+                ],
+                untrackedScopes: [
+                    d`${Context.getMount("SourceRoot").path}/.git`
+                ],
             },
             parallelGroups: [
                  "BxlRushConfigurationTests",

@@ -19,7 +19,11 @@ namespace Processes {
         runTestArgs: {
             // These tests require Detours to run itself, so we won't detour the test runner process itself
             unsafeTestRunArguments: {
-                runWithUntrackedDependencies: true
+                runWithUntrackedDependencies: !BuildXLSdk.Flags.IsEBPFSandboxForTestsEnabled,
+                untrackedPaths:[
+                    // CODESYNC: Public/Src/Engine/UnitTests/Scheduler/PipTestBase.cs
+                    r`TestProcess/Unix/Test.BuildXL.Executables.TestProcessWithCapabilities`
+                ],
             },
             // Code coverage utilities can interefe with our sandbox tests and
             // cause failures as they can inject extraneous processes into our sandboxes
@@ -107,27 +111,11 @@ namespace Processes {
         ]
     };
 
-    @@public
+        @@public
     export const test_BuildXL_Processes_dll = BuildXLSdk.test(Object.merge<BuildXLSdk.TestArguments>(testArgs, {
-        sources: globR(d`.`, "*.cs")
-    }));
-
-    // We run again all these tests but with the EBPF sandbox
-    const testArgsEBPF : BuildXLSdk.TestArguments = Object.merge<BuildXLSdk.TestArguments>(testArgs, {
-        assemblyName: "Test.BuildXL.Processes.EBPF",
-        sources: globR(d`.`, "*.cs")
-            // These tests are ptrace specific
-            .filter(file => file.name !== a`PTraceSandboxedProcessTest.cs`),
-        runTestArgs: {
-            tags: ["EBPF"],
-            testRunData: {
-                // CODESYNC: Public/Src/Utilities/UnitTests/TestUtilities/BuildXLTestBase.cs
-                useEBPFSandbox: true,
-            },
-        }
-    });
-
-    // We only run the ebpf version of this test dll on Linux
-    @@public
-    export const test_BuildXL_Processes_ebpf_dll = Context.isWindowsOS() ? undefined : BuildXLSdk.test(testArgsEBPF);
+        // We exclude PTraceSandboxedProcessTest.cs altogether when EBPFSandboxForTests is enabled.
+        // We don't have a test attribute today to control this, so we filter the sources directly.
+        // TODO: consider adding one, or evaluate how far we are from retiring interpose
+        sources: globR(d`.`, "*.cs").filter(
+            (file) => !importFrom("Sdk.BuildXL").Flags.IsEBPFSandboxForTestsEnabled || file.name !== a`PTraceSandboxedProcessTest.cs`)}));
 }

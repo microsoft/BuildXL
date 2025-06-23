@@ -70,7 +70,6 @@ namespace Main {
         ],
         internalsVisibleTo: [
             "IntegrationTest.BuildXL.Scheduler",
-            "IntegrationTest.BuildXL.Scheduler.EBPF",
             "Test.Bxl",
             "BuildXL.App.Fuzzing"
         ],

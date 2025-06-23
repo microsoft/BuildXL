@@ -67,7 +67,10 @@ export function runConsoleTest(args: TestRunArguments): Result {
     let unsafeArgs: Transformer.UnsafeExecuteArguments = {
         untrackedScopes: [
             ...addIf(args.untrackTestDirectory === true, testDeployment.contents.root),
-            ...((args.unsafeTestRunArguments && args.unsafeTestRunArguments.untrackedScopes) || [])
+            ...((args.unsafeTestRunArguments && args.unsafeTestRunArguments.untrackedScopes) || []),
+            // Credscan libraries
+            d`${testDeployment.contents.root}/SRM` 
+
         ],
         untrackedPaths : (
             args.unsafeTestRunArguments && 
@@ -78,8 +81,12 @@ export function runConsoleTest(args: TestRunArguments): Result {
         || [],
         // Some EBPF-related test infra makes decisions based on whether we are running on ADO or not
         // TODO: remove TF_BUILD when we retire interpose
-        passThroughEnvironmentVariables: [...passthroughEnvVars, "TF_BUILD"]
+        passThroughEnvironmentVariables: [...passthroughEnvVars, "TF_BUILD"],
+        // No need to track the bpf runner when a test starts its own sandbox
+        childProcessesToBreakawayFromSandbox: addIfLazy(!Context.isWindowsOS(), () => [a`bxl-ebpf-runner`])
     };
+
+    const enableLinuxEBPF = Environment.getStringValue(Managed.TestEnvironment.EnableLinuxEBPFSandboxForTestsEnvVar);
 
     let execArguments : Transformer.ExecuteArguments = {
         tool: (args.tool || tool),
@@ -88,7 +95,12 @@ export function runConsoleTest(args: TestRunArguments): Result {
             ...(args.tags || [])
         ],
         arguments: arguments,
-        environmentVariables: args.envVars,
+        // Make sure we propagate the environment variable that represents whether tests spawning their own sandbox should use EBPF
+        environmentVariables: [
+            ...(args.envVars || []), {
+                name: Managed.TestEnvironment.EnableLinuxEBPFSandboxForTestsEnvVar, 
+                value: enableLinuxEBPF === undefined ? "0" : enableLinuxEBPF
+            }],
         // When test directory is untracked, declare dependencies to individual files instead of the seal directory.
         // Reason: if the same directory is both untracked and declared as a dependency it's not clear which one takes
         //         precedence in terms of allowed/disallowed file accesses.
@@ -100,6 +112,7 @@ export function runConsoleTest(args: TestRunArguments): Result {
         unsafe: unsafeArgs,
         privilegeLevel: args.privilegeLevel,
         weight: args.weight,
+        allowUndeclaredSourceReads: args.allowUndeclaredSourceReads,
     };
 
     if (Context.getCurrentHost().os !== "win") {
@@ -108,11 +121,12 @@ export function runConsoleTest(args: TestRunArguments): Result {
                 {name: "COMPlus_DefaultStackSize", value: "200000"},
             ],
             unsafe: {
-                untrackedPaths: addIf(Environment.hasVariable("HOME"),
+                untrackedPaths: addIf(!Context.isWindowsOS(),
                     f`${Environment.getDirectoryValue("HOME")}/.CFUserTextEncoding`,
                     f`${Environment.getDirectoryValue("HOME")}/.sudo_as_admin_successful`
                 ),
-                untrackedScopes: [ d`/mnt`, d`/init`, d`/usr` ],
+                // Under /tmp/.dotnet/shm/global we have accesses related to the global bxl mutex, credential provider locks, etc.
+                untrackedScopes: addIfLazy(!Context.isWindowsOS(), () => [ d`/mnt`, d`/init`, d`/usr`, d`/tmp/.dotnet/shm/global` ]),
                 passThroughEnvironmentVariables: [
                     "HOME",
                     "TMPDIR",

@@ -23,9 +23,17 @@ namespace Test.Lage {
         // QTest is not supporting opaque directories as part of the deployment
         testFramework: importFrom("Sdk.Managed.Testing.XUnit").framework,
         runTestArgs: {
+            // Under linux (EBPF) these tests probe files all over the place (yarn most likely to blame)
+            // TODO: we should try to keep accesses under control, otherwise these tests will almost never be a cache hit
+            allowUndeclaredSourceReads: BuildXLSdk.Flags.IsEBPFSandboxForTestsEnabled,
             unsafeTestRunArguments: {
                 // These tests require Detours to run itself, so we won't detour the test runner process itself
-                runWithUntrackedDependencies: true,
+                runWithUntrackedDependencies: !BuildXLSdk.Flags.IsEBPFSandboxForTestsEnabled,
+                untrackedScopes: [
+                    // The V8 compiler accesses the temp directory
+                    // Npm dumps logs under $HOME/.npm
+                    ...addIfLazy(!Context.isWindowsOS(), () => [d`/tmp`, d`${Environment.getDirectoryValue("HOME")}/.npm`])
+                ]
             },
         },
         assemblyName: "Test.BuildXL.FrontEnd.Lage",

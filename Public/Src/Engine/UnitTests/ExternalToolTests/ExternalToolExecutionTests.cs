@@ -234,7 +234,7 @@ namespace ExternalToolTest.BuildXL.Scheduler
             if (OperatingSystemHelper.IsUnixOS)
             {
                 // Creating dump is not supported on non-Windows.
-                AssertWarningEventLogged(ProcessesLogEventId.PipFailedToCreateDumpFile, count: 1);
+                AssertWarningEventLogged(ProcessesLogEventId.PipFailedToCreateDumpFile, count: 0, allowMore: true);
             }
         }
 

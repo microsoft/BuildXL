@@ -15,7 +15,7 @@ namespace PackedExecution {
         runTestArgs: {
             // These tests require Detours to run itself, so we won't detour the test runner process itself
             unsafeTestRunArguments: {
-                runWithUntrackedDependencies: true
+                runWithUntrackedDependencies: !BuildXLSdk.Flags.IsEBPFSandboxForTestsEnabled,
             },
         },
         references: [

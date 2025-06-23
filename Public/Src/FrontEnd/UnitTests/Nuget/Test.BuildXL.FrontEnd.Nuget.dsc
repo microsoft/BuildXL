@@ -46,9 +46,19 @@ namespace Nuget {
             }
         ],
         runTestArgs: {
+            // Under EBPF we get a bunch of accesses from dotnet accessing standard dotnet libraries, whose location depend on dotnet installation folder.
+            // TODO: revisit
+            allowUndeclaredSourceReads: true,
             unsafeTestRunArguments: {
                 // These tests require Detours to run itself, so we won't detour the test runner process itself
-                runWithUntrackedDependencies: true,
+                runWithUntrackedDependencies: !BuildXLSdk.Flags.IsEBPFSandboxForTestsEnabled,
+                untrackedScopes: [
+                    // Nuget accesses the credential provider
+                    ...addIfLazy(!Context.isWindowsOS(), () => [
+                        d`${Environment.getDirectoryValue("HOME")}/.local`, 
+                        d`${Environment.getDirectoryValue("HOME")}/.nuget`,
+                        d`${Environment.getDirectoryValue("HOME")}/.dotnet`])
+                ]
             },
             passThroughEnvVars: [
                 // CODESYNC: Keep environment variable names in sync with RunBxlWithPAT.ps1

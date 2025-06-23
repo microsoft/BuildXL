@@ -39,6 +39,7 @@ jobs:
 
     preBuildSteps:
       # 1. Bootstrap external bits manually - note this is a pre-build step for the actual "build" (which is running tests) 
+      # We temporarily disable the EBPFSandbox when building with the LKG, until we produce official bits that can run EBPF
     - bash: >
         set -eu
 
@@ -52,6 +53,7 @@ jobs:
         /logsDirectory:"Out/Logs/Bootstrap"
         /forceAddExecutionPermission-
         ${{ parameters.BxlCommonArgs }}
+        /enableLinuxEBPFSandbox-
       displayName: Build
       env:
         AdoBuildRunnerInvocationKey: BuildExternal

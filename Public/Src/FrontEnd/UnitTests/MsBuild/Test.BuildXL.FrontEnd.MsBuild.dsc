@@ -12,7 +12,7 @@ namespace Test.MsBuild {
         runTestArgs: {
             unsafeTestRunArguments: {
                 // These tests require Detours to run itself, so we won't detour the test runner process itself
-                runWithUntrackedDependencies: true
+                runWithUntrackedDependencies: !BuildXLSdk.Flags.IsEBPFSandboxForTestsEnabled,
             },
         },
         // QTest does not support opaque directories. Force this to be a xunit test since the dotnet runtime

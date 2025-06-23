@@ -695,9 +695,8 @@ namespace Test.BuildXL.TestUtilities
         /// </summary>
         public bool IsUsingEBPFSandbox()
         {
-            // For now we only run EBPF tests in Ubuntu 24.04. TODO: generalize
-            bool is2404 = OperatingSystemHelperExtension.GetLinuxDistribution()?.Equals(new LinuxDistribution("ubuntu", new Version("24.04"))) == true;
-            return ExistsTestData() && TryGetTestDataValue(UseEBPFTesDataValue, out _) && is2404;
+            // CODESYNC: Public/Sdk/Public/Managed/Testing/XUnit/xunit.dsc
+            return Environment.GetEnvironmentVariable("EnableLinuxEBPFSandboxForTests") == "1";
         }
 
         /// <summary>

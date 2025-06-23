@@ -12,7 +12,11 @@ namespace Test.Tool.Analyzers {
         // These tests require Detours to run itself, so we won't detour the test runner process itself
         runTestArgs: {
             unsafeTestRunArguments: {
-                runWithUntrackedDependencies: true
+                runWithUntrackedDependencies: !BuildXLSdk.Flags.IsEBPFSandboxForTestsEnabled,
+                untrackedScopes: [
+                    // Access to the cryptography store
+                    ...addIfLazy(Context.getCurrentHost().os !== "win", () => [d`${Environment.getDirectoryValue("HOME")}/.dotnet`])
+                ]
             },
         },
         assemblyName: "Test.Tool.Analyzers",

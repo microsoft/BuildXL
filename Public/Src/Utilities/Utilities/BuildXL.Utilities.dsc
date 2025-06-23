@@ -46,7 +46,6 @@ export const dll = BuildXLSdk.library({
         "BuildXL.Scheduler",
         "Test.BuildXL.Pips",
         "Test.BuildXL.Scheduler",
-        "Test.BuildXL.Scheduler.EBPF",
         "Test.BuildXL.Utilities",
         "Test.BuildXL.FrontEnd.Script",
     ],

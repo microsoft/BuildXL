@@ -321,6 +321,12 @@ namespace Flags {
      */
     @@public
     export const enableESRP = Environment.getFlag("ENABLE_ESRP");
+
+    /**
+     * Whether the EBPFSandbox is enabled for tests.
+     */
+    @@public
+    export const IsEBPFSandboxForTestsEnabled : boolean = Environment.getStringValue($.TestEnvironment.EnableLinuxEBPFSandboxForTestsEnvVar) === "1";
 }
 
 @@public

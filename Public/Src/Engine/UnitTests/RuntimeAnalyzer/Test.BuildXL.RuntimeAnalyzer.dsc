@@ -11,7 +11,7 @@ namespace Test.BuildXL.RuntimeAnalyzer {
     export const dll = BuildXLSdk.test({
         runTestArgs: {
             unsafeTestRunArguments: {
-                runWithUntrackedDependencies: true
+                runWithUntrackedDependencies: !BuildXLSdk.Flags.IsEBPFSandboxForTestsEnabled,
             },
         },
         assemblyName: "Test.BuildXL.RuntimeAnalyzer",

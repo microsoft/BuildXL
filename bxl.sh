@@ -266,6 +266,16 @@ function setBxlCmdArgs {
     g_bxlCmdArgs+=(
        "$@"
     )
+
+    # Check for the last occurrence of /EnableLinuxEBPFSandbox (case-insensitive) not followed by a dash
+    # If found, add the EnableLinuxEBPFSandboxForTests property to the bxl command line arguments so tests
+    # can run with the EBPF sandbox enabled.
+    # TODO: this is temporary until we can enable EBPF by default.
+    last_match=$(echo "${g_bxlCmdArgs[@]}" | grep -io '/EnableLinuxEBPFSandbox[+-]\{0,1\}' | tail -1)
+    if [[ -n "$last_match" && ! "$last_match" =~ - ]]; then
+        # CODESYNC: Public/Sdk/Public/Managed/Testing/XUnit/xunit.dsc
+        g_bxlCmdArgs+=("/p:EnableLinuxEBPFSandboxForTests=1")
+    fi
 }
 
 function validateBxlExecutablesOnDisk() {

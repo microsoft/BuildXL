@@ -54,9 +54,7 @@ namespace Processes {
             ]),
             ...addIfLazy(Context.getCurrentHost().os === "unix" && qualifier.targetRuntime === "linux-x64", () => [
                 importFrom("BuildXL.Sandbox.Linux").Deployment.natives,
-                importFrom("BuildXL.Sandbox.Linux.eBPF").Deployment.overridenDeployment === undefined
-                    ? importFrom("BuildXL.Sandbox.Linux.eBPF").Deployment.natives
-                    : importFrom("BuildXL.Sandbox.Linux.eBPF").Deployment.overridenDeployment,
+                importFrom("BuildXL.Sandbox.Linux.eBPF").Deployment.natives
             ]),
         ],
     });

@@ -10,19 +10,12 @@ namespace Deployment {
     @@public
     export const natives : SdkDeployment.Definition = Context.getCurrentHost().os === "unix" && {
         contents: [
-            eBPFSandbox.sandbox
-        ]
-    };
-
-    // CODESYNC: .azdo/rolling/jobs/linux.yml
-    // This environment variable may be set by ADO to provide an alternative deployment for the eBPF binaries built on a different host.
-    // This is necessary when building on older kernels that don't support eBPF.
-    @@public
-    export const overridenDeployment : SdkDeployment.Definition = Context.getCurrentHost().os === "unix" && {
-        contents: [
+            // CODESYNC: .azdo/rolling/jobs/linux.yml
+            // This environment variable may be set by ADO to provide an alternative deployment for the eBPF binaries built on a different host.
+            // This is necessary when building on older kernels that don't support eBPF.
             Environment.hasVariable("BuildXLEbpfSandboxDeploymentOverridePath")
                 ? f`${Environment.getPathValue("BuildXLEbpfSandboxDeploymentOverridePath")}/${qualifier.configuration}/${qualifier.targetRuntime}/bxl-ebpf-runner`
-                : undefined
+                : eBPFSandbox.sandbox
         ]
     };
 }

@@ -1,7 +1,71 @@
 jobs:
+# Builds eBPF Sandbox binaries to be consumed by the next step.
+# This is necessary because building the eBPF sandbox requires kernel 6.6+
+# Supported OS: Ubuntu 22.04 or newer, or Azure Linux 3.0 or newer.
+# This task runs a filtered build to only build the eBPF Sandbox binaries.
+- job: Linux_Internal_eBPF
+  displayName: Linux Internal eBPF Build
+  timeoutInMinutes: 180
+
+  # This pool must be a Ubuntu 22.04 or newer to build eBPF Sandbox binaries.
+  pool:
+    name: BuildXL-DevOpsAgents-Selfhost-BuildCache
+    image: ubuntu-22.04-PME-GPT
+    os: linux
+
+  templateContext:
+    outputs:
+      - output: artifactsDrop
+        displayName: Publish Intermediate Linux eBPF binaries to Drop
+        dropServiceURI: https://mseng.artifacts.visualstudio.com/DefaultCollection
+        buildNumber: BuildXL/Linux/Internal/eBPF/$(Build.BuildNumber)/$(Build.BuildId)
+        sourcePath: $(Build.SourcesDirectory)/Out/Bin
+        retentionDays: 1
+        dropMetadataContainerName: DropMetadata-Linux-eBPF-Internal
+
+      - output: buildArtifacts
+        displayName: Publish build logs
+        condition: succeededOrFailed()
+        PathtoPublish: $(Build.SourcesDirectory)/Out/Logs/Build
+        ArtifactName: linuxbuildlogs-internal-ebpf
+        sbomEnabled: false    # SBOM is not needed for logs
+
+  steps:
+  - checkout: self
+    fetchDepth: 1
+    fetchTags: false
+
+  - template: ../steps/linux_prepare.yml
+    parameters:
+      CacheNamespace: BuildXLSelfhost.Linux
+
+  - task: Bash@3
+    displayName: Build Linux eBPF Sandbox Binaries
+    inputs:
+      targetType: inline
+      script: >
+        set -eu
+
+        bash bxl.sh --internal --shared-comp
+        "/f:output='*/linux-x64/bxl-ebpf-runner'"
+        /cacheMiss:Bxl.Selfhost.Linux.eBPF
+        /cacheConfigFilePath:Out/CacheConfig.json
+        /logoutput:FullOutputOnError
+        /logsDirectory:"Out/Logs/Build"
+        /q:ReleaseLinux
+        /q:DebugLinux
+      workingDirectory: /home/subst
+    env:
+      PAT1esSharedAssets: $(BuildXL-Pipeline-AccessToken)
+      PATCloudBuild: $(BuildXL-Pipeline-AccessToken)
+      VSTSPERSONALACCESSTOKEN: $(System.AccessToken)
+
+# This part of the build will pick up the eBPF Sandbox binaries built in the previous step.
+# This step may be built with an older kernel version if needed.
 - job: Linux_Internal
   displayName: Linux Internal Build
   timeoutInMinutes: 180
+  dependsOn: Linux_Internal_eBPF
 
   pool:
     name: BuildXL-DevOpsAgents-Selfhost-BuildCache
@@ -32,10 +96,19 @@ jobs:
   - checkout: self
     fetchDepth: 1
     fetchTags: false
-
+  
   - template: ../steps/linux_prepare.yml
     parameters:
       CacheNamespace: BuildXLSelfhost.Linux
+
+  - task: ms-vscs-artifact.build-tasks.artifactDropDownloadTask-1.artifactDropDownloadTask@1
+    displayName: '📥 Download eBPF Artifacts'
+    inputs:
+      dropMetadataContainerName: DropMetadata-Linux-eBPF-Internal
+      dropServiceURI: ''
+      destinationPath: $(Build.StagingDirectory)/Linux.eBPF
+      usePat: true
+      entraServiceConnection: mseng-Domino-BuildXL-Pipelines
 
   - task: Bash@3
     displayName: Build new LKG
@@ -54,6 +127,8 @@ jobs:
       PAT1esSharedAssets: $(BuildXL-Pipeline-AccessToken)
       PATCloudBuild: $(BuildXL-Pipeline-AccessToken)
       VSTSPERSONALACCESSTOKEN: $(System.AccessToken)
+      # CODESYNC: Public/Src/Sandbox/Linux/ebpf/deployment.dsc
+      BuildXLEbpfSandboxDeploymentOverridePath: $(Build.StagingDirectory)/Linux.eBPF
 
   # Acquire another token because the previous one may have been expired.
   - template: /.azdo/common/generate-access-token.yml
@@ -84,6 +159,8 @@ jobs:
       PAT1esSharedAssets: $(BuildXL-Pipeline-AccessToken)
       PATCloudBuild: $(BuildXL-Pipeline-AccessToken)
       VSTSPERSONALACCESSTOKEN: $(System.AccessToken)
+      # CODESYNC: Public/Src/Sandbox/Linux/ebpf/deployment.dsc
+      BuildXLEbpfSandboxDeploymentOverridePath: $(Build.StagingDirectory)/Linux.eBPF
 
   # Delete all linux outputs that aren't eventually published to save SDL scanning costs
   # This leaves out/bin/release/npm and out/bin/release/pkgs which eventually get published

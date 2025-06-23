@@ -738,7 +738,19 @@ config({
                 isWritable: false,
                 trackSourceFileChanges: true
             }
-        ] : [])
+        ] : []),
+        // CODESYNC: Public/Src/Sandbox/Linux/ebpf/deployment.dsc
+        ...(Environment.hasVariable("BuildXLEbpfSandboxDeploymentOverridePath") ?
+        [
+            // Contains files that might be copied over during the build.
+            {
+                name: a`BuildXLEbpfSandboxDeploymentOverrideDirectory`,
+                path: Environment.getPathValue("BuildXLEbpfSandboxDeploymentOverridePath"),
+                isReadable: true,
+                isWritable: false,
+                trackSourceFileChanges: true
+            }
+        ] : []),
     ],
 
     searchPathEnumerationTools: [

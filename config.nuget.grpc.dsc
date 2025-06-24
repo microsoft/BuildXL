@@ -2,11 +2,11 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 // Ideally these are same version, but ProtoBuf has a newer patch version.
-const protoVersion = "3.28.0";
+const protoVersion = "3.30.2";
 const protoToolsVersion = "3.24.1";
 
-const grpcNetVersion = "2.51.0";
-const grpcCoreVersion = "2.51.0";
+const grpcNetVersion = "2.71.0";
+const grpcCoreVersion = "2.71.0";
 
 export const pkgs = [
     // grpc
@@ -16,7 +16,9 @@ export const pkgs = [
     { id: "Grpc.Net.Common", version: grpcNetVersion},
     { id: "Grpc.AspNetCore.Server.ClientFactory", version: grpcNetVersion},
     { id: "Grpc.AspNetCore.Server", version: grpcNetVersion},
-    { id: "Grpc.AspNetCore", version: grpcNetVersion},  
+    { id: "Grpc.AspNetCore", version: grpcNetVersion},
+    // grpc.net 2.71.0 has a dependency on System.Net.Http.WinHttpHandler
+    { id: "System.Net.Http.WinHttpHandler", version: "8.0.0"},
 
     { id: "Grpc.Core", version: "2.46.6" },
     { id: "Grpc.Core.Api", version: grpcCoreVersion },

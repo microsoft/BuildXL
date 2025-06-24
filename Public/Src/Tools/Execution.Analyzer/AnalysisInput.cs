@@ -63,6 +63,8 @@ namespace BuildXL.Execution.Analyzer
         {
             if (path != null && path.EndsWith(".zip", System.StringComparison.OrdinalIgnoreCase) && File.Exists(path))
             {
+                // TODO - It doesn't seem there are any codepaths where BuildXL itself writes out an execution log in a zip file, so this code is likely not currently used.
+                // Leaving the code in case Office or some consumer has logic to zip files post-build
                 var zipStreamProvider = new ZipFileSystemStreamProvider(path);
                 StreamProvider = zipStreamProvider;
                 using (var archiveWrapper = zipStreamProvider.OpenArchiveForRead())
@@ -74,7 +76,15 @@ namespace BuildXL.Execution.Analyzer
                         throw new BuildXLException(I($"Execution log path '{path}' appears to refer to a zip file. Expected to find exactly one entry with extension '.xlg' but found {xlgEntries.Count} "));
                     }
 
+                    // Zip archives can contain relative paths that allow files to escape the zip file's directory.
+                    // Validate the path doesn't excape before using it
+                    var zipDirectory  = Path.GetDirectoryName(path);
                     path = Path.Combine(path, xlgEntries[0].FullName.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar).TrimStart(Path.DirectorySeparatorChar));
+
+                    if (!Path.GetFullPath(path).StartsWith(Path.GetFullPath(zipDirectory) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+                    {
+                        throw new BuildXLException(I($"Entry '{xlgEntries[0].FullName}' in zip file '{path}' escapes the containing directory and is not allowed."));
+                    }
                 }
             }
             else

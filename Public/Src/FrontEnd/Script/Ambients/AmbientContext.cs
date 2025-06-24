@@ -85,11 +85,28 @@ namespace BuildXL.FrontEnd.Script.Ambients
             var isElevatedName = SymbolAtom.Create(StringTable, "isElevated");
             var isElevatedValue = CurrentProcess.IsElevated;
 
+            var linuxSystemInfoName = SymbolAtom.Create(StringTable, "linuxSystemInfo");
+            object linuxSystemInfoValue = UndefinedValue.Instance;
+            if (OperatingSystemHelper.IsLinuxOS)
+            {
+                var kernelVersionName = SymbolAtom.Create(StringTable, "kernelVersion");
+                var kernelMajorVersionName = SymbolAtom.Create(StringTable, "kernelMajorRevision");
+                var kernelMinorVersionName = SymbolAtom.Create(StringTable, "kernelMinorRevision");
+                var kernelVersion = LinuxSystemInfo.GetLinuxKernelVersion();
+
+                linuxSystemInfoValue = ObjectLiteral.Create(
+                    new Binding(kernelVersionName, kernelVersion.kernelVersion, default(LineInfo)),
+                    new Binding(kernelMajorVersionName, kernelVersion.majorRevision, default(LineInfo)),
+                    new Binding(kernelMinorVersionName, kernelVersion.minorRevision, default(LineInfo))
+                );
+            }
+
             m_currentHost = ObjectLiteral.Create(
                 new Binding(osName, osValue, default(LineInfo)),
                 new Binding(cpuName, cpuValue, default(LineInfo)),
-                new Binding(isElevatedName, isElevatedValue, default(LineInfo))
-                );
+                new Binding(isElevatedName, isElevatedValue, default(LineInfo)),
+                new Binding(linuxSystemInfoName, linuxSystemInfoValue, default(LineInfo))
+            );
 
             MountNameObject = Symbol("name");
             MountPathObject = Symbol("path");

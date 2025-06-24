@@ -1,6 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
+using BuildXL.FrontEnd.Script.Values;
+using BuildXL.Utilities.Core;
 using Test.BuildXL.FrontEnd.Core;
 using Xunit;
 using Xunit.Abstractions;
@@ -9,7 +12,7 @@ namespace Test.DScript.Ast.Interpretation
 {
     public class AmbientContextTests : DsTest
     {
-        public AmbientContextTests(ITestOutputHelper output) 
+        public AmbientContextTests(ITestOutputHelper output)
             : base(output)
         {
         }
@@ -96,6 +99,34 @@ export const x = Context.getMount('TestMount').path;
                 .Evaluate("x");
 
             Assert.Equal(result.Configuration.Logging.RedirectedLogsDirectory, result.Values[0]);
+        }
+
+        [Fact]
+        public void TestLinuxKernelVersion()
+        {
+            var spec = @"
+export const linuxSystemInfo = Context.getCurrentHost().linuxSystemInfo;
+export const linuxKernelVersion = Context.getCurrentHost().os === ""unix"" ? linuxSystemInfo.kernelVersion : undefined;
+export const linuxKernelkernelMajorRevision = Context.getCurrentHost().os === ""unix"" ? linuxSystemInfo.kernelMajorRevision : undefined;
+export const linuxKernelkernelMinorRevision = Context.getCurrentHost().os === ""unix"" ? linuxSystemInfo.kernelMinorRevision : undefined;
+";
+            var result = Build()
+                .AddSpec("spec.dsc", spec)
+                .RootSpec("spec.dsc")
+                .Evaluate("linuxSystemInfo", "linuxKernelVersion", "linuxKernelkernelMajorRevision", "linuxKernelkernelMinorRevision");
+
+            if (!OperatingSystemHelper.IsLinuxOS)
+            {
+                Assert.Equal(UndefinedValue.Instance, result.Values[0]);
+            }
+            else
+            {
+                var kernel = LinuxSystemInfo.GetLinuxKernelVersion();
+                Assert.NotEqual("undefined", result.Values[0]);
+                Assert.Equal(kernel.kernelVersion, result.Values[1]);
+                Assert.Equal(kernel.majorRevision, result.Values[2]);
+                Assert.Equal(kernel.minorRevision, result.Values[3]);
+            }
         }
     }
 }

@@ -93,6 +93,15 @@ namespace Context {
         path: Path;
     }
 
+    interface LinuxSystemInfo {
+        /** Kernel Version */
+        kernelVersion: number;
+        /** Kernel Major Revision */
+        kernelMajorRevision: number;
+        /** Kernel Minor Revision */
+        kernelMinorRevision: number;
+    }
+
     /**
      * Exposes information about the current host that is running the build.
      */
@@ -103,5 +112,7 @@ namespace Context {
         cpuArchitecture: "x64" | "x86";
         /** Wheter the current build is run with elevated permissions (admin/sudo) */
         isElevated: boolean;
+        /** If os is `unix` then this contains information about the OS. Else it is undefined. */
+        linuxSystemInfo?: LinuxSystemInfo;
     }
 }

@@ -1880,7 +1880,7 @@ namespace BuildXL.Engine
                                     Context.EngineCounters.AddToCounter(EngineCounter.ExitOnNewGraph, 1);
                                 }
 
-                                ValidateSuccessMatches(success, engineLoggingContext);
+                                ValidateFailureLoggedErrors(success, engineLoggingContext);
 
                                 var phase = Configuration.Engine.Phase;
 
@@ -1944,7 +1944,7 @@ namespace BuildXL.Engine
                                             rootFilter).ToArray(),
                                         Context.PathTable,
                                         m_tempCleaner);
-                                    ValidateSuccessMatches(success, engineLoggingContext);
+                                    ValidateFailureLoggedErrors(success, engineLoggingContext);
                                 }
 
                                 // Keep this as close to the Execute phase as possible
@@ -2006,7 +2006,7 @@ namespace BuildXL.Engine
                                         success &= engineSchedule.ExecuteScheduledPips(
                                             executePhaseLoggingContext,
                                             workerservice);
-                                        ValidateSuccessMatches(success, engineLoggingContext);
+                                        ValidateFailureLoggedErrors(success, engineLoggingContext);
                                     }
                                 }
 
@@ -2041,7 +2041,7 @@ namespace BuildXL.Engine
                                 success &= await postExecutionTasks;
                                 success &= await savingFileContentTableTask;
 
-                                ValidateSuccessMatches(success, engineLoggingContext);
+                                ValidateFailureLoggedErrors(success, engineLoggingContext);
 
                                 if (!savingFileContentTableTask.Result)
                                 {
@@ -2196,7 +2196,8 @@ namespace BuildXL.Engine
                 success = false;
             }
 
-            ValidateSuccessMatches(success, loggingContext);
+            ValidateFailureLoggedErrors(success, loggingContext);
+            ValidateSuccessLoggedNoErrors(success, loggingContext);
 
             return BuildXLEngineResult.Create(
                 success,
@@ -2253,7 +2254,7 @@ namespace BuildXL.Engine
             return translator;
         }
 
-        private void ValidateSuccessMatches(bool success, LoggingContext loggingContext)
+        private void ValidateFailureLoggedErrors(bool success, LoggingContext loggingContext)
         {
             // When cancellation is requested, an error is logged. But not all tasks are long running enough to
             // check the cancellation token. So a step may be successful even when an error is logged. Don't validate
@@ -2263,17 +2264,31 @@ namespace BuildXL.Engine
                 return;
             }
 
-            if (success)
+            if (!success)
+            {
+                Contract.Assert(loggingContext.ErrorWasLogged, "Error should have been logged for non-success");
+            }
+        }
+
+        /// <summary>
+        /// Validates that a successful run logged no errors.
+        /// </summary>
+        /// <remarks>
+        /// This should only be called at the end of a successful engine run. The check was previously made in
+        /// <see cref="ValidateFailureLoggedErrors(bool, LoggingContext)"/>, but the check in this method was removed
+        /// because some background operations, like initializing the cache or ebpf daemon, may log errors prior to
+        /// their result being checked. That can trigger intermediate checks to incorrectly fail. This can be put
+        /// off to the end since it is not hard to debug where an bad error message comes from.
+        /// </remarks>
+        private void ValidateSuccessLoggedNoErrors(bool success, LoggingContext loggingContext)
+        {
+            if (success && !Context.CancellationToken.IsCancellationRequested)
             {
                 if (loggingContext.ErrorWasLogged)
                 {
                     throw new BuildXLException("No error should be logged if status is success. " +
                         "Errors logged: " + string.Join(", ", loggingContext.ErrorsLoggedById.ToArray()));
                 }
-            }
-            else
-            {
-                Contract.Assert(loggingContext.ErrorWasLogged, "Error should have been logged for non-success");
             }
         }
 

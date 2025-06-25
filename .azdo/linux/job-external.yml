@@ -13,6 +13,10 @@ parameters:
   type: string
   default: '8.x'
 
+- name: preBuildSteps
+  type: stepList
+  default: []
+
 jobs:
 - template: job-build-selfhost-base.yml
   parameters:
@@ -38,6 +42,9 @@ jobs:
       "/f:tag='test'"
 
     preBuildSteps:
+    - ${{ each step in parameters.preBuildSteps }}:
+      - ${{ step }}
+
       # 1. Bootstrap external bits manually - note this is a pre-build step for the actual "build" (which is running tests) 
       # We temporarily disable the EBPFSandbox when building with the LKG, until we produce official bits that can run EBPF
     - bash: >

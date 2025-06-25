@@ -13,6 +13,10 @@ parameters:
   type: string
   default: '8.x'
 
+- name: preBuildSteps
+  type: stepList
+  default: []
+
 jobs:
 - template: job-build-selfhost-base.yml
   parameters:
@@ -20,6 +24,7 @@ jobs:
     internal: true
     pool: ${{ parameters.pool }}
     sdkVersion: ${{ parameters.sdkVersion }}
+    preBuildSteps: ${{ parameters.preBuildSteps }}
     
     outputs:
     - output: pipelineArtifact

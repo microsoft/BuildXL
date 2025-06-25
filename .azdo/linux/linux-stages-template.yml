@@ -39,26 +39,71 @@ parameters:
   default: []
 
 stages:
+# This stage must run under Ubuntu 22.04 or newer for compatibility reasons when building the eBPF Sandbox.
+- stage: Bootstrap_Internal_eBPF
+  displayName: Bootstrap eBPF Sandbox Internal
+  dependsOn: []
+  jobs:
+  # Build the eBPF Sandbox binaries first for the next step to consume.
+  - template: /.azdo/linux/job-ebpf.yml@self
+    parameters:
+      BxlCommonArgs: --shared-comp ${{ parameters.BxlCommonArgs }}
+      internal: true
+      outputArtifactName: 'ebpf-dev-internal'
+      sdkVersion: ${{ parameters.sdkVersion }}
+
+# This stage may run on an older version of Ubuntu such as 20.04
+# It's necessary for the interpose sandbox to be built on Ubuntu 20.04 to maintain compatibility with older versions of glibc.
 - stage: Bootstrap_Internal
   displayName: Bootstrap engine for validations
-  dependsOn: []
+  dependsOn: [Bootstrap_Internal_eBPF]
   jobs:
   # Build and test selfhost with BuildXL
   - template: /.azdo/linux/job-bootstrap.yml@self
     parameters:
-      BxlCommonArgs: --shared-comp ${{ parameters.BxlCommonArgs }}
-      pool: ${{ parameters.pool }}
+      # TODO: When this step moves off of Ubuntu 20.04 the /enableLinuxEBPFSandbox- flag can be removed.
+      BxlCommonArgs: --shared-comp /p:BuildXLEbpfSandboxDeploymentOverridePath=$(Build.StagingDirectory)/Linux.eBPF ${{ parameters.BxlCommonArgs }} /enableLinuxEBPFSandbox-
+      pool:
+        name: BuildXL-DevOpsAgents-Selfhost-BuildCache
+        image: linux-PME-GPT
+        os: linux
       sdkVersion: ${{ parameters.sdkVersion }}
+      preBuildSteps:
+      - task: DownloadPipelineArtifact@2
+        displayName: 'Download eBPF Sandbox binaries'
+        inputs:
+          artifactName: 'ebpf-dev-internal'
+          targetPath: "$(Build.StagingDirectory)/Linux.eBPF"
+
+- stage: Bootstrap_External_eBPF
+  displayName: Bootstrap eBPF Sandbox External
+  dependsOn: []
+  jobs:
+  # Build the eBPF Sandbox binaries first for the next step to consume.
+  - template: /.azdo/linux/job-ebpf.yml@self
+    parameters:
+      BxlCommonArgs: --shared-comp ${{ parameters.BxlCommonArgs }}
+      internal: false
+      outputArtifactName: 'ebpf-dev-external'
+      sdkVersion: ${{ parameters.sdkVersion }}
+
 
 - stage: Build_External
   displayName: External validation
-  dependsOn: []
+  dependsOn: [Bootstrap_External_eBPF]
   jobs:
     - template: /.azdo/linux/job-external.yml@self
       parameters:
-        BxlCommonArgs: --shared-comp ${{ parameters.BxlCommonArgs }}
+        # TODO: When this step moves off of Ubuntu 20.04 the /enableLinuxEBPFSandbox- flag can be removed.
+        BxlCommonArgs: --shared-comp /p:BuildXLEbpfSandboxDeploymentOverridePath=$(Build.StagingDirectory)/Linux.eBPF ${{ parameters.BxlCommonArgs }} /enableLinuxEBPFSandbox-
         pool: ${{ parameters.pool }}
         sdkVersion: ${{ parameters.sdkVersion }}
+        preBuildSteps:
+        - task: DownloadPipelineArtifact@2
+          displayName: 'Download eBPF Sandbox binaries'
+          inputs:
+            artifactName: 'ebpf-dev-external'
+            targetPath: "$(Build.StagingDirectory)/Linux.eBPF"
 
 - stage: Build_Internal
   displayName: Internal validation

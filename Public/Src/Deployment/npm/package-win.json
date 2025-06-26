@@ -16,6 +16,6 @@
         "start": "tsc --watch"
     },
     "publishConfig": {
-        "registry": "https://pkgs.dev.azure.com/mseng/Domino/_packaging/BuildXL/npm/registry/"
+        "registry": "https://1essharedassets.pkgs.visualstudio.com/_packaging/BuildXL/npm/registry/"
     }
 }

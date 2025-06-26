@@ -14,9 +14,13 @@ pipelines:
           lastModifiedDate: 2024-04-25
         psscriptanalyzer:
           lastModifiedDate: 2024-04-25
+        accessibilityinsights:
+          lastModifiedDate: 2025-05-02
       binary:
         binskim:
-          lastModifiedDate: 2024-02-29
+          lastModifiedDate: 2025-03-25
+        credscan:
+          lastModifiedDate: 2025-06-12
     usedNonDefaultBranch: true
   15756:
     cloudbuild:
@@ -41,11 +45,15 @@ pipelines:
           lastModifiedDate: 2024-03-26
         psscriptanalyzer:
           lastModifiedDate: 2024-03-26
+        accessibilityinsights:
+          lastModifiedDate: 2025-05-05
   17968:
     retail:
       binary:
         binskim:
-          lastModifiedDate: 2024-06-03
+          lastModifiedDate: 2025-03-25
+        credscan:
+          lastModifiedDate: 2025-06-13
       source:
         credscan:
           lastModifiedDate: 2024-06-03
@@ -53,6 +61,9 @@ pipelines:
           lastModifiedDate: 2024-06-03
         armory:
           lastModifiedDate: 2024-06-03
+        accessibilityinsights:
+          lastModifiedDate: 2025-04-30
+    usedNonDefaultBranch: true
   18620:
     retail:
       source:
@@ -79,7 +90,7 @@ pipelines:
         credscan:
           lastModifiedDate: 2024-08-23
         binskim:
-          lastModifiedDate: 2024-08-23
+          lastModifiedDate: 2025-05-02
         spotbugs:
           lastModifiedDate: 2024-08-23
   19095:
@@ -93,3 +104,88 @@ pipelines:
           lastModifiedDate: 2024-10-22
         armory:
           lastModifiedDate: 2024-10-22
+  20152:
+    retail:
+      source:
+        credscan:
+          lastModifiedDate: 2025-03-25
+        eslint:
+          lastModifiedDate: 2025-03-25
+        psscriptanalyzer:
+          lastModifiedDate: 2025-03-25
+        armory:
+          lastModifiedDate: 2025-03-25
+        accessibilityinsights:
+          lastModifiedDate: 2025-05-06
+  20105:
+    usedNonDefaultBranch: true
+    retail:
+      source:
+        credscan:
+          lastModifiedDate: 2025-03-25
+        eslint:
+          lastModifiedDate: 2025-03-25
+        armory:
+          lastModifiedDate: 2025-03-25
+        accessibilityinsights:
+          lastModifiedDate: 2025-05-08
+      binary:
+        binskim:
+          lastModifiedDate: 2025-03-25
+        credscan:
+          lastModifiedDate: 2025-06-12
+  19859:
+    retail:
+      source:
+        policheck:
+          lastModifiedDate: 2025-03-26
+        eslint:
+          lastModifiedDate: 2025-03-26
+        psscriptanalyzer:
+          lastModifiedDate: 2025-03-26
+        armory:
+          lastModifiedDate: 2025-03-26
+        accessibilityinsights:
+          lastModifiedDate: 2025-05-06
+        credscan:
+          lastModifiedDate: 2025-05-17
+  19615:
+    usedNonDefaultBranch: true
+    retail:
+      source:
+        credscan:
+          lastModifiedDate: 2025-03-26
+        eslint:
+          lastModifiedDate: 2025-03-26
+        armory:
+          lastModifiedDate: 2025-03-26
+        accessibilityinsights:
+          lastModifiedDate: 2025-05-05
+      binary:
+        binskim:
+          lastModifiedDate: 2025-03-26
+        credscan:
+          lastModifiedDate: 2025-06-12
+  13959:
+    retail:
+      source:
+        eslint:
+          lastModifiedDate: 2025-05-29
+        armory:
+          lastModifiedDate: 2025-05-29
+        accessibilityinsights:
+          lastModifiedDate: 2025-06-02
+  19875:
+    cloudbuild:
+      binskim:
+        lastModifiedDate: 2025-06-25
+      credscan:
+        lastModifiedDate: 2025-06-25
+    retail:
+      binary:
+        credscan:
+          lastModifiedDate: 2025-06-25
+        binskim:
+          lastModifiedDate: 2025-06-25
+        spotbugs:
+          lastModifiedDate: 2025-06-25

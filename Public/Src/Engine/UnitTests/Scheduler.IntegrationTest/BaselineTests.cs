@@ -1745,41 +1745,76 @@ namespace IntegrationTest.BuildXL.Scheduler
         /// <summary>
         /// This test to ensure that CredentialScanner detects the credentials when passed in environment variables and logs a warning in this case.
         /// Most of these test cases are an assumption of what the credentialscanner might or might not detect as a credential.
-        /// The test is disabled due to a couple of DFA's related to Office builds
         /// </summary>
-        [InlineData(false, "Cr3d5c@n_D3m0_P@55w0rd", "password", true)]
-        [InlineData(true, "Cr3d5c@n_D3m0_P@55w0rd", "password", true)]
         [InlineData(false, "src/checking/for/credentials/123/testing", "path", false)]
         [InlineData(true, null, "password", false)]
         [InlineData(false, "123", "id", false)]
         [Theory]
-        public void TestCredScan(bool isPassThrough, string envVarValue, string envVarKey, bool expectCredentialDetected)
+        public void TestCredScan(bool isPassThrough, string envVarValue, string envVarKey, bool expectCredentialDetected, bool setValueOnPip = true)
         {
             Configuration.FrontEnd.EnableCredScan = true;
             ResetPipGraphBuilder();
+            Environment.SetEnvironmentVariable(envVarKey, envVarValue);
             var ops = new Operation[]
             {
                 Operation.WriteFile(CreateOutputFileArtifact()),
+                // Echo out the environment variable value so the test can ensure it was visible to the process pip
+                Operation.ReadEnvVar(envVarKey),
             };
 
             // The value we pass to the pip builder for the given env var can be null, which means that it will be left unset and the environment will take effect
-            var builder = CreatePipBuilderWithEnvironment(ops, environmentVariables: new Dictionary<string, (string, bool)>() { [envVarKey] = (envVarValue, isPassThrough) });
+            var builder = CreatePipBuilderWithEnvironment(ops, environmentVariables: new Dictionary<string, (string, bool)>() { [envVarKey] = (setValueOnPip ? envVarValue : null, isPassThrough) });
             SchedulePipBuilder(builder);
+            Configuration.Sandbox.OutputReportingMode = OutputReportingMode.FullOutputAlways;
 
             // This event is logged when a credential is detected in the env variables.
             var result = expectCredentialDetected ? RunScheduler().AssertFailure() : RunScheduler().AssertSuccess();
-
+            
             // This event is logged when a credential is detected in the env variables.
             AssertErrorEventLogged(PipsTracingLogEventId.CredentialsDetectedInEnvVar, expectCredentialDetected ? 1 : 0);
             if (expectCredentialDetected)
             {
                 AssertLogContains(caseSensitive: true, [$"The following environment variables - '{envVarKey}' either need to be removed or made passthrough"]);
             }
-
+            else if (envVarValue != null)
+            {
+                // Verify that the process actuall saw the env var
+                AssertLogContains(caseSensitive: false, envVarValue);
+            }
         }
-#endif
 
-#if (MICROSOFT_INTERNAL && NETCOREAPP)
+        [Fact]
+        public void TestCredScanValidCredGetsFlagged()
+        {
+            TestCredScan(isPassThrough: false, envVarValue: GetExampleCredentialForTest(), envVarKey: "id", expectCredentialDetected: true);
+        }
+
+        /// <summary>
+        /// Retrieves an example PAT for testing
+        /// </summary>
+        private static string GetExampleCredentialForTest()
+        {
+            return new Microsoft.Security.Utilities.AzureDevOpsLegacyCommonAnnotatedSecurityKeyPat().GenerateTruePositiveExamples().First();
+        }
+
+        [Fact]
+        public void TestCredScanValidCredGetsFlaggedEvenAsPassthrough()
+        {
+            // Somewhat counterintuitively, variables are still flagged even when they are set as "PassThrough". There
+            // two notions of pass through:
+            // 1. the variables do not participate in caching
+            // 2. The variables do not participate in cache and they are not specified in the pip graph itself and are only
+            //    available if set externally in the environment. 
+            // Environment variables with secrets must fall into bucket 2, otherwise they would exist in the binary serialized pip graph files.
+            TestCredScan(isPassThrough: true, envVarValue: GetExampleCredentialForTest(), envVarKey: "id", expectCredentialDetected: true);
+        }
+
+        [Fact]
+        public void TestCredScanValidCredsAllowedWhenUnspecifiedInPip()
+        {
+            TestCredScan(isPassThrough: true, envVarValue: GetExampleCredentialForTest(), envVarKey: "id", expectCredentialDetected: false, setValueOnPip: false);
+        }
+
         /// <summary>
         /// /credScanEnvironmentVariablesAllowList flag allows the user to pass envVars which needs to be skipped by the CredScan library.
         /// This test used to test if that functionality is working or not.
@@ -1789,7 +1824,6 @@ namespace IntegrationTest.BuildXL.Scheduler
         public void TestCredScanWithAllowListEnvVars()
         {
             string envVarKey = "password";
-            string envVarValue = "Cr3d5c@n_D3m0_P@55w0rd";
             Configuration.FrontEnd.CredScanEnvironmentVariablesAllowList = new List<string>() { envVarKey };
             Configuration.FrontEnd.EnableCredScan = true;
             ResetPipGraphBuilder();
@@ -1798,7 +1832,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             {
               Operation.WriteFile(CreateOutputFileArtifact()),
             };
-            var builder = CreatePipBuilderWithEnvironment(ops, environmentVariables: new Dictionary<string, (string, bool)>() { [envVarKey] = (envVarValue, false) });
+            var builder = CreatePipBuilderWithEnvironment(ops, environmentVariables: new Dictionary<string, (string, bool)>() { [envVarKey] = (GetExampleCredentialForTest(), false) });
             SchedulePipBuilder(builder);
 
             RunScheduler().AssertSuccess();

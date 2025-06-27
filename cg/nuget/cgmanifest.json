@@ -644,15 +644,6 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "Microsoft.Automata.SRM",
-          "Version": "2.0.0-alpha3"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
           "Name": "Microsoft.Azure.Amqp",
           "Version": "2.6.1"
         }
@@ -1877,53 +1868,8 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "Microsoft.Security.CredScan.KnowledgeBase",
-          "Version": "2.3.8"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.Security.CredScan.KnowledgeBase.Client",
-          "Version": "2.3.8"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.Security.CredScan.KnowledgeBase.Ruleset",
-          "Version": "2.3.8"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.Security.CredScan.KnowledgeBase.SharedDomains",
-          "Version": "2.3.8"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.Security.RegularExpressions",
-          "Version": "2.3.8"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
           "Name": "Microsoft.Security.Utilities.Internal",
-          "Version": "1.9.1"
+          "Version": "1.19.0"
         }
       }
     },
@@ -2786,15 +2732,6 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "RE2.Managed",
-          "Version": "1.10.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
           "Name": "RocksDbNative",
           "Version": "8.1.1-20241011.2"
         }
@@ -2869,15 +2806,6 @@
         "NuGet": {
           "Name": "StreamJsonRpc",
           "Version": "2.8.28"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Strings.Interop",
-          "Version": "1.10.0"
         }
       }
     },

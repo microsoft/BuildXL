@@ -5,19 +5,15 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.ParallelAlgorithms;
-using BuildXL.Utilities.Tracing;
 using Logger = BuildXL.Pips.Tracing.Logger;
-using BuildXL.Utilities.Configuration;
 using BuildXL.Tracing;
 using BuildXL.Utilities.Collections;
 #if (MICROSOFT_INTERNAL && NETCOREAPP)
-using Microsoft.Security.CredScan.ClientLib;
-using Microsoft.Security.CredScan.KnowledgeBase.Client;
+using Microsoft.Security.Utilities;
 #endif
 
 namespace BuildXL.Pips.Builders
@@ -50,18 +46,25 @@ namespace BuildXL.Pips.Builders
         /// </summary>
         private readonly IReadOnlyList<string> m_credScanEnvironmentVariablesAllowList;
 
-        private readonly ICredentialScanner m_credScan;
+        private readonly SecretMasker m_secretMasker;
 
         /// <nodoc/>
         public CredentialScanner(PathTable pathTable, LoggingContext loggingContext, IReadOnlyList<string> credScanEnvironmentVariablesAllowList = null)
         {
             m_loggingContext = loggingContext;
             m_credScanEnvironmentVariablesAllowList = credScanEnvironmentVariablesAllowList;
-            m_credScanActionBlock = ActionBlockSlim.CreateWithAsyncAction<(string, string, Process)>(
+            m_credScanActionBlock = ActionBlockSlim.Create<(string, string, Process)>(
                       degreeOfParallelism: Environment.ProcessorCount,
-                      processItemAction: ScanForCredentialsAsync);
-            m_credScan = CredentialScannerFactory.Create();
+                      processItemAction: ScanForCredentials);
             m_renderer = new PipFragmentRenderer(pathTable);
+            m_secretMasker = new SecretMasker(WellKnownRegexPatterns.PreciselyClassifiedSecurityKeys,
+                              generateCorrelatingIds: true);
+
+            // The 1ES Secret scanning team tells us these are good patterns to add on top of the PreciselyClassifiedSecurityKeys
+            m_secretMasker.AddRegex(new LooseSasSecret());
+            m_secretMasker.AddRegex(new UrlCredentials());
+            m_secretMasker.AddRegex(new UnclassifiedJwt());
+            m_secretMasker.AddRegex(new Pkcs12CertificatePrivateKeyBundle());
         }
 
         /// <summary>
@@ -101,7 +104,7 @@ namespace BuildXL.Pips.Builders
         /// <summary>
         /// This method is used to scan env variables for credentials.
         /// </summary>
-        private async Task ScanForCredentialsAsync((string variable, string value, Process process) item)
+        private void ScanForCredentials((string variable, string value, Process process) item)
         {
             using (m_counters.StartStopwatch(CredScanCounter.ScanDuration))
             {
@@ -110,7 +113,7 @@ namespace BuildXL.Pips.Builders
                 // Converting the env variable into the below pattern.
                 // Ex: string input = "password = Cr3d5c@n_D3m0_P@55w0rd";
                 // The above example is one of the suggested patterns to represent the input string which is to be passed to the CredScan method.
-                var results = await m_credScan.ScanAsync($"{item.variable} = {item.value}");
+                var results = m_secretMasker.DetectSecrets($"{item.variable} = {item.value}");
                 if (results.Any())
                 {
                     m_envVarsWithCredentials.Add((item.variable, item.process));

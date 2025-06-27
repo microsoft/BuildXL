@@ -29,12 +29,7 @@ export const dll = BuildXLSdk.library({
         importFrom("BuildXL.Utilities").Utilities.Core.dll,
         importFrom("BuildXL.Utilities.Instrumentation").AriaCommon.dll,
         ...addIf(includeCredScan,
-            importFrom("Microsoft.Automata.SRM").pkg,
-            importFrom("Microsoft.ApplicationInsights").pkg,
-            importFrom("Microsoft.Security.RegularExpressions").pkg,
-            importFrom("Microsoft.Security.CredScan.KnowledgeBase").pkg,
-            importFrom("Microsoft.Security.CredScan.KnowledgeBase.Client").pkg,
-            importFrom("Microsoft.Security.CredScan.KnowledgeBase.Ruleset").pkg
+            importFrom("Microsoft.Security.Utilities.Internal").pkg
         ),
     ],
     runtimeReferences: includeCredScan ? [ importFrom("Crc32.NET").pkg ] : undefined,

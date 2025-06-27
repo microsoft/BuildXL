@@ -8,6 +8,8 @@ import * as LinuxSandboxTestProcess from "BuildXL.Sandbox.Linux.UnitTests";
 namespace Scheduler.IntegrationTest {
     export declare const qualifier : BuildXLSdk.DefaultQualifier;
 
+    const includeCredScan = BuildXLSdk.Flags.isMicrosoftInternal && BuildXLSdk.isDotNetCore;
+
     const testArgs : BuildXLSdk.TestArguments = {
         assemblyName: "IntegrationTest.BuildXL.Scheduler",
         sources: globR(d`.`, "*.cs"),
@@ -51,6 +53,9 @@ namespace Scheduler.IntegrationTest {
             importFrom("BuildXL.Utilities.UnitTests").StorageTestUtilities.dll,
             importFrom("Newtonsoft.Json").pkg,
             importFrom("BuildXL.FrontEnd").Sdk.dll,
+            ...addIf(includeCredScan,
+                importFrom("Microsoft.Security.Utilities.Internal").pkg
+            ),
         ],
         runtimeContent: [
             importFrom("BuildXL.Utilities.UnitTests").TestProcess.deploymentDefinition,

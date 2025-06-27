@@ -68,8 +68,6 @@ export function runConsoleTest(args: TestRunArguments): Result {
         untrackedScopes: [
             ...addIf(args.untrackTestDirectory === true, testDeployment.contents.root),
             ...((args.unsafeTestRunArguments && args.unsafeTestRunArguments.untrackedScopes) || []),
-            // Credscan libraries
-            d`${testDeployment.contents.root}/SRM` 
 
         ],
         untrackedPaths : (

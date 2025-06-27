@@ -2,6 +2,17 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20250622.1 (Release [30127819](https://dev.azure.com/mseng/Domino/_build/results?buildId=30127819&view=results))
+- Ubuntu 22.04 support for ebpf sandbox
+- Allow specifying timeout exit code for process retries
+- Fixes for worker attachment timeout
+- Prevent incompatible ReplaceOutputToWorkers and FireForgetMaterializeOutput configurations
+- Plumb through pip retry environment variable in Javascript builds
+- Skip log upload for workers that were not launched
+- Faster shutdown for workers that cannot connect to build session in ADO builds
+- Allow specifying surviving child processes with workflow SDK
+- Revert QTest version to address code coverage break (already hotfixed to CB)
+
 # 0.1.0-20250606.3 (Release [30054531](https://dev.azure.com/mseng/Domino/_build/results?buildId=30054531&view=results))
 -	Align process dumper with Windows Error Reporting recommended flags
 -	[EBPF] Reduce memory footprint for BPF maps

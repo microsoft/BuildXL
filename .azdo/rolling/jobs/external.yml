@@ -150,9 +150,61 @@ jobs:
         /p:xunitSemaphoreCount=16
         /scrubDirectory:$(Build.SourcesDirectory)\Out\Objects
 
+- job: Linux_External_eBPF
+  displayName: Linux External eBPF Build
+  timeoutInMinutes: 180
+  condition: and(succeeded(), ne(variables['ServicingOnlyBuild'], 'true'))
+  # This pool must be a Ubuntu 22.04 or newer to build eBPF Sandbox binaries.
+  pool:
+    name: BuildXL-DevOpsAgents-Selfhost-BuildCache
+    image: ubuntu-22.04-PME-GPT
+    os: linux
+  
+  templateContext:
+    sdl:
+      binskim:
+        preReleaseVersion: '' # Use old version of binskim for Linux builds, binskim 4.3.1 has issues running on Linux
+
+    outputs:
+    - output: pipelineArtifact
+      targetPath: $(Build.SourcesDirectory)/Out/Bin
+      artifactName: Linux-eBPF-External-Binaries
+      condition: always()
+      continueOnError: true
+      displayName: Upload eBPF binaries for validations to consume
+
+  steps:
+  - checkout: self
+    fetchDepth: 1
+    fetchTags: false
+
+  - template: ../steps/linux_prepare.yml
+    parameters:
+      CacheNamespace: BuildXL.Linux.External  # TODO - this is the extent of isolation with the internal build we're getting right now / work item #2143786
+
+  # TODO: Enable the /enableLinuxEBPFSandbox option once the eBPF sandbox is available on external LKGs.
+  - task: Bash@3
+    displayName: Build Linux eBPF Sandbox Binaries
+    inputs:
+      targetType: inline
+      script: >-
+        set -eu
+
+        bash bxl.sh --shared-comp
+        "/f:output='*/linux-x64/bxl-ebpf-runner'"
+        /q:ReleaseLinux
+        /q:DebugLinux
+        /cacheMiss:Bxl.Linux.External.eBPF.Rolling
+        /logoutput:FullOutputOnError
+        /logsDirectory:"Out/Logs/Build"
+        /p:[BuildXL.Branding]SourceIdentification=$(Branding_SourceIdentification)
+        /p:[Sdk.BuildXL]microsoftInternal=0
+      workingDirectory: /home/subst
+
 - job: Linux_External
   displayName: Linux External Build
   timeoutInMinutes: 180
+  dependsOn: [Linux_External_eBPF]
   condition: and(succeeded(), ne(variables['ServicingOnlyBuild'], 'true'))
   pool:
     name: BuildXL-DevOpsAgents-Selfhost-BuildCache
@@ -194,6 +246,13 @@ jobs:
     parameters:
       CacheNamespace: BuildXL.Linux.External  # TODO - this is the extent of isolation with the internal build we're getting right now / work item #2143786
 
+  - task: DownloadPipelineArtifact@2
+    displayName: 'Download eBPF Sandbox binaries'
+    inputs:
+      artifactName: 'Linux-eBPF-External-Binaries'
+      targetPath: "$(Build.StagingDirectory)/Linux.eBPF"
+
+  # TODO: Enable the /enableLinuxEBPFSandbox option once the eBPF sandbox is available on external LKGs.
   - task: Bash@3
     displayName: Build LKG
     inputs:
@@ -202,11 +261,13 @@ jobs:
         set -eu
 
         bash bxl.sh --shared-comp --minimal --deploy-dev --release
+        /p:BuildXLEbpfSandboxDeploymentOverridePath=$(Build.StagingDirectory)/Linux.eBPF
         /cacheMiss:Bxl.Selfhost.Linux.External
         /logoutput:FullOutputOnError
         /logsDirectory:"Out/Logs/Build"
       workingDirectory: /home/subst
-  
+
+  # TODO: Enable the /enableLinuxEBPFSandbox option once the eBPF sandbox is available on external LKGs.
   - task: Bash@3
     displayName: Build Packages with LKG
     inputs:
@@ -215,6 +276,7 @@ jobs:
         set -eu
 
         bash bxl.sh --use-dev --shared-comp
+        /p:BuildXLEbpfSandboxDeploymentOverridePath=$(Build.StagingDirectory)/Linux.eBPF
         /cacheMiss:Bxl.Linux.External.Rolling
         /logoutput:FullOutputOnError
         /logsDirectory:"Out/Logs/Build"

@@ -544,10 +544,12 @@ if [ -e "$ebpfRunner" ]; then
         print_info "Setting capabilities for the ebpf runner. This may require an interactive prompt"
         sudo setcap 'cap_sys_admin,cap_dac_override=ep' $ebpfRunner
     fi
+fi
 
-    if [[ -n "$arg_DeployDev" ]]; then
-        deployBxl "$MY_DIR/Out/Bin/${outputConfiguration}/${DeploymentFolder}" "$MY_DIR/Out/Selfhost/Dev"
+if [[ -n "$arg_DeployDev" ]]; then
+    deployBxl "$MY_DIR/Out/Bin/${outputConfiguration}/${DeploymentFolder}" "$MY_DIR/Out/Selfhost/Dev"
 
+    if [ -e "$ebpfRunner" ]; then
         deployedEbpfRunner="$MY_DIR/Out/Selfhost/Dev/bxl-ebpf-runner"
 
         if getcap $deployedEbpfRunner | grep -q 'cap_sys_admin,cap_dac_override=ep'; then

@@ -262,6 +262,14 @@ function setBxlCmdArgs {
         )
     fi
 
+    # Set kernel version
+    MAJOR_KERNEL_VERSION=$(uname -r | cut -d'.' -f1)
+    MINOR_KERNEL_VERSION=$(uname -r | cut -d'.' -f2)
+    g_bxlCmdArgs+=(
+        "/p:MAJOR_KERNEL_VERSION=$MAJOR_KERNEL_VERSION"
+        "/p:MINOR_KERNEL_VERSION=$MINOR_KERNEL_VERSION"
+    )
+
     # all other user-specified args
     g_bxlCmdArgs+=(
        "$@"

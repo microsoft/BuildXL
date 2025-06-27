@@ -6,12 +6,14 @@
  */
 #include <chrono>
 #include <errno.h>
+#include <linux/version.h>
 #include <signal.h>
 #include <stdio.h>
 #include <string.h>
 #include <string>
 #include <sys/mman.h>
 #include <sys/resource.h>
+#include <sys/utsname.h>
 #include <sys/wait.h>
 #include <unistd.h>
 #include <thread>
@@ -1135,6 +1137,39 @@ int Start(sandbox_bpf *skel, char **argv) {
     return g_exit_code;
 }
 
+int SetAutoLoad(struct sandbox_bpf *skel) {
+    // Get the Linux kernel major, minor, and patch version numbers.
+    struct utsname uts;
+    if (uname(&uts) < 0) {
+        LogError("Failed to get kernel version: %s\n", strerror(errno));
+        return -1;
+    }
+
+    char *ptr = uts.release;
+    int versions[3] = {0};
+    for (int i = 0; i < 3 && ptr != NULL;) {
+        if (isdigit(*ptr) != 0) {
+            versions[i] = strtol(ptr, &ptr, 10);
+            i++;
+        }
+        else {
+            ptr++;
+        }
+    }
+
+    int currentVersion = KERNEL_VERSION(versions[0], versions[1], versions[2]);
+    if (currentVersion < KERNEL_VERSION(6, 8, 0)) {
+        // Enable auto loading for programs that are used on older kernels
+        bpf_program__set_autoload(skel->progs.step_into_exit, true);
+    }
+    else {
+        // Enable auto loading for programs that are used on newer kernels
+        bpf_program__set_autoload(skel->progs.pick_link_exit, true);
+    }
+
+    return 0;
+}
+
 // Main function for the sandbox runner.
 int main(int argc, char **argv) {
     struct sandbox_bpf *skel;
@@ -1153,6 +1188,13 @@ int main(int argc, char **argv) {
     skel = sandbox_bpf::open();
     if (!skel) {
         LogError("Failed to open BPF skeleton\n");
+        return 1;
+    }
+
+    // Autoload must be set after calling open and before loading the BPF skeleton.
+    if (SetAutoLoad(skel) != 0) {
+        LogError("Failed to set auto load for BPF programs\n");
+        Cleanup(skel);
         return 1;
     }
 

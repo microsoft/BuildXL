@@ -976,8 +976,6 @@ SubFolder/symlink -> ../../{inputDirName}/";
                         "+ second_root/sym-dir",
                         "+ second_root/target/file"
                     }),
-                    // With EBPF we also observe a probe on the symlink itself
-                    .. UsingEBPFSandbox ? ["+ second_root/sym-dir/file"] : Array.Empty<string>(),
                  ]);
 
             var files = CreateLayoutOnDisk(rootDir, testDirectoryLayout);

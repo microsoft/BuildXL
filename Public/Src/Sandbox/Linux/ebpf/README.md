@@ -9,6 +9,8 @@
 - `SEC(?...s/...)` convention indicates that this program is sleepable. While it doesn't mean that the bpf program itself will sleep, it allows us to call sleepable helpers such as `bpf_copy_from_user`.
     - To find out whether a program is sleepable, refer to the table on the [Program Types](https://docs.kernel.org/bpf/libbpf/program_types.html) documentation
 - Using tracepoint programs requires `CAP_DAC_OVERRIDE` to be set or to be run as root so that it can read from `/sys/kernel`.
+- Find whether the current kernel supports tracing a specific function (ie: the function has BTF type information): `bpftool btf dump file /sys/kernel/btf/vmlinux format raw | grep <function name>`
+    - Example output if the function has BTF type information: `[130644] FUNC 'pick_link' type_id=130643 linkage=static`
 
 ## Verifier tips
 - The verifier is pretty strict when it comes to accessing arrays. General tips:

@@ -4,10 +4,15 @@
 #ifndef __PUBLIC_SRC_SANDBOX_LINUX_EBPF_EBPFUTILITIES_H
 #define __PUBLIC_SRC_SANDBOX_LINUX_EBPF_EBPFUTILITIES_H
 
+#include "bpf/bpf_helpers.h"
+
 #include "vmlinux.h"
 #include "kernelconstants.h"
 #include "ebpfstringutilities.h"
 #include "ebpfcommon.h"
+
+extern int LINUX_KERNEL_VERSION __kconfig;
+
 /*
  * Map containing currently active process id -> runner pid. Root process id is pre-populated by the userspace.
  * Observe these pids are the ones corresponding to the root namespace. So the assumption is that
@@ -208,6 +213,119 @@ struct
     __uint(max_entries, 1);
 } derefpaths SEC(".maps");
 
+/**
+ * Body of the loop used in deref_path_info.
+ * This is used instead of defining it directly in the function because depending on the current kernel version
+ * different types of loops must be used.
+ * 
+ * Returns 0 if the loop should continue, 1 if it should return, and 2 if it should break.
+ * If the return value is set to 1 then the return code is set in the returncode variable.
+ */
+__attribute__((always_inline)) static inline int deref_paths_info_loop(
+    unsigned int i,
+    int *returncode,
+    const void **dentry,
+    const void **newdentry,
+    const void *vfsmount,
+    const void **mnt,
+    char **dname,
+    char *temp,
+    int *dlen,
+    int *dlen2,
+    unsigned int *psize,
+    uint32_t *ptsize)
+{
+    *dname = (char *)BPF_CORE_READ((struct dentry *)*dentry, d_name.name);
+
+    if (!*dname)
+    {
+        // If we didn't have a mount set, this means we reach the root of the filesystem
+        if (vfsmount == NULL)
+        {
+            return 2; // break
+        }
+
+        *returncode = 0;
+        return 1; // return
+    }
+    // store this dentry name in start of second half of our temporary storage
+    *dlen = bpf_core_read_str(&temp[PATH_MAX], PATH_MAX, *dname);
+
+    // get parent dentry
+    *newdentry = (char *)BPF_CORE_READ((struct dentry *)*dentry, d_parent);
+    
+    // Check if the retrieved dname is just a '/'. In that case, we just want to skip it.
+    // We will consistently add separators in between afterwards, so we don't want a double slash
+    if (!(temp[PATH_MAX] == '/' && *dlen == 2))
+    {
+        // NOTE: We copy the value of these variables to local variables and then back to the original pointers
+        // because the asm code we execute below failed to compile when using the pointers directly.
+        int size = *psize;
+        int tsize = *ptsize;
+
+        // copy the temporary copy to the first half of our temporary storage, building it backwards from the middle of
+        // it
+        *dlen2 = bpf_core_read_str(&temp[(PATH_MAX - size - *dlen) & (PATH_MAX - 1)], *dlen & (PATH_MAX - 1), &temp[PATH_MAX]);
+        // check if current dentry name is valid
+        if (*dlen2 <= 0 || *dlen <= 0 || *dlen >= PATH_MAX || size + *dlen > PATH_MAX)
+        {
+            *returncode = 0;
+            return 1; // return
+        }
+
+        if (size > 0)
+        {
+            asm volatile("%[tsize] = " XSTR(PATH_MAX) "\n"
+                        "%[tsize] -= %[size]\n"
+                        "%[tsize] -= 1\n"
+                        "%[tsize] &= " XSTR(PATH_MAX - 1) "\n"
+                        : [size] "+&r"(size), [tsize] "+&r"(tsize)
+                        );
+
+            temp[tsize & (PATH_MAX - 1)] = '/';
+        }
+
+        size = (size + *dlen2) &
+            (PATH_MAX - 1); // by restricting size to PATH_MAX we help the verifier keep the complexity
+                            // low enough so that it can analyse the loop without hitting the 1M ceiling
+
+        // Copy back modifications to size and tsize
+        *psize = size;
+        *ptsize = tsize;
+    }
+
+    // check if this is the root of the filesystem or we reach the given mountpoint
+    // We always prefer the mountpoint instead of continuing walking up the chain so we honor what the application context
+    // is trying to do wrt path lookups
+    if (!*newdentry || *dentry == *newdentry || *newdentry == BPF_CORE_READ((struct vfsmount *)vfsmount, mnt_root))
+    {
+        // check if we're on a mounted partition
+        // find mount struct from vfsmount
+        const void *parent = BPF_CORE_READ((struct mount *)*mnt, mnt_parent);
+
+        // check if we're at the real root
+        if (parent == *mnt)
+        {
+            return 2; // break
+        }
+
+        // move to mount point
+        *newdentry = BPF_CORE_READ((struct mount *)*mnt, mnt_mountpoint);
+        *mnt = parent;
+
+        // another check for real root
+        if (*dentry == *newdentry)
+        {
+            return 2; // break
+        }
+    }
+
+    // go up one directory
+    *dentry = *newdentry;
+
+    return 0; // continue
+}
+
 // Returns a string representation of the content of a struct path (dentry and vfsmount being its two components)
 __attribute__((always_inline)) static inline uint32_t deref_path_info(char *dest, const void *dentry, const void *vfsmount)
 {
@@ -234,87 +352,74 @@ __attribute__((always_inline)) static inline uint32_t deref_path_info(char *dest
         return 0;
     }
  
-    for (i = 0; i < FILEPATH_NUMDIRS; i++)
+    int returncode = 0;
+    if (LINUX_KERNEL_VERSION >= KERNEL_VERSION(6, 8, 0))
     {
-        dname = (char *)BPF_CORE_READ((struct dentry *)dentry, d_name.name);
-        
-        if (!dname)
+        // Newer kernels hit the instruction limit when using bpf_for, so we use a regular for loop
+        // to avoid hitting the limit.
+        for (i = 0; i < FILEPATH_NUMDIRS; i++)
         {
-            // If we didn't have a mount set, this means we reach the root of the filesystem
-            if (vfsmount == NULL)
+            int loopexit = deref_paths_info_loop(
+                i,
+                &returncode,
+                &dentry,
+                &newdentry,
+                vfsmount,
+                &mnt,
+                &dname,
+                temp,
+                &dlen,
+                &dlen2,
+                &size,
+                &tsize);
+
+            // loopexit can be:
+            // 0: continue the loop
+            // 1: return with the exit code set in returncode
+            // 2: break
+            if (loopexit == 1)
             {
-                break;
+                return returncode;
             }
-
-            return 0;
-        }
-        // store this dentry name in start of second half of our temporary storage
-        dlen = bpf_core_read_str(&temp[PATH_MAX], PATH_MAX, dname);
- 
-        // get parent dentry
-        newdentry = (char *)BPF_CORE_READ((struct dentry *)dentry, d_parent);
-        
-        // Check if the retrieved dname is just a '/'. In that case, we just want to skip it.
-        // We will consistently add separators in between afterwards, so we don't want a double slash
-        if (!(temp[PATH_MAX] == '/' && dlen == 2))
-        {
-            
-            // copy the temporary copy to the first half of our temporary storage, building it backwards from the middle of
-            // it
-            dlen2 = bpf_core_read_str(&temp[(PATH_MAX - size - dlen) & (PATH_MAX - 1)], dlen & (PATH_MAX - 1), &temp[PATH_MAX]);
-            // check if current dentry name is valid
-            if (dlen2 <= 0 || dlen <= 0 || dlen >= PATH_MAX || size + dlen > PATH_MAX)
-            {
-                return 0;
-            }
-
-            if (size > 0)
-            {
-                asm volatile("%[tsize] = " XSTR(PATH_MAX) "\n"
-                            "%[tsize] -= %[size]\n"
-                            "%[tsize] -= 1\n"
-                            "%[tsize] &= " XSTR(PATH_MAX - 1) "\n"
-                            : [size] "+&r"(size), [tsize] "+&r"(tsize)
-                            );
-    
-                temp[tsize & (PATH_MAX - 1)] = '/';
-            }
-
-            size = (size + dlen2) &
-                (PATH_MAX - 1);  // by restricting size to PATH_MAX we help the verifier keep the complexity
-                                    // low enough so that it can analyse the loop without hitting the 1M ceiling
-        }
-
-        // check if this is the root of the filesystem or we reach the given mountpoint
-        // We always prefer the mountpoint instead of continuing walking up the chain so we honor what the application context
-        // is trying to do wrt path lookups
-        if (!newdentry || dentry == newdentry || newdentry == BPF_CORE_READ((struct vfsmount *)vfsmount, mnt_root))
-        {
-            // check if we're on a mounted partition
-            // find mount struct from vfsmount
-            const void *parent = BPF_CORE_READ((struct mount *)mnt, mnt_parent);
- 
-            // check if we're at the real root
-            if (parent == mnt)
-            {
-                break;
-            }
-
-            // move to mount point
-            newdentry = BPF_CORE_READ((struct mount *)mnt, mnt_mountpoint);
-            mnt = parent;
- 
-            // another check for real root
-            if (dentry == newdentry)
+            else if (loopexit == 2)
             {
                 break;
             }
         }
-
-        // go up one directory
-        dentry = newdentry;
     }
- 
+    else
+    {
+        bpf_for(i, 0, FILEPATH_NUMDIRS)
+        {
+            int loopexit = deref_paths_info_loop(
+                i,
+                &returncode,
+                &dentry,
+                &newdentry,
+                vfsmount,
+                &mnt,
+                &dname,
+                temp,
+                &dlen,
+                &dlen2,
+                &size,
+                &tsize);
+
+            // loopexit can be:
+            // 0: continue the loop
+            // 1: return with the exit code set in returncode
+            // 2: break
+            if (loopexit == 1)
+            {
+                return returncode;
+            }
+            else if (loopexit == 2)
+            {
+                break;
+            }
+        }
+    }
+    
     // check if we exhausted the number of directories we can traverse
     if (i == FILEPATH_NUMDIRS)
     {

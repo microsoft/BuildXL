@@ -27,10 +27,10 @@ namespace Test.BuildXL.Processes
         [Fact]
         public void ValidateEBPFLoader()
         {
-            if (OperatingSystemHelperExtension.GetLinuxDistribution()?.Equals(new LinuxDistribution("ubuntu", new Version("24.04"))) != true)
+            if (OperatingSystemHelperExtension.GetLinuxDistribution()?.Equals(new LinuxDistribution("ubuntu", new Version("20.04"))) == true)
             {
-                // This test is only valid for Ubuntu 24.04, as it is the first version to support EBPF sandboxing.
-                // TODO: Remove this check once we support EBPF sandboxing on other distributions.
+                // This test is valid for all supported Linux distributions supported by BuildXL except for Ubuntu 20.04.
+                // TODO: Remove this check once support for Ubuntu 20.04 is dropped.
                 return;
             }
 
@@ -80,7 +80,8 @@ namespace Test.BuildXL.Processes
             string sandboxMessages = string.Join(Environment.NewLine, m_eventListener.GetLog());
             XAssert.Contains(sandboxMessages, "Unconditionally loading EBPF programs");
             // Validate specified concurrency properly reached the daemon 
-            XAssert.Contains(sandboxMessages, $"Concurrency was originally requested to be '{maxConcurrency}'");
+            XAssert.IsTrue(sandboxMessages.Contains($"Concurrency was originally requested to be '{maxConcurrency}'")
+                || sandboxMessages.Contains($"EBPF map sizes set to '{maxConcurrency}'"));
         }
     }
 }

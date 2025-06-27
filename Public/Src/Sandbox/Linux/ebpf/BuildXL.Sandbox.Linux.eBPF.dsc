@@ -10,6 +10,12 @@ namespace eBPFSandbox {
         targetRuntime: "linux-x64"
     };
 
+    // Kernel 6.6+ is required to build the eBPF sandbox.
+    // TODO: The inbox dscript SDK has support for this, remove this once the dscript SDK is updated.
+    const hostSupportsBuildingEBPF = Context.getCurrentHost().os === "unix"
+        && (Environment.hasVariable("MAJOR_KERNEL_VERSION") && Environment.getNumberValue("MAJOR_KERNEL_VERSION") >= 6)
+        && (Environment.hasVariable("MINOR_KERNEL_VERSION") && Environment.getNumberValue("MINOR_KERNEL_VERSION") >= 6);
+
     const bpfTool : Transformer.ToolDefinition = {
         exe: importFrom("bpftool").extracted.assertExistence(r`bpftool`),
         dependsOnCurrentHostOSDirectories: true
@@ -214,10 +220,13 @@ namespace eBPFSandbox {
     // Build final sandbox binary
     // CODESYNC Public/Src/Engine/Processes/SandboxConnectionLinuxEBPF.cs
     @@public
-    export const sandbox = Native.Linux.Compilers.link({
-        outputName: a`bxl-ebpf-runner`, 
-        tool: Native.Linux.Compilers.gxxTool,
-        objectFiles: [...utilsObj, ...commonObj, ...sandboxObj, libbpfa],
-        libraries: [ "rt", "dl", "pthread", "m", "elf", "z" ]
-    });
+    export const sandbox = hostSupportsBuildingEBPF
+    ?
+        Native.Linux.Compilers.link({
+            outputName: a`bxl-ebpf-runner`,
+            tool: Native.Linux.Compilers.gxxTool,
+            objectFiles: [...utilsObj, ...commonObj, ...sandboxObj, libbpfa],
+            libraries: [ "rt", "dl", "pthread", "m", "elf", "z" ]
+        })
+    : undefined;
 }

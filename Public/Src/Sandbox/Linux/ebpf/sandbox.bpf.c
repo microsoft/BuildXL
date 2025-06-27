@@ -12,6 +12,7 @@
 #include "ebpfcommon.h"
 #include "ebpfutilities.h"
 #include "eventcache.h"
+#include "kernelfunctions.h"
 
 char LICENSE[] SEC("license") = "Dual MIT/GPL";
 
@@ -1248,10 +1249,74 @@ int BPF_PROG(do_readlink_exit, int dfd, const char *pathname, char *buf, int buf
 }
 
 /**
- * pick_link_exit() - symlink traversal
+ * step_into_exit() - symlink traversal
  * we cannot use security_inode_follow_link because it only takes a dentry and we are missing the mount
+ * To traverse the symlink, step_into() will call pick_link().
+ * This tracepoint is triggered potentially after pick_link() has already been called.
+ * In some cases pick_link() is skipped if the dentry is not a symlink.
+ * 
+ * NOTE: Used for kernels older than 6.8, where pick_link() does not have BTF type information.
+ *  Autoattach is disabled, user side must attach it manually.
  */
-SEC("fexit/pick_link")
+SEC("?fexit/step_into")
+int BPF_PROG(step_into_exit, struct nameidata *nd, int flags,
+		     struct dentry *dentry, char *ret)
+{
+    pid_t pid = bpf_get_current_pid_tgid() >> 32;
+    pid_t runner_pid;
+    if (!is_valid_pid(pid, &runner_pid)) {
+        return 0;
+    }
+
+    // We don't care about tracing this if it fails. Probes should be caught by lookupat
+    // CODESYNC: https://github.com/torvalds/linux/blob/02adc1490e6d8681cc81057ed86d123d0240909b/fs/namei.c#L1971
+    // The exit conditions here are based on whether step_into() will call into pick_link() or not.
+    // We want to ignore any branches that don't call into pick_link() because they represent intermediate
+    // calls that are not symlinks.
+    // This is done because kernels older than 6.8 do not provide BTF type information for pick_link(),
+    // so we can't hook into it directly.
+    // TODO: this function releases the dentry at the end (?), not sure if it's possible that it's invalid here
+    bool skip_step_into_not_symlink = 
+        !d_is_symlink(dentry)
+        || ((flags & WALK_TRAILING) && !(BPF_CORE_READ(nd, flags) & LOOKUP_FOLLOW))
+        || (flags & WALK_NOFOLLOW)
+        // Paths with no final component return NULL when pick_link() is called
+        // https://github.com/torvalds/linux/blob/02adc1490e6d8681cc81057ed86d123d0240909b/Documentation/filesystems/path-lookup.rst#symlinks-with-no-final-component
+        || ret == NULL;
+
+    if (skip_step_into_not_symlink || IS_ERR(ret))
+    {
+        return 0;
+    }
+
+    char* temp_path = bpf_map_lookup_elem(&tmp_paths, &ZERO);
+    if (!temp_path)
+    {
+        return 0;
+    }
+
+    unsigned int path_length = nameidata_to_string(temp_path, nd) & (PATH_MAX - 1);
+    struct path link = BPF_CORE_READ(nd, path);
+
+    RESERVE_SUBMIT_FILE_ACCESS_WITH_CACHE(kGenericRead, &link, path_length, runner_pid,
+        metadata->kernel_function = KERNEL_FUNCTION(pick_link_enter);
+        metadata->pid = pid;
+        metadata->operation_type = kGenericRead;
+        metadata->mode = get_mode_from_path(&link);
+        WRITE_SRC_PATH(temp_path);
+    )
+
+    return 0;
+}
+
+/**
+ * pick_link_exit() - symlink traversal
+ * we cannot use security_inode_follow_link because it only takes a dentry and we are missing the mount.
+ * 
+ * NOTE: Used for kernels 6.8 and newer, where pick_link() has BTF type information.
+ *  Autoattach is disabled, user side must attach it manually.
+ */
+SEC("?fexit/pick_link")
 int BPF_PROG(pick_link_exit, struct nameidata *nd, struct path *link,
     struct inode *inode, int flags, char * ret)
 {

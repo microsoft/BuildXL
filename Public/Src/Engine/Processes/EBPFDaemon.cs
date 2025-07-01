@@ -123,7 +123,11 @@ namespace BuildXL.Processes
             var fileAccessManifest = new FileAccessManifest(pathTable)
             {
                 FailUnexpectedFileAccesses = false,
+#if DEBUG
                 ReportFileAccesses = true,
+#else
+                ReportFileAccesses = false,
+#endif
                 MonitorChildProcesses = true,
             };
 

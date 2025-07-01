@@ -372,6 +372,18 @@ namespace BuildXL.Processes.Tracing
             string message);
 
         [GeneratedEvent(
+            (int)LogEventId.LogSandboxInfoMessage,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = "[Pip{pipSemiStableHash:X16}] {message}")]
+        public abstract void LogSandboxInfoMessage(
+            LoggingContext context,
+            long pipSemiStableHash,
+            string message);
+
+        [GeneratedEvent(
             (int)LogEventId.FindAnyBuildClient,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,

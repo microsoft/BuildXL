@@ -12,13 +12,16 @@ namespace BuildXL.Processes
     public enum SandboxInfraSeverity
     {
         /// <nodoc />
-        Info = 0,
+        Debug = 0,
+
+        /// <nodoc />
+        Info = 1,
         
         /// <nodoc />
-        Warning = 1,
+        Warning = 2,
         
         /// <nodoc />
-        Error = 2,
+        Error = 3,
     }
 
     /// <summary>

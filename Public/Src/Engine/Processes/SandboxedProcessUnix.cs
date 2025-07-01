@@ -726,8 +726,11 @@ namespace BuildXL.Processes
                         case SandboxInfraSeverity.Warning:
                             Logger.Log.SandboxErrorMessage(m_loggingContext, m_reports.PipDescription, report.Data);
                             break;
-                        case SandboxInfraSeverity.Info:
+                        case SandboxInfraSeverity.Debug:
                             LogDebug(report.Data);
+                            break;
+                        case SandboxInfraSeverity.Info:
+                            Tracing.Logger.Log.LogSandboxInfoMessage(m_loggingContext, m_reports.PipSemiStableHash, report.Data);
                             break;
                     }
 

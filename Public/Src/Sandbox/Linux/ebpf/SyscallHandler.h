@@ -9,6 +9,7 @@
 #include "bxl_observer.hpp"
 #include "SandboxEvent.h"
 #include <semaphore.h>
+#include <atomic>
 
 #define MAKE_HANDLER_FN_NAME(syscallName) Handle##syscallName
 #define MAKE_HANDLER_FN_DEF(syscallName) void MAKE_HANDLER_FN_NAME(syscallName) (BxlObserver *bxl, ebpf_event *event)
@@ -19,7 +20,8 @@ namespace ebpf {
 
 class SyscallHandler {
 public:
-    SyscallHandler(BxlObserver* bxl, pid_t root_pid, const char* root_filename);
+    // ring_buffer_min_available_space is periodically updated by the ring buffer monitoring thread in the runner
+    SyscallHandler(BxlObserver* bxl, pid_t root_pid, const char* root_filename, std::atomic<size_t>* ring_buffer_min_available_space);
     ~SyscallHandler();
     bool HandleSingleEvent(const ebpf_event *event);
     bool HandleDoubleEvent(const ebpf_event_double *event);
@@ -53,6 +55,9 @@ private:
     static void ReportFirstAllowWriteCheck(BxlObserver *bxl, operation_type operation_type, const char *path, mode_t mode, pid_t pid);
     static bool TryCreateFirstAllowWriteCheck(BxlObserver *bxl, operation_type operation_type, const char *path, mode_t mode, pid_t pid, SandboxEvent &event);
     static void SendInitForkEvent(BxlObserver *bxl, pid_t pid, pid_t ppid, const char *file);
+    // Sends the ring buffer minimum available space throughout the runner execution.
+    // Heads up this should be sent before the runner exit event, otherwise the managed side may not be able to read it.
+    void SendRingBufferStats();
     void RemovePid(pid_t pid);
 
     std::unordered_set<pid_t> m_activePids;
@@ -61,6 +66,7 @@ private:
     BxlObserver *m_bxl;
     bool m_runnerExitSent;
     const char* m_root_filename;
+    std::atomic<size_t>* m_ring_buffer_min_available_space;
 };
 
 } // ebpf

@@ -33,6 +33,7 @@
 #include "bxl_observer.hpp"
 #include "SPSCQueue.h"
 #include "SyscallHandler.h"
+#include <atomic>
 
 // Max size for the name of a bpf program
 #define MAX_PROG_FULL_NAME 128
@@ -56,7 +57,11 @@ int g_debug_buffer_per_pip_fd, g_breakaway_processes_map_fd, g_event_cache_per_p
 sem_t g_root_process_populated_semaphore;
 bool g_ebpf_already_loaded, g_ebpf_should_force_ebpf_loading = false;
 buildxl::common::SPSCQueue<ebpf_event *> g_event_queue;
-pthread_t g_event_queue_thread;
+pthread_t g_event_queue_thread, g_ring_buffer_monitoring_thread;
+// The minimum available space in the ring buffer for the given runner is sent right after the runner exit event.
+// Make this atomic to avoid torn reads/writes when multiple threads are accessing it. We don't really care about ordering (this is just sampling the ring buffer space),
+// so we use relaxed memory order.
+std::atomic<size_t> g_ring_buffer_min_available_space = -1;
 
 /**
  * Forward messages emitted by libbpf to BuildXL.
@@ -455,7 +460,7 @@ int RunRootProcess(const char *file, char *const argv[], char *const envp[]) {
     }
     else  {
         g_root_pid = pid;
-        g_syscallHandler = new buildxl::linux::ebpf::SyscallHandler(g_bxl, g_root_pid, file);
+        g_syscallHandler = new buildxl::linux::ebpf::SyscallHandler(g_bxl, g_root_pid, file, &g_ring_buffer_min_available_space);
         // Signal that the root pid is already populated
         sem_post(&g_root_process_populated_semaphore);
 
@@ -591,7 +596,13 @@ void *WaitForProcessTreeToExit(void *argv) {
     // and signal the user side draining queue to stop processing events.
     FlushRingBufferAndSignalQueue();
 
+    // The monitoring thread may be sleeping. Just cancel it, no need for graceful termination.
+    pthread_cancel(g_ring_buffer_monitoring_thread);
+
     g_stop = 1;
+
+    // Just making sure the thread was properly released
+    pthread_join(g_ring_buffer_monitoring_thread, NULL);
 
     return NULL;
 }
@@ -988,6 +999,26 @@ void DeletePerPipMaps(sandbox_bpf *skel, pid_t runner_pid) {
     DeletePerPipMap(g_sandbox_options_per_pip_map_fd, runner_pid, "sandbox options");
 }
 
+// Checks the file access ring buffer available space every second and updates the minimum available space.
+void *RingBufferMonitorThread(void *arg) {
+    while (!g_stop) {
+        // Poll the ring buffer available space 
+        // (ring__avail_data_size returns the number of bytes not yet consumed - the opposite of the available space)
+        size_t availability = FILE_ACCESS_RINGBUFFER_SIZE - ring__avail_data_size(ring_buffer__ring(g_file_access_ring_buffer, 0));
+
+        size_t min_availability = g_ring_buffer_min_available_space.load(std::memory_order_relaxed);
+        // Compute the minimum available space in the ring buffer for the given runner
+        if (min_availability == -1 || availability < min_availability)
+        {
+            g_ring_buffer_min_available_space.store(availability, std::memory_order_relaxed);
+        }
+
+        sleep(1);
+    }
+
+    pthread_exit(NULL);
+}
+
 int Start(sandbox_bpf *skel, char **argv) {
     auto start = std::chrono::high_resolution_clock::now();
     
@@ -1081,24 +1112,22 @@ int Start(sandbox_bpf *skel, char **argv) {
         return -1;
     }
 
-    // Set the draining thread to the highest priority so it can process events faster.
-    // The thread is blocked when no messages are available in the ring buffer, so it will not consume CPU when idle. In addition,
-    // events are only sent to user side in 'wakeup_data_size' chunks (see Public/Src/Sandbox/Linux/ebpf/sandbox.bpf.c), so the thread will not be woken up too often.
-    struct sched_param param;
-    pthread_attr_t attr;
-    pthread_attr_init(&attr);
-    pthread_attr_setschedpolicy(&attr, SCHED_FIFO);
-    param.sched_priority = sched_get_priority_max(SCHED_FIFO);
-    pthread_attr_setschedparam(&attr, &param);
     // This thread waits on `g_event_queue` which receives events from the file access and debug ring buffers
     // written to by eBPF programs..
     // It is responsible for processing those events and sending them to the managed side.
-    if (pthread_create(&g_event_queue_thread, &attr, HandleEventQueue, NULL) != 0) {
+    if (pthread_create(&g_event_queue_thread, NULL, HandleEventQueue, NULL) != 0) {
         LogError("Event queue message thread failed to start %s\n", strerror(errno));
         Cleanup(skel);
         return -1;
     }
- 
+
+    // This thread continuously monitors the file access ring buffer and updates the minimum available space.
+    if (pthread_create(&g_ring_buffer_monitoring_thread, NULL, RingBufferMonitorThread, NULL) != 0) {
+        LogError("Event queue message thread failed to start %s\n", strerror(errno));
+        Cleanup(skel);
+        return -1;
+    }
+
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     g_bxl->LogDebug(getpid(), "Sandbox load time: %d ms", duration.count());

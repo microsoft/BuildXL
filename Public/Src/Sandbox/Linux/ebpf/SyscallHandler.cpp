@@ -10,8 +10,8 @@ namespace buildxl {
 namespace linux {
 namespace ebpf {
 
-SyscallHandler::SyscallHandler(BxlObserver *bxl, pid_t root_pid, const char* root_filename)
-    : m_root_pid(root_pid), m_bxl(bxl), m_runnerExitSent(false), m_root_filename(root_filename)
+SyscallHandler::SyscallHandler(BxlObserver *bxl, pid_t root_pid, const char* root_filename, std::atomic<size_t>* ring_buffer_min_available_space)
+    : m_root_pid(root_pid), m_bxl(bxl), m_runnerExitSent(false), m_root_filename(root_filename), m_ring_buffer_min_available_space(ring_buffer_min_available_space)
 {
     sem_init(&m_noActivePidsSemaphore, 0, 0);
 
@@ -28,6 +28,7 @@ SyscallHandler::~SyscallHandler() {
     // This is to ensure that the managed side is aware of the exit of the root process, even if the runner has
     // an early unexpected exit.
     if (!m_runnerExitSent) {
+        SendRingBufferStats();
         m_bxl->SendExitReport(getpid(), getppid(), m_root_filename);
     }
  }
@@ -62,6 +63,7 @@ bool SyscallHandler::HandleSingleEvent(const ebpf_event *event) {
             // This is the symmetric to the first init fork event we sent on construction (the second init will have a regular
             // exit process observed, since that represents the root process of the pip and it is tracked).
             if (event->metadata.pid == m_root_pid) {
+                SendRingBufferStats();
                 m_bxl->SendExitReport(getpid(), getppid(), m_root_filename);
                 RemovePid(getpid());
                 m_runnerExitSent = true;
@@ -367,6 +369,19 @@ void SyscallHandler::SendInitForkEvent(BxlObserver* bxl, pid_t pid, pid_t ppid, 
     fork_event.SetMode(bxl->get_mode(file));
     fork_event.SetRequiredPathResolution(buildxl::linux::RequiredPathResolution::kDoNotResolve);
     bxl->CreateAndReportAccess(fork_event);
+}
+
+void SyscallHandler::SendRingBufferStats()
+{
+    size_t min_available = m_ring_buffer_min_available_space->load(std::memory_order_relaxed);
+    size_t total = FILE_ACCESS_RINGBUFFER_SIZE;
+    double percent = (total > 0) ? (100.0 * min_available / total) : 0.0;
+
+    m_bxl->LogInfo(
+        getpid(),
+        "[Ring buffer monitoring] Minimum available space: %zu bytes (%.2f%%). Total available space: %zu bytes",
+        min_available, percent, total
+    );
 }
 
 void SyscallHandler::RemovePid(pid_t pid) {

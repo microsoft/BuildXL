@@ -65,9 +65,10 @@ enum class FileOperation {
  * CODESYNC: Public/Src/Engine/Processes/SandboxReportLinux.cs
  */
 enum class DebugEventSeverity {
-    kInfo = 0,
-    kWarning = 1,
-    kError = 2,
+    kDebug = 0,
+    kInfo = 1,
+    kWarning = 2,
+    kError = 3,
 };
 
 } // namespace linux

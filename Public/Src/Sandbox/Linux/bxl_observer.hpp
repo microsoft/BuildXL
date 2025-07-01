@@ -477,7 +477,10 @@ public:
     }
 
     void LogDebugMessage(pid_t pid, buildxl::linux::DebugEventSeverity severity, const char *fmt, va_list args);
+    // The debug message is only sent if debug logging is enabled (with severity kDebug).
     void LogDebug(pid_t pid, const char *fmt, ...);
+    // The info message is unconditionally sent (with severity kInfo).
+    void LogInfo(pid_t pid, const char *fmt, ...);
     void LogError(pid_t pid, const char *fmt, ...);
     void LogErrorArgList(pid_t pid, const char *fmt, va_list args);
     

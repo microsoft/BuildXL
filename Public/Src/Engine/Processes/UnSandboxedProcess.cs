@@ -349,7 +349,8 @@ namespace BuildXL.Processes
                 DumpCreationException = m_dumpCreationException,
                 DumpFileDirectory = TimeoutDumpDirectory,
                 PrimaryProcessTimes = GetProcessTimes(),
-                SurvivingChildProcesses = CoalesceProcesses(GetSurvivingChildProcesses())
+                SurvivingChildProcesses = CoalesceProcesses(GetSurvivingChildProcesses()),
+                FileAccessesBeforeFirstUndeclaredReWrite = reports?.FileAccessesBeforeFirstUndeclaredReWrite,
             };
         }
 

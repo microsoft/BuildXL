@@ -167,7 +167,8 @@ namespace BuildXL.Processes
             bool forceAddExecutionPermission = true,
             bool useGentleKill = false,
             int? gentleKillTimeoutMs = null,
-            int? maxConcurrency = null)
+            int? maxConcurrency = null,
+            bool allowUndeclaredSourceReads = false)
         {
             PathTable = pathTable;
             FileAccessManifest = fileAccessManifest ?? new FileAccessManifest(pathTable);
@@ -190,6 +191,7 @@ namespace BuildXL.Processes
             UseGentleKill = useGentleKill;
             GentleKillTimeoutMs = gentleKillTimeoutMs;
             MaxConcurrency = maxConcurrency;
+            AllowUndeclaredSourceReads = allowUndeclaredSourceReads;
         }
 
         /// <summary>
@@ -330,6 +332,11 @@ namespace BuildXL.Processes
         /// Only used by EBPF sandboxing.
         /// </remarks>
         public int? MaxConcurrency { get; }
+
+        /// <summary>
+        /// Whether the pip is allowed to read from undeclared source files.
+        /// </summary>
+        public bool AllowUndeclaredSourceReads { get; }
 
         /// <summary>
         /// Encoded command line arguments
@@ -624,15 +631,20 @@ namespace BuildXL.Processes
                 writer.Write(ForceAddExecutionPermission);
                 writer.Write(UseGentleKill);
                 writer.Write(GentleKillTimeoutMs.HasValue);
+                
                 if (GentleKillTimeoutMs.HasValue)
                 {
                     writer.Write(GentleKillTimeoutMs.Value);
                 }
+
                 writer.Write(MaxConcurrency.HasValue);
+                
                 if (MaxConcurrency.HasValue)
                 {
                     writer.Write(MaxConcurrency.Value);
                 }
+
+                writer.Write(AllowUndeclaredSourceReads);
                 // File access manifest should be serialized the last.
                 writer.Write(FileAccessManifest, (w, v) => FileAccessManifest.Serialize(stream));
             }
@@ -653,6 +665,7 @@ namespace BuildXL.Processes
                 string? workingDirectory = reader.ReadNullableString();
                 IBuildParameters? buildParameters = null;
                 var envVars = reader.ReadNullable(r => r.ReadReadOnlyList(r2 => new KeyValuePair<string, string>(r2.ReadString(), r2.ReadString())));
+                
                 if (envVars != null)
                 {
                     buildParameters = BuildParameters.GetFactory().PopulateFromDictionary(envVars.ToDictionary(kvp => kvp.Key, kvp => kvp.Value));
@@ -682,16 +695,22 @@ namespace BuildXL.Processes
                 bool forceAddExecutionPermission = reader.ReadBoolean();
                 bool useGentleKill = reader.ReadBoolean();
                 int? gentleKillTimeoutMs = null;
+                
                 if (reader.ReadBoolean())
                 {
                     gentleKillTimeoutMs = reader.ReadInt32();
                 }
+                
                 int? maxConcurrency = null;
+                
                 if (reader.ReadBoolean())
                 {
                     maxConcurrency = reader.ReadInt32();
                 }
+                
+                bool allowUndeclaredSourceReads = reader.ReadBoolean();
                 var fam = reader.ReadNullable(r => FileAccessManifest.Deserialize(stream));
+                
                 return new SandboxedProcessInfo(
                     new PathTable(),
                     sandboxedProcessStandardFiles != null ? new StandardFileStorage(sandboxedProcessStandardFiles) : null,
@@ -705,7 +724,8 @@ namespace BuildXL.Processes
                     forceAddExecutionPermission: forceAddExecutionPermission,
                     useGentleKill: useGentleKill,
                     gentleKillTimeoutMs: gentleKillTimeoutMs,
-                    maxConcurrency: maxConcurrency)
+                    maxConcurrency: maxConcurrency,
+                    allowUndeclaredSourceReads: allowUndeclaredSourceReads)
                 {
                     m_arguments = arguments,
                     m_commandLine = commandLine,

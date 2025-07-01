@@ -12,9 +12,9 @@ using BuildXL.Processes;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Storage;
-using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 using Test.BuildXL.TestUtilities.Xunit;
@@ -64,6 +64,7 @@ namespace Test.BuildXL.Scheduler
                 allowedUndeclaredReads: null,
                 dynamicObservations: null,
                 ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
+                CollectionUtilities.EmptyDictionary<AbsolutePath, RequestedAccess>(),
                 out _);
 
             analyzer.AssertContainsViolation(
@@ -101,6 +102,7 @@ namespace Test.BuildXL.Scheduler
                 allowedUndeclaredReads: null,
                 dynamicObservations: null,
                 ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
+                CollectionUtilities.EmptyDictionary<AbsolutePath, RequestedAccess>(),
                 out _);
 
             analyzer.AssertContainsViolation(
@@ -137,6 +139,7 @@ namespace Test.BuildXL.Scheduler
                 allowedUndeclaredReads: null,
                 dynamicObservations: null,
                 ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
+                CollectionUtilities.EmptyDictionary<AbsolutePath, RequestedAccess>(),
                 out _);
 
             AssertVerboseEventLogged(LogEventId.DependencyViolationDoubleWrite);
@@ -173,6 +176,7 @@ namespace Test.BuildXL.Scheduler
                 allowedUndeclaredReads: null,
                 dynamicObservations: null,
                 ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
+                CollectionUtilities.EmptyDictionary<AbsolutePath, RequestedAccess>(),
                 out _);
 
             AssertVerboseEventLogged(LogEventId.DependencyViolationDoubleWrite);
@@ -208,6 +212,7 @@ namespace Test.BuildXL.Scheduler
                 allowedUndeclaredReads: null,
                 dynamicObservations: null,
                 ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
+                CollectionUtilities.EmptyDictionary<AbsolutePath, RequestedAccess>(),
                 out _);
 
             analyzer.AssertContainsViolation(
@@ -245,6 +250,7 @@ namespace Test.BuildXL.Scheduler
                 allowedUndeclaredReads: null,
                 dynamicObservations: null,
                 ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
+                CollectionUtilities.EmptyDictionary<AbsolutePath, RequestedAccess>(),
                 out _);
 
             analyzer.AssertContainsViolation(
@@ -283,6 +289,7 @@ namespace Test.BuildXL.Scheduler
                 allowedUndeclaredReads: null,
                 dynamicObservations: null,
                 ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
+                CollectionUtilities.EmptyDictionary<AbsolutePath, RequestedAccess>(),
                 out _);
 
             analyzer.AssertContainsViolation(
@@ -320,6 +327,7 @@ namespace Test.BuildXL.Scheduler
                 allowedUndeclaredReads: null,
                 dynamicObservations: null,
                 ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
+                CollectionUtilities.EmptyDictionary<AbsolutePath, RequestedAccess>(),
                 out _);
             AssertVerboseEventLogged(LogEventId.DependencyViolationReadRace);
             AssertErrorEventLogged(LogEventId.FileMonitoringError);
@@ -349,6 +357,7 @@ namespace Test.BuildXL.Scheduler
                     allowedUndeclaredReads: null,
                     dynamicObservations: null,
                     ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
+                    CollectionUtilities.EmptyDictionary<AbsolutePath, RequestedAccess>(),
                     out _); 
 
             AssertTrue(!analyzePipViolationsResult.IsViolationClean);
@@ -378,6 +387,7 @@ namespace Test.BuildXL.Scheduler
                 allowedUndeclaredReads: null,
                 dynamicObservations: null,
                 ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
+                CollectionUtilities.EmptyDictionary<AbsolutePath, RequestedAccess>(),
                 out _);
 
             AssertVerboseEventLogged(LogEventId.DependencyViolationUndeclaredOrderedRead);
@@ -416,6 +426,7 @@ namespace Test.BuildXL.Scheduler
                 allowedUndeclaredReads: null,
                 dynamicObservations: null,
                 ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
+                CollectionUtilities.EmptyDictionary<AbsolutePath, RequestedAccess>(),
                 out _);
 
             analyzer.AssertContainsViolation(
@@ -472,6 +483,7 @@ namespace Test.BuildXL.Scheduler
                 allowedUndeclaredReads: null,
                 dynamicObservations: null,
                 ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
+                CollectionUtilities.EmptyDictionary<AbsolutePath, RequestedAccess>(),
                 out _);
 
             analyzer.AssertContainsViolation(
@@ -513,6 +525,7 @@ namespace Test.BuildXL.Scheduler
                 allowedUndeclaredReads: null,
                 dynamicObservations: null,
                 ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
+                CollectionUtilities.EmptyDictionary<AbsolutePath, RequestedAccess>(),
                 out _);
 
             analyzer.AnalyzePipViolations(
@@ -527,6 +540,7 @@ namespace Test.BuildXL.Scheduler
                 allowedUndeclaredReads: null,
                 dynamicObservations: null,
                 ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
+                CollectionUtilities.EmptyDictionary<AbsolutePath, RequestedAccess>(),
                 out _);
 
             analyzer.AnalyzePipViolations(
@@ -541,6 +555,7 @@ namespace Test.BuildXL.Scheduler
                 allowedUndeclaredReads: null,
                 dynamicObservations: null,
                 ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
+                CollectionUtilities.EmptyDictionary<AbsolutePath, RequestedAccess>(),
                 out _);
 
             analyzer.AssertContainsViolation(
@@ -623,6 +638,7 @@ namespace Test.BuildXL.Scheduler
                 allowedUndeclaredReads: null,
                 dynamicObservations: null,
                 ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
+                CollectionUtilities.EmptyDictionary<AbsolutePath, RequestedAccess>(),
                 out _);
 
             AssertErrorEventLogged(LogEventId.FileMonitoringError);
@@ -763,6 +779,7 @@ namespace Test.BuildXL.Scheduler
                 allowedUndeclaredReads: null,
                 dynamicObservations: null,
                 ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
+                CollectionUtilities.EmptyDictionary<AbsolutePath, RequestedAccess>(),
                 out _);
 
             analyzer.AssertContainsViolation(
@@ -836,6 +853,7 @@ namespace Test.BuildXL.Scheduler
                 allowedUndeclaredReads: null,
                 dynamicObservations: null,
                 outputsContent,
+                CollectionUtilities.EmptyDictionary<AbsolutePath, RequestedAccess>(),
                 out _);
 
             analyzer.AnalyzePipViolations(
@@ -847,6 +865,7 @@ namespace Test.BuildXL.Scheduler
                 allowedUndeclaredReads: null,
                 dynamicObservations: null,
                 outputsContent,
+                CollectionUtilities.EmptyDictionary<AbsolutePath, RequestedAccess>(),
                 out _);
 
             // Based on the double write policy, the violation is an error or it is not raised
@@ -889,6 +908,7 @@ namespace Test.BuildXL.Scheduler
                 allowedUndeclaredReads: null,
                 dynamicObservations: null,
                 ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
+                CollectionUtilities.EmptyDictionary<AbsolutePath, RequestedAccess>(),
                 out _);
             
             XAssert.IsTrue(result.IsViolationClean);
@@ -930,6 +950,7 @@ namespace Test.BuildXL.Scheduler
                 allowedUndeclaredReads: null,
                 dynamicObservations: new ReadOnlyHashSet<(AbsolutePath, DynamicObservationKind)>(new[] { (probePath, DynamicObservationKind.AbsentPathProbeUnderOutputDirectory) }),
                 outputsContent: ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
+                CollectionUtilities.EmptyDictionary<AbsolutePath, RequestedAccess>(),
                 out _);
 
             var producer = graph.AddProcess(CreateAbsolutePath(context, X("/x/out/producer-out.txt")));
@@ -947,6 +968,7 @@ namespace Test.BuildXL.Scheduler
                 allowedUndeclaredReads: null,
                 dynamicObservations: null,
                 outputsContent: ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
+                CollectionUtilities.EmptyDictionary<AbsolutePath, RequestedAccess>(),
                 out _);
 
             if (isViolation)
@@ -991,6 +1013,7 @@ namespace Test.BuildXL.Scheduler
                 allowedUndeclaredReads: null,
                 dynamicObservations: null,
                 ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
+                CollectionUtilities.EmptyDictionary<AbsolutePath, RequestedAccess>(),
                 out _);
 
             analyzer.AssertContainsViolation(
@@ -1034,6 +1057,7 @@ namespace Test.BuildXL.Scheduler
                 allowedUndeclaredReads: null,
                 dynamicObservations: null,
                 ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
+                CollectionUtilities.EmptyDictionary<AbsolutePath, RequestedAccess>(),
                 out _);
 
             analyzer.AssertContainsViolation(
@@ -1081,6 +1105,7 @@ namespace Test.BuildXL.Scheduler
                 allowedUndeclaredReads: null,
                 dynamicObservations: null,
                 ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
+                CollectionUtilities.EmptyDictionary<AbsolutePath, RequestedAccess>(),
                 out _);
             
             analyzer.AssertContainsViolation(

@@ -316,6 +316,7 @@ namespace BuildXL.Scheduler
             [AllowNull] IReadOnlyDictionary<AbsolutePath, ObservedInputType> allowedUndeclaredReads,
             [AllowNull] IReadOnlyCollection<(AbsolutePath Path, DynamicObservationKind Kind)> dynamicObservations,
             ReadOnlyArray<(FileArtifact fileArtifact, FileMaterializationInfo fileInfo, PipOutputOrigin pipOutputOrigin)> outputsContent,
+            IReadOnlyDictionary<AbsolutePath, RequestedAccess> fileAccessesBeforeFirstUndeclaredRewrite,
             out IReadOnlyDictionary<FileArtifact, (FileMaterializationInfo, ReportedViolation)> allowedSameContentViolations)
         {
             Contract.Requires(pip != null);
@@ -410,7 +411,8 @@ namespace BuildXL.Scheduler
                     errorPaths.UnionWith(errors);
                 }
 
-                var dynamicViolations = ReportDynamicViolations(pip, exclusiveOpaqueDirectoryContent, sharedOpaqueDirectoryWriteAccesses, allowedUndeclaredReads, dynamicObservations, outputArtifactInfo, allowedDoubleWriteViolations);
+                var dynamicViolations = ReportDynamicViolations(
+                    pip, exclusiveOpaqueDirectoryContent, sharedOpaqueDirectoryWriteAccesses, allowedUndeclaredReads, dynamicObservations, outputArtifactInfo, allowedDoubleWriteViolations, fileAccessesBeforeFirstUndeclaredRewrite);
                 allowedSameContentViolations = new ReadOnlyDictionary<FileArtifact, (FileMaterializationInfo, ReportedViolation)>(allowedDoubleWriteViolations);
 
                 PopulateErrorsAndWarnings(dynamicViolations, errorPaths, warningPaths);
@@ -470,7 +472,13 @@ namespace BuildXL.Scheduler
                     // This is a case where a write in an undeclared source read was allowed based on content. Therefore, on convergence, we need
                     // to perform that check again since the same-content condition doesn't hold anymore and, however, readers may be still well-ordered
                     if (violation.Type == DependencyViolationType.WriteInUndeclaredSourceRead && 
-                        IsAllowedRewriteOnUndeclaredFile(pip.PipId, pip.RewritePolicy, content.fileInfo, pip.Executable.Path, content.fileArtifact, out _, out _, out _))
+                        IsAllowedRewriteOnUndeclaredFile(
+                            pip.PipId,
+                            pip.RewritePolicy,
+                            content.fileInfo,
+                            pip.Executable.Path,
+                            content.fileArtifact,
+                            out _, out _, out _))
                     {
                         continue;
                     }
@@ -555,7 +563,9 @@ namespace BuildXL.Scheduler
                     dynamicObservations,
                     GetOutputArtifactInfoMap(pip, outputsContent),
                     // We don't need to collect allowed same content double writes here since this is used in the cache replay scenario only, when there is no convergence
-                    allowedDoubleWriteViolations: null);
+                    allowedDoubleWriteViolations: null,
+                    // We don't roundtrip the file accesses before first undeclared read.
+                    fileAccessesBeforeFirstUndeclaredRewrite: CollectionUtilities.EmptyDictionary<AbsolutePath, RequestedAccess>());
 
                 PopulateErrorsAndWarnings(dynamicViolations, errorPaths, warningPaths);
 
@@ -572,7 +582,8 @@ namespace BuildXL.Scheduler
             [AllowNull] IReadOnlyDictionary<AbsolutePath, ObservedInputType> allowedUndeclaredReads,
             [AllowNull] IReadOnlyCollection<(AbsolutePath Path, DynamicObservationKind Kind)> dynamicObservations,
             IReadOnlyDictionary<FileArtifact, FileMaterializationInfo> outputArtifactInfo,
-            [AllowNull] Dictionary<FileArtifact, (FileMaterializationInfo fileMaterializationInfo, ReportedViolation reportedViolation)> allowedDoubleWriteViolations)
+            [AllowNull] Dictionary<FileArtifact, (FileMaterializationInfo fileMaterializationInfo, ReportedViolation reportedViolation)> allowedDoubleWriteViolations,
+            IReadOnlyDictionary<AbsolutePath, RequestedAccess> fileAccessesBeforeFirstUndeclaredRewrite)
         {
             List<ReportedViolation> dynamicViolations = new List<ReportedViolation>();
             var absentPathProbesUnderOutputDirectories = dynamicObservations?
@@ -582,7 +593,7 @@ namespace BuildXL.Scheduler
 
             if (sharedOpaqueDirectoryWriteAccesses?.Count > 0)
             {
-                ReportSharedOpaqueViolations(pip, sharedOpaqueDirectoryWriteAccesses, dynamicViolations, outputArtifactInfo, allowedDoubleWriteViolations);
+                ReportSharedOpaqueViolations(pip, sharedOpaqueDirectoryWriteAccesses, dynamicViolations, outputArtifactInfo, allowedDoubleWriteViolations, fileAccessesBeforeFirstUndeclaredRewrite);
             }
 
             if (exclusiveOpaqueDirectories?.Count > 0)
@@ -767,7 +778,8 @@ namespace BuildXL.Scheduler
             IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> sharedOpaqueDirectoryWriteAccesses,
             List<ReportedViolation> reportedViolations,
             IReadOnlyDictionary<FileArtifact, FileMaterializationInfo> outputArtifactsInfo,
-            [AllowNull] Dictionary<FileArtifact, (FileMaterializationInfo fileMaterializationInfo, ReportedViolation reportedViolation)> allowedDoubleWriteViolations)
+            [AllowNull] Dictionary<FileArtifact, (FileMaterializationInfo fileMaterializationInfo, ReportedViolation reportedViolation)> allowedDoubleWriteViolations,
+            IReadOnlyDictionary<AbsolutePath, RequestedAccess> fileAccessesBeforeFirstUndeclaredRewrite)
         {
             foreach (var kvp in sharedOpaqueDirectoryWriteAccesses)
             {
@@ -779,9 +791,54 @@ namespace BuildXL.Scheduler
                     ReportWriteViolations(pip, reportedViolations, outputArtifactsInfo, access, allowedDoubleWriteViolations);
                     ReportBlockedScopesViolations(pip, reportedViolations, access.Path);
                     DirProbe_AccumulateParentDirectories(createdSubDirectoriesWrapper?.Instance, rootSharedOpaqueDirectory, access.Path);
+                    LogOriginalContentLostOnRewrite(pip, access, fileAccessesBeforeFirstUndeclaredRewrite);
                 }
 
                 DirProbe_ReportViolations(pip, createdSubDirectoriesWrapper?.Instance, reportedViolations);
+            }
+        }
+
+        /// <summary>
+        /// For now this is just for telemetry purposes to understand the scope of the problem where BuildXL is not able to see the original content of a file before it is rewritten by a pip.
+        /// </summary>
+        private void LogOriginalContentLostOnRewrite(Process writer, FileArtifactWithAttributes undeclaredRead, IReadOnlyDictionary<AbsolutePath, RequestedAccess> fileAccessesBeforeFirstUndeclaredRewrite)
+        {
+            // If the access is not a rewrite, just return
+            // If the access is a rewrite but there are no file accesses before the first undeclared rewrite, just return
+            // If the access does not contain a read access, just return. We are not really interested in probes and enumerations here, just because we know the file existed before the
+            // rewrite (so we could make probes and enumerations work as expected). But reads are the ones that may cause problems, since they may not see the original content of the file
+            if (!undeclaredRead.IsUndeclaredFileRewrite || !fileAccessesBeforeFirstUndeclaredRewrite.TryGetValue(undeclaredRead.Path, out var observations) || (observations & RequestedAccess.Read) == 0)
+            {
+                return;
+            }
+
+            bool readerBeforeWriterExists = false;
+            var writerPipId = writer.PipId;
+            // Now we need to check whether there is any reader pip ordered before the writer pip that is performing the rewrite.
+            // If there is one, bxl had the chance to see the original content of the file before the rewrite happened
+            if (m_undeclaredReaders.TryGetValue(undeclaredRead.Path, out var readers))
+            {
+                foreach (PipId reader in readers)
+                {
+                    var writerDependsOnReader = IsDependencyDeclared(writerPipId, reader);
+                    if (writerDependsOnReader)
+                    {
+                        readerBeforeWriterExists = true;
+                        break;
+                    }
+                }
+            }
+
+            // No reader before the write is found. In this case the writer pip was the first one reading from the undeclared source file before writing into it. This means BuildXL didn't have a chance
+            // to see the original content
+            if (!readerBeforeWriterExists)
+            {
+                Logger.Log.SourceRewrittenOriginalContentLost(
+                    LoggingContext,
+                    m_graph.HydratePip(writerPipId, PipQueryContext.FileMonitoringViolationAnalyzerClassifyAndReportAggregateViolations).FormattedSemiStableHash,
+                    undeclaredRead.Path.ToString(Context.PathTable),
+                    observations.ToString());
+                
             }
         }
 
@@ -1221,7 +1278,7 @@ namespace BuildXL.Scheduler
             RewritePolicy writerDoubleWritePolicy, 
             FileMaterializationInfo writeMaterializationInfo, 
             AbsolutePath writerExecutablePath,
-            AbsolutePath undeclaredRead, 
+            AbsolutePath undeclaredRead,
             out ReportedViolation? allowedSameContentRewriteViolation,
             out SameContentRewriteDisallowedReason disallowedReason,
             out PipId? racyReader)
@@ -1257,6 +1314,7 @@ namespace BuildXL.Scheduler
                 // There are no known readers so far. So it is safe to allow the rewrite regardless of the content
                 disallowedReason = SameContentRewriteDisallowedReason.None;
                 allowedSameContentRewriteViolation = null;
+
                 return true;
             }
             else 
@@ -1271,7 +1329,13 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Make sure the ordering constraints for source/alien file readers wrt a rewrite can be satisfied
         /// </summary>
-        private bool ReadersAreWellOrdered(ConcurrentQueue<PipId> readers, PipId writerPipId, AbsolutePath undeclaredRead, ContentHash writerHash, out PipId? racyReader, out bool allowedBasedOnSameContent)
+        private bool ReadersAreWellOrdered(
+            ConcurrentQueue<PipId> readers,
+            PipId writerPipId, 
+            AbsolutePath undeclaredRead, 
+            ContentHash writerHash, 
+            out PipId? racyReader, 
+            out bool allowedBasedOnSameContent)
         {
             bool hasNonOrderedReaders = false;
             
@@ -1285,6 +1349,7 @@ namespace BuildXL.Scheduler
             foreach (PipId reader in readers)
             {
                 var writerDependsOnReader = IsDependencyDeclared(writerPipId, reader);
+
                 // If this reader is ordered before the writer, we can determine isSameContent (if not determined already).
                 if (isSameContent == null && writerDependsOnReader)
                 {
@@ -1421,7 +1486,7 @@ namespace BuildXL.Scheduler
                         m_graph.GetRewritePolicy(writerPipId),
                         writerMaterializationInfo, 
                         m_graph.GetProcessExecutablePath(writerPipId), 
-                        undeclaredRead, 
+                        undeclaredRead,
                         out var allowedSameContentRewriteViolation,
                         out var disallowedReason,
                         out var racyReader))

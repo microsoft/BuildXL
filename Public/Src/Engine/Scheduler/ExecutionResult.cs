@@ -53,6 +53,7 @@ namespace BuildXL.Scheduler
         private bool m_converged;
         private ReadOnlyArray<(AbsolutePath, DynamicObservationKind)> m_dynamicObservations;
         private IReadOnlyDictionary<AbsolutePath, ObservedInputType> m_allowedUndeclaredSourceReads;
+        private IReadOnlyDictionary<AbsolutePath, RequestedAccess> m_fileAccessesBeforeFirstUndeclaredReWrite;
         private PipCacheDescriptorV2Metadata m_pipCacheDescriptorV2Metadata;
         private PipCachePerfInfo m_pipCachePerfInfo;
         private IReadOnlyDictionary<string, int> m_pipProperties;
@@ -319,6 +320,29 @@ namespace BuildXL.Scheduler
         }
 
         /// <summary>
+        /// The requested accesses per path before the first undeclared rewrite.
+        /// </summary>
+        /// <remarks>
+        /// We are interested in knowing whether the pip is using this path as an input before an undeclared rewrite. At this point just for telemetry purposes: If the path 
+        /// was accessed before the rewrite, BuildXL may not have had the opportunity to hash the original content, and we want to understand how often this happens.
+        /// Observe this is only populated when the pip executes. We don't roundtrip this information to the cache.
+        /// </remarks>
+        public IReadOnlyDictionary<AbsolutePath, RequestedAccess> FileAccessesBeforeFirstUndeclaredReWrite
+        {
+            get
+            {
+                EnsureSealed();
+                return m_fileAccessesBeforeFirstUndeclaredReWrite;
+            }
+
+            set
+            {
+                EnsureUnsealed();
+                m_fileAccessesBeforeFirstUndeclaredReWrite = value;
+            }
+        }
+
+        /// <summary>
         /// Number of warnings raised by the process during execution
         /// </summary>
         public int NumberOfWarnings
@@ -449,6 +473,7 @@ namespace BuildXL.Scheduler
             bool mustBeConsideredPerpetuallyDirty,
             ReadOnlyArray<(AbsolutePath, DynamicObservationKind)> dynamicObservations,
             IReadOnlyDictionary<AbsolutePath, ObservedInputType> allowedUndeclaredSourceReads,
+            IReadOnlyDictionary<AbsolutePath, RequestedAccess> fileAccessesBeforeFirstUndeclaredReWrite,
             TwoPhaseCachingInfo twoPhaseCachingInfo,
             PipCacheDescriptorV2Metadata pipCacheDescriptorV2Metadata,
             bool converged,
@@ -477,6 +502,7 @@ namespace BuildXL.Scheduler
                     m_mustBeConsideredPerpetuallyDirty = mustBeConsideredPerpetuallyDirty,
                     m_dynamicObservations = dynamicObservations,
                     m_allowedUndeclaredSourceReads = allowedUndeclaredSourceReads,
+                    m_fileAccessesBeforeFirstUndeclaredReWrite = fileAccessesBeforeFirstUndeclaredReWrite,
                     m_twoPhaseCachingInfo = twoPhaseCachingInfo,
                     m_pipCacheDescriptorV2Metadata = pipCacheDescriptorV2Metadata,
                     Converged = converged,
@@ -522,6 +548,7 @@ namespace BuildXL.Scheduler
                 // Converged result does not have values for the following dynamic observations. Use the observations from this result.
                 DynamicObservations,
                 AllowedUndeclaredReads,
+                FileAccessesBeforeFirstUndeclaredReWrite,
                 convergedCacheResult.TwoPhaseCachingInfo,
                 convergedCacheResult.PipCacheDescriptorV2Metadata,
                 converged: true,
@@ -556,6 +583,7 @@ namespace BuildXL.Scheduler
                 MustBeConsideredPerpetuallyDirty,
                 DynamicObservations,
                 AllowedUndeclaredReads,
+                FileAccessesBeforeFirstUndeclaredReWrite,
                 TwoPhaseCachingInfo,
                 PipCacheDescriptorV2Metadata,
                 Converged,
@@ -633,6 +661,7 @@ namespace BuildXL.Scheduler
             InnerUnsealedState.ExecutionResult = executionResult;
             SharedDynamicDirectoryWriteAccesses = executionResult.SharedDynamicDirectoryWriteAccesses;
             CreatedDirectories = executionResult.CreatedDirectories;
+            FileAccessesBeforeFirstUndeclaredReWrite = executionResult.FileAccessesBeforeFirstUndeclaredReWrite;
             m_exitCode = executionResult.ExitCode;
         }
 
@@ -865,6 +894,7 @@ namespace BuildXL.Scheduler
                     m_dynamicObservations = m_unsealedState.DynamicObservations;
                     m_allowedUndeclaredSourceReads = m_unsealedState.AllowedUndeclaredSourceReads;
                     m_createdDirectories ??= CollectionUtilities.EmptySet<AbsolutePath>();
+                    m_fileAccessesBeforeFirstUndeclaredReWrite ??= CollectionUtilities.EmptyDictionary<AbsolutePath, RequestedAccess>();
 
                     SandboxedProcessPipExecutionResult processResult = m_unsealedState.ExecutionResult;
 
@@ -927,6 +957,7 @@ namespace BuildXL.Scheduler
                     m_directoryOutputs = ReadOnlyArray<(DirectoryArtifact, ReadOnlyArray<FileArtifactWithAttributes>)>.Empty;
                     m_allowedUndeclaredSourceReads = CollectionUtilities.EmptyDictionary<AbsolutePath, ObservedInputType>();
                     m_createdDirectories = CollectionUtilities.EmptySet<AbsolutePath>();
+                    m_fileAccessesBeforeFirstUndeclaredReWrite = CollectionUtilities.EmptyDictionary<AbsolutePath, RequestedAccess>();
                 }
 
                 m_unsealedState = null;

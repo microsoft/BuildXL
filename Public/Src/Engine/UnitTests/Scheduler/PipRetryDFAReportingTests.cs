@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
+using BuildXL.Processes;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Utilities.Core;
@@ -58,6 +59,30 @@ namespace Test.BuildXL.Scheduler
             var allowedUndeclaredRead = PipExecutor.MergeAllowedUndeclaredReads(allExecutionResults);
 
             XAssert.AreEqual(resolvedObservation, allowedUndeclaredRead[pathA]);
+        }
+
+        [Fact]
+        public void TestMergeFileAccessesBeforeFirstUndeclaredReWrite()
+        {
+            var pathA = CreateSourceFile().Path;
+
+            IEnumerable<ExecutionResult> allExecutionResults = new List<ExecutionResult>
+            {
+                CreateExecutionResult(fileAccessesBeforeFirstUndeclaredReWrite: new Dictionary<AbsolutePath, RequestedAccess>
+                {
+                    { pathA, RequestedAccess.Probe },
+                }),
+
+                CreateExecutionResult(fileAccessesBeforeFirstUndeclaredReWrite: new Dictionary<AbsolutePath, RequestedAccess>
+                {
+                    { pathA, RequestedAccess.Enumerate },
+                }),
+            };
+
+            PipExecutor.MergeAllDynamicAccessesAndViolations(allExecutionResults, out _, out _, out _, out _, out var fileAccessesBeforeFirstUndeclaredRewrite);
+
+            // We only care about the first execution result.
+            XAssert.AreEqual(RequestedAccess.Probe, fileAccessesBeforeFirstUndeclaredRewrite[pathA]);
         }
     }
 }

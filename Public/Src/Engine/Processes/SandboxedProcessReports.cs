@@ -101,6 +101,19 @@ namespace BuildXL.Processes
         private readonly Dictionary<string, string> m_pathCache = new(OperatingSystemHelper.PathComparer);
         private readonly Dictionary<AbsolutePath, bool> m_overrideAllowedWritePaths = new();
 
+        private readonly Dictionary<AbsolutePath, RequestedAccess> m_fileAccessesBeforeFirstUndeclaredReWrite = new();
+
+        /// <summary>
+        /// The requested accesses per path before the first undeclared rewrite.
+        /// </summary>
+        /// <remarks>
+        /// Only populated when <see cref="m_allowUndeclaredFileReads"/> is true, since only under that case we allow writes to undeclared sources.
+        /// We are interested in knowing whether the pip is using this path as an input before an undeclared rewrite. At this point just for telemetry purposes: If the path 
+        /// was accessed before the rewrite, BuildXL may not have had the opportunity to hash the original content, and we want to understand how often this happens.
+        /// Observe that if a given path never had an undeclared rewrite, this dictionary will just contain all the input accesses to that path.
+        /// </remarks>
+        public IReadOnlyDictionary<AbsolutePath, RequestedAccess> FileAccessesBeforeFirstUndeclaredReWrite => m_fileAccessesBeforeFirstUndeclaredReWrite;
+
         [MaybeNull]
         private readonly IDetoursEventListener m_detoursEventListener;
 
@@ -190,6 +203,7 @@ namespace BuildXL.Processes
 
         private readonly List<AbsolutePath> m_processesRequiringPTrace;
         private readonly string m_fileName;
+        private readonly bool m_allowUndeclaredFileReads;
         private int m_receivedReportCount = 0;
 
         public SandboxedProcessReports(
@@ -199,6 +213,7 @@ namespace BuildXL.Processes
             string pipDescription,
             LoggingContext loggingContext,
             string fileName,
+            bool allowUndeclaredFileReads,
             [MaybeNull] IDetoursEventListener detoursEventListener,
             [MaybeNull] SidebandWriter sharedOpaqueOutputLogger,
             [MaybeNull] ISandboxFileSystemView fileSystemView,
@@ -222,6 +237,7 @@ namespace BuildXL.Processes
             m_traceBuilder = traceBuilder;
             m_processesRequiringPTrace = OperatingSystemHelper.IsLinuxOS ? new List<AbsolutePath>() : null;
             m_fileName = fileName;
+            m_allowUndeclaredFileReads = allowUndeclaredFileReads;
         }
 
         /// <summary>ReportArgsMismatch
@@ -1281,6 +1297,22 @@ namespace BuildXL.Processes
                 {
                     ExplicitlyReportedFileAccesses.Add(access);
                 }
+            }
+
+            // If allowed undeclared reads is enabled, we might get file existence based writes, which represent a rewrite.
+            // In that case, accumulate all the non-write observations to paths until the first file-existence based write is reported.
+            // These observations represent all the input access types that we got before the first rewrite to the undeclared source.
+            // This is for now just for telemetry purposes, since this is a situation where BuildXL might not be able to determine the content of the file
+            // before it was rewritten. Observe we don't actually care about the reported access, just the requested access type.
+            if (m_allowUndeclaredFileReads && !m_deniedAccessesBasedOnExistence.ContainsKey(finalPath) && (access.RequestedAccess & RequestedAccess.Write) == 0)
+            {
+                var finalRequestedAccess = access.RequestedAccess;
+                if (m_fileAccessesBeforeFirstUndeclaredReWrite.TryGetValue(finalPath, out var observations))
+                {
+                    finalRequestedAccess |= observations;
+                }
+
+                m_fileAccessesBeforeFirstUndeclaredReWrite[finalPath] = finalRequestedAccess;
             }
 
             FileAccesses?.Add(access);

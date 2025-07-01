@@ -15,6 +15,7 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 using LogEventId = BuildXL.Scheduler.Tracing.LogEventId;
+using BuildXL.Cache.ContentStore.UtilitiesCore.Internal;
 
 namespace IntegrationTest.BuildXL.Scheduler
 {
@@ -221,6 +222,67 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler(constraintExecutionOrder: new List<(Pip, Pip)> { (writer1.Process, writer2.Process) }).AssertSuccess();
         }
 
+        [Theory]
+        [InlineData(true)]  // read before write
+        [InlineData(false)] // write without reading first
+        public void OriginalContentLostIsFlagged(bool readBeforeWrite)
+        {
+            string sharedOpaqueDir = Path.Combine(ObjectRoot, "sod");
+            AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
+
+            FileArtifact source = CreateSourceFile(sharedOpaqueDirPath);
+            File.WriteAllText(source.Path.ToString(Context.PathTable), "content");
+
+            ProcessBuilder pipBuilder;
+            if (readBeforeWrite)
+            {
+                // The writer reads before writing.
+                pipBuilder = CreateReaderAndWriter(source, readAndWrite: true);
+            }
+            else
+            {
+                // The writer writes without reading first.
+                pipBuilder = CreateWriter("content", source);
+            }
+            var pip = SchedulePipBuilder(pipBuilder);
+
+            // Run should succeed. All readers are guaranteed to see the same content across the build.
+            RunScheduler().AssertSuccess();
+
+            // Content lost is logged depending on whether the pip read before writing.
+            if (readBeforeWrite)
+            {
+                AssertVerboseEventLogged(LogEventId.SourceRewrittenOriginalContentLost, count: 1);
+            }
+            else
+            {
+                AssertVerboseEventLogged(LogEventId.SourceRewrittenOriginalContentLost, count: 0);
+            }
+                
+        }
+
+        [Fact]
+        public void OriginalContentLostIsNotFlaggedAfterRewrite()
+        {
+            string sharedOpaqueDir = Path.Combine(ObjectRoot, "sod");
+            AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
+
+            FileArtifact source = CreateSourceFile(sharedOpaqueDirPath);
+            File.WriteAllText(source.Path.ToString(Context.PathTable), "content");
+
+            // Schedule a writer that rewrites the content of the source file and only after that reads it.
+            ProcessBuilder pipBuilder = CreateReaderAndWriter(source, readAndWrite: false);
+            var pip = SchedulePipBuilder(pipBuilder);
+
+            // Run should succeed. All readers are guaranteed to see the same content across the build.
+            RunScheduler().AssertSuccess();
+            // Double check the same content rewrite was detected and allowed
+            AssertVerboseEventLogged(LogEventId.AllowedRewriteOnUndeclaredFile);
+
+            // Content lost is not logged: the pip read the file after the rewrite.
+            AssertVerboseEventLogged(LogEventId.SourceRewrittenOriginalContentLost, count: 0);
+        }
+
         private ProcessBuilder CreateWriter(string rewrittenContent, FileArtifact source)
         {
             var writer = CreatePipBuilder(new Operation[]
@@ -250,6 +312,23 @@ namespace IntegrationTest.BuildXL.Scheduler
             reader.RewritePolicy = RewritePolicy.SafeSourceRewritesAreAllowed;
 
             return reader;
+        }
+
+        private ProcessBuilder CreateReaderAndWriter(FileArtifact source, bool readAndWrite)
+        {
+            Operation[] operations = [
+                (readAndWrite ? Operation.ReadFile(source, doNotInfer: true) : Operation.WriteFile(source, doNotInfer: true)),
+                (readAndWrite ? Operation.WriteFile(source, doNotInfer: true) : Operation.ReadFile(source, doNotInfer: true))
+            ];
+
+            var writer = CreatePipBuilder(operations);
+
+            writer.Options |= Process.Options.AllowUndeclaredSourceReads;
+            writer.RewritePolicy = RewritePolicy.SafeSourceRewritesAreAllowed;
+
+            writer.AddOutputDirectory(source.Path.GetParent(Context.PathTable), SealDirectoryKind.SharedOpaque);
+
+            return writer;
         }
     }
 }

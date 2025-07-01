@@ -123,6 +123,7 @@ namespace BuildXL.Scheduler.Distribution
             var mustBeConsideredPerpetuallyDirty = reader.ReadBoolean();
             var dynamicObservations = reader.ReadReadOnlyArray(ReadDynamicObservation);
             var allowedUndeclaredSourceReads = reader.ReadArray(ReadAllowedUndeclaredRead).ToDictionary(kvp => kvp.Item1, kvp => kvp.Item2);
+            var fileAccessesBeforeFirstUndeclaredRewrite = reader.ReadReadOnlyList(r => new KeyValuePair<AbsolutePath, RequestedAccess>(ReadAbsolutePath(r), (RequestedAccess)r.ReadByte())).ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
 
             ReportedFileAccess[] fileAccessViolationsNotAllowlisted;
             ReportedFileAccess[] allowlistedFileAccessViolations;
@@ -178,6 +179,7 @@ namespace BuildXL.Scheduler.Distribution
                 mustBeConsideredPerpetuallyDirty,
                 dynamicObservations,
                 allowedUndeclaredSourceReads,
+                fileAccessesBeforeFirstUndeclaredRewrite,
                 twoPhaseCachingInfo,
                 cacheDescriptor,
                 converged,
@@ -223,12 +225,12 @@ namespace BuildXL.Scheduler.Distribution
             writer.Write(result.MustBeConsideredPerpetuallyDirty);
             writer.Write(result.DynamicObservations, WriteDynamicObservation);
             writer.Write(result.AllowedUndeclaredReads.ToArray(), WriteAllowedUndeclaredRead);
+            writer.WriteReadOnlyList(result.FileAccessesBeforeFirstUndeclaredReWrite.ToList(), (w, kvp) => { WriteAbsolutePath(w, kvp.Key); w.Write((byte)kvp.Value); });
             WriteReportedProcessesAndFileAccesses(
                 writer,
                 result.FileAccessViolationsNotAllowlisted,
                 result.AllowlistedFileAccessViolations,
                 writePath: m_writePath);
-
             WriteTwoPhaseCachingInfo(writer, result.TwoPhaseCachingInfo);
             WritePipCacheDescriptor(writer, result.PipCacheDescriptorV2Metadata);
 

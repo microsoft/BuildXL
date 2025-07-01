@@ -91,7 +91,8 @@ namespace BuildXL.ProcessPipExecutor
                 pipProperties: pipProperties,
                 timedOut: false,
                 hasAzureWatsonDeadProcess: false,
-                createdDirectories: null);
+                createdDirectories: null,
+                fileAccessesBeforeFirstUndeclaredReWrite: null);
         }
 
         internal static SandboxedProcessPipExecutionResult FailureButRetryAble(
@@ -121,7 +122,8 @@ namespace BuildXL.ProcessPipExecutor
                 timedOut: false,
                 hasAzureWatsonDeadProcess: false,
                 retryInfo: retryInfo,
-                createdDirectories: null);
+                createdDirectories: null,
+                fileAccessesBeforeFirstUndeclaredReWrite: null);
         }
 
         internal static SandboxedProcessPipExecutionResult DetouringFailure(SandboxedProcessPipExecutionResult result)
@@ -146,7 +148,8 @@ namespace BuildXL.ProcessPipExecutor
                 pipProperties: result.PipProperties,
                 timedOut: result.TimedOut,
                 hasAzureWatsonDeadProcess: result.HasAzureWatsonDeadProcess,
-                createdDirectories: result.CreatedDirectories);
+                createdDirectories: result.CreatedDirectories,
+                fileAccessesBeforeFirstUndeclaredReWrite: result.FileAccessesBeforeFirstUndeclaredReWrite);
         }
 
         internal static SandboxedProcessPipExecutionResult RetryProcessDueToUserSpecifiedExitCode(
@@ -163,6 +166,7 @@ namespace BuildXL.ProcessPipExecutor
             Dictionary<string, int> pipProperties,
             IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> sharedDynamicDirectoryWriteAccesses,
             FileAccessReportingContext unexpectedFileAccesses,
+            IReadOnlyDictionary<AbsolutePath, RequestedAccess> fileAccessesBeforeFirstUndeclaredReWrite,
             RetryInfo retryInfo = null)
         {
             return new SandboxedProcessPipExecutionResult(
@@ -186,7 +190,8 @@ namespace BuildXL.ProcessPipExecutor
                 timedOut: false,
                 hasAzureWatsonDeadProcess: false,
                 retryInfo: retryInfo ?? RetryInfo.GetDefault(RetryReason.UserSpecifiedExitCode),
-                createdDirectories: null);
+                createdDirectories: null,
+                fileAccessesBeforeFirstUndeclaredReWrite: fileAccessesBeforeFirstUndeclaredReWrite);
         }
 
         internal static SandboxedProcessPipExecutionResult MismatchedMessageCountFailure(SandboxedProcessPipExecutionResult result)
@@ -211,6 +216,7 @@ namespace BuildXL.ProcessPipExecutor
                    result.TimedOut,
                    result.HasAzureWatsonDeadProcess,
                    result.CreatedDirectories,
+                   result.FileAccessesBeforeFirstUndeclaredReWrite,
                    retryInfo: RetryInfo.GetDefault(RetryReason.MismatchedMessageCount));
 
         /// <summary>
@@ -310,6 +316,15 @@ namespace BuildXL.ProcessPipExecutor
         public IReadOnlySet<AbsolutePath> CreatedDirectories { get; }
 
         /// <summary>
+        /// The requested accesses per path before the first undeclared rewrite.
+        /// </summary>
+        /// <remarks>
+        /// We are interested in knowing whether the pip is using this path as an input before an undeclared rewrite. At this point just for telemetry purposes: If the path 
+        /// was accessed before the rewrite, BuildXL may not have had the opportunity to hash the original content, and we want to understand how often this happens.
+        /// </remarks>
+        public IReadOnlyDictionary<AbsolutePath, RequestedAccess> FileAccessesBeforeFirstUndeclaredReWrite { get; }
+
+        /// <summary>
         /// How long the process has been suspended
         /// </summary>
         public long SuspendedDurationMs { get; set; }
@@ -349,6 +364,7 @@ namespace BuildXL.ProcessPipExecutor
             bool timedOut,
             bool hasAzureWatsonDeadProcess,
             IReadOnlySet<AbsolutePath> createdDirectories,
+            IReadOnlyDictionary<AbsolutePath, RequestedAccess> fileAccessesBeforeFirstUndeclaredReWrite,
             RetryInfo retryInfo = null)
         {
             Contract.Requires(!ProcessCompletedExecution(status) || observedFileAccesses.IsValid);
@@ -386,6 +402,7 @@ namespace BuildXL.ProcessPipExecutor
             HasAzureWatsonDeadProcess = hasAzureWatsonDeadProcess;
             RetryInfo = retryInfo;
             CreatedDirectories = createdDirectories ?? CollectionUtilities.EmptySet<AbsolutePath>();
+            FileAccessesBeforeFirstUndeclaredReWrite = fileAccessesBeforeFirstUndeclaredReWrite ?? CollectionUtilities.EmptyDictionary<AbsolutePath, RequestedAccess>();
         }
 
         /// <summary>

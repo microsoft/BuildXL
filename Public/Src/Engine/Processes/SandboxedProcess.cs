@@ -132,6 +132,7 @@ namespace BuildXL.Processes
                     info.PipDescription,
                     info.LoggingContext,
                     info.FileName,
+                    info.AllowUndeclaredSourceReads,
                     info.DetoursEventListener,
                     info.SidebandWriter,
                     info.FileSystemView,
@@ -693,7 +694,8 @@ namespace BuildXL.Processes
                 MessageProcessingFailure = m_reports.MessageProcessingFailure,
                 ProcessStartTime = m_detouredProcess.StartTime,
                 HasReadWriteToReadFileAccessRequest = m_reports.HasReadWriteToReadFileAccessRequest,
-                DiagnosticMessage = m_detouredProcess.Diagnostics
+                DiagnosticMessage = m_detouredProcess.Diagnostics,
+                FileAccessesBeforeFirstUndeclaredReWrite = m_reports.FileAccessesBeforeFirstUndeclaredReWrite
             };
 
             SetResult(result);

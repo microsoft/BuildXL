@@ -177,6 +177,7 @@ namespace BuildXL.Processes
                 info.PipDescription,
                 info.LoggingContext,
                 info.FileName,
+                info.AllowUndeclaredSourceReads,
                 info.DetoursEventListener,
                 info.SidebandWriter,
                 info.FileSystemView,

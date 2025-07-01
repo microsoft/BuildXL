@@ -3,6 +3,7 @@
 
 using System.Collections.Generic;
 using System.Diagnostics.Tracing;
+using BuildXL.Processes;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 
@@ -4222,6 +4223,19 @@ namespace BuildXL.Scheduler.Tracing
             EventTask = (int)Tasks.PipExecutor,
             Message = "Scheduler simulator has been failed. Exception: {ex}")]
         public abstract void SchedulerSimulatorFailed(LoggingContext loggingContext, string ex);
+
+        [GeneratedEvent(
+            (int)LogEventId.SourceRewrittenOriginalContentLost,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Scheduler,
+            Message = "Pip {pipSemiStableHash} rewrote a source file with path '{path}'. However, the pip accessed the path before the rewrite with operations '{accessFlags}'. No readers executing before this pip were found and therefore the original content is lost.")]
+        public abstract void SourceRewrittenOriginalContentLost(
+            LoggingContext context,
+            string pipSemiStableHash,
+            string path,
+            string accessFlags);
     }
 }
 #pragma warning restore CA1823 // Unused field

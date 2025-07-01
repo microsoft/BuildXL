@@ -79,6 +79,7 @@ namespace Test.BuildXL.Scheduler
                 r => r.MustBeConsideredPerpetuallyDirty,
                 r => r.DynamicObservations.Length,
                 r => r.AllowedUndeclaredReads.Count,
+                r => r.FileAccessesBeforeFirstUndeclaredReWrite.Count,
 
                 r => r.TwoPhaseCachingInfo.WeakFingerprint,
                 r => r.TwoPhaseCachingInfo.StrongFingerprint,

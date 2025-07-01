@@ -556,6 +556,7 @@ namespace BuildXL.Scheduler.Tracing
         SchedulerSimulator = 14611,
         SchedulerSimulatorResult = 14612,
         SchedulerSimulatorCompleted = 14613,
-        SchedulerSimulatorFailed = 14614
+        SchedulerSimulatorFailed = 14614,
+        SourceRewrittenOriginalContentLost = 14615,
     }
 }

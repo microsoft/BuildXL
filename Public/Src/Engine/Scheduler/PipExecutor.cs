@@ -1133,12 +1133,14 @@ namespace BuildXL.Scheduler
                                                                   out IReadOnlyDictionary<AbsolutePath, ObservedInputType> allowedUndeclaredRead,
                                                                   out IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> sharedDynamicDirectoryWriteAccesses,
                                                                   out ReadOnlyArray<(AbsolutePath Path, DynamicObservationKind Kind)>? dynamicObservations,
-                                                                  out ReadOnlyArray<(DirectoryArtifact directoryArtifact, ReadOnlyArray<FileArtifactWithAttributes> fileArtifactArray)>? exclusiveOpaqueContent)
+                                                                  out ReadOnlyArray<(DirectoryArtifact directoryArtifact, ReadOnlyArray<FileArtifactWithAttributes> fileArtifactArray)>? exclusiveOpaqueContent,
+                                                                  out IReadOnlyDictionary<AbsolutePath, RequestedAccess> fileAccessesBeforeFirstUndeclaredReWrite)
         {
             allowedUndeclaredRead = null;
             sharedDynamicDirectoryWriteAccesses = null;
             dynamicObservations = null;
             exclusiveOpaqueContent = null;
+            fileAccessesBeforeFirstUndeclaredReWrite = null;
 
             if (allExecutionResults == null)
             {
@@ -1180,7 +1182,11 @@ namespace BuildXL.Scheduler
                                                                              var fileArtifacts = group?.SelectMany(tuple => tuple.fileArtifactArray).Distinct();
                                                                              return (group.Key, FileArtifacts: fileArtifacts.Any() ? ReadOnlyArray<FileArtifactWithAttributes>.From(fileArtifacts) : ReadOnlyArray<FileArtifactWithAttributes>.Empty);
                                                                          })).ToReadOnlyArray();
+
             }
+
+            // Merge file accesses before first undeclared re-write. We just care about the first execution result, as it is the one that contains the file accesses before the first undeclared re-write.
+            fileAccessesBeforeFirstUndeclaredReWrite = allExecutionResults.First().FileAccessesBeforeFirstUndeclaredReWrite;
         }
 
         /// <summary>
@@ -1241,7 +1247,8 @@ namespace BuildXL.Scheduler
                                                             out IReadOnlyDictionary<AbsolutePath, ObservedInputType> allowedUndeclaredReads,
                                                             out IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> sharedDynamicDirectoryWriteAccesses,
                                                             out ReadOnlyArray<(AbsolutePath Path, DynamicObservationKind Kind)>? dynamicObservations,
-                                                            out ReadOnlyArray<(DirectoryArtifact directoryArtifact, ReadOnlyArray<FileArtifactWithAttributes> fileArtifactArray)>? exclusiveOpaqueContent);
+                                                            out ReadOnlyArray<(DirectoryArtifact directoryArtifact, ReadOnlyArray<FileArtifactWithAttributes> fileArtifactArray)>? exclusiveOpaqueContent,
+                                                            out IReadOnlyDictionary<AbsolutePath, RequestedAccess> fileAccessesBeforeFirstUndeclaredRead);
 
                 // Regardless of if we will fail the pip or not, maybe analyze them for higher-level dependency violations.
                 if (sharedDynamicDirectoryWriteAccesses != null
@@ -1260,6 +1267,7 @@ namespace BuildXL.Scheduler
                         allowedUndeclaredReads,
                         dynamicObservations,
                         latestProcessExecutionResult.OutputContent,
+                        fileAccessesBeforeFirstUndeclaredRead,
                         out allowedSameContentViolations);
                 }
 
@@ -1636,6 +1644,7 @@ namespace BuildXL.Scheduler
                 processExecutionResult.AllowedUndeclaredReads = new Dictionary<AbsolutePath, ObservedInputType>();
                 processExecutionResult.FileAccessViolationsNotAllowlisted = new List<ReportedFileAccess>();
                 processExecutionResult.AllowlistedFileAccessViolations = new List<ReportedFileAccess>();
+                processExecutionResult.FileAccessesBeforeFirstUndeclaredReWrite = new Dictionary<AbsolutePath, RequestedAccess>();
                 processExecutionResult.ReportUnexpectedFileAccesses(default);
 
                 Logger.Log.ScheduleProcessNotStoredToCacheDueToSandboxDisabled(operationContext, processDescription);

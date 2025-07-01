@@ -862,7 +862,8 @@ namespace BuildXL.ProcessPipExecutor
                         fileSystemView: fileSystemView,
                         forceAddExecutionPermission: m_sandboxConfig.ForceAddExecutionPermission,
                         // We always want to use gentle kill for EBPF to give the ebpf runner a chance to do proper tear down
-                        useGentleKill: sandboxConnection?.Kind == SandboxKind.LinuxEBPF)
+                        useGentleKill: sandboxConnection?.Kind == SandboxKind.LinuxEBPF,
+                        allowUndeclaredSourceReads: m_pip.AllowUndeclaredSourceReads)
                     {
                         Arguments = arguments,
                         WorkingDirectory = m_workingDirectory,
@@ -1701,7 +1702,8 @@ namespace BuildXL.ProcessPipExecutor
                 out var unobservedOutputs,
                 out var sharedDynamicDirectoryWriteAccesses,
                 out SortedReadOnlyArray<ObservedFileAccess, ObservedFileAccessExpandedPathComparer> observed,
-                out IReadOnlySet<AbsolutePath> createdDirectories);
+                out IReadOnlySet<AbsolutePath> createdDirectories,
+                out IReadOnlyDictionary<AbsolutePath, RequestedAccess> fileAccessesBeforeFirstUndeclaredReWrite);
 
             LogSubPhaseDuration(m_loggingContext, m_pip, SandboxedProcessCounters.SandboxedPipExecutorPhaseGettingObservedFileAccesses, stopwatch.Elapsed, $"(count: {observed.Length})");
 
@@ -1796,7 +1798,8 @@ namespace BuildXL.ProcessPipExecutor
                                     encodedStandardOutput,
                                     pipProperties,
                                     sharedDynamicDirectoryWriteAccesses,
-                                    unexpectedFileAccesses: fileAccessReportingContext);
+                                    unexpectedFileAccesses: fileAccessReportingContext,
+                                    fileAccessesBeforeFirstUndeclaredReWrite: fileAccessesBeforeFirstUndeclaredReWrite);
                             }
 
                             Contract.Assert(loggingContext.ErrorWasLogged, "Error should be logged upon TrySaveAndLogStandardOutput/Error failure.");
@@ -2079,7 +2082,8 @@ namespace BuildXL.ProcessPipExecutor
                 timedOut: result.TimedOut,
                 hasAzureWatsonDeadProcess: azWatsonDeadProcess != null,
                 retryInfo: retryInfo,
-                createdDirectories: createdDirectories);
+                createdDirectories: createdDirectories,
+                fileAccessesBeforeFirstUndeclaredReWrite: fileAccessesBeforeFirstUndeclaredReWrite);
         }
 
         private async Task<(bool success, Dictionary<string, int> pipProperties)> TrySetPipPropertiesAsync(SandboxedProcessResult result)
@@ -3941,7 +3945,8 @@ namespace BuildXL.ProcessPipExecutor
             out List<AbsolutePath> unobservedOutputs,
             out IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> sharedDynamicDirectoryWriteAccesses,
             out SortedReadOnlyArray<ObservedFileAccess, ObservedFileAccessExpandedPathComparer> observedAccesses,
-            out IReadOnlySet<AbsolutePath> createdDirectories)
+            out IReadOnlySet<AbsolutePath> createdDirectories,
+            out IReadOnlyDictionary<AbsolutePath, RequestedAccess> fileAccessesBeforeFirstUndeclaredReWrite)
         {
             unobservedOutputs = null;
             if (result.ExplicitlyReportedFileAccesses == null || result.ExplicitlyReportedFileAccesses.Count == 0)
@@ -3952,6 +3957,7 @@ namespace BuildXL.ProcessPipExecutor
                         ReadOnlyArray<ObservedFileAccess>.Empty,
                         new ObservedFileAccessExpandedPathComparer(m_context.PathTable.ExpandedPathComparer));
                 createdDirectories = CollectionUtilities.EmptySet<AbsolutePath>();
+                fileAccessesBeforeFirstUndeclaredReWrite = CollectionUtilities.EmptyDictionary<AbsolutePath, RequestedAccess>();
 
                 return true;
             }
@@ -4069,6 +4075,12 @@ namespace BuildXL.ProcessPipExecutor
 
             var fileExistenceDenials = fileExistenceDenialsWrapper.Instance;
 
+            Dictionary<AbsolutePath, RequestedAccess> mutableFileAccessesBeforeFirstReWrite = null;
+            if (result.FileAccessesBeforeFirstUndeclaredReWrite != null)
+            {
+                mutableFileAccessesBeforeFirstReWrite = new Dictionary<AbsolutePath, RequestedAccess>(result.FileAccessesBeforeFirstUndeclaredReWrite.Count);
+            }
+
             // We count outputs created by this executor as part of pip preparation 
             // as 'created by the pip', for consistency with the output filesystem
             // TODO: This is conditionalized by AllowUndeclaredSourceReads because
@@ -4164,6 +4176,15 @@ namespace BuildXL.ProcessPipExecutor
                     {
                         dynamicWriteAccesses[sharedDynamicDirectoryRoot].Add(entry.Key);
                         isAccessUnderASharedOpaque = true;
+
+                        // The access was an undeclared rewrite. Copy over the requested accesses to the final result. In this way we filter out the paths that come with the
+                        // sandboxed result that didn't end up being rewrites
+                        if (result.FileAccessesBeforeFirstUndeclaredReWrite?.TryGetValue(entry.Key, out RequestedAccess accessBeforeFirstUndeclaredReWrite) == true)
+                        {
+                            // If the file was accessed before the first undeclared re-write, we need to keep track of that access
+                            mutableFileAccessesBeforeFirstReWrite[entry.Key] = accessBeforeFirstUndeclaredReWrite;
+                        }
+
                     }
 
                     // This is a known output, so don't store it
@@ -4283,6 +4304,7 @@ namespace BuildXL.ProcessPipExecutor
                             sharedDynamicDirectoryWriteAccesses = CollectionUtilities.EmptyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>>();
                             observedAccesses = CollectionUtilities.EmptySortedReadOnlyArray<ObservedFileAccess, ObservedFileAccessExpandedPathComparer>(
                                 new ObservedFileAccessExpandedPathComparer(m_context.PathTable.ExpandedPathComparer));
+                            fileAccessesBeforeFirstUndeclaredReWrite = CollectionUtilities.EmptyDictionary<AbsolutePath, RequestedAccess>();
 
                             return false;
                         }
@@ -4322,6 +4344,7 @@ namespace BuildXL.ProcessPipExecutor
                         sharedDynamicDirectoryWriteAccesses = CollectionUtilities.EmptyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>>();
                         observedAccesses = CollectionUtilities.EmptySortedReadOnlyArray<ObservedFileAccess, ObservedFileAccessExpandedPathComparer>(
                             new ObservedFileAccessExpandedPathComparer(m_context.PathTable.ExpandedPathComparer));
+                        fileAccessesBeforeFirstUndeclaredReWrite = CollectionUtilities.EmptyDictionary<AbsolutePath, RequestedAccess>();
 
                         return false;
                     }
@@ -4400,6 +4423,8 @@ namespace BuildXL.ProcessPipExecutor
             observedAccesses = SortedReadOnlyArray<ObservedFileAccess, ObservedFileAccessExpandedPathComparer>.CloneAndSort(
                 filteredAccessesUnsorted,
                 new ObservedFileAccessExpandedPathComparer(m_context.PathTable.ExpandedPathComparer));
+
+            fileAccessesBeforeFirstUndeclaredReWrite = mutableFileAccessesBeforeFirstReWrite ?? CollectionUtilities.EmptyDictionary<AbsolutePath, RequestedAccess>();
 
             return true;
 

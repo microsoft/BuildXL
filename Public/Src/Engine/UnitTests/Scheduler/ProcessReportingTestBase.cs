@@ -157,7 +157,7 @@ namespace Test.BuildXL.Scheduler
             return result;
         }
 
-        protected ExecutionResult CreateExecutionResult(IReadOnlyDictionary<AbsolutePath, ObservedInputType> allowedUndeclaredReads = null)
+        protected ExecutionResult CreateExecutionResult(IReadOnlyDictionary<AbsolutePath, ObservedInputType> allowedUndeclaredReads = null, IReadOnlyDictionary<AbsolutePath, RequestedAccess> fileAccessesBeforeFirstUndeclaredReWrite = null)
         {
             var reportedAccess = CreateRandomReportedFileAccess();
 
@@ -208,6 +208,10 @@ namespace Test.BuildXL.Scheduler
                 {
                     [CreateSourceFile().Path] = ObservedInputType.FileContentRead,
                     [CreateSourceFile().Path] = ObservedInputType.FileContentRead
+                },
+                fileAccessesBeforeFirstUndeclaredReWrite: fileAccessesBeforeFirstUndeclaredReWrite ?? new Dictionary<AbsolutePath, RequestedAccess>
+                {
+                    [CreateSourceFile().Path] = RequestedAccess.Probe | RequestedAccess.Enumerate,
                 },
                 twoPhaseCachingInfo: new TwoPhaseCachingInfo(
                     new WeakContentFingerprint(Fingerprint.Random(FingerprintUtilities.FingerprintLength)),

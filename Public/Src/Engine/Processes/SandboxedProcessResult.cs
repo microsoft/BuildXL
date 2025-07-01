@@ -99,6 +99,17 @@ namespace BuildXL.Processes
         public IReadOnlyList<ProcessDetouringStatusData>? DetouringStatuses { get; set; }
 
         /// <summary>
+        /// The requested accesses per path before the first undeclared rewrite.
+        /// </summary>
+        /// <remarks>
+        /// Only populated when AllowUndeclaredSourceReads is set for the given pip, since only under that case we allow writes to undeclared sources.
+        /// We are interested in knowing whether the pip is using this path as an input before an undeclared rewrite. At this point just for telemetry purposes: If the path 
+        /// was accessed before the rewrite, BuildXL may not have had the opportunity to hash the original content, and we want to understand how often this happens.
+        /// Observe that if a given path never had an undeclared rewrite, this dictionary will just contain all the input accesses to that path.
+        /// </remarks>
+        public IReadOnlyDictionary<AbsolutePath, RequestedAccess>? FileAccessesBeforeFirstUndeclaredReWrite { get; set; }
+
+        /// <summary>
         /// Path of the memory dump created if a process times out. This may be null if the process did not time out
         /// or if capturing the dump failed. By default, this will be placed in the process's working directory.
         /// </summary>
@@ -193,6 +204,7 @@ namespace BuildXL.Processes
             writer.Write(FileAccesses, (w, v) => w.WriteReadOnlyList(v.ToList(), (w2, v2) => v2.Serialize(writer, processMap, writePath: writePath)));
             writer.Write(ExplicitlyReportedFileAccesses, (w, v) => w.WriteReadOnlyList(v.ToList(), (w2, v2) => v2.Serialize(writer, processMap, writePath: writePath)));
             writer.Write(AllUnexpectedFileAccesses, (w, v) => w.WriteReadOnlyList(v.ToList(), (w2, v2) => v2.Serialize(writer, processMap, writePath: writePath)));
+            writer.Write(FileAccessesBeforeFirstUndeclaredReWrite?.ToList(), (w, v) => w.WriteReadOnlyList(v, (w, kvp) => { WriteAbsolutePath(w, writePath, kvp.Key); w.Write((byte)kvp.Value); }));
             writer.Write(Processes, (w, v) => w.WriteReadOnlyList(v, (w2, v2) => w2.Write(processMap[v2])));
             writer.Write(DetouringStatuses, (w, v) => w.WriteReadOnlyList(v, (w2, v2) => v2.Serialize(w2)));
             writer.WriteNullableString(DumpFileDirectory);
@@ -207,6 +219,19 @@ namespace BuildXL.Processes
             writer.Write(MessageCountSemaphoreCreated);
             writer.Write(TraceFile, (w, v) => v.Serialize(w));
             writer.Write(LastConfirmedMessageCount);
+        }
+
+
+        private static void WriteAbsolutePath(BuildXLWriter writer, Action<BuildXLWriter, AbsolutePath>? writePath, AbsolutePath path)
+        {
+            if (writePath is not null)
+            {
+                writePath(writer, path);
+            }
+            else
+            {
+                writer.Write(path);
+            }
         }
 
         /// <summary>
@@ -237,6 +262,8 @@ namespace BuildXL.Processes
             IReadOnlyList<ReportedFileAccess> fileAccesses = reader.ReadNullable(r => r.ReadReadOnlyList(r2 => ReportedFileAccess.Deserialize(r2, allReportedProcesses, readPath: readPath)));
             IReadOnlyList<ReportedFileAccess> explicitlyReportedFileAccesses = reader.ReadNullable(r => r.ReadReadOnlyList(r2 => ReportedFileAccess.Deserialize(r2, allReportedProcesses, readPath: readPath)));
             IReadOnlyList<ReportedFileAccess> allUnexpectedFileAccesses = reader.ReadNullable(r => r.ReadReadOnlyList(r2 => ReportedFileAccess.Deserialize(r2, allReportedProcesses, readPath: readPath)));
+            IReadOnlyList<KeyValuePair<AbsolutePath, RequestedAccess>> fileAccessesBeforeFirstUndeclaredReWrite = reader.ReadNullable(
+                r => r.ReadReadOnlyList(r2 => new KeyValuePair<AbsolutePath, RequestedAccess>(ReadAbsolutePath(r2, readPath), (RequestedAccess)r2.ReadByte())));
             IReadOnlyList<ReportedProcess> processes = reader.ReadNullable(r => r.ReadReadOnlyList(r2 => allReportedProcesses[r2.ReadInt32()]));
             IReadOnlyList<ProcessDetouringStatusData> detouringStatuses = reader.ReadNullable(r => r.ReadReadOnlyList(r2 => ProcessDetouringStatusData.Deserialize(r2)));
             string dumpFileDirectory = reader.ReadNullableString();
@@ -279,8 +306,14 @@ namespace BuildXL.Processes
                 DetoursMaxHeapSize = detoursMaxHeapSize,
                 LastMessageCount = lastMessageCount,
                 LastConfirmedMessageCount = lastConfirmedMessageCount,
-                MessageCountSemaphoreCreated = messageCountSemaphoreCreated
+                MessageCountSemaphoreCreated = messageCountSemaphoreCreated,
+                FileAccessesBeforeFirstUndeclaredReWrite = fileAccessesBeforeFirstUndeclaredReWrite?.ToDictionary(kvp => kvp.Key, kvp => kvp.Value),
             };
+        }
+
+        private static AbsolutePath ReadAbsolutePath(BuildXLReader reader, Func<BuildXLReader, AbsolutePath>? readPath)
+        {
+            return readPath is not null ? readPath(reader) : reader.ReadAbsolutePath();
         }
 
         private Dictionary<ReportedProcess, int> CreateAndSerializeProcessMap(BuildXLWriter writer)

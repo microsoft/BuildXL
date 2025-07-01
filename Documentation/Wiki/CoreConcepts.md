@@ -84,7 +84,10 @@ For Windows builds, BuildXL implements the file-access monitoring using
 the [Detours](https://www.microsoft.com/en-us/research/project/detours/) technology.
 For Linux builds, BuildXL implements the file-access monitoring using a combination of
 [interpose](https://www.jayconrod.com/posts/23/tutorial-function-interposition-in-linux) and
-[ptrace](https://man7.org/linux/man-pages/man2/ptrace.2.html).
+[ptrace](https://man7.org/linux/man-pages/man2/ptrace.2.html). 
+
+A new [eBPF](https://ebpf.io/)-based sandbox is being rolled out for
+faster and more reliable file monitoring, with the goal of eventually phasing out the current interpose-based sandbox.
 
 Details on sandboxing and runtime monitoring can be found in [Sandboxing](../Specs/Sandboxing.md).
 

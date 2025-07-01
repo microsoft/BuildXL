@@ -31,5 +31,31 @@ The semantics of how various high-level filesystem operations (e.g., absent prob
 
 A clear **limitation** of this approach is that in only applies to executables that are **dynamically linked** to `libc`.  In Linux, that is the case for the vast majority of executables.  Notable exceptions, however, are programs written in [`Go`](https://go.dev/) which are by default statically linked.
 
+### An eBPF-based sandbox
+
+A new Linux sandbox is being rolled out based on [eBPF](https://ebpf.io/). The plan is that it will eventually replace the interpose-based sandbox. The main goal is to overcome the limitation mentioned above, where with interpose file accesses can only be detected when executables are dynamically linked and the corresponding libc wrapper is used. [io_uring](https://en.wikipedia.org/wiki/Io_uring) is a clear example of an API that is being increasingly used by tools for which there is no libc wrapper yet, and direct syscalls are being performed. Moreover, io_uring is specifically about IO and therefore particularly disruptive for offering a reliable sandbox.
+
+eBPF allows to trace very low level kernel-side functions, which reduces the list of functions to trace significantly. See [sandbox.bpf.c](Public\Src\Sandbox\Linux\ebpf\sandbox.bpf.c) for a full list.
+
+#### High-level architecture
+
+Each pip is wrapped in a bpf runner program. This program is responsible for setting up the [bpf maps](https://www.kernel.org/doc/html/latest/bpf/maps.html) for the pip in question and acts as the client side consumer of the events captured on kernel side. The bpf runner then sends the captured events through a FIFO to the managed side of BuildXL (in the same way the interpose sandbox does). The runner is also responsible for tearing down the pip.
+
+eBPF programs are only loaded once in the lifetime of a build using an eBPF daemon, which gets launched as soon as the build starts and unloads the bpf programs when the build ends. Each bpf runner just verifies all required programs are already loaded and reuse the bpf maps that are setup by the daemon. The following diagram depicts the general flow:
+
+<div style="text-align: center;">
+
+![eBPF architecture](../Wiki/ebpf-architecture.png)
+
+</div>
+
+Each pip is given a dedicated ring buffer to communicate file accesses to user side. A global bpf map tracks which pids need tracking and the pip id that contains that process. A second map contains the ring buffer that corresponds to each pip id. eBPF programs on kernel side lookup the ring buffer where they should place the traced access based on the captured pid, and on user side, each bpf runner registers to listen to a particular ring buffer.
+
+<div style="text-align: center;">
+
+![eBPF ring buffers](../Wiki/ebpf-ring-buffers.png)
+
+</div>
+
 ## Sandbox Demos
 See the [Demos](../../Public/Src/Demos/Demos.md) page which includes sandbox projects to help understand how sandboxing works.

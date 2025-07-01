@@ -724,7 +724,10 @@ namespace BuildXL.Processes
                     {
                         case SandboxInfraSeverity.Error:
                         case SandboxInfraSeverity.Warning:
-                            Logger.Log.SandboxErrorMessage(m_loggingContext, m_reports.PipDescription, report.Data);
+                            // Log a user-friendly error message
+                            Logger.Log.SandboxErrorMessage(m_loggingContext, m_reports.PipDescription);
+                            // Log a verbose message with the full details as well. This is typically not user friendly, but it is useful for debugging.
+                            Logger.Log.FullSandboxErrorMessage(m_loggingContext, m_reports.PipDescription, report.Data);
                             break;
                         case SandboxInfraSeverity.Debug:
                             LogDebug(report.Data);

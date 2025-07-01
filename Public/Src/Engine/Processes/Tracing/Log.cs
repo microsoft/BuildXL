@@ -1280,9 +1280,18 @@ namespace BuildXL.Processes.Tracing
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,
             Keywords = (int)Keywords.UserMessage,
-            EventTask = (ushort)Tasks.Scheduler,
-            Message = "[{pipDescription}] BuildXL Sandbox error: {content}")]
-        internal abstract void SandboxErrorMessage(LoggingContext loggingContext, string pipDescription, string content);
+            EventTask = (ushort)Tasks.PipExecutor,
+            Message = "[{pipDescription}] The BuildXL sandbox experienced an unrecoverable error. See the BuildXL log for more details.")]
+        internal abstract void SandboxErrorMessage(LoggingContext loggingContext, string pipDescription);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.FullSandboxErrorMessage,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.PipExecutor,
+            Message = "[{pipDescription}] BuildXL sandbox error: {content}")]
+        internal abstract void FullSandboxErrorMessage(LoggingContext loggingContext, string pipDescription, string content);
 
         [GeneratedEvent(
             (ushort)LogEventId.ReportArgsMismatch,

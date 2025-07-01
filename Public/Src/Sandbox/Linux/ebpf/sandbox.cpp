@@ -1081,15 +1081,24 @@ int Start(sandbox_bpf *skel, char **argv) {
         return -1;
     }
 
+    // Set the draining thread to the highest priority so it can process events faster.
+    // The thread is blocked when no messages are available in the ring buffer, so it will not consume CPU when idle. In addition,
+    // events are only sent to user side in 'wakeup_data_size' chunks (see Public/Src/Sandbox/Linux/ebpf/sandbox.bpf.c), so the thread will not be woken up too often.
+    struct sched_param param;
+    pthread_attr_t attr;
+    pthread_attr_init(&attr);
+    pthread_attr_setschedpolicy(&attr, SCHED_FIFO);
+    param.sched_priority = sched_get_priority_max(SCHED_FIFO);
+    pthread_attr_setschedparam(&attr, &param);
     // This thread waits on `g_event_queue` which receives events from the file access and debug ring buffers
     // written to by eBPF programs..
     // It is responsible for processing those events and sending them to the managed side.
-    if (pthread_create(&g_event_queue_thread, NULL, HandleEventQueue, NULL) != 0) {
+    if (pthread_create(&g_event_queue_thread, &attr, HandleEventQueue, NULL) != 0) {
         LogError("Event queue message thread failed to start %s\n", strerror(errno));
         Cleanup(skel);
         return -1;
     }
-
+ 
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     g_bxl->LogDebug(getpid(), "Sandbox load time: %d ms", duration.count());

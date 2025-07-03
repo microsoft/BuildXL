@@ -1,5 +1,21 @@
 trigger: none
 
+parameters:
+- name: packages
+  type: object
+  default:
+  - Microsoft.SBOMCore@latest@1essharedassets@1esPkgs@SBOMTool@BuildXL-Pipeline-AccessToken
+  - Microsoft.Parsers.ManifestGenerator@latest@1essharedassets@1esPkgs@SBOMTool@BuildXL-Pipeline-AccessToken
+  - Microsoft.Sbom.Common@latest@nuget.org
+  - Microsoft.Sbom.Parsers.Spdx22SbomParser@latest@nuget.org
+  - Microsoft.SBOM.Adapters@latest@nuget.org
+  - Microsoft.ManifestInterface@latest@1essharedassets@1esPkgs@SBOMTool@BuildXL-Pipeline-AccessToken
+  - Microsoft.Sbom.Contracts@latest@nuget.org
+  - Microsoft.ComponentDetection.Contracts@latest@nuget.org
+  - python@latest@nuget.org
+  - Microsoft.VisualStudio.Services.Governance.ComponentDetection@latest@mseng@none@ComponentGovernance@BuildXL-Pipeline-AccessToken
+  - Microsoft.Sbom.Extensions@latest@nuget.org
+
 pool:
   name: BuildXL-DevOpsAgents-Selfhost-BuildCache
   os: windows
@@ -61,7 +77,7 @@ stages:
           workingDirectory: $(Build.SourcesDirectory)/BuildXL.Internal
           buildXLSourceDirectory: $(Build.SourcesDirectory)/BuildXL.Internal
 
-      - script: .\BuildXLReleaseManagement.exe updatePackages --Packages Microsoft.SBOMCore@latest@1essharedassets@SBOMTool@$(BuildXL-Pipeline-AccessToken) Microsoft.Parsers.ManifestGenerator@latest@1essharedassets@SBOMTool@$(BuildXL-Pipeline-AccessToken) Microsoft.Sbom.Common@latest@nuget.org Microsoft.Sbom.Parsers.Spdx22SbomParser@latest@nuget.org Microsoft.SBOM.Adapters@latest@nuget.org Microsoft.ManifestInterface@latest@1essharedassets@SBOMTool@$(BuildXL-Pipeline-AccessToken) Microsoft.Sbom.Contracts@latest@nuget.org Microsoft.ComponentDetection.Contracts@latest@nuget.org python@latest@nuget.org Microsoft.VisualStudio.Services.Governance.ComponentDetection@latest@mseng@ComponentGovernance@$(BuildXL-Pipeline-AccessToken) Microsoft.Sbom.Extensions@latest@nuget.org --MsEngGitToken $(BuildXL-Pipeline-AccessToken) --cloudBuildAuthenticationToken $(CloudBuildAccessToken) --BuildXLSourceRoot "$(Build.SourcesDirectory)/BuildXL.Internal" --CloudbuildSourceRoot "$(Build.SourcesDirectory)/CloudBuild"
+      - script: .\BuildXLReleaseManagement.exe updatePackages --Packages ${{ join(' ', parameters.packages) }} --MsEngGitToken $(BuildXL-Pipeline-AccessToken) --cloudBuildAuthenticationToken $(CloudBuildAccessToken) --BuildXLSourceRoot "$(Build.SourcesDirectory)/BuildXL.Internal" --CloudbuildSourceRoot "$(Build.SourcesDirectory)/CloudBuild"
         workingDirectory: '$(Build.ArtifactStagingDirectory)/BuildXLReleaseManagement'
         env:
           1ESSHAREDASSETS_BUILDXL_FEED_PAT: $(1ESSHAREDASSETS_BUILDXL_FEED_PAT)
@@ -71,6 +87,7 @@ stages:
           ARTIFACT_CREDENTIALPROVIDERS_PATH: $(ARTIFACT_CREDENTIALPROVIDERS_PATH)
           CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT_B64: $(CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT_B64)
           VSS_NUGET_EXTERNAL_FEED_ENDPOINTS: $(VSS_NUGET_EXTERNAL_FEED_ENDPOINTS)
+          BuildXL-Pipeline-AccessToken: $(BuildXL-Pipeline-AccessToken)
 
       # Copy and publish BuildXL log in case it failed during the schedule phase
       - task: CopyFiles@2

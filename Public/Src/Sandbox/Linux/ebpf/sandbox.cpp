@@ -57,7 +57,7 @@ int g_debug_buffer_per_pip_fd, g_breakaway_processes_map_fd, g_event_cache_per_p
 sem_t g_root_process_populated_semaphore;
 bool g_ebpf_already_loaded, g_ebpf_should_force_ebpf_loading = false;
 buildxl::common::SPSCQueue<ebpf_event *> g_event_queue;
-pthread_t g_event_queue_thread, g_ring_buffer_monitoring_thread;
+pthread_t g_event_queue_thread;
 // The minimum available space in the ring buffer for the given runner is sent right after the runner exit event.
 // Make this atomic to avoid torn reads/writes when multiple threads are accessing it. We don't really care about ordering (this is just sampling the ring buffer space),
 // so we use relaxed memory order.
@@ -386,6 +386,19 @@ void *HandleEventQueue(void *arg) {
     pthread_exit(NULL);
 }
 
+void UpdateRingBufferAvailableSpace() {
+    // Poll the ring buffer available space 
+    // (ring__avail_data_size returns the number of bytes not yet consumed - the opposite of the available space)
+    size_t availability = FILE_ACCESS_RINGBUFFER_SIZE - ring__avail_data_size(ring_buffer__ring(g_file_access_ring_buffer, 0));
+
+    size_t min_availability = g_ring_buffer_min_available_space.load(std::memory_order_relaxed);
+    // Compute the minimum available space in the ring buffer for the given runner
+    if (min_availability == -1 || availability < min_availability)
+    {
+        g_ring_buffer_min_available_space.store(availability, std::memory_order_relaxed);
+    }
+}
+
 /**
  * Callback for file access/debug event ring buffer.
  * We use a queue so we can read from the ringbuffer as fast as possible, and offload processing to another thread.
@@ -403,6 +416,11 @@ int HandleBpfRingBufferEvent(void *ctx, void *data, size_t data_sz) {
     memcpy(new_event, data, data_sz);
     // Enqueue the copied event into the SPSC queue for background processing
     g_event_queue.Enqueue(new_event);
+
+    // Let's measure the available space in the ring buffer after we processed the event.
+    // Sampling this data proved to be insufficient (event with 10ms intervals we got very inacurate results),
+    // so we sample it every time we process an event.
+    UpdateRingBufferAvailableSpace();
 
     return 0;
 }
@@ -596,13 +614,7 @@ void *WaitForProcessTreeToExit(void *argv) {
     // and signal the user side draining queue to stop processing events.
     FlushRingBufferAndSignalQueue();
 
-    // The monitoring thread may be sleeping. Just cancel it, no need for graceful termination.
-    pthread_cancel(g_ring_buffer_monitoring_thread);
-
     g_stop = 1;
-
-    // Just making sure the thread was properly released
-    pthread_join(g_ring_buffer_monitoring_thread, NULL);
 
     return NULL;
 }
@@ -999,26 +1011,6 @@ void DeletePerPipMaps(sandbox_bpf *skel, pid_t runner_pid) {
     DeletePerPipMap(g_sandbox_options_per_pip_map_fd, runner_pid, "sandbox options");
 }
 
-// Checks the file access ring buffer available space every second and updates the minimum available space.
-void *RingBufferMonitorThread(void *arg) {
-    while (!g_stop) {
-        // Poll the ring buffer available space 
-        // (ring__avail_data_size returns the number of bytes not yet consumed - the opposite of the available space)
-        size_t availability = FILE_ACCESS_RINGBUFFER_SIZE - ring__avail_data_size(ring_buffer__ring(g_file_access_ring_buffer, 0));
-
-        size_t min_availability = g_ring_buffer_min_available_space.load(std::memory_order_relaxed);
-        // Compute the minimum available space in the ring buffer for the given runner
-        if (min_availability == -1 || availability < min_availability)
-        {
-            g_ring_buffer_min_available_space.store(availability, std::memory_order_relaxed);
-        }
-
-        sleep(1);
-    }
-
-    pthread_exit(NULL);
-}
-
 int Start(sandbox_bpf *skel, char **argv) {
     auto start = std::chrono::high_resolution_clock::now();
     
@@ -1116,13 +1108,6 @@ int Start(sandbox_bpf *skel, char **argv) {
     // written to by eBPF programs..
     // It is responsible for processing those events and sending them to the managed side.
     if (pthread_create(&g_event_queue_thread, NULL, HandleEventQueue, NULL) != 0) {
-        LogError("Event queue message thread failed to start %s\n", strerror(errno));
-        Cleanup(skel);
-        return -1;
-    }
-
-    // This thread continuously monitors the file access ring buffer and updates the minimum available space.
-    if (pthread_create(&g_ring_buffer_monitoring_thread, NULL, RingBufferMonitorThread, NULL) != 0) {
         LogError("Event queue message thread failed to start %s\n", strerror(errno));
         Cleanup(skel);
         return -1;

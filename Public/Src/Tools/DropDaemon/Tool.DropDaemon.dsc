@@ -157,7 +157,6 @@ export namespace DropDaemon {
         // be specified here, as the test module uses this function
         // to import them for testing the SBOM generation library.
         return [
-            importFrom("Microsoft.Parsers.ManifestGenerator").pkg,
             importFrom("Microsoft.SbomCore").pkg,
             importFrom("Microsoft.Sbom.Common").pkg,
             importFrom("Microsoft.Sbom.Parsers.Spdx22SbomParser").pkg,

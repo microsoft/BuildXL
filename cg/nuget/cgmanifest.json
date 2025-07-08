@@ -1787,15 +1787,6 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "Microsoft.Parsers.ManifestGenerator",
-          "Version": "3.8.11"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
           "Name": "Microsoft.Rest.ClientRuntime",
           "Version": "2.3.24"
         }

@@ -26,7 +26,6 @@ using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Tasks;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.SBOMUtilities;
-using Microsoft.ManifestGenerator;
 using Microsoft.Sbom.Adapters;
 using Microsoft.Sbom.Adapters.Report;
 using Microsoft.Sbom.Contracts;
@@ -999,7 +998,7 @@ namespace Tool.DropDaemon
                 {
                     HashType.SHA1 => AlgorithmName.SHA1,
                     HashType.SHA256 => AlgorithmName.SHA256,
-                    HashType.Vso0 => CBHashAlgorithmName.VSO,
+                    HashType.Vso0 => VsoHashAlgorithmName.VSO,
                     _ => throw new InvalidOperationException($"Unsupported hash type {hashType} requested in SBOM generation"),
                 };
             }

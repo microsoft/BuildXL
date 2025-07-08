@@ -1,7 +1,6 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using Microsoft.ManifestGenerator;
 using Microsoft.Sbom.Adapters;
 using Microsoft.Sbom.Adapters.Report;
 using Microsoft.Sbom.Common;

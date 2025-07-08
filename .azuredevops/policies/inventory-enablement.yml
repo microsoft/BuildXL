@@ -1,0 +1,8 @@
+name: BuildXL.Internal inventory config
+description: Inventory-as-code configuration for the BuildXL.Internal repository
+resource: repository
+configuration:
+  inventoryConfig:
+    schemaVersion: 0
+    publishInventory: true
+    areasOnly: false

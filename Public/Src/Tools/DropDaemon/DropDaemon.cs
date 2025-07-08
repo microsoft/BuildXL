@@ -824,7 +824,7 @@ namespace Tool.DropDaemon
             Contract.Requires(dropConfig.UploadBcdeFileToDrop, "UploadBcdeFileToDrop API called even though this feature is disabled in DropConfig");
 
             // Read Path for bcde output from environment, this should already be set by Cloudbuild
-            var bcdeOutputJsonPath = Environment.GetEnvironmentVariable(Constants.ComponentGovernanceBCDEOutputFilePath);
+            var bcdeOutputJsonPath = Environment.GetEnvironmentVariable(BuildXL.Utilities.SBOMUtilities.Constants.ComponentGovernanceBCDEOutputFilePath);
 
             if (string.IsNullOrWhiteSpace(bcdeOutputJsonPath))
             {
@@ -1016,14 +1016,14 @@ namespace Tool.DropDaemon
         private async Task<Possible<IEnumerable<SbomPackage>>> GetSbomPackagesAsync(IIpcLogger logger)
         {
             // Read Path for bcde output from environment, this should already be set by Cloudbuild
-            var bcdeOutputJsonPath = Environment.GetEnvironmentVariable(Constants.ComponentGovernanceBCDEOutputFilePath);
+            var bcdeOutputJsonPath = Environment.GetEnvironmentVariable(BuildXL.Utilities.SBOMUtilities.Constants.ComponentGovernanceBCDEOutputFilePath);
 
             if (string.IsNullOrWhiteSpace(bcdeOutputJsonPath))
             {
                 // This should only happen if CG didn't run before the build. This should be the exception, but CG can be disabled (via configuration) 
                 // and the SBOM creation here can still happen without a set of packages.
                 // Log a message on the ApiServer it and return an empty set.
-                Analysis.IgnoreResult(await ApiClient.LogMessage($"[GetSbomPackages] The '{Constants.ComponentGovernanceBCDEOutputFilePath}' environment variable was not found. This happens when component governance on the build runner is disabled. Component detection data will not be included in build manifest.", isWarning: false));
+                Analysis.IgnoreResult(await ApiClient.LogMessage($"[GetSbomPackages] The '{BuildXL.Utilities.SBOMUtilities.Constants.ComponentGovernanceBCDEOutputFilePath}' environment variable was not found. This happens when component governance on the build runner is disabled. Component detection data will not be included in build manifest.", isWarning: false));
                 return new List<SbomPackage>();
             }
             else if (!System.IO.File.Exists(bcdeOutputJsonPath))

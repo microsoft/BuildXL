@@ -942,7 +942,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.ComponentDetection.Contracts",
-          "Version": "5.2.25"
+          "Version": "5.2.26"
         }
       }
     },
@@ -1860,7 +1860,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.SbomCore",
-          "Version": "6.0.2"
+          "Version": "6.0.4"
         }
       }
     },

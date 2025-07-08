@@ -5,7 +5,7 @@ parameters:
   type: object
   default:
   - Microsoft.SBOMCore@latest@1essharedassets@1esPkgs@SBOMTool@BuildXL-Pipeline-AccessToken
-  - Microsoft.Parsers.ManifestGenerator@latest@1essharedassets@1esPkgs@SBOMTool@BuildXL-Pipeline-AccessToken
+  - Microsoft.Parsers.ManifestGenerator@latest@1essharedassets@none@Packaging@BuildXL-Pipeline-AccessToken
   - Microsoft.Sbom.Common@latest@nuget.org
   - Microsoft.Sbom.Parsers.Spdx22SbomParser@latest@nuget.org
   - Microsoft.SBOM.Adapters@latest@nuget.org

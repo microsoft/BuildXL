@@ -38,7 +38,7 @@ function Get-DirectDownloadUrl {
     $content = $response.Content
 
     # Adjusted regex: match "Direct link" (case-insensitive) then capture an HTTP(S) URL.
-    $regex = [regex]::new('(https:\/\/download\.visualstudio\.microsoft\.com\/[^\s"<>]+)', [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
+    $regex = [regex]::new('<a[^>]+id="directLink"[^>]+href="([^"]+)"', [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
     $match = $regex.Match($content)
     if ($match.Success) {
         $directUrl = $match.Groups[1].Value.Trim()

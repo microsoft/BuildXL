@@ -408,43 +408,43 @@ config({
                     archiveType: "tgz",
                 },
 
-                // DotNet Core Runtime 9.0.3
+                // DotNet Core Runtime 9.0.7
                 {
                     moduleName: "DotNet-Runtime.win-x64.9.0", 
-                    url: "https://download.visualstudio.microsoft.com/download/pr/00ea272c-9902-4b5c-b638-18793f44622f/c33b500211f70908ed8370e65a7b3472/dotnet-runtime-9.0.3-win-x64.zip",
-                    hash: "VSO0:20101BAF51C8753C0993CE6ECB32B820681562D1C439C559085F92C466012E7200",
+                    url: "https://builds.dotnet.microsoft.com/dotnet/Runtime/9.0.7/dotnet-runtime-9.0.7-win-x64.zip",
+                    hash: "VSO0:991CE6A392301641D4BEFEBAD9D73A7EF9895B6A929E1DF56559F9C3F92343F800",
                     archiveType: "zip",
                 },
                 {
                     moduleName: "DotNet-Runtime.osx-x64.9.0",
-                    url: "https://download.visualstudio.microsoft.com/download/pr/b4b321f3-ee2b-46e5-96eb-8c809a901ecb/252a64bf8c5b5b196764c5b301357249/dotnet-runtime-9.0.3-osx-x64.tar.gz",
-                    hash: "VSO0:E8D9E49AE812D4BADA9C00E85C276A731AF668A110C4A32C20DC922FEA020DC500",
+                    url: "https://builds.dotnet.microsoft.com/dotnet/Runtime/9.0.7/dotnet-runtime-9.0.7-osx-x64.tar.gz",
+                    hash: "VSO0:4364FB384ED51C3EC61E49BA7EA884BA998FE2B099ADB3D4C79BAA401407DA5D00",
                     archiveType: "tgz",
                 },
                 {
                     moduleName: "DotNet-Runtime.linux-x64.9.0",
-                    url: "https://download.visualstudio.microsoft.com/download/pr/a58fcc04-99ee-4dea-aa5d-d6d22c4040dc/4433f4e97ad4658bd76f52acc1cb9c21/dotnet-runtime-9.0.3-linux-x64.tar.gz",
-                    hash: "VSO0:C75E6362F55C335D36330F994563670E47620DE2DEA85746F746F9762B57D4DD00",
+                    url: "https://builds.dotnet.microsoft.com/dotnet/Runtime/9.0.7/dotnet-runtime-9.0.7-linux-x64.tar.gz",
+                    hash: "VSO0:6593E9F75626F34B54185D83833AD73B534F07794B2E9380CB0719971054D1A600",
                     archiveType: "tgz",
                 },
 
-                // DotNet Core Runtime 8.0.14
+                // DotNet Core Runtime 8.0.18
                 {
                     moduleName: "DotNet-Runtime.win-x64.8.0", 
-                    url: "https://download.visualstudio.microsoft.com/download/pr/c150ceab-27e2-489e-94e1-a3c55d13a07f/41fe3d1d9850f0d8140d1d38cd84b04c/dotnet-runtime-8.0.14-win-x64.zip",
-                    hash: "VSO0:083C9B7C7C7AA00EC13C92FA0416F2513B81758040F234873B9510CC00131CB600",
+                    url: "https://builds.dotnet.microsoft.com/dotnet/Runtime/8.0.18/dotnet-runtime-8.0.18-win-x64.zip",
+                    hash: "VSO0:3B0EAF40C742E4D5A00D52A5205C7D64FFA646D0F04C811D910A88C65DF8AC5700",
                     archiveType: "zip",
                 },
                 {
                     moduleName: "DotNet-Runtime.osx-x64.8.0",
-                    url: "https://download.visualstudio.microsoft.com/download/pr/521020c8-7a44-4b39-b34d-8c82b1b8a5b0/d5e9928ff69dcc6b2c491fc87853109f/dotnet-runtime-8.0.14-osx-x64.tar.gz",
-                    hash: "VSO0:3B49B92B05AC1ABC3633CDFC654D29A2DDF750E5F4E00AA76C82A00FF8560C7300",
+                    url: "https://builds.dotnet.microsoft.com/dotnet/Runtime/8.0.18/dotnet-runtime-8.0.18-osx-x64.tar.gz",
+                    hash: "VSO0:52EA6C5E7BAFD5EB84FF5FB434A3780223D1A249EA43931FAE7CDF6A3D0131FC00",
                     archiveType: "tgz",
                 },
                 {
                     moduleName: "DotNet-Runtime.linux-x64.8.0",
-                    url: "https://download.visualstudio.microsoft.com/download/pr/a52595b3-f025-4bcd-a3fe-b6091e276d76/4c0d27fd34b79bf7c21ba401b84c76e4/dotnet-runtime-8.0.14-linux-x64.tar.gz",
-                    hash: "VSO0:574B8D4455D1FDBF8A7FE4CC2A910539C103E1043762F814823FEAE1A1DB667600",
+                    url: "https://builds.dotnet.microsoft.com/dotnet/Runtime/8.0.18/dotnet-runtime-8.0.18-linux-x64.tar.gz",
+                    hash: "VSO0:99A4721A7E4E71DBAC5861D785D6719680CE9EE0D4CF53319FBEFE902058DD0900",
                     archiveType: "tgz",
                 },
 

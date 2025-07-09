@@ -5,11 +5,11 @@ const aspVersion = "9.0.0";
 
 // Versions used by framework reference packages for reference assemblies
 // and runtime assemblies respectively
-const asp8RefVersion = "8.0.14";
-const asp8RuntimeVersion = "8.0.14";
+const asp8RefVersion = "8.0.18";
+const asp8RuntimeVersion = "8.0.18";
 
-const asp9RefVersion = "9.0.3";
-const asp9RuntimeVersion = "9.0.3";
+const asp9RefVersion = "9.0.7";
+const asp9RuntimeVersion = "9.0.7";
 
 export const pkgs = [
     // aspnet web api

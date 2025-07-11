@@ -184,6 +184,23 @@ namespace BuildXL.Scheduler.Tracing
             string message);
 
         [GeneratedEvent(
+           (ushort)LogEventId.PipIpcFailedDueToUnknownFileHash,
+           EventGenerators = EventGenerators.LocalOnly,
+           EventLevel = Level.Error,
+           Keywords = (int)Keywords.UserMessage,
+           EventTask = (ushort)Tasks.PipExecutor,
+           Message = "[{pipDescription}] Encountered an error while preparing IPC operation payload. Attempted to resolve the content hash of a file that was not registered with the build graph. " +
+                     "This may indicate an issue with the build graph or an issue with the build engine. Debug info: " +
+                     "Artifact: '{fileArtifact}', Path: '{filePath}', Exists: {pathExists}, IsSymlinkOrJunction: {isSymlinkOrJunction}.")]
+        internal abstract void PipIpcFailedDueToUnknownFileHash(
+           LoggingContext loggingContext,
+           string pipDescription,
+           string fileArtifact,
+           string filePath,
+           bool pathExists,
+           bool isSymlinkOrJunction);
+
+        [GeneratedEvent(
             (ushort)LogEventId.PipCopyFileFromUntrackableDir,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,

@@ -508,10 +508,10 @@ namespace BuildXL.Scheduler
             }
 
             var mayBeTracked = await TrackPipOutputAsync(
-                operationContext, 
-                copyFile, 
-                environment, 
-                copyFile.Destination, 
+                operationContext,
+                copyFile,
+                environment,
+                copyFile.Destination,
                 // This is a copy file and therefore never a dynamic file
                 outputDirectoryRoot: AbsolutePath.Invalid);
 
@@ -614,13 +614,46 @@ namespace BuildXL.Scheduler
                 return ExecutionResult.GetFailureNotRunResult(operationContext);
             }
 
+            ExecutionResult executionResult = new ExecutionResult
+            {
+                MustBeConsideredPerpetuallyDirty = true,
+            };
+
             // create IPC operation
             IIpcProvider ipcProvider = environment.IpcProvider;
             string monikerId = pip.IpcInfo.IpcMonikerId.ToString(pathTable.StringTable);
             string connectionString = ipcProvider.LoadAndRenderMoniker(monikerId);
             IClient client = ipcProvider.GetClient(connectionString, pip.IpcInfo.IpcClientConfig);
 
-            var ipcOperationPayload = pip.MessageBody.ToString(environment.PipFragmentRenderer, useIpcEscaping: true);
+            string ipcOperationPayload = null;
+            try
+            {
+                // We might get an exception on payload rendering if there in an unknown file artifact.
+                ipcOperationPayload = pip.MessageBody.ToString(environment.PipFragmentRenderer, useIpcEscaping: true);
+            }
+            catch (PipFragmentRendererFileHashException e)
+            {
+                // The pip already failed, so let's spend a bit of time and collect additional info about the path.
+                var filePath = e.FileArtifact.Path.ToString(pathTable);
+                var pathExists = FileUtilities.FileExistsNoFollow(filePath);
+                var isSymlinkOrJunction = pathExists
+                    && FileUtilities.TryGetReparsePointType(filePath) is var possibleReparsePointType
+                    && possibleReparsePointType.Succeeded
+                    && FileUtilities.IsReparsePointActionable(possibleReparsePointType.Result);
+
+                Logger.Log.PipIpcFailedDueToUnknownFileHash(
+                    operationContext,
+                    pip.GetDescription(environment.Context),
+                    e.FileArtifact.ToString(),
+                    filePath,
+                    pathExists,
+                    isSymlinkOrJunction);
+
+                executionResult.SetResult(operationContext, PipResultStatus.Failed);
+                executionResult.Seal();
+                return executionResult;
+            }
+
             var operation = new IpcOperation(ipcOperationPayload, waitForServerAck: true);
 
             // execute async
@@ -630,11 +663,6 @@ namespace BuildXL.Scheduler
                 // execute async
                 ipcResult = await IpcSendAndHandleErrorsAsync(client, operation);
             }
-
-            ExecutionResult executionResult = new ExecutionResult
-            {
-                MustBeConsideredPerpetuallyDirty = true,
-            };
 
             if (ipcResult.Succeeded)
             {
@@ -912,10 +940,10 @@ namespace BuildXL.Scheduler
                                 // This is a write file and therefore never a dynamic output
                                 outputDirectoryRoot: AbsolutePath.Invalid)
                             : await TrackPipOutputAsync(
-                                operationContext, 
-                                producerPip, 
-                                environment, 
-                                destinationFile, 
+                                operationContext,
+                                producerPip,
+                                environment,
+                                destinationFile,
                                 // This is a write file and therefore never a dynamic output
                                 outputDirectoryRoot: AbsolutePath.Invalid);
 
@@ -1166,7 +1194,7 @@ namespace BuildXL.Scheduler
                                                                                   .ToDictionary(
                                                                                                  group => group.Key,
                                                                                                  group => (IReadOnlyCollection<FileArtifactWithAttributes>)(new HashSet<FileArtifactWithAttributes>(group.SelectMany(kvp => kvp.Value ?? new List<FileArtifactWithAttributes>()))).ToList()));
-              
+
 
                 // Merge DynamicObservations
                 dynamicObservations = ReadOnlyArray<(AbsolutePath, DynamicObservationKind)>.From(allExecutionResults.Where(result => result.DynamicObservations.IsValid)
@@ -1242,7 +1270,7 @@ namespace BuildXL.Scheduler
                 // We merge the fileAccessViolations, allowlistedaccessviolations, allowedUndeclaredReads, SharedDynamicDirectoryWriteAccesses, dynamicObservations and exclusiveOpaqueContent from all retries.
                 // We do not perform the union if there hasn't been a retry and this is handled in these methods below.
                 MergeAllAccessesAndViolations(allExecutionResults, out IReadOnlyCollection<ReportedFileAccess> fileAccessViolationsNotAllowlisted, out IReadOnlyCollection<ReportedFileAccess> allowlistedFileAccessViolations);
-                
+
                 MergeAllDynamicAccessesAndViolations(allExecutionResults,
                                                             out IReadOnlyDictionary<AbsolutePath, ObservedInputType> allowedUndeclaredReads,
                                                             out IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> sharedDynamicDirectoryWriteAccesses,
@@ -1338,7 +1366,7 @@ namespace BuildXL.Scheduler
                     cacheHitData.Metadata.Id);
 
                 // If the cache hit came from the remote cache, we want to know the duration of that in a separate counter
-                using (cacheHitData.Locality == PublishedEntryRefLocality.Remote ? operationContext.StartOperation(PipExecutorCounter.RunProcessFromRemoteCacheDuration) : (OperationContext?) null)
+                using (cacheHitData.Locality == PublishedEntryRefLocality.Remote ? operationContext.StartOperation(PipExecutorCounter.RunProcessFromRemoteCacheDuration) : (OperationContext?)null)
                 {
                     if (!TryGetCacheHitExecutionResult(operationContext, environment, pip, runnableFromCacheCheckResult, out var executionResult))
                     {
@@ -1687,7 +1715,7 @@ namespace BuildXL.Scheduler
                 if (observedInputValidationResult.Status == ObservedInputProcessingStatus.Aborted)
                 {
                     succeeded = false;
-                    AssumeErrorWasLoggedWhenNotCancelled(environment, operationContext, errorMessage:"No error was logged when ValidateObservedAccesses failed");
+                    AssumeErrorWasLoggedWhenNotCancelled(environment, operationContext, errorMessage: "No error was logged when ValidateObservedAccesses failed");
                 }
 
                 if (pip.ProcessAbsentPathProbeInUndeclaredOpaquesMode == Process.AbsentPathProbeInUndeclaredOpaquesMode.Relaxed)
@@ -3069,7 +3097,7 @@ namespace BuildXL.Scheduler
                     {
                         // We commited to an entry-ref but we couldn't fetch the cache entry. This is a fairly unusual case that indicates something wrong on the cache side
                         if (entryFetchResult?.Succeeded == false)
-                        { 
+                        {
                             Logger.Log.TwoPhaseFetchingCacheEntryFailed(
                                 operationContext,
                                 description,
@@ -3870,11 +3898,11 @@ namespace BuildXL.Scheduler
             {
                 var file = GetCachedSandboxedProcessOutputArtifact(cacheHitData, pip, SandboxedProcessFile.StandardOutput);
                 failedFiles = await TryMaterializeStandardOutputFileHelperAsync(
-                    operationContext, 
-                    pip, 
-                    fileContentManager, 
-                    failedFiles, 
-                    file, 
+                    operationContext,
+                    pip,
+                    fileContentManager,
+                    failedFiles,
+                    file,
                     cacheHitData.StandardOutput.Item2,
                     // Replaying warnings from cache is a blocking step. We don't want this materialization request to get throttled
                     // together with regular input/output materialization. We just need to materialize standard output and error (below),
@@ -3886,11 +3914,11 @@ namespace BuildXL.Scheduler
             {
                 var file = GetCachedSandboxedProcessOutputArtifact(cacheHitData, pip, SandboxedProcessFile.StandardError);
                 failedFiles = await TryMaterializeStandardOutputFileHelperAsync(
-                    operationContext, 
-                    pip, 
-                    fileContentManager, 
-                    failedFiles, 
-                    file, 
+                    operationContext,
+                    pip,
+                    fileContentManager,
+                    failedFiles,
+                    file,
                     cacheHitData.StandardError.Item2,
                     // See throttling considerations on the materialization request for standard output above
                     throttleMaterialization: false);
@@ -4037,7 +4065,7 @@ namespace BuildXL.Scheduler
             Contract.Requires(environment != null);
             Contract.Requires(state != null);
             Contract.Requires(pip != null);
-            
+
             var pathTable = environment.Context.PathTable;
             var stringTable = environment.Context.StringTable;
             var pathExpander = state.PathExpander;
@@ -4073,7 +4101,7 @@ namespace BuildXL.Scheduler
                 foreach (var staticOutputHashes in metadata.StaticOutputHashes)
                 {
                     // TODO: The code path that returns null looks dubious. Could they ever be reached? Should we write a contract here instead of silently concluding weak fingerprint miss?
-                    
+
                     FileMaterializationInfo materializationInfo = staticOutputHashes.Info.ToFileMaterializationInfo(pathTable, outputDirectoryRoot: AbsolutePath.Invalid, dynamicOutputCaseSensitiveRelativeDirectory: RelativePath.Invalid);
                     AbsolutePath metadataPath = AbsolutePath.Create(pathTable, staticOutputHashes.AbsolutePath);
 
@@ -4205,7 +4233,7 @@ namespace BuildXL.Scheduler
         {
             if (!pipExecutionEnvironment.Context.CancellationToken.IsCancellationRequested)
             {
-                 Contract.Assert(operationContext.LoggingContext.ErrorWasLogged, errorMessage);
+                Contract.Assert(operationContext.LoggingContext.ErrorWasLogged, errorMessage);
             }
         }
 
@@ -5331,14 +5359,14 @@ namespace BuildXL.Scheduler
 
                 Possible<TrackedFileContentInfo> possiblyStoredOutputArtifact = shouldStoreOutputToCache
                     ? await StoreProcessOutputToCacheAsync(
-                        operationContext, 
-                        environment, 
-                        process, 
+                        operationContext,
+                        environment,
+                        process,
                         outputArtifact,
                         outputDirectoryRoot,
-                        output.IsUndeclaredFileRewrite, 
-                        isReparsePoint, 
-                        isProcessCacheable: isProcessCacheable, 
+                        output.IsUndeclaredFileRewrite,
+                        isReparsePoint,
+                        isProcessCacheable: isProcessCacheable,
                         isExecutable: isExecutable.Result)
                     : await TrackPipOutputAsync(
                         operationContext,
@@ -5932,10 +5960,10 @@ namespace BuildXL.Scheduler
         /// These are only meant to be used for orchestrator to retrieve the content and save into separate log if required
         /// </summary>
         private static async Task<Possible<EncodedStringKeyedHash>> TryStorePipStandardOutputOrErrorToCache(
-            Tuple<AbsolutePath, Encoding> output, 
-            IPipExecutionEnvironment environment, 
-            PathTable pathTable, 
-            Process pip, 
+            Tuple<AbsolutePath, Encoding> output,
+            IPipExecutionEnvironment environment,
+            PathTable pathTable,
+            Process pip,
             OperationContext operationContext,
             PipExecutionState.PipScopeState state)
         {
@@ -6007,7 +6035,7 @@ namespace BuildXL.Scheduler
             if (standardError != null)
             {
                 await LoadAndPersistPipStdOutput(runnablePip.LoggingContext, environment, state, standardError, directoryPath, SandboxedProcessFile.StandardError.DefaultFileName(), runnablePip.FormattedSemiStableHash);
-            }           
+            }
         }
 
         private static async Task LoadAndPersistPipStdOutput(LoggingContext loggingContext, IPipExecutionEnvironment environment, PipExecutionState.PipScopeState state, EncodedStringKeyedHash stringKeyedHash, string directoryPath, string fileName, string formattedSemiStableHash)

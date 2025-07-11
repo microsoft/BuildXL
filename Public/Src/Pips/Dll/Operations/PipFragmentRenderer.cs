@@ -134,10 +134,22 @@ namespace BuildXL.Pips.Operations
                     return PathExpander(fragment.GetPathValue());
 
                 case PipFragmentType.VsoHash:
-                    return HashLookup != null
-                        ? HashLookup(fragment.GetFileValue()).Render()
-                        : s_unknownLengthFileInfoString;
-
+                {
+                    FileArtifact fileArtifact = fragment.GetFileValue();
+                    try
+                    {
+                        // If file is unknown to FileContentManager, HashLookup will throw.
+                        // There is no nice way to log the error here, nor is there a way to inform a caller about it.
+                        // So, just catch it, throw a new exception with extra info in it, and let the caller log it.
+                        return HashLookup != null
+                            ? HashLookup(fileArtifact).Render()
+                            : s_unknownLengthFileInfoString;
+                    }
+                    catch (Exception e)
+                    {
+                        throw new PipFragmentRendererFileHashException($"Failed to get a hash for a file artifact '{fileArtifact.ToString()}'.", fileArtifact, e);
+                    }
+                }
                 case PipFragmentType.FileId:
                 {
                     var file = fragment.GetFileValue();

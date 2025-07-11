@@ -286,6 +286,7 @@ namespace BuildXL.Scheduler.Tracing
         PipIpcFailedDueToBuildManifestSigningError = 3704,
         PipIpcFailedDueToExternalServiceError = 3705,
         PipIpcFailedWhileShedulerWasTerminating = 3706,
+        PipIpcFailedDueToUnknownFileHash = 3707,
 
 
         // RESERVED TO [5000, 5050] (BuildXL.Scheduler.dll)

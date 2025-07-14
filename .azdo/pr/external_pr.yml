@@ -49,6 +49,8 @@ jobs:
       -minimal
       -deploy Dev
       -deployconfig Release
+      -CacheNamespace BuildXL.Public
+      -SharedCacheMode ConsumeAndPublish
       /p:[Sdk.BuildXL]microsoftInternal=1
       /q:ReleaseNet8
       /p:[BuildXL.Branding]SemanticVersion=$(BuildXL.SemanticVersion)
@@ -84,6 +86,9 @@ jobs:
       script: >-
         bxl.cmd
         -Use Dev
+        -UseBlobL3
+        -SharedCacheMode ConsumeAndPublish
+        -CacheNamespace BuildXL.Public.Validation
         /p:[Sdk.BuildXL]microsoftInternal=0
         /q:$(BuildXL.Configuration)Net8
         /logOutput:FullOutputOnWarningOrError

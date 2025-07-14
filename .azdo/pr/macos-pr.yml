@@ -20,6 +20,8 @@ jobs:
   - script: >-
       bxl.cmd
       /f:output='$(Build.SourcesDirectory)\Out\Bin\Release\tests\*'
+      -CacheNamespace BuildXL.MacOS
+      -SharedCacheMode ConsumeAndPublish
       /p:[Sdk.BuildXL]microsoftInternal=1
       /q:ReleaseDotNetCoreMac
       /logOutput:FullOutputOnWarningOrError

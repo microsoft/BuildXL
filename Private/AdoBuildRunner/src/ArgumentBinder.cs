@@ -129,6 +129,7 @@ namespace BuildXL.AdoBuildRunner
             config.WorkerAlwaysSucceeds = get(m_workerAlwaysSucceeds);
 
             cacheConfig.CacheSizeInMB = get(m_cacheConfigSizeInMb);
+            cacheConfig.RemoteConstructionTimeoutSeconds = get(m_cacheConfigConstructionTimeoutSec);
             cacheConfig.CacheType = get(m_cacheConfigCacheType);
             cacheConfig.Universe = get(m_cacheConfigUniverse);
             cacheConfig.LogGeneratedConfiguration = get(m_cacheConfigLogGeneratedConfiguration);

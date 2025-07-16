@@ -2,6 +2,15 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20250713.2.1 (Release [30233176](https://dev.azure.com/mseng/Domino/_build/results?buildId=30233176&view=results))
+- Fixes to Linux ebpf sandbox ring buffer
+- Log better error on VsoHash rendering in IPC payload
+- Make AdoBuildRunner argument parser pick up cacheConfigConstructionTimeoutSeconds
+
+# 0.1.0-20250703.1 (Release [30193876](https://dev.azure.com/mseng/Domino/_build/results?buildId=30193876&view=results))
+- Log telemetry for source rewrites with original content lost
+- Various EBPF-related improvements and optimizations
+
 # 0.1.0-20250622.1 (Release [30127819](https://dev.azure.com/mseng/Domino/_build/results?buildId=30127819&view=results))
 - Ubuntu 22.04 support for ebpf sandbox
 - Allow specifying timeout exit code for process retries

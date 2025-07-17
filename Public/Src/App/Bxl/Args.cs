@@ -1377,8 +1377,6 @@ namespace BuildXL
                 // settings here are expensive to change and trump external behavior.
                 if (configuration.InCloudBuild())
                 {
-                    configuration.Server = ServerMode.Disabled;
-
                     // if not explicitly disabled, enable user profile redirect and force the location
                     if ((!enableProfileRedirect.HasValue || enableProfileRedirect.Value)
                         // Profile redirection only happens on Windows. Technically, this is a redundant check because there are only

@@ -57,9 +57,19 @@ namespace BuildXL.Pips.Graph
         public void AddFingerprint(Pip pip, ContentFingerprint fingerprint)
         {
             Contract.Requires(pip != null);
+            AddFingerprint(pip.PipId, fingerprint);
+        }
 
-            m_staticFingerprintsToPips[fingerprint] = pip.PipId;
-            m_pipsToStaticFingerprints.Add(pip.PipId, fingerprint);
+        /// <summary>
+        /// Adds pip static fingerprint.
+        /// </summary>
+        /// <param name="pipId">Pip id.</param>
+        /// <param name="fingerprint">Static fingerprint.</param>
+        public void AddFingerprint(in PipId pipId, ContentFingerprint fingerprint)
+        {
+            Contract.Requires(pipId.IsValid);
+            m_staticFingerprintsToPips[fingerprint] = pipId;
+            m_pipsToStaticFingerprints.Add(pipId, fingerprint);
         }
 
         /// <summary>
@@ -95,6 +105,24 @@ namespace BuildXL.Pips.Graph
         {
             pipId = PipId.Invalid;
             return m_staticFingerprintsToPips.TryGetValue(fingerprint, out pipId);
+        }
+
+        /// <summary>
+        /// Updates pip static fingerprints.
+        /// </summary>
+        public void UpdateFingerprint(in PipId pipId, ContentFingerprint fingerprint)
+        {
+            Contract.Requires(pipId.IsValid);
+
+            if (m_pipsToStaticFingerprints.TryGetValue(pipId, out ContentFingerprint oldFingerprint)
+                && m_staticFingerprintsToPips.TryGetValue(oldFingerprint, out PipId existingPipId)
+                && existingPipId == pipId)
+            {
+                m_staticFingerprintsToPips.RemoveKey(oldFingerprint);
+                m_pipsToStaticFingerprints.RemoveKey(pipId);
+                AddFingerprint(pipId, fingerprint);
+
+            }
         }
 
         /// <summary>

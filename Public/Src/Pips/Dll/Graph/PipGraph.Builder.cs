@@ -235,6 +235,54 @@ namespace BuildXL.Pips.Graph
             }
 
             /// <summary>
+            /// Updates the static fingerprints of pips that produce opaque output directories that have existence assertions.
+            /// </summary>
+            /// <remarks>
+            /// This method is called on sealing the pip graph constructions because those existence assertions are added after the producer pips are added to the graph.
+            /// </remarks>
+            private void UpdatePipStaticFingerprintsForExistenceAssertions()
+            {
+                if (!ShouldComputePipStaticFingerprints)
+                {
+                    return;
+                }
+
+                var pipsToAssertions = new Dictionary<PipId, HashSet<FileArtifact>>();
+                foreach (var kvp in OutputsUnderOpaqueExistenceAssertions)
+                {
+                    var directory = kvp.Key;
+                    var success = TryGetOutputDirectoryPip(directory, out NodeId producerPipResult);
+                    if (!success)
+                    {
+                        continue;
+                    }
+
+                    // Let's retrieve the producer of the opaque
+                    var producerPipId = producerPipResult.ToPipId();
+                    if (!pipsToAssertions.TryGetValue(producerPipId, out var assertions))
+                    {
+                        assertions = new HashSet<FileArtifact>();
+                        pipsToAssertions.Add(producerPipId, assertions);
+                    }
+
+                    assertions.AddRange(kvp.Value);
+                }
+
+                foreach (var kvp in pipsToAssertions)
+                {
+                    var pipId = kvp.Key;
+                    var assertions = kvp.Value;
+                    if (!m_pipStaticFingerprints.TryGetFingerprint(pipId, out var fingerprint))
+                    {
+                        continue;
+                    }
+
+                    ContentFingerprint newFingerprint = m_pipStaticFingerprinter.PatchWithFileArtifactSet(fingerprint, "ExistenceAssertions", assertions);
+                    m_pipStaticFingerprints.UpdateFingerprint(pipId, newFingerprint);
+                }
+            }
+
+            /// <summary>
             /// Marks the pip graph as complete and subsequently immutable.
             /// Following this, <see cref="IsImmutable"/> is set.
             /// </summary>
@@ -246,6 +294,8 @@ namespace BuildXL.Pips.Graph
                     {
                         if (!IsImmutable)
                         {
+                            UpdatePipStaticFingerprintsForExistenceAssertions();
+
                             MutableDataflowGraph.Seal();
 
                             StringId apiServerMonikerId = m_lazyApiServerMoniker.IsValueCreated || m_servicePipToServiceInfoMap.Count > 0

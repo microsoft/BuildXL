@@ -1339,7 +1339,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                         // If Pip A was run (cache miss), then it will be marked as materialized by the DirtyNodeTracker and should be added to m_materializedPips.
                         //
                         // If Pip B was not direct dirtied but an input Pip A was, then Pip B will still be in m_materializedPips.
-                        // If Pip A runs but Pip B does not due to the pip filter, then Pip B is not materialized and needs to removed from m_materializedPips.
+                        // If Pip A runs but Pip B does not due to the pip filter, then Pip B is not materialized and needs to be removed from m_materializedPips.
                         bool materialized = nodeWithMaterializationStatus.Value;
                         if (materialized)
                         {

@@ -217,6 +217,19 @@ namespace BuildXL.Pips.Graph
         }
 
         /// <summary>
+        /// Patches the given fingerprint with the given file artifacts.
+        /// </summary>
+        public ContentFingerprint PatchWithFileArtifactSet(ContentFingerprint fingerprint, string name, HashSet<FileArtifact> fileArtifacts)
+        {
+            using (var hasher = CreateHashingHelper(useSemanticPaths: true))
+            {
+                hasher.Add("Pip", fingerprint.Hash);
+                hasher.AddOrderIndependentCollection(name, fileArtifacts, (fp, fa) => fp.Add(fa), m_expandedPathFileArtifactComparer);
+                return new ContentFingerprint(hasher.GenerateHash());
+            }
+        }
+
+        /// <summary>
         /// Adds the members of <see cref="HashSourceFile"/> used in the weak fingerprint computation to the provided <see cref="IFingerprinter"/>.
         /// </summary>
         protected virtual void AddWeakFingerprint(IFingerprinter fingerprinter, HashSourceFile hashSourceFile)

@@ -1366,7 +1366,8 @@ namespace Test.BuildXL.Scheduler
             AbsolutePath workingDirectory = default(AbsolutePath),
             IEnumerable<EnvironmentVariable> environmentVariables = null,
             Dictionary<AbsolutePath, DirectoryArtifact> resultingSealedOutputDirectories = null,
-            IEnumerable<int> succeedFastExitCodes = null)
+            IEnumerable<int> succeedFastExitCodes = null,
+            IEnumerable<AbsolutePath> outputsAssertedUnderOutputDirectories = null)
         {
             Contract.Requires(dependencies != null, "Argument dependencies cannot be null");
             Contract.Requires(outputs != null, "Argument outputs cannot be null");
@@ -1386,19 +1387,20 @@ namespace Test.BuildXL.Scheduler
                 environmentVariables,
                 resultingSealedOutputDirectories,
                 semaphores: null,
-                succeedFastExitCodes);
+                succeedFastExitCodes,
+                outputsAssertedUnderOutputDirectories);
         }
 
         private PipData CreateArguments(
             IEnumerable<FileArtifact> dependencies,
-            IEnumerable<FileArtifact> outputs)
+            IEnumerable<AbsolutePath> outputs)
         {
             Contract.Requires(dependencies != null, "Argument dependencies cannot be null");
             Contract.Requires(outputs != null, "Argument outputs cannot be null");
 
             PipDataBuilder pipDataBuilder = new PipDataBuilder(Context.StringTable);
             int i = 0;
-            foreach (FileArtifact output in outputs)
+            foreach (AbsolutePath output in outputs)
             {
                 if (i > 0)
                 {
@@ -1420,7 +1422,7 @@ namespace Test.BuildXL.Scheduler
                         pipDataBuilder.Add("echo");
                     }
 
-                    if (OperatingSystemHelper.IsUnixOS && dependencies.Any(d => d.Path.Equals(output.Path)))
+                    if (OperatingSystemHelper.IsUnixOS && dependencies.Any(d => d.Path.Equals(output)))
                     {
                         // apparently, 'dependencies' and 'outputs' need not be disjoint, 
                         // and so if we generate something like "/bin/cat file1 > file1"
@@ -1464,7 +1466,7 @@ namespace Test.BuildXL.Scheduler
                 builder =>
                     CreateArguments(
                         UnionNullableEnumerables(builder.Dependencies, builder.DirectoryDependenciesToConsume),
-                        builder.Outputs.Select(f => f.ToFileArtifact())));
+                        builder.Outputs.Select(f => f.ToFileArtifact().Path)));
             return cmdBuilder;
         }
 
@@ -1501,7 +1503,8 @@ namespace Test.BuildXL.Scheduler
             IEnumerable<EnvironmentVariable> environmentVariables = null,
             Dictionary<AbsolutePath, DirectoryArtifact> resultingSealedOutputDirectories = null,
             IEnumerable<ProcessSemaphoreInfo> semaphores = null,
-            IEnumerable<int> succeedFastExitCodes = null)
+            IEnumerable<int> succeedFastExitCodes = null,
+            IEnumerable<AbsolutePath> outputsAssertedUnderOutputDirectories = null)
         {
             Contract.Requires(dependencies != null, "Argument dependencies cannot be null");
             Contract.Requires(outputs != null, "Argument outputs cannot be null");
@@ -1532,7 +1535,9 @@ namespace Test.BuildXL.Scheduler
             }
 
             var finalDependencies = dependencies.Union(directoryDependenciesToConsume ?? ReadOnlyArray<FileArtifact>.Empty);
-            var finalOutputs = outputs.Select(f => f.ToFileArtifact()).Union(directoryOutputsToProduce ?? ReadOnlyArray<FileArtifact>.Empty);
+            var finalOutputs = outputs.Select(f => f.ToFileArtifact().Path)
+                .Union((directoryOutputsToProduce ?? ReadOnlyArray<FileArtifact>.Empty).Select(d => d.Path))
+                .Union((outputsAssertedUnderOutputDirectories ?? ReadOnlyArray<AbsolutePath>.Empty));
             
             var process =
                 new Process(

@@ -205,7 +205,7 @@ namespace BuildXL.Execution.Analyzer
         /// Save the graph. This method produces the whole file content. It must be called only once.
         /// </summary>
         public void SaveGraphData(
-            IPipScheduleTraversal graph,
+            PipGraph graph,
             PipExecutionContext context,
             IEnumerable<PipExecutionPerformanceEventData> executionData,
             IEnumerable<string> workers,
@@ -253,16 +253,19 @@ namespace BuildXL.Execution.Analyzer
                     includeLazyInputs: true
                     );
 
-                    PipArtifacts.ForEachOutput(pip, output =>
-                    {
-                        if (output.IsFile)
+                    PipArtifacts.ForEachOutput(
+                        pip,
+                        output =>
                         {
-                            AssignFileIdAndWriteFileEntry(output.FileArtifact, context, ref nextId);
-                        }
+                            if (output.IsFile)
+                            {
+                                AssignFileIdAndWriteFileEntry(output.FileArtifact, context, ref nextId);
+                            }
 
-                        return true;
-                    },
-                    includeUncacheable: true);
+                            return true;
+                        },
+                        getExistenceAssertionsUnderOpaqueDirectory: graph.GetExistenceAssertionsUnderOpaqueDirectory,
+                        includeUncacheable: true);
 
                     // SealDirectory pips are the only ones with directory outputs. As part of the artifact entry for the directory output,
                     // we want to capture the membership of the directory. This means we want to have assigned IDs to all member files before
@@ -494,7 +497,7 @@ namespace BuildXL.Execution.Analyzer
 
         private void WriteGraphNodeEntry(
             Pip pip,
-            IPipScheduleTraversal graph,
+            PipGraph graph,
             PipExecutionContext context,
             Dictionary<DirectoryArtifact, int> directoryIds)
         {
@@ -573,29 +576,33 @@ namespace BuildXL.Execution.Analyzer
                     m_writer.WritePropertyName("produces");
                     m_writer.WriteStartArray();
 
-                    PipArtifacts.ForEachOutput(pip, dependency =>
-                    {
-                        int dependencyId;
-                        if (dependency.IsFile)
+                    PipArtifacts.ForEachOutput(
+                        pip,
+                        dependency =>
                         {
-                            if (!m_fileIds.TryGetValue(dependency.FileArtifact, out dependencyId))
+                            int dependencyId;
+                            if (dependency.IsFile)
                             {
-                                Contract.Assume(false, "Expected file artifact already written (output of pip) " + dependency.Path.ToString(context.PathTable));
-                                throw new InvalidOperationException("Unreachable");
+                                if (!m_fileIds.TryGetValue(dependency.FileArtifact, out dependencyId))
+                                {
+                                    Contract.Assume(false, "Expected file artifact already written (output of pip) " + dependency.Path.ToString(context.PathTable));
+                                    throw new InvalidOperationException("Unreachable");
+                                }
                             }
-                        }
-                        else
-                        {
-                            if (!directoryIds.TryGetValue(dependency.DirectoryArtifact, out dependencyId))
+                            else
                             {
-                                Contract.Assume(false, "Expected directory artifact already written (output of pip) " + dependency.Path.ToString(context.PathTable));
-                                throw new InvalidOperationException("Unreachable");
+                                if (!directoryIds.TryGetValue(dependency.DirectoryArtifact, out dependencyId))
+                                {
+                                    Contract.Assume(false, "Expected directory artifact already written (output of pip) " + dependency.Path.ToString(context.PathTable));
+                                    throw new InvalidOperationException("Unreachable");
+                                }
                             }
-                        }
 
-                        m_writer.WriteValue(dependencyId);
-                        return true;
-                    }, includeUncacheable: true);
+                            m_writer.WriteValue(dependencyId);
+                            return true;
+                        },
+                        getExistenceAssertionsUnderOpaqueDirectory: graph.GetExistenceAssertionsUnderOpaqueDirectory,
+                        includeUncacheable: true);
 
                     m_writer.WriteEndArray();
                 }

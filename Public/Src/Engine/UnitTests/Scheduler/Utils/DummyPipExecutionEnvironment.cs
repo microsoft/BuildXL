@@ -782,6 +782,8 @@ namespace Test.BuildXL.Scheduler.Utils
         {
             throw new NotImplementedException();
         }
+
+        public IReadOnlySet<FileArtifact> GetExistenceAssertionsUnderOpaqueDirectory(DirectoryArtifact artifact) => CollectionUtilities.EmptySet<FileArtifact>();
     }
 
     internal sealed class DummyServiceManager : ServiceManager

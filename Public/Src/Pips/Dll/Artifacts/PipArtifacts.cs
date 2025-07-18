@@ -2,8 +2,10 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Pips.Operations;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Core;
 
 namespace BuildXL.Pips.Artifacts
@@ -100,7 +102,11 @@ namespace BuildXL.Pips.Artifacts
         /// <summary>
         /// Gets the outputs produced by a pip and calls an action
         /// </summary>
-        public static bool ForEachOutput(Pip pip, Func<FileOrDirectoryArtifact, bool> outputAction, bool includeUncacheable)
+        public static bool ForEachOutput(
+            Pip pip,
+            Func<FileOrDirectoryArtifact, bool> outputAction,
+            Func<DirectoryArtifact, IReadOnlySet<FileArtifact>> getExistenceAssertionsUnderOpaqueDirectory,
+            bool includeUncacheable)
         {
             bool result = true;
 
@@ -132,6 +138,15 @@ namespace BuildXL.Pips.Artifacts
                         if (!outputAction(FileOrDirectoryArtifact.Create(output)))
                         {
                             return false;
+                        }
+
+                        // Existence assertions under opaque directories are also considered output files.
+                        foreach (var existenceAssertion in getExistenceAssertionsUnderOpaqueDirectory(output))
+                        {
+                            if (!outputAction(FileOrDirectoryArtifact.Create(existenceAssertion)))
+                            {
+                                return false;
+                            }
                         }
                     }
 

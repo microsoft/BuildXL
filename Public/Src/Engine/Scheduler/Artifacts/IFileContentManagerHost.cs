@@ -85,6 +85,11 @@ namespace BuildXL.Scheduler.Artifacts
         Pip GetProducer(in FileOrDirectoryArtifact artifact);
 
         /// <summary>
+        /// Gets the OutputsUnderOpaqueExistenceAssertions for an artifact.
+        /// </summary>
+        IReadOnlySet<FileArtifact> GetExistenceAssertionsUnderOpaqueDirectory(DirectoryArtifact artifact);
+
+        /// <summary>
         /// Attempts to get the producer id. Returns invalid if artifact is not a declared artifact
         /// </summary>
         PipId TryGetProducerId(in FileOrDirectoryArtifact artifact);

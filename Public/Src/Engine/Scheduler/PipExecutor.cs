@@ -4797,14 +4797,10 @@ namespace BuildXL.Scheduler
         /// <remarks>
         /// If a pip has shared opaque directory outputs it is always considered dirty since
         /// it is not clear how to infer what to run based on the state of the file system.
-        /// If a pip has exclusive opaques with existence assertions, it is considered dirty as well
-        /// since validating the assertions in a top-down scheduling is not straightforward (even though it could
-        /// be achieved in the future)
         /// </remarks>
         public static bool IsUnconditionallyPerpetuallyDirty(Pip pip, IPipGraphFileSystemView pipGraphView)
             => pip.PipType == PipType.Process && pip is Process process &&
-               (process.HasSharedOpaqueDirectoryOutputs ||
-                process.DirectoryOutputs.Any(directory => pipGraphView.GetExistenceAssertionsUnderOpaqueDirectory(directory).Count > 0));
+               (process.HasSharedOpaqueDirectoryOutputs);
 
         /// <summary>
         /// Discovers the content hashes of a process pip's outputs, which must now be on disk.

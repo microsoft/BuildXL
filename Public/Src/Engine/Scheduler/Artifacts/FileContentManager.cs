@@ -1334,18 +1334,22 @@ namespace BuildXL.Scheduler.Artifacts
             PipArtifacts.ForEachInput(pip, action, includeLazyInputs: true, overrideLazyInputAction: lazyInputAction);
         }
 
-        private static void PopulateOutputs(Pip pip, HashSet<FileOrDirectoryArtifact> outputs, Func<FileOrDirectoryArtifact, bool> exclude = null)
+        private void PopulateOutputs(Pip pip, HashSet<FileOrDirectoryArtifact> outputs, Func<FileOrDirectoryArtifact, bool> exclude = null)
         {
-            PipArtifacts.ForEachOutput(pip, output =>
-            {
-                if (exclude?.Invoke(output) == true)
+            PipArtifacts.ForEachOutput(
+                pip,
+                output =>
                 {
-                    return true;
-                }
+                    if (exclude?.Invoke(output) == true)
+                    {
+                        return true;
+                    }
 
-                outputs.Add(output);
-                return true;
-            }, includeUncacheable: false);
+                    outputs.Add(output);
+                    return true;
+                },
+                getExistenceAssertionsUnderOpaqueDirectory: m_host.GetExistenceAssertionsUnderOpaqueDirectory,
+                includeUncacheable: false);
         }
 
         // TODO: Consider calling this from TryHashDependencies. That would allow us to remove logic which requires

@@ -667,6 +667,8 @@ namespace Test.BuildXL.Scheduler
                 throw new NotImplementedException();
             }
 
+            public IReadOnlySet<FileArtifact> GetExistenceAssertionsUnderOpaqueDirectory(DirectoryArtifact artifact) => CollectionUtilities.EmptySet<FileArtifact>();
+
             IArtifactContentCache IFileContentManagerHost.ArtifactContentCache => Cache.ArtifactContentCache;
 
             IExecutionLogTarget IFileContentManagerHost.ExecutionLog => State.ExecutionLog;

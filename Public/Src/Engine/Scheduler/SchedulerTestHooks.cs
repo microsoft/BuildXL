@@ -6,6 +6,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Pips;
 using BuildXL.Processes;
+using BuildXL.Scheduler.Artifacts;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Scheduler.IncrementalScheduling;
 using BuildXL.Scheduler.Tracing;
@@ -33,6 +34,11 @@ namespace BuildXL.Scheduler
         /// Incremental scheduling state owned by the scheduler.
         /// </summary>
         public IIncrementalSchedulingState IncrementalSchedulingState { get; set; }
+
+        /// <summary>
+        /// FileContentManager owned by the scheduler
+        /// </summary>
+        public FileContentManager FileContentManager { get; set; }
 
         /// <summary>
         /// Action to validate incremental scheduling state after journal scan.

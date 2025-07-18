@@ -219,7 +219,7 @@ namespace BuildXL.Execution.Analyzer
         /// Save the graph. This method produces the whole file content. It must be called only once.
         /// </summary>
         public void SaveGraphData(
-            IPipScheduleTraversal graph,
+            PipGraph graph,
             PipExecutionContext context,
             IEnumerable<PipExecutionPerformanceEventData> executionData,
             IEnumerable<string> workers,
@@ -267,16 +267,19 @@ namespace BuildXL.Execution.Analyzer
                     }, includeLazyInputs: true);
 
                     // Now add all of the outputs
-                    PipArtifacts.ForEachOutput(pip, output =>
-                    {
-                        if (output.IsFile)
+                    PipArtifacts.ForEachOutput(
+                        pip,
+                        output =>
                         {
-                            AssignFileIdAndWriteFileEntry(output.FileArtifact.Path.ToString(context.PathTable), pip.PipId);
-                        }
+                            if (output.IsFile)
+                            {
+                                AssignFileIdAndWriteFileEntry(output.FileArtifact.Path.ToString(context.PathTable), pip.PipId);
+                            }
 
-                        return true;
-                    },
-                    includeUncacheable: true);
+                            return true;
+                        },
+                        getExistenceAssertionsUnderOpaqueDirectory: graph.GetExistenceAssertionsUnderOpaqueDirectory,
+                        includeUncacheable: true);
 
                     // Record files that are written into SharedOpaqueDirectories
                     if (directoryOutputContent.TryGetValue(pip.PipId, out var pipOutput))
@@ -489,7 +492,7 @@ namespace BuildXL.Execution.Analyzer
         
         private void WriteGraphNodeEntry(
             Pip pip,
-            IPipScheduleTraversal graph,
+            PipGraph graph,
             PipExecutionContext context,
             Dictionary<PipId, ProcessExecutionMonitoringReportedEventData> directoryInputContent,
             Dictionary<PipId, PipExecutionDirectoryOutputs> directoryOutputContent)
@@ -579,22 +582,26 @@ namespace BuildXL.Execution.Analyzer
 
                     SortedSet<int> writes = new SortedSet<int>();
 
-                    PipArtifacts.ForEachOutput(pip, dependency =>
-                    {
-                        int dependencyId;
-                        if (dependency.IsFile)
+                    PipArtifacts.ForEachOutput(
+                        pip,
+                        dependency =>
                         {
-                            if (!m_fileIds.TryGetValue(dependency.FileArtifact.Path.ToString(context.PathTable), out dependencyId))
+                            int dependencyId;
+                            if (dependency.IsFile)
                             {
-                                Contract.Assume(false, "Expected file artifact already written (output of pip) " + dependency.Path.ToString(context.PathTable));
-                                throw new InvalidOperationException("Unreachable");
+                                if (!m_fileIds.TryGetValue(dependency.FileArtifact.Path.ToString(context.PathTable), out dependencyId))
+                                {
+                                    Contract.Assume(false, "Expected file artifact already written (output of pip) " + dependency.Path.ToString(context.PathTable));
+                                    throw new InvalidOperationException("Unreachable");
+                                }
+
+                                writes.Add(dependencyId);
                             }
 
-                            writes.Add(dependencyId);
-                        }
-
-                        return true;
-                    }, includeUncacheable: true);
+                            return true;
+                        },
+                        getExistenceAssertionsUnderOpaqueDirectory: graph.GetExistenceAssertionsUnderOpaqueDirectory,
+                        includeUncacheable: true);
 
                     // Write outputs into shared opaque directories
                     if (directoryOutputContent.TryGetValue(pip.PipId, out var pipOutput))

@@ -767,7 +767,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             RunScheduler(runNameOrDescription: "First build").AssertSuccess();
 
             // Second run should be a cache hit
-            RunScheduler(runNameOrDescription: "Second build - all cached").AssertCacheHit(processA.Process.PipId, processB.Process.PipId);
+            var runResult = RunScheduler(runNameOrDescription: "Second build - all cached").AssertCacheHit(processA.Process.PipId, processB.Process.PipId);
 
             // Shared opaques cannot be up to date on disk, so we can't skip downstream pips.
             // Regular opaques would be UpToDate, so the downstream pips would be skipped
@@ -778,12 +778,8 @@ namespace IntegrationTest.BuildXL.Scheduler
             }
             else
             {
-                AssertVerboseEventLogged(LogEventId.ProcessPipCacheHit, 1);
-
-                // This is logged once for the process pip and once for the seal directory pip.
-                AssertVerboseEventLogged(LogEventId.PipIsIncrementallySkippedDueToCleanMaterialized, 2);
+                runResult.AssertNotScheduled(processA.Process.PipId, processB.Process.PipId);
             }
-
 
             ResetPipGraphBuilder();
             processA = SchedulePipBuilder(builderA);

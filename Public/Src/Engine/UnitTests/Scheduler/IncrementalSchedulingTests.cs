@@ -188,6 +188,81 @@ namespace Test.BuildXL.Scheduler
             }
         }
 
+        private void CreateGraphWithAssertOutputExistence(
+            Dictionary<string, NodeId> nodes = null,
+            Dictionary<string, FileArtifact> files = null,
+            Dictionary<string, DirectoryArtifact> directories = null,
+            Dictionary<string, Process> processes = null)
+        {
+            // S11
+            // ^
+            // |
+            // P1 <
+            // ^   ^
+            // |   |
+            // O1  D1
+            // ^
+            // |
+            // P2
+            // ^
+            // |
+            // O2
+
+            PipProvenance sharedProvenance = CreateProvenance();
+            FileArtifact s11 = CreateSourceFile();
+            AbsolutePath d1 = CreateUniqueObjPath("D1");
+            AbsolutePath o1Path = d1.Combine(Context.PathTable, "O1");
+            FileArtifact o2 = CreateOutputFileArtifact();
+
+            var sealedOutputDirectories = new Dictionary<AbsolutePath, DirectoryArtifact>();
+
+            Process p1 = CreateProcess(
+                dependencies: new[] { s11 },
+                outputs: new FileArtifact[0],
+                outputDirectoryPaths: new[] { d1 },
+                resultingSealedOutputDirectories: sealedOutputDirectories,
+                tags: new[] { "P1" },
+                provenance: sharedProvenance,
+                outputsAssertedUnderOutputDirectories: new [] { o1Path });
+            PipGraphBuilder.AddProcess(p1);
+
+            bool existenceAsserted = PipGraphBuilder.TryAssertOutputExistenceInOpaqueDirectory(sealedOutputDirectories[d1], o1Path, out FileArtifact o1);
+            AssertTrue(existenceAsserted, "Could not asssert output existence");
+
+            Process p2 = CreateProcess(
+                dependencies: new[] { o1 },
+                // directoryDependencies: new[] { sealedOutputDirectories[d1] },
+                outputs: new[] { o2 },
+                tags: new[] { "P2" },
+                provenance: sharedProvenance);
+            PipGraphBuilder.AddProcess(p2);
+
+            if (nodes != null)
+            {
+                nodes["S11"] = PipGraphBuilder.GetProducerNode(s11);
+                nodes["P1"] = p1.PipId.ToNodeId();
+                nodes["P2"] = p2.PipId.ToNodeId();
+            }
+
+            if (files != null)
+            {
+                files["S11"] = s11;
+                files["O1"] = o1;
+                files["O2"] = o2;
+            }
+
+            if (directories != null)
+            {
+                directories["D1"] = sealedOutputDirectories[d1];
+            }
+
+            if (processes != null)
+            {
+                processes["P1"] = p1;
+                processes["P2"] = p2;
+            }
+        }
+
         private void CreateGraphWithDirectoryDependenciesAndOutputs(
             Dictionary<string, NodeId> nodes = null,
             Dictionary<string, FileArtifact> files = null,
@@ -1388,6 +1463,59 @@ ENDLOCAL && EXIT /b 1
             XAssert.IsNotNull(iss);
 
             XAssert.IsTrue(iss.DirtyNodeTracker.IsNodeCleanAndMaterialized(nodes["C1"]));
+        }
+
+        /// <summary>
+        /// Instead of depending on a opaque directory, we depend on a file in that directory and verify that the file hash gets recorded for downstream pips to depend on.
+        /// </summary>
+        [FactIfSupported(requiresJournalScan: true)]
+        public async Task TestSchedulingWithAssertOutputExistence()
+        {
+            IncrementalSchedulingSetup();
+
+            Dictionary<string, NodeId> nodes = new Dictionary<string, NodeId>();
+            Dictionary<string, FileArtifact> files = new Dictionary<string, FileArtifact>();
+            Dictionary<string, DirectoryArtifact> directories = new Dictionary<string, DirectoryArtifact>();
+            Dictionary<string, Process> processes = new Dictionary<string, Process>();
+
+            CreateGraphWithAssertOutputExistence(nodes, files, directories, processes);
+
+            SchedulerTestHooks testHooks = new SchedulerTestHooks();
+
+            RootFilter filter = CreateFilterForTags(
+                new[] { "P2" }.Select(tag => StringId.Create(Context.PathTable.StringTable, tag)),
+                new StringId[] { });
+
+            bool runScheduler = await RunScheduler(filter, testHooks: testHooks);
+            XAssert.IsTrue(runScheduler);
+
+            ExpectPipsDone(LabelPip(processes["P1"], "P1"), LabelPip(processes["P2"], "P2"));
+
+            XAssert.IsFalse(testHooks.IncrementalSchedulingState.DirtyNodeTracker.IsNodePerpetualDirty(nodes["P2"]), "P2 is perpetually dirty");
+            XAssert.IsFalse(testHooks.IncrementalSchedulingState.DirtyNodeTracker.IsNodePerpetualDirty(nodes["P1"]), "P1 is perpetually dirty");
+
+            XAssert.IsTrue(testHooks.FileContentManager.TryGetInputContent(files["O1"], out _));
+
+            runScheduler = await RunScheduler(filter, testHooks: testHooks);
+            XAssert.IsTrue(runScheduler);
+
+            var iss = testHooks.IncrementalSchedulingState;
+
+            XAssert.IsTrue(iss.DirtyNodeTracker.IsNodeCleanAndMaterialized(nodes["P2"]), "P2 is not clean and materialized");
+            XAssert.IsTrue(iss.DirtyNodeTracker.IsNodeCleanAndMaterialized(nodes["P1"]), "P1 is not clean and materialized");
+
+            // Everything should be skipped, so this file shouldn't be added
+            XAssert.IsFalse(testHooks.FileContentManager.TryGetInputContent(files["O1"], out _));
+
+            // Modify O2 that forces P2 to rebuild, that forces P1 to check incremental skip and O1 to be added to the output.
+            ModifyFile(files["O2"]);
+
+            runScheduler = await RunScheduler(filter, testHooks: testHooks);
+            XAssert.IsTrue(runScheduler);
+
+            XAssert.IsTrue(testHooks.FileContentManager.TryGetInputContent(files["O1"], out _));
+            XAssert.IsTrue(iss.DirtyNodeTracker.IsNodeCleanAndMaterialized(nodes["P2"]), "P2 is not clean and materialized");
+            XAssert.IsTrue(iss.DirtyNodeTracker.IsNodeCleanAndMaterialized(nodes["P1"]), "P1 is not clean and materialized");
         }
 
         [FactIfSupported(requiresJournalScan: true)]

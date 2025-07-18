@@ -52,7 +52,11 @@ namespace BuildXL.Scheduler
             Contract.Requires(pip != null);
 
             int numberOfOutputs = 0;
-            PipArtifacts.ForEachOutput(pip, artifact => { ++numberOfOutputs; return true; }, true);
+            PipArtifacts.ForEachOutput(
+                pip,
+                artifact => { ++numberOfOutputs; return true; },
+                getExistenceAssertionsUnderOpaqueDirectory: m_fileContentManagerHost.GetExistenceAssertionsUnderOpaqueDirectory,
+                includeUncacheable: true);
 
             m_nonMaterializedPips.TryAdd(pip.PipId, numberOfOutputs);
         }

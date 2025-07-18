@@ -6671,6 +6671,7 @@ namespace BuildXL.Scheduler
 
             if (m_testHooks != null)
             {
+                m_testHooks.FileContentManager = m_fileContentManager;
                 m_testHooks.IncrementalSchedulingState = IncrementalSchedulingState;
             }
 
@@ -7225,6 +7226,11 @@ namespace BuildXL.Scheduler
         {
             var producerId = PipGraph.GetProducer(artifact);
             return PipGraph.GetPipFromPipId(producerId);
+        }
+
+        IReadOnlySet<FileArtifact> IFileContentManagerHost.GetExistenceAssertionsUnderOpaqueDirectory(DirectoryArtifact artifact)
+        {
+            return PipGraph.GetExistenceAssertionsUnderOpaqueDirectory(artifact);
         }
 
         [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]

@@ -9514,6 +9514,406 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ---------------------------------------------------------
 
+Microsoft.AspNetCore.App.Ref 8.0.18 - MIT
+
+
+Copyright Jorn Zaefferer
+(c) Microsoft Corporation
+Copyright (c) Andrew Arnott
+Copyright (c) 2015, Google Inc.
+Copyright (c) 2019 David Fowler
+Copyright (c) HTML5 Boilerplate
+Copyright 2019 The gRPC Authors
+Copyright (c) 2016 Richard Morris
+Copyright (c) 1998 John D. Polstra
+Copyright (c) 2017 Yoshifumi Kawai
+Copyright (c) Microsoft Corporation
+Copyright (c) 2007 James Newton-King
+Copyright (c) 2013 - 2018 AngleSharp
+Copyright (c) 2000-2013 Julian Seward
+Copyright (c) 2011-2021 Twitter, Inc.
+Copyright (c) 2014-2018 Michael Daines
+Copyright (c) 1996-1998 John D. Polstra
+Copyright (c) 2013-2017, Milosz Krajewski
+Copyright (c) .NET Foundation Contributors
+Copyright (c) 2011-2021 The Bootstrap Authors
+Copyright (c) 2019-2023 The Bootstrap Authors
+Copyright (c) .NET Foundation and Contributors
+Copyright (c) 2019-2020 West Wind Technologies
+Copyright (c) 2007 John Birrell (jb@freebsd.org)
+Copyright (c) 2011 Alex MacCaw (info@eribium.org)
+Copyright (c) Nicolas Gallagher and Jonathan Neal
+Copyright (c) 2010-2019 Google LLC. http://angular.io/license
+Copyright (c) 2011 Nicolas Gallagher (nicolas@nicolasgallagher.com)
+Copyright (c) 1989, 1993 The Regents of the University of California
+Copyright (c) 1990, 1993 The Regents of the University of California
+Copyright OpenJS Foundation and other contributors, https://openjsf.org
+Copyright (c) Sindre Sorhus <sindresorhus@gmail.com> (https://sindresorhus.com)
+
+MIT License
+
+Copyright (c) <year> <copyright holders>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+---------------------------------------------------------
+
+---------------------------------------------------------
+
+Microsoft.AspNetCore.App.Ref 9.0.7 - MIT
+
+
+Copyright Jorn Zaefferer
+(c) Microsoft Corporation
+Copyright (c) Andrew Arnott
+Copyright (c) 2015, Google Inc.
+Copyright (c) 2019 David Fowler
+Copyright (c) HTML5 Boilerplate
+Copyright 2019 The gRPC Authors
+Copyright (c) 2016 Richard Morris
+Copyright (c) 1998 John D. Polstra
+Copyright (c) 2017 Yoshifumi Kawai
+Copyright (c) Microsoft Corporation
+Copyright (c) 2007 James Newton-King
+Copyright (c) 2013 - 2018 AngleSharp
+Copyright (c) 2000-2013 Julian Seward
+Copyright (c) 2011-2021 Twitter, Inc.
+Copyright (c) 2014-2018 Michael Daines
+Copyright (c) 1996-1998 John D. Polstra
+Copyright (c) 2013-2017, Milosz Krajewski
+Copyright (c) .NET Foundation Contributors
+Copyright (c) 2011-2021 The Bootstrap Authors
+Copyright (c) 2019-2023 The Bootstrap Authors
+Copyright (c) .NET Foundation and Contributors
+Copyright (c) 2019-2020 West Wind Technologies
+Copyright (c) 2007 John Birrell (jb@freebsd.org)
+Copyright (c) 2011 Alex MacCaw (info@eribium.org)
+Copyright (c) Nicolas Gallagher and Jonathan Neal
+Copyright (c) 2010-2019 Google LLC. http://angular.io/license
+Copyright (c) 2011 Nicolas Gallagher (nicolas@nicolasgallagher.com)
+Copyright (c) 1989, 1993 The Regents of the University of California
+Copyright (c) 1990, 1993 The Regents of the University of California
+Copyright OpenJS Foundation and other contributors, https://openjsf.org
+Copyright (c) Sindre Sorhus <sindresorhus@gmail.com> (https://sindresorhus.com)
+
+MIT License
+
+Copyright (c) <year> <copyright holders>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+---------------------------------------------------------
+
+---------------------------------------------------------
+
+Microsoft.AspNetCore.App.Runtime.linux-x64 8.0.18 - MIT
+
+
+Copyright Jorn Zaefferer
+(c) Microsoft Corporation
+Copyright (c) Andrew Arnott
+Copyright (c) 2015, Google Inc.
+Copyright (c) 2019 David Fowler
+Copyright (c) HTML5 Boilerplate
+Copyright 2019 The gRPC Authors
+Copyright (c) 2016 Richard Morris
+Copyright (c) 1998 John D. Polstra
+Copyright (c) 2017 Yoshifumi Kawai
+Copyright (c) Microsoft Corporation
+Copyright (c) 2007 James Newton-King
+Copyright (c) 2013 - 2018 AngleSharp
+Copyright (c) 2000-2013 Julian Seward
+Copyright (c) 2011-2021 Twitter, Inc.
+Copyright (c) 2014-2018 Michael Daines
+Copyright (c) 1996-1998 John D. Polstra
+Copyright (c) 2013-2017, Milosz Krajewski
+Copyright (c) .NET Foundation Contributors
+Copyright (c) 2011-2021 The Bootstrap Authors
+Copyright (c) 2019-2023 The Bootstrap Authors
+Copyright (c) .NET Foundation and Contributors
+Copyright (c) 2019-2020 West Wind Technologies
+Copyright (c) 2007 John Birrell (jb@freebsd.org)
+Copyright (c) 2011 Alex MacCaw (info@eribium.org)
+Copyright (c) Nicolas Gallagher and Jonathan Neal
+Copyright (c) 2010-2019 Google LLC. http://angular.io/license
+Copyright (c) 2011 Nicolas Gallagher (nicolas@nicolasgallagher.com)
+Copyright (c) 1989, 1993 The Regents of the University of California
+Copyright (c) 1990, 1993 The Regents of the University of California
+Copyright OpenJS Foundation and other contributors, https://openjsf.org
+Copyright (c) Sindre Sorhus <sindresorhus@gmail.com> (https://sindresorhus.com)
+
+MIT License
+
+Copyright (c) <year> <copyright holders>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+---------------------------------------------------------
+
+---------------------------------------------------------
+
+Microsoft.AspNetCore.App.Runtime.linux-x64 9.0.7 - MIT
+
+
+Copyright Jorn Zaefferer
+(c) Microsoft Corporation
+Copyright (c) Andrew Arnott
+Copyright (c) 2015, Google Inc.
+Copyright (c) 2019 David Fowler
+Copyright (c) HTML5 Boilerplate
+Copyright 2019 The gRPC Authors
+Copyright (c) 2016 Richard Morris
+Copyright (c) 1998 John D. Polstra
+Copyright (c) 2017 Yoshifumi Kawai
+Copyright (c) Microsoft Corporation
+Copyright (c) 2007 James Newton-King
+Copyright (c) 2013 - 2018 AngleSharp
+Copyright (c) 2000-2013 Julian Seward
+Copyright (c) 2011-2021 Twitter, Inc.
+Copyright (c) 2014-2018 Michael Daines
+Copyright (c) 1996-1998 John D. Polstra
+Copyright (c) 2013-2017, Milosz Krajewski
+Copyright (c) .NET Foundation Contributors
+Copyright (c) 2011-2021 The Bootstrap Authors
+Copyright (c) 2019-2023 The Bootstrap Authors
+Copyright (c) .NET Foundation and Contributors
+Copyright (c) 2019-2020 West Wind Technologies
+Copyright (c) 2007 John Birrell (jb@freebsd.org)
+Copyright (c) 2011 Alex MacCaw (info@eribium.org)
+Copyright (c) Nicolas Gallagher and Jonathan Neal
+Copyright (c) 2010-2019 Google LLC. http://angular.io/license
+Copyright (c) 2011 Nicolas Gallagher (nicolas@nicolasgallagher.com)
+Copyright (c) 1989, 1993 The Regents of the University of California
+Copyright (c) 1990, 1993 The Regents of the University of California
+Copyright OpenJS Foundation and other contributors, https://openjsf.org
+Copyright (c) Sindre Sorhus <sindresorhus@gmail.com> (https://sindresorhus.com)
+
+MIT License
+
+Copyright (c) <year> <copyright holders>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+---------------------------------------------------------
+
+---------------------------------------------------------
+
+Microsoft.AspNetCore.App.Runtime.osx-x64 8.0.18 - MIT
+
+
+Copyright Jorn Zaefferer
+(c) Microsoft Corporation
+Copyright (c) Andrew Arnott
+Copyright (c) 2015, Google Inc.
+Copyright (c) 2019 David Fowler
+Copyright (c) HTML5 Boilerplate
+Copyright 2019 The gRPC Authors
+Copyright (c) 2016 Richard Morris
+Copyright (c) 1998 John D. Polstra
+Copyright (c) 2017 Yoshifumi Kawai
+Copyright (c) Microsoft Corporation
+Copyright (c) 2007 James Newton-King
+Copyright (c) 2013 - 2018 AngleSharp
+Copyright (c) 2000-2013 Julian Seward
+Copyright (c) 2011-2021 Twitter, Inc.
+Copyright (c) 2014-2018 Michael Daines
+Copyright (c) 1996-1998 John D. Polstra
+Copyright (c) 2013-2017, Milosz Krajewski
+Copyright (c) .NET Foundation Contributors
+Copyright (c) 2011-2021 The Bootstrap Authors
+Copyright (c) 2019-2023 The Bootstrap Authors
+Copyright (c) .NET Foundation and Contributors
+Copyright (c) 2019-2020 West Wind Technologies
+Copyright (c) 2007 John Birrell (jb@freebsd.org)
+Copyright (c) 2011 Alex MacCaw (info@eribium.org)
+Copyright (c) Nicolas Gallagher and Jonathan Neal
+Copyright (c) 2010-2019 Google LLC. http://angular.io/license
+Copyright (c) 2011 Nicolas Gallagher (nicolas@nicolasgallagher.com)
+Copyright (c) 1989, 1993 The Regents of the University of California
+Copyright (c) 1990, 1993 The Regents of the University of California
+Copyright OpenJS Foundation and other contributors, https://openjsf.org
+Copyright (c) Sindre Sorhus <sindresorhus@gmail.com> (https://sindresorhus.com)
+
+MIT License
+
+Copyright (c) <year> <copyright holders>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+---------------------------------------------------------
+
+---------------------------------------------------------
+
+Microsoft.AspNetCore.App.Runtime.osx-x64 9.0.7 - MIT
+
+
+Copyright Jorn Zaefferer
+(c) Microsoft Corporation
+Copyright (c) Andrew Arnott
+Copyright (c) 2015, Google Inc.
+Copyright (c) 2019 David Fowler
+Copyright (c) HTML5 Boilerplate
+Copyright 2019 The gRPC Authors
+Copyright (c) 2016 Richard Morris
+Copyright (c) 1998 John D. Polstra
+Copyright (c) 2017 Yoshifumi Kawai
+Copyright (c) Microsoft Corporation
+Copyright (c) 2007 James Newton-King
+Copyright (c) 2013 - 2018 AngleSharp
+Copyright (c) 2000-2013 Julian Seward
+Copyright (c) 2011-2021 Twitter, Inc.
+Copyright (c) 2014-2018 Michael Daines
+Copyright (c) 1996-1998 John D. Polstra
+Copyright (c) 2013-2017, Milosz Krajewski
+Copyright (c) .NET Foundation Contributors
+Copyright (c) 2011-2021 The Bootstrap Authors
+Copyright (c) 2019-2023 The Bootstrap Authors
+Copyright (c) .NET Foundation and Contributors
+Copyright (c) 2019-2020 West Wind Technologies
+Copyright (c) 2007 John Birrell (jb@freebsd.org)
+Copyright (c) 2011 Alex MacCaw (info@eribium.org)
+Copyright (c) Nicolas Gallagher and Jonathan Neal
+Copyright (c) 2010-2019 Google LLC. http://angular.io/license
+Copyright (c) 2011 Nicolas Gallagher (nicolas@nicolasgallagher.com)
+Copyright (c) 1989, 1993 The Regents of the University of California
+Copyright (c) 1990, 1993 The Regents of the University of California
+Copyright OpenJS Foundation and other contributors, https://openjsf.org
+Copyright (c) Sindre Sorhus <sindresorhus@gmail.com> (https://sindresorhus.com)
+
+MIT License
+
+Copyright (c) <year> <copyright holders>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+---------------------------------------------------------
+
+---------------------------------------------------------
+
+Microsoft.AspNetCore.App.Runtime.win-x64 8.0.18 - MIT
+
+
+Copyright Jorn Zaefferer
+(c) Microsoft Corporation
+Copyright (c) Andrew Arnott
+Copyright (c) 2015, Google Inc.
+Copyright (c) 2019 David Fowler
+Copyright (c) HTML5 Boilerplate
+Copyright 2019 The gRPC Authors
+Copyright (c) 2016 Richard Morris
+Copyright (c) 1998 John D. Polstra
+Copyright (c) 2017 Yoshifumi Kawai
+Copyright (c) Microsoft Corporation
+Copyright (c) 2007 James Newton-King
+Copyright (c) 2013 - 2018 AngleSharp
+Copyright (c) 2000-2013 Julian Seward
+Copyright (c) 2011-2021 Twitter, Inc.
+Copyright (c) 2014-2018 Michael Daines
+Copyright (c) 1996-1998 John D. Polstra
+Copyright (c) 2013-2017, Milosz Krajewski
+Copyright (c) .NET Foundation Contributors
+Copyright (c) 2011-2021 The Bootstrap Authors
+Copyright (c) 2019-2023 The Bootstrap Authors
+Copyright (c) .NET Foundation and Contributors
+Copyright (c) 2019-2020 West Wind Technologies
+Copyright (c) 2007 John Birrell (jb@freebsd.org)
+Copyright (c) 2011 Alex MacCaw (info@eribium.org)
+Copyright (c) Nicolas Gallagher and Jonathan Neal
+Copyright (c) 2010-2019 Google LLC. http://angular.io/license
+Copyright (c) 2011 Nicolas Gallagher (nicolas@nicolasgallagher.com)
+Copyright (c) 1989, 1993 The Regents of the University of California
+Copyright (c) 1990, 1993 The Regents of the University of California
+Copyright OpenJS Foundation and other contributors, https://openjsf.org
+Copyright (c) Sindre Sorhus <sindresorhus@gmail.com> (https://sindresorhus.com)
+
+MIT License
+
+Copyright (c) <year> <copyright holders>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+---------------------------------------------------------
+
+---------------------------------------------------------
+
+Microsoft.AspNetCore.App.Runtime.win-x64 9.0.7 - MIT
+
+
+Copyright Jorn Zaefferer
+(c) Microsoft Corporation
+Copyright (c) Andrew Arnott
+Copyright (c) 2015, Google Inc.
+Copyright (c) 2019 David Fowler
+Copyright (c) HTML5 Boilerplate
+Copyright 2019 The gRPC Authors
+Copyright (c) 2016 Richard Morris
+Copyright (c) 1998 John D. Polstra
+Copyright (c) 2017 Yoshifumi Kawai
+Copyright (c) Microsoft Corporation
+Copyright (c) 2007 James Newton-King
+Copyright (c) 2013 - 2018 AngleSharp
+Copyright (c) 2000-2013 Julian Seward
+Copyright (c) 2011-2021 Twitter, Inc.
+Copyright (c) 2014-2018 Michael Daines
+Copyright (c) 1996-1998 John D. Polstra
+Copyright (c) 2013-2017, Milosz Krajewski
+Copyright (c) .NET Foundation Contributors
+Copyright (c) 2011-2021 The Bootstrap Authors
+Copyright (c) 2019-2023 The Bootstrap Authors
+Copyright (c) .NET Foundation and Contributors
+Copyright (c) 2019-2020 West Wind Technologies
+Copyright (c) 2007 John Birrell (jb@freebsd.org)
+Copyright (c) 2011 Alex MacCaw (info@eribium.org)
+Copyright (c) Nicolas Gallagher and Jonathan Neal
+Copyright (c) 2010-2019 Google LLC. http://angular.io/license
+Copyright (c) 2011 Nicolas Gallagher (nicolas@nicolasgallagher.com)
+Copyright (c) 1989, 1993 The Regents of the University of California
+Copyright (c) 1990, 1993 The Regents of the University of California
+Copyright OpenJS Foundation and other contributors, https://openjsf.org
+Copyright (c) Sindre Sorhus <sindresorhus@gmail.com> (https://sindresorhus.com)
+
+MIT License
+
+Copyright (c) <year> <copyright holders>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+---------------------------------------------------------
+
+---------------------------------------------------------
+
 Microsoft.Azure.Amqp 2.6.1 - MIT
 
 
@@ -12449,7 +12849,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-Microsoft.NETCore.App.Host.linux-x64 8.0.12 - MIT
+Microsoft.NETCore.App.Host.linux-x64 8.0.18 - MIT
 
 
 Copyright (c) 2021
@@ -12535,7 +12935,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-Microsoft.NETCore.App.Host.linux-x64 9.0.1 - MIT
+Microsoft.NETCore.App.Host.linux-x64 9.0.7 - MIT
 
 
 (c) E Pffff
@@ -12703,7 +13103,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-Microsoft.NETCore.App.Host.osx-x64 8.0.12 - MIT
+Microsoft.NETCore.App.Host.osx-x64 8.0.18 - MIT
 
 
 Copyright (c) 2021
@@ -12789,7 +13189,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-Microsoft.NETCore.App.Host.osx-x64 9.0.1 - MIT
+Microsoft.NETCore.App.Host.osx-x64 9.0.7 - MIT
 
 
 Copyright (c) 2021
@@ -12956,7 +13356,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-Microsoft.NETCore.App.Host.win-x64 8.0.12 - MIT
+Microsoft.NETCore.App.Host.win-x64 8.0.18 - MIT
 
 
 Copyright (c) 2021
@@ -13042,7 +13442,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-Microsoft.NETCore.App.Host.win-x64 9.0.1 - MIT
+Microsoft.NETCore.App.Host.win-x64 9.0.7 - MIT
 
 
 Copyright (c) 2021
@@ -13210,7 +13610,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-Microsoft.NETCore.App.Ref 8.0.12 - MIT
+Microsoft.NETCore.App.Ref 8.0.18 - MIT
 
 
 Copyright (c) 2021
@@ -13297,7 +13697,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-Microsoft.NETCore.App.Ref 9.0.1 - MIT
+Microsoft.NETCore.App.Ref 9.0.7 - MIT
 
 
 Copyright (c) 2021
@@ -13464,7 +13864,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-Microsoft.NETCore.App.Runtime.linux-x64 8.0.12 - MIT
+Microsoft.NETCore.App.Runtime.linux-x64 8.0.18 - MIT
 
 
 Copyright (c) 2021
@@ -13550,7 +13950,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-Microsoft.NETCore.App.Runtime.linux-x64 9.0.1 - MIT
+Microsoft.NETCore.App.Runtime.linux-x64 9.0.7 - MIT
 
 
 (c) E Pffff
@@ -13719,7 +14119,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-Microsoft.NETCore.App.Runtime.osx-x64 8.0.12 - MIT
+Microsoft.NETCore.App.Runtime.osx-x64 8.0.18 - MIT
 
 
 Copyright (c) 2021
@@ -13805,7 +14205,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-Microsoft.NETCore.App.Runtime.osx-x64 9.0.1 - MIT
+Microsoft.NETCore.App.Runtime.osx-x64 9.0.7 - MIT
 
 
 Copyright (c) 2021
@@ -13974,7 +14374,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-Microsoft.NETCore.App.Runtime.win-x64 8.0.12 - MIT
+Microsoft.NETCore.App.Runtime.win-x64 8.0.18 - MIT
 
 
 Copyright (c) 2021
@@ -14061,7 +14461,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-Microsoft.NETCore.App.Runtime.win-x64 9.0.1 - MIT
+Microsoft.NETCore.App.Runtime.win-x64 9.0.7 - MIT
 
 
 Copyright (c) 2021
@@ -14182,7 +14582,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ---------------------------------------------------------
 
-Microsoft.NETCore.DotNetAppHost 8.0.12 - MIT
+Microsoft.NETCore.DotNetAppHost 8.0.18 - MIT
 
 
 Copyright (c) 2021
@@ -14343,7 +14743,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-Microsoft.NETCore.DotNetHostPolicy 8.0.12 - MIT
+Microsoft.NETCore.DotNetHostPolicy 8.0.18 - MIT
 
 
 Copyright (c) 2021
@@ -14429,7 +14829,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-Microsoft.NETCore.DotNetHostResolver 8.0.12 - MIT
+Microsoft.NETCore.DotNetHostResolver 8.0.18 - MIT
 
 
 Copyright (c) 2021
@@ -15457,7 +15857,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-runtime.linux-x64.Microsoft.NETCore.DotNetHostPolicy 8.0.12 - MIT
+runtime.linux-x64.Microsoft.NETCore.DotNetHostPolicy 8.0.18 - MIT
 
 
 Copyright (c) 2021
@@ -15618,7 +16018,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-runtime.linux-x64.Microsoft.NETCore.DotNetHostResolver 8.0.12 - MIT
+runtime.linux-x64.Microsoft.NETCore.DotNetHostResolver 8.0.18 - MIT
 
 
 Copyright (c) 2021
@@ -15832,7 +16232,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-runtime.osx-x64.Microsoft.NETCore.DotNetHostPolicy 8.0.12 - MIT
+runtime.osx-x64.Microsoft.NETCore.DotNetHostPolicy 8.0.18 - MIT
 
 
 Copyright (c) 2021
@@ -15993,7 +16393,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-runtime.osx-x64.Microsoft.NETCore.DotNetHostResolver 8.0.12 - MIT
+runtime.osx-x64.Microsoft.NETCore.DotNetHostResolver 8.0.18 - MIT
 
 
 Copyright (c) 2021
@@ -16154,7 +16554,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy 8.0.12 - MIT
+runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy 8.0.18 - MIT
 
 
 Copyright (c) 2021
@@ -16315,7 +16715,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-runtime.win-x64.Microsoft.NETCore.DotNetHostResolver 8.0.12 - MIT
+runtime.win-x64.Microsoft.NETCore.DotNetHostResolver 8.0.18 - MIT
 
 
 Copyright (c) 2021

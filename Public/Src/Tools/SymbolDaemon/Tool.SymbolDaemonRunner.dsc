@@ -156,7 +156,7 @@ function createSymbol(args: SymbolCreateArguments): SymbolCreateResult {
     return <SymbolCreateResult>{serviceStartInfo: symbolStartResult, outputs: result.outputs};
 }
 
-function addFiles(createResult: SymbolCreateResult, args: OperationArguments, files: File[], clientKeys?: string[], customClientKeyPrefixEnvVariable?: string): Result {
+function addFiles(createResult: SymbolCreateResult, args: OperationArguments, files: File[], clientKeys?: string[], customClientKeyPrefixEnvVariable?: string, tags?: string[]): Result {
     Contract.requires(
         files !== undefined,
         "files to add to a symbol request must be defined"
@@ -185,6 +185,7 @@ function addFiles(createResult: SymbolCreateResult, args: OperationArguments, fi
     const uberArgs = args.merge<UberArguments>({
         dependencies: createResult.outputs || [],
         ipcServerMoniker: Transformer.getIpcServerMoniker(),
+        tags: tags
     });
 
     return executeDaemonCommand(
@@ -203,7 +204,7 @@ function addFiles(createResult: SymbolCreateResult, args: OperationArguments, fi
     );
 }
 
-function addDirectories(createResult: SymbolCreateResult, args: OperationArguments, directories: StaticDirectory[], directoryContentFilters?: string[], directoryReplacementForClientKeys?: string[], customClientKeyPrefixEnvVariable?: string): Result {
+function addDirectories(createResult: SymbolCreateResult, args: OperationArguments, directories: StaticDirectory[], directoryContentFilters?: string[], directoryReplacementForClientKeys?: string[], customClientKeyPrefixEnvVariable?: string, tags?: string[]): Result {
     Contract.requires(
         createResult !== undefined,
         "result of the 'symbol create' operation must be provided"
@@ -231,6 +232,7 @@ function addDirectories(createResult: SymbolCreateResult, args: OperationArgumen
     const uberArgs = args.merge<UberArguments>({
         dependencies: createResult.outputs || [],
         ipcServerMoniker: Transformer.getIpcServerMoniker(),
+        tags: tags
     });
 
     return executeDaemonCommand(

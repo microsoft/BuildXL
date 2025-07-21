@@ -217,7 +217,7 @@ export namespace DropDaemonRunner {
         return <DropCreateResult>{serviceStartInfo: serviceStartResult, dropConfig: args, outputs: result.outputs};
     }
 
-    function addFiles(createResult: DropCreateResult, args: DropOperationArguments, fileInfos: FileInfo[]): Result {
+    function addFiles(createResult: DropCreateResult, args: DropOperationArguments, fileInfos: FileInfo[], tags?: string[]): Result {
         Contract.requires(
             fileInfos !== undefined, 
             "file to add to drop must be defined"
@@ -230,10 +230,12 @@ export namespace DropDaemonRunner {
         return addArtifactsToDrop(
             createResult, 
             args, 
-            fileInfos.map(fi => <DropFileInfo>{ file: fi.file, dropPath: fi.dropPath, kind: "file" }));
+            fileInfos.map(fi => <DropFileInfo>{ file: fi.file, dropPath: fi.dropPath, kind: "file" }), 
+            tags
+        );
     }
 
-    function addDirectoriesToDrop(createResult: DropCreateResult, args: DropOperationArguments, directoryInfos: DirectoryInfo[]): Result {
+    function addDirectoriesToDrop(createResult: DropCreateResult, args: DropOperationArguments, directoryInfos: DirectoryInfo[], tags?: string[]): Result {
         Contract.requires(
             directoryInfos !== undefined,
             "directories to add to drop must be defined"
@@ -246,10 +248,12 @@ export namespace DropDaemonRunner {
         return addArtifactsToDrop(
             createResult, 
             args, 
-            directoryInfos.map(di => directoryInfoToDropDirectoryInfo(di)));
+            directoryInfos.map(di => directoryInfoToDropDirectoryInfo(di)),
+            tags
+        );
     }
 
-    function addArtifactsToDrop(createResult: DropCreateResult, args: DropOperationArguments, artifactInfos: DropArtifactInfo[]): Result {
+    function addArtifactsToDrop(createResult: DropCreateResult, args: DropOperationArguments, artifactInfos: DropArtifactInfo[], tags?: string[]): Result {
         Contract.requires(
             artifactInfos !== undefined,
             "artifacts to add to drop must be defined"
@@ -306,6 +310,7 @@ export namespace DropDaemonRunner {
             .merge<UberArguments>({
                 dependencies: createResult.outputs || [],
                 ipcServerMoniker: Transformer.getIpcServerMoniker(),
+                tags: tags
             });
 
         return executeDropdCommand(

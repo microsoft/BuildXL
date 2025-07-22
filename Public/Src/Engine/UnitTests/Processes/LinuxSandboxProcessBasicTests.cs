@@ -640,21 +640,21 @@ namespace Test.BuildXL.Processes
         public void CallTestreadlink()
         {
             var result = RunNativeTest(GetNativeTestName(MethodBase.GetCurrentMethod().Name));
-            AssertLogContains(GetAccessReportRegex(UsingEBPFSandbox? ReportedFileOperation.ReadFile : ReportedFileOperation.Readlink, Path.Combine(result.rootDirectory, "testfile2")));
+            AssertLogContains(GetAccessReportRegex(UsingEBPFSandbox? ReportedFileOperation.Probe : ReportedFileOperation.Readlink, Path.Combine(result.rootDirectory, "testfile2")));
         }
 
         [Fact]
         public void CallTestreadlinkat()
         {
             var result = RunNativeTest(GetNativeTestName(MethodBase.GetCurrentMethod().Name));
-            AssertLogContains(GetAccessReportRegex(UsingEBPFSandbox? ReportedFileOperation.ReadFile : ReportedFileOperation.Readlink, Path.Combine(result.rootDirectory, "testfile2")));
+            AssertLogContains(GetAccessReportRegex(UsingEBPFSandbox? ReportedFileOperation.Probe : ReportedFileOperation.Readlink, Path.Combine(result.rootDirectory, "testfile2")));
         }
 
         [Fact]
         public void CallTestrealpath()
         {
             var result = RunNativeTest(GetNativeTestName(MethodBase.GetCurrentMethod().Name));
-            AssertLogContains(GetAccessReportRegex(UsingEBPFSandbox? ReportedFileOperation.ReadFile : ReportedFileOperation.Readlink, Path.Combine(result.rootDirectory, "testfile2")));
+            AssertLogContains(GetAccessReportRegex(UsingEBPFSandbox? ReportedFileOperation.Readlink : ReportedFileOperation.Readlink, Path.Combine(result.rootDirectory, "testfile2")));
         }
 
         [Fact]

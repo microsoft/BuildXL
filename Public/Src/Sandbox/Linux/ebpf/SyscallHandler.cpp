@@ -152,6 +152,21 @@ bool SyscallHandler::HandleSingleEvent(const ebpf_event *event) {
             CreateAndReportAccess(m_bxl,sandboxEvent);
             break;
         }
+        case kReadLink:
+        {
+            auto sandboxEvent = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
+                /* system_call */   kernel_function_to_string(event->metadata.kernel_function),
+                /* event_type */    EventType::kReadLink,
+                /* pid */           event->metadata.pid,
+                /* ppid */          0,
+                /* error */         0,
+                /* src_path */      event->src_path);
+            sandboxEvent.SetRequiredPathResolution(RequiredPathResolution::kDoNotResolve);
+            // mode is explicitly not set here so that the BxlObserver can determine it.
+            CreateAndReportAccess(m_bxl, sandboxEvent);
+            break;
+
+        }
         case kBreakAway:
         {
             m_bxl->SendBreakawayReport(event->src_path, event->metadata.pid, /** ppid */ 0);

@@ -1233,12 +1233,16 @@ int BPF_PROG(do_readlink_exit, int dfd, const char *pathname, char *buf, int buf
         metadata->pid = pid;
         // When successful, the function returns the number of bytes copied, and negative on error.
         // On error, we report a probe, since the path was not actually read.
-        metadata->operation_type = ret < 0 ? kGenericProbe : kGenericRead;
-        // If the call was successful, it means the symlink is legit (and therefore a regular file)
-        // If the call failed, we set the mode to 0 since we don't really know what it is. The mode
-        // will be retrieved and set on user side, which is not ideal (since there is the small chance of a race, 
-        // where the status of the path changed), but this is probably good enough.
-        metadata->mode = ret < 0 ? 0 : S_IFREG;
+        // TODO: We can determine the operation type based on the return value, but due to bug #2300351
+        // we use the kReadLink type and let the user side determine whether this was a read or a probe.
+        // The line below is left commented out on purpose, to be uncommented when the bug is fixed.
+        // metadata->operation_type = ret < 0 ? kGenericProbe : kGenericRead;
+        metadata->operation_type = kReadLink;
+        // If the call was successful, it means the symlink is legit.
+        // We don't know whether the symlink points to a file or a directory, so we set the mode to 0 and let the user side resolve it.
+        // The mode being retrieved and set on user side is not ideal since there is the small chance of a race, 
+        // where the status of the path changed.
+        metadata->mode = 0;
         // If the call failed, we set the error code to the return value, otherwise we set it to 0 since in that
         // case ret just represents the number of bytes copied
         metadata->error = ret < 0 ? ret : 0;

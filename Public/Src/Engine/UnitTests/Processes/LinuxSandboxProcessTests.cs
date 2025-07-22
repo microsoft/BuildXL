@@ -21,6 +21,7 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 using BuildXL.Interop.Linux;
+using BuildXL.Interop.Unix;
 
 namespace Test.BuildXL.Processes
 {
@@ -34,7 +35,7 @@ namespace Test.BuildXL.Processes
             : base(output)
         {
         }
-        
+
         [Fact]
         public void CallTestAnonymousFile()
         {
@@ -68,13 +69,13 @@ namespace Test.BuildXL.Processes
         [FactIfSupported(requiresSymlinkPermission: true)]
         public void FullPathResolutionOnReports()
         {
-            var tempFiles = new TempFileStorage(canGetFileNames : true);
+            var tempFiles = new TempFileStorage(canGetFileNames: true);
             var link = tempFiles.GetDirectory("symlinkDir", skipCreate: true);
             var real = tempFiles.GetDirectory("realDir");
-            var createSymlink = FileUtilities.TryCreateSymbolicLink(link, real, isTargetFile: false); 
+            var createSymlink = FileUtilities.TryCreateSymbolicLink(link, real, isTargetFile: false);
             if (!createSymlink.Succeeded)
             {
-                XAssert.IsTrue(false, createSymlink.Failure.Describe());                
+                XAssert.IsTrue(false, createSymlink.Failure.Describe());
             }
 
             // The test calls readlink(symlinkDir/nonExistingFile.txt): we should get a report on the path
@@ -97,25 +98,25 @@ namespace Test.BuildXL.Processes
         [FactIfSupported(requiresSymlinkPermission: true)]
         public void ReadlinkReportDoesNotResolveFinalComponent()
         {
-            var tempFiles = new TempFileStorage(canGetFileNames : true);
+            var tempFiles = new TempFileStorage(canGetFileNames: true);
             var dir = tempFiles.GetDirectory("realDir");
             var file = tempFiles.GetFileName(dir, "file.txt");
             var link = tempFiles.GetFileName(dir, "symlink.txt");
-            
+
             File.WriteAllText(file, "chelivery");
             XAssert.IsTrue(File.Exists(file));
 
-            var createSymlink = FileUtilities.TryCreateSymbolicLink(link, file, isTargetFile: true); 
+            var createSymlink = FileUtilities.TryCreateSymbolicLink(link, file, isTargetFile: true);
             if (!createSymlink.Succeeded)
             {
-                XAssert.IsTrue(false, createSymlink.Failure.Describe());                
+                XAssert.IsTrue(false, createSymlink.Failure.Describe());
             }
 
             // The test calls readlink(realDir/symlink.txt): we should get a report on this path, with no resolution of the final component
             RunNativeTest("ReadlinkReportDoesNotResolveFinalComponent", workingDirectory: tempFiles);
             if (UsingEBPFSandbox)
             {
-                AssertLogContains(GetAccessReportRegex(ReportedFileOperation.ReadFile, "realDir/symlink.txt"));
+                AssertLogContains(GetAccessReportRegex(ReportedFileOperation.Readlink, "realDir/symlink.txt"));
                 AssertLogNotContains(GetAccessReportRegex(ReportedFileOperation.Probe, "symlinkDir/file.txt"));
             }
             else
@@ -128,25 +129,25 @@ namespace Test.BuildXL.Processes
         [FactIfSupported(requiresSymlinkPermission: true)]
         public void FileDescriptorAccessesFullyResolvesPath()
         {
-            var tempFiles = new TempFileStorage(canGetFileNames : true);
+            var tempFiles = new TempFileStorage(canGetFileNames: true);
             var link = tempFiles.GetDirectory("symlinkDir", skipCreate: true);
             var real = tempFiles.GetDirectory("realDir");
             var realFile = tempFiles.GetFileName(real, "file.txt");
 
             File.WriteAllText(realFile, "chelivery");
-            XAssert.IsTrue(File.Exists(realFile));           
+            XAssert.IsTrue(File.Exists(realFile));
 
-            var createSymlink = FileUtilities.TryCreateSymbolicLink(link, real, isTargetFile: false); 
+            var createSymlink = FileUtilities.TryCreateSymbolicLink(link, real, isTargetFile: false);
             if (!createSymlink.Succeeded)
             {
-                XAssert.IsTrue(false, createSymlink.Failure.Describe());                
+                XAssert.IsTrue(false, createSymlink.Failure.Describe());
             }
 
             var fileLink = tempFiles.GetFileName(real, "symlink.txt");
-            createSymlink = FileUtilities.TryCreateSymbolicLink(fileLink, realFile, isTargetFile: true); 
+            createSymlink = FileUtilities.TryCreateSymbolicLink(fileLink, realFile, isTargetFile: true);
             if (!createSymlink.Succeeded)
             {
-                XAssert.IsTrue(false, createSymlink.Failure.Describe());                
+                XAssert.IsTrue(false, createSymlink.Failure.Describe());
             }
 
             RunNativeTest("FileDescriptorAccessesFullyResolvesPath", workingDirectory: tempFiles);
@@ -159,7 +160,7 @@ namespace Test.BuildXL.Processes
 
             // At some point (namely, on open) we also should get reports for the intermediate symlinks that got us to the file
             if (UsingEBPFSandbox)
-            { 
+            {
                 AssertLogContains(GetAccessReportRegex(ReportedFileOperation.ReadFile, link));
                 AssertLogContains(GetAccessReportRegex(ReportedFileOperation.ReadFile, fileLink));
             }
@@ -183,7 +184,7 @@ namespace Test.BuildXL.Processes
         [InlineData(false)]
         public void ExecReportsCorrectExecutableAndArguments(bool succeeds)
         {
-            var tempFiles = new TempFileStorage(canGetFileNames : true);
+            var tempFiles = new TempFileStorage(canGetFileNames: true);
             var testName = "ExecReportsCorrectExecutableAndArguments" + (succeeds ? "Success" : "Failed");
 
             var result = RunNativeTest(testName, workingDirectory: tempFiles, reportProcessArgs: true);
@@ -198,7 +199,7 @@ namespace Test.BuildXL.Processes
             {
                 XAssert.IsTrue(false, $"Expected {expectedExe}, got {result.result.Processes[0].Path} with accesses: \n{accesses}");
             }
-            
+
             // TODO: [pgunasekara] args are not checked in the ReportedProcess object for now. We do report args properly, however our logic to update the ReportedProcess object is not correct.
             // XAssert.IsTrue(result.result.Processes[0].ProcessArgs ==  exepectedArgs, $"Expected \"{exepectedArgs}\", got {string.Join(" ", result.result.Processes[0].ProcessArgs)}");
         }
@@ -223,6 +224,51 @@ namespace Test.BuildXL.Processes
                 RunNativeTest("AccessLongPath");
                 AssertWarningEventLogged(global::BuildXL.Processes.Tracing.LogEventId.PathTooLongIsIgnored);
             }
+        }
+
+        /// <summary>
+        /// This test is expected to fail with EINVAL because readlink does not support reading links on directories.
+        /// This is validating a bug we have in the sandbox where a readlink on a directory is treated as an enumeration of the directory.
+        /// TODO: work item 2300351
+        /// </summary>
+        [Fact]
+        public void ReadLinkOnDirectoryIsEnumerate()
+        {
+            var tempFiles = new TempFileStorage(canGetFileNames: true);
+            var directoryToEnumerate = tempFiles.GetDirectory("enumeratedDirectory");
+            var fileUnderEnumeratedDirectory = tempFiles.GetFileName(directoryToEnumerate, "file.txt");
+
+            File.WriteAllText(fileUnderEnumeratedDirectory, "file under enumerated directory.");
+
+            var process = CreateTestProcess(
+                Context.PathTable,
+                tempFiles,
+                "ReadLinkOnDirectoryIsEnumerate",
+                inputFiles: ReadOnlyArray<FileArtifact>.Empty,
+                inputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                outputFiles: ReadOnlyArray<FileArtifactWithAttributes>.Empty,
+                outputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                untrackedScopes: ReadOnlyArray<AbsolutePath>.Empty,
+                wrapInBash: false);
+
+            var processInfo = ToProcessInfo(process, workingDirectory: tempFiles.RootDirectory);
+            processInfo.FileAccessManifest.ReportFileAccesses = true;
+            processInfo.FileAccessManifest.MonitorChildProcesses = true;
+            processInfo.FileAccessManifest.FailUnexpectedFileAccesses = false;
+            processInfo.FileAccessManifest.EnableLinuxSandboxLogging = true;
+            processInfo.FileAccessManifest.ReportProcessArgs = true;
+            processInfo.FileAccessManifest.AddScope(AbsolutePath.Create(Context.PathTable, tempFiles.RootDirectory), FileAccessPolicy.MaskNothing, FileAccessPolicy.ReportAccess);
+
+            var result = RunProcess(processInfo).Result;
+
+        string message = $"Test terminated with exit code {result.ExitCode} when it was expected to terminate with EINVAL ({(int)IO.Errno.EINVAL}).{Environment.NewLine}stdout: {result.StandardOutput.ReadValueAsync().Result}{Environment.NewLine}stderr: {result.StandardError.ReadValueAsync().Result}";
+            XAssert.IsTrue(result.ExitCode == (int)IO.Errno.EINVAL, message);
+
+            Assert.True(result.FileAccesses.Where(access => access.RequestedAccess == RequestedAccess.Enumerate && access.ManifestPath.ToString(Context.PathTable) == directoryToEnumerate).Any(),
+                @$"Expected to find an Enumerate access on the root directory {directoryToEnumerate} but did not.{Environment.NewLine}
+File accesses:{Environment.NewLine}
+{string.Join(Environment.NewLine, result.FileAccesses.Select(f => $"Path: {f.ManifestPath.ToString(Context.PathTable)}, Requested Access: {f.RequestedAccess}"))}"
+            );
         }
     }
 }

@@ -116,4 +116,8 @@ Since observations are reported as is, i.e., no deduping, grouping, etc., the si
 While it is difficult to estimate the increase in total output size (trace files are outputs of a build), one can use our test builds as guidance. 
 A large-scale test build (440k pips, a trace file was for each pip) resulted in increase of total output size by 36GB. 
 
+## Caching: Trace File vs XLG
+This data is very similar to what you would find in the `.xlg` (given certain command lines).
+However, only accesses for executed PIPs exist in the `.xlg`.
+Since FileAccessTrace files are persisted into the cache they are still present / materialized for cache hits.
 

@@ -1806,10 +1806,6 @@ namespace BuildXL.ProcessPipExecutor
                             // There was an error logged when saving stdout or stderror.
                             loggingSuccess = false;
                         }
-                        else if (azWatsonDeadProcess != null)
-                        {
-                            loggingSuccess = false;
-                        }
                     }
                 }
             }
@@ -1871,6 +1867,14 @@ namespace BuildXL.ProcessPipExecutor
             //      4. The process wrote to standard error, and even though it may have exited with a succesfull exit code, WritingToStandardErrorFailsPip
             //         is set (failedDueToWritingToStdErr)
             bool mainProcessSuccess = mainProcessExitedCleanly && allOutputsPresent && !failedDueToWritingToStdErr;
+            bool azureWatsonRetriable = !mainProcessSuccess && !result.TimedOut && !canceled && azWatsonDeadProcess != null;
+
+            if (azureWatsonRetriable)
+            {
+                // Azure watson exit code is retriable only if the pip did not time out and was not canceled.
+                // Since the pip will be retried in this case, we should not log the error.
+                loggingSuccess = false;
+            }
 
             bool standardOutHasBeenWrittenToLog = false;
             bool errorOrWarnings = !mainProcessSuccess || m_numWarnings > 0;
@@ -2019,7 +2023,7 @@ namespace BuildXL.ProcessPipExecutor
                 status = SandboxedProcessPipExecutionStatus.Succeeded;
             }
 
-            if (!mainProcessSuccess && !result.TimedOut && !canceled && azWatsonDeadProcess != null)
+            if (azureWatsonRetriable)
             {
                 // Retry if main process failed and there is a process (can be a child process) that exits with exit code 0xDEAD.
                 Logger.Log.PipRetryDueToExitedWithAzureWatsonExitCode(

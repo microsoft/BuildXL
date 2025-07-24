@@ -120,8 +120,6 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache.EventStreaming
 
             switch (configuration)
             {
-                case EventHubContentLocationEventStoreConfiguration azureConfig:
-                    return new AzureEventHubClient(azureConfig);
                 case MemoryContentLocationEventStoreConfiguration memoryConfig:
                     return new MemoryEventHubClient(memoryConfig);
                 case NullContentLocationEventStoreConfiguration:

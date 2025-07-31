@@ -316,18 +316,18 @@ export interface DropRunner {
      * Adds files to drop. 
      * Preferred method is to use addArtifactsToDrop.
      */
-    addFilesToDrop: (createResult: DropCreateResult, args: DropOperationArguments, fileInfos: FileInfo[], tags?: string[]) => Result;
-
+    addFilesToDrop: (createResult: DropCreateResult, args: DropOperationArguments, fileInfos: FileInfo[]) => Result;
+    
     /** 
      * Adds directories to drop. 
      * Preferred method is to use addArtifactsToDrop.
      */
-    addDirectoriesToDrop: (createResult: DropCreateResult, args: DropOperationArguments, directories: DirectoryInfo[], tags?: string[]) => Result;
+    addDirectoriesToDrop: (createResult: DropCreateResult, args: DropOperationArguments, directories: DirectoryInfo[]) => Result;
 
     /** 
      * Adds artifacts to drop.
      */
-    addArtifactsToDrop: (createResult: DropCreateResult, args: DropOperationArguments, artifacts: DropArtifactInfo[], tags?: string[]) => Result;
+    addArtifactsToDrop: (createResult: DropCreateResult, args: DropOperationArguments, artifacts: DropArtifactInfo[]) => Result;
 
     /**
      * Triggers finalization of a drop. Results of all add* operations associated with the drop must be provided.

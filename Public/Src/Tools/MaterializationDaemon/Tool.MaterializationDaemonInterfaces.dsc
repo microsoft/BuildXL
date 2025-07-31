@@ -126,10 +126,10 @@ export interface MaterializationRunner {
     startDaemon: (args: ServiceStartArguments) => ServiceStartResult;
 
     /** Finds manifest files in given directories and materializes the files they reference. */
-    loadManifestsAndMaterializeFiles: (startResult: ServiceStartResult, args : ConnectionArguments, directories: ManifestFileDirectory[], tags?: string[]) => Result;
+    loadManifestsAndMaterializeFiles: (startResult: ServiceStartResult, args : ConnectionArguments, directories: ManifestFileDirectory[]) => Result;
 
     /** Materializes given directory artifacts. */
-    materializeOutputDirectories: (startResult: ServiceStartResult, args: ConnectionArguments, directories: FilteredOpaqueDirectory[], tags?: string[]) => Result;
+    materializeOutputDirectories: (startResult: ServiceStartResult, args: ConnectionArguments, directories: FilteredOpaqueDirectory[]) => Result;
 }
 
 /**

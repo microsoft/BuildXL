@@ -68,7 +68,7 @@ function startService(args: CombinedArguments, startCommand: string, shutdownCmd
     };
 }
 
-function registerManifest(startResult: ServiceStartResult, args : ConnectionArguments, directories: ManifestFileDirectory[], tags?: string[]): Result {
+function registerManifest(startResult: ServiceStartResult, args : ConnectionArguments, directories: ManifestFileDirectory[]): Result {
     Contract.requires(
         startResult !== undefined,
         "result of starting the daemon must be provided"
@@ -84,7 +84,6 @@ function registerManifest(startResult: ServiceStartResult, args : ConnectionArgu
 
     const combinedArgs = args.merge<CombinedArguments>({
         ipcServerMoniker: Transformer.getIpcServerMoniker(),
-        tags: tags
     });
 
     return executeDaemonCommand(
@@ -106,7 +105,7 @@ function registerManifest(startResult: ServiceStartResult, args : ConnectionArgu
     );
 }
 
-function materializeDirectories(startResult: ServiceStartResult, args : ConnectionArguments, directories: FilteredOpaqueDirectory[], tags?: string[]): Result {
+function materializeDirectories(startResult: ServiceStartResult, args : ConnectionArguments, directories: FilteredOpaqueDirectory[]): Result {
     Contract.requires(
         startResult !== undefined,
         "result of starting the daemon must be provided"
@@ -123,7 +122,6 @@ function materializeDirectories(startResult: ServiceStartResult, args : Connecti
 
     const combinedArgs = args.merge<CombinedArguments>({
         ipcServerMoniker: Transformer.getIpcServerMoniker(),
-        tags: tags
     });
 
     return executeDaemonCommand(

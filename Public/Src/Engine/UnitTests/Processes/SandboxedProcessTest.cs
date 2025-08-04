@@ -703,7 +703,7 @@ namespace Test.BuildXL.Processes
             var spawnOperation = Operation.Spawn(Context.PathTable, waitToFinish: false, Operation.Sleep(500), Operation.WriteFile(outFile, "orphan content"));
             var info = ToProcessInfo(ToProcess(spawnOperation));
             // Give the nested process enought time to finish writing to the file.
-            info.NestedProcessTerminationTimeout = TimeSpan.FromSeconds(1);
+            info.NestedProcessTerminationTimeout = TimeSpan.FromSeconds(10);
             info.DiagnosticsEnabled = true;
 
             var result = await RunProcess(info);

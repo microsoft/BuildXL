@@ -222,7 +222,7 @@ config({
                 { id: "System.Runtime.Caching", version: "9.0.3" },
 
                 // Sbom dependencies
-                { id: "Serilog", version: "4.2.0" },
+                { id: "Serilog", version: "4.3.0" },
                 { id: "Serilog.Sinks.Console", version: "6.0.0" },
 
                 // microsoft test platform

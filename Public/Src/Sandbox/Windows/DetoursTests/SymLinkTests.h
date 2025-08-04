@@ -66,6 +66,7 @@ int CallModifyDirectorySymlinkThroughDifferentPathIgnoreFullyResolve();
 int CallDeleteSymlinkUnderDirectorySymlinkWithFullSymlinkResolution();
 int CallOpenNonExistentFileThroughDirectorySymlink();
 int CallNtOpenNonExistentFileThroughDirectorySymlink();
+int CallReadFileThroughUntrackedScopeWithFullResolvingEnabledAsync();
 int CallDirectoryEnumerationThroughDirectorySymlink();
 int CallDeviceIOControlGetReparsePoint();
 int CallDeviceIOControlSetReparsePoint();

@@ -1071,6 +1071,11 @@ namespace BuildXL
                 HelpLevel.Verbose);
 
             hw.WriteOption(
+                "/unsafe_IgnoreUntrackedPathsInFullReparsePointResolving[+|-]",
+                Strings.HelpText_DisplayHelp_Unsafe_IgnoreUntrackedPathsInFullReparsePointResolving,
+                HelpLevel.Verbose);
+
+            hw.WriteOption(
                 "/unsafe_IgnoreDynamicWritesOnAbsentProbes[+|-|:IgnoreNothing|:IgnoreDirectoryProbes|:IgnoreFileProbes|:IgnoreAll]",
                 Strings.HelpText_DisplayHelp_Unsafe_IgnoreDynamicWritesOnAbsentProbes,
                 HelpLevel.Verbose);

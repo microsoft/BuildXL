@@ -770,7 +770,7 @@ int CallValidateFileSymlinkAccesses()
     const std::string content = "Some content to write";
     DWORD bytes_written;
 
-    // Write content throught the symbolic file link
+    // Write content through the symbolic file link
     WriteFile(hFile, content.c_str(), static_cast<DWORD>(content.size()), &bytes_written, nullptr);
     CloseHandle(hFile);
 
@@ -941,6 +941,27 @@ int CallNtOpenNonExistentFileThroughDirectorySymlink()
     CloseHandle(hFile);
 
     return static_cast<int>(RtlNtStatusToDosError(status));
+}
+
+int CallReadFileThroughUntrackedScopeWithFullResolvingEnabledAsync()
+{
+    HANDLE hFile = CreateFileW(
+        L"Untracked\\directory.lnk\\file.txt",
+        GENERIC_READ,
+        0,
+        nullptr,
+        OPEN_EXISTING,
+        FILE_ATTRIBUTE_NORMAL,
+        nullptr);
+
+    if (hFile == INVALID_HANDLE_VALUE)
+    {
+        return static_cast<int>(GetLastError());
+    }
+
+    CloseHandle(hFile);
+
+    return 0;
 }
 
 int CallDirectoryEnumerationThroughDirectorySymlink()

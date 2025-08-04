@@ -390,6 +390,11 @@ namespace BuildXL.Scheduler.Tracing
         public bool IgnoreFullReparsePointResolving;
 
         /// <summary>
+        /// Whether the /unsafe_IgnoreUntrackedPathsInFullReparsePointResolving flag is passed to BuildXL.
+        /// </summary>
+        public bool IgnoreUntrackedPathsInFullReparsePointResolving;
+
+        /// <summary>
         /// Whether the /unsafe_IgnorePreloadedDlls flag is passed to BuildXL.
         /// </summary>
         public bool IgnorePreloadedDlls;
@@ -453,11 +458,6 @@ namespace BuildXL.Scheduler.Tracing
         /// Gets the hash of the search path tools configured
         /// </summary>
         public ContentHash? ObservationReclassificationRulesHash;
-
-        /// <summary>
-        /// Whether /unsafe_unexpectedFileAccessesAreErrors was passed to BuildXL
-        /// </summary>
-        public bool UnexpectedFileAccessesAreErrors;
 
         /// <summary>
         /// Whether BuildXL monitors file accesses.
@@ -524,6 +524,7 @@ namespace BuildXL.Scheduler.Tracing
             IgnoreNonCreateFileReparsePoints = salts.IgnoreNonCreateFileReparsePoints;
             IgnoreReparsePoints = salts.IgnoreReparsePoints;
             IgnoreFullReparsePointResolving = salts.IgnoreFullReparsePointResolving;
+            IgnoreUntrackedPathsInFullReparsePointResolving = salts.IgnoreUntrackedPathsInFullReparsePointResolving;
             IgnorePreloadedDlls = salts.IgnorePreloadedDlls;
             IgnoreGetFinalPathNameByHandle = salts.IgnoreGetFinalPathNameByHandle;
             ExistingDirectoryProbesAsEnumerations = salts.ExistingDirectoryProbesAsEnumerations;
@@ -534,7 +535,6 @@ namespace BuildXL.Scheduler.Tracing
             FingerprintSalt = salts.FingerprintSalt;
             SearchPathToolsHash = salts.SearchPathToolsHash;
             ObservationReclassificationRulesHash = salts.GlobalObservationReclassificationRulesHash;
-            UnexpectedFileAccessesAreErrors = salts.UnexpectedFileAccessesAreErrors;
             MonitorFileAccesses = salts.MonitorFileAccesses;
             MaskUntrackedAccesses = salts.MaskUntrackedAccesses;
             NormalizeReadTimestamps = salts.NormalizeReadTimestamps;
@@ -562,6 +562,7 @@ namespace BuildXL.Scheduler.Tracing
                        ignoreNonCreateFileReparsePoints: IgnoreNonCreateFileReparsePoints,
                        ignoreReparsePoints: IgnoreReparsePoints,
                        ignoreFullReparsePointResolving: IgnoreFullReparsePointResolving,
+                       ignoreUntrackedPathsInFullReparsePointResolving: IgnoreUntrackedPathsInFullReparsePointResolving,
                        ignorePreloadedDlls: IgnorePreloadedDlls,
                        ignoreGetFinalPathNameByHandle: IgnoreGetFinalPathNameByHandle,
                        existingDirectoryProbesAsEnumerations: ExistingDirectoryProbesAsEnumerations,
@@ -573,7 +574,6 @@ namespace BuildXL.Scheduler.Tracing
                        searchPathToolsHash: SearchPathToolsHash,
                        observationReclassificationRulesHash: ObservationReclassificationRulesHash, 
                        monitorFileAccesses: MonitorFileAccesses,
-                       unexpectedFileAccessesAreErrors: UnexpectedFileAccessesAreErrors,
                        maskUntrackedAccesses: MaskUntrackedAccesses,
                        normalizeReadTimestamps: NormalizeReadTimestamps,
                        validateDistribution: ValidateDistribution,
@@ -613,11 +613,11 @@ namespace BuildXL.Scheduler.Tracing
             writer.Write(SearchPathToolsHash, (w, h) => h.SerializeHashBytes(w));
             writer.Write(ObservationReclassificationRulesHash, (w, h) => h.SerializeHashBytes(w));
             writer.Write(MonitorFileAccesses);
-            writer.Write(UnexpectedFileAccessesAreErrors);
             writer.Write(MaskUntrackedAccesses);
             writer.Write(NormalizeReadTimestamps);
             writer.Write(PipWarningsPromotedToErrors);
             writer.Write(IgnoreFullReparsePointResolving);
+            writer.Write(IgnoreUntrackedPathsInFullReparsePointResolving);
             writer.Write(ExplicitlyReportDirectoryProbes);
             writer.Write(IgnoreDeviceIoControlGetReparsePoint);
             writer.Write(HonorDirectoryCasingOnDisk);
@@ -646,11 +646,11 @@ namespace BuildXL.Scheduler.Tracing
             SearchPathToolsHash = reader.ReadNullableStruct(r => ContentHashingUtilities.CreateFrom(r));
             ObservationReclassificationRulesHash = reader.ReadNullableStruct(r => ContentHashingUtilities.CreateFrom(r));
             MonitorFileAccesses = reader.ReadBoolean();
-            UnexpectedFileAccessesAreErrors = reader.ReadBoolean();
             MaskUntrackedAccesses = reader.ReadBoolean();
             NormalizeReadTimestamps = reader.ReadBoolean();
             PipWarningsPromotedToErrors = reader.ReadBoolean();
             IgnoreFullReparsePointResolving = reader.ReadBoolean();
+            IgnoreUntrackedPathsInFullReparsePointResolving = reader.ReadBoolean();
             ExplicitlyReportDirectoryProbes = reader.ReadBoolean();
             IgnoreDeviceIoControlGetReparsePoint = reader.ReadBoolean();
             HonorDirectoryCasingOnDisk = reader.ReadBoolean();

@@ -1141,6 +1141,10 @@ namespace BuildXL
                                 sandboxConfiguration.UnsafeSandboxConfigurationMutable.EnableFullReparsePointResolving = !sign;
                             },
                             isUnsafe: true),
+                        OptionHandlerFactory.CreateBoolOption(
+                            "unsafe_IgnoreUntrackedPathsInFullReparsePointResolving",
+                            sign => sandboxConfiguration.UnsafeSandboxConfigurationMutable.IgnoreUntrackedPathsInFullReparsePointResolving = sign,
+                            isUnsafe: true),
                         OptionHandlerFactory.CreateBoolOptionWithValue(
                             "unsafe_IgnoreDynamicWritesOnAbsentProbes",
                             (opt, sign) =>

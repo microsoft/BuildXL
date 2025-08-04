@@ -234,6 +234,11 @@ namespace BuildXL.Utilities.Configuration
         /// </remarks>
         bool? DoNotApplyAllowListToDynamicOutputs { get; }
 
+        /// <summary>
+        /// If true, untracked paths, when symlinks, are not fully resolved nor reported.
+        /// </summary>
+        bool IgnoreUntrackedPathsInFullReparsePointResolving { get; }
+
         // NOTE: if you add a property here, don't forget to update UnsafeSandboxConfigurationExtensions
 
         // NOTE: whenever unsafe options change, the fingerprint version needs to be bumped
@@ -302,6 +307,7 @@ namespace BuildXL.Utilities.Configuration
             {
                 writer.Write(@this.DoNotApplyAllowListToDynamicOutputs.Value);
             }
+            writer.Write(@this.IgnoreUntrackedPathsInFullReparsePointResolving);
         }
 
         /// <nodoc/>
@@ -335,6 +341,7 @@ namespace BuildXL.Utilities.Configuration
                 SkipFlaggingSharedOpaqueOutputs = reader.ReadBoolean() ? (bool?)reader.ReadBoolean() : null,
                 EnableFullReparsePointResolving = reader.ReadBoolean() ? (bool?)reader.ReadBoolean() : null,
                 DoNotApplyAllowListToDynamicOutputs = reader.ReadBoolean() ? (bool?)reader.ReadBoolean() : null,
+                IgnoreUntrackedPathsInFullReparsePointResolving = reader.ReadBoolean(),
             };
         }
 
@@ -372,7 +379,8 @@ namespace BuildXL.Utilities.Configuration
                 && IsAsSafeOrSafer(lhs.ProbeDirectorySymlinkAsDirectory, rhs.ProbeDirectorySymlinkAsDirectory, SafeDefaults.ProbeDirectorySymlinkAsDirectory)
                 && IsAsSafeOrSafer(lhs.SkipFlaggingSharedOpaqueOutputs(), rhs.SkipFlaggingSharedOpaqueOutputs(), SafeDefaults.SkipFlaggingSharedOpaqueOutputs())
                 && IsAsSafeOrSafer(lhs.EnableFullReparsePointResolving(), rhs.EnableFullReparsePointResolving(), SafeDefaults.EnableFullReparsePointResolving())
-                && IsAsSafeOrSafer(lhs.DoNotApplyAllowListToDynamicOutputs(), rhs.DoNotApplyAllowListToDynamicOutputs(), SafeDefaults.DoNotApplyAllowListToDynamicOutputs());
+                && IsAsSafeOrSafer(lhs.DoNotApplyAllowListToDynamicOutputs(), rhs.DoNotApplyAllowListToDynamicOutputs(), SafeDefaults.DoNotApplyAllowListToDynamicOutputs())
+                && IsAsSafeOrSafer(lhs.IgnoreUntrackedPathsInFullReparsePointResolving, rhs.IgnoreUntrackedPathsInFullReparsePointResolving, SafeDefaults.IgnoreUntrackedPathsInFullReparsePointResolving);
         }
 
         /// <nodoc />

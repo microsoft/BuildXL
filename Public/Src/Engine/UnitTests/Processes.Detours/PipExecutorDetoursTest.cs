@@ -91,6 +91,7 @@ namespace Test.BuildXL.Processes.Detours
             bool enforceAccessPoliciesOnDirectoryCreation = false,
             bool probeDirectorySymlinkAsDirectory = false,
             bool ignoreFullReparsePointResolving = true,
+            bool ignoreUntrackedPathsInFullReparsePointResolving = false,
             List<AbsolutePath> directoriesToEnableFullReparsePointParsing = null,
             bool preserveFileSharingBehaviour = false,
             bool ignoreDeviceIoControlGetReparsePoint = true,
@@ -111,6 +112,7 @@ namespace Test.BuildXL.Processes.Detours
                     UnexpectedFileAccessesAreErrors = unexpectedFileAccessesAreErrors,
                     IgnoreReparsePoints = ignoreReparsePoints,
                     IgnoreFullReparsePointResolving = ignoreFullReparsePointResolving,
+                    IgnoreUntrackedPathsInFullReparsePointResolving = ignoreUntrackedPathsInFullReparsePointResolving,
                     ExistingDirectoryProbesAsEnumerations = existingDirectoryProbesAsEnumerations,
                     IgnoreZwRenameFileInformation = ignoreZwRenameFileInformation,
                     IgnoreZwOtherFileInformation = ignoreZwOtherFileInformation,
@@ -6380,6 +6382,69 @@ namespace Test.BuildXL.Processes.Detours
                         (AbsolutePath.Create(pathTable, directoryLink), RequestedAccess.Probe, FileAccessStatus.Denied) // Denied, because reparse point is treated as a file.
                     },
                     [targetDirectory]);
+            }
+        }
+
+        [TheoryIfSupported(requiresSymlinkPermission: true)]
+        [MemberData(nameof(TruthTable.GetTable), 1, MemberType = typeof(TruthTable))]
+        public async Task CallReadFileThroughUntrackedScopeWithFullResolvingEnabledAsync(bool ignoreUntrackedPathsInFullReparsePointResolving)
+        {
+            var context = BuildXLContext.CreateInstanceForTesting();
+            var pathTable = context.PathTable;
+
+            using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
+            {
+                var untrackedDirectory = tempFiles.GetDirectory(pathTable, @"Untracked");
+                var directoryLink = tempFiles.GetFileName(untrackedDirectory.ToString(pathTable), "directory.lnk");
+                var trackedDirectory = tempFiles.GetDirectory(pathTable, @"Tracked");
+                var targetFile = tempFiles.GetFileName(trackedDirectory.ToString(pathTable), "file.txt");
+                WriteFile(targetFile);
+
+                XAssert.PossiblySucceeded(FileUtilities.TryCreateSymbolicLink(directoryLink, trackedDirectory.ToString(pathTable), isTargetFile: false));
+
+                var process = CreateDetourProcess(
+                    context,
+                    pathTable,
+                    tempFiles,
+                    argumentStr: "CallReadFileThroughUntrackedScopeWithFullResolvingEnabledAsync",
+                    inputFiles: ReadOnlyArray<FileArtifact>.Empty,
+                    inputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                    outputFiles: ReadOnlyArray<FileArtifactWithAttributes>.Empty,
+                    outputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                    untrackedScopes: ReadOnlyArray<AbsolutePath>.FromWithoutCopy(untrackedDirectory));
+
+                SandboxedProcessPipExecutionResult result = await RunProcessAsync(
+                    pathTable: pathTable,
+                    ignoreSetFileInformationByHandle: false,
+                    ignoreZwRenameFileInformation: false,
+                    monitorNtCreate: true,
+                    ignoreReparsePoints: false,
+                    context: context,
+                    pip: process,
+                    ignoreFullReparsePointResolving: false,
+                    ignoreUntrackedPathsInFullReparsePointResolving: ignoreUntrackedPathsInFullReparsePointResolving,
+                    unexpectedFileAccessesAreErrors: false,
+                    errorString: out _);
+
+                VerifyNormalSuccess(context, result);
+
+                var targetPath = AbsolutePath.Create(pathTable, targetFile);
+                if (ignoreUntrackedPathsInFullReparsePointResolving)
+                {
+                    // Target file should not appear in the reported file accesses if untracked paths are ignored.
+                    VerifyFileAccesses(
+                        context,
+                        result.AllReportedFileAccesses,
+                        Array.Empty<(AbsolutePath absolutePath, RequestedAccess requestedAccess, FileAccessStatus fileAccessStatus, ReportedFileOperation? operation)>(),
+                        [targetPath]);
+                }
+                else
+                {
+                    VerifyFileAccesses(
+                        context,
+                        result.AllReportedFileAccesses,
+                        [(targetPath, RequestedAccess.Read, FileAccessStatus.Denied)]);
+                }
             }
         }
 

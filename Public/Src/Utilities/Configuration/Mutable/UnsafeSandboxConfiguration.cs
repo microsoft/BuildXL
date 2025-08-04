@@ -37,6 +37,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
             IgnoreUndeclaredAccessesUnderSharedOpaques = false;
             DoNotApplyAllowListToDynamicOutputs = false;
 
+            IgnoreUntrackedPathsInFullReparsePointResolving = false;
+
             // Note that this flag is only relevant for the Windows sandbox because directory symlink 
             ProbeDirectorySymlinkAsDirectory = OperatingSystemHelper.IsWindowsOS;
 
@@ -61,6 +63,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             DoNotApplyAllowListToDynamicOutputs = false,
             IgnoreDeviceIoControlGetReparsePoint = true,
             IgnoreGetFinalPathNameByHandle = true,
+            IgnoreUntrackedPathsInFullReparsePointResolving = false
         };
 
         /// <nodoc />
@@ -92,6 +95,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             SkipFlaggingSharedOpaqueOutputs = template.SkipFlaggingSharedOpaqueOutputs;
             EnableFullReparsePointResolving = template.EnableFullReparsePointResolving;
             DoNotApplyAllowListToDynamicOutputs = template.DoNotApplyAllowListToDynamicOutputs;
+            IgnoreUntrackedPathsInFullReparsePointResolving = template.IgnoreUntrackedPathsInFullReparsePointResolving;
         }
 
         /// <inheritdoc />
@@ -171,5 +175,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc/>
         public bool? DoNotApplyAllowListToDynamicOutputs { get; set; }
+
+        /// <inheritdoc/>
+        public bool IgnoreUntrackedPathsInFullReparsePointResolving { get; set; }
     }
 }

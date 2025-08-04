@@ -2412,6 +2412,7 @@ namespace BuildXL.Engine
                 { "unsafe_GlobalUntrackedScopes",  loggingContext => { } /* Special case: unsafe option we do not want logged */ },
                 { "unsafe_IgnoreReparsePoints", Logger.Log.ConfigIgnoreReparsePoints },
                 { "unsafe_IgnoreFullReparsePointResolving", Logger.Log.ConfigIgnoreFullReparsePointResolving },
+                { "unsafe_IgnoreUntrackedPathsInFullReparsePointResolving", Logger.Log.ConfigIgnoreUntrackedPathsInFullReparsePointResolving },
                 { "unsafe_IgnoreDynamicWritesOnAbsentProbes", Logger.Log.ConfigIgnoreDynamicWritesOnAbsentProbes },
                 { "unsafe_IgnoreSetFileInformationByHandle", Logger.Log.ConfigIgnoreSetFileInformationByHandle },
                 { "unsafe_MonitorFileAccesses", Logger.Log.ConfigUnsafeDisabledFileAccessMonitoring },

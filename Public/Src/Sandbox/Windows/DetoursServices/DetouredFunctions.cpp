@@ -507,7 +507,7 @@ static bool ShouldResolveReparsePointsInPath(
     }
 
     // Untracked scopes never need full reparse point resolution
-    if (policyResult.IndicateUntracked())
+    if (policyResult.IndicateUntracked() && IgnoreUntrackedPathsInFullReparsePointResolving())
     {
         return false;
     }

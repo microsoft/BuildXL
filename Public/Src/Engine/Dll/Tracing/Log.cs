@@ -1117,6 +1117,15 @@ namespace BuildXL.Engine.Tracing
         public abstract void ConfigIgnoreFullReparsePointResolving(LoggingContext context);
 
         [GeneratedEvent(
+            (ushort)LogEventId.ConfigIgnoreUntrackedPathsInFullReparsePointResolving,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Engine,
+            Message = "/unsafe_IgnoreUntrackedPathsInFullReparsePointResolving enabled: {ShortProductName} will not fully resolve untracked paths. This might lead to underbuilds if the untracked paths are resolved to tracked paths.")]
+        public abstract void ConfigIgnoreUntrackedPathsInFullReparsePointResolving(LoggingContext context);
+
+        [GeneratedEvent(
             (ushort)LogEventId.ConfigDisableDetours,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Warning,

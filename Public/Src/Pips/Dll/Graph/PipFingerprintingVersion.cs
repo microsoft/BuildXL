@@ -80,13 +80,8 @@ namespace BuildXL.Pips.Graph
         /// 103: Add apply-allow-list logic on dynamic (shared opaque) outputs.
         /// 104: Migrate Bond to Google.Protobuf
         /// 105: Add observation reclassification rules
+        /// 106: Add IgnoreUntrackedPathsInFullReparsePointResolving
         /// </remarks>
-        TwoPhaseV2 = 105,
-
-        /* 
-         * We do not want to bump the fingerprint version more than needed, so we will accumulate the tasks to do when we really need to bump the fingerprint version:
-         ************ TODOs ******************
-         * 1) Remove UnexpectedFileAccessesAreErrors from ExtraFingerprintSalts.cs 
-         */
+        TwoPhaseV2 = 106,
     }
 }

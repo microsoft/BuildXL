@@ -978,7 +978,6 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   </data>
   <data name="HelpText_DisplayHelp_LogToKustoBlobUri" xml:space="preserve">
     <value>Specifies the blob storage account URI to send log events to Kusto. The format is /logToKustoBlobUri:https://{storage-account-name}/{container-name}. This option must be used with /logToKustoIdentityId.</value>
-    <value></value>
   </data>
   <data name="HelpText_DisplayHelp_LogToKustoIdentityId" xml:space="preserve">
     <value>Specifies the identity ID to use when sending log events to Kusto. The format is /logToKustoIdentityId:{Identity guid}. This option must be used with /logToKustoBlobUri.</value>
@@ -1162,5 +1161,8 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   </data>
   <data name="HelpText_DisplayHelp_EarlyWorkerReleaseMultiplier" xml:space="preserve">
     <value>Multiplier for how aggressively to release workers. Larger values will release workers more aggressively. A value of 1 will release a worker when the number of unfinished (including currently running) pips can be satisfied by the concurrency with one fewer worker.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_Unsafe_IgnoreUntrackedPathsInFullReparsePointResolving" xml:space="preserve">
+    <value>When enabled, untracked paths, if symlinks, are not fully resolved. Defaults to off.</value>
   </data>
 </root>

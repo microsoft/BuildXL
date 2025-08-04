@@ -80,6 +80,7 @@ namespace BuildXL.Processes
             ForceReadOnlyForRequestedReadWrite = false;
             IgnoreReparsePoints = false;
             IgnoreFullReparsePointResolving = true; // TODO: Change this when customers onboard the feature.
+            IgnoreUntrackedPathsInFullReparsePointResolving = false;
             IgnorePreloadedDlls = true; // TODO: This is false in BuildXL's configuration. Changing the default here will impact QuickBuild
             DisableDetours = false;
             IgnoreZwRenameFileInformation = false;
@@ -330,6 +331,15 @@ namespace BuildXL.Processes
         {
             get => GetFlag(FileAccessManifestFlag.IgnoreFullReparsePointResolving);
             set => SetFlag(FileAccessManifestFlag.IgnoreFullReparsePointResolving, value);
+        }
+
+        /// <summary>
+        /// If true, untracked paths, when symlinks, are not fully resolved nor reported.
+        /// </summary>
+        public bool IgnoreUntrackedPathsInFullReparsePointResolving
+        {
+            get => GetExtraFlag(FileAccessManifestExtraFlag.IgnoreUntrackedPathsInFullReparsePointResolving);
+            set => SetExtraFlag(FileAccessManifestExtraFlag.IgnoreUntrackedPathsInFullReparsePointResolving, value);
         }
 
         /// <summary>
@@ -1325,6 +1335,7 @@ namespace BuildXL.Processes
             AlwaysRemoteInjectDetoursFrom32BitProcess = 0x10,
             UnconditionallyEnableLinuxPTraceSandbox = 0x20,
             IgnoreDeviceIoControlGetReparsePoint = 0x40,
+            IgnoreUntrackedPathsInFullReparsePointResolving = 0x80,
         }
 
         private readonly struct FileAccessScope

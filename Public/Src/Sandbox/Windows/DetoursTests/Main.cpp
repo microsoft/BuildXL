@@ -1359,6 +1359,7 @@ static void SymlinkTests(const string& verb)
     IF_COMMAND(CallDeleteSymlinkUnderDirectorySymlinkWithFullSymlinkResolution);
     IF_COMMAND(CallOpenNonExistentFileThroughDirectorySymlink);
     IF_COMMAND(CallNtOpenNonExistentFileThroughDirectorySymlink);
+    IF_COMMAND(CallReadFileThroughUntrackedScopeWithFullResolvingEnabledAsync);
     IF_COMMAND(CallDirectoryEnumerationThroughDirectorySymlink);
     IF_COMMAND(CallDeviceIOControlGetReparsePoint);
     IF_COMMAND(CallDeviceIOControlSetReparsePoint);

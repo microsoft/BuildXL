@@ -119,6 +119,7 @@ namespace BuildXL.Engine.Tracing
         ConfigIncompatibleOptionBuildTimeoutMinsAndCbTimeout = 7142,
         PipTimedOutRemotely = 946,
         ConfigAssumeCleanOutputs = 947,
+        ConfigIgnoreUntrackedPathsInFullReparsePointResolving = 948,
 
         StartInitializingCache = 1502,
         EndInitializingCache = 1503,

@@ -28,6 +28,7 @@ namespace BuildXL.Pips.Graph
             ignoreNonCreateFileReparsePoints: false,
             ignoreReparsePoints: true, // TODO: Change this value when the default value for ignoreReparsePoints changes.
             ignoreFullReparsePointResolving: true, // TODO: Change this value when the default value for ignoreFullReparsePointResolving changes.
+            ignoreUntrackedPathsInFullReparsePointResolving: false,
             ignorePreloadedDlls: true, // TODO: Change this value when the default value for ignorePreloadedDlls changes.
             ignoreGetFinalPathNameByHandle: true,
             existingDirectoryProbesAsEnumerations: false,
@@ -39,7 +40,6 @@ namespace BuildXL.Pips.Graph
             observationReclassificationRulesHash: null,
             searchPathToolsHash: null,
             monitorFileAccesses: true,
-            unexpectedFileAccessesAreErrors: true,
             maskUntrackedAccesses: true,
             normalizeReadTimestamps: true,
             pipWarningsPromotedToErrors: false,
@@ -78,6 +78,7 @@ namespace BuildXL.Pips.Graph
                 config.Sandbox.UnsafeSandboxConfiguration.IgnoreNonCreateFileReparsePoints,
                 config.Sandbox.UnsafeSandboxConfiguration.IgnoreReparsePoints,
                 !config.EnableFullReparsePointResolving(),
+                config.Sandbox.UnsafeSandboxConfiguration.IgnoreUntrackedPathsInFullReparsePointResolving,
                 config.Sandbox.UnsafeSandboxConfiguration.IgnorePreloadedDlls,
                 config.Sandbox.UnsafeSandboxConfiguration.IgnoreGetFinalPathNameByHandle,
                 config.Sandbox.UnsafeSandboxConfiguration.ExistingDirectoryProbesAsEnumerations,
@@ -85,7 +86,6 @@ namespace BuildXL.Pips.Graph
                 config.Sandbox.UnsafeSandboxConfiguration.MonitorNtCreateFile,
                 config.Sandbox.UnsafeSandboxConfiguration.MonitorZwCreateOpenQueryFile,
                 config.Sandbox.UnsafeSandboxConfiguration.MonitorFileAccesses,
-                config.Sandbox.UnsafeSandboxConfiguration.UnexpectedFileAccessesAreErrors,
                 config.Sandbox.MaskUntrackedAccesses,
                 config.Sandbox.NormalizeReadTimestamps,
                 config.Distribution.ValidateDistribution,
@@ -124,6 +124,7 @@ namespace BuildXL.Pips.Graph
         /// <param name="ignoreNonCreateFileReparsePoints">Whether symlinks are followed for any other than CreateFile APIs.</param>
         /// <param name="ignoreReparsePoints">Whether the /unsafe_IgnoreReparsePoints was passed to BuildXL.</param>
         /// <param name="ignoreFullReparsePointResolving">Whether the /unsafe_IgnoreFullReparsePointResolving was passed to BuildXL.</param>
+        /// <param name="ignoreUntrackedPathsInFullReparsePointResolving">Whether the /unsafe_IgnoreUntrackedPathsInFullReparsePointResolving was passed to BuildXL.</param>
         /// <param name="ignorePreloadedDlls">Whether the /unsafe_IgnorePreloadedDlls was passed to BuildXL.</param>
         /// <param name="ignoreGetFinalPathNameByHandle">Whether the /unsafe_IgnoreGetFinalPathNameByHandle was passed to BuildXL.</param>
         /// <param name="existingDirectoryProbesAsEnumerations">Whether the /unsafe_ExistingDirectoryProbesAsEnumerations was passed to BuildXL.</param>
@@ -131,7 +132,6 @@ namespace BuildXL.Pips.Graph
         /// <param name="monitorNtCreateFile">Whether the NtCreateFile is detoured.</param>
         /// <param name="monitorZwCreateOpenQueryFile">Whether the ZwCreateOpenQueryFile is detoured.</param>
         /// <param name="monitorFileAccesses">Whether BuildXL monitors file accesses.</param>
-        /// <param name="unexpectedFileAccessesAreErrors">Whether /unsafe_unexpectedFileAccessesAreErrors was passed to BuildXL.</param>
         /// <param name="maskUntrackedAccesses">Whether /maskUntrackedAccesses is enabled.</param>
         /// <param name="normalizeReadTimestamps">Whether /normalizeReadTimestamps is enabled.</param>
         /// <param name="validateDistribution">Whether /validateDistribution is enabled.</param>
@@ -152,6 +152,7 @@ namespace BuildXL.Pips.Graph
             bool ignoreNonCreateFileReparsePoints,
             bool ignoreReparsePoints,
             bool ignoreFullReparsePointResolving,
+            bool ignoreUntrackedPathsInFullReparsePointResolving,
             bool ignorePreloadedDlls,
             bool ignoreGetFinalPathNameByHandle,
             bool existingDirectoryProbesAsEnumerations,
@@ -159,7 +160,6 @@ namespace BuildXL.Pips.Graph
             bool monitorNtCreateFile,
             bool monitorZwCreateOpenQueryFile,
             bool monitorFileAccesses,
-            bool unexpectedFileAccessesAreErrors,
             bool maskUntrackedAccesses,
             bool normalizeReadTimestamps,
             bool validateDistribution,
@@ -180,15 +180,13 @@ namespace BuildXL.Pips.Graph
             IgnoreNonCreateFileReparsePoints = ignoreNonCreateFileReparsePoints;
             IgnoreReparsePoints = ignoreReparsePoints;
             IgnoreFullReparsePointResolving = ignoreFullReparsePointResolving;
+            IgnoreUntrackedPathsInFullReparsePointResolving = ignoreUntrackedPathsInFullReparsePointResolving;
             IgnorePreloadedDlls = ignorePreloadedDlls;
             ExistingDirectoryProbesAsEnumerations = existingDirectoryProbesAsEnumerations;
             DisableDetours = disableDetours;
             MonitorNtCreateFile = monitorNtCreateFile;
             MonitorZwCreateOpenQueryFile = monitorZwCreateOpenQueryFile;
             MonitorFileAccesses = monitorFileAccesses;
-            // No need to impact fingerprints. Processes with unexpected file accesses already disable caching.
-            // TODO This can be fully removed from extra fingerprint salts when a fingerprint change is acceptable.
-            UnexpectedFileAccessesAreErrors = true;
             MaskUntrackedAccesses = maskUntrackedAccesses;
             NormalizeReadTimestamps = normalizeReadTimestamps;
             ValidateDistribution = validateDistribution;
@@ -242,6 +240,11 @@ namespace BuildXL.Pips.Graph
         public bool IgnoreFullReparsePointResolving { get; }
 
         /// <summary>
+        /// Whether /unsafe_ignoreUntrackedPathsInFullReparsePointResolving flag was passed to BuildXL.
+        /// </summary>
+        public bool IgnoreUntrackedPathsInFullReparsePointResolving { get; }
+
+        /// <summary>
         /// Whether /unsafe_ignorePreloadedDlls flag was passed to BuildXL.
         /// </summary>
         public bool IgnorePreloadedDlls { get; }
@@ -270,11 +273,6 @@ namespace BuildXL.Pips.Graph
         /// Whether the existing directory probe is treated as an enumeration.
         /// </summary>
         public bool ExistingDirectoryProbesAsEnumerations { get; }
-
-        /// <summary>
-        /// Whether /unsafe_unexpectedFileAccessesAreErrors was passed to BuildXL
-        /// </summary>
-        public bool UnexpectedFileAccessesAreErrors { get; }
 
         /// <summary>
         /// Whether BuildXL monitors file accesses.
@@ -375,6 +373,7 @@ namespace BuildXL.Pips.Graph
                 && other.IgnoreSetFileInformationByHandle == IgnoreSetFileInformationByHandle
                 && other.IgnoreReparsePoints == IgnoreReparsePoints
                 && other.IgnoreFullReparsePointResolving == IgnoreFullReparsePointResolving
+                && other.IgnoreUntrackedPathsInFullReparsePointResolving == IgnoreUntrackedPathsInFullReparsePointResolving
                 && other.IgnorePreloadedDlls == IgnorePreloadedDlls
                 && other.DisableDetours == DisableDetours
                 && other.MonitorNtCreateFile == MonitorNtCreateFile
@@ -382,7 +381,6 @@ namespace BuildXL.Pips.Graph
                 && other.IgnoreGetFinalPathNameByHandle == IgnoreGetFinalPathNameByHandle
                 && other.ExistingDirectoryProbesAsEnumerations == ExistingDirectoryProbesAsEnumerations
                 && other.MonitorFileAccesses == MonitorFileAccesses
-                && other.UnexpectedFileAccessesAreErrors == UnexpectedFileAccessesAreErrors
                 && other.MaskUntrackedAccesses == MaskUntrackedAccesses
                 && other.NormalizeReadTimestamps == NormalizeReadTimestamps
                 && other.FingerprintVersion.Equals(FingerprintVersion)
@@ -427,12 +425,12 @@ namespace BuildXL.Pips.Graph
                 hashCode = (hashCode * 397) ^ SearchPathToolsHash.GetHashCode();
                 hashCode = (hashCode * 397) ^ GlobalObservationReclassificationRulesHash.GetHashCode();
                 hashCode = (hashCode * 397) ^ MonitorFileAccesses.GetHashCode();
-                hashCode = (hashCode * 397) ^ UnexpectedFileAccessesAreErrors.GetHashCode();
                 hashCode = (hashCode * 397) ^ MaskUntrackedAccesses.GetHashCode();
                 hashCode = (hashCode * 397) ^ NormalizeReadTimestamps.GetHashCode();
                 hashCode = (hashCode * 397) ^ PipWarningsPromotedToErrors.GetHashCode();
                 hashCode = (hashCode * 397) ^ ValidateDistribution.GetHashCode();
                 hashCode = (hashCode * 397) ^ IgnoreFullReparsePointResolving.GetHashCode();
+                hashCode = (hashCode * 397) ^ IgnoreUntrackedPathsInFullReparsePointResolving.GetHashCode();
                 hashCode = (hashCode * 397) ^ ExplicitlyReportDirectoryProbes.GetHashCode();
                 hashCode = (hashCode * 397) ^ IgnoreDeviceIoControlGetReparsePoint.GetHashCode();
                 hashCode = (hashCode * 397) ^ HonorDirectoryCasingOnDisk.GetHashCode();
@@ -500,6 +498,11 @@ namespace BuildXL.Pips.Graph
             if (ExplicitlyReportDirectoryProbes)
             {
                 fingerprinter.Add(nameof(ExplicitlyReportDirectoryProbes), 1);
+            }
+
+            if (IgnoreUntrackedPathsInFullReparsePointResolving)
+            {
+                fingerprinter.Add(nameof(IgnoreUntrackedPathsInFullReparsePointResolving), 1);
             }
 
             // We will eventually remove this flag from the fingerprint, but for now we want to trigger a cache

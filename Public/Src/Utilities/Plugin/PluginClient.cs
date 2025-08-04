@@ -86,7 +86,8 @@ namespace BuildXL.Plugin
             {
                 try
                 {
-                    Logger.Debug($"Sending request for requestId:{reqId} at {DateTime.UtcNow:HH:mm:ss.fff}");
+                    ThreadPool.GetAvailableThreads(out int workerThreads, out int completionPortThreads); // Log available threads for slowdown investigation
+                    Logger.Debug($"Sending request for requestId:{reqId} at {DateTime.UtcNow:HH:mm:ss.fff} (available worker threads: {workerThreads}, I/O threads: {completionPortThreads})");
                     var response = await asyncCall.Invoke();
                     Logger.Debug($"Received response for requestId:{reqId} at {DateTime.UtcNow:HH:mm:ss.fff}");
                     return new PluginResponseResult<T>(response, PluginResponseState.Succeeded, reqId, numOfRetry);

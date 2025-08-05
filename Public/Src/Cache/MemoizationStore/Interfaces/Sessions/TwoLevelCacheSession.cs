@@ -294,22 +294,10 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         }
 
         /// <inheritdoc />
-        public Task<PinResult> PinAsync(Context context, ContentHash contentHash, CancellationToken cts, UrgencyHint urgencyHint = UrgencyHint.Nominal)
+        public async Task<PinResult> PinAsync(Context context, ContentHash contentHash, CancellationToken cts, UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
-            return OperationContext(context, cts).PerformOperationAsync(
-                Tracer,
-                async () =>
-                {
-                    PinResult pinResult = await _localCacheSession.PinAsync(context, contentHash, cts, urgencyHint);
-                    if (_config.RemoteCacheIsReadOnly)
-                    {
-                        return pinResult;
-                    }
-
-                    return await _remoteCacheSession.PinAsync(context, contentHash, cts, urgencyHint);
-                },
-                extraEndMessage: r => $"Hash={contentHash.ToShortString()}",
-                traceErrorsOnly: true);
+            var result = await PinAsync(context, new[] { contentHash }, cts, urgencyHint);
+            return (await result.First()).Item;
         }
 
         /// <inheritdoc />
@@ -727,11 +715,6 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
             CancellationToken cts,
             UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
-            if (_config.RemoteCacheIsReadOnly)
-            {
-                return _localCacheSession.PinAsync(context, contentHashes, cts, urgencyHint);
-            }
-
             return Workflows.RunWithFallback(
                 contentHashes,
                 hashes => _localCacheSession.PinAsync(context, hashes, cts, urgencyHint),
@@ -743,11 +726,6 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         /// <inheritdoc />
         public Task<IEnumerable<Task<Indexed<PinResult>>>> PinAsync(Context context, IReadOnlyList<ContentHash> contentHashes, PinOperationConfiguration config)
         {
-            if (_config.RemoteCacheIsReadOnly)
-            {
-                return _localCacheSession.PinAsync(context, contentHashes, config);
-            }
-
             return Workflows.RunWithFallback(
                 contentHashes,
                 hashes => _localCacheSession.PinAsync(context, hashes, config),

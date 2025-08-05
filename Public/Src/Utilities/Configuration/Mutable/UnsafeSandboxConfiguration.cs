@@ -37,7 +37,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             IgnoreUndeclaredAccessesUnderSharedOpaques = false;
             DoNotApplyAllowListToDynamicOutputs = false;
 
-            IgnoreUntrackedPathsInFullReparsePointResolving = false;
+            IgnoreUntrackedPathsInFullReparsePointResolving = true;
 
             // Note that this flag is only relevant for the Windows sandbox because directory symlink 
             ProbeDirectorySymlinkAsDirectory = OperatingSystemHelper.IsWindowsOS;

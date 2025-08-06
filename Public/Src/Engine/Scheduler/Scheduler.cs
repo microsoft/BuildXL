@@ -4347,7 +4347,7 @@ namespace BuildXL.Scheduler
 
             m_executionStepTracker.Transition(runnablePip.PipId, nextStep);
 
-            if (nextStep == PipExecutionStep.MaterializeOutputs && m_configuration.Distribution.ReplicateOutputsToWorkers())
+            if (IsDistributedOrchestrator && nextStep == PipExecutionStep.MaterializeOutputs && m_configuration.Distribution.ReplicateOutputsToWorkers())
             {
                 // Send MaterializeOutput requests to all remote workers before
                 Logger.Log.DistributionExecutePipRequest(runnablePip.LoggingContext, runnablePip.FormattedSemiStableHash, "RemoteWorkers", nameof(PipExecutionStep.MaterializeOutputs));

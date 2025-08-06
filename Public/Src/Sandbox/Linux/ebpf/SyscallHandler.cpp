@@ -10,9 +10,8 @@ namespace buildxl {
 namespace linux {
 namespace ebpf {
 
-SyscallHandler::SyscallHandler(BxlObserver *bxl, pid_t root_pid, const char* root_filename, std::atomic<size_t>* ring_buffer_min_available_space)
-    : m_root_pid(root_pid), m_bxl(bxl), m_runnerExitSent(false), m_root_filename(root_filename), m_ring_buffer_min_available_space(ring_buffer_min_available_space)
-{
+SyscallHandler::SyscallHandler(BxlObserver *bxl, pid_t root_pid, const char* root_filename, std::atomic<EventRingBuffer *>* active_ringbuffer)
+    : m_root_pid(root_pid), m_bxl(bxl), m_runnerExitSent(false), m_root_filename(root_filename), m_active_ringbuffer(active_ringbuffer) {
     sem_init(&m_noActivePidsSemaphore, 0, 0);
 
     // Our managed side tracking expects a 'clone/fork' event before an exec in order to assign the right pids and update the active process collection. Doing
@@ -388,14 +387,17 @@ void SyscallHandler::SendInitForkEvent(BxlObserver* bxl, pid_t pid, pid_t ppid, 
 
 void SyscallHandler::SendRingBufferStats()
 {
-    size_t min_available = m_ring_buffer_min_available_space->load(std::memory_order_relaxed);
-    size_t total = FILE_ACCESS_RINGBUFFER_SIZE;
+    auto eventRingbuffer = m_active_ringbuffer->load();
+    size_t min_available = eventRingbuffer->GetMinimumAvailableSpace();
+    size_t total = eventRingbuffer->GetRingBufferSize();
     double percent = (total > 0) ? (100.0 * min_available / total) : 0.0;
 
+    // The buffer id is a 0-based index that gets increased every time a new buffer is created.
+    // So the id also represents the number of times the ring buffer capacity has been exceeded.
     m_bxl->LogInfo(
         getpid(),
-        "[Ring buffer monitoring] Minimum available space: %zu bytes (%.2f%%). Total available space: %zu bytes",
-        min_available, percent, total
+        "[Ring buffer monitoring] Minimum available space: %zu bytes (%.2f%%). Total available space: %zu bytes. Capacity exceeded %d time(s).",
+        min_available, percent, total, eventRingbuffer->GetId()
     );
 }
 

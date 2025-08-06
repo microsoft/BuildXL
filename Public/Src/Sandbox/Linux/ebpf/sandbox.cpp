@@ -17,28 +17,31 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include <thread>
+#include <atomic>
 
 /**
  * Libbpf, bpf skeleton, and shared bpf includes
  */
 #include "bpf/bpf.h"
 #include "bpf/libbpf.h"
-#include "ebpfcommon.h"
 #include "sandbox.skel.h"
 #include "bpf/btf.h"
 
 /**
  * BuildXL includes
  */
+#include "EventRingBuffer.hpp"
 #include "bxl_observer.hpp"
-#include "SPSCQueue.h"
+#include "ConcurrentQueue.h"
 #include "SyscallHandler.h"
-#include <atomic>
+#include "ebpfcommon.h"
 
 // Max size for the name of a bpf program
 #define MAX_PROG_FULL_NAME 128
+
 // The poison pill is used to signal the event queue thread to stop
 #define POISON_PILL (ebpf_event*) -1
+
 
 /** Constants */
 const int PINNED_MAPS_SIZE = 6;
@@ -51,17 +54,81 @@ static volatile int g_exit_code;
 static volatile sig_atomic_t g_exit_signal_received = 0;
 static volatile sig_atomic_t g_root_process_exited = 0;
 int g_root_pid = 0, g_runner_pid = 0;
-struct ring_buffer *g_file_access_ring_buffer = nullptr, *g_debug_ring_buffer = nullptr;
+struct ring_buffer *g_debug_ring_buffer = nullptr;
 int g_pid_map_fd, g_sandbox_options_per_pip_map_fd, g_file_access_per_pip_fd = -1;
 int g_debug_buffer_per_pip_fd, g_breakaway_processes_map_fd, g_event_cache_per_pip_fd, g_breakaway_processes_per_pip_fd = -1;
 sem_t g_root_process_populated_semaphore;
 bool g_ebpf_already_loaded, g_ebpf_should_force_ebpf_loading = false;
-buildxl::common::SPSCQueue<ebpf_event *> g_event_queue;
+buildxl::common::ConcurrentQueue<ebpf_event *> g_event_queue;
 pthread_t g_event_queue_thread;
-// The minimum available space in the ring buffer for the given runner is sent right after the runner exit event.
-// Make this atomic to avoid torn reads/writes when multiple threads are accessing it. We don't really care about ordering (this is just sampling the ring buffer space),
-// so we use relaxed memory order.
-std::atomic<size_t> g_ring_buffer_min_available_space = -1;
+void RingBufferOutOfSpaceCallback(buildxl::linux::ebpf::EventRingBuffer *eventRingBuffer);
+
+// The active ring buffer is used to store the current ring buffer that is being polled.
+std::atomic<buildxl::linux::ebpf::EventRingBuffer *> g_active_ring_buffer;
+
+/**
+ * Error logger for this program.
+ */
+static int LogError(const char *fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    g_bxl->LogErrorArgList(getpid(), fmt, args);
+    va_end(args);
+
+    return 1;
+}
+
+/**
+ * Callback function that is called when the ring buffer capacity is exceeded.
+ * It creates a new overflow event buffer and replaces the current ring buffer in the outer map
+ * with the new overflow buffer.
+ */
+void RingBufferOutOfSpaceCallback(buildxl::linux::ebpf::EventRingBuffer *eventRingBuffer) {
+
+    // Create a new overflow buffer to handle the overflow of the current ring buffer.
+    buildxl::linux::ebpf::OverflowEventRingBuffer *overflow_buffer = new buildxl::linux::ebpf::OverflowEventRingBuffer(
+        g_bxl, 
+        &g_root_process_exited, 
+        g_event_queue, 
+        RingBufferOutOfSpaceCallback,
+        eventRingBuffer);
+
+    // If the overflow failed to initialize, we just return without doing the swapping. The build might still succeed, since the ringbuffer has not overflowed yet.
+    // This is a very unlikely scenario though, an initialization failure is usually caused by not being able to create a new ring buffer due to out of memory or similar issues.
+    if (overflow_buffer->Initialize())
+    {
+        delete overflow_buffer;
+        return;
+    }
+
+    int ring_buffer_fd = overflow_buffer->GetRingBufferFd();
+
+    // Replace the file access ring buffer. This action immediately alleviates the pressure on the current ring buffer.
+    int key = g_runner_pid;
+    if (bpf_map_update_elem(g_file_access_per_pip_fd, &key, &ring_buffer_fd, BPF_ANY))
+    {
+        LogError("Failed to replace file access ring buffer to outer map for runner PID %d: %s\n", key, strerror(errno));
+        overflow_buffer->NotifyDeactivated();
+        delete overflow_buffer;
+        return;
+    }
+    else
+    {
+        g_bxl->LogDebug(getpid(), "Swapped file access ring buffer for runner PID %d from %d to %d", key, eventRingBuffer->GetId(), overflow_buffer->GetId());
+    }
+
+    // Start the overflow buffer polling thread to start emptying the new ring buffer.
+    overflow_buffer->NotifyActivated();
+
+    // Swap the active ring buffer to the new overflow buffer. We keep the active ring buffer on this global variable so we can finally
+    // wait for it to be done when the runner is about to exit.
+    g_active_ring_buffer.store(overflow_buffer);
+
+    // Notify the previous buffer that it has been deactivated.
+    // This will cause it to wait for the grace period to be over and then move the events from the overflow queue to the main event queue.
+    // After the grace period is over, the overflow buffer will automatically release the associated ring buffer.
+    eventRingBuffer->NotifyDeactivated();
+}
 
 /**
  * Forward messages emitted by libbpf to BuildXL.
@@ -102,18 +169,6 @@ static int LibBpfPrintFn(enum libbpf_print_level level, const char *format, va_l
     }
 
     return 0;
-}
-
-/**
- * Error logger for this program.
- */
-static int LogError(const char *fmt, ...) {
-    va_list args;
-    va_start(args, fmt);
-    g_bxl->LogErrorArgList(getpid(), fmt, args);
-    va_end(args);
-
-    return 1;
 }
 
 /**
@@ -386,43 +441,15 @@ void *HandleEventQueue(void *arg) {
     pthread_exit(NULL);
 }
 
-void UpdateRingBufferAvailableSpace() {
-    // Poll the ring buffer available space 
-    // (ring__avail_data_size returns the number of bytes not yet consumed - the opposite of the available space)
-    size_t availability = FILE_ACCESS_RINGBUFFER_SIZE - ring__avail_data_size(ring_buffer__ring(g_file_access_ring_buffer, 0));
-
-    size_t min_availability = g_ring_buffer_min_available_space.load(std::memory_order_relaxed);
-    // Compute the minimum available space in the ring buffer for the given runner
-    if (min_availability == -1 || availability < min_availability)
-    {
-        g_ring_buffer_min_available_space.store(availability, std::memory_order_relaxed);
-    }
-}
-
-/**
- * Callback for file access/debug event ring buffer.
- * We use a queue so we can read from the ringbuffer as fast as possible, and offload processing to another thread.
- * This helps avoid reservation issues when the ring buffer gets stressed by fast IO which produces a ton of events.
- */
-int HandleBpfRingBufferEvent(void *ctx, void *data, size_t data_sz) {
-    // Copy event data to local queue to free space from the shared ring buffer for more kernel events.
-    ebpf_event *new_event = (ebpf_event *)malloc(data_sz);
-
-    if (!new_event) {
-        LogError("Failed to allocate memory for event\n");
-        return -1;
-    }
-
-    memcpy(new_event, data, data_sz);
-    // Enqueue the copied event into the SPSC queue for background processing
-    g_event_queue.Enqueue(new_event);
-
-    // Let's measure the available space in the ring buffer after we processed the event.
-    // Sampling this data proved to be insufficient (event with 10ms intervals we got very inacurate results),
-    // so we sample it every time we process an event.
-    UpdateRingBufferAvailableSpace();
-
-    return 0;
+/* Consumes any remaining items in the debug ring buffer */
+void FlushDebugRingBufferEvents()
+{
+    int res;
+    // Let's account for interrupted system calls
+    // and retry until we consume everything
+    do {
+        res = ring_buffer__consume(g_debug_ring_buffer);
+    } while (res == -EINTR);
 }
 
 int PopulateOptionsMapFromFam()
@@ -478,7 +505,7 @@ int RunRootProcess(const char *file, char *const argv[], char *const envp[]) {
     }
     else  {
         g_root_pid = pid;
-        g_syscallHandler = new buildxl::linux::ebpf::SyscallHandler(g_bxl, g_root_pid, file, &g_ring_buffer_min_available_space);
+        g_syscallHandler = new buildxl::linux::ebpf::SyscallHandler(g_bxl, g_root_pid, file, &g_active_ring_buffer);
         // Signal that the root pid is already populated
         sem_post(&g_root_process_populated_semaphore);
 
@@ -518,37 +545,6 @@ int DeletePerPipMap(int map_per_pip_fd, int key, const char *description)
     }
 
     return 0;
-}
-
-/* Consumes any remaining items in the ring buffers */
-void FlushRingBufferEvents()
-{
-     // Let's account for interrupted system calls
-    // and retry until we consume everything
-    int res = 0;
-    do {
-        res = ring_buffer__consume(g_file_access_ring_buffer);
-    } while (res == -EINTR);
-
-    do {
-        res = ring_buffer__consume(g_debug_ring_buffer);
-    } while (res == -EINTR);
-}
-
-/**
- * This should be called before the runner exits
- * * Consumes all remaining events in the ringbuffers
- * * Waits for the event queue to consume pending events and send them through the FIFO
- */
-void FlushRingBufferAndSignalQueue()
-{
-    FlushRingBufferEvents();
-
-    // Add poison pill to signal the event queue thread to exit.
-    g_event_queue.Enqueue(POISON_PILL);
-
-    // Wait for the event queue thread to finish consuming the rest of the ring buffer.
-    pthread_join(g_event_queue_thread, NULL);
 }
 
 /**
@@ -600,20 +596,13 @@ void *WaitForProcessTreeToExit(void *argv) {
     // process tree anymore)
     while (!g_exit_signal_received) {
         // Since we control the ring buffer wake up frequency from the kernel side, there is always the chance
-        // of a tail of events that are waiting to be flushed. After the root process exits, make sure we
-        // periodically flush the ring buffers to ensure we do not miss any events.
+        // of a tail of events that are waiting to be flushed.
         if (g_syscallHandler->WaitForNoActiveProcesses(100) == 0) {
             // No more children to wait for
             break;
         };
-
-        FlushRingBufferEvents();
     }
     
-    // The whole process tree is done. Make sure we flush the ring buffers from the event queue before exiting
-    // and signal the user side draining queue to stop processing events.
-    FlushRingBufferAndSignalQueue();
-
     g_stop = 1;
 
     return NULL;
@@ -743,6 +732,25 @@ int BindPerPipMaps(struct sandbox_bpf *skel) {
     return 0;
 }
 
+/**
+ * Callback for debug event ring buffer.
+ */
+int HandleDebugEvents(void *ctx, void *data, size_t data_sz) {
+    // Copy event data to local queue to free space from the shared ring buffer for more kernel events.
+    ebpf_event *new_event = (ebpf_event *)malloc(data_sz);
+
+    if (!new_event) {
+        LogError("Failed to allocate memory for event\n");
+        return -1;
+    }
+
+    memcpy(new_event, data, data_sz);
+    // Enqueue the copied event into the concurrent queue for background processing
+    g_event_queue.Enqueue(new_event);
+
+    return 0;
+}
+
 /** 
  * Creates the process event and debug ring buffer maps. Adds the maps this runner needs to all the per-pip outer maps.
  * */
@@ -772,25 +780,21 @@ int SetupMaps(struct sandbox_bpf *skel) {
         return -1;
     }
 
-    LIBBPF_OPTS(bpf_map_create_opts, file_access_options);
-    int file_access_fd =  bpf_map_create(BPF_MAP_TYPE_RINGBUF, "file_access_ring_buffer", 0, 0, FILE_ACCESS_RINGBUFFER_SIZE, &file_access_options);
-    if (file_access_fd < 0)
+    g_active_ring_buffer.store(new buildxl::linux::ebpf::EventRingBuffer(g_bxl, &g_root_process_exited, &g_stop, g_event_queue, RingBufferOutOfSpaceCallback));
+    
+    g_bxl->LogDebug(getpid(), "Creating ring buffer instance with counter %d", g_active_ring_buffer.load()->GetId());
+    
+    if (g_active_ring_buffer.load()->Initialize())
     {
-        LogError("Failed to create ring buffer\n");
         Cleanup(skel);
         return -1;
     }
 
-    g_file_access_ring_buffer = ring_buffer__new(file_access_fd, HandleBpfRingBufferEvent, /* ctx */ NULL, /* opts */ NULL);
-    if (!g_file_access_ring_buffer) {
-        LogError("Failed to create ring buffer manager\n");
-        Cleanup(skel);
-        return -1;
-    }
+    int ring_buffer_fd = g_active_ring_buffer.load()->GetRingBufferFd();
 
     // Add the file access ring buffer to the per-pip outer map
     int key = g_runner_pid;
-    if (bpf_map_update_elem(g_file_access_per_pip_fd, &key, &file_access_fd, BPF_ANY))
+    if (bpf_map_update_elem(g_file_access_per_pip_fd, &key, &ring_buffer_fd, BPF_ANY))
     {
         LogError("Failed to add file access ring buffer to outer map for runner PID %d: %s\n", key, strerror(errno));
         Cleanup(skel);
@@ -810,7 +814,7 @@ int SetupMaps(struct sandbox_bpf *skel) {
         return -1;
     }
 
-    g_debug_ring_buffer = ring_buffer__new(debug_buffer_fd, HandleBpfRingBufferEvent, /* ctx */ NULL, /* opts */ NULL);
+    g_debug_ring_buffer = ring_buffer__new(debug_buffer_fd, HandleDebugEvents, /* ctx */ NULL, /* opts */ NULL);
     if (!g_debug_ring_buffer) {
         LogError("Failed to create debug ring buffer manager\n");
         Cleanup(skel);
@@ -1089,8 +1093,8 @@ int Start(sandbox_bpf *skel, char **argv) {
     }
 
     // Start child thread that waits for the  process tree to exit
-    pthread_t thread;
-    if (pthread_create(&thread, NULL, WaitForProcessTreeToExit, (void *)argv) != 0) {
+    pthread_t waitForProcessTreeExitThread;
+    if (pthread_create(&waitForProcessTreeExitThread, NULL, WaitForProcessTreeToExit, (void *)argv) != 0) {
         LogError("Process exit monitoring thread failed to start %s\n", strerror(errno));
         Cleanup(skel);
         return -1;
@@ -1131,21 +1135,31 @@ int Start(sandbox_bpf *skel, char **argv) {
         return -1;
     }
 
-    while (!g_stop) {
-        // Process Events
-        // When the ring buffer is empty, poll will block for the specified timeout
-        // If the timeout is hit, poll will return 0
-        err = ring_buffer__poll(g_file_access_ring_buffer, /* timeout_ms */ 100);
-        // We might get back an EINTR if the process gets any signal. But in this 
-        // case we should keep polling. If any of those signals actually means that
-        // the process has exited, we are controlling that from WaitForRootProcessToExit,
-        // and that thread will set g_stop accordingly
-        if (err < 0 && err != -EINTR) {
-            LogError("Error polling ring buffer %d\n", err);
-            break;
-        }
+    g_bxl->LogDebug(getpid(), "Activating the ring buffer for runner PID %d", g_runner_pid);
+    if (g_active_ring_buffer.load()->NotifyActivated())
+    {
+        Cleanup(skel);
+        return -1;
     }
 
+    // Wait for the process tree exit thread to finish
+    pthread_join(waitForProcessTreeExitThread, NULL);
+
+    // ** Do not send any log messages after this point, managed side may start the tear down and the FIFO might be gone **
+
+    // Here the assumption is that after the whole process tree has exited, no new overflow notifications will be sent (since no new events should be emitted).
+    // So we shouldn't hit a race where the active ring buffer is being swapped while we are trying to deactivate/complete it.
+    // After the process tree has exited, we can safely terminate the active buffer, there shouldn't be any more events to process.
+    g_active_ring_buffer.load()->Terminate();
+
+    FlushDebugRingBufferEvents();
+    
+    // Notify the event queue thread to stop processing events and wait for it to finish
+    g_event_queue.Enqueue(POISON_PILL);
+    pthread_join(g_event_queue_thread, NULL);
+
+    delete g_active_ring_buffer.load();
+    
     // Not particularly necessary, but let's do due diligence.
     // If we never saw the root process exit event, the handler will emit it on the destructor. But in theory it should
     // not be possible to reach this point without the root process exiting.

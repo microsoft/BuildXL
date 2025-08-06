@@ -12,7 +12,8 @@ namespace eBPFSandbox {
 
     // Kernel 6.6+ is required to build the eBPF sandbox.
     // TODO: The inbox dscript SDK has support for this, remove this once the dscript SDK is updated.
-    const hostSupportsBuildingEBPF = Context.getCurrentHost().os === "unix"
+    @@public
+    export const hostSupportsBuildingEBPF = Context.getCurrentHost().os === "unix"
         && (Environment.hasVariable("MAJOR_KERNEL_VERSION") && Environment.getNumberValue("MAJOR_KERNEL_VERSION") >= 6)
         && (Environment.hasVariable("MINOR_KERNEL_VERSION") && Environment.getNumberValue("MINOR_KERNEL_VERSION") >= 6);
 
@@ -86,7 +87,8 @@ namespace eBPFSandbox {
         importFrom("libbpf").extracted.assertExistence(r`${libbpfVersion}/src/usdt.bpf.h`),
     ];
 
-    const deployedHeaders = [
+    @@public
+    export const deployedHeaders = [
         ...bpfheaders.map(element => Transformer.copyFile(element, p`${headerDeploymentDirectory.path}/bpf/${element.name}`)),
     ];
 
@@ -146,7 +148,9 @@ namespace eBPFSandbox {
     // Build BPF skeleton
     const bpfObjectFile : DerivedFile = bpfCode.getOutputFile(bpfObjectPath);
     const bpfskelPath : Path = p`${headerDeploymentDirectory.path}/sandbox.skel.h`;
-    const bpfskel : Transformer.ExecuteResult = Transformer.execute({
+    
+    @@public
+    export const bpfskel : Transformer.ExecuteResult = Transformer.execute({
         tool:                       bpfTool,
         arguments:                  [
                                         Cmd.rawArgument("gen"),
@@ -162,6 +166,7 @@ namespace eBPFSandbox {
     const sandboxSource : File[] = [
         f`sandbox.cpp`,
         f`SyscallHandler.cpp`,
+        f`EventRingBuffer.cpp`,
         f`../bxl_observer.cpp`,
         f`../observer_utilities.cpp`,
         f`../ReportBuilder.cpp`,
@@ -169,7 +174,8 @@ namespace eBPFSandbox {
         f`../AccessChecker.cpp`
     ];
 
-    const commonSrc = [
+    @@public
+    export const commonSrc = [
         f`../../Windows/DetoursServices/PolicyResult_common.cpp`,
         f`../../Windows/DetoursServices/PolicySearch.cpp`,
         f`../../Windows/DetoursServices/StringOperations.cpp`,
@@ -177,9 +183,11 @@ namespace eBPFSandbox {
         f`../../Common/FileAccessManifest.cpp`
     ];
 
-    const utilsSrc   = [ f`../utils.c` ];
+    @@public
+    export const utilsSrc   = [ f`../utils.c` ];
 
-    const includeDirectories = [
+    @@public
+    export const includeDirectories = [
         headerDeploymentDirectory,
         d`./`,
         d`vmlinux`,
@@ -189,7 +197,8 @@ namespace eBPFSandbox {
         d`${importFrom("libbpf").extracted.path}/${libbpfVersion}/include/uapi`,
     ];
 
-    const userHeaders = [
+    @@public
+    export const userHeaders = [
         d`./`,    
         d`../`,
         d`../../Windows/DetoursServices`,
@@ -215,7 +224,8 @@ namespace eBPFSandbox {
     const sandboxObj = sandboxSource.map(compile);
     const commonObj = commonSrc.map(compile);
     const utilsObj = utilsSrc.map(compile);
-    const libbpfa : File = libbpf.getOutputDirectory(objDir).assertExistence(r`libbpf.a`);
+    @@public
+    export const libbpfa : File = libbpf.getOutputDirectory(objDir).assertExistence(r`libbpf.a`);
 
     // Build final sandbox binary
     // CODESYNC Public/Src/Engine/Processes/SandboxConnectionLinuxEBPF.cs

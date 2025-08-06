@@ -1516,3 +1516,36 @@ int BPF_PROG(vfs_utimes, const struct path *path)
 
     return 0;
 }
+
+/**
+ * Test program to write a test message to the ring buffer.
+ * Not actually tracing anything, this gets called with bpf_prog_test_run_opts from user side for testing purposes. 
+ */
+SEC("syscall")
+int test_write_ringbuf(struct test_write_ringbuf_args *args)
+{
+    pid_t pid = bpf_get_current_pid_tgid() >> 32;
+
+    pid_t runner_pid = args->runner_pid;
+    int args_number = args->number;
+
+    void *file_access_ring_buffer = bpf_map_lookup_elem(&file_access_per_pip, &runner_pid);                     
+    if (file_access_ring_buffer == NULL) {                                                                      
+        report_file_access_buffer_not_found(runner_pid);                                                        
+        return 0;                                                                                               
+    }
+
+    ebpf_event_debug *event = bpf_ringbuf_reserve(file_access_ring_buffer, sizeof(ebpf_event_debug), 0);
+    if (!event) {
+        return 0;
+    }
+
+    event->event_type = DEBUG;
+    event->pid = pid;
+    event->runner_pid = runner_pid;
+    BPF_SNPRINTF(event->message, PATH_MAX, "Test message number: %d", args_number);
+
+    bpf_ringbuf_submit(event, 0);
+
+    return 0;
+}

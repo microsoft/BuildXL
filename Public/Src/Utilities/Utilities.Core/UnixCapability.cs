@@ -18,6 +18,11 @@ public enum UnixCapability
     /// Processes which have it in their effective capability set, DAC (read/write/execute) permission checks are bypassed completely.
     /// </summary>
     CAP_DAC_OVERRIDE,
+
+    /// <summary>
+    /// Allows a process to change the priority of processes that it owns.
+    /// </summary>
+    CAP_SYS_NICE,
 }
 
 /// <summary>
@@ -34,6 +39,7 @@ public static class UnixCapabilityExtensions
         {
             UnixCapability.CAP_SYS_ADMIN => "cap_sys_admin=ep",
             UnixCapability.CAP_DAC_OVERRIDE => "cap_dac_override=ep",
+            UnixCapability.CAP_SYS_NICE => "cap_sys_nice=ep",
             _ => throw new ArgumentOutOfRangeException(nameof(capability), capability, "Unknown capability")
         };
     }

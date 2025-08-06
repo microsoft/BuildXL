@@ -108,6 +108,12 @@ namespace Processes {
                     ]
                 }
             ]),
+            ...addIfLazy(qualifier.targetRuntime === "linux-x64", () => [
+                {
+                    subfolder: a`RingBufferTest`,
+                    contents: [importFrom("BuildXL.Sandbox.Linux.UnitTests").Test.eBPFSandbox.ringbufferTest]
+                }
+            ])
         ]
     };
 

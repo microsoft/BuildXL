@@ -670,23 +670,7 @@ namespace BuildXL.Processes
             m_ebpfDaemonTask = ebpfDaemonTask;
 
             // Validate that the ebpf loader has the admin capability set.
-            // For now we only want to do this for ADO builds because they won't require an interactive prompt
-            // TODO: for now we are setting DAC_OVERRIDE to allow the executable to pin maps (which requires writing under th BPF file system). Consider
-            // mounting the file system explicitly as a way to avoid setting this cap.
-            if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("TF_BUILD")))
-            {
-                var getCapUtils = UnixGetCapUtils.CreateGetCap();
-                if (!getCapUtils.BinaryContainsCapabilities(EBPFRunner, UnixCapability.CAP_SYS_ADMIN) || 
-                    !getCapUtils.BinaryContainsCapabilities(EBPFRunner, UnixCapability.CAP_DAC_OVERRIDE))
-                {
-                    var setCapUtils = UnixSetCapUtils.CreateSetCap();
-                    if (!setCapUtils.SetCapability(EBPFRunner, UnixCapability.CAP_SYS_ADMIN, UnixCapability.CAP_DAC_OVERRIDE))
-                    {
-                        throw new BuildXLException($"Failed to set CAP_SYS_ADMIN and CAP_DAC_OVERRIDE capabilities on {EBPFRunner}");
-                    }
-                }
-            }
-            
+            UnixGetCapUtils.SetEBPFCapabilitiesIfNeeded(EBPFRunner);
         }
 
         /// <inheritdoc />

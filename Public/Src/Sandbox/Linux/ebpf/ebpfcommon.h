@@ -288,4 +288,10 @@ typedef struct cache_event_key {
     operation_type op_type;
 } cache_event_key;
 
+/** This structure is used to pass arguments to the test_write_ringbuf syscall  */
+typedef struct test_write_ringbuf_args {
+    pid_t runner_pid;
+    int number;
+} test_write_ringbuf_args;
+
 #endif // __PUBLIC_SRC_SANDBOX_LINUX_EBPF_EBPFCOMMON_H

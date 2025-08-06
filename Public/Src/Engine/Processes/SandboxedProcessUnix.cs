@@ -725,9 +725,15 @@ namespace BuildXL.Processes
                     switch (report.Severity)
                     {
                         case SandboxInfraSeverity.Error:
+                        // For the time being warnings are not used. Treat them as errors so we don't silently ignore them if they happen to be added later.
                         case SandboxInfraSeverity.Warning:
-                            // Log a user-friendly error message
-                            Logger.Log.SandboxErrorMessage(m_loggingContext, m_reports.PipDescription);
+                            // Let's log a generic user-friendly error message only once per pip, so that we don't spam the logs
+                            // with the same error message multiple times.
+                            if (!m_infraErrorReceived)
+                            {
+                                // Log a user-friendly error message
+                                Logger.Log.SandboxErrorMessage(m_loggingContext, m_reports.PipDescription);
+                            }
                             // Log a verbose message with the full details as well. This is typically not user friendly, but it is useful for debugging.
                             Logger.Log.FullSandboxErrorMessage(m_loggingContext, m_reports.PipDescription, report.Data);
                             break;
@@ -740,7 +746,7 @@ namespace BuildXL.Processes
                     }
 
                     // If we got an infra error, set the sandbox failure flag so the pip ends up failing appropriately 
-                    if (report.Severity == SandboxInfraSeverity.Error)
+                    if (report.Severity == SandboxInfraSeverity.Error || report.Severity == SandboxInfraSeverity.Warning)
                     {
                         m_infraErrorReceived = true;
                     }

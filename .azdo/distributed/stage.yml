@@ -1,0 +1,85 @@
+parameters:
+- name: buildXLVersion
+  default: GeneralPublic
+
+stages:
+- stage: Build
+  dependsOn: []
+  displayName: Clean selfhost builds
+  jobs:
+  - job: Distributed_Clean
+    displayName: Clean distributed build
+    templateContext:
+      workflow: BuildXL
+      distribution:
+        enabled: true
+        workerCount: 2
+
+      preBuildSteps:
+      - checkout: self
+        fetchDepth: 1
+        fetchTags: false
+
+      - template: /.azdo/common/set-variable-pats.yml@self
+      - pwsh: |
+          iex "& { $(irm https://aka.ms/install-artifacts-credprovider.ps1) } -AddNetfx"
+          $userProfile = $env:USERPROFILE
+          Write-Host "##vso[task.setvariable variable=NugetCredentialProviderPath]$userProfile\.nuget\plugins\netfx\CredentialProvider.Microsoft\"
+        displayName: Install credential provider
+
+      buildXL:
+        # We don't use the automatic installation for selfhost builds
+        installerOptions:
+          version: ${{ parameters.buildXLVersion }}
+        arguments: >-
+          /unsafe_GlobalPassthroughEnvVars:NUGET_CREDENTIALPROVIDERS_PATH
+          /config:config.dsc 
+          /IncrementalScheduling 
+          /historicMetadataCache+ 
+          /remotetelemetry 
+          /enableEvaluationThrottling 
+          /p:[Sdk.BuildXL]useQTest=true 
+          /environment:SelfHostPrivateBuild 
+          /remoteCacheCutoff+ 
+          /remoteCacheCutoffLength:2 
+          /f:~(dpt(spec='private\Guests\WDG\*'))and~((spec='Public\Src\Cache\*'))and~(tag='LongRunningTest')and~(spec='Public\Src\Deployment\cache.nugetpackages.dsc')and~(spec='Public\src\Deployment\privatePackages.dsc')and~(spec='Public\src\Deployment\ide.dsc')and~(spec='Public\src\Deployment\tests.dsc') 
+          /q:ReleaseNet8 
+          /p:[Sdk.BuildXL]microsoftInternal=1 
+          /p:BUILDXL_FINGERPRINT_SALT=* 
+          /p:RetryXunitTests=1 
+          /processRetries:3 
+          /traceinfo:valdation=ReleasePipelineDistribution 
+          /enableIncrementalFrontEnd- 
+          /p:xunitSemaphoreCount=12 
+          /logProcessDetouringStatus+ 
+          /logProcessData+ 
+          /logProcesses+ 
+        env:
+          AdoBuildRunnerInvocationKey: SelfhostClean
+          1ESSHAREDASSETS_BUILDXL_FEED_PAT: $(1ESSHAREDASSETS_BUILDXL_FEED_PAT)
+          CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT: $(CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT)
+          MSENG_GIT_PAT: $(MSENG_GIT_PAT)
+          VSTSPERSONALACCESSTOKEN: $(VSTSPERSONALACCESSTOKEN)
+          ARTIFACT_CREDENTIALPROVIDERS_PATH: $(ARTIFACT_CREDENTIALPROVIDERS_PATH)
+          CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT_B64: $(CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT_B64)
+          VSS_NUGET_EXTERNAL_FEED_ENDPOINTS: $(VSS_NUGET_EXTERNAL_FEED_ENDPOINTS)
+          NUGET_CREDENTIALPROVIDERS_PATH: $(NugetCredentialProviderPath)
+        workingDirectory: $(Build.Repository.LocalPath)
+
+      postBuildSteps:
+      - powershell: |
+          $bxlWithRemotingLogDir = "$(Build.ArtifactStagingDirectory)/.buildXL/Logs/Build_Distributed_Clean"
+          $statsContent = Get-Content -Path (Join-Path $bxlWithRemotingLogDir "BuildXL.stats") | Out-String
+          $stats = ConvertFrom-StringData -StringData $statsContent
+          $runDistributedCount = $stats.Get_Item("PipExecution.ProcessesExecutedRemotely")
+          
+          Write-Host "Pips run on remote workers: $runDistributedCount"
+
+          if ($runDistributedCount -eq 0)
+          {
+              Write-Error "##[error]No process pip ran in distributed workers."
+              exit 1
+          }
+
+          exit 0
+        displayName: 'Validate that distribution happened'

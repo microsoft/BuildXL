@@ -1,20 +1,18 @@
-# This pipeline does a clean build of the BuildXL repo as a distributed build
-# The BuildXL version to download from drop and use for the build (e.g., 0.1.0-20221026.0)
-# should be specified via the queue-time variable $(BuildXLPackageVersion) 
-trigger: none   # This pipeline is explicitly scheduled
+trigger: none  # Explicitly scheduled
+parameters:
+- name: type
+  type: string
+  default: Unofficial
+  values:
+  - Unofficial
+  - Official
 
 resources:
   repositories:
-  # 08/07/25: Temporarily pointing to latest main instead of 1ESPT release 
-  #           to unblock broken pipeline
-  # - repository: 1esPipelines
-  #   type: git
-  #   name: 1ESPipelineTemplates/1ESPipelineTemplates
-  #   ref: refs/tags/release
   - repository: 1esPipelines
     type: git
-    name: Domino/1ESPipelines
-    ref: refs/heads/main
+    name: 1ESPipelineTemplates/1ESPipelineTemplates
+    ref: refs/tags/release
 
 variables:
   - group: "BuildXL Common variables"
@@ -22,7 +20,7 @@ variables:
     value: false
 
 extends:
-  template: v1/1ES.Unofficial.PipelineTemplate.yml@1esPipelines
+  template: v1/1ES.${{ parameters.type }}.PipelineTemplate.yml@1esPipelines
   parameters:
     sdl:
       sourceAnalysisPool:
@@ -42,5 +40,4 @@ extends:
     stages:
     - template: /.azdo/distributed/stage.yml@self
       parameters:
-        buildXLVersion: $(BuildXLPackageVersion)
-  
+        buildXLVersion: GeneralPublic

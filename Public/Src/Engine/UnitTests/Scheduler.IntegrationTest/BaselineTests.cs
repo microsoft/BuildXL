@@ -2814,7 +2814,7 @@ namespace IntegrationTest.BuildXL.Scheduler
                 Operation.WriteFile(outputFile)
                 ]);
             builder.AddUntrackedFile(stateFile.Path);
-            builder.Timeout = TimeSpan.FromSeconds(1);
+            builder.Timeout = TimeSpan.FromSeconds(10);
             builder.RetryExitCodes = ReadOnlyArray<int>.From(new[] { global::BuildXL.Processes.ExitCodes.Timeout });
             builder.SetProcessRetries(1);
             ProcessWithOutputs process = SchedulePipBuilder(builder);

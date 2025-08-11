@@ -3250,7 +3250,7 @@ limitations under the License.
 
 ---------------------------------------------------------
 
-Serilog 4.2.0 - Apache-2.0
+Serilog 4.3.0 - Apache-2.0
 
 
 Copyright Serilog Contributors

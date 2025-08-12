@@ -19,6 +19,8 @@ namespace Cache.Plugin.Core {
             importFrom("BuildXL.Utilities").Storage.dll,
             importFrom("BuildXL.Utilities").Configuration.dll,
             importFrom("BuildXL.Utilities").Utilities.Core.dll,
+
+            importFrom("System.Threading.Tasks.Extensions").pkg,
         ],
     });
 }

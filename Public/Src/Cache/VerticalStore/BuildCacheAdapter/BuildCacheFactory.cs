@@ -6,10 +6,11 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Cache.MemoizationStoreAdapter;
-using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Core;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 
 namespace BuildXL.Cache.BuildCacheAdapter
@@ -101,6 +102,7 @@ namespace BuildXL.Cache.BuildCacheAdapter
                     return startupResult.Failure;
                 }
 
+                BlobCacheAccessor.CacheLogger!.Value?.SetValue(logger);
                 return cache;
             }
             catch (Exception e)

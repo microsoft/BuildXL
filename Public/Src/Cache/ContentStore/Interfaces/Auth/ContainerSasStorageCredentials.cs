@@ -75,5 +75,16 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Auth
             var serviceClient = CreateContainerClient("dummy");
             return serviceClient.AccountName;
         }
+
+        /// <nodoc />
+        public AzureSasCredential GetContainerSasCredential(string containerName)
+        {
+            if (containerName != ContainerName)
+            {
+                throw new ArgumentException($"The provided container name ({containerName}) does not match the container name for which the credentials were created ({ContainerName}).");
+            }
+
+            return _azureSasCredential;
+        }
     }
 }

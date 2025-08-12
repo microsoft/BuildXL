@@ -1,0 +1,10 @@
+// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
+import {Transformer} from "Sdk.Transformers";
+
+@@public
+export const tool = toolTemplate.override<Transformer.ToolDefinition>({
+    exe: Context.isWindowsOS() ? f`bin/BlobDaemon.exe` : f`bin/BlobDaemon`,
+    runtimeDependencies: globR(d`bin`, "*.*")
+});

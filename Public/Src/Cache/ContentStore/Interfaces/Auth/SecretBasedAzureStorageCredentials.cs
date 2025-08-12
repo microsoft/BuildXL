@@ -135,5 +135,16 @@ public class SecretBasedAzureStorageCredentials : IAzureStorageCredentials
         return credential;
     }
 
+    /// <nodoc />
+    public AzureSasCredential GetContainerSasCredential(string containerName)
+    {
+        return _secret switch
+        {
+            PlainTextSecret plainText => throw new NotSupportedException("Cannot derive a SAS credential from the current secret."),
+            UpdatingSasToken sasToken => CreateV12StorageCredentialsFromSasToken(sasToken),
+            _ => throw new NotImplementedException($"Unknown secret type `{_secret.GetType()}`")
+        };
+    }
+
     #endregion
 }

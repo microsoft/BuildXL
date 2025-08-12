@@ -17,6 +17,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Grpc;
+using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Engine.Cache;
@@ -1833,6 +1834,10 @@ namespace BuildXL.Engine
 
                                     orchestratorIpAddress = m_workerService.OrchestratorIpAddress;
                                 }
+
+                                // Init the container (this will make BoxRef visible to all downstream async contexts).
+                                BlobCacheAccessor.GlobalBlobCacheSession.Value = new BoxRef<IBlobContentSession>();
+                                BlobCacheAccessor.CacheLogger.Value = new BoxRef<BuildXL.Cache.ContentStore.Interfaces.Logging.ILogger>();
 
                                 cacheInitializationTask = CacheInitializer.GetCacheInitializationTask(
                                     loggingContext,

@@ -92,6 +92,15 @@ function createSdkDeploymentDefinition(serverDeployment: boolean, minimalDeploym
                                         targetRuntime: "win-x64"
                                     }).selectDeployment(evaluationOnly)
                                 ]
+                            },
+                            {
+                                subfolder: "Sdk.BlobDaemon",
+                                contents: [
+                                    importFrom("BuildXL.Tools.BlobDaemon").withQualifier({
+                                        targetFramework: isDotNetCore(qualifier.targetFramework) ? qualifier.targetFramework : "net8.0",
+                                        targetRuntime: "win-x64"
+                                    }).selectDeployment(evaluationOnly)
+                                ]
                             }
                         ),
                         {

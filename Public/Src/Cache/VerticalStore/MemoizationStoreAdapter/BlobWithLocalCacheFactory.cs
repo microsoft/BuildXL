@@ -7,6 +7,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
+using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Cache.MemoizationStore.Distributed.Stores;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
@@ -101,6 +102,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                 return startupResult.Failure;
             }
 
+            BlobCacheAccessor.CacheLogger!.Value?.SetValue(combinedLogger);
             return cache;
         }
 

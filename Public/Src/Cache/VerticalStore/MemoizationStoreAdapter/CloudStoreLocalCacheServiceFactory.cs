@@ -8,6 +8,7 @@ using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Grpc;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
+using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Cache.ContentStore.Sessions;
@@ -129,6 +130,8 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                 }
 
                 logger.Debug("Successfully started CloudStoreLocalCacheService client.");
+
+                BlobCacheAccessor.CacheLogger!.Value?.SetValue(logger);
                 return cache;
             }
             catch (Exception e)

@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Ipc.Common;
 using BuildXL.Ipc.ExternalApi.Commands;
 using BuildXL.Ipc.Interfaces;
@@ -121,6 +122,14 @@ namespace BuildXL.Ipc.ExternalApi
         public Task<Possible<bool>> ReportServicePipIsReady(int processId, string processName, string newConnectionString)
         {
             return ExecuteCommand(new ReportServicePipIsReadyCommand(processId, processName, newConnectionString));
+        }
+
+        /// <summary>
+        /// Attempts to get URI that points to the location in blob storage where the content with the specified hash is stored.
+        /// </summary>
+        public Task<Possible<Uri>> GetContentLocationInBlobStorage(ContentHash contentHash)
+        {
+            return ExecuteCommand(new GetContentLocationInBlobStorage(contentHash));
         }
 
         #endregion

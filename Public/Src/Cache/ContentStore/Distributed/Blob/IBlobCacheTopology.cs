@@ -5,11 +5,13 @@ using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using Azure;
 using Azure.Storage.Blobs;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
+using BuildXL.Utilities.Core;
 
 #nullable enable
 
@@ -35,6 +37,8 @@ public interface IBlobCacheTopology
     public IAsyncEnumerable<(BlobContainerClient Client, AbsoluteContainerPath Path)> EnumerateClientsAsync(OperationContext context, BlobCacheContainerPurpose purpose);
 
     public Task<BoolResult> EnsureContainersExistAsync(OperationContext context);
+
+    public Result<AzureSasCredential> GetBlobContainerPreauthenticatedSasToken(OperationContext context, BlobCacheShardingKey key);
 }
 
 public static class BlobCacheTopologyExtensions
@@ -141,6 +145,15 @@ public static class BlobCacheTopologyExtensions
         StrongFingerprint strongFingerprint)
     {
         return topology.GetContainerClientWithPathAsync(context, strongFingerprint.WeakFingerprint);
+    }
+
+    public static Result<AzureSasCredential> GetBlobContainerPreauthenticatedSasToken(
+        this IBlobCacheTopology topology,
+        OperationContext context,
+        ContentHash contentHash)
+    {
+        var shardingKey = BlobCacheShardingKey.FromContentHash(contentHash);
+        return topology.GetBlobContainerPreauthenticatedSasToken(context, shardingKey);
     }
 
     public static string GetWeakFingerprintPrefix(Fingerprint weakFingerprint)

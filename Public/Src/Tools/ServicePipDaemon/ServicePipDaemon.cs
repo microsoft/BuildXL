@@ -251,6 +251,26 @@ namespace Tool.ServicePipDaemon
         };
 
         /// <nodoc />
+        public static readonly BoolOption DirectoryFilterUseRelativePath = new BoolOption("directoryFilterUseRelativePath")
+        {
+            ShortName = "dfurp",
+            HelpText = "Whether to apply regex to file's relative path instead of a full path.",
+            DefaultValue = false,
+            IsRequired = false,
+            IsMultiValue = true,
+        };
+
+        /// <nodoc />
+        public static readonly StrOption DirectoryRelativePathReplace = new StrOption("directoryRelativePathReplace")
+        {
+            ShortName = "drpr",
+            HelpText = "Relative path replace arguments.",
+            DefaultValue = null,
+            IsRequired = false,
+            IsMultiValue = true,
+        };
+
+        /// <nodoc />
         public static readonly IntOption OperationTimeoutMinutes = RegisterDaemonConfigOption(new IntOption("operationTimeoutMinutes")
         {
             ShortName = "ot",
@@ -692,7 +712,7 @@ namespace Tool.ServicePipDaemon
         /// <summary>
         /// Takes a list of strings and returns a list of initialized regular expressions
         /// </summary>
-        protected static Possible<Regex[]> InitializeFilters(string[] filters)
+        protected static Possible<Regex[]> InitializeFilters(string[] filters, RegexOptions additionalRegexOptions = RegexOptions.None)
         {
             try
             {
@@ -707,7 +727,7 @@ namespace Tool.ServicePipDaemon
                         // One can think of setting the timeout to infinite, but that is not a good idea because the regex is user specified, and
                         // without timeout, we can end up with ReDoS.
                         // For more information, read https://devblogs.microsoft.com/dotnet/regular-expression-improvements-in-dotnet-7/
-                        : new Regex(filter, RegexOptions.IgnoreCase, TimeSpan.FromMinutes(10)));
+                        : new Regex(filter, RegexOptions.IgnoreCase | additionalRegexOptions, TimeSpan.FromMinutes(10)));
 
                 return initializedFilters.ToArray();
             }
@@ -818,6 +838,77 @@ namespace Tool.ServicePipDaemon
             {
                 return result;
             }
+        }
+
+        /// <nodoc/>
+        protected static Possible<RelativePathReplacementArguments[]> InitializeRelativePathReplacementArguments(string[] serializedValues)
+        {
+            const char DelimChar = '#';
+            const string NoRereplacement = "##";
+
+            /*
+                Format:
+                    Replacement arguments are not specified: "##"
+                    Replacement arguments are specified:     "#{searchString}#{replaceString}#"
+             */
+
+            var initializedValues = new RelativePathReplacementArguments[serializedValues.Length];
+            for (int i = 0; i < serializedValues.Length; i++)
+            {
+                if (serializedValues[i] == NoRereplacement)
+                {
+                    initializedValues[i] = RelativePathReplacementArguments.Invalid;
+                    continue;
+                }
+
+                var arr = serializedValues[i].Split(DelimChar);
+                if (arr.Length != 4
+                    || arr[0].Length != 0
+                    || arr[3].Length != 0)
+                {
+                    return new Failure<string>($"Failed to deserialize relative path replacement arguments: '{serializedValues[i]}'.");
+                }
+
+                initializedValues[i] = new RelativePathReplacementArguments(arr[1], arr[2]);
+            }
+
+            return initializedValues;
+        }
+
+        /// <nodoc/>
+        protected internal static List<SealedDirectoryFile> FilterDirectoryContent(string directoryPath, List<SealedDirectoryFile> directoryContent, Regex contentFilter, bool applyFilterToRelativePath)
+        {
+            var endsWithSlash = directoryPath[directoryPath.Length - 1] == Path.DirectorySeparatorChar || directoryPath[directoryPath.Length - 1] == Path.AltDirectorySeparatorChar;
+            var startPosition = applyFilterToRelativePath ? (directoryPath.Length + (endsWithSlash ? 0 : 1)) : 0;
+            // Note: if startPosition is not 0, and a regular expression uses ^ anchor to match the beginning of a relative path, no files will be matched.
+            // In such cases, one must use \G anchor instead.
+            // https://docs.microsoft.com/en-us/dotnet/api/system.text.regularexpressions.regex.match
+            return directoryContent.Where(file => contentFilter.IsMatch(file.FileName, startPosition)).ToList();
+        }
+
+        /// <nodoc/>
+        protected internal static string GetRelativePath(string root, string file, RelativePathReplacementArguments pathReplacementArgs)
+        {
+            var rootEndsWithSlash =
+                root[root.Length - 1] == System.IO.Path.DirectorySeparatorChar
+                || root[root.Length - 1] == System.IO.Path.AltDirectorySeparatorChar;
+            var relativePath = file.Substring(root.Length + (rootEndsWithSlash ? 0 : 1));
+            // On Windows, file paths are case-insensitive.
+            var stringCompareMode = OperatingSystemHelper.IsUnixOS ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
+            if (pathReplacementArgs.IsValid)
+            {
+                int searchStringPosition = relativePath.IndexOf(pathReplacementArgs.OldValue, stringCompareMode);
+                if (searchStringPosition < 0)
+                {
+                    // no match found; return the path that we constructed so far
+                    return relativePath;
+                }
+
+                // we are only replacing the first match
+                return I($"{relativePath.Substring(0, searchStringPosition)}{pathReplacementArgs.NewValue}{relativePath.Substring(searchStringPosition + pathReplacementArgs.OldValue.Length)}");
+            }
+
+            return relativePath;
         }
     }
 }

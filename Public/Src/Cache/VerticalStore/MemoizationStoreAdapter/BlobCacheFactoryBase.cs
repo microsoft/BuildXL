@@ -12,6 +12,7 @@ using BuildXL.Cache.ContentStore.Distributed.Blob;
 using BuildXL.Cache.ContentStore.Interfaces.Auth;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.Host.Configuration;
 using BuildXL.Cache.Interfaces;
@@ -165,6 +166,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                 logger = fileLogger;
             }
 
+            BlobCacheAccessor.CacheLogger!.Value?.SetValue(logger);
             return (logger, storageLogEnabled);
         }
 

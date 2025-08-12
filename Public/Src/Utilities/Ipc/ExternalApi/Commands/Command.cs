@@ -80,6 +80,8 @@ namespace BuildXL.Ipc.ExternalApi.Commands
                         return RecomputeContentHashCommand.InternalDeserialize(reader);
                     case nameof(ReportDaemonTelemetryCommand):
                         return ReportDaemonTelemetryCommand.InternalDeserialize(reader);
+                    case nameof(GetContentLocationInBlobStorage):
+                        return GetContentLocationInBlobStorage.InternalDeserialize(reader);
                     default:
                         throw new ArgumentException("unrecognized command type name: " + typeName);
                 }

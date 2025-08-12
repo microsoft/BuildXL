@@ -740,8 +740,8 @@ namespace Test.Tool.DropDaemon
         [InlineData(@"C:\dir", @"C:\dir\dir2\dir2\foo.txt", @"dir2\dir2", "dir3", @"dir3\foo.txt")]
         public void TestGetRelativePath(string root, string filePath, string oldValue, string newValue, string expectedPath)
         {
-            var replacementArgs = new global::Tool.DropDaemon.DropDaemon.RelativePathReplacementArguments(oldValue, newValue);
-            XAssert.ArePathEqual(expectedPath, global::Tool.DropDaemon.DropDaemon.GetRelativePath(root, filePath, replacementArgs));
+            var replacementArgs = new global::Tool.ServicePipDaemon.RelativePathReplacementArguments(oldValue, newValue);
+            XAssert.ArePathEqual(expectedPath, global::Tool.ServicePipDaemon.ServicePipDaemon.GetRelativePath(root, filePath, replacementArgs));
         }
 
         [Fact]
@@ -763,9 +763,9 @@ namespace Test.Tool.DropDaemon
                 new SealedDirectoryFile(@"c:\a\foo.txt", FileArtifact.Invalid, FileContentInfo.CreateWithUnknownLength(ContentHashingUtilities.EmptyHash)),
             };
 
-            var result = global::Tool.DropDaemon.DropDaemon.FilterDirectoryContent(DirPath, files, regex, applyFilterToRelativePath: false);
+            var result = global::Tool.ServicePipDaemon.ServicePipDaemon.FilterDirectoryContent(DirPath, files, regex, applyFilterToRelativePath: false);
             XAssert.AreSetsEqual(expectedResult, result, true);
-            result = global::Tool.DropDaemon.DropDaemon.FilterDirectoryContent(DirPath, files, regex, applyFilterToRelativePath: true);
+            result = global::Tool.ServicePipDaemon.ServicePipDaemon.FilterDirectoryContent(DirPath, files, regex, applyFilterToRelativePath: true);
             XAssert.AreSetsEqual(expectedResult, result, true);
 
             regex = new Regex(@"c:\\a\\1\.txt", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(1));
@@ -774,9 +774,9 @@ namespace Test.Tool.DropDaemon
                 new SealedDirectoryFile(@"c:\a\1.txt", FileArtifact.Invalid, FileContentInfo.CreateWithUnknownLength(ContentHashingUtilities.EmptyHash)),
             };
 
-            result = global::Tool.DropDaemon.DropDaemon.FilterDirectoryContent(DirPath, files, regex, applyFilterToRelativePath: false);
+            result = global::Tool.ServicePipDaemon.ServicePipDaemon.FilterDirectoryContent(DirPath, files, regex, applyFilterToRelativePath: false);
             XAssert.AreSetsEqual(expectedResult, result, true);
-            result = global::Tool.DropDaemon.DropDaemon.FilterDirectoryContent(DirPath, files, regex, applyFilterToRelativePath: true);
+            result = global::Tool.ServicePipDaemon.ServicePipDaemon.FilterDirectoryContent(DirPath, files, regex, applyFilterToRelativePath: true);
             XAssert.AreSetsEqual(expectedResult, result, false);
 
             regex = new Regex(@"\Gfoo.txt", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(1));
@@ -785,9 +785,9 @@ namespace Test.Tool.DropDaemon
                 new SealedDirectoryFile(@"c:\a\foo.txt", FileArtifact.Invalid, FileContentInfo.CreateWithUnknownLength(ContentHashingUtilities.EmptyHash)),
             };
 
-            result = global::Tool.DropDaemon.DropDaemon.FilterDirectoryContent(DirPath, files, regex, applyFilterToRelativePath: false);
+            result = global::Tool.ServicePipDaemon.ServicePipDaemon.FilterDirectoryContent(DirPath, files, regex, applyFilterToRelativePath: false);
             XAssert.AreSetsEqual(expectedResult, result, false);
-            result = global::Tool.DropDaemon.DropDaemon.FilterDirectoryContent(DirPath, files, regex, applyFilterToRelativePath: true);
+            result = global::Tool.ServicePipDaemon.ServicePipDaemon.FilterDirectoryContent(DirPath, files, regex, applyFilterToRelativePath: true);
             XAssert.AreSetsEqual(expectedResult, result, true);
         }
 

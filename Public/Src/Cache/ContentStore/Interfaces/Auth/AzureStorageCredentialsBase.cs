@@ -3,6 +3,7 @@
 
 using System;
 using System.Text.RegularExpressions;
+using Azure;
 using Azure.Core;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.ChangeFeed;
@@ -44,4 +45,10 @@ public abstract class AzureStorageCredentialsBase : IAzureStorageCredentials
     /// <inheritdoc />
     public BlobChangeFeedClient CreateBlobChangeFeedClient(BlobClientOptions? blobClientOptions = null, BlobChangeFeedClientOptions? changeFeedClientOptions = null)
         => new BlobChangeFeedClient(_blobUri, Credentials, BlobClientOptionsFactory.CreateOrOverride(blobClientOptions), changeFeedClientOptions ?? new());
+
+    /// <inheritdoc />
+    public AzureSasCredential GetContainerSasCredential(string containerName)
+    {
+        throw new NotSupportedException("Cannot derive a SAS credential from the current secret.");
+    }
 }

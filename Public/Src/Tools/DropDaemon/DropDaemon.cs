@@ -370,24 +370,6 @@ namespace Tool.DropDaemon
             IsMultiValue = true,
         };
 
-        internal static readonly BoolOption DirectoryFilterUseRelativePath = new BoolOption("directoryFilterUseRelativePath")
-        {
-            ShortName = "dfurp",
-            HelpText = "Whether to apply regex to file's relative path instead of a full path.",
-            DefaultValue = false,
-            IsRequired = false,
-            IsMultiValue = true,
-        };
-
-        internal static readonly StrOption DirectoryRelativePathReplace = new StrOption("directoryRelativePathReplace")
-        {
-            ShortName = "drpr",
-            HelpText = "Relative path replace arguments.",
-            DefaultValue = null,
-            IsRequired = false,
-            IsMultiValue = true,
-        };
-
         internal static readonly Command StartNoDropCmd = RegisterCommand(
             name: "start-nodrop",
             description: @"Starts a server process without a backing VSO drop client (useful for testing/pinging the daemon).",
@@ -1675,39 +1657,6 @@ namespace Tool.DropDaemon
             return await AddDropItemsAsync(daemon, dropFileItemsKeyedByIsAbsent[false].Concat(groupedDirectoriesContent[false]));
         }
 
-        private static Possible<RelativePathReplacementArguments[]> InitializeRelativePathReplacementArguments(string[] serializedValues)
-        {
-            const char DelimChar = '#';
-            const string NoRereplacement = "##";
-
-            /*
-                Format:
-                    Replacement arguments are not specified: "##"
-                    Replacement arguments are specified:     "#{searchString}#{replaceString}#"
-             */
-
-            var initializedValues = new RelativePathReplacementArguments[serializedValues.Length];
-            for (int i = 0; i < serializedValues.Length; i++)
-            {
-                if (serializedValues[i] == NoRereplacement)
-                {
-                    initializedValues[i] = RelativePathReplacementArguments.Invalid;
-                    continue;
-                }
-
-                var arr = serializedValues[i].Split(DelimChar);
-                if (arr.Length != 4
-                    || arr[0].Length != 0
-                    || arr[3].Length != 0)
-                {
-                    return new Failure<string>($"Failed to deserialize relative path replacement arguments: '{serializedValues[i]}'.");
-                }
-
-                initializedValues[i] = new RelativePathReplacementArguments(arr[1], arr[2]);
-            }
-
-            return initializedValues;
-        }
 
         private static async Task<(DropItemForBuildXLFile[], string error)> CreateDropItemsForDirectoryAsync(
             DropDaemon daemon,
@@ -1782,40 +1731,6 @@ namespace Tool.DropDaemon
             }
 
             return (dropItemForBuildXLFiles.ToArray(), null);
-        }
-
-        internal static List<SealedDirectoryFile> FilterDirectoryContent(string directoryPath, List<SealedDirectoryFile> directoryContent, Regex contentFilter, bool applyFilterToRelativePath)
-        {
-            var endsWithSlash = directoryPath[directoryPath.Length - 1] == Path.DirectorySeparatorChar || directoryPath[directoryPath.Length - 1] == Path.AltDirectorySeparatorChar;
-            var startPosition = applyFilterToRelativePath ? (directoryPath.Length + (endsWithSlash ? 0 : 1)) : 0;
-            // Note: if startPosition is not 0, and a regular expression uses ^ anchor to match the beginning of a relative path, no files will be matched.
-            // In such cases, one must use \G anchor instead.
-            // https://docs.microsoft.com/en-us/dotnet/api/system.text.regularexpressions.regex.match
-            return directoryContent.Where(file => contentFilter.IsMatch(file.FileName, startPosition)).ToList();
-        }
-
-        internal static string GetRelativePath(string root, string file, RelativePathReplacementArguments pathReplacementArgs)
-        {
-            var rootEndsWithSlash =
-                root[root.Length - 1] == System.IO.Path.DirectorySeparatorChar
-                || root[root.Length - 1] == System.IO.Path.AltDirectorySeparatorChar;
-            var relativePath = file.Substring(root.Length + (rootEndsWithSlash ? 0 : 1));
-            // On Windows, file paths are case-insensitive.
-            var stringCompareMode = OperatingSystemHelper.IsUnixOS ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
-            if (pathReplacementArgs.IsValid)
-            {
-                int searchStringPosition = relativePath.IndexOf(pathReplacementArgs.OldValue, stringCompareMode);
-                if (searchStringPosition < 0)
-                {
-                    // no match found; return the path that we constructed so far
-                    return relativePath;
-                }
-
-                // we are only replacing the first match
-                return I($"{relativePath.Substring(0, searchStringPosition)}{pathReplacementArgs.NewValue}{relativePath.Substring(searchStringPosition + pathReplacementArgs.OldValue.Length)}");
-            }
-
-            return relativePath;
         }
 
         private static async Task<(IEnumerable<DropItemForBuildXLFile>, string error)> CreateDropItemsForDirectoriesAsync(
@@ -2001,22 +1916,5 @@ namespace Tool.DropDaemon
         internal static string FullyQualifiedDropName(DropConfig dropConfig) => FullyQualifiedDropName(dropConfig.Service, dropConfig.Name);
 
         private static string FullyQualifiedDropName(Uri service, string dropName) => $"{service?.ToString() ?? string.Empty}/{dropName}";
-
-        internal readonly struct RelativePathReplacementArguments
-        {
-            public string OldValue { get; }
-
-            public string NewValue { get; }
-
-            public bool IsValid => OldValue != null && NewValue != null;
-
-            public RelativePathReplacementArguments(string oldValue, string newValue)
-            {
-                OldValue = oldValue;
-                NewValue = newValue;
-            }
-
-            public static RelativePathReplacementArguments Invalid => new RelativePathReplacementArguments(null, null);
-        }
     }
 }

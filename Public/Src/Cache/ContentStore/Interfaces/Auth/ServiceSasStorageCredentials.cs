@@ -3,6 +3,7 @@
 
 using System;
 using System.Text.RegularExpressions;
+using Azure;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.ChangeFeed;
 
@@ -48,6 +49,20 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Auth
         {
             var serviceClient = CreateBlobServiceClient();
             return serviceClient.AccountName;
+        }
+
+        /// <nodoc />
+        public AzureSasCredential GetContainerSasCredential(string containerName)
+        {
+            // We are authenticated at the service level, that SAS portion of the original URI can be (and is in fact) used to authenticate
+            // both container and blob operations.
+            var blobUriBuilder = new BlobUriBuilder(_preauthenticatedUri);
+            if (blobUriBuilder.Sas == null)
+            {
+                throw new InvalidOperationException("The preauthenticated URI does not contain a SAS token.");
+            }
+
+            return new AzureSasCredential(blobUriBuilder.Sas.ToString());
         }
     }
 }

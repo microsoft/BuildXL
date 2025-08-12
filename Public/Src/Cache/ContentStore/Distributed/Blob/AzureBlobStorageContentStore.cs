@@ -5,7 +5,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
+using Azure;
 using Azure.Storage.Blobs;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
@@ -17,6 +19,7 @@ using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Blob;
 
@@ -124,12 +127,14 @@ public class AzureBlobStorageContentStore : StartupShutdownComponentBase, IConte
 
     private IContentSession CreateSessionCore(string name, ImplicitPin implicitPin)
     {
-        return new AzureBlobStorageContentSession(
+        AzureBlobStorageContentSession session = new (
             new AzureBlobStorageContentSession.Configuration(
                 Name: name,
                 ImplicitPin: implicitPin,
                 StoreConfiguration: _configuration),
             store: this);
+        BlobCacheAccessor.GlobalBlobCacheSession!.Value?.SetValue(session);
+        return session;
     }
 
     /// <inheritdoc />
@@ -156,5 +161,10 @@ public class AzureBlobStorageContentStore : StartupShutdownComponentBase, IConte
     internal Task<(BlobClient Client, AbsoluteBlobPath Path)> GetBlobClientAsync(OperationContext context, ContentHash contentHash)
     {
         return _configuration.Topology.GetClientWithPathAsync(context, contentHash);
+    }
+
+    internal Result<AzureSasCredential> GetBlobContainerPreauthenticatedSasToken(OperationContext context, ContentHash contentHash)
+    {
+        return _configuration.Topology.GetBlobContainerPreauthenticatedSasToken(context, contentHash);
     }
 }

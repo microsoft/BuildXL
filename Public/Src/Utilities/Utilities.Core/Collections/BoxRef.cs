@@ -25,5 +25,13 @@ namespace BuildXL.Utilities.Collections
         {
             return new BoxRef<T>() { Value = value };
         }
+
+        /// <summary>
+        /// Sets the value of the BoxRef.
+        /// </summary>
+        public void SetValue(T value)
+        {
+            Value = value;
+        }
     }
 }

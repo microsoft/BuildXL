@@ -26,6 +26,7 @@ using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Core.Tasks;
 using BuildXL.Utilities.Tracing;
 using System.Collections.Concurrent;
+using System.Diagnostics;
 
 namespace BuildXL.Scheduler
 {
@@ -389,6 +390,13 @@ namespace BuildXL.Scheduler
             if (reportDaemonTelemetryCmd != null)
             {
                 var result = await ExecuteCommandWithStats(ExecuteReportDaemonTelemetry, reportDaemonTelemetryCmd, ApiServerCounters.TotalReportDaemonTelemetryCalls);
+                return new Possible<IIpcResult>(result);
+            }
+
+            var getContentLocationInBlobStorageCmd = cmd as GetContentLocationInBlobStorage;
+            if (getContentLocationInBlobStorageCmd != null)
+            {
+                var result = await ExecuteCommandWithStats(ExecuteGetContentLocationInBlobStorageAsync, getContentLocationInBlobStorageCmd, ApiServerCounters.TotalGetContentLocationInBlobStorageCalls);
                 return new Possible<IIpcResult>(result);
             }
 
@@ -785,6 +793,35 @@ namespace BuildXL.Scheduler
             return Task.FromResult(IpcResult.Success(cmd.RenderResult(true)));
         }
 
+        private async Task<IIpcResult> ExecuteGetContentLocationInBlobStorageAsync(GetContentLocationInBlobStorage cmd)
+        {
+            Contract.Requires(cmd != null);
+
+            // Note: we are using cache from file content manager (FCM) host. This is the same cache used by the FCM;
+            // however, the FCM wraps it into another layer for optimization purposes, so if we go though FCM,
+            // our call can be optimized away and it might not hit the underlying cache.
+            var list = new List<ContentHash>() { cmd.Hash };
+            try
+            {
+                var result = await m_fileContentManager.Host.ArtifactContentCache.TryLoadAvailableContentAsync(list, CancellationToken.None, new BuildXL.Cache.ContentStore.Interfaces.Sessions.OperationHints() { ReportRemoteContentLocation = true });
+                if (result.Succeeded)
+                {
+                    return IpcResult.Success(cmd.RenderResult(result.Result.Results[0].RemoteContentLocation));
+                }
+
+                return new IpcResult(
+                    IpcResultStatus.ExecutionError,
+                    $"Failed to get content location in blob storage for hash {cmd.Hash.Serialize()}. Operation completed successfully, but the location could not be retrieved. " +
+                    $"It might be because there is no blob-based cache active in the build, or because the cache could not generate a SAS url.");
+            }
+            catch (Exception e)
+            {
+                return new IpcResult(
+                    IpcResultStatus.ExecutionError, 
+                    $"Failed to get content location in blob storage for hash {cmd.Hash.Serialize()}: {e.DemystifyToString()}");
+            }
+        }
+
         private Possible<Command> TryDeserialize(string operation)
         {
             try
@@ -865,6 +902,11 @@ namespace BuildXL.Scheduler
         /// </summary>
         [CounterType(CounterType.Numeric)]
         TotalReportDaemonTelemetryCalls,
+
+        /// <summary>
+        /// Number of <see cref="GetContentLocationInBlobStorage"/> calls
+        /// </summary>
+        TotalGetContentLocationInBlobStorageCalls,
     }
 
     /// <summary>

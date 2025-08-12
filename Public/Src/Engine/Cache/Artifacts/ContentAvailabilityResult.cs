@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Utilities.Core;
 
@@ -40,14 +41,20 @@ namespace BuildXL.Engine.Cache.Artifacts
         /// </summary>
         public readonly Failure Failure;
 
+        /// <summary>
+        /// Optional remote content location.
+        /// </summary>
+        public readonly Uri RemoteContentLocation;
+
         /// <nodoc />
-        public ContentAvailabilityResult(ContentHash hash, bool isAvailable, long bytesTransferred, string sourceCache, Failure failure = null)
+        public ContentAvailabilityResult(ContentHash hash, bool isAvailable, long bytesTransferred, string sourceCache, Failure failure = null, Uri remoteContentLocation = null)
         {
             Hash = hash;
             IsAvailable = isAvailable;
             BytesTransferred = bytesTransferred;
             SourceCache = sourceCache;
             Failure = failure;
+            RemoteContentLocation = remoteContentLocation;
         }
 
         /// <inherit />

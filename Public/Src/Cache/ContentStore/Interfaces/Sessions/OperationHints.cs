@@ -21,6 +21,14 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Sessions
         /// </summary>
         public bool AvoidRemote { get; init; }
 
+        /// <summary>
+        /// Indicates whether an operation should report the location of remote content.
+        /// </summary>
+        /// <remarks>
+        /// This is currently only applicable to Pin operations.
+        /// </remarks>
+        public bool ReportRemoteContentLocation { get; init; }
+
         /// <nodoc />
         public static explicit operator OperationHints(UrgencyHint urgency) => new() { Urgency = urgency };
 

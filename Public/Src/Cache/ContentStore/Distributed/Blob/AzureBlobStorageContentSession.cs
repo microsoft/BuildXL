@@ -2,16 +2,20 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Azure;
 using Azure.Storage;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
+using Azure.Storage.Blobs.Specialized;
+using Azure.Storage.Sas;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
@@ -22,11 +26,13 @@ using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Sessions;
 using BuildXL.Cache.ContentStore.Sessions.Internal;
+using BuildXL.Cache.ContentStore.Synchronization;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
 using BuildXL.Utilities.Core;
+using BuildXL.Utilities.Core.Tasks;
 using BuildXL.Utilities.Core.Tracing;
 using Polly;
 using Polly.Retry;
@@ -41,7 +47,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blob;
 /// <summary>
 /// A content session implementation backed by Azure Blobs.
 /// </summary>
-public sealed class AzureBlobStorageContentSession : ContentSessionBase, IContentNotFoundRegistration, ITrustedContentSession
+public sealed class AzureBlobStorageContentSession : ContentSessionBase, IContentNotFoundRegistration, ITrustedContentSession, IBlobContentSession
 {
     public record Configuration(
         string Name,
@@ -64,6 +70,10 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase, IConten
     private readonly List<Func<Context, ContentHash, Task>> _contentNotFoundListeners = new();
 
     private readonly IClock _clock;
+
+    private readonly SemaphoreSlim _sasGenerationMutex = TaskUtilities.CreateMutex();
+    private readonly ConcurrentDictionary<AbsoluteContainerPath, BlobSasQueryParameters> _sasTokens = new();
+    private int _cannotGenerateSasToken;
 
     /// <nodoc />
     public AzureBlobStorageContentSession(Configuration sessionConfiguration, AzureBlobStorageContentStore store, IClock? clock = null)
@@ -473,6 +483,121 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase, IConten
     public AbsolutePath? TryGetWorkingDirectory(AbsolutePath? pathHint)
     {
         return null;
+    }
+
+    #endregion
+
+    #region IBlobContentSession implementation
+
+    public async ValueTask<Result<Uri>> TryGetContentUriAsync(Context context, ContentHash contentHash)
+    {
+        if (Volatile.Read(ref _cannotGenerateSasToken) == 1)
+        {
+            // We failed previously while generating a SAS token, so we don't try again.
+            return Result.FromErrorMessage<Uri>("Cannot generate a SAS token. Check the first error for details.");
+        }
+
+        var operationContext = new OperationContext(context);
+        (var blobClient, var blobPath) = await GetBlobClientAsync(operationContext, contentHash);
+        BlobSasQueryParameters sasToken;
+
+        if (IsSasUri(blobClient.Uri))
+        {
+            // If the blob client already has a SAS token, we can just return the URI.
+            return blobClient.Uri;
+        }
+
+        // We might already be authenticated with a SAS token. If it's indeed the case, let's reuse that token instead of
+        // generating a new one. The current token has potentially more permissions than we need; but we are guaranteed
+        // that it has read permission (cache cannot work without 'read' access).
+        var possibleSasCredential = _store.GetBlobContainerPreauthenticatedSasToken(operationContext, contentHash);
+        // We ignore the 'possibleSasCredential.Succeeded == false' case here, because it means that we are not authenticated with a SAS token.
+        // There is a corner case where we are SAS authenticated, and still have a failure here; but it should be a very unlikely case.
+        // TODO: maybe log a warning once 
+        if (possibleSasCredential.Succeeded)
+        {
+            var sasString = possibleSasCredential.Value.Signature;
+            sasString = sasString.TrimStart('?'); // Remove the leading '?' if it exists.
+            return new Uri($"{blobClient.Uri}?{sasString}");
+        }
+
+        // BlobClient URI does not have a SAS token, and the session is not using a SAS uri for authentication.
+        // The only thing left for us to try is to generate a SAS token ourselves.
+        // The success here depends on whether we have permissions to generate SAS tokens for the blob.
+        // If we don't, we'll have an exception on our hands.
+        try
+        {
+            sasToken = await TryGetSasToken(operationContext, blobClient, blobPath, contentHash);
+        }
+        catch (RequestFailedException e)
+        {
+            // Stop future attempts to generate URIs and SAS tokens.
+            Interlocked.Exchange(ref _cannotGenerateSasToken, 1);
+            return Result.FromException<Uri>(e, "Underlying cache was not SAS authenticated, so token could not be reused. An attempt to generate a token resulted in exception.");
+        }
+
+        BlobUriBuilder uriBuilder = new BlobUriBuilder(blobClient.Uri)
+        {
+            Sas = sasToken
+        };
+
+        return uriBuilder.ToUri();
+    }
+
+    private static bool IsSasUri(Uri uri)
+    {
+        if (uri is null)
+        {
+            return false;
+        }
+
+        var blobUriBuilder = new BlobUriBuilder(uri);
+        return blobUriBuilder.Sas != null && !string.IsNullOrEmpty(blobUriBuilder.Sas.Signature);
+    }
+
+    private async Task<BlobSasQueryParameters> TryGetSasToken(OperationContext operationContext, BlobClient blobClient, AbsoluteBlobPath blobPath, ContentHash contentHash)
+    {
+        var containerClient = blobClient.GetParentBlobContainerClient();
+        var serviceClient = containerClient.GetParentBlobServiceClient();
+
+        // If we already have a token for this service client and it is still valid, return it.
+        if (_sasTokens.TryGetValue(blobPath.ContainerPath, out var token)
+            && token.ExpiresOn <= DateTimeOffset.UtcNow.AddMinutes(10))
+        {
+            return token;
+        }
+
+        // Either we have not generated a token for this service client yet, or the existing token has expired.
+        using var lockReleaser = await _sasGenerationMutex.AcquireAsync(operationContext.Token);
+        // Double check if we still need to generate a new token after acquiring the lock.
+        if (_sasTokens.TryGetValue(blobPath.ContainerPath, out token) && token.ExpiresOn <= DateTimeOffset.UtcNow.AddMinutes(10))
+        {
+            return token;
+        }
+
+        // There is no guarantee that we authenticated with a shared key credentials. So client.GenerateSasUri() might not work.
+        // Also, if it did work, the generated SAS would have too much permissions, so if it's leaked, it would be a security issue.
+        // Instead, generate a user delegation SAS token with limited permissions.
+        var startsOn = DateTimeOffset.UtcNow;
+        var expiresOn = startsOn.AddHours(1);
+        var userDelegationKey = await serviceClient.GetUserDelegationKeyAsync(startsOn, expiresOn);
+
+        // Build the SAS token
+        var sasBuilder = new BlobSasBuilder
+        {
+            BlobContainerName = blobClient.BlobContainerName,
+            BlobName = blobClient.Name,
+            Resource = "b",
+            StartsOn = startsOn,
+            ExpiresOn = expiresOn
+        };
+
+        sasBuilder.SetPermissions(BlobSasPermissions.Read);
+
+        // Generate the SAS token string
+        var sasToken = sasBuilder.ToSasQueryParameters(userDelegationKey.Value, serviceClient.AccountName);
+        _sasTokens.AddOrUpdate(blobPath.ContainerPath, sasToken, (key, oldValue) => sasToken);
+        return sasToken;
     }
 
     #endregion

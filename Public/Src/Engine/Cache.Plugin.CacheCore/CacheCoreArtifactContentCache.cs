@@ -6,23 +6,26 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Engine.Cache.Artifacts;
 using BuildXL.Native.IO;
 using BuildXL.Storage;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Tasks;
 using BuildXL.Utilities.Tracing;
-using static BuildXL.Utilities.Core.FormattableStringEx;
 using static BuildXL.Cache.ContentStore.Interfaces.FileSystem.VfsUtilities;
-using BuildXL.Utilities.Configuration;
-using System.Threading;
-using UrgencyHint = BuildXL.Cache.ContentStore.Interfaces.Sessions.UrgencyHint;
+using static BuildXL.Utilities.Core.FormattableStringEx;
+using BlobCacheAccessor = BuildXL.Cache.ContentStore.Interfaces.Sessions.BlobCacheAccessor;
+using IBlobContentSession = BuildXL.Cache.ContentStore.Interfaces.Sessions.IBlobContentSession;
 using OperationHints = BuildXL.Cache.ContentStore.Interfaces.Sessions.OperationHints;
+using UrgencyHint = BuildXL.Cache.ContentStore.Interfaces.Sessions.UrgencyHint;
 
 namespace BuildXL.Engine.Cache.Plugin.CacheCore
 {
@@ -42,6 +45,20 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
 
         private readonly bool m_replaceExistingFileOnMaterialization;
 
+        /// <summary>
+        /// If cache is configured to use a blob cache, this field represents the blob cache session. Otherwise, it is null.
+        /// </summary>
+        private readonly IBlobContentSession m_blobCacheSession;
+
+        /// <summary>
+        /// The logger used by the underlying cache.
+        /// </summary>
+        /// <remarks>
+        /// Note: the value depends on whether cache created a logger (e.g., MemCache is not using one).
+        /// In real world, any cache that we use creates and uses a logger, still, it's not to be assumed that the logger is always not null.
+        /// </remarks>
+        private readonly ILogger m_logger;
+
         /// <nodoc />
         public CacheCoreArtifactContentCache(
             ICacheSession cache,
@@ -51,6 +68,15 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
             m_cache = new PossiblyOpenCacheSession(cache);
             m_rootTranslator = rootTranslator;
             m_replaceExistingFileOnMaterialization = replaceExistingFileOnMaterialization;
+            if (BlobCacheAccessor.GlobalBlobCacheSession.Value != null)
+            {
+                m_blobCacheSession = BlobCacheAccessor.GlobalBlobCacheSession.Value.Value;
+            }
+
+            if (BlobCacheAccessor.CacheLogger.Value != null)
+            {
+                m_logger = BlobCacheAccessor.CacheLogger.Value.Value;
+            }
         }
 
         /// <inheritdoc />
@@ -102,7 +128,18 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
                     // TODO: This doesn't indicate what is local / how much was transfered. From the similar BuildCache adapter:
                     //  long transferred = successfulResult.TransferredBytes;
                     // TODO: This API will fail just because content isn't available; see below for that case.
-                    results[i] = new ContentAvailabilityResult(hashes[i], isAvailable: true, bytesTransferred: 0, sourceCache: maybePinned.Result);
+                    Uri remoteContentLocation = null;
+                    if (hints.ReportRemoteContentLocation && m_blobCacheSession != null)
+                    {
+                        // If we were asked to provide the remote content location, and there is indeed an active blob cache session (i.e., the ask makes sense),
+                        // query the blob cache for the content URI.
+                        // Note: m_logger can be null, context can be created with a null logger; it just means that logs will be suppressed.
+                        var context = new BuildXL.Cache.ContentStore.Interfaces.Tracing.Context(m_logger);
+                        var possibleUri = await m_blobCacheSession.TryGetContentUriAsync(context, hashes[i]);
+                        remoteContentLocation = possibleUri.Succeeded ? possibleUri.Value : null;
+                    }
+
+                    results[i] = new ContentAvailabilityResult(hashes[i], isAvailable: true, bytesTransferred: 0, sourceCache: maybePinned.Result, remoteContentLocation: remoteContentLocation);
                     BuildXL.Storage.Tracing.Logger.Log.StorageCacheContentPinned(Events.StaticContext, casHashes[i].ToString(), maybePinned.Result);
                 }
                 else if (maybePinned.Failure is NoCasEntryFailure)

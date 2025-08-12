@@ -17,6 +17,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Synchronization;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Tasks;
 using BuildXL.Utilities.ParallelAlgorithms;
 
@@ -83,6 +84,8 @@ public class ShardedBlobCacheTopology : IBlobCacheTopology
     /// </summary>
     private readonly ConcurrentDictionary<AbsoluteContainerPath, BlobContainerClient> _clients = new();
 
+    private readonly ConcurrentDictionary<AbsoluteContainerPath, Result<AzureSasCredential>> _containerSasCredentials = new();
+
     public ShardedBlobCacheTopology(Configuration configuration)
     {
         _configuration = configuration;
@@ -106,6 +109,13 @@ public class ShardedBlobCacheTopology : IBlobCacheTopology
 
     public async Task<(BlobContainerClient Client, AbsoluteContainerPath Path)> GetShardContainerClientWithPathAsync(OperationContext context, BlobCacheShardingKey key)
     {
+        AbsoluteContainerPath path = GetContainerAbsolutePath(key);
+
+        return (await GetOrCreateClientAsync(context, path), path);
+    }
+
+    private AbsoluteContainerPath GetContainerAbsolutePath(BlobCacheShardingKey key)
+    {
         var account = _scheme.Locate(key.Key);
         Contract.Assert(account is not null, $"Attempt to determine account for key `{key}` failed");
 
@@ -113,8 +123,7 @@ public class ShardedBlobCacheTopology : IBlobCacheTopology
         var container = _containerMapping[account][(int)key.Purpose];
 
         var path = new AbsoluteContainerPath(account, container);
-
-        return (await GetOrCreateClientAsync(context, path), path);
+        return path;
     }
 
     private async Task<BlobContainerClient> GetOrCreateClientAsync(
@@ -151,7 +160,7 @@ public class ShardedBlobCacheTopology : IBlobCacheTopology
         }
     }
 
-    
+
     public async IAsyncEnumerable<(BlobContainerClient Client, AbsoluteContainerPath Path)> EnumerateClientsAsync(
         OperationContext context,
         BlobCacheContainerPurpose purpose)
@@ -195,11 +204,49 @@ public class ShardedBlobCacheTopology : IBlobCacheTopology
             {
                 var credentials = await _configuration.SecretsProvider.RetrieveContainerCredentialsAsync(context, account, container);
                 var containerClient = credentials.CreateContainerClient(container.ContainerName, _blobClientOptions);
+                try
+                {
+                    // We already paid the cost of retrieving the credentials, cache them here, in case we are asked for them in future.
+                    var containerPath = new AbsoluteContainerPath(account, container);
+                    if (!_containerSasCredentials.ContainsKey(containerPath))
+                    {
+                        var sasToken = credentials.GetContainerSasCredential(container.ContainerName);
+                        _containerSasCredentials.TryAdd(new AbsoluteContainerPath(account, container), sasToken);
+                    }
+                }
+                catch (Exception e)
+                {
+                    // GetContainerSasCredential throws if the credentials are not SAS-based.
+                    // Store the exception for this container to avoid future attempts to retrieve SAS token.
+                    _containerSasCredentials.TryAdd(new AbsoluteContainerPath(account, container), Result.FromException<AzureSasCredential>(e));
+                }
 
                 return Result.Success(containerClient);
             },
             extraStartMessage: msg,
             extraEndMessage: _ => msg,
             timeout: _configuration.ClientCreationTimeout ?? Timeout.InfiniteTimeSpan);
+    }
+
+    public Result<AzureSasCredential> GetBlobContainerPreauthenticatedSasToken(OperationContext context, BlobCacheShardingKey key)
+    {
+        var path = GetContainerAbsolutePath(key);
+        if (_containerSasCredentials.TryGetValue(path, out var possibleCachedToken))
+        {
+            return possibleCachedToken;
+        }
+
+        // The token was not cached. This is unexpected, as we should have created container clients by the time this api is called.
+        // Force client creation so we can attempt to retrieve the SAS token again.
+        var _ = GetShardContainerClientWithPathAsync(context, key);
+        if (_containerSasCredentials.TryGetValue(path, out possibleCachedToken))
+        {
+            return possibleCachedToken;
+        }
+        else
+        {
+            // This should never happen. If we have nothing in the dictionary after we force client creation, something is very wrong.
+            throw new Exception($"Failed to retrieve SAS token for {path}. The client was created, but the SAS token was not cached.");
+        }
     }
 }

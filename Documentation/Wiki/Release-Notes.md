@@ -2,6 +2,14 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20250807.3 (Release [30326331](https://dev.azure.com/mseng/Domino/_build/results?buildId=30326331&view=results))
+- Add `GetOutputsUnderOpaqueExistenceAssertions` to list of outputs in file content manager.
+- Allow server mode in cloudbuild.
+- Fix: make AdoBuildRunner argument parser pick up `cacheConfigConstructionTimeoutSeconds`.
+- Allow for setting tags on IPC pips.
+- Opt-in full symlink resolution under untracked directories.
+- [eBPF] Implemented ring buffer swapping to deal with reservation issues on high number of events.
+
 # 0.1.0-20250713.2.1 (Release [30233176](https://dev.azure.com/mseng/Domino/_build/results?buildId=30233176&view=results))
 - Fixes to Linux ebpf sandbox ring buffer
 - Log better error on VsoHash rendering in IPC payload

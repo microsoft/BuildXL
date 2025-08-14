@@ -34,7 +34,13 @@
 // going wrong. Debugging scenarios (where we send a lot of debug events) are not expected to be very common, so we can afford to have a smaller buffer here.
 #define DEBUG_RINGBUFFER_SIZE (4096 * 64) 
 // Size of the event cache map. This is used to avoid sending repetitive events for the same operation+path.
-#define EVENT_CACHE_MAP_SIZE (1024) 
+// With the current key+value size, this is about 1.8 MB in size per pip.
+#define EVENT_CACHE_MAP_SIZE (16834)
+// Size of the string cache map. This is used to avoid sending repetitive events for absent lookups (when we don't have a struct path available).
+// With the current key+value size, this is about 2.4 MB in size per pip.
+#define STRING_CACHE_MAP_SIZE (4096)
+// The maximum size of a path that we can handle in the string cache. Paths longer than this will not be cached.
+#define STRING_CACHE_PATH_MAX 512
 
 #define KERNEL_FUNCTION(name) KERNEL_##name
 #define CONVERT_KERNEL_FUNCTION_TO_STRING(fn) case KERNEL_FUNCTION(fn): return #fn;
@@ -273,6 +279,18 @@ typedef struct sandbox_options {
 } sandbox_options;
 
 /**
+ * Used to communicate general statistics about the sandbox to userspace.
+ * Populated when the root pid exits
+ */
+typedef struct pip_stats {
+    int event_cache_hit;
+    int event_cache_miss;
+    int string_cache_hit;
+    int string_cache_miss;
+    int string_cache_uncacheable;
+} pip_stats;
+
+/**
  * An event key represents an operation + path, and used as a way to identify 'equivalent' events and prevent sending duplicates to user space.
  * For identifying the path, we use a combination of its dentry and vfsmount pair, and just use their memory
  * location (as unsigned long) to identify them. The rationale is that a dentry + mount pair is already pointing to a univocally
@@ -293,5 +311,10 @@ typedef struct test_write_ringbuf_args {
     pid_t runner_pid;
     int number;
 } test_write_ringbuf_args;
+
+/**
+ * The constant we use as map values when using a map as a set (and so the value is not important).
+ */
+static const short NO_VALUE = 0;
 
 #endif // __PUBLIC_SRC_SANDBOX_LINUX_EBPF_EBPFCOMMON_H

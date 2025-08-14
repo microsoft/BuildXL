@@ -12,6 +12,9 @@
 #include "ebpfcommon.h"
 #include "ebpfutilities.h"
 
+// Just for statistics
+static int event_cache_hit, event_cache_miss = 0;
+
 __attribute__((always_inline)) static inline void report_event_cache_not_found(pid_t runner_pid);
 
 // We keep a LRU map so we do not send out events that are considered equivalent. Sending too many events can cause the ring buffer to not be able
@@ -44,11 +47,6 @@ struct {
     __array(values, struct event_cache);
 } event_cache_per_pip SEC(".maps");
 
-/**
- * The constant we use as map values. We are using the map as a set, so the value is not important.
- */
-static const short NO_VALUE = 0;
-
 __attribute__((always_inline)) static inline unsigned long ptr_to_long(const void *ptr)
 {
     return (unsigned long) ptr;
@@ -79,9 +77,11 @@ __attribute__((always_inline)) static bool should_send_path(pid_t runner_pid, op
     if (bpf_map_lookup_elem(event_cache, &key) == NULL)
     {
         bpf_map_update_elem(event_cache, &key, &NO_VALUE, BPF_ANY);
+        __sync_fetch_and_add(&event_cache_miss, 1);
         return true;
     }
 
+    __sync_fetch_and_add(&event_cache_hit, 1);
     // If the lookup found the key, don't send the event
     return false;
 }

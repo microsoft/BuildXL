@@ -44,7 +44,7 @@
 
 
 /** Constants */
-const int PINNED_MAPS_SIZE = 6;
+const int PINNED_MAPS_SIZE = 8;
 
 /** Globals */
 BxlObserver *g_bxl;
@@ -55,8 +55,8 @@ static volatile sig_atomic_t g_exit_signal_received = 0;
 static volatile sig_atomic_t g_root_process_exited = 0;
 int g_root_pid = 0, g_runner_pid = 0;
 struct ring_buffer *g_debug_ring_buffer = nullptr;
-int g_pid_map_fd, g_sandbox_options_per_pip_map_fd, g_file_access_per_pip_fd = -1;
-int g_debug_buffer_per_pip_fd, g_breakaway_processes_map_fd, g_event_cache_per_pip_fd, g_breakaway_processes_per_pip_fd = -1;
+int g_pid_map_fd, g_sandbox_options_per_pip_map_fd, g_stats_per_pip_map_fd, g_file_access_per_pip_fd = -1;
+int g_debug_buffer_per_pip_fd, g_breakaway_processes_map_fd, g_event_cache_per_pip_fd, g_string_cache_per_pip_fd, g_breakaway_processes_per_pip_fd = -1;
 sem_t g_root_process_populated_semaphore;
 bool g_ebpf_already_loaded, g_ebpf_should_force_ebpf_loading = false;
 buildxl::common::ConcurrentQueue<ebpf_event *> g_event_queue;
@@ -505,7 +505,7 @@ int RunRootProcess(const char *file, char *const argv[], char *const envp[]) {
     }
     else  {
         g_root_pid = pid;
-        g_syscallHandler = new buildxl::linux::ebpf::SyscallHandler(g_bxl, g_root_pid, file, &g_active_ring_buffer);
+        g_syscallHandler = new buildxl::linux::ebpf::SyscallHandler(g_bxl, g_root_pid, g_runner_pid, file, &g_active_ring_buffer, g_stats_per_pip_map_fd);
         // Signal that the root pid is already populated
         sem_post(&g_root_process_populated_semaphore);
 
@@ -661,7 +661,9 @@ int ReuseMaps(struct sandbox_bpf *skel) {
         skel->maps.debug_buffer_per_pip,
         skel->maps.breakaway_processes_per_pip,
         skel->maps.sandbox_options_per_pip,
-        skel->maps.event_cache_per_pip
+        skel->maps.event_cache_per_pip,
+        skel->maps.string_cache_per_pip,
+        skel->maps.stats_per_pip
     };
 
     for (int i = 0 ; i < PINNED_MAPS_SIZE; i++)
@@ -717,6 +719,24 @@ int BindPerPipMaps(struct sandbox_bpf *skel) {
     if (g_event_cache_per_pip_fd < 0)
     {
         LogError("Failed to retrieve event cache per pip\n");
+        Cleanup(skel);
+        return -1;
+    }
+
+    // Retrieve the per-pip string cache and create a string cache for the current pip
+    g_string_cache_per_pip_fd = bpf_object__find_map_fd_by_name(skel->obj, "string_cache_per_pip");
+    if (g_string_cache_per_pip_fd < 0)
+    {
+        LogError("Failed to retrieve string cache per pip\n");
+        Cleanup(skel);
+        return -1;
+    }
+
+     // Retrieve the per-pip string cache and create a string cache for the current pip
+    g_stats_per_pip_map_fd = bpf_object__find_map_fd_by_name(skel->obj, "stats_per_pip");
+    if (g_stats_per_pip_map_fd < 0)
+    {
+        LogError("Failed to retrieve stats per pip\n");
         Cleanup(skel);
         return -1;
     }
@@ -854,6 +874,27 @@ int SetupMaps(struct sandbox_bpf *skel) {
         g_bxl->LogDebug(getpid(), "Added event cache for runner PID %d", key);
     }
 
+    LIBBPF_OPTS(bpf_map_create_opts, string_cache_options);
+    int string_cache_fd =  bpf_map_create(BPF_MAP_TYPE_LRU_HASH, "string_cache", sizeof(char[STRING_CACHE_PATH_MAX]), sizeof(short), STRING_CACHE_MAP_SIZE, &string_cache_options);
+    if (string_cache_fd < 0)
+    {
+        LogError("Failed to create string cache: [%d]%s\n", errno, strerror(errno));
+        Cleanup(skel);
+        return -1;
+    }
+
+    // Add the string cache to the per-pip outer map
+    if (bpf_map_update_elem(g_string_cache_per_pip_fd, &key, &string_cache_fd, BPF_ANY))
+    {
+        LogError("Failed to add string cache to outer map for runner PID %d: %s\n", key, strerror(errno));
+        Cleanup(skel);
+        return -1;
+    }
+    else
+    {
+        g_bxl->LogDebug(getpid(), "Added string cache for runner PID %d", key);
+    }
+
     LIBBPF_OPTS(bpf_map_create_opts, breakaway_processes_options);
     g_breakaway_processes_map_fd =  bpf_map_create(BPF_MAP_TYPE_ARRAY, "breakaway_processes", sizeof(uint32_t), sizeof(breakaway_process), MAX_BREAKAWAY_PROCESSES, &breakaway_processes_options);
     if (g_breakaway_processes_map_fd < 0)
@@ -893,7 +934,9 @@ void CleanupPinnedMaps(struct sandbox_bpf *skel) {
         skel->maps.debug_buffer_per_pip, 
         skel->maps.breakaway_processes_per_pip,
         skel->maps.sandbox_options_per_pip,
-        skel->maps.event_cache_per_pip
+        skel->maps.event_cache_per_pip,
+        skel->maps.string_cache_per_pip,
+        skel->maps.stats_per_pip
     };
 
     for (int i = 0 ; i < PINNED_MAPS_SIZE; i++) {
@@ -989,10 +1032,12 @@ int ConfigurePerPipMapSizes(struct sandbox_bpf *skel) {
         skel->maps.debug_buffer_per_pip, 
         skel->maps.breakaway_processes_per_pip,
         skel->maps.sandbox_options_per_pip,
-        skel->maps.event_cache_per_pip
+        skel->maps.event_cache_per_pip,
+        skel->maps.string_cache_per_pip,
+        skel->maps.stats_per_pip
     };
 
-    for (int i = 0 ; i < 5; i++) {
+    for (int i = 0 ; i < 7; i++) {
         bpf_map* per_pip_map = per_pip_maps[i];
 
         if (bpf_map__set_max_entries(per_pip_map, concurrency))
@@ -1011,8 +1056,10 @@ void DeletePerPipMaps(sandbox_bpf *skel, pid_t runner_pid) {
     DeletePerPipMap(g_file_access_per_pip_fd, runner_pid, "file access");
     DeletePerPipMap(g_debug_buffer_per_pip_fd, runner_pid, "debug buffer");
     DeletePerPipMap(g_event_cache_per_pip_fd, runner_pid, "event cache");
+    DeletePerPipMap(g_string_cache_per_pip_fd, runner_pid, "string cache");
     DeletePerPipMap(g_breakaway_processes_per_pip_fd, runner_pid, "breakaway processes");
     DeletePerPipMap(g_sandbox_options_per_pip_map_fd, runner_pid, "sandbox options");
+    DeletePerPipMap(g_stats_per_pip_map_fd, runner_pid, "stats");
 }
 
 int Start(sandbox_bpf *skel, char **argv) {

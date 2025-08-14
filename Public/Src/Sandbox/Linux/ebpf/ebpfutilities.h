@@ -47,6 +47,20 @@ struct {
     __uint(pinning, LIBBPF_PIN_BY_NAME);
 } sandbox_options_per_pip SEC(".maps");
 
+/**
+ * Statistics per pip. This is used to report statistics about the sandboxed processes.
+ * The key is the pid of the runner process that this sandboxed process belongs to.
+ * The value is a pip_stats structure that contains the statistics.
+*/
+struct {
+    __uint(type, BPF_MAP_TYPE_HASH);
+    // The key is the pid of the runner process that this sandboxed process belongs to
+    __type(key, pid_t);
+    __type(value, pip_stats);
+    // We need to share the options across all runners
+    __uint(pinning, LIBBPF_PIN_BY_NAME);
+} stats_per_pip SEC(".maps");
+
 /*
  * Ring buffer used to communicate file accesses to userspace.
  * We have one of these per runner pid and is held in the map-of-maps file_access_per_pip
@@ -173,14 +187,9 @@ __attribute__((always_inline)) static inline bool monitor_process(const pid_t pi
     return options->is_monitoring_child_processes;
 }
 
-// Returns the parent pid of the current task
-__attribute__((always_inline)) static int get_ppid() {
-    struct task_struct *current = (struct task_struct*)bpf_get_current_task();
-    struct task_struct *parent;
-    int ppid;
-
-    bpf_core_read(&parent, sizeof(parent), &current->real_parent);
-    bpf_core_read(&ppid, sizeof(ppid), &parent->tgid);
+// Returns the parent pid of the given task
+__attribute__((always_inline)) static int get_ppid(struct task_struct* task) {
+    int ppid = BPF_CORE_READ(task, real_parent, tgid);
 
     return ppid;
 }

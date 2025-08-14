@@ -10,8 +10,8 @@ namespace buildxl {
 namespace linux {
 namespace ebpf {
 
-SyscallHandler::SyscallHandler(BxlObserver *bxl, pid_t root_pid, const char* root_filename, std::atomic<EventRingBuffer *>* active_ringbuffer)
-    : m_root_pid(root_pid), m_bxl(bxl), m_runnerExitSent(false), m_root_filename(root_filename), m_active_ringbuffer(active_ringbuffer) {
+SyscallHandler::SyscallHandler(BxlObserver *bxl, pid_t root_pid, pid_t runner_pid, const char* root_filename, std::atomic<EventRingBuffer *>* active_ringbuffer, int stats_per_pip_map_fd)
+    : m_root_pid(root_pid), m_runner_pid(runner_pid), m_bxl(bxl), m_runnerExitSent(false), m_root_filename(root_filename), m_active_ringbuffer(active_ringbuffer), m_stats_per_pip_map_fd(stats_per_pip_map_fd) {
     sem_init(&m_noActivePidsSemaphore, 0, 0);
 
     // Our managed side tracking expects a 'clone/fork' event before an exec in order to assign the right pids and update the active process collection. Doing
@@ -27,7 +27,7 @@ SyscallHandler::~SyscallHandler() {
     // This is to ensure that the managed side is aware of the exit of the root process, even if the runner has
     // an early unexpected exit.
     if (!m_runnerExitSent) {
-        SendRingBufferStats();
+        SendStats();
         m_bxl->SendExitReport(getpid(), getppid(), m_root_filename);
     }
  }
@@ -62,7 +62,7 @@ bool SyscallHandler::HandleSingleEvent(const ebpf_event *event) {
             // This is the symmetric to the first init fork event we sent on construction (the second init will have a regular
             // exit process observed, since that represents the root process of the pip and it is tracked).
             if (event->metadata.pid == m_root_pid) {
-                SendRingBufferStats();
+                SendStats();
                 m_bxl->SendExitReport(getpid(), getppid(), m_root_filename);
                 RemovePid(getpid());
                 m_runnerExitSent = true;
@@ -385,8 +385,29 @@ void SyscallHandler::SendInitForkEvent(BxlObserver* bxl, pid_t pid, pid_t ppid, 
     bxl->CreateAndReportAccess(fork_event);
 }
 
-void SyscallHandler::SendRingBufferStats()
+void SyscallHandler::SendStats()
 {
+    // Let's check whether we have stats for the pip
+    pip_stats stats;
+    int res = bpf_map_lookup_elem(m_stats_per_pip_map_fd, &m_runner_pid, &stats);
+    // Best effort basis, if stats are not there, we just move on.
+    if (res == 0)
+    {
+        double event_cache_hit_percentage = (stats.event_cache_hit + stats.event_cache_miss > 0) ? (100.0 * stats.event_cache_hit / (stats.event_cache_hit + stats.event_cache_miss)) : 0.0;
+
+        m_bxl->LogInfo(
+            getpid(),
+            "[Event cache info] Event cache hit: %d (%.2f%%), Event cache miss: %d",
+            stats.event_cache_hit, event_cache_hit_percentage, stats.event_cache_miss);
+
+        double string_cache_hit_percentage = (stats.string_cache_hit + stats.string_cache_miss > 0) ? (100.0 * stats.string_cache_hit / (stats.string_cache_hit + stats.string_cache_miss)) : 0.0;
+        m_bxl->LogInfo(
+            getpid(),
+            "[String cache info] String cache hit: %d (%.2f%%), String cache miss: %d, String cache uncacheable: %d",
+            stats.string_cache_hit, string_cache_hit_percentage, stats.string_cache_miss, stats.string_cache_uncacheable
+        );
+    }
+
     auto eventRingbuffer = m_active_ringbuffer->load();
     size_t min_available = eventRingbuffer->GetMinimumAvailableSpace();
     size_t total = eventRingbuffer->GetRingBufferSize();

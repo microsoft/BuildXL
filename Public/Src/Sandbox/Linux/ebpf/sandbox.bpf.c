@@ -12,6 +12,7 @@
 #include "ebpfcommon.h"
 #include "ebpfutilities.h"
 #include "eventcache.h"
+#include "stringcache.h"
 #include "kernelfunctions.h"
 
 char LICENSE[] SEC("license") = "Dual MIT/GPL";
@@ -65,6 +66,11 @@ __attribute__((always_inline)) static inline void report_file_access_buffer_not_
 __attribute__((always_inline)) static inline void report_event_cache_not_found(pid_t runner_pid)
 {
     report_ring_buffer_error(runner_pid, "[ERROR] Could not find event cache.");
+}
+
+__attribute__((always_inline)) static inline void report_string_cache_not_found(pid_t runner_pid)
+{
+    report_ring_buffer_error(runner_pid, "[ERROR] Could not find string cache.");
 }
 
 __attribute__((always_inline)) static inline void report_breakaway_map_not_found(pid_t runner_pid)
@@ -552,6 +558,20 @@ int BPF_PROG(taskstats_exit, struct task_struct *tsk, int group_dead)
         return 0;
     }
 
+    // If the process exiting is a child of the runner process, update the general stats for the pip
+    // (observe the runner process always has a single child by construction, which is the root of the pip)
+    if (get_ppid(tsk) == runner_pid) {
+        struct pip_stats stats = {
+            .event_cache_hit = event_cache_hit,
+            .event_cache_miss = event_cache_miss,
+            .string_cache_hit = string_cache_hit,
+            .string_cache_miss = string_cache_miss,
+            .string_cache_uncacheable = string_cache_uncacheable,
+        };
+        // Best effort basis. If this fails it is not a blocker.
+        bpf_map_update_elem(&stats_per_pip, &runner_pid, &stats, BPF_ANY);
+    }
+
     // We don't want to cache exits, use unconditional reserve + submit macro
     RESERVE_SUBMIT_FILE_ACCESS(runner_pid, path_length,
         metadata->pid = pid;
@@ -844,7 +864,19 @@ int BPF_PROG(path_lookupat_exit, struct nameidata *nd, unsigned flags, struct pa
     {
         return 0;
     }
+    
+    // We typically don't need to clear the temp path, but in this case we do it because we will check it against the string
+    // cache, which does a raw byte comparison and it won't stop at the first null char.
+    nullify_string(temp_path, PATH_MAX);
+
     unsigned int path_length = nameidata_to_string(temp_path, nd) & (PATH_MAX - 1);
+
+    // Check the cache to see whether we have sent this before. Absent lookups are typically a significant source
+    // of accesses.
+    if (!should_send_absent_lookup(runner_pid, temp_path, path_length))
+    {
+        return 0;
+    }
 
     // This operation is hard to check against the cache since for absent probes there is no in-memory structure to
     // represent the path, and using strings is not very performant. For now just keep them out

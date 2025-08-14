@@ -100,4 +100,41 @@ bool string_contains(char *needle, int needle_len, char *haystack, int haystack_
     return (ctx.result == 1);
 }
 
+/**
+ * Context used for nullifying a string.
+ */
+struct nullify_string_context {
+    char *str;
+};
+
+/**
+ * nullify_string_callback() - Callback to nullify a string character by character.
+ * @index: The current index in the string.
+ * @ctx: The context containing the string to nullify.
+ *
+ * This function sets the character at the current index to null.
+ */
+__attribute__((always_inline)) static long nullify_string_callback(u64 index, struct nullify_string_context *ctx) {
+    // Set the character at the current index to null.
+    ctx->str[index & (PATH_MAX - 1)] = '\0';
+    return 0; // Continue looping.
+}
+
+/**
+ * nullify_string() - Nullifies a string by setting all characters to null.
+ * @str: The string to nullify.
+ * @str_len: The length of the string.
+ */
+__attribute__((always_inline)) static void nullify_string(char *str, int str_len) {
+    if (!str || str_len <= 0) {
+        return;
+    }
+
+    struct nullify_string_context ctx = {
+        .str = str
+    };
+
+    bpf_loop(str_len, nullify_string_callback, &ctx, 0);
+}
+
 #endif // __PUBLIC_SRC_SANDBOX_LINUX_EBPF_EBPFSTRINGUTILITIES_H

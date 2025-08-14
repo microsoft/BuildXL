@@ -23,7 +23,13 @@ namespace ebpf {
 class SyscallHandler {
 public:
     // The active ring buffer is passed so we can log stats right after the last exit event is sent.
-    SyscallHandler(BxlObserver* bxl, pid_t root_pid, const char* root_filename, std::atomic<buildxl::linux::ebpf::EventRingBuffer *>* active_ringbuffer);
+    SyscallHandler(
+        BxlObserver* bxl, 
+        pid_t root_pid,
+        pid_t runner_pid,
+        const char* root_filename, 
+        std::atomic<buildxl::linux::ebpf::EventRingBuffer *>* active_ringbuffer,
+        int stats_per_pip_map_fd);
     ~SyscallHandler();
     bool HandleSingleEvent(const ebpf_event *event);
     bool HandleDoubleEvent(const ebpf_event_double *event);
@@ -57,18 +63,23 @@ private:
     static void ReportFirstAllowWriteCheck(BxlObserver *bxl, operation_type operation_type, const char *path, mode_t mode, pid_t pid);
     static bool TryCreateFirstAllowWriteCheck(BxlObserver *bxl, operation_type operation_type, const char *path, mode_t mode, pid_t pid, SandboxEvent &event);
     static void SendInitForkEvent(BxlObserver *bxl, pid_t pid, pid_t ppid, const char *file);
-    // Sends the ring buffer minimum available space throughout the runner execution.
+    // Sends general stats of the runner execution.
     // Heads up this should be sent before the runner exit event, otherwise the managed side may not be able to read it.
-    void SendRingBufferStats();
+    // TODO: For now this method just prints info messages on the bxl main log. Consider plumbing through this info via
+    // ExecutionResult.PerformanceInformation / Logger.Log.ProcessPipExecutionInfo (so the event gets logged in the orchestrator
+    // and general perf counters can also be surfaced properly)
+    void SendStats();
     void RemovePid(pid_t pid);
 
     std::unordered_set<pid_t> m_activePids;
     pid_t m_root_pid;
+    pid_t m_runner_pid;
     sem_t m_noActivePidsSemaphore;
     BxlObserver *m_bxl;
     bool m_runnerExitSent;
     const char* m_root_filename;
     std::atomic<EventRingBuffer *>* m_active_ringbuffer;
+    int m_stats_per_pip_map_fd;
 };
 
 } // ebpf

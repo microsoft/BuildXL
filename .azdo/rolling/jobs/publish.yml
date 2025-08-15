@@ -51,8 +51,7 @@ jobs:
       nuGetFeedType: external
       publishFeedCredentials: 'mseng-Domino-BuildXL-1ESSharedAssets_BuildXL.Internal'
       sbomEnabled: false
-      timeout: 1000
-
+  
     - output: nuget
       displayName: '📦 Push public NuGet packages to 1essharedassets/BuildXL feed'
       condition: and(succeeded(), ne(variables['ServicingOnlyBuild'], 'true'))
@@ -61,7 +60,6 @@ jobs:
       nuGetFeedType: external
       publishFeedCredentials: 'mseng-Domino-BuildXL-1ESSharedAssets_BuildXL'
       sbomEnabled: false
-      timeout: 1000
 
   steps:
   - checkout: self  # We need this to call the SBOM validation script

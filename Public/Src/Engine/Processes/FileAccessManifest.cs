@@ -80,7 +80,7 @@ namespace BuildXL.Processes
             ForceReadOnlyForRequestedReadWrite = false;
             IgnoreReparsePoints = false;
             IgnoreFullReparsePointResolving = true; // TODO: Change this when customers onboard the feature.
-            IgnoreUntrackedPathsInFullReparsePointResolving = true;  // TODO: Change this when customers onboard the feature.
+            IgnoreUntrackedPathsInFullReparsePointResolving = false;
             IgnorePreloadedDlls = true; // TODO: This is false in BuildXL's configuration. Changing the default here will impact QuickBuild
             DisableDetours = false;
             IgnoreZwRenameFileInformation = false;

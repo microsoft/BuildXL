@@ -28,7 +28,7 @@ namespace BuildXL.Pips.Graph
             ignoreNonCreateFileReparsePoints: false,
             ignoreReparsePoints: true, // TODO: Change this value when the default value for ignoreReparsePoints changes.
             ignoreFullReparsePointResolving: true, // TODO: Change this value when the default value for ignoreFullReparsePointResolving changes.
-            ignoreUntrackedPathsInFullReparsePointResolving: true, // TODO: this should default to true but is this way for backwards compatibility.
+            ignoreUntrackedPathsInFullReparsePointResolving: false,
             ignorePreloadedDlls: true, // TODO: Change this value when the default value for ignorePreloadedDlls changes.
             ignoreGetFinalPathNameByHandle: true,
             existingDirectoryProbesAsEnumerations: false,

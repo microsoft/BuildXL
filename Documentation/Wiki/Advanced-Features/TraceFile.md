@@ -103,7 +103,25 @@ Process details: executable path, parent process id, UTC ticks of start and end 
     ...
     73,16592,,35,29,1,0,0,
     ...
-    134,16592,,76,6,8,0,0,*
+    175,16592,,76,6,8,0,0,*
+    ```
+
+7. Operation extra info block
+   1. A count of observed operations
+   2. For each operation: <br />
+        1. The id of operation from operation block.
+        2. File access id reported by Detours.
+        3. File access correlation id reported by Detours - 0 if none. <br />
+
+    ```
+    176
+    0,23,0,
+    1,34,23,
+    2,46,0,
+    ...
+    73,111,46,
+    ...
+    175,145,0
     ```
 
 ## Performance / space considerations

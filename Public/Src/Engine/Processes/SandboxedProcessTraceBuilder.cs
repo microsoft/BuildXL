@@ -29,7 +29,7 @@ namespace BuildXL.Processes
     /// </remarks>
     internal sealed class SandboxedProcessTraceBuilder
     {
-        private const byte Version = 1;
+        private const byte Version = 2;
 
         private static readonly ObjectPool<HashSet<ReportedFileOperation>> s_reportedFileOperationSetPool = Pools.CreateSetPool<ReportedFileOperation>();
 
@@ -116,24 +116,26 @@ namespace BuildXL.Processes
             AbsolutePath path,
             uint error,
             bool isAnAugmentedFileAccess,
-            string enumeratePattern)
+            string enumeratePattern,
+            uint reportedFileAccessId,
+            uint reportedFileAccessCorrelationId)
         {
             if (SkipOperation(operation))
             {
                 return;
             }
 
-            m_operations.Add(new Operation
-            {
-                Id = m_fileAccessCounter++,
-                ProcessId = processId,
-                Error = error,
-                Path = path,
-                FileOperation = operation,
-                RequestedAccess = requestedAccess,
-                IsAnAugmentedFileAccess = isAnAugmentedFileAccess,
-                EnumeratePattern = enumeratePattern
-            });
+            m_operations.Add(new Operation(
+                Id: m_fileAccessCounter++,
+                ProcessId: processId,
+                Error: error,
+                Path: path,
+                FileOperation: operation,
+                RequestedAccess: requestedAccess,
+                IsAnAugmentedFileAccess: isAnAugmentedFileAccess,
+                EnumeratePattern: enumeratePattern,
+                ReportedFileAccessId: reportedFileAccessId,
+                ReportedFileAccessCorrelationId: reportedFileAccessCorrelationId));
         }
 
         /// <summary>
@@ -246,19 +248,32 @@ namespace BuildXL.Processes
                 var error = uint.Parse(parts[6]);
                 var isAnAugmentedFileAccess = parts[7] == "1";
                 var enumeratePattern = parts[8];
-                operations.Add(new Operation
-                {
-                    Id = id,
-                    ProcessId = processId,
-                    Path = path,
-                    FileOperation = fileOperation,
-                    RequestedAccess = requestedAccess,
-                    Error = error,
-                    IsAnAugmentedFileAccess = isAnAugmentedFileAccess,
-                    EnumeratePattern = enumeratePattern
-                });
+                operations.Add(new Operation(
+                    Id: id,
+                    ProcessId: processId,
+                    Error: error,
+                    FileOperation: fileOperation,
+                    RequestedAccess: requestedAccess,
+                    IsAnAugmentedFileAccess: isAnAugmentedFileAccess,
+                    Path: path,
+                    EnumeratePattern: enumeratePattern,
+                    ReportedFileAccessId: 0,
+                    ReportedFileAccessCorrelationId: 0));
             }
 
+            operationCount = int.Parse(reader.ReadLine());
+            for (int i = 0; i < operationCount; i++)
+            {
+                // id, reportedFileAccessId, reportedFileAccessCorrelationId
+                var parts = reader.ReadLine().Split(',');
+                var reportedFileAccessId = uint.Parse(parts[1]);
+                var reportedFileAccessCorrelationId = uint.Parse(parts[2]);
+                operations[i] = operations[i] with
+                {
+                    ReportedFileAccessId = reportedFileAccessId,
+                    ReportedFileAccessCorrelationId = reportedFileAccessCorrelationId
+                };
+            }
 
             return (version, operations, reportedProcesses);
         }
@@ -289,6 +304,9 @@ namespace BuildXL.Processes
             //      Operations
             //          Count
             //          Operation.Id = Operation
+            //      Operations extra info (e.g., correlation)
+            //          Count
+            //          Operation.Id = Operation, Operation.ReportedFileAccessId, Operation.ReportedFileAccessCorrelationId
 
             Contract.Assert(Interlocked.CompareExchange(ref m_fileHasBeenSaved, 1, 0) == 0, "Trace file should be saved at most once.");
 
@@ -356,6 +374,17 @@ namespace BuildXL.Processes
                 sb.Clear();
             }
 
+            writer.WriteLine(m_operations.Count);
+            foreach (var operation in m_operations)
+            {
+                formatOpCorrelation(operation, sb);
+#if NETCOREAPP3_0_OR_GREATER
+                writer.WriteLine(sb);
+#else
+                writer.WriteLine(sb.ToString());
+#endif
+                sb.Clear();
+            }
 
             static void formatReportedProcess(ReportedProcess process, StringBuilder sb)
             {
@@ -374,18 +403,24 @@ namespace BuildXL.Processes
                 sb.Append($"{operation.Path.RawValue},,");
                 sb.Append($"{(byte)operation.FileOperation},{(byte)operation.RequestedAccess},{operation.Error},{(operation.IsAnAugmentedFileAccess ? 1 : 0)},{operation.EnumeratePattern}");
             }
+
+            static void formatOpCorrelation(Operation operation, StringBuilder sb)
+            {
+                // id, reportedFileAccessId, reportedFileAccessCorrelationId
+                sb.Append($"{operation.Id},{operation.ReportedFileAccessId},{operation.ReportedFileAccessCorrelationId}");
+            }
         }
 
-        internal readonly struct Operation
-        {
-            public uint Id { get; init; }
-            public uint ProcessId { get; init; }
-            public uint Error { get; init; }
-            public ReportedFileOperation FileOperation { get; init; }
-            public RequestedAccess RequestedAccess { get; init; }
-            public bool IsAnAugmentedFileAccess { get; init; }
-            public AbsolutePath Path { get; init; }
-            public string EnumeratePattern { get; init; }
-        }
+        internal readonly record struct Operation(
+            uint Id,
+            uint ProcessId,
+            uint Error,
+            ReportedFileOperation FileOperation,
+            RequestedAccess RequestedAccess,
+            bool IsAnAugmentedFileAccess,
+            AbsolutePath Path,
+            string EnumeratePattern,
+            uint ReportedFileAccessId,
+            uint ReportedFileAccessCorrelationId);
     }
 }

@@ -1053,7 +1053,7 @@ namespace BuildXL.Processes
                 }
             }
 
-            m_traceBuilder?.ReportFileAccess(processId, operation, requestedAccess, finalPath, error, isAnAugmentedFileAccess, enumeratePattern);
+            m_traceBuilder?.ReportFileAccess(processId, operation, requestedAccess, finalPath, error, isAnAugmentedFileAccess, enumeratePattern, id, correlationId);
 
             if (operation == ReportedFileOperation.FirstAllowWriteCheckInProcess)
             {

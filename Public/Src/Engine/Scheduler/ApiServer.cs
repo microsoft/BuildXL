@@ -54,7 +54,8 @@ namespace BuildXL.Scheduler
         // first build manifest API call. 
         private int m_historicMetadataCacheCheckComplete = 0;
 
-        private ObjectPool<List<HashType>> m_hashTypePoolForHashComputation;
+        private readonly ObjectPool<List<HashType>> m_hashTypePoolForHashComputation;
+        private readonly ObjectPool<List<ContentHash>> m_contentHashListPool;
 
         /// <summary>
         /// Counters for all ApiServer related statistics.
@@ -103,6 +104,7 @@ namespace BuildXL.Scheduler
             m_verifyFileContentOnRequestedHashComputation = verifyFileContentOnBuildManifestHashComputation;
             m_hashTypePoolForHashComputation = Pools.CreateListPool<HashType>();
             m_buildManifestFileListCache = new();
+            m_contentHashListPool = Pools.CreateListPool<ContentHash>();
         }
 
         /// <summary>
@@ -800,7 +802,9 @@ namespace BuildXL.Scheduler
             // Note: we are using cache from file content manager (FCM) host. This is the same cache used by the FCM;
             // however, the FCM wraps it into another layer for optimization purposes, so if we go though FCM,
             // our call can be optimized away and it might not hit the underlying cache.
-            var list = new List<ContentHash>() { cmd.Hash };
+            using var pooledList = m_contentHashListPool.GetInstance();
+            var list = pooledList.Instance;
+            list.Add(cmd.Hash);
             try
             {
                 var result = await m_fileContentManager.Host.ArtifactContentCache.TryLoadAvailableContentAsync(list, CancellationToken.None, new BuildXL.Cache.ContentStore.Interfaces.Sessions.OperationHints() { ReportRemoteContentLocation = true });

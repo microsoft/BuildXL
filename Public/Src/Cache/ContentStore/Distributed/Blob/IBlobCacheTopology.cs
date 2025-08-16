@@ -38,7 +38,7 @@ public interface IBlobCacheTopology
 
     public Task<BoolResult> EnsureContainersExistAsync(OperationContext context);
 
-    public Result<AzureSasCredential> GetBlobContainerPreauthenticatedSasToken(OperationContext context, BlobCacheShardingKey key);
+    public Task<Result<AzureSasCredential>> GetBlobContainerPreauthenticatedSasTokenAsync(OperationContext context, BlobCacheShardingKey key);
 }
 
 public static class BlobCacheTopologyExtensions
@@ -147,13 +147,13 @@ public static class BlobCacheTopologyExtensions
         return topology.GetContainerClientWithPathAsync(context, strongFingerprint.WeakFingerprint);
     }
 
-    public static Result<AzureSasCredential> GetBlobContainerPreauthenticatedSasToken(
+    public static Task<Result<AzureSasCredential>> GetBlobContainerPreauthenticatedSasTokenAsync(
         this IBlobCacheTopology topology,
         OperationContext context,
         ContentHash contentHash)
     {
         var shardingKey = BlobCacheShardingKey.FromContentHash(contentHash);
-        return topology.GetBlobContainerPreauthenticatedSasToken(context, shardingKey);
+        return topology.GetBlobContainerPreauthenticatedSasTokenAsync(context, shardingKey);
     }
 
     public static string GetWeakFingerprintPrefix(Fingerprint weakFingerprint)

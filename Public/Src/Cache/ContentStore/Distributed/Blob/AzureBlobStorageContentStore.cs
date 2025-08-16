@@ -163,8 +163,8 @@ public class AzureBlobStorageContentStore : StartupShutdownComponentBase, IConte
         return _configuration.Topology.GetClientWithPathAsync(context, contentHash);
     }
 
-    internal Result<AzureSasCredential> GetBlobContainerPreauthenticatedSasToken(OperationContext context, ContentHash contentHash)
+    internal Task<Result<AzureSasCredential>> GetBlobContainerPreauthenticatedSasTokenAsync(OperationContext context, ContentHash contentHash)
     {
-        return _configuration.Topology.GetBlobContainerPreauthenticatedSasToken(context, contentHash);
+        return _configuration.Topology.GetBlobContainerPreauthenticatedSasTokenAsync(context, contentHash);
     }
 }

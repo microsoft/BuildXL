@@ -510,7 +510,7 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase, IConten
         // We might already be authenticated with a SAS token. If it's indeed the case, let's reuse that token instead of
         // generating a new one. The current token has potentially more permissions than we need; but we are guaranteed
         // that it has read permission (cache cannot work without 'read' access).
-        var possibleSasCredential = _store.GetBlobContainerPreauthenticatedSasToken(operationContext, contentHash);
+        var possibleSasCredential = await _store.GetBlobContainerPreauthenticatedSasTokenAsync(operationContext, contentHash);
         // We ignore the 'possibleSasCredential.Succeeded == false' case here, because it means that we are not authenticated with a SAS token.
         // There is a corner case where we are SAS authenticated, and still have a failure here; but it should be a very unlikely case.
         // TODO: maybe log a warning once 

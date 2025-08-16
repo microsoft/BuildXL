@@ -204,21 +204,21 @@ public class ShardedBlobCacheTopology : IBlobCacheTopology
             {
                 var credentials = await _configuration.SecretsProvider.RetrieveContainerCredentialsAsync(context, account, container);
                 var containerClient = credentials.CreateContainerClient(container.ContainerName, _blobClientOptions);
+                var containerPath = new AbsoluteContainerPath(account, container);
                 try
                 {
                     // We already paid the cost of retrieving the credentials, cache them here, in case we are asked for them in future.
-                    var containerPath = new AbsoluteContainerPath(account, container);
                     if (!_containerSasCredentials.ContainsKey(containerPath))
                     {
                         var sasToken = credentials.GetContainerSasCredential(container.ContainerName);
-                        _containerSasCredentials.TryAdd(new AbsoluteContainerPath(account, container), sasToken);
+                        _containerSasCredentials.TryAdd(containerPath, sasToken);
                     }
                 }
                 catch (Exception e)
                 {
                     // GetContainerSasCredential throws if the credentials are not SAS-based.
                     // Store the exception for this container to avoid future attempts to retrieve SAS token.
-                    _containerSasCredentials.TryAdd(new AbsoluteContainerPath(account, container), Result.FromException<AzureSasCredential>(e));
+                    _containerSasCredentials.TryAdd(containerPath, Result.FromException<AzureSasCredential>(e));
                 }
 
                 return Result.Success(containerClient);
@@ -228,7 +228,7 @@ public class ShardedBlobCacheTopology : IBlobCacheTopology
             timeout: _configuration.ClientCreationTimeout ?? Timeout.InfiniteTimeSpan);
     }
 
-    public Result<AzureSasCredential> GetBlobContainerPreauthenticatedSasToken(OperationContext context, BlobCacheShardingKey key)
+    public async Task<Result<AzureSasCredential>> GetBlobContainerPreauthenticatedSasTokenAsync(OperationContext context, BlobCacheShardingKey key)
     {
         var path = GetContainerAbsolutePath(key);
         if (_containerSasCredentials.TryGetValue(path, out var possibleCachedToken))
@@ -238,7 +238,7 @@ public class ShardedBlobCacheTopology : IBlobCacheTopology
 
         // The token was not cached. This is unexpected, as we should have created container clients by the time this api is called.
         // Force client creation so we can attempt to retrieve the SAS token again.
-        var _ = GetShardContainerClientWithPathAsync(context, key);
+        var _ = await GetShardContainerClientWithPathAsync(context, key);
         if (_containerSasCredentials.TryGetValue(path, out possibleCachedToken))
         {
             return possibleCachedToken;
@@ -246,7 +246,7 @@ public class ShardedBlobCacheTopology : IBlobCacheTopology
         else
         {
             // This should never happen. If we have nothing in the dictionary after we force client creation, something is very wrong.
-            throw new Exception($"Failed to retrieve SAS token for {path}. The client was created, but the SAS token was not cached.");
+            return Result.FromException<AzureSasCredential>(new Exception($"Failed to retrieve SAS token for {path}. The client was created, but the SAS token was not cached."));
         }
     }
 }

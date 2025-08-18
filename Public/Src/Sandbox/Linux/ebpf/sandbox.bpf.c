@@ -873,7 +873,7 @@ int BPF_PROG(path_lookupat_exit, struct nameidata *nd, unsigned flags, struct pa
 
     // Check the cache to see whether we have sent this before. Absent lookups are typically a significant source
     // of accesses.
-    if (!should_send_absent_lookup(runner_pid, temp_path, path_length))
+    if (!should_send_string(runner_pid, kGenericProbe, temp_path, path_length))
     {
         return 0;
     }
@@ -978,9 +978,12 @@ int BPF_PROG(path_openat_exit, struct nameidata *nd, const struct open_flags *op
     }
     unsigned int path_length = nameidata_to_string(temp_path, nd) & (PATH_MAX - 1);
 
-    // When this operation fails, it is hard to check the cache since for absent paths there is no in-memory structure to
-    // represent them, and using strings is not very performant. For now just keep them out
-    // of the cache, we shouldn't get a big number of failed opens on the same path for the same process
+    // If this is an error, there is no file structure associated with the path. Check the string cache instead.
+    if (IS_ERR(ret) && !should_send_string(runner_pid, kGenericProbe, temp_path, path_length))
+    {
+        return 0;
+    }
+
     RESERVE_SUBMIT_FILE_ACCESS(runner_pid, path_length,
         metadata->kernel_function = KERNEL_FUNCTION(path_openat);
         metadata->pid = pid;
@@ -1257,6 +1260,19 @@ int BPF_PROG(do_readlink_exit, int dfd, const char *pathname, char *buf, int buf
     }
     unsigned int path_length = fd_string_to_string(temp_path, dfd, temp_pathname, /* user_strings */ false) & (PATH_MAX - 1);
 
+    // TODO: We can determine the operation type based on the return value, but due to bug #2300351
+    // we use the kReadLink type and let the user side determine whether this was a read or a probe.
+    // The line below is left commented out on purpose, to be uncommented when the bug is fixed.
+    // operation_type op_type = ret < 0 ? kGenericProbe : kGenericRead;
+    operation_type op_type = kReadLink;
+
+    // Check the cache to see whether we have sent this before. Absent lookups are typically a significant source
+    // of accesses.
+    if (!should_send_string(runner_pid, op_type, temp_path, path_length))
+    {
+        return 0;
+    }
+
     // This operation is hard to check against the cache since its arguments don't give us any in-memory structure to
     // represent the path, and using strings is not very performant. For now just keep them out
     // of the cache
@@ -1265,11 +1281,7 @@ int BPF_PROG(do_readlink_exit, int dfd, const char *pathname, char *buf, int buf
         metadata->pid = pid;
         // When successful, the function returns the number of bytes copied, and negative on error.
         // On error, we report a probe, since the path was not actually read.
-        // TODO: We can determine the operation type based on the return value, but due to bug #2300351
-        // we use the kReadLink type and let the user side determine whether this was a read or a probe.
-        // The line below is left commented out on purpose, to be uncommented when the bug is fixed.
-        // metadata->operation_type = ret < 0 ? kGenericProbe : kGenericRead;
-        metadata->operation_type = kReadLink;
+        metadata->operation_type = op_type;
         // If the call was successful, it means the symlink is legit.
         // We don't know whether the symlink points to a file or a directory, so we set the mode to 0 and let the user side resolve it.
         // The mode being retrieved and set on user side is not ideal since there is the small chance of a race, 

@@ -18,7 +18,7 @@ static int string_cache_hit, string_cache_miss, string_cache_uncacheable = 0;
 __attribute__((always_inline)) static inline void report_string_cache_not_found(pid_t runner_pid);
 
 /** Equivalent to event_cache, but used to cache path-as-strings for the cases where we don't have a struct path available.
- * In particular, absent probes don't have a dentry available, they are just plain strings from a filesystem standpoint and usually 
+ * In particular, absent probes/readlinks don't have a dentry available, they are just plain strings from a filesystem standpoint and usually 
  * represent a significant amount of accesses.
  */
 struct string_cache {
@@ -50,12 +50,13 @@ struct {
 } string_cache_per_pip SEC(".maps");
 
 /*
-* Whether the path is cacheable. This is used to avoid caching paths that are too long, as they are unlikely to show up and it would force us to allocate a lot of memory for the cache.
+ * Whether the path is cacheable. This is used to avoid caching paths that are too long, as they are unlikely to show up and it would force us to allocate a lot of memory for the cache.
  * Returns true if the path is cacheable, false otherwise.
  */
 __attribute__((always_inline)) static bool is_cacheable(int path_length)
 {
-    if (path_length >= STRING_CACHE_PATH_MAX) {
+    // The key of the cache is going to be path + operation_type, so we need to reserve space for the operation type as well
+    if (path_length + sizeof(operation_type) >= STRING_CACHE_PATH_MAX) {
         __sync_fetch_and_add(&string_cache_uncacheable, 1);
         return false;
     }
@@ -64,15 +65,16 @@ __attribute__((always_inline)) static bool is_cacheable(int path_length)
 }
 
 /**
- * Whether the absent lookup has been sent before. This operation returns whether the event is not found in the cache and, as a side
+ * Whether the path-as-string has been sent before. This operation returns whether the event is not found in the cache and, as a side
  * effect, adds it to the cache if it wasn't there.
  * Consider that behind scenes a LRU cache is used, so whether an element is kept in the cache depends on usage/frequency
  */
-__attribute__((always_inline)) static bool should_send_absent_lookup(pid_t runner_pid, const char* path, const int path_length)
+__attribute__((always_inline)) static bool should_send_string(pid_t runner_pid, operation_type operation, char* path, const int path_length)
 {
+    // If the path is not small enough to be cacheable, we don't cache it and just send the event
     if (!is_cacheable(path_length))
     {
-        return false;
+        return true;
     }
 
     // Retrieve the string cache for the current runner
@@ -82,6 +84,17 @@ __attribute__((always_inline)) static bool should_send_absent_lookup(pid_t runne
         report_string_cache_not_found(runner_pid);
         return false;
     }
+
+    // Try to keep the verifier happy. This condition should never be true.
+    if (path_length < 0 || path_length >= STRING_CACHE_PATH_MAX - sizeof(operation_type))
+    {
+        return true;
+    }
+
+    // path[path_length - 1] is the null terminator. Adding the operation type after that. This should be invisible
+    // to any path-aware code, as the null terminator is still there. But it allows us to use the same path buffer as key in the map,
+    // and the cache will distinguish between different operations on the same path since it uses raw byte comparison.
+    path[path_length & (STRING_CACHE_PATH_MAX - 1)] = operation;
 
     // If the key is not there, we should send the event and add the key as well
     // We could use BPF_NOEXIST and save one lookup operation, but it looks like this flag is not working properly in some circumstances and

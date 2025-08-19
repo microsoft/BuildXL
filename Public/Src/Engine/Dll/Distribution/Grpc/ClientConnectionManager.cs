@@ -180,6 +180,8 @@ namespace BuildXL.Engine.Distribution.Grpc
             {
                 MaxSendMessageSize = int.MaxValue,
                 MaxReceiveMessageSize = int.MaxValue,
+                MaxRetryBufferPerCallSize = null, // No limit on retry buffer size
+                MaxRetryBufferSize = null, // No limit on retry buffer size
                 HttpHandler = handler,
             };
 

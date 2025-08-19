@@ -23,6 +23,11 @@ using Google.Protobuf;
 using BuildXL.Utilities.Core;
 using static BuildXL.Distribution.Grpc.HelloResponse.Types;
 
+#if NETCOREAPP
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.AspNetCore.Routing;
+#endif
+
 namespace Test.BuildXL.Distribution
 {
     internal sealed class GrpcMockData
@@ -110,11 +115,13 @@ namespace Test.BuildXL.Distribution
             StartCallCount++;
         }
 
-        Task IServer.StartKestrel(int port, Action<object> configure)
+#if NETCOREAPP
+        Task IServer.StartKestrel(int port, Action<IServiceCollection> configureGrpcServices, Action<IEndpointRouteBuilder> configureEndpointRouteBuilder)
         {
             StartCallCount++;
             return Task.CompletedTask;
         }
+#endif
 
         Task IServer.DisposeAsync() => Task.CompletedTask;
 

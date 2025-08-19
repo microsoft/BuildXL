@@ -357,6 +357,14 @@ namespace BuildXL.Utilities.Configuration
         public static readonly Setting<bool> GrpcKestrelServerEnabled = CreateSetting("BuildXLGrpcKestrelServerEnabled", value => value == "1");
 
         /// <summary>
+        /// Whether detailed errors are enabled for grpc kestrel server.
+        /// </summary>
+        /// <remarks>
+        /// Default disabled
+        /// </remarks>
+        public static readonly Setting<bool> GrpcKestrelEnableDetailedErrors = CreateSetting("BuildXLGrpcKestrelEnableDetailedErrors", value => value == "1");
+
+        /// <summary>
         /// Whether logging verbosity is enabled for grpc service.
         /// </summary>
         /// <remarks>

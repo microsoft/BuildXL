@@ -7,7 +7,7 @@ using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 #if NETCOREAPP
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.DependencyInjection;
 #endif
 
 namespace BuildXL.Engine.Distribution.Grpc
@@ -32,8 +32,9 @@ namespace BuildXL.Engine.Distribution.Grpc
             if (EngineEnvironmentSettings.GrpcKestrelServerEnabled)
             {
 #if NETCOREAPP
-                Action<object> configure = (endpoints) => ((IEndpointRouteBuilder)endpoints).MapGrpcService<GrpcWorker>();
-                _ = StartKestrel(port, configure);
+                _ = StartKestrel(port, 
+                    services => services.AddSingleton(m_grpcWorker), 
+                    endpoints => endpoints.MapGrpcService<GrpcWorker>());
 #endif
             }
             else

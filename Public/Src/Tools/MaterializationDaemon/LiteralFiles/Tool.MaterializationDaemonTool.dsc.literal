@@ -2,6 +2,6 @@ import {Transformer} from "Sdk.Transformers";
 
 @@public
 export const tool = toolTemplate.override<Transformer.ToolDefinition>({
-    exe: f`bin/MaterializationDaemon.exe`, 
-    runtimeDependencies: globR(d`bin`, "*.*")
+    exe: f`../Daemon.Bin/MaterializationDaemon.exe`, 
+    runtimeDependencies: globR(d`../Daemon.Bin`, "*.*")
 });

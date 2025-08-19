@@ -5,10 +5,10 @@ import * as Deployment from "Sdk.Deployment";
 import * as BuildXLSdk from "Sdk.BuildXL";
 
 const specs = [
-    f`Tool.SymbolDaemonRunner.dsc`,        
-    f`Tool.SymbolDaemonInterfaces.dsc`,        
+    f`Tool.SymbolDaemonRunner.dsc`,
+    f`Tool.SymbolDaemonInterfaces.dsc`,
     {
-        file: f`LiteralFiles/package.config.dsc.literal`, 
+        file: f`LiteralFiles/package.config.dsc.literal`,
         targetFileName: a`package.config.dsc`},
     {
         file: f`LiteralFiles/Tool.SymbolDaemonTool.dsc.literal`,
@@ -35,5 +35,5 @@ export const evaluationOnlyDeployment: Deployment.Definition = !BuildXLSdk.isSym
 
 @@public
 export function selectDeployment(evaluationOnly: boolean) : Deployment.Definition {
-    return evaluationOnly? evaluationOnlyDeployment : deployment;
+    return evaluationOnly ? evaluationOnlyDeployment : deployment;
 }

@@ -6,14 +6,13 @@ import {Artifact, Cmd, Transformer} from "Sdk.Transformers";
 import * as BuildXLSdk from "Sdk.BuildXL";
 import * as Managed from "Sdk.Managed";
 import * as Deployment from "Sdk.Deployment";
-import * as SymbolDaemon from "Sdk.SymbolDaemon";
 import { NetFx } from "Sdk.BuildXL";
 
 @@public
 export const tool = !BuildXLSdk.isSymbolToolingEnabled 
     ? undefined
-    : SymbolDaemon.tool;
-    //: BuildXLSdk.deployManagedTool({
-    //    tool: exe,
-    //    options: toolTemplate,
-    //});
+    : BuildXLSdk.deployManagedTool({
+            // For public/external build, because the public package may not have Sdk.SymbolDaemon, use the currently built daemon as the tool.
+            tool: exe,
+            options: toolTemplate,
+        });

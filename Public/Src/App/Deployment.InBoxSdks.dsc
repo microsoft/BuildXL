@@ -74,14 +74,13 @@ function createSdkDeploymentDefinition(serverDeployment: boolean, minimalDeploym
                         },
                         // Daemon tools are not included in the minimal deployment
                         ...addIf(!minimalDeployment, 
-                            
                             {
                                 subfolder: "Sdk.Symbols",
                                 contents: [
                                     importFrom("BuildXL.Tools.SymbolDaemon").withQualifier({
                                         targetFramework: isDotNetCore(qualifier.targetFramework) ? qualifier.targetFramework : "net8.0",
                                         targetRuntime: "win-x64"
-                                    }).selectDeployment(evaluationOnly)
+                                    }).selectDeployment(true)
                                 ]
                             },
                             {
@@ -90,7 +89,7 @@ function createSdkDeploymentDefinition(serverDeployment: boolean, minimalDeploym
                                     importFrom("BuildXL.Tools.MaterializationDaemon").withQualifier({
                                         targetFramework: isDotNetCore(qualifier.targetFramework) ? qualifier.targetFramework : "net8.0",
                                         targetRuntime: "win-x64"
-                                    }).selectDeployment(evaluationOnly)
+                                    }).selectDeployment(true)
                                 ]
                             },
                             {
@@ -99,10 +98,28 @@ function createSdkDeploymentDefinition(serverDeployment: boolean, minimalDeploym
                                     importFrom("BuildXL.Tools.BlobDaemon").withQualifier({
                                         targetFramework: isDotNetCore(qualifier.targetFramework) ? qualifier.targetFramework : "net8.0",
                                         targetRuntime: "win-x64"
-                                    }).selectDeployment(evaluationOnly)
+                                    }).selectDeployment(true)
                                 ]
                             }
                         ),
+                        ...addIf(!minimalDeployment && !evaluationOnly,
+                        {
+                            subfolder: "Daemon.Bin",
+                            contents: [
+                                importFrom("BuildXL.Tools.SymbolDaemon").withQualifier({
+                                    targetFramework: isDotNetCore(qualifier.targetFramework) ? qualifier.targetFramework : "net8.0",
+                                    targetRuntime: "win-x64"
+                                }).exe,
+                                importFrom("BuildXL.Tools.MaterializationDaemon").withQualifier({
+                                    targetFramework: isDotNetCore(qualifier.targetFramework) ? qualifier.targetFramework : "net8.0",
+                                    targetRuntime: "win-x64"
+                                }).exe,
+                                importFrom("BuildXL.Tools.BlobDaemon").withQualifier({
+                                    targetFramework: isDotNetCore(qualifier.targetFramework) ? qualifier.targetFramework : "net8.0",
+                                    targetRuntime: "win-x64"
+                                }).exe
+                            ]
+                        }),
                         {
                             subfolder: "Sdk.JavaScript",
                             contents: [ 

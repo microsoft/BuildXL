@@ -35,5 +35,5 @@ export const evaluationOnlyDeployment: Deployment.Definition = !BuildXLSdk.isDae
 
 @@public
 export function selectDeployment(evaluationOnly: boolean) : Deployment.Definition {
-    return evaluationOnly? evaluationOnlyDeployment : deployment;
+    return evaluationOnly ? evaluationOnlyDeployment : deployment;
 }

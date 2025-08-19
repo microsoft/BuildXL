@@ -5,6 +5,6 @@ import {Transformer} from "Sdk.Transformers";
 
 @@public
 export const tool = toolTemplate.override<Transformer.ToolDefinition>({
-    exe: Context.isWindowsOS() ? f`bin/BlobDaemon.exe` : f`bin/BlobDaemon`,
-    runtimeDependencies: globR(d`bin`, "*.*")
+    exe: Context.isWindowsOS() ? f`../Daemon.Bin/BlobDaemon.exe` : f`../Daemon.Bin/BlobDaemon`,
+    runtimeDependencies: globR(d`../Daemon.Bin`, "*.*")
 });

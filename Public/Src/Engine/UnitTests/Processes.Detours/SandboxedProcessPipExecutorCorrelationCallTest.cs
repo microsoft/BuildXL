@@ -19,8 +19,10 @@ namespace Test.BuildXL.Processes.Detours
 {
     public sealed partial class SandboxedProcessPipExecutorTest
     {
-        [Fact]
-        public async Task CorrelateCopyFileAsync()
+        [Theory]
+        [InlineData("CorrelateCopyFile")]
+        [InlineData("CorrelateCopyFileTransacted")]
+        public async Task CorrelateCopyFileAsync(string callArguments)
         {
             var context = BuildXLContext.CreateInstanceForTesting();
             var pathTable = context.PathTable;
@@ -35,7 +37,7 @@ namespace Test.BuildXL.Processes.Detours
                     context,
                     pathTable,
                     tempFiles,
-                    argumentStr: "CorrelateCopyFile",
+                    argumentStr: callArguments,
                     inputFiles: ReadOnlyArray<FileArtifact>.FromWithoutCopy(FileArtifact.CreateSourceFile(sourceFile)),
                     inputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
                     outputFiles: ReadOnlyArray<FileArtifactWithAttributes>.FromWithoutCopy(
@@ -135,8 +137,10 @@ namespace Test.BuildXL.Processes.Detours
             }
         }
 
-        [Fact]
-        public async Task CorrelateMoveFileAsync()
+        [Theory]
+        [InlineData("CorrelateMoveFile")]
+        [InlineData("CorrelateMoveFileTransacted")]
+        public async Task CorrelateMoveFileAsync(string callArgument)
         {
             var context = BuildXLContext.CreateInstanceForTesting();
             var pathTable = context.PathTable;
@@ -152,7 +156,7 @@ namespace Test.BuildXL.Processes.Detours
                     context,
                     pathTable,
                     tempFiles,
-                    argumentStr: "CorrelateMoveFile",
+                    argumentStr: callArgument,
                     inputFiles: ReadOnlyArray<FileArtifact>.Empty,
                     inputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
                     outputFiles: ReadOnlyArray<FileArtifactWithAttributes>.FromWithoutCopy(
@@ -195,9 +199,10 @@ namespace Test.BuildXL.Processes.Detours
         }
 
         [Theory]
-        [InlineData(true)]
-        [InlineData(false)]
-        public async Task CorrelateMoveOrRenameDirectoryAsync(bool move)
+        [InlineData("CorrelateMoveDirectory", true)]
+        [InlineData("CorrelateRenameDirectory", false)]
+        [InlineData("CorrelateMoveDirectoryTransacted", true)]
+        public async Task CorrelateMoveOrRenameDirectoryAsync(string callArgument, bool move)
         {
             var context = BuildXLContext.CreateInstanceForTesting();
             var pathTable = context.PathTable;
@@ -216,7 +221,7 @@ namespace Test.BuildXL.Processes.Detours
                     context,
                     pathTable,
                     tempFiles,
-                    argumentStr: move ? "CorrelateMoveDirectory" : "CorrelateRenameDirectory",
+                    argumentStr: callArgument,
                     inputFiles: ReadOnlyArray<FileArtifact>.Empty,
                     inputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
                     outputFiles: ReadOnlyArray<FileArtifactWithAttributes>.Empty,

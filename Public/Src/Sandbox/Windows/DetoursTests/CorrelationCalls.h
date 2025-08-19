@@ -4,7 +4,10 @@
 #pragma once
 
 int CorrelateCopyFile();
+int CorrelateCopyFileTransacted();
 int CorrelateCreateHardLink();
 int CorrelateMoveFile();
+int CorrelateMoveFileTransacted();
 int CorrelateMoveDirectory();
+int CorrelateMoveDirectoryTransacted();
 int CorrelateRenameDirectory();

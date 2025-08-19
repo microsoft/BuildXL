@@ -1463,9 +1463,12 @@ static void CorrelationCallTests(const string& verb)
 #define IF_COMMAND(NAME)    { IF_COMMAND1(NAME); IF_COMMAND2(NAME); }
 
     IF_COMMAND(CorrelateCopyFile);
+    IF_COMMAND(CorrelateCopyFileTransacted);
     IF_COMMAND(CorrelateCreateHardLink);
     IF_COMMAND(CorrelateMoveFile);
+    IF_COMMAND(CorrelateMoveFileTransacted);
     IF_COMMAND(CorrelateMoveDirectory);
+    IF_COMMAND(CorrelateMoveDirectoryTransacted);
     IF_COMMAND(CorrelateRenameDirectory);
 
 #undef IF_COMMAND1

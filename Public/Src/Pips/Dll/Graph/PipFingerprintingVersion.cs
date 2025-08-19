@@ -81,7 +81,8 @@ namespace BuildXL.Pips.Graph
         /// 104: Migrate Bond to Google.Protobuf
         /// 105: Add observation reclassification rules
         /// 106: Add IgnoreUntrackedPathsInFullReparsePointResolving
+        /// 107: Detours transacted file operations
         /// </remarks>
-        TwoPhaseV2 = 106,
+        TwoPhaseV2 = 107,
     }
 }

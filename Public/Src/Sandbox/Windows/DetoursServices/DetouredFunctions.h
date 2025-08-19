@@ -163,6 +163,28 @@ BOOL WINAPI Detoured_CopyFileExA(
     __in      DWORD dwCopyFlags
     );
 
+// See CopyFileEx on MSDN: https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-copyfiletransactedw
+BOOL WINAPI Detoured_CopyFileTransactedW(
+    __in      LPCWSTR lpExistingFileName,
+    __in      LPCWSTR lpNewFileName,
+    __in_opt  LPPROGRESS_ROUTINE lpProgressRoutine,
+    __in_opt  LPVOID lpData,
+    __in_opt  LPBOOL pbCancel,
+    __in      DWORD dwCopyFlags,
+    __in      HANDLE hTransaction
+);
+
+// See CopyFileEx on MSDN: https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-copyfiletransacteda
+BOOL WINAPI Detoured_CopyFileTransactedA(
+    __in      LPCSTR lpExistingFileName,
+    __in      LPCSTR lpNewFileName,
+    __in_opt  LPPROGRESS_ROUTINE lpProgressRoutine,
+    __in_opt  LPVOID lpData,
+    __in_opt  LPBOOL pbCancel,
+    __in      DWORD dwCopyFlags,
+    __in      HANDLE hTransaction
+);
+
 // See MoveFile on MSDN: http://msdn.microsoft.com/en-us/library/windows/desktop/aa365239(v=vs.85).aspx
 BOOL WINAPI Detoured_MoveFileW(
     __in  LPCWSTR lpExistingFileName,
@@ -206,6 +228,26 @@ BOOL WINAPI Detoured_MoveFileWithProgressA(
     __in_opt  LPVOID lpData,
     __in      DWORD dwFlags
     );
+
+// See MoveFileTransactedW on MSDN: https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-movefiletransactedw
+BOOL WINAPI Detoured_MoveFileTransactedW(
+    __in      LPCWSTR lpExistingFileName,
+    __in_opt  LPCWSTR lpNewFileName,
+    __in_opt  LPPROGRESS_ROUTINE lpProgressRoutine,
+    __in_opt  LPVOID lpData,
+    __in      DWORD dwFlags,
+    __in      HANDLE hTransaction
+);
+
+// See MoveFileTransactedA on MSDN: https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-movefiletransacteda
+BOOL WINAPI Detoured_MoveFileTransactedA(
+    __in      LPCSTR lpExistingFileName,
+    __in_opt  LPCSTR lpNewFileName,
+    __in_opt  LPPROGRESS_ROUTINE lpProgressRoutine,
+    __in_opt  LPVOID lpData,
+    __in      DWORD dwFlags,
+    __in      HANDLE hTransaction
+);
 
 // See ReplaceFile on MSDN: http://msdn.microsoft.com/en-us/library/windows/desktop/aa365512(v=vs.85).aspx
 BOOL WINAPI Detoured_ReplaceFileW(

@@ -10,6 +10,7 @@
 #endif
 
 #include <windows.h>
+#include <ktmw32.h>
 #include <stdio.h>
 #include "CorrelationCalls.h"
 #include "Utils.h"
@@ -21,6 +22,30 @@ int CorrelateCopyFile()
 {
     CopyFileW(L"SourceFile.txt", L"DestinationFile.txt", FALSE);
     return static_cast<int>(GetLastError());
+}
+
+int CorrelateCopyFileTransacted()
+{
+    HANDLE hTransaction = CreateTransaction(NULL, 0, 0, 0, 0, 0, NULL);
+    if (hTransaction == INVALID_HANDLE_VALUE)
+    {
+        return static_cast<int>(GetLastError());
+    }
+
+    DWORD lastError = ERROR_SUCCESS;
+    const BOOL result = CopyFileTransactedW(L"SourceFile.txt", L"DestinationFile.txt", NULL, NULL, FALSE, COPY_FILE_FAIL_IF_EXISTS, hTransaction);
+    if (result)
+    {
+        CommitTransaction(hTransaction); // Commit the transaction
+    }
+    else 
+    {
+        lastError = GetLastError();
+        RollbackTransaction(hTransaction); // Rollback the transaction
+    }
+
+    CloseHandle(hTransaction);
+    return static_cast<int>(lastError);
 }
 
 int CorrelateCreateHardLink()
@@ -35,10 +60,58 @@ int CorrelateMoveFile()
     return static_cast<int>(GetLastError());
 }
 
+int CorrelateMoveFileTransacted()
+{
+    HANDLE hTransaction = CreateTransaction(NULL, 0, 0, 0, 0, 0, NULL);
+    if (hTransaction == INVALID_HANDLE_VALUE)
+    {
+        return static_cast<int>(GetLastError());
+    }
+
+    DWORD lastError = ERROR_SUCCESS;
+
+    const BOOL result = MoveFileTransactedW(L"Source\\SourceFile.txt", L"DestinationFile.txt", NULL, NULL, MOVEFILE_COPY_ALLOWED, hTransaction);
+    if (result)
+    {
+        CommitTransaction(hTransaction); // Commit the transaction
+    }
+    else
+    {
+        lastError = GetLastError();
+        RollbackTransaction(hTransaction); // Rollback the transaction
+    }
+
+    CloseHandle(hTransaction);
+    return static_cast<int>(lastError);
+}
+
 int CorrelateMoveDirectory()
 {
     MoveFileExW(L"Directory\\SourceDirectory", L"Directory\\DestinationDirectory", MOVEFILE_COPY_ALLOWED);
     return static_cast<int>(GetLastError());
+}
+
+int CorrelateMoveDirectoryTransacted()
+{
+    HANDLE hTransaction = CreateTransaction(NULL, 0, 0, 0, 0, 0, NULL);
+    if (hTransaction == INVALID_HANDLE_VALUE)
+    {
+        return static_cast<int>(GetLastError());
+    }
+    DWORD lastError = ERROR_SUCCESS;
+    const BOOL result = MoveFileTransactedW(L"Directory\\SourceDirectory", L"Directory\\DestinationDirectory", NULL, NULL, MOVEFILE_COPY_ALLOWED, hTransaction);
+    if (result)
+    {
+        CommitTransaction(hTransaction); // Commit the transaction
+    }
+    else
+    {
+        lastError = GetLastError();
+        RollbackTransaction(hTransaction); // Rollback the transaction
+    }
+
+    CloseHandle(hTransaction);
+    return static_cast<int>(lastError);
 }
 
 int CorrelateRenameDirectory()

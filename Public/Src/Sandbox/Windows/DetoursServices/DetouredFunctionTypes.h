@@ -142,6 +142,26 @@ typedef BOOL (WINAPI *CopyFileExA_t)(
     __in      DWORD dwCopyFlags
     );
 
+typedef BOOL(WINAPI* CopyFileTransactedW_t)(
+    __in      LPCWSTR lpExistingFileName,
+    __in      LPCWSTR lpNewFileName,
+    __in_opt  LPPROGRESS_ROUTINE lpProgressRoutine,
+    __in_opt  LPVOID lpData,
+    __in_opt  LPBOOL pbCancel,
+    __in      DWORD dwCopyFlags,
+    __in      HANDLE hTransaction
+    );
+
+typedef BOOL(WINAPI* CopyFileTransactedA_t)(
+    __in      LPCSTR lpExistingFileName,
+    __in      LPCSTR lpNewFileName,
+    __in_opt  LPPROGRESS_ROUTINE lpProgressRoutine,
+    __in_opt  LPVOID lpData,
+    __in_opt  LPBOOL pbCancel,
+    __in      DWORD dwCopyFlags,
+    __in      HANDLE hTransaction
+    );
+
 typedef BOOL (WINAPI *MoveFileW_t)(
     __in  LPCWSTR lpExistingFileName,
     __in  LPCWSTR lpNewFileName
@@ -178,6 +198,24 @@ typedef BOOL (WINAPI *MoveFileWithProgressA_t)(
     __in_opt  LPPROGRESS_ROUTINE lpProgressRoutine,
     __in_opt  LPVOID lpData,
     __in      DWORD dwFlags
+    );
+
+typedef BOOL(WINAPI* MoveFileTransactedW_t)(
+    __in      LPCWSTR lpExistingFileName,
+    __in_opt  LPCWSTR lpNewFileName,
+    __in_opt  LPPROGRESS_ROUTINE lpProgressRoutine,
+    __in_opt  LPVOID lpData,
+    __in      DWORD dwlags,
+    __in      HANDLE hTransaction
+    );
+
+typedef BOOL(WINAPI* MoveFileTransactedA_t)(
+    __in      LPCSTR lpExistingFileName,
+    __in_opt  LPCSTR lpNewFileName,
+    __in_opt  LPPROGRESS_ROUTINE lpProgressRoutine,
+    __in_opt  LPVOID lpData,
+    __in      DWORD dwlags,
+    __in      HANDLE hTransaction
     );
 
 typedef BOOL (WINAPI *ReplaceFileW_t)(

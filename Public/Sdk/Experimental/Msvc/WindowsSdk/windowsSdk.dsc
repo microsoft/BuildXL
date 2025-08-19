@@ -30,7 +30,8 @@ namespace UM {
             lib.getFile(r`kernel32.lib`),
             lib.getFile(r`ntdll.lib`),
             lib.getFile(r`pathcch.lib`),
-            lib.getFile(r`uuid.lib`)
+            lib.getFile(r`uuid.lib`),
+            lib.getFile(r`ktmw32.lib`)
         ])
     ];
 }

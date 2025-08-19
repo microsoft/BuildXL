@@ -3610,14 +3610,15 @@ BOOL WINAPI Detoured_CopyFileA(
         bFailIfExists);
 }
 
-IMPLEMENTED(Detoured_CopyFileExW)
-BOOL WINAPI Detoured_CopyFileExW(
+static BOOL WINAPI DetoursCopyFileEx(
+    _In_     bool               transacted,
     _In_     LPCWSTR            lpExistingFileName,
     _In_     LPCWSTR            lpNewFileName,
     _In_opt_ LPPROGRESS_ROUTINE lpProgressRoutine,
     _In_opt_ LPVOID             lpData,
     _In_opt_ LPBOOL             pbCancel,
-    _In_     DWORD              dwCopyFlags)
+    _In_     DWORD              dwCopyFlags,
+    _In_     HANDLE             hTransaction)
 {
     DetouredScope scope;
     if (scope.Detoured_IsDisabled() ||
@@ -3626,13 +3627,22 @@ BOOL WINAPI Detoured_CopyFileExW(
         IsSpecialDeviceName(lpExistingFileName) ||
         IsSpecialDeviceName(lpNewFileName))
     {
-        return Real_CopyFileExW(
-            lpExistingFileName,
-            lpNewFileName,
-            lpProgressRoutine,
-            lpData,
-            pbCancel,
-            dwCopyFlags);
+        return transacted
+            ? Real_CopyFileTransactedW(
+                lpExistingFileName,
+                lpNewFileName,
+                lpProgressRoutine,
+                lpData,
+                pbCancel,
+                dwCopyFlags,
+                hTransaction)
+            : Real_CopyFileExW(
+                lpExistingFileName,
+                lpNewFileName,
+                lpProgressRoutine,
+                lpData,
+                pbCancel,
+                dwCopyFlags);
     }
 
     FileOperationContext sourceOpContext = FileOperationContext::CreateForRead(L"CopyFile_Source", lpExistingFileName);
@@ -3715,13 +3725,22 @@ BOOL WINAPI Detoured_CopyFileExW(
     // Now we can safely try to copy, but note that the corresponding read of the source file may end up disallowed
     // (maybe the source file exists, as CopyFileW requires, but we only allow non-existence probes for this path).
 
-    BOOL result = Real_CopyFileExW(
-        lpExistingFileName,
-        lpNewFileName,
-        lpProgressRoutine,
-        lpData,
-        pbCancel,
-        dwCopyFlags);
+    BOOL result = transacted
+        ? Real_CopyFileTransactedW(
+            lpExistingFileName,
+            lpNewFileName,
+            lpProgressRoutine,
+            lpData,
+            pbCancel,
+            dwCopyFlags,
+            hTransaction)
+        : Real_CopyFileExW(
+            lpExistingFileName,
+            lpNewFileName,
+            lpProgressRoutine,
+            lpData,
+            pbCancel,
+            dwCopyFlags);
     DWORD error = GetLastError();
     DWORD reportedError = GetReportedError(result, error);
 
@@ -3745,6 +3764,26 @@ BOOL WINAPI Detoured_CopyFileExW(
 
     SetLastError(error);
     return result;
+}
+
+IMPLEMENTED(Detoured_CopyFileExW)
+BOOL WINAPI Detoured_CopyFileExW(
+    _In_     LPCWSTR            lpExistingFileName,
+    _In_     LPCWSTR            lpNewFileName,
+    _In_opt_ LPPROGRESS_ROUTINE lpProgressRoutine,
+    _In_opt_ LPVOID             lpData,
+    _In_opt_ LPBOOL             pbCancel,
+    _In_     DWORD              dwCopyFlags)
+{
+    return DetoursCopyFileEx(
+        false,
+        lpExistingFileName,
+        lpNewFileName,
+        lpProgressRoutine,
+        lpData,
+        pbCancel,
+        dwCopyFlags,
+        INVALID_HANDLE_VALUE);
 }
 
 IMPLEMENTED(Detoured_CopyFileExA)
@@ -3779,6 +3818,64 @@ BOOL WINAPI Detoured_CopyFileExA(
         lpData,
         pbCancel,
         dwCopyFlags);
+}
+
+IMPLEMENTED(Detoured_CopyFileTransactedW)
+BOOL WINAPI Detoured_CopyFileTransactedW(
+    _In_     LPCWSTR            lpExistingFileName,
+    _In_     LPCWSTR            lpNewFileName,
+    _In_opt_ LPPROGRESS_ROUTINE lpProgressRoutine,
+    _In_opt_ LPVOID             lpData,
+    _In_opt_ LPBOOL             pbCancel,
+    _In_     DWORD              dwCopyFlags,
+    _In_     HANDLE             hTransaction)
+{
+    return DetoursCopyFileEx(
+        true,
+        lpExistingFileName,
+        lpNewFileName,
+        lpProgressRoutine,
+        lpData,
+        pbCancel,
+        dwCopyFlags,
+        hTransaction);
+}
+
+IMPLEMENTED(Detoured_CopyFileTransactedA)
+BOOL WINAPI Detoured_CopyFileTransactedA(
+    _In_     LPCSTR             lpExistingFileName,
+    _In_     LPCSTR             lpNewFileName,
+    _In_opt_ LPPROGRESS_ROUTINE lpProgressRoutine,
+    _In_opt_ LPVOID             lpData,
+    _In_opt_ LPBOOL             pbCancel,
+    _In_     DWORD              dwCopyFlags,
+    _In_     HANDLE             hTransaction)
+{
+    {
+        DetouredScope scope;
+        if (scope.Detoured_IsDisabled() || IsNullOrEmptyA(lpExistingFileName) || IsNullOrEmptyA(lpNewFileName))
+        {
+            return Real_CopyFileTransactedA(
+                lpExistingFileName,
+                lpNewFileName,
+                lpProgressRoutine,
+                lpData,
+                pbCancel,
+                dwCopyFlags,
+                hTransaction);
+        }
+    }
+
+    UnicodeConverter existingFileName(lpExistingFileName);
+    UnicodeConverter newFileName(lpNewFileName);
+    return Detoured_CopyFileTransactedW(
+        existingFileName,
+        newFileName,
+        lpProgressRoutine,
+        lpData,
+        pbCancel,
+        dwCopyFlags,
+        hTransaction);
 }
 
 // Below are detours of various Move functions. Looking up the actual
@@ -3869,24 +3966,14 @@ BOOL WINAPI Detoured_MoveFileExA(
         dwFlags);
 }
 
-// Detoured_MoveFileWithProgressW
-//
-// lpExistingFileName is the source file. We require write access to this location (as we effectively delete it).
-// lpNewFileName is the destination file. We require write access to this location (as we create it).
-//
-// lpNewFileName is optional in this API but if is NULL then this API allows the file to be deleted
-// (following a reboot). See the excerpt from the documentation below:
-//
-// "If dwFlags specifies MOVEFILE_DELAY_UNTIL_REBOOT and lpNewFileName is NULL,
-// MoveFileEx registers the lpExistingFileName file to be deleted when the
-// system restarts."
-IMPLEMENTED(Detoured_MoveFileWithProgressW)
-BOOL WINAPI Detoured_MoveFileWithProgressW(
+BOOL WINAPI DetoursMoveFileWithProgress(
+    _In_      bool               transacted,
     _In_      LPCWSTR            lpExistingFileName,
     _In_opt_  LPCWSTR            lpNewFileName,
     _In_opt_  LPPROGRESS_ROUTINE lpProgressRoutine,
     _In_opt_  LPVOID             lpData,
-    _In_      DWORD              dwFlags)
+    _In_      DWORD              dwFlags,
+    _In_      HANDLE             hTransaction)
 {
     DetouredScope scope;
     if (scope.Detoured_IsDisabled()
@@ -3895,12 +3982,20 @@ BOOL WINAPI Detoured_MoveFileWithProgressW(
         || IsSpecialDeviceName(lpExistingFileName)
         || IsSpecialDeviceName(lpNewFileName))
     {
-        return Real_MoveFileWithProgressW(
-            lpExistingFileName,
-            lpNewFileName,
-            lpProgressRoutine,
-            lpData,
-            dwFlags);
+        return transacted
+            ? Real_MoveFileTransactedW(
+                lpExistingFileName,
+                lpNewFileName,
+                lpProgressRoutine,
+                lpData,
+                dwFlags,
+                hTransaction)
+            : Real_MoveFileWithProgressW(
+                lpExistingFileName,
+                lpNewFileName,
+                lpProgressRoutine,
+                lpData,
+                dwFlags);
     }
 
     bool moveDirectory = false;
@@ -4028,12 +4123,20 @@ BOOL WINAPI Detoured_MoveFileWithProgressW(
 
     // It's now safe to perform the move, which should tell us the existence of the source side (and so, if it may be read or not).
 
-    BOOL result = Real_MoveFileWithProgressW(
-        lpExistingFileName,
-        lpNewFileName,
-        lpProgressRoutine,
-        lpData,
-        dwFlags);
+    BOOL result = transacted
+        ? Real_MoveFileTransactedW(
+            lpExistingFileName,
+            lpNewFileName,
+            lpProgressRoutine,
+            lpData,
+            dwFlags,
+            hTransaction)
+        : Real_MoveFileWithProgressW(
+            lpExistingFileName,
+            lpNewFileName,
+            lpProgressRoutine,
+            lpData,
+            dwFlags);
     DWORD error = GetLastError();
     DWORD reportedError = GetReportedError(result, error);
 
@@ -4051,6 +4154,35 @@ BOOL WINAPI Detoured_MoveFileWithProgressW(
     SetLastError(error);
 
     return result;
+}
+
+// Detoured_MoveFileWithProgressW
+//
+// lpExistingFileName is the source file. We require write access to this location (as we effectively delete it).
+// lpNewFileName is the destination file. We require write access to this location (as we create it).
+//
+// lpNewFileName is optional in this API but if is NULL then this API allows the file to be deleted
+// (following a reboot). See the excerpt from the documentation below:
+//
+// "If dwFlags specifies MOVEFILE_DELAY_UNTIL_REBOOT and lpNewFileName is NULL,
+// MoveFileEx registers the lpExistingFileName file to be deleted when the
+// system restarts."
+IMPLEMENTED(Detoured_MoveFileWithProgressW)
+BOOL WINAPI Detoured_MoveFileWithProgressW(
+    _In_      LPCWSTR            lpExistingFileName,
+    _In_opt_  LPCWSTR            lpNewFileName,
+    _In_opt_  LPPROGRESS_ROUTINE lpProgressRoutine,
+    _In_opt_  LPVOID             lpData,
+    _In_      DWORD              dwFlags)
+{
+    return DetoursMoveFileWithProgress(
+        false,
+        lpExistingFileName,
+        lpNewFileName,
+        lpProgressRoutine,
+        lpData,
+        dwFlags,
+        INVALID_HANDLE_VALUE);
 }
 
 IMPLEMENTED(Detoured_MoveFileWithProgressA)
@@ -4082,6 +4214,59 @@ BOOL WINAPI Detoured_MoveFileWithProgressA(
         lpProgressRoutine,
         lpData,
         dwFlags);
+}
+
+IMPLEMENTED(Detoured_MoveFileTransactedW)
+BOOL WINAPI Detoured_MoveFileTransactedW(
+    _In_     LPCWSTR            lpExistingFileName,
+    _In_opt_ LPCWSTR            lpNewFileName,
+    _In_opt_ LPPROGRESS_ROUTINE lpProgressRoutine,
+    _In_opt_ LPVOID             lpData,
+    _In_     DWORD              dwFlags,
+    _In_     HANDLE             hTransaction)
+{
+    return DetoursMoveFileWithProgress(
+        true,
+        lpExistingFileName,
+        lpNewFileName,
+        lpProgressRoutine,
+        lpData,
+        dwFlags,
+        hTransaction);
+}
+
+IMPLEMENTED(Detoured_MoveFileTransactedA)
+BOOL WINAPI Detoured_MoveFileTransactedA(
+    _In_     LPCSTR             lpExistingFileName,
+    _In_opt_ LPCSTR             lpNewFileName,
+    _In_opt_ LPPROGRESS_ROUTINE lpProgressRoutine,
+    _In_opt_ LPVOID             lpData,
+    _In_     DWORD              dwFlags,
+    _In_     HANDLE             hTransaction)
+{
+    {
+        DetouredScope scope;
+        if (scope.Detoured_IsDisabled() || IsNullOrEmptyA(lpExistingFileName))
+        {
+            return Real_MoveFileTransactedA(
+                lpExistingFileName,
+                lpNewFileName,
+                lpProgressRoutine,
+                lpData,
+                dwFlags,
+                hTransaction);
+        }
+    }
+
+    UnicodeConverter existingFileName(lpExistingFileName);
+    UnicodeConverter newFileName(lpNewFileName);
+    return Detoured_MoveFileTransactedW(
+        existingFileName,
+        newFileName,
+        lpProgressRoutine,
+        lpData,
+        dwFlags,
+        hTransaction);
 }
 
 BOOL WINAPI Detoured_ReplaceFileW(

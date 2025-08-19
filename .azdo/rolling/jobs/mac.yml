@@ -6,7 +6,8 @@ jobs:
   pool:
     name: Azure Pipelines
     os: macOs
-    vmImage: macos-latest
+    # vmImage: macos-latest # Changing to macOS 14 due to bug #2309773
+    vmImage: macos-14
 
   templateContext:
     sdl:

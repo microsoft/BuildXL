@@ -60,6 +60,13 @@ namespace Test.BuildXL.Processes.Detours
                     detoursListener: correlator,
                     errorString: out _);
 
+                if (string.Equals(callArguments, "CorrelateCopyFileTransacted", StringComparison.Ordinal)
+                    && result.Status != SandboxedProcessPipExecutionStatus.Succeeded)
+                {
+                    VerifyTransactionIsNotActive(result);
+                    return;
+                }
+
                 VerifyNormalSuccess(context, result);
 
                 XAssert.IsTrue(File.Exists(destinationFile.ToString(pathTable)));
@@ -179,6 +186,13 @@ namespace Test.BuildXL.Processes.Detours
                     detoursListener: correlator,
                     errorString: out _);
 
+                if (string.Equals(callArgument, "CorrelateMoveFileTransacted", StringComparison.Ordinal)
+                    && result.Status != SandboxedProcessPipExecutionStatus.Succeeded)
+                {
+                    VerifyTransactionIsNotActive(result);
+                    return;
+                }
+
                 VerifyNormalSuccess(context, result);
 
                 XAssert.IsTrue(File.Exists(destinationFile.ToString(pathTable)));
@@ -242,6 +256,13 @@ namespace Test.BuildXL.Processes.Detours
                     detoursListener: correlator,
                     errorString: out _);
 
+                if (string.Equals(callArgument, "CorrelateMoveDirectoryTransacted", StringComparison.Ordinal)
+                    && result.Status != SandboxedProcessPipExecutionStatus.Succeeded)
+                {
+                    VerifyTransactionIsNotActive(result);
+                    return;
+                }
+
                 VerifyNormalSuccess(context, result);
 
                 XAssert.IsTrue(Directory.Exists(destinationDirectory.ToString(pathTable)));
@@ -267,6 +288,14 @@ namespace Test.BuildXL.Processes.Detours
                         sourceDirectory.ToString(pathTable),
                         move ? ReportedFileOperation.MoveFileWithProgressSource : ReportedFileOperation.SetFileInformationByHandleSource));
             }
+        }
+
+        private static void VerifyTransactionIsNotActive(SandboxedProcessPipExecutionResult result)
+        {
+            // In CloudBuild, it is possible that the transaction support is not (or no longer) active because the machine's resource manager
+            // is not started or was shut down due to some unknown error.
+            XAssert.AreEqual(SandboxedProcessPipExecutionStatus.ExecutionFailed, result.Status);
+            XAssert.AreEqual(6801 /* ERROR_RM_NOT_ACTIVE */, result.ExitCode);
         }
 
         public class Correlator : IDetoursEventListener

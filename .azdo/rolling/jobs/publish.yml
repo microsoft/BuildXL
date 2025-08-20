@@ -51,7 +51,9 @@ jobs:
       nuGetFeedType: external
       publishFeedCredentials: 'mseng-Domino-BuildXL-1ESSharedAssets_BuildXL.Internal'
       sbomEnabled: false
-  
+      # Duplicate packages can be skipped
+      allowPackageConflicts: true
+
     - output: nuget
       displayName: '📦 Push public NuGet packages to 1essharedassets/BuildXL feed'
       condition: and(succeeded(), ne(variables['ServicingOnlyBuild'], 'true'))
@@ -60,6 +62,9 @@ jobs:
       nuGetFeedType: external
       publishFeedCredentials: 'mseng-Domino-BuildXL-1ESSharedAssets_BuildXL'
       sbomEnabled: false
+      # Duplicate packages can be skipped
+      allowPackageConflicts: true
+
 
   steps:
   - checkout: self  # We need this to call the SBOM validation script

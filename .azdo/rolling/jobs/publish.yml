@@ -8,6 +8,7 @@ jobs:
   displayName: 'AzDev Hosted: Publish build binaries'
   timeoutInMinutes: 240
   variables:
+    LargePackagesStagingDir: $(Agent.TempDirectory)/largeNupkgs
     # Duplicate packages can be skipped when retrying
     NugetPushAllowPackageConflicts: $[ gt(variables['System.JobAttempt'], 1) ]
   pool:
@@ -150,6 +151,56 @@ jobs:
       script: |
         Remove-Item -Path "$(Agent.TempDirectory)/DownloadedDrop/debug" -Recurse -Force
       errorActionPreference: 'continue'
+
+  # Use VstsNugetPush to push our large packages
+  - task: PowerShell@2
+    displayName: Download VstsNugetPush.exe
+    inputs:
+      targetType: 'filePath'
+      filePath: '$(Build.SourcesDirectory)/.azdo/scripts/DownloadVstsNugetPush.ps1'
+      arguments: '-toolsDirectory $(Agent.ToolsDirectory) -tempDirectory $(Agent.TempDirectory)/vstsnugetpush'
+    env:
+      ACCESS_TOKEN: $(BuildXL-Pipeline-AccessToken)
+
+  - task: PowerShell@2
+    displayName: 'Move large NuGet Packages'
+    inputs:
+      targetType: 'inline'
+      script: |
+        $windowsPkg = "$(Agent.TempDirectory)\DownloadedDrop\release\pkgs\BuildXL.win-x64.$(Build.BuildNumber).nupkg"
+        $linuxPkg = "$(Agent.TempDirectory)\DownloadedDrop\release\pkgs\BuildXL.linux-x64.$(Build.BuildNumber).nupkg"
+        $destinationDir = "$(LargePackagesStagingDir)"
+
+        New-Item -ItemType Directory -Path $destinationDir -Force
+        $pkgs = @($windowsPkg, $linuxPkg)
+        foreach ($pkg in $pkgs) {
+          if (Test-Path -Path $pkg) {
+            Move-Item -Path $pkg -Destination $destinationDir -Force
+            Write-Host "Successfully moved $pkg to $destinationDir"
+          } else {
+            Write-Error "nupkg not found: $pkg"
+            exit 1
+          }
+        }
+      errorActionPreference: 'continue'
+
+  # Upload to pipeline artifacts so we get the required scanning
+  - task: 1ES.PublishPipelineArtifact@1
+    inputs:
+      targetPath: $(LargePackagesStagingDir)
+      artifactName: BuildXL engine packages
+
+  - task: PowerShell@2
+    displayName: 'Publish large NuGet Packages with VstsNugetPush.exe'
+    inputs:
+      targetType: 'inline'
+      script: |
+        # Run VstsNugetPush.exe to publish the packages
+        & '$(Agent.ToolsDirectory)/VstsNugetPush/VstsNugetPush.exe' -Package "$(LargePackagesStagingDir)\BuildXL.win-x64.$(Build.BuildNumber).nupkg" -Feed "https://1essharedassets.pkgs.visualstudio.com/_packaging/BuildXL/nuget/v3/index.json" -NonInteractive -Verbosity Detailed
+        & '$(Agent.ToolsDirectory)/VstsNugetPush/VstsNugetPush.exe' -Package "$(LargePackagesStagingDir)\BuildXL.linux-x64.$(Build.BuildNumber).nupkg" -Feed "https://1essharedassets.pkgs.visualstudio.com/_packaging/BuildXL/nuget/v3/index.json" -NonInteractive -Verbosity Detailed
+      errorActionPreference: 'continue'
+    env:
+      VSTSNUGETPUSH_ARTIFACTTOOL_PAT_HANDOFF: $(BuildXL-Pipeline-AccessToken)
 
   # Set NuGet endpoints for the feeds we are going to push to. The NuGet push tasks are injected by 1ESPT using the 'output: nuget' context.
   - template: /.azdo/common/set-nuget-endpoint.yml

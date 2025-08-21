@@ -348,8 +348,23 @@ DWORD DetouredProcessInjector::RemoteInjectProcess(HANDLE processHandle, bool in
 
     assert(charsWritten != -1);
 
+    SECURITY_ATTRIBUTES sa;
+    SECURITY_DESCRIPTOR sd;
+    LPSECURITY_ATTRIBUTES lpSecurityAttributes = nullptr;
+
+    // Create a permissive security descriptor.
+    if (InitializeSecurityDescriptor(&sd, SECURITY_DESCRIPTOR_REVISION)
+        // Set a null DACL, which allows access to everyone; it is because the remote injector can run in different security contexts.
+        && SetSecurityDescriptorDacl(&sd, TRUE, nullptr, FALSE))
+    {
+        sa.nLength = sizeof(SECURITY_ATTRIBUTES);
+        sa.lpSecurityDescriptor = &sd;
+        sa.bInheritHandle = FALSE;
+        lpSecurityAttributes = &sa;
+    }
+
     // Create the event
-    unique_handle<> eventSuccess(CreateEventW(nullptr, FALSE, FALSE, nameSuccess));
+    unique_handle<> eventSuccess(CreateEventW(lpSecurityAttributes, FALSE, FALSE, nameSuccess));
     if (!eventSuccess.isValid())
     {
         DWORD err = GetLastError();
@@ -357,7 +372,7 @@ DWORD DetouredProcessInjector::RemoteInjectProcess(HANDLE processHandle, bool in
         return err;
     }
 
-    unique_handle<> eventFailure(CreateEventW(nullptr, FALSE, FALSE, nameFailure));
+    unique_handle<> eventFailure(CreateEventW(lpSecurityAttributes, FALSE, FALSE, nameFailure));
     if (!eventFailure.isValid())
     {
         DWORD err = GetLastError();
@@ -381,9 +396,13 @@ DWORD DetouredProcessInjector::RemoteInjectProcess(HANDLE processHandle, bool in
         std::wstring errorMsg = DebugStringFormat(L"DetouredProcessInjector::RemoteInjectProcess: Failed to write to pipe for requesting process injection for process id %d (error code: 0x%08x)", (int)processId, (int)error);
         Dbg(errorMsg.c_str());
         HandleDetoursInjectionAndCommunicationErrors(DETOURS_PIPE_WRITE_ERROR_3, errorMsg.c_str(), DETOURS_WINDOWS_LOG_MESSAGE_3);
+        return error;
     }
 
-    // Wait for any of the events to fire
+    // Wait for any of the events to fire.
+    // Note that we only use these events to tell if the remote injection succeeded or failed, i.e., we do not get the error code from the failed injection.
+    // Treatments for error codes that can affect the injection behavior must be implemented in the remote injector. For example, if an injection failed due to
+    // partial copy, the remote injector must retry the injection.
     HANDLE events[2] = { eventSuccess.get(), eventFailure.get() };
 
     // If for some reason there is no timeout passed using the FileAccessManifest, set it to 10 min.
@@ -406,14 +425,17 @@ DWORD DetouredProcessInjector::RemoteInjectProcess(HANDLE processHandle, bool in
     }
     else if (result == WAIT_OBJECT_0 + 1)
     {
-        Dbg(L"DetouredProcessInjector::RemoteInjectProcess: Remote injection failed for process id %d, result: %ld, error: 0x%08X", (int)processId, (int)result, (int)GetLastError());
+        Dbg(L"DetouredProcessInjector::RemoteInjectProcess: Remote injection failed for process id %d", (int)processId);
+
+        // Unfortunately, we only use events to tell if the remote injection succeeded or failed, i.e., we do not get the error code from the failed injection.
         result = ERROR_INVALID_FUNCTION;
     }
     else if (result != WAIT_OBJECT_0)
     {
-        Dbg(L"DetouredProcessInjector::RemoteInjectProcess: Failed waiting for request for process injection for process id %d: 0x%08x", (int)processId, (int)result);
+        Dbg(L"DetouredProcessInjector::RemoteInjectProcess: Failed waiting for request for process injection for process id %d, wait result: 0x%08x", (int)processId, (int)result);
     }
-    else {
+    else
+    {
         return ERROR_SUCCESS;
     }
 

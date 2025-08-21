@@ -5,7 +5,9 @@ using System;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.IO.Pipes;
+using System.Linq;
 using System.Runtime.InteropServices;
+using System.Security.AccessControl;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -38,8 +40,26 @@ namespace BuildXL.Processes
     internal sealed class ProcessTreeContext : IDisposable
     {
         private const int BufferSize = 4096;
+
+        /// <summary>
+        /// Maximum number of retries to inject detours into a process.
+        /// </summary>
+        /// <remarks>
+        /// The number of retries follows the pattern in DetoursServices.cpp, i.e., BUILDXL_DETOURS_INJECT_PROCESS_RETRY_COUNT.
+        /// These numbers are chosen based on experience and they do not have to sync with each other.
+        /// </remarks>
+        private const int MaxDetoursInjectRetries = 5;
         private IAsyncPipeReader m_injectionRequestReader;
         private bool m_stopping;
+
+        /// <summary>
+        /// Represents the predefined delays, in milliseconds, before each retry on signalling done event after detours injection.
+        /// </summary>
+        /// <remarks>
+        /// Unlike the retries for detours injection, the delays for triggering signal are longer, and are sufficient long to ensure
+        /// that the done events have been created and are ready to be opened.
+        /// </remarks>
+        private readonly int[] m_signalInjectionDelaysMs = [1000, 2000, 4000];
 
         private readonly Action<string> m_debugReporter;
         private readonly LoggingContext m_loggingContext;
@@ -221,43 +241,34 @@ namespace BuildXL.Processes
             }
 
             string[] items = data.Split(',');
-            if (items.Length != 4)
-            {
-                ReportFailedInjection(0, "Partial string received.");
-                return false;
-            }
+            Contract.Assert(items.Length == 4, $"Brokered injection request is malformed -- expected 4 parts separated by commas, but got '{data}'");
 
-            // The last part is the process id. It can be incomplete...
             uint processId;
             if (!uint.TryParse(items[3], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out processId))
             {
-                ReportFailedInjection(0, "Partial string received.");
-                return false;
+                Contract.Assert(false, $"Brokered injection request is malformed -- cannot parse process id '{items[3]}'");
             }
 
             // If it is correct, it must contain a valid process id.
-            Contract.Assume(processId != 0, "Brokered injection request is incorrect -- target process id is 0");
+            Contract.Assert(processId != 0, "Brokered injection request is incorrect -- target process id is 0");
 
             // The first item is the event to signal in case of success.
             var eventPathSuccess = items[0];
-            Contract.Assume(eventPathSuccess.Length > 0);
+            Contract.Assert(!string.IsNullOrEmpty(eventPathSuccess));
 
             // The second item is the event to signal in case of failure.
             var eventPathFailure = items[1];
-            Contract.Assume(eventPathFailure.Length > 0);
+            Contract.Assert(!string.IsNullOrEmpty(eventPathFailure));
 
             // The third argument is a flag that indicates whether the handles are inherited
             bool inheritedHandles;
-            bool succeeded = bool.TryParse(items[2], out inheritedHandles);
-            if (!succeeded)
+            if (!bool.TryParse(items[2], out inheritedHandles))
             {
-                ReportFailedInjection(processId, "Failure parsing a boolean.");
+                Contract.Assert(false, $"Brokered injection request is malformed -- cannot parse inheritance flag '{items[2]}'");
             }
 
-            Contract.Assume(succeeded, "Brokered injection request is malformed -- cannot parse inheritance flag");
-
             // Once one injection fails, all others also fail.
-            succeeded &= !HasDetoursInjectionFailures;
+            bool succeeded = !HasDetoursInjectionFailures;
             if (succeeded)
             {
                 lock (Injector)
@@ -269,51 +280,77 @@ namespace BuildXL.Processes
                         return true;
                     }
 
-                    // Inject data & DLLs and map the drives .
-                    uint injectionError = Injector.Inject(processId, inheritedHandles);
-                    if (injectionError != 0)
+                    int retryCount = 0;
+                    uint injectionError = NativeIOConstants.ErrorSuccess;
+                    while (retryCount < MaxDetoursInjectRetries)
+                    {
+                        injectionError = Injector.Inject(processId, inheritedHandles);
+                        succeeded = injectionError == NativeIOConstants.ErrorSuccess;
+
+                        // Retry only if the error is partial copy.
+                        if (injectionError != NativeIOConstants.ErrorPartialCopy)
+                        {
+                            break;
+                        }
+
+                        // Sleep for a while and retry.
+                        Thread.Sleep((retryCount + 1) * 100);
+                        ++retryCount;
+                    }
+
+                    if (!succeeded)
                     {
                         ReportFailedInjection(processId, injectionError.ToString("X8", CultureInfo.InvariantCulture));
-                        succeeded = false;
                     }
                 }
             }
 
             string eventName = succeeded ? eventPathSuccess : eventPathFailure;
-            EventWaitHandle e;
 
-            // Signal the caller indicating that we are done.
-            if (EventWaitHandle.TryOpenExisting(eventName, out e))
+            Possible<EventWaitHandle> signalEventResult = TrySignalEventWithFallback(eventName);
+            if (signalEventResult.Succeeded)
             {
+                EventWaitHandle e = signalEventResult.Result;
                 e.Set();
                 e.Dispose();
-                return true;
+            }
+            else
+            {
+                ReportFailedInjection(processId, signalEventResult.Failure.DescribeIncludingInnerFailures());
             }
 
-            // For some reason, the event may be temporarily unavailable. Let's wait for a while and try again, but this time
-            // throw an exception if it fails.
+            return signalEventResult.Succeeded;
+        }
+
+        private Possible<EventWaitHandle> TrySignalEventWithFallback(string eventName)
+        {
+            EventWaitHandle eventWaitHandle;
+
+            foreach (var delay in m_signalInjectionDelaysMs)
+            {
+#pragma warning disable CA1416 // This code only runs on Windows
+                if (EventWaitHandle.TryOpenExisting(eventName, out eventWaitHandle))
+#pragma warning restore CA1416
+                {
+                    return eventWaitHandle;
+                }
+
+                Thread.Sleep(delay);
+            }
+
             try
             {
-                // The event may be created by the caller, but it may not be available yet. We need to wait for a while.
-                // There is some setup cost when using try-catch because the JIT compiler adds some instructions
-                // to set up the exception handling infrastructure. While there is a small overhead even when no exceptions
-                // occur, this part of the code is not in the performance-critical path. Moreover, the benefit of knowing
-                // the failure when opening an existing event outweighs the cost of the try-catch.
-                Thread.Sleep(1000);
-                e = EventWaitHandle.OpenExisting(eventName);
-                e.Set();
-                e.Dispose();
+#pragma warning disable CA1416 // This code only runs on Windows
+                eventWaitHandle = EventWaitHandle.OpenExisting(eventName);
+#pragma warning restore CA1416
+                return eventWaitHandle;
             }
             catch (Exception ex)
             {
-                if (succeeded)
-                {
-                    // The injection succeeded, but we cannot signal the event, we need to report the error.
-                    ReportFailedInjection(processId, string.Format(CultureInfo.InvariantCulture, "Detours injection actually succeeded, but cannot open event '{0}' to signal the caller: {1}", eventName, ex.ToString()));
-                }
+                // Need to get error code because when `WaitHandleCannotBeOpenedException` is thrown, it is not clear if the event does not exist, or if the name is invalid, or if it is inaccessible.
+                int errorCode = Marshal.GetLastWin32Error();
+                return new Failure<string>($"Failed to open event '{eventName}' after multiple delays with error code '{errorCode}': {ex}");
             }
-
-            return true;
         }
 
         private void ReportFailedInjection(uint processId, string error)

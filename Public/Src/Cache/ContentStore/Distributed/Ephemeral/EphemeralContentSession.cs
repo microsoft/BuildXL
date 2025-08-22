@@ -20,7 +20,9 @@ using BuildXL.Cache.ContentStore.Sessions.Internal;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Utils;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Core;
+using BuildXL.Utilities.Core.Tasks;
 using ContentStore.Grpc;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 
@@ -35,6 +37,8 @@ public class EphemeralContentSession : ContentSessionBase
 
     private readonly EphemeralHost _ephemeralHost;
     private readonly IDistributedContentCopierHost2 _contentCopierAdapter;
+
+    private readonly ConcurrentBigMap<ContentHash, Task<PutResult>> _concurrentPuts = new();
 
     /// <summary>
     /// This is a dummy implementation of the interface required by <see cref="DistributedContentCopier"/>.
@@ -66,7 +70,7 @@ public class EphemeralContentSession : ContentSessionBase
 
     protected override async Task<PinResult> PinCoreAsync(OperationContext context, ContentHash contentHash, UrgencyHint urgencyHint, Counter retryCounter)
     {
-        var elision = await CheckPersistentExistanceAsync(context, contentHash, localOnly: false);
+        var elision = await CheckPersistentExistenceAsync(context, contentHash, localOnly: false);
         if (elision.Allow)
         {
             return new PinResult(contentSize: elision.Size, lastAccessTime: elision.LatestPersistentTouchTime, code: PinResult.ResultCode.Success);
@@ -323,7 +327,79 @@ public class EphemeralContentSession : ContentSessionBase
                              });
     }
 
-    protected override async Task<PutResult> PutFileCoreAsync(
+    protected async Task<PutResult>  PutMultiLevelAsync(
+        OperationContext context,
+        Func<Task<PutResult>> localPutAsync,
+        Func<PutResult, Task<PutResult>> remotePutAsync,
+        ContentHash? contentHash = null,
+        FileRealizationMode? realizationMode = null)
+    {
+        // We can't move into the persistent store. No one should be doing this anyways, so it's fine to assert that.
+        Contract.Requires(realizationMode != FileRealizationMode.Move, $"{nameof(EphemeralContentSession)} doesn't support {nameof(PutFileCoreAsync)} with {nameof(FileRealizationMode)} = {FileRealizationMode.Move}");
+
+        ElisionResult elision;
+        if (contentHash != null)
+        {
+            // If we know content hash, we can check persistent existence, otherwise
+            // we have to wait for it to be computed by putting into local cache and this
+            // attempt to elide
+            elision = await CheckPersistentExistenceAsync(context, contentHash.Value, localOnly: true);
+            if (elision.Allow)
+            {
+                return new PutResult(contentHash.Value, elision.Size, contentAlreadyExistsInCache: true);
+            }
+        }
+
+        var local = await localPutAsync();
+        if (IsUnrecoverablePutFailure(local))
+        {
+            return local;
+        }
+
+        if (contentHash == null)
+        {
+            // Now that content hash has been computed by local put, try elision
+            elision = await CheckPersistentExistenceAsync(context, local.ContentHash, localOnly: true);
+            if (elision.Allow)
+            {
+                return new PutResult(local.ContentHash, elision.Size, contentAlreadyExistsInCache: true);
+            }
+        }
+
+        // Only run one remote put per hash concurrently, and have other operations reuse result. If the result is a failure,
+        // other operations won't reuse and will try themselves taking a lock to prevent conflicts.
+        return await _concurrentPuts.RunOnceAsync(
+            local.ContentHash,
+            Unit.Void,
+            async (_, _) =>
+            {
+                // Prevents duplicate PutFileAsync calls from uploading the same content at the same time. More importantly,
+                // it deduplicates requests about the existence of content.
+                using var guard = await _ephemeralHost.RemoteFetchLocks.AcquireAsync(local.ContentHash, context.Token);
+                if (!guard.WaitFree)
+                {
+                    elision = await CheckPersistentExistenceAsync(context, local.ContentHash, localOnly: true);
+                    if (elision.Allow)
+                    {
+                        return new PutResult(local.ContentHash, elision.Size, contentAlreadyExistsInCache: true);
+                    }
+                }
+
+                elision = await CheckPersistentExistenceAsync(context, local.ContentHash, localOnly: false);
+                if (elision.Allow)
+                {
+                    return new PutResult(local.ContentHash, elision.Size, contentAlreadyExistsInCache: true);
+                }
+
+                return await remotePutAsync(local);
+            },
+            // Only use RunOnceAsync to deduplicate concurrent calls, don't cache result for later calls.
+            removeOnCompletion: true,
+            // Force run if shared put result did not succeed
+            shouldForceRun: result => !result.Succeeded);
+    }
+
+    protected override Task<PutResult> PutFileCoreAsync(
         OperationContext context,
         HashType hashType,
         AbsolutePath path,
@@ -331,53 +407,26 @@ public class EphemeralContentSession : ContentSessionBase
         UrgencyHint urgencyHint,
         Counter retryCounter)
     {
-        // We can't move into the persistent store. No one should be doing this anyways, so it's fine to assert that.
-        Contract.Requires(realizationMode != FileRealizationMode.Move, $"{nameof(EphemeralContentSession)} doesn't support {nameof(PutFileCoreAsync)} with {nameof(FileRealizationMode)} = {FileRealizationMode.Move}");
-
-        var local = await _local.PutFileAsync(context, hashType, path, realizationMode, context.Token, urgencyHint);
-        if (IsUnrecoverablePutFailure(local))
-        {
-            return local;
-        }
-
-        var elision = await CheckPersistentExistanceAsync(context, local.ContentHash, localOnly: true);
-        if (elision.Allow)
-        {
-            return new PutResult(local.ContentHash, elision.Size, contentAlreadyExistsInCache: true);
-        }
-
-        // Prevents duplicate PutFileAsync calls from uploading the same content at the same time. More importantly,
-        // it deduplicates requests about the existence of content.
-        using var guard = await _ephemeralHost.RemoteFetchLocks.AcquireAsync(local.ContentHash, context.Token);
-        if (!guard.WaitFree)
-        {
-            elision = await CheckPersistentExistanceAsync(context, local.ContentHash, localOnly: true);
-            if (elision.Allow)
+        return PutMultiLevelAsync(
+            context,
+            realizationMode: realizationMode,
+            localPutAsync: () => _local.PutFileAsync(context, hashType, path, realizationMode, context.Token, urgencyHint),
+            remotePutAsync: local =>
             {
-                return new PutResult(local.ContentHash, elision.Size, contentAlreadyExistsInCache: true);
-            }
-        }
-
-        elision = await CheckPersistentExistanceAsync(context, local.ContentHash, localOnly: false);
-        if (elision.Allow)
-        {
-            return new PutResult(local.ContentHash, elision.Size, contentAlreadyExistsInCache: true);
-        }
-
-
-        if (local.Succeeded)
-        {
-            // If the insertion into the local cache succeeded, we know the true hash of the file matches what the
-            // caller provided. We can use this to avoid a rehashing in the persistent cache.
-            return await _persistent.PutTrustedFileAsync(context, new ContentHashWithSize(local.ContentHash, local.ContentSize), path, realizationMode, context.Token, urgencyHint);
-        }
-        else
-        {
-            return await _persistent.PutFileAsync(context, local.ContentHash, path, realizationMode, context.Token, urgencyHint);
-        }
+                if (local.Succeeded)
+                {
+                    // If the insertion into the local cache succeeded, we know the true hash of the file matches what the
+                    // caller provided. We can use this to avoid a rehashing in the persistent cache.
+                    return _persistent.PutTrustedFileAsync(context, new ContentHashWithSize(local.ContentHash, local.ContentSize), path, realizationMode, context.Token, urgencyHint);
+                }
+                else
+                {
+                    return _persistent.PutFileAsync(context, local.ContentHash, path, realizationMode, context.Token, urgencyHint);
+                }
+            });
     }
 
-    protected override async Task<PutResult> PutFileCoreAsync(
+    protected override Task<PutResult> PutFileCoreAsync(
         OperationContext context,
         ContentHash contentHash,
         AbsolutePath path,
@@ -385,127 +434,57 @@ public class EphemeralContentSession : ContentSessionBase
         UrgencyHint urgencyHint,
         Counter retryCounter)
     {
-        // We can't move into the persistent store. No one should be doing this anyways, so it's fine to assert that.
-        Contract.Requires(realizationMode != FileRealizationMode.Move, $"{nameof(EphemeralContentSession)} doesn't support {nameof(PutFileCoreAsync)} with {nameof(FileRealizationMode)} = {FileRealizationMode.Move}");
 
-        var elision = await CheckPersistentExistanceAsync(context, contentHash, localOnly: true);
-        if (elision.Allow)
-        {
-            return new PutResult(contentHash, elision.Size, contentAlreadyExistsInCache: true);
-        }
-
-        var local = await _local.PutFileAsync(context, contentHash, path, realizationMode, context.Token, urgencyHint);
-        if (IsUnrecoverablePutFailure(local))
-        {
-            return local;
-        }
-
-        // Prevents duplicate PutFileAsync calls from uploading the same content at the same time. More importantly,
-        // it deduplicates requests about the existence of content.
-        using var guard = await _ephemeralHost.RemoteFetchLocks.AcquireAsync(local.ContentHash, context.Token);
-        if (!guard.WaitFree)
-        {
-            elision = await CheckPersistentExistanceAsync(context, local.ContentHash, localOnly: true);
-            if (elision.Allow)
+        return PutMultiLevelAsync(
+            context,
+            realizationMode: realizationMode,
+            contentHash: contentHash,
+            localPutAsync: () => _local.PutFileAsync(context, contentHash, path, realizationMode, context.Token, urgencyHint),
+            remotePutAsync: local =>
             {
-                return new PutResult(local.ContentHash, elision.Size, contentAlreadyExistsInCache: true);
-            }
-        }
-
-        elision = await CheckPersistentExistanceAsync(context, local.ContentHash, localOnly: false);
-        if (elision.Allow)
-        {
-            return new PutResult(local.ContentHash, elision.Size, contentAlreadyExistsInCache: true);
-        }
-
-        if (local.Succeeded)
-        {
-            // If the insertion into the local cache succeeded, we know the true hash of the file matches what the
-            // caller provided. We can use this to avoid a rehashing in the persistent cache.
-            return await _persistent.PutTrustedFileAsync(context, new ContentHashWithSize(contentHash, local.ContentSize), path, realizationMode, context.Token, urgencyHint);
-        }
-        else
-        {
-            return await _persistent.PutFileAsync(context, local.ContentHash, path, realizationMode, context.Token, urgencyHint);
-        }
+                if (local.Succeeded)
+                {
+                    // If the insertion into the local cache succeeded, we know the true hash of the file matches what the
+                    // caller provided. We can use this to avoid a rehashing in the persistent cache.
+                    return _persistent.PutTrustedFileAsync(context, new ContentHashWithSize(contentHash, local.ContentSize), path, realizationMode, context.Token, urgencyHint);
+                }
+                else
+                {
+                    return _persistent.PutFileAsync(context, local.ContentHash, path, realizationMode, context.Token, urgencyHint);
+                }
+            });
     }
 
-    protected override async Task<PutResult> PutStreamCoreAsync(OperationContext context, HashType hashType, Stream stream, UrgencyHint urgencyHint, Counter retryCounter)
+    protected override Task<PutResult> PutStreamCoreAsync(OperationContext context, HashType hashType, Stream stream, UrgencyHint urgencyHint, Counter retryCounter)
     {
         Contract.Requires(stream.CanSeek, $"{nameof(EphemeralContentSession)} needs to be able to seek the incoming stream.");
 
         var position = stream.Position;
-        var local = await _local.PutStreamAsync(context, hashType, stream, context.Token, urgencyHint);
-        if (IsUnrecoverablePutFailure(local))
-        {
-            return local;
-        }
 
-        var elision = await CheckPersistentExistanceAsync(context, local.ContentHash, localOnly: true);
-        if (elision.Allow)
-        {
-            return new PutResult(local.ContentHash, elision.Size, contentAlreadyExistsInCache: true);
-        }
-
-        // Prevents duplicate PutFileAsync calls from uploading the same content at the same time. More importantly,
-        // it deduplicates requests about the existence of content.
-        using var guard = await _ephemeralHost.RemoteFetchLocks.AcquireAsync(local.ContentHash, context.Token);
-        if (!guard.WaitFree)
-        {
-            elision = await CheckPersistentExistanceAsync(context, local.ContentHash, localOnly: true);
-            if (elision.Allow)
+        return PutMultiLevelAsync(
+            context,
+            localPutAsync: () => _local.PutStreamAsync(context, hashType, stream, context.Token, urgencyHint),
+            remotePutAsync: local =>
             {
-                return new PutResult(local.ContentHash, elision.Size, contentAlreadyExistsInCache: true);
-            }
-        }
-
-        elision = await CheckPersistentExistanceAsync(context, local.ContentHash, localOnly: false);
-        if (elision.Allow)
-        {
-            return new PutResult(local.ContentHash, elision.Size, contentAlreadyExistsInCache: true);
-        }
-
-        stream.Position = position;
-        return await _persistent.PutStreamAsync(context, hashType, stream, context.Token, urgencyHint);
+                stream.Position = position;
+                return _persistent.PutStreamAsync(context, hashType, stream, context.Token, urgencyHint);
+            });
     }
 
-    protected override async Task<PutResult> PutStreamCoreAsync(OperationContext context, ContentHash contentHash, Stream stream, UrgencyHint urgencyHint, Counter retryCounter)
+    protected override Task<PutResult> PutStreamCoreAsync(OperationContext context, ContentHash contentHash, Stream stream, UrgencyHint urgencyHint, Counter retryCounter)
     {
         Contract.Requires(stream.CanSeek, $"{nameof(EphemeralContentSession)} needs to be able to seek the incoming stream.");
 
-        var elision = await CheckPersistentExistanceAsync(context, contentHash, localOnly: true);
-        if (elision.Allow)
-        {
-            return new PutResult(contentHash, elision.Size, contentAlreadyExistsInCache: true);
-        }
-
         var position = stream.Position;
-        var local = await _local.PutStreamAsync(context, contentHash, stream, context.Token, urgencyHint);
-        if (IsUnrecoverablePutFailure(local))
-        {
-            return local;
-        }
-
-        // Prevents duplicate PutFileAsync calls from uploading the same content at the same time. More importantly,
-        // it deduplicates requests about the existence of content.
-        using var guard = await _ephemeralHost.RemoteFetchLocks.AcquireAsync(local.ContentHash, context.Token);
-        if (!guard.WaitFree)
-        {
-            elision = await CheckPersistentExistanceAsync(context, local.ContentHash, localOnly: true);
-            if (elision.Allow)
+        return PutMultiLevelAsync(
+            context,
+            contentHash: contentHash,
+            localPutAsync: () => _local.PutStreamAsync(context, contentHash, stream, context.Token, urgencyHint),
+            remotePutAsync: local =>
             {
-                return new PutResult(local.ContentHash, elision.Size, contentAlreadyExistsInCache: true);
-            }
-        }
-
-        elision = await CheckPersistentExistanceAsync(context, local.ContentHash, localOnly: false);
-        if (elision.Allow)
-        {
-            return new PutResult(local.ContentHash, elision.Size, contentAlreadyExistsInCache: true);
-        }
-
-        stream.Position = position;
-        return await _persistent.PutStreamAsync(context, contentHash, stream, context.Token, urgencyHint);
+                stream.Position = position;
+                return _persistent.PutStreamAsync(context, contentHash, stream, context.Token, urgencyHint);
+            });
     }
 
 
@@ -521,6 +500,14 @@ public class EphemeralContentSession : ContentSessionBase
         }
 
         if (local.IsCancelled)
+        {
+            return true;
+        }
+
+        // There is a requirement that local content hash is valid in order
+        // for subsequent remote operations to succeed which use the hash computed
+        // by the local store
+        if (!local.ContentHash.IsValid)
         {
             return true;
         }
@@ -555,7 +542,7 @@ public class EphemeralContentSession : ContentSessionBase
     /// Setting this to true means only the local content tracker will be checked. When false, the distributed content
     /// tracker will also be looked at, which involves a gRPC call to one or more hosts.
     /// </param>
-    private async Task<ElisionResult> CheckPersistentExistanceAsync(OperationContext context, ShortHash contentHash, bool localOnly)
+    private async Task<ElisionResult> CheckPersistentExistenceAsync(OperationContext context, ShortHash contentHash, bool localOnly)
     {
         // TODO: add timeout here.
         return (await context.PerformOperationAsync(

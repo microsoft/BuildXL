@@ -9,6 +9,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Core.Tracing;
 
 namespace BuildXL.Utilities.Core.Tasks
@@ -29,6 +30,76 @@ namespace BuildXL.Utilities.Core.Tasks
             var failureSource = TaskSourceSlim.Create<T>();
             failureSource.SetException(ex);
             return failureSource.Task;
+        }
+
+        /// <summary>
+        /// Run a task once per key in a map. Optionally allowing forcing a run if shared result matches a condition (normally used
+        /// to force run on failure result).
+        /// </summary>
+        public static async Task<TResult> RunOnceAsync<TKey, TResult, TData>(
+            this ConcurrentBigMap<TKey, Task<TResult>> taskCompletionMap,
+            TKey key,
+            TData data,
+            Func<TKey, TData, Task<TResult>> runAsync,
+            bool removeOnCompletion = false,
+            Func<TResult, bool> shouldForceRun = null)
+        {
+            if (Out.Var(out var reserved, TryReserveCompletion(taskCompletionMap, key, out var task, out var completion)))
+            {
+                var mapValue = task;
+                completion.LinkToTask(Out.Var(out task, Out.Invoke(async () =>
+                {
+                    try
+                    {
+                        return await runAsync(key, data);
+                    }
+                    finally
+                    {
+                        if (removeOnCompletion)
+                        {
+                            taskCompletionMap.CompareRemove(key, mapValue);
+                        }
+                    }
+                })));
+            }
+
+            var result = await task;
+
+            if (!reserved && shouldForceRun?.Invoke(result) == true)
+            {
+                result = await runAsync(key, data);
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Reserve the completion for a key in a map
+        /// </summary>
+        public static bool TryReserveCompletion<TKey, TResult>(
+            this ConcurrentBigMap<TKey, Task<TResult>> taskCompletionMap,
+            TKey key,
+            out Task<TResult> retrievedTask,
+            out TaskSourceSlim<TResult> addedTaskCompletionSource)
+        {
+            Task<TResult> taskResult;
+            if (taskCompletionMap.TryGetValue(key, out taskResult))
+            {
+                retrievedTask = taskResult;
+                addedTaskCompletionSource = default;
+                return false;
+            }
+
+            addedTaskCompletionSource = TaskSourceSlim.Create<TResult>();
+            retrievedTask = taskCompletionMap.GetOrAdd(key, addedTaskCompletionSource.Task).Item.Value;
+
+            if (retrievedTask != addedTaskCompletionSource.Task)
+            {
+                addedTaskCompletionSource = default;
+                return false;
+            }
+
+            return true;
         }
 
         /// <summary>

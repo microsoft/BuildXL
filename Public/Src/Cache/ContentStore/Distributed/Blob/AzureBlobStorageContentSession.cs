@@ -457,7 +457,7 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase, IConten
 
     #region ITrustedContentSession implementation
 
-    public async Task<PutResult> PutTrustedFileAsync(
+    public Task<PutResult> PutTrustedFileAsync(
         Context context,
         ContentHashWithSize contentHashWithSize,
         AbsolutePath path,
@@ -465,19 +465,28 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase, IConten
         CancellationToken cts,
         UrgencyHint urgencyHint)
     {
-        var operationContext = new OperationContext(context, cts);
-        using var streamWithLength = _fileSystem.Open(
-            path,
-            FileAccess.Read,
-            FileMode.Open,
-            FileShare.Read,
-            FileOptions.Asynchronous | FileOptions.SequentialScan);
-        if (contentHashWithSize.Size != streamWithLength.Length)
-        {
-            Tracer.Warning(context, $"Expected content size to be {contentHashWithSize.Size} as advertised, but found {streamWithLength.Length} instead");
-        }
+        return PerformPutFileOperationAsync(
+                context,
+                contentHashWithSize.Hash,
+                path,
+                realizationMode,
+                cts,
+                async operationContext =>
+                {
+                    using var streamWithLength = _fileSystem.Open(
+                        path,
+                        FileAccess.Read,
+                        FileMode.Open,
+                        FileShare.Read,
+                        FileOptions.Asynchronous | FileOptions.SequentialScan);
+                    if (contentHashWithSize.Size != streamWithLength.Length)
+                    {
+                        Tracer.Warning(context, $"Expected content size to be {contentHashWithSize.Size} as advertised, but found {streamWithLength.Length} instead");
+                    }
 
-        return await UploadFromStreamAsync(operationContext, contentHashWithSize.Hash, streamWithLength.Stream, streamWithLength.Length);
+                    return await UploadFromStreamAsync(operationContext, contentHashWithSize.Hash, streamWithLength.Stream, streamWithLength.Length);
+                },
+                trusted: true);
     }
 
     public AbsolutePath? TryGetWorkingDirectory(AbsolutePath? pathHint)

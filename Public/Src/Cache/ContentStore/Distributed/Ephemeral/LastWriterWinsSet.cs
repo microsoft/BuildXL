@@ -5,6 +5,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Ephemeral;
@@ -25,7 +26,7 @@ public readonly record struct Stamped<T>(ChangeStamp ChangeStamp, T Value)
 public class LastWriterWinsSet<T>
     where T : IComparable<T>
 {
-    private List<Stamped<T>> _operations;
+    private ImmutableList<Stamped<T>> _operations;
 
     /// <summary>
     /// The entries in the set, ordered by value.
@@ -34,14 +35,14 @@ public class LastWriterWinsSet<T>
 
     public int Count => _operations.Count;
 
-    private LastWriterWinsSet(List<Stamped<T>> operations)
+    private LastWriterWinsSet(ImmutableList<Stamped<T>> operations)
     {
         _operations = operations;
     }
 
     public static LastWriterWinsSet<T> Empty()
     {
-        return new LastWriterWinsSet<T>(new());
+        return new LastWriterWinsSet<T>(ImmutableList<Stamped<T>>.Empty);
     }
 
     public static LastWriterWinsSet<T> From(List<Stamped<T>> operations, bool sorted = false)
@@ -51,7 +52,7 @@ public class LastWriterWinsSet<T>
             InPlaceSortAndKeepHighestStampedOperations(operations);
         }
 
-        return new LastWriterWinsSet<T>(operations);
+        return new LastWriterWinsSet<T>(operations.ToImmutableList());
     }
 
     private static void InPlaceSortAndKeepHighestStampedOperations(List<Stamped<T>> operations)
@@ -94,11 +95,11 @@ public class LastWriterWinsSet<T>
         operations.RemoveRange(resultCount, operations.Count - resultCount);
     }
 
-    private static List<Stamped<T>> Merge(IReadOnlyList<Stamped<T>> lhs, IReadOnlyList<Stamped<T>> rhs)
+    private static ImmutableList<Stamped<T>> Merge(IReadOnlyList<Stamped<T>> lhs, IReadOnlyList<Stamped<T>> rhs)
     {
         int ilhs = 0;
         int irhs = 0;
-        var merged = new List<Stamped<T>>(capacity: lhs.Count + rhs.Count);
+        var merged = ImmutableList.CreateBuilder<Stamped<T>>();
 
         while (ilhs < lhs.Count && irhs < rhs.Count)
         {
@@ -137,7 +138,7 @@ public class LastWriterWinsSet<T>
             irhs++;
         }
 
-        return merged;
+        return merged.ToImmutableList();
     }
 
     public void MergePreSorted(IReadOnlyList<Stamped<T>> operations)
@@ -181,7 +182,7 @@ public class LastWriterWinsSet<T>
     {
         if (_operations.Count == 0)
         {
-            _operations.Add(operation);
+            _operations = _operations.Add(operation);
             return;
         }
 
@@ -190,14 +191,14 @@ public class LastWriterWinsSet<T>
         {
             if (_operations[index].HappensBefore(operation))
             {
-                _operations[index] = operation;
+                _operations = _operations.SetItem(index, operation);
             }
         }
         else
         {
             // This is essentially equivalent to an insertion sort. We don't expect the list to be very long, so this
             // is likely better than using a tree.
-            _operations.Insert(~index, operation);
+            _operations = _operations.Insert(~index, operation);
         }
     }
 

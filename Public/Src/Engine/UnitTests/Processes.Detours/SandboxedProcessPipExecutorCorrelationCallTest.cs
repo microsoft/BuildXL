@@ -64,6 +64,7 @@ namespace Test.BuildXL.Processes.Detours
                     && result.Status != SandboxedProcessPipExecutionStatus.Succeeded)
                 {
                     VerifyTransactionIsNotActive(result);
+                    SetExpectedFailures(1, 0);
                     return;
                 }
 
@@ -190,6 +191,7 @@ namespace Test.BuildXL.Processes.Detours
                     && result.Status != SandboxedProcessPipExecutionStatus.Succeeded)
                 {
                     VerifyTransactionIsNotActive(result);
+                    SetExpectedFailures(1, 0);
                     return;
                 }
 
@@ -260,6 +262,7 @@ namespace Test.BuildXL.Processes.Detours
                     && result.Status != SandboxedProcessPipExecutionStatus.Succeeded)
                 {
                     VerifyTransactionIsNotActive(result);
+                    SetExpectedFailures(1, 0);
                     return;
                 }
 

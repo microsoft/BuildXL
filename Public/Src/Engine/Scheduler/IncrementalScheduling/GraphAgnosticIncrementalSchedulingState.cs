@@ -236,7 +236,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
         /// <summary>
         /// Envelope for serialization
         /// </summary>
-        private static readonly FileEnvelope s_fileEnvelope = new FileEnvelope(name: nameof(GraphAgnosticIncrementalSchedulingState), version: (int) PipFingerprintingVersion.TwoPhaseV2 + 5);
+        private static readonly FileEnvelope s_fileEnvelope = new FileEnvelope(name: nameof(GraphAgnosticIncrementalSchedulingState), version: (int) PipFingerprintingVersion.TwoPhaseV2 + 6);
 
         /// <summary>
         /// Log messages like '>>> Build file changed: X.cpp' are very useful to know what's going on internally, but only if there's not too many of them.
@@ -263,6 +263,16 @@ namespace BuildXL.Scheduler.IncrementalScheduling
         /// Stopwatch for journal processing.
         /// </summary>
         private readonly Stopwatch m_journalProcessingStopwatch = new Stopwatch();
+
+        /// <summary>
+        /// Checks if a pip is agnostically clean.
+        /// </summary>
+        public bool IsPipAgnosticallyClean(PipId pipId) => TryGetPipStableId(pipId, out PipStableId pipStableId) && m_cleanPips.ContainsKey(pipStableId);
+
+        /// <summary>
+        /// Checks if a pip is agnostically materialized.
+        /// </summary>
+        public bool IsPipAgnosticallyMaterialized(PipId pipId) => TryGetPipStableId(pipId, out PipStableId pipStableId) && m_materializedPips.Contains(pipStableId);
 
         /// <summary>
         /// Creates an instance of <see cref="GraphAgnosticIncrementalSchedulingState"/>.
@@ -1375,6 +1385,36 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                         m_cleanSourceFiles.TryAdd(InternGraphPath(hashSourceFilePip.Artifact.Path), m_pipGraphSequenceNumber);
                     }
                 });
+
+            // Step 5. Update clean pips by considering the perpetually dirty pips.
+            //         Note that the pips in DirtyNodeTracker.PendingUpdates.CleanNodes are not necessarily clean because they can be downstream of perpetually dirty pips.
+            //         DirtyNodeTracker should have materialized the pending state, so it should contain the correct information about the dirty nodes, i.e., if a pip is
+            //         perpetually dirty, then the downstream pips are dirty.
+            //
+            //         Perpetually dirty nodes are marked non-materialized when DirtyNodeTracker materialized the pending state, but not necessarily the downstream nodes.
+            var tentativelyCleanPips = m_cleanPips.Keys
+                .Select(pipStableId => TryGetGraphPipId(pipStableId, out PipId pipId) ? pipId : PipId.Invalid)
+                .Where(pipId => pipId.IsValid)
+                .ToList();
+            Parallel.ForEach(tentativelyCleanPips, pipId =>
+            {
+                if (DirtyNodeTracker.IsNodeDirty(pipId.ToNodeId()) && TryGetPipStableId(pipId, out PipStableId pipStableId))
+                {
+                    m_cleanPips.TryRemove(pipStableId, out PipGraphSequenceNumber _);
+                }
+            });
+
+            var tentativelyMaterializedPips = m_materializedPips.UnsafeGetList()
+                .Select(pipStableId => TryGetGraphPipId(pipStableId, out PipId pipId) ? pipId : PipId.Invalid)
+                .Where(pipId => pipId.IsValid)
+                .ToList();
+            Parallel.ForEach(tentativelyMaterializedPips, pipId =>
+            {
+                if (!DirtyNodeTracker.IsNodeMaterialized(pipId.ToNodeId()) && TryGetPipStableId(pipId, out PipStableId pipStableId))
+                {
+                    m_materializedPips.Remove(pipStableId);
+                }
+            });
         }
 
         private void Save(FileEnvelopeId atomicSaveToken, string incrementalSchedulingStatePath)

@@ -1274,6 +1274,100 @@ ENDLOCAL && EXIT /b 1
         }
 
         /// <summary>
+        /// Graph agnostic state should reflect the inagnostic dirty node tracker's state when there is perpetually dirty pips.
+        /// </summary>
+        [FactIfSupported(requiresJournalScan: true)]
+        public void PerpetualDirtyPipsAffectsGraphAgnosticCleanState()
+        {
+            IncrementalSchedulingSetup();
+
+            var nodes = new Dictionary<string, NodeId>();
+            CreateBasicGraph(nodes);
+            var pipGraph = PipGraphBuilder.Build();
+
+            IIncrementalSchedulingState iss = CreateNewState(FileEnvelopeId.Create(), pipGraph);
+
+            // Clear all nodes
+            foreach (var n in iss.DirtyNodeTracker.AllDirtyNodes)
+            {
+                iss.DirtyNodeTracker.MarkNodeClean(n);
+            }
+
+            XAssert.AreEqual(0, iss.DirtyNodeTracker.AllDirtyNodes.Count());
+
+            // P1 and downstream are initially dirty.
+            iss.DirtyNodeTracker.MarkNodeDirty(nodes["P1"]);
+
+            // During the 1st build, P1, P2, and P3 are made clean and materialized.
+            iss.DirtyNodeTracker.PendingUpdates.MarkNodeClean(nodes["P1"]);
+            iss.DirtyNodeTracker.PendingUpdates.MarkNodeMaterialized(nodes["P1"]);
+            iss.DirtyNodeTracker.PendingUpdates.MarkNodeClean(nodes["P2"]);
+            iss.DirtyNodeTracker.PendingUpdates.MarkNodeMaterialized(nodes["P2"]);
+            iss.DirtyNodeTracker.PendingUpdates.MarkNodeClean(nodes["P3"]);
+            iss.DirtyNodeTracker.PendingUpdates.MarkNodeMaterialized(nodes["P3"]);
+
+            var dirtyFile = CreateUniqueObjPath("dirty").ToString(Context.PathTable);
+            var saveToken = FileEnvelopeId.Create();
+            iss.SaveIfChanged(saveToken, dirtyFile);
+
+            var factory = new IncrementalSchedulingStateFactory(LoggingContext);
+
+            var iss2 = factory.LoadOrReuse(
+                saveToken,
+                pipGraph,
+                m_configuration,
+                UnsafeOptions.PreserveOutputsNotUsed,
+                dirtyFile,
+                schedulerState: null);
+
+            // During the 2nd build, P1 has changed to be perpetual dirty node.
+            iss2.DirtyNodeTracker.MarkNodeDirty(nodes["P1"]);
+            iss2.DirtyNodeTracker.PendingUpdates.MarkNodePerpetuallyDirty(nodes["P1"]);
+            iss2.DirtyNodeTracker.PendingUpdates.MarkNodeClean(nodes["P2"]);
+            iss2.DirtyNodeTracker.PendingUpdates.MarkNodeMaterialized(nodes["P2"]);
+            iss2.DirtyNodeTracker.PendingUpdates.MarkNodeClean(nodes["P3"]);
+            iss2.DirtyNodeTracker.PendingUpdates.MarkNodeMaterialized(nodes["P3"]);
+            iss2.SaveIfChanged(saveToken, dirtyFile);
+
+            // Saving the state applies the pending updates.
+            // P2 and P3 should be dirty, but they should remain materialized.
+            VerifyIss(iss2);
+
+            var iss3 = factory.LoadOrReuse(
+                saveToken,
+                pipGraph,
+                m_configuration,
+                UnsafeOptions.PreserveOutputsNotUsed,
+                dirtyFile,
+                schedulerState: null);
+
+            XAssert.IsNotNull(iss3);
+
+            // Loading the state should preserve the information.
+            // P2 and P3 should be dirty, but they should remain materialized.
+            VerifyIss(iss3);
+
+            void VerifyIss(IIncrementalSchedulingState issToVerify)
+            {
+                // P2 and P3 should be dirty, but they should remain materialized.
+                XAssert.IsTrue(issToVerify.DirtyNodeTracker.IsNodePerpetualDirty(nodes["P1"]));
+                XAssert.IsTrue(issToVerify.DirtyNodeTracker.IsNodeDirty(nodes["P2"]));
+                XAssert.IsTrue(issToVerify.DirtyNodeTracker.IsNodeMaterialized(nodes["P2"]));
+                XAssert.IsTrue(issToVerify.DirtyNodeTracker.IsNodeDirty(nodes["P3"]));
+                XAssert.IsTrue(issToVerify.DirtyNodeTracker.IsNodeMaterialized(nodes["P3"]));
+
+                if (issToVerify is GraphAgnosticIncrementalSchedulingState gaiss)
+                {
+                    // P2 and P3 should not be clean in the graph agnostic state, but they should be materialized.
+                    XAssert.IsFalse(gaiss.IsPipAgnosticallyClean(nodes["P2"].ToPipId()));
+                    XAssert.IsTrue(gaiss.IsPipAgnosticallyMaterialized(nodes["P2"].ToPipId()));
+                    XAssert.IsFalse(gaiss.IsPipAgnosticallyClean(nodes["P3"].ToPipId()));
+                    XAssert.IsTrue(gaiss.IsPipAgnosticallyMaterialized(nodes["P3"].ToPipId()));
+                }
+            }
+        }
+
+        /// <summary>
         /// Save clean Incremental Scheduling State, change file, reload and see if the change is detected.
         /// </summary>
         [FactIfSupported(requiresJournalScan: true)]

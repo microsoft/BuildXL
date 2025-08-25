@@ -121,7 +121,8 @@ export function checkForUpdates() {
                                     if (file.toLowerCase().startsWith("dscriptvscodeextension.")) {
                                         const vscodeProcessPath = path.dirname(process.execPath);
                                         const vsCpdeCommandFile = path.join(vscodeProcessPath, "bin", "code.cmd");
-                                        const childProcess = spawn("cmd", ["/c", vsCpdeCommandFile, "--install-extension", `${baseExtensionInstallPath}/${latestUpdatePath}/${file}`]);
+                                        const extensionPath = path.join(baseExtensionInstallPath, latestUpdatePath, file);
+                                        const childProcess = spawn("cmd", ["/c", vsCpdeCommandFile, "--install-extension", extensionPath]);
                                         childProcess.on("close", (code, signal) => {
                                             if (code === 0) {
                                                 window.showInformationMessage("Extension updated successfully. Reload window to take effect");

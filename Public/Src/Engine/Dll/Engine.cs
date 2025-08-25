@@ -254,6 +254,14 @@ namespace BuildXL.Engine
         private readonly PipSpecificPropertiesConfig m_pipSpecificPropertiesConfig;
 
         /// <summary>
+        /// Stores the original user profile path for the application.
+        /// </summary>
+        /// <remarks>
+        /// This field is used to retain the initial user profile path before any modifications are made
+        /// </remarks>
+        private static readonly Lazy<string> s_originalUserProfilePath = new Lazy<string>(() => SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.UserProfile));
+
+        /// <summary>
         /// Private constructor. Please use BuildXLEngine.Create
         /// </summary>
         private BuildXLEngine(
@@ -1246,6 +1254,12 @@ namespace BuildXL.Engine
                 return false;
             }
 
+            if (currentUserProfile == redirectedProfile)
+            {
+                // Nothing to do
+                return true;
+            }
+
             return !createRedirectionJunctions || CreateUserProfileRedirectionJunctions(currentUserProfile, redirectedProfile, loggingContext);
         }
 
@@ -1264,8 +1278,12 @@ namespace BuildXL.Engine
 
             const string RedirectedUserName = "buildXLUserProfile";
 
-            // get the current user AppData directory path before we make any changes
-            currentUserProfile = SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            // In case of user server mode, a previous build may have set environment variables and cause SpecialFolderUtilities
+            // to return the redirected path. We need to do redirection based on the original user profile path from when the
+            // process started to ensure it is comprehensive.
+            // We cannot simply noop redirection in this case because the path translation and environment variables below still
+            // need to be computed.
+            currentUserProfile = s_originalUserProfilePath.Value;
 
             if (string.IsNullOrWhiteSpace(currentUserProfile))
             {

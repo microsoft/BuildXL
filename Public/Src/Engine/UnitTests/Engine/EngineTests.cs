@@ -415,6 +415,17 @@ namespace Test.BuildXL.EngineTests
                 AbsolutePath.TryCreate(Context.PathTable, junctionPath, out var toPath);
                 XAssert.IsTrue(translatedDirectory.Count == 1);
                 XAssert.IsTrue(translatedDirectory[0].FromPath == fromPath && translatedDirectory[0].ToPath == toPath);
+
+                // A redundant redirection (profile already readirected) should not fail
+                // This simulates redirection under server mode
+                XAssert.IsTrue(BuildXLEngine.RedirectUserProfileDirectory(
+                    Configuration.Layout.ObjectDirectory,
+                    translatedDirectory,
+                    properties,
+                    dict => { specialFolderInitializerWasCalled = true; },
+                    true,
+                    Context.PathTable,
+                    LoggingContext));
             }
             finally
             {

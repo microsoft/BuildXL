@@ -90,6 +90,7 @@ function parseArgs() {
                 "/vs"
                 "/vsNew"
                 "/vsTargetFramework:net8.0"
+                "/vsTargetFramework:net9.0"
                 "/vsTargetFramework:netstandard2.0"
                 "/vsTargetFramework:netstandard2.1")
             arg_Vs="1"
@@ -150,7 +151,7 @@ function installLkg() {
     local csproj="<Project Sdk=\"Microsoft.NET.Sdk\">
     <PropertyGroup>
         <OutputType>Exe</OutputType>
-        <TargetFramework>net8.0</TargetFramework>
+        <TargetFramework>net9.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
     </PropertyGroup>
     <ItemGroup>

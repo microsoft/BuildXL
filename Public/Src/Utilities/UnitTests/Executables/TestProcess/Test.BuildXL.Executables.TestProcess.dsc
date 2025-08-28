@@ -31,7 +31,7 @@ namespace TestProcess {
                         subfolder: r`TestProcess/Win`,
                         contents: [
                             $.withQualifier({
-                                targetFramework: "net8.0",
+                                targetFramework: "net9.0",
                                 targetRuntime: "win-x64"
                             }).testProcessExe
                         ]
@@ -45,12 +45,12 @@ namespace TestProcess {
                         subfolder: r`TestProcess/Unix`,
                         contents: [
                             $.withQualifier({
-                                targetFramework: "net8.0",
+                                targetFramework: "net9.0",
                                 targetRuntime: "linux-x64"
                             }).testProcessExe,
                             // CODESYNC: Public\Src\Utilities\UnitTests\Executables\TestProcess\Operation.cs
                             VFork.withQualifier({
-                                targetFramework: "net8.0",
+                                targetFramework: "net9.0",
                                 targetRuntime: "linux-x64"
                             }).exe
                         ]

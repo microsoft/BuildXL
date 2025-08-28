@@ -111,12 +111,12 @@ namespace DeploymentHelpers {
             : false;
 
         /** The runner that preforms the publishing */
-        export const runner = enabled ? SymbolDaemon.withQualifier({configuration: "release", targetFramework: "net8.0", targetRuntime: "win-x64"}).cloudBuildRunner : undefined;
+        export const runner = enabled ? SymbolDaemon.withQualifier({configuration: "release", targetFramework: "net9.0", targetRuntime: "win-x64"}).cloudBuildRunner : undefined;
 
         /** The settings for this symbol publishing request */
         const settings : SymbolDaemon.SymbolCreateArguments = {
             debugEntryCreateBehavior :  enabled 
-                ? SymbolDaemon.withQualifier({configuration: "release", targetFramework: "net8.0", targetRuntime: "win-x64"}).DebugEntryCreateBehavior.SkipIfExists
+                ? SymbolDaemon.withQualifier({configuration: "release", targetFramework: "net9.0", targetRuntime: "win-x64"}).DebugEntryCreateBehavior.SkipIfExists
                 : undefined,
             symbolServiceConfigFile: Environment.getFileValue("BUILDXL_SYMBOL_CONFIG")
         };

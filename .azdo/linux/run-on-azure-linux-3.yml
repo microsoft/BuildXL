@@ -52,7 +52,7 @@ extends:
           /replicateOutputsToWorkers+ 
           /p:BuildXLMinimumWaitForRemoteWorkerMin=5
         '
-        sdkVersion: '8.x'
+        sdkVersion: '9.x'
         preBuildSteps:
         - bash: |
             # Open BuildXL inbound port

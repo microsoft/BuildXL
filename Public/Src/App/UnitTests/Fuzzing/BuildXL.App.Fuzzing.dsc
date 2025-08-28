@@ -8,7 +8,7 @@ namespace Fuzzing {
         configuration: "debug",
         targetRuntime: "win-x64",
         // Only build this for the latest target framework
-        targetFramework: "net8.0"
+        targetFramework: "net9.0"
     };
     
     const dll = BuildXLSdk.library({

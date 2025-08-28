@@ -152,10 +152,8 @@ jobs:
         /logsDirectory:"Out/Logs/Build"
         /p:Build.BuildId=$(Build.BuildNumber)
         /p:[BuildXL.Branding]SourceIdentification=$(Branding_SourceIdentification)
-        /q:DebugLinux
-        /q:ReleaseLinux
-        /q:DebugLinuxNet9
-        /q:ReleaseLinuxNet9
+        /q:DebugNet9
+        /q:ReleaseNet9
         "/f:output='/home/subst/Out/Bin/*'ortag='test'"
       workingDirectory: /home/subst
     env:
@@ -177,6 +175,7 @@ jobs:
         rm -rf Out/Bin/debug
         rm -rf Out/Bin/Demos
         rm -rf Out/Bin/net8.0
+        rm -rf Out/Bin/net9.0
         rm -rf Out/Bin/release/cache
         rm -rf Out/Bin/release/ide
         rm -rf Out/Bin/release/linux-x64

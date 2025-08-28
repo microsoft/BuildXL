@@ -5,7 +5,7 @@
 ```bash
 # install packages
 sudo apt-get update 
-sudo apt-get install –y git build-essential libc6-dev openssh-server curl dotnet8 clang libelf-dev
+sudo apt-get install –y git build-essential libc6-dev openssh-server curl dotnet9 clang libelf-dev
 
 # link libdl.so
 sudo ln -vs /lib/x86_64-linux-gnu/libdl.so.2 /usr/lib/x86_64-linux-gnu/libdl.so

@@ -10,7 +10,7 @@ export {BuildXLSdk, NetFx};
 
 export interface VsCodeExtensionQualifier extends Qualifier {
     configuration: "debug" | "release";
-    targetFramework: "net8.0";
+    targetFramework: "net9.0";
     targetRuntime: "win-x64" | "osx-x64" | "linux-x64";
 }
 

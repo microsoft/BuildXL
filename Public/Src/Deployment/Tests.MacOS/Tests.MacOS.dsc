@@ -10,7 +10,7 @@ namespace Tests.MacOS {
 
     const sharedBinFolderName = a`sharedbin`;
     const tests = createAllDefs();
-    const defaultTargetFramework = "net8.0";
+    const defaultTargetFramework = qualifier.targetFramework;
 
     function createAllDefs() : TestDeploymentDefinition[] {
         return [

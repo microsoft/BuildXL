@@ -11,7 +11,7 @@ parameters:
 
 - name: sdkVersion
   type: string
-  default: '8.x'
+  default: '9.x'
 
 # Pre-build steps, including downloading BuildXL if needed
 - name: preBuildSteps

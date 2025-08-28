@@ -83,7 +83,7 @@ export function isDotNetCore(targetFramework: TargetFrameworks.AllFrameworks) : 
 
 namespace TargetFrameworks {
     @@public
-    export const DefaultTargetFramework = "net8.0";
+    export const DefaultTargetFramework = "net9.0";
     
     @@public
     export type DesktopTargetFrameworks = "net472";
@@ -129,21 +129,21 @@ namespace TargetFrameworks {
         @@public
         export interface Current extends Qualifier {
             configuration: "debug" | "release";
-            targetFramework: "net8.0",
+            targetFramework: "net9.0",
             targetRuntime: "win-x64" | "osx-x64" | "linux-x64",
         }
 
         @@public
         export interface CurrentWithStandard extends Qualifier {
             configuration: "debug" | "release";
-            targetFramework: "net8.0" | "netstandard2.0",
+            targetFramework: "net9.0" | "netstandard2.0",
             targetRuntime: "win-x64" | "osx-x64" | "linux-x64",
         }
 
         @@public
         export const current : Current = {
             configuration: qualifier.configuration,
-            targetFramework: "net8.0",
+            targetFramework: "net9.0",
             targetRuntime: 
                 Context.getCurrentHost().os === "win"   ? "win-x64" : 
                 Context.getCurrentHost().os === "macOS" ? "osx-x64" :

@@ -8,14 +8,14 @@ namespace Tests {
     export declare const qualifier : BuildXLSdk.DefaultQualifier;
 
     const deployment : Deployment.Definition = {
-        contents: qualifier.targetFramework === "net8.0" && qualifier.targetRuntime === "win-x64" ? [
+        contents: qualifier.targetFramework === "net9.0" && qualifier.targetRuntime === "win-x64" ? [
             importFrom("BuildXL.Tools").DistributedBuildRunner.exe,
             importFrom("BuildXL.Tools").VerifyFileContentTable.exe,
         ] : []
     };
 
     @@public
-    export const deployed = (qualifier.targetFramework === "net8.0" && qualifier.targetRuntime === "win-x64") && BuildXLSdk.DeploymentHelpers.deploy({
+    export const deployed = (qualifier.targetFramework === "net9.0" && qualifier.targetRuntime === "win-x64") && BuildXLSdk.DeploymentHelpers.deploy({
         definition: deployment, 
         targetLocation: r`tests/${qualifier.configuration}`
     });

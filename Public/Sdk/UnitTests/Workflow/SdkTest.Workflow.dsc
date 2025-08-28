@@ -7,7 +7,7 @@ namespace StandardSdk.Workflow {
     // The SDK works for Windows and Linux builds, but is currently tested only on Windows builds.
     // The workflow SDK has different implementations for Windows and Linux. For example, the script
     // task of the SDK is implemented by calling cmd.exe on Windows and bash on Linux. Also, the task
-    // can have different file dependencies and untracked directories on Windows and Linux. To accomodate
+    // can have different file dependencies and untracked directories on Windows and Linux. To accommodate
     // these differences, we need to have two different sets of lkg files for Windows and Linux. Unfortunately,
     // the current test infrastructure does not have such a support.
     //
@@ -21,12 +21,12 @@ namespace StandardSdk.Workflow {
         autoFixLkgs: false
     });
 
-    // Only run this test on a specific qualifier: Windows x64, .NET 8.0, and debug configuration.
+    // Only run this test on a specific qualifier: Windows x64, .NET 9.0, and debug configuration.
     // This is to avoid the test to fail on other platforms due to the use of absolute paths in the generated nuget.config when running the nuget restore
     // task. The absolute path is sensitive to the qualifier used to run the test.
     const shouldRunNuGetTest = Context.getCurrentHost().os === "win"
         && qualifier.targetRuntime === "win-x64"
-        && qualifier.targetFramework === "net8.0"
+        && qualifier.targetFramework === "net9.0"
         && qualifier.configuration === "debug";
 
     export const nugetTest = shouldRunNuGetTest && BuildXLSdk.sdkTest({

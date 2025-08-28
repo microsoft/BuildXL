@@ -75,11 +75,10 @@ debugprint "Required packages:"
                 rm packages-microsoft-prod.deb
             fi
 
-            installPackages "build-essential" "libc6-dev" "openssh-server" "curl" "dotnet-sdk-8.0" "libelf1" "libelf-dev" "zlib1g-dev" "git" "clang"
+            installPackages "build-essential" "libc6-dev" "openssh-server" "curl" "dotnet-sdk-9.0" "libelf1" "libelf-dev" "zlib1g-dev" "git" "clang"
         ;;
         "mariner" | "azurelinux")
-            installPackages "rsync" "glibc-static.x86_64" "time" "dotnet-sdk-8.0" "clang" "elfutils-libelf" "elfutils-libelf-devel" "zlib-devel"
-
+            installPackages "rsync" "glibc-static.x86_64" "time" "dotnet-sdk-9.0" "clang" "elfutils-libelf" "elfutils-libelf-devel" "zlib-devel"
         ;;
     esac
 

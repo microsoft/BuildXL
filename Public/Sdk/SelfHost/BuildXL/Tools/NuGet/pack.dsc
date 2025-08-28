@@ -15,11 +15,11 @@ export const tool : Transformer.ToolDefinition = getNugetPackerToolForCurrentOs(
 function getNugetPackerToolForCurrentOs() : Transformer.ToolDefinition {
     switch (Context.getCurrentHost().os) {
         case "win":
-            return NugetPacker.withQualifier({targetFramework: "net8.0", targetRuntime: "win-x64", configuration: "release"}).tool;
+            return NugetPacker.withQualifier({targetFramework: "net9.0", targetRuntime: "win-x64", configuration: "release"}).tool;
         case "macOS":
-            return NugetPacker.withQualifier({targetFramework: "net8.0", targetRuntime: "osx-x64", configuration: "release"}).tool;
+            return NugetPacker.withQualifier({targetFramework: "net9.0", targetRuntime: "osx-x64", configuration: "release"}).tool;
         case "unix":
-            return NugetPacker.withQualifier({targetFramework: "net8.0", targetRuntime: "linux-x64", configuration: "release"}).tool;
+            return NugetPacker.withQualifier({targetFramework: "net9.0", targetRuntime: "linux-x64", configuration: "release"}).tool;
         default:
             return Contract.fail(`NugetPacker is not supported on current host OS '${Context.getCurrentHost().os}'`);
     }

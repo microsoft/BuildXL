@@ -52,7 +52,7 @@ jobs:
       -CacheNamespace BuildXL.Public
       -SharedCacheMode ConsumeAndPublish
       /p:[Sdk.BuildXL]microsoftInternal=1
-      /q:ReleaseNet8
+      /q:ReleaseNet9
       /p:[BuildXL.Branding]SemanticVersion=$(BuildXL.SemanticVersion)
       /p:[BuildXL.Branding]PrereleaseTag=$(BuildXL.PreReleaseTag)
       /logOutput:FullOutputOnWarningOrError
@@ -90,7 +90,7 @@ jobs:
         -SharedCacheMode ConsumeAndPublish
         -CacheNamespace BuildXL.Public.Validation
         /p:[Sdk.BuildXL]microsoftInternal=0
-        /q:$(BuildXL.Configuration)Net8
+        /q:$(BuildXL.Configuration)Net9
         /logOutput:FullOutputOnWarningOrError
         /p:RetryXunitTests=1
         /processRetries:3

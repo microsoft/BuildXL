@@ -19,6 +19,7 @@ namespace Test.eBPFSandbox {
                 importFrom("libbpf").extracted,
                 ...EBPF.eBPFSandbox.deployedHeaders,
                 ...EBPF.eBPFSandbox.bpfskel.getOutputFiles(),
+                f`test_utils.hpp`
             ],
             includeDirectories: EBPF.eBPFSandbox.includeDirectories,
             sourceFile: sourceFile
@@ -27,7 +28,7 @@ namespace Test.eBPFSandbox {
         return Native.Linux.Compilers.compile(compilerArgs);
     }
 
-    const sources = [
+    const ringbufferTestSources = [
         f`ringbuffer_test.cpp`,
         f`../../ebpf/SyscallHandler.cpp`,
         f`../../ebpf/EventRingBuffer.cpp`,
@@ -38,7 +39,7 @@ namespace Test.eBPFSandbox {
         f`../../AccessChecker.cpp`
     ];
 
-    const testObj = sources.map(compile);
+    const ringBufferTestObj = ringbufferTestSources.map(compile);
     const commonObj = EBPF.eBPFSandbox.commonSrc.map(compile);
     const utilsObj = EBPF.eBPFSandbox.utilsSrc.map(compile);
 
@@ -48,7 +49,24 @@ namespace Test.eBPFSandbox {
         Native.Linux.Compilers.link({
             outputName: a`ringbuffer_test`,
             tool: Native.Linux.Compilers.gxxTool,
-            objectFiles: [...utilsObj, ...commonObj, ...testObj, EBPF.eBPFSandbox.libbpfa],
+            objectFiles: [...utilsObj, ...commonObj, ...ringBufferTestObj, EBPF.eBPFSandbox.libbpfa],
+            libraries: [ "rt", "dl", "pthread", "m", "elf", "z" ]
+        })
+    : undefined;
+
+    const incrementalPathTest = [
+        f`incremental_path_test.cpp`,
+    ];
+
+    const sendProbeObj = incrementalPathTest.map(compile);
+
+    @@public
+    export const sendProbe = EBPF.eBPFSandbox.hostSupportsBuildingEBPF
+    ?
+        Native.Linux.Compilers.link({
+            outputName: a`incremental_path_test`,
+            tool: Native.Linux.Compilers.gxxTool,
+            objectFiles: [...utilsObj, ...sendProbeObj, EBPF.eBPFSandbox.libbpfa],
             libraries: [ "rt", "dl", "pthread", "m", "elf", "z" ]
         })
     : undefined;

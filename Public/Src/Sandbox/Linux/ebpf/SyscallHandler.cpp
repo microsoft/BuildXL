@@ -11,7 +11,17 @@ namespace linux {
 namespace ebpf {
 
 SyscallHandler::SyscallHandler(BxlObserver *bxl, pid_t root_pid, pid_t runner_pid, const char* root_filename, std::atomic<EventRingBuffer *>* active_ringbuffer, int stats_per_pip_map_fd)
-    : m_root_pid(root_pid), m_runner_pid(runner_pid), m_bxl(bxl), m_runnerExitSent(false), m_root_filename(root_filename), m_active_ringbuffer(active_ringbuffer), m_stats_per_pip_map_fd(stats_per_pip_map_fd) {
+    : m_activePids(),
+        m_root_pid(root_pid), 
+        m_runner_pid(runner_pid), 
+        m_bxl(bxl), 
+        m_runnerExitSent(false), 
+        m_root_filename(root_filename), 
+        m_active_ringbuffer(active_ringbuffer), 
+        m_stats_per_pip_map_fd(stats_per_pip_map_fd),
+        m_lastPathsPerCPU(),
+        m_bytesSavedIncremental(0),
+        m_bytesSubmitted(0) {
     sem_init(&m_noActivePidsSemaphore, 0, 0);
 
     // Our managed side tracking expects a 'clone/fork' event before an exec in order to assign the right pids and update the active process collection. Doing
@@ -19,6 +29,9 @@ SyscallHandler::SyscallHandler(BxlObserver *bxl, pid_t root_pid, pid_t runner_pi
     // Observe that we will see the exit event for the root process later, but we won't see the exit event for the runner process since it is not traced by ebpf.
     SendInitForkEvent(bxl, getpid(), getppid(), root_filename);
     SendInitForkEvent(bxl, root_pid, getpid(), root_filename);
+
+    // This map will hold at most #CPUs entries, one for each CPU that has sent an event.
+    m_lastPathsPerCPU.reserve(std::thread::hardware_concurrency());
 }
 
 SyscallHandler::~SyscallHandler() {
@@ -32,7 +45,58 @@ SyscallHandler::~SyscallHandler() {
     }
  }
 
+std::string SyscallHandler::DecodeIncrementalEvent(const ebpf_event* event) {
+    std::string final_path;
+
+    assert(event->metadata.event_type == SINGLE_PATH && "DecodeIncrementalEvent should only be called for single path events");
+
+    unsigned short incremental_length = event->metadata.source_path_incremental_length;
+
+    // Reconstruct the full path if this is an incremental event
+    if (incremental_length > 0) {
+        // Keep track of how many bytes we saved by using incremental paths, just for statistics purposes
+        // To be strictly fair, the event metadata has a couple extra fields just to be able to reconstruct
+        // the original paths on user side. So substract those, so we can detect the true savings.
+        m_bytesSavedIncremental += incremental_length;
+        m_bytesSavedIncremental -= sizeof(event->metadata.source_path_incremental_length);
+        m_bytesSavedIncremental -= sizeof(event->metadata.processor_id);
+
+        auto last_path = m_lastPathsPerCPU.find(event->metadata.processor_id);
+
+        // If we have seen an event from this CPU before, use its last path to reconstruct the full path
+        if (last_path != m_lastPathsPerCPU.end()) {
+            // The new path is the concatenation of the prefix of the last path seen by this CPU (of length incremental_length)
+            // and the new path sent by the event.
+            final_path = std::string(last_path->second).substr(0, incremental_length) + event->src_path;        
+        } else {
+            assert(false && "Received an incremental event for a CPU that has not sent any events before. This should not happen.");
+        }
+    }
+    // If this is not an incremental event, just use the path as is
+    else {
+        final_path = event->src_path;
+    }
+
+    // Update the last path for this CPU so that it can be used for future events.
+    // This mimics what happens on kernel side, where the last path is updated for each CPU.
+    m_lastPathsPerCPU[event->metadata.processor_id] = final_path;
+
+    return final_path;
+}
+
 bool SyscallHandler::HandleSingleEvent(const ebpf_event *event) {
+    // Track the total bytes submitted for this event
+    m_bytesSubmitted += sizeof(ebpf_event_metadata) + strlen(event->src_path) + 1;
+    
+    std::string final_path = DecodeIncrementalEvent(event);
+
+    // For some operations (e.g. memory files) our path translation returns an empty string. Those cases
+    // should match with the ones we don't care about tracing. So do not send that event to managed side but
+    // let the log debug event call above log it, so we can investigate otherwise.
+    if (!IsPathFullyResolved(final_path)) {
+        return false;
+    }
+
     switch(event->metadata.operation_type) {
         case kClone:
         {
@@ -40,7 +104,7 @@ bool SyscallHandler::HandleSingleEvent(const ebpf_event *event) {
                 /* system_call */   kernel_function_to_string(event->metadata.kernel_function),
                 /* pid */           event->metadata.child_pid,
                 /* ppid */          event->metadata.pid,
-                /* path */          event->src_path);
+                /* path */          final_path);
         
             // We have a single operation for now that can emit a kClone (wake_up_new_task), and this is unlikely to change, 
             // so do not bother checking IsEventCacheable
@@ -53,7 +117,7 @@ bool SyscallHandler::HandleSingleEvent(const ebpf_event *event) {
         }
         case kExit:
         {
-            m_bxl->SendExitReport(event->metadata.pid, 0, event->src_path);
+            m_bxl->SendExitReport(event->metadata.pid, 0, final_path);
 
             // Update the set of active pids to remove the exiting pid
             RemovePid(event->metadata.pid);
@@ -73,7 +137,7 @@ bool SyscallHandler::HandleSingleEvent(const ebpf_event *event) {
         case kGenericWrite:
         {
             // The inode is being written. Send a special event to indicate this so file existence based policies can be applied downstream
-            ReportFirstAllowWriteCheck(m_bxl, event->metadata.operation_type, event->src_path, event->metadata.mode, event->metadata.pid);
+            ReportFirstAllowWriteCheck(m_bxl, event->metadata.operation_type, final_path, event->metadata.mode, event->metadata.pid);
 
             auto sandboxEvent = SandboxEvent::AbsolutePathSandboxEvent(
                 /* system_call */   kernel_function_to_string(event->metadata.kernel_function),
@@ -81,7 +145,7 @@ bool SyscallHandler::HandleSingleEvent(const ebpf_event *event) {
                 /* pid */           event->metadata.pid,
                 /* ppid */          0,
                 /* error */         0,
-                /* src_path */      event->src_path);
+                /* src_path */      final_path);
             sandboxEvent.SetMode(event->metadata.mode);
             sandboxEvent.SetRequiredPathResolution(RequiredPathResolution::kDoNotResolve);
             CreateAndReportAccess(m_bxl,sandboxEvent);
@@ -91,7 +155,7 @@ bool SyscallHandler::HandleSingleEvent(const ebpf_event *event) {
         case kCreate:
         {
             // The inode is being created. Send a special event to indicate this so file existence based policies can be applied downstream
-            ReportFirstAllowWriteCheck(m_bxl, event->metadata.operation_type, event->src_path, event->metadata.mode, event->metadata.pid);
+            ReportFirstAllowWriteCheck(m_bxl, event->metadata.operation_type, final_path, event->metadata.mode, event->metadata.pid);
 
             auto sandboxEvent = SandboxEvent::AbsolutePathSandboxEvent(
                 /* system_call */   kernel_function_to_string(event->metadata.kernel_function),
@@ -99,7 +163,7 @@ bool SyscallHandler::HandleSingleEvent(const ebpf_event *event) {
                 /* pid */           event->metadata.pid,
                 /* ppid */          0,
                 /* error */         0,
-                /* src_path */      event->src_path);
+                /* src_path */      final_path);
             sandboxEvent.SetMode(event->metadata.mode);
             sandboxEvent.SetRequiredPathResolution(RequiredPathResolution::kDoNotResolve);
             CreateAndReportAccess(m_bxl,sandboxEvent, /* check_cache */ IsEventCacheable(event));
@@ -114,7 +178,7 @@ bool SyscallHandler::HandleSingleEvent(const ebpf_event *event) {
                 /* pid */           event->metadata.pid,
                 /* ppid */          0,
                 /* error */         event->metadata.error * -1, // error is negative for rmdir
-                /* src_path */      event->src_path);
+                /* src_path */      final_path);
             sandboxEvent.SetMode(event->metadata.mode);
             sandboxEvent.SetRequiredPathResolution(RequiredPathResolution::kDoNotResolve);
 
@@ -129,10 +193,10 @@ bool SyscallHandler::HandleSingleEvent(const ebpf_event *event) {
                 /* pid */           event->metadata.pid,
                 /* ppid */          0,
                 /* error */         abs(event->metadata.error), // Managed side always expect a non-negative number
-                /* src_path */      event->src_path);
+                /* src_path */      final_path);
             sandboxEvent.SetMode(event->metadata.mode);
             sandboxEvent.SetRequiredPathResolution(RequiredPathResolution::kDoNotResolve);
-        
+
             CreateAndReportAccess(m_bxl,sandboxEvent);
             break;
         }
@@ -144,7 +208,7 @@ bool SyscallHandler::HandleSingleEvent(const ebpf_event *event) {
                 /* pid */           event->metadata.pid,
                 /* ppid */          0,
                 /* error */         0,
-                /* src_path */      event->src_path);
+                /* src_path */      final_path);
             sandboxEvent.SetMode(event->metadata.mode);
             sandboxEvent.SetRequiredPathResolution(RequiredPathResolution::kDoNotResolve);
 
@@ -159,7 +223,7 @@ bool SyscallHandler::HandleSingleEvent(const ebpf_event *event) {
                 /* pid */           event->metadata.pid,
                 /* ppid */          0,
                 /* error */         0,
-                /* src_path */      event->src_path);
+                /* src_path */      final_path);
             sandboxEvent.SetRequiredPathResolution(RequiredPathResolution::kDoNotResolve);
             // mode is explicitly not set here so that the BxlObserver can determine it.
             CreateAndReportAccess(m_bxl, sandboxEvent);
@@ -168,7 +232,7 @@ bool SyscallHandler::HandleSingleEvent(const ebpf_event *event) {
         }
         case kBreakAway:
         {
-            m_bxl->SendBreakawayReport(event->src_path, event->metadata.pid, /** ppid */ 0);
+            m_bxl->SendBreakawayReport(final_path, event->metadata.pid, /** ppid */ 0);
 
             // A breakaway event means the process is no longer under our control, so we remove it from the active pids set.
             RemovePid(event->metadata.pid);
@@ -184,12 +248,22 @@ bool SyscallHandler::HandleSingleEvent(const ebpf_event *event) {
 }
 
 bool SyscallHandler::HandleDoubleEvent(const ebpf_event_double *event) {
+    const char* src_path = get_src_path(event);
+    const char* dst_path = get_dst_path(event);
+
+    // Track the total bytes submitted for this event
+    m_bytesSubmitted += sizeof(ebpf_event_metadata) + strlen(src_path) + 1 + strlen(dst_path) + 1;
+
+    assert(event->metadata.source_path_incremental_length == 0 && "Incremental paths are not supported for double path events");
+
+    // Same consideration for fully resolved paths as in the single path case
+    if (!IsPathFullyResolved(src_path) || !IsPathFullyResolved(dst_path)) {
+        return false;
+    }
+
     switch (event->metadata.operation_type) {
         case kRename:
         {
-            const char* src_path = get_src_path(event);
-            const char* dst_path = get_dst_path(event);
-
             // Handling for this event is different based on whether it's a file or directory.
             // If a directory, the source directory no longer exists because the rename has already happened.
             // We can enumerate the destination directory instead.
@@ -283,18 +357,31 @@ bool SyscallHandler::HandleDoubleEvent(const ebpf_event_double *event) {
 }
 
 bool SyscallHandler::HandleExecEvent(const ebpf_event_exec *event) {
+
+    assert(event->metadata.source_path_incremental_length == 0 && "Incremental paths are not supported for exec events");
+
+    const char* exe_path = get_exe_path(event);
+    const char* args = get_args(event);
+
+    // Track the total bytes submitted for this event
+    m_bytesSubmitted += sizeof(ebpf_event_metadata) + strlen(exe_path) + 1 + strlen(args) + 1;
+
     auto sandboxEvent = SandboxEvent::ExecSandboxEvent(
         /* system_call */   kernel_function_to_string(event->metadata.kernel_function),
         /* pid */           event->metadata.pid,
         /* ppid */          0,
-        /* path */          get_exe_path(event),
-        /* command_line */  m_bxl->IsReportingProcessArgs() ? get_args(event) : "");
+        /* path */          exe_path,
+        /* command_line */  m_bxl->IsReportingProcessArgs() ? args : "");
     CreateAndReportAccess(m_bxl,sandboxEvent, /* check_cache */ false);
 
     return true;
 }
 
 bool SyscallHandler::HandleDebugEvent(const ebpf_event_debug *event) {
+
+    // Track the total bytes submitted for this event
+    m_bytesSubmitted += sizeof(ebpf_event_debug);
+
     // Add the pip id (as seen by EBPF) to all debug messages
     char messageWithPipId[PATH_MAX];
     snprintf(messageWithPipId, PATH_MAX, "[%d] [%d] %s", event->runner_pid, event->pid, event->message);
@@ -329,7 +416,7 @@ void SyscallHandler::CreateAndReportAccess(BxlObserver *bxl, SandboxEvent& event
     bxl->CreateAndReportAccess(event, check_cache, /* basedOnPolicy */ true);
 }
 
-bool SyscallHandler::TryCreateFirstAllowWriteCheck(BxlObserver *bxl, operation_type operation_type, const char *path, mode_t mode, pid_t pid, SandboxEvent &event)
+bool SyscallHandler::TryCreateFirstAllowWriteCheck(BxlObserver *bxl, operation_type operation_type, const std::string& path, mode_t mode, pid_t pid, SandboxEvent &event)
 {
     // The inode is being created or is being written. event->metadata.operation_type is expected to be either a kWrite or a kCreate.
     assert(operation_type == kGenericWrite || operation_type == kCreate);
@@ -341,7 +428,7 @@ bool SyscallHandler::TryCreateFirstAllowWriteCheck(BxlObserver *bxl, operation_t
         return false;
     }
 
-    auto policy = AccessChecker::PolicyForPath(bxl->GetFileAccessManifest(), path);
+    auto policy = AccessChecker::PolicyForPath(bxl->GetFileAccessManifest(), path.c_str());
 
     // Register that we are sending this special event for the given path. If this is the first time we are seeing this path and
     // the operation is a kCreate, then the file was not there before the first write. Otherwise, if the operation is a kGenericWrite
@@ -363,7 +450,7 @@ bool SyscallHandler::TryCreateFirstAllowWriteCheck(BxlObserver *bxl, operation_t
     return false;
 }
 
-void SyscallHandler::ReportFirstAllowWriteCheck(BxlObserver *bxl, operation_type operation_type, const char *path, mode_t mode, pid_t pid)
+void SyscallHandler::ReportFirstAllowWriteCheck(BxlObserver *bxl, operation_type operation_type, const std::string& path, mode_t mode, pid_t pid)
 {
     SandboxEvent event;
 
@@ -397,29 +484,33 @@ void SyscallHandler::SendStats()
 
         m_bxl->LogInfo(
             getpid(),
-            "[Event cache info] Event cache hit: %d (%.2f%%), Event cache miss: %d",
+            "[Ring buffer monitoring] Event cache hit: %d (%.2f%%), Event cache miss: %d",
             stats.event_cache_hit, event_cache_hit_percentage, stats.event_cache_miss);
 
         double string_cache_hit_percentage = (stats.string_cache_hit + stats.string_cache_miss > 0) ? (100.0 * stats.string_cache_hit / (stats.string_cache_hit + stats.string_cache_miss)) : 0.0;
         m_bxl->LogInfo(
             getpid(),
-            "[String cache info] String cache hit: %d (%.2f%%), String cache miss: %d, String cache uncacheable: %d",
-            stats.string_cache_hit, string_cache_hit_percentage, stats.string_cache_miss, stats.string_cache_uncacheable
-        );
+            "[Ring buffer monitoring] String cache hit: %d (%.2f%%), String cache miss: %d, String cache uncacheable: %d",
+            stats.string_cache_hit, string_cache_hit_percentage, stats.string_cache_miss, stats.string_cache_uncacheable);
     }
 
     auto eventRingbuffer = m_active_ringbuffer->load();
     size_t min_available = eventRingbuffer->GetMinimumAvailableSpace();
     size_t total = eventRingbuffer->GetRingBufferSize();
-    double percent = (total > 0) ? (100.0 * min_available / total) : 0.0;
+    double percent_available = (total > 0) ? (100.0 * min_available / total) : 0.0;
 
     // The buffer id is a 0-based index that gets increased every time a new buffer is created.
     // So the id also represents the number of times the ring buffer capacity has been exceeded.
     m_bxl->LogInfo(
         getpid(),
         "[Ring buffer monitoring] Minimum available space: %zu bytes (%.2f%%). Total available space: %zu bytes. Capacity exceeded %d time(s).",
-        min_available, percent, total, eventRingbuffer->GetId()
-    );
+        min_available, percent_available, total, eventRingbuffer->GetId());
+
+    double percent_incremental_saved = (m_bytesSavedIncremental != 0) ? (100.0 * m_bytesSavedIncremental / (m_bytesSubmitted + m_bytesSavedIncremental)) : 0.0;
+    m_bxl->LogInfo(
+        getpid(),
+        "[Ring buffer monitoring] Total bytes saved by using incremental path encoding: %.2f KB (%.2f%%). Total bytes sent: %.2f KB.",
+        (double)m_bytesSavedIncremental / (1024.0), percent_incremental_saved, (double)m_bytesSubmitted / (1024.0));
 }
 
 void SyscallHandler::RemovePid(pid_t pid) {

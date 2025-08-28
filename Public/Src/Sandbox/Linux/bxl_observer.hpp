@@ -354,10 +354,18 @@ public:
     bool SendReport(buildxl::linux::SandboxEvent &event, bool use_secondary_pipe = false);
     bool SendReport(buildxl::linux::SandboxEvent &event, buildxl::linux::AccessReport report, bool use_secondary_pipe);
 
-    // Specialization for the exit report event. 
-    // We may need to send an exit report on exit handlers after destructors
-    // have been called. This method avoids accessing shared structures.
+    
+    /**
+     * Takes care of the null pointer case. Real implementation is in SendExitReport(pid_t, pid_t, const std::string&).
+     */
     bool SendExitReport(pid_t pid, pid_t ppid, const char* programPath = NULL);
+    
+    /**
+     * Specialization for the exit report event. 
+     * We may need to send an exit report on exit handlers after destructors
+     * have been called. This method avoids accessing shared structures.
+     */
+    bool SendExitReport(pid_t pid, pid_t ppid, const std::string& programPath);
     char** ensureEnvs(char *const envp[]);
     char** removeEnvs(char *const envp[]);
 
@@ -420,8 +428,8 @@ public:
 
     // Send a special message to managed code if the policy to override allowed writes based on file existence is set
     // and the write is allowed by policy
-    void report_firstAllowWriteCheck(const char *full_path, int path_mode = -1, int pid = -1, int ppid = -1);
-    void create_firstAllowWriteCheck(const char *full_path, int path_mode, int pid, int ppid, buildxl::linux::SandboxEvent& firstAllowWriteEvent);
+    void report_firstAllowWriteCheck(const std::string& full_path, int path_mode = -1, int pid = -1, int ppid = -1);
+    void create_firstAllowWriteCheck(const std::string& full_path, int path_mode, int pid, int ppid, buildxl::linux::SandboxEvent& firstAllowWriteEvent);
 
     // Checks and reports when a process that requires ptrace is about to be executed
     // Observe that as soon as this method determines ptrace is required and sends the corresponding report
@@ -437,7 +445,7 @@ public:
     bool SendBreakawayReportIfNeeded(const char *path, std::string &args, pid_t pid = -1, pid_t ppid = -1);
     bool SendBreakawayReportIfNeeded(const char *path, char *const argv[]);
     bool SendBreakawayReportIfNeeded(int fd, char *const argv[]);
-    void SendBreakawayReport(const char *path, pid_t pid, pid_t ppid);
+    void SendBreakawayReport(const std::string& path, pid_t pid, pid_t ppid);
 
     // Clears the specified entry on the file descriptor table
     void reset_fd_table_entry(int fd);

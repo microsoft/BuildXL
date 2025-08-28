@@ -393,7 +393,7 @@ bool BxlObserver::SendReport(buildxl::linux::SandboxEvent &event, buildxl::linux
             PIPE_BUF,
             report_size);
 
-        if (!success) {
+            if (!success) {
             // TODO: once 'send' is capable of sending more than PIPE_BUF at once, allocate a bigger buffer and send that
             _fatal("Message truncated to fit (%d) bytes: %s. Path '%s'", PIPE_BUF, buffer, report.path.c_str());
         }
@@ -578,7 +578,12 @@ bool BxlObserver::Send(const char *buf, size_t bufsiz, bool useSecondaryPipe, bo
 bool BxlObserver::SendExitReport(pid_t pid, pid_t ppid, const char* programPath)
 {
     const char* path = (programPath == NULL) ? GetProgramPath() : programPath;
-    auto event = buildxl::linux::SandboxEvent::ExitSandboxEvent("exit", path, pid, ppid);
+    return SendExitReport(pid, ppid, std::string(path));
+}
+
+bool BxlObserver::SendExitReport(pid_t pid, pid_t ppid, const std::string& programPath)
+{
+    auto event = buildxl::linux::SandboxEvent::ExitSandboxEvent("exit", programPath, pid, ppid);
     event.SetSourceAccessCheck(AccessCheckResult(RequestedAccess::Read, ResultAction::Allow, ReportLevel::Report));
 
     return SendReport(event);
@@ -639,9 +644,9 @@ bool BxlObserver::is_non_file(const mode_t mode)
     return mode != 0 && !S_ISDIR(mode) && !S_ISREG(mode) && !S_ISLNK(mode);
 }
 
-void BxlObserver::create_firstAllowWriteCheck(const char *full_path, int path_mode, int pid, int ppid, buildxl::linux::SandboxEvent& firstAllowWriteEvent)
+void BxlObserver::create_firstAllowWriteCheck(const std::string& full_path, int path_mode, int pid, int ppid, buildxl::linux::SandboxEvent& firstAllowWriteEvent)
 {
-    mode_t mode = path_mode == -1 ? get_mode(full_path) : path_mode;
+    mode_t mode = path_mode == -1 ? get_mode(full_path.c_str()) : path_mode;
     bool file_exists = mode != 0 && !S_ISDIR(mode);
     AccessCheckResult access_check(RequestedAccess::Write, file_exists ? ResultAction::Deny : ResultAction::Allow, ReportLevel::Report);
     firstAllowWriteEvent = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
@@ -656,7 +661,7 @@ void BxlObserver::create_firstAllowWriteCheck(const char *full_path, int path_mo
     firstAllowWriteEvent.SetSourceAccessCheck(access_check);
 }
 
-void BxlObserver::report_firstAllowWriteCheck(const char *full_path, int path_mode, int pid, int ppid)
+void BxlObserver::report_firstAllowWriteCheck(const std::string& full_path, int path_mode, int pid, int ppid)
 {
     buildxl::linux::SandboxEvent event;
     create_firstAllowWriteCheck(full_path, -1, -1, -1, event);
@@ -828,7 +833,7 @@ bool BxlObserver::SendBreakawayReportIfNeeded(const char *path, std::string &arg
     return result;
 }
 
-void BxlObserver::SendBreakawayReport(const char *path, pid_t pid, pid_t ppid)
+void BxlObserver::SendBreakawayReport(const std::string& path, pid_t pid, pid_t ppid)
 {
     // Send a "process is about to break away" report so that the managed side can track it.
     auto event = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(

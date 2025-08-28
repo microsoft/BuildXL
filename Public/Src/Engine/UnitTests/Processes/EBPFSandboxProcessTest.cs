@@ -12,6 +12,7 @@ using Xunit.Abstractions;
 using BuildXL.Processes.Tracing;
 using BuildXL.Utilities;
 using System.Diagnostics;
+using System.Linq;
 
 #nullable enable
 
@@ -146,6 +147,96 @@ namespace Test.BuildXL.Processes
             // The test triggers the capacity exceeded callback by writing more than the ring buffer can hold.
             // The test should succeed, which means the capacity exceeded callback was called and all the expected events were written to the queue.
             XAssert.AreEqual(0, result.ExitCode);
+        }
+
+        [Theory]
+        [InlineData("/test/this/path", "/test/this/other/path")]
+        [InlineData("/test/this/path", "/unrelated/path")]
+        public void ValidateIncrementalPaths(string path1, string path2)
+        {
+            if (OperatingSystemHelperExtension.GetLinuxDistribution()?.Equals(new LinuxDistribution("ubuntu", new Version("20.04"))) == true)
+            {
+                // This test is valid for all supported Linux distributions supported by BuildXL except for Ubuntu 20.04.
+                // TODO: Remove this check once support for Ubuntu 20.04 is dropped.
+                return;
+            }
+
+            // Skip test if not using EBPF sandbox
+            if (!UsingEBPFSandbox)
+            {
+                return;
+            }
+
+            // For now this test only runs in ADO builds, where we can set the required capabilities without an interactive prompt.
+            if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("TF_BUILD")))
+            {
+                return;
+            }
+
+            // CODESYNC: Public/Src/Engine/UnitTests/Processes/Test.BuildXL.Processes.dsc
+            string incrementalPathTest = SandboxedProcessUnix.EnsureDeploymentFile("RingBufferTest/incremental_path_test");
+
+            // The test needs the ability to retrieve a pinned EBPF map
+            UnixGetCapUtils.SetEBPFCapabilitiesIfNeeded(incrementalPathTest);
+
+            var fileAccessManifest = new FileAccessManifest(Context.PathTable)
+            {
+                FailUnexpectedFileAccesses = false,
+                ReportFileAccesses = true,
+                MonitorChildProcesses = true,
+                PipId = 1,
+                EnableLinuxSandboxLogging = true
+            };
+
+            var info =
+                new SandboxedProcessInfo(
+                    Context.PathTable,
+                    new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory),
+                    incrementalPathTest,
+                    fileAccessManifest,
+                    disableConHostSharing: false,
+                    loggingContext: LoggingContext,
+                    useGentleKill: true)
+                {
+                    Arguments = $"{path1} {path2}",
+                    WorkingDirectory = TemporaryDirectory,
+                    PipSemiStableHash = fileAccessManifest.PipId,
+                    PipDescription = "EBPF incremental test",
+                    SandboxConnection = new SandboxConnectionLinuxEBPF(ebpfDaemonTask: null),
+                };
+
+            var process = SandboxedProcessFactory.StartAsync(info, forceSandboxing: true).GetAwaiter().GetResult();
+            var result = process.GetResultAsync().GetAwaiter().GetResult();
+            XAssert.AreEqual(0, result.ExitCode);
+
+            var messages = m_eventListener.GetLogMessagesForEventId((int)LogEventId.LogDetoursDebugMessage);
+
+            // On managed side, paths should roundtrip as is, in the same order.
+            var managedSide = messages.Where(s => s.Contains("(( test_synthetic:10 ))")).ToList();
+            XAssert.AreEqual(2, managedSide.Count);
+            XAssert.Contains(managedSide[0], path1);
+            XAssert.Contains(managedSide[1], path2);
+
+            // On the native side, first path should be sent as is. Second path should be incrementally encoded.
+            var nativeSide = messages.Where(s => s.Contains("kernel function: test_synthetic")).ToList();
+            XAssert.AreEqual(2, nativeSide.Count);
+            XAssert.Contains(nativeSide[0], $"path: '{path1}'");
+            XAssert.Contains(nativeSide[1], $"path: '{path2.Substring(CommonPrefixLength(path1, path2))}'");
+        }
+
+        private static int CommonPrefixLength(string s1, string s2)
+        {
+            int minLength = Math.Min(s1.Length, s2.Length);
+            int i = 0;
+            for (; i < minLength; i++)
+            {
+                if (s1[i] != s2[i])
+                {
+                    break;
+                }
+            }
+
+            return i;
         }
     }
 }

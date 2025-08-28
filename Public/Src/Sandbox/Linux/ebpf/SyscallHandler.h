@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <semaphore.h>
 #include <atomic>
+#include <thread>
 
 #include "EventRingBuffer.hpp"
 #include "ebpfcommon.h"
@@ -60,9 +61,19 @@ public:
 private:
     static bool IsEventCacheable(const ebpf_event *event);
     static void CreateAndReportAccess(BxlObserver *bxl, SandboxEvent& event, bool check_cache = true);
-    static void ReportFirstAllowWriteCheck(BxlObserver *bxl, operation_type operation_type, const char *path, mode_t mode, pid_t pid);
-    static bool TryCreateFirstAllowWriteCheck(BxlObserver *bxl, operation_type operation_type, const char *path, mode_t mode, pid_t pid, SandboxEvent &event);
+    static void ReportFirstAllowWriteCheck(BxlObserver *bxl, operation_type operation_type, const std::string& path, mode_t mode, pid_t pid);
+    static bool TryCreateFirstAllowWriteCheck(BxlObserver *bxl, operation_type operation_type, const std::string& path, mode_t mode, pid_t pid, SandboxEvent &event);
     static void SendInitForkEvent(BxlObserver *bxl, pid_t pid, pid_t ppid, const char *file);
+    /**
+    * Whether a path is fully resolved (i.e. starts with a '/')
+    */
+    static bool IsPathFullyResolved(const std::string& path) { return !path.empty() && path[0] == '/'; }
+
+    /** 
+     * Decodes an incremental event into a full path.
+     */
+    std::string DecodeIncrementalEvent(const ebpf_event* event);
+
     // Sends general stats of the runner execution.
     // Heads up this should be sent before the runner exit event, otherwise the managed side may not be able to read it.
     // TODO: For now this method just prints info messages on the bxl main log. Consider plumbing through this info via
@@ -80,6 +91,9 @@ private:
     const char* m_root_filename;
     std::atomic<EventRingBuffer *>* m_active_ringbuffer;
     int m_stats_per_pip_map_fd;
+    std::unordered_map<int, std::string> m_lastPathsPerCPU;
+    long m_bytesSavedIncremental;
+    long m_bytesSubmitted;
 };
 
 } // ebpf

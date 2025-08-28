@@ -44,7 +44,7 @@
 
 
 /** Constants */
-const int PINNED_MAPS_SIZE = 8;
+const int PINNED_MAPS_SIZE = 9;
 
 /** Globals */
 BxlObserver *g_bxl;
@@ -55,7 +55,7 @@ static volatile sig_atomic_t g_exit_signal_received = 0;
 static volatile sig_atomic_t g_root_process_exited = 0;
 int g_root_pid = 0, g_runner_pid = 0;
 struct ring_buffer *g_debug_ring_buffer = nullptr;
-int g_pid_map_fd, g_sandbox_options_per_pip_map_fd, g_stats_per_pip_map_fd, g_file_access_per_pip_fd = -1;
+int g_pid_map_fd, g_sandbox_options_per_pip_map_fd, g_stats_per_pip_map_fd, g_file_access_per_pip_fd, g_last_path_per_pip_fd = -1;
 int g_debug_buffer_per_pip_fd, g_breakaway_processes_map_fd, g_event_cache_per_pip_fd, g_string_cache_per_pip_fd, g_breakaway_processes_per_pip_fd = -1;
 sem_t g_root_process_populated_semaphore;
 bool g_ebpf_already_loaded, g_ebpf_should_force_ebpf_loading = false;
@@ -183,7 +183,7 @@ void Cleanup(struct sandbox_bpf *skel) {
 
 void LogDebugEvent(ebpf_event *event)
 {
-    switch (event->metadata.event_type) 
+    switch (event->metadata.event_type)
     {
         case EXEC: 
         {
@@ -372,14 +372,6 @@ void SigIntHandler(int signo) {
 }
 
 /**
- * Whether a path is fully resolved (i.e. start with a '/')
- */
-bool IsPathFullyResolved(const char* path)
-{
-    return path != NULL && path[0] == '/';
-}
-
-/**
  * Handles a provided ebpf event.
  */
 void HandleEvent(ebpf_event *event) {
@@ -391,22 +383,12 @@ void HandleEvent(ebpf_event *event) {
             break;
         }
         case SINGLE_PATH:
-            // For some operations (e.g. memory files) our path translation returns an empty string. Those cases
-            // should match with the ones we don't care about tracing. So do not send that event to managed side but
-            // let the log debug event call above log it, so we can investigate otherwise.
-            if (IsPathFullyResolved(event->src_path))
-            {
-                g_syscallHandler->HandleSingleEvent(event);                
-            }
+            g_syscallHandler->HandleSingleEvent(event);                
             break;
         case DOUBLE_PATH:
         {
-            // Same consideration for fully resolved paths as in the single path case
             const ebpf_event_double* double_event = (const ebpf_event_double *)event;
-            if (IsPathFullyResolved(get_src_path(double_event)) && IsPathFullyResolved(get_dst_path(double_event)))
-            {
-                g_syscallHandler->HandleDoubleEvent(double_event);
-            }
+            g_syscallHandler->HandleDoubleEvent(double_event);
             break;
         }
         case DEBUG:
@@ -663,7 +645,8 @@ int ReuseMaps(struct sandbox_bpf *skel) {
         skel->maps.sandbox_options_per_pip,
         skel->maps.event_cache_per_pip,
         skel->maps.string_cache_per_pip,
-        skel->maps.stats_per_pip
+        skel->maps.stats_per_pip,
+        skel->maps.last_path_per_pip
     };
 
     for (int i = 0 ; i < PINNED_MAPS_SIZE; i++)
@@ -745,6 +728,13 @@ int BindPerPipMaps(struct sandbox_bpf *skel) {
     g_breakaway_processes_per_pip_fd = bpf_object__find_map_fd_by_name(skel->obj, "breakaway_processes_per_pip");
     if (g_breakaway_processes_per_pip_fd < 0) {
         LogError("Finding breakaway_processes per pip in bpf object failed.\n");
+        Cleanup(skel);
+        return -1;
+    }
+
+    g_last_path_per_pip_fd = bpf_object__find_map_fd_by_name(skel->obj, "last_path_per_pip");
+    if (g_last_path_per_pip_fd < 0) {
+        LogError("Finding last_path_per_pip in bpf object failed.\n");
         Cleanup(skel);
         return -1;
     }
@@ -916,6 +906,30 @@ int SetupMaps(struct sandbox_bpf *skel) {
         g_bxl->LogDebug(getpid(), "Added breakaway process map %d", key);
     }
     
+    LIBBPF_OPTS(bpf_map_create_opts, last_path_per_cpu_options);
+    // The number of entries in the last path per cpu map is set to the number of CPUs
+    int max_concurrency = std::thread::hardware_concurrency();
+    
+    int last_path_per_cpu =  bpf_map_create(BPF_MAP_TYPE_HASH, "last_path_per_cpu", sizeof(__u32), sizeof(char[PATH_MAX]), max_concurrency, &last_path_per_cpu_options);
+    if (last_path_per_cpu < 0)
+    {
+        LogError("Failed to create last path per cpu map: [%d]%s\n", errno, strerror(errno));
+        Cleanup(skel);
+        return -1;
+    }
+
+    // Add the last path per cpu map to the per-pip outer map
+    if (bpf_map_update_elem(g_last_path_per_pip_fd, &key, &last_path_per_cpu, BPF_ANY))
+    {
+        LogError("Failed to add last path per cpu map with max entries %d to outer map for runner PID %d: %s\n", max_concurrency, key, strerror(errno));
+        Cleanup(skel);
+        return -1;
+    }
+    else
+    {   
+        g_bxl->LogDebug(getpid(), "Added last path per cpu map %d", key);
+    }
+
     if (PopulateBreakawayProcessesMap())
     {
         Cleanup(skel);
@@ -936,7 +950,8 @@ void CleanupPinnedMaps(struct sandbox_bpf *skel) {
         skel->maps.sandbox_options_per_pip,
         skel->maps.event_cache_per_pip,
         skel->maps.string_cache_per_pip,
-        skel->maps.stats_per_pip
+        skel->maps.stats_per_pip,
+        skel->maps.last_path_per_pip
     };
 
     for (int i = 0 ; i < PINNED_MAPS_SIZE; i++) {
@@ -1034,10 +1049,11 @@ int ConfigurePerPipMapSizes(struct sandbox_bpf *skel) {
         skel->maps.sandbox_options_per_pip,
         skel->maps.event_cache_per_pip,
         skel->maps.string_cache_per_pip,
-        skel->maps.stats_per_pip
+        skel->maps.stats_per_pip,
+        skel->maps.last_path_per_pip
     };
 
-    for (int i = 0 ; i < 7; i++) {
+    for (int i = 0 ; i < 8; i++) {
         bpf_map* per_pip_map = per_pip_maps[i];
 
         if (bpf_map__set_max_entries(per_pip_map, concurrency))
@@ -1060,6 +1076,7 @@ void DeletePerPipMaps(sandbox_bpf *skel, pid_t runner_pid) {
     DeletePerPipMap(g_breakaway_processes_per_pip_fd, runner_pid, "breakaway processes");
     DeletePerPipMap(g_sandbox_options_per_pip_map_fd, runner_pid, "sandbox options");
     DeletePerPipMap(g_stats_per_pip_map_fd, runner_pid, "stats");
+    DeletePerPipMap(g_last_path_per_pip_fd, runner_pid, "last path");
 }
 
 int Start(sandbox_bpf *skel, char **argv) {

@@ -13,6 +13,20 @@
 
 extern int LINUX_KERNEL_VERSION __kconfig;
 
+/**
+ * The wakeup strategy is as follows:
+ * - If the ring buffer is relatively empty (a quarter of its capacity), we do not wake up the user-side process, so we prioritize speed.
+ * - If the ring buffer is relatively full (more than a quarter of its capacity), we force a wakeup for every submission. In this
+ *  case we prioritize not running out of buffer space because user side cannot keep up.
+ */
+__attribute__((always_inline)) static long get_flags(void *ringbuffer) {
+    long data_size = bpf_ringbuf_query(ringbuffer, BPF_RB_AVAIL_DATA);
+    long total_size = bpf_ringbuf_query(ringbuffer, BPF_RB_RING_SIZE);
+    long threshold = total_size >> 2; // A quarter of the total size
+
+    return data_size >= threshold ? BPF_RB_FORCE_WAKEUP : BPF_RB_NO_WAKEUP;
+}
+
 /*
  * Map containing currently active process id -> runner pid. Root process id is pre-populated by the userspace.
  * Observe these pids are the ones corresponding to the root namespace. So the assumption is that
@@ -127,7 +141,7 @@ struct {
 } breakaway_pids SEC(".maps");
 
 /**
- * Map containing breakaway processes populated from the user side. We have one of this per pip and are held in a 
+ * Map containing breakaway processes populated from the user side. We have one of this per pip and are held in a
  * map of maps
  */
 struct breakaway_processes {
@@ -136,6 +150,40 @@ struct breakaway_processes {
     __uint(value_size, sizeof(breakaway_process));
     __uint(max_entries, MAX_BREAKAWAY_PROCESSES);
 } breakaway_processes SEC(".maps");
+
+/**
+ * Map holding the last accessed path per CPU. In this way we can send paths in incremental mode, just describing the difference
+ * wrt the last sent path for a given CPU.
+ * Not really exposed to user side, even though this is an inner map that lives in the last_path_per_pip map of maps. This is just
+ * because the last path has to be per CPU AND per pip, and having the outer map makes it easier to manage. The outer map is managed
+ * from user side, as any other outer map.
+ * Max entries is set dynamically at creation time, as we need to know the max CPUs available in the system.
+ */
+struct last_path_per_cpu {
+    __uint(type, BPF_MAP_TYPE_HASH);
+    // The key is the current CPU. We are not using a BPF_MAP_TYPE_PERCPU_ARRAY because it is not clear what the PERCPU behavior is
+    // when being an inner map
+    __type(key, __u32);
+    __type(value, char[PATH_MAX]);
+    // On creation we set this to be the max number of CPUs available in the system. This is just for the 'template' inner map.
+    __uint(max_entries, 1);
+} last_path_per_cpu SEC(".maps");
+
+/**
+ * Outer map that holds the last path per pip. The ebpf-runner cannot deal with incremental paths across pips since it only has visibility into
+ * its corresponding pip. So we scope down the last path per CPU to the pip that is running the ebpf program. The runner will add one inner map on start
+ * and remove it on exit (as it happens with all the per_pip maps).
+ */
+struct {
+    __uint(type, BPF_MAP_TYPE_HASH_OF_MAPS);
+    __type(key, pid_t);
+    // We need all runners to share this map
+    __uint(pinning, LIBBPF_PIN_BY_NAME);
+    // The max number of entries is the max number of runners that can run concurrently, which is typically way over dimensioned
+    // Most pips won't have breakaway processes, so we set the map flags to avoid preallocating memory
+    __uint(map_flags, BPF_F_NO_PREALLOC);
+    __array(values, struct last_path_per_cpu);
+} last_path_per_pip SEC(".maps");
 
 /**
  * Similar to file_access_per_pip, holds one maps of breakaway processes per sandboxed process.
@@ -151,6 +199,77 @@ struct {
     __uint(map_flags, BPF_F_NO_PREALLOC);
     __array(values, struct breakaway_processes);
 } breakaway_processes_per_pip SEC(".maps");
+
+// Call this function to report the free capacity of the ring buffer in the kernel debug pipe. For debugging purposes only.
+__attribute__((always_inline)) static inline void debug_ringbuffer_capacity(pid_t runner_pid, void* ring_buffer)
+{
+    ulong avail = bpf_ringbuf_query(ring_buffer, BPF_RB_AVAIL_DATA);
+    ulong size = bpf_ringbuf_query(ring_buffer, BPF_RB_RING_SIZE);
+    ulong con_pos = bpf_ringbuf_query(ring_buffer, BPF_RB_CONS_POS);
+    ulong prod_pos = bpf_ringbuf_query(ring_buffer, BPF_RB_PROD_POS);
+
+    ulong available_percentage = ((size - avail) * 100 )/ size;
+    bpf_printk("[%d] Free capacity: %ld%% (con_pos: %ld, prod_pos: %ld)\n", runner_pid, available_percentage, con_pos, prod_pos);
+}
+
+/**
+ * Attempts to reserve space on the debug ring buffer to report a problem
+ */
+__attribute__((always_inline)) static inline void report_ring_buffer_error(pid_t runner_pid, const char* error_message) {
+    void *debug_ring_buffer = bpf_map_lookup_elem(&debug_buffer_per_pip, &runner_pid);
+    if (debug_ring_buffer == NULL) {
+        bpf_printk("[ERROR] Couldn't find debug ring buffer for pip %d. Error %s", runner_pid, error_message);
+        return;
+    }
+
+    ebpf_event_debug *debug_event = bpf_ringbuf_reserve(debug_ring_buffer, sizeof(ebpf_event_debug), 0);
+
+    if (!debug_event) {
+        bpf_printk("[ERROR] Unable to reserve debug ring buffer for pip %d and pid %d", runner_pid, bpf_get_current_pid_tgid() >> 32);
+        return;
+    }
+
+    debug_event->event_type = DEBUG;
+    debug_event->pid = bpf_get_current_pid_tgid() >> 32;
+    debug_event->runner_pid = runner_pid;
+    __builtin_strcpy(debug_event->message, error_message);
+    bpf_ringbuf_submit(debug_event, /* flags */ 0);
+}
+
+__attribute__((always_inline)) static inline void report_buffer_reservation_failure(pid_t runner_pid, void* ring_buffer)
+{
+    report_ring_buffer_error(runner_pid, "[ERROR] Unable to reserve ring buffer for pip");
+    long avail = bpf_ringbuf_query(ring_buffer, BPF_RB_AVAIL_DATA);
+    long size = bpf_ringbuf_query(ring_buffer, BPF_RB_RING_SIZE);
+    long con_pos = bpf_ringbuf_query(ring_buffer, BPF_RB_CONS_POS);
+    long prod_pos = bpf_ringbuf_query(ring_buffer, BPF_RB_PROD_POS);
+    bpf_printk("Buffer reservation failure. [%d] Available data %ld, size %ld, consumer pos %ld, producer ps %ld", runner_pid, avail, size, con_pos, prod_pos);
+}
+
+__attribute__((always_inline)) static inline void report_file_access_buffer_not_found(pid_t runner_pid)
+{
+    report_ring_buffer_error(runner_pid, "[ERROR] Could not find file access ring buffer.");
+}
+
+__attribute__((always_inline)) static inline void report_last_path_per_cpu_not_found(pid_t runner_pid)
+{
+    report_ring_buffer_error(runner_pid, "[ERROR] Could not find last path per CPU.");
+}
+
+__attribute__((always_inline)) static inline void report_event_cache_not_found(pid_t runner_pid)
+{
+    report_ring_buffer_error(runner_pid, "[ERROR] Could not find event cache.");
+}
+
+__attribute__((always_inline)) static inline void report_string_cache_not_found(pid_t runner_pid)
+{
+    report_ring_buffer_error(runner_pid, "[ERROR] Could not find string cache.");
+}
+
+__attribute__((always_inline)) static inline void report_breakaway_map_not_found(pid_t runner_pid)
+{
+    report_ring_buffer_error(runner_pid, "[ERROR] Could not find breakaway map.");
+}
 
 // Whether the given pid is one we care about (i.e. is part of the pid map we keep). If the pid is valid,
 // sets runner_pid to its associated value
@@ -212,7 +331,7 @@ const static int ONE = 1;
 // We use one entry per cpu
 // Used by deref_path_info, combine_paths, and argv_to_string
 // The dereference needs two paths, so the size here is PATH_MAX * 2, and the resulting element is logically split in halves
-// More generally, it is very useful to use a PATH_MAX * 2 sized buffer for path-related operations (when two paths are involved, or when 
+// More generally, it is very useful to use a PATH_MAX * 2 sized buffer for path-related operations (when two paths are involved, or when
 // a temporary path is kept while operating with another one), as the verifier will be happy with the given boundaries
 struct
 {
@@ -226,7 +345,7 @@ struct
  * Body of the loop used in deref_path_info.
  * This is used instead of defining it directly in the function because depending on the current kernel version
  * different types of loops must be used.
- * 
+ *
  * Returns 0 if the loop should continue, 1 if it should return, and 2 if it should break.
  * If the return value is set to 1 then the return code is set in the returncode variable.
  */
@@ -262,7 +381,7 @@ __attribute__((always_inline)) static inline int deref_paths_info_loop(
 
     // get parent dentry
     *newdentry = (char *)BPF_CORE_READ((struct dentry *)*dentry, d_parent);
-    
+
     // Check if the retrieved dname is just a '/'. In that case, we just want to skip it.
     // We will consistently add separators in between afterwards, so we don't want a double slash
     if (!(temp[PATH_MAX] == '/' && *dlen == 2))
@@ -350,9 +469,9 @@ __attribute__((always_inline)) static inline uint32_t deref_path_info(char *dest
 
     // nullify string in case of error
     dest[0] = 0x00;
- 
+
     mnt = container_of(vfsmount, struct mount, mnt);
- 
+
     // retrieve temporary filepath storage
     int index = 0;
     temp = bpf_map_lookup_elem(&derefpaths, &index);
@@ -360,7 +479,7 @@ __attribute__((always_inline)) static inline uint32_t deref_path_info(char *dest
     {
         return 0;
     }
- 
+
     int returncode = 0;
     if (LINUX_KERNEL_VERSION >= KERNEL_VERSION(6, 8, 0))
     {
@@ -428,18 +547,18 @@ __attribute__((always_inline)) static inline uint32_t deref_path_info(char *dest
             }
         }
     }
-    
+
     // check if we exhausted the number of directories we can traverse
     if (i == FILEPATH_NUMDIRS)
     {
         // add a '+/' to the start to indicate it's not a full path
- 
+
         // Following piece of asm is required as clang likes to optimise
         // an increment followed by ANDing with (PATH_MAX -1), into simply
         // XORing with (PATH_MAX -1) and then converting to 32 bits by
         // <<32, >>32. This means the verifier thinks max value is 2^32 -1,
         // instead of (PATH_MAX -1).
- 
+
         asm volatile("%[size] += 1\n"
                      "%[tsize] = " XSTR(PATH_MAX) "\n"
                      "%[tsize] -= %[size]\n"
@@ -447,7 +566,7 @@ __attribute__((always_inline)) static inline uint32_t deref_path_info(char *dest
                     : [size] "+&r"(size), [tsize] "+&r"(tsize)
                     );
         temp[tsize & (PATH_MAX - 1)] = '/';
- 
+
         asm volatile("%[size] += 1\n"
                      "%[tsize] -= 1\n"
                      "%[tsize] &= " XSTR(PATH_MAX - 1) "\n"
@@ -473,7 +592,7 @@ __attribute__((always_inline)) static inline uint32_t deref_path_info(char *dest
     else if (size > 2)
     {
         // size of 2 is simply "/" which is good. Need to check >2.
- 
+
         // check if starting with '/'
         if (temp[(PATH_MAX - size) & (PATH_MAX - 1)] == '/')
         {
@@ -486,18 +605,18 @@ __attribute__((always_inline)) static inline uint32_t deref_path_info(char *dest
         else
         {
             // add a '/'
- 
+
             asm volatile("%[size] += 1\n"
                          "%[tsize] = " XSTR(PATH_MAX) "\n"
                          "%[tsize] -= %[size]\n"
                          "%[tsize] &= " XSTR(PATH_MAX - 1) "\n"
                         : [size] "+&r"(size), [tsize] "+&r"(tsize)
                         );
- 
+
             temp[tsize & (PATH_MAX - 1)] = '/';
         }
     }
- 
+
     // copy the path from the temporary location to the destination
     dlen = bpf_core_read_str(dest, PATH_MAX, &temp[(PATH_MAX - size) & (PATH_MAX -1)]);
 
@@ -542,17 +661,17 @@ __attribute__((always_inline)) static inline uint32_t path_to_string(char *dest,
 
     // Observe de-referencing can work even if the mount is missing, so no null checking here.
     void *vfsmount = BPF_CORE_READ(path, mnt);
-    
+
     return deref_path_info(dest, dentry, vfsmount);
 }
 
 __attribute__((always_inline)) static inline uint32_t fd_to_string(char *fdPath, int fd, const void *task)
 {
     void *path = NULL;
-    
+
     // check if fd is valid
     int maxFds = BPF_CORE_READ((struct task_struct *)task, files, fdt, max_fds);
-    if (fd < 0 || fd > MAX_FDS || maxFds <= 0 || fd > maxFds) 
+    if (fd < 0 || fd > MAX_FDS || maxFds <= 0 || fd > maxFds)
     {
         return 0;
     }
@@ -633,7 +752,7 @@ __attribute__((always_inline)) static inline uint32_t fd_string_to_string(char* 
     {
         return 0;
     }
-    
+
     // Check if file descriptor is invalid or if the filename is absolute. In those case, the file descriptor is ignored and
     // the final path should be in the filename
     if ((fd < 0 && fd != AT_FDCWD) || path[0] == '/')
@@ -653,7 +772,7 @@ __attribute__((always_inline)) static inline uint32_t fd_string_to_string(char* 
     }
 
     if (length <= 0)
-    {        
+    {
         return 0;
     }
 
@@ -676,8 +795,8 @@ __attribute__((always_inline)) static inline uint32_t fd_filename_to_string(char
 // put the final path together
 __attribute__((always_inline)) static inline uint32_t nameidata_to_string(char* path, const struct nameidata* ns)
 {
-    // A nameidata contains a file descriptor maybe pointing to a directory (dfd) and a name component which may contain a filename 
-    // or full path 
+    // A nameidata contains a file descriptor maybe pointing to a directory (dfd) and a name component which may contain a filename
+    // or full path
     int fd = BPF_CORE_READ(ns, dfd);
     const struct filename *filename = BPF_CORE_READ(ns, name);
 
@@ -695,7 +814,7 @@ __attribute__((always_inline)) static inline unsigned int get_task_exec_path(str
         struct path path = BPF_CORE_READ(mm, exe_file, f_path);
         return path_to_string(dest, &path);
     }
-    
+
     return 0;
 }
 
@@ -711,7 +830,7 @@ __attribute__((always_inline)) static inline bool is_non_file(mode_t mode)
  * argv_to_string() - Converts an argv array to a string representation.
  * @argv: The argv array to convert. This pointer is in user memory.
  * @dest: The destination buffer to store the resulting string. This pointer is in kernel memory.
- * 
+ *
  * Each argument will be separated by a space.
  * Final string is null terminated.
  * NOTE: the destination buffer is assumed to always be PATH_MAX in size.
@@ -721,7 +840,7 @@ static int argv_to_string(char *const *argv, char* dest)
     if (!argv) {
         return 0;
     }
-    
+
     int index = 0;
     int remaining_length = PATH_MAX - 1;
 
@@ -730,14 +849,14 @@ static int argv_to_string(char *const *argv, char* dest)
     if (temp == NULL) {
         return 0;
     }
-    
+
     for (int i = 0; i < MAX_ARGV_ARGUMENTS; i++) {
         char *arg;
         // Get a pointer to the current argument
         if (bpf_probe_read_user(&arg, sizeof(arg), &argv[i]) != 0) {
             break;
         }
-        
+
         // Copy string to temporary location starting on the second half of the string
         long copied_len = bpf_probe_read_user_str(&temp[PATH_MAX], PATH_MAX, arg);
         if (copied_len <= 0) {
@@ -750,7 +869,7 @@ static int argv_to_string(char *const *argv, char* dest)
             temp[index & (PATH_MAX - 1)] = ' ';
             index++;
         }
-        
+
         // NOTE: this is a kernel str because we are copying from the derefpaths map now
         long copied_len2 = bpf_probe_read_kernel_str(&temp[index & (PATH_MAX - 1)], PATH_MAX, &temp[PATH_MAX]);
         index += copied_len2 - 1; // -1 since this an index, not a length
@@ -758,7 +877,7 @@ static int argv_to_string(char *const *argv, char* dest)
             break;
         }
     }
-    
+
     // Copy the path to the final destination
     // index + 1 is used here because index is used as a length not an index here
     return bpf_probe_read_kernel_str(dest, ((index + 1) & (PATH_MAX - 1)), &temp[0]);
@@ -782,8 +901,8 @@ static long breakaway_map_callback(struct bpf_map *map, const uint32_t *key, bre
 
     bool exe_match = string_contains(toolname, event->exe_name_len, value->tool, value->tool_len, /* case_sensitive */ true);
     // Args can be ignored if they weren't specified in the breakaway process map
-     bool args_match = value->arguments[0] == '\0' 
-         ? true 
+     bool args_match = value->arguments[0] == '\0'
+         ? true
          : string_contains(value->arguments, value->arguments_len, event->args, event->args_len, /* case_sensitive */ !value->args_ignore_case);
 
     event->needs_breakaway = exe_match && args_match;
@@ -815,7 +934,7 @@ static long basename_loop_callback(u64 index, exec_event_metadata **ctx) {
 /**
  * process_needs_breakaway() - Verifies if the given process needs to breakaway by updating
  * the given event `needs_breakaway` field. Returns non-zero if the breakaway map could not be retrieved
- * 
+ *
  * This function uses bpf_loop instead of a for/while loop because using an escape
  * hatch allows us to reduce the amount of time needed to verify the program.
  * Additionally, bpf_loop lets us have much bigger loops without hitting the instruction limit.
@@ -834,12 +953,465 @@ static int process_needs_breakaway(exec_event_metadata *event, pid_t runner_pid)
     void *breakaway_processes = bpf_map_lookup_elem(&breakaway_processes_per_pip, &runner_pid);
     if (breakaway_processes == NULL) {
         return -1;
-    } 
+    }
 
     // Check if the process needs to breakaway
     bpf_for_each_map_elem(breakaway_processes, breakaway_map_callback, &event, 0);
-    
+
     return 0;
 }
+
+/**
+ * write_metadata() - Writes the given metadata to the start of the given dynptr.
+ * @ptr: The dynptr to write the metadata to.
+ * @metadata_to_write: The metadata to write.
+ * @prefix_len: The length of the common prefix between the current path and the last path for the current CPU.
+ *
+ * Returns 0 on success, -1 on failure.
+ */
+__attribute__((always_inline)) static int write_metadata(
+    struct bpf_dynptr* ptr,
+    ebpf_event_metadata *metadata_to_write,
+    unsigned short prefix_len) {
+
+    ebpf_event_metadata* metadata = (ebpf_event_metadata*) bpf_dynptr_data(
+        ptr, /* offset */ 0, sizeof(ebpf_event_metadata));
+
+    if (metadata == NULL) {
+        return -1;
+    }
+
+    metadata->event_type = metadata_to_write->event_type;
+    metadata->processor_id = metadata_to_write->processor_id;
+    metadata->operation_type = metadata_to_write->operation_type;
+    metadata->kernel_function = metadata_to_write->kernel_function;
+    metadata->pid = metadata_to_write->pid;
+    metadata->child_pid = metadata_to_write->child_pid;
+    metadata->mode = metadata_to_write->mode;
+    metadata->error = metadata_to_write->error;
+    metadata->source_path_incremental_length = prefix_len;
+
+    return 0;
+}
+
+/**
+ * write_and_submit_access() - Writes the given path to the given dynptr and submits it to the ring buffer.
+ * @runner_pid: The PID of the runner process.
+ * @file_access_ring_buffer: The ring buffer to write the path to.
+ * @metadata: The metadata to write.
+ * @prefix_len: The length of the common prefix between the current path and the last path for the current CPU.
+ * @path_to_write: The path to write.
+ * @path_to_write_length: The length of the path to write.
+ */
+__attribute__((always_inline)) static void write_and_submit_access(
+    pid_t runner_pid,
+    void* file_access_ring_buffer,
+    ebpf_event_metadata *metadata,
+    unsigned short prefix_len,
+    char *path_to_write,
+    int path_to_write_length) {
+
+    // Reserve space in the ring buffer for the metadata and the path
+    struct bpf_dynptr ptr;
+    if (bpf_ringbuf_reserve_dynptr(
+        file_access_ring_buffer,
+        (sizeof(ebpf_event_metadata) + path_to_write_length) & (PATH_MAX - 1),
+        /* flags*/ 0,
+        &ptr)) {
+
+        report_buffer_reservation_failure(runner_pid, file_access_ring_buffer);
+        bpf_ringbuf_discard_dynptr(&ptr, 0);
+        return;
+    }
+
+    // Write the metadata at the start of the dynptr
+    if (write_metadata(&ptr, metadata, prefix_len))
+    {
+        report_ring_buffer_error(runner_pid, "[ERROR] Unable to write metadata to dynptr");
+        bpf_ringbuf_discard_dynptr(&ptr, 0);
+        return;
+    }
+
+    // Write the path after the metadata
+    if (path_to_write_length < 0 || path_to_write_length >= PATH_MAX || bpf_dynptr_write(&ptr, sizeof(ebpf_event_metadata), path_to_write, path_to_write_length, 0)) {
+        report_ring_buffer_error(runner_pid, "[ERROR] Unable to write path to dynptr");
+        bpf_ringbuf_discard_dynptr(&ptr, 0);
+        return;
+    }
+
+    bpf_ringbuf_submit_dynptr(&ptr, get_flags(file_access_ring_buffer));
+}
+
+/**
+ * Context used in write_path_incremental_callback
+ */
+struct write_path_incremental_context {
+    pid_t runner_pid;
+    void* file_access_ring_buffer;
+    ebpf_event_metadata *metadata;
+    char *path_to_write;
+    int path_to_write_length;
+    const char *last_path;
+    unsigned short prefix_len; // Length of the common prefix.
+};
+
+/**
+ * write_path_incremental_callback() - Callback function used in write_path_incremental to find the common prefix
+ * between the last path and the current path, and write the incremental part to the dynptr.
+ */
+static long write_path_incremental_callback(u64 index, struct write_path_incremental_context *ctx) {
+    int the_index = index & (PATH_MAX - 1);
+
+    char c1 = ctx->last_path[the_index];
+    char c2 = ctx->path_to_write[the_index];
+
+    // If characters don't match, stop checking further and write the remaining of the string.
+    // If we reached the end of either string, stop checking (the PATH_MAX - 1 case is just to keep the verifier happy,
+    // we should always reach a \0 before reaching PATH_MAX).
+    if (c1 != c2 || c1 == '\0' || index == PATH_MAX - 1) {
+        int incremental_length = ctx->path_to_write_length - index;
+        char *incremental_path = &ctx->path_to_write[index & (PATH_MAX - 1)];
+
+        write_and_submit_access(
+            ctx->runner_pid,
+            ctx->file_access_ring_buffer,
+            ctx->metadata,
+            ctx->prefix_len,
+            incremental_path,
+            incremental_length);
+        return 1;
+    }
+
+    // Characters match, increment the prefix length.
+    ctx->prefix_len++;
+
+    // We haven't reached the end of the string. Continue looping.
+    return 0;
+}
+
+/**
+ * write_path_incremental() - Writes a single path event to the ring buffer, using incremental encoding based on the last path
+ * for the current CPU.
+ *
+ * One could argue that it'd be a better approach to just compute the index of the common prefix without coupling it with actually writing the incremental
+ * path (so we don't need to carry all those extra arguments across layers), but the verifier didn't like that approach.
+ *
+ * @path_to_write: The full path to write.
+ * @path_to_write_length: The length of the path to write.
+ * @runner_pid: The PID of the runner process.
+ * @dynptr: The dynptr to write the incremental path to.
+  */
+__attribute__((always_inline)) static void write_single_path_event_incremental(
+    pid_t runner_pid,
+    void* file_access_ring_buffer,
+    ebpf_event_metadata *metadata,
+    char *path_to_write,
+    int path_to_write_length) {
+
+    // Retrieve the per-pip last path outer map
+    void *last_path_per_cpu = bpf_map_lookup_elem(&last_path_per_pip, &runner_pid);
+    if (last_path_per_cpu == NULL) {
+        report_last_path_per_cpu_not_found(runner_pid);
+        return;
+    }
+
+    // Retrieve the per-CPU last path inner map for the given pip
+    __u32 cpu_id = metadata->processor_id;
+    const char *last_path = bpf_map_lookup_elem(last_path_per_cpu, &cpu_id);
+
+    // Check whether there is a last path for this CPU. If not, write the full path
+    if (last_path == NULL || last_path[0] == '\0') {
+        write_and_submit_access(
+            runner_pid,
+            file_access_ring_buffer,
+            metadata,
+            /* prefix_len */ 0,
+            path_to_write,
+            path_to_write_length);
+    }
+    else {
+        // Otherwise, find the common prefix with respect to the last path and write the incremental part
+        struct write_path_incremental_context ctx = {
+            .runner_pid = runner_pid,
+            .path_to_write = path_to_write,
+            .path_to_write_length = path_to_write_length,
+            .last_path = last_path,
+            .file_access_ring_buffer = file_access_ring_buffer,
+            .metadata = metadata,
+            .prefix_len = 0,
+        };
+
+        bpf_loop(PATH_MAX, write_path_incremental_callback, &ctx, 0);
+    }
+
+    // Update the last path for this CPU with the current path
+    bpf_map_update_elem(last_path_per_cpu, &cpu_id, path_to_write, BPF_ANY);
+}
+
+
+
+/**
+ * submit_file_access() - Submits a file access event to the ring buffer for the given runner process.
+ *
+ * This function uses an incremental encoding for representing the file path. Single-file accesses are by far
+ * the most common type of accesses and where the vast majority of file access events occur, so saving
+ * space in the ring buffer for these events is crucial.
+ * The main idea for the incremental encoding is that we store the last path that was sent for the current CPU. And
+ * the next path for the same CPU is described in terms of the last one: we compute the common prefix between both and
+ * only send the length of the common prefix plus the rest of the new path. Reconstructing the original path on user side
+ * needs to follow an equivalent treatment, where we also store the last path per CPU. The decision to make the CPU the
+ * key for the last path map relies on the fact that in this way 'last' is well defined and we don't have to deal with
+ * any concurrency issues: for a given CPU user side will get all its events in the same order compared to kernel side, so
+ * the storage and retrieval of the last path can be exactly mimicked.
+ *
+ * @runner_pid: The PID of the runner process.
+ * @operation_type: The type of operation
+ * @kernel_function: The kernel function that triggered the event.
+ * @pid: The PID of the process that performed the operation.
+ * @child_pid: The PID of the child process, if applicable.
+ * @mode: The mode of the file (e.g., S_IFREG, S_IFDIR, etc.).
+ * @error: The error code, if any.
+ * @path: The path to the file.
+ * @path_length: The length of the path.
+ */
+__attribute__((always_inline)) static void submit_file_access(
+    pid_t runner_pid,
+    enum operation_type operation_type,
+    enum kernel_function kernel_function,
+    int pid,
+    int child_pid,
+    unsigned int mode,
+    int error,
+    char* path,
+    int path_length) {
+
+    if (path_length < 0 || path_length >= PATH_MAX) {
+        report_ring_buffer_error(runner_pid, "[ERROR] Path length is invalid");
+        return;
+    }
+
+    void *file_access_ring_buffer = bpf_map_lookup_elem(&file_access_per_pip, &runner_pid);
+    if (file_access_ring_buffer == NULL) {
+        report_file_access_buffer_not_found(runner_pid);
+        return;
+    }
+
+    ebpf_event_metadata metadata = {
+        .event_type = SINGLE_PATH,
+        .operation_type = operation_type,
+        .kernel_function = kernel_function,
+        .pid = pid,
+        .child_pid = child_pid,
+        .mode = mode,
+        .error = error,
+        .processor_id = bpf_get_smp_processor_id()
+    };
+
+    // We always use incremental encoding for single path events
+    write_single_path_event_incremental(
+        runner_pid,
+        file_access_ring_buffer,
+        &metadata,
+        path,
+        path_length);
+}
+
+/**
+ * submit_file_access_double() - Submits a file access event with two paths to the ring buffer for the given runner process.
+ * This function does not use incremental encoding, as double path events are less common.
+ * @runner_pid: The PID of the runner process.
+ * @operation_type: The type of operation
+ * @kernel_function: The kernel function that triggered the event.
+ * @pid: The PID of the process that performed the operation.
+ * @child_pid: The PID of the child process, if applicable.
+ * @mode: The mode of the file (e.g., S_IFREG, S_IFDIR, etc.).
+ * @error: The error code, if any.
+ * @src_path: The source path to the file.
+ * @src_path_length: The length of the source path.
+ * @dst_path: The destination path to the file.
+ * @dst_path_length: The length of the destination path.
+ */
+__attribute__((always_inline)) static void submit_file_access_double(
+    pid_t runner_pid,
+    enum operation_type operation_type,
+    enum kernel_function kernel_function,
+    int pid,
+    int child_pid,
+    unsigned int mode,
+    int error,
+    char* src_path,
+    int src_path_length,
+    char* dst_path,
+    int dst_path_length) {
+
+    void *file_access_ring_buffer = bpf_map_lookup_elem(&file_access_per_pip, &runner_pid);
+    if (file_access_ring_buffer == NULL) {
+        report_file_access_buffer_not_found(runner_pid);
+        return;
+    }
+    struct bpf_dynptr ptr;
+    unsigned int reservation_size = sizeof(ebpf_event_metadata) + sizeof(int) + src_path_length + dst_path_length;
+    if (bpf_ringbuf_reserve_dynptr(
+            file_access_ring_buffer,
+            reservation_size,
+            /* flags */ 0,
+            &ptr)) {
+        report_buffer_reservation_failure(runner_pid, file_access_ring_buffer);
+        bpf_ringbuf_discard_dynptr(&ptr, 0);
+        return;
+    }
+
+    /* Expose a 'metadata' value from the underlying dynamic object just for ease of use */
+    /* (we can do this because it is a fixed size) */
+    ebpf_event_metadata* metadata = (ebpf_event_metadata*) bpf_dynptr_data(
+        &ptr, /* offset */ 0, sizeof(ebpf_event_metadata));
+
+    if (metadata == NULL) {
+        report_ring_buffer_error(runner_pid, "[ERROR] Unable to retrieve metadata from dynptr");
+        bpf_ringbuf_discard_dynptr(&ptr, 0);
+        return;
+    }
+    metadata->event_type = DOUBLE_PATH;
+    metadata->processor_id = bpf_get_smp_processor_id();
+    // Double path events are not very common, so we don't do incremental encoding here
+    // We might consider doing it in the future if we find a use case, but we'd probably also need
+    // the equivalent length field for the dst path and an alternative metadata to not force this new field in
+    // all other event types
+    metadata->source_path_incremental_length = 0;
+    metadata->kernel_function = kernel_function;
+    metadata->pid = pid;
+    metadata->child_pid = child_pid;
+    metadata->operation_type = operation_type;
+    metadata->mode = mode;
+    metadata->error = error;
+
+    // Write the src path length field, which is the immediate next one after the metadata in a double event
+    if (bpf_dynptr_write(&ptr, sizeof(ebpf_event_metadata), &src_path_length, sizeof(int), /* flags*/ 0)) {
+        report_ring_buffer_error(runner_pid, "[ERROR] Unable to write src path length to dynptr");
+        bpf_ringbuf_discard_dynptr(&ptr, 0);
+        return;
+    }
+
+    unsigned int offset = sizeof(ebpf_event_metadata) + sizeof(int);
+    unsigned int max_offset = sizeof(ebpf_event_metadata) + sizeof(int) + PATH_MAX + PATH_MAX; // Upper bound for the offset
+
+    // Write the src path to the dynamic structure
+    // Some of these checks are redundant, but they are there to make the verifier happy
+    if (src_path_length <= 0
+        || src_path_length >= PATH_MAX
+        || offset >= reservation_size
+        || offset >= max_offset
+        || bpf_dynptr_write(&ptr, offset, src_path, src_path_length, 0))
+    {
+        report_ring_buffer_error(runner_pid, "[ERROR] Unable to write src path to dynptr");
+        bpf_ringbuf_discard_dynptr(&ptr, 0);
+        return;
+    }
+
+    offset = sizeof(ebpf_event_metadata) + sizeof(int) + src_path_length;
+
+    // Write the dst path to the dynamic structure
+    if (dst_path_length <= 0
+        || dst_path_length >= PATH_MAX
+        || offset >= reservation_size
+        || offset >= max_offset
+        || bpf_dynptr_write(&ptr, offset, dst_path, dst_path_length, 0))
+    {
+        report_ring_buffer_error(runner_pid, "[ERROR] Unable to write dst path to dynptr");
+        bpf_ringbuf_discard_dynptr(&ptr, 0);
+        return;
+    }
+
+    bpf_ringbuf_submit_dynptr(&ptr, get_flags(file_access_ring_buffer));
+}
+
+/**
+ * submit_exec() - Submits an exec event to the ring buffer for the given runner process.
+ * Exec events are special because they carry two variable-length strings: the executable path and the arguments.
+ * To handle this, we use a dynamic structure that can accommodate both strings.
+ * @runner_pid: The PID of the runner process.
+ * @syscall: The syscall that triggered the exec event.
+ * @pid: The PID of the process that performed the exec.
+ * @exe_path: The path to the executable.
+ * @exe_path_length: The length of the executable path.
+ * @args: The arguments passed to the executable.
+ * @args_length: The length of the arguments string.
+ */
+__attribute__((always_inline)) static void submit_exec(
+    pid_t runner_pid,
+    enum kernel_function syscall,
+    int pid,
+    char* exe_path,
+    int exe_path_length,
+    char* args,
+    int args_length) {
+
+   void *file_access_ring_buffer = bpf_map_lookup_elem(&file_access_per_pip, &runner_pid);
+    if (file_access_ring_buffer == NULL) {
+        report_file_access_buffer_not_found(runner_pid);
+        return;
+    }
+
+    /* The event is a dynamic structure, so we need to reserve space for the metadata and the paths */
+    /* Perform a dynamic reservation, enough for the metadata and the paths we are about to send */
+    struct bpf_dynptr ptr;
+    if (bpf_ringbuf_reserve_dynptr(
+        file_access_ring_buffer,
+        (sizeof(ebpf_event_metadata) + sizeof(int) + exe_path_length + args_length),
+        /* flags*/ 0,
+        &ptr)) {
+
+        report_buffer_reservation_failure(runner_pid, file_access_ring_buffer);
+        bpf_ringbuf_discard_dynptr(&ptr, 0);
+        return;
+    }
+
+    /* Expose a 'metadata' value from the underlying dynamic object just for ease of use */
+    /* (we can do this because it is a fixed size) */
+    ebpf_event_metadata* metadata = (ebpf_event_metadata*) bpf_dynptr_data(
+        &ptr, /* offset */ 0, sizeof(ebpf_event_metadata));
+
+    if (metadata == NULL) {
+        report_ring_buffer_error(runner_pid, "[ERROR] Unable to retrieve metadata from dynptr");
+        bpf_ringbuf_discard_dynptr(&ptr, 0);
+        return;
+    }
+
+    metadata->event_type = EXEC;
+    metadata->processor_id = bpf_get_smp_processor_id();
+    // Exec events are not very common, so we don't do incremental encoding here
+    metadata->source_path_incremental_length = 0;
+    metadata->kernel_function = syscall;
+    metadata->operation_type = kExec;
+    metadata->pid = pid;
+    metadata->error = 0;
+    metadata->mode = S_IFREG;
+
+    // Write the path_length field, which is the immediate next one after the metadata in an exec event
+    if (bpf_dynptr_write(&ptr, sizeof(ebpf_event_metadata), &exe_path_length, sizeof(int), /* flags*/ 0)) {
+        report_ring_buffer_error(runner_pid, "[ERROR] Unable to write exe path length to dynptr");
+        bpf_ringbuf_discard_dynptr(&ptr, 0);
+        return;
+    }
+
+    // Write the exe path to the dynamic structure
+    if (bpf_dynptr_write(&ptr, sizeof(ebpf_event_metadata) + sizeof(int), exe_path, exe_path_length & (PATH_MAX - 1), 0))
+    {
+        report_ring_buffer_error(runner_pid, "[ERROR] Unable to write exec path to dynptr");
+        bpf_ringbuf_discard_dynptr(&ptr, 0);
+        return;
+    }
+
+    // Write the args to the dynamic structure
+    if (bpf_dynptr_write(&ptr, sizeof(ebpf_event_metadata) + sizeof(int) + exe_path_length, args, args_length & (PATH_MAX - 1), 0))
+    {
+        report_ring_buffer_error(runner_pid, "[ERROR] Unable to write args to dynptr");
+        bpf_ringbuf_discard_dynptr(&ptr, 0);
+        return;
+    }
+
+    bpf_ringbuf_submit_dynptr(&ptr, get_flags(file_access_ring_buffer));
+}
+
 
 #endif // __PUBLIC_SRC_SANDBOX_LINUX_EBPF_EBPFUTILITIES_H

@@ -98,7 +98,7 @@ SandboxEvent::SandboxEvent(const SandboxEvent& other) :
 }
 
 // Static Constructors
-SandboxEvent SandboxEvent::CloneSandboxEvent(const char *system_call, pid_t pid, pid_t ppid, const char *path) {
+SandboxEvent SandboxEvent::CloneSandboxEvent(const char *system_call, pid_t pid, pid_t ppid, const std::string& path) {
     auto event = SandboxEvent(
         /* system_call */ system_call,
         /* event_type */ buildxl::linux::EventType::kClone,
@@ -138,7 +138,7 @@ SandboxEvent SandboxEvent::ExecSandboxEvent(const char *system_call, pid_t pid, 
     return event;
 }
 
-SandboxEvent SandboxEvent::ExitSandboxEvent(const char *system_call, std::string path, pid_t pid, pid_t ppid) {
+SandboxEvent SandboxEvent::ExitSandboxEvent(const char *system_call, const std::string& path, pid_t pid, pid_t ppid) {
     auto event = SandboxEvent(
         /* system_call */ system_call,
         /* event_type */ buildxl::linux::EventType::kExit,
@@ -168,6 +168,26 @@ SandboxEvent SandboxEvent::AbsolutePathSandboxEvent(
     if (src_path == nullptr || dst_path == nullptr) {
         return SandboxEvent::Invalid();
     }
+
+    return AbsolutePathSandboxEvent(
+        system_call,
+        event_type,
+        pid,
+        ppid,
+        error,
+        std::string(src_path),
+        std::string(dst_path));
+}
+
+SandboxEvent SandboxEvent::AbsolutePathSandboxEvent(
+    const char *system_call,
+    buildxl::linux::EventType event_type,
+    pid_t pid,
+    pid_t ppid,
+    uint error,
+    const std::string& src_path,
+    const std::string& dst_path) {
+
     // If the path isn't rooted, then it isn't an absolute path.
     // We will treat this as a relative path from the current working directory.
     // The source path cannot be empty, but the dst path can be empty if a dst path is never passed in and the default value is used.
@@ -236,6 +256,29 @@ SandboxEvent SandboxEvent::RelativePathSandboxEvent(
     if (src_path == nullptr || dst_path == nullptr) {
         return SandboxEvent::Invalid();
     }
+
+    return RelativePathSandboxEvent(
+        system_call,
+        event_type,
+        pid,
+        ppid,
+        error,
+        std::string(src_path),
+        src_fd,
+        std::string(dst_path),
+        dst_fd);
+}
+
+SandboxEvent SandboxEvent::RelativePathSandboxEvent(
+    const char *system_call,
+    buildxl::linux::EventType event_type,
+    pid_t pid,
+    pid_t ppid,
+    uint error,
+    const std::string& src_path,
+    int src_fd,
+    const std::string& dst_path,
+    int dst_fd) {
 
     return SandboxEvent(
         /* system_call */ system_call,

@@ -36,7 +36,7 @@
 // Size of the event cache map. This is used to avoid sending repetitive events for the same operation+path.
 // With the current key+value size, this is about 1.8 MB in size per pip.
 #define EVENT_CACHE_MAP_SIZE (16834)
-// Size of the string cache map. This is used to avoid sending repetitive events for absent lookups (when we don't have a struct path available).
+// Size of the string cache map. This is used to avoid sending repetitive events for paths-as-strings (when we don't have a struct path available).
 // With the current key+value size, this is about 2.4 MB in size per pip.
 #define STRING_CACHE_MAP_SIZE (4096)
 // The maximum size of a path that we can handle in the string cache. Paths longer than this will not be cached.
@@ -142,7 +142,8 @@ typedef enum kernel_function {
     KERNEL_FUNCTION(execve),
     KERNEL_FUNCTION(execveat),
     KERNEL_FUNCTION(security_bprm_committed_creds),
-    KERNEL_FUNCTION(vfs_utimes)
+    KERNEL_FUNCTION(vfs_utimes),
+    KERNEL_FUNCTION(test_synthetic) // not a real operation, tests can inject these
 } kernel_function;
 
 inline const char* kernel_function_to_string(kernel_function kf) {
@@ -172,6 +173,7 @@ inline const char* kernel_function_to_string(kernel_function kf) {
         CONVERT_KERNEL_FUNCTION_TO_STRING(execveat)
         CONVERT_KERNEL_FUNCTION_TO_STRING(security_bprm_committed_creds)
         CONVERT_KERNEL_FUNCTION_TO_STRING(vfs_utimes)
+        CONVERT_KERNEL_FUNCTION_TO_STRING(test_synthetic)
         default:
             return "[unknown kernel function]";
     }
@@ -202,6 +204,12 @@ typedef struct ebpf_event_metadata {
     int child_pid;
     unsigned int mode;
     int error;
+    // The symmetric multiprocessing processor id that processed this event.
+    // Useful to reconstruct incremental paths on user side, since that is described in terms of the last path per CPU.  
+    __u32 processor_id;
+    // The length of the source path prefix that is shared with the last path seen by this CPU.
+    // Observe that an unsigned short is 2 bytes, enough to represent PATH_MAX (4096) lengths.
+    unsigned short source_path_incremental_length;
 } ebpf_event_metadata;
 
 typedef struct ebpf_event {
@@ -311,6 +319,12 @@ typedef struct test_write_ringbuf_args {
     pid_t runner_pid;
     int number;
 } test_write_ringbuf_args;
+
+/** This structure is used to pass arguments to the test_incremental_event syscall  */
+typedef struct test_incremental_event_args {
+    char path1[PATH_MAX];
+    char path2[PATH_MAX];
+} test_incremental_event_args;
 
 /**
  * The constant we use as map values when using a map as a set (and so the value is not important).

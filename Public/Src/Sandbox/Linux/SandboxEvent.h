@@ -148,7 +148,7 @@ public:
     /**
      * SandboxEvent for a fork/clone event.
      */
-    static SandboxEvent CloneSandboxEvent(const char *system_call, pid_t pid, pid_t ppid, const char *path);
+    static SandboxEvent CloneSandboxEvent(const char *system_call, pid_t pid, pid_t ppid, const std::string& path);
 
     /**
      * SandboxEvent for exec events.
@@ -158,7 +158,20 @@ public:
     /**
      * SandboxEvent for an exit event.
      */
-    static SandboxEvent ExitSandboxEvent(const char *system_call, std::string path, pid_t pid, pid_t ppid);
+    static SandboxEvent ExitSandboxEvent(const char *system_call, const std::string& path, pid_t pid, pid_t ppid);
+
+    /**
+     * Deals with the case of null paths, mapping them to the invalid event.
+     * See the std::string version below for the actual implementation.
+     */
+    static SandboxEvent AbsolutePathSandboxEvent(
+        const char *system_call,
+        buildxl::linux::EventType event_type,
+        pid_t pid,
+        pid_t ppid,
+        uint error,
+        const char *src_path,
+        const char *dst_path = "");
 
     /**
      * SandboxEvent for paths.
@@ -169,8 +182,8 @@ public:
         pid_t pid,
         pid_t ppid,
         uint error,
-        const char *src_path,
-        const char *dst_path = "");
+        const std::string& src_path,
+        const std::string& dst_path = "");
 
     /**
      * SandboxEvent for a paths from a file descriptor.
@@ -185,7 +198,8 @@ public:
         int dst_fd = -1);
 
     /**
-     * SandboxEvent for a relative paths and FDs for their root directory.
+     * Deals with the case of null paths, mapping them to the invalid event.
+     * See the std::string version below for the actual implementation.
      */
     static SandboxEvent RelativePathSandboxEvent(
         const char *system_call,
@@ -196,6 +210,20 @@ public:
         const char *src_path,
         int src_fd,
         const char *dst_path = "",
+        int dst_fd = -1);
+
+    /**
+     * SandboxEvent for a relative paths and FDs for their root directory.
+     */
+    static SandboxEvent RelativePathSandboxEvent(
+        const char *system_call,
+        buildxl::linux::EventType event_type,
+        pid_t pid,
+        pid_t ppid,
+        uint error,
+        const std::string& src_path,
+        int src_fd,
+        const std::string& dst_path = "",
         int dst_fd = -1);
 
     /* Getters */

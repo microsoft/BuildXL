@@ -19,6 +19,7 @@
 #define PATH_MAX 4096
 
 // Copied from include/uapi/asm-generic/errno-base.h
+#define	EPERM		 1	/* Operation not permitted */
 #define	ENOENT		 2	/* No such file or directory */
 
 // Copied from fcntl.h
@@ -107,12 +108,12 @@ typedef unsigned int fmode_t;
 #define MAX_ERRNO   4095
 #define IS_ERR_VALUE(x) x >= (unsigned long)-MAX_ERRNO
 
-static inline bool IS_ERR(const void *ptr)
+__attribute__((always_inline)) static inline bool IS_ERR(const void *ptr)
 {
     return IS_ERR_VALUE((unsigned long)ptr);
 }
 
-static inline long PTR_ERR(const void *ptr)
+__attribute__((always_inline)) static inline long PTR_ERR(const void *ptr)
 {
     return (long) ptr;
 }

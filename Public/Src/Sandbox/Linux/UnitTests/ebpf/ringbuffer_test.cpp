@@ -10,6 +10,7 @@
 #include "ConcurrentQueue.h"
 #include "ebpfcommon.h"
 #include "EventRingBuffer.hpp"
+#include "test_utils.hpp"
 
 int g_file_access_per_pip_fd = -1;
 std::atomic<int> g_capacity_exceeded_called_counter = 0;
@@ -71,105 +72,6 @@ void RingBufferOutOfSpaceCallback(buildxl::linux::ebpf::EventRingBuffer *buffer)
 
 }
 
-static inline __u64 ptr_to_u64(const void *ptr)
-{
-	return (__u64)(unsigned long)ptr;
-}
-
-/** Retrieves the program full name of a given bpf_prog_info */
-void GetProgramFullName(const struct bpf_prog_info *prog_info, int prog_fd, char *name_buff, size_t buff_len)
-{
-    const char *prog_name = prog_info->name;
-    const struct btf_type *func_type;
-    struct bpf_func_info finfo = {};
-    struct bpf_prog_info info = {};
-    __u32 info_len = sizeof(info);
-    struct btf *prog_btf = NULL;
-
-    // If the name is 16 chars or left, it is already contained in the info object
-    if (buff_len <= BPF_OBJ_NAME_LEN || strlen(prog_info->name) < BPF_OBJ_NAME_LEN - 1) {
-        goto copy_name;
-    }
-
-    if (!prog_info->btf_id || prog_info->nr_func_info == 0) {
-        goto copy_name;
-    }
-
-    info.nr_func_info = 1;
-    info.func_info_rec_size = prog_info->func_info_rec_size;
-    if (info.func_info_rec_size > sizeof(finfo)) {
-        info.func_info_rec_size = sizeof(finfo);
-    }
-    info.func_info = ptr_to_u64(&finfo);
-
-    // Retrieve full info of the program
-    if (bpf_prog_get_info_by_fd(prog_fd, &info, &info_len)) {
-        goto copy_name;
-    }
-
-    // Load corresponding BTF object
-    prog_btf = btf__load_from_kernel_by_id(info.btf_id);
-    if (!prog_btf) {
-        goto copy_name;
-    }
-
-    // Retrieve the function associated to the program and get the name
-    func_type = btf__type_by_id(prog_btf, finfo.type_id);
-    if (!func_type || !btf_is_func(func_type)) {
-        goto copy_name;
-    }
-
-    prog_name = btf__name_by_offset(prog_btf, func_type->name_off);
-
-    copy_name:
-    snprintf(name_buff, buff_len, "%s", prog_name);
-
-    if (prog_btf) {
-        btf__free(prog_btf);
-    }
-}
-
-int GetTestProgramFd()
-{
-     __u32 id = 0;
-    int err, fd = 0;
-    char prog_name[128];
-
-    // Iterate over all bpf programs
-    while (true) {
-        err = bpf_prog_get_next_id(id, &id);
-        if (err) {
-            break;
-        }
-
-        fd = bpf_prog_get_fd_by_id(id);
-        if (fd < 0) {
-            continue;
-        }
-
-        // We got a program with a valid file descriptor, retrieve its info
-        struct bpf_prog_info info = {};
-        __u32 len = sizeof(info);
-
-        err = bpf_obj_get_info_by_fd(fd, &info, &len);
-        if (err || !info.name)
-        {
-            continue;
-        }
-        // Check whether we find a program that is our loading witness
-        // (this is just an arbitrarily picked program among all the ones we load)
-        GetProgramFullName(&info, fd, prog_name, sizeof(prog_name));
-
-        if (strcmp(prog_name, "test_write_ringbuf") == 0) {
-            return fd;
-        }
-
-        close(fd);
-	}
-
-    return -1;
-}
-
 int InitEBPF(){
     struct sandbox_bpf *skel;
 
@@ -200,7 +102,7 @@ int InitEBPF(){
         return -1;
     }
 
-    g_test_write_ringbuf_fd = GetTestProgramFd();
+    g_test_write_ringbuf_fd = GetTestProgramFd("test_write_ringbuf");
     if (g_test_write_ringbuf_fd < 0) {
         fprintf(stderr, "Failed to get fd for test_write_ringbuf program: %s\n", strerror(errno));
         return 1;

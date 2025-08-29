@@ -1,7 +1,7 @@
 parameters:
 - name: sdkVersion
   type: string
-  default: '8.x'
+  default: '9.x'
 
 steps:
 - task: UseDotNet@2

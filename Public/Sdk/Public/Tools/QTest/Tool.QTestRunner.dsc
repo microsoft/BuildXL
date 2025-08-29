@@ -381,6 +381,7 @@ export function runQTest(args: QTestArguments): Result {
         ),
         Cmd.option("--qTestAttemptCount ", args.qTestAttemptCount),
         Cmd.option("--qTestTimeoutSec ", args.qTestTimeoutSec),
+        Cmd.option("--maxConfigurableTimeout ", args.qTestMaxConfigurableTimeout),
         Cmd.option(
             "--qTestRawArgFile ",
             Artifact.input(args.qTestRawArgFile)
@@ -708,6 +709,8 @@ export interface QTestArguments extends Transformer.RunnerArguments {
     qTestRawArgFile?: File;
     /** Maximum runtime allowed for QTests in seconds. Cannot exceed maximum of 600 seconds. */
     qTestTimeoutSec?: number;
+    /** Allows overriding the maximum QTest timeout in seconds. */
+    qTestMaxConfigurableTimeout?: number;
     /** Helps ignore the QTestSkip test case filter */
     qTestIgnoreQTestSkip?: boolean;
     /** Helps to use VsTest 15.0 instead of default VsTest 12.0 */

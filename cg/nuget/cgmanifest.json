@@ -204,7 +204,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "CB.QTest",
-          "Version": "25.8.22-g2026a4b8"
+          "Version": "25.8.28-gd566f35f"
         }
       }
     },
@@ -213,7 +213,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "CB.QTestLinux",
-          "Version": "25.8.22-g2026a4b8"
+          "Version": "25.8.28-gd566f35f"
         }
       }
     },

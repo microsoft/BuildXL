@@ -20,8 +20,15 @@ extern int LINUX_KERNEL_VERSION __kconfig;
  *  case we prioritize not running out of buffer space because user side cannot keep up.
  */
 __attribute__((always_inline)) static long get_flags(void *ringbuffer) {
-    long data_size = bpf_ringbuf_query(ringbuffer, BPF_RB_AVAIL_DATA);
     long total_size = bpf_ringbuf_query(ringbuffer, BPF_RB_RING_SIZE);
+
+    // If the current ring buffer size is greater than the original size, this means the ring buffer went through a swap to increase its size
+    // This is the indication of high event pressure, so wake up every time from that point on
+    if (total_size > FILE_ACCESS_RINGBUFFER_SIZE) {
+        return BPF_RB_FORCE_WAKEUP;
+    }
+
+    long data_size = bpf_ringbuf_query(ringbuffer, BPF_RB_AVAIL_DATA);
     long threshold = total_size >> 2; // A quarter of the total size
 
     return data_size >= threshold ? BPF_RB_FORCE_WAKEUP : BPF_RB_NO_WAKEUP;

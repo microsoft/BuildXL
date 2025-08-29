@@ -76,7 +76,7 @@ namespace Test.BuildXL.Processes
             var result = process.GetResultAsync().GetAwaiter().GetResult();
 
             // Verify that the process ran successfully, which means the EBPF loader was able to load the programs
-            XAssert.AreEqual(0, result.ExitCode);
+            AssertExitCode(result, 0);
 
             // Verify EBPF actually loaded the programs
             string sandboxMessages = string.Join(Environment.NewLine, m_eventListener.GetLog());
@@ -146,7 +146,7 @@ namespace Test.BuildXL.Processes
 
             // The test triggers the capacity exceeded callback by writing more than the ring buffer can hold.
             // The test should succeed, which means the capacity exceeded callback was called and all the expected events were written to the queue.
-            XAssert.AreEqual(0, result.ExitCode);
+            AssertExitCode(result, 0);
         }
 
         [Theory]
@@ -207,7 +207,7 @@ namespace Test.BuildXL.Processes
 
             var process = SandboxedProcessFactory.StartAsync(info, forceSandboxing: true).GetAwaiter().GetResult();
             var result = process.GetResultAsync().GetAwaiter().GetResult();
-            XAssert.AreEqual(0, result.ExitCode);
+            AssertExitCode(result, 0);
 
             var messages = m_eventListener.GetLogMessagesForEventId((int)LogEventId.LogDetoursDebugMessage);
 
@@ -222,6 +222,11 @@ namespace Test.BuildXL.Processes
             XAssert.AreEqual(2, nativeSide.Count);
             XAssert.Contains(nativeSide[0], $"path: '{path1}'");
             XAssert.Contains(nativeSide[1], $"path: '{path2.Substring(CommonPrefixLength(path1, path2))}'");
+        }
+
+        private static void AssertExitCode(SandboxedProcessResult result, int expected)
+        {
+            XAssert.AreEqual(expected, result.ExitCode, $"Exit code was {result.ExitCode}.{Environment.NewLine}Standard out:{Environment.NewLine}{result.StandardOutput?.ReadValueAsync().Result}{Environment.NewLine}Standard error:{Environment.NewLine}{result.StandardError?.ReadValueAsync().Result}");
         }
 
         private static int CommonPrefixLength(string s1, string s2)

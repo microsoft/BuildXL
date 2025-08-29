@@ -371,6 +371,9 @@ namespace BuildXL
                         OptionHandlerFactory.CreateBoolOption(
                             "enableLinuxEBPFSandbox",
                             sign => sandboxConfiguration.EnableEBPFLinuxSandbox = sign),
+                        OptionHandlerFactory.CreateOption(
+                            "EBPFRingBufferSizeMultiplier",
+                            opt => sandboxConfiguration.EBPFRingBufferSizeMultiplier = CommandLineUtilities.ParseInt32Option(opt, 1, int.MaxValue)),
                         OptionHandlerFactory.CreateBoolOption(
                             "enableLinuxPTraceSandbox",
                             sign => sandboxConfiguration.EnableLinuxPTraceSandbox = PtraceSandboxProcessChecker.AreRequiredToolsInstalled(out _) && sign),

@@ -103,7 +103,8 @@ namespace BuildXL.FrontEnd.Utilities
             BuildParameters.IBuildParameters buildParameters,
             Action beforeLaunch = null,   // Invoked right before the process starts
             Action onResult = null,      // Action to be taken after getting a successful result
-            bool useEBPFLinuxSandbox = false
+            bool useEBPFLinuxSandbox = false,
+            int? ebpfRingBufferSizeMultiplier = null
             )
         {
             var toolBuildStorage = new ToolBuildStorage(buildStorageDirectory);
@@ -125,7 +126,8 @@ namespace BuildXL.FrontEnd.Utilities
                     disableConHostSharing: false,
                     loggingContext: context.LoggingContext,
                     // We always want to use gentle kill for EBPF to give the ebpf runner a chance to do proper tear down
-                    useGentleKill: useEBPFLinuxSandbox)
+                    useGentleKill: useEBPFLinuxSandbox,
+                    ringBufferSizeMultiplier: ebpfRingBufferSizeMultiplier)
                 {
                     Arguments = arguments,
                     WorkingDirectory = workingDirectory,

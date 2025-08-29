@@ -864,7 +864,8 @@ namespace BuildXL.ProcessPipExecutor
                         forceAddExecutionPermission: m_sandboxConfig.ForceAddExecutionPermission,
                         // We always want to use gentle kill for EBPF to give the ebpf runner a chance to do proper tear down
                         useGentleKill: sandboxConnection?.Kind == SandboxKind.LinuxEBPF,
-                        allowUndeclaredSourceReads: m_pip.AllowUndeclaredSourceReads)
+                        allowUndeclaredSourceReads: m_pip.AllowUndeclaredSourceReads,
+                        ringBufferSizeMultiplier: m_sandboxConfig.EBPFRingBufferSizeMultiplier)
                     {
                         Arguments = arguments,
                         WorkingDirectory = m_workingDirectory,

@@ -45,7 +45,8 @@ public:
         volatile sig_atomic_t *rootProcessExited,
         volatile sig_atomic_t *stopSignal,
         buildxl::common::ConcurrentQueue<ebpf_event *> &eventQueue,
-        std::function<void(EventRingBuffer *)> capacityExceededCallback);
+        std::function<void(EventRingBuffer *)> capacityExceededCallback,
+        int ringBufferSizeMultiplier);
 
     ~EventRingBuffer(); 
 
@@ -122,7 +123,8 @@ protected:
         volatile sig_atomic_t *stopSignal,
         buildxl::common::ConcurrentQueue<ebpf_event *> &eventQueue,
         std::function<void(EventRingBuffer *)> capacityExceededCallback,
-        EventRingBuffer *previous);
+        EventRingBuffer *previous,
+        int ringBufferSizeMultiplier);
 
     /**
      * Stops polling, optionally waits for the grace period to be over, frees the ring buffer manager and the ring buffer file descriptor, 

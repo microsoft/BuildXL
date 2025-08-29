@@ -21,6 +21,9 @@ namespace Test.BuildXL.Processes
     [TestClassIfSupported(requiresLinuxBasedOperatingSystem: true)]
     public class EBPFSandboxProcessTest : SandboxedProcessTestBase
     {
+        // CODESYNC: Public/Src/Sandbox/Linux/ebpf/ebpfcommon.h
+        private const int s_fileAccessRingBufferSize = 4096 * 512;
+
         public EBPFSandboxProcessTest(ITestOutputHelper output) : base(output)
         {
             RegisterEventSource(global::BuildXL.Processes.ETWLogger.Log);
@@ -242,6 +245,54 @@ namespace Test.BuildXL.Processes
             }
 
             return i;
+        }
+
+        [Fact]
+        public void ValidateRingBufferMultiplier()
+        {
+            if (OperatingSystemHelperExtension.GetLinuxDistribution()?.Equals(new LinuxDistribution("ubuntu", new Version("20.04"))) == true)
+            {
+                // This test is valid for all supported Linux distributions supported by BuildXL except for Ubuntu 20.04.
+                // TODO: Remove this check once support for Ubuntu 20.04 is dropped.
+                return;
+            }
+
+            var fileAccessManifest = new FileAccessManifest(Context.PathTable)
+            {
+                FailUnexpectedFileAccesses = false,
+                ReportFileAccesses = true,
+                MonitorChildProcesses = true,
+                PipId = 1,
+                EnableLinuxSandboxLogging = true
+            };
+
+            // Pass an explicit multiplier
+            int multiplier = 2;
+            var info =
+                new SandboxedProcessInfo(
+                    Context.PathTable,
+                    new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory),
+                    "/usr/bin/echo",
+                    fileAccessManifest,
+                    disableConHostSharing: false,
+                    loggingContext: LoggingContext,
+                    useGentleKill: true,
+                    ringBufferSizeMultiplier: multiplier)
+                {
+                    Arguments = "hi",
+                    WorkingDirectory = TemporaryDirectory,
+                    PipSemiStableHash = fileAccessManifest.PipId,
+                    PipDescription = "EBPF ring buffer multiplier test",
+                    SandboxConnection = new SandboxConnectionLinuxEBPF(ebpfDaemonTask: null),
+                };
+
+            var process = SandboxedProcessFactory.StartAsync(info, forceSandboxing: true).GetAwaiter().GetResult();
+            var result = process.GetResultAsync().GetAwaiter().GetResult();
+            XAssert.AreEqual(0, result.ExitCode);
+            
+            // Verify the ringbuffer size honored the multiplier
+            string sandboxMessages = string.Join(Environment.NewLine, m_eventListener.GetLog());
+            XAssert.Contains(sandboxMessages, $"Total available space: {s_fileAccessRingBufferSize * multiplier}");
         }
     }
 }

@@ -69,7 +69,8 @@ namespace Test.BuildXL.FrontEnd.Utilities
                workingDirectory: TemporaryDirectory,
                description: $"Test sandboxed tool",
                PipEnvironment.GetBaseEnvironmentVariables(),
-               useEBPFLinuxSandbox: Configuration.Sandbox.EnableEBPFLinuxSandbox).GetAwaiter().GetResult();
+               useEBPFLinuxSandbox: Configuration.Sandbox.EnableEBPFLinuxSandbox,
+               ebpfRingBufferSizeMultiplier: Configuration.Sandbox.EBPFRingBufferSizeMultiplier).GetAwaiter().GetResult();
 
             XAssert.AreEqual(0, result.ExitCode);
             var allAccesses = result.AllUnexpectedFileAccesses.Union(result.ExplicitlyReportedFileAccesses);

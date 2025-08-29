@@ -905,6 +905,12 @@ namespace BuildXL
                 );
 
             hw.WriteOption(
+                "/EBPFRingBufferSizeMultiplier:<int>",
+                Strings.HelpText_DisplayHelp_EBPFRingBufferSizeMultiplier,
+                HelpLevel.Verbose
+                );
+
+            hw.WriteOption(
                 "/enableLinuxPTraceSandbox[+|-]",
                 Strings.HelpText_DisplayHelp_EnableLinuxPTraceSandbox,
                 HelpLevel.Verbose

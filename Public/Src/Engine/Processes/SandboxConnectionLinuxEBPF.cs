@@ -71,6 +71,12 @@ namespace BuildXL.Processes
         public static readonly string BuildXLMaxConcurrencyEnvVarName = "__BUILDXL_MAX_CONCURRENCY";
 
         /// <summary>
+        /// Environment variable containing the ring buffer size multiplier.
+        /// </summary>
+        public static readonly string BxlRingBufferSizeMultiplier = "__BUILDXL_RING_BUFFER_SIZE_MULTIPLIER";
+
+
+        /// <summary>
         /// Encapsulates a background thread that is processing incoming messages
         /// </summary>
         internal sealed class Info : IDisposable
@@ -690,9 +696,15 @@ namespace BuildXL.Processes
             (_, string famPath) = GetPaths(uniqueName);
 
             yield return (BuildXLFamPathEnvVarName, famPath);
+
             if (info.MaxConcurrency != null)
             {
                 yield return (BuildXLMaxConcurrencyEnvVarName, info.MaxConcurrency.ToString());
+            }
+
+            if (info.RingBufferSizeMultiplier != null)
+            {
+                yield return (BxlRingBufferSizeMultiplier, info.RingBufferSizeMultiplier.ToString());
             }
         }
 

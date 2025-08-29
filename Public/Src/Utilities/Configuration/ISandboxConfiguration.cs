@@ -268,7 +268,7 @@ namespace BuildXL.Utilities.Configuration
         /// However, adding FILE_SHARE_DELETE may be unexpected, for example, some unit tests may test for sharing violation. Thus,
         /// we only add FILE_SHARE_DELETE if the file is tracked.
         /// </remarks>
-        public bool PreserveFileSharingBehaviour { get;  }
+        public bool PreserveFileSharingBehaviour { get; }
 
         /// <summary>
         /// Enables using the PTrace sandbox on Linux. It will only be used if a statically linked process is executed.
@@ -303,7 +303,7 @@ namespace BuildXL.Utilities.Configuration
         /// <summary>
         /// Force set the execute permission bit for the root process of process pips in Linux builds.
         /// </summary>
-        public bool ForceAddExecutionPermission {  get; }
+        public bool ForceAddExecutionPermission { get; }
 
         /// <summary>
         /// Enables the EBPF Linux sandbox.
@@ -312,5 +312,16 @@ namespace BuildXL.Utilities.Configuration
         /// This sandbox replaces the interpose/ptrace sandboxes. Disabled by default for now.
         /// </remarks>
         public bool EnableEBPFLinuxSandbox { get; }
+
+        /// <summary>
+        /// The size multiplier for the EBPF ring buffer.
+        /// </summary>
+        /// <remarks>
+        /// Only relevant when <see cref="EnableEBPFLinuxSandbox"/> is enabled.
+        /// Only used as a servicing option to increase the default ring buffer size if pips are experiencing reservation issues. Intented as a last resort option
+        /// when all the mechanisms in place already cannot cope.
+        /// If not set, the default ring buffer size will be used. If set, the value needs to be a power of two.
+        /// </remarks>
+        public int? EBPFRingBufferSizeMultiplier { get; }
     }
 }

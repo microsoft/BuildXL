@@ -241,7 +241,7 @@ namespace BuildXL.Engine.Tracing
         JournalProcessingStatisticsForGraphReuseCheckTelemetry = 2888,
         GraphInputArtifactChangesTokensMismatch = 2889,
         JournalDetectedGvfsProjectionChanges = 2890,
-        
+
         // Reserved = 2891,
 
         WrittenBuildInvocationToUserFolder = 2892,
@@ -427,6 +427,8 @@ namespace BuildXL.Engine.Tracing
 
         ErrorEBPFCannotStart = 7143,
         ErrorEBPFFailedUnexpectedly = 7144,
+        
+        InvalidEBPFRingBufferSizeMultiplier = 7145,
 
         // max 7200
     }

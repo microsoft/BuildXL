@@ -1606,7 +1606,7 @@ If you can't update and need this feature after July 2018 please reach out to th
             string exactMissReason);
 
         [GeneratedEvent(
-            (int) LogEventId.StorePipGraphCacheDescriptorToCache,
+            (int)LogEventId.StorePipGraphCacheDescriptorToCache,
             EventGenerators = EventGenerators.LocalAndTelemetryAndStatistic,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
@@ -2386,7 +2386,7 @@ If you can't update and need this feature after July 2018 please reach out to th
             EventTask = (int)Tasks.Engine,
             Message = "Front End Statistics")]
         public abstract void FrontEndStatsBanner(LoggingContext context);
-        
+
         [GeneratedEvent(
             (int)LogEventId.GCStats,
             EventGenerators = EventGenerators.LocalOnly,
@@ -2547,7 +2547,7 @@ If you can't update and need this feature after July 2018 please reach out to th
             Message = "  PipTable deserialized {1} pips because of {0}")]
         public abstract void PipTableDeserializationContext(LoggingContext context, string name, int count);
 
-      [GeneratedEvent(
+        [GeneratedEvent(
             (int)LogEventId.VirusScanEnabledForPath,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
@@ -2907,6 +2907,15 @@ If you can't update and need this feature after July 2018 please reach out to th
             EventTask = (int)Tasks.Storage,
             Message = "The HistoricMetadata is invoked in {hmcMode} mode")]
         public abstract void HistoricMetadataCacheModeInvoked(LoggingContext context, string hmcMode);
+
+        [GeneratedEvent(
+            (int)LogEventId.InvalidEBPFRingBufferSizeMultiplier,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Storage,
+            Message = "The provided EBPF ring buffer size multiplier '{multiplier}' should be a power of two.")]
+        public abstract void InvalidEBPFRingBufferSizeMultiplier(LoggingContext context, int multiplier);
     }
 
     /// <summary>

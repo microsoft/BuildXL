@@ -16,9 +16,10 @@ EventRingBuffer::EventRingBuffer(
         volatile sig_atomic_t *rootProcessExited,
         volatile sig_atomic_t *stopSignal,
         buildxl::common::ConcurrentQueue<ebpf_event *> &eventQueue,
-        std::function<void(EventRingBuffer *)> capacityExceededCallback)
+        std::function<void(EventRingBuffer *)> capacityExceededCallback,
+        int ringBufferSizeMultiplier)
         // The initial ring buffer always has id 0
-        : EventRingBuffer(/* id */ 0, bxl, rootProcessExited, stopSignal, eventQueue, capacityExceededCallback, /* previous buffer */ nullptr) {
+        : EventRingBuffer(/* id */ 0, bxl, rootProcessExited, stopSignal, eventQueue, capacityExceededCallback, /* previous buffer */ nullptr, ringBufferSizeMultiplier) {
     }
 
 EventRingBuffer::EventRingBuffer(
@@ -28,7 +29,8 @@ EventRingBuffer::EventRingBuffer(
     volatile sig_atomic_t *stopSignal,
     buildxl::common::ConcurrentQueue<ebpf_event *> &eventQueue,
     std::function<void(EventRingBuffer *)> capacityExceededCallback,
-    EventRingBuffer *previous)
+    EventRingBuffer *previous,
+    int ringBufferSizeMultiplier)
     : m_bxl(bxl), 
         m_rootProcessExited(rootProcessExited), 
         m_stopSignal(stopSignal), 
@@ -40,7 +42,8 @@ EventRingBuffer::EventRingBuffer(
         // The first buffer has a size of FILE_ACCESS_RINGBUFFER_SIZE, the second buffer has a size of 2 * FILE_ACCESS_RINGBUFFER_SIZE, and so on.
         // Even though EBPF claims that inner maps need to be of the same size (unless BPF_F_INNER_MAP is set), the ringbuffer case seems to behave differently and
         // 1) BPF_F_INNER_MAP cannot be set for ring buffers and 2) inner ringbuffer maps can be of different sizes.
-        m_ringBufferSize(previous == nullptr ? FILE_ACCESS_RINGBUFFER_SIZE : previous->GetRingBufferSize() * 2) {
+        // The multiplier is typically 1 and just added as a servicing option
+        m_ringBufferSize(previous == nullptr ? (FILE_ACCESS_RINGBUFFER_SIZE * ringBufferSizeMultiplier) : previous->GetRingBufferSize() * 2) {
 
     // The capacity exceeded threshold is 30% of the ring buffer size.
     m_capacityThreshold = m_ringBufferSize * 3 / 10; 
@@ -359,7 +362,8 @@ OverflowEventRingBuffer::OverflowEventRingBuffer(
     std::function<void(EventRingBuffer *)> capacityExceededCallback,
     EventRingBuffer *previous)
     // The overflow buffer gets an ID that is one larger than the previous buffer's ID.
-    : EventRingBuffer(previous->GetId() + 1, bxl, rootProcessExited, &m_localStopSignal, eventQueue, capacityExceededCallback, previous),
+    // For an overflow ring buffer, the size is always double the previous buffer's size: the multiplier is always 1, since that only affects the first buffer
+    : EventRingBuffer(previous->GetId() + 1, bxl, rootProcessExited, &m_localStopSignal, eventQueue, capacityExceededCallback, previous, /* ringBufferSizeMultiplier */ 1),
       m_localStopSignal(0) {
 }
 

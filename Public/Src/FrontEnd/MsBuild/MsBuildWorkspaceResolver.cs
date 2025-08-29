@@ -455,7 +455,8 @@ namespace BuildXL.FrontEnd.MsBuild
                 description: "MsBuild graph builder",
                 buildParameters,
                 beforeLaunch: () => ConnectToServerPipeAndLogProgress(outputFileString),
-                useEBPFLinuxSandbox: Configuration.Sandbox.EnableEBPFLinuxSandbox);
+                useEBPFLinuxSandbox: Configuration.Sandbox.EnableEBPFLinuxSandbox,
+                ebpfRingBufferSizeMultiplier: Configuration.Sandbox.EBPFRingBufferSizeMultiplier);
         }
 
         private void SerializeResponseFile(string responseFile, MSBuildGraphBuilderArguments arguments)

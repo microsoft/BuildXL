@@ -247,7 +247,8 @@ namespace BuildXL.FrontEnd.Ninja
                 description: "Ninja graph builder",
                 RetrieveBuildParameters(),
                 onResult: cleanUpOnResult,
-                useEBPFLinuxSandbox: Configuration.Sandbox.EnableEBPFLinuxSandbox);
+                useEBPFLinuxSandbox: Configuration.Sandbox.EnableEBPFLinuxSandbox,
+                ebpfRingBufferSizeMultiplier: Configuration.Sandbox.EBPFRingBufferSizeMultiplier);
         }
 
         private void SerializeToolArguments(AbsolutePath outputFile, AbsolutePath argumentsFile)

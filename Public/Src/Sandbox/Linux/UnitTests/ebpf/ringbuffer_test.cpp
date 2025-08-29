@@ -163,7 +163,13 @@ int main(int argc, char **argv) {
     printf("EBPF initialized successfully\n");
 
     volatile sig_atomic_t stopSignal = 0;
-    buildxl::linux::ebpf::EventRingBuffer* ringBuffer = new buildxl::linux::ebpf::EventRingBuffer(g_bxl, &g_root_process_exited, &stopSignal, g_event_queue, RingBufferOutOfSpaceCallback);
+    buildxl::linux::ebpf::EventRingBuffer* ringBuffer = new buildxl::linux::ebpf::EventRingBuffer(
+        g_bxl, 
+        &g_root_process_exited, 
+        &stopSignal, 
+        g_event_queue, 
+        RingBufferOutOfSpaceCallback, 
+        /* multiplier */ 1);
 
     g_active_ring_buffer.store(ringBuffer);
 

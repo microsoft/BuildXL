@@ -1235,6 +1235,20 @@ namespace BuildXL.Engine
                 mutableConfig.Schedule.UseHistoricalCpuUsageInfo = false;
             }
 
+            if (mutableConfig.Sandbox.EBPFRingBufferSizeMultiplier != null)
+            {
+                int multiplier = mutableConfig.Sandbox.EBPFRingBufferSizeMultiplier.Value;
+
+                // Let's check that the multiplier is a power of 2
+                // We are just after giving the user a more specific error message. If the final ring buffer
+                // is not a power of two, that will also fail at creation time, but with a more cryptic message.
+                if (!(multiplier > 0 && (multiplier & (multiplier - 1)) == 0))
+                {
+                    Logger.Log.InvalidEBPFRingBufferSizeMultiplier(loggingContext, multiplier);
+                    success = false;
+                }
+            }
+
             return success;
         }
 

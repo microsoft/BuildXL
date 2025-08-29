@@ -790,8 +790,14 @@ int SetupMaps(struct sandbox_bpf *skel) {
         return -1;
     }
 
-    g_active_ring_buffer.store(new buildxl::linux::ebpf::EventRingBuffer(g_bxl, &g_root_process_exited, &g_stop, g_event_queue, RingBufferOutOfSpaceCallback));
-    
+    // Retrieve the ring buffer multiplier, if any.
+    // The multiplier needs to be a power of two and a multiple of the page size. But let's leave that check to managed side. If any of that is not true,
+    // the ringbuffer creation will just fail and we'll get a proper error message anyway.
+    const char* ringBufferSizeMultiplierStr = getenv(BxlRingBufferSizeMultiplier);
+    int ringBufferSizeMultiplier = ringBufferSizeMultiplierStr ? atoi(ringBufferSizeMultiplierStr) : 1;
+
+    g_active_ring_buffer.store(new buildxl::linux::ebpf::EventRingBuffer(g_bxl, &g_root_process_exited, &g_stop, g_event_queue, RingBufferOutOfSpaceCallback, ringBufferSizeMultiplier));
+
     g_bxl->LogDebug(getpid(), "Creating ring buffer instance with counter %d", g_active_ring_buffer.load()->GetId());
     
     if (g_active_ring_buffer.load()->Initialize())

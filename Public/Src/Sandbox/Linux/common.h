@@ -14,5 +14,6 @@
 #define BxlPTraceTracedPid "__BUILDXL_TRACED_PID"
 #define BxlPTraceTracedPath "__BUILDXL_TRACED_PATH"
 #define BxlUnconditionallyLoadEBPF "__BUILDXL_UNCONDITIONALLY_LOAD_EBPF"
+#define BxlRingBufferSizeMultiplier "__BUILDXL_RING_BUFFER_SIZE_MULTIPLIER"
 
 #endif //COMMON_H

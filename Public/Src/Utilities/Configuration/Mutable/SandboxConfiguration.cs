@@ -106,6 +106,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             UnconditionallyEnableLinuxPTraceSandbox = template.UnconditionallyEnableLinuxPTraceSandbox;
             ForceAddExecutionPermission = template.ForceAddExecutionPermission;
             EnableEBPFLinuxSandbox = template.EnableEBPFLinuxSandbox;
+            EBPFRingBufferSizeMultiplier = template.EBPFRingBufferSizeMultiplier;
         }
 
         /// <inheritdoc />
@@ -269,9 +270,12 @@ namespace BuildXL.Utilities.Configuration.Mutable
         public bool UnconditionallyEnableLinuxPTraceSandbox { get; set; }
 
         /// <inheritdoc/>
-        public bool ForceAddExecutionPermission {  get; set; }
+        public bool ForceAddExecutionPermission { get; set; }
 
         /// <inheritdoc/>
         public bool EnableEBPFLinuxSandbox { get; set; }
+
+        /// <inheritdoc/>
+        public int? EBPFRingBufferSizeMultiplier { get; set; }
     }
 }

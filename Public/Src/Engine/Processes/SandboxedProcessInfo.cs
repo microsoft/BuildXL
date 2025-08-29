@@ -168,7 +168,8 @@ namespace BuildXL.Processes
             bool useGentleKill = false,
             int? gentleKillTimeoutMs = null,
             int? maxConcurrency = null,
-            bool allowUndeclaredSourceReads = false)
+            bool allowUndeclaredSourceReads = false,
+            int? ringBufferSizeMultiplier = null)
         {
             PathTable = pathTable;
             FileAccessManifest = fileAccessManifest ?? new FileAccessManifest(pathTable);
@@ -192,6 +193,7 @@ namespace BuildXL.Processes
             GentleKillTimeoutMs = gentleKillTimeoutMs;
             MaxConcurrency = maxConcurrency;
             AllowUndeclaredSourceReads = allowUndeclaredSourceReads;
+            RingBufferSizeMultiplier = ringBufferSizeMultiplier;
         }
 
         /// <summary>
@@ -332,6 +334,15 @@ namespace BuildXL.Processes
         /// Only used by EBPF sandboxing.
         /// </remarks>
         public int? MaxConcurrency { get; }
+
+        /// <summary>
+        /// Servicing option for increasing the EBPF ring buffer size.
+        /// </summary>
+        /// <remarks>
+        /// Only used by EBPF sandboxing.
+        /// If not specified, a default value of 1 is used.
+        /// </remarks>
+        public int? RingBufferSizeMultiplier { get; }
 
         /// <summary>
         /// Whether the pip is allowed to read from undeclared source files.
@@ -645,6 +656,13 @@ namespace BuildXL.Processes
                 }
 
                 writer.Write(AllowUndeclaredSourceReads);
+                writer.Write(RingBufferSizeMultiplier.HasValue);
+
+                if (RingBufferSizeMultiplier.HasValue)
+                {
+                    writer.Write(RingBufferSizeMultiplier.Value);
+                }
+                
                 // File access manifest should be serialized the last.
                 writer.Write(FileAccessManifest, (w, v) => FileAccessManifest.Serialize(stream));
             }
@@ -709,6 +727,13 @@ namespace BuildXL.Processes
                 }
                 
                 bool allowUndeclaredSourceReads = reader.ReadBoolean();
+
+                int? ringBufferSizeMultiplier = null;
+                if (reader.ReadBoolean())
+                {
+                    ringBufferSizeMultiplier = reader.ReadInt32();
+                }
+
                 var fam = reader.ReadNullable(r => FileAccessManifest.Deserialize(stream));
                 
                 return new SandboxedProcessInfo(
@@ -725,7 +750,8 @@ namespace BuildXL.Processes
                     useGentleKill: useGentleKill,
                     gentleKillTimeoutMs: gentleKillTimeoutMs,
                     maxConcurrency: maxConcurrency,
-                    allowUndeclaredSourceReads: allowUndeclaredSourceReads)
+                    allowUndeclaredSourceReads: allowUndeclaredSourceReads,
+                    ringBufferSizeMultiplier: ringBufferSizeMultiplier)
                 {
                     m_arguments = arguments,
                     m_commandLine = commandLine,

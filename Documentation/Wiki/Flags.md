@@ -53,6 +53,7 @@ This page lists flags that can be used to configure BuildXL.
 | DumpFailedPipsWithDynamicData | Enable this option to dump observed file accesses and processes with the dump pip lite analyzer (requires /logObservedFileAccesses+ and/or /logProcesses+ to be set as well). |
 | EarlyWorkerRelease | Whether remote workers should be released early in case of insufficient amount of work. |
 | EarlyWorkerReleaseMultiplier | Multiplier for how aggressively to release workers. Larger values will release workers more aggressively. A value of 1 will release a worker when the number of unfinished (including currently running) pips can be satisfied by the concurrency with one fewer worker. |
+| EBPFRingBufferSizeMultiplier | Servicing option to increase the size of EBPF ring buffer if pips experience reservation issues. The multiplier has to be a power of two. Defaults to 1. |
 | EnableDedupChunk | When enabled, DedupChunk hashing algorithm is used instead of VSO0. Defaults to off. |
 | EnableIncrementalFrontEnd | Enables incremental spec analysis based on number of changed specs. Defaults to on. |
 | EnableLazyOutputs | Enables lazy materialization (deployment) of pips' outputs from local cache. Defaults to on. |

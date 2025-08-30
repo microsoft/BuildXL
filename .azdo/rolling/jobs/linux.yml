@@ -152,8 +152,8 @@ jobs:
         /logsDirectory:"Out/Logs/Build"
         /p:Build.BuildId=$(Build.BuildNumber)
         /p:[BuildXL.Branding]SourceIdentification=$(Branding_SourceIdentification)
-        /q:DebugNet9
-        /q:ReleaseNet9
+        /q:DebugLinuxNet9
+        /q:ReleaseLinuxNet9
         "/f:output='/home/subst/Out/Bin/*'ortag='test'"
       workingDirectory: /home/subst
     env:

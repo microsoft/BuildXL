@@ -7,7 +7,9 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Threading;
+using BuildXL.Interop.Unix;
 using BuildXL.Native.IO;
 using BuildXL.Utilities.Core;
 
@@ -22,7 +24,7 @@ namespace BuildXL.Processes
         /// Destination folder for core dumps (for most linux distributions)
         /// TODO: we could make this configurable so users are able to pass the location where dumps are created on their particular systems as a command line arg
         /// </summary>
-        private static readonly string[] s_crashDumpFolders = new[] { "/var/crash/", "/var/lib/apport/coredump/" };
+        private static readonly string[] s_crashDumpFolders = new[] { "/var/crash/", "/var/lib/apport/coredump/", "/var/lib/systemd/coredump/" };
 
         /// <summary>
         /// Sends a signal to a processes identified by pid
@@ -121,13 +123,13 @@ namespace BuildXL.Processes
                     FileUtilities.DeleteFile(timeoutDumpLocation);
 
                     debugLogger?.Invoke($"Copying '{generatedDumps[0]}' to {timeoutDumpLocation}.");
-                    CopyFileWithRetries(generatedDumps[0], timeoutDumpLocation);
+                    CopyFileWithRetries(generatedDumps[0], timeoutDumpLocation, debugLogger);
 
                     // In theory we should only have one generated dump. But in order to be conservative, copy over everything we find
                     for (int i = 1; i < generatedDumps.Count; i++)
                     {
                         debugLogger?.Invoke($"Copying additional core dump '{generatedDumps[i]}' to {timeoutDumpLocation}.{i}");
-                        CopyFileWithRetries(generatedDumps[i], $"{timeoutDumpLocation}.{i}");
+                        CopyFileWithRetries(generatedDumps[i], $"{timeoutDumpLocation}.{i}", debugLogger);
                     }
 
                     dumpCreateException = null;
@@ -147,10 +149,10 @@ namespace BuildXL.Processes
 
         private static IEnumerable<string> EnumerateDumps() => s_crashDumpFolders.SelectMany(crashFolder => Directory.EnumerateFiles(crashFolder));
 
-        private static void CopyFileWithRetries(string source, string destination)
+        private static void CopyFileWithRetries(string source, string destination, Action<string> debugLogger)
         {
             int retries = 0;
-            while (true)
+            while (retries < 3)
             {
                 try
                 {
@@ -165,7 +167,14 @@ namespace BuildXL.Processes
 
                     if (retries == 3)
                     {
-                        throw;
+                        // On the final try let's check if changing permissions will help
+                        if (!GetPermissionToCopySourceDump(source, debugLogger))
+                        {
+                            // If we can't get permission to copy the file, then just fail
+                            throw;
+                        }
+
+                        File.Copy(source, destination, true);
                     }
 
                     Thread.Sleep(100);
@@ -173,10 +182,62 @@ namespace BuildXL.Processes
             }
         }
 
+        private static bool GetPermissionToCopySourceDump(string source, Action<string> debugLogger)
+        {
+            // We don't currently have a way to prompt the user for a password on local builds
+            if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("TF_BUILD")))
+            {
+                debugLogger?.Invoke($"Unable to get permission for '{source}' since this is not an ADO build.");
+                return false;
+            }
+
+            try
+            {
+                // Run chmod o+rw as root to give the current user the ability to copy this file
+                debugLogger?.Invoke($"Attempting to get permission to copy core dump '{source}'");
+                var processInfo = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = "/usr/bin/sudo",
+                    Arguments = $"/usr/bin/chmod o+rw {source}",
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden,
+                    UseShellExecute = false,
+                    ErrorDialog = false,
+                    StandardOutputEncoding = Encoding.UTF8,
+                    StandardErrorEncoding = Encoding.UTF8,
+                };
+
+                var process = new System.Diagnostics.Process()
+                {
+                    StartInfo = processInfo,
+                    EnableRaisingEvents = true
+                };
+
+                var executor = new AsyncProcessExecutor(
+                    process,
+                    TimeSpan.FromSeconds(10),
+                    errorBuilder: line => { if (line != null) { debugLogger?.Invoke(line); } }
+                );
+
+                executor.Start();
+                executor.WaitForExitAsync().GetAwaiter().GetResult();
+            }
+            catch (Exception e)
+            {
+                // best effort, we won't retry if this fails
+                debugLogger?.Invoke($"Failed to get permission to copy core dump '{source}'. {e.GetLogEventMessage()}");
+
+                return false;
+            }
+
+            return true;
+        }
+
         private static string SetSoftCoreLimit(int processId)
         {
             var error = string.Empty;
-            
+
             // Retrieve the actual core limit
             RLimit rlimit = new RLimit();
             var getRlimitResult = prlimit(processId, RLIMIT_CORE, IntPtr.Zero, ref rlimit);
@@ -202,7 +263,7 @@ namespace BuildXL.Processes
                     // Otherwise, we need to change the hard limit to a non-zero value. This can only be done by a root user. So let's try to change both
                     // to unlimited. If we fail, then dumps can't be actually captured
                     newSoftLimit = -1;
-                    newHardLimit = -1; 
+                    newHardLimit = -1;
                 }
 
                 RLimit newLimit = new() { RLimCurr = newSoftLimit, RLimMax = newHardLimit };

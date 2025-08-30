@@ -354,8 +354,8 @@ DWORD DetouredProcessInjector::RemoteInjectProcess(HANDLE processHandle, bool in
 
     // Create a permissive security descriptor.
     if (InitializeSecurityDescriptor(&sd, SECURITY_DESCRIPTOR_REVISION)
-        // Set a null DACL, which allows access to everyone; it is because the remote injector can run in different security contexts.
-        && SetSecurityDescriptorDacl(&sd, TRUE, nullptr, FALSE))
+        // Set a null DACL, which allows access to everyone.
+        && SetSecurityDescriptorDacl(&sd, TRUE, nullptr, FALSE)) // CodeQL [SM02987] This permissive security descriptor is to allow the remote injector to see the events although it runs in different security contexts.
     {
         sa.nLength = sizeof(SECURITY_ATTRIBUTES);
         sa.lpSecurityDescriptor = &sd;

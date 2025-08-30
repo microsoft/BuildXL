@@ -251,5 +251,10 @@ namespace BuildXL.Native.IO
         /// ERROR_MORE_DATA
         /// </summary>
         public const int ErrorMoreData = 0xEA;
+
+        /// <summary>
+        /// ERROR_INVALID_OPERATION
+        /// </summary>
+        public const int ErrorInvalidOperation = 0x10DD;
     }
 }

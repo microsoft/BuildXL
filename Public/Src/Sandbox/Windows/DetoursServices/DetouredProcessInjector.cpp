@@ -466,6 +466,14 @@ void WINAPI DetouredProcessInjector_Destroy(DetouredProcessInjector *injector)
 
 DWORD WINAPI DetouredProcessInjector_Inject(DetouredProcessInjector *injector, DWORD pid, bool)
 {
+    // Ensure that the report pipe is set so that Dbg() can write to it.
+    // This is important for remote injection because the injector can be created externally (e.g., by BuildXL's managed code)
+    // and this function is called from external code (e.g., by BuildXL's managed code) where the report pipe is not set.
+    if (g_reportFileHandle == NULL || g_reportFileHandle == INVALID_HANDLE_VALUE)
+    {
+        g_reportFileHandle = injector->ReportPipe();
+    }
+
     if (!injector->IsValid()) {
         Dbg(L"DetouredProcessInjector_Inject: Injector is not valid");
         return ERROR_INVALID_FUNCTION;

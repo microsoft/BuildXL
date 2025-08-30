@@ -613,7 +613,9 @@ InternalCreateDetouredProcess(
             fProcDetoured = error == ERROR_SUCCESS;
 
             // Retry for payload memcpy failure in process injector
-            if (error == ERROR_PARTIAL_COPY)
+            if (error == ERROR_PARTIAL_COPY
+                || error == ERROR_INVALID_OPERATION
+                || error == ERROR_ACCESS_DENIED)
             {
                 Sleep(BUILDXL_DETOURS_MS_TO_SLEEP + (nRetryCount * BUILDXL_DETOURS_MS_TO_SLEEP));
                 nRetryCount++;

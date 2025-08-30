@@ -288,7 +288,9 @@ namespace BuildXL.Processes
                         succeeded = injectionError == NativeIOConstants.ErrorSuccess;
 
                         // Retry only if the error is partial copy.
-                        if (injectionError != NativeIOConstants.ErrorPartialCopy)
+                        if (injectionError != NativeIOConstants.ErrorPartialCopy
+                            && injectionError != NativeIOConstants.ErrorAccessDenied
+                            && injectionError != NativeIOConstants.ErrorInvalidOperation)
                         {
                             break;
                         }

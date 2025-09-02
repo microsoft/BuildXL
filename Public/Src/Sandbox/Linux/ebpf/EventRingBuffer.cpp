@@ -3,6 +3,9 @@
 
 #include "EventRingBuffer.hpp"
 #include <math.h>
+#include <numa.h>
+#include <sched.h>
+#include <errno.h>
 
 // 10 milliseconds grace period for EBPF programs to continue using the original ring buffer after a new ring buffer is created
 #define GRACE_PERIOD_MS 10
@@ -110,7 +113,18 @@ int EventRingBuffer::NotifyActivated() {
         pthread_attr_destroy(&attr);
         return -1;
     }
-    
+
+    // Pin the polling thread to the same CPU whose NUMA node the ring buffer was set to
+    // This improves cache and NUMA locality.
+    cpu_set_t cpuset;
+    CPU_ZERO(&cpuset);
+    CPU_SET(m_pollingThreadCpuId, &cpuset);
+    if (pthread_setaffinity_np(m_pollingThread, sizeof(cpuset), &cpuset) != 0) {
+        LogError("[Event ring buffer %d] Failed to set affinity: %s", m_Id, strerror(errno));
+        pthread_attr_destroy(&attr);
+        return -1;
+    }
+
     // Clean up the attributes
     pthread_attr_destroy(&attr);
 
@@ -199,7 +213,13 @@ void EventRingBuffer::FlushRingBufferEvents()
 }
 
 int EventRingBuffer::Initialize(ring_buffer_sample_fn sampleCallback) {
+    // Allocate the ring buffer on the same numa node where the polling thread will be located
+    // We use the CPU we're currently running on (safe, best-effort).
     LIBBPF_OPTS(bpf_map_create_opts, file_access_options);
+    file_access_options.map_flags = BPF_F_NUMA_NODE;
+    m_pollingThreadCpuId = sched_getcpu(); // Update the CPU we used so we can use it later for the polling thread
+    file_access_options.numa_node = numa_node_of_cpu(m_pollingThreadCpuId);
+
     m_ringBufferFd =  bpf_map_create(BPF_MAP_TYPE_RINGBUF, "file_access_ring_buffer", 0, 0, m_ringBufferSize, &file_access_options);
     if (m_ringBufferFd < 0)
     {

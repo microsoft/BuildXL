@@ -236,7 +236,7 @@ namespace eBPFSandbox {
             outputName: a`bxl-ebpf-runner`,
             tool: Native.Linux.Compilers.gxxTool,
             objectFiles: [...utilsObj, ...commonObj, ...sandboxObj, libbpfa],
-            libraries: [ "rt", "dl", "pthread", "m", "elf", "z" ]
+            libraries: [ "rt", "dl", "pthread", "m", "elf", "z", "numa" ]
         })
     : undefined;
 }

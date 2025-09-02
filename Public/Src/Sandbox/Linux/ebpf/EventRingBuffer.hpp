@@ -114,6 +114,7 @@ private:
     volatile sig_atomic_t *m_stopSignal;
     // Guards the state of the buffer when waiting for it to be inactive.
     std::mutex m_waitForBufferInactiveMutex;
+    int m_pollingThreadCpuId;
 
 protected:
     EventRingBuffer(

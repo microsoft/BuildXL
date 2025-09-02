@@ -50,7 +50,7 @@ namespace Test.eBPFSandbox {
             outputName: a`ringbuffer_test`,
             tool: Native.Linux.Compilers.gxxTool,
             objectFiles: [...utilsObj, ...commonObj, ...ringBufferTestObj, EBPF.eBPFSandbox.libbpfa],
-            libraries: [ "rt", "dl", "pthread", "m", "elf", "z" ]
+            libraries: [ "rt", "dl", "pthread", "m", "elf", "z", "numa" ]
         })
     : undefined;
 
@@ -67,7 +67,7 @@ namespace Test.eBPFSandbox {
             outputName: a`incremental_path_test`,
             tool: Native.Linux.Compilers.gxxTool,
             objectFiles: [...utilsObj, ...sendProbeObj, EBPF.eBPFSandbox.libbpfa],
-            libraries: [ "rt", "dl", "pthread", "m", "elf", "z" ]
+            libraries: [ "rt", "dl", "pthread", "m", "elf", "z", "numa" ]
         })
     : undefined;
 }

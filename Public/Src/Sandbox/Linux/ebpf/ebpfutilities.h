@@ -90,6 +90,9 @@ struct {
 struct file_access_ring_buffer {
     __uint(type, BPF_MAP_TYPE_RINGBUF);
     __uint(max_entries, FILE_ACCESS_RINGBUFFER_SIZE);
+    // We set the numa node of the ringbuffer so it matches the one the corresponding runner is pinned to.
+    // This improves performance and reduces latency.
+    __uint(map_flags, BPF_F_NUMA_NODE);
 } file_access_ring_buffer SEC(".maps");
 
 /**

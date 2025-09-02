@@ -5,17 +5,11 @@
 ```bash
 # install packages
 sudo apt-get update 
-sudo apt-get install –y git build-essential libc6-dev openssh-server curl dotnet9 clang libelf-dev
+sudo apt-get install –y git build-essential libc6-dev openssh-server curl dotnet9 clang libelf-dev libnuma-dev
 
 # link libdl.so
 sudo ln -vs /lib/x86_64-linux-gnu/libdl.so.2 /usr/lib/x86_64-linux-gnu/libdl.so
 ```
-
-### Ubuntu 20.04
-```bash
-# install packages
-sudo apt-get update 
-sudo apt-get install –y git build-essential libc6-dev openssh-server curl 
 
 # install .NET
 wget https://packages.microsoft.com/config/ubuntu/20.04/packages-microsoft-prod.deb -O packages-microsoft-prod.deb

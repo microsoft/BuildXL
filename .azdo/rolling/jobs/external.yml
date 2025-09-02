@@ -18,7 +18,7 @@ jobs:
   templateContext:
     sdl:
       baseline:
-        baselineFile: $(Build.SourcesDirectory)\.config\guardian\.gdnbaselines   
+        baselineFile: $(Build.SourcesDirectory)\.config\guardian\external\.gdnbaselines   
       spotBugs:
         enabled: false
 

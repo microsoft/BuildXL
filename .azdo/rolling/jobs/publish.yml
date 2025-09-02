@@ -17,6 +17,8 @@ jobs:
     demands: ImageOverride -equals 1ESPT-Win2022-PME-3
   templateContext:
     sdl:
+      baseline:
+        baselineFile: $(Build.SourcesDirectory)\.config\guardian\.gdnbaselines
       binskim:
         scanOutputDirectoryOnly: true
         preReleaseVersion: '4.3.1'

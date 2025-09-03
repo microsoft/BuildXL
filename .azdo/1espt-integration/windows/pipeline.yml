@@ -40,4 +40,4 @@ extends:
     stages:
     - template: /.azdo/distributed/stage.yml@self
       parameters:
-        buildXLVersion: GeneralPublic
+        buildXLVersion: Dogfood

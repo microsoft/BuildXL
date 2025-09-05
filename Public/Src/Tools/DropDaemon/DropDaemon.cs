@@ -66,7 +66,9 @@ namespace Tool.DropDaemon
 
         private const string IncompleteDropMarkerFileContent = "The build that produced this drop encountered some errors. This drop might be missing some files.";
         private const string IncompleteDropMarkerFileDropPath = "_INCOMPLETE_DROP_MARKER.txt";
-
+        private const string BuildManifestDirectoryName = "_manifest";
+        private const string SbomDirectoryName = "spdx_2.2"; // CODESYNC: SbomSpecification object created during build manifest generation
+        private const string SbomFileName = "manifest.spdx.json";
         private static readonly int s_minIoThreadsForDrop = Environment.ProcessorCount * 10;
 
         private static readonly int s_minWorkerThreadsForDrop = Environment.ProcessorCount * 10;
@@ -97,6 +99,13 @@ namespace Tool.DropDaemon
         /// These loggers should only be used for drop-related messages. Daemon-related messages should be logged via <see cref="ServicePipDaemon.ServicePipDaemon.Logger"/>
         /// </summary>
         private readonly BuildXL.Utilities.Collections.ConcurrentBigMap<string, Lazy<IIpcLogger>> m_dropSpecificLoggers = new();
+
+        internal record BuildManifestTelemetry(int FileCount, int PackageCount, int PackageDependencyCount, long ManifestFileSize);
+
+        /// <summary>
+        /// A mapping between a drop name and build manifest telemetry.
+        /// </summary>
+        private readonly Dictionary<string, BuildManifestTelemetry> m_buildManifestTelemetry = new();
 
         private readonly string m_dropClientLogDirectory;
 
@@ -861,7 +870,7 @@ namespace Tool.DropDaemon
                 hasMoreData = bxlResult.Result.HasMoreData;
             } while (hasMoreData);
 
-            IEnumerable<SbomFile> manifestFileList = fileList.Select(ToSbomFile);
+            List<SbomFile> manifestFileList = fileList.Select(ToSbomFile).ToList();
 
             string sbomGenerationRootDirectory = null;
             var logger = GetDropSpecificLogger(dropConfig);
@@ -891,9 +900,9 @@ namespace Tool.DropDaemon
                     return new IpcResult(IpcResultStatus.ManifestGenerationError, $"Errors were encountered in ComponentDetectionToSbomPackageAdapter. Details: {maybePackages.Failure.Describe()}");
                 }
 
-                var packages = maybePackages.Result;
+                var packages = maybePackages.Result.ToList();
                 logger.Info("Starting SBOM Generation");
-                var specs = new List<SbomSpecification>() { new("SPDX", "2.2") };
+                var specs = new List<SbomSpecification>() { new("SPDX", "2.2") }; // CODESYNC: SbomDirectoryName
                 var result = await m_sbomGenerator.GenerateSbomAsync(sbomGenerationRootDirectory, manifestFileList, packages, metadata, specs);
                 logger.Info("Finished SBOM Generation");
 
@@ -901,6 +910,23 @@ namespace Tool.DropDaemon
                 {
                     return new IpcResult(IpcResultStatus.ManifestGenerationError, $"Errors were encountered during SBOM generation. Details: {GetSbomGenerationErrorDetails(result.Errors)}");
                 }
+
+                long size = 0;
+                string manifestFilePath = Path.Combine(sbomGenerationRootDirectory, BuildManifestDirectoryName, SbomDirectoryName, SbomFileName);
+                try
+                {
+                    size = new System.IO.FileInfo(manifestFilePath).Length;
+                }
+                catch (FileNotFoundException)
+                {
+                    return new IpcResult(IpcResultStatus.ManifestGenerationError, $"SBOM generation finished successfully, but the manifest file '{manifestFilePath}' does not exist.");
+                }
+
+                m_buildManifestTelemetry[fullDropName] = new BuildManifestTelemetry(
+                    manifestFileList.Count,
+                    packages.Count,
+                    packages.Sum(x => x.DependOn?.Count ?? 0),
+                    size);
             }
             catch (Exception ex)
             {
@@ -1142,7 +1168,7 @@ namespace Tool.DropDaemon
                }).ToArray();
 
             var results = await TaskUtilities.SafeWhenAll(finalizationTasks);
-            return results.Length > 0 
+            return results.Length > 0
                 ? IpcResult.Merge(results)
                 // Ideally, we would return 'null' because we did no work, but the caller expects a result.
                 // This code path is only possible if finalize is called by FinalizedByCreatorServicePipDaemon.RequestStop
@@ -1304,7 +1330,9 @@ namespace Tool.DropDaemon
                     // so they can be pushed into telemetry.
                     if (vsoClient is VsoClient client && ApiClient != null)
                     {
-                        var possiblyReported = await client.ReportDropTelemetryDataAsync("DropDaemon");
+                        var fullName = FullyQualifiedDropName(dropConfig);
+                        m_buildManifestTelemetry.TryGetValue(fullName, out var sbomTelemetry);
+                        var possiblyReported = await client.ReportDropTelemetryDataAsync("DropDaemon", sbomTelemetry);
                         if (possiblyReported.Succeeded && possiblyReported.Result)
                         {
                             m_logger.Info($"Telemetry for drop '{client.DropName}' successfully reported to BuildXL.");

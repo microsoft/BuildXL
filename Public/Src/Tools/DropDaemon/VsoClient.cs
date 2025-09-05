@@ -16,11 +16,11 @@ using BuildXL.Ipc.Common;
 using BuildXL.Ipc.ExternalApi;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Authentication;
 using BuildXL.Utilities.Collections;
-using BuildXL.Utilities.ParallelAlgorithms;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Tasks;
+using BuildXL.Utilities.ParallelAlgorithms;
 using Microsoft.VisualStudio.Services.ArtifactServices.App.Shared.Cache;
 using Microsoft.VisualStudio.Services.BlobStore.Common;
 using Microsoft.VisualStudio.Services.Common;
@@ -273,7 +273,7 @@ namespace Tool.DropDaemon
             }
         }
 
-        internal async Task<Possible<bool>> ReportDropTelemetryDataAsync(string daemonName)
+        internal async Task<Possible<bool>> ReportDropTelemetryDataAsync(string daemonName, DropDaemon.BuildManifestTelemetry sbomTelemetry)
         {
             if (!m_config.ReportTelemetry)
             {
@@ -298,8 +298,19 @@ namespace Tool.DropDaemon
                 dropInfo.Add(addPrefix("FinalizedAtUtc"), m_dropFinalizedAtUtc.Value.ToString("s", CultureInfo.InvariantCulture));
             }
 
+            // SBOM telemetry might have strings in it, so box all drop stats, this way we can keep everything in the same dictionary.
+            Dictionary<string, object> dropStats = GetStats(reportSizeInMegabytes: false).ToDictionary(kvp => kvp.Key, kvp => (object)kvp.Value);
+            // Add SBOM telemetry if we have it (we might not have it if we are on a worker or if sbom generation failed)
+            if (sbomTelemetry != null)
+            {
+                dropStats.Add(addPrefix("SbomFileCount"), sbomTelemetry.FileCount);
+                dropStats.Add(addPrefix("SbomPackageCount"), sbomTelemetry.PackageCount);
+                dropStats.Add(addPrefix("SbomPackageDependencyCount"), sbomTelemetry.PackageDependencyCount);
+                dropStats.Add(addPrefix("SbomManifestFileSize"), sbomTelemetry.ManifestFileSize);
+            }
+
             string serializedDropInfo = JsonConvert.SerializeObject(dropInfo, Formatting.Indented);
-            string serializedDropStats = JsonConvert.SerializeObject(GetStats(reportSizeInMegabytes: false), Formatting.Indented);
+            string serializedDropStats = JsonConvert.SerializeObject(dropStats, Formatting.Indented);
 
             m_logger.Info("Reporting telemetry to BuildXL");
             m_logger.Info($"Info:{Environment.NewLine}{serializedDropInfo}");

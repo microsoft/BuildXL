@@ -28,6 +28,9 @@ namespace BuildXL.Utilities.SBOMUtilities
 
         private readonly BuildSessionInfoData m_backingBsi;
 
+        /// <nodoc />
+        public string ChangeList => m_backingBsi.ChangeList;
+
         /// <summary>
         /// Creates a <see cref="BsiMetadataExtractor"/> which will pull the relevant information from a BuildSessionInfo file
         /// </summary>
@@ -138,6 +141,8 @@ namespace BuildXL.Utilities.SBOMUtilities
 
         /// <nodoc />
         public string BuildQueue { get; set;  }
-    }
 
+        /// <nodoc />
+        public string ChangeList { get; set; }
+    }
 }

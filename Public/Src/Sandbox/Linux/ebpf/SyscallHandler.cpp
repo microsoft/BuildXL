@@ -492,6 +492,11 @@ void SyscallHandler::SendStats()
             getpid(),
             "[Ring buffer monitoring] String cache hit: %d (%.2f%%), String cache miss: %d, String cache uncacheable: %d",
             stats.string_cache_hit, string_cache_hit_percentage, stats.string_cache_miss, stats.string_cache_uncacheable);
+
+        m_bxl->LogInfo(
+            getpid(),
+            "[Ring buffer monitoring] Avoided sending to user side %d untracked accesses (%.2f KB)",
+            stats.untracked_path_count, (double)stats.untracked_path_bytes / 1024.0);
     }
 
     auto eventRingbuffer = m_active_ringbuffer->load();

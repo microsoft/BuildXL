@@ -12,9 +12,6 @@
 #include "ebpfcommon.h"
 #include "ebpfutilities.h"
 
-// Just for statistics
-static int event_cache_hit, event_cache_miss = 0;
-
 __attribute__((always_inline)) static inline void report_event_cache_not_found(pid_t runner_pid);
 
 // We keep a LRU map so we do not send out events that are considered equivalent. Sending too many events can cause the ring buffer to not be able
@@ -68,7 +65,14 @@ __attribute__((always_inline)) static bool should_send_path(pid_t runner_pid, op
     void *event_cache = bpf_map_lookup_elem(&event_cache_per_pip, &runner_pid);
     if (event_cache == NULL) {
         report_event_cache_not_found(runner_pid);
-        return 0;
+        return true;
+    }
+
+    // Retrieve stats for this pip
+    struct pip_stats *stats = bpf_map_lookup_elem(&stats_per_pip, &runner_pid);
+    if (!stats) {
+        report_stats_not_found(runner_pid);
+        return true;
     }
 
     // If the key is not there, we should send the event and add the key as well
@@ -77,11 +81,11 @@ __attribute__((always_inline)) static bool should_send_path(pid_t runner_pid, op
     if (bpf_map_lookup_elem(event_cache, &key) == NULL)
     {
         bpf_map_update_elem(event_cache, &key, &NO_VALUE, BPF_ANY);
-        __sync_fetch_and_add(&event_cache_miss, 1);
+        __sync_fetch_and_add(&stats->event_cache_miss, 1);
         return true;
     }
 
-    __sync_fetch_and_add(&event_cache_hit, 1);
+    __sync_fetch_and_add(&stats->event_cache_hit, 1);
     // If the lookup found the key, don't send the event
     return false;
 }

@@ -180,6 +180,7 @@ namespace eBPFSandbox {
         f`../../Windows/DetoursServices/PolicySearch.cpp`,
         f`../../Windows/DetoursServices/StringOperations.cpp`,
         f`../../Windows/DetoursServices/FilesCheckedForAccess.cpp`,
+        f`../../Windows/DetoursServices/ManifestIterator.cpp`,
         f`../../Common/FileAccessManifest.cpp`
     ];
 

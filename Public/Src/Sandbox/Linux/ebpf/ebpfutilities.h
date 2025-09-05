@@ -210,6 +210,47 @@ struct {
     __array(values, struct breakaway_processes);
 } breakaway_processes_per_pip SEC(".maps");
 
+/**
+ * Stores a collection of paths that represent untracked scopes. We avoid sending accesses that fall under any path stored in this map.
+ * The map is populated from user side based on the pip information. Kernel side only queries the map.
+ */
+struct untracked_scopes {
+    __uint(type, BPF_MAP_TYPE_LPM_TRIE);
+    __uint(key_size, sizeof(struct untracked_path_key));
+    // We don't really need a value, we are just checking membership
+    __uint(value_size, sizeof(short));
+    // Set dynamically from user side based on the number of untracked scopes of a given pip. Left here
+    // for template matching.
+    __uint(max_entries, 1);
+    // Block writes from the kernel side. On user side, the map is frozen after untracked scopes are added.
+    __uint(map_flags, BPF_F_NO_PREALLOC | BPF_F_RDONLY_PROG);
+} untracked_scopes SEC(".maps"); 
+
+/**
+ * Holds one untracked_scopes map per sandboxed process.
+ * We set the max number of entries dynamically at creation time.
+ */
+struct {
+    __uint(type, BPF_MAP_TYPE_HASH_OF_MAPS);
+    __type(key, pid_t);
+    // We need all runners to share this map
+    __uint(pinning, LIBBPF_PIN_BY_NAME);
+    // The max number of entries is the max number of runners that can run concurrently, which is typically way over dimensioned
+    // Most pips won't have untracked scopes, so we set the map flags to avoid preallocating memory
+    __uint(map_flags, BPF_F_NO_PREALLOC);
+    __array(values, struct untracked_scopes);
+} untracked_scopes_per_pip SEC(".maps");
+
+/**
+ * Holds a temporary per-CPU untracked scope key, so we can construct one for doing lookups.
+ */
+struct {
+    __uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+    __uint(key_size, sizeof(uint32_t));
+    __uint(value_size, sizeof(struct untracked_path_key));
+    __uint(max_entries, 1);
+} temporary_untracked_scopes SEC(".maps");
+
 // Call this function to report the free capacity of the ring buffer in the kernel debug pipe. For debugging purposes only.
 __attribute__((always_inline)) static inline void debug_ringbuffer_capacity(pid_t runner_pid, void* ring_buffer)
 {
@@ -269,6 +310,11 @@ __attribute__((always_inline)) static inline void report_last_path_per_cpu_not_f
 __attribute__((always_inline)) static inline void report_event_cache_not_found(pid_t runner_pid)
 {
     report_ring_buffer_error(runner_pid, "[ERROR] Could not find event cache.");
+}
+
+__attribute__((always_inline)) static inline void report_stats_not_found(pid_t runner_pid)
+{
+    report_ring_buffer_error(runner_pid, "[ERROR] Could not find stats.");
 }
 
 __attribute__((always_inline)) static inline void report_string_cache_not_found(pid_t runner_pid)
@@ -1158,7 +1204,54 @@ __attribute__((always_inline)) static void write_single_path_event_incremental(
     bpf_map_update_elem(last_path_per_cpu, &cpu_id, path_to_write, BPF_ANY);
 }
 
+__attribute__((always_inline)) static bool is_path_untracked(int runner_pid, const char* path, int path_length) {
+    // Untracked scopes might not be there if the pip didn't have any. So it is not an error if we don't find it.
+    void *untracked_scopes = bpf_map_lookup_elem(&untracked_scopes_per_pip, &runner_pid);
+    if (untracked_scopes == NULL) {
+        return false;
+    }
+    
+    // We don't store the null terminator in the trie, so use path_length - 1
+    int key_length = path_length - 1 <= MAX_LPM_PATH_LEN ? path_length - 1 : MAX_LPM_PATH_LEN;
 
+    // Retrieve a temporary untracked path key, so we can build the lookup key
+    struct untracked_path_key* key = bpf_map_lookup_elem(&temporary_untracked_scopes, &ZERO);
+    if (!key) {
+        report_ring_buffer_error(runner_pid, "[ERROR] Could not find temporary untracked path key.");
+        return false;
+    }
+    
+    // If the path is smaller than the maximum length, nullify the remaining space so we keep the key deterministic
+    if (key_length < MAX_LPM_PATH_LEN) {
+        nullify_string(key->path, MAX_LPM_PATH_LEN);
+    }
+
+    // Copy over the path (maybe truncated) and its byte aligned length
+    bpf_core_read(
+        &key->path, 
+        key_length < MAX_LPM_PATH_LEN 
+            // The destination is already nullified, so we can copy up to (and excluding) the null terminator
+            ? key_length & (MAX_LPM_PATH_LEN - 1)
+            // The path being evaluated is longer than the max key. So we populate the key based on its max length
+            : MAX_LPM_PATH_LEN,
+        path);
+    key->prefixlen = key_length * 8; // Length in bits
+
+    if (bpf_map_lookup_elem(untracked_scopes, key) != NULL) {
+        // The path is untracked. Update stats accordingly.
+        struct pip_stats *stats = bpf_map_lookup_elem(&stats_per_pip, &runner_pid);
+        if (!stats) {
+            report_stats_not_found(runner_pid);
+            return true;
+        }
+
+        __sync_fetch_and_add(&stats->untracked_path_count, 1);
+        __sync_fetch_and_add(&stats->untracked_path_bytes, path_length);
+        return true;
+    }
+
+    return false;
+}
 
 /**
  * submit_file_access() - Submits a file access event to the ring buffer for the given runner process.
@@ -1197,6 +1290,17 @@ __attribute__((always_inline)) static void submit_file_access(
 
     if (path_length < 0 || path_length >= PATH_MAX) {
         report_ring_buffer_error(runner_pid, "[ERROR] Path length is invalid");
+        return;
+    }
+
+    // Do not bother sending the path to user side if it is untracked
+    // We make an exception with clone/exit/breakaway operations, as those are used by
+    // managed side to track the lifecycle of processes (even if those operations end up being
+    // ignored from a cache fingerprint standpoint)
+    if (operation_type != kClone && 
+        operation_type != kExit && 
+        operation_type != kBreakAway && 
+        is_path_untracked(runner_pid, path, path_length)) {
         return;
     }
 
@@ -1253,6 +1357,12 @@ __attribute__((always_inline)) static void submit_file_access_double(
     int src_path_length,
     char* dst_path,
     int dst_path_length) {
+
+    // Do not bother sending the path to user side if both paths are untracked
+    if (is_path_untracked(runner_pid, src_path, src_path_length) &&
+        is_path_untracked(runner_pid, dst_path, dst_path_length)) {
+        return;
+    }
 
     void *file_access_ring_buffer = bpf_map_lookup_elem(&file_access_per_pip, &runner_pid);
     if (file_access_ring_buffer == NULL) {
@@ -1355,6 +1465,9 @@ __attribute__((always_inline)) static void submit_exec(
     int exe_path_length,
     char* args,
     int args_length) {
+
+    // We explicitly don't check for untracked paths here. Execs are used on managed side to track process lifecycles
+    // and we want to make sure we always get them, even if the executable is untracked.
 
    void *file_access_ring_buffer = bpf_map_lookup_elem(&file_access_per_pip, &runner_pid);
     if (file_access_ring_buffer == NULL) {

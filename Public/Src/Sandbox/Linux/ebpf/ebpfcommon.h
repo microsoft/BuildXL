@@ -288,7 +288,6 @@ typedef struct sandbox_options {
 
 /**
  * Used to communicate general statistics about the sandbox to userspace.
- * Populated when the root pid exits
  */
 typedef struct pip_stats {
     int event_cache_hit;
@@ -296,6 +295,8 @@ typedef struct pip_stats {
     int string_cache_hit;
     int string_cache_miss;
     int string_cache_uncacheable;
+    int untracked_path_count;
+    long untracked_path_bytes;
 } pip_stats;
 
 /**
@@ -330,5 +331,20 @@ typedef struct test_incremental_event_args {
  * The constant we use as map values when using a map as a set (and so the value is not important).
  */
 static const short NO_VALUE = 0;
+
+/** Given the restrictions on LPM tries, the longest path we store is 256 bytes. See untracked_scopes map */
+#define MAX_LPM_PATH_LEN 256
+
+/**
+ * Key for untracked_scopes map.
+ */
+struct untracked_path_key {
+    // Number of bytes expressed in bits. Has to be a multiple of 8 and less than 2048.
+    // This means the longest path is 256 bytes.
+    __u32 prefixlen;
+    // Path in raw bytes
+    char path[MAX_LPM_PATH_LEN];
+};
+
 
 #endif // __PUBLIC_SRC_SANDBOX_LINUX_EBPF_EBPFCOMMON_H

@@ -303,20 +303,6 @@ int BPF_PROG(taskstats_exit, struct task_struct *tsk, int group_dead)
         return 0;
     }
 
-    // If the process exiting is a child of the runner process, update the general stats for the pip
-    // (observe the runner process always has a single child by construction, which is the root of the pip)
-    if (get_ppid(tsk) == runner_pid) {
-        struct pip_stats stats = {
-            .event_cache_hit = event_cache_hit,
-            .event_cache_miss = event_cache_miss,
-            .string_cache_hit = string_cache_hit,
-            .string_cache_miss = string_cache_miss,
-            .string_cache_uncacheable = string_cache_uncacheable,
-        };
-        // Best effort basis. If this fails it is not a blocker.
-        bpf_map_update_elem(&stats_per_pip, &runner_pid, &stats, BPF_ANY);
-    }
-
     submit_file_access(
         runner_pid,
         kExit,

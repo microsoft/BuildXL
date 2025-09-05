@@ -12,9 +12,6 @@
 #include "ebpfcommon.h"
 #include "ebpfutilities.h"
 
-// Just for statistics
-static int string_cache_hit, string_cache_miss, string_cache_uncacheable = 0;
-
 __attribute__((always_inline)) static inline void report_string_cache_not_found(pid_t runner_pid);
 
 /** Equivalent to event_cache, but used to cache path-as-strings for the cases where we don't have a struct path available.
@@ -53,11 +50,19 @@ struct {
  * Whether the path is cacheable. This is used to avoid caching paths that are too long, as they are unlikely to show up and it would force us to allocate a lot of memory for the cache.
  * Returns true if the path is cacheable, false otherwise.
  */
-__attribute__((always_inline)) static bool is_cacheable(int path_length)
+__attribute__((always_inline)) static bool is_cacheable(pid_t runner_pid, int path_length)
 {
     // The key of the cache is going to be path + operation_type, so we need to reserve space for the operation type as well
     if (path_length + sizeof(operation_type) >= STRING_CACHE_PATH_MAX) {
-        __sync_fetch_and_add(&string_cache_uncacheable, 1);
+
+        // Retrieve stats for this pip
+        struct pip_stats *stats = bpf_map_lookup_elem(&stats_per_pip, &runner_pid);
+        if (!stats) {
+            report_stats_not_found(runner_pid);
+            return false;
+        }
+
+        __sync_fetch_and_add(&stats->string_cache_uncacheable, 1);
         return false;
     }
 
@@ -72,7 +77,7 @@ __attribute__((always_inline)) static bool is_cacheable(int path_length)
 __attribute__((always_inline)) static bool should_send_string(pid_t runner_pid, operation_type operation, char* path, const int path_length)
 {
     // If the path is not small enough to be cacheable, we don't cache it and just send the event
-    if (!is_cacheable(path_length))
+    if (!is_cacheable(runner_pid, path_length))
     {
         return true;
     }
@@ -96,17 +101,24 @@ __attribute__((always_inline)) static bool should_send_string(pid_t runner_pid, 
     // and the cache will distinguish between different operations on the same path since it uses raw byte comparison.
     path[path_length & (STRING_CACHE_PATH_MAX - 1)] = operation;
 
+    // Retrieve stats for this pip
+    struct pip_stats *stats = bpf_map_lookup_elem(&stats_per_pip, &runner_pid);
+    if (!stats) {
+        report_stats_not_found(runner_pid);
+        return true;
+    }
+
     // If the key is not there, we should send the event and add the key as well
     // We could use BPF_NOEXIST and save one lookup operation, but it looks like this flag is not working properly in some circumstances and
     // the lookup comes back with a successful error code when the element exists.
     if (bpf_map_lookup_elem(string_cache, path) == NULL)
     {
         bpf_map_update_elem(string_cache, path, &NO_VALUE, BPF_ANY);
-        __sync_fetch_and_add(&string_cache_miss, 1);
+        __sync_fetch_and_add(&stats->string_cache_miss, 1);
         return true;
     }
 
-    __sync_fetch_and_add(&string_cache_hit, 1);
+    __sync_fetch_and_add(&stats->string_cache_hit, 1);
     // If the lookup found the key, don't send the event
     return false;
 }

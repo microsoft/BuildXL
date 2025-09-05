@@ -289,10 +289,118 @@ namespace Test.BuildXL.Processes
             var process = SandboxedProcessFactory.StartAsync(info, forceSandboxing: true).GetAwaiter().GetResult();
             var result = process.GetResultAsync().GetAwaiter().GetResult();
             XAssert.AreEqual(0, result.ExitCode);
-            
+
             // Verify the ringbuffer size honored the multiplier
             string sandboxMessages = string.Join(Environment.NewLine, m_eventListener.GetLog());
             XAssert.Contains(sandboxMessages, $"Total available space: {s_fileAccessRingBufferSize * multiplier}");
+        }
+
+        [Theory]
+        [InlineData("/untracked/path", true)]
+        [InlineData("/untracked/nested/path", true)]
+        // The underlying EBPF trie is capped by 256 (so untracked scopes larger than this are not included). This shouldn't affect accesses longer than 256, so just make sure we handle this well.
+        [InlineData("/untracked/nested/path/longer/than/256/256/256/256/256/256/256/256/256/256/256/256/256/256/256/256/256/256/256/256/256/256/256/256/256/256/256/256/256/256/256/256/256/256/256/256/256/256/256/256/256/256/256/256/256/256/256/256/256/256/256/256/256/256/256/256/256/256/", true)]
+        [InlineData("/untrackedpath", false)]
+        [InlineData("/another/untracked/path", false)]
+        public void AccessesUnderUntrackedScopesAreNotSent(string access, bool expectUntracked)
+        {
+            if (OperatingSystemHelperExtension.GetLinuxDistribution()?.Equals(new LinuxDistribution("ubuntu", new Version("20.04"))) == true)
+            {
+                // This test is valid for all supported Linux distributions supported by BuildXL except for Ubuntu 20.04.
+                // TODO: Remove this check once support for Ubuntu 20.04 is dropped.
+                return;
+            }
+
+            var fileAccessManifest = new FileAccessManifest(Context.PathTable)
+            {
+                FailUnexpectedFileAccesses = false,
+                ReportFileAccesses = true,
+                MonitorChildProcesses = true,
+                PipId = 1,
+                EnableLinuxSandboxLogging = true
+            };
+
+            // Add a scope that represents an untracked one
+            fileAccessManifest.AddScope(AbsolutePath.Create(Context.PathTable, "/untracked"), mask: ~FileAccessPolicy.ReportAccess, values: FileAccessPolicy.AllowAll);
+
+            var info =
+                new SandboxedProcessInfo(
+                    Context.PathTable,
+                    new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory),
+                    "/usr/bin/stat",
+                    fileAccessManifest,
+                    disableConHostSharing: false,
+                    loggingContext: LoggingContext,
+                    useGentleKill: true)
+                {
+                    Arguments = access,
+                    WorkingDirectory = TemporaryDirectory,
+                    PipSemiStableHash = fileAccessManifest.PipId,
+                    PipDescription = "EBPF ring buffer untracked test",
+                    SandboxConnection = new SandboxConnectionLinuxEBPF(ebpfDaemonTask: null),
+                };
+
+            var process = SandboxedProcessFactory.StartAsync(info, forceSandboxing: true).GetAwaiter().GetResult();
+            var result = process.GetResultAsync().GetAwaiter().GetResult();
+            // None of the stated paths exist, so stat returns error code 1
+            XAssert.AreEqual(1, result.ExitCode);
+
+            string sandboxMessages = string.Join(Environment.NewLine, m_eventListener.GetLog());
+            XAssert.Contains(sandboxMessages, $"Avoided sending to user side {(expectUntracked ? "1" : "0")} untracked");
+        }
+        
+        [Fact]
+        public void UntrackedScopesExceedingTheLimitAreNotAdded()
+        {
+            if (OperatingSystemHelperExtension.GetLinuxDistribution()?.Equals(new LinuxDistribution("ubuntu", new Version("20.04"))) == true)
+            {
+                // This test is valid for all supported Linux distributions supported by BuildXL except for Ubuntu 20.04.
+                // TODO: Remove this check once support for Ubuntu 20.04 is dropped.
+                return;
+            }
+
+            var fileAccessManifest = new FileAccessManifest(Context.PathTable)
+            {
+                FailUnexpectedFileAccesses = false,
+                ReportFileAccesses = true,
+                MonitorChildProcesses = true,
+                PipId = 1,
+                EnableLinuxSandboxLogging = true
+            };
+
+            // Add a scope that represents an untracked one, but with a path that exceeds the 256 size limit. The path should not be considered on kernel side.
+            // This test just checks that things still work correctly even with the oversized path.
+            string oversizedScope = string.Concat(Enumerable.Repeat("/untracked", 256));
+            fileAccessManifest.AddScope(AbsolutePath.Create(Context.PathTable, oversizedScope), mask: ~FileAccessPolicy.ReportAccess, values: FileAccessPolicy.AllowAll);
+
+            var info =
+                new SandboxedProcessInfo(
+                    Context.PathTable,
+                    new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory),
+                    "/usr/bin/stat",
+                    fileAccessManifest,
+                    disableConHostSharing: false,
+                    loggingContext: LoggingContext,
+                    useGentleKill: true)
+                {
+                    // stat under the untracked scope
+                    Arguments = $"{oversizedScope}/foo",
+                    WorkingDirectory = TemporaryDirectory,
+                    PipSemiStableHash = fileAccessManifest.PipId,
+                    PipDescription = "EBPF ring buffer untracked test",
+                    SandboxConnection = new SandboxConnectionLinuxEBPF(ebpfDaemonTask: null),
+                };
+
+            var process = SandboxedProcessFactory.StartAsync(info, forceSandboxing: true).GetAwaiter().GetResult();
+            var result = process.GetResultAsync().GetAwaiter().GetResult();
+            // None of the stated paths exist, so stat returns error code 1
+            XAssert.AreEqual(1, result.ExitCode);
+
+            string sandboxMessages = string.Join(Environment.NewLine, m_eventListener.GetLog());
+            // The scope was not added for the kernel to see
+            XAssert.Contains(sandboxMessages, $"Untracked scope path '{oversizedScope}/' is too long");
+            // The access was not avoided
+            XAssert.Contains(sandboxMessages, $"Avoided sending to user side 0 untracked");
         }
     }
 }

@@ -35,6 +35,8 @@
 #include "ConcurrentQueue.h"
 #include "SyscallHandler.h"
 #include "ebpfcommon.h"
+#include "ManifestIterator.h"
+#include <numeric>
 
 // Max size for the name of a bpf program
 #define MAX_PROG_FULL_NAME 128
@@ -44,7 +46,7 @@
 
 
 /** Constants */
-const int PINNED_MAPS_SIZE = 9;
+const int PINNED_MAPS_SIZE = 10;
 
 /** Globals */
 BxlObserver *g_bxl;
@@ -56,7 +58,7 @@ static volatile sig_atomic_t g_root_process_exited = 0;
 int g_root_pid = 0, g_runner_pid = 0;
 struct ring_buffer *g_debug_ring_buffer = nullptr;
 int g_pid_map_fd, g_sandbox_options_per_pip_map_fd, g_stats_per_pip_map_fd, g_file_access_per_pip_fd, g_last_path_per_pip_fd = -1;
-int g_debug_buffer_per_pip_fd, g_breakaway_processes_map_fd, g_event_cache_per_pip_fd, g_string_cache_per_pip_fd, g_breakaway_processes_per_pip_fd = -1;
+int g_debug_buffer_per_pip_fd, g_breakaway_processes_map_fd, g_event_cache_per_pip_fd, g_string_cache_per_pip_fd, g_breakaway_processes_per_pip_fd, g_untracked_scopes_per_pip = -1;
 sem_t g_root_process_populated_semaphore;
 bool g_ebpf_already_loaded, g_ebpf_should_force_ebpf_loading = false;
 buildxl::common::ConcurrentQueue<ebpf_event *> g_event_queue;
@@ -518,9 +520,9 @@ int RunRootProcess(const char *file, char *const argv[], char *const envp[]) {
  * This is used to remove the reference to the pip from the outer per-pip maps.
  * If the map is not found, we log an error only if emitErrors is true.
  */
-int DeletePerPipMap(int map_per_pip_fd, int key, const char *description)
+int DeletePerPipMap(int map_per_pip_fd, int key, const char *description, bool errorOnNotFound)
 {
-    if (bpf_map_delete_elem(map_per_pip_fd, &key))
+    if (bpf_map_delete_elem(map_per_pip_fd, &key) && errorOnNotFound)
     {
             LogError("Error deleting map '%s' for runner PID %d:%s\n", description, key, strerror(errno));
             return 1;
@@ -616,6 +618,108 @@ int PopulateBreakawayProcessesMap() {
 }
 
 /**
+ * Populate the untracked scopes map with the specified untracked scopes.
+ * Returns the file descriptor of the untracked scopes map, or -1 on error.
+ */
+int PopulateUntrackedScopesMap(int key) {
+
+    std::vector<std::string> untrackedScopes;
+    
+    // We are going to iterate over the manifest tree in order to retrieve the untracked scopes
+    // We only care about the scope policy (not the path policy) of nodes: we want to avoid sending accesses that fall
+    // under scopes. Checking for point untracked paths is not going to buy us much.
+    // We also make a simplifying assumption: we'll only check untracked leaf nodes, even though the manifest supports untracking
+    // a cone but tracking a sub-cone. In theory we may miss some untracked cones, but in practice a pip does not allow defining
+    // anything under an untracked scope.
+    ManifestIterator iterator(g_bxl->GetFileAccessManifest()->GetManifestTreeRoot());
+    do {
+        const PCManifestRecord current = iterator.GetCurrent();
+
+        // We only care about leaves
+        if (current->BucketCount > 0) {
+            continue;
+        }
+
+        // Check whether the cone policy represents an untracked one
+        auto conePolicy = current->GetConePolicy();
+        if (((conePolicy & FileAccessPolicy_AllowAll) == FileAccessPolicy_AllowAll) && ((conePolicy & FileAccessPolicy_ReportAccess) == 0))
+        {
+            // The path should always end with a separator by virtue of how the iterator works
+            // This avoids things like /foo matching /foobar (so we always insert /foo/)
+            std::string untrackedScope = iterator.GetCurrentPath();
+            
+            // We have a hardcoded limit of 256 bytes per path in the ebpf trie. If the path is longer than that, just skip it.
+            // This is an optimization so the kernel doesn't send events representing untracked scopes (which are immediately discarded). So
+            // missing a path is not a correctness issue
+            if (untrackedScope.length() >= MAX_LPM_PATH_LEN) {
+                g_bxl->LogDebug(getpid(), "Untracked scope path '%s' is too long. Max length is %d", untrackedScope.c_str(), MAX_LPM_PATH_LEN);
+                continue;
+            }
+
+            untrackedScopes.push_back(untrackedScope);
+        }
+    } while (iterator.MoveNext());
+
+    // If there are no untracked scopes, just return early without creating any inner map. Bpf doesn't like us creating a map
+    // with 0 entries, and artificially creating a non-empty map doesn't make much sense.
+    if (untrackedScopes.empty()) {
+        return 0;
+    }
+
+    LIBBPF_OPTS(bpf_map_create_opts, untracked_scopes_options);
+    untracked_scopes_options.map_flags = BPF_F_NO_PREALLOC | BPF_F_RDONLY_PROG;
+    int untracked_scopes = bpf_map_create(
+        BPF_MAP_TYPE_LPM_TRIE,
+        "untracked_scopes",
+        sizeof(struct untracked_path_key),
+        sizeof(short),
+        untrackedScopes.size(),
+        &untracked_scopes_options);
+
+    if (untracked_scopes < 0)
+    {
+        LogError("Failed to create untracked scopes map: [%d]%s\n", errno, strerror(errno));
+        return -1;
+    }
+
+    // Iterate over the untracked scopes and add them to the map
+    for (int i = 0 ; i < untrackedScopes.size(); i++)
+    {
+        const std::string& untrackedScope = untrackedScopes[i];
+        struct untracked_path_key untracked_key = {0};
+        // We do not store the null terminator on the key, and length() doesn't account for it
+        strncpy(untracked_key.path, untrackedScope.c_str(), untrackedScope.length());
+        untracked_key.prefixlen = untrackedScope.length() * 8;
+
+        if (bpf_map_update_elem(untracked_scopes, &untracked_key, &NO_VALUE, BPF_ANY))
+        {
+            LogError("Could not add untracked scope for path %s", untrackedScope.c_str());
+            return -1;
+        }
+    }
+
+    // After all elements are added, freeze the map. This together with BPF_F_RDONLY_PROG makes the map completely read-only.
+    if (bpf_map_freeze(untracked_scopes) < 0)
+    {
+        LogError("Failed to freeze untracked scopes map: [%d]%s\n", errno, strerror(errno));
+        return -1;
+    }
+
+    // Add the untracked scopes inner map to the per-pip outer map
+    if (bpf_map_update_elem(g_untracked_scopes_per_pip, &key, &untracked_scopes, BPF_ANY))
+    {
+        LogError("Failed to add untracked scopes map to outer map for runner PID %d: %s\n", key, strerror(errno));
+        return -1;
+    }
+    else
+    {
+        g_bxl->LogDebug(getpid(), "Added untracked scopes map %d", key);
+    }
+
+    return 0;
+}
+
+/**
  * Block on the debug event ring buffer and handle debug events.
  */
 void *PollDebugBuffer(void *arg) {
@@ -646,7 +750,8 @@ int ReuseMaps(struct sandbox_bpf *skel) {
         skel->maps.event_cache_per_pip,
         skel->maps.string_cache_per_pip,
         skel->maps.stats_per_pip,
-        skel->maps.last_path_per_pip
+        skel->maps.last_path_per_pip,
+        skel->maps.untracked_scopes_per_pip
     };
 
     for (int i = 0 ; i < PINNED_MAPS_SIZE; i++)
@@ -715,7 +820,7 @@ int BindPerPipMaps(struct sandbox_bpf *skel) {
         return -1;
     }
 
-     // Retrieve the per-pip string cache and create a string cache for the current pip
+    // Retrieve the per-pip stats map
     g_stats_per_pip_map_fd = bpf_object__find_map_fd_by_name(skel->obj, "stats_per_pip");
     if (g_stats_per_pip_map_fd < 0)
     {
@@ -735,6 +840,13 @@ int BindPerPipMaps(struct sandbox_bpf *skel) {
     g_last_path_per_pip_fd = bpf_object__find_map_fd_by_name(skel->obj, "last_path_per_pip");
     if (g_last_path_per_pip_fd < 0) {
         LogError("Finding last_path_per_pip in bpf object failed.\n");
+        Cleanup(skel);
+        return -1;
+    }
+
+    g_untracked_scopes_per_pip = bpf_object__find_map_fd_by_name(skel->obj, "untracked_scopes_per_pip");
+    if (g_untracked_scopes_per_pip < 0) {
+        LogError("Finding untracked_scopes_per_pip in bpf object failed.\n");
         Cleanup(skel);
         return -1;
     }
@@ -911,7 +1023,15 @@ int SetupMaps(struct sandbox_bpf *skel) {
     {
         g_bxl->LogDebug(getpid(), "Added breakaway process map %d", key);
     }
-    
+
+    // Make sure we add a zeroed stats structure for this pip. It will be populated from kernel side
+    pip_stats stats = {0};
+    if (bpf_map_update_elem(g_stats_per_pip_map_fd, &key, &stats, BPF_ANY)) {
+        LogError("Failed to add stats for runner PID %d: %s\n", key, strerror(errno));
+        Cleanup(skel);
+        return -1;
+    }
+
     LIBBPF_OPTS(bpf_map_create_opts, last_path_per_cpu_options);
     // The number of entries in the last path per cpu map is set to the number of CPUs
     int max_concurrency = std::thread::hardware_concurrency();
@@ -936,8 +1056,13 @@ int SetupMaps(struct sandbox_bpf *skel) {
         g_bxl->LogDebug(getpid(), "Added last path per cpu map %d", key);
     }
 
-    if (PopulateBreakawayProcessesMap())
-    {
+    int untracked_scopes = PopulateUntrackedScopesMap(key);
+    if (untracked_scopes < 0) {
+        Cleanup(skel);
+        return -1;
+    }
+
+    if (PopulateBreakawayProcessesMap()) {
         Cleanup(skel);
         return -1;
     }
@@ -957,7 +1082,8 @@ void CleanupPinnedMaps(struct sandbox_bpf *skel) {
         skel->maps.event_cache_per_pip,
         skel->maps.string_cache_per_pip,
         skel->maps.stats_per_pip,
-        skel->maps.last_path_per_pip
+        skel->maps.last_path_per_pip,
+        skel->maps.untracked_scopes_per_pip
     };
 
     for (int i = 0 ; i < PINNED_MAPS_SIZE; i++) {
@@ -1056,10 +1182,11 @@ int ConfigurePerPipMapSizes(struct sandbox_bpf *skel) {
         skel->maps.event_cache_per_pip,
         skel->maps.string_cache_per_pip,
         skel->maps.stats_per_pip,
-        skel->maps.last_path_per_pip
+        skel->maps.last_path_per_pip,
+        skel->maps.untracked_scopes_per_pip
     };
 
-    for (int i = 0 ; i < 8; i++) {
+    for (int i = 0 ; i < 9; i++) {
         bpf_map* per_pip_map = per_pip_maps[i];
 
         if (bpf_map__set_max_entries(per_pip_map, concurrency))
@@ -1075,14 +1202,16 @@ int ConfigurePerPipMapSizes(struct sandbox_bpf *skel) {
 
 void DeletePerPipMaps(sandbox_bpf *skel, pid_t runner_pid) {
     // Remove the pip reference from the outer per-pip maps
-    DeletePerPipMap(g_file_access_per_pip_fd, runner_pid, "file access");
-    DeletePerPipMap(g_debug_buffer_per_pip_fd, runner_pid, "debug buffer");
-    DeletePerPipMap(g_event_cache_per_pip_fd, runner_pid, "event cache");
-    DeletePerPipMap(g_string_cache_per_pip_fd, runner_pid, "string cache");
-    DeletePerPipMap(g_breakaway_processes_per_pip_fd, runner_pid, "breakaway processes");
-    DeletePerPipMap(g_sandbox_options_per_pip_map_fd, runner_pid, "sandbox options");
-    DeletePerPipMap(g_stats_per_pip_map_fd, runner_pid, "stats");
-    DeletePerPipMap(g_last_path_per_pip_fd, runner_pid, "last path");
+    DeletePerPipMap(g_file_access_per_pip_fd, runner_pid, "file access", /* errorOnNotFound */ true);
+    DeletePerPipMap(g_debug_buffer_per_pip_fd, runner_pid, "debug buffer", /* errorOnNotFound */ true);
+    DeletePerPipMap(g_event_cache_per_pip_fd, runner_pid, "event cache", /* errorOnNotFound */ true);
+    DeletePerPipMap(g_string_cache_per_pip_fd, runner_pid, "string cache", /* errorOnNotFound */ true);
+    DeletePerPipMap(g_breakaway_processes_per_pip_fd, runner_pid, "breakaway processes", /* errorOnNotFound */ true);
+    DeletePerPipMap(g_sandbox_options_per_pip_map_fd, runner_pid, "sandbox options", /* errorOnNotFound */ true);
+    DeletePerPipMap(g_stats_per_pip_map_fd, runner_pid, "stats", /* errorOnNotFound */ true);
+    DeletePerPipMap(g_last_path_per_pip_fd, runner_pid, "last path", /* errorOnNotFound */ true);
+    // The inner map might not be there if there are no untracked scopes
+    DeletePerPipMap(g_untracked_scopes_per_pip, runner_pid, "untracked scopes", /* errorOnNotFound */ false);
 }
 
 int Start(sandbox_bpf *skel, char **argv) {

@@ -105,7 +105,7 @@ bool string_contains(char *needle, int needle_len, char *haystack, int haystack_
  */
 struct nullify_string_context {
     char *str;
-    int len;
+    int buffer_len;
 };
 
 /**
@@ -117,7 +117,7 @@ struct nullify_string_context {
  */
 __attribute__((always_inline)) static long nullify_string_callback(u64 index, struct nullify_string_context *ctx) {
     // Set the character at the current index to null.
-    ctx->str[index & (ctx->len - 1)] = '\0';
+    ctx->str[index & (ctx->buffer_len - 1)] = '\0';
     return 0; // Continue looping.
 }
 
@@ -125,19 +125,20 @@ __attribute__((always_inline)) static long nullify_string_callback(u64 index, st
  * nullify_string() - Nullifies a string by setting all characters to null.
  * Goes beyond the first null character to ensure the entire buffer is cleared.
  * @str: The string to nullify.
- * @str_len: The max length of the buffer holding the string. Must be a power of 2.
+ * @num_chars: The number of characters to nullify.
+ * @power_of_2_buffer_len: The max length of the buffer holding the string. Must be a power of 2.
  */
-__attribute__((always_inline)) static void nullify_string(char *str, int power_of_2_str_len) {
-    if (!str || power_of_2_str_len <= 0) {
+__attribute__((always_inline)) static void nullify_string(char *str, int num_chars, int power_of_2_buffer_len) {
+    if (!str || power_of_2_buffer_len <= 0 || num_chars <= 0 || num_chars > power_of_2_buffer_len) {
         return;
     }
 
     struct nullify_string_context ctx = {
         .str = str,
-        .len = power_of_2_str_len
+        .buffer_len = power_of_2_buffer_len
     };
 
-    bpf_loop(power_of_2_str_len, nullify_string_callback, &ctx, 0);
+    bpf_loop(num_chars, nullify_string_callback, &ctx, 0);
 }
 
 #endif // __PUBLIC_SRC_SANDBOX_LINUX_EBPF_EBPFSTRINGUTILITIES_H

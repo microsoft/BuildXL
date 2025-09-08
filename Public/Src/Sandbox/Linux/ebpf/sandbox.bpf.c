@@ -596,10 +596,6 @@ int BPF_PROG(path_lookupat_exit, struct nameidata *nd, unsigned flags, struct pa
         return 0;
     }
     
-    // We typically don't need to clear the temp path, but in this case we do it because we will check it against the string
-    // cache, which does a raw byte comparison and it won't stop at the first null char.
-    nullify_string(temp_path, PATH_MAX);
-
     unsigned int path_length = nameidata_to_string(temp_path, nd) & (PATH_MAX - 1);
 
     // Check the cache to see whether we have sent this before. Absent lookups are typically a significant source

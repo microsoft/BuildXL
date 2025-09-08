@@ -1223,7 +1223,7 @@ __attribute__((always_inline)) static bool is_path_untracked(int runner_pid, con
     
     // If the path is smaller than the maximum length, nullify the remaining space so we keep the key deterministic
     if (key_length < MAX_LPM_PATH_LEN) {
-        nullify_string(key->path, MAX_LPM_PATH_LEN);
+        nullify_string(key->path, MAX_LPM_PATH_LEN - key_length, MAX_LPM_PATH_LEN);
     }
 
     // Copy over the path (maybe truncated) and its byte aligned length

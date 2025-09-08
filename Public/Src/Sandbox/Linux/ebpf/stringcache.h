@@ -96,6 +96,11 @@ __attribute__((always_inline)) static bool should_send_string(pid_t runner_pid, 
         return true;
     }
 
+    // We typically don't need to clear the whole buffer, but in this case we do it because we will check it against the string
+    // cache, which does a raw byte comparison and it won't stop at the first null char.
+    // path[path_length - 1] is the null terminator. So nullify from path_length to the end of the buffer.
+    nullify_string(&path[path_length & (PATH_MAX - 1)], PATH_MAX - path_length, PATH_MAX);
+
     // path[path_length - 1] is the null terminator. Adding the operation type after that. This should be invisible
     // to any path-aware code, as the null terminator is still there. But it allows us to use the same path buffer as key in the map,
     // and the cache will distinguish between different operations on the same path since it uses raw byte comparison.

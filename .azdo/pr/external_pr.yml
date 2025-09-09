@@ -27,7 +27,7 @@ jobs:
     os: windows
     demands: 
     - ImageOverride -equals 1ESPT-Win2022-PME-3
-    - VhdResourceId -equals /subscriptions/e9fe5373-81ff-4b89-8db2-c8681633aa87/resourceGroups/BuildXL-DevOpsAgents/providers/Microsoft.CloudTest/images/windows-sdl-vhd
+    - AutoManagedVhd -equals true
 
   steps:
   - checkout: self

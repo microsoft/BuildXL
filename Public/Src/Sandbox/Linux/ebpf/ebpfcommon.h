@@ -65,6 +65,8 @@ typedef enum operation_type {
     kLink,
     kUnlink,
     kBreakAway,
+    kRenameSource, // Only used for distinguishing source vs target in the event cache, has no consumers outside of that
+    kRenameTarget, // Same as above
     kMax // Not a valid event type
 } operation_type;
 
@@ -312,6 +314,7 @@ typedef struct pip_stats {
 typedef struct cache_event_key {
     unsigned long dentry;
     unsigned long vfsmount;
+    long unsigned int inode_number;
     operation_type op_type;
 } cache_event_key;
 

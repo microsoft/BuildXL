@@ -343,7 +343,11 @@ int BPF_PROG(security_path_rename_enter, const struct path *old_dir, struct dent
     struct path old_path = {.dentry = old_dentry, .mnt = BPF_CORE_READ(old_dir, mnt)};
     struct path new_path = {.dentry = new_dentry, .mnt = BPF_CORE_READ(new_dir, mnt)};
 
-    if (!should_send_path(runner_pid, kRename, &old_path) && !should_send_path(runner_pid, kRename, &new_path)) {
+    // Observe that here we use kRenameSource and kRenameTarget to distinguish the two paths in the event cache. These operation types
+    // have no consumers outside of the event cache logic, and we send a single kRename event to the user side with both paths.
+    // This is to avoid a case where e.g. rename(A, B) is called followed by rename(B, A). If we used kRename for both paths, the second call would not be reported 
+    // and we would miss the fact that A was written by the second rename.
+    if (!should_send_path(runner_pid, kRenameSource, &old_path) && !should_send_path(runner_pid, kRenameTarget, &new_path)) {
         return 0;
     }
 

@@ -59,8 +59,19 @@ __attribute__((always_inline)) static bool should_send_path(pid_t runner_pid, op
     struct dentry *dentry = BPF_CORE_READ(path, dentry);
     struct vfsmount *vfsmount = BPF_CORE_READ(path, mnt);
 
-    // Just get the memory address of dentry and mount to build the key
-    struct cache_event_key key = {.dentry = ptr_to_long(dentry), .vfsmount = ptr_to_long(vfsmount), .op_type = operation};
+    // Let's retrieve the inode number if available: even if the dentry points to a valid inode, the dentry can be reclaimed under memory pressure and reused for a different node.
+    // In that case, by including the inode number in the key, we would just get a cache miss
+    long unsigned int inode_number = 0;
+
+    if (dentry != NULL) {
+        struct inode *inode = BPF_CORE_READ(dentry, d_inode);
+        if  (inode != NULL) {
+            inode_number = BPF_CORE_READ(inode, i_ino);
+        }
+    }
+
+    // Just get the memory address of dentry and mount to build the key + the inode number
+    struct cache_event_key key = {.dentry = ptr_to_long(dentry), .vfsmount = ptr_to_long(vfsmount), .op_type = operation, .inode_number = inode_number};
 
     void *event_cache = bpf_map_lookup_elem(&event_cache_per_pip, &runner_pid);
     if (event_cache == NULL) {

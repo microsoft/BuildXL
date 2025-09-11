@@ -10,7 +10,7 @@ jobs:
   displayName: 1ESPipelines BuildXL workflow [Linux] (${{ parameters.validationName }})
   pool:
     name: BuildXL-DevOpsAgents-Selfhost-BuildCache
-    image: linux-PME-GPT
+    image: ubuntu-22.04-PME-GPT
     os: linux
   timeoutInMinutes: 90
   templateContext:

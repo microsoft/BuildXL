@@ -27,7 +27,7 @@ parameters:
 
 - name: linuxImage
   type: string
-  default: linux-PME-GPT
+  default: ubuntu-22.04-PME-GPT
 
 resources:
   repositories:

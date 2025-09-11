@@ -12,7 +12,7 @@ parameters:
   type: object
   default: 
     name: BuildXL-DevOpsAgents-Selfhost-BuildCache
-    image: linux-PME-GPT
+    image: ubuntu-22.04-PME-GPT
     os: linux
 
 extends:

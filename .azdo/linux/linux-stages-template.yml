@@ -26,7 +26,7 @@ parameters:
   type: object
   default: 
     name: BuildXL-DevOpsAgents-Selfhost-BuildCache
-    image: linux-PME-GPT
+    image: ubuntu-22.04-PME-GPT
     os: linux
 
 - name: sdkVersion
@@ -65,7 +65,7 @@ stages:
       BxlCommonArgs: --shared-comp /p:BuildXLEbpfSandboxDeploymentOverridePath=$(Build.StagingDirectory)/Linux.eBPF ${{ parameters.BxlCommonArgs }} /enableLinuxEBPFSandbox-
       pool:
         name: BuildXL-DevOpsAgents-Selfhost-BuildCache
-        image: linux-PME-GPT
+        image: ubuntu-22.04-PME-GPT
         os: linux
       sdkVersion: ${{ parameters.sdkVersion }}
       preBuildSteps:

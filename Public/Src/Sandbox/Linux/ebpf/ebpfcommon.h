@@ -346,5 +346,13 @@ struct untracked_path_key {
     char path[MAX_LPM_PATH_LEN];
 };
 
+// Useful for retrieving 1-sized or 2-sized arrays
+const static int ZERO = 0;
+const static int ONE = 1;
+
+/** Arguments for the path canonicalization test */
+typedef struct test_path_canonicalization_args {
+    char path[PATH_MAX];
+} test_path_canonicalization_args;
 
 #endif // __PUBLIC_SRC_SANDBOX_LINUX_EBPF_EBPFCOMMON_H

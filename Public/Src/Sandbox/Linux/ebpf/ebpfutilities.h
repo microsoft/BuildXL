@@ -327,6 +327,11 @@ __attribute__((always_inline)) static inline void report_breakaway_map_not_found
     report_ring_buffer_error(runner_pid, "[ERROR] Could not find breakaway map.");
 }
 
+__attribute__((always_inline)) static inline void report_path_canonicalization_error(pid_t runner_pid)
+{
+    report_ring_buffer_error(runner_pid, "[ERROR] Could not canonicalize path.");
+}
+
 // Whether the given pid is one we care about (i.e. is part of the pid map we keep). If the pid is valid,
 // sets runner_pid to its associated value
 __attribute__((always_inline)) static bool is_valid_pid(const pid_t pid, pid_t *runner_pid) {
@@ -379,10 +384,6 @@ struct
     __uint(value_size, PATH_MAX * 2);
     __uint(max_entries, 2);
 } tmp_paths SEC(".maps");
-
-// Useful for retrieving the couple of available temporary paths from tmp_paths
-const static int ZERO = 0;
-const static int ONE = 1;
 
 // We use one entry per cpu
 // Used by deref_path_info, combine_paths, and argv_to_string

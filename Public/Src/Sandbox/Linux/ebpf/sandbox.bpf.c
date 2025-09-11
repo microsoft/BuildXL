@@ -119,13 +119,20 @@ __attribute__((always_inline)) static inline int execve_common(pid_t pid, enum k
         return 0;
     }
     // Since this is the entry point to execve/execveat, the arguments are in user memory
-    unsigned int path_length = fd == 0
+    int path_length = fd == 0
         // execve
         ? bpf_core_read_user_str(exe_path, PATH_MAX, filename)
         // execveat
         : fd_string_to_string(exe_path, fd, filename, /* user_strings */ true);
 
     if (path_length <= 0 || path_length >= PATH_MAX || exe_path[0] == '\0') {
+        return 0;
+    }
+
+    // The exe path comes from user side and it may not be canonicalized
+    path_length = canonicalize_path(exe_path, path_length) & (PATH_MAX - 1);
+    if (path_length < 0 || path_length >= PATH_MAX) {
+        report_path_canonicalization_error(runner_pid);
         return 0;
     }
 
@@ -336,6 +343,10 @@ int BPF_PROG(security_path_rename_enter, const struct path *old_dir, struct dent
     struct path old_path = {.dentry = old_dentry, .mnt = BPF_CORE_READ(old_dir, mnt)};
     struct path new_path = {.dentry = new_dentry, .mnt = BPF_CORE_READ(new_dir, mnt)};
 
+    if (!should_send_path(runner_pid, kRename, &old_path) && !should_send_path(runner_pid, kRename, &new_path)) {
+        return 0;
+    }
+
     char* src_path = bpf_map_lookup_elem(&tmp_paths, &ZERO);
     if (!src_path)
     {
@@ -356,10 +367,6 @@ int BPF_PROG(security_path_rename_enter, const struct path *old_dir, struct dent
 
     // See the comment in execve_common() for why we need this bogus declaration
     struct path dummy_path = {.dentry = old_dir->dentry};
-
-    if (!should_send_path(runner_pid, kRename, &old_path) && !should_send_path(runner_pid, kRename, &new_path)) {
-        return 0;
-    }
 
     submit_file_access_double(
         runner_pid,
@@ -403,8 +410,15 @@ int BPF_PROG(do_mkdirat_exit, int dfd, struct filename *name, umode_t mode, int 
     {
         return 0;
     }
-    unsigned int path_length = fd_filename_to_string(temp_path, dfd, name) & (PATH_MAX - 1);
+    int path_length = fd_filename_to_string(temp_path, dfd, name) & (PATH_MAX - 1);
    
+    // The path comes from user side and it may not be canonicalized
+    path_length = canonicalize_path(temp_path, path_length) & (PATH_MAX - 1);
+    if (path_length < 0 || path_length >= PATH_MAX) {
+        report_path_canonicalization_error(runner_pid);
+        return 0;
+    }
+
     // We don't want to cache mkdir as we need every successful operation on managed side
     submit_file_access(
         runner_pid,
@@ -447,8 +461,15 @@ int BPF_PROG(do_rmdir_exit, int dfd, struct filename *name, int ret)
     {
         return 0;
     }
-    unsigned int path_length = fd_filename_to_string(temp_path, dfd, name) & (PATH_MAX - 1);
+    int path_length = fd_filename_to_string(temp_path, dfd, name) & (PATH_MAX - 1);
     
+    // The path comes from user side and it may not be canonicalized
+    path_length = canonicalize_path(temp_path, path_length) & (PATH_MAX - 1);
+    if (path_length < 0 || path_length >= PATH_MAX) {
+        report_path_canonicalization_error(runner_pid);
+        return 0;
+    }
+
     // We don't want to cache rmdir as we need every successful operation on managed side
     submit_file_access(
         runner_pid,
@@ -489,17 +510,17 @@ int BPF_PROG(security_path_unlink_enter, const struct path *dir, struct dentry *
 
     struct path path = {.dentry = dentry, .mnt = BPF_CORE_READ(dir, mnt)};
 
+    if (!should_send_path(runner_pid, kGenericWrite, &path))
+    {
+        return 0;
+    }
+
     char* temp_path = bpf_map_lookup_elem(&tmp_paths, &ZERO);
     if (!temp_path)
     {
         return 0;
     }
     unsigned int path_length = deref_path_info(temp_path, dentry, dir->mnt) & (PATH_MAX - 1);
-
-    if (!should_send_path(runner_pid, kGenericWrite, &path))
-    {
-        return 0;
-    }
 
     submit_file_access(
         runner_pid,
@@ -536,6 +557,11 @@ int BPF_PROG(security_path_link_entry, struct dentry *old_dentry, const struct p
 
     struct path new_path = {.dentry = new_dentry, .mnt = BPF_CORE_READ(new_dir, mnt)};
 
+    if (!should_send_path(runner_pid, kGenericWrite, &new_path))
+    {
+        return 0;
+    }
+    
     char* temp_path = bpf_map_lookup_elem(&tmp_paths, &ZERO);
     if (!temp_path)
     {
@@ -543,12 +569,6 @@ int BPF_PROG(security_path_link_entry, struct dentry *old_dentry, const struct p
     }
     path_to_string(temp_path, new_dir);
     unsigned int path_length = combine_paths(temp_path, (const char *)new_name) & (PATH_MAX - 1);
-
-
-    if (!should_send_path(runner_pid, kGenericWrite, &new_path))
-    {
-        return 0;
-    }
 
     // The link operation involves a write on the newly created link
     // Observe this operation involves a probe on the source as well (old_dentry). But that
@@ -596,7 +616,14 @@ int BPF_PROG(path_lookupat_exit, struct nameidata *nd, unsigned flags, struct pa
         return 0;
     }
     
-    unsigned int path_length = nameidata_to_string(temp_path, nd) & (PATH_MAX - 1);
+    int path_length = nameidata_to_string(temp_path, nd) & (PATH_MAX - 1);
+
+    // The path comes from user side and it may not be canonicalized
+    path_length = canonicalize_path(temp_path, path_length) & (PATH_MAX - 1);
+    if (path_length < 0 || path_length >= PATH_MAX) {
+        report_path_canonicalization_error(runner_pid);
+        return 0;
+    }
 
     // Check the cache to see whether we have sent this before. Absent lookups are typically a significant source
     // of accesses.
@@ -650,7 +677,14 @@ int BPF_PROG(path_parentat, struct nameidata *nd, unsigned flags, struct path *p
     {
         return 0;
     }
-    unsigned int path_length = nameidata_to_string(temp_path, nd) & (PATH_MAX - 1);
+    int path_length = nameidata_to_string(temp_path, nd) & (PATH_MAX - 1);
+
+    // The path comes from user side and it may not be canonicalized
+    path_length = canonicalize_path(temp_path, path_length) & (PATH_MAX - 1);
+    if (path_length < 0 || path_length >= PATH_MAX) {
+        report_path_canonicalization_error(runner_pid);
+        return 0;
+    }
 
     // This operation is hard to cache since for absent probes there is no in-memory structure to
     // represent the path, and using strings is not very performant. For now just keep them out
@@ -709,7 +743,14 @@ int BPF_PROG(path_openat_exit, struct nameidata *nd, const struct open_flags *op
     {
         return 0;
     }
-    unsigned int path_length = nameidata_to_string(temp_path, nd) & (PATH_MAX - 1);
+    int path_length = nameidata_to_string(temp_path, nd) & (PATH_MAX - 1);
+
+    // The path comes from user side and it may not be canonicalized
+    path_length = canonicalize_path(temp_path, path_length) & (PATH_MAX - 1);
+    if (path_length < 0 || path_length >= PATH_MAX) {
+        report_path_canonicalization_error(runner_pid);
+        return 0;
+    }
 
     // If this is an error, there is no file structure associated with the path. Check the string cache instead.
     if (IS_ERR(ret) && !should_send_string(runner_pid, kGenericProbe, temp_path, path_length))
@@ -763,17 +804,17 @@ int BPF_PROG(security_file_open_enter, struct file *file)
         return 0;
     }
 
+    if (!should_send_path(runner_pid, kGenericProbe, &path))
+    {
+        return 0;
+    }
+
     char* temp_path = bpf_map_lookup_elem(&tmp_paths, &ZERO);
     if (!temp_path)
     {
         return 0;
     }
     unsigned int path_length = path_to_string(temp_path, &path) & (PATH_MAX - 1);
-
-    if (!should_send_path(runner_pid, kGenericProbe, &path))
-    {
-        return 0;
-    }
 
     // Always send this as a probe, even if the open call ends up creating the file
     // For the latter, we will catch this in the mknod call.
@@ -820,17 +861,18 @@ int BPF_PROG(security_file_permission_enter, struct file *file, int mask)
     // security_file_permission
     operation_type eventType = mask == MAY_READ ? kGenericRead : kGenericWrite;
 
+    if (!should_send_path(runner_pid, eventType, &path))
+    {
+        return 0;
+    }
+
     char* temp_path = bpf_map_lookup_elem(&tmp_paths, &ZERO);
     if (!temp_path)
     {
         return 0;
     }
-    unsigned int path_length = path_to_string(temp_path, &path) & (PATH_MAX - 1);
 
-    if (!should_send_path(runner_pid, eventType, &path))
-    {
-        return 0;
-    }
+    unsigned int path_length = path_to_string(temp_path, &path) & (PATH_MAX - 1);
 
     submit_file_access(
         runner_pid,
@@ -870,6 +912,11 @@ int BPF_PROG(security_path_symlink_enter, const struct path *parent_dir, struct 
 
     struct path path = {.dentry = dentry, .mnt = BPF_CORE_READ(parent_dir, mnt)};
     
+    if (!should_send_path(runner_pid, kGenericWrite, &path))
+    {
+        return 0;
+    }
+
     char* temp_path = bpf_map_lookup_elem(&tmp_paths, &ZERO);
     if (!temp_path)
     {
@@ -877,11 +924,6 @@ int BPF_PROG(security_path_symlink_enter, const struct path *parent_dir, struct 
     }
     path_to_string(temp_path, parent_dir);
     unsigned int path_length = combine_paths(temp_path, atom) & (PATH_MAX - 1);
-
-    if (!should_send_path(runner_pid, kGenericWrite, &path))
-    {
-        return 0;
-    }
 
     submit_file_access(
         runner_pid,
@@ -920,17 +962,17 @@ int BPF_PROG(security_path_mknod_enter, const struct path *parent_dir, struct de
 
     struct path path = {.dentry = dentry, .mnt = BPF_CORE_READ(parent_dir, mnt)};
 
+    if (!should_send_path(runner_pid, kCreate, &path))
+    {
+        return 0;
+    }
+    
     char* temp_path = bpf_map_lookup_elem(&tmp_paths, &ZERO);
     if (!temp_path)
     {
         return 0;
     }
     unsigned int path_length = deref_path_info(temp_path, dentry, BPF_CORE_READ(parent_dir, mnt)) & (PATH_MAX - 1);
-
-    if (!should_send_path(runner_pid, kCreate, &path))
-    {
-        return 0;
-    }
 
     submit_file_access(
         runner_pid,
@@ -975,6 +1017,11 @@ int BPF_PROG(security_inode_getattr_exit, const struct path *path, int ret)
         return 0;
     }
 
+    if (!should_send_path(runner_pid, kGenericProbe, path))
+    {
+        return 0;
+    }
+    
     char* temp_path = bpf_map_lookup_elem(&tmp_paths, &ZERO);
     if (!temp_path)
     {
@@ -984,11 +1031,6 @@ int BPF_PROG(security_inode_getattr_exit, const struct path *path, int ret)
 
     // See the comment in execve_common() for why we need this bogus declaration
     struct path dummy_path = {.dentry = path->dentry};
-
-    if (!should_send_path(runner_pid, kGenericProbe, path))
-    {
-        return 0;
-    }
 
     submit_file_access(
         runner_pid,
@@ -1047,7 +1089,14 @@ int BPF_PROG(do_readlink_exit, int dfd, const char *pathname, char *buf, int buf
     {
         return 0;
     }
-    unsigned int path_length = fd_string_to_string(temp_path, dfd, temp_pathname, /* user_strings */ false) & (PATH_MAX - 1);
+    int path_length = fd_string_to_string(temp_path, dfd, temp_pathname, /* user_strings */ false) & (PATH_MAX - 1);
+
+    // The path comes from user space and it may not be canonicalized
+    path_length = canonicalize_path(temp_path, path_length) & (PATH_MAX - 1);
+    if (path_length < 0 || path_length >= PATH_MAX) {
+        report_path_canonicalization_error(runner_pid);
+        return 0;
+    }
 
     // TODO: We can determine the operation type based on the return value, but due to bug #2300351
     // we use the kReadLink type and let the user side determine whether this was a read or a probe.
@@ -1126,19 +1175,20 @@ int BPF_PROG(step_into_exit, struct nameidata *nd, int flags,
         return 0;
     }
 
-    char* temp_path = bpf_map_lookup_elem(&tmp_paths, &ZERO);
-    if (!temp_path)
-    {
-        return 0;
-    }
-
-    unsigned int path_length = nameidata_to_string(temp_path, nd) & (PATH_MAX - 1);
     struct path link = BPF_CORE_READ(nd, path);
 
     if (!should_send_path(runner_pid, kGenericRead, &link))
     {
         return 0;
     }
+
+    char* temp_path = bpf_map_lookup_elem(&tmp_paths, &ZERO);
+    if (!temp_path)
+    {
+        return 0;
+    }
+
+    unsigned int path_length = path_to_string(temp_path, &link) & (PATH_MAX - 1);
 
     submit_file_access(
         runner_pid,
@@ -1178,20 +1228,21 @@ int BPF_PROG(pick_link_exit, struct nameidata *nd, struct path *link,
         return 0;
     }
 
+    if (!should_send_path(runner_pid, kGenericRead, link))
+    {
+        return 0;
+    }
+
     char* temp_path = bpf_map_lookup_elem(&tmp_paths, &ZERO);
     if (!temp_path)
     {
         return 0;
     }
+
     unsigned int path_length = path_to_string(temp_path, link) & (PATH_MAX - 1);
 
     // See the comment in execve_common() for why we need this bogus declaration
     struct path dummy_path = {.dentry = link->dentry};
-
-    if (!should_send_path(runner_pid, kGenericRead, link))
-    {
-        return 0;
-    }
 
     submit_file_access(
         runner_pid,
@@ -1226,6 +1277,11 @@ int BPF_PROG(security_path_chown, const struct path *path)
         return 0;
     }
 
+    if (!should_send_path(runner_pid, kGenericWrite, path))
+    {
+        return 0;
+    }
+
     char* temp_path = bpf_map_lookup_elem(&tmp_paths, &ZERO);
     if (!temp_path)
     {
@@ -1235,11 +1291,6 @@ int BPF_PROG(security_path_chown, const struct path *path)
 
     // See the comment in execve_common() for why we need this bogus declaration
     struct path dummy_path = {.dentry = path->dentry};
-
-    if (!should_send_path(runner_pid, kGenericWrite, path))
-    {
-        return 0;
-    }
 
     submit_file_access(
         runner_pid,
@@ -1274,6 +1325,11 @@ int BPF_PROG(security_path_chmod, const struct path *path)
         return 0;
     }
     
+    if (!should_send_path(runner_pid, kGenericWrite, path))
+    {
+        return 0;
+    }
+
     char* temp_path = bpf_map_lookup_elem(&tmp_paths, &ZERO);
     if (!temp_path)
     {
@@ -1283,11 +1339,6 @@ int BPF_PROG(security_path_chmod, const struct path *path)
 
     // See the comment in execve_common() for why we need this bogus declaration
     struct path dummy_path = {.dentry = path->dentry};
-
-    if (!should_send_path(runner_pid, kGenericWrite, path))
-    {
-        return 0;
-    }
 
     submit_file_access(
         runner_pid,
@@ -1325,17 +1376,17 @@ int BPF_PROG(security_file_truncate, struct file *file)
         return 0;
     }
 
+    if (!should_send_path(runner_pid, kGenericWrite, &path))
+    {
+        return 0;
+    }
+
     char* temp_path = bpf_map_lookup_elem(&tmp_paths, &ZERO);
     if (!temp_path)
     {
         return 0;
     }
     unsigned int path_length = path_to_string(temp_path, &path) & (PATH_MAX - 1);
-
-    if (!should_send_path(runner_pid, kGenericWrite, &path))
-    {
-        return 0;
-    }
 
     submit_file_access(
         runner_pid,
@@ -1371,6 +1422,11 @@ int BPF_PROG(vfs_utimes, const struct path *path)
         return 0;
     }
 
+    if (!should_send_path(runner_pid, kGenericWrite, path))
+    {
+        return 0;
+    }
+
     char* temp_path = bpf_map_lookup_elem(&tmp_paths, &ZERO);
     if (!temp_path)
     {
@@ -1380,11 +1436,6 @@ int BPF_PROG(vfs_utimes, const struct path *path)
 
     // See the comment in execve_common() for why we need this bogus declaration
     struct path dummy_path = {.dentry = path->dentry};
-
-    if (!should_send_path(runner_pid, kGenericWrite, path))
-    {
-        return 0;
-    }
 
     submit_file_access(
         runner_pid,
@@ -1493,6 +1544,65 @@ int test_incremental_event(struct test_incremental_event_args *event) {
     }
 
     // submit the second path
+    submit_file_access(
+        runner_pid,
+        kGenericProbe,
+        KERNEL_FUNCTION(test_synthetic),
+        pid,
+        /* child_pid */ 0,
+        /* mode */ 0,
+        /* error */ 0,
+        temp,
+        path_length & (PATH_MAX - 1)
+    );
+
+    return 0;
+}
+
+/**
+ * Test program to write a single-path probe event to the ring buffer.
+ * The program makes sure the last path cache is cleaned up for the given cpu, so incrementality can be
+ * tested reliably. It also canonicalizes the path before sending it, so path canonicalization can be tested.
+ * Not actually tracing anything, this gets called with bpf_prog_test_run_opts from user side for testing purposes. 
+ */
+SEC("syscall")
+int test_path_canonicalization(struct test_path_canonicalization_args *event) {
+    pid_t pid = bpf_get_current_pid_tgid() >> 32;
+    pid_t runner_pid;
+    if (!is_valid_pid(pid, &runner_pid)) {
+        return 0;
+    }   
+ 
+    // Clean up the last path cache for this cpu, so we can have a deterministic test
+    void *last_path_per_cpu = bpf_map_lookup_elem(&last_path_per_pip, &runner_pid);
+    if (last_path_per_cpu == NULL) {
+        report_last_path_per_cpu_not_found(runner_pid);
+        return 0;
+    }
+
+    __u32 current_cpu = bpf_get_smp_processor_id();
+    if (bpf_map_delete_elem(last_path_per_cpu, &current_cpu)) {
+        report_ring_buffer_error(runner_pid, "[ERROR] Could not clean up last path cache.");
+        return 0;
+    }
+
+    // retrieve temporary filepath storage
+    char *temp = bpf_map_lookup_elem(&derefpaths, &ZERO);
+    if (!temp) {
+        return 0;
+    }
+
+    int path_length = bpf_probe_read_str(temp, PATH_MAX, event->path);
+    if (path_length < 0 || path_length >= PATH_MAX) {
+        return 0;
+    }
+
+    path_length = canonicalize_path(temp, path_length) & (PATH_MAX - 1);
+    if (path_length < 0 || path_length >= PATH_MAX) {
+        return 0;
+    }
+
+    // submit the path as a probe
     submit_file_access(
         runner_pid,
         kGenericProbe,

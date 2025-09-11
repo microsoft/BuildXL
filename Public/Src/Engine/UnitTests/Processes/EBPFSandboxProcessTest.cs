@@ -348,7 +348,7 @@ namespace Test.BuildXL.Processes
             string sandboxMessages = string.Join(Environment.NewLine, m_eventListener.GetLog());
             XAssert.Contains(sandboxMessages, $"Avoided sending to user side {(expectUntracked ? "1" : "0")} untracked");
         }
-        
+
         [Fact]
         public void UntrackedScopesExceedingTheLimitAreNotAdded()
         {
@@ -401,6 +401,88 @@ namespace Test.BuildXL.Processes
             XAssert.Contains(sandboxMessages, $"Untracked scope path '{oversizedScope}/' is too long");
             // The access was not avoided
             XAssert.Contains(sandboxMessages, $"Avoided sending to user side 0 untracked");
+        }
+
+        [Theory]
+        [InlineData("/test/this//path", "/test/this/path")]
+        [InlineData("/test/this/./path", "/test/this/path")]
+        [InlineData("/test/this/path/", "/test/this/path")]
+        [InlineData("/test/this/../path", "/test/path")]
+        [InlineData("/../test/this/path", "/test/this/path")]
+        [InlineData("/go/over/../root/../../../../../test/this/path", "/test/this/path")]
+        [InlineData("/./test/this//////a/../slightly/more/../../complicated/.//../path", "/test/this/path")]
+        [InlineData("/test/end/path//", "/test/end/path")]
+        [InlineData("/test/end/path/.", "/test/end/path")]
+        [InlineData("/test/end/path/..", "/test/end")]
+        [InlineData("/test/end/path/../", "/test/end")]
+        // Some corner cases
+        [InlineData("/../test/../this/path/../../..", "/")]
+        [InlineData("/../test/../this/path/../../../.", "/")]
+        [InlineData("/..", "/")]
+        [InlineData("/.", "/")]
+        [InlineData("//", "/")]
+        public void ValidatePathCanonicalization(string path, string canonicalizedPath)
+        {
+            if (OperatingSystemHelperExtension.GetLinuxDistribution()?.Equals(new LinuxDistribution("ubuntu", new Version("20.04"))) == true)
+            {
+                // This test is valid for all supported Linux distributions supported by BuildXL except for Ubuntu 20.04.
+                // TODO: Remove this check once support for Ubuntu 20.04 is dropped.
+                return;
+            }
+
+            // Skip test if not using EBPF sandbox
+            if (!UsingEBPFSandbox)
+            {
+                return;
+            }
+
+            // For now this test only runs in ADO builds, where we can set the required capabilities without an interactive prompt.
+            if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("TF_BUILD")))
+            {
+                return;
+            }
+
+            // CODESYNC: Public/Src/Engine/UnitTests/Processes/Test.BuildXL.Processes.dsc
+            string pathCanonicalizationTest = SandboxedProcessUnix.EnsureDeploymentFile("RingBufferTest/path_canonicalization_test");
+
+            // The test needs the ability to find an EBPF program by name
+            UnixGetCapUtils.SetEBPFCapabilitiesIfNeeded(pathCanonicalizationTest);
+
+            var fileAccessManifest = new FileAccessManifest(Context.PathTable)
+            {
+                FailUnexpectedFileAccesses = false,
+                ReportFileAccesses = true,
+                MonitorChildProcesses = true,
+                PipId = 1,
+                EnableLinuxSandboxLogging = true
+            };
+
+            var info =
+                new SandboxedProcessInfo(
+                    Context.PathTable,
+                    new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory),
+                    pathCanonicalizationTest,
+                    fileAccessManifest,
+                    disableConHostSharing: false,
+                    loggingContext: LoggingContext,
+                    useGentleKill: true)
+                {
+                    Arguments = path,
+                    WorkingDirectory = TemporaryDirectory,
+                    PipSemiStableHash = fileAccessManifest.PipId,
+                    PipDescription = "EBPF path canonicalization test",
+                    SandboxConnection = new SandboxConnectionLinuxEBPF(ebpfDaemonTask: null),
+                };
+
+            var process = SandboxedProcessFactory.StartAsync(info, forceSandboxing: true).GetAwaiter().GetResult();
+            var result = process.GetResultAsync().GetAwaiter().GetResult();
+            AssertExitCode(result, 0);
+
+            var messages = m_eventListener.GetLogMessagesForEventId((int)LogEventId.LogDetoursDebugMessage);
+
+            // Retrieve the single synthetic probe we sent and check that the path has been canonicalized correctly
+            var probe = messages.Where(s => s.Contains("kernel function: test_synthetic")).Single();
+            XAssert.Contains(probe, $"path: '{canonicalizedPath}'");
         }
     }
 }

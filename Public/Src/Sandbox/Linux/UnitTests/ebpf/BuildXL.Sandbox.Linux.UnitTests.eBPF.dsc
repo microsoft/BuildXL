@@ -70,4 +70,21 @@ namespace Test.eBPFSandbox {
             libraries: [ "rt", "dl", "pthread", "m", "elf", "z", "numa" ]
         })
     : undefined;
+
+    const pathCanonicalizationTest = [
+        f`path_canonicalization_test.cpp`,
+    ];
+
+    const pathCanonicalizationObj = pathCanonicalizationTest.map(compile);
+
+    @@public
+    export const pathCanonicalization = EBPF.eBPFSandbox.hostSupportsBuildingEBPF
+    ?
+        Native.Linux.Compilers.link({
+            outputName: a`path_canonicalization_test`,
+            tool: Native.Linux.Compilers.gxxTool,
+            objectFiles: [...utilsObj, ...pathCanonicalizationObj, EBPF.eBPFSandbox.libbpfa],
+            libraries: [ "rt", "dl", "pthread", "m", "elf", "z", "numa" ]
+        })
+    : undefined;
 }

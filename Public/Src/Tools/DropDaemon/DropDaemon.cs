@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
@@ -105,7 +106,7 @@ namespace Tool.DropDaemon
         /// <summary>
         /// A mapping between a drop name and build manifest telemetry.
         /// </summary>
-        private readonly Dictionary<string, BuildManifestTelemetry> m_buildManifestTelemetry = new();
+        private readonly ConcurrentDictionary<string, BuildManifestTelemetry> m_buildManifestTelemetry = new();
 
         private readonly string m_dropClientLogDirectory;
 

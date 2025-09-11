@@ -32,13 +32,6 @@ namespace Test.BuildXL.Processes
         [Fact]
         public void ValidateEBPFLoader()
         {
-            if (OperatingSystemHelperExtension.GetLinuxDistribution()?.Equals(new LinuxDistribution("ubuntu", new Version("20.04"))) == true)
-            {
-                // This test is valid for all supported Linux distributions supported by BuildXL except for Ubuntu 20.04.
-                // TODO: Remove this check once support for Ubuntu 20.04 is dropped.
-                return;
-            }
-
             var fileAccessManifest = new FileAccessManifest(Context.PathTable)
             {
                 FailUnexpectedFileAccesses = false,
@@ -92,13 +85,6 @@ namespace Test.BuildXL.Processes
         [Fact]
         public void ValidateRingBufferExceedCapacity()
         {
-            if (OperatingSystemHelperExtension.GetLinuxDistribution()?.Equals(new LinuxDistribution("ubuntu", new Version("20.04"))) == true)
-            {
-                // This test is valid for all supported Linux distributions supported by BuildXL except for Ubuntu 20.04.
-                // TODO: Remove this check once support for Ubuntu 20.04 is dropped.
-                return;
-            }
-
             // For now this test only runs in ADO builds, where we can set the required capabilities without an interactive prompt.
             if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("TF_BUILD")))
             {
@@ -157,19 +143,6 @@ namespace Test.BuildXL.Processes
         [InlineData("/test/this/path", "/unrelated/path")]
         public void ValidateIncrementalPaths(string path1, string path2)
         {
-            if (OperatingSystemHelperExtension.GetLinuxDistribution()?.Equals(new LinuxDistribution("ubuntu", new Version("20.04"))) == true)
-            {
-                // This test is valid for all supported Linux distributions supported by BuildXL except for Ubuntu 20.04.
-                // TODO: Remove this check once support for Ubuntu 20.04 is dropped.
-                return;
-            }
-
-            // Skip test if not using EBPF sandbox
-            if (!UsingEBPFSandbox)
-            {
-                return;
-            }
-
             // For now this test only runs in ADO builds, where we can set the required capabilities without an interactive prompt.
             if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("TF_BUILD")))
             {
@@ -250,13 +223,6 @@ namespace Test.BuildXL.Processes
         [Fact]
         public void ValidateRingBufferMultiplier()
         {
-            if (OperatingSystemHelperExtension.GetLinuxDistribution()?.Equals(new LinuxDistribution("ubuntu", new Version("20.04"))) == true)
-            {
-                // This test is valid for all supported Linux distributions supported by BuildXL except for Ubuntu 20.04.
-                // TODO: Remove this check once support for Ubuntu 20.04 is dropped.
-                return;
-            }
-
             var fileAccessManifest = new FileAccessManifest(Context.PathTable)
             {
                 FailUnexpectedFileAccesses = false,
@@ -304,13 +270,6 @@ namespace Test.BuildXL.Processes
         [InlineData("/another/untracked/path", false)]
         public void AccessesUnderUntrackedScopesAreNotSent(string access, bool expectUntracked)
         {
-            if (OperatingSystemHelperExtension.GetLinuxDistribution()?.Equals(new LinuxDistribution("ubuntu", new Version("20.04"))) == true)
-            {
-                // This test is valid for all supported Linux distributions supported by BuildXL except for Ubuntu 20.04.
-                // TODO: Remove this check once support for Ubuntu 20.04 is dropped.
-                return;
-            }
-
             var fileAccessManifest = new FileAccessManifest(Context.PathTable)
             {
                 FailUnexpectedFileAccesses = false,
@@ -352,13 +311,6 @@ namespace Test.BuildXL.Processes
         [Fact]
         public void UntrackedScopesExceedingTheLimitAreNotAdded()
         {
-            if (OperatingSystemHelperExtension.GetLinuxDistribution()?.Equals(new LinuxDistribution("ubuntu", new Version("20.04"))) == true)
-            {
-                // This test is valid for all supported Linux distributions supported by BuildXL except for Ubuntu 20.04.
-                // TODO: Remove this check once support for Ubuntu 20.04 is dropped.
-                return;
-            }
-
             var fileAccessManifest = new FileAccessManifest(Context.PathTable)
             {
                 FailUnexpectedFileAccesses = false,
@@ -423,19 +375,6 @@ namespace Test.BuildXL.Processes
         [InlineData("//", "/")]
         public void ValidatePathCanonicalization(string path, string canonicalizedPath)
         {
-            if (OperatingSystemHelperExtension.GetLinuxDistribution()?.Equals(new LinuxDistribution("ubuntu", new Version("20.04"))) == true)
-            {
-                // This test is valid for all supported Linux distributions supported by BuildXL except for Ubuntu 20.04.
-                // TODO: Remove this check once support for Ubuntu 20.04 is dropped.
-                return;
-            }
-
-            // Skip test if not using EBPF sandbox
-            if (!UsingEBPFSandbox)
-            {
-                return;
-            }
-
             // For now this test only runs in ADO builds, where we can set the required capabilities without an interactive prompt.
             if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("TF_BUILD")))
             {

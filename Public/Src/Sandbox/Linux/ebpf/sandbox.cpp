@@ -80,6 +80,16 @@ static int LogError(const char *fmt, ...) {
     return 1;
 }
 
+/** Warning logger for this program. */
+static int LogWarning(const char *fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    g_bxl->LogWarningArgList(getpid(), fmt, args);
+    va_end(args);
+
+    return 1;
+}
+
 /**
  * Callback function that is called when the ring buffer capacity is exceeded.
  * It creates a new overflow event buffer and replaces the current ring buffer in the outer map
@@ -693,8 +703,12 @@ int PopulateUntrackedScopesMap(int key) {
 
         if (bpf_map_update_elem(untracked_scopes, &untracked_key, &NO_VALUE, BPF_ANY))
         {
-            LogError("Could not add untracked scope for path %s", untrackedScope.c_str());
-            return -1;
+            // We are getting some spurious errors from bpf_map_update_elem here, even though the map is created successfully and other elements are added fine.
+            // We log a warning and continue, since this is not a critical failure (we will send unnecessary events from kernel to user side).
+            // The warning should enable us to spot this in telemetry and investigate further.
+            // TODO: switch it back to an error whenever we figure out why this happens.
+            LogWarning("Could not add untracked scope for path %s: [%d]%s", untrackedScope.c_str(), errno, strerror(errno));
+            // return -1;
         }
     }
 

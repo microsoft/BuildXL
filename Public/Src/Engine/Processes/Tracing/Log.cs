@@ -1285,6 +1285,15 @@ namespace BuildXL.Processes.Tracing
         internal abstract void SandboxErrorMessage(LoggingContext loggingContext, string pipDescription);
 
         [GeneratedEvent(
+            (ushort)LogEventId.SandboxWarningMessage,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.PipExecutor,
+            Message = "[{pipDescription}] BuildXL sandbox warning: {content}.")]
+        internal abstract void SandboxWarningMessage(LoggingContext loggingContext, string pipDescription, string content);
+
+        [GeneratedEvent(
             (ushort)LogEventId.FullSandboxErrorMessage,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,

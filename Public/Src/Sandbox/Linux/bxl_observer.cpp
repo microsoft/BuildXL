@@ -432,8 +432,19 @@ void BxlObserver::LogError(pid_t pid, const char *fmt, ...) {
     va_end(args);
 }
 
+void BxlObserver::LogWarning(pid_t pid, const char *fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    LogWarningArgList(pid, fmt, args);
+    va_end(args);
+}
+
 void BxlObserver::LogErrorArgList(pid_t pid, const char *fmt, va_list args) {
     LogDebugMessage(pid, buildxl::linux::DebugEventSeverity::kError, fmt, args);
+}
+
+void BxlObserver::LogWarningArgList(pid_t pid, const char *fmt, va_list args) {
+    LogDebugMessage(pid, buildxl::linux::DebugEventSeverity::kWarning, fmt, args);
 }
 
 void BxlObserver::LogDebugMessage(pid_t pid, buildxl::linux::DebugEventSeverity severity, const char *fmt, va_list args) {

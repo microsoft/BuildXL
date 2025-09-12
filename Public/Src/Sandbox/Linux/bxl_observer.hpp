@@ -491,7 +491,9 @@ public:
     void LogInfo(pid_t pid, const char *fmt, ...);
     void LogError(pid_t pid, const char *fmt, ...);
     void LogErrorArgList(pid_t pid, const char *fmt, va_list args);
-    
+    void LogWarning(pid_t pid, const char *fmt, ...);
+    void LogWarningArgList(pid_t pid, const char *fmt, va_list args);
+
     mode_t get_mode(const char *path)
     {
         struct stat buf;

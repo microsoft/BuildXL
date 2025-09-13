@@ -195,8 +195,14 @@ namespace BuildXL.ProcessPipExecutor
         }
 
         internal static SandboxedProcessPipExecutionResult MismatchedMessageCountFailure(SandboxedProcessPipExecutionResult result)
-            => new SandboxedProcessPipExecutionResult(
-                   SandboxedProcessPipExecutionStatus.FileAccessMonitoringFailed,
+            => RetriableResult(result, SandboxedProcessPipExecutionStatus.FileAccessMonitoringFailed, RetryReason.MismatchedMessageCount);
+
+        internal static SandboxedProcessPipExecutionResult SandboxInternalErrorFailure(SandboxedProcessPipExecutionResult result)
+            => RetriableResult(result, SandboxedProcessPipExecutionStatus.ExecutionFailed, RetryReason.SandboxInternalError);
+
+        private static SandboxedProcessPipExecutionResult RetriableResult(SandboxedProcessPipExecutionResult result, SandboxedProcessPipExecutionStatus status,  RetryReason reason)
+            => new(
+                   status,
                    result.ObservedFileAccesses,
                    result.SharedDynamicDirectoryWriteAccesses,
                    result.EncodedStandardOutput,
@@ -217,7 +223,7 @@ namespace BuildXL.ProcessPipExecutor
                    result.HasAzureWatsonDeadProcess,
                    result.CreatedDirectories,
                    result.FileAccessesBeforeFirstUndeclaredReWrite,
-                   retryInfo: RetryInfo.GetDefault(RetryReason.MismatchedMessageCount));
+                   retryInfo: RetryInfo.GetDefault(reason));
 
         /// <summary>
         /// Indicates if the pip succeeded.

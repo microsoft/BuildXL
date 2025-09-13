@@ -1398,6 +1398,15 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void LogMismatchedDetoursErrorCount(LoggingContext context, long pipSemiStableHash, string pipDescription);
 
         [GeneratedEvent(
+            (int)LogEventId.PipFailedDueToSandboxInternalError,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "Pip failed due to an internal sandbox error. Refer to the {ShortProductName} log for more information.")]
+        public abstract void PipFailedDueToSandboxInternalError(LoggingContext context, long pipSemiStableHash, string pipDescription);
+
+        [GeneratedEvent(
             (int)LogEventId.PipExitedWithAzureWatsonExitCode,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,

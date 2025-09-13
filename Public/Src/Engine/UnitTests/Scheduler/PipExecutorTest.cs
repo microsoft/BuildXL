@@ -21,6 +21,7 @@ using BuildXL.Ipc.Interfaces;
 using BuildXL.Native.IO;
 using BuildXL.Pips;
 using BuildXL.Pips.Operations;
+using BuildXL.Processes;
 using BuildXL.ProcessPipExecutor;
 using BuildXL.Scheduler;
 using BuildXL.Scheduler.Fingerprints;
@@ -41,6 +42,7 @@ using static BuildXL.Utilities.Core.FormattableStringEx;
 using OperationHints = BuildXL.Cache.ContentStore.Interfaces.Sessions.OperationHints;
 using Process = BuildXL.Pips.Operations.Process;
 using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
+using SchedulerLogEventId = BuildXL.Scheduler.Tracing.LogEventId;
 using WriteFilePip = BuildXL.Pips.Operations.WriteFile;
 
 namespace Test.BuildXL.Scheduler
@@ -2770,7 +2772,8 @@ EXIT /b 3
             bool monitorFileAccesses = true,
             OutputReportingMode outputReportingMode = OutputReportingMode.TruncatedOutputOnError,
             bool storeOutputsToCache = true,
-            bool ignoreReparsePoints = false)
+            bool ignoreReparsePoints = false,
+            bool enableEBPFLinuxSandbox = false)
         {
             var config = ConfigurationHelpers.GetDefaultForTesting(pathTable, AbsolutePath.Create(pathTable, TestPath));
             config.Sandbox.FileAccessIgnoreCodeCoverage = fileAccessIgnoreCodeCoverage;
@@ -2783,6 +2786,7 @@ EXIT /b 3
             config.Sandbox.UnsafeSandboxConfigurationMutable.PreserveOutputs = preserveOutputs;
             config.Sandbox.UnsafeSandboxConfigurationMutable.MonitorFileAccesses = monitorFileAccesses;
             config.Schedule.StoreOutputsToCache = storeOutputsToCache;
+            config.Sandbox.EnableEBPFLinuxSandbox = enableEBPFLinuxSandbox;
 
             if (retryCount.HasValue)
             {
@@ -3441,6 +3445,83 @@ EXIT /b 3
 
                     XAssert.AreEqual(expected, actual);
                 });
+        }
+
+        [FactIfSupported(requiresLinuxBasedOperatingSystem: true)]
+        public async Task LinuxSandboxInternalErrorCodeIsRetried()
+        {
+            if (!UsingEBPFSandbox)
+            {
+                // This test is only valid for the eBPF sandbox on Linux.
+                return;
+            }
+
+            await WithExecutionEnvironment(
+                config: pathTable => GetConfiguration(pathTable, enableEBPFLinuxSandbox: true),
+                act: async env =>
+                {
+                    var stdOutFile = FileArtifact.CreateOutputFile(AbsolutePath.Create(env.Context.PathTable, GetFullPath("stdout.txt")));
+                    var stdErrFile = FileArtifact.CreateOutputFile(AbsolutePath.Create(env.Context.PathTable, GetFullPath("stderr.txt")));
+
+                    var scriptPath = AbsolutePath.Create(env.Context.PathTable, GetFullPath("script.sh"));
+                    File.WriteAllText(scriptPath.ToString(env.Context.PathTable), $"#!/bin/bash\nexit 0");
+                    chmod(scriptPath.ToString(env.Context.PathTable), 0x1ff);
+
+                    var pipDataBuilder = new PipDataBuilder(env.Context.StringTable);
+                    pipDataBuilder.Add("-c");
+                    using (pipDataBuilder.StartFragment(PipDataFragmentEscaping.CRuntimeArgumentRules, " "))
+                    {
+                        pipDataBuilder.Add(scriptPath);
+                    }
+
+                    var exe = FileArtifact.CreateSourceFile(AbsolutePath.Create(env.Context.PathTable, CmdHelper.OsShellExe));
+
+                    Process p =
+                        AssignFakePipId(
+                            new Process(
+                                executable: exe,
+                                workingDirectory: AbsolutePath.Create(env.Context.PathTable, TemporaryDirectory),
+                                arguments: pipDataBuilder.ToPipData(" ", PipDataFragmentEscaping.NoEscaping),
+                                responseFile: FileArtifact.Invalid,
+                                responseFileData: PipData.Invalid,
+                                environmentVariables: ReadOnlyArray<EnvironmentVariable>.FromWithoutCopy(
+                                    new EnvironmentVariable(
+                                        // CODESYNC: Public/Src/Sandbox/Linux/common.h
+                                        StringId.Create(env.Context.StringTable, "__BUILDXL_TEST_INJECTINFRAERROR"),
+                                        PipDataBuilder.CreatePipData(env.Context.StringTable, string.Empty, PipDataFragmentEscaping.NoEscaping, "1")
+                                    )
+                                ),
+                                standardInput: FileArtifact.Invalid,
+                                standardOutput: stdOutFile,
+                                standardError: stdErrFile,
+                                standardDirectory: stdOutFile.Path.GetParent(env.Context.PathTable),
+                                warningTimeout: null,
+                                timeout: null,
+                                dependencies: ReadOnlyArray<FileArtifact>.FromWithoutCopy(exe, FileArtifact.CreateSourceFile(scriptPath)),
+                                outputs: ReadOnlyArray<FileArtifactWithAttributes>.FromWithoutCopy(stdOutFile.WithAttributes()),
+                                directoryDependencies: ReadOnlyArray<DirectoryArtifact>.Empty,
+                                directoryOutputs: ReadOnlyArray<DirectoryArtifact>.Empty,
+                                orderDependencies: ReadOnlyArray<PipId>.Empty,
+                                untrackedPaths: ReadOnlyArray<AbsolutePath>.From(CmdHelper.GetCmdDependencies(env.Context.PathTable)),
+                                untrackedScopes: ReadOnlyArray<AbsolutePath>.From(CmdHelper.GetCmdDependencyScopes(env.Context.PathTable)),
+                                tags: ReadOnlyArray<StringId>.Empty,
+                                successExitCodes: ReadOnlyArray<int>.Empty,
+                                uncacheableExitCodes: ReadOnlyArray<int>.Empty,
+                                semaphores: ReadOnlyArray<ProcessSemaphoreInfo>.Empty,
+                                options: Process.Options.ProducesPathIndependentOutputs,
+                                provenance: PipProvenance.CreateDummy(env.Context),
+                                toolDescription: StringId.Invalid,
+                                additionalTempDirectories: ReadOnlyArray<AbsolutePath>.Empty,
+                                processRetries: env.Configuration.Schedule.ProcessRetries));
+
+                    await VerifyPipResult(PipResultStatus.Failed, env, p);
+                    // Logged 6 times due to initial attempt + 5 retries
+                    AssertVerboseEventLogged(ProcessesLogEventId.SandboxInternalError, count: 6);
+                    AssertErrorEventLogged(ProcessesLogEventId.PipProcessError, count: 6);
+                    // Logged once when the final attempt fails
+                    AssertErrorEventLogged(SchedulerLogEventId.PipFailedDueToSandboxInternalError, count: 1);
+                }
+            );
         }
 
         /// <summary>

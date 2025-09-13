@@ -721,6 +721,11 @@ namespace BuildXL.Scheduler
         MismatchMessageRetriesCount,
 
         /// <summary>
+        /// Counts the number of retries for pips because of sandbox internal errors.
+        /// </summary>
+        SandboxInternalErrorRetriesCount,
+
+        /// <summary>
         /// Counts the number of retries for pips because of Azure Watson's 0xDEAD exit code.
         /// </summary>
         AzureWatsonExitCodeRetriesCount,

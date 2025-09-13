@@ -61,8 +61,10 @@ namespace BuildXL.Scheduler
         /// The maximum number of times to retry running a pip due to internal sandboxed process execution failure.
         /// </summary>
         /// <remarks>
-        /// Internal failure include <see cref="RetryReason.OutputWithNoFileAccessFailed"/>
-        /// and <see cref="RetryReason.MismatchedMessageCount"/>.
+        /// Internal failures include:
+        /// <see cref="RetryReason.OutputWithNoFileAccessFailed"/>,
+        /// <see cref="RetryReason.MismatchedMessageCount"/>,
+        /// and <see cref="RetryReason.SandboxInternalError"/>.
         /// </remarks>
         public const int InternalSandboxedProcessExecutionFailureRetryCountMax = 5;
 
@@ -1648,6 +1650,7 @@ namespace BuildXL.Scheduler
 
             if (executionResult.RetryInfo?.RetryReason == RetryReason.OutputWithNoFileAccessFailed ||
                 executionResult.RetryInfo?.RetryReason == RetryReason.MismatchedMessageCount ||
+                executionResult.RetryInfo?.RetryReason == RetryReason.SandboxInternalError ||
                 executionResult.RetryInfo?.RetryReason == RetryReason.AzureWatsonExitCode)
             {
                 AssertErrorWasLoggedWhenNotCancelled(environment, operationContext,
@@ -2415,6 +2418,10 @@ namespace BuildXL.Scheduler
                     counters.IncrementCounter(PipExecutorCounter.MismatchMessageRetriesCount);
                     return true;
 
+                case RetryReason.SandboxInternalError:
+                    counters.IncrementCounter(PipExecutorCounter.SandboxInternalErrorRetriesCount);
+                    return true;
+
                 case RetryReason.AzureWatsonExitCode:
                     counters.IncrementCounter(PipExecutorCounter.AzureWatsonExitCodeRetriesCount);
                     return true;
@@ -2440,6 +2447,13 @@ namespace BuildXL.Scheduler
 
                 case RetryReason.MismatchedMessageCount:
                     Logger.Log.LogMismatchedDetoursErrorCount(
+                        operationContext,
+                        pip.SemiStableHash,
+                        processDescription);
+                    return;
+
+                case RetryReason.SandboxInternalError:
+                    Logger.Log.PipFailedDueToSandboxInternalError(
                         operationContext,
                         pip.SemiStableHash,
                         processDescription);

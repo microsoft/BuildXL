@@ -839,7 +839,7 @@ namespace BuildXL.Processes.Tracing
             string messageAboutPathsToLog,
             string pathsToLog,
             int exitCode,
-            string optionalMessage,            
+            string optionalMessage,
             string shortPipDescription,
             long pipExecutionTimeMs);
 
@@ -1276,31 +1276,31 @@ namespace BuildXL.Processes.Tracing
         internal abstract void PTraceRunnerError(LoggingContext loggingContext, string pipDescription, string content);
 
         [GeneratedEvent(
-            (ushort)LogEventId.SandboxErrorMessage,
+            (ushort)LogEventId.SandboxInternalError,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Error,
-            Keywords = (int)Keywords.UserMessage,
+            EventLevel = Level.Verbose,
+            Keywords = (int)(Keywords.UserMessage | Keywords.InfrastructureIssue),
             EventTask = (ushort)Tasks.PipExecutor,
-            Message = "[{pipDescription}] The BuildXL sandbox experienced an unrecoverable error. See the BuildXL log for more details.")]
-        internal abstract void SandboxErrorMessage(LoggingContext loggingContext, string pipDescription);
+            Message = EventConstants.PipPrefix + "Pip failed with an internal sandbox error and may be retried. See {ShortProductName} log for more details.")]
+        internal abstract void SandboxInternalError(LoggingContext loggingContext, long pipSemiStableHash, string pipDescription);
 
         [GeneratedEvent(
-            (ushort)LogEventId.SandboxWarningMessage,
+            (ushort)LogEventId.SandboxInternalWarningMessage,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.PipExecutor,
             Message = "[{pipDescription}] BuildXL sandbox warning: {content}.")]
-        internal abstract void SandboxWarningMessage(LoggingContext loggingContext, string pipDescription, string content);
+        internal abstract void SandboxInternalWarningMessage(LoggingContext loggingContext, string pipDescription, string content);
 
         [GeneratedEvent(
-            (ushort)LogEventId.FullSandboxErrorMessage,
+            (ushort)LogEventId.FullSandboxInternalErrorMessage,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.PipExecutor,
             Message = "[{pipDescription}] BuildXL sandbox error: {content}")]
-        internal abstract void FullSandboxErrorMessage(LoggingContext loggingContext, string pipDescription, string content);
+        internal abstract void FullSandboxInternalErrorMessage(LoggingContext loggingContext, string pipDescription, string content);
 
         [GeneratedEvent(
             (ushort)LogEventId.ReportArgsMismatch,

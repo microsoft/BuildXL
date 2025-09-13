@@ -909,7 +909,8 @@ namespace BuildXL.Scheduler
                             processResult.Status == SandboxedProcessPipExecutionStatus.FileAccessMonitoringFailed ||
                             processResult.Status == SandboxedProcessPipExecutionStatus.SharedOpaquePostProcessingFailed ||
                             processResult.RetryInfo?.RetryReason == RetryReason.OutputWithNoFileAccessFailed ||
-                            processResult.RetryInfo?.RetryReason == RetryReason.MismatchedMessageCount))
+                            processResult.RetryInfo?.RetryReason == RetryReason.MismatchedMessageCount ||
+                            processResult.RetryInfo?.RetryReason == RetryReason.SandboxInternalError))
                         {
                             string retryReason = processResult.RetryInfo != null ? $", Retry Reason: {processResult.RetryInfo.RetryReason}, Retry Location: {processResult.RetryInfo.RetryMode}" : "";
                             Contract.Assert(false, "Invalid execution status: " + processResult.Status + retryReason);

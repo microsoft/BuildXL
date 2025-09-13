@@ -16,4 +16,8 @@
 #define BxlUnconditionallyLoadEBPF "__BUILDXL_UNCONDITIONALLY_LOAD_EBPF"
 #define BxlRingBufferSizeMultiplier "__BUILDXL_RING_BUFFER_SIZE_MULTIPLIER"
 
+// Test variables
+// CODESYNC: Public/Src/Engine/UnitTests/Scheduler/PipExecutorTest.cs
+#define BxlInjectInfraError "__BUILDXL_TEST_INJECTINFRAERROR"
+
 #endif //COMMON_H

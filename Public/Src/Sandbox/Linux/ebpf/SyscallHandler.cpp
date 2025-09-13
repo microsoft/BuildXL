@@ -32,6 +32,9 @@ SyscallHandler::SyscallHandler(BxlObserver *bxl, pid_t root_pid, pid_t runner_pi
 
     // This map will hold at most #CPUs entries, one for each CPU that has sent an event.
     m_lastPathsPerCPU.reserve(std::thread::hardware_concurrency());
+
+    // For testing only
+    InjectMessagesForTests();
 }
 
 SyscallHandler::~SyscallHandler() {
@@ -82,6 +85,14 @@ std::string SyscallHandler::DecodeIncrementalEvent(const ebpf_event* event) {
     m_lastPathsPerCPU[event->metadata.processor_id] = final_path;
 
     return final_path;
+}
+
+void SyscallHandler::InjectMessagesForTests() {
+    // If the __BUILDXL_TEST_INJECTINFRAERROR environment variable is set, we inject an infra error event to test the managed side handling of infra errors.
+    const char* injectInfraError = getenv(BxlInjectInfraError);
+    if (injectInfraError && strcmp(injectInfraError, "1") == 0) {
+        m_bxl->LogError(getpid(), "Injected infrastructure error for testing purposes", -1);
+    }
 }
 
 bool SyscallHandler::HandleSingleEvent(const ebpf_event *event) {

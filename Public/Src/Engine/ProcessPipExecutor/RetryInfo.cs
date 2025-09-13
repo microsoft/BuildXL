@@ -82,6 +82,7 @@ namespace BuildXL.ProcessPipExecutor
 
                 case RetryReason.OutputWithNoFileAccessFailed:
                 case RetryReason.MismatchedMessageCount:
+                case RetryReason.SandboxInternalError:
                 case RetryReason.AzureWatsonExitCode:
                 case RetryReason.UserSpecifiedExitCode:
                     return RetryInline(reason);
@@ -205,6 +206,11 @@ namespace BuildXL.ProcessPipExecutor
         /// We consistently fail this pip on remote workers. We will retry on the orchestrator next time.
         /// </summary>
         DistributionFailure = 10,
+
+        /// <summary>
+        /// Indicates an internal error that occured with the Sandbox which may be retried.
+        /// </summary>
+        SandboxInternalError = 11,
     }
 
     /// <summary>
@@ -244,6 +250,7 @@ namespace BuildXL.ProcessPipExecutor
             {
                 case RetryReason.MismatchedMessageCount:
                 case RetryReason.OutputWithNoFileAccessFailed:
+                case RetryReason.SandboxInternalError:
                     return true;
                 default:
                     return false;

@@ -1354,7 +1354,8 @@ namespace BuildXL.ProcessPipExecutor
                         process);
             LogSubPhaseDuration(m_loggingContext, m_pip, SandboxedProcessCounters.SandboxedPipExecutorPhaseProcessingSandboxProcessResult, DateTime.UtcNow.Subtract(start));
 
-            return ValidateDetoursCommunication(
+            return ValidateSandboxCommunication(
+                result,
                 executionResult,
                 lastMessageCount,
                 lastConfirmedMessageCount,
@@ -1473,82 +1474,104 @@ namespace BuildXL.ProcessPipExecutor
         }
 
         /// <summary>
-        /// These various validations that the detours communication channel
+        /// Validates that communication between the native sandbox and the managed side did not encounter any issues.
         /// </summary>
-        private SandboxedProcessPipExecutionResult ValidateDetoursCommunication(
-            SandboxedProcessPipExecutionResult result,
+        private SandboxedProcessPipExecutionResult ValidateSandboxCommunication(
+            SandboxedProcessResult processResult,
+            SandboxedProcessPipExecutionResult pipExecutionExecutionResult,
             int lastMessageCount,
             int lastConfirmedMessageCount,
             bool isMessageSemaphoreCountCreated)
         {
-            // If we have a failure already, that could have cause some of the mismatch in message count of writing the side communication file.
-            if (result.Status == SandboxedProcessPipExecutionStatus.Succeeded && !string.IsNullOrEmpty(m_detoursFailuresFile))
+            switch (pipExecutionExecutionResult.Status)
             {
-                if (OperatingSystemHelper.IsWindowsOS)
+                case SandboxedProcessPipExecutionStatus.Succeeded:
                 {
-                    FileInfo fi;
-
-                    try
+                    // If we have a failure already, that could have cause some of the mismatch in message count of writing the side communication file.
+                    if (!string.IsNullOrEmpty(m_detoursFailuresFile))
                     {
-                        fi = new FileInfo(m_detoursFailuresFile);
-                    }
-                    catch (Exception ex)
-                    {
-                        Logger.Log.LogGettingInternalDetoursErrorFile(
-                            m_loggingContext,
-                            m_pip.SemiStableHash,
-                            m_pipDescription,
-                            ex.ToStringDemystified());
-                        return SandboxedProcessPipExecutionResult.DetouringFailure(result);
-                    }
-
-                    bool fileExists = fi.Exists;
-                    if (fileExists)
-                    {
-                        Logger.Log.LogInternalDetoursErrorFileNotEmpty(
-                            m_loggingContext,
-                            m_pip.SemiStableHash,
-                            m_pipDescription,
-                            File.ReadAllText(m_detoursFailuresFile, Encoding.Unicode));
-
-                        return SandboxedProcessPipExecutionResult.DetouringFailure(result);
-                    }
-                }
-
-                // Avoid eager reporting of message count mismatch. We have observed two failures in WDG and both were due to
-                // a pip running longer than the timeout (5 hours). The pip gets killed and in such cases the message count mismatch
-                // is legitimate.
-                // Report a counter mismatch only if there are no other errors.
-                if (result.Status == SandboxedProcessPipExecutionStatus.Succeeded && isMessageSemaphoreCountCreated)
-                {
-                    if (lastMessageCount > 0)
-                    {
-                        // Some messages were sent (or were about to be sent), but were not received by the sandbox,
-                        // probably because the process terminated before sending the messages or while sending the messages.
-                        if (lastConfirmedMessageCount > 0)
+                        if (OperatingSystemHelper.IsWindowsOS)
                         {
-                            // Received messages is less than the successfully sent messages.
-                            Logger.Log.LogMismatchedDetoursCountLostMessages(
-                                m_loggingContext,
-                                m_pip.SemiStableHash,
-                                m_pipDescription,
-                                lastMessageCount,
-                                lastConfirmedMessageCount);
+                            FileInfo fi;
 
-                            return SandboxedProcessPipExecutionResult.MismatchedMessageCountFailure(result);
+                            try
+                            {
+                                fi = new FileInfo(m_detoursFailuresFile);
+                            }
+                            catch (Exception ex)
+                            {
+                                Logger.Log.LogGettingInternalDetoursErrorFile(
+                                    m_loggingContext,
+                                    m_pip.SemiStableHash,
+                                    m_pipDescription,
+                                    ex.ToStringDemystified());
+                                return SandboxedProcessPipExecutionResult.DetouringFailure(pipExecutionExecutionResult);
+                            }
+
+                            bool fileExists = fi.Exists;
+                            if (fileExists)
+                            {
+                                Logger.Log.LogInternalDetoursErrorFileNotEmpty(
+                                    m_loggingContext,
+                                    m_pip.SemiStableHash,
+                                    m_pipDescription,
+                                    File.ReadAllText(m_detoursFailuresFile, Encoding.Unicode));
+
+                                return SandboxedProcessPipExecutionResult.DetouringFailure(pipExecutionExecutionResult);
+                            }
                         }
 
-                        Logger.Log.LogMismatchedDetoursCount(
-                            m_loggingContext,
-                            m_pip.SemiStableHash,
-                            m_pipDescription,
-                            lastMessageCount,
-                            lastConfirmedMessageCount);
+                        // Avoid eager reporting of message count mismatch. We have observed two failures in WDG and both were due to
+                        // a pip running longer than the timeout (5 hours). The pip gets killed and in such cases the message count mismatch
+                        // is legitimate.
+                        // Report a counter mismatch only if there are no other errors.
+                        if (isMessageSemaphoreCountCreated)
+                        {
+                            if (lastMessageCount > 0)
+                            {
+                                // Some messages were sent (or were about to be sent), but were not received by the sandbox,
+                                // probably because the process terminated before sending the messages or while sending the messages.
+                                if (lastConfirmedMessageCount > 0)
+                                {
+                                    // Received messages is less than the successfully sent messages.
+                                    Logger.Log.LogMismatchedDetoursCountLostMessages(
+                                        m_loggingContext,
+                                        m_pip.SemiStableHash,
+                                        m_pipDescription,
+                                        lastMessageCount,
+                                        lastConfirmedMessageCount);
+
+                                    return SandboxedProcessPipExecutionResult.MismatchedMessageCountFailure(pipExecutionExecutionResult);
+                                }
+
+                                Logger.Log.LogMismatchedDetoursCount(
+                                    m_loggingContext,
+                                    m_pip.SemiStableHash,
+                                    m_pipDescription,
+                                    lastMessageCount,
+                                    lastConfirmedMessageCount);
+                            }
+                        }
                     }
+                    break;
                 }
+                case SandboxedProcessPipExecutionStatus.ExecutionFailed:
+                {
+                    // The failure could also be due to an internal error with the sandbox.
+                    if (processResult.ExitCode == ExitCodes.MessageProcessingFailure && OperatingSystemHelper.IsLinuxOS)
+                    {
+                        // Encountered a retriable error on the sandbox. If retries are available, then this pip will be retried.
+                        // Error message already logged on the SandboxedProcessUnix level.
+                        return SandboxedProcessPipExecutionResult.SandboxInternalErrorFailure(pipExecutionExecutionResult);
+                    }
+                    break;
+                }
+                default:
+                    // We don't handle other states here.
+                    break;
             }
 
-            return result;
+            return pipExecutionExecutionResult;
         }
 
         /// <summary>
@@ -1787,6 +1810,7 @@ namespace BuildXL.ProcessPipExecutor
                             {
                                 encodedStandardOutput = GetEncodedStandardConsoleStream(result.StandardOutput);
                                 encodedStandardError = GetEncodedStandardConsoleStream(result.StandardError);
+
                                 return SandboxedProcessPipExecutionResult.RetryProcessDueToUserSpecifiedExitCode(
                                     result.ExitCode,
                                     primaryProcessTimes,

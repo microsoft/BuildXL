@@ -729,24 +729,26 @@ namespace BuildXL.Processes
                             // we allow the build to continue.
                             // It is also not typically actionable by the user, so we just log it as a verbose message.
                             // The main intent is to have a record of it in telemetry so that we can investigate it if needed.
-                            Logger.Log.SandboxWarningMessage(m_loggingContext, m_reports.PipDescription, report.Data);
+                            Logger.Log.SandboxInternalWarningMessage(m_loggingContext, m_reports.PipDescription, report.Data);
                             break;
                         case SandboxInfraSeverity.Error:
-                            // Let's log a generic user-friendly error message only once per pip, so that we don't spam the logs
-                            // with the same error message multiple times.
+                            // Let's log a generic user-friendly message only once per pip, so that we don't spam the logs
+                            // with the same message multiple times.
                             if (!m_infraErrorReceived)
                             {
-                                // Log a user-friendly error message
-                                Logger.Log.SandboxErrorMessage(m_loggingContext, m_reports.PipDescription);
+                                // Log a user-friendly message
+                                // Since this pip can be retried, we log this as verbose rather than an error.
+                                // If all of the retries fail, another error will be logged at the PipExecutor level.
+                                Logger.Log.SandboxInternalError(m_loggingContext, m_reports.PipSemiStableHash, m_reports.PipDescription);
                             }
                             // Log a verbose message with the full details as well. This is typically not user friendly, but it is useful for debugging.
-                            Logger.Log.FullSandboxErrorMessage(m_loggingContext, m_reports.PipDescription, report.Data);
+                            Logger.Log.FullSandboxInternalErrorMessage(m_loggingContext, m_reports.PipDescription, report.Data);
                             break;
                         case SandboxInfraSeverity.Debug:
                             LogDebug(report.Data);
                             break;
                         case SandboxInfraSeverity.Info:
-                            Tracing.Logger.Log.LogSandboxInfoMessage(m_loggingContext, m_reports.PipSemiStableHash, report.Data);
+                            Logger.Log.LogSandboxInfoMessage(m_loggingContext, m_reports.PipSemiStableHash, report.Data);
                             break;
                     }
 

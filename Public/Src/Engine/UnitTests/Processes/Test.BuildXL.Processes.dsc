@@ -121,7 +121,7 @@ namespace Processes {
         ]
     };
 
-        @@public
+    @@public
     export const test_BuildXL_Processes_dll = BuildXLSdk.test(Object.merge<BuildXLSdk.TestArguments>(testArgs, {
         // We exclude PTraceSandboxedProcessTest.cs altogether when EBPFSandboxForTests is enabled.
         // We don't have a test attribute today to control this, so we filter the sources directly.

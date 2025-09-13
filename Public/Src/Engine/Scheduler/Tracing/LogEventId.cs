@@ -199,6 +199,8 @@ namespace BuildXL.Scheduler.Tracing
         LogMismatchedDetoursErrorCount = 2922,
         PipExitedWithAzureWatsonExitCode = 2924,
         OutputFileHashingStats = 2929,
+        // Reserved MoreBytesWrittenThanBufferSize = 2930
+        PipFailedDueToSandboxInternalError = 2931,
 
         HistoricPerfDataStats = 3110,
         HistoricPerfDataAdded = 3111,

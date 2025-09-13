@@ -327,14 +327,19 @@ namespace BuildXL.Processes
             var fileAccesses = ShouldReportFileAccesses ? (reports?.FileAccesses ?? EmptyFileAccessesSet) : null;
 
             var traceBuilder = GetTraceFileBuilderAsync();
+            var exitCode = m_processExecutor.TimedOut
+                ? ExitCodes.Timeout
+                : HasSandboxFailures
+                    ? ExitCodes.MessageProcessingFailure
+                    : (Process?.ExitCode ?? ExitCodes.Timeout);
 
             LogDebug("GetResultAsync: Freezing outputs and returning result");
             return new SandboxedProcessResult
             {
-                ExitCode = m_processExecutor.TimedOut ? ExitCodes.Timeout : (Process?.ExitCode ?? ExitCodes.Timeout),
+                ExitCode = exitCode,
                 Killed = Killed,
                 TimedOut = m_processExecutor.TimedOut,
-                HasDetoursInjectionFailures = HasSandboxFailures,
+                HasDetoursInjectionFailures = false,
                 JobAccountingInformation = GetJobAccountingInfo(),
                 StandardOutput = m_output.Freeze(),
                 StandardError = m_error.Freeze(),

@@ -81,6 +81,7 @@ private:
     // and general perf counters can also be surfaced properly)
     void SendStats();
     void RemovePid(pid_t pid);
+    void InjectMessagesForTests();
 
     std::unordered_set<pid_t> m_activePids;
     pid_t m_root_pid;

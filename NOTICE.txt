@@ -12018,7 +12018,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-Microsoft.Extensions.ObjectPool 8.0.0 - MIT
+Microsoft.Extensions.ObjectPool 9.0.0 - MIT
 
 
 Copyright Jorn Zaefferer

@@ -49,6 +49,8 @@ extends:
         name: Windows-SDL-Agents
         image: Windows-SDL-Image
         os: windows
+        vhd:
+          enabled: false
 
     stages:
     - template: /.azdo/linux/linux-stages-template.yml

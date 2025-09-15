@@ -31,7 +31,9 @@ extends:
         name: Windows-SDL-Agents
         image: Windows-SDL-Image
         os: windows
-
+        vhd:
+          enabled: false
+  
     stages:
       - stage: BuildAppHostPatcher
         displayName: Build, package, and push AppHostPatcher

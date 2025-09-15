@@ -228,10 +228,8 @@ function setBxlCmdArgs {
         "/c:$MY_DIR/config.dsc"
     )
 
-    # TODO: generalize this for other distributions
-    # For now we only force the ebpf daemon on 24.04 since our ebpf programs still don't fully work on other distributions.
     # We need to force the ebpf daemon for tests to run. If --minimal or --vs is specified, do not force it, as the right capabilities may not be set yet.
-    if [[ "${DISTRIB_RELEASE}" == "24.04" && "${arg_Minimal}" -ne "1" && "${arg_Vs}" -ne "1" ]]; then
+    if [[ "${arg_Minimal}" -ne "1" && "${arg_Vs}" -ne "1" ]]; then
         g_bxlCmdArgs+=(
             # When running the selfhost, ebpf tests assume the ebpf daemon in running. TODO: remove when interpose can be retired
             "/p:BuildXLForceLaunchEBPFDaemon=1"

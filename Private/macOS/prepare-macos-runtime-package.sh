@@ -50,6 +50,23 @@ rm -rf $arg_outputDirectory/*
 # Create directory structure
 mkdir -p $arg_outputDirectory/runtimes/osx-x64/native
 
+# Create an empty csproj so that dotnet pack can be called on this nuget package
+mkdir -p $arg_interopBuildDirectory/dotnet
+rm -rf $arg_interopBuildDirectory/dotnet/*
+
+# Write an empty csproj and call dotnet restore on it
+tee $arg_interopBuildDirectory/dotnet/empty.csproj <<EOF
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net9.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+    </PropertyGroup>
+</Project>
+EOF
+
+dotnet restore $arg_interopBuildDirectory/dotnet/empty.csproj
+
 # Copy the interop dylib to the output directory
 cp $arg_interopBuildDirectory/Build/Products/release/$INTEROP_DYLIB_NAME $arg_outputDirectory/runtimes/osx-x64/native/$INTEROP_DYLIB_NAME
 
@@ -70,3 +87,7 @@ tee $arg_outputDirectory/$PKG_BASE_NAME.nuspec <<EOF
   </metadata>
 </package>
 EOF
+
+# Call dotnet pack on the empty csproj to create the nuget package
+# Adding the --no-build flag here because there's nothing to build and dotnet will fail if we don't have it
+dotnet pack $arg_interopBuildDirectory/dotnet/empty.csproj --no-build -p:NuspecFile=$arg_outputDirectory/$PKG_BASE_NAME.nuspec -p:PackageOutputPath=$arg_outputDirectory

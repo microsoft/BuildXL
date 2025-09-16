@@ -4,7 +4,8 @@
 import {Artifact, Cmd, Tool, Transformer} from "Sdk.Transformers";
 import * as Shared       from "Sdk.Managed.Shared";
 import * as Managed      from "Sdk.Managed";
-import * as Qtest        from "BuildXL.Tools.QTest";
+// Switch this to  "BuildXL.Tools.QTest" to use the QTest SDK from source in the repo instead of the binary version
+import * as Qtest        from "Sdk.QTest";
 
 export declare const qualifier : Managed.TargetFrameworks.All;
 const qTestContents = importFrom("CB.QTest").Contents.all;
@@ -176,8 +177,8 @@ function runTest(args : TestRunArguments) : File[] {
         qTestAttemptCount: 1,
         qTestIgnoreQTestSkip: true,
         qTestAdditionalOptions: additionalOptions,
-        qTestTimeoutSec: 600 * (args.timeoutMultiplier ? args.timeoutMultiplier: 1),
         qTestMaxConfigurableTimeout: 600 * (args.timeoutMultiplier ? args.timeoutMultiplier: 1),
+        qTestTimeoutSec: 600 * (args.timeoutMultiplier ? args.timeoutMultiplier: 1),
         useVsTest150: true,
         // Setting file can be passed through vstestSettingsFile or vstestSettingsFileForCoverage.
         // For BuildXL selfhost, ensure that the setting file disable parallelism. QTest by default run unit test methods in sequence,

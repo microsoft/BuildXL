@@ -222,8 +222,8 @@ struct untracked_scopes {
     // Set dynamically from user side based on the number of untracked scopes of a given pip. Left here
     // for template matching.
     __uint(max_entries, 1);
-    // Block writes from the kernel side. On user side, the map is frozen after untracked scopes are added.
-    __uint(map_flags, BPF_F_NO_PREALLOC | BPF_F_RDONLY_PROG);
+    // BPF_F_NO_PREALLOC is mandatory for TRIEs
+    __uint(map_flags, BPF_F_NO_PREALLOC);
 } untracked_scopes SEC(".maps"); 
 
 /**

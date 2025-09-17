@@ -677,7 +677,7 @@ int PopulateUntrackedScopesMap(int key) {
     }
 
     LIBBPF_OPTS(bpf_map_create_opts, untracked_scopes_options);
-    untracked_scopes_options.map_flags = BPF_F_NO_PREALLOC | BPF_F_RDONLY_PROG;
+    untracked_scopes_options.map_flags = BPF_F_NO_PREALLOC;
     int untracked_scopes = bpf_map_create(
         BPF_MAP_TYPE_LPM_TRIE,
         "untracked_scopes",
@@ -701,22 +701,21 @@ int PopulateUntrackedScopesMap(int key) {
         strncpy(untracked_key.path, untrackedScope.c_str(), untrackedScope.length());
         untracked_key.prefixlen = untrackedScope.length() * 8;
 
-        if (bpf_map_update_elem(untracked_scopes, &untracked_key, &NO_VALUE, BPF_ANY))
+        int result = bpf_map_update_elem(untracked_scopes, &untracked_key, &NO_VALUE, BPF_ANY);
+        if (result)
         {
-            // We are getting some spurious errors from bpf_map_update_elem here, even though the map is created successfully and other elements are added fine.
-            // We log a warning and continue, since this is not a critical failure (we will send unnecessary events from kernel to user side).
-            // The warning should enable us to spot this in telemetry and investigate further.
-            // TODO: switch it back to an error whenever we figure out why this happens.
-            LogWarning("Could not add untracked scope for path %s: [%d]%s", untrackedScope.c_str(), errno, strerror(errno));
-            // return -1;
+            // We are getting spurious ENOEM when adding elements to the trie, even though the map is created successfully and other elements are added fine.
+            // Let's wait a bit and retry once
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            result = bpf_map_update_elem(untracked_scopes, &untracked_key, &NO_VALUE, BPF_ANY);
+            if (result) {
+                // We log a warning and continue, since this is not a critical failure (we will send unnecessary events from kernel to user side).
+                // The warning should enable us to spot this in telemetry and investigate further.
+                // TODO: switch it back to an error whenever we figure out why this happens.
+                LogWarning("Could not add untracked scope for path %s: [%d]%s", untrackedScope.c_str(), errno, strerror(errno));
+                // return -1;
+            }
         }
-    }
-
-    // After all elements are added, freeze the map. This together with BPF_F_RDONLY_PROG makes the map completely read-only.
-    if (bpf_map_freeze(untracked_scopes) < 0)
-    {
-        LogError("Failed to freeze untracked scopes map: [%d]%s\n", errno, strerror(errno));
-        return -1;
     }
 
     // Add the untracked scopes inner map to the per-pip outer map

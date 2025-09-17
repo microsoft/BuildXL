@@ -20,6 +20,14 @@ stages:
         fetchDepth: 1
         fetchTags: false
 
+      # Enable journaling on F: for the AutoVHD case - should be removed (work item #2318563)
+      - pwsh: |
+          if (Test-Path "F:/") {
+            # Call fsutil to enable journaling on the F: drive
+            C:\Windows\system32\fsutil usn createjournal m=0x20000000 a=0x8000000 F:
+          }
+        displayName: 'Enable journaling on F: (for AutoVHD)'
+
       - template: /.azdo/common/set-variable-pats.yml@self
       - pwsh: |
           iex "& { $(irm https://aka.ms/install-artifacts-credprovider.ps1) } -AddNetfx"

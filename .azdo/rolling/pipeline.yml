@@ -51,8 +51,6 @@ extends:
         name: Windows-SDL-Agents
         image: Windows-SDL-Image
         os: windows
-        vhd:
-          enabled: false
       spotBugs:
         enabled: false
       baseline:

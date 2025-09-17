@@ -1510,11 +1510,9 @@ int test_incremental_event(struct test_incremental_event_args *event) {
         return 0;
     }
 
+    // There might not be an entry for this cpu, which is fine, it just means there is nothing to clean up
     __u32 current_cpu = bpf_get_smp_processor_id();
-    if (bpf_map_delete_elem(last_path_per_cpu, &current_cpu)) {
-        report_ring_buffer_error(runner_pid, "[ERROR] Could not clean up last path cache.");
-        return 0;
-    }
+    bpf_map_delete_elem(last_path_per_cpu, &current_cpu);
 
     // retrieve temporary filepath storage
     int index = 0;
@@ -1584,11 +1582,9 @@ int test_path_canonicalization(struct test_path_canonicalization_args *event) {
         return 0;
     }
 
+    // There might not be an entry for this cpu, which is fine, it just means there is nothing to clean up
     __u32 current_cpu = bpf_get_smp_processor_id();
-    if (bpf_map_delete_elem(last_path_per_cpu, &current_cpu)) {
-        report_ring_buffer_error(runner_pid, "[ERROR] Could not clean up last path cache.");
-        return 0;
-    }
+    bpf_map_delete_elem(last_path_per_cpu, &current_cpu);
 
     // retrieve temporary filepath storage
     char *temp = bpf_map_lookup_elem(&derefpaths, &ZERO);

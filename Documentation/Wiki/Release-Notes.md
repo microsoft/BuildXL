@@ -2,6 +2,33 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20250912.1 (Release [30467480](https://dev.azure.com/mseng/Domino/_build/results?buildId=30467480&view=results))
+- [EBPF] Make the kernel side event cache more robust
+- [EBPF] Canonicalize all paths when dealing with raw strings
+- [EBPF] Warn on failures when adding kernel-side untracked scopes
+
+# 0.1.0-20250905.2 (Release [30441347](https://dev.azure.com/mseng/Domino/_build/results?buildId=30441347&view=results))
+- Various EBPF improvements and optimizations
+- Update QTest and allow setting qTestMaxConfigurableTimeout via QTest SDK
+- Detours reliability improvements 
+
+# 0.1.0-20250828.2 (Release [30410103](https://dev.azure.com/mseng/Domino/_build/results?buildId=30410103&view=results))
+- Allow user profile redirection with server mode
+- Update QTest to 25.8.22-g2026a4b8
+- [EBPF] Use incremental encoding for single-path events
+
+# 0.1.0-20250822.1 (Release [30385929](https://dev.azure.com/mseng/Domino/_build/results?buildId=30385929&view=results))
+- Add correlation id to sandboxed trace
+- [EBPF] Add a cache for absent probes
+- [EBPF] Generalize the string cache to other operations
+- Add blob daemon to upload build artifacts for azure storage
+- Ephemeral content fixes for high content hashes
+- [Incremental Scheduling] Make graph-agnostic state consistent with non-agnostic dirty node tracker
+- [Detours] More robust Detours remote/brokered injection
+- [Detours] Detour [Copy|Move] FileTransacted API
+- Fix Kestrel gRPC server in BuildXL
+- Put several daemon bins into a single shared folder
+
 # 0.1.0-20250807.3 (Release [30326331](https://dev.azure.com/mseng/Domino/_build/results?buildId=30326331&view=results))
 - Add `GetOutputsUnderOpaqueExistenceAssertions` to list of outputs in file content manager.
 - Allow server mode in cloudbuild.

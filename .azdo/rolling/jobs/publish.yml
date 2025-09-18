@@ -37,6 +37,7 @@ jobs:
       retentionDays: 180
       dropMetadataContainerName: DropMetadata-mseng
       sbomEnabled: false
+      condition: or(succeeded(), eq($(IsRetryRun), true))
 
     - output: artifactsDrop
       displayName: '📤 Publish BuildXL to CB Artifact Services Drop (cloudbuild.visualstudio.com)'
@@ -48,6 +49,7 @@ jobs:
       retentionDays: 180
       dropMetadataContainerName: DropMetadata-cloudbuild
       sbomEnabled: false
+      condition: or(succeeded(), eq($(IsRetryRun), true))
 
     - output: nuget
       displayName: '📦 Push private NuGet packages to 1essharedassets/BuildXL.Internal feed'
@@ -57,10 +59,11 @@ jobs:
       publishFeedCredentials: 'mseng-Domino-BuildXL-1ESSharedAssets_BuildXL.Internal'
       sbomEnabled: false
       allowPackageConflicts: $(NugetPushAllowPackageConflicts)
+      condition: or(succeeded(), eq($(IsRetryRun), true))
 
     - output: nuget
       displayName: '📦 Push public NuGet packages to 1essharedassets/BuildXL feed'
-      condition: and(succeeded(), ne(variables['ServicingOnlyBuild'], 'true'))
+      condition: and(or(succeeded(), eq($(IsRetryRun), true)), ne(variables['ServicingOnlyBuild'], 'true'))
       packageParentPath: $(Agent.TempDirectory)/DownloadedDrop/release/pkgs 
       packagesToPush: $(Agent.TempDirectory)/DownloadedDrop/release/pkgs/*.nupkg
       nuGetFeedType: external
@@ -186,6 +189,12 @@ jobs:
         }
       errorActionPreference: 'continue'
 
+  # The packages are correctly set up to be pushed - on retry runs, we will try to do it even if intermediate steps fail (which can happen due to name conflicts, etc).
+  - script: |
+      echo "##vso[task.setvariable variable=IsRetryRun]true"
+    displayName: 'Set IsRetryRun variable for publishing on retry'
+    condition: and(succeeded(), gt(variables['System.JobAttempt'], 1))
+
   # Upload to pipeline artifacts so we get the required scanning
   - task: 1ES.PublishPipelineArtifact@1
     inputs:
@@ -216,7 +225,7 @@ jobs:
       NuGetServiceConnectionId: 'af9cb8db-5f2f-4b3e-b436-e1ff62614888'
       NuGetServiceConnectionName: 'mseng-Domino-BuildXL-1ESSharedAssets_BuildXL'
       AccessToken: $(BuildXL-Pipeline-AccessToken)
-
+  
 - ${{ if eq(parameters.isRollingBuild, true) }}:
   - job: GitHubForcePush
     displayName: Force Push BuildXL.Internal to GitHub Main

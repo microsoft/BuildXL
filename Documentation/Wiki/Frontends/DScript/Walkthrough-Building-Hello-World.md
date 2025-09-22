@@ -7,8 +7,8 @@ copy-file pip. The example in this walkthrough can be found in [HelloWorld](../.
 
 ## Prerequisites
 
-The example in this walkthrough runs both on Linux and Windows. For Linux, the example has been tested on Ubuntu 20.04
-and Ubuntu 22.04. For Windows, since we are going to use `g++` compiler tool to compile our example C++ program,
+The example in this walkthrough runs both on Linux and Windows.
+For Windows, since we are going to use `g++` compiler tool to compile our example C++ program,
 you need to install the latest version of Mingw-w64 via MSYS2, which provides up-to-date native builds of GNU C++ tools
 and libraries. You can download the latest installer from the [MSYS2 page](https://www.msys2.org/), and then follow
 the installation instructions on the MSYS2 website to install Mingw-w64 install the GNU compiler toolset.

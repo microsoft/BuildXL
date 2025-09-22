@@ -1,7 +1,7 @@
 # BuildXL Cross Platform
 
 * BuildXL is fully supported for Windows.
-* Linux is supported on Ubuntu 20.04. Other distros may work but are not well tested at this time.
+* Linux: see [Readme.md](../../README.md) for supported distros.
 * macOS is not currently supported.
 
 ## Linux Support

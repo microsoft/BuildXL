@@ -2,7 +2,7 @@
 
 * `Hyper-V Settings` -> Make sure that the locations where to store VMs and VHDs are pointing to drive with plenty of free space. SSD is strongly advised. 
 * `Virtual Switch Manager` -> Create a new External switch and call it 'External' 
-* `Quick Create` -> Select Ubuntu 20.04.x or newer (distros other than Ubuntu could also work, but the [VM prep steps](./How_to_prep_VM.md) might be different)
+* `Quick Create` -> Select Ubuntu 22.04.x or newer (distros other than Ubuntu could also work, but the [VM prep steps](./How_to_prep_VM.md) might be different)
 * Once the VM is created, but before connecting to it, open its settings: 
 * Update memory, processor count, select 'External' Network Adapter. 
 * Uncheck 'Use automatic checkpoints' 

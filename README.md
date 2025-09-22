@@ -17,7 +17,8 @@ BuildXL has a command-line interface. There are currently no plans to integrate 
 
 OS compatibility:
 * Windows 10+
-* Ubuntu 20.04
+* Ubuntu 22.04, 24.04
+* Azure Linux 3
 
 ## Examples
 See the `Examples/` folder for basic project examples. 

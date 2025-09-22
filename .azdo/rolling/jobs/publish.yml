@@ -37,7 +37,7 @@ jobs:
       retentionDays: 180
       dropMetadataContainerName: DropMetadata-mseng
       sbomEnabled: false
-      condition: or(succeeded(), eq($(IsRetryRun), true))
+      condition: or(succeeded(), eq(variables['IsRetryRun'], true))
 
     - output: artifactsDrop
       displayName: '📤 Publish BuildXL to CB Artifact Services Drop (cloudbuild.visualstudio.com)'
@@ -49,7 +49,7 @@ jobs:
       retentionDays: 180
       dropMetadataContainerName: DropMetadata-cloudbuild
       sbomEnabled: false
-      condition: or(succeeded(), eq($(IsRetryRun), true))
+      condition: or(succeeded(), eq(variables['IsRetryRun'], true))
 
     - output: nuget
       displayName: '📦 Push private NuGet packages to 1essharedassets/BuildXL.Internal feed'
@@ -59,11 +59,11 @@ jobs:
       publishFeedCredentials: 'mseng-Domino-BuildXL-1ESSharedAssets_BuildXL.Internal'
       sbomEnabled: false
       allowPackageConflicts: $(NugetPushAllowPackageConflicts)
-      condition: or(succeeded(), eq($(IsRetryRun), true))
+      condition: or(succeeded(), eq(variables['IsRetryRun'], true))
 
     - output: nuget
       displayName: '📦 Push public NuGet packages to 1essharedassets/BuildXL feed'
-      condition: and(or(succeeded(), eq($(IsRetryRun), true)), ne(variables['ServicingOnlyBuild'], 'true'))
+      condition: and(or(succeeded(), eq(variables['IsRetryRun'], true)), ne(variables['ServicingOnlyBuild'], 'true'))
       packageParentPath: $(Agent.TempDirectory)/DownloadedDrop/release/pkgs 
       packagesToPush: $(Agent.TempDirectory)/DownloadedDrop/release/pkgs/*.nupkg
       nuGetFeedType: external

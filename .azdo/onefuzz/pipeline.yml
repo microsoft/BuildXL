@@ -9,9 +9,9 @@ schedules:
   always: true
 
 pool:
-  name: BuildXL-DevOpsAgents-Selfhost-BuildCache
+  name: Azure Pipelines
   os: windows
-  demands: ImageOverride -equals 1ESPT-Win2022-PME-3
+  vmImage: windows-latest
 
 variables:
   # We have a separate pipeline that runs clean builds to get full CodeQL coverage.

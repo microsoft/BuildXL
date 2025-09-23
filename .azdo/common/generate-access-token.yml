@@ -11,13 +11,9 @@ parameters:
   default: 'GeneratedAccessToken' # Name of the pipeline variable that will store the generated access token
 
 steps:
-  - task: AzureCLI@2
-    displayName: '🪙 Acquire access token for ${{ parameters.ServiceConnection }}'
-    inputs:
-      azureSubscription: ${{ parameters.ServiceConnection }}
-      addSpnToEnvironment: true
-      scriptType: pscore
-      scriptLocation: inlineScript
-      inlineScript: |
-        $token = az account get-access-token --resource ${{ parameters.Resource }} --output tsv --query accessToken
-        Write-Host "##vso[task.setvariable variable=${{ parameters.AccessTokenVariable }};issecret=true]$token"
+- task: microsoft-1es-production.entra-authenticate.entra-authenticate.EntraAuthenticate@0
+  displayName: '🪙 Acquire access token for ${{ parameters.ServiceConnection }}'
+  inputs:
+    azureSubscription: ${{ parameters.ServiceConnection }}
+    resource: ${{ parameters.Resource }}
+    secretVariable: ${{ parameters.AccessTokenVariable }}

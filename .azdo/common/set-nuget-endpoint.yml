@@ -5,9 +5,13 @@ parameters:
   type: string
 - name: AccessToken
   type: string
+- name: condition
+  type: string
+  default: succeeded()
 
 steps:
 - powershell: |
     Write-Host "Setting NuGet endpoint for ${{ parameters.NuGetServiceConnectionName }} : ${{ parameters.NuGetServiceConnectionId }}"
     Write-Host "##vso[task.setendpoint id=${{ parameters.NuGetServiceConnectionId }};field=authParameter;key=apitoken]${{ parameters.AccessToken }}"
   displayName: 'Set NuGet endpoint for ${{ parameters.NuGetServiceConnectionName }}'
+  condition: ${{ parameters.condition }}

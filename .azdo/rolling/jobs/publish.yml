@@ -190,19 +190,20 @@ jobs:
       errorActionPreference: 'continue'
 
   # The packages are correctly set up to be pushed - on retry runs, we will try to do it even if intermediate steps fail (which can happen due to name conflicts, etc).
-  - script: |
-      echo "##vso[task.setvariable variable=IsRetryRun]true"
+  - powershell: |
+      Write-Host "##vso[task.setvariable variable=IsRetryRun]true"
     displayName: 'Set IsRetryRun variable for publishing on retry'
     condition: and(succeeded(), gt(variables['System.JobAttempt'], 1))
 
   # Upload to pipeline artifacts so we get the required scanning
   - task: 1ES.PublishPipelineArtifact@1
     inputs:
-      targetPath: $(LargePackagesStagingDir)
-      artifactName: BuildXL engine packages
+      targetPath: $(LargePackagesStagingDir)()
+      artifactName: BuildXL engine packages $(System.JobAttempt)
 
   - task: PowerShell@2
     displayName: 'Publish large NuGet Packages with VstsNugetPush.exe'
+    condition: or(succeeded(), eq(variables['IsRetryRun'], true))
     inputs:
       targetType: 'inline'
       script: |
@@ -219,13 +220,15 @@ jobs:
       NuGetServiceConnectionId: 'bf3972a0-77c4-4dd8-8f89-cf4399bc0658'
       NuGetServiceConnectionName: 'mseng-Domino-BuildXL-1ESSharedAssets_BuildXL.Internal'
       AccessToken: $(BuildXL-Pipeline-AccessToken)
+      condition: or(succeeded(), eq(variables['IsRetryRun'], true))
 
   - template: /.azdo/common/set-nuget-endpoint.yml
     parameters:
       NuGetServiceConnectionId: 'af9cb8db-5f2f-4b3e-b436-e1ff62614888'
       NuGetServiceConnectionName: 'mseng-Domino-BuildXL-1ESSharedAssets_BuildXL'
       AccessToken: $(BuildXL-Pipeline-AccessToken)
-  
+      condition: or(succeeded(), eq(variables['IsRetryRun'], true))
+
 - ${{ if eq(parameters.isRollingBuild, true) }}:
   - job: GitHubForcePush
     displayName: Force Push BuildXL.Internal to GitHub Main

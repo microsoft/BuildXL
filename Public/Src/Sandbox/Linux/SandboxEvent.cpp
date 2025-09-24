@@ -116,11 +116,15 @@ SandboxEvent SandboxEvent::CloneSandboxEvent(const char *system_call, pid_t pid,
     return event;
 }
 
-SandboxEvent SandboxEvent::ExecSandboxEvent(const char *system_call, pid_t pid, pid_t ppid, const char *path, std::string command_line) {
+SandboxEvent SandboxEvent::ExecSandboxEvent(const char *system_call, pid_t pid, pid_t ppid, const char *path, std::string command_line) { 
     if (path == nullptr) {
         return SandboxEvent::Invalid();
     }
     
+    return ExecSandboxEvent(system_call, pid, ppid, std::string(path), command_line);
+}
+
+SandboxEvent SandboxEvent::ExecSandboxEvent(const char *system_call, pid_t pid, pid_t ppid, const std::string& path, std::string command_line) {
     auto event = SandboxEvent(
         /* system_call */ system_call,
         /* event_type */ buildxl::linux::EventType::kExec,

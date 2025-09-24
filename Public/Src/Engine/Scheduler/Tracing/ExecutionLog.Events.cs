@@ -509,6 +509,11 @@ namespace BuildXL.Scheduler.Tracing
         /// </summary>
         public bool UsingEBPFSandbox;
 
+        /// <summary>
+        /// Version for EBPF-specific breaking changes in pip fingerprinting
+        /// </summary>
+        public EBPFFingerprintingVersion EBPFFingerprintingVersion;
+
         /// <inheritdoc />
         public ExecutionLogEventMetadata<BuildSessionConfigurationEventData> Metadata => ExecutionLogMetadata.BuildSessionConfiguration;
 
@@ -545,6 +550,7 @@ namespace BuildXL.Scheduler.Tracing
             HonorDirectoryCasingOnDisk = salts.HonorDirectoryCasingOnDisk;
             LinuxOSName = salts.LinuxOSName;
             UsingEBPFSandbox = salts.UsingEBPFSandbox;
+            EBPFFingerprintingVersion = salts.EBPFFingerprintingVersion;
         }
 
         /// <summary>
@@ -582,7 +588,8 @@ namespace BuildXL.Scheduler.Tracing
                        ignoreDeviceIoControlGetReparsePoint: IgnoreDeviceIoControlGetReparsePoint,
                        honorDirectoryCasingOnDisk: HonorDirectoryCasingOnDisk,
                        linuxOSName: LinuxOSName,
-                       usingEBPFSandbox: UsingEBPFSandbox
+                       usingEBPFSandbox: UsingEBPFSandbox,
+                       ebpfFingerprintingVersion: EBPFFingerprintingVersion
                    )
                    {
                        // Constructor appends EngineEnvironmentSettings.FingerprintSalt
@@ -623,6 +630,7 @@ namespace BuildXL.Scheduler.Tracing
             writer.Write(HonorDirectoryCasingOnDisk);
             writer.Write(LinuxOSName);
             writer.Write(UsingEBPFSandbox);
+            writer.Write((int)EBPFFingerprintingVersion);
         }
 
         /// <inheritdoc />
@@ -656,6 +664,7 @@ namespace BuildXL.Scheduler.Tracing
             HonorDirectoryCasingOnDisk = reader.ReadBoolean();
             LinuxOSName = reader.ReadString();
             UsingEBPFSandbox = reader.ReadBoolean();
+            EBPFFingerprintingVersion = (EBPFFingerprintingVersion) reader.ReadInt32();
         }
     }
 

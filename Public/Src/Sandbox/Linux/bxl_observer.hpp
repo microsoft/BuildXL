@@ -468,7 +468,7 @@ public:
     static bool is_non_file(const mode_t mode);
 
     // Enumerates a specified directory
-    bool EnumerateDirectory(std::string rootDirectory, bool recursive, std::vector<std::string>& filesAndDirectories);
+    bool EnumerateDirectory(const std::string& rootDirectory, bool recursive, std::vector<std::string>& filesAndDirectories);
 
     const char* getFamPath() const { return famPath_; };
 

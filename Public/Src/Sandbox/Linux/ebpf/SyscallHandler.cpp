@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+#include <filesystem>
 #include "SyscallHandler.h"
 #include "AccessChecker.h"
 
@@ -47,6 +48,44 @@ SyscallHandler::~SyscallHandler() {
         m_bxl->SendExitReport(getpid(), getppid(), m_root_filename);
     }
  }
+
+void SyscallHandler::ResolveSymlinksIfNeeded(std::string &path, path_symlink_resolution resolution) {
+    switch (resolution) {
+        case noResolve:
+            // nothing to do, the path should be used as is
+            break;
+        case fullyResolve: {
+            // Fully resolve the path. The path shouldn't contain any . or .. components at this point (which weakly_canonical would resolve too),
+            // but what we are interested in is resolving any symlinks in the path. The path should also point to an existing file by design, but
+            // we err on the side of caution and use weakly_canonical which will return a path even if the final file doesn't exist.
+            std::error_code ec;
+            auto resolved_path = std::filesystem::weakly_canonical(path, ec).string();
+            if (ec.value() == 0) {
+                path = resolved_path;
+            }
+            // If we failed to fully resolve the path, just keep the original path
+            
+            break;
+        }
+        case resolveIntermediates: {
+            std::filesystem::path p(path);
+            if (p.has_parent_path()) {
+                std::error_code ec;
+                auto parent = std::filesystem::weakly_canonical(p.parent_path(), ec);
+                if (ec.value() == 0) {
+                    path = (parent / p.filename()).string();
+                }
+                // If we failed to resolve the parent path, just keep the original path
+            }
+            // If there's no parent path (e.g., just a filename), nothing to resolve
+            
+            break;
+        }
+        default:
+            assert(false && "Unknown symlink resolution type");
+            break;
+    }
+}
 
 std::string SyscallHandler::DecodeIncrementalEvent(const ebpf_event* event) {
     std::string final_path;
@@ -104,10 +143,13 @@ bool SyscallHandler::HandleSingleEvent(const ebpf_event *event) {
     // For some operations (e.g. memory files) our path translation returns an empty string. Those cases
     // should match with the ones we don't care about tracing. So do not send that event to managed side but
     // let the log debug event call above log it, so we can investigate otherwise.
-    if (!IsPathFullyResolved(final_path)) {
+    if (!IsPathRooted(final_path)) {
         return false;
     }
 
+    // Some paths may still contain unresolved symlinks. Resolve them if needed.
+    ResolveSymlinksIfNeeded(final_path, event->metadata.symlink_resolution);
+    
     switch(event->metadata.operation_type) {
         case kClone:
         {
@@ -268,9 +310,16 @@ bool SyscallHandler::HandleDoubleEvent(const ebpf_event_double *event) {
     assert(event->metadata.source_path_incremental_length == 0 && "Incremental paths are not supported for double path events");
 
     // Same consideration for fully resolved paths as in the single path case
-    if (!IsPathFullyResolved(src_path) || !IsPathFullyResolved(dst_path)) {
+    if (!IsPathRooted(src_path) || !IsPathRooted(dst_path)) {
         return false;
     }
+
+    std::string sourcePath(src_path);
+    std::string destinationPath(dst_path);
+
+    // Some paths may still contain unresolved symlinks. Resolve them if needed.
+    ResolveSymlinksIfNeeded(sourcePath, event->metadata.symlink_resolution);
+    ResolveSymlinksIfNeeded(destinationPath, event->metadata.symlink_resolution);
 
     switch (event->metadata.operation_type) {
         case kRename:
@@ -280,9 +329,7 @@ bool SyscallHandler::HandleDoubleEvent(const ebpf_event_double *event) {
             // We can enumerate the destination directory instead.
             if (S_ISDIR(event->metadata.mode)) {
                 std::vector<std::string> filesAndDirectories;
-                std::string sourcePath(src_path);
-                std::string destinationPath(dst_path);
-                m_bxl->EnumerateDirectory(dst_path, /* recursive */ true, filesAndDirectories);
+                m_bxl->EnumerateDirectory(destinationPath, /* recursive */ true, filesAndDirectories);
 
                 for (auto fileOrDirectory : filesAndDirectories) {
                     // Destination
@@ -323,10 +370,10 @@ bool SyscallHandler::HandleDoubleEvent(const ebpf_event_double *event) {
                 }
             }
             else {
-                auto mode = m_bxl->get_mode(dst_path);
+                auto mode = m_bxl->get_mode(destinationPath.c_str());
                 // Source
                 // Send this special event on write, similar to what we do with a kWrite coming from EBPF
-                ReportFirstAllowWriteCheck(m_bxl, kGenericWrite, src_path, mode, event->metadata.pid);
+                ReportFirstAllowWriteCheck(m_bxl, kGenericWrite, sourcePath, mode, event->metadata.pid);
 
                 auto sandboxEventSource = SandboxEvent::AbsolutePathSandboxEvent(
                     /* system_call */   kernel_function_to_string(event->metadata.kernel_function),
@@ -334,7 +381,7 @@ bool SyscallHandler::HandleDoubleEvent(const ebpf_event_double *event) {
                     /* pid */           event->metadata.pid,
                     /* ppid */          0,
                     /* error */         0,
-                    /* src_path */      src_path);
+                    /* src_path */      sourcePath);
                 // Source should be absent now, infer the mode from the destination
                 sandboxEventSource.SetMode(mode);
                 sandboxEventSource.SetRequiredPathResolution(RequiredPathResolution::kDoNotResolve);
@@ -342,7 +389,7 @@ bool SyscallHandler::HandleDoubleEvent(const ebpf_event_double *event) {
 
                 // Destination
                 // Send this special event on creation, similar to what we do with a kCreate coming from EBPF
-                ReportFirstAllowWriteCheck(m_bxl, kCreate, dst_path, mode, event->metadata.pid);
+                ReportFirstAllowWriteCheck(m_bxl, kCreate, destinationPath, mode, event->metadata.pid);
 
                 auto sandboxEventDestination = SandboxEvent::AbsolutePathSandboxEvent(
                     /* system_call */   kernel_function_to_string(event->metadata.kernel_function),
@@ -350,7 +397,7 @@ bool SyscallHandler::HandleDoubleEvent(const ebpf_event_double *event) {
                     /* pid */           event->metadata.pid,
                     /* ppid */          0,
                     /* error */         0,
-                    /* src_path */      dst_path);
+                    /* src_path */      destinationPath);
                 sandboxEventDestination.SetMode(mode);
                 sandboxEventDestination.SetRequiredPathResolution(RequiredPathResolution::kDoNotResolve);
                 CreateAndReportAccess(m_bxl, sandboxEventDestination, /* check cache */ true);
@@ -377,11 +424,15 @@ bool SyscallHandler::HandleExecEvent(const ebpf_event_exec *event) {
     // Track the total bytes submitted for this event
     m_bytesSubmitted += sizeof(ebpf_event_metadata) + strlen(exe_path) + 1 + strlen(args) + 1;
 
+    // Some paths may still contain unresolved symlinks. Resolve them if needed.
+    std::string exePath(exe_path);
+    ResolveSymlinksIfNeeded(exePath, event->metadata.symlink_resolution);
+
     auto sandboxEvent = SandboxEvent::ExecSandboxEvent(
         /* system_call */   kernel_function_to_string(event->metadata.kernel_function),
         /* pid */           event->metadata.pid,
         /* ppid */          0,
-        /* path */          exe_path,
+        /* path */          exePath,
         /* command_line */  m_bxl->IsReportingProcessArgs() ? args : "");
     CreateAndReportAccess(m_bxl,sandboxEvent, /* check_cache */ false);
 

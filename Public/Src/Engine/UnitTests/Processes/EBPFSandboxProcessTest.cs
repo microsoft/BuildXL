@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.IO;
 using System.Collections.Generic;
 using BuildXL.Processes;
 using BuildXL.Utilities.Core;
@@ -13,6 +14,7 @@ using BuildXL.Processes.Tracing;
 using BuildXL.Utilities;
 using System.Diagnostics;
 using System.Linq;
+using BuildXL.Native.IO;
 
 #nullable enable
 
@@ -210,7 +212,7 @@ namespace Test.BuildXL.Processes
         [InlineData("/another/untracked/path", false)]
         public void AccessesUnderUntrackedScopesAreNotSent(string access, bool expectUntracked)
         {
-            var fileAccessManifest = new FileAccessManifest(Context.PathTable)  
+            var fileAccessManifest = new FileAccessManifest(Context.PathTable)
             {
                 FailUnexpectedFileAccesses = false,
                 ReportFileAccesses = true,
@@ -362,6 +364,72 @@ namespace Test.BuildXL.Processes
             // Retrieve the single synthetic probe we sent and check that the path has been canonicalized correctly
             var probe = messages.Where(s => s.Contains("kernel function: test_synthetic")).Single();
             XAssert.Contains(probe, $"path: '{canonicalizedPath}'");
+        }
+
+        [Theory]
+        [InlineData("/usr/bin/readlink", "dir-link/file-link", "dir/file-link")]
+        [InlineData("/usr/bin/mkdir", "dir-link/new-dir", "dir/new-dir")]
+        [InlineData("/usr/bin/rmdir", "dir-link/nested", "dir/nested")]
+        public void RawStringOperationsResolveSymlinks(string command, string arguments, string expected)
+        {
+            // Creates the following layout:
+            //   dir/
+            //      nested/
+            //      file.txt
+            //      file-link -> file.txt
+            //   dir-link/ -> dir
+
+            var dir = Path.Combine(TemporaryDirectory, "dir");
+            var file = Path.Combine(dir, "file.txt");
+            var dirLink = Path.Combine(TemporaryDirectory, "dir-link");
+            var fileLinkViaDirLink = Path.Combine(dirLink, "file-link");
+
+            FileUtilities.CreateDirectory(dir);
+            FileUtilities.CreateDirectory(Path.Combine(dir, "nested"));
+            File.WriteAllText(file, "hi");
+
+            // Create dirLink -> dir
+            var res = FileUtilities.TryCreateSymbolicLink(dirLink, dir, isTargetFile: false);
+            XAssert.IsTrue(res.Succeeded);
+            // Create dir-link/file-link -> dir/file
+            res = FileUtilities.TryCreateSymbolicLink(fileLinkViaDirLink, file, isTargetFile: true);
+            XAssert.IsTrue(res.Succeeded);
+
+            var fileAccessManifest = new FileAccessManifest(Context.PathTable)
+            {
+                FailUnexpectedFileAccesses = false,
+                ReportFileAccesses = true,
+                MonitorChildProcesses = true,
+                PipId = 1,
+                EnableLinuxSandboxLogging = true
+            };
+
+            var info =
+                new SandboxedProcessInfo(
+                    Context.PathTable,
+                    new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory),
+                    command,
+                    fileAccessManifest,
+                    disableConHostSharing: false,
+                    loggingContext: LoggingContext,
+                    useGentleKill: true)
+                {
+                    // stat under the untracked scope
+                    Arguments = arguments,
+                    WorkingDirectory = TemporaryDirectory,
+                    PipSemiStableHash = fileAccessManifest.PipId,
+                    PipDescription = $"EBPF symlink resolution test for {command}",
+                    SandboxConnection = new SandboxConnectionLinuxEBPF(ebpfDaemonTask: null),
+                };
+
+            var process = SandboxedProcessFactory.StartAsync(info, forceSandboxing: true).GetAwaiter().GetResult();
+            var result = process.GetResultAsync().GetAwaiter().GetResult();
+            XAssert.AreEqual(0, result.ExitCode);
+
+            var expectedPath = AbsolutePath.Create(Context.PathTable, Path.Combine(TemporaryDirectory, expected));
+
+            var expectedAccess = result.FileAccesses?.Single(access => access.ManifestPath == expectedPath);
+            XAssert.IsNotNull(expectedAccess, $"Expected to find an access to {expectedPath} in the unexpected accesses: {string.Join(Environment.NewLine, result.FileAccesses?.Select(a => a.Path) ?? Array.Empty<string>())}");
         }
     }
 }

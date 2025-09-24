@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <errno.h>
+#include <cstdint>
 #include <linux/types.h>
 #include "ebpfcommon.h"
 #include "test_utils.hpp"

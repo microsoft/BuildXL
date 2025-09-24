@@ -48,7 +48,8 @@ namespace BuildXL.Pips.Graph
             ignoreDeviceIoControlGetReparsePoint: true,
             honorDirectoryCasingOnDisk: false,
             linuxOSName: OperatingSystemHelper.IsLinuxOS ? OperatingSystemHelperExtension.GetLinuxDistribution().Id : string.Empty,
-            usingEBPFSandbox: false);
+            usingEBPFSandbox: false,
+            ebpfFingerprintingVersion: EBPFFingerprintingVersion.Version);
 
         /// <summary>
         /// Returns a default value for this struct.
@@ -98,8 +99,9 @@ namespace BuildXL.Pips.Graph
                 config.Sandbox.UnsafeSandboxConfiguration.IgnoreDeviceIoControlGetReparsePoint,
                 config.Cache.HonorDirectoryCasingOnDisk,
                 OperatingSystemHelper.IsLinuxOS ? OperatingSystemHelperExtension.GetLinuxDistribution().Id : string.Empty,
-                OperatingSystemHelper.IsLinuxOS && config.Sandbox.EnableEBPFLinuxSandbox
-                )
+                OperatingSystemHelper.IsLinuxOS && config.Sandbox.EnableEBPFLinuxSandbox,
+                EBPFFingerprintingVersion.Version
+            )
         {
         }
 
@@ -145,6 +147,7 @@ namespace BuildXL.Pips.Graph
         /// <param name="honorDirectoryCasingOnDisk">Whether /honorDirectoryCasingOnDisk was passed to BuildXL.</param>
         /// <param name="linuxOSName">The linux os name (Ubuntu or Mariner), string.Empty if current environment is windows</param>
         /// <param name="usingEBPFSandbox">Whether the EBPF sandbox is being used (on Linux)</param>
+        /// <param name="ebpfFingerprintingVersion">Version for EBPF-specific breaking changes in pip fingerprinting</param>
         public ExtraFingerprintSalts(
             bool ignoreSetFileInformationByHandle,
             bool ignoreZwRenameFileInformation,
@@ -172,7 +175,8 @@ namespace BuildXL.Pips.Graph
             bool ignoreDeviceIoControlGetReparsePoint,
             bool honorDirectoryCasingOnDisk,
             string linuxOSName,
-            bool usingEBPFSandbox)
+            bool usingEBPFSandbox,
+            EBPFFingerprintingVersion ebpfFingerprintingVersion)
         {
             IgnoreSetFileInformationByHandle = ignoreSetFileInformationByHandle;
             IgnoreZwRenameFileInformation = ignoreZwRenameFileInformation;
@@ -202,6 +206,7 @@ namespace BuildXL.Pips.Graph
             HonorDirectoryCasingOnDisk = honorDirectoryCasingOnDisk;
             LinuxOSName = linuxOSName;
             UsingEBPFSandbox = usingEBPFSandbox;
+            EBPFFingerprintingVersion = ebpfFingerprintingVersion;
         }
 #pragma warning restore CS1572
 
@@ -348,6 +353,14 @@ namespace BuildXL.Pips.Graph
         /// </summary>
         public bool UsingEBPFSandbox { get; }
 
+        /// <summary>
+        /// Version for EBPF-specific breaking changes in pip fingerprinting 
+        /// </summary>
+        /// <remarks>
+        /// Only applicable when <see cref="UsingEBPFSandbox"/> is true.
+        /// </remarks>
+        public EBPFFingerprintingVersion EBPFFingerprintingVersion { get; }
+
         /// <nodoc />
         public static bool operator ==(ExtraFingerprintSalts left, ExtraFingerprintSalts right)
         {
@@ -395,7 +408,8 @@ namespace BuildXL.Pips.Graph
                 && other.IgnoreDeviceIoControlGetReparsePoint.Equals(IgnoreDeviceIoControlGetReparsePoint)
                 && other.HonorDirectoryCasingOnDisk.Equals(HonorDirectoryCasingOnDisk)
                 && string.Equals(LinuxOSName, other.LinuxOSName)
-                && UsingEBPFSandbox == other.UsingEBPFSandbox;
+                && UsingEBPFSandbox == other.UsingEBPFSandbox
+                && EBPFFingerprintingVersion == other.EBPFFingerprintingVersion;
         }
 
         /// <inheritdoc />
@@ -436,6 +450,7 @@ namespace BuildXL.Pips.Graph
                 hashCode = (hashCode * 397) ^ HonorDirectoryCasingOnDisk.GetHashCode();
                 hashCode = (hashCode * 397) ^ (string.IsNullOrEmpty(LinuxOSName) ? 0 : LinuxOSName.GetHashCode());
                 hashCode = (hashCode * 397) ^ (UsingEBPFSandbox.GetHashCode());
+                hashCode = (hashCode * 397) ^ (EBPFFingerprintingVersion.GetHashCode());
 
                 return hashCode;
             }
@@ -527,7 +542,7 @@ namespace BuildXL.Pips.Graph
 
             if (UsingEBPFSandbox)
             {
-                fingerprinter.Add(nameof(UsingEBPFSandbox), 1);
+                fingerprinter.Add(nameof(UsingEBPFSandbox), (int) EBPFFingerprintingVersion);
             }
         }
 

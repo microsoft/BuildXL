@@ -1,4 +1,5 @@
 #include <functional>
+#include <cstdint>
 
 #include <bpf/bpf.h>
 #include "bpf/bpf.h"

@@ -111,6 +111,19 @@ inline const char* operation_type_to_string(operation_type o) {
     }
 }
 
+// Describes how symlinks should be resolved on managed side when looking up a path
+// Most ebpf programs will get paths that are already resolved, so there is no need to resolve symlinks. However,
+// some programs (like readlink) use paths as strings and they may contain symlinks. We indicate how to handle those
+// cases with this enum. The resolution is done in userspace, so this is just a hint to indicate how the path should be treated.
+typedef enum path_symlink_resolution {
+    // Resolve intermediate symlinks, but not the final component of the path (basically, O_NOFOLLOW)
+    resolveIntermediates = 0,
+    // Resolve intermediate symlinks and the final component of the path
+    fullyResolve,
+    // Do not resolve any symlinks
+    noResolve
+} path_symlink_resolution;
+
 // This function is arbitrarily picked as the witness for having loaded all our ebpf programs
 #define LOADING_WITNESS wake_up_new_task
 
@@ -197,11 +210,24 @@ typedef enum ebpf_event_type {
 } ebpf_event_type;
 
 typedef struct ebpf_event_metadata {
-    ebpf_event_type event_type;
-    // The 'conceptual' operation the event represents (e.g. a read, an exec, etc.)
-    enum operation_type operation_type;
-    // The kernel function we trace. Mostly for debugging purposes
-    enum kernel_function kernel_function;
+    // We have a bunch of enums here that we want to keep as small as possible
+    // to save space in the event metadata. We use bitfields to pack them tightly.
+    // Today we need 15 bits to encode all the enums, so we can fit them in 2 bytes (16 bits).
+    union {
+        struct {
+            // Main event type (single path, double path, exec, etc.)
+            enum ebpf_event_type event_type : 3;
+            // The 'conceptual' operation the event represents (e.g. a read, an exec, etc.)
+            enum operation_type operation_type : 5;
+            // The kernel function we trace. Mostly for debugging purposes
+            enum kernel_function kernel_function : 5;
+            // Whether symlinks should be resolved
+            enum path_symlink_resolution symlink_resolution : 2;
+            // Padding bits to make the struct aligned to 2 bytes
+            uint16_t reserved : 1;
+        } __attribute__((packed));
+        uint16_t packed_enums;
+    };
     int pid;
     int child_pid;
     unsigned int mode;

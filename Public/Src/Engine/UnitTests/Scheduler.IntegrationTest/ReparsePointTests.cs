@@ -1326,7 +1326,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             }
         }
 
-        [FactIfSupported(requiresSymlinkPermission: true, requiresWindowsBasedOperatingSystem: true)]
+        [FactIfSupported(requiresSymlinkPermission: true)]
         public void ResolvedSymlinkCachingBehavior()
         {
             Configuration.Sandbox.UnsafeSandboxConfigurationMutable.IgnoreFullReparsePointResolving = false;

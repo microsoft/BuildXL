@@ -85,6 +85,8 @@ int BPF_PROG(LOADING_WITNESS, struct task_struct *new_task)
         runner_pid,
         kClone, 
         KERNEL_FUNCTION(wake_up_new_task), 
+        // exec path coming from kernel internals, so we don't need to fully resolve it
+        noResolve,
         current_pid, 
         new_pid, 
         // The path associated to the executable of a new task is always a regular file
@@ -265,6 +267,8 @@ int BPF_PROG(bprm_execve_enter, struct linux_binprm *bprm) {
             runner_pid,
             kBreakAway,
             KERNEL_FUNCTION(security_bprm_committed_creds),
+            // path coming from kernel internals, so we don't need to fully resolve it
+            noResolve,
             pid,
             /* child_pid */ 0,
             /* mode */ 0,
@@ -314,6 +318,8 @@ int BPF_PROG(taskstats_exit, struct task_struct *tsk, int group_dead)
         runner_pid,
         kExit,
         KERNEL_FUNCTION(exit),
+        // path coming from kernel internals, so we don't need to fully resolve it
+        noResolve,
         pid,
         /* child_pid */ 0,
         /* mode */ S_IFREG,
@@ -428,6 +434,8 @@ int BPF_PROG(do_mkdirat_exit, int dfd, struct filename *name, umode_t mode, int 
         runner_pid,
         kCreate,
         KERNEL_FUNCTION(do_mkdirat),
+        // mkdir path coming from user side, it may contain symlinks that need to be resolved
+        fullyResolve,
         pid,
         /* child_pid */ 0,
         /* mode */ S_IFDIR,
@@ -479,6 +487,8 @@ int BPF_PROG(do_rmdir_exit, int dfd, struct filename *name, int ret)
         runner_pid,
         kUnlink,
         KERNEL_FUNCTION(do_rmdir),
+        // rmdir path coming from user side, it may contain symlinks that need to be resolved
+        fullyResolve,
         pid,
         /* child_pid */ 0,
         // if the call was successful, the directory is gone, so getting the mode will give us back
@@ -530,6 +540,8 @@ int BPF_PROG(security_path_unlink_enter, const struct path *dir, struct dentry *
         runner_pid,
         kGenericWrite,
         KERNEL_FUNCTION(security_path_unlink),
+        // A path coming from a dentry is always fully resolved
+        noResolve,
         pid,
         /* child_pid */ 0,
         /* mode */ mode,
@@ -582,6 +594,8 @@ int BPF_PROG(security_path_link_entry, struct dentry *old_dentry, const struct p
         runner_pid,
         kGenericWrite,
         KERNEL_FUNCTION(security_path_link),
+        // A path coming from a dentry is always fully resolved
+        noResolve,
         pid,
         /* child_pid */ 0,
         /* mode */ get_mode(new_dentry),
@@ -643,6 +657,8 @@ int BPF_PROG(path_lookupat_exit, struct nameidata *nd, unsigned flags, struct pa
         runner_pid,
         kGenericProbe,
         KERNEL_FUNCTION(path_lookupat),
+        // This represents an absent probe, and therefore resolution is not possible. Managed side will deal with it.
+        noResolve,
         pid,
         /* child_pid */ 0,
         /* mode */ ret == 0 ? BPF_CORE_READ(nd, inode, i_mode) : 0,
@@ -697,6 +713,8 @@ int BPF_PROG(path_parentat, struct nameidata *nd, unsigned flags, struct path *p
         runner_pid,
         kGenericProbe,
         KERNEL_FUNCTION(path_parentat),
+        // This represents an absent probe, and therefore resolution is not possible. Managed side will deal with it.
+        noResolve,
         pid,
         /* child_pid */ 0,
         /* mode */ ret == 0 ? BPF_CORE_READ(nd, inode, i_mode) : 0,
@@ -747,19 +765,30 @@ int BPF_PROG(path_openat_exit, struct nameidata *nd, const struct open_flags *op
     {
         return 0;
     }
-    int path_length = nameidata_to_string(temp_path, nd) & (PATH_MAX - 1);
 
-    // The path comes from user side and it may not be canonicalized
-    path_length = canonicalize_path(temp_path, path_length) & (PATH_MAX - 1);
-    if (path_length < 0 || path_length >= PATH_MAX) {
-        report_path_canonicalization_error(runner_pid);
-        return 0;
+    int path_length;
+    // If openat failed, there is no file structure associated with the path. We need to get the path from nameidata instead
+    if (IS_ERR(ret)) {
+        path_length = nameidata_to_string(temp_path, nd) & (PATH_MAX - 1);
+
+        // The path comes from user side and it may not be canonicalized
+        path_length = canonicalize_path(temp_path, path_length) & (PATH_MAX - 1);
+        if (path_length < 0 || path_length >= PATH_MAX) {
+            report_path_canonicalization_error(runner_pid);
+            return 0;
+        }
+
+        // Check the string cache.
+        if (!should_send_string(runner_pid, kGenericProbe, temp_path, path_length))
+        {
+            return 0;
+        }
     }
-
-    // If this is an error, there is no file structure associated with the path. Check the string cache instead.
-    if (IS_ERR(ret) && !should_send_string(runner_pid, kGenericProbe, temp_path, path_length))
-    {
-        return 0;
+    // If the openat succeeded, the return value points to the corresponding file structure. Let's get the path from there.
+    // Observe we already checked the event cache above in this case
+    else {
+        struct path path = BPF_CORE_READ(ret, f_path);
+        path_length = path_to_string(temp_path, &path) & (PATH_MAX - 1);
     }
 
     // This avoids a verifier quirk where it complains about a registry spill. The result of PTR_ERR is a long
@@ -775,6 +804,9 @@ int BPF_PROG(path_openat_exit, struct nameidata *nd, const struct open_flags *op
         runner_pid,
         kGenericProbe,
         KERNEL_FUNCTION(path_openat),
+        // If the openat succeeded, the path comes from kernel internals, so we don't need to fully resolve it. Otherwise, openat failed and attempting to resolve it
+        // will likely follow the same fate. So in both cases, we don't need to resolve it
+        noResolve,
         pid,
         /* child_pid */ 0,
         /* mode */ mode,
@@ -826,6 +858,8 @@ int BPF_PROG(security_file_open_enter, struct file *file)
         runner_pid,
         kGenericProbe,
         KERNEL_FUNCTION(security_file_open),
+        // A path coming from a dentry is always fully resolved
+        noResolve,
         pid,
         /* child_pid */ 0,
         /* mode */ mode,
@@ -882,6 +916,8 @@ int BPF_PROG(security_file_permission_enter, struct file *file, int mask)
         runner_pid,
         eventType,
         KERNEL_FUNCTION(security_file_permission),
+        // A path coming from a dentry is always fully resolved
+        noResolve,
         pid,
         /* child_pid */ 0,
         /* mode */ mode,
@@ -933,6 +969,8 @@ int BPF_PROG(security_path_symlink_enter, const struct path *parent_dir, struct 
         runner_pid,
         kGenericWrite,
         KERNEL_FUNCTION(security_path_symlink),
+        // A path coming from a dentry is always fully resolved
+        noResolve,
         pid,
         /* child_pid */ 0,
         /* mode */ get_mode(dentry),
@@ -982,6 +1020,8 @@ int BPF_PROG(security_path_mknod_enter, const struct path *parent_dir, struct de
         runner_pid,
         kCreate,
         KERNEL_FUNCTION(security_path_mknod),
+        // A path coming from a dentry is always fully resolved
+        noResolve,
         pid,
         /* child_pid */ 0,
         /* mode */ mode,
@@ -1040,6 +1080,8 @@ int BPF_PROG(security_inode_getattr_exit, const struct path *path, int ret)
         runner_pid,
         kGenericProbe,
         KERNEL_FUNCTION(security_inode_getattr),
+        // A path coming from a dentry is always fully resolved
+        noResolve,
         pid,
         /* child_pid */ 0,
         /* mode */ mode,
@@ -1121,6 +1163,9 @@ int BPF_PROG(do_readlink_exit, int dfd, const char *pathname, char *buf, int buf
         // On error, we report a probe, since the path was not actually read.
         op_type,
         KERNEL_FUNCTION(do_readlinkat),
+        // The path comes from user side, it may contain symlinks that need to be resolved. However we need to not resolve the final component,
+        // as readlink is supposed to read the symlink itself, not the target.
+        resolveIntermediates,
         pid,
         /* child_pid */ 0,
         // If the call was successful, it means the symlink is legit.
@@ -1198,6 +1243,8 @@ int BPF_PROG(step_into_exit, struct nameidata *nd, int flags,
         runner_pid,
         kGenericRead,
         KERNEL_FUNCTION(pick_link_enter),
+        // The path comes from kernel internals, so we don't need to resolve it
+        noResolve,
         pid,
         /* child_pid */ 0,
         /* mode */ get_mode_from_path(&link),
@@ -1252,6 +1299,8 @@ int BPF_PROG(pick_link_exit, struct nameidata *nd, struct path *link,
         runner_pid,
         kGenericRead,
         KERNEL_FUNCTION(pick_link_enter),
+        // The path comes from kernel internals, so we don't need to resolve it
+        noResolve,
         pid,
         /* child_pid */ 0,
         /* mode */ get_mode_from_path(link),
@@ -1300,6 +1349,8 @@ int BPF_PROG(security_path_chown, const struct path *path)
         runner_pid,
         kGenericWrite,
         KERNEL_FUNCTION(security_path_chown),
+        // The path comes from kernel internals, so we don't need to resolve it
+        noResolve,
         pid,
         /* child_pid */ 0,
         /* mode */ mode,
@@ -1348,6 +1399,8 @@ int BPF_PROG(security_path_chmod, const struct path *path)
         runner_pid,
         kGenericWrite,
         KERNEL_FUNCTION(security_path_chmod),
+        // The path comes from kernel internals, so we don't need to resolve it
+        noResolve,
         pid,
         /* child_pid */ 0,
         /* mode */ mode,
@@ -1396,6 +1449,8 @@ int BPF_PROG(security_file_truncate, struct file *file)
         runner_pid,
         kGenericWrite,
         KERNEL_FUNCTION(security_file_truncate),
+        // The path comes from kernel internals, so we don't need to resolve it
+        noResolve,
         pid,
         /* child_pid */ 0,
         /* mode */ mode,
@@ -1445,6 +1500,8 @@ int BPF_PROG(vfs_utimes, const struct path *path)
         runner_pid,
         kGenericWrite,
         KERNEL_FUNCTION(vfs_utimes),
+        // The path comes from kernel internals, so we don't need to resolve it
+        noResolve,
         pid,
         /* child_pid */ 0,
         /* mode */ mode,
@@ -1531,6 +1588,8 @@ int test_incremental_event(struct test_incremental_event_args *event) {
         runner_pid,
         kGenericProbe,
         KERNEL_FUNCTION(test_synthetic),
+        // This is a synthetic event, so we don't need to resolve it
+        noResolve,
         pid,
         /* child_pid */ 0,
         /* mode */ 0,
@@ -1550,6 +1609,8 @@ int test_incremental_event(struct test_incremental_event_args *event) {
         runner_pid,
         kGenericProbe,
         KERNEL_FUNCTION(test_synthetic),
+        // This is a synthetic event, so we don't need to resolve it
+        noResolve,
         pid,
         /* child_pid */ 0,
         /* mode */ 0,
@@ -1607,6 +1668,8 @@ int test_path_canonicalization(struct test_path_canonicalization_args *event) {
         runner_pid,
         kGenericProbe,
         KERNEL_FUNCTION(test_synthetic),
+        // This is a synthetic event, so we don't need to resolve it
+        noResolve,
         pid,
         /* child_pid */ 0,
         /* mode */ 0,

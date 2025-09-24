@@ -1047,6 +1047,7 @@ __attribute__((always_inline)) static int write_metadata(
     metadata->mode = metadata_to_write->mode;
     metadata->error = metadata_to_write->error;
     metadata->source_path_incremental_length = prefix_len;
+    metadata->symlink_resolution = metadata_to_write->symlink_resolution;
 
     return 0;
 }
@@ -1282,6 +1283,7 @@ __attribute__((always_inline)) static void submit_file_access(
     pid_t runner_pid,
     enum operation_type operation_type,
     enum kernel_function kernel_function,
+    enum path_symlink_resolution symlink_resolution,
     int pid,
     int child_pid,
     unsigned int mode,
@@ -1315,6 +1317,7 @@ __attribute__((always_inline)) static void submit_file_access(
         .event_type = SINGLE_PATH,
         .operation_type = operation_type,
         .kernel_function = kernel_function,
+        .symlink_resolution = symlink_resolution,
         .pid = pid,
         .child_pid = child_pid,
         .mode = mode,
@@ -1405,6 +1408,8 @@ __attribute__((always_inline)) static void submit_file_access_double(
     metadata->operation_type = operation_type;
     metadata->mode = mode;
     metadata->error = error;
+    // The only case where we use double events is rename, which does not need any resolution
+    metadata->symlink_resolution = noResolve;
 
     // Write the src path length field, which is the immediate next one after the metadata in a double event
     if (bpf_dynptr_write(&ptr, sizeof(ebpf_event_metadata), &src_path_length, sizeof(int), /* flags*/ 0)) {
@@ -1510,6 +1515,8 @@ __attribute__((always_inline)) static void submit_exec(
     metadata->pid = pid;
     metadata->error = 0;
     metadata->mode = S_IFREG;
+    // Exec events always need to fully resolve the path since the path comes from user space
+    metadata->symlink_resolution = fullyResolve;
 
     // Write the path_length field, which is the immediate next one after the metadata in an exec event
     if (bpf_dynptr_write(&ptr, sizeof(ebpf_event_metadata), &exe_path_length, sizeof(int), /* flags*/ 0)) {

@@ -151,9 +151,15 @@ public:
     static SandboxEvent CloneSandboxEvent(const char *system_call, pid_t pid, pid_t ppid, const std::string& path);
 
     /**
+     * Deals with the case of null paths, mapping them to the invalid event. See the std::string version below for the actual implementation.
      * SandboxEvent for exec events.
      */
     static SandboxEvent ExecSandboxEvent(const char *system_call, pid_t pid, pid_t ppid, const char *path, std::string command_line);
+
+    /**
+     * SandboxEvent for exec events.
+     */
+    static SandboxEvent ExecSandboxEvent(const char *system_call, pid_t pid, pid_t ppid, const std::string& path, std::string command_line);
 
     /**
      * SandboxEvent for an exit event.

@@ -1241,7 +1241,7 @@ char** BxlObserver::ensureEnvs(char *const envp[])
     }
 }
 
-bool BxlObserver::EnumerateDirectory(std::string rootDirectory, bool recursive, std::vector<std::string>& filesAndDirectories)
+bool BxlObserver::EnumerateDirectory(const std::string& rootDirectory, bool recursive, std::vector<std::string>& filesAndDirectories)
 {
     std::stack<std::string> directoriesToEnumerate;
     DIR *dir;

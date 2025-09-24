@@ -65,14 +65,19 @@ private:
     static bool TryCreateFirstAllowWriteCheck(BxlObserver *bxl, operation_type operation_type, const std::string& path, mode_t mode, pid_t pid, SandboxEvent &event);
     static void SendInitForkEvent(BxlObserver *bxl, pid_t pid, pid_t ppid, const char *file);
     /**
-    * Whether a path is fully resolved (i.e. starts with a '/')
+    * Whether a path is rooted (i.e. starts with a '/')
     */
-    static bool IsPathFullyResolved(const std::string& path) { return !path.empty() && path[0] == '/'; }
+    static bool IsPathRooted(const std::string& path) { return !path.empty() && path[0] == '/'; }
 
     /** 
      * Decodes an incremental event into a full path.
      */
     std::string DecodeIncrementalEvent(const ebpf_event* event);
+
+    /**
+     * Resolves symlinks in the given path based on the specified resolution strategy.
+     */
+    void ResolveSymlinksIfNeeded(std::string &path, path_symlink_resolution resolution);
 
     // Sends general stats of the runner execution.
     // Heads up this should be sent before the runner exit event, otherwise the managed side may not be able to read it.

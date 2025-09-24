@@ -598,9 +598,7 @@ Versions/sym-sym-A -> sym-A/
         /// being treated as a directory location, and thus the content of the directory symlink is not tracked. Due to this,
         /// underbuilds occurred.
         /// </remarks>
-        [FactIfSupported(
-            requiresSymlinkPermission: true,
-            requiresWindowsBasedOperatingSystem: true /* Directory symlink is not relevant on non-Windows OS */)]
+        [FactIfSupported(requiresSymlinkPermission: true)]
         public void ReadThroughAndProbeDirectorySymlink()
         {
             // Make directory probe explicitly reported.

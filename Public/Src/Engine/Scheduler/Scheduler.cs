@@ -3016,7 +3016,7 @@ namespace BuildXL.Scheduler
 
             // If the available remote workers perform at that multiplier capacity in future, how many process pips we can concurrently execute:
             int totalProcessSlots = LocalWorker.TotalProcessSlots +
-               (int)Math.Ceiling(m_configuration.Distribution.EarlyWorkerReleaseMultiplier * m_remoteWorkers.Where(a => a.IsAvailable).Sum(a => a.TotalProcessSlots));
+               (int)Math.Ceiling(m_configuration.Distribution.EarlyWorkerReleaseMultiplier * m_remoteWorkers.Where(a => a.IsAvailable && !a.IsEarlyReleaseInitiated).Sum(a => a.TotalProcessSlots));
 
             // Release worker if numProcessPipsWaiting can be satisfied by remaining workers
             var remainingSlotsPostRelease = totalProcessSlots - workerToReleaseCandidate.TotalProcessSlots;

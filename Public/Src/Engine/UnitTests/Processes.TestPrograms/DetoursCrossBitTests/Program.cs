@@ -203,7 +203,6 @@ namespace DetoursCrossBitTests
                 Pip pip = null;
 
                 var instructions = restInstructions as string[] ?? restInstructions.ToArray();
-
                 switch (program)
                 {
                     case PipProgram.Cmd:
@@ -320,6 +319,65 @@ namespace DetoursCrossBitTests
             return pip;
         }
 
+        /// <summary>
+        /// Checks if the specified executable file is a 32-bit program.
+        /// </summary>
+        /// <param name="executablePath">Path to the executable file.</param>
+        /// <returns>True if the executable is 32-bit, false if 64-bit.</returns>
+        /// <exception cref="InvalidOperationException">Thrown when the file format is invalid or unsupported.</exception>
+        private static bool Is32BitExecutable(string executablePath)
+        {
+            Contract.Requires(!string.IsNullOrEmpty(executablePath));
+
+            if (!File.Exists(executablePath))
+            {
+                throw new FileNotFoundException($"Executable file not found: {executablePath}");
+            }
+
+            using (var stream = new FileStream(executablePath, FileMode.Open, FileAccess.Read))
+            using (var reader = new BinaryReader(stream))
+            {
+                // Check DOS header signature
+                if (reader.ReadUInt16() != 0x5A4D) // "MZ"
+                {
+                    throw new InvalidOperationException("Invalid DOS header signature");
+                }
+
+                // Skip to PE header offset (at position 0x3C)
+                stream.Seek(0x3C, SeekOrigin.Begin);
+                uint peHeaderOffset = reader.ReadUInt32();
+
+                // Jump to PE header
+                stream.Seek(peHeaderOffset, SeekOrigin.Begin);
+
+                // Check PE signature
+                if (reader.ReadUInt32() != 0x00004550) // "PE\0\0"
+                {
+                    throw new InvalidOperationException("Invalid PE header signature");
+                }
+
+                // Read machine type (2 bytes after PE signature)
+                ushort machineType = reader.ReadUInt16();
+
+                // Machine types:
+                // 0x014c = IMAGE_FILE_MACHINE_I386 (32-bit x86)
+                // 0x8664 = IMAGE_FILE_MACHINE_AMD64 (64-bit x64)
+                // 0x0200 = IMAGE_FILE_MACHINE_IA64 (64-bit Itanium)
+                // 0xAA64 = IMAGE_FILE_MACHINE_ARM64 (64-bit ARM)
+                switch (machineType)
+                {
+                    case 0x014c: // IMAGE_FILE_MACHINE_I386
+                        return true;
+                    case 0x8664: // IMAGE_FILE_MACHINE_AMD64
+                    case 0x0200: // IMAGE_FILE_MACHINE_IA64
+                    case 0xAA64: // IMAGE_FILE_MACHINE_ARM64
+                        return false;
+                    default:
+                        throw new InvalidOperationException($"Unsupported machine type: 0x{machineType:X4}");
+                }
+            }
+        }
+
         private static Pip CreateSelfPip(
             BuildXLContext context,
             string tempDirectory,
@@ -340,6 +398,9 @@ namespace DetoursCrossBitTests
             AbsolutePath windowsFolderPath = AbsolutePath.Create(pathTable, Environment.GetFolderPath(Environment.SpecialFolder.Windows));
 
             string executable = is64Bit ? TestExecutableX64 : TestExecutableX86;
+            string dll = Path.ChangeExtension(executable, ".dll");
+            Contract.Assert(is64Bit == !Is32BitExecutable(Path.Combine(workingDirectory, dll)));
+
             FileArtifact executableArtifact = FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, Path.Combine(workingDirectory, executable)));
 
             AbsolutePath outFilePath = AbsolutePath.Create(pathTable, outFile);

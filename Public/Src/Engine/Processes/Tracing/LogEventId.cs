@@ -33,7 +33,7 @@ namespace BuildXL.Processes.Tracing
         PipInvalidDetoursDebugFlag1 = 23,
         PipInvalidDetoursDebugFlag2 = 24,
 
-        PipProcessFinishedDetourFailures = 26,
+        //// Used to PipProcessFinishedDetourFailures = 26,
         PipProcessCommandLineTooLong = 32,
         PipProcessInvalidWarningRegex = 39,
         PipProcessChildrenSurvivedError = 41,

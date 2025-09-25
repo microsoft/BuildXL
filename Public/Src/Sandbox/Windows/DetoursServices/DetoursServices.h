@@ -65,20 +65,21 @@ InternalCreateDetouredProcess(
     HANDLE hJob,
     DetouredProcessInjector *injector,
     LPPROCESS_INFORMATION lpProcessInformation,
-    CreateProcessW_t pfCreateProcessW
+    CreateProcessW_t pfCreateProcessW,
+    bool hardExitOnDetoursErrorIfEnabled
 );
 
 CreateDetouredProcessStatus
 WINAPI
 CreateDetouredProcess(
-	LPCWSTR lpcwCommandLine,
-	DWORD dwCreationFlags,
-	LPVOID lpEnvironment,
-	LPCWSTR lpcwWorkingDirectory,
-	HANDLE hStdInput, HANDLE hStdOutput, HANDLE hStdError,
-	HANDLE hJob,
-	DetouredProcessInjector *injector,
-	HANDLE* phProcess, HANDLE* phThread, DWORD* pdwProcessId
+    LPCWSTR lpcwCommandLine,
+    DWORD dwCreationFlags,
+    LPVOID lpEnvironment,
+    LPCWSTR lpcwWorkingDirectory,
+    HANDLE hStdInput, HANDLE hStdOutput, HANDLE hStdError,
+    HANDLE hJob,
+    DetouredProcessInjector *injector,
+    HANDLE* phProcess, HANDLE* phThread, DWORD* pdwProcessId
 );
 
 bool

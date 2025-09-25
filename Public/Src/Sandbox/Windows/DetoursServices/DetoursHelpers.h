@@ -63,7 +63,7 @@ inline SpecialProcessKind GetProcessKind() { return g_ProcessKind; }
 // FUNCTION DECLARATIONS
 // ----------------------------------------------------------------------------
 
-void HandleDetoursInjectionAndCommunicationErrors(int errorCode, LPCWSTR eventLogMsgPtr, LPCWSTR eventLogMsgId);
+void HandleDetoursInjectionAndCommunicationErrors(int errorCode, LPCWSTR eventLogMsgPtr, LPCWSTR eventLogMsgId, bool hardExitOnErrorIfEnabled = true);
 
 // Indicates if the path matches a special-case rule and if so sets a policy to use.
 // Note that the given path has been canonicalized so that it does not have a prefix like \\?\, \\.\, or \??\.

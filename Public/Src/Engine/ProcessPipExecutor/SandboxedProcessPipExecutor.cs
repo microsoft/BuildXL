@@ -1772,14 +1772,6 @@ namespace BuildXL.ProcessPipExecutor
                 }
             }
 
-            // There are cases where the process exit code is not successful and the injection has failed.
-            // (ExitCode code is set by Windows - TerminateProcess, kill(), process crash).
-            // The build needs to fail in this case(s) as well and log that we had injection failure.
-            if (result.HasDetoursInjectionFailures)
-            {
-                Logger.Log.PipProcessFinishedDetourFailures(loggingContext, m_pip.SemiStableHash, m_pipDescription);
-            }
-
             if (exitedSuccessfullyAndGracefully)
             {
                 Logger.Log.PipProcessFinished(loggingContext, m_pip.SemiStableHash, m_pipDescription, result.ExitCode);
@@ -2032,11 +2024,7 @@ namespace BuildXL.ProcessPipExecutor
 
             SandboxedProcessPipExecutionStatus status = SandboxedProcessPipExecutionStatus.ExecutionFailed;
             RetryInfo retryInfo = null;
-            if (result.HasDetoursInjectionFailures)
-            {
-                status = SandboxedProcessPipExecutionStatus.PreparationFailed;
-            }
-            else if (canceled)
+            if (canceled)
             {
                 status = SandboxedProcessPipExecutionStatus.Canceled;
             }

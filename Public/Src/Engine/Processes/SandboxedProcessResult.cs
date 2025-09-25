@@ -37,6 +37,11 @@ namespace BuildXL.Processes
         /// <summary>
         /// Whether there are failures in the detouring code.
         /// </summary>
+        /// <remarks>
+        /// On Windows, this property is true if there is remote/brokered injection failure. Due to retry, the process pip could have exited with a successful exit code.
+        /// Thus, although this property is set to true, it does not mean that the whole process pip has failed. It could mean that some injection attempts have failed when
+        /// creating some child process, but then succeeded on retry.
+        /// </remarks>
         public bool HasDetoursInjectionFailures { get; set; }
 
         /// <summary>

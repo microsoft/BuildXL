@@ -419,7 +419,9 @@ export function executable(args: Arguments): Managed.Assembly {
         ],
         tools: {
             csc: {
-                platform: <"x64">"x64",
+                // Need to include `args.platform` here otherwise if `args.platform` exists in the object, but is `undefined`,
+                // then the overall platform after `Object.merge` will be `undefined`, which is translated to "anycpu" by the compiler.
+                platform: args.platform || <"x64">"x64",
                 win32Icon: Branding.iconFile
             },
         },

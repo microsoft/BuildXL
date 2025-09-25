@@ -41,14 +41,6 @@ namespace BuildXL.Processes
     {
         private const int BufferSize = 4096;
 
-        /// <summary>
-        /// Maximum number of retries to inject detours into a process.
-        /// </summary>
-        /// <remarks>
-        /// The number of retries follows the pattern in DetoursServices.cpp, i.e., BUILDXL_DETOURS_INJECT_PROCESS_RETRY_COUNT.
-        /// These numbers are chosen based on experience and they do not have to sync with each other.
-        /// </remarks>
-        private const int MaxDetoursInjectRetries = 5;
         private IAsyncPipeReader m_injectionRequestReader;
         private bool m_stopping;
 
@@ -267,43 +259,25 @@ namespace BuildXL.Processes
                 Contract.Assert(false, $"Brokered injection request is malformed -- cannot parse inheritance flag '{items[2]}'");
             }
 
-            // Once one injection fails, all others also fail.
-            bool succeeded = !HasDetoursInjectionFailures;
-            if (succeeded)
+            bool succeeded = false;
+            lock (Injector)
             {
-                lock (Injector)
+                if (Injector.IsDisposed)
                 {
-                    if (Injector.IsDisposed)
-                    {
-                        // Stop just called. Ignore the request.
-                        Contract.Assert(m_stopping);
-                        return true;
-                    }
+                    // Stop just called. Ignore the request.
+                    Contract.Assert(m_stopping);
+                    return true;
+                }
 
-                    int retryCount = 0;
-                    uint injectionError = NativeIOConstants.ErrorSuccess;
-                    while (retryCount < MaxDetoursInjectRetries)
-                    {
-                        injectionError = Injector.Inject(processId, inheritedHandles);
-                        succeeded = injectionError == NativeIOConstants.ErrorSuccess;
-
-                        // Retry only if the error is partial copy.
-                        if (injectionError != NativeIOConstants.ErrorPartialCopy
-                            && injectionError != NativeIOConstants.ErrorAccessDenied
-                            && injectionError != NativeIOConstants.ErrorInvalidOperation)
-                        {
-                            break;
-                        }
-
-                        // Sleep for a while and retry.
-                        Thread.Sleep((retryCount + 1) * 100);
-                        ++retryCount;
-                    }
-
-                    if (!succeeded)
-                    {
-                        ReportFailedInjection(processId, injectionError.ToString("X8", CultureInfo.InvariantCulture));
-                    }
+                // Inject data & DLLs and map the drives.
+                // Do not retry process injection on the same process handle on failure. This is because the target process may
+                // have been updated with the Detours dll. Trying to inject the same process again will result in ERROR_INVALID_OPERATION.
+                // Instead of retrying process injection, retry the process creation as a whole.
+                uint injectionError = Injector.Inject(processId, inheritedHandles);
+                succeeded = injectionError == NativeIOConstants.ErrorSuccess;
+                if (!succeeded)
+                {
+                    ReportFailedInjection(processId, injectionError.ToString("X8", CultureInfo.InvariantCulture));
                 }
             }
 

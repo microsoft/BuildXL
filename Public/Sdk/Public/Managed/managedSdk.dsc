@@ -105,6 +105,7 @@ export function assembly(args: Arguments, targetType: Csc.TargetType) : Result {
         sourceFolders: args.sourceFolders,
         references: compileClosure,
         targetType: targetType,
+        platform: args.platform,
         linkResources: resourceResult.linkResources,
         resourceFiles: resourceResult.resourceFiles,
         treatWarningsAsErrors: qualifier.configuration === "release",

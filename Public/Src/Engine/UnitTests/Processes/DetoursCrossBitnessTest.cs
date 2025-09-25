@@ -1,7 +1,6 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.IO;
@@ -17,7 +16,6 @@ namespace Test.BuildXL.Processes
     [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)]
     public sealed class DetoursCrossBitnessTest
     {
-        private const string DetoursCrossBitnessTestCategory = "DetoursCrossBitnessTest";
         private const string TestExecutableX64 = "DetoursCrossBitTests-X64.exe";
         private const string TestExecutableX86 = "DetoursCrossBitTests-X86.exe";
         private ITestOutputHelper _output;
@@ -41,14 +39,14 @@ namespace Test.BuildXL.Processes
             XAssert.AreEqual(0, exCode);
         }
 
-        [Fact]
+        [Fact(Skip = "Bug 2320602")]
         public void TestRun32BitCmdFrom32BitProcess()
         {
             int exCode = StartProcess(false, ProcessKind.Cmd, false);
             XAssert.AreEqual(0, exCode);
         }
 
-        [Fact]
+        [Fact(Skip = "Bug 2320602")]
         public void TestRun64BitCmdFrom32BitProcess()
         {
             // This is successful without Detours launching UpdImports-64.
@@ -65,21 +63,21 @@ namespace Test.BuildXL.Processes
             XAssert.AreEqual(0, exCode);
         }
 
-        [Fact]
+        [Fact(Skip = "Bug 2320602")]
         public void TestRun32BitSelfFrom64BitProcess()
         {
             int exCode = StartProcess(true, ProcessKind.Self, false);
             XAssert.AreEqual(0, exCode);
         }
 
-        [Fact]
+        [Fact(Skip = "Bug 2320602")]
         public void TestRun32BitSelfFrom32BitProcess()
         {
             int exCode = StartProcess(false, ProcessKind.Self, false);
             XAssert.AreEqual(0, exCode);
         }
 
-        [Fact]
+        [Fact(Skip = "Bug 2320602")]
         public void TestRun64BitSelfFrom32BitProcess()
         {
             int exCode = StartProcess(false, ProcessKind.Self, true);
@@ -93,49 +91,49 @@ namespace Test.BuildXL.Processes
             XAssert.AreEqual(0, exCode);
         }
 
-        [Fact]
+        [Fact(Skip = "Bug 2320602")]
         public void TestRun32BitSelfChildFrom64BitSelfFrom64BitProcess()
         {
             int exCode = StartProcess(true, ProcessKind.SelfChild32, true);
             XAssert.AreEqual(0, exCode);
         }
 
-        [Fact]
+        [Fact(Skip = "Bug 2320602")]
         public void TestRun64BitSelfChildFrom32BitSelfFrom64BitProcess()
         {
             int exCode = StartProcess(true, ProcessKind.SelfChild64, false);
             XAssert.AreEqual(0, exCode);
         }
 
-        [Fact]
+        [Fact(Skip = "Bug 2320602")]
         public void TestRun32BitSelfChildFrom32BitSelfFrom64BitProcess()
         {
             int exCode = StartProcess(true, ProcessKind.SelfChild32, false);
             XAssert.AreEqual(0, exCode);
         }
 
-        [Fact]
+        [Fact(Skip = "Bug 2320602")]
         public void TestRun64BitSelfChildFrom64BitSelfFrom32BitProcess()
         {
             int exCode = StartProcess(false, ProcessKind.SelfChild64, true);
             XAssert.AreEqual(0, exCode);
         }
 
-        [Fact]
+        [Fact(Skip = "Bug 2320602")]
         public void TestRun32BitSelfChildFrom64BitSelfFrom32BitProcess()
         {
             int exCode = StartProcess(false, ProcessKind.SelfChild32, true);
             XAssert.AreEqual(0, exCode);
         }
 
-        [Fact]
+        [Fact(Skip = "Bug 2320602")]
         public void TestRun64BitSelfChildFrom32BitSelfFrom32BitProcess()
         {
             int exCode = StartProcess(false, ProcessKind.SelfChild64, false);
             XAssert.AreEqual(0, exCode);
         }
 
-        [Fact]
+        [Fact(Skip = "Bug 2320602")]
         public void TestRun32BitSelfChildFrom32BitSelfFrom32BitProcess()
         {
             int exCode = StartProcess(false, ProcessKind.SelfChild32, false);
@@ -168,7 +166,8 @@ namespace Test.BuildXL.Processes
                     }
                 })
                 {
-                    process.Start();
+                    bool started = process.Start();
+                    XAssert.IsTrue(started, $"Failed to start '{executable} {arguments}' (wd: {workingDirectory})");
 
                     // On test failure, we want stderr output from the test process as context.
                     string line;

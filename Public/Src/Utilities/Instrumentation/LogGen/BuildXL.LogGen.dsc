@@ -7,7 +7,6 @@ namespace LogGen {
     @@public
     export const exe = BuildXLSdk.executable({
         assemblyName: "BuildXL.LogGen",
-        platform: "anycpu32bitpreferred",
         sources: globR(d`.`, "*.cs"),
         references: [
             AriaCommon.dll,

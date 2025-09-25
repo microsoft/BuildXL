@@ -29,6 +29,7 @@ using std::wstring;
 
 #define IMPLEMENTED(x) // bookeeping to remember which functions have been fully implemented and which still need to be done
 #define RETRY_DETOURING_PROCESS_COUNT 5 // How many times to retry detouring a process.
+#define RETRY_DETOURING_PROCESS_SLEEP_MS 1000 // How long to sleep between retries.
 #define DETOURS_STATUS_ACCESS_DENIED (NTSTATUS)0xC0000022L;
 #define INITIAL_REPARSE_DATA_BUILDXL_DETOURS_BUFFER_SIZE_FOR_FILE_NAMES 1024
 #define SYMLINK_FLAG_RELATIVE 0x00000001
@@ -2862,7 +2863,11 @@ BOOL WINAPI Detoured_CreateProcessW(
             (HANDLE)0,
             g_pDetouredProcessInjector,
             lpProcessInformation,
-            Real_CreateProcessW);
+            Real_CreateProcessW,
+            // If enabled in the manifest, hard exit on Detours error on the final retry.
+            retryCount == RETRY_DETOURING_PROCESS_COUNT);
+
+        DWORD lastError = GetLastError();
 
         if (status == CreateDetouredProcessStatus::Succeeded)
         {
@@ -2885,27 +2890,33 @@ BOOL WINAPI Detoured_CreateProcessW(
         }
         else
         {
-            Dbg(L"Failure Detouring the process - Error: 0x%08X.", GetLastError());
-
-            if (GetLastError() == ERROR_INVALID_FUNCTION &&
-                retryCount < RETRY_DETOURING_PROCESS_COUNT)
+            // Retry process creation a few times in case of transient errors.
+            if ((lastError == ERROR_INVALID_FUNCTION || lastError == WAIT_TIMEOUT // Typically due to failed brokered/remote injection.
+                || lastError == ERROR_ACCESS_DENIED
+                || lastError == ERROR_PARTIAL_COPY) // Copying payload sometimes failed.
+                && retryCount < RETRY_DETOURING_PROCESS_COUNT)
             {
-                Sleep(1000); // Wait a second and try again.
+                Sleep(RETRY_DETOURING_PROCESS_SLEEP_MS + (retryCount * RETRY_DETOURING_PROCESS_SLEEP_MS));
                 retryCount++;
-                Dbg(L"Retrying to start process %s for %d time.", lpCommandLine, retryCount);
+                Dbg(L"Retrying to start process '%s' for %d time due to detouring failure, last error: 0x%08X", lpCommandLine, retryCount, lastError);
                 retryCreateProcess = true;
+
+                // Reset last error to avoid confusing the retry logic.
                 SetLastError(ERROR_SUCCESS);
                 continue;
             }
 
-            // We've invented a failure other than process creation due to our detours; invent a consistent error
-            // rather than leaking whatever error might be set due to our failed efforts.
-            SetLastError(ERROR_ACCESS_DENIED);
+            Dbg(L"Failure detouring the process '%s' after %d retries, last error: 0x%08X", lpCommandLine, retryCount, lastError);
 
             if (!imagePath.IsNull())
             {
                 ReportIfNeeded(readCheck, operationContext, policyResult, GetLastError());
             }
+
+            // We've invented a failure other than process creation due to our detours; invent a consistent error
+            // rather than leaking whatever error might be set due to our failed efforts.
+            // This line of code is only reachable if the hard-exit-on-Detours-error feature is disabled.
+            SetLastError(ERROR_ACCESS_DENIED);
 
             return FALSE;
         }

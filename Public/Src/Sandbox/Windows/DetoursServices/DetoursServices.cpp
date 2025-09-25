@@ -35,7 +35,6 @@
 #include <TraceLoggingProvider.h>
 
 #define BUILDXL_DETOURS_CREATE_PROCESS_RETRY_COUNT 5
-#define BUILDXL_DETOURS_INJECT_PROCESS_RETRY_COUNT 5
 #define BUILDXL_DETOURS_MS_TO_SLEEP 10
 #define BUILDXL_PRELOADED_DLLS_MAX_PATH 65536
 
@@ -496,7 +495,8 @@ InternalCreateDetouredProcess(
     HANDLE hJob,
     DetouredProcessInjector *pInjector,
     LPPROCESS_INFORMATION lpProcessInformation,
-    CreateProcessW_t pfCreateProcessW)
+    CreateProcessW_t pfCreateProcessW,
+    bool hardExitOnDetoursErrorIfEnabled)
 {
     // No detours should be called recursively from here.
     DetouredScope scope;
@@ -605,28 +605,16 @@ InternalCreateDetouredProcess(
         }
 
         bool fullInheritHandles = bInheritHandles == TRUE && !(dwCreationFlags & EXTENDED_STARTUPINFO_PRESENT);
-        nRetryCount = 0;
 
-        while (!fProcDetoured && (nRetryCount < BUILDXL_DETOURS_INJECT_PROCESS_RETRY_COUNT))
-        {
-            error = pInjector->InjectProcess(lpProcessInformation->hProcess, fullInheritHandles);
-            fProcDetoured = error == ERROR_SUCCESS;
-
-            // Retry for payload memcpy failure in process injector
-            if (error == ERROR_PARTIAL_COPY
-                || error == ERROR_INVALID_OPERATION
-                || error == ERROR_ACCESS_DENIED)
-            {
-                Sleep(BUILDXL_DETOURS_MS_TO_SLEEP + (nRetryCount * BUILDXL_DETOURS_MS_TO_SLEEP));
-                nRetryCount++;
-                continue;
-            }
-
-            break;
-        }
+        // Do not retry process injection on the same process handle on failure. This is because the target process may
+        // have been updated with the Detours dll. Trying to inject the same process again will result in ERROR_INVALID_OPERATION.
+        // Instead of retrying process injection, retry the process creation as a whole.
+        error = pInjector->InjectProcess(lpProcessInformation->hProcess, fullInheritHandles);
+        fProcDetoured = error == ERROR_SUCCESS;
     }
 
-    if ((fProcDetoured || !needsInjection) && fProcCreated) {
+    if ((fProcDetoured || !needsInjection) && fProcCreated)
+    {
         status = CreateDetouredProcessStatus::Succeeded;
 
         if (hJob != 0 && !AssignProcessToJobObject(hJob, lpProcessInformation->hProcess)) {
@@ -635,37 +623,44 @@ InternalCreateDetouredProcess(
             Dbg(L"Assigning to job failed, error: %08X", (int)error);
         }
     }
-    else if (fProcCreated) {
+    else if (fProcCreated)
+    {
         status = CreateDetouredProcessStatus::DetouringFailed;
     }
-    else {
+    else
+    {
         status = CreateDetouredProcessStatus::ProcessCreationFailed;
     }
 
     if (status == CreateDetouredProcessStatus::Succeeded &&
         !(dwCreationFlags & CREATE_SUSPENDED) &&
         dwCreationFlags != creationFlags &&
-        ResumeThread(lpProcessInformation->hThread) == -1) {
+        ResumeThread(lpProcessInformation->hThread) == -1)
+    {
 
         status = CreateDetouredProcessStatus::ProcessResumeFailed;
         error = GetLastError();
     }
 
-    if (status != CreateDetouredProcessStatus::Succeeded) {
-        // clean-up
-        if (fProcCreated) {
+    if (status != CreateDetouredProcessStatus::Succeeded)
+    {
+        // Clean-up
+        if (fProcCreated)
+        {
             Dbg(L"Detouring failed. Application name: '%s' Command line: '%s' Error: 0x%08X",
                 lpApplicationName, lpCommandLine, (int)error);
-            // the process never ran any code, as the main thread was initially suspended; so let's just kill it again
+            // The process never ran any code, as the main thread was initially suspended, so let's just kill it again.
             BOOL terminatedProcess = TerminateProcess(lpProcessInformation->hProcess, PROCESS_DETOURING_FAILED_EXIT_CODE);
-            if (terminatedProcess) {
+            if (terminatedProcess)
+            {
                 CloseHandle(lpProcessInformation->hProcess);
                 lpProcessInformation->hProcess = 0;
                 CloseHandle(lpProcessInformation->hThread);
                 lpProcessInformation->hThread = 0;
                 lpProcessInformation->dwProcessId = 0;
             }
-            else {
+            else
+            {
                 DWORD terminateProcessError = GetLastError();
                 Dbg(L"Termination of undetoured process failed. Application name: '%s' Command line: '%s' Error: %08X",
                     lpApplicationName, lpCommandLine, (int)terminateProcessError);
@@ -692,8 +687,6 @@ InternalCreateDetouredProcess(
             status);
     }
 
-    SetLastError(error);
-
     if (status == CreateDetouredProcessStatus::DetouringFailed ||
         status == CreateDetouredProcessStatus::JobAssignmentFailed ||
         status == CreateDetouredProcessStatus::HandleInheritanceFailed ||
@@ -701,8 +694,14 @@ InternalCreateDetouredProcess(
         status == CreateDetouredProcessStatus::PayloadCopyFailed)
     {
         std::wstring errorMsg = DebugStringFormat(L"InternalCreateDetouredProcess: Failed to create process (CreateDetouredProcessStatus: %d, error code: 0x%08X)", (int)status, (int)error);
-        HandleDetoursInjectionAndCommunicationErrors(DETOURS_CREATE_PROCESS_ERROR_5, errorMsg.c_str(), DETOURS_WINDOWS_LOG_MESSAGE_5);
+        // Ensure that the error message is sent to both the Detours error file and to the log file.
+        Dbg(errorMsg.c_str());
+        HandleDetoursInjectionAndCommunicationErrors(DETOURS_CREATE_PROCESS_ERROR_5, errorMsg.c_str(), DETOURS_WINDOWS_LOG_MESSAGE_5, hardExitOnDetoursErrorIfEnabled);
     }
+
+    // HandleDetoursInjectionAndCommunicationErrors may have changed the last error code, so we need to set it again.
+    SetLastError(error);
+
     return status;
 }
 
@@ -956,7 +955,9 @@ CreateDetouredProcess(
         processCreationAttributes.hJob,
         injector,
         &pi,
-        CreateProcessW);
+        CreateProcessW,
+        /* hardExitOnDetoursErrorIfEnCaabled */ false // CreateDetouredProcess is a standalone API, and the caller should rely on the returned status and the error code of InternalCreateDetouredProcess.
+    );
 
     *phProcess = pi.hProcess;
     *phThread = pi.hThread;

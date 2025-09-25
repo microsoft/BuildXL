@@ -389,7 +389,7 @@ DWORD DetouredProcessInjector::RemoteInjectProcess(HANDLE processHandle, bool in
     overlapped.Offset = 0xFFFFFFFF;
     overlapped.OffsetHigh = 0xFFFFFFFF;
     DWORD bytesWritten;
-    
+
     if (!WriteFile(_remoteInjectorPipe.get(), request, charsWritten * sizeof(wchar_t), &bytesWritten, &overlapped))
     {
         DWORD error = GetLastError();

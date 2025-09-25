@@ -112,15 +112,6 @@ namespace BuildXL.Processes.Tracing
         public abstract void PipProcessMessageParsingError(LoggingContext context, long pipSemiStableHash, string pipDescription, string error);
 
         [GeneratedEvent(
-            (int)LogEventId.PipProcessFinishedDetourFailures,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Error,
-            Keywords = (int)Keywords.UserMessage,
-            EventTask = (int)Tasks.PipExecutor,
-            Message = EventConstants.PipPrefix + "Failed to instrument one or more processes")]
-        public abstract void PipProcessFinishedDetourFailures(LoggingContext context, long pipSemiStableHash, string pipDescription);
-
-        [GeneratedEvent(
             (int)LogEventId.PipProcessDisallowedTempFileAccess,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,

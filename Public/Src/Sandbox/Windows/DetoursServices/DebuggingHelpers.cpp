@@ -109,7 +109,7 @@ static void WriteMessage(PCWSTR text)
 // FUNCTION DEFINITIONS
 // ----------------------------------------------------------------------------
 
-void HandleDetoursInjectionAndCommunicationErrors(int errorCode, LPCWSTR eventLogMsgPtr, LPCWSTR eventLogMsgId)
+void HandleDetoursInjectionAndCommunicationErrors(int errorCode, LPCWSTR eventLogMsgPtr, LPCWSTR eventLogMsgId, bool hardExitOnErrorIfEnabled)
 {
     std::wstring messageWithExitCode = DebugStringFormat(L"%s -- Detours ExitCode: %d", eventLogMsgPtr, errorCode);
     wprintf_s(L"%s", messageWithExitCode.c_str());
@@ -122,7 +122,7 @@ void HandleDetoursInjectionAndCommunicationErrors(int errorCode, LPCWSTR eventLo
     WriteToInternalErrorsFile(L"%s\r\n", messageWithExitCode.c_str());
     LogEventLogMessage(messageWithExitCode, EVENTLOG_ERROR_TYPE, EVENTLOG_ERROR_TYPE_ID, eventLogMsgId);
 
-    if (HardExitOnErrorInDetours())
+    if (hardExitOnErrorIfEnabled && HardExitOnErrorInDetours())
     {
         exit(errorCode);
     }
@@ -247,11 +247,12 @@ void Dbg(PCWSTR format, ...)
     UNREFERENCED_PARAMETER(format);
 }
 
-void HandleDetoursInjectionAndCommunicationErrors(int errorCode, LPCWSTR eventLogMsgPtr, LPCWSTR eventLogMsgId)
+void HandleDetoursInjectionAndCommunicationErrors(int errorCode, LPCWSTR eventLogMsgPtr, LPCWSTR eventLogMsgId, bool hardExitOnErrorIfEnabled)
 {
     UNREFERENCED_PARAMETER(errorCode);
     UNREFERENCED_PARAMETER(eventLogMsgPtr);
     UNREFERENCED_PARAMETER(eventLogMsgId);
+    UNREFERENCED_PARAMETER(hardExitOnErrorIfEnabled);
 
     fflush(stdout);
     fflush(stderr);

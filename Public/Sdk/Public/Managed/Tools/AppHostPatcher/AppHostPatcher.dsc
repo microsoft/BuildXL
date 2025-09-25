@@ -43,11 +43,18 @@ const patcher: Transformer.ToolDefinition = {
 
 @@public
 export function patchBinary(args: Arguments) : Result {
+    // Bug 2320602: For Windows, this only supports win-x64, but we should also support win-x86 because we create
+    //              32-bit program for Detours crossbitness UTs.
     const targetsWindows = args.targetRuntimeVersion === "win-x64";
+    // const targetsWindows = args.targetRuntimeVersion === "win-x64" || args.targetRuntimeVersion === "win-x86";
+
     const contents: StaticDirectory = 
         args.targetRuntimeVersion === "win-x64"
             ? importFrom("Microsoft.NETCore.App.Host.win-x64.6.0").Contents.all
             :
+        // args.targetRuntimeVersion === "win-x86"
+        //     ? importFrom("Microsoft.NETCore.App.Host.win-x86.6.0").Contents.all
+        //     :
         args.targetRuntimeVersion === "linux-x64"
             ? importFrom("Microsoft.NETCore.App.Host.linux-x64.6.0").Contents.all
             :
@@ -57,7 +64,7 @@ export function patchBinary(args: Arguments) : Result {
 
     // Pick the apphost based on the target OS, not the current OS
     const apphostBinary = targetsWindows
-        ? contents.getFile(r`/runtimes/win-x64/native/apphost.exe`)
+        ? contents.getFile(r`/runtimes/${args.targetRuntimeVersion}/native/apphost.exe`)
         : contents.getFile(r`/runtimes/${args.targetRuntimeVersion}/native/apphost`);
 
     const arguments : Argument[] = [

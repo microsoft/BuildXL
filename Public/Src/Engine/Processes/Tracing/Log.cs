@@ -344,7 +344,7 @@ namespace BuildXL.Processes.Tracing
         [GeneratedEvent(
             (int)LogEventId.BrokeredDetoursInjectionFailed,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Error,
+            EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.PipExecutor,
             Message = "Failed to instrument process ID {0} for file monitoring on behalf of an existing instrumented process, error: {1}")]

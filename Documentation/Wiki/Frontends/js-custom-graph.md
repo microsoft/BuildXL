@@ -10,7 +10,7 @@ config({
         {
             kind: "CustomJavaScript",
             moduleName: "my-repo",
-            ...
+            root: d`.`,
             customProjectGraph: f`graph.json`
         }
 });
@@ -47,7 +47,7 @@ config({
         {
             kind: "CustomJavaScript",
             moduleName: "my-repo",
-            ...
+            root: d`.`,
             customProjectGraph: importFile(f`custom-definition.dsc`).getGraph()
         }
 });

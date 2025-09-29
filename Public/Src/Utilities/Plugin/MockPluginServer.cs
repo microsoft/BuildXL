@@ -9,7 +9,7 @@ using Grpc.Core.Logging;
 namespace BuildXL.Plugin
 {
     /// <nodoc />
-    public class LogParsePluginServer: PluginServiceServer
+    public class MockPluginServer: PluginServiceServer
     {
         /// <nodoc />
         public override IList<SupportedOperationResponse.Types.SupportedOperation> SupportedOperations { get; } =  new[] 
@@ -19,7 +19,7 @@ namespace BuildXL.Plugin
         };
 
         /// <nodoc />
-        public LogParsePluginServer(int port, ILogger logger): base(port, logger)
+        public MockPluginServer(int port, ILogger logger): base(port, logger)
         {
         }
 

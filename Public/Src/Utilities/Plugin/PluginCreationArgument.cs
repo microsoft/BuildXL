@@ -21,6 +21,12 @@ namespace BuildXL.Plugin
         public bool RunInSeparateProcess { get; set; } = true;
 
         /// <summary>
+        /// For loading a plugin from a config file, this provides the
+        /// plugin object to attach the eventual process or task to
+        /// </summary>
+        public Plugin PreloadedPlugin { get; set; }
+
+        /// <summary>
         /// Plugin Id
         /// </summary>
         public string PluginId { get; set; }

@@ -74,11 +74,11 @@ namespace BuildXL.Plugin.Tracing
         [GeneratedEvent(
             (ushort)LogEventId.PluginManagerErrorMessage,
             EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Error,
+            EventLevel = Level.Warning,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Plugin,
             Message = "[{ShortProductName} Plugin Manager] {message}")]
-        internal abstract void PluginManagerErrorMessage(LoggingContext loggingContext, string message);
+        internal abstract void PluginManagerWarningMessage(LoggingContext loggingContext, string message);
 
         [GeneratedEvent(
             (ushort)LogEventId.PluginManagerShutDown,

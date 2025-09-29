@@ -33,17 +33,17 @@ namespace BuildXL.Plugin
         /// <nodoc />
         public string Name { get; }
         /// <nodoc />
-        public Process PluginProcess { get; }
+        public Process PluginProcess { get; set; }
 
         /// <summary>
         /// Task that has plugin server running inside it. It is mainly for test purpose
         /// </summary>
-        public Task PluginTask { get; }
+        public Task PluginTask { get; set; }
 
         /// <summary>
         /// Used to cancel the plugin running thread
         /// </summary>
-        public CancellationTokenSource PluginTaskCancellationTokenSource { get; }
+        public CancellationTokenSource PluginTaskCancellationTokenSource { get; set; }
 
         /// <nodoc />
         public IPluginClient PluginClient { get; }
@@ -63,6 +63,32 @@ namespace BuildXL.Plugin
 
         /// <nodoc />
         public List<PluginMessageType> SupportedMessageType { get; set; }
+
+        /// <nodoc />
+        public int RequestTimeout
+        {
+            get
+            {
+                return PluginClient.RequestTimeout;
+            }
+            set
+            {
+                PluginClient.RequestTimeout = value;
+            }
+        }
+
+        /// <nodoc />
+        public HashSet<string> SupportedProcesses
+        {
+            get
+            {
+                return PluginClient.SupportedProcesses;
+            }
+            set
+            {
+                PluginClient.SupportedProcesses = value;
+            }
+        }
 
         /// <nodoc />
         public Plugin(string id, string path, Process process, IPluginClient pluginClient)
@@ -95,6 +121,21 @@ namespace BuildXL.Plugin
             Name = Path.GetFileName(path);
             PluginTask = pluginTask;
             PluginTaskCancellationTokenSource = cancellationTokenSource;
+            PluginClient = pluginClient;
+            Status = PluginStatus.Initialized;
+            m_startCompletionTaskSoure = TaskSourceSlim.Create<Unit>();
+        }
+
+        /// <nodoc />
+        public Plugin(string id, string path, IPluginClient pluginClient)
+        {
+            Contract.RequiresNotNullOrEmpty(id, "plugin id is null");
+            Contract.RequiresNotNullOrEmpty(path, "plugin path is null");
+            Contract.RequiresNotNull(pluginClient, "pluginclient is null");
+
+            Id = id;
+            FilePath = path;
+            Name = Path.GetFileName(path);
             PluginClient = pluginClient;
             Status = PluginStatus.Initialized;
             m_startCompletionTaskSoure = TaskSourceSlim.Create<Unit>();

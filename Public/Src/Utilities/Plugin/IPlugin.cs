@@ -18,7 +18,7 @@ namespace BuildXL.Plugin
         /// <nodoc />
         string Id { get; }
         /// <nodoc />
-        Process PluginProcess { get; }
+        Process PluginProcess { get; set; }
         /// <nodoc />
         IPluginClient PluginClient { get; }
         /// <nodoc />

@@ -115,6 +115,7 @@ namespace BuildXL.Plugin
 
         private Task<PluginMessageResponse> HandleStart()
         {
+            //NOTE: this currently does nothing & the plugin "starts its own server"
             return Task.FromResult<PluginMessageResponse>(new PluginMessageResponse() { Status = true });
         }
 

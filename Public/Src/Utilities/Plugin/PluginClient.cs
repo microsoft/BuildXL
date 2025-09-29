@@ -35,6 +35,24 @@ namespace BuildXL.Plugin
         public bool IsShutDown => Channel.State == ChannelState.Shutdown;
 
         /// <nodoc />
+        private int m_overrideRequestTimeout;
+        /// <inheritdoc />
+        public int RequestTimeout
+        {
+            get
+            {
+                return m_overrideRequestTimeout > 0 ? m_overrideRequestTimeout : GrpcPluginSettings.RequestTimeoutInMilliSeconds;
+            }
+            set
+            {
+                m_overrideRequestTimeout = value;
+            }
+        }
+
+        /// <inheritdoc />
+        public HashSet<string> SupportedProcesses { get; set; }
+
+        /// <nodoc />
         public const int MAX_RETRY = 5;
         /// <nodoc />
         public PluginClient(string ipAddress, int port, ILogger logger = null)
@@ -67,9 +85,9 @@ namespace BuildXL.Plugin
 
         private static string GetRequestId() => Interlocked.Increment(ref s_requestId).ToString();
 
-        private static CallOptions GetCallOptions(string requestId)
+        private CallOptions GetCallOptions(string requestId)
         {
-            return new CallOptions(deadline: DateTime.UtcNow.AddMilliseconds(GrpcPluginSettings.RequestTimeoutInMilliSeconds))
+            return new CallOptions(deadline: DateTime.UtcNow.AddMilliseconds(RequestTimeout))
             .WithWaitForReady(true).WithHeaders(new Metadata
             {
                 { GrpcPluginSettings.PluginRequestId, requestId },
@@ -174,6 +192,10 @@ namespace BuildXL.Plugin
             var response = await HandleRpcExceptionWithCallAsync(
                 async () => {
                     var response = await PluginServiceClient.SupportedOperationAsync(request, options);
+
+                    Interlocked.Exchange(ref m_overrideRequestTimeout, response.SupportedOperationResponse.Timeout);
+                    var supportedProcesses = new HashSet<string>(response.SupportedOperationResponse.SupportedProcesses, StringComparer.OrdinalIgnoreCase);
+                    SupportedProcesses = supportedProcesses;
 
                     return response.SupportedOperationResponse.Operation.Select(op => PluginMessageTypeHelper.ToPluginMessageType(op)).ToList();
                 }, requestId);

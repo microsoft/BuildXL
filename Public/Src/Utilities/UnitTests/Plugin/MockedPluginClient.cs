@@ -27,6 +27,9 @@ namespace Test.BuildXL.Plugin
             MockedProcessResultFunc = processResultFunc;
         }
 
+        public int RequestTimeout { get; set; }
+        public HashSet<string> SupportedProcesses {  get; set; }
+
         public void Dispose() 
         { 
         }

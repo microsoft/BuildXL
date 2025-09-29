@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Net;
+using System.Text.Json;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using BuildXL.Ipc;
@@ -12,8 +13,6 @@ using BuildXL.Utilities.Instrumentation.Common;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using ILogger = Grpc.Core.Logging.ILogger;
-using System.Diagnostics;
-using Test.BuildXL.TestUtilities;
 using Xunit.Abstractions;
 
 namespace Test.BuildXL.Plugin
@@ -23,34 +22,34 @@ namespace Test.BuildXL.Plugin
     /// </summary>
     public class PluginManagerTests : TemporaryStorageTestBase, IAsyncLifetime
     {
-        private PluginManager m_pluginManager;
-        private LoggingContext m_loggingContext = new LoggingContext("UnitTest");
-
+        private readonly PluginManager m_pluginManager;
+        private readonly LoggingContext m_loggingContext = new LoggingContext("UnitTest");
+ 
         private const string PluginPath1 = "test1";
         private const string PluginId1 = "test1";
-        private static readonly string m_pluginPort1 = IpcFactory.GetProvider().LoadAndRenderMoniker(IpcMoniker.CreateNew().Id);
+        private static readonly string s_pluginPort1 = IpcFactory.GetProvider().LoadAndRenderMoniker(IpcMoniker.CreateNew().Id);
 
         private const string PluginPath2 = "test2";
         private const string PluginId2 = "test2";
-        private static readonly string m_pluginPort2 = IpcFactory.GetProvider().LoadAndRenderMoniker(IpcMoniker.CreateNew().Id);
-        private static readonly string m_pluginPort3 = IpcFactory.GetProvider().LoadAndRenderMoniker(IpcMoniker.CreateNew().Id);
+        private static readonly string s_pluginPort2 = IpcFactory.GetProvider().LoadAndRenderMoniker(IpcMoniker.CreateNew().Id);
+        private static readonly string s_pluginPort3 = IpcFactory.GetProvider().LoadAndRenderMoniker(IpcMoniker.CreateNew().Id);
 
-        private static Func<Task<PluginResponseResult<bool>>> s_booleanResponseSucceed = () => Task.FromResult(new PluginResponseResult<bool>(true, PluginResponseState.Succeeded, "0", 0));
-        private static Func<Task<PluginResponseResult<bool>>> s_booleanResponsetFailed = () => Task.FromResult(new PluginResponseResult<bool>(PluginResponseState.Failed, "0", 0, new Failure<string>("")));
-        private static Func<Task<PluginResponseResult<bool>>> s_booleanResponseThrowException = () => throw new Exception();
+        private readonly static Func<Task<PluginResponseResult<bool>>> s_booleanResponseSucceed = () => Task.FromResult(new PluginResponseResult<bool>(true, PluginResponseState.Succeeded, "0", 0));
+        private readonly static Func<Task<PluginResponseResult<bool>>> s_booleanResponseFailed = () => Task.FromResult(new PluginResponseResult<bool>(PluginResponseState.Failed, "0", 0, new Failure<string>("")));
+        private readonly static Func<Task<PluginResponseResult<bool>>> s_booleanResponseThrowException = () => throw new Exception();
 
-        private static Func<Task<PluginResponseResult<LogParseResult>>> s_logParseResponseSucceeded = () => Task.FromResult(new PluginResponseResult<LogParseResult>(new LogParseResult() { ParsedMessage = ""}, PluginResponseState.Succeeded, "0", 0));
-        private static Func<Task<PluginResponseResult<LogParseResult>>> s_logParseResponseFailed = () => Task.FromResult(new PluginResponseResult<LogParseResult>(PluginResponseState.Failed, "0", 0, new Failure<string>("")));
-        private static Func<Task<PluginResponseResult<LogParseResult>>> s_logParseResponseThrowException = () => throw new Exception();
+        private readonly static Func<Task<PluginResponseResult<LogParseResult>>> s_logParseResponseSucceeded = () => Task.FromResult(new PluginResponseResult<LogParseResult>(new LogParseResult() { ParsedMessage = ""}, PluginResponseState.Succeeded, "0", 0));
+        private readonly static Func<Task<PluginResponseResult<LogParseResult>>> s_logParseResponseFailed = () => Task.FromResult(new PluginResponseResult<LogParseResult>(PluginResponseState.Failed, "0", 0, new Failure<string>("")));
+        private readonly static Func<Task<PluginResponseResult<LogParseResult>>> s_logParseResponseThrowException = () => throw new Exception();
 
-        private static Func<Task<PluginResponseResult<ProcessResultMessageResponse>>> s_processResultResponseSucceeded = () => Task.FromResult(new PluginResponseResult<ProcessResultMessageResponse>(new ProcessResultMessageResponse() { ExitCode = 1111 }, PluginResponseState.Succeeded, "0", 0));
-        private static Func<Task<PluginResponseResult<ProcessResultMessageResponse>>> s_processResultResponseFailed = () => Task.FromResult(new PluginResponseResult<ProcessResultMessageResponse>(PluginResponseState.Failed, "0", 0, new Failure<string>("")));
-        private static Func<Task<PluginResponseResult<ProcessResultMessageResponse>>> s_processResultResponseThrowException = () => throw new Exception();
+        private readonly static Func<Task<PluginResponseResult<ProcessResultMessageResponse>>> s_processResultResponseSucceeded = () => Task.FromResult(new PluginResponseResult<ProcessResultMessageResponse>(new ProcessResultMessageResponse() { ExitCode = 1111 }, PluginResponseState.Succeeded, "0", 0));
+        private readonly static Func<Task<PluginResponseResult<ProcessResultMessageResponse>>> s_processResultResponseFailed = () => Task.FromResult(new PluginResponseResult<ProcessResultMessageResponse>(PluginResponseState.Failed, "0", 0, new Failure<string>("")));
+        private readonly static Func<Task<PluginResponseResult<ProcessResultMessageResponse>>> s_processResultResponseThrowException = () => throw new Exception();
 
-        private static Func<Task<PluginResponseResult<List<PluginMessageType>>>> s_pluginMessageTypeResponseSucceed = () => Task.FromResult(new PluginResponseResult<List<PluginMessageType>>(new List<PluginMessageType>() { PluginMessageType.ParseLogMessage }, PluginResponseState.Succeeded, "0", 0));
-        private static Func<Task<PluginResponseResult<List<PluginMessageType>>>> s_unknownMessageTypeResponseSucceed = () => Task.FromResult(new PluginResponseResult<List<PluginMessageType>>(new List<PluginMessageType>(){ PluginMessageType.Unknown }, PluginResponseState.Succeeded, "0", 0));
-        private static Func<Task<PluginResponseResult<List<PluginMessageType>>>> s_pluginMessageTypeResponseFaialed = () => Task.FromResult(new PluginResponseResult<List<PluginMessageType>>(PluginResponseState.Failed, "0", 0, new Failure<string>("")));
-        private static Func<Task<PluginResponseResult<List<PluginMessageType>>>> s_pluginMessageTypeResponseThrowException = () => throw new Exception();
+        private readonly static Func<Task<PluginResponseResult<List<PluginMessageType>>>> s_pluginMessageTypeResponseSucceed = () => Task.FromResult(new PluginResponseResult<List<PluginMessageType>>(new List<PluginMessageType>() { PluginMessageType.ParseLogMessage }, PluginResponseState.Succeeded, "0", 0));
+        private readonly static Func<Task<PluginResponseResult<List<PluginMessageType>>>> s_unknownMessageTypeResponseSucceed = () => Task.FromResult(new PluginResponseResult<List<PluginMessageType>>(new List<PluginMessageType>(){ PluginMessageType.Unknown }, PluginResponseState.Succeeded, "0", 0));
+        private readonly static Func<Task<PluginResponseResult<List<PluginMessageType>>>> s_pluginMessageTypeResponseFailed = () => Task.FromResult(new PluginResponseResult<List<PluginMessageType>>(PluginResponseState.Failed, "0", 0, new Failure<string>("")));
+        private readonly static Func<Task<PluginResponseResult<List<PluginMessageType>>>> s_pluginMessageTypeResponseThrowException = () => throw new Exception();
 
         private readonly MockedPluginClient m_mockedPluginClient = new MockedPluginClient(
             startFunc: s_booleanResponseSucceed,
@@ -61,7 +60,7 @@ namespace Test.BuildXL.Plugin
         );
 
         private readonly ILogger m_logger = new MockLogger();
-        private readonly int m_port = TcpIpConnectivity.ParsePortNumber(m_pluginPort3);
+        private readonly int m_port = TcpIpConnectivity.ParsePortNumber(s_pluginPort3);
 
         public PluginManagerTests(ITestOutputHelper output) : base(output)
         {
@@ -77,7 +76,7 @@ namespace Test.BuildXL.Plugin
                 PluginId = PluginId1,
                 ConnectionOption = new PluginConnectionOption()
                 {
-                    IpcMoniker = m_pluginPort1,
+                    IpcMoniker = s_pluginPort1,
                     LogDir = "",
                     Logger = PluginLogUtils.CreateLoggerForPluginClients(m_loggingContext, PluginId1)
                 },
@@ -97,7 +96,7 @@ namespace Test.BuildXL.Plugin
                 PluginId = PluginId2,
                 ConnectionOption = new PluginConnectionOption()
                 {
-                    IpcMoniker = m_pluginPort2,
+                    IpcMoniker = s_pluginPort2,
                     LogDir = "",
                     Logger = PluginLogUtils.CreateLoggerForPluginClients(m_loggingContext, PluginId2)
                 },
@@ -117,7 +116,7 @@ namespace Test.BuildXL.Plugin
                 PluginId = PluginId1,
                 ConnectionOption = new PluginConnectionOption()
                 {
-                    IpcMoniker = m_pluginPort3,
+                    IpcMoniker = s_pluginPort3,
                     LogDir = "",
                     Logger = m_logger
                 },
@@ -125,7 +124,7 @@ namespace Test.BuildXL.Plugin
                 CreatePluginClientFunc = pluginClientCreator,
                 RunInPluginThreadAction = () =>
                 {
-                    using (var pluginServer = new LogParsePluginServer(m_port, new MockLogger()))
+                    using (var pluginServer = new MockPluginServer(m_port, new MockLogger()))
                     {
                         pluginServer.Start();
 
@@ -149,11 +148,51 @@ namespace Test.BuildXL.Plugin
             Assert.True(plugin.StartCompletionTask.IsCompleted);
             Assert.Equal(plugin.SupportedMessageType.Count, 1);
             Assert.Equal(plugin.SupportedMessageType[0], PluginMessageType.ParseLogMessage);
-            Assert.Equal(m_pluginManager.PluginLoadedSuccessfulCount, 1);
-            Assert.Equal(m_pluginManager.PluginsCount, 1);
+            Assert.Equal(1, m_pluginManager.PluginLoadedSuccessfulCount);
+            Assert.Equal(1, m_pluginManager.PluginsCount);
             Assert.True(m_pluginManager.CanHandleMessage(PluginMessageType.ParseLogMessage));
 
-            var logParseResult = await m_pluginManager.LogParseAsync("", true);
+            var logParseResult = await m_pluginManager.LogParseAsync("", "", true);
+            Assert.True(logParseResult.Succeeded);
+        }
+
+        [Fact]
+        public async Task LoadMockedPluginFromConfigShouldSucceedAsync()
+        {
+            string configFile = GetFullPath("testPlugin.config");
+
+            int customTimeout = 1234;
+            string testExe = "test.exe";
+            List<string> supportedProcesses = new List<string> { testExe };
+            List<PluginMessageType> supportedMessageTypes = new List<PluginMessageType> { PluginMessageType.ParseLogMessage };
+
+            WriteFile(configFile, JsonSerializer.Serialize(new PluginConfig
+            {
+                PluginPath = PluginPath1,
+                Timeout = customTimeout,
+                SupportedProcesses = supportedProcesses,
+                MessageTypes = supportedMessageTypes,
+            }));
+
+            var args = GetMockPluginCreationArguments((options) => m_mockedPluginClient);
+            args.PluginPath = configFile;
+            var res = await m_pluginManager.GetOrCreateAsync(args);
+
+            Assert.True(res.Succeeded);
+
+            var plugin = res.Result;
+
+            Assert.Equal(PluginStatus.Running, plugin.Status);
+            Assert.True(plugin.StartCompletionTask.IsCompleted);
+            Assert.Equivalent(supportedMessageTypes, plugin.SupportedMessageType);
+            Assert.Equivalent(supportedProcesses, plugin.PluginClient.SupportedProcesses);
+            Assert.Equal(customTimeout, plugin.PluginClient.RequestTimeout);
+            Assert.Equal(PluginMessageType.ParseLogMessage, plugin.SupportedMessageType[0]);
+            Assert.Equal(1, m_pluginManager.PluginLoadedSuccessfulCount);
+            Assert.Equal(1, m_pluginManager.PluginsCount);
+            Assert.True(m_pluginManager.CanHandleMessage(PluginMessageType.ParseLogMessage));
+
+            var logParseResult = await m_pluginManager.LogParseAsync(testExe, "", true);
             Assert.True(logParseResult.Succeeded);
         }
 
@@ -168,8 +207,8 @@ namespace Test.BuildXL.Plugin
 
             Assert.True(res.Succeeded);
             //duplicated plugin path only load once
-            Assert.Equal(m_pluginManager.PluginLoadedSuccessfulCount, 1);
-            Assert.Equal(m_pluginManager.PluginsCount, 1);
+            Assert.Equal(1, m_pluginManager.PluginLoadedSuccessfulCount);
+            Assert.Equal(1, m_pluginManager.PluginsCount);
         }
 
         [Fact]
@@ -182,9 +221,11 @@ namespace Test.BuildXL.Plugin
             args = GetMockSecondPluginCreationArguments((options) => m_mockedPluginClient);
             res = await m_pluginManager.GetOrCreateAsync(args);
 
-            Assert.Equal(m_pluginManager.PluginLoadedSuccessfulCount, 2);
-            Assert.Equal(m_pluginManager.PluginsCount, 2);
-            Assert.Equal(m_pluginManager.PluginHandlersCount, 1);
+            Assert.Equal(2, m_pluginManager.PluginLoadedSuccessfulCount);
+            Assert.Equal(2, m_pluginManager.PluginsCount);
+            Assert.Equal(1, m_pluginManager.PluginHandlersCount); // Although 2 plugins are loaded, only 1 plugin handler exists
+                                                                  // (we currently can't have two plugins handling the same message type,
+                                                                  // so this unit test is a bit of a misnomer)
         }
 
         [Fact]
@@ -196,21 +237,21 @@ namespace Test.BuildXL.Plugin
             await m_pluginManager.Stop();
             m_pluginManager.Clear();
 
-            Assert.Equal(m_pluginManager.PluginsCount, 0);
+            Assert.Equal(0, m_pluginManager.PluginsCount);
         }
 
         [Fact]
         public async Task FailedToLoadPluginAsync()
         {
-            m_mockedPluginClient.MockedStartFunc = s_booleanResponsetFailed;
+            m_mockedPluginClient.MockedStartFunc = s_booleanResponseFailed;
 
             var args = GetMockPluginCreationArguments((options) => m_mockedPluginClient);
             var res = await m_pluginManager.GetOrCreateAsync(args);
 
             Assert.False(res.Succeeded);
-            Assert.Equal(m_pluginManager.PluginLoadedSuccessfulCount, 0);
-            Assert.Equal(m_pluginManager.PluginsCount, 0);
-            Assert.Equal(m_pluginManager.PluginLoadedFailureCount, 1);
+            Assert.Equal(0, m_pluginManager.PluginLoadedSuccessfulCount);
+            Assert.Equal(0, m_pluginManager.PluginsCount);
+            Assert.Equal(1, m_pluginManager.PluginLoadedFailureCount);
         }
 
         [Fact]
@@ -222,9 +263,9 @@ namespace Test.BuildXL.Plugin
             var res = await m_pluginManager.GetOrCreateAsync(args);
 
             Assert.False(res.Succeeded);
-            Assert.Equal(m_pluginManager.PluginLoadedSuccessfulCount, 0);
-            Assert.Equal(m_pluginManager.PluginsCount, 0);
-            Assert.Equal(m_pluginManager.PluginLoadedFailureCount, 1);
+            Assert.Equal(0, m_pluginManager.PluginLoadedSuccessfulCount);
+            Assert.Equal(0, m_pluginManager.PluginsCount);
+            Assert.Equal(1, m_pluginManager.PluginLoadedFailureCount);
         }
 
         [Fact]
@@ -236,28 +277,28 @@ namespace Test.BuildXL.Plugin
             var res = await m_pluginManager.GetOrCreateAsync(args);
 
             Assert.True(res.Succeeded);
-            Assert.Equal(m_pluginManager.PluginLoadedSuccessfulCount, 1);
-            Assert.Equal(m_pluginManager.PluginsCount, 1);
+            Assert.Equal(1, m_pluginManager.PluginLoadedSuccessfulCount);
+            Assert.Equal(1, m_pluginManager.PluginsCount);
 
-            var logParseResult =await  m_pluginManager.LogParseAsync("", true);
+            var logParseResult =await  m_pluginManager.LogParseAsync("", "", true);
             Assert.False(logParseResult.Succeeded);
         }
 
         [Fact]
         public async Task FailedToGetPluginSupportedMessageTypeAsync()
         {
-            m_mockedPluginClient.MockedSupportedMessageTypeFunc = s_pluginMessageTypeResponseFaialed;
+            m_mockedPluginClient.MockedSupportedMessageTypeFunc = s_pluginMessageTypeResponseFailed;
 
             var args = GetMockPluginCreationArguments((options) => m_mockedPluginClient);
             var res = await m_pluginManager.GetOrCreateAsync(args);
 
             Assert.True(res.Succeeded);
-            Assert.Equal(m_pluginManager.PluginLoadedSuccessfulCount, 1);
+            Assert.Equal(1, m_pluginManager.PluginLoadedSuccessfulCount);
 
             // plugin is loaded, so still count it
-            Assert.Equal(m_pluginManager.PluginsCount, 1);
+            Assert.Equal(1, m_pluginManager.PluginsCount);
             // unknow message type will not being registered
-            Assert.Equal(m_pluginManager.PluginHandlersCount, 0);
+            Assert.Equal(0, m_pluginManager.PluginHandlersCount);
         }
 
         [Fact]
@@ -269,9 +310,9 @@ namespace Test.BuildXL.Plugin
             var res = await m_pluginManager.GetOrCreateAsync(args);
 
             Assert.True(res.Succeeded);
-            Assert.Equal(m_pluginManager.PluginLoadedSuccessfulCount, 1);
+            Assert.Equal(1, m_pluginManager.PluginLoadedSuccessfulCount);
 
-            Assert.Equal(m_pluginManager.PluginsCount, 1);
+            Assert.Equal(1, m_pluginManager.PluginsCount);
         }
 
         [Fact]
@@ -281,7 +322,7 @@ namespace Test.BuildXL.Plugin
 
             var args = GetMockPluginCreationArguments((options) => m_mockedPluginClient);
             var res  = await m_pluginManager.GetOrCreateAsync(args);
-            var logParseResult = await m_pluginManager.LogParseAsync("", true);
+            var logParseResult = await m_pluginManager.LogParseAsync("", "", true);
 
             Assert.False(logParseResult.Succeeded);
         }
@@ -293,7 +334,7 @@ namespace Test.BuildXL.Plugin
 
             var args = GetMockPluginCreationArguments((options) => m_mockedPluginClient);
             var res = await m_pluginManager.GetOrCreateAsync(args);
-            var logParseResult = await m_pluginManager.LogParseAsync("", true);
+            var logParseResult = await m_pluginManager.LogParseAsync("", "", true);
 
             Assert.False(logParseResult.Succeeded);
         }
@@ -308,11 +349,11 @@ namespace Test.BuildXL.Plugin
 
             var res = await m_pluginManager.GetOrCreateAsync(args);
             XAssert.PossiblySucceeded(res);
-            Assert.Equal(m_pluginManager.PluginLoadedSuccessfulCount, 1);
-            Assert.Equal(m_pluginManager.PluginsCount, 1);
+            Assert.Equal(1, m_pluginManager.PluginLoadedSuccessfulCount);
+            Assert.Equal(1, m_pluginManager.PluginsCount);
             Assert.True(m_pluginManager.CanHandleMessage(PluginMessageType.ParseLogMessage));
 
-            var logParseResult = await m_pluginManager.LogParseAsync("", true);
+            var logParseResult = await m_pluginManager.LogParseAsync("", "", true);
             Assert.True(logParseResult.Succeeded);
             XAssert.Contains(logParseResult.Result.ParsedMessage, "[plugin]");
         }
@@ -351,8 +392,8 @@ namespace Test.BuildXL.Plugin
 
             var res = await m_pluginManager.GetOrCreateAsync(args);
             XAssert.PossiblySucceeded(res);
-            Assert.Equal(m_pluginManager.PluginLoadedSuccessfulCount, 1);
-            Assert.Equal(m_pluginManager.PluginsCount, 1);
+            Assert.Equal(1, m_pluginManager.PluginLoadedSuccessfulCount);
+            Assert.Equal(1, m_pluginManager.PluginsCount);
             Assert.True(m_pluginManager.CanHandleMessage(PluginMessageType.ProcessResult));
 
             int processExitCode = 1234;
@@ -377,8 +418,8 @@ namespace Test.BuildXL.Plugin
 
             var res = await m_pluginManager.GetOrCreateAsync(args);
             XAssert.PossiblySucceeded(res);
-            Assert.Equal(m_pluginManager.PluginLoadedSuccessfulCount, 1);
-            Assert.Equal(m_pluginManager.PluginsCount, 1);
+            Assert.Equal(1, m_pluginManager.PluginLoadedSuccessfulCount);
+            Assert.Equal(1, m_pluginManager.PluginsCount);
             Assert.True(m_pluginManager.CanHandleMessage(PluginMessageType.ProcessResult));
 
             int processExitCode = 1234;

@@ -16,6 +16,9 @@ namespace Plugin {
             $.Ipc.Providers.dll,
             $.PluginGrpc.dll,
             Utilities.Core.dll,
+            ...addIfLazy(!BuildXLSdk.isDotNetCore, () => [
+                importFrom("System.Text.Json").pkg,
+            ]),
         ],
         internalsVisibleTo: [
             "Test.BuildXL.Plugin",

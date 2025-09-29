@@ -33,8 +33,18 @@ namespace BuildXL.Plugin
             process.StartInfo = processStartInfo;
             process.Start();
 
-            var client = argument.CreatePluginClientFunc.Invoke(argument.ConnectionOption);
-            var plugin = new Plugin(id, argument.PluginPath, process, client);
+            IPlugin plugin;
+            if (argument.PreloadedPlugin != null)
+            {
+                argument.PreloadedPlugin.PluginProcess = process;
+                plugin = argument.PreloadedPlugin;
+            }
+            else
+            {
+                var client = argument.CreatePluginClientFunc.Invoke(argument.ConnectionOption);
+                plugin = new Plugin(id, argument.PluginPath, process, client);
+            }
+
             return plugin;
         };
 
@@ -49,8 +59,20 @@ namespace BuildXL.Plugin
                 argument.RunInPluginThreadAction.Invoke();
             }, cancellationTokenSource.Token);
             Thread.Sleep(500);
-            var client = argument.CreatePluginClientFunc.Invoke(argument.ConnectionOption);
-            var plugin = new Plugin(argument.PluginId, argument.PluginPath, pluginTask, cancellationTokenSource, client);
+
+            IPlugin plugin;
+            if (argument.PreloadedPlugin != null)
+            {
+                argument.PreloadedPlugin.PluginTask = pluginTask;
+                argument.PreloadedPlugin.PluginTaskCancellationTokenSource = cancellationTokenSource;
+                plugin = argument.PreloadedPlugin;
+            }
+            else
+            {
+                var client = argument.CreatePluginClientFunc.Invoke(argument.ConnectionOption);
+                plugin = new Plugin(argument.PluginId, argument.PluginPath, pluginTask, cancellationTokenSource, client);
+            }
+
             return plugin;
         };
 
@@ -92,19 +114,6 @@ namespace BuildXL.Plugin
         public string CreatePluginId()
         {
             return Guid.NewGuid().ToString();
-        }
-
-        /// <nodoc />
-        public static void SetGrpcPluginClientBasedOnMessageType(IPlugin plugin, PluginMessageType messageType)
-        {
-            //switch(messageType)
-            //{
-            //    case PluginMessageType.ParseLogMessage:
-            //        plugin.SetLogParsePluginClient();
-            //        break;
-            //    default:
-            //        break;
-            //}
         }
     }
 }

@@ -22,7 +22,7 @@ namespace BuildXL.Plugin
         }
 
         /// <nodoc />
-        public void AddOrUpdateHanlder(T type, Func<U> addHandlerFunc, Func<U, U> updateHandlerFunc)
+        public void AddOrUpdateHandler(T type, Func<U> addHandlerFunc, Func<U, U> updateHandlerFunc)
         {
             m_handlers.AddOrUpdate(type, m => addHandlerFunc(), (m, r) => updateHandlerFunc(r));
         }

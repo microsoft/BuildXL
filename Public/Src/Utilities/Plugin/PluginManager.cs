@@ -5,10 +5,10 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Ipc;
@@ -16,8 +16,8 @@ using BuildXL.Ipc.Common;
 using BuildXL.Ipc.Common.Connectivity;
 using BuildXL.Plugin.Grpc;
 using BuildXL.Utilities.Core;
-using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Core.Tasks;
+using BuildXL.Utilities.Instrumentation.Common;
 
 namespace BuildXL.Plugin
 {
@@ -62,12 +62,12 @@ namespace BuildXL.Plugin
         private readonly TaskSourceSlim<Unit> m_pluginStopTaskSource;
 
         /// <summary>
-        /// Number of plugs registerd in plugin handlers
+        /// Number of plugins registerd in plugin handlers
         /// </summary>
         public int PluginHandlersCount => m_pluginHandlers.Count;
 
         /// <summary>
-        /// Number of plugs being loaded, this will count even the plugin supported message
+        /// Number of plugins being loaded, this will count even the plugin supported message
         /// type is unknown or duplicated with another plugin
         /// </summary>
         public int PluginsCount => m_plugins.Count;
@@ -174,14 +174,9 @@ namespace BuildXL.Plugin
             m_pluginsLoadedTask.Forget();
         }
 
-        private IEnumerable<PluginFile> GetPluginsPaths()
-        {
-            return m_pluginPaths.Select(path => new PluginFile() { Path = path });
-        }
-
         private Task LoadPluginsAsync()
         {
-            var tasks = GetPluginsPaths().Select(pluginFile => GetOrCreateAsync(pluginFile.Path)).ToList();
+            var tasks = m_pluginPaths.Select(pluginPath => GetOrCreateAsync(pluginPath)).ToList();
             return Task.WhenAll(tasks).ContinueWith(task =>
             {
                 Tracing.Logger.Log.PluginManagerLoadingPluginsFinished(m_loggingContext);
@@ -273,6 +268,37 @@ namespace BuildXL.Plugin
             }
         }
 
+        /// <summary>
+        /// Rather than providing a "pluginPath" arg that directly links to a plugin exe, a .config file link can be provided instead.
+        /// The settings for the plugin (timeout, supported message types, supported processes etc) will be loaded from this config file
+        /// quickly while the actual plugin is started asynchronously. This means some early plugin messages that would have been
+        /// skipped anyway don't have to wait on the plugin to start up and respond to the SupportedOperation message. Messages that *do*
+        /// need to be sent to the plugin before it is started will still wait on EnsurePluginCreated
+        /// </summary>
+        private void PreloadPluginFromConfig(PluginCreationArgument pluginCreationArgument)
+        {
+            Tracing.Logger.Log.PluginManagerLogMessage(m_loggingContext, $"Preloading plugin object from {pluginCreationArgument.PluginPath}");
+            PluginConfig config = JsonSerializer.Deserialize<PluginConfig>(File.ReadAllText(pluginCreationArgument.PluginPath), new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true,
+            });
+
+            pluginCreationArgument.PluginPath = config.PluginPath;
+
+            IPluginClient client = pluginCreationArgument.CreatePluginClientFunc.Invoke(pluginCreationArgument.ConnectionOption);
+            client.RequestTimeout = config.Timeout;
+            client.SupportedProcesses = new HashSet<string>(config.SupportedProcesses, StringComparer.OrdinalIgnoreCase);
+            Plugin plugin = new Plugin(pluginCreationArgument.PluginId, config.PluginPath, client);
+
+            plugin.SupportedMessageType = config.MessageTypes;
+            foreach (PluginMessageType supportedMessageType in config.MessageTypes)
+            {
+                RegisterPluginHandler(supportedMessageType, plugin);
+            }
+
+            pluginCreationArgument.PreloadedPlugin = plugin;
+        }
+
         /// <nodoc />
         private async Task<Possible<IPlugin>> CreatePluginAsync(PluginCreationArgument pluginCreationArgument)
         {
@@ -282,6 +308,11 @@ namespace BuildXL.Plugin
                 {
                     Tracing.Logger.Log.PluginManagerLogMessage(m_loggingContext, $"Can't load plugin because {pluginCreationArgument.PluginPath} doesn't exist");
                     new Failure<IPlugin>(null);
+                }
+
+                if (pluginCreationArgument.PluginPath.EndsWith(".config"))
+                {
+                    PreloadPluginFromConfig(pluginCreationArgument);
                 }
 
                 var sw = Stopwatch.StartNew();
@@ -315,18 +346,24 @@ namespace BuildXL.Plugin
         {
             return CallWithEnsurePluginCreatedWrapperAsync(
                 PluginMessageType.SupportedOperation, plugin,
-                () => { return plugin.GetSupportedPluginMessageType(); },
+                plugin.GetSupportedPluginMessageType,
                 m_defaultSupportedOperationResponse);
         }
 
         /// <nodoc />
-        public async Task<Possible<LogParseResult>> LogParseAsync(string message, bool isErrorOutput)
+        public async Task<Possible<LogParseResult>> LogParseAsync(string executable, string message, bool isErrorOutput)
         {
             IPlugin plugin = null;
             var messageType = PluginMessageType.ParseLogMessage;
             if (!m_pluginHandlers.TryGet(messageType, out plugin))
             {
                 return new Failure<string>($"No plugin is available to handle {messageType}");
+            }
+
+            HashSet<string> pluginSupportedProccesses = plugin.PluginClient.SupportedProcesses;
+            if (pluginSupportedProccesses != null && pluginSupportedProccesses.Count > 0 && !pluginSupportedProccesses.Contains(Path.GetFileName(executable)))
+            {
+                return new Failure<string>($"Skipping {messageType} for {executable} as it is not listed as a supported process");
             }
 
             return await CallWithEnsurePluginCreatedWrapperAsync(
@@ -349,6 +386,12 @@ namespace BuildXL.Plugin
             if (!m_pluginHandlers.TryGet(messageType, out plugin))
             {
                 return new Failure<string>($"No plugin is available to handle {messageType}");
+            }
+
+            HashSet<string> pluginSupportedProccesses = plugin.PluginClient.SupportedProcesses;
+            if (pluginSupportedProccesses != null && pluginSupportedProccesses.Count > 0 && !pluginSupportedProccesses.Contains(Path.GetFileName(executable)))
+            {
+                return new Failure<string>($"Skipping {messageType} for {executable} as it is not listed as a supported process");
             }
 
             return await CallWithEnsurePluginCreatedWrapperAsync(
@@ -397,6 +440,12 @@ namespace BuildXL.Plugin
                 return creationResult;
             }
 
+            if (startPluginArguments.PreloadedPlugin != null)
+            {
+                // If the plugin was "preloaded", then it was already added to the handlers list so we don't need to call GetSupportedMessageType
+                return startPluginArguments.PreloadedPlugin;
+            }
+
             var plugin = creationResult.Result;
             Possible<List<PluginMessageType>> messageType = await GetSupportedMessageTypeAsync(plugin);
             if (messageType.Succeeded)
@@ -404,16 +453,8 @@ namespace BuildXL.Plugin
                 // Register the plugin in handlers only when response of supportedMessageType is received
                 foreach (var pluginMessageType in messageType.Result)
                 {
-                    IPlugin alreadyRegisteredPlugin = null;
-                    if (!m_pluginHandlers.TryGet(pluginMessageType, out alreadyRegisteredPlugin))
-                    {
-                        m_pluginHandlers.TryAdd(pluginMessageType, plugin);
+                    RegisterPluginHandler(pluginMessageType, plugin);
                     }
-                    else
-                    {
-                        Tracing.Logger.Log.PluginManagerErrorMessage(m_loggingContext, $"Two plugins ({plugin.FilePath} and {alreadyRegisteredPlugin.FilePath}) can handle {pluginMessageType}. This scenario is not currently supported.");
-                    }
-                }
                 Tracing.Logger.Log.PluginManagerLogMessage(m_loggingContext, $"Supported message types for {plugin.Name} is {string.Join(",", messageType.Result)}");
                 plugin.SupportedMessageType = messageType.Result;
             }
@@ -423,6 +464,19 @@ namespace BuildXL.Plugin
             }
 
             return creationResult;
+        }
+
+        private void RegisterPluginHandler(PluginMessageType pluginMessageType, IPlugin plugin)
+        {
+            IPlugin alreadyRegisteredPlugin = null;
+            if (!m_pluginHandlers.TryGet(pluginMessageType, out alreadyRegisteredPlugin))
+            {
+                m_pluginHandlers.TryAdd(pluginMessageType, plugin);
+            }
+            else
+            {
+                Tracing.Logger.Log.PluginManagerWarningMessage(m_loggingContext, $"Two plugins ({plugin.FilePath} and {alreadyRegisteredPlugin.FilePath}) can handle {pluginMessageType}. This scenario is not currently supported.");
+            }
         }
 
         /// <nodoc />

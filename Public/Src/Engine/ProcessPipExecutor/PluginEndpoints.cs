@@ -54,9 +54,9 @@ namespace BuildXL.ProcessPipExecutor
         /// </summary>
         public async Task<string> ProcessStdOutAndErrorAsync(string message, bool isErrorOutput)
         {
-            if (m_pluginManager != null)
+            if (m_pluginManager != null && ProcessInfo != null)
             {
-                var parsedResult = await m_pluginManager.LogParseAsync(message, isErrorOutput);
+                var parsedResult = await m_pluginManager.LogParseAsync(ProcessInfo.FileName, message, isErrorOutput);
                 return parsedResult.Succeeded ? parsedResult.Result.ParsedMessage : message;
             }
 

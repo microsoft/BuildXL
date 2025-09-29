@@ -12,6 +12,8 @@ message SupportedOperationResponse
         ProcessResult = 1;
     }
     repeated SupportedOperation operation = 1;
+    optional int32 timeout = 2;
+    repeated string supportedProcesses = 3;
 }
 
 enum LogType

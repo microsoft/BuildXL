@@ -29,6 +29,8 @@ namespace BuildXL.Utilities.Tracing
         private readonly bool m_debugConsole;
         private readonly IntPtr m_handler;
         private Action<Exception> m_recoverableErrorAction = null;
+        private readonly bool m_consoleSupportsVirtualTerminal = false;
+        private readonly bool m_emitTerminalProgress = false;
         /// <inheritdoc />
         public bool UpdatingConsole { get; private set; }
 
@@ -70,11 +72,16 @@ namespace BuildXL.Utilities.Tracing
                 m_errorColor = m_warningColor = m_defaultForegroundColor;
             }
 
+            m_consoleSupportsVirtualTerminal = ConsoleHelper.IsVirtualTerminalProcessingEnabled();
+
             if (animateTaskbar)
             {
                 m_taskbar = new TaskbarInterop();
                 m_taskbar.Init();
                 m_taskbar.SetTaskbarState(TaskbarInterop.TaskbarProgressStates.Normal);
+
+                m_emitTerminalProgress = m_consoleSupportsVirtualTerminal;
+                ResetTerminalProgress();
             }
 
             var debugConsole = Environment.GetEnvironmentVariable("BUILDXLDEBUGCONSOLE");
@@ -101,6 +108,7 @@ namespace BuildXL.Utilities.Tracing
                         m_taskbar.Dispose();
                         m_taskbar = null;
                     }
+                    ResetTerminalProgress();
                 }
 
                 m_isDisposed = true;
@@ -412,6 +420,7 @@ namespace BuildXL.Utilities.Tracing
             return lineCount;
         }
 
+
         /// <inheritdoc />
         public void ReportProgress(ulong done, ulong total)
         {
@@ -428,6 +437,8 @@ namespace BuildXL.Utilities.Tracing
                 }
 
                 m_taskbar.SetProgressValue(done, total);
+
+                SetTerminalProgress(TranslateMessageLevelToTerminalProgressState(m_highestMessageLevel), done, total);
             }
         }
 
@@ -435,6 +446,54 @@ namespace BuildXL.Utilities.Tracing
         public void SetRecoverableErrorAction(Action<Exception> errorAction)
         {
             m_recoverableErrorAction = errorAction;
+        }
+
+        /// <summary>
+        /// Progress states supported by the terminal 'OSC 9;4' sequence. These values track the values
+        /// defined in the documentation.
+        /// https://learn.microsoft.com/en-us/windows/terminal/tutorials/progress-bar-sequences
+        /// </summary>
+        private enum TerminalProgressState
+        {
+            NoProgress = 0,
+            Normal = 1,
+            Error = 2,
+            Indeterminate = 3,
+            Warning = 4,
+        }
+
+        /// <summary>
+        /// Sends virtual terminal codes to update progress UI in the terminal.
+        /// </summary>
+        private void SetTerminalProgress(TerminalProgressState progressState, ulong done, ulong total)
+        {
+            if (!m_emitTerminalProgress || total == 0)
+            {
+                return;
+            }
+
+            const string Esc = "\x1b";
+            const string Bel = "\x07";
+            ulong percentage = Math.Min(100, 100 * done / total);
+            WriteOutput(MessageLevel.Info, $"{Esc}]9;4;{(int)progressState};{percentage}{Bel}");
+        }
+
+        static private TerminalProgressState TranslateMessageLevelToTerminalProgressState(MessageLevel messageLevel)
+        {
+            return messageLevel switch
+            {
+                MessageLevel.Info => TerminalProgressState.Normal,
+                MessageLevel.Warning => TerminalProgressState.Warning,
+                MessageLevel.Error => TerminalProgressState.Error,
+                MessageLevel.ErrorNoColor => TerminalProgressState.Error,
+                _ => TerminalProgressState.Normal,
+            };
+        }
+
+        private void ResetTerminalProgress()
+        {
+            // Percentage is ignored when setting the NoProgress state.
+            SetTerminalProgress(TerminalProgressState.NoProgress, 0, 1);
         }
     }
 }

@@ -55,5 +55,39 @@ namespace BuildXL.Utilities
 
             return handle;
         }
+
+        [DllImport("kernel32.dll")]
+        private static extern IntPtr GetStdHandle(int nStdHandle);
+
+        [DllImport("kernel32.dll")]
+        private static extern bool GetConsoleMode(IntPtr hConsoleHandle, out uint lpMode);
+
+        /// <summary>
+        /// Returns whether or not we can use terminal escape codes for things like progress UI and hyperlinks
+        /// </summary>
+        public static bool IsVirtualTerminalProcessingEnabled()
+        {
+            if (!OperatingSystemHelper.IsWindowsOS)
+            {
+                // Non-Windows probably do support virtual terminal processing by default, but just avoid a behavior change by default
+                return false;
+            }
+
+            const int STD_OUTPUT_HANDLE = -11;
+            const uint ENABLE_VIRTUAL_TERMINAL_PROCESSING = 0x0004;
+
+            IntPtr handle = GetStdHandle(STD_OUTPUT_HANDLE);
+            if (handle == IntPtr.Zero || handle == new IntPtr(-1))
+            {
+                return false;
+            }
+
+            if (GetConsoleMode(handle, out uint mode))
+            {
+                return (mode & ENABLE_VIRTUAL_TERMINAL_PROCESSING) != 0;
+            }
+
+            return false;
+        }
     }
 }

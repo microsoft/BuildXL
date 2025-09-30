@@ -117,14 +117,12 @@ int AccessLongPath()
 
 /**
  * This test is expected to fail with EINVAL because readlink does not support reading links on directories.
- * This is validating a bug we have in the sandbox where a readlink on a directory is treated as an enumeration of the directory.
- * TODO: work item 2300351
  */
-int ReadLinkOnDirectoryIsEnumerate()
+int ReadLinkOnDirectoryIsRead()
 {
     GET_CWD;
     std::string linkPath(cwd);
-    linkPath.append("/enumeratedDirectory");
+    linkPath.append("/readlinkDirectory");
 
     char buf[PATH_MAX] = { 0 };
     int result = readlink(linkPath.c_str(), buf, PATH_MAX);
@@ -282,7 +280,7 @@ int main(int argc, char **argv)
     IF_COMMAND(ExecReportsCorrectExecutableAndArgumentsFailed);
     IF_COMMAND(OpenAtHandlesInvalidFd);
     IF_COMMAND(AccessLongPath);
-    IF_COMMAND(ReadLinkOnDirectoryIsEnumerate);
+    IF_COMMAND(ReadLinkOnDirectoryIsRead);
 
     // Invalid command
     exit(-1);

@@ -1144,10 +1144,7 @@ int BPF_PROG(do_readlink_exit, int dfd, const char *pathname, char *buf, int buf
         return 0;
     }
 
-    // TODO: We can determine the operation type based on the return value, but due to bug #2300351
-    // we use the kReadLink type and let the user side determine whether this was a read or a probe.
-    // The line below is left commented out on purpose, to be uncommented when the bug is fixed.
-    // operation_type op_type = ret < 0 ? kGenericProbe : kGenericRead;
+    // Setting the operation type to kReadLink here will consider this a read on this directory rather than an enumerate.
     operation_type op_type = kReadLink;
 
     // Check the cache to see whether we have sent this before. Absent lookups are typically a significant source

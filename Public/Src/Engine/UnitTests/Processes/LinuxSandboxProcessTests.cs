@@ -232,18 +232,18 @@ namespace Test.BuildXL.Processes
         /// TODO: work item 2300351
         /// </summary>
         [Fact]
-        public void ReadLinkOnDirectoryIsEnumerate()
+        public void ReadLinkOnDirectoryIsRead()
         {
             var tempFiles = new TempFileStorage(canGetFileNames: true);
-            var directoryToEnumerate = tempFiles.GetDirectory("enumeratedDirectory");
-            var fileUnderEnumeratedDirectory = tempFiles.GetFileName(directoryToEnumerate, "file.txt");
+            var directoryToRead = tempFiles.GetDirectory("readlinkDirectory");
+            var fileUnderReadlinkDirectory = tempFiles.GetFileName(directoryToRead, "file.txt");
 
-            File.WriteAllText(fileUnderEnumeratedDirectory, "file under enumerated directory.");
+            File.WriteAllText(fileUnderReadlinkDirectory, "file under readlink directory.");
 
             var process = CreateTestProcess(
                 Context.PathTable,
                 tempFiles,
-                "ReadLinkOnDirectoryIsEnumerate",
+                "ReadLinkOnDirectoryIsRead",
                 inputFiles: ReadOnlyArray<FileArtifact>.Empty,
                 inputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
                 outputFiles: ReadOnlyArray<FileArtifactWithAttributes>.Empty,
@@ -264,8 +264,8 @@ namespace Test.BuildXL.Processes
         string message = $"Test terminated with exit code {result.ExitCode} when it was expected to terminate with EINVAL ({(int)IO.Errno.EINVAL}).{Environment.NewLine}stdout: {result.StandardOutput.ReadValueAsync().Result}{Environment.NewLine}stderr: {result.StandardError.ReadValueAsync().Result}";
             XAssert.IsTrue(result.ExitCode == (int)IO.Errno.EINVAL, message);
 
-            Assert.True(result.FileAccesses.Where(access => access.RequestedAccess == RequestedAccess.Enumerate && access.ManifestPath.ToString(Context.PathTable) == directoryToEnumerate).Any(),
-                @$"Expected to find an Enumerate access on the root directory {directoryToEnumerate} but did not.{Environment.NewLine}
+            Assert.True(result.FileAccesses.Where(access => access.RequestedAccess == RequestedAccess.Read && access.ManifestPath.ToString(Context.PathTable) == directoryToRead).Any(),
+                @$"Expected to find a Read access on the root directory {directoryToRead} but did not.{Environment.NewLine}
 File accesses:{Environment.NewLine}
 {string.Join(Environment.NewLine, result.FileAccesses.Select(f => $"Path: {f.ManifestPath.ToString(Context.PathTable)}, Requested Access: {f.RequestedAccess}"))}"
             );

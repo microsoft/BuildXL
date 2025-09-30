@@ -195,8 +195,18 @@ AccessCheckResult AccessChecker::HandleGenericWrite(const buildxl::common::FileA
 }
 
 AccessCheckResult AccessChecker::HandleGenericRead(const buildxl::common::FileAccessManifest *fam, buildxl::linux::SandboxEvent &event) {
-    event.SetSourceFileOperation(event.PathExists() ? buildxl::linux::FileOperation::kReadFile : buildxl::linux::FileOperation::kProbe);
-    return GetAccessCheckAndSetProperties(fam, event, event.PathExists() ? CheckerType::kRead : CheckerType::kProbe);
+    auto operation_type = event.PathExists()
+        ? buildxl::linux::FileOperation::kReadFile
+        : buildxl::linux::FileOperation::kProbe;
+
+    // Reads on directories are considered enumerations because this operation is used for syscalls like open, and scandir
+    // which are either enumerations or a prerequisite for an enumeration that will happen next.
+    auto checker = event.PathExists()
+        ? event.IsDirectory() ? CheckerType::kEnumerateDir : CheckerType::kRead
+        : CheckerType::kProbe;
+
+    event.SetSourceFileOperation(operation_type);
+    return GetAccessCheckAndSetProperties(fam, event, checker);
 }
 
 AccessCheckResult AccessChecker::HandleGenericProbe(const buildxl::common::FileAccessManifest *fam, buildxl::linux::SandboxEvent &event) {
@@ -254,12 +264,7 @@ void AccessChecker::CheckProbe(PolicyResult policy, bool is_dir, bool exists, Ac
 }
 
 void AccessChecker::CheckRead(PolicyResult policy, bool is_dir, AccessCheckResult *check_result) {
-    if (is_dir) {
-        AccessChecker::CheckEnumerateDir(policy, is_dir, check_result);
-    }
-    else {
-        *check_result = policy.CheckReadAccess(RequestedReadAccess::Read, FileReadContext(FileExistence::Existent, is_dir));
-    }
+    *check_result = policy.CheckReadAccess(RequestedReadAccess::Read, FileReadContext(FileExistence::Existent, is_dir));
 }
 
 void AccessChecker::CheckEnumerateDir(PolicyResult policy, bool is_dir, AccessCheckResult *check_result) {

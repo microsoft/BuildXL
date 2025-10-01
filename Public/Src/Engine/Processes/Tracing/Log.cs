@@ -347,8 +347,8 @@ namespace BuildXL.Processes.Tracing
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.PipExecutor,
-            Message = "Failed to instrument process ID {0} for file monitoring on behalf of an existing instrumented process, error: {1}")]
-        public abstract void BrokeredDetoursInjectionFailed(LoggingContext context, uint processId, string error);
+            Message = "Failed to instrument process ID {0} with path '{1}' for file monitoring on behalf of an existing instrumented process, error: {2}")]
+        public abstract void BrokeredDetoursInjectionFailed(LoggingContext context, uint processId, string processPath, string error);
 
         [GeneratedEvent(
             (int)LogEventId.LogDetoursDebugMessage,

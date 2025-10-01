@@ -2,6 +2,18 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20250928.1 (Release [30525751](https://dev.azure.com/mseng/Domino/_build/results?buildId=30525751&view=results))
+- [Detours] Avoid logging error for brokered injection error
+- Don't count released workers as having available slots
+
+# 0.1.0-20250917.4.2 (Release [30516389](https://dev.azure.com/mseng/Domino/_build/results?buildId=30516389&view=results))
+- [EBPF] Retry pips on sandbox internal errors
+- [EBPF] Reliability improvements for kernel side untracked scope tracking
+- Fix for Kestrel server with grpc
+- Fix macOS 15 build
+- [Detours] Retry process creation on Detours failure
+- [EBPF] Resolve symlinks in programs dealing with paths as strings
+
 # 0.1.0-20250912.1 (Release [30467480](https://dev.azure.com/mseng/Domino/_build/results?buildId=30467480&view=results))
 - [EBPF] Make the kernel side event cache more robust
 - [EBPF] Canonicalize all paths when dealing with raw strings

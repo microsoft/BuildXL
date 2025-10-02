@@ -1,3 +1,7 @@
 steps:
-- script: 'C:\windows\system32\fsutil usn createjournal m=0x20000000 a=0x8000000 D:'
-  displayName: 'Enable Journaling for D drive'
+- powershell: |
+    $currentDriveLetter = $(Get-Location).Drive.Name
+    $currentDrive = "${currentDriveLetter}:"
+    Write-Host "Enabling USN journaling on current drive ($currentDrive)"
+    C:\windows\system32\fsutil usn createjournal m=0x20000000 a=0x8000000 $currentDrive
+  displayName: 'Enable journaling for current drive'

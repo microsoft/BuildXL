@@ -14,7 +14,7 @@ jobs:
   pool:
     name: BuildXL-DevOpsAgents-Selfhost-BuildCache
     os: windows
-    demands: ImageOverride -equals 1ESPT-Win2022-PME-3
+    image: 1ESPT-Win2022-PME-3
   templateContext:
     sdl:
       baseline:
@@ -72,10 +72,6 @@ jobs:
       allowPackageConflicts: $(NugetPushAllowPackageConflicts)
 
   steps:
-  - checkout: self  # We need this to call the SBOM validation script
-    fetchDepth: 1
-    fetchTags: false
-
   # Set access token to pull/push artifacts from CB and mseng.
   - template: /.azdo/common/generate-access-token.yml
     parameters:
@@ -238,11 +234,8 @@ jobs:
     pool:
       name: BuildXL-DevOpsAgents-Selfhost-BuildCache
       os: windows
-      demands: ImageOverride -equals 1ESPT-Win2022-PME-3
+      image: 1ESPT-Win2022-PME-3
     steps:
-    - checkout: self
-      fetchTags: true
-
     - task: PowerShell@2
       displayName: Force push to GitHub master SSH
       inputs:

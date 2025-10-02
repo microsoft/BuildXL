@@ -7,7 +7,7 @@ jobs:
   pool:
     name: BuildXL-DevOpsAgents-Selfhost-BuildCache
     os: windows
-    demands: ImageOverride -equals 1ESPT-Win2022-PME-3
+    image: 1ESPT-Win2022-PME-3
   templateContext:
     sdl:
       binskim:
@@ -28,11 +28,7 @@ jobs:
       sbomEnabled: false
       condition: failed()
 
-  steps:
-  - checkout: self
-    fetchDepth: 1
-    fetchTags: false
-  
+  steps: 
   # Enable journaling
   - template: /.azdo/common/journaling.yml 
   

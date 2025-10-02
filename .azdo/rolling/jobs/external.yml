@@ -14,7 +14,7 @@ jobs:
   pool:
     name: BuildXL-DevOpsAgents-Selfhost-BuildCache
     os: windows
-    demands: ImageOverride -equals 1ESPT-Win2022-PME-3
+    image: 1ESPT-Win2022-PME-3
   templateContext:
     sdl:
       baseline:
@@ -45,10 +45,7 @@ jobs:
       targetPath: $(Build.SourcesDirectory)\Out\Bin\release\ide
 
   steps:
-  - checkout: self
-    fetchDepth: 1
-    fetchTags: false
-  
+ 
   # Run component detection to generate NOTICE file in the root of the repo.
   # The generated file will be included in the nuget packages we create and publish in this job 
   # If any of these tasks fail we fall back the the NOTICE.txt already checked in the repository.
@@ -94,7 +91,7 @@ jobs:
   pool:
     name: BuildXL-DevOpsAgents-Selfhost-BuildCache
     os: windows
-    demands: ImageOverride -equals 1ESPT-Win2022-PME-3
+    image: 1ESPT-Win2022-PME-3
   strategy:
     matrix:
       ${{ each qualifier in parameters.QualifiersToBuild }}:
@@ -111,10 +108,6 @@ jobs:
       sbomEnabled: false    # SBOM is not needed for logs
 
   steps:
-  - checkout: self
-    fetchDepth: 1
-    fetchTags: false
-
   - template: ../steps/external_prepare.yml
 
   - task: CmdLine@1
@@ -174,10 +167,6 @@ jobs:
       displayName: Upload eBPF binaries for validations to consume
 
   steps:
-  - checkout: self
-    fetchDepth: 1
-    fetchTags: false
-
   - template: ../steps/linux_prepare.yml
     parameters:
       CacheNamespace: BuildXL.Linux.External  # TODO - this is the extent of isolation with the internal build we're getting right now / work item #2143786
@@ -238,10 +227,6 @@ jobs:
       sbomEnabled: false    # SBOM is not needed for logs
     
   steps:
-  - checkout: self
-    fetchDepth: 1
-    fetchTags: false
-
   - template: ../steps/linux_prepare.yml
     parameters:
       CacheNamespace: BuildXL.Linux.External  # TODO - this is the extent of isolation with the internal build we're getting right now / work item #2143786

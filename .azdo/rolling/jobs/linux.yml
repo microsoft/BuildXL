@@ -34,10 +34,6 @@ jobs:
         sbomEnabled: false    # SBOM is not needed for logs
 
   steps:
-  - checkout: self
-    fetchDepth: 1
-    fetchTags: false
-
   - template: ../steps/linux_prepare.yml
     parameters:
       CacheNamespace: BuildXLSelfhost.Linux
@@ -96,10 +92,6 @@ jobs:
         sbomEnabled: false    # SBOM is not needed for logs
 
   steps:
-  - checkout: self
-    fetchDepth: 1
-    fetchTags: false
-  
   - template: ../steps/linux_prepare.yml
     parameters:
       CacheNamespace: BuildXLSelfhost.Linux

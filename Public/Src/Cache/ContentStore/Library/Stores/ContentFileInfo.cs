@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Threading;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 
 namespace BuildXL.Cache.ContentStore.Stores
@@ -30,6 +31,12 @@ namespace BuildXL.Cache.ContentStore.Stores
         ///     Gets or sets number of known replicas.
         /// </summary>
         public int ReplicaCount { get; set; }
+
+        /// <summary>
+        /// Ref count to this content. Content with _refCount > 0 cannot be evicted.
+        /// TODO: Consider unifying with pinning logic?
+        /// </summary>
+        private long _refCount = 0;
 
         /// <summary>
         /// Returns physical size of the content on disk.
@@ -103,6 +110,42 @@ namespace BuildXL.Cache.ContentStore.Stores
                     LastAccessedFileTimeUtc = updatedFileTimeUtc;
                 }
             }
+        }
+
+        /// <summary>
+        /// Try to reference the content to prevent eviction
+        /// </summary>
+        public bool TryReference()
+        {
+            if (Interlocked.Increment(ref _refCount) > 0)
+            {
+                return true;
+            }
+            else
+            {
+                Interlocked.Decrement(ref _refCount);
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Dereference the content to allow eviction when ref count reaches 0
+        /// </summary>
+        public void Dereference()
+        {
+            Interlocked.Decrement(ref _refCount);
+        }
+
+        /// <summary>
+        /// Try reserve the content for eviction
+        /// </summary>
+        public bool TryReserveForEviction()
+        {
+            // Reserve for eviction if value is zero, by setting to large negative number so
+            // that Increment in TryReference returns a negative value
+            // NOTE: We use int.MinValue as large negative number (field is a long value) so that a subsequent call to Dereference()
+            // does not overflow the field.
+            return Interlocked.CompareExchange(ref _refCount, value: int.MinValue, comparand: 0) <= 0;
         }
 
         /// <summary>

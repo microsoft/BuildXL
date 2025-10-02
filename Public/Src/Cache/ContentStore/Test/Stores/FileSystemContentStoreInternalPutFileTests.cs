@@ -4,10 +4,10 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Extensions;
 using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
@@ -16,17 +16,19 @@ using BuildXL.Cache.ContentStore.InterfacesTest.FileSystem;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.InterfacesTest.Time;
 using BuildXL.Cache.ContentStore.InterfacesTest.Utils;
+using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
+using BuildXL.Utilities.ParallelAlgorithms;
 using ContentStoreTest.Test;
 using FluentAssertions;
 using Xunit;
 using Xunit.Abstractions;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
-using BuildXL.Utilities.ParallelAlgorithms;
-using System.Threading;
 
 namespace ContentStoreTest.Stores
 {
+    using Counter = FileSystemContentStoreInternal.Counter;
+
     public class FileSystemContentStoreInternalPutFileTests : FileSystemContentStoreInternalTestBase
     {
         protected readonly MemoryClock Clock;
@@ -35,6 +37,55 @@ namespace ContentStoreTest.Stores
             : base(() => new MemoryFileSystem(new MemoryClock(), Drives), TestGlobal.Logger, output)
         {
             Clock = (MemoryClock)((MemoryFileSystem)FileSystem).Clock;
+        }
+
+        [Fact]
+        public Task PutFileFastPath()
+        {
+            var context = new Context(Logger);
+            return TestStore(context, Clock, async store =>
+            {
+                byte[] bytes = ThreadSafeRandom.GetBytes(ValueSize);
+                ContentHash contentHash = bytes.CalculateHash(ContentHashType);
+
+                // Verify content doesn't exist yet in store
+                Assert.False(await store.ContainsAsync(context, contentHash, null));
+
+                using (var tempDirectory = new DisposableDirectory(FileSystem))
+                {
+                    AbsolutePath pathToContent = tempDirectory.Path / "tempContent.txt";
+                    FileSystem.WriteAllBytes(pathToContent, bytes);
+
+                    var put = await store.PutFileAsync(context, pathToContent, FileRealizationMode.Any, ContentHashType, pinRequest: null).ShouldBeSuccess();
+                    var hashFromPut = put.ContentHash;
+                    store.Counters[Counter.PutFileFast].Value.Should().Be(0);
+
+                    put = await store.PutFileAsync(context, pathToContent, FileRealizationMode.Any, ContentHashType, pinRequest: null).ShouldBeSuccess();
+                    store.Counters[Counter.PutFileFast].Value.Should().Be(1, "Non-pinning put should use fast path if content is already in cache");
+
+                    put = await store.PutFileAsync(context, pathToContent, FileRealizationMode.Any, hashFromPut, pinRequest: null).ShouldBeSuccess();
+                    store.Counters[Counter.PutFileFast].Value.Should().Be(2, "Non-pinning put (with hash) should use fast path if content is already in cache");
+
+                    using (var pinContext = store.CreatePinContext())
+                    {
+                        // Put the content into the store w/ hard link
+
+                        put = await store.PutFileAsync(context, pathToContent, FileRealizationMode.Any, ContentHashType, pinRequest: new PinRequest(pinContext)).ShouldBeSuccess();
+                        store.Counters[Counter.PutFileFast].Value.Should().Be(2, "Pinning put should NOT use fast path if it needs to pin content");
+                        Assert.True(pinContext.Contains(hashFromPut));
+                        await store.EnsureContentIsPinned(context, Clock, hashFromPut);
+                        Clock.Increment();
+
+                        put = await store.PutFileAsync(context, pathToContent, FileRealizationMode.Any, ContentHashType, pinRequest: new PinRequest(pinContext)).ShouldBeSuccess();
+                        store.Counters[Counter.PutFileFast].Value.Should().Be(3, "Pinning put should use fast path if it needs to pin content");
+
+                        put = await store.PutFileAsync(context, pathToContent, FileRealizationMode.Any, hashFromPut, pinRequest: new PinRequest(pinContext)).ShouldBeSuccess();
+                        store.Counters[Counter.PutFileFast].Value.Should().Be(4, "Pinning put (with hash) should use fast path if content is already in cache");
+                    }
+
+                    await store.EnsureContentIsNotPinned(context, Clock, hashFromPut);
+                }
+            });
         }
 
         [Fact]

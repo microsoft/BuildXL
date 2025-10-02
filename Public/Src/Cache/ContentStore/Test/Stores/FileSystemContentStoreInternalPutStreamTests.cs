@@ -6,13 +6,13 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Cache.ContentStore.Stores;
-using BuildXL.Cache.ContentStore.Synchronization;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest.FileSystem;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.InterfacesTest.Time;
+using BuildXL.Cache.ContentStore.Stores;
+using BuildXL.Cache.ContentStore.Synchronization;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Utilities.Core.Tasks;
 using ContentStoreTest.Test;
@@ -21,6 +21,8 @@ using Xunit;
 
 namespace ContentStoreTest.Stores
 {
+    using Counter = FileSystemContentStoreInternal.Counter;
+
     public abstract class FileSystemContentStoreInternalPutStreamTests : FileSystemContentStoreInternalTestBase
     {
         protected readonly Context Context;
@@ -31,6 +33,50 @@ namespace ContentStoreTest.Stores
         {
             Context = new Context(Logger);
             Clock = (MemoryClock)((MemoryFileSystem)FileSystem).Clock;
+        }
+
+        [Fact]
+        public Task PutStreamFastPath()
+        {
+            return TestStore(Context, Clock, async store =>
+            {
+                using (var dataStream = new MemoryStream(ThreadSafeRandom.GetBytes(MaxSizeHard / 3)))
+                {
+                    var put = await store.PutStreamAsync(Context, dataStream, ContentHashType, pinRequest: null).ShouldBeSuccess();
+                    var hashFromPut = put.ContentHash;
+                    store.Counters[Counter.PutFileFast].Value.Should().Be(0);
+
+                    dataStream.Position = 0;
+                    put = await store.PutStreamAsync(Context, dataStream, ContentHashType, pinRequest: null).ShouldBeSuccess();
+                    store.Counters[Counter.PutFileFast].Value.Should().Be(1, "Non-pinning put should use fast path if content is already in cache");
+
+                    dataStream.Position = 0;
+                    put = await store.PutStreamAsync(Context, dataStream, hashFromPut, pinRequest: null).ShouldBeSuccess();
+                    store.Counters[Counter.PutFileFast].Value.Should().Be(2, "Non-pinning put (with hash) should use fast path if content is already in cache");
+
+                    using (var pinContext = store.CreatePinContext())
+                    {
+                        // Put the content into the store w/ hard link
+
+                        dataStream.Position = 0;
+                        put = await store.PutStreamAsync(Context, dataStream, ContentHashType, pinRequest: new PinRequest(pinContext)).ShouldBeSuccess();
+                        store.Counters[Counter.PutFileFast].Value.Should().Be(2, "Pinning put should NOT use fast path if it needs to pin content");
+                        Assert.True(pinContext.Contains(hashFromPut));
+                        await store.EnsureContentIsPinned(Context, Clock, hashFromPut);
+                        Clock.Increment();
+
+                        dataStream.Position = 0;
+                        put = await store.PutStreamAsync(Context, dataStream, ContentHashType, pinRequest: new PinRequest(pinContext)).ShouldBeSuccess();
+                        store.Counters[Counter.PutFileFast].Value.Should().Be(3, "Pinning put should use fast path if it needs to pin content");
+
+                        dataStream.Position = 0;
+                        put = await store.PutStreamAsync(Context, dataStream, hashFromPut, pinRequest: new PinRequest(pinContext)).ShouldBeSuccess();
+                        store.Counters[Counter.PutFileFast].Value.Should().Be(4, "Pinning put (with hash) should use fast path if content is already in cache");
+                    }
+
+                    await store.EnsureContentIsNotPinned(Context, Clock, hashFromPut);
+                }
+            });
         }
 
         [Fact]

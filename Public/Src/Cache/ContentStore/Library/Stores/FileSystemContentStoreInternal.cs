@@ -102,6 +102,8 @@ namespace BuildXL.Cache.ContentStore.Stores
         private readonly ConfigurationModel _configurationModel;
         private readonly CounterCollection<Counter> _counters = new CounterCollection<Counter>();
 
+        internal CounterCollection<Counter> Counters => _counters;
+
         private readonly AbsolutePath _contentRootDirectory;
         private readonly AbsolutePath _tempFolder;
 
@@ -734,9 +736,23 @@ namespace BuildXL.Cache.ContentStore.Stores
             });
         }
 
+        private Task<PutResult?> TryPutStreamFastAsync(
+            Context context,
+            ContentHash contentHash,
+            PinRequest? pinRequest)
+        {
+            return TryPutFileFastAsync(
+                context,
+                path: null,
+                realizationMode: default,
+                contentHash,
+                pinRequest: pinRequest,
+                shouldAttemptHardLink: true);
+        }
+
         private async Task<PutResult?> TryPutFileFastAsync(
             Context context,
-            AbsolutePath path,
+            AbsolutePath? path,
             FileRealizationMode realizationMode,
             ContentHash contentHash,
             PinRequest? pinRequest,
@@ -746,29 +762,44 @@ namespace BuildXL.Cache.ContentStore.Stores
             // If hardlinking existing content which has already been pinned in this context
             // just quickly attempt to hardlink from the existing replica
             if (shouldAttemptHardLink
+                && _settings.UseRedundantPutFileShortcut
                 && ContentDirectory.TryGetFileInfo(contentHash, out var fileInfo)
-                && IsPinned(contentHash, pinRequest)
-                && _settings.UseRedundantPutFileShortcut)
+                // Only need to ensure pinned if there is a non-null pin request
+                && (pinRequest == null || IsPinned(contentHash, pinRequest))
+                // Prevent eviction by adding a reference to the content (this augments pin logic without other semantics like persistence)
+                // Needs to be last check so that Dereference only happens if this was called and returns true
+                && fileInfo.TryReference())
             {
-                using (_counters[Counter.PutFileFast].Start())
+                try
                 {
-                    CheckPinned(contentHash, pinRequest);
-                    fileInfo.UpdateLastAccessed(Clock);
-                    var placeLinkResult = await PlaceLinkFromCacheAsync(
-                                        context,
-                                        path,
-                                        FileReplacementMode.ReplaceExisting,
-                                        realizationMode,
-                                        contentHash,
-                                        fileInfo,
-                                        fastPath: true);
-
-                    if (placeLinkResult == CreateHardLinkResult.Success)
+                    using (_counters[Counter.PutFileFast].Start())
                     {
-                        var result = new PutResult(contentHash, fileInfo.LogicalFileSize, contentAlreadyExistsInCache: true);
-                        result.SetDiagnosticsForSuccess("FastPath");
-                        return result;
+                        CheckPinned(contentHash, pinRequest);
+                        fileInfo.UpdateLastAccessed(Clock);
+                        var placeLinkResult = CreateHardLinkResult.Success;
+                        if (path != null)
+                        {
+                            placeLinkResult = await PlaceLinkFromCacheAsync(
+                                    context,
+                                    path,
+                                    FileReplacementMode.ReplaceExisting,
+                                    realizationMode,
+                                    contentHash,
+                                    fileInfo,
+                                    fastPath: true);
+                        }
+
+                        if (placeLinkResult == CreateHardLinkResult.Success)
+                        {
+                            var result = new PutResult(contentHash, fileInfo.LogicalFileSize, contentAlreadyExistsInCache: true);
+                            result.SetDiagnosticsForSuccess("FastPath");
+                            return result;
+                        }
                     }
+                }
+                finally
+                {
+                    fileInfo.Dereference();
                 }
             }
 
@@ -1176,6 +1207,12 @@ namespace BuildXL.Cache.ContentStore.Stores
         {
             return _tracer.PutStreamAsync(OperationContext(context), contentHash, async () =>
             {
+                var putResult = await TryPutStreamFastAsync(context, contentHash, pinRequest);
+                if (putResult != null)
+                {
+                    return putResult;
+                }
+
                 using (LockSet<ContentHash>.LockHandle contentHashHandle = await _lockSet.AcquireAsync(contentHash))
                 {
                     CheckPinned(contentHash, pinRequest);
@@ -1249,6 +1286,12 @@ namespace BuildXL.Cache.ContentStore.Stores
 
                     // This our temp file and it is responsibility of this method to delete it.
                     shouldDelete = true;
+                }
+
+                var putResult = await TryPutStreamFastAsync(context, contentHash, pinRequest);
+                if (putResult != null)
+                {
+                    return putResult;
                 }
 
                 using (LockSet<ContentHash>.LockHandle contentHashHandle = await _lockSet.AcquireAsync(contentHash))
@@ -1530,7 +1573,7 @@ namespace BuildXL.Cache.ContentStore.Stores
             return FileSystem.FileAttributesAreSubset(path, IgnoredFileAttributes);
         }
 
-        private enum Counter
+        internal enum Counter
         {
             [CounterType(CounterType.Stopwatch)]
             PutFileFast,
@@ -1889,6 +1932,12 @@ namespace BuildXL.Cache.ContentStore.Stores
                                     pinnedSize = fileInfo.TotalPhysicalSize;
 
                                     // Nothing was modified, so no need to save anything.
+                                    return null;
+                                }
+
+                                if (!force && !fileInfo.TryReserveForEviction())
+                                {
+                                    // Content is currently referenced cannot evict.
                                     return null;
                                 }
 
@@ -2689,7 +2738,7 @@ namespace BuildXL.Cache.ContentStore.Stores
 
         private void IncrementPin(ContentHash hash)
         {
-            PinMap.GetOrAdd(hash, new Pin()).Increment();
+            PinMap.GetOrAdd(hash, static _ => new Pin()).Increment();
         }
 
         /// <summary>

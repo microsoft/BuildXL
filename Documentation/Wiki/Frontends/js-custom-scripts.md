@@ -9,9 +9,9 @@ A callback can be defined when configuring a JavaScript resolver to provide scri
 config({
     resolvers: [
         {
-            kind: "Rush",
+            kind: "CustomJavaScript",
             moduleName: "my-repo",
-            ...
+            root: d`.`,
             customScripts: importFile(f`custom-scripts.dsc`).getCustomScripts
         }
 });

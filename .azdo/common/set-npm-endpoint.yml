@@ -1,0 +1,11 @@
+parameters:
+- name: accessTokenVariableName
+  type: string
+- name: npmServiceConnectionId
+  type: string
+
+steps:
+- powershell: |
+    Write-Host "Setting npm endpoint for ${{ parameters.npmServiceConnectionId }}"
+    Write-Host "##vso[task.setendpoint id=${{ parameters.npmServiceConnectionId }};field=authParameter;key=password]$(${{ parameters.accessTokenVariableName }})"
+  displayName: 'Set npm endpoint'

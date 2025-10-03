@@ -61,12 +61,24 @@ jobs:
 
   - bash: >-
       set -eu
-            
-      sed -i "s|_packaging/BuildXL/npm|_packaging/BuildXL.experimental/npm|g" ./Public/Src/Deployment/npm/.npmrc ./Public/Src/Deployment/npm/package-linux.json  # Replace BuildXL with BuildXL.experimental for the feed
+
+      # Replace the registry to point to the BuildXL.experimental feed
+      # This value ends up in the .npmrc file in the package, and that affects
+      # the nugetAuthenticate task in the publishing job below
       
+      sed -i "s|https://1essharedassets.pkgs.visualstudio.com/_packaging/BuildXL/npm/registry/|https://pkgs.dev.azure.com/mseng/Domino/_packaging/BuildXL.experimental/npm/registry/|g" ./Public/Src/Deployment/npm/.npmrc ./Public/Src/Deployment/npm/package-linux.json
+      
+      echo ===================
+      
+      cat ./Public/Src/Deployment/npm/.npmrc
+      
+      echo ===================
+      
+      cat ./Public/Src/Deployment/npm/package-linux.json
+
       bash bxl.sh --internal --use-adobuildrunner
       --runner-arg /cacheConfigLogGeneratedConfiguration:true /p:BuildXLForceLaunchEBPFDaemon=0 
-      /q:ReleaseLinux /q:DebugLinux "/f:output='/home/subst/Out/Bin/${{ parameters.Flavor }}/npm/*'" "/f:output='/home/subst/Out/Bin/${{ parameters.Flavor }}/pkgs/*'" "/p:Build.BuildId=0.1.0-${{ parameters.PackageName }}" "/p:[BuildXL.Branding]SourceIdentification=NpmExperimental-$(Build.BuildId)"
+      /q:ReleaseLinux /q:DebugLinux "/f:output='/home/subst/Out/Bin/${{ parameters.Flavor }}/npm/*'oroutput='/home/subst/Out/Bin/${{ parameters.Flavor }}/pkgs/*'" "/p:Build.BuildId=0.1.0-${{ parameters.PackageName }}" "/p:[BuildXL.Branding]SourceIdentification=NpmExperimental-$(Build.BuildId)"
     displayName: Build packages
     workingDirectory: /home/subst
     env:
@@ -122,10 +134,25 @@ jobs:
         artifactName: 'LinuxNpmPackage'
         path: '$(System.DefaultWorkingDirectory)/LinuxNpmPackage'
 
-    - task: NodeTool@0
+    - task: UseNode@1
+      displayName: 'Install Node & npm toolchains on agent machine'
+    
+    - template: /.azdo/common/generate-access-token.yml
+      parameters:
+        accessTokenVariable: 'BuildXLPipelinesAccessToken'
+        resource: '499b84ac-1321-427f-aa17-267ca6975798'
+        serviceConnection: 'mseng-Domino-BuildXL-Pipelines'
+
+    - template: /.azdo/common/set-npm-endpoint.yml
+      parameters:
+        accessTokenVariableName: 'BuildXLPipelinesAccessToken'
+        npmServiceConnectionId: '1ffb65df-9b4c-4d67-84a0-8dbd3ab9b25f' # mseng-Domino-BuildXL-Domino_BuildXLExperimental_npm
+
+    - task: npmAuthenticate@0
+      displayName: 'Npm Authenticate'
       inputs:
-        versionSource: 'spec'
-      displayName: Install node
+        workingFile: '$(System.DefaultWorkingDirectory)/LinuxNpmPackage/.npmrc'
+        customEndpoint: 'mseng-Domino-BuildXL-Domino_BuildXLExperimental_npm'
 
     - task: Npm@1
       displayName: 'Publish npm package to BuildXL.experimental feed (Linux)'
@@ -134,6 +161,3 @@ jobs:
         workingDir: '$(System.DefaultWorkingDirectory)/LinuxNpmPackage'
         verbose: true
         customCommand: 'publish'
-        customRegistry: useFeed
-        customFeed: '9ed2c125-1cd5-4a17-886b-9d267f3a5fab/21928c99-428b-4ccc-8a3e-0d11b5cc80db'
-

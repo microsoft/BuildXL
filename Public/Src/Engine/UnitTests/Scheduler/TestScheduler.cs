@@ -212,7 +212,7 @@ namespace Test.BuildXL.Scheduler
             // So create a sandbox connection that does not wait for it and pass it downstream
             if (UnixSandboxingEnabled && sandboxConnection == null && m_configuration.Sandbox.EnableEBPFLinuxSandbox)
             {
-                return base.InitSandboxConnection(loggingContext, new SandboxConnectionLinuxEBPF(SandboxFailureCallback, ebpfDaemonTask: null));
+                return base.InitSandboxConnection(loggingContext, SandboxConnectionLinuxEBPF.CreateForTest(SandboxFailureCallback));
             }
 
             return base.InitSandboxConnection(loggingContext, sandboxConnection);

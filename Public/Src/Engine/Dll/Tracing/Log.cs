@@ -2916,6 +2916,24 @@ If you can't update and need this feature after July 2018 please reach out to th
             EventTask = (int)Tasks.Storage,
             Message = "The provided EBPF ring buffer size multiplier '{multiplier}' should be a power of two.")]
         public abstract void InvalidEBPFRingBufferSizeMultiplier(LoggingContext context, int multiplier);
+
+        [GeneratedEvent(
+            (int)LogEventId.EBPFCapabilitiesSudoPrompt,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Informational,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Engine,
+            Message = "BuildXL requires elevated permissions to set the required capabilities for its sandbox.")]
+        public abstract void EBPFCapabilitiesSudoPrompt(LoggingContext context);
+
+        [GeneratedEvent(
+            (int)LogEventId.CannotSetEBPFCapabilities,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Engine,
+            Message = "Unable to set the required capabilities for the sandbox to run: {errorMessage}.")]
+        public abstract void CannotSetEBPFCapabilities(LoggingContext context, string errorMessage);
     }
 
     /// <summary>

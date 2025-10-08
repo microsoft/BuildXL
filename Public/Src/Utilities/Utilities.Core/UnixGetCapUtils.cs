@@ -33,41 +33,59 @@ public class UnixGetCapUtils : UnixUtilsBase
     /// <param name="binaryPath">Path for executable to be tested.</param>
     /// <remarks>getcap returns an empty string unless capabilities are found or the file being checked does not exist.</remarks>
     public bool BinaryContainsCapabilities(string binaryPath) =>
-        CheckConditionAgainstStandardOutput(binaryPath, binaryPath, (stdout) => !string.IsNullOrEmpty(stdout));
+        CheckConditionAgainstStandardOutput(binaryPath, binaryPath, (stdout) => !string.IsNullOrEmpty(stdout), out _);
 
     /// <summary>
     /// Returns true if the provided binary contains the specified capability
     /// </summary>
     public bool BinaryContainsCapabilities(string binaryPath, UnixCapability capability) =>
-        CheckConditionAgainstStandardOutput(binaryPath, binaryPath, (stdout) => stdout.Contains(capability.CapabilityString()));
-
-    /// <summary>
-    /// Check if the environment variable TF_BUILD is set, which indicates an Azure DevOps build.
-    /// </summary>
-    private static bool IsAdoBuild() => !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("TF_BUILD"));
+        CheckConditionAgainstStandardOutput(binaryPath, binaryPath, (stdout) => stdout.Contains(capability.CapabilityString()), out _);
 
     /// <summary>
     /// Sets the required EBPF capabilities on the provided binary path.
-    /// For now we only want to do this for ADO builds because they won't require an interactive prompt
     /// TODO: for now we are setting DAC_OVERRIDE to allow the executable to pin maps (which requires writing under th BPF file system). Consider
     /// mounting the file system explicitly as a way to avoid setting this cap.
-    /// CAP_SYS_NICE is required to allow the ebpf runner to set the nice level of the threads it spawns.
     /// </summary>
-    public static void SetEBPFCapabilitiesIfNeeded(string binaryPath)
+    /// <remarks>
+    /// CAP_SYS_NICE is required to allow the ebpf runner to set the nice level of the threads it spawns.
+    /// sudo is always executed in non-interactive mode unless interactive is set to true. An optional action can be provided to
+    /// notify the user that a password prompt is about to be issued.
+    /// </remarks>
+    public static bool TrySetEBPFCapabilitiesIfNeeded(string binaryPath, bool interactive, out string failure, Action interactivePromptAction = null)
     {
-        if (IsAdoBuild())
+        if (!BinaryHasEBPFCapabilities(binaryPath))
         {
-            var getCapUtils = UnixGetCapUtils.CreateGetCap();
-            if (!getCapUtils.BinaryContainsCapabilities(binaryPath, UnixCapability.CAP_SYS_ADMIN) ||
-                !getCapUtils.BinaryContainsCapabilities(binaryPath, UnixCapability.CAP_DAC_OVERRIDE) ||
-                !getCapUtils.BinaryContainsCapabilities(binaryPath, UnixCapability.CAP_SYS_NICE))
+            if (WillSudoPromptForPassword())
             {
-                var setCapUtils = UnixSetCapUtils.CreateSetCap();
-                if (!setCapUtils.SetCapability(binaryPath, UnixCapability.CAP_SYS_ADMIN, UnixCapability.CAP_DAC_OVERRIDE, UnixCapability.CAP_SYS_NICE))
+                if (interactive)
                 {
-                    throw new BuildXLException($"Failed to set CAP_SYS_ADMIN, CAP_DAC_OVERRIDE and CAP_SYS_NICE capabilities on {binaryPath}");
+                    // We are going to prompt for a password and interactive mode is enabled. Notify the user.
+                    interactivePromptAction?.Invoke();
+                }
+                else
+                {
+                    // We are going to prompt for a password but interactive mode is disabled. This is bound to fail.
+                    failure = "Interactive sudo access is required but interactive mode is disabled. If this is a developer build, you can pass /interactive+ to enable it.";
+                    return false;
                 }
             }
+
+            var setCapUtils = UnixSetCapUtils.CreateSetCap();
+            return setCapUtils.SetCapability(binaryPath, interactive, out failure, UnixCapability.CAP_SYS_ADMIN, UnixCapability.CAP_DAC_OVERRIDE, UnixCapability.CAP_SYS_NICE);
         }
+
+        failure = string.Empty;
+        return true;
+    }
+
+    /// <summary>
+    /// Returns true if the provided binary contains the required EBPF capabilities
+    /// </summary>
+    public static bool BinaryHasEBPFCapabilities(string binaryPath)
+    {
+        var getCapUtils = CreateGetCap();
+        return getCapUtils.BinaryContainsCapabilities(binaryPath, UnixCapability.CAP_SYS_ADMIN) &&
+               getCapUtils.BinaryContainsCapabilities(binaryPath, UnixCapability.CAP_DAC_OVERRIDE) &&
+               getCapUtils.BinaryContainsCapabilities(binaryPath, UnixCapability.CAP_SYS_NICE);
     }
 }

@@ -18,9 +18,9 @@ public abstract class UnixUtilsBase
     private readonly bool m_isToolInstalled;
 
     /// <summary>
-    /// Cache of results from <see cref="CheckConditionAgainstStandardOutput(string, string, Func{string, bool}, bool)"/>.
+    /// Cache of results from <see cref="CheckConditionAgainstStandardOutput(string, string, Func{string, bool}, out string, bool, bool)"/>.
     /// </summary>
-    private readonly ConcurrentDictionary<string, bool> m_cache = new();
+    private readonly ConcurrentDictionary<string, (bool result, string error)> m_cache = new();
 
     /// <nodoc/>
     protected UnixUtilsBase(string toolPath)
@@ -36,10 +36,11 @@ public abstract class UnixUtilsBase
     /// <remarks>
     /// The provided cache is used for retrieval/storage
     /// </remarks>
-    protected bool CheckConditionAgainstStandardOutput(string binaryPath, string arguments, Func<string, bool> condition, bool runAsSudo = false)
+    protected bool CheckConditionAgainstStandardOutput(string binaryPath, string arguments, Func<string, bool> condition, out string standardError, bool runAsSudo = false, bool interactive = false)
     {
         if (!OperatingSystemHelper.IsLinuxOS || !m_isToolInstalled || !File.Exists(binaryPath))
         {
+            standardError = !OperatingSystemHelper.IsLinuxOS ? "Not a Linux OS" : !m_isToolInstalled ? $"{m_toolPath} not found" : $"File {binaryPath} not found";
             return false;
         }
 
@@ -49,7 +50,8 @@ public abstract class UnixUtilsBase
 
         if (m_cache.TryGetValue(pathKey, out var result))
         {
-            return result;
+            standardError = result.error;
+            return result.result;
         }
 
         string filename;
@@ -57,6 +59,12 @@ public abstract class UnixUtilsBase
         {
             filename = "/usr/bin/sudo";
             arguments = $"{m_toolPath} {arguments}";
+            if (!interactive)
+            {
+                // If not interactive, we don't want sudo to prompt for a password
+                arguments = "-n " + arguments;
+            }
+
         }
         else
         {
@@ -69,7 +77,8 @@ public abstract class UnixUtilsBase
             Arguments = arguments,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
-            WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden,
+            // If interactive is true, we want to show the window so that user can enter password for sudo
+            WindowStyle = runAsSudo && interactive ? System.Diagnostics.ProcessWindowStyle.Normal : System.Diagnostics.ProcessWindowStyle.Hidden,
             UseShellExecute = false,
             ErrorDialog = false,
             StandardOutputEncoding = Encoding.UTF8,
@@ -79,36 +88,50 @@ public abstract class UnixUtilsBase
         using var process = System.Diagnostics.Process.Start(processInfo);
         if (process == null)
         {
+            standardError = "Failed to start process";
+            m_cache.TryAdd(pathKey, (false, standardError));
             return false;
         }
 
         string stdout = string.Empty;
 
+        bool exited = false;
+        standardError = string.Empty;
         try
         {
-            stdout = process.StandardOutput.ReadToEnd();
 #pragma warning disable AsyncFixer02 // WaitForExitAsync should be used instead
-            if (!process.WaitForExit(2 * 1000))
+            int timeoutSecs = interactive ? 30 : 2;
+            exited = process.WaitForExit(timeoutSecs * 1000);
+            if (!exited)
             {
-                // Only waiting 2 seconds at the most, although it should never take this long
+                // Only waiting 2 (or 30 if interactive) seconds at the most, although it should never take this long
                 kill(process);
-                m_cache.TryAdd(pathKey, false);
+                standardError = $"Process timed out after {timeoutSecs} seconds";
+                m_cache.TryAdd(pathKey, (false, standardError));
             }
             process.WaitForExit();
+            stdout = process.StandardOutput.ReadToEnd();
+
 #pragma warning restore AsyncFixer02
         }
-#pragma warning disable ERP022 // An exit point '}' swallows an unobserved exception.
-        catch (Exception)
+#pragma warning disable EPC12 // An exit point '}' swallows an unobserved exception.
+        catch (Exception e)
         {
             // Best effort
-            m_cache.TryAdd(pathKey, false);
+            standardError = e.Message;
+            m_cache.TryAdd(pathKey, (false, standardError));
+            return false;
         }
-#pragma warning restore ERP022
+#pragma warning restore EPC12
 
+        if (exited)
+        {
+            standardError = process.StandardError.ReadToEnd();
+        }
         if (process.ExitCode == 0)
         {
             var check = condition(stdout);
-            m_cache.TryAdd(pathKey, check);
+            m_cache.TryAdd(pathKey, (check, standardError));
 
             return check;
         }
@@ -132,5 +155,61 @@ public abstract class UnixUtilsBase
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Determines if sudo will require an interactive password prompt
+    /// </summary>
+    protected static bool WillSudoPromptForPassword()
+    {
+        if (!OperatingSystemHelper.IsLinuxOS)
+        {
+            return false;
+        }
+
+        // Check if sudo exists
+        if (!File.Exists("/usr/bin/sudo"))
+        {
+            return false;
+        }
+
+        try
+        {
+            var processInfo = new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "/usr/bin/sudo",
+                Arguments = "-n true", // Non-interactive test command
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden,
+                UseShellExecute = false,
+                ErrorDialog = false,
+            };
+
+            using var process = System.Diagnostics.Process.Start(processInfo);
+            if (process == null)
+            {
+                return true; // Assume prompt required if we can't test
+            }
+
+            // Wait up to 2 seconds for the test
+            if (!process.WaitForExit(2000))
+            {
+                process.Kill();
+                return true; // Assume prompt required if test hangs
+            }
+
+            process.WaitForExit();
+
+            // Exit code 0 means sudo worked without password, so no prompt required
+            return process.ExitCode != 0;
+        }
+        catch (Exception)
+        {
+            // If we can't determine, assume prompt is required for safety
+#pragma warning disable ERP022 // Unobserved exception in a generic exception handler
+            return true;
+#pragma warning restore ERP022 // Unobserved exception in a generic exception handler
+        }
     }
 }

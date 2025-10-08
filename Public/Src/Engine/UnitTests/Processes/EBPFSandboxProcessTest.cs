@@ -44,7 +44,9 @@ namespace Test.BuildXL.Processes
             string ringBufferTest = SandboxedProcessUnix.EnsureDeploymentFile("RingBufferTest/ringbuffer_test");
 
             // The test needs the ability to retrieve a pinned EBPF map
-            UnixGetCapUtils.SetEBPFCapabilitiesIfNeeded(ringBufferTest);
+            var setCapResult = UnixGetCapUtils.TrySetEBPFCapabilitiesIfNeeded(ringBufferTest, interactive: false, out _);
+            // This test only runs on ADO, and therefore we should be able to set the capabilities without an interactive prompt.
+            XAssert.IsTrue(setCapResult);
 
             var fileAccessManifest = new FileAccessManifest(Context.PathTable)
             {
@@ -69,7 +71,7 @@ namespace Test.BuildXL.Processes
                     WorkingDirectory = TemporaryDirectory,
                     PipSemiStableHash = fileAccessManifest.PipId,
                     PipDescription = "EBPF capacity test",
-                    SandboxConnection = new SandboxConnectionLinuxEBPF(ebpfDaemonTask: null),
+                    SandboxConnection = SandboxConnectionLinuxEBPF.CreateForTest(),
                 };
 
             var process = SandboxedProcessFactory.StartAsync(info, forceSandboxing: true).GetAwaiter().GetResult();
@@ -95,7 +97,9 @@ namespace Test.BuildXL.Processes
             string incrementalPathTest = SandboxedProcessUnix.EnsureDeploymentFile("RingBufferTest/incremental_path_test");
 
             // The test needs the ability to retrieve a pinned EBPF map
-            UnixGetCapUtils.SetEBPFCapabilitiesIfNeeded(incrementalPathTest);
+            var setCapResult = UnixGetCapUtils.TrySetEBPFCapabilitiesIfNeeded(incrementalPathTest, interactive: false, out _);
+            // This test only runs on ADO, and therefore we should be able to set the capabilities without an interactive prompt.
+            XAssert.IsTrue(setCapResult);
 
             var fileAccessManifest = new FileAccessManifest(Context.PathTable)
             {
@@ -120,7 +124,7 @@ namespace Test.BuildXL.Processes
                     WorkingDirectory = TemporaryDirectory,
                     PipSemiStableHash = fileAccessManifest.PipId,
                     PipDescription = "EBPF incremental test",
-                    SandboxConnection = new SandboxConnectionLinuxEBPF(ebpfDaemonTask: null),
+                    SandboxConnection = SandboxConnectionLinuxEBPF.CreateForTest(),
                 };
 
             var process = SandboxedProcessFactory.StartAsync(info, forceSandboxing: true).GetAwaiter().GetResult();
@@ -191,7 +195,7 @@ namespace Test.BuildXL.Processes
                     WorkingDirectory = TemporaryDirectory,
                     PipSemiStableHash = fileAccessManifest.PipId,
                     PipDescription = "EBPF ring buffer multiplier test",
-                    SandboxConnection = new SandboxConnectionLinuxEBPF(ebpfDaemonTask: null),
+                    SandboxConnection = SandboxConnectionLinuxEBPF.CreateForTest(),
                 };
 
             var process = SandboxedProcessFactory.StartAsync(info, forceSandboxing: true).GetAwaiter().GetResult();
@@ -238,7 +242,7 @@ namespace Test.BuildXL.Processes
                     WorkingDirectory = TemporaryDirectory,
                     PipSemiStableHash = fileAccessManifest.PipId,
                     PipDescription = "EBPF ring buffer untracked test",
-                    SandboxConnection = new SandboxConnectionLinuxEBPF(ebpfDaemonTask: null),
+                    SandboxConnection = SandboxConnectionLinuxEBPF.CreateForTest(),
                 };
 
             var process = SandboxedProcessFactory.StartAsync(info, forceSandboxing: true).GetAwaiter().GetResult();
@@ -282,7 +286,7 @@ namespace Test.BuildXL.Processes
                     WorkingDirectory = TemporaryDirectory,
                     PipSemiStableHash = fileAccessManifest.PipId,
                     PipDescription = "EBPF ring buffer untracked test",
-                    SandboxConnection = new SandboxConnectionLinuxEBPF(ebpfDaemonTask: null),
+                    SandboxConnection = SandboxConnectionLinuxEBPF.CreateForTest(),
                 };
 
             var process = SandboxedProcessFactory.StartAsync(info, forceSandboxing: true).GetAwaiter().GetResult();
@@ -327,7 +331,9 @@ namespace Test.BuildXL.Processes
             string pathCanonicalizationTest = SandboxedProcessUnix.EnsureDeploymentFile("RingBufferTest/path_canonicalization_test");
 
             // The test needs the ability to find an EBPF program by name
-            UnixGetCapUtils.SetEBPFCapabilitiesIfNeeded(pathCanonicalizationTest);
+            var setCapResult = UnixGetCapUtils.TrySetEBPFCapabilitiesIfNeeded(pathCanonicalizationTest, interactive: false, out _);
+            // This test only runs on ADO, and therefore we should be able to set the capabilities without an interactive prompt.
+            XAssert.IsTrue(setCapResult);
 
             var fileAccessManifest = new FileAccessManifest(Context.PathTable)
             {
@@ -352,7 +358,7 @@ namespace Test.BuildXL.Processes
                     WorkingDirectory = TemporaryDirectory,
                     PipSemiStableHash = fileAccessManifest.PipId,
                     PipDescription = "EBPF path canonicalization test",
-                    SandboxConnection = new SandboxConnectionLinuxEBPF(ebpfDaemonTask: null),
+                    SandboxConnection = SandboxConnectionLinuxEBPF.CreateForTest(),
                 };
 
             var process = SandboxedProcessFactory.StartAsync(info, forceSandboxing: true).GetAwaiter().GetResult();
@@ -419,7 +425,7 @@ namespace Test.BuildXL.Processes
                     WorkingDirectory = TemporaryDirectory,
                     PipSemiStableHash = fileAccessManifest.PipId,
                     PipDescription = $"EBPF symlink resolution test for {command}",
-                    SandboxConnection = new SandboxConnectionLinuxEBPF(ebpfDaemonTask: null),
+                    SandboxConnection = SandboxConnectionLinuxEBPF.CreateForTest(),
                 };
 
             var process = SandboxedProcessFactory.StartAsync(info, forceSandboxing: true).GetAwaiter().GetResult();

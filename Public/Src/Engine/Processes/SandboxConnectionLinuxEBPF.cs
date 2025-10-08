@@ -674,9 +674,28 @@ namespace BuildXL.Processes
             IsInTestMode = isInTestMode;
             Native.Processes.ProcessUtilities.SetNativeConfiguration(UnsandboxedProcess.IsInDebugMode);
             m_ebpfDaemonTask = ebpfDaemonTask;
+        }
 
-            // Validate that the ebpf loader has the admin capability set.
-            UnixGetCapUtils.SetEBPFCapabilitiesIfNeeded(EBPFRunner);
+        /// <summary>
+        /// Creates a sandbox connection for testing purposes.
+        /// </summary>
+        /// <remarks>
+        /// In addition to creating a regular connection, this method checks that the ebpf runner binary has the required capabilities set,
+        /// and if not, tries to set them non-interactively.
+        /// </remarks>
+        public static SandboxConnectionLinuxEBPF CreateForTest(ManagedFailureCallback failureCallback = null)
+        {
+            // BuildXL can handle an interactive prompt for setting the required capabilities to the ebpf runner binary when running a regular build.
+            // However, some tests require an ebpf runner binary that was just built - as part of the running build - to be used.
+            // Try to set the capabilities non-interactively, if this fails print a clear error message. BuildXL does not 
+            // have a way to handle an interactive prompt to address sudo requirements for executing pips.
+            if (!UnixGetCapUtils.TrySetEBPFCapabilitiesIfNeeded(EBPFRunner, interactive: false, out var failure))
+            {
+                throw new BuildXLException($"The ebpf runner binary '{EBPFRunner}' does not have the required capabilities set and we couldn't set them non-interactively: {failure}\n." +
+                    $"Please manually run 'sudo setcap cap_sys_admin,cap_bpf,cap_sys_ptrace+ep {EBPFRunner}' to set the required capabilities.");
+            }
+
+            return new SandboxConnectionLinuxEBPF(failureCallback, isInTestMode: true, ebpfDaemonTask: null);
         }
 
         /// <inheritdoc />

@@ -532,32 +532,8 @@ fi
 
 compileWithBxl ${arg_Positional[@]} ${arg_UserProvidedBxlArguments[@]}
 
-# TODO: temporary until we can make bxl do the same
-ebpfRunner=$MY_DIR/Out/Bin/${outputConfiguration}/${DeploymentFolder}/bxl-ebpf-runner
-
-if [ -e "$ebpfRunner" ]; then
-    # TODO: investigate mounting the bpf system with different permissions so we don't need cap_dac_override
-    if getcap $ebpfRunner | grep -q 'cap_sys_admin,cap_dac_override,cap_sys_nice=ep'; then
-        print_info "EBPF runner $ebpfRunner capabilities already set"
-    else
-        print_info "Setting capabilities for the ebpf runner. This may require an interactive prompt"
-        sudo setcap 'cap_sys_admin,cap_dac_override,cap_sys_nice=ep' $ebpfRunner
-    fi
-fi
-
 if [[ -n "$arg_DeployDev" ]]; then
     deployBxl "$MY_DIR/Out/Bin/${outputConfiguration}/${DeploymentFolder}" "$MY_DIR/Out/Selfhost/Dev"
-
-    if [ -e "$ebpfRunner" ]; then
-        deployedEbpfRunner="$MY_DIR/Out/Selfhost/Dev/bxl-ebpf-runner"
-
-        if getcap $deployedEbpfRunner | grep -q 'cap_sys_admin,cap_dac_override,cap_sys_nice=ep'; then
-            print_info "EBPF runner $deployedEbpfRunner capabilities already set"
-        else
-            print_info "Setting capabilities for the ebpf runner. This may require an interactive prompt"
-            sudo setcap 'cap_sys_admin,cap_dac_override,cap_sys_nice=ep' $deployedEbpfRunner
-        fi
-    fi
 fi
 
 popd

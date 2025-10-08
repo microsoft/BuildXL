@@ -2889,9 +2889,26 @@ namespace BuildXL.Engine
             // the daemon.
             if (TestHooks == null)
             {
+                // TODO: remove the forced option when interpose can be retired.
+                bool enableEBPF = Configuration.Sandbox.EnableEBPFLinuxSandbox || EngineEnvironmentSettings.ForceLaunchEBPFDaemon;
+
+                // The EBPF runner needs to have the right capabilities set. This requires sudo rights.
+                if (OperatingSystemHelper.IsUnixOS && enableEBPF)
+                {
+                    if (!UnixGetCapUtils.TrySetEBPFCapabilitiesIfNeeded(
+                        SandboxConnectionLinuxEBPF.EBPFRunner,
+                        Configuration.Interactive,
+                        out string failure,
+                        () => Logger.Log.EBPFCapabilitiesSudoPrompt(loggingContext)))
+                    {
+                        Logger.Log.CannotSetEBPFCapabilities(loggingContext, failure);
+                        return ConstructScheduleResult.Failure;
+                    }
+                }
+
                 eBPFDaemonTask = EBPFDaemon.CreateEBPFDaemonTask(
                     // TODO: remove the forced option when interpose can be retired.
-                    Configuration.Sandbox.EnableEBPFLinuxSandbox || EngineEnvironmentSettings.ForceLaunchEBPFDaemon,
+                    enableEBPF,
                     Configuration.Layout.ObjectDirectory,
                     Context.PathTable,
                     loggingContext,

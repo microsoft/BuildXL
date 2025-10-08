@@ -427,8 +427,10 @@ namespace BuildXL.Engine.Tracing
 
         ErrorEBPFCannotStart = 7143,
         ErrorEBPFFailedUnexpectedly = 7144,
-        
         InvalidEBPFRingBufferSizeMultiplier = 7145,
+
+        EBPFCapabilitiesSudoPrompt = 7146,
+        CannotSetEBPFCapabilities = 7147,
 
         // max 7200
     }

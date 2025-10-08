@@ -2,6 +2,12 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20251001.1 (Release [30539019](https://dev.azure.com/mseng/Domino/_build/results?buildId=30539019&view=results))
+- [Detours] Log process path on remote injection failures
+- Emit build progress to Windows Terminal
+- [EBPF] readlinks on directories are not enumerations
+- Add ability to customize timeout & supported processes to plugin SupportedOperation message
+
 # 0.1.0-20250928.1 (Release [30525751](https://dev.azure.com/mseng/Domino/_build/results?buildId=30525751&view=results))
 - [Detours] Avoid logging error for brokered injection error
 - Don't count released workers as having available slots

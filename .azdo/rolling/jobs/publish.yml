@@ -15,6 +15,8 @@ jobs:
     name: BuildXL-DevOpsAgents-Selfhost-BuildCache
     os: windows
     image: 1ESPT-Win2022-PME-3
+    vhd:
+      enabled: false
   templateContext:
     sdl:
       baseline:

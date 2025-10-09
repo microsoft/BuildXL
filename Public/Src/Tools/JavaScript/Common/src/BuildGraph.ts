@@ -1,4 +1,4 @@
-import * as BxlConfig from './BuildXLConfigurationReader';
+import * as BxlConfig from './BuildXLConfigurationReader.js';
 
 /**
  * A JavaScript graph, for what matters to BuildXL, is just a collection of projects

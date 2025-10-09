@@ -251,7 +251,7 @@ namespace BuildXL.FrontEnd.Utilities.GenericProjectGraphResolver
         /// <summary>
         /// Constructs the build parameters based on user defined variables and passthrough variables
         /// </summary>
-        protected BuildParameters.IBuildParameters RetrieveBuildParameters()
+        protected virtual BuildParameters.IBuildParameters RetrieveBuildParameters()
         {
             // The full environment is built with all user-defined env variables plus the passthrough variables with their current values
             var fullEnvironment = m_trackedEnvironmentVariables.Union(

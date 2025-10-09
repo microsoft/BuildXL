@@ -397,7 +397,7 @@ namespace BuildXL.FrontEnd.JavaScript
                Context,
                cmdExeArtifact.Path.ToString(Context.PathTable),
                buildStorageDirectory: outputDirectory,
-               fileAccessManifest: FrontEndUtilities.GenerateToolFileAccessManifest(Context, outputFile.GetParent(Context.PathTable)),
+               fileAccessManifest: GenerateFileAccessManifest(outputFile.GetParent(Context.PathTable)),
                arguments: toolArguments,
                workingDirectory: ResolverSettings.Root.ToString(Context.PathTable),
                description: $"{Name} graph builder",
@@ -405,6 +405,14 @@ namespace BuildXL.FrontEnd.JavaScript
                useEBPFLinuxSandbox: Configuration.Sandbox.EnableEBPFLinuxSandbox,
                ebpfRingBufferSizeMultiplier: Configuration.Sandbox.EBPFRingBufferSizeMultiplier
                );
+        }
+
+        /// <summary>
+        /// Generates the file access manifest to be used when running the graph construction tool
+        /// </summary>
+        protected virtual FileAccessManifest GenerateFileAccessManifest(AbsolutePath toolDirectory)
+        {
+            return FrontEndUtilities.GenerateToolFileAccessManifest(Context, toolDirectory);
         }
 
         private void DeleteGraphBuilderRelatedFiles(AbsolutePath outputFile)

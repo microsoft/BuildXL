@@ -13,6 +13,7 @@ using BuildXL.FrontEnd.Rush;
 using BuildXL.FrontEnd.Yarn;
 using BuildXL.FrontEnd.Lage;
 using BuildXL.FrontEnd.Ninja;
+using BuildXL.FrontEnd.Nx;
 #if PLATFORM_WIN
 using BuildXL.FrontEnd.MsBuild;
 #endif
@@ -71,6 +72,7 @@ namespace BuildXL.FrontEnd.Factory
                 global::BuildXL.FrontEnd.JavaScript.ETWLogger.Log,
                 global::BuildXL.FrontEnd.Yarn.ETWLogger.Log,
                 global::BuildXL.FrontEnd.Ninja.ETWLogger.Log,
+                global::BuildXL.FrontEnd.Nx.ETWLogger.Log,
 #if PLATFORM_WIN
                 global::BuildXL.FrontEnd.MsBuild.ETWLogger.Log,             
 #endif
@@ -282,6 +284,7 @@ namespace BuildXL.FrontEnd.Factory
             frontEndFactory.AddFrontEnd(new CustomYarnFrontEnd());
             frontEndFactory.AddFrontEnd(new LageFrontEnd());
             frontEndFactory.AddFrontEnd(new NinjaFrontEnd());
+            frontEndFactory.AddFrontEnd(new NxFrontEnd());
 
 #if PLATFORM_WIN
             frontEndFactory.AddFrontEnd(new MsBuildFrontEnd());

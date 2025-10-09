@@ -1,0 +1,16 @@
+{
+  "name": "@microsoft/nx-graph-builder",
+  "version": "1.0.0",
+  "description": "Builds a graph by inspecting a Nx-based repo.",
+  "license": "MIT",
+  "author": "Microsoft Build Accelerator",
+  "homepage": "https://github.com/Microsoft/BuildXL",
+  "main": "out/main.js",
+  "dependencies": {
+    "typescript": "5.9.3",
+    "semver": "7.7.2",
+    "path": "0.12.7",
+    "fs": "0.0.2", 
+    "@types/node": "24.6.1"
+  }
+}

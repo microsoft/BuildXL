@@ -59,6 +59,9 @@ namespace BuildXL.FrontEnd.JavaScript
         /// <nodoc/>
         protected PathTable PathTable => m_context.PathTable;
 
+        /// <nodoc/>
+        protected IJavaScriptResolverSettings ResolverSettings => m_resolverSettings;
+
         private readonly ConcurrentBigMap<JavaScriptProject, ProcessOutputs> m_processOutputsPerProject = new ConcurrentBigMap<JavaScriptProject, ProcessOutputs>();
 
         private readonly ConcurrentBigMap<JavaScriptProject, IReadOnlySet<JavaScriptProject>> m_transitiveDependenciesPerProject = new ConcurrentBigMap<JavaScriptProject, IReadOnlySet<JavaScriptProject>>();

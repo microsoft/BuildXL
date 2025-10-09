@@ -461,6 +461,19 @@ interface LageResolver extends JavaScriptResolverWithoutExecutionSemantics {
 }
 
 /**
+ * Resolver for Nx project-level build execution
+ */
+interface NxResolver extends JavaScriptResolverWithoutExecutionSemantics {
+    kind: "Nx";
+
+    /**
+     * The location of Nx libraries. E.g. /usr/lib/nx/node_modules
+     * Nx is used to get the build graph and as an executor for each node.
+     */
+    nxLibLocation?: Directory;
+}
+
+/**
  * Base resolver for all JavaScript-like resolvers. E.g. Rush
  */
 interface JavaScriptResolver extends ResolverBase, UntrackingSettings {
@@ -1028,4 +1041,4 @@ interface MsBuildResolverDefaults {
 
 }
 
-type Resolver = DScriptResolver | NuGetResolver | DownloadResolver | MsBuildResolver | NinjaResolver | RushResolver | YarnResolver | LageResolver | CustomJavaScriptResolver;
+type Resolver = DScriptResolver | NuGetResolver | DownloadResolver | MsBuildResolver | NinjaResolver | RushResolver | YarnResolver | LageResolver | CustomJavaScriptResolver | NxResolver;

@@ -79,6 +79,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
                     return new CustomJavaScriptResolverSettings(customYarnResolver, pathRemapper);
                 case ILageResolverSettings lageResolver:
                     return new LageResolverSettings(lageResolver, pathRemapper);
+                case INxResolverSettings nxResolver:
+                    return new NxResolverSettings(nxResolver, pathRemapper);
                 default:
                     Contract.Assume(false, "Unexpected type of resolver settings.");
                     return null;

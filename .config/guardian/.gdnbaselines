@@ -4,7 +4,7 @@
     "helpUri": "https://eng.ms/docs/microsoft-security/security/azure-security/cloudai-security-fundamentals-engineering/security-integration/guardian-wiki/microsoft-guardian/general/suppressions"
   },
   "version": "1.0.0",
-  "suppressionSets": {
+  "baselines": {
     "default": {
       "name": "default",
       "createdDate": "2025-08-30 01:55:37Z",

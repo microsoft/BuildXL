@@ -119,7 +119,8 @@ namespace Test.BuildXL.FrontEnd.Rush.SchedulingTests
                 CollectionUtilities.EmptyArray<FileArtifact>(), 
                 CollectionUtilities.EmptyArray<DirectoryArtifact>(),
                 CollectionUtilities.EmptyArray<AbsolutePath>(),
-                cacheable: true);
+                cacheable: true,
+                tags: Array.Empty<string>());
         }
     }
 }

@@ -39,7 +39,7 @@ async function loadNxModules() {
     }
 }
 
-function createBxlProjectGraph(nxTaskGraph): JavaScriptGraph {
+function createBxlProjectGraph(nxTaskGraph, nxProjectGraph): JavaScriptGraph {
     let projects: JavaScriptProject[] = [];
 
     let nxExe = path.join(nxLocation, "bin/nx.js");
@@ -63,6 +63,9 @@ function createBxlProjectGraph(nxTaskGraph): JavaScriptGraph {
             throw new Error(`Target not found for task: ${currentTask}`);
         }
 
+        // Retrieve tags if available
+        const tags = nxProjectGraph.nodes[target.project]?.data.tags || [];
+
         let commands : ScriptCommands = {}
         commands[target.target] = `${nodeLocation} ${nxExe} run ${currentTask} --skipNxCache --skipRemoteCache --excludeTaskDependencies`;
 
@@ -81,6 +84,7 @@ function createBxlProjectGraph(nxTaskGraph): JavaScriptGraph {
             sourceDirectories: [],
             // All Nx projects are cacheable? For now assume yes.
             cacheable: true,
+            tags: tags
             };
 
         projects.push(p);
@@ -91,7 +95,7 @@ function createBxlProjectGraph(nxTaskGraph): JavaScriptGraph {
     };
 }
 
-async function createNxTaskGraph(nxModules) {
+async function createNxTaskAndProjectGraph(nxModules) {
     const projectGraph = await nxModules.createProjectGraphAsync();
     const extraTargetDependencies = {}; 
     const nxJson = readNxJson();
@@ -128,13 +132,13 @@ async function createNxTaskGraph(nxModules) {
         excludeTaskDependencies
     );
 
-    return taskGraph;
+    return [taskGraph, projectGraph];
 }
 
 async function createGraph() {
     const nxModules = await loadNxModules();
-    let nxGraph = await createNxTaskGraph(nxModules);
-    return createBxlProjectGraph(nxGraph);
+    let [nxTaskGraph, nxProjectGraph] = await createNxTaskAndProjectGraph(nxModules);
+    return createBxlProjectGraph(nxTaskGraph, nxProjectGraph);
 }
 
 function readNxJson() {

@@ -940,6 +940,8 @@ const schedulingFunction : (project: JavaScriptProject, argument: any) => Transf
                 sourceDirectories,
                 // The group is cacheable if all members are cacheable
                 members.All(member => member.Cacheable),
+                // Tags are the union of all member tags
+                members.SelectMany(member => member.Tags).Distinct().ToArray(),
                 TryGetProjectDisplayName(projectName, commandName, projectFolder));
 
             return projectGroup;

@@ -88,7 +88,9 @@ export function buildRushPluginGraph(
                 // Not supported by Rush
                 sourceDirectories: [],
                 // Nodes are cacheable by default, unless explicitly specified
-                cacheable: node.cacheable === undefined ? true : node.cacheable
+                cacheable: node.cacheable === undefined ? true : node.cacheable,
+                // Rush does not provide tags
+                tags: [],
                 };
     
             projects.push(p);
@@ -141,6 +143,8 @@ export function buildRushLibGraph(rushConfigurationFile: string, pathToRushLib: 
             sourceDirectories: [],
             // rush-lib doesn't have the capability to make projects uncacheable
             cacheable: true,
+            // Rush does not provide tags
+            tags: [],
             };
 
         projects.push(p);

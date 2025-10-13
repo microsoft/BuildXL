@@ -216,6 +216,7 @@ namespace BuildXL.FrontEnd.Yarn
                 availableScriptCommands: maybeCustomScripts.Result,
                 tempFolder: ResolverSettings.Root,
                 cacheable: cacheable,
+                tags: Array.Empty<string>(),
                 outputDirectories: CollectionUtilities.EmptyArray<PathWithTargets>(),
                 sourceFiles: CollectionUtilities.EmptyArray<PathWithTargets>(),
                 sourceDirectories: CollectionUtilities.EmptyArray<AbsolutePath>()

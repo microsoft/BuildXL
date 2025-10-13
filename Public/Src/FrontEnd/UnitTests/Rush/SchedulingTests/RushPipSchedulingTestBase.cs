@@ -98,7 +98,8 @@ namespace Test.BuildXL.FrontEnd.Rush
                 inputFiles ?? CollectionUtilities.EmptyArray<FileArtifact>(),
                 inputDirectories ?? CollectionUtilities.EmptyArray<DirectoryArtifact>(),
                 sourceDirectories: CollectionUtilities.EmptyArray<AbsolutePath>(),
-                cacheable: true
+                cacheable: true,
+                tags: System.Array.Empty<string>()
             );
 
             rushProject.SetDependencies(dependencies ?? CollectionUtilities.EmptyArray<JavaScriptProject>());

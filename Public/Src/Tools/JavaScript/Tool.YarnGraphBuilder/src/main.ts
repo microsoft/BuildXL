@@ -127,6 +127,8 @@ try {
                 sourceDirectories: [],
                 // Yarn nodes are always cacheable
                 cacheable: true,
+                // Yarn does not provide tags
+                tags: [],
             };
         }
     );

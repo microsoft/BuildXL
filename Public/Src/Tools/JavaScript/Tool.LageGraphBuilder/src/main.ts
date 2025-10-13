@@ -97,7 +97,9 @@ function lageToBuildXL(lage: Report): JavaScriptGraph {
         sourceFiles: bxlConfig.sourceFiles,
         sourceDirectories: task === undefined ? [] : task.sourceDependencies,
         // Lage nodes are always cacheable
-        cacheable: true
+        cacheable: true,
+        // Lage does not provide tags
+        tags: [],
       };
   
       return project;

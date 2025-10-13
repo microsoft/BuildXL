@@ -590,7 +590,12 @@ namespace BuildXL.FrontEnd.JavaScript
             }
 
             // Add the associated build script name as a tag, so filtering on 'build' or 'test' can happen
-            processBuilder.Tags = ReadOnlyArray<StringId>.FromWithoutCopy(new[] { StringId.Create(m_context.StringTable, project.ScriptCommandName) });
+            // Also add potential tags coming from the javascript graph
+            var tags = project.Tags
+                .Where(tag => !string.IsNullOrWhiteSpace(tag))
+                .Select(tag => StringId.Create(m_context.StringTable, tag))
+                .Append(StringId.Create(m_context.StringTable, project.ScriptCommandName));
+            processBuilder.Tags = ReadOnlyArray<StringId>.FromWithoutCopy(tags.ToArray());
 
             // Configure the pip to fail if stderr is written. Defaults to false if not explicitly configured.
             if (m_resolverSettings.WritingToStandardErrorFailsExecution == true)

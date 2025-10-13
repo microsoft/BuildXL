@@ -1538,8 +1538,8 @@ limitations under the License.
 Microsoft.CodeAnalysis.BannedApiAnalyzers 3.3.2 - Apache-2.0
 
 
-(c) Microsoft Corporation.
-Copyright (c) .NET Foundation.
+(c) Microsoft Corporation
+Copyright (c) .NET Foundation
 Copyright (c) 2013 Scott Kirkland
 Copyright (c) 2012-2014 Mehdi Khalili
 Copyright (c) 2013-2014 Omar Khudeira

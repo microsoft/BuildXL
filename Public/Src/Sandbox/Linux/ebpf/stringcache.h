@@ -70,6 +70,26 @@ __attribute__((always_inline)) static bool is_cacheable(pid_t runner_pid, int pa
 }
 
 /**
+ * Whether the ring buffer is under pressure. We consider the ring buffer under pressure if it is more than half full.
+ */
+__attribute__((always_inline)) static bool is_ring_buffer_under_pressure(pid_t runner_pid) {
+    // Retrieve the ring buffer for the given runner
+    void *ring_buffer = bpf_map_lookup_elem(&file_access_per_pip, &runner_pid);
+    if (ring_buffer == NULL) {
+        report_ring_buffer_error(runner_pid, "[ERROR] Could not find file access ring buffer.");
+        return false;
+    }
+
+    // Query the available data to be consumed
+    long data_size = bpf_ringbuf_query(ring_buffer, BPF_RB_AVAIL_DATA);
+    
+    // If the ring buffer is more than half full, consider it under pressure
+    // Observe that in case of a ring buffer swap, the total ring buffer size will be greater than FILE_ACCESS_RINGBUFFER_SIZE, but in that case
+    // we consider the ring buffer under pressure regardless of the data size.
+    return (data_size > (FILE_ACCESS_RINGBUFFER_SIZE >> 1));
+}
+
+/**
  * Whether the path-as-string has been sent before. This operation returns whether the event is not found in the cache and, as a side
  * effect, adds it to the cache if it wasn't there.
  * Consider that behind scenes a LRU cache is used, so whether an element is kept in the cache depends on usage/frequency
@@ -78,6 +98,12 @@ __attribute__((always_inline)) static bool should_send_string(pid_t runner_pid, 
 {
     // If the path is not small enough to be cacheable, we don't cache it and just send the event
     if (!is_cacheable(runner_pid, path_length))
+    {
+        return true;
+    }
+
+    // The string cache is pretty slow, so if the ring buffer is not under pressure, just send the event without checking the cache
+    if (!is_ring_buffer_under_pressure(runner_pid))
     {
         return true;
     }

@@ -4,7 +4,7 @@ As a general-purpose build engine, BuildXL is not tied to any programming langua
 Python, etc., so long as you can provide BuildXL with a pip graph (see [Core Concepts](../../CoreConcepts.md)).
 BuildXL has multiple frontends that can transform specifications for other build engine into pip graphs.
 For example, BuildXL can understand MsBuild specification using its MsBuild frontend. BuildXL also has a JavaScript
-frontend that understands several JavaScript orchestrator frameworks, like Rush, Yarn, and Lage. For information
+frontend that understands several JavaScript orchestrator frameworks, like Rush, Yarn, Lage and Nx. For information
 about BuildXL's frontends, see [Frontends](../../Frontends.md).
 
 In this section we are going to use DScript language that is developed specifically for BuildXL to construct pip graphs.

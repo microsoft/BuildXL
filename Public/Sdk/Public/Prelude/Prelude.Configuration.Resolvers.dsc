@@ -467,7 +467,7 @@ interface NxResolver extends JavaScriptResolverWithoutExecutionSemantics {
     kind: "Nx";
 
     /**
-     * The location of Nx libraries. E.g. /usr/lib/nx/node_modules
+     * The location of Nx libraries. E.g. /usr/lib/nx/node_modules/nx
      * Nx is used to get the build graph and as an executor for each node.
      */
     nxLibLocation?: Directory;

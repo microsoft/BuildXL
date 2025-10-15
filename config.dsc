@@ -408,43 +408,43 @@ config({
                     archiveType: "tgz",
                 },
 
-                // DotNet Core Runtime 9.0.7
+                // DotNet Core Runtime 9.0.10
                 {
                     moduleName: "DotNet-Runtime.win-x64.9.0", 
-                    url: "https://builds.dotnet.microsoft.com/dotnet/Runtime/9.0.7/dotnet-runtime-9.0.7-win-x64.zip",
-                    hash: "VSO0:991CE6A392301641D4BEFEBAD9D73A7EF9895B6A929E1DF56559F9C3F92343F800",
+                    url: "https://builds.dotnet.microsoft.com/dotnet/Runtime/9.0.10/dotnet-runtime-9.0.10-win-x64.zip",
+                    hash: "VSO0:76705C83EFBADA0D714AD3D52235859654EF34EDD1FA553F6A18BEF448B9979700",
                     archiveType: "zip",
                 },
                 {
                     moduleName: "DotNet-Runtime.osx-x64.9.0",
-                    url: "https://builds.dotnet.microsoft.com/dotnet/Runtime/9.0.7/dotnet-runtime-9.0.7-osx-x64.tar.gz",
-                    hash: "VSO0:4364FB384ED51C3EC61E49BA7EA884BA998FE2B099ADB3D4C79BAA401407DA5D00",
+                    url: "https://builds.dotnet.microsoft.com/dotnet/Runtime/9.0.10/dotnet-runtime-9.0.10-osx-x64.tar.gz",
+                    hash: "VSO0:CFDB1C7974B0304DF59DEB1AFC74FD8AAF8333A4B4F5D1925EBD67FA21C7A1F200",
                     archiveType: "tgz",
                 },
                 {
                     moduleName: "DotNet-Runtime.linux-x64.9.0",
-                    url: "https://builds.dotnet.microsoft.com/dotnet/Runtime/9.0.7/dotnet-runtime-9.0.7-linux-x64.tar.gz",
-                    hash: "VSO0:6593E9F75626F34B54185D83833AD73B534F07794B2E9380CB0719971054D1A600",
+                    url: "https://builds.dotnet.microsoft.com/dotnet/Runtime/9.0.10/dotnet-runtime-9.0.10-linux-x64.tar.gz",
+                    hash: "VSO0:5492F7D0BE49201EA23BCF30CD7F011430994DFBD8ECAFBF78F57F9EA20F2B9F00",
                     archiveType: "tgz",
                 },
 
-                // DotNet Core Runtime 8.0.18
+                // DotNet Core Runtime 8.0.21
                 {
                     moduleName: "DotNet-Runtime.win-x64.8.0", 
-                    url: "https://builds.dotnet.microsoft.com/dotnet/Runtime/8.0.18/dotnet-runtime-8.0.18-win-x64.zip",
-                    hash: "VSO0:3B0EAF40C742E4D5A00D52A5205C7D64FFA646D0F04C811D910A88C65DF8AC5700",
+                    url: "https://builds.dotnet.microsoft.com/dotnet/Runtime/8.0.21/dotnet-runtime-8.0.21-win-x64.zip",
+                    hash: "VSO0:44249E992B84FCEAD45648B44C790BADD48B45CB0E08C4D604F0EE9AD65B72D900",
                     archiveType: "zip",
                 },
                 {
                     moduleName: "DotNet-Runtime.osx-x64.8.0",
-                    url: "https://builds.dotnet.microsoft.com/dotnet/Runtime/8.0.18/dotnet-runtime-8.0.18-osx-x64.tar.gz",
-                    hash: "VSO0:52EA6C5E7BAFD5EB84FF5FB434A3780223D1A249EA43931FAE7CDF6A3D0131FC00",
+                    url: "https://builds.dotnet.microsoft.com/dotnet/Runtime/8.0.21/dotnet-runtime-8.0.21-osx-x64.tar.gz",
+                    hash: "VSO0:889B3B2C7BD49EF738616FBDD36BAA4AF8047C5E5DE1F4645DDF6605E86F34E800",
                     archiveType: "tgz",
                 },
                 {
                     moduleName: "DotNet-Runtime.linux-x64.8.0",
-                    url: "https://builds.dotnet.microsoft.com/dotnet/Runtime/8.0.18/dotnet-runtime-8.0.18-linux-x64.tar.gz",
-                    hash: "VSO0:99A4721A7E4E71DBAC5861D785D6719680CE9EE0D4CF53319FBEFE902058DD0900",
+                    url: "https://builds.dotnet.microsoft.com/dotnet/Runtime/8.0.21/dotnet-runtime-8.0.21-linux-x64.tar.gz",
+                    hash: "VSO0:791BC088C5908E3FAE05A47F3D6B1BE88C3DF5C72A63A8321CEA7E2CE1D4E46D00",
                     archiveType: "tgz",
                 },
 

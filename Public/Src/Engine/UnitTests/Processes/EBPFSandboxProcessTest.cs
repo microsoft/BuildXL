@@ -71,7 +71,7 @@ namespace Test.BuildXL.Processes
                     WorkingDirectory = TemporaryDirectory,
                     PipSemiStableHash = fileAccessManifest.PipId,
                     PipDescription = "EBPF capacity test",
-                    SandboxConnection = SandboxConnectionLinuxEBPF.CreateForTest(),
+                    SandboxConnection = new SandboxConnectionLinuxEBPF(isInTestMode: true),
                 };
 
             var process = SandboxedProcessFactory.StartAsync(info, forceSandboxing: true).GetAwaiter().GetResult();
@@ -124,7 +124,7 @@ namespace Test.BuildXL.Processes
                     WorkingDirectory = TemporaryDirectory,
                     PipSemiStableHash = fileAccessManifest.PipId,
                     PipDescription = "EBPF incremental test",
-                    SandboxConnection = SandboxConnectionLinuxEBPF.CreateForTest(),
+                    SandboxConnection = new SandboxConnectionLinuxEBPF(isInTestMode: true),
                 };
 
             var process = SandboxedProcessFactory.StartAsync(info, forceSandboxing: true).GetAwaiter().GetResult();
@@ -195,7 +195,7 @@ namespace Test.BuildXL.Processes
                     WorkingDirectory = TemporaryDirectory,
                     PipSemiStableHash = fileAccessManifest.PipId,
                     PipDescription = "EBPF ring buffer multiplier test",
-                    SandboxConnection = SandboxConnectionLinuxEBPF.CreateForTest(),
+                    SandboxConnection = new SandboxConnectionLinuxEBPF(isInTestMode: true),
                 };
 
             var process = SandboxedProcessFactory.StartAsync(info, forceSandboxing: true).GetAwaiter().GetResult();
@@ -242,7 +242,7 @@ namespace Test.BuildXL.Processes
                     WorkingDirectory = TemporaryDirectory,
                     PipSemiStableHash = fileAccessManifest.PipId,
                     PipDescription = "EBPF ring buffer untracked test",
-                    SandboxConnection = SandboxConnectionLinuxEBPF.CreateForTest(),
+                    SandboxConnection = new SandboxConnectionLinuxEBPF(isInTestMode: true),
                 };
 
             var process = SandboxedProcessFactory.StartAsync(info, forceSandboxing: true).GetAwaiter().GetResult();
@@ -286,7 +286,7 @@ namespace Test.BuildXL.Processes
                     WorkingDirectory = TemporaryDirectory,
                     PipSemiStableHash = fileAccessManifest.PipId,
                     PipDescription = "EBPF ring buffer untracked test",
-                    SandboxConnection = SandboxConnectionLinuxEBPF.CreateForTest(),
+                    SandboxConnection = new SandboxConnectionLinuxEBPF(isInTestMode: true),
                 };
 
             var process = SandboxedProcessFactory.StartAsync(info, forceSandboxing: true).GetAwaiter().GetResult();
@@ -358,7 +358,7 @@ namespace Test.BuildXL.Processes
                     WorkingDirectory = TemporaryDirectory,
                     PipSemiStableHash = fileAccessManifest.PipId,
                     PipDescription = "EBPF path canonicalization test",
-                    SandboxConnection = SandboxConnectionLinuxEBPF.CreateForTest(),
+                    SandboxConnection = new SandboxConnectionLinuxEBPF(isInTestMode: true),
                 };
 
             var process = SandboxedProcessFactory.StartAsync(info, forceSandboxing: true).GetAwaiter().GetResult();
@@ -425,7 +425,7 @@ namespace Test.BuildXL.Processes
                     WorkingDirectory = TemporaryDirectory,
                     PipSemiStableHash = fileAccessManifest.PipId,
                     PipDescription = $"EBPF symlink resolution test for {command}",
-                    SandboxConnection = SandboxConnectionLinuxEBPF.CreateForTest(),
+                    SandboxConnection = new SandboxConnectionLinuxEBPF(isInTestMode: true),
                 };
 
             var process = SandboxedProcessFactory.StartAsync(info, forceSandboxing: true).GetAwaiter().GetResult();

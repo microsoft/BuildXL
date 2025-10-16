@@ -42,6 +42,11 @@ public class UnixGetCapUtils : UnixUtilsBase
         CheckConditionAgainstStandardOutput(binaryPath, binaryPath, (stdout) => stdout.Contains(capability.CapabilityString()), out _);
 
     /// <summary>
+    /// Check if the environment variable TF_BUILD is set, which indicates an Azure DevOps build.
+    /// </summary>
+    private static bool IsAdoBuild() => !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("TF_BUILD"));
+    
+    /// <summary>
     /// Sets the required EBPF capabilities on the provided binary path.
     /// TODO: for now we are setting DAC_OVERRIDE to allow the executable to pin maps (which requires writing under th BPF file system). Consider
     /// mounting the file system explicitly as a way to avoid setting this cap.
@@ -55,7 +60,10 @@ public class UnixGetCapUtils : UnixUtilsBase
     {
         if (!BinaryHasEBPFCapabilities(binaryPath))
         {
-            if (WillSudoPromptForPassword())
+            // If this is running in ADO, we don't need to check for sudo permissions since the ADO agent is expected to run as root. Sometimes checking whether sudo will prompt for a password
+            // is flaky in ADO, so we skip it entirely and avoid failing in that case.
+            // If this is not running in ADO, check if sudo will prompt for a password
+            if (!IsAdoBuild() && WillSudoPromptForPassword())
             {
                 if (interactive)
                 {

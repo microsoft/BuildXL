@@ -297,12 +297,12 @@ config({
                     dependentPackageIdsToSkip: ["*"] },
 
                 // MSBuild. These should be used for compile references only, as at runtime one can only practically use MSBuilds from Visual Studio / dotnet CLI
-                { id: "Microsoft.Build", version: "17.11.31" },
-                { id: "Microsoft.Build.Runtime", version: "17.11.31" },
-                { id: "Microsoft.Build.Tasks.Core", version: "17.11.31" },
-                { id: "Microsoft.Build.Utilities.Core", version: "17.11.31" },
-                { id: "Microsoft.Build.Framework", version: "17.11.31" },
-                { id: "Microsoft.NET.StringTools", version: "17.11.31" },
+                { id: "Microsoft.Build", version: "17.11.48" },
+                { id: "Microsoft.Build.Runtime", version: "17.11.48" },
+                { id: "Microsoft.Build.Tasks.Core", version: "17.11.48" },
+                { id: "Microsoft.Build.Utilities.Core", version: "17.11.48" },
+                { id: "Microsoft.Build.Framework", version: "17.11.48" },
+                { id: "Microsoft.NET.StringTools", version: "17.11.48" },
                 { id: "Microsoft.Build.Locator", version: "1.5.5" },
                 { id: "System.Reflection.MetadataLoadContext", version: "8.0.0"},    
 

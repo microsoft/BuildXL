@@ -735,7 +735,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Build",
-          "Version": "17.11.31"
+          "Version": "17.11.48"
         }
       }
     },
@@ -744,7 +744,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Build.Framework",
-          "Version": "17.11.31"
+          "Version": "17.11.48"
         }
       }
     },
@@ -771,7 +771,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Build.Runtime",
-          "Version": "17.11.31"
+          "Version": "17.11.48"
         }
       }
     },
@@ -780,7 +780,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Build.Tasks.Core",
-          "Version": "17.11.31"
+          "Version": "17.11.48"
         }
       }
     },
@@ -789,7 +789,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Build.Utilities.Core",
-          "Version": "17.11.31"
+          "Version": "17.11.48"
         }
       }
     },
@@ -1455,7 +1455,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.NET.StringTools",
-          "Version": "17.11.31"
+          "Version": "17.11.48"
         }
       }
     },

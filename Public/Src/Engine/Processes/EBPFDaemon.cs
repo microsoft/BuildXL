@@ -52,7 +52,14 @@ namespace BuildXL.Processes
         /// The result of the task will be the a <see cref="EBPFDaemon"/> instance on success, or a <see cref="Failure"/> otherwise. If any errors occur after a successful initialization, they will be reported 
         /// in the <see cref="EBPFErrors"/> property.
         /// </remarks>
-        public static EBPFDaemonTask CreateEBPFDaemonTask(bool enableEBPFLinuxSandbox, AbsolutePath tempDirectory, PathTable pathTable, LoggingContext loggingContext, int maxConcurrency, CancellationToken cancellationToken)
+        public static EBPFDaemonTask CreateEBPFDaemonTask(
+            bool enableEBPFLinuxSandbox,
+            AbsolutePath tempDirectory,
+            PathTable pathTable,
+            LoggingContext loggingContext,
+            int maxConcurrency,
+            bool logObservedFileAccesses,
+            CancellationToken cancellationToken)
         {
             Contract.Assert(tempDirectory.IsValid, "The temp directory must be valid.");
 
@@ -76,7 +83,7 @@ namespace BuildXL.Processes
                     initializationTask = Task.Run(async () =>
                     {
                         return await daemon
-                            .RunInfiniteEBPFProcessAsync(tempDirectory, pathTable, loggingContext, maxConcurrency, cancellationToken)
+                            .RunInfiniteEBPFProcessAsync(tempDirectory, pathTable, loggingContext, maxConcurrency, logObservedFileAccesses, cancellationToken)
                             .ContinueWith(t =>
                                 {
                                     if (t.IsCanceled)
@@ -99,7 +106,7 @@ namespace BuildXL.Processes
         /// Retrieves the current instance of the EBPF daemon task.
         /// </summary>
         /// <remarks>
-        /// A prior call to <see cref="CreateEBPFDaemonTask(bool, AbsolutePath, PathTable, LoggingContext, int, CancellationToken)"/> should be made before this method is called.
+        /// A prior call to <see cref="CreateEBPFDaemonTask(bool, AbsolutePath, PathTable, LoggingContext, int, bool, CancellationToken)"/> should be made before this method is called.
         /// </remarks>
         public static EBPFDaemonTask GetEBPFDaemonTask()
         {
@@ -115,7 +122,7 @@ namespace BuildXL.Processes
             m_ebpfErrors.Enqueue(error);
         }
 
-        private async Task<Possible<Unit>> RunInfiniteEBPFProcessAsync(AbsolutePath workingDirectory, PathTable pathTable, LoggingContext loggingContext, int maxConcurrency, CancellationToken cancellationToken)
+        private async Task<Possible<Unit>> RunInfiniteEBPFProcessAsync(AbsolutePath workingDirectory, PathTable pathTable, LoggingContext loggingContext, int maxConcurrency, bool logObservedFileAccesses, CancellationToken cancellationToken)
         {
             Contract.Assert(OperatingSystemHelper.IsLinuxOS);
 
@@ -123,11 +130,7 @@ namespace BuildXL.Processes
             var fileAccessManifest = new FileAccessManifest(pathTable)
             {
                 FailUnexpectedFileAccesses = false,
-#if DEBUG
-                ReportFileAccesses = true,
-#else
-                ReportFileAccesses = false,
-#endif
+                ReportFileAccesses = logObservedFileAccesses,
                 MonitorChildProcesses = true,
             };
 

@@ -505,6 +505,11 @@ namespace BuildXL.Scheduler.Tracing
         public string LinuxOSName;
 
         /// <summary>
+        /// Whether the EBPF sandbox is being used (on Linux)
+        /// </summary>
+        public bool UsingEBPFSandbox;
+
+        /// <summary>
         /// Version for Linux specific breaking changes in pip fingerprinting
         /// </summary>
         public LinuxFingerprintingVersion LinuxFingerprintingVersion;
@@ -544,6 +549,7 @@ namespace BuildXL.Scheduler.Tracing
             IgnoreDeviceIoControlGetReparsePoint = salts.IgnoreDeviceIoControlGetReparsePoint;
             HonorDirectoryCasingOnDisk = salts.HonorDirectoryCasingOnDisk;
             LinuxOSName = salts.LinuxOSName;
+            UsingEBPFSandbox = salts.UsingEBPFSandbox;
             LinuxFingerprintingVersion = salts.LinuxFingerprintingVersion;
         }
 
@@ -572,7 +578,7 @@ namespace BuildXL.Scheduler.Tracing
                        fingerprintVersion: FingerprintVersion,
                        fingerprintSalt: FingerprintSalt,
                        searchPathToolsHash: SearchPathToolsHash,
-                       observationReclassificationRulesHash: ObservationReclassificationRulesHash, 
+                       observationReclassificationRulesHash: ObservationReclassificationRulesHash,
                        monitorFileAccesses: MonitorFileAccesses,
                        maskUntrackedAccesses: MaskUntrackedAccesses,
                        normalizeReadTimestamps: NormalizeReadTimestamps,
@@ -582,6 +588,7 @@ namespace BuildXL.Scheduler.Tracing
                        ignoreDeviceIoControlGetReparsePoint: IgnoreDeviceIoControlGetReparsePoint,
                        honorDirectoryCasingOnDisk: HonorDirectoryCasingOnDisk,
                        linuxOSName: LinuxOSName,
+                       usingEBPFSandbox: UsingEBPFSandbox,
                        linuxFingerprintingVersion: LinuxFingerprintingVersion
                    )
                    {
@@ -622,6 +629,7 @@ namespace BuildXL.Scheduler.Tracing
             writer.Write(IgnoreDeviceIoControlGetReparsePoint);
             writer.Write(HonorDirectoryCasingOnDisk);
             writer.Write(LinuxOSName);
+            writer.Write(UsingEBPFSandbox);
             writer.Write((int)LinuxFingerprintingVersion);
         }
 
@@ -655,6 +663,7 @@ namespace BuildXL.Scheduler.Tracing
             IgnoreDeviceIoControlGetReparsePoint = reader.ReadBoolean();
             HonorDirectoryCasingOnDisk = reader.ReadBoolean();
             LinuxOSName = reader.ReadString();
+            UsingEBPFSandbox = reader.ReadBoolean();
             LinuxFingerprintingVersion = (LinuxFingerprintingVersion) reader.ReadInt32();
         }
     }

@@ -48,6 +48,7 @@ namespace BuildXL.Pips.Graph
             ignoreDeviceIoControlGetReparsePoint: true,
             honorDirectoryCasingOnDisk: false,
             linuxOSName: OperatingSystemHelper.IsLinuxOS ? OperatingSystemHelperExtension.GetLinuxDistribution().Id : string.Empty,
+            usingEBPFSandbox: false,
             linuxFingerprintingVersion: LinuxFingerprintingVersion.Version);
 
         /// <summary>
@@ -98,6 +99,7 @@ namespace BuildXL.Pips.Graph
                 config.Sandbox.UnsafeSandboxConfiguration.IgnoreDeviceIoControlGetReparsePoint,
                 config.Cache.HonorDirectoryCasingOnDisk,
                 OperatingSystemHelper.IsLinuxOS ? OperatingSystemHelperExtension.GetLinuxDistribution().Id : string.Empty,
+                OperatingSystemHelper.IsLinuxOS && config.Sandbox.EnableEBPFLinuxSandbox,
                 LinuxFingerprintingVersion.Version
             )
         {
@@ -173,6 +175,7 @@ namespace BuildXL.Pips.Graph
             bool ignoreDeviceIoControlGetReparsePoint,
             bool honorDirectoryCasingOnDisk,
             string linuxOSName,
+            bool usingEBPFSandbox,
             LinuxFingerprintingVersion linuxFingerprintingVersion)
         {
             IgnoreSetFileInformationByHandle = ignoreSetFileInformationByHandle;
@@ -202,6 +205,7 @@ namespace BuildXL.Pips.Graph
             IgnoreDeviceIoControlGetReparsePoint = ignoreDeviceIoControlGetReparsePoint;
             HonorDirectoryCasingOnDisk = honorDirectoryCasingOnDisk;
             LinuxOSName = linuxOSName;
+            UsingEBPFSandbox = usingEBPFSandbox;
             LinuxFingerprintingVersion = linuxFingerprintingVersion;
         }
 #pragma warning restore CS1572
@@ -345,6 +349,11 @@ namespace BuildXL.Pips.Graph
         public string LinuxOSName { get; }
 
         /// <summary>
+        /// Whether the EBPF sandbox is being used (on Linux)
+        /// </summary>
+        public bool UsingEBPFSandbox { get; }
+
+        /// <summary>
         /// Version for Linux specific breaking changes in pip fingerprinting 
         /// </summary>
         public LinuxFingerprintingVersion LinuxFingerprintingVersion { get; }
@@ -396,6 +405,7 @@ namespace BuildXL.Pips.Graph
                 && other.IgnoreDeviceIoControlGetReparsePoint.Equals(IgnoreDeviceIoControlGetReparsePoint)
                 && other.HonorDirectoryCasingOnDisk.Equals(HonorDirectoryCasingOnDisk)
                 && string.Equals(LinuxOSName, other.LinuxOSName)
+                && UsingEBPFSandbox == other.UsingEBPFSandbox
                 && LinuxFingerprintingVersion == other.LinuxFingerprintingVersion;
         }
 
@@ -436,6 +446,7 @@ namespace BuildXL.Pips.Graph
                 hashCode = (hashCode * 397) ^ IgnoreDeviceIoControlGetReparsePoint.GetHashCode();
                 hashCode = (hashCode * 397) ^ HonorDirectoryCasingOnDisk.GetHashCode();
                 hashCode = (hashCode * 397) ^ (string.IsNullOrEmpty(LinuxOSName) ? 0 : LinuxOSName.GetHashCode());
+                hashCode = (hashCode * 397) ^ UsingEBPFSandbox.GetHashCode();
                 hashCode = (hashCode * 397) ^ (LinuxFingerprintingVersion.GetHashCode());
 
                 return hashCode;
@@ -528,6 +539,7 @@ namespace BuildXL.Pips.Graph
 
             if (OperatingSystemHelper.IsLinuxOS)
             {
+                fingerprinter.Add(nameof(UsingEBPFSandbox), UsingEBPFSandbox ? 1 : 0);
                 fingerprinter.Add(nameof(LinuxFingerprintingVersion), (int) LinuxFingerprintingVersion);
             }
         }

@@ -12,7 +12,8 @@ Plugins are a way to extend or modify certain behaviors in BuildXL. A plugin run
 * BuildXL will use its PluginClient to communicate with each plugin over gPRC (one client per plugin)
 
 ## Required implementations
-Plugin implementation should implement a set of RPC operations:
+
+Plugin implementation should implement a set of RPC operations (see [Interfaces.proto](../../../Public/Src/Utilities/Plugin.Grpc/Interfaces.proto)):
 1. `Start`: instructs the plugin to start and load any necessary resources
 2. `Stop`:  instructs the plugin to stop and clean up
 3. `SupportedOperation`: gets operations that plugin support. This is used to register in BuildXL and dispatch messages accordingly
@@ -29,7 +30,7 @@ Currently, plugins can do the following things (more functionality may be added 
 
 In response to the `SupportedOperation` request, the only required property in the response is `SupportedOperation`. However, additional optional properties can also be included to further customize the communication between BuildXL and the plugin:
 * __Timeout:__ (in milliseconds) this allows the plugin to customize the gRPC "deadline" that is used for each request (when exceeded - due to network bottlenecking or other factors - gRPC will mark the request as failed and BuildXL will unregister the plugin)
-* __SupportedProcesses:__ a list of process names (case-insensitive, name only) to scope which messages should be sent to the plugin. If specified, messages will not be sent to the plugin unless the pip was for one of these processes.
+* __SupportedProcesses:__ a list of process names (case-insensitive, name & extension) to scope which messages should be sent to the plugin. If specified, messages will not be sent to the plugin unless the pip was for one of these processes.
 
 ## How to implement new plugin
 
@@ -54,7 +55,8 @@ Example config:
 {
     "pluginPath" : "C:\\path\\to\\my\\plugin.exe",
     "timeout" : 3000, // Optional: specify a gRPC per-message deadline (in ms) different than the default
-    "supportedProcesses" : [ // Optional: specify a list of processes (case-insensitive, name only) to scope requests to the plugin
+    "exitGracefully": false, // Optional (true by default): whether BuildXL should send a "Stop" message to the plugin before shutting down
+    "supportedProcesses" : [ // Optional: specify a list of processes (case-insensitive, name & extension) to scope requests to the plugin
         "msbuild"
     ],
     "messageTypes" : [

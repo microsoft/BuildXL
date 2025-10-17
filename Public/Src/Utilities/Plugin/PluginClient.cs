@@ -52,6 +52,9 @@ namespace BuildXL.Plugin
         /// <inheritdoc />
         public HashSet<string> SupportedProcesses { get; set; }
 
+        /// <inheritdoc />
+        public bool ExitGracefully { get; set; } = true; // On by default
+
         /// <nodoc />
         public const int MAX_RETRY = 5;
         /// <nodoc />

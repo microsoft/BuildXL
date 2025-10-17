@@ -91,6 +91,19 @@ namespace BuildXL.Plugin
         }
 
         /// <nodoc />
+        public bool ExitGracefully
+        {
+            get
+            {
+                return PluginClient.ExitGracefully;
+            }
+            set
+            {
+                PluginClient.ExitGracefully = value;
+            }
+        }
+
+        /// <nodoc />
         public Plugin(string id, string path, Process process, IPluginClient pluginClient)
         {
             Contract.RequiresNotNullOrEmpty(id, "plugin id is null");

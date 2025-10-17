@@ -30,6 +30,8 @@ namespace Test.BuildXL.Plugin
         public int RequestTimeout { get; set; }
         public HashSet<string> SupportedProcesses {  get; set; }
 
+        public bool ExitGracefully { get; set; }
+
         public void Dispose() 
         { 
         }

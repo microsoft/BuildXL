@@ -9,6 +9,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Ipc;
@@ -48,8 +49,15 @@ namespace BuildXL.Plugin
     /// <nodoc />
     public class PluginManager
     {
-        private readonly ConcurrentDictionary<string, Task<Possible<IPlugin>>> m_plugins;
-        private readonly PluginHandlers m_pluginHandlers;
+        private class PendingPlugin
+        {
+            public PluginCreationArgument PluginCreationArguments;
+            public IPlugin PreloadedPlugin => PluginCreationArguments.PreloadedPlugin;
+            public Task<Possible<IPlugin>> PluginTask;
+        }
+
+        private readonly ConcurrentDictionary<string, PendingPlugin> m_plugins;
+        private readonly ConcurrentDictionary<PluginMessageType, IPlugin> m_pluginHandlers;
         private bool m_isDisposed = false;
         private readonly LoggingContext m_loggingContext;
         private readonly IReadOnlyList<string> m_pluginPaths;
@@ -158,8 +166,8 @@ namespace BuildXL.Plugin
         /// <nodoc />
         public PluginManager(LoggingContext loggingContext, string logDirectory, IEnumerable<string> pluginLocations)
         {
-            m_plugins = new ConcurrentDictionary<string, Task<Possible<IPlugin>>>();
-            m_pluginHandlers = new PluginHandlers();
+            m_plugins = new ConcurrentDictionary<string, PendingPlugin>();
+            m_pluginHandlers = new ConcurrentDictionary<PluginMessageType, IPlugin>();
             m_pluginStopTaskSource = TaskSourceSlim.Create<Unit>();
             m_loggingContext = loggingContext;
             m_logDirectory = logDirectory;
@@ -186,7 +194,7 @@ namespace BuildXL.Plugin
         /// <nodoc />
         public bool CanHandleMessage(PluginMessageType messageType)
         {
-            return m_pluginHandlers.TryGet(messageType, out _);
+            return m_pluginHandlers.TryGetValue(messageType, out _);
         }
 
         /// <nodoc />
@@ -281,6 +289,7 @@ namespace BuildXL.Plugin
             PluginConfig config = JsonSerializer.Deserialize<PluginConfig>(File.ReadAllText(pluginCreationArgument.PluginPath), new JsonSerializerOptions
             {
                 PropertyNameCaseInsensitive = true,
+                Converters = { new JsonStringEnumConverter() }
             });
 
             pluginCreationArgument.PluginPath = config.PluginPath;
@@ -288,6 +297,7 @@ namespace BuildXL.Plugin
             IPluginClient client = pluginCreationArgument.CreatePluginClientFunc.Invoke(pluginCreationArgument.ConnectionOption);
             client.RequestTimeout = config.Timeout;
             client.SupportedProcesses = new HashSet<string>(config.SupportedProcesses, StringComparer.OrdinalIgnoreCase);
+            client.ExitGracefully = config.ExitGracefully;
             Plugin plugin = new Plugin(pluginCreationArgument.PluginId, config.PluginPath, client);
 
             plugin.SupportedMessageType = config.MessageTypes;
@@ -337,6 +347,7 @@ namespace BuildXL.Plugin
             }
             catch (Exception e)
             {
+                Tracing.Logger.Log.PluginManagerLogMessage(m_loggingContext, $"Failed to create plugin: {e}");
                 return new Failure<string>($"Can't start plugin with exception {e}");
             }
         }
@@ -355,7 +366,7 @@ namespace BuildXL.Plugin
         {
             IPlugin plugin = null;
             var messageType = PluginMessageType.ParseLogMessage;
-            if (!m_pluginHandlers.TryGet(messageType, out plugin))
+            if (!m_pluginHandlers.TryGetValue(messageType, out plugin))
             {
                 return new Failure<string>($"No plugin is available to handle {messageType}");
             }
@@ -383,7 +394,7 @@ namespace BuildXL.Plugin
         {
             IPlugin plugin = null;
             var messageType = PluginMessageType.ProcessResult;
-            if (!m_pluginHandlers.TryGet(messageType, out plugin))
+            if (!m_pluginHandlers.TryGetValue(messageType, out plugin))
             {
                 return new Failure<string>($"No plugin is available to handle {messageType}");
             }
@@ -433,7 +444,14 @@ namespace BuildXL.Plugin
         /// <nodoc />
         public async Task<Possible<IPlugin>> GetOrCreateAsync(PluginCreationArgument startPluginArguments)
         {
-            var creationResult = await m_plugins.GetOrAdd(startPluginArguments.PluginPath, path => CreatePluginAsync(startPluginArguments));
+            PendingPlugin pendingPlugin = m_plugins.GetOrAdd(startPluginArguments.PluginPath, path => new PendingPlugin
+            {
+                PluginCreationArguments = startPluginArguments,
+                PluginTask = CreatePluginAsync(startPluginArguments),
+            });
+
+            Possible<IPlugin> creationResult = await pendingPlugin.PluginTask; // Await the plugin startup task before we request Supported Message Types
+
             if (!creationResult.Succeeded)
             {
                 m_plugins.TryRemove(startPluginArguments.PluginPath, out _);
@@ -469,7 +487,7 @@ namespace BuildXL.Plugin
         private void RegisterPluginHandler(PluginMessageType pluginMessageType, IPlugin plugin)
         {
             IPlugin alreadyRegisteredPlugin = null;
-            if (!m_pluginHandlers.TryGet(pluginMessageType, out alreadyRegisteredPlugin))
+            if (!m_pluginHandlers.TryGetValue(pluginMessageType, out alreadyRegisteredPlugin))
             {
                 m_pluginHandlers.TryAdd(pluginMessageType, plugin);
             }
@@ -484,11 +502,11 @@ namespace BuildXL.Plugin
         {
             foreach (PluginMessageType messageType in Enum.GetValues(typeof(PluginMessageType)).Cast<PluginMessageType>())
             {
-                bool success = m_pluginHandlers.TryGet(messageType, out IPlugin pluginHandler);
+                bool success = m_pluginHandlers.TryGetValue(messageType, out IPlugin pluginHandler);
                 if (success && pluginHandler == plugin)
                 {
                     Tracing.Logger.Log.PluginManagerLogMessage(m_loggingContext, $"Unregistering plugin handler for {messageType}");
-                    success = m_pluginHandlers.TryRemove(messageType);
+                    success = m_pluginHandlers.TryRemove(messageType, out _);
                     if (!success)
                     {
                         Tracing.Logger.Log.PluginManagerLogMessage(m_loggingContext, $"Unable to remove plugin handler for {messageType}");
@@ -508,13 +526,21 @@ namespace BuildXL.Plugin
             return StopAllPlugins();
         }
 
-        private Task StopAllPlugins()
+        private async Task StopAllPlugins()
         {
-           return Task.WhenAll(m_plugins.Values.Where(pluginInfoTask => pluginInfoTask.Result.Succeeded)
-                .Select(pluginInfoTask =>
+            // Shutdown request to plugins should only wait on startup task for plugins that need to exit gracefully
+            List<Task<Possible<IPlugin>>> pluginTasksToWaitOn = m_plugins.Values
+                .Where(p => p.PreloadedPlugin == null || p.PreloadedPlugin.ExitGracefully)
+                .Select(p => p.PluginTask)
+                .ToList();
+
+            Possible<IPlugin>[] results = await Task.WhenAll(pluginTasksToWaitOn);
+
+            await Task.WhenAll(results.Where(r => r.Succeeded)
+                .Select(r =>
                 {
-                    Tracing.Logger.Log.PluginManagerLogMessage(m_loggingContext, $"Stop plugin {pluginInfoTask.Result.Result.Name}-{pluginInfoTask.Result.Result.Id}");
-                    return pluginInfoTask.Result.Result.StopAsync();
+                    Tracing.Logger.Log.PluginManagerLogMessage(m_loggingContext, $"Stop plugin {r.Result.Name}-{r.Result.Id}");
+                    return r.Result.StopAsync();
                 }))
                 .ContinueWith(t => m_pluginStopTaskSource.TrySetResult(Unit.Void));
         }
@@ -524,11 +550,11 @@ namespace BuildXL.Plugin
         {
             m_pluginStopTaskSource.Task.GetAwaiter().GetResult();
 
-            foreach (var pluginInfoTask in m_plugins.Values)
+            foreach (var pendingPlugin in m_plugins.Values)
             {
-                if (pluginInfoTask.Result.Succeeded)
+                if (pendingPlugin.PluginTask.Result.Succeeded)
                 {
-                    pluginInfoTask.Result.Result.Dispose();
+                    pendingPlugin.PluginTask.Result.Result.Dispose();
                 }
             }
 

@@ -22,6 +22,14 @@ namespace BuildXL.Plugin
         /// </summary>
         HashSet<string> SupportedProcesses { get; set; }
 
+        /// <summary>
+        /// Whether BuildXL should send a "Stop" message to the plugin before shutting down.
+        /// (Note that, for very short builds, this might add a small amount of time to the
+        /// build as BuildXL will make sure the plugin has fully started before sending the
+        /// "Stop" message)
+        /// </summary>
+        bool ExitGracefully { get; set; }
+
         /// <nodoc />
         Task<PluginResponseResult<bool>> StartAsync();
 

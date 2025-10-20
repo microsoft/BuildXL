@@ -22,6 +22,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.AspNetCore.Routing;
 #endif
@@ -45,7 +46,30 @@ namespace BuildXL.Engine.Distribution.Grpc
 #endif
 
         // Expose the port to unit tests
-        internal int? Port => m_server?.Ports.FirstOrDefault()?.BoundPort;
+        internal int? Port
+        {
+            get
+            {
+                if (m_server != null)
+                {
+                    return m_server.Ports.FirstOrDefault().BoundPort;
+                }
+
+#if NETCOREAPP
+                // Get the bound addresses from Kestrel
+                var server = m_kestrelServer.Services.GetRequiredService<Microsoft.AspNetCore.Hosting.Server.IServer>();
+                if (server != null)
+                {
+                    var address = server.Features.Get<IServerAddressesFeature>()?.Addresses.FirstOrDefault();
+                    if (address != null)
+                    {
+                        return new Uri(address).Port;
+                    }
+                }
+#endif
+                return null;
+            }
+        }
 
         /// <summary>
         /// Class constructor
@@ -180,7 +204,7 @@ namespace BuildXL.Engine.Distribution.Grpc
                             options.MaxReceiveMessageSize = int.MaxValue;
                             options.MaxSendMessageSize = int.MaxValue;
                             options.Interceptors.Add<ServerInterceptor>();
-                            options.EnableDetailedErrors = EngineEnvironmentSettings.GrpcKestrelEnableDetailedErrors;
+                            options.EnableDetailedErrors = true;
                         });
 
                         // Allow caller to register service implementations / additional services
@@ -197,6 +221,7 @@ namespace BuildXL.Engine.Distribution.Grpc
                 });
 
             m_kestrelServer = hostBuilder.Build();
+
             return m_kestrelServer.RunAsync(m_cancellationSource.Token);
         }
 #endif

@@ -2,6 +2,11 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20251009.2 (Release [30603951](https://dev.azure.com/mseng/Domino/_build/results?buildId=30603951&view=results))
+-	Add a Nx resolver to BuildXL
+-	[EBPF] Handle interactive auth for developer builds
+-	Distinguish fingerprints between EBPF and interpose sandboxes
+
 # 0.1.0-20251001.1 (Release [30539019](https://dev.azure.com/mseng/Domino/_build/results?buildId=30539019&view=results))
 - [Detours] Log process path on remote injection failures
 - Emit build progress to Windows Terminal

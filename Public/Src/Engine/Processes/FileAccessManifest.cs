@@ -74,14 +74,14 @@ namespace BuildXL.Processes
             ReportUnexpectedFileAccesses = true;
             ReportFileAccesses = false;
             MonitorChildProcesses = true;
-            MonitorNtCreateFile = false;
-            MonitorZwCreateOpenQueryFile = false;
+            MonitorNtCreateFile = true;
+            MonitorZwCreateOpenQueryFile = true;
             ReportProcessArgs = false;
             ForceReadOnlyForRequestedReadWrite = false;
             IgnoreReparsePoints = false;
             IgnoreFullReparsePointResolving = true; // TODO: Change this when customers onboard the feature.
             IgnoreUntrackedPathsInFullReparsePointResolving = false;
-            IgnorePreloadedDlls = true; // TODO: This is false in BuildXL's configuration. Changing the default here will impact QuickBuild
+            IgnorePreloadedDlls = false;
             DisableDetours = false;
             IgnoreZwRenameFileInformation = false;
             IgnoreZwOtherFileInformation = false;

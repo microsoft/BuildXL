@@ -58,6 +58,7 @@ namespace Test.BuildXL.Processes
             info.FileAccessManifest.ReportFileAccesses = false;
             info.FileAccessManifest.ReportUnexpectedFileAccesses = true;
             info.FileAccessManifest.FailUnexpectedFileAccesses = false;
+            info.FileAccessManifest.MonitorNtCreateFile = false;
 
             info.FileAccessManifest.AddScope(AbsolutePath.Invalid, FileAccessPolicy.MaskNothing, FileAccessPolicy.ReportDirectoryEnumerationAccess);
 

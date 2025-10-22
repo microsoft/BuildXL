@@ -157,7 +157,7 @@ namespace BuildXL.FrontEnd.MsBuild
                 var outputResolvedEntry = new ResolvedEntry(
                     outputSymbol,
                     (Context context, ModuleLiteral env, EvaluationStackFrame args) =>
-                        GetProjectOutputsAsync(env.CurrentFileModule.Path, context.LastActiveModuleQualifier.QualifierId),
+                        GetProjectOutputsAsync(env.CurrentFileModule.Path, env.Qualifier.QualifierId),
                         // The following position is a contract right now with he generated ast in the workspace resolver
                         // we have to find a nicer way to handle and register these.
                         TypeScript.Net.Utilities.LineInfo.FromLineAndPosition(0, 2)
@@ -186,6 +186,51 @@ namespace BuildXL.FrontEnd.MsBuild
         {
             // TODO: we don't really need to evaluate all the specs in the module, we could evaluate a
             // partial graph here. 
+
+            // Let's make sure the path and qualifier references a uniquely identified project in the graph. We are creating unique identifiers per project, but there can be multiple project instances with a different combination
+            // of global properties (aka qualifier in this context) for the same project path. Let's make sure the specified qualifier matches exactly one project.
+
+            // Construct the global properties for the qualifier. Remove the 'is graph' property since that is everywhere and we want to hide it for the user.
+            var referencedGlobalProperties = MsBuildResolverUtils.CreateQualifierAsGlobalProperties(qualifierId, m_context, injectGraphBuildProperty: true);
+
+            // Get all nodes that match the path and the requested qualifier
+            var graph = m_msBuildWorkspaceResolver.ComputedProjectGraph.Result;
+            var referencedNodes = graph.ProjectGraph.ProjectNodes
+                .Where(node => node.FullPath == path)
+                .Select(node => node.GlobalProperties)
+                // Check that qualifiers 'coerce' in terms of global properties: all keys in the referenced qualifier must be a superset of the project's global properties, and the values must be the same
+                .Where(globalProperties => 
+                    globalProperties.Keys.All(key => referencedGlobalProperties.ContainsKey(key)) && globalProperties.Keys.All(key => globalProperties[key].Equals(referencedGlobalProperties[key], StringComparison.Ordinal)));
+
+            // The referenced node is contextual based on the current qualifier. If there is no node matching the qualifier, then we cannot produce outputs. If there are multiple nodes matching, the reference is ambiguous and 
+            // we cannot proceed either.
+            if (!referencedNodes.Any() || referencedNodes.Count() > 1)
+            {
+                var availableQualifiers = graph.ProjectGraph.ProjectNodes
+                    .Where(node => node.FullPath == path)
+                    .Select(node => MsBuildResolverUtils.CreateQualifierIdFromGlobalProperties(node.GlobalProperties, m_context, removeGraphBuildProperty: true));
+
+                var availableQualifiersDisplay = string.Join(",", availableQualifiers.Select(availableQualifier => m_context.QualifierTable.GetCanonicalDisplayString(availableQualifier)));
+
+                if (!referencedNodes.Any())
+                {
+                    Tracing.Logger.Log.CannotFindProjectForQualifier(
+                        m_context.LoggingContext,
+                        path.ToString(m_context.PathTable),
+                        m_context.QualifierTable.GetCanonicalDisplayString(qualifierId),
+                        availableQualifiersDisplay);
+                }
+                else
+                {
+                    Tracing.Logger.Log.AmbiguousQualifierReferenceForProject(
+                        m_context.LoggingContext,
+                        path.ToString(m_context.PathTable),
+                        m_context.QualifierTable.GetCanonicalDisplayString(qualifierId),
+                        availableQualifiersDisplay);
+                }
+
+                return EvaluationResult.Error;
+            }
 
             List<ProcessOutputs> processOutputs = null;
             if (!m_scheduledProcessOutputsByPath.TryGetValue((qualifierId, path), out processOutputs))

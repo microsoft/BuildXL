@@ -70,6 +70,41 @@ namespace Test.BuildXL.FrontEnd.MsBuild
             Assert.True(result.EngineState.PipGraph.IsReachableFrom(projARelease.PipId.ToNodeId(), projBRelease.PipId.ToNodeId()));
         }
 
+        [Theory]
+        [InlineData("configuration: \"debug\"", true)]
+        [InlineData("configuration: \"release\"", true)]
+        [InlineData("", false)]
+        [InlineData("configuration: \"any\"", false)]
+        [InlineData("noconfiguration: \"debug\"", false)]
+        public void ProjectReferenceAccountsForQualifier(string withQualifier, bool expectSuccess)
+        {
+            // Let's create a sibling DScript resolver that references an MSBuild project with a designated qualifier
+            var config = Build(siblingResolver: @"
+{
+    name: ""SiblingDScript"",
+    kind: ""DScript"",
+    modules: [
+                {moduleName: ""test"", projects: [f`dscript-project.dsc`]}
+    ]
+}")
+                .AddSpec(R("A.proj"), CreateHelloWorldProject())
+                .AddSpec(R("dscript-project.dsc"), $@"
+import * as test from ""Test"";
+
+const projA = test.withQualifier({{{withQualifier}}}).A;
+")
+                .PersistSpecsAndGetConfiguration();
+
+            var result = RunEngineWithConfigAndRequestedQualifiers(config, new List<string> { "configuration=debug", "configuration=release" });
+            Assert.Equal(expectSuccess, result.IsSuccess);
+
+            // If we expect failure, it should be due to not finding the project for the qualifier
+            if (!expectSuccess)
+            {
+                AssertErrorEventLogged(global::BuildXL.FrontEnd.MsBuild.Tracing.LogEventId.CannotFindProjectForQualifier);
+            }
+        }
+
         #region Helper
 
         private BuildXLEngineResult RunEngineWithConfigAndRequestedQualifiers(ICommandLineConfiguration config, List<string> requestedQualifiers)

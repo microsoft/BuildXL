@@ -265,5 +265,25 @@ namespace BuildXL.FrontEnd.MsBuild.Tracing
             EventOpcode = (byte)Tasks.Parser,
             Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
         public abstract void GraphBuilderFilesAreNotRemoved(LoggingContext context, string graphFile, string arguments);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.CannotFindProjectForQualifier,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Message = "Reference to project with path '{path}' requested qualifier {requestedQualifier}. However, it does not match any of the available ones: {availableQualifiers}. You can specify the qualifier with e.g. 'withQualifier({{configuration: release}})' expression to reference the appropriate one.",
+            EventTask = (ushort)Tasks.Engine,
+            EventOpcode = (byte)Tasks.Parser,
+            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics | Keywords.UserError))]
+        public abstract void CannotFindProjectForQualifier(LoggingContext context, string path, string requestedQualifier, string availableQualifiers);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.AmbiguousQualifierReferenceForProject,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Message = "Reference to project with path '{path}' requested qualifier {requestedQualifier}. However, it is ambiguous since there are multiple available that match: {availableQualifiers}. You can specify the qualifier with e.g. 'withQualifier({{configuration: release}})' to disambiguate.",
+            EventTask = (ushort)Tasks.Engine,
+            EventOpcode = (byte)Tasks.Parser,
+            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics | Keywords.UserError))]
+        public abstract void AmbiguousQualifierReferenceForProject(LoggingContext context, string path, string requestedQualifier, string availableQualifiers);
     }
 }

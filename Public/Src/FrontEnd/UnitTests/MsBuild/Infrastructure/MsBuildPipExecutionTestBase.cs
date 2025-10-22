@@ -91,7 +91,8 @@ namespace Test.BuildXL.FrontEnd.MsBuild
             string filenameEntryPoint = null,
             string msBuildRuntime = null,
             string dotnetSearchLocations = null,
-            bool useSharedCompilation = false)
+            bool useSharedCompilation = false,
+            string siblingResolver = null)
         {
             return Build(
                 environment != null? environment.ToDictionary(kvp => kvp.Key, kvp => new DiscriminatingUnion<string, UnitValue>(kvp.Value)) : null,
@@ -99,7 +100,8 @@ namespace Test.BuildXL.FrontEnd.MsBuild
                 filenameEntryPoint,
                 msBuildRuntime,
                 dotnetSearchLocations,
-                useSharedCompilation);
+                useSharedCompilation,
+                siblingResolver);
         }
 
         /// <inheritdoc/>
@@ -109,7 +111,8 @@ namespace Test.BuildXL.FrontEnd.MsBuild
             string filenameEntryPoint, 
             string msBuildRuntime,
             string dotnetSearchLocations,
-            bool useSharedCompilation = false)
+            bool useSharedCompilation = false,
+            string siblingResolver = null)
         {
             // Let's explicitly pass an empty environment, so the process environment won't affect tests by default
             return base.Build().Configuration(
@@ -119,7 +122,8 @@ namespace Test.BuildXL.FrontEnd.MsBuild
                     filenameEntryPoint: filenameEntryPoint, 
                     msBuildRuntime: msBuildRuntime,
                     dotnetSearchLocations: dotnetSearchLocations,
-                    useSharedCompilation: useSharedCompilation));
+                    useSharedCompilation: useSharedCompilation,
+                    siblingResolver: siblingResolver));
         }
 
         /// <inheritdoc/>
@@ -292,7 +296,8 @@ $@"<?xml version='1.0' encoding='utf-8'?>
             string filenameEntryPoint = null,
             string msBuildRuntime = null,
             string dotnetSearchLocations = null,
-            bool useSharedCompilation = false) => $@"
+            bool useSharedCompilation = false,
+            string siblingResolver = null) => $@"
 config({{
     resolvers: [
         {{
@@ -311,6 +316,7 @@ config({{
             {(dotnetSearchLocations != null ? $"dotNetSearchLocations: {dotnetSearchLocations}," : string.Empty)}
             useManagedSharedCompilation: {(useSharedCompilation ? "true" : "false")},
         }},
+        {(siblingResolver != null ? siblingResolver + "," : string.Empty)}  
     ],
     engine: {{unsafeAllowOutOfMountWrites: true}},
 }});";

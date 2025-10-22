@@ -33,5 +33,4 @@ extends:
         enabled: true
       sourceAnalysisPool:
         name: Windows-SDL-Agents
-        image: Windows-SDL-Image
         os: windows

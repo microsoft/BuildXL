@@ -49,7 +49,6 @@ extends:
     sdl:
       sourceAnalysisPool:
         name: Windows-SDL-Agents
-        image: Windows-SDL-Image
         os: windows
       spotBugs:
         enabled: false

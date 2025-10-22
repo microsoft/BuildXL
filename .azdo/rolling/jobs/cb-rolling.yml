@@ -35,6 +35,5 @@ jobs:
   # The CB task itself is agentless: this pool is used for SDL baselining
   pool:
     name: Windows-SDL-Agents
-    image: Windows-SDL-Image
     os: windows
   

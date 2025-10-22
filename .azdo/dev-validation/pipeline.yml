@@ -24,7 +24,6 @@ extends:
   parameters:
     pool:
       name: Windows-SDL-Agents
-      image: Windows-SDL-Image
       os: windows
     sdl:
       sourceRepositoriesToScan:
@@ -36,7 +35,6 @@ extends:
           justificationForDisabling: 'We have a dedicated pipeline for CodeQL.'
       sourceAnalysisPool:
         name: Windows-SDL-Agents
-        image: Windows-SDL-Image
         os: windows
     buildStages:
     - stage: Setup

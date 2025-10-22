@@ -2,6 +2,12 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20251016.3 (Release [30599939](https://dev.azure.com/mseng/Domino/_build/results?buildId=30599939&view=results))
+- Add Nx docs
+- [Nx] Propagate project tags to pips
+- Make the EBPF daemon honor /logObservedFileAccesses
+- Consistently check for EBPF capabilities
+
 # 0.1.0-20251009.2 (Release [30603951](https://dev.azure.com/mseng/Domino/_build/results?buildId=30603951&view=results))
 -	Add a Nx resolver to BuildXL
 -	[EBPF] Handle interactive auth for developer builds

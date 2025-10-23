@@ -696,7 +696,13 @@ InternalCreateDetouredProcess(
         std::wstring errorMsg = DebugStringFormat(L"InternalCreateDetouredProcess: Failed to create process (CreateDetouredProcessStatus: %d, error code: 0x%08X)", (int)status, (int)error);
         // Ensure that the error message is sent to both the Detours error file and to the log file.
         Dbg(errorMsg.c_str());
-        HandleDetoursInjectionAndCommunicationErrors(DETOURS_CREATE_PROCESS_ERROR_5, errorMsg.c_str(), DETOURS_WINDOWS_LOG_MESSAGE_5, hardExitOnDetoursErrorIfEnabled);
+
+        if (hardExitOnDetoursErrorIfEnabled)
+        {
+            // Hard exit is set on the final time this function should be called, meaning this failure is fatal and will not be retried.
+            // We only want to log to the detours error file if all retries have been exhausted.
+            HandleDetoursInjectionAndCommunicationErrors(DETOURS_CREATE_PROCESS_ERROR_5, errorMsg.c_str(), DETOURS_WINDOWS_LOG_MESSAGE_5, hardExitOnDetoursErrorIfEnabled);
+        }
     }
 
     // HandleDetoursInjectionAndCommunicationErrors may have changed the last error code, so we need to set it again.

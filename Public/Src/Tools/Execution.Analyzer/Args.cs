@@ -371,6 +371,9 @@ namespace BuildXL.Execution.Analyzer
                 case AnalysisMode.LinuxPipDebug:
                     m_analyzer = InitializeLinuxPipDebugAnalyzer();
                     break;
+                case AnalysisMode.AstredAnalyzer:
+                    m_analyzer = InitializeAstredAnalyzer();
+                    break;
                 default:
                     Contract.Assert(false, "Unhandled analysis mode");
                     break;
@@ -688,6 +691,9 @@ namespace BuildXL.Execution.Analyzer
 
             writer.WriteLine("");
             WriteLinuxPipDebugAnalyzerHelp(writer);
+
+            writer.WriteLine("");
+            WriteAstredAnalyzerHelp(writer);
         }
 
         public void LogEventSummary()

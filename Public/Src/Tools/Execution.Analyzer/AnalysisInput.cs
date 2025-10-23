@@ -8,6 +8,7 @@ using System.IO;
 using System.Linq;
 using BuildXL.Engine;
 using BuildXL.Engine.Serialization;
+using BuildXL.Pips.Graph;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.ToolSupport;
 using BuildXL.Utilities;
@@ -144,6 +145,16 @@ namespace BuildXL.Execution.Analyzer
             }
 
             return true;
+        }
+
+        /// <summary>
+        /// Used for analyzer unit tests.
+        /// </summary>
+        internal static AnalysisInput CreateForTest(PipGraph pipGraph)
+        {
+            var result = new AnalysisInput();
+            result.CachedGraph = new CachedGraph(pipGraph: pipGraph, directedGraph: pipGraph.DirectedGraph, context: pipGraph.Context, mountPathExpander: new MountPathExpander(pipGraph.Context.PathTable));
+            return result;
         }
 
         public bool ReadExecutionLog(IExecutionLogTarget analyzer)

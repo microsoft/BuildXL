@@ -64,6 +64,7 @@ namespace BuildXL.Execution.Analyzer
         Whitelist, // compatibility
         WinIdeDependency,
         ConcurrentPipsAnalyzer,
-        LinuxPipDebug
+        LinuxPipDebug,
+        AstredAnalyzer
     }
 }

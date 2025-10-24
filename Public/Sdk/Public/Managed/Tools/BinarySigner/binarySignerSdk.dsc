@@ -85,6 +85,7 @@ export function signBinary(args: ESRPSignArguments): File {
                 untrackedDirectoryScopes: [
                         ...(Context.getCurrentHost().os === "win" ? [
                             d`${Context.getMount("ProgramData").path}`,
+                            d`${Context.getMount("ProgramFiles").path}/dotnet`,
                             d`${Context.getMount("UserProfile").path}`
                         ] : [])
                     ],

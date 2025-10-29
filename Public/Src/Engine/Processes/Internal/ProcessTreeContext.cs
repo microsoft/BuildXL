@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.IO.Pipes;
@@ -337,24 +336,9 @@ namespace BuildXL.Processes
                 return; // Ignore the error it it happened after the stopping
             }
 
-            // Get full path to process that failed injection
-            var processPath = "<unknown>";
-            try
-            {
-                var process = Process.GetProcessById((int)processId);
-                processPath = process.MainModule.FileName;
-            }
-            catch (Exception)
-#pragma warning disable ERP022 // Unobserved exception in a generic exception handler
-            {
-                // Process id is not running anymore. This shouldn't happen because the process should still be suspended.
-                // Log the process name as unknown to indicate this.
-            }
-#pragma warning restore ERP022 // Unobserved exception in a generic exception handler
-
             HasDetoursInjectionFailures = true;
-            Tracing.Logger.Log.BrokeredDetoursInjectionFailed(m_loggingContext, processId, processPath, error);
-            m_debugReporter?.Invoke($"Detours (remote) injection failed for process {processId} with path '{processPath}': {error}");
+            Tracing.Logger.Log.BrokeredDetoursInjectionFailed(m_loggingContext, processId, error);
+            m_debugReporter?.Invoke($"Detours (remote) injection failed for process {processId}: {error}");
         }
     }
 }

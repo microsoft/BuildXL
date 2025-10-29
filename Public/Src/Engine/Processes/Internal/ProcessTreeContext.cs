@@ -344,11 +344,13 @@ namespace BuildXL.Processes
                 var process = Process.GetProcessById((int)processId);
                 processPath = process.MainModule.FileName;
             }
-            catch (ArgumentException)
+            catch (Exception)
+#pragma warning disable ERP022 // Unobserved exception in a generic exception handler
             {
                 // Process id is not running anymore. This shouldn't happen because the process should still be suspended.
                 // Log the process name as unknown to indicate this.
             }
+#pragma warning restore ERP022 // Unobserved exception in a generic exception handler
 
             HasDetoursInjectionFailures = true;
             Tracing.Logger.Log.BrokeredDetoursInjectionFailed(m_loggingContext, processId, processPath, error);

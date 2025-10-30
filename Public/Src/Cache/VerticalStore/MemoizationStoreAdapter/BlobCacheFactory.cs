@@ -105,9 +105,8 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                 // Authenticate and retrieve the build cache configuration
                 var token = UserInteractiveAuthenticate(
                     context,
-                    configuration.InteractiveAuthTokenDirectory,
                     configuration.Console,
-                    configuration.DeveloperBuildCacheResourceId,
+                    configuration.DeveloperBuildCacheTenantId,
                     configuration.AllowInteractiveAuth,
                     context.Token);
                 var maybeBuildCacheConfiguration = await BuildCacheConfigurationProvider.TryGetBuildCacheConfigurationAsync(token, configuration.DeveloperBuildCacheResourceId, context.Token);
@@ -214,11 +213,11 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             // an interactive credential mechanism.
             if (credentials is null && configuration.AllowInteractiveAuth && uri is not null)
             {
-                Contract.Requires(!string.IsNullOrEmpty(configuration.InteractiveAuthTokenDirectory));
+                Contract.Requires(!string.IsNullOrEmpty(configuration.DeveloperBuildCacheTenantId));
 
                 context.TracingContext.Info("Authenticating with (maybe silent) interactive browser", nameof(BlobCacheFactory));
                 credentials = new Dictionary<BlobCacheStorageAccountName, IAzureStorageCredentials>();
-                var tokenCredential = new InteractiveClientTokenCredential(context.TracingContext, configuration.InteractiveAuthTokenDirectory, GetHashForTokenIdentifier(uri), configuration.Console, token);
+                var tokenCredential = new InteractiveClientTokenCredential(context.TracingContext, configuration.DeveloperBuildCacheTenantId, configuration.Console, token);
                 var credential = new UriAzureStorageTokenCredential(tokenCredential, uri);
                 credentials.Add(BlobCacheStorageAccountName.Parse(credential.GetAccountName()), credential);
             }
@@ -255,9 +254,8 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
 
         private static TokenCredential UserInteractiveAuthenticate(
             Context context,
-            string interactiveAuthTokenDirectory,
             IConsole console,
-            string buildCacheResourceId,
+            string buildCacheTenantId,
             bool allowInteractiveAuth,
             CancellationToken cancellationToken)
         {
@@ -277,7 +275,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
 
             // Otherwise, we fallback to interactive authentication
             // The build cache resource ID is used to uniquely identify the auth token for the build cache, so it can be cached when doing interactive auth.
-            return new InteractiveClientTokenCredential(context, interactiveAuthTokenDirectory, GetHashForTokenIdentifier(buildCacheResourceId), console, cancellationToken);
+            return new InteractiveClientTokenCredential(context, buildCacheTenantId, console, cancellationToken);
         }
 
         private static bool TryCodespacesAuthentication(Context context, out TokenCredential tokenCredential)

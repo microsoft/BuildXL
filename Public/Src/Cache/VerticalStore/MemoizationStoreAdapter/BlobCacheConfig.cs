@@ -89,14 +89,13 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         public IConsole Console { get; set; }
 
         /// <summary>
-        /// The directory where interactive tokens should be stored and retrieved as a way to provide silent authentication (when possible)
-        /// across BuildXL invocations.
+        /// The tenantid used in the MSAL cache name that BuildXL should look for.
+        /// The cache name is "msal_{DeveloperBuildCacheTenantId}.cache"
+        /// The reason it is chosen this way is that azureauth.exe, commonly used to get an AAD token, generates it to this cache name and we can reuse it.
+        /// Default value is the Microsoft corp tenant.
         /// </summary>
-        /// <remarks>
-        /// Provided by the BuildXL main configuration object.
-        /// </remarks>
-        [DefaultValue(null)]
-        public string InteractiveAuthTokenDirectory { get; set; }
+        [DefaultValue("72f988bf-86f1-41af-91ab-2d7cd011db47")]
+        public string DeveloperBuildCacheTenantId { get; set; }
 
         /// <summary>
         /// The configured number of days the storage account will retain blobs before deleting (or soft deleting)
@@ -234,9 +233,6 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             BuildId = configuration.Logging.RelatedActivityId ?? activityId.ToString();
 
             AllowInteractiveAuth = configuration.Interactive;
-            // Let's use the engine cache as the target directory for storing the token
-            // This should be enough to offer persistence/silent authentication for local builds
-            InteractiveAuthTokenDirectory = configuration.Layout.EngineCacheDirectory.ToString(buildXLContext.PathTable);
 
             Console = buildXLContext.Console;
 

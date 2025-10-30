@@ -25,23 +25,22 @@ public class InteractiveClientTokenCredential : ChainedTokenCredential
     /// </summary>
     /// <remarks>
     /// For the interactive browser and device code case, the authentication record that allows a maybe silent authentication is stored in a file under the provided directory, to be able to reuse it
-    /// across build invocations. The given <paramref name="persistentTokenIdentifier"/> is used as the identifier for the token.
+    /// across build invocations. The given <paramref name="tenantId"/> is used as the identifier for the token.
     /// </remarks>
-    public InteractiveClientTokenCredential(Tracing.Context tracingContext, string interactiveAuthTokenDirectory, ContentHash persistentTokenIdentifier, IConsole console, CancellationToken cancellationToken)
+    public InteractiveClientTokenCredential(Tracing.Context tracingContext, string tenantId, IConsole console, CancellationToken cancellationToken)
         : base(new VisualStudioCodeCredential(),
             // On Linux, check whether X server is available by querying DISPLAY. Without an X server, the interactive browser credential provider won't
             // be able to launch a browser. In that case, launch a device code credential provider.
             OperatingSystemHelper.IsLinuxOS && string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DISPLAY"))
-                ? CreateDeviceCodeWithPersistence(interactiveAuthTokenDirectory, persistentTokenIdentifier, console, cancellationToken).GetAwaiter().GetResult()
-                : CreateInteractiveBrowserCredentialWithPersistence(tracingContext, interactiveAuthTokenDirectory, persistentTokenIdentifier, console, cancellationToken).GetAwaiter().GetResult()
+                ? CreateDeviceCodeWithPersistence(tenantId, console, cancellationToken).GetAwaiter().GetResult()
+                : CreateInteractiveBrowserCredentialWithPersistence(tracingContext, tenantId, console, cancellationToken).GetAwaiter().GetResult()
             )
     {
     }
 
     private static Task<TokenCredential> CreateInteractiveBrowserCredentialWithPersistence(
         Tracing.Context tracingContext,
-        string interactiveAuthTokenDirectory,
-        ContentHash persistentTokenIdentifier,
+        string tenantId,
         IConsole console,
         CancellationToken token)
     {
@@ -67,15 +66,13 @@ public class InteractiveClientTokenCredential : ChainedTokenCredential
         return CreateInteractiveCredentialWithPersistence<InteractiveBrowserCredentialOptions>(
             options,
             interactiveCredentialOptions => new InteractiveBrowserCredential(interactiveCredentialOptions),
-            interactiveAuthTokenDirectory,
-            persistentTokenIdentifier,
+            tenantId,
             token
         );
     }
 
     private static Task<TokenCredential> CreateDeviceCodeWithPersistence(
-        string interactiveAuthTokenDirectory,
-        ContentHash persistentTokenIdentifier,
+        string tenantId,
         IConsole console,
         CancellationToken token)
     {
@@ -97,8 +94,7 @@ public class InteractiveClientTokenCredential : ChainedTokenCredential
         return CreateInteractiveCredentialWithPersistence<DeviceCodeCredentialOptions>(
             options,
             deviceCodeOptions => new DeviceCodeCredential(deviceCodeOptions),
-            interactiveAuthTokenDirectory,
-            persistentTokenIdentifier,
+            tenantId,
             token
         );
     }
@@ -106,44 +102,15 @@ public class InteractiveClientTokenCredential : ChainedTokenCredential
     private static async Task<TokenCredential> CreateInteractiveCredentialWithPersistence<TTokenCredentialOptions>(
         TTokenCredentialOptions tokenCredentialOptions,
         Func<TTokenCredentialOptions, TokenCredential> createTokenCredential,
-        string interactiveAuthTokenDirectory,
-        ContentHash persistentTokenIdentifier,
+        string tenantId,
         CancellationToken token)
             where TTokenCredentialOptions : TokenCredentialOptions
     {
-        var uriAsHash = persistentTokenIdentifier.ToHex();
-
-        var tokenName = $"BxlBlobCacheAuthToken{uriAsHash}";
-        // The auth record will be serialized in the designated directory
-        var file = Path.Combine(interactiveAuthTokenDirectory, tokenName);
+        // This name makes it able to share a token cache with the Microsoft authored, open source, shared azureauth.exe library here: https://github.com/AzureAD/microsoft-authentication-cli/tree/8de5747255e4543dca0cbf77f1f0ee6dc0c83d7e
+        var tokenName = $"msal_{tenantId}.cache";
 
         var tokenOptions = new TokenCachePersistenceOptions { Name = tokenName };
         tokenCredentialOptions.SetTokenCachePersistenceOptions(tokenOptions);
-
-        bool authRecordExists;
-        try
-        {
-            authRecordExists = File.Exists(file);
-
-            if (authRecordExists)
-            {
-                // Load the previously serialized AuthenticationRecord from disk and deserialize it.
-                using var authRecordStream = new FileStream(file, FileMode.Open, FileAccess.Read);
-                var serializedAuthRecord = await AuthenticationRecord.DeserializeAsync(authRecordStream, token);
-                tokenCredentialOptions.SetAuthenticationRecord(serializedAuthRecord);
-            }
-        }
-#pragma warning disable ERP022
-        catch
-        {
-            // Retrieving the authentication record is best effort basis. If any problem occurs, we just
-            // don't set it
-            // Let's catch the case of the file being there but having any deserialization issue. In that case
-            // we just pretend the file is not there.
-            authRecordExists = false;
-        }
-#pragma warning restore ERP022
-
 
         var credential = createTokenCredential(tokenCredentialOptions);
 
@@ -156,31 +123,7 @@ public class InteractiveClientTokenCredential : ChainedTokenCredential
         try
         {
             internalTokenSource.CancelAfter(userTimeout);
-
-            // If the record is there, attempt silent authentication via GetTokenAsync. This may prompt the user if silent authentication is not available.
-            // Otherwise, call AuthenticateAsync, which always prompts the user, and try to serialize the auth token for later reuse.
-            if (authRecordExists)
-            {
-                await credential.GetTokenAsync(new TokenRequestContext(new string[] { "https://management.azure.com//.default" }), tokenSource.Token);
-            }
-            else
-            {
-                var authRecord = await credential.AuthenticateAsync(tokenSource.Token);
-
-                try
-                {
-                    Directory.CreateDirectory(interactiveAuthTokenDirectory);
-                    using var authRecordStream = new FileStream(file, FileMode.Create, FileAccess.Write);
-                    await authRecord.SerializeAsync(authRecordStream, token);
-                }
-#pragma warning disable ERP022
-                catch
-                {
-                    // Serializing the authentication record is best effort basis. If any problem occurs, we just
-                    // don't store it
-                }
-#pragma warning restore ERP022
-            }
+            await credential.GetTokenAsync(new TokenRequestContext(new string[] { "https://management.azure.com//.default" }), tokenSource.Token);
         }
         // If the user doesn't respond in time, we cancel the operation. A TokenCredential will throw an AuthenticationFailedException
         // if the cancellation happens while the interactive prompt is ongoing, so we account for that case as well.

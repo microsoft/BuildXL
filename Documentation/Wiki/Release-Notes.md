@@ -2,6 +2,15 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20251023.2.2 (Release [30645981](https://dev.azure.com/mseng/Domino/_build/results?buildId=30645981&view=results))
+- Add "ExitGracefully" setting to plugin - only try to shutdown plugins gracefully if this setting is turned on (otherwise they will terminate when the parent process - bxl - terminates)
+- Enable grpc kestrel by default
+- [MSBuild resolver] Consider qualifiers when referencing projects
+- Change FileAccessManifest config to safe defaults
+- Execution analyzer to create Astred trace files for BuildXL builds
+- Avoid logging to detours error file on internal create process until final try
+- Make cache drop log messages if the queue is full instead of crashing
+
 # 0.1.0-20251016.3 (Release [30599939](https://dev.azure.com/mseng/Domino/_build/results?buildId=30599939&view=results))
 - Add Nx docs
 - [Nx] Propagate project tags to pips

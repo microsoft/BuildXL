@@ -404,10 +404,13 @@ namespace BuildXL.Pips.Operations
                             for (int i = 0; i < semaphores.Length; i++)
                             {
                                 var s = semaphores[i];
+
                                 sb.Append(i == 0 ? string.Empty : ", ");
                                 sb.Append(stringTable.GetString(s.Name));
                                 sb.Append(':');
                                 sb.Append(s.Value);
+                                sb.Append('/');
+                                sb.Append(s.Limit);
                             }
 
                             sb.Append(")");

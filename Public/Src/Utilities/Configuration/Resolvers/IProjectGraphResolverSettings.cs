@@ -51,6 +51,11 @@ namespace BuildXL.Utilities.Configuration
         /// For debugging purposes. If this field is true, the JSON representation of the project graph file is not deleted
         /// </summary>
         bool? KeepProjectGraphFile { get; }
+
+        /// <summary>
+        /// Turns on file access reporting for the project graph construction phase
+        /// </summary>
+        bool? EnableProjectGraphVerboseLogging { get; }
     }
 
     /// <nodoc/>

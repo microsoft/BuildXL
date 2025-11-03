@@ -403,7 +403,8 @@ namespace BuildXL.FrontEnd.JavaScript
                description: $"{Name} graph builder",
                buildParameters,
                useEBPFLinuxSandbox: Configuration.Sandbox.EnableEBPFLinuxSandbox,
-               ebpfRingBufferSizeMultiplier: Configuration.Sandbox.EBPFRingBufferSizeMultiplier
+               ebpfRingBufferSizeMultiplier: Configuration.Sandbox.EBPFRingBufferSizeMultiplier,
+               enableLogging: ResolverSettings.EnableProjectGraphVerboseLogging ?? false
                );
         }
 

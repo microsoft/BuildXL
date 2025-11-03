@@ -54,6 +54,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             UseManagedSharedCompilation = resolverSettings.UseManagedSharedCompilation;
             ChildProcessesToBreakawayFromSandbox = resolverSettings.ChildProcessesToBreakawayFromSandbox;
             AllowedSurvivingChildProcesses = resolverSettings.AllowedSurvivingChildProcesses;
+            EnableProjectGraphVerboseLogging = resolverSettings.EnableProjectGraphVerboseLogging;
         }
 
         /// <inheritdoc/>
@@ -138,5 +139,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public IReadOnlyList<PathAtom> AllowedSurvivingChildProcesses { get; set; }
+
+        /// <inheritdoc />
+        public bool? EnableProjectGraphVerboseLogging { get; set; }
     }
 }

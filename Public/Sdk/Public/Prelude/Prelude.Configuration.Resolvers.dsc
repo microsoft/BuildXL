@@ -323,6 +323,11 @@ interface MsBuildResolver extends ResolverBase, UntrackingSettings {
      * it defaults to false.
      */
     useManagedSharedCompilation?: boolean;
+
+    /**
+     * Turns on file access reporting for the project graph construction phase. Usually used for debugging purposes.
+     */
+    enableProjectGraphVerboseLogging?: boolean;
 }
 
 /**
@@ -651,6 +656,11 @@ interface JavaScriptResolver extends ResolverBase, UntrackingSettings {
      * This variable will automatically become a passthrough one and will have no effects on caching.
      */
     retryAttemptEnvironmentVariable?: string;
+
+    /**
+     * Turns on file access reporting for the project graph construction phase. Usually used for debugging purposes.
+     */
+    enableProjectGraphVerboseLogging?: boolean;
 }
 
 /**
@@ -926,6 +936,11 @@ interface NinjaResolver extends ResolverBase, UntrackingSettings {
      * If a relative path is provided, it will be interpreted relative to the build's root.
      */
     additionalOutputDirectories?: (Path | RelativePath)[];
+
+    /**
+     * Turns on file access reporting for the project graph construction phase. Usually used for debugging purposes.
+     */
+    enableProjectGraphVerboseLogging?: boolean;
 }
 
 interface ToolConfiguration {

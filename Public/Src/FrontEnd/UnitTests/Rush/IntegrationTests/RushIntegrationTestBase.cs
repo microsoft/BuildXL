@@ -123,7 +123,8 @@ namespace Test.BuildXL.FrontEnd.Rush
             string warningRegex = null,
             string errorRegex = null,
             string rushCommand = null,
-            string additionalRushParameters = null)
+            string additionalRushParameters = null,
+            bool enableProjectGraphVerboseLogging = false)
         {
             environment ??= new Dictionary<string, string> { 
                 ["PATH"] = PathToNodeFolder,
@@ -153,7 +154,8 @@ namespace Test.BuildXL.FrontEnd.Rush
                 warningRegex,
                 errorRegex,
                 rushCommand,
-                additionalRushParameters);
+                additionalRushParameters,
+                enableProjectGraphVerboseLogging);
         }
 
         /// <inheritdoc/>
@@ -180,7 +182,8 @@ namespace Test.BuildXL.FrontEnd.Rush
             string warningRegex = null,
             string errorRegex = null,
             string rushCommand = null,
-            string additionalRushParameters = null)
+            string additionalRushParameters = null,
+            bool enableProjectGraphVerboseLogging = false)
         {
             environment ??= new Dictionary<string, DiscriminatingUnion<string, UnitValue>> { 
                 ["PATH"] = new DiscriminatingUnion<string, UnitValue>(PathToNodeFolder),
@@ -226,7 +229,8 @@ namespace Test.BuildXL.FrontEnd.Rush
                     warningRegex,
                     errorRegex,
                     rushCommand,
-                    additionalRushParameters));
+                    additionalRushParameters,
+                    enableProjectGraphVerboseLogging));
         }
 
         protected BuildXLEngineResult RunRushProjects(
@@ -341,7 +345,8 @@ namespace Test.BuildXL.FrontEnd.Rush
             string warningRegex = null,
             string errorRegex = null,
             string rushCommand = null,
-            string additionalRushParameters = null) => $@"
+            string additionalRushParameters = null,
+            bool enableProjectGraphVerboseLogging = false) => $@"
 config({{
     resolvers: [
         {{
@@ -368,6 +373,7 @@ config({{
             {(errorRegex != null ? $"errorRegex: {errorRegex}," : string.Empty)}
             {(rushCommand != null ? $"rushCommand: {rushCommand}," : string.Empty)}
             {(additionalRushParameters != null ? $"additionalRushParameters: {additionalRushParameters}," : string.Empty)}
+            {(enableProjectGraphVerboseLogging == true ? $"enableProjectGraphVerboseLogging: true," : string.Empty)}
         }},
         {(addDScriptResolver? "{kind: 'DScript', modules: [f`module.config.dsc`, f`${Context.getBuildEngineDirectory()}/Sdk/Sdk.Transformers/package.config.dsc`]}" : string.Empty)}
     ],

@@ -513,7 +513,7 @@ namespace BuildXL.Processes
 
                     // 1. Report Type.
                     var restOfMessage = message;
-                    var reportType = (ReportType)AssertInt(nextField(restOfMessage, out restOfMessage));
+                    var reportType = (ReportType)AssertInt("Report Type", nextField(restOfMessage, out restOfMessage));
                     var report = new SandboxReportLinux()
                     {
                         ReportType = reportType
@@ -540,15 +540,15 @@ namespace BuildXL.Processes
                              * 12. Path
                             */
                             report.SystemCall = s_encoding.GetString(s_encoding.GetBytes(nextField(restOfMessage, out restOfMessage).ToArray()));
-                            report.FileOperation = FileOperationLinux.ToReportedFileOperation((FileOperationLinux.Operations)AssertInt(nextField(restOfMessage, out restOfMessage)));
-                            report.ProcessId = AssertInt(nextField(restOfMessage, out restOfMessage));
-                            report.ParentProcessId = AssertInt(nextField(restOfMessage, out restOfMessage));
-                            report.Error = AssertInt(nextField(restOfMessage, out restOfMessage));
-                            report.RequestedAccess = (RequestedAccess)AssertInt(nextField(restOfMessage, out restOfMessage));
-                            report.FileAccessStatus = AssertInt(nextField(restOfMessage, out restOfMessage));
-                            report.ExplicitlyReport = AssertInt(nextField(restOfMessage, out restOfMessage)); // explicitLogging?
-                            report.IsDirectory = AssertInt(nextField(restOfMessage, out restOfMessage)) != 0;
-                            report.IsPathTruncated = AssertInt(nextField(restOfMessage, out restOfMessage)) != 0;
+                            report.FileOperation = FileOperationLinux.ToReportedFileOperation((FileOperationLinux.Operations)AssertInt("File Operation", nextField(restOfMessage, out restOfMessage)));
+                            report.ProcessId = AssertInt("Process ID", nextField(restOfMessage, out restOfMessage));
+                            report.ParentProcessId = AssertInt("Parent Process ID", nextField(restOfMessage, out restOfMessage));
+                            report.Error = AssertInt("Error", nextField(restOfMessage, out restOfMessage));
+                            report.RequestedAccess = (RequestedAccess)AssertInt("Requested Access", nextField(restOfMessage, out restOfMessage));
+                            report.FileAccessStatus = AssertInt("File Access Status", nextField(restOfMessage, out restOfMessage));
+                            report.ExplicitlyReport = AssertInt("Explicitly Report", nextField(restOfMessage, out restOfMessage)); // explicitLogging?
+                            report.IsDirectory = AssertInt("Is Directory", nextField(restOfMessage, out restOfMessage)) != 0;
+                            report.IsPathTruncated = AssertInt("Is Path Truncated", nextField(restOfMessage, out restOfMessage)) != 0;
                             report.Data = s_encoding.GetString(s_encoding.GetBytes(nextField(restOfMessage, out restOfMessage).ToArray()));
 
                             if (report.FileOperation == ReportedFileOperation.ProcessExec)
@@ -569,8 +569,8 @@ namespace BuildXL.Processes
                              * 3. Severity
                              * 4. Message
                             */
-                            report.ProcessId = AssertInt(nextField(restOfMessage, out restOfMessage));
-                            report.Severity = (SandboxInfraSeverity)AssertInt(nextField(restOfMessage, out restOfMessage));
+                            report.ProcessId = AssertInt("Process ID", nextField(restOfMessage, out restOfMessage));
+                            report.Severity = (SandboxInfraSeverity)AssertInt("Severity", nextField(restOfMessage, out restOfMessage));
                             report.Data = s_encoding.GetString(s_encoding.GetBytes(nextField(restOfMessage, out restOfMessage).ToArray())).Replace('!', '|');
 
                             break;
@@ -640,7 +640,7 @@ namespace BuildXL.Processes
                 return false;
             }
 
-            private uint AssertInt(ReadOnlySpan<char> str)
+            private uint AssertInt(string fieldName, ReadOnlySpan<char> str)
             {
 #if NETCOREAPP
                 if (uint.TryParse(str, out uint result))
@@ -652,7 +652,7 @@ namespace BuildXL.Processes
                 }
                 else
                 {
-                    LogError($"Could not parse int from '{str.ToString()}'");
+                    LogError($"Could not parse int from '{str.ToString()}' for field '{fieldName}'");
                     return 0;
                 }
             }

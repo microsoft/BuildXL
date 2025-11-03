@@ -6,6 +6,7 @@ using System.Linq;
 using BuildXL.Engine;
 using BuildXL.Utilities.Configuration;
 using Test.BuildXL.FrontEnd.Core;
+using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 using LogEventId = global::BuildXL.FrontEnd.JavaScript.Tracing.LogEventId;
@@ -293,6 +294,23 @@ namespace Test.BuildXL.FrontEnd.Rush
             AssertErrorEventLogged(LogEventId.ProjectGraphConstructionError);
         }
 
+        // Not really linux specific, but it is easier to check the logs there
+        [FactIfSupported(requiresLinuxBasedOperatingSystem: true)]
+        public void GraphConstructionLoggingIsHonored()
+        {
+            var config = Build(executeCommands: "['build']", enableProjectGraphVerboseLogging: true)
+                .AddJavaScriptProject("@ms/project-A", "src/A", scriptCommands: new[] { ("build", "build A") })
+                .PersistSpecsAndGetConfiguration();
+
+            var result = RunRushProjects(config, new[] {
+                ("src/A", "@ms/project-A")
+            });
+
+            Assert.True(result.IsSuccess);
+            // There are not real pips executing since Phase is Schedule, but we should see the graph construction logging events
+            Assert.Contains("Access report received", EventListener.GetLog());
+        }
+        
         private BuildXLEngineResult BuildDummyWithCommands(string commands)
         {
             var config = Build(executeCommands: commands)

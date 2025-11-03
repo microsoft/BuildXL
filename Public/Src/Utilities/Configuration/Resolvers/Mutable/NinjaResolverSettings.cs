@@ -30,6 +30,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             SpecFile = pathRemapper.Remap(template.SpecFile);
             Environment = template.Environment;
             AdditionalOutputDirectories = template.AdditionalOutputDirectories;
+            EnableProjectGraphVerboseLogging = template.EnableProjectGraphVerboseLogging;
         }
 
         /// <inheritdoc />
@@ -54,5 +55,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public IReadOnlyList<DiscriminatingUnion<AbsolutePath, RelativePath>> AdditionalOutputDirectories { get; set; }
+
+        /// <inheritdoc />
+        public bool? EnableProjectGraphVerboseLogging { get; set; }
     }
 }

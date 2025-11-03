@@ -54,6 +54,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             ErrorRegex = resolverSettings.ErrorRegex;
             WarningRegex = resolverSettings.WarningRegex;
             RetryAttemptEnvironmentVariable = resolverSettings.RetryAttemptEnvironmentVariable;
+            EnableProjectGraphVerboseLogging = resolverSettings.EnableProjectGraphVerboseLogging;
         }
 
         /// <inheritdoc/>
@@ -133,5 +134,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc/>
         public string RetryAttemptEnvironmentVariable { get; set; }
+
+        /// <inheritdoc/>
+        public bool? EnableProjectGraphVerboseLogging { get; set; }
 }
 }

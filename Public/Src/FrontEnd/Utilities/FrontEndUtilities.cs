@@ -104,7 +104,8 @@ namespace BuildXL.FrontEnd.Utilities
             Action beforeLaunch = null,   // Invoked right before the process starts
             Action onResult = null,      // Action to be taken after getting a successful result
             bool useEBPFLinuxSandbox = false,
-            int? ebpfRingBufferSizeMultiplier = null
+            int? ebpfRingBufferSizeMultiplier = null,
+            bool enableLogging = false
             )
         {
             var toolBuildStorage = new ToolBuildStorage(buildStorageDirectory);
@@ -115,6 +116,14 @@ namespace BuildXL.FrontEnd.Utilities
             if (fileAccessManifest.PipId == 0)
             {
                 fileAccessManifest.PipId = HashCodeHelper.Combine(pathToTool.GetHashCode(), arguments.GetHashCode());
+            }
+
+            // Turn on logging if requested
+            if (enableLogging)
+            {
+                // On Linux, we turn on sandbox verbose logging as well
+                fileAccessManifest.EnableLinuxSandboxLogging = true;
+                fileAccessManifest.ReportFileAccesses = true;
             }
 
             var info =

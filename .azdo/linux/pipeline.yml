@@ -4,8 +4,8 @@ resources:
   repositories:
   - repository: 1esPipelines
     type: git
-    name: Domino/1ESPipelines
-    ref: refs/heads/main
+    name: 1ESPipelineTemplates/1ESPipelineTemplates
+    ref: refs/tags/release
 
 parameters:
 - name: BuildSelfhost

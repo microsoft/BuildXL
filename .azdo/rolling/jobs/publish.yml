@@ -72,6 +72,26 @@ jobs:
       publishFeedCredentials: 'mseng-Domino-BuildXL-1ESSharedAssets_BuildXL'
       sbomEnabled: false
       allowPackageConflicts: $(NugetPushAllowPackageConflicts)
+    
+    - output: nuget
+      displayName: '📦 Push BuildXL.win-x64 to 1essharedassets/BuildXL feed'
+      condition: and(or(succeeded(), eq(variables['IsRetryRun'], true)), ne(variables['ServicingOnlyBuild'], 'true'))
+      useVstsNugetPush: true
+      packageParentPath: $(LargePackagesStagingDir)
+      package: $(LargePackagesStagingDir)/BuildXL.win-x64.$(Build.BuildNumber).nupkg
+      feed: https://1essharedassets.pkgs.visualstudio.com/_packaging/BuildXL/nuget/v3/index.json
+      serviceConnection: mseng-Domino-BuildXL-Pipelines
+      sbomEnabled: false
+
+    - output: nuget
+      displayName: '📦 Push public BuildXL.linux-x64 to 1essharedassets/BuildXL feed'
+      condition: and(or(succeeded(), eq(variables['IsRetryRun'], true)), ne(variables['ServicingOnlyBuild'], 'true'))
+      useVstsNugetPush: true
+      packageParentPath: $(LargePackagesStagingDir)
+      package: $(LargePackagesStagingDir)/BuildXL.linux-x64.$(Build.BuildNumber).nupkg
+      feed: https://1essharedassets.pkgs.visualstudio.com/_packaging/BuildXL/nuget/v3/index.json
+      serviceConnection: mseng-Domino-BuildXL-Pipelines
+      sbomEnabled: false
 
   steps:
   # Set access token to pull/push artifacts from CB and mseng.
@@ -155,16 +175,6 @@ jobs:
         Remove-Item -Path "$(Agent.TempDirectory)/DownloadedDrop/debug" -Recurse -Force
       errorActionPreference: 'continue'
 
-  # Use VstsNugetPush to push our large packages
-  - task: PowerShell@2
-    displayName: Download VstsNugetPush.exe
-    inputs:
-      targetType: 'filePath'
-      filePath: '$(Build.SourcesDirectory)/.azdo/scripts/DownloadVstsNugetPush.ps1'
-      arguments: '-toolsDirectory $(Agent.ToolsDirectory) -tempDirectory $(Agent.TempDirectory)/vstsnugetpush'
-    env:
-      ACCESS_TOKEN: $(BuildXL-Pipeline-AccessToken)
-
   - task: PowerShell@2
     displayName: 'Move large NuGet Packages'
     inputs:
@@ -192,25 +202,6 @@ jobs:
       Write-Host "##vso[task.setvariable variable=IsRetryRun]true"
     displayName: 'Set IsRetryRun variable for publishing on retry'
     condition: and(succeeded(), gt(variables['System.JobAttempt'], 1))
-
-  # Upload to pipeline artifacts so we get the required scanning
-  - task: 1ES.PublishPipelineArtifact@1
-    inputs:
-      targetPath: $(LargePackagesStagingDir)()
-      artifactName: BuildXL engine packages $(System.JobAttempt)
-
-  - task: PowerShell@2
-    displayName: 'Publish large NuGet Packages with VstsNugetPush.exe'
-    condition: or(succeeded(), eq(variables['IsRetryRun'], true))
-    inputs:
-      targetType: 'inline'
-      script: |
-        # Run VstsNugetPush.exe to publish the packages
-        & '$(Agent.ToolsDirectory)/VstsNugetPush/VstsNugetPush.exe' -Package "$(LargePackagesStagingDir)\BuildXL.win-x64.$(Build.BuildNumber).nupkg" -Feed "https://1essharedassets.pkgs.visualstudio.com/_packaging/BuildXL/nuget/v3/index.json" -NonInteractive -Verbosity Detailed
-        & '$(Agent.ToolsDirectory)/VstsNugetPush/VstsNugetPush.exe' -Package "$(LargePackagesStagingDir)\BuildXL.linux-x64.$(Build.BuildNumber).nupkg" -Feed "https://1essharedassets.pkgs.visualstudio.com/_packaging/BuildXL/nuget/v3/index.json" -NonInteractive -Verbosity Detailed
-      errorActionPreference: 'continue'
-    env:
-      VSTSNUGETPUSH_ARTIFACTTOOL_PAT_HANDOFF: $(BuildXL-Pipeline-AccessToken)
 
   # Set NuGet endpoints for the feeds we are going to push to. The NuGet push tasks are injected by 1ESPT using the 'output: nuget' context.
   - template: /.azdo/common/set-nuget-endpoint.yml

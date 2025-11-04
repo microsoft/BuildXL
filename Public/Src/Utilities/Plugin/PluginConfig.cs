@@ -23,6 +23,11 @@ namespace BuildXL.Plugin
         public int Timeout { get; set; }
 
         /// <summary>
+        /// A list of additional startup arguments to pass to the plugin
+        /// </summary>
+        public List<string> AdditionalStartupArguments { get; set; }
+
+        /// <summary>
         /// A list of supported processes by name (only name is supported - no extension or filepath)
         /// </summary>
         public List<string> SupportedProcesses { get; set; }

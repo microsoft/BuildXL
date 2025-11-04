@@ -27,6 +27,11 @@ namespace BuildXL.Plugin
                 RedirectStandardOutput = false,
             };
 
+            if (argument.AdditionalStartupArguments != null)
+            {
+                processStartInfo.Arguments += $" {string.Join(" ", argument.AdditionalStartupArguments)}";
+            }
+
             string id = argument.PluginId;
 
             var process = new Process();

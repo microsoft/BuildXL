@@ -55,6 +55,9 @@ Example config:
 {
     "pluginPath" : "C:\\path\\to\\my\\plugin.exe",
     "timeout" : 3000, // Optional: specify a gRPC per-message deadline (in ms) different than the default
+    "additionalStartupArguments" : [ // Optional: specify a list of additional arguments to pass to the plugin
+        "--myExtraArg"
+    ],
     "exitGracefully": false, // Optional (true by default): whether BuildXL should send a "Stop" message to the plugin before shutting down
     "supportedProcesses" : [ // Optional: specify a list of processes (case-insensitive, name & extension) to scope requests to the plugin
         "msbuild"

@@ -97,6 +97,8 @@ namespace BuildXL.Plugin
             });
         }
 
+        private int m_currentActiveRequestsCount = 0;
+
         private async Task<PluginResponseResult<T>> HandleRpcExceptionWithCallAsync<T>(Func<Task<T>> asyncCall, string reqId)
         {
             uint numOfRetry = 0;
@@ -107,7 +109,8 @@ namespace BuildXL.Plugin
             {
                 try
                 {
-                    Logger.Debug($"Sending request for requestId:{reqId} at {DateTime.UtcNow:HH:mm:ss.fff}");
+                    Logger.Debug($"Sending request for requestId:{reqId} at {DateTime.UtcNow:HH:mm:ss.fff} (current active requests: {m_currentActiveRequestsCount})");
+                    Interlocked.Increment(ref m_currentActiveRequestsCount);
                     var response = await asyncCall.Invoke();
                     Logger.Debug($"Received response for requestId:{reqId} at {DateTime.UtcNow:HH:mm:ss.fff}");
                     return new PluginResponseResult<T>(response, PluginResponseState.Succeeded, reqId, numOfRetry);
@@ -148,6 +151,7 @@ namespace BuildXL.Plugin
 #pragma warning restore EPC12
                 finally
                 {
+                    Interlocked.Decrement(ref m_currentActiveRequestsCount);
                     numOfRetry++;
                 }
             }

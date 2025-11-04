@@ -307,6 +307,7 @@ namespace BuildXL.Plugin
             }
 
             pluginCreationArgument.PreloadedPlugin = plugin;
+            pluginCreationArgument.AdditionalStartupArguments = config.AdditionalStartupArguments;
         }
 
         /// <nodoc />

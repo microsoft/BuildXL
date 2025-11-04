@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 
 namespace BuildXL.Plugin
 {
@@ -11,6 +12,11 @@ namespace BuildXL.Plugin
         /// Plugin path
         /// </summary>
         public string PluginPath { get; set; }
+
+        /// <summary>
+        /// A list of additional startup arguments to pass to the plugin
+        /// </summary>
+        public List<string> AdditionalStartupArguments { get; set; }
 
         /// <summary>
         /// Whether run the plugin in a process or thread

@@ -263,7 +263,7 @@ export const pkgs = [
     // NOTE: this package is explicitly on version 5.0.0.0 because 6.0.0.0 was delisted from nuget.
     { id: "System.Security.Principal.Windows", version: pkgVersion5 },
     
-    { id: "System.Text.Json", version: "9.0.4" },
+    { id: "System.Text.Json", version: "9.0.9" },
     { id: "System.Threading.AccessControl", version: pkgVersion5 },
 
     // Non-standard version ones

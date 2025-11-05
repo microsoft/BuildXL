@@ -33,10 +33,15 @@ public:
         int stats_per_pip_map_fd);
     ~SyscallHandler();
     bool HandleSingleEvent(const ebpf_event *event);
+    bool HandleSingleEvent(const ebpf_event_cpid *event);
     bool HandleDoubleEvent(const ebpf_event_double *event);
     bool HandleDebugEvent(const ebpf_event_debug *event);
     bool HandleExecEvent(const ebpf_event_exec *event);
+    // When diagnostics are enabled, a diagnostics event is expected to arrive right before each actual event (for each CPU).
+    bool HandleDiagnosticsEvent(const ebpf_diagnostics *event);
     
+    void LogDebugEvent(ebpf_event *event);
+
     /** Blocks until there are no more active processes or the timeout is hit
      * @param timeoutMs The maximum time to wait in milliseconds
      * @return 0 if there are no active processes, -1 if the timeout was hit, or an error code if sem_timedwait failed
@@ -55,11 +60,11 @@ public:
             ts.tv_nsec -= 1000000000L;
         }
         
-        return sem_timedwait(&m_noActivePidsSemaphore, &ts); 
+        return sem_timedwait(&m_no_active_pids_semaphore, &ts);
     }
 
 private:
-    static bool IsEventCacheable(const ebpf_event *event);
+    inline static bool IsEventCacheable(const ebpf_event *event);
     static void CreateAndReportAccess(BxlObserver *bxl, SandboxEvent& event, bool check_cache = true);
     static void ReportFirstAllowWriteCheck(BxlObserver *bxl, operation_type operation_type, const std::string& path, mode_t mode, pid_t pid);
     static bool TryCreateFirstAllowWriteCheck(BxlObserver *bxl, operation_type operation_type, const std::string& path, mode_t mode, pid_t pid, SandboxEvent &event);
@@ -72,12 +77,35 @@ private:
     /** 
      * Decodes an incremental event into a full path.
      */
-    std::string DecodeIncrementalEvent(const ebpf_event* event);
+    const std::string DecodeIncrementalEvent(const ebpf_event_metadata* metadata, const char* src_path, bool for_logging);
+
+    /**
+     * Internal handler for single path events.
+     */
+    bool HandleSingleEventInternal(const ebpf_event *event, pid_t child_pid, int error, std::string& final_path);
 
     /**
      * Resolves symlinks in the given path based on the specified resolution strategy.
      */
     void ResolveSymlinksIfNeeded(std::string &path, path_symlink_resolution resolution);
+
+    /**
+     * Retrieves the last diagnostics that arrived for a given CPU, if available.
+     * Returns nullptr if no diagnostics are available for that CPU.
+     */
+    std::shared_ptr<ebpf_diagnostics> RetrieveDiagnosticsIfAvailable(const ebpf_event_metadata& metadata) const;
+
+    /**
+     * Similar to RetrieveDiagnosticsIfAvailable, but returns the kernel_function enum.
+     * If no diagnostics are available for that CPU, returns KERNEL_FUNCTION(unknown).
+     */
+    inline kernel_function RetrieveKernelFunctionIfAvailable(const ebpf_event_metadata& metadata) const;
+    
+    /**
+     * Converts an ebpf_mode to a mode_t.
+     * Keep in sync with ebpfutilities.h::to_ebpf_mode
+     */
+    inline static mode_t FromEBPFMode(ebpf_mode mode);
 
     // Sends general stats of the runner execution.
     // Heads up this should be sent before the runner exit event, otherwise the managed side may not be able to read it.
@@ -88,18 +116,23 @@ private:
     void RemovePid(pid_t pid);
     void InjectMessagesForTests();
 
-    std::unordered_set<pid_t> m_activePids;
+    std::unordered_set<pid_t> m_active_pids;
     pid_t m_root_pid;
     pid_t m_runner_pid;
-    sem_t m_noActivePidsSemaphore;
+    sem_t m_no_active_pids_semaphore;
     BxlObserver *m_bxl;
-    bool m_runnerExitSent;
+    bool m_runner_exit_sent;
     const char* m_root_filename;
     std::atomic<EventRingBuffer *>* m_active_ringbuffer;
     int m_stats_per_pip_map_fd;
-    std::unordered_map<int, std::string> m_lastPathsPerCPU;
-    long m_bytesSavedIncremental;
-    long m_bytesSubmitted;
+    std::unordered_map<int, std::string> m_last_paths_per_cpu;
+    std::unordered_map<int, std::shared_ptr<ebpf_diagnostics>> m_diagnostics_per_cpu;
+    long m_bytes_saved_incremental;
+    long m_bytes_submitted;
+    long m_event_count;
+    // Let's count diagnostics stats separately
+    long m_diagnostics_event_count;
+    long m_diagnostics_bytes_submitted;
 };
 
 } // ebpf

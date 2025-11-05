@@ -193,64 +193,6 @@ void Cleanup(struct sandbox_bpf *skel) {
     }
 }
 
-void LogDebugEvent(ebpf_event *event)
-{
-    switch (event->metadata.event_type)
-    {
-        case EXEC: 
-        {
-            const ebpf_event_exec * exec_event = (const ebpf_event_exec *)event;
-            g_bxl->LogDebug(
-                exec_event->metadata.pid, 
-                "[%d] kernel function: %s, operation: %s, exe path: '%s', args: '%s'",
-                exec_event->metadata.pid,
-                kernel_function_to_string(exec_event->metadata.kernel_function), 
-                operation_type_to_string(exec_event->metadata.operation_type),
-                get_exe_path(exec_event),
-                get_args(exec_event));
-            break;
-        }
-        case SINGLE_PATH:
-        {
-            g_bxl->LogDebug(
-                event->metadata.pid, 
-                "[%d] kernel function: %s, operation: %s, S_ISREG: %d, S_ISDIR: %d, errno: %d %s, path: '%s'",
-                event->metadata.pid, 
-                kernel_function_to_string(event->metadata.kernel_function),
-                operation_type_to_string(event->metadata.operation_type),
-                S_ISREG(event->metadata.mode), 
-                S_ISDIR(event->metadata.mode),
-                event->metadata.error,
-                // Internal functions return errno as a negative number
-                strerror(abs(event->metadata.error)),
-                event->src_path);
-            break;
-        }
-        case DOUBLE_PATH:
-        {
-            const ebpf_event_double * double_event = (const ebpf_event_double *)event;
-            g_bxl->LogDebug(
-                double_event->metadata.pid, 
-                "[%d] kernel function: %s, operation: %s, S_ISREG: %d, S_ISDIR: %d, errno: %d %s, source path: '%s', dest path '%s'",
-                event->metadata.pid, 
-                kernel_function_to_string(double_event->metadata.kernel_function),
-                operation_type_to_string(double_event->metadata.operation_type),
-                S_ISREG(event->metadata.mode), 
-                S_ISDIR(event->metadata.mode),
-                double_event->metadata.error,
-                strerror(double_event->metadata.error * -1),
-                get_src_path(double_event),
-                get_dst_path(double_event));
-            break;
-        }
-        // We do nothing with Debug messages because they are going to get logged as is anyway downstream
-        default:
-        {
-            break;
-        }
-    }
-}
-
 static inline __u64 ptr_to_u64(const void *ptr)
 {
 	return (__u64)(unsigned long)ptr;
@@ -387,24 +329,27 @@ void SigIntHandler(int signo) {
  * Handles a provided ebpf event.
  */
 void HandleEvent(ebpf_event *event) {
-    LogDebugEvent(event);
+    g_syscallHandler->LogDebugEvent(event);
 
     switch (event->metadata.event_type) {
-        case EXEC: {
+        case EXEC:
             g_syscallHandler->HandleExecEvent((const ebpf_event_exec *)event);
             break;
-        }
         case SINGLE_PATH:
-            g_syscallHandler->HandleSingleEvent(event);                
+        case SINGLE_PATH_WITH_ERROR:
+            g_syscallHandler->HandleSingleEvent(event);
+            break;
+        case SINGLE_PATH_WITH_CPID:
+            g_syscallHandler->HandleSingleEvent((const ebpf_event_cpid *)event);
             break;
         case DOUBLE_PATH:
-        {
-            const ebpf_event_double* double_event = (const ebpf_event_double *)event;
-            g_syscallHandler->HandleDoubleEvent(double_event);
+            g_syscallHandler->HandleDoubleEvent((const ebpf_event_double *)event);
             break;
-        }
         case DEBUG:
             g_syscallHandler->HandleDebugEvent((const ebpf_event_debug *)event);
+            break;
+        case DIAGNOSTICS:
+            g_syscallHandler->HandleDiagnosticsEvent((const ebpf_diagnostics *)event);
             break;
         default:
             LogError("Unhandled event type %d", event->metadata.event_type);
@@ -453,7 +398,8 @@ int PopulateOptionsMapFromFam()
     int key = g_runner_pid;
     sandbox_options options = {
         .root_pid = g_root_pid,
-        .is_monitoring_child_processes = g_bxl->IsMonitoringChildProcesses()
+        .is_monitoring_child_processes = g_bxl->IsMonitoringChildProcesses(),
+        .enable_diagnostics = g_bxl->LogDebugEnabled(),
     };
 
     if (bpf_map_update_elem(g_sandbox_options_per_pip_map_fd, &key, &options, BPF_ANY))

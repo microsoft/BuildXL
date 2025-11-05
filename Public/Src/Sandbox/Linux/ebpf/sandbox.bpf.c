@@ -81,6 +81,7 @@ int BPF_PROG(LOADING_WITNESS, struct task_struct *new_task)
         return 0;
     }
 
+    // We don't want to cache clones, send unconditionally
     submit_file_access(
         runner_pid,
         kClone, 
@@ -383,10 +384,8 @@ int BPF_PROG(security_path_rename_enter, const struct path *old_dir, struct dent
         kRename,
         KERNEL_FUNCTION(security_path_rename),
         pid,
-        /* child_pid */ 0,
         // New file/directory doesn't exist yet, so we get the mode from old_dentry
         /* mode */ get_mode(old_dentry),
-        /* error */ 0,
         src_path,
         src_path_length,
         dst_path,
@@ -706,9 +705,11 @@ int BPF_PROG(path_parentat, struct nameidata *nd, unsigned flags, struct path *p
         return 0;
     }
 
-    // This operation is hard to cache since for absent probes there is no in-memory structure to
-    // represent the path, and using strings is not very performant. For now just keep them out
-    // of the cache, we shouldn't get a big number of absent probes on the same path for the same process
+    if (!should_send_string(runner_pid, kGenericProbe, temp_path, path_length))
+    {
+        return 0;
+    }
+
     submit_file_access(
         runner_pid,
         kGenericProbe,

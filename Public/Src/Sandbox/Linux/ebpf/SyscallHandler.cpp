@@ -12,18 +12,21 @@ namespace linux {
 namespace ebpf {
 
 SyscallHandler::SyscallHandler(BxlObserver *bxl, pid_t root_pid, pid_t runner_pid, const char* root_filename, std::atomic<EventRingBuffer *>* active_ringbuffer, int stats_per_pip_map_fd)
-    : m_activePids(),
+    : m_active_pids(),
         m_root_pid(root_pid), 
         m_runner_pid(runner_pid), 
         m_bxl(bxl), 
-        m_runnerExitSent(false), 
+        m_runner_exit_sent(false), 
         m_root_filename(root_filename), 
         m_active_ringbuffer(active_ringbuffer), 
         m_stats_per_pip_map_fd(stats_per_pip_map_fd),
-        m_lastPathsPerCPU(),
-        m_bytesSavedIncremental(0),
-        m_bytesSubmitted(0) {
-    sem_init(&m_noActivePidsSemaphore, 0, 0);
+        m_last_paths_per_cpu(),
+        m_bytes_saved_incremental(0),
+        m_bytes_submitted(0),
+        m_event_count(0),
+        m_diagnostics_event_count(0),
+        m_diagnostics_bytes_submitted(0) {
+    sem_init(&m_no_active_pids_semaphore, 0, 0);
 
     // Our managed side tracking expects a 'clone/fork' event before an exec in order to assign the right pids and update the active process collection. Doing
     // this on managed side is racy (since the pid to use will be available only after the root process has started and events may have arrived already)
@@ -32,22 +35,47 @@ SyscallHandler::SyscallHandler(BxlObserver *bxl, pid_t root_pid, pid_t runner_pi
     SendInitForkEvent(bxl, root_pid, getpid(), root_filename);
 
     // This map will hold at most #CPUs entries, one for each CPU that has sent an event.
-    m_lastPathsPerCPU.reserve(std::thread::hardware_concurrency());
+    m_last_paths_per_cpu.reserve(std::thread::hardware_concurrency());
+
+    if (m_bxl->LogDebugEnabled()) {
+        // When diagnostics are enabled, we also reserve the diagnostics per CPU map
+        // A diagnostic event should arrive for every event right before the actual event (before in a CPU-ordered way).
+        m_diagnostics_per_cpu.reserve(std::thread::hardware_concurrency());
+    }
 
     // For testing only
     InjectMessagesForTests();
 }
 
 SyscallHandler::~SyscallHandler() {
-    sem_destroy(&m_noActivePidsSemaphore);
+    sem_destroy(&m_no_active_pids_semaphore);
     // If we did not send the exit report for the runner process, we do it now.
     // This is to ensure that the managed side is aware of the exit of the root process, even if the runner has
     // an early unexpected exit.
-    if (!m_runnerExitSent) {
+    if (!m_runner_exit_sent) {
         SendStats();
         m_bxl->SendExitReport(getpid(), getppid(), m_root_filename);
     }
- }
+}
+
+kernel_function SyscallHandler::RetrieveKernelFunctionIfAvailable(const ebpf_event_metadata& metadata) const {
+    std::shared_ptr<ebpf_diagnostics> diagnostics = RetrieveDiagnosticsIfAvailable(metadata);
+    
+    return diagnostics != nullptr 
+        ? diagnostics->kernel_function 
+        : kernel_function::KERNEL_unknown;
+}
+
+std::shared_ptr<ebpf_diagnostics> SyscallHandler::RetrieveDiagnosticsIfAvailable(const ebpf_event_metadata& metadata) const {
+    if (m_bxl->LogDebugEnabled()) {
+        auto it = m_diagnostics_per_cpu.find(metadata.processor_id);
+        if (it != m_diagnostics_per_cpu.end()) {
+            return it->second;
+        }
+    }
+
+    return nullptr;
+}
 
 void SyscallHandler::ResolveSymlinksIfNeeded(std::string &path, path_symlink_resolution resolution) {
     switch (resolution) {
@@ -87,41 +115,45 @@ void SyscallHandler::ResolveSymlinksIfNeeded(std::string &path, path_symlink_res
     }
 }
 
-std::string SyscallHandler::DecodeIncrementalEvent(const ebpf_event* event) {
+const std::string SyscallHandler::DecodeIncrementalEvent(const ebpf_event_metadata* metadata, const char* src_path, bool for_logging) {
     std::string final_path;
 
-    assert(event->metadata.event_type == SINGLE_PATH && "DecodeIncrementalEvent should only be called for single path events");
-
-    unsigned short incremental_length = event->metadata.source_path_incremental_length;
+    unsigned short incremental_length = metadata->source_path_incremental_length;
 
     // Reconstruct the full path if this is an incremental event
     if (incremental_length > 0) {
-        // Keep track of how many bytes we saved by using incremental paths, just for statistics purposes
-        // To be strictly fair, the event metadata has a couple extra fields just to be able to reconstruct
-        // the original paths on user side. So substract those, so we can detect the true savings.
-        m_bytesSavedIncremental += incremental_length;
-        m_bytesSavedIncremental -= sizeof(event->metadata.source_path_incremental_length);
-        m_bytesSavedIncremental -= sizeof(event->metadata.processor_id);
+        // We don't count bytes saved when logging for debug purposes
+        if (!for_logging) {
+            // Keep track of how many bytes we saved by using incremental paths, just for statistics purposes
+            // To be strictly fair, the event metadata has a couple extra fields just to be able to reconstruct
+            // the original paths on user side. So substract those, so we can detect the true savings.
+            m_bytes_saved_incremental += incremental_length;
+            m_bytes_saved_incremental -= sizeof(metadata->source_path_incremental_length);
+            m_bytes_saved_incremental -= sizeof(metadata->processor_id);
+        }
 
-        auto last_path = m_lastPathsPerCPU.find(event->metadata.processor_id);
+        auto last_path = m_last_paths_per_cpu.find(metadata->processor_id);
 
         // If we have seen an event from this CPU before, use its last path to reconstruct the full path
-        if (last_path != m_lastPathsPerCPU.end()) {
+        if (last_path != m_last_paths_per_cpu.end()) {
             // The new path is the concatenation of the prefix of the last path seen by this CPU (of length incremental_length)
             // and the new path sent by the event.
-            final_path = std::string(last_path->second).substr(0, incremental_length) + event->src_path;        
+            final_path = std::string(last_path->second).substr(0, incremental_length) + src_path;
         } else {
             assert(false && "Received an incremental event for a CPU that has not sent any events before. This should not happen.");
         }
     }
     // If this is not an incremental event, just use the path as is
     else {
-        final_path = event->src_path;
+        final_path = src_path;
     }
 
-    // Update the last path for this CPU so that it can be used for future events.
-    // This mimics what happens on kernel side, where the last path is updated for each CPU.
-    m_lastPathsPerCPU[event->metadata.processor_id] = final_path;
+    // If we are just logging for debug purposes, do not update the last path for this CPU
+    if (!for_logging) {
+        // Update the last path for this CPU so that it can be used for future events.
+        // This mimics what happens on kernel side, where the last path is updated for each CPU.
+        m_last_paths_per_cpu[metadata->processor_id] = final_path;
+    }
 
     return final_path;
 }
@@ -134,11 +166,85 @@ void SyscallHandler::InjectMessagesForTests() {
     }
 }
 
+mode_t SyscallHandler::FromEBPFMode(ebpf_mode mode) {
+    if (mode == UNKNOWN_MODE) {
+        return 0;
+    }
+
+    // Just hardcode this case to something that is not a regular file, directory or symlink
+    if (mode == OTHER) {
+        return S_IFIFO;
+    }
+
+    mode_t result = 0;
+    if (mode & REGULAR_FILE) {
+        result |= S_IFREG;
+    }
+    if (mode & DIRECTORY) {
+        result |= S_IFDIR;
+    }
+    if (mode & SYMLINK) {
+        result |= S_IFLNK;
+    }
+
+    return result;
+}
+
+bool SyscallHandler::HandleDiagnosticsEvent(const ebpf_diagnostics *event) {    
+    shared_ptr<ebpf_diagnostics> diagnostics;
+    m_diagnostics_event_count++;
+    m_diagnostics_bytes_submitted += sizeof(ebpf_diagnostics);
+
+    // If there is already diagnostics info for this CPU, we overwrite it
+    auto it = m_diagnostics_per_cpu.find(event->processor_id);
+    if (it != m_diagnostics_per_cpu.end()) {
+        diagnostics = it->second;
+    }
+    else {
+        // Otherwise, create a new diagnostics struct
+        diagnostics = std::make_shared<ebpf_diagnostics>();
+    }
+
+    // Copy the data. The original event is going to be freed after this call returns and we need to keep the data around
+    diagnostics->event_type = event->event_type;
+    diagnostics->processor_id = event->processor_id;
+    diagnostics->kernel_function = event->kernel_function;
+    diagnostics->available_data_to_consume = event->available_data_to_consume;
+
+    // Store the diagnostics information per CPU
+    m_diagnostics_per_cpu[event->processor_id] = diagnostics;
+
+    return true;
+}
+
 bool SyscallHandler::HandleSingleEvent(const ebpf_event *event) {
     // Track the total bytes submitted for this event
-    m_bytesSubmitted += sizeof(ebpf_event_metadata) + strlen(event->src_path) + 1;
-    
-    std::string final_path = DecodeIncrementalEvent(event);
+    m_bytes_submitted += sizeof(ebpf_event_metadata) + strlen(event->src_path) + 1;
+    m_event_count++;
+
+    std::string final_path = DecodeIncrementalEvent(&(event->metadata), event->src_path, /* forLogging */ false);
+
+    // We make any error map to ENOENT, just to save space on the event structure. Managed side only cares about
+    // whether there was an error (error != 0) and in some cases whether the error was ENOENT specifically.
+    int error = event->metadata.event_type == ebpf_event_type::SINGLE_PATH_WITH_ERROR
+        ? ENOENT
+        : 0;
+
+    return HandleSingleEventInternal((const ebpf_event*) event, /* child_pid */ 0, error, final_path);
+}
+
+bool SyscallHandler::HandleSingleEvent(const ebpf_event_cpid *event) {
+    // Track the total bytes submitted for this event
+    m_bytes_submitted += sizeof(ebpf_event_metadata) + sizeof(pid_t) + strlen(event->src_path) + 1;
+    m_event_count++;
+
+    std::string final_path = DecodeIncrementalEvent(&(event->metadata), event->src_path, /* forLogging */ false);
+
+    return HandleSingleEventInternal((const ebpf_event*) event, event->child_pid, /* error */0, final_path);
+}
+
+bool SyscallHandler::HandleSingleEventInternal(const ebpf_event *event, pid_t child_pid, int error, std::string& final_path) {
+    kernel_function kernel_function = RetrieveKernelFunctionIfAvailable(event->metadata);
 
     // For some operations (e.g. memory files) our path translation returns an empty string. Those cases
     // should match with the ones we don't care about tracing. So do not send that event to managed side but
@@ -150,12 +256,14 @@ bool SyscallHandler::HandleSingleEvent(const ebpf_event *event) {
     // Some paths may still contain unresolved symlinks. Resolve them if needed.
     ResolveSymlinksIfNeeded(final_path, event->metadata.symlink_resolution);
     
+    mode_t mode = FromEBPFMode(event->metadata.mode);
+
     switch(event->metadata.operation_type) {
         case kClone:
         {
             auto sandboxEvent = SandboxEvent::CloneSandboxEvent(
-                /* system_call */   kernel_function_to_string(event->metadata.kernel_function),
-                /* pid */           event->metadata.child_pid,
+                /* system_call */   kernel_function_to_string(kernel_function),
+                /* pid */           child_pid,
                 /* ppid */          event->metadata.pid,
                 /* path */          final_path);
         
@@ -164,7 +272,7 @@ bool SyscallHandler::HandleSingleEvent(const ebpf_event *event) {
             CreateAndReportAccess(m_bxl, sandboxEvent, /* checkCache */ false);
 
             // Update the set of active pids to add the newly created child
-            m_activePids.emplace(event->metadata.child_pid);
+            m_active_pids.emplace(child_pid);
 
             break;
         }
@@ -182,7 +290,7 @@ bool SyscallHandler::HandleSingleEvent(const ebpf_event *event) {
                 SendStats();
                 m_bxl->SendExitReport(getpid(), getppid(), m_root_filename);
                 RemovePid(getpid());
-                m_runnerExitSent = true;
+                m_runner_exit_sent = true;
             }
 
             break;
@@ -190,16 +298,16 @@ bool SyscallHandler::HandleSingleEvent(const ebpf_event *event) {
         case kGenericWrite:
         {
             // The inode is being written. Send a special event to indicate this so file existence based policies can be applied downstream
-            ReportFirstAllowWriteCheck(m_bxl, event->metadata.operation_type, final_path, event->metadata.mode, event->metadata.pid);
+            ReportFirstAllowWriteCheck(m_bxl, event->metadata.operation_type, final_path, mode, event->metadata.pid);
 
             auto sandboxEvent = SandboxEvent::AbsolutePathSandboxEvent(
-                /* system_call */   kernel_function_to_string(event->metadata.kernel_function),
+                /* system_call */   kernel_function_to_string(kernel_function),
                 /* event_type */    EventType::kGenericWrite,
                 /* pid */           event->metadata.pid,
                 /* ppid */          0,
                 /* error */         0,
                 /* src_path */      final_path);
-            sandboxEvent.SetMode(event->metadata.mode);
+            sandboxEvent.SetMode(mode);
             sandboxEvent.SetRequiredPathResolution(RequiredPathResolution::kDoNotResolve);
             CreateAndReportAccess(m_bxl,sandboxEvent);
 
@@ -208,70 +316,70 @@ bool SyscallHandler::HandleSingleEvent(const ebpf_event *event) {
         case kCreate:
         {
             // The inode is being created. Send a special event to indicate this so file existence based policies can be applied downstream
-            ReportFirstAllowWriteCheck(m_bxl, event->metadata.operation_type, final_path, event->metadata.mode, event->metadata.pid);
+            ReportFirstAllowWriteCheck(m_bxl, event->metadata.operation_type, final_path, mode, event->metadata.pid);
 
             auto sandboxEvent = SandboxEvent::AbsolutePathSandboxEvent(
-                /* system_call */   kernel_function_to_string(event->metadata.kernel_function),
+                /* system_call */   kernel_function_to_string(kernel_function),
                 /* event_type */    EventType::kCreate,
                 /* pid */           event->metadata.pid,
                 /* ppid */          0,
                 /* error */         0,
                 /* src_path */      final_path);
-            sandboxEvent.SetMode(event->metadata.mode);
+            sandboxEvent.SetMode(mode);
             sandboxEvent.SetRequiredPathResolution(RequiredPathResolution::kDoNotResolve);
-            CreateAndReportAccess(m_bxl,sandboxEvent, /* check_cache */ IsEventCacheable(event));
+            CreateAndReportAccess(m_bxl, sandboxEvent, /* check_cache */ IsEventCacheable((const ebpf_event*) event));
 
             break;
         }
         case kUnlink: 
         {
             auto sandboxEvent = SandboxEvent::AbsolutePathSandboxEvent(
-                /* system_call */   kernel_function_to_string(event->metadata.kernel_function),
+                /* system_call */   kernel_function_to_string(kernel_function),
                 /* event_type */    EventType::kUnlink,
                 /* pid */           event->metadata.pid,
                 /* ppid */          0,
-                /* error */         event->metadata.error * -1, // error is negative for rmdir
+                /* error */         abs(error), // Managed side always expect a non-negative number
                 /* src_path */      final_path);
-            sandboxEvent.SetMode(event->metadata.mode);
+            sandboxEvent.SetMode(mode);
             sandboxEvent.SetRequiredPathResolution(RequiredPathResolution::kDoNotResolve);
 
-            CreateAndReportAccess(m_bxl,sandboxEvent, /* check_cache */ IsEventCacheable(event));
+            CreateAndReportAccess(m_bxl, sandboxEvent, /* check_cache */ IsEventCacheable((const ebpf_event*) event));
             break;
         }
         case kGenericProbe:
         {
             auto sandboxEvent = SandboxEvent::AbsolutePathSandboxEvent(
-                /* system_call */   kernel_function_to_string(event->metadata.kernel_function),
+                /* system_call */   kernel_function_to_string(kernel_function),
                 /* event_type */    EventType::kGenericProbe,
                 /* pid */           event->metadata.pid,
                 /* ppid */          0,
-                /* error */         abs(event->metadata.error), // Managed side always expect a non-negative number
+                /* error */         abs(error), // Managed side always expect a non-negative number
                 /* src_path */      final_path);
-            sandboxEvent.SetMode(event->metadata.mode);
+            sandboxEvent.SetMode(mode);
             sandboxEvent.SetRequiredPathResolution(RequiredPathResolution::kDoNotResolve);
 
-            CreateAndReportAccess(m_bxl,sandboxEvent);
+            CreateAndReportAccess(m_bxl, sandboxEvent);
             break;
         }
         case kGenericRead:
         {
             auto sandboxEvent = SandboxEvent::AbsolutePathSandboxEvent(
-                /* system_call */   kernel_function_to_string(event->metadata.kernel_function),
+                /* system_call */   kernel_function_to_string(kernel_function),
                 /* event_type */    EventType::kGenericRead,
                 /* pid */           event->metadata.pid,
                 /* ppid */          0,
                 /* error */         0,
                 /* src_path */      final_path);
-            sandboxEvent.SetMode(event->metadata.mode);
+            sandboxEvent.SetMode(mode);
             sandboxEvent.SetRequiredPathResolution(RequiredPathResolution::kDoNotResolve);
 
-            CreateAndReportAccess(m_bxl,sandboxEvent);
+            CreateAndReportAccess(m_bxl, sandboxEvent);
             break;
         }
         case kReadLink:
         {
             auto sandboxEvent = buildxl::linux::SandboxEvent::AbsolutePathSandboxEvent(
-                /* system_call */   kernel_function_to_string(event->metadata.kernel_function),
+                /* system_call */   kernel_function_to_string(kernel_function),
                 /* event_type */    EventType::kReadLink,
                 /* pid */           event->metadata.pid,
                 /* ppid */          0,
@@ -305,9 +413,8 @@ bool SyscallHandler::HandleDoubleEvent(const ebpf_event_double *event) {
     const char* dst_path = get_dst_path(event);
 
     // Track the total bytes submitted for this event
-    m_bytesSubmitted += sizeof(ebpf_event_metadata) + strlen(src_path) + 1 + strlen(dst_path) + 1;
-
-    assert(event->metadata.source_path_incremental_length == 0 && "Incremental paths are not supported for double path events");
+    m_bytes_submitted += sizeof(ebpf_event_metadata) + strlen(src_path) + 1 + strlen(dst_path) + 1;
+    m_event_count++;
 
     // Same consideration for fully resolved paths as in the single path case
     if (!IsPathRooted(src_path) || !IsPathRooted(dst_path)) {
@@ -321,13 +428,15 @@ bool SyscallHandler::HandleDoubleEvent(const ebpf_event_double *event) {
     ResolveSymlinksIfNeeded(sourcePath, event->metadata.symlink_resolution);
     ResolveSymlinksIfNeeded(destinationPath, event->metadata.symlink_resolution);
 
+    kernel_function kernel_function = RetrieveKernelFunctionIfAvailable(event->metadata);
+
     switch (event->metadata.operation_type) {
         case kRename:
         {
             // Handling for this event is different based on whether it's a file or directory.
             // If a directory, the source directory no longer exists because the rename has already happened.
             // We can enumerate the destination directory instead.
-            if (S_ISDIR(event->metadata.mode)) {
+            if (S_ISDIR(FromEBPFMode(event->metadata.mode))) {
                 std::vector<std::string> filesAndDirectories;
                 m_bxl->EnumerateDirectory(destinationPath, /* recursive */ true, filesAndDirectories);
 
@@ -340,7 +449,7 @@ bool SyscallHandler::HandleDoubleEvent(const ebpf_event_double *event) {
                     ReportFirstAllowWriteCheck(m_bxl, kCreate, fileOrDirectory.c_str(), mode, event->metadata.pid);
 
                     auto sandboxEventDestination = SandboxEvent::AbsolutePathSandboxEvent(
-                        /* system_call */   kernel_function_to_string(event->metadata.kernel_function),
+                        /* system_call */   kernel_function_to_string(kernel_function),
                         /* event_type */    EventType::kCreate,
                         /* pid */           event->metadata.pid,
                         /* ppid */          0,
@@ -357,7 +466,7 @@ bool SyscallHandler::HandleDoubleEvent(const ebpf_event_double *event) {
                     ReportFirstAllowWriteCheck(m_bxl, kGenericWrite, fileOrDirectory.c_str(), 0, event->metadata.pid);
                     
                     auto sandboxEventSource = SandboxEvent::AbsolutePathSandboxEvent(
-                        /* system_call */   kernel_function_to_string(event->metadata.kernel_function),
+                        /* system_call */   kernel_function_to_string(kernel_function),
                         /* event_type */    EventType::kUnlink,
                         /* pid */           event->metadata.pid,
                         /* ppid */          0,
@@ -376,7 +485,7 @@ bool SyscallHandler::HandleDoubleEvent(const ebpf_event_double *event) {
                 ReportFirstAllowWriteCheck(m_bxl, kGenericWrite, sourcePath, mode, event->metadata.pid);
 
                 auto sandboxEventSource = SandboxEvent::AbsolutePathSandboxEvent(
-                    /* system_call */   kernel_function_to_string(event->metadata.kernel_function),
+                    /* system_call */   kernel_function_to_string(kernel_function),
                     /* event_type */    EventType::kUnlink,
                     /* pid */           event->metadata.pid,
                     /* ppid */          0,
@@ -392,7 +501,7 @@ bool SyscallHandler::HandleDoubleEvent(const ebpf_event_double *event) {
                 ReportFirstAllowWriteCheck(m_bxl, kCreate, destinationPath, mode, event->metadata.pid);
 
                 auto sandboxEventDestination = SandboxEvent::AbsolutePathSandboxEvent(
-                    /* system_call */   kernel_function_to_string(event->metadata.kernel_function),
+                    /* system_call */   kernel_function_to_string(kernel_function),
                     /* event_type */    EventType::kCreate,
                     /* pid */           event->metadata.pid,
                     /* ppid */          0,
@@ -416,20 +525,19 @@ bool SyscallHandler::HandleDoubleEvent(const ebpf_event_double *event) {
 
 bool SyscallHandler::HandleExecEvent(const ebpf_event_exec *event) {
 
-    assert(event->metadata.source_path_incremental_length == 0 && "Incremental paths are not supported for exec events");
-
     const char* exe_path = get_exe_path(event);
     const char* args = get_args(event);
 
     // Track the total bytes submitted for this event
-    m_bytesSubmitted += sizeof(ebpf_event_metadata) + strlen(exe_path) + 1 + strlen(args) + 1;
+    m_bytes_submitted += sizeof(ebpf_event_metadata) + strlen(exe_path) + 1 + strlen(args) + 1;
+    m_event_count++;
 
     // Some paths may still contain unresolved symlinks. Resolve them if needed.
     std::string exePath(exe_path);
     ResolveSymlinksIfNeeded(exePath, event->metadata.symlink_resolution);
 
     auto sandboxEvent = SandboxEvent::ExecSandboxEvent(
-        /* system_call */   kernel_function_to_string(event->metadata.kernel_function),
+        /* system_call */   kernel_function_to_string(RetrieveKernelFunctionIfAvailable(event->metadata)),
         /* pid */           event->metadata.pid,
         /* ppid */          0,
         /* path */          exePath,
@@ -442,7 +550,8 @@ bool SyscallHandler::HandleExecEvent(const ebpf_event_exec *event) {
 bool SyscallHandler::HandleDebugEvent(const ebpf_event_debug *event) {
 
     // Track the total bytes submitted for this event
-    m_bytesSubmitted += sizeof(ebpf_event_debug);
+    m_bytes_submitted += sizeof(ebpf_event_debug);
+    m_event_count++;
 
     // Add the pip id (as seen by EBPF) to all debug messages
     char messageWithPipId[PATH_MAX];
@@ -454,18 +563,7 @@ bool SyscallHandler::HandleDebugEvent(const ebpf_event_debug *event) {
 
 bool SyscallHandler::IsEventCacheable(const ebpf_event *event)
 {
-    switch (event->metadata.kernel_function)
-    {
-        // We want to see every (successful) creation and deletion of directories on managed side
-        // since we keep track of it for optimizing directory fingerprint computation
-        case KERNEL_FUNCTION(do_rmdir):
-        case KERNEL_FUNCTION(do_mkdirat):
-        // We want to see every clone so we keep track of all created pids
-        case KERNEL_FUNCTION(wake_up_new_task):
-            return false;
-        default:
-            return true;
-    }
+    return event->metadata.is_cacheable;
 }
 
 void SyscallHandler::CreateAndReportAccess(BxlObserver *bxl, SandboxEvent& event, bool check_cache) 
@@ -570,21 +668,132 @@ void SyscallHandler::SendStats()
     // So the id also represents the number of times the ring buffer capacity has been exceeded.
     m_bxl->LogInfo(
         getpid(),
-        "[Ring buffer monitoring] Minimum available space: %zu bytes (%.2f%%). Total available space: %zu bytes. Capacity exceeded %d time(s).",
-        min_available, percent_available, total, eventRingbuffer->GetId());
+        "[Ring buffer monitoring] Minimum available space: %.2f KB (%.2f%%). Total available space: %.2f KB. Total bytes sent: %.2f KB. Total events %ld. Capacity exceeded %d time(s).",
+        (double) min_available / (1024.0), 
+        percent_available, 
+        (double) total / (1024.0),  
+        (double) m_bytes_submitted / (1024.0), 
+        m_event_count,
+        eventRingbuffer->GetId());
 
-    double percent_incremental_saved = (m_bytesSavedIncremental != 0) ? (100.0 * m_bytesSavedIncremental / (m_bytesSubmitted + m_bytesSavedIncremental)) : 0.0;
+    double percent_incremental_saved = (m_bytes_saved_incremental != 0) ? (100.0 * m_bytes_saved_incremental / (m_bytes_submitted + m_bytes_saved_incremental)) : 0.0;
     m_bxl->LogInfo(
         getpid(),
-        "[Ring buffer monitoring] Total bytes saved by using incremental path encoding: %.2f KB (%.2f%%). Total bytes sent: %.2f KB.",
-        (double)m_bytesSavedIncremental / (1024.0), percent_incremental_saved, (double)m_bytesSubmitted / (1024.0));
+        "[Ring buffer monitoring] Total bytes saved by using incremental path encoding: %.2f KB (%.2f%%).",
+        (double)m_bytes_saved_incremental / (1024.0), percent_incremental_saved);
+
+    if (m_bxl->LogDebugEnabled()) {
+        m_bxl->LogDebug(
+            getpid(),
+            "[Ring buffer monitoring] Total diagnostics events: %ld. Total diagnostics bytes submitted: %.2f KB. Total events including diagnostics: %ld. Total bytes submitted including diagnostics: %.2f KB.",
+            m_diagnostics_event_count,
+            (double)m_diagnostics_bytes_submitted / (1024.0),
+            m_event_count + m_diagnostics_event_count,
+            (double)(m_bytes_submitted + m_diagnostics_bytes_submitted) / (1024.0));
+    }
 }
 
 void SyscallHandler::RemovePid(pid_t pid) {
-    auto result = m_activePids.erase(pid);
+    auto result = m_active_pids.erase(pid);
     // If we removed the last active pid, signal that there are no more active pids
-    if (m_activePids.empty()) {
-        sem_post(&m_noActivePidsSemaphore);
+    if (m_active_pids.empty()) {
+        sem_post(&m_no_active_pids_semaphore);
+    }
+}
+
+void SyscallHandler::LogDebugEvent(ebpf_event *event)
+{
+    // Shortcut if debug logging is not enabled
+    // We don't log anything for diagnostics events, since they just contribute to the subsequent event
+    if (!m_bxl->LogDebugEnabled() || event->metadata.event_type == DIAGNOSTICS)
+    {
+        return;
+    }
+
+    // Add additional diagnostics info if available
+    std::shared_ptr<ebpf_diagnostics> diagnostics = RetrieveDiagnosticsIfAvailable(event->metadata);
+    kernel_function kernel_function = kernel_function::KERNEL_unknown;;
+    double percent_available = 0;
+    if (diagnostics != nullptr)
+    {
+        kernel_function = diagnostics->kernel_function;
+
+        auto eventRingbuffer = m_active_ringbuffer->load();
+        size_t total = eventRingbuffer->GetRingBufferSize();
+        size_t available_space = total - diagnostics->available_data_to_consume;
+        percent_available = (total > 0) ? (100.0 * available_space / total) : 0.0;
+    }
+    
+    switch (event->metadata.event_type)
+    {
+        case EXEC: 
+        {
+            const ebpf_event_exec * exec_event = (const ebpf_event_exec *)event;
+            m_bxl->LogDebug(
+                exec_event->metadata.pid, 
+                "[%d] (available: %.2f%%) kernel function: %s, operation: %s, exe path: '%s', args: '%s'",
+                exec_event->metadata.pid,
+                percent_available,
+                kernel_function_to_string(kernel_function), 
+                operation_type_to_string(exec_event->metadata.operation_type),
+                get_exe_path(exec_event),
+                get_args(exec_event));
+            break;
+        }
+        case SINGLE_PATH:
+        case SINGLE_PATH_WITH_CPID: 
+        case SINGLE_PATH_WITH_ERROR:
+        {
+            std::string final_path;
+            const char* src_path;
+            // All three event types have the same metadata structure, so we can share the code
+            // However, for SINGLE_PATH_WITH_CPID we need to cast to the right type to access the src_path
+            if (event->metadata.event_type == SINGLE_PATH_WITH_CPID) {
+                const ebpf_event_cpid * cpid_event = (const ebpf_event_cpid *)event;
+                src_path = cpid_event->src_path;
+                final_path = DecodeIncrementalEvent(&(cpid_event->metadata), cpid_event->src_path, /* forLogging */ true);
+            } else {
+                src_path = event->src_path;
+                final_path = DecodeIncrementalEvent(&(event->metadata), event->src_path, /* forLogging */ true);
+            }
+
+            m_bxl->LogDebug(
+                event->metadata.pid, 
+                "[%d] (available: %.2f%%) kernel function: %s, operation: %s, S_ISREG: %d, S_ISDIR: %d, errno: %d, CPU id: %d, common prefix length: %d, incremental length: %d, path: '%s'",
+                event->metadata.pid, 
+                percent_available,
+                kernel_function_to_string(kernel_function),
+                operation_type_to_string(event->metadata.operation_type),
+                S_ISREG(FromEBPFMode(event->metadata.mode)), 
+                S_ISDIR(FromEBPFMode(event->metadata.mode)),
+                event->metadata.event_type == ebpf_event_type::SINGLE_PATH_WITH_ERROR,
+                event->metadata.processor_id,
+                final_path.length() - strlen(src_path),
+                strlen(src_path),
+                final_path.c_str());
+            break;
+        }
+        case DOUBLE_PATH:
+        {
+            const ebpf_event_double * double_event = (const ebpf_event_double *)event;
+            m_bxl->LogDebug(
+                double_event->metadata.pid, 
+                "[%d] (available: %.2f%%) kernel function: %s, operation: %s, S_ISREG: %d, S_ISDIR: %d, source path: '%s', dest path '%s'",
+                event->metadata.pid, 
+                percent_available,
+                kernel_function_to_string(kernel_function),
+                operation_type_to_string(double_event->metadata.operation_type),
+                S_ISREG(FromEBPFMode(event->metadata.mode)),
+                S_ISDIR(FromEBPFMode(event->metadata.mode)),
+                get_src_path(double_event),
+                get_dst_path(double_event));
+            break;
+        }
+        // We do nothing with Debug messages because they are going to get logged as is anyway downstream
+        default:
+        {
+            break;
+        }
     }
 }
 

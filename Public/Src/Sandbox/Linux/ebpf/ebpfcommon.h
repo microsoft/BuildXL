@@ -158,7 +158,10 @@ typedef enum kernel_function {
     KERNEL_FUNCTION(execveat),
     KERNEL_FUNCTION(security_bprm_committed_creds),
     KERNEL_FUNCTION(vfs_utimes),
-    KERNEL_FUNCTION(test_synthetic) // not a real operation, tests can inject these
+    KERNEL_FUNCTION(test_synthetic), // not a real operation, tests can inject these
+    // When diagnostics is not turned on, we don't get the kernel function for events, so we use this as a placeholder
+    // This is fine since when diagnostics is off the kernel function is not visible anyway
+    KERNEL_FUNCTION(unknown)
 } kernel_function;
 
 inline const char* kernel_function_to_string(kernel_function kf) {
@@ -202,13 +205,45 @@ typedef struct breakaway_process {
     bool args_ignore_case;
 } breakaway_process;
 
+// Single path events are by far the most common type of events we see.
+// Within those, the vast majority are successful operations (no error) and where the child pid is not needed.
+// To optimize for this common case, we have three different event types for single path events:
+// 1) SINGLE_PATH: for successful operations where child pid is not needed
+// 2) SINGLE_PATH_WITH_CPID: for successful operations where child pid is needed (e.g., clone)
+// 3) SINGLE_PATH_WITH_ERROR: for operations that hit an error
+// In all these cases, we send the path as a string with incremental encoding to save space.
 typedef enum ebpf_event_type {
+    // Single path event where the path is sent as a string with incremental encoding
     SINGLE_PATH = 1,
-    DOUBLE_PATH = 2,
-    EXEC = 3,
-    DEBUG = 4
+    // Single path event along with the child process ID (e.g., clone)
+    SINGLE_PATH_WITH_CPID = 2,
+    // Single path event where the corresponding operation hit an error (any error, we later map all errors to ENOENT to save space)
+    SINGLE_PATH_WITH_ERROR = 3,
+    // Double path event (e.g., rename)
+    DOUBLE_PATH = 4,
+    // Exec event (e.g., execve)
+    EXEC = 5,
+    // Debug event - carries an arbitrary debug message
+    DEBUG = 6,
+    // Diagnostics event (used for internal diagnostics between ebpf and user mode)
+    DIAGNOSTICS = 7,
 } ebpf_event_type;
 
+// We don't need all the many file modes available in the kernel. We just need to distinguish
+// between regular files, directories, symlinks and others. We can encode these in 4 bits
+// (as opposed to the 4 bytes used in the kernel)
+typedef enum ebpf_mode {
+    UNKNOWN_MODE = 0,
+    REGULAR_FILE = 1,
+    DIRECTORY = 2,
+    SYMLINK = 4,
+    OTHER = 8
+} ebpf_mode;
+
+// Common metadata for all events
+// We want to keep this one to the bare minimum in terms of size, as it is included in all events. Every byte counts!
+// Fields that are conceptually part of the metadata but are not used very frequently (e.g., error code, child pid) 
+// are included in the specific event structures instead.
 typedef struct ebpf_event_metadata {
     // We have a bunch of enums here that we want to keep as small as possible
     // to save space in the event metadata. We use bitfields to pack them tightly.
@@ -219,32 +254,69 @@ typedef struct ebpf_event_metadata {
             enum ebpf_event_type event_type : 3;
             // The 'conceptual' operation the event represents (e.g. a read, an exec, etc.)
             enum operation_type operation_type : 5;
-            // The kernel function we trace. Mostly for debugging purposes
-            enum kernel_function kernel_function : 5;
             // Whether symlinks should be resolved
             enum path_symlink_resolution symlink_resolution : 2;
+            enum ebpf_mode mode : 4;
+            // Whether the event is cacheable (on user side)
+            bool is_cacheable: 1;
             // Padding bits to make the struct aligned to 2 bytes
             uint16_t reserved : 1;
         } __attribute__((packed));
         uint16_t packed_enums;
     };
-    int pid;
-    int child_pid;
-    unsigned int mode;
-    int error;
+    pid_t pid;
     // The symmetric multiprocessing processor id that processed this event.
-    // Useful to reconstruct incremental paths on user side, since that is described in terms of the last path per CPU.  
-    __u32 processor_id;
+    // Useful to reconstruct incremental paths on user side, since that is described in terms of the last path per CPU.
+    // In theory a 32-bit value, but in practice Linux supports up to 8192 CPUs today, so we can use a 16-bit value here.
+    uint16_t processor_id;
     // The length of the source path prefix that is shared with the last path seen by this CPU.
     // Observe that an unsigned short is 2 bytes, enough to represent PATH_MAX (4096) lengths.
-    unsigned short source_path_incremental_length;
-} ebpf_event_metadata;
+    uint16_t source_path_incremental_length;
+} __attribute__((packed)) ebpf_event_metadata;
 
+// Diagnostics event structure
+// These events are used for internal diagnostics between ebpf and user mode
+// The type for this event is DIAGNOSTICS
+// Keep the event type as the first field, since we use it to identify the event on user side
+// In order to keep regular event sizes small, we send all the non-essential information in diagnostics events. When diagnostics
+// is enabled, we send a diagnostics event right before the actual event, so user side can correlate them. Both the diagnostic event
+// and the actual event share the same processor_id, so user side can match them easily.
+typedef struct ebpf_diagnostics {
+    union {
+        struct {
+            enum ebpf_event_type event_type : 3;
+            enum kernel_function kernel_function : 5;
+            uint16_t padding: 8; // just to align to 2 bytes
+        } __attribute__((packed));
+        uint16_t packed_enums;
+    };
+    uint16_t processor_id;
+    long available_data_to_consume;
+} __attribute__((packed)) ebpf_diagnostics;
+
+// Event structure for events with a single path (e.g., open, read, write, etc.) where we send the path as a plain string.
+// These events are very common, so we use incremental encoding to save space.
+// The type for this event is SINGLE_PATH or SINGLE_PATH_WITH_ERROR
 typedef struct ebpf_event {
     ebpf_event_metadata metadata;
+    // The source path is stored here as a flexible array member.
     char src_path[];
-} ebpf_event;
+} __attribute__((packed)) ebpf_event;
 
+// Event structure for events with a single path (e.g., clone) where we send the path as a string along with the child process ID.
+// Sending the child PID is uncommon enough that we factor out a separate structure for it, so we avoid sending it when not needed.
+// The type for this event is SINGLE_PATH_WITH_CPID
+typedef struct ebpf_event_cpid {
+    ebpf_event_metadata metadata;
+    // The child PID
+    pid_t child_pid;
+    // The source path is stored here as a flexible array member.
+    char src_path[];
+} __attribute__((packed)) ebpf_event_cpid;
+
+// Event structure for events with two paths (e.g., rename)
+// These event don't tend to be very common, so we don't use incremental encoding for them and just send both paths as-is.
+// The type for this event is DOUBLE_PATH
 typedef struct ebpf_event_double {
     ebpf_event_metadata metadata;
     // The length of the source path, including the null terminator
@@ -255,7 +327,7 @@ typedef struct ebpf_event_double {
     // We use flexible arrays to avoid having to allocate a fixed size for the paths
     // Check below here for helpers to retrieve the paths
     char src_and_dst_path[];
-} ebpf_event_double;
+} __attribute__((packed)) ebpf_event_double;
 
 // Helpers to retrieve the source and destination paths from a double path event
 inline const char* get_src_path(const ebpf_event_double* event) {
@@ -266,6 +338,10 @@ inline const char* get_dst_path(const ebpf_event_double* event) {
     return &(event->src_and_dst_path[event->src_path_length]);
 }
 
+// Event structure for exec events
+// These events contain the exe path and the args concatenated in the same buffer.
+// Not very common, so we don't use incremental encoding for them and just send both strings as-is.
+// The type for this event is EXEC
 typedef struct ebpf_event_exec {
     ebpf_event_metadata metadata;
     // The length of the exe path, including the null terminator
@@ -276,7 +352,7 @@ typedef struct ebpf_event_exec {
     // We use flexible arrays to avoid having to allocate a fixed size for the paths
     // Check below here for helpers to retrieve the paths
     char exe_path_and_args[];
-} ebpf_event_exec;
+} __attribute__((packed)) ebpf_event_exec;
 
 // Helpers to retrieve the exe path and args from an exec event
 inline const char* get_exe_path(const ebpf_event_exec* event) {
@@ -312,6 +388,8 @@ typedef struct sandbox_options {
     int root_pid;
     int root_pid_init_exec_occured;
     int is_monitoring_child_processes;
+    // Whether to send a diagnostic event (which includes debugging information, as the kernel function name) for each event processed
+    bool enable_diagnostics;
 } sandbox_options;
 
 /**

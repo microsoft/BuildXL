@@ -23,9 +23,6 @@ namespace Test.BuildXL.Processes
     [TestClassIfSupported(requiresLinuxBasedOperatingSystem: true)]
     public class EBPFSandboxProcessTest : SandboxedProcessTestBase
     {
-        // CODESYNC: Public/Src/Sandbox/Linux/ebpf/ebpfcommon.h
-        private const int s_fileAccessRingBufferSize = 4096 * 512;
-
         public EBPFSandboxProcessTest(ITestOutputHelper output) : base(output)
         {
             RegisterEventSource(global::BuildXL.Processes.ETWLogger.Log);
@@ -141,9 +138,10 @@ namespace Test.BuildXL.Processes
 
             // On the native side, first path should be sent as is. Second path should be incrementally encoded.
             var nativeSide = messages.Where(s => s.Contains("kernel function: test_synthetic")).ToList();
+            var commonPrefixLength = CommonPrefixLength(path1, path2);
             XAssert.AreEqual(2, nativeSide.Count);
             XAssert.Contains(nativeSide[0], $"path: '{path1}'");
-            XAssert.Contains(nativeSide[1], $"path: '{path2.Substring(CommonPrefixLength(path1, path2))}'");
+            XAssert.Contains(nativeSide[1], $"common prefix length: {commonPrefixLength}, incremental length: {path2.Length - commonPrefixLength}, path: '{path2}'");
         }
 
         private static void AssertExitCode(SandboxedProcessResult result, int expected)
@@ -204,7 +202,8 @@ namespace Test.BuildXL.Processes
 
             // Verify the ringbuffer size honored the multiplier
             string sandboxMessages = string.Join(Environment.NewLine, m_eventListener.GetLog());
-            XAssert.Contains(sandboxMessages, $"Total available space: {s_fileAccessRingBufferSize * multiplier}");
+            // CODESYNC: Public/Src/Sandbox/Linux/ebpf/ebpfcommon.h
+            XAssert.Contains(sandboxMessages, "Total available space: 4096.00 KB");
         }
 
         [Theory]

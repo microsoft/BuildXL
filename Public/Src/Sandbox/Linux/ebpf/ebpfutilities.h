@@ -15,8 +15,8 @@ extern int LINUX_KERNEL_VERSION __kconfig;
 
 /**
  * The wakeup strategy is as follows:
- * - If the ring buffer is relatively empty (a quarter of its capacity), we do not wake up the user-side process, so we prioritize speed.
- * - If the ring buffer is relatively full (more than a quarter of its capacity), we force a wakeup for every submission. In this
+ * - If the ring buffer is relatively empty (an eighth of its capacity), we do not wake up the user-side process, so we prioritize speed.
+ * - If the ring buffer is relatively full (more than an eighth of its capacity), we force a wakeup for every submission. In this
  *  case we prioritize not running out of buffer space because user side cannot keep up.
  */
 __attribute__((always_inline)) static long get_flags(void *ringbuffer) {
@@ -29,7 +29,7 @@ __attribute__((always_inline)) static long get_flags(void *ringbuffer) {
     }
 
     long data_size = bpf_ringbuf_query(ringbuffer, BPF_RB_AVAIL_DATA);
-    long threshold = total_size >> 2; // A quarter of the total size
+    long threshold = total_size >> 3; // An eighth of the total size 
 
     return data_size >= threshold ? BPF_RB_FORCE_WAKEUP : BPF_RB_NO_WAKEUP;
 }
@@ -1041,15 +1041,54 @@ __attribute__((always_inline)) static int write_metadata(
     metadata->event_type = metadata_to_write->event_type;
     metadata->processor_id = metadata_to_write->processor_id;
     metadata->operation_type = metadata_to_write->operation_type;
-    metadata->kernel_function = metadata_to_write->kernel_function;
     metadata->pid = metadata_to_write->pid;
-    metadata->child_pid = metadata_to_write->child_pid;
     metadata->mode = metadata_to_write->mode;
-    metadata->error = metadata_to_write->error;
     metadata->source_path_incremental_length = prefix_len;
     metadata->symlink_resolution = metadata_to_write->symlink_resolution;
+    metadata->is_cacheable = metadata_to_write->is_cacheable;
 
     return 0;
+}
+
+// Sends diagnostics information to the ring buffer if diagnostics are enabled for the given runner pid
+__attribute__((always_inline)) static inline void send_diagnostics_if_configured(
+    void* file_access_ring_buffer,
+    pid_t runner_pid,
+    kernel_function kernel_function) {
+    struct sandbox_options *options = bpf_map_lookup_elem(&sandbox_options_per_pip, &runner_pid);
+
+    // If options are not found or diagnostics are not enabled, return
+    if (!options || !options->enable_diagnostics) {
+        return;
+    }
+
+    struct bpf_dynptr ptr;
+    if (bpf_ringbuf_reserve_dynptr(
+        file_access_ring_buffer,
+        sizeof(ebpf_diagnostics),
+        /* flags*/ 0,
+        &ptr)) {
+
+        report_buffer_reservation_failure(runner_pid, file_access_ring_buffer);
+        bpf_ringbuf_discard_dynptr(&ptr, 0);
+        return;
+    }
+
+    ebpf_diagnostics* diagnostics = (ebpf_diagnostics*) bpf_dynptr_data(
+        &ptr, /* offset */ 0, sizeof(ebpf_diagnostics));
+
+    if (diagnostics == NULL) {
+        report_ring_buffer_error(runner_pid, "[ERROR] Unable to write diagnostics to dynptr");
+        bpf_ringbuf_discard_dynptr(&ptr, 0);
+        return;
+    }
+
+    diagnostics->event_type = DIAGNOSTICS;
+    diagnostics->processor_id = bpf_get_smp_processor_id();
+    diagnostics->kernel_function = kernel_function;
+    diagnostics->available_data_to_consume = bpf_ringbuf_query(file_access_ring_buffer, BPF_RB_AVAIL_DATA);
+
+    bpf_ringbuf_submit_dynptr(&ptr, get_flags(file_access_ring_buffer));
 }
 
 /**
@@ -1067,13 +1106,20 @@ __attribute__((always_inline)) static void write_and_submit_access(
     ebpf_event_metadata *metadata,
     unsigned short prefix_len,
     char *path_to_write,
-    int path_to_write_length) {
+    int path_to_write_length,
+    pid_t child_pid) {
 
-    // Reserve space in the ring buffer for the metadata and the path
+    int reservation_size = sizeof(ebpf_event_metadata) + (path_to_write_length & (PATH_MAX - 1));
+    // Make room for the child pid if needed
+    if (metadata->event_type == SINGLE_PATH_WITH_CPID) {
+        reservation_size += sizeof(pid_t);
+    }
+
+    // Reserve space in the ring buffer for all the fields in the event
     struct bpf_dynptr ptr;
     if (bpf_ringbuf_reserve_dynptr(
         file_access_ring_buffer,
-        (sizeof(ebpf_event_metadata) + path_to_write_length) & (PATH_MAX - 1),
+        reservation_size,
         /* flags*/ 0,
         &ptr)) {
 
@@ -1082,6 +1128,7 @@ __attribute__((always_inline)) static void write_and_submit_access(
         return;
     }
 
+    int offset = 0;
     // Write the metadata at the start of the dynptr
     if (write_metadata(&ptr, metadata, prefix_len))
     {
@@ -1090,8 +1137,23 @@ __attribute__((always_inline)) static void write_and_submit_access(
         return;
     }
 
-    // Write the path after the metadata
-    if (path_to_write_length < 0 || path_to_write_length >= PATH_MAX || bpf_dynptr_write(&ptr, sizeof(ebpf_event_metadata), path_to_write, path_to_write_length, 0)) {
+    offset += sizeof(ebpf_event_metadata);
+
+    if (metadata->event_type == SINGLE_PATH_WITH_CPID) {
+        // Write the child pid after the metadata
+        if (bpf_dynptr_write(&ptr, offset, &child_pid, sizeof(pid_t), 0)) {
+            report_ring_buffer_error(runner_pid, "[ERROR] Unable to write child pid to dynptr");
+            bpf_ringbuf_discard_dynptr(&ptr, 0);
+            return;
+        }
+
+        offset += sizeof(pid_t);
+    }
+
+    // Write the path
+    if (path_to_write_length < 0 || 
+        path_to_write_length >= PATH_MAX || 
+        bpf_dynptr_write(&ptr, offset, path_to_write, path_to_write_length, 0)) {
         report_ring_buffer_error(runner_pid, "[ERROR] Unable to write path to dynptr");
         bpf_ringbuf_discard_dynptr(&ptr, 0);
         return;
@@ -1111,6 +1173,7 @@ struct write_path_incremental_context {
     int path_to_write_length;
     const char *last_path;
     unsigned short prefix_len; // Length of the common prefix.
+    pid_t child_pid;
 };
 
 /**
@@ -1136,7 +1199,8 @@ static long write_path_incremental_callback(u64 index, struct write_path_increme
             ctx->metadata,
             ctx->prefix_len,
             incremental_path,
-            incremental_length);
+            incremental_length,
+            ctx->child_pid);
         return 1;
     }
 
@@ -1164,7 +1228,8 @@ __attribute__((always_inline)) static void write_single_path_event_incremental(
     void* file_access_ring_buffer,
     ebpf_event_metadata *metadata,
     char *path_to_write,
-    int path_to_write_length) {
+    int path_to_write_length,
+    pid_t child_pid) {
 
     // Retrieve the per-pip last path outer map
     void *last_path_per_cpu = bpf_map_lookup_elem(&last_path_per_pip, &runner_pid);
@@ -1185,7 +1250,8 @@ __attribute__((always_inline)) static void write_single_path_event_incremental(
             metadata,
             /* prefix_len */ 0,
             path_to_write,
-            path_to_write_length);
+            path_to_write_length,
+            child_pid);
     }
     else {
         // Otherwise, find the common prefix with respect to the last path and write the incremental part
@@ -1197,6 +1263,7 @@ __attribute__((always_inline)) static void write_single_path_event_incremental(
             .file_access_ring_buffer = file_access_ring_buffer,
             .metadata = metadata,
             .prefix_len = 0,
+            .child_pid = child_pid
         };
 
         bpf_loop(PATH_MAX, write_path_incremental_callback, &ctx, 0);
@@ -1206,6 +1273,7 @@ __attribute__((always_inline)) static void write_single_path_event_incremental(
     bpf_map_update_elem(last_path_per_cpu, &cpu_id, path_to_write, BPF_ANY);
 }
 
+// Returns whether the given path is untracked for the given runner process
 __attribute__((always_inline)) static bool is_path_untracked(int runner_pid, const char* path, int path_length) {
     // Untracked scopes might not be there if the pip didn't have any. So it is not an error if we don't find it.
     void *untracked_scopes = bpf_map_lookup_elem(&untracked_scopes_per_pip, &runner_pid);
@@ -1253,6 +1321,50 @@ __attribute__((always_inline)) static bool is_path_untracked(int runner_pid, con
     }
 
     return false;
+}
+
+// Converts a standard Linux file mode to an eBPF mode. We don't need all the modes, just the ones we care about. In this way
+// we can save space in the ring buffer by using a smaller enum.
+// Keep in sync with SyscallHandler::FromEBPFMode in Public/Src/Sandbox/Linux/ebpf/SyscallHandler.cpp
+__attribute__((always_inline)) static inline enum ebpf_mode to_ebpf_mode(unsigned int mode) {
+    if (mode == 0) {
+        return UNKNOWN_MODE;
+    }
+
+    if (is_non_file(mode)) {
+        return OTHER;
+    }
+
+    enum ebpf_mode ebpf_mode = 0;
+    if (S_ISREG(mode)) {
+        ebpf_mode |= REGULAR_FILE;
+    }
+    if (S_ISDIR(mode)) {
+        ebpf_mode |= DIRECTORY;
+    }
+    if (S_ISLNK(mode)) {
+        ebpf_mode |= SYMLINK;
+    }
+
+    return ebpf_mode;
+}
+
+/**
+ * is_cacheable_user_side() - Determines whether the given kernel function's file access event is cacheable on user side.
+ */
+__attribute__((always_inline)) static inline bool is_cacheable_user_side(enum kernel_function kernel_function) {
+    switch (kernel_function)
+    {
+        // We want to see every (successful) creation and deletion of directories on managed side
+        // since we keep track of it for optimizing directory fingerprint computation
+        case KERNEL_FUNCTION(do_rmdir):
+        case KERNEL_FUNCTION(do_mkdirat):
+        // We want to see every clone so we keep track of all created pids
+        case KERNEL_FUNCTION(wake_up_new_task):
+            return false;
+        default:
+            return true;
+    }
 }
 
 /**
@@ -1313,25 +1425,46 @@ __attribute__((always_inline)) static void submit_file_access(
         return;
     }
 
+    // From this point onwards, the event will be sent, or an error is reported. So we can send the associated diagnostics if needed
+    // We always send a diagnostics right before the actual event (for the same CPU), so we can correlate them on user side
+    send_diagnostics_if_configured(file_access_ring_buffer, runner_pid, kernel_function);
+
+    enum ebpf_event_type event_type; 
+    if (child_pid != 0) {
+        event_type = SINGLE_PATH_WITH_CPID;
+    }
+    else if (error != 0) {
+        // In order to save space, we don't track which error occured, just that there was an error
+        // We later set a generic ENOENT on user side for all error events
+        event_type = SINGLE_PATH_WITH_ERROR;
+    }
+    else {
+        event_type = SINGLE_PATH;
+    }
+
+    // Today this case does not exist. But just in case, we add a check to avoid sending malformed events
+    // We could add this case if needed in the future, we just need to define a new event type
+    if (child_pid != 0 && error != 0) {
+        report_ring_buffer_error(runner_pid, "[ERROR] Both child_pid and error are set in submit_file_access");
+        return;
+    }
     ebpf_event_metadata metadata = {
-        .event_type = SINGLE_PATH,
+        .event_type = event_type,
         .operation_type = operation_type,
-        .kernel_function = kernel_function,
         .symlink_resolution = symlink_resolution,
         .pid = pid,
-        .child_pid = child_pid,
-        .mode = mode,
-        .error = error,
-        .processor_id = bpf_get_smp_processor_id()
+        .mode = to_ebpf_mode(mode),
+        .processor_id = bpf_get_smp_processor_id(),
+        .is_cacheable = is_cacheable_user_side(kernel_function)
     };
 
-    // We always use incremental encoding for single path events
     write_single_path_event_incremental(
         runner_pid,
         file_access_ring_buffer,
         &metadata,
         path,
-        path_length);
+        path_length,
+        child_pid);
 }
 
 /**
@@ -1354,9 +1487,7 @@ __attribute__((always_inline)) static void submit_file_access_double(
     enum operation_type operation_type,
     enum kernel_function kernel_function,
     int pid,
-    int child_pid,
     unsigned int mode,
-    int error,
     char* src_path,
     int src_path_length,
     char* dst_path,
@@ -1373,6 +1504,11 @@ __attribute__((always_inline)) static void submit_file_access_double(
         report_file_access_buffer_not_found(runner_pid);
         return;
     }
+
+    // From this point onwards, the event will be sent, or an error is reported. So we can send the associated diagnostics if needed
+    // We always send a diagnostics right before the actual event (for the same CPU), so we can correlate them on user side
+    send_diagnostics_if_configured(file_access_ring_buffer, runner_pid, kernel_function);
+
     struct bpf_dynptr ptr;
     unsigned int reservation_size = sizeof(ebpf_event_metadata) + sizeof(int) + src_path_length + dst_path_length;
     if (bpf_ringbuf_reserve_dynptr(
@@ -1402,14 +1538,12 @@ __attribute__((always_inline)) static void submit_file_access_double(
     // the equivalent length field for the dst path and an alternative metadata to not force this new field in
     // all other event types
     metadata->source_path_incremental_length = 0;
-    metadata->kernel_function = kernel_function;
     metadata->pid = pid;
-    metadata->child_pid = child_pid;
     metadata->operation_type = operation_type;
-    metadata->mode = mode;
-    metadata->error = error;
+    metadata->mode = to_ebpf_mode(mode);
     // The only case where we use double events is rename, which does not need any resolution
     metadata->symlink_resolution = noResolve;
+    metadata->is_cacheable = true;
 
     // Write the src path length field, which is the immediate next one after the metadata in a double event
     if (bpf_dynptr_write(&ptr, sizeof(ebpf_event_metadata), &src_path_length, sizeof(int), /* flags*/ 0)) {
@@ -1481,6 +1615,10 @@ __attribute__((always_inline)) static void submit_exec(
         return;
     }
 
+    // From this point onwards, the event will be sent, or an error is reported. So we can send the associated diagnostics if needed
+    // We always send a diagnostics right before the actual event (for the same CPU), so we can correlate them on user side
+    send_diagnostics_if_configured(file_access_ring_buffer, runner_pid, syscall);
+
     /* The event is a dynamic structure, so we need to reserve space for the metadata and the paths */
     /* Perform a dynamic reservation, enough for the metadata and the paths we are about to send */
     struct bpf_dynptr ptr;
@@ -1510,13 +1648,13 @@ __attribute__((always_inline)) static void submit_exec(
     metadata->processor_id = bpf_get_smp_processor_id();
     // Exec events are not very common, so we don't do incremental encoding here
     metadata->source_path_incremental_length = 0;
-    metadata->kernel_function = syscall;
     metadata->operation_type = kExec;
     metadata->pid = pid;
-    metadata->error = 0;
-    metadata->mode = S_IFREG;
+    metadata->mode = REGULAR_FILE;
     // Exec events always need to fully resolve the path since the path comes from user space
     metadata->symlink_resolution = fullyResolve;
+    // Exec events are not cacheable
+    metadata->is_cacheable = false;
 
     // Write the path_length field, which is the immediate next one after the metadata in an exec event
     if (bpf_dynptr_write(&ptr, sizeof(ebpf_event_metadata), &exe_path_length, sizeof(int), /* flags*/ 0)) {

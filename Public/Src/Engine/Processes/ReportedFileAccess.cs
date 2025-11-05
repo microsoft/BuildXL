@@ -53,6 +53,7 @@ namespace BuildXL.Processes
         /// This value is often the same as <see cref="RawError"/>, but it may be different in some cases.
         /// The reason for this is that the error code is sometimes adjusted to match the expected error code because, e.g.,
         /// some Windows APIs do not return ERROR_SUCCESS even when the operation is successful. See Bug 2234559 for details.
+        /// For EBPF the only error code we get is ENOENT (we map all errors to ENOENT to save space).
         /// </remarks>
         public readonly uint Error;
 

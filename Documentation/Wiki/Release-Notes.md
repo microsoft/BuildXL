@@ -2,6 +2,12 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20251031.4 (Release [30661228](https://dev.azure.com/mseng/Domino/_build/results?buildId=30661228&view=results))
+- Fix for cache client crashing when logging queue is exceeded
+- Fix for crash around detours process injection
+- Reuse token from azureauth when using DevCache
+- Log semaphore limit information
+
 # 0.1.0-20251023.2.2 (Release [30645981](https://dev.azure.com/mseng/Domino/_build/results?buildId=30645981&view=results))
 - Add "ExitGracefully" setting to plugin - only try to shutdown plugins gracefully if this setting is turned on (otherwise they will terminate when the parent process - bxl - terminates)
 - Enable grpc kestrel by default

@@ -117,6 +117,25 @@ namespace BuildXL.Processes
             }
         }
 
+        /// <summary>
+        /// Assumes that the EBPF daemon task is already running for testing purposes.
+        /// </summary>
+        /// <remarks>
+        /// This method is intended to be used only in tests that need to assume the EBPF daemon is running.
+        /// <see cref="GetEBPFDaemonTask"/> can be called afterwards to get the existing task.
+        /// </remarks>
+        public static void AssumeEBPFDaemonTaskRunningForTesting()
+        {
+            lock (s_lock)
+            {
+                if (s_daemonTask == null)
+                {
+                    var daemon = new EBPFDaemon();
+                    s_daemonTask = new EBPFDaemonTask(daemon, DateTime.UtcNow, Task.FromResult(new Possible<EBPFDaemon>(daemon)), new LoggingContext("EBPFDaemonForTests"), CancellationToken.None);
+                }
+            }
+        }
+
         internal void AddError(string error)
         {
             m_ebpfErrors.Enqueue(error);

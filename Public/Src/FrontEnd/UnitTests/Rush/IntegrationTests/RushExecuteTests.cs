@@ -4,7 +4,10 @@
 using System.Collections.Generic;
 using System.Linq;
 using BuildXL.Engine;
+using BuildXL.Processes;
+using BuildXL.ProcessPipExecutor;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Configuration.Mutable;
 using Test.BuildXL.FrontEnd.Core;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
@@ -311,6 +314,65 @@ namespace Test.BuildXL.FrontEnd.Rush
             Assert.Contains("Access report received", EventListener.GetLog());
         }
         
+        [FactIfSupported(requiresLinuxBasedOperatingSystem: true)]
+        public void GraphConstructionIsRetriedOnSandboxErrors()
+        {
+            if (!UsingEBPFSandbox)
+            {
+                return;
+            }
+
+            // Create a config that will trigger internal sandbox errors during graph construction
+            var config = Build(
+                    executeCommands: "['build']",
+                    environment: new Dictionary<string, string>
+                    {
+                        // CODESYNC: Public/Src/Sandbox/Linux/common.h
+                        ["__BUILDXL_TEST_INJECTINFRAERROR"] = "1"
+                    },
+                    enableProjectGraphVerboseLogging: true)
+                .AddJavaScriptProject("@ms/project-A", "src/A", scriptCommands: new[] { ("build", "build A") })
+                .PersistSpecsAndGetConfiguration();
+
+            // The graph construction process will spawn a sandboxed process. Make sure we honor EBPF sandboxing settings
+            // from the main config. Our test infra is not well prepped to handle the fact that EBPF is already running,
+            // for the frontend construction, so we just assume the daemon is running (given we checked that already in the
+            // first line of this test).
+            EBPFDaemon.AssumeEBPFDaemonTaskRunningForTesting();
+            ((SandboxConfiguration)config.Sandbox).EnableEBPFLinuxSandbox = UsingEBPFSandbox;
+            
+            var result = RunRushProjects(config, new[] {
+                ("src/A", "@ms/project-A")
+            });
+
+            // The build should fail after retries
+            Assert.False(result.IsSuccess);
+            // Check that besides the graph construction failure, we also logged the sandbox internal error in the final try
+            AssertErrorEventLogged(global::BuildXL.FrontEnd.Core.Tracing.LogEventId.CannotBuildWorkspace);
+            AssertErrorEventLogged(global::BuildXL.Scheduler.Tracing.LogEventId.PipFailedDueToSandboxInternalError);
+
+            // Check that we had retries
+            var internalErrors = EventListener.GetLogMessagesForEventId((int)global::BuildXL.Processes.Tracing.LogEventId.SandboxInternalError);
+            Assert.Equal(SandboxedProcessPipExecutor.ProcessLaunchRetryCountMax, internalErrors.Length);
+            internalErrors.All(internalError => internalError.Contains("Pip failed with an internal sandbox error and may be retried"));
+
+            // Check that on each retry we made the ring buffer size bigger
+            var infoMessages = EventListener
+                .GetLogMessagesForEventId((int)global::BuildXL.Processes.Tracing.LogEventId.LogSandboxInfoMessage)
+                .Where(msg => msg.Contains("Total available space:"))
+                .ToArray();
+            Assert.Equal(SandboxedProcessPipExecutor.ProcessLaunchRetryCountMax, infoMessages.Length);
+            // CODESYNC: Public/Src/Sandbox/Linux/ebpf/ebpfcommon.h
+            var initialBufferSizeKB = 2048;
+            for (int i = 0; i < infoMessages.Length; i++)
+            {
+                // CODESYNC: Public/Src/FrontEnd/JavaScript/ToolBasedJavaScriptWorkspaceResolver.cs
+                // This follows the same logic as in ToolBasedJavaScriptWorkspaceResolver where the size is doubled on each retry
+                var expectedSize = initialBufferSizeKB * (int)System.Math.Pow(2, i);
+                Assert.Contains($"Total available space: {expectedSize}.00 KB", infoMessages[i]);
+            }
+        }
+
         private BuildXLEngineResult BuildDummyWithCommands(string commands)
         {
             var config = Build(executeCommands: commands)

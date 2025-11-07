@@ -17,6 +17,7 @@ using BuildXL.Utilities.Configuration;
 using Newtonsoft.Json;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Utilities.Collections;
+using BuildXL.ProcessPipExecutor;
 
 namespace BuildXL.FrontEnd.JavaScript
 {
@@ -186,12 +187,42 @@ namespace BuildXL.FrontEnd.JavaScript
                 nodeExeLocation = OperatingSystemHelper.IsWindowsOS ? "node.exe" : "node";
             }
 
-            SandboxedProcessResult result = await RunJavaScriptGraphBuilderAsync(nodeExeLocation, outputFile, buildParameters, foundLocation);
+            string errorFile = GetErrorFile(outputFile, Context.PathTable).ToString(Context.PathTable);
+            var pipDescription = $"{Name} graph builder";
+            // Here we do a very simplistic retry logic in case the tool fails due to internal sandbox errors.
+            // The only retry reason we consider is MessageProcessingFailure, which indicates the tool failed due to sandbox related internal errors.
+            // For Linux/EBPF in particular, this likely means we had a buffer reservation issue.
+            int retryCount = 0;
+            SandboxedProcessResult result;
+            long pipSemiStableHash = 0;
+            do
+            {
+                // The ring buffer size multiplier grows exponentially with the number of retries
+                // This is only relevant for Linux/EBPF sandboxing and will be ignored otherwise
+                // With the current settings (ProcessLaunchRetryCountMax = 5), the multiplier will start at 1 and go up to 16, which will result
+                // in a ring buffer that starts at 2MB and goes up to 32MB. Since there is at most one graph construction process per resolver, we can be more liberal in terms
+                // of resource consumption here.
+                int ringBufferMultiplier = (int) Math.Pow(2, retryCount);
+                // Make sure any previous output file is deleted
+                FileUtilities.DeleteFile(outputFile.ToString(Context.PathTable));
+                FileUtilities.DeleteFile(errorFile);
+                result = await RunJavaScriptGraphBuilderAsync(nodeExeLocation, outputFile, buildParameters, foundLocation, pipDescription, ringBufferMultiplier, out pipSemiStableHash);
+                retryCount++;
+            } while (result.ExitCode == ExitCodes.MessageProcessingFailure && retryCount < SandboxedProcessPipExecutor.ProcessLaunchRetryCountMax);
+
+            // If the tool still failed due to internal errors, log that specifically so this is not categorized as a user error
+            if (result.ExitCode == ExitCodes.MessageProcessingFailure)
+            {
+                Scheduler.Tracing.Logger.Log.PipFailedDueToSandboxInternalError(
+                        Context.LoggingContext,
+                        pipSemiStableHash,
+                        pipDescription);
+                return new JavaScriptGraphConstructionFailure(ResolverSettings, Context.PathTable);
+            }
 
             string standardError = result.StandardError.ReadValueAsync().GetAwaiter().GetResult();
             
             // Check whether the graph construction tool produced an error file, and in that case attach it to the standard error.
-            string errorFile = GetErrorFile(outputFile, Context.PathTable).ToString(Context.PathTable);
             if (FileUtilities.Exists(errorFile) && await File.ReadAllTextAsync(errorFile) is var errorText && !string.IsNullOrEmpty(errorText))
             {
                 standardError += Environment.NewLine + errorText;
@@ -382,7 +413,10 @@ namespace BuildXL.FrontEnd.JavaScript
            string nodeExeLocation,
            AbsolutePath outputFile,
            BuildParameters.IBuildParameters buildParameters,
-           AbsolutePath toolLocation)
+           AbsolutePath toolLocation,
+           string pipDescription,
+           int ebpfRingBufferSizeMultiplier,
+           out long pipSemiStableHash)
         {
             AbsolutePath toolPath = Configuration.Layout.BuildEngineDirectory.Combine(Context.PathTable, RelativePathToGraphConstructionTool);
             string outputDirectory = outputFile.GetParent(Context.PathTable).ToString(Context.PathTable);
@@ -393,19 +427,24 @@ namespace BuildXL.FrontEnd.JavaScript
 
             Tracing.Logger.Log.ConstructingGraphScript(Context.LoggingContext, toolArguments);
 
-            return FrontEndUtilities.RunSandboxedToolAsync(
+            var manifest = GenerateFileAccessManifest(outputFile.GetParent(Context.PathTable));
+
+            var result = FrontEndUtilities.RunSandboxedToolAsync(
                Context,
                cmdExeArtifact.Path.ToString(Context.PathTable),
                buildStorageDirectory: outputDirectory,
-               fileAccessManifest: GenerateFileAccessManifest(outputFile.GetParent(Context.PathTable)),
+               fileAccessManifest: manifest,
                arguments: toolArguments,
                workingDirectory: ResolverSettings.Root.ToString(Context.PathTable),
-               description: $"{Name} graph builder",
+               description: pipDescription,
                buildParameters,
                useEBPFLinuxSandbox: Configuration.Sandbox.EnableEBPFLinuxSandbox,
-               ebpfRingBufferSizeMultiplier: Configuration.Sandbox.EBPFRingBufferSizeMultiplier,
+               ebpfRingBufferSizeMultiplier: ebpfRingBufferSizeMultiplier,
                enableLogging: ResolverSettings.EnableProjectGraphVerboseLogging ?? false
                );
+               
+            pipSemiStableHash = manifest.PipId;
+            return result;
         }
 
         /// <summary>

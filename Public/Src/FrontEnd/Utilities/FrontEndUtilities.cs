@@ -140,7 +140,7 @@ namespace BuildXL.FrontEnd.Utilities
                 {
                     Arguments = arguments,
                     WorkingDirectory = workingDirectory,
-                    PipSemiStableHash = 0,
+                    PipSemiStableHash = fileAccessManifest.PipId,
                     PipDescription = description,
                     EnvironmentVariables = buildParameters,
                 };
@@ -186,8 +186,6 @@ namespace BuildXL.FrontEnd.Utilities
                         // Dispose the registration for the cancellation token once the process is done
                         registration.Dispose();
 
-
-                        //
                         onResult?.Invoke();
 
                         return r.GetAwaiter().GetResult();
@@ -209,7 +207,8 @@ namespace BuildXL.FrontEnd.Utilities
             // Inject the sandboxed failures into the result, so downstream consumers can fail appropriately 
             var error = string.Join(Environment.NewLine, sandboxFailures.Select((status, description) => $"[{status}]{description}"));
             return new SandboxedProcessResult() {
-                ExitCode = -1,
+                // Map any sandbox failures to a message processing exit code
+                ExitCode = ExitCodes.MessageProcessingFailure,
                 StandardError = new SandboxedProcessOutput(
                     error.Length, 
                     error, 

@@ -11,6 +11,7 @@ parameters:
     /p:[Sdk.BuildXL]xunitSemaphoreCount=8 
     /forceAddExecutionPermission-
     /p:BuildXLDumpOpenFilesOnDescriptorSpike=1
+    /enableLinuxEBPFSandbox-
   '
 - name: pool
   type: object

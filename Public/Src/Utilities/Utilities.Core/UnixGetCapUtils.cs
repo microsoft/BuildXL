@@ -56,7 +56,7 @@ public class UnixGetCapUtils : UnixUtilsBase
     /// sudo is always executed in non-interactive mode unless interactive is set to true. An optional action can be provided to
     /// notify the user that a password prompt is about to be issued.
     /// </remarks>
-    public static bool TrySetEBPFCapabilitiesIfNeeded(string binaryPath, bool interactive, out string failure, Action interactivePromptAction = null)
+    public static bool TrySetEBPFCapabilitiesIfNeeded(string binaryPath, bool interactive, out string failure, Action interactivePromptAction = null, int retries = 1, Action<int, string> retryAction = null)
     {
         if (!BinaryHasEBPFCapabilities(binaryPath))
         {
@@ -79,7 +79,7 @@ public class UnixGetCapUtils : UnixUtilsBase
             }
 
             var setCapUtils = UnixSetCapUtils.CreateSetCap();
-            return setCapUtils.SetCapability(binaryPath, interactive, out failure, UnixCapability.CAP_SYS_ADMIN, UnixCapability.CAP_DAC_OVERRIDE, UnixCapability.CAP_SYS_NICE);
+            return setCapUtils.SetCapability(binaryPath, interactive, retries, retryAction, out failure, UnixCapability.CAP_SYS_ADMIN, UnixCapability.CAP_DAC_OVERRIDE, UnixCapability.CAP_SYS_NICE);
         }
 
         failure = string.Empty;

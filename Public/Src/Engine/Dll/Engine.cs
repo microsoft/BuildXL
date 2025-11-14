@@ -2899,7 +2899,10 @@ namespace BuildXL.Engine
                         SandboxConnectionLinuxEBPF.EBPFRunner,
                         Configuration.Interactive,
                         out string failure,
-                        () => Logger.Log.EBPFCapabilitiesSudoPrompt(loggingContext)))
+                        () => Logger.Log.EBPFCapabilitiesSudoPrompt(loggingContext),
+                        // Try to set the capabilities with up to 3 retries. We've seen occasional transient failures when setting capabilities.
+                        retries: 3,
+                        (retriesLeft, error) => Logger.Log.EBPFCapabilitiesRetrying(loggingContext, retriesLeft, error)))
                     {
                         Logger.Log.CannotSetEBPFCapabilities(loggingContext, failure);
                         return ConstructScheduleResult.Failure;

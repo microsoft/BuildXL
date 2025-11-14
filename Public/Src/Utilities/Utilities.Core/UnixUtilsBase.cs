@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Text;
@@ -18,7 +19,7 @@ public abstract class UnixUtilsBase
     private readonly bool m_isToolInstalled;
 
     /// <summary>
-    /// Cache of results from <see cref="CheckConditionAgainstStandardOutput(string, string, Func{string, bool}, out string, bool, bool)"/>.
+    /// Cache of results from <see cref="CheckConditionAgainstStandardOutput(string, string, Func{string, bool}, out string, bool, bool, int, Action{int, string})"/>.
     /// </summary>
     private readonly ConcurrentDictionary<string, (bool result, string error)> m_cache = new();
 
@@ -36,7 +37,15 @@ public abstract class UnixUtilsBase
     /// <remarks>
     /// The provided cache is used for retrieval/storage
     /// </remarks>
-    protected bool CheckConditionAgainstStandardOutput(string binaryPath, string arguments, Func<string, bool> condition, out string standardError, bool runAsSudo = false, bool interactive = false)
+    protected bool CheckConditionAgainstStandardOutput(
+        string binaryPath, 
+        string arguments, 
+        Func<string, bool> condition, 
+        out string standardError, 
+        bool runAsSudo = false, 
+        bool interactive = false, 
+        int retries = 1, 
+        Action<int, string> retryAction = null)
     {
         if (!OperatingSystemHelper.IsLinuxOS || !m_isToolInstalled || !File.Exists(binaryPath))
         {
@@ -85,76 +94,47 @@ public abstract class UnixUtilsBase
             StandardErrorEncoding = Encoding.UTF8,
         };
 
-        using var process = System.Diagnostics.Process.Start(processInfo);
-        if (process == null)
-        {
-            standardError = "Failed to start process";
-            m_cache.TryAdd(pathKey, (false, standardError));
-            return false;
-        }
-
-        string stdout = string.Empty;
-
-        bool exited = false;
-        standardError = string.Empty;
-        try
-        {
-#pragma warning disable AsyncFixer02 // WaitForExitAsync should be used instead
-            int timeoutSecs = interactive ? 30 : 2;
-            exited = process.WaitForExit(timeoutSecs * 1000);
-            if (!exited)
+        int exitCode;
+        string standardOutput;
+        do {
+            exitCode = RunProcessWithTimeout(processInfo, interactive, out standardError, out standardOutput);
+            retries--;
+            if (exitCode != 0 && retries > 0 && retryAction != null)
             {
-                // Only waiting 2 (or 30 if interactive) seconds at the most, although it should never take this long
-                kill(process);
-                standardError = $"Process timed out after {timeoutSecs} seconds";
-                m_cache.TryAdd(pathKey, (false, standardError));
+                retryAction(retries, standardError);
             }
-            process.WaitForExit();
-            stdout = process.StandardOutput.ReadToEnd();
+        } while (exitCode != 0 && retries > 0);
 
-#pragma warning restore AsyncFixer02
-        }
-#pragma warning disable EPC12 // An exit point '}' swallows an unobserved exception.
-        catch (Exception e)
+        // If the process ran successfully, check the condition
+        if (exitCode == 0)
         {
-            // Best effort
-            standardError = e.Message;
-            m_cache.TryAdd(pathKey, (false, standardError));
-            return false;
-        }
-#pragma warning restore EPC12
-
-        if (exited)
-        {
-            standardError = process.StandardError.ReadToEnd();
-        }
-        if (process.ExitCode == 0)
-        {
-            var check = condition(stdout);
+            var check = condition(standardOutput);
             m_cache.TryAdd(pathKey, (check, standardError));
 
             return check;
         }
 
-        static void kill(System.Diagnostics.Process p)
-        {
-            if (p == null || p.HasExited)
-            {
-                return;
-            }
-
-            try
-            {
-                p.Kill();
-            }
-            catch (InvalidOperationException)
-            {
-                // the process may have exited,
-                // in this case ignore the exception
-            }
-        }
+        m_cache.TryAdd(pathKey, (false, standardError));
 
         return false;
+    }
+
+    private static void Kill(System.Diagnostics.Process p)
+    {
+        if (p == null || p.HasExited)
+        {
+            return;
+        }
+
+        try
+        {
+            p.Kill();
+        }
+        catch (InvalidOperationException)
+        {
+            // the process may have exited,
+            // in this case ignore the exception
+        }
     }
 
     /// <summary>
@@ -211,5 +191,49 @@ public abstract class UnixUtilsBase
             return true;
 #pragma warning restore ERP022 // Unobserved exception in a generic exception handler
         }
+    }
+
+    private static int RunProcessWithTimeout(ProcessStartInfo processInfo, bool interactive, out string standardError, out string standardOutput)
+    {
+        using var process = System.Diagnostics.Process.Start(processInfo);
+        if (process == null)
+        {
+            standardError = "Failed to start process";
+            standardOutput = string.Empty;
+            return -1;
+        }
+
+        try
+        {
+#pragma warning disable AsyncFixer02 // WaitForExitAsync should be used instead
+            // Only waiting 2 (or 30 if interactive) seconds at the most, although it should never take this long
+            int timeoutSecs = interactive ? 30 : 2;
+            bool exited = process.WaitForExit(timeoutSecs * 1000);
+            if (!exited)
+            {
+                Kill(process);
+                standardError = $"Process timed out after {timeoutSecs} seconds";
+                standardOutput = string.Empty;
+
+                return -1;
+            }
+
+            process.WaitForExit();
+            standardOutput = process.StandardOutput.ReadToEnd();
+            standardError = process.StandardError.ReadToEnd();
+
+            return process.ExitCode;
+#pragma warning restore AsyncFixer02
+        }
+#pragma warning disable EPC12 // An exit point '}' swallows an unobserved exception.
+        catch (Exception e)
+        {
+            // Best effort
+            standardError = e.Message;
+            standardOutput = string.Empty;
+            
+            return -1;
+        }
+#pragma warning restore EPC12
     }
 }

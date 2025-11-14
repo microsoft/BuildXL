@@ -2934,6 +2934,15 @@ If you can't update and need this feature after July 2018 please reach out to th
             EventTask = (int)Tasks.Engine,
             Message = "Unable to set the required capabilities for the sandbox to run: {errorMessage}.")]
         public abstract void CannotSetEBPFCapabilities(LoggingContext context, string errorMessage);
+
+        [GeneratedEvent(
+            (int)LogEventId.EBPFCapabilitiesRetrying,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Informational,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Engine,
+            Message = "Could not set the required capabilities: {error}. Retries left: {retriesLeft}.")]
+        public abstract void EBPFCapabilitiesRetrying(LoggingContext context, int retriesLeft, string error);
     }
 
     /// <summary>

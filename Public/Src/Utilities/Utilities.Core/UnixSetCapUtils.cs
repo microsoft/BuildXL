@@ -30,12 +30,14 @@ public class UnixSetCapUtils : UnixUtilsBase
     /// This requires an interactive prompt for sudo password.
     /// Do not call this if you're not sure whether it's possible to interactively prompt from the engine.
     /// </remarks>
-    public bool SetCapability(string binaryPath, bool interactive, out string standardError, params UnixCapability[] capabilities)
+    public bool SetCapability(string binaryPath, bool interactive, int retries, Action<int, string> retryAction, out string standardError, params UnixCapability[] capabilities)
         => CheckConditionAgainstStandardOutput(
             binaryPath, 
             $"\"{string.Join(" ", capabilities.Select(cap => cap.CapabilityString()))}\" {binaryPath}", 
             condition: string.IsNullOrEmpty, 
             runAsSudo: true,
             interactive: interactive,
-            standardError: out standardError);
+            standardError: out standardError,
+            retries: retries,
+            retryAction: retryAction);
 }

@@ -431,7 +431,7 @@ namespace BuildXL.Engine.Tracing
 
         EBPFCapabilitiesSudoPrompt = 7146,
         CannotSetEBPFCapabilities = 7147,
-
+        EBPFCapabilitiesRetrying = 7148,
         // max 7200
     }
 }

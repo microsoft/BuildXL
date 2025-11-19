@@ -2,6 +2,16 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20251113.1 (Release [30722677](https://dev.azure.com/mseng/Domino/_build/results?buildId=30722677&view=results))
+- Pin Ubuntu 22.04 and AzureLinux validations to use interpose
+- Add retry logic when setting EBPF capabilities
+
+# 0.1.0-20251107.2 (Release [30688657](https://dev.azure.com/mseng/Domino/_build/results?buildId=30688657&view=results))
+- Properly deal with sandbox internal errors during graph construction
+- Reduce size of EBPF events
+- Log current active requests and allow plugin config to specify extra startup args for the plugin
+- Add a knob to turn on verbose logging for tool-based resolvers
+
 # 0.1.0-20251031.4 (Release [30661228](https://dev.azure.com/mseng/Domino/_build/results?buildId=30661228&view=results))
 - Fix for cache client crashing when logging queue is exceeded
 - Fix for crash around detours process injection

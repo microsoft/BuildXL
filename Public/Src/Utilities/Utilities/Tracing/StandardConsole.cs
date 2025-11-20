@@ -140,8 +140,15 @@ namespace BuildXL.Utilities.Tracing
         /// <inheritdoc/>
         public void WriteHyperlink(MessageLevel messageLevel, string text, string target)
         {
-            const string Esc = "\x1b";
-            WriteOutput(messageLevel, $@"{Esc}]8;;{target}{Esc}\{text}{Esc}]8;;{Esc}\");
+            if (m_consoleSupportsVirtualTerminal)
+            {
+                const string Esc = "\x1b";
+                WriteOutput(messageLevel, $@"{Esc}]8;;{target}{Esc}\{text}{Esc}]8;;{Esc}\");
+            }
+            else
+            {
+                WriteOutput(messageLevel, target);
+            }
         }
 
         /// <inheritdoc/>

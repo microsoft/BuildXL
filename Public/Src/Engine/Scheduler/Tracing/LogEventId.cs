@@ -561,5 +561,6 @@ namespace BuildXL.Scheduler.Tracing
         SchedulerSimulatorCompleted = 14613,
         SchedulerSimulatorFailed = 14614,
         SourceRewrittenOriginalContentLost = 14615,
+        VerboseShutdownStatus = 14616,
     }
 }

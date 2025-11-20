@@ -8359,19 +8359,19 @@ namespace BuildXL.Scheduler
             {
                 return;
             }
-
+            
             m_cancellationTokenRegistration.Dispose();
 
-            ExecutionLog?.Dispose();
-            SandboxConnection?.Dispose();
-            RemoteProcessManager?.Dispose();
+            VerboseDispose(ExecutionLog, "ExecutionLog");
+            VerboseDispose(SandboxConnection, "SandboxConnection");
+            VerboseDispose(RemoteProcessManager, "RemoveProcessManager");
 
             m_workers.ForEach(w => w.Dispose());
 
-            PerformanceAggregator?.Dispose();
-            m_ipcProvider.Dispose();
-            m_apiServer?.Dispose();
-            m_pluginManager?.Dispose();
+            VerboseDispose(PerformanceAggregator, "PerformanceAggregator");
+            VerboseDispose(m_ipcProvider, "IPCProvider");
+            VerboseDispose(m_apiServer, "APIServer");
+            VerboseDispose(m_pluginManager, "PluginManager");
             m_schedulerCancellationTokenSource.Dispose();
 
             m_pipTwoPhaseCache?.CloseAsync().GetAwaiter().GetResult();
@@ -8379,7 +8379,17 @@ namespace BuildXL.Scheduler
             // The store is disposed if WhenDone method was called and finished successfully.
             // Disposing here just in case if something went wrong in WhenDone or that method was never call.
             // Dispsing the fingerprint store twice is safe.
-            m_fingerprintStoreTarget?.Dispose();
+            VerboseDispose(m_fingerprintStoreTarget, "FingerprintStoreTarget");
+        }
+
+        private void VerboseDispose<T>(T disposable, string componentName) where T : IDisposable
+        {
+            if (disposable != null)
+            {
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                disposable.Dispose();
+                Logger.Log.VerboseShutdownStatus(m_loggingContext, componentName, sw.ElapsedMilliseconds);
+            }
         }
 
         /// <inheritdoc />

@@ -4262,6 +4262,18 @@ namespace BuildXL.Scheduler.Tracing
             string pipSemiStableHash,
             string path,
             string accessFlags);
+
+        [GeneratedEvent(
+            (int)LogEventId.VerboseShutdownStatus,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Scheduler,
+            Message = "Disposed {component} in {milliseconds}ms")]
+        public abstract void VerboseShutdownStatus(
+            LoggingContext context,
+            string component,
+            long milliseconds);
     }
 }
 #pragma warning restore CA1823 // Unused field

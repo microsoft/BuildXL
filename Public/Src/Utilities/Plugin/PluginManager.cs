@@ -47,7 +47,7 @@ namespace BuildXL.Plugin
     }
 
     /// <nodoc />
-    public class PluginManager
+    public class PluginManager : IDisposable
     {
         private class PendingPlugin
         {

@@ -343,6 +343,7 @@ namespace BuildXL.ProcessPipExecutor
                     UnconditionallyEnableLinuxPTraceSandbox = m_sandboxConfig.UnconditionallyEnableLinuxPTraceSandbox,
                     IgnoreDeviceIoControlGetReparsePoint = m_sandboxConfig.UnsafeSandboxConfiguration.IgnoreDeviceIoControlGetReparsePoint,
                     IgnoreUntrackedPathsInFullReparsePointResolving = m_sandboxConfig.UnsafeSandboxConfiguration.IgnoreUntrackedPathsInFullReparsePointResolving,
+                    MonitorCreateProcessAsUser = m_sandboxConfig.UnsafeSandboxConfiguration.MonitorCreateProcessAsUser,
                 };
 
             if (!MonitorFileAccesses)

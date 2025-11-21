@@ -1168,4 +1168,7 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   <data name="HelpText_DisplayHelp_Unsafe_IgnoreUntrackedPathsInFullReparsePointResolving" xml:space="preserve">
     <value>When enabled, untracked paths, if symlinks, are not fully resolved. Defaults to off.</value>
   </data>
+  <data name="HelpText_DisplayHelp_Unsafe_MonitorCreateProcessAsUser" xml:space="preserve">
+    <value>Control whether detours on Windows will monitor CreateProcessAsUser[A|W]. Enabled by default.</value>
+  </data>
 </root>

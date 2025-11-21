@@ -2464,6 +2464,7 @@ namespace BuildXL.Engine
                 { "unsafe_RunPathTranslationForGetFinalPathNameByHandle", Logger.Log.ConfigUnsafeRunPathTranslationForGetFinalPathNameByHandle },
                 { "unsafe_RunPathTranslationForDeviceIoControlGetReparsePoint", Logger.Log.ConfigUnsafeRunPathTranslationForDeviceIoControlReparsePoint },
                 { "unsafe_DoNotApplyAllowListToDynamicOutputs", loggingContext => { } /* Special case: unsafe option we do not want logged because the option is temporary and the default value is unsafe */ },
+                { "unsafe_MonitorCreateProcessAsUser", Logger.Log.ConfigUnsafeMonitorCreateProcessAsUser },
             };
         }
 

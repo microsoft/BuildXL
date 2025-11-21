@@ -126,6 +126,8 @@ extern vector<ShimProcessMatch*>* g_pShimProcessMatches;
 
 extern CreateProcessW_t Real_CreateProcessW;
 extern CreateProcessA_t Real_CreateProcessA;
+extern CreateProcessAsUserW_t Real_CreateProcessAsUserW;
+extern CreateProcessAsUserA_t Real_CreateProcessAsUserA;
 extern CreateFileW_t Real_CreateFileW;
 
 extern RtlFreeHeap_t Real_RtlFreeHeap;

@@ -1160,6 +1160,9 @@ namespace BuildXL
                             isUnsafe: true,
                             isEnabled: () => sandboxConfiguration.UnsafeSandboxConfigurationMutable.IgnoreDynamicWritesOnAbsentProbes != DynamicWriteOnAbsentProbePolicy.IgnoreNothing),
                         OptionHandlerFactory.CreateBoolOption(
+                            "unsafe_MonitorCreateProcessAsUser",
+                            sign => sandboxConfiguration.UnsafeSandboxConfigurationMutable.MonitorCreateProcessAsUser = sign),
+                        OptionHandlerFactory.CreateBoolOption(
                             "unsafe_MonitorFileAccesses",
                             sign =>
                             sandboxConfiguration.UnsafeSandboxConfigurationMutable.MonitorFileAccesses = sign,

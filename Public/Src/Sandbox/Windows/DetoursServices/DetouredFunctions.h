@@ -71,6 +71,51 @@ BOOL WINAPI Detoured_CreateProcessA(
     __out         LPPROCESS_INFORMATION lpProcessInformation
     );
 
+// See CreateProcessAsUserW on MSDN: https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessasuserw
+BOOL WINAPI Detoured_CreateProcessAsUserW(
+    __in_opt      HANDLE                hToken,
+    __in_opt      LPCWSTR               lpApplicationName,
+    __inout_opt   LPWSTR                lpCommandLine,
+    __in_opt      LPSECURITY_ATTRIBUTES lpProcessAttributes,
+    __in_opt      LPSECURITY_ATTRIBUTES lpThreadAttributes,
+    __in          BOOL                  bInheritHandles,
+    __in          DWORD                 dwCreationFlags,
+    __in_opt      LPVOID                lpEnvironment,
+    __in_opt      LPCWSTR               lpCurrentDirectory,
+    __in          LPSTARTUPINFOW        lpStartupInfo,
+    __out         LPPROCESS_INFORMATION lpProcessInformation
+    );
+
+// See CreateProcessAsUserA on MSDN: https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessasusera
+BOOL WINAPI Detoured_CreateProcessAsUserA(
+    __in_opt      HANDLE                hToken,
+    __in_opt      LPCSTR                lpApplicationName,
+    __inout_opt   LPSTR                 lpCommandLine,
+    __in_opt      LPSECURITY_ATTRIBUTES lpProcessAttributes,
+    __in_opt      LPSECURITY_ATTRIBUTES lpThreadAttributes,
+    __in          BOOL                  bInheritHandles,
+    __in          DWORD                 dwCreationFlags,
+    __in_opt      LPVOID                lpEnvironment,
+    __in_opt      LPCSTR                lpCurrentDirectory,
+    __in          LPSTARTUPINFOA        lpStartupInfo,
+    __out         LPPROCESS_INFORMATION lpProcessInformation
+    );
+
+// Common implementation for CreateProcessAsUser[A|W] and CreateProcess[A|W]
+BOOL WINAPI Detoured_CreateProcessCommonW(
+    __in_opt      HANDLE                hToken,
+    __in_opt      LPCWSTR               lpApplicationName,
+    __inout_opt   LPWSTR                lpCommandLine,
+    __in_opt      LPSECURITY_ATTRIBUTES lpProcessAttributes,
+    __in_opt      LPSECURITY_ATTRIBUTES lpThreadAttributes,
+    __in          BOOL                  bInheritHandles,
+    __in          DWORD                 dwCreationFlags,
+    __in_opt      LPVOID                lpEnvironment,
+    __in_opt      LPCWSTR               lpCurrentDirectory,
+    __in          LPSTARTUPINFOW        lpStartupInfo,
+    __out         LPPROCESS_INFORMATION lpProcessInformation
+    );
+
 // See CreateFile on MSDN: http://msdn.microsoft.com/en-us/library/windows/desktop/aa363858(v=vs.85).aspx
 HANDLE WINAPI Detoured_CreateFileW(
     __in     LPCWSTR lpFileName,

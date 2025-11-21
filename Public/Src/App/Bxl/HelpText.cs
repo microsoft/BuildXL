@@ -938,6 +938,10 @@ namespace BuildXL
                 "/schedulerSimulator[+|-]",
                 Strings.HelpText_DisplayHelp_SchedulerSimulator);
 
+            hw.WriteOption(
+                "/unsafe_MonitorCreateProcessAsUser[+|-]",
+                Strings.HelpText_DisplayHelp_Unsafe_MonitorCreateProcessAsUser);
+
             #endregion
 
             hw.WriteBanner(

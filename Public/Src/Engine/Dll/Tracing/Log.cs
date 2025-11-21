@@ -2943,6 +2943,15 @@ If you can't update and need this feature after July 2018 please reach out to th
             EventTask = (int)Tasks.Engine,
             Message = "Could not set the required capabilities: {error}. Retries left: {retriesLeft}.")]
         public abstract void EBPFCapabilitiesRetrying(LoggingContext context, int retriesLeft, string error);
+
+        [GeneratedEvent(
+            (int)LogEventId.ConfigUnsafeMonitorCreateProcessAsUser,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Informational,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Engine,
+            Message = "/unsafe_MonitorCreateProcessAsUser disabled: {ShortProductName} is configured not to detour the CreateProcessAsUser[A|W] APIs. This might lead to incorrect builds.")]
+        public abstract void ConfigUnsafeMonitorCreateProcessAsUser(LoggingContext context);
     }
 
     /// <summary>

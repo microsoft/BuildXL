@@ -40,6 +40,34 @@ typedef BOOL (WINAPI *CreateProcessW_t)(
     __out         LPPROCESS_INFORMATION lpProcessInformation
     );
 
+typedef BOOL (WINAPI *CreateProcessAsUserA_t)(
+    __in_opt      HANDLE                hToken,
+    __in_opt      LPCSTR                lpApplicationName,
+    __inout_opt   LPSTR                 lpCommandLine,
+    __in_opt      LPSECURITY_ATTRIBUTES lpProcessAttributes,
+    __in_opt      LPSECURITY_ATTRIBUTES lpThreadAttributes,
+    __in          BOOL                  bInheritHandles,
+    __in          DWORD                 dwCreationFlags,
+    __in_opt      LPVOID                lpEnvironment,
+    __in_opt      LPCSTR                lpCurrentDirectory,
+    __in          LPSTARTUPINFOA        lpStartupInfo,
+    __out         LPPROCESS_INFORMATION lpProcessInformation
+    );
+
+typedef BOOL (WINAPI *CreateProcessAsUserW_t)(
+    __in_opt      HANDLE                hToken,
+    __in_opt      LPCWSTR               lpApplicationName,
+    __inout_opt   LPWSTR                lpCommandLine,
+    __in_opt      LPSECURITY_ATTRIBUTES lpProcessAttributes,
+    __in_opt      LPSECURITY_ATTRIBUTES lpThreadAttributes,
+    __in          BOOL                  bInheritHandles,
+    __in          DWORD                 dwCreationFlags,
+    __in_opt      LPVOID                lpEnvironment,
+    __in_opt      LPCWSTR               lpCurrentDirectory,
+    __in          LPSTARTUPINFOW        lpStartupInfo,
+    __out         LPPROCESS_INFORMATION lpProcessInformation
+    );
+
 typedef HANDLE (WINAPI *CreateFileW_t)(
     __in     LPCWSTR lpFileName,
     __in     DWORD dwDesiredAccess,

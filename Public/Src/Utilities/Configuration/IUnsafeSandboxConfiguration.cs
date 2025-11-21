@@ -239,6 +239,11 @@ namespace BuildXL.Utilities.Configuration
         /// </summary>
         bool IgnoreUntrackedPathsInFullReparsePointResolving { get; }
 
+        /// <summary>
+        /// Monitors CreateProcessAsUser API calls.
+        /// </summary>
+        bool MonitorCreateProcessAsUser { get; }
+
         // NOTE: if you add a property here, don't forget to update UnsafeSandboxConfigurationExtensions
 
         // NOTE: whenever unsafe options change, the fingerprint version needs to be bumped
@@ -308,6 +313,7 @@ namespace BuildXL.Utilities.Configuration
                 writer.Write(@this.DoNotApplyAllowListToDynamicOutputs.Value);
             }
             writer.Write(@this.IgnoreUntrackedPathsInFullReparsePointResolving);
+            writer.Write(@this.MonitorCreateProcessAsUser);
         }
 
         /// <nodoc/>
@@ -342,6 +348,7 @@ namespace BuildXL.Utilities.Configuration
                 EnableFullReparsePointResolving = reader.ReadBoolean() ? (bool?)reader.ReadBoolean() : null,
                 DoNotApplyAllowListToDynamicOutputs = reader.ReadBoolean() ? (bool?)reader.ReadBoolean() : null,
                 IgnoreUntrackedPathsInFullReparsePointResolving = reader.ReadBoolean(),
+                MonitorCreateProcessAsUser = reader.ReadBoolean(),
             };
         }
 
@@ -380,7 +387,8 @@ namespace BuildXL.Utilities.Configuration
                 && IsAsSafeOrSafer(lhs.SkipFlaggingSharedOpaqueOutputs(), rhs.SkipFlaggingSharedOpaqueOutputs(), SafeDefaults.SkipFlaggingSharedOpaqueOutputs())
                 && IsAsSafeOrSafer(lhs.EnableFullReparsePointResolving(), rhs.EnableFullReparsePointResolving(), SafeDefaults.EnableFullReparsePointResolving())
                 && IsAsSafeOrSafer(lhs.DoNotApplyAllowListToDynamicOutputs(), rhs.DoNotApplyAllowListToDynamicOutputs(), SafeDefaults.DoNotApplyAllowListToDynamicOutputs())
-                && IsAsSafeOrSafer(lhs.IgnoreUntrackedPathsInFullReparsePointResolving, rhs.IgnoreUntrackedPathsInFullReparsePointResolving, SafeDefaults.IgnoreUntrackedPathsInFullReparsePointResolving);
+                && IsAsSafeOrSafer(lhs.IgnoreUntrackedPathsInFullReparsePointResolving, rhs.IgnoreUntrackedPathsInFullReparsePointResolving, SafeDefaults.IgnoreUntrackedPathsInFullReparsePointResolving)
+                && IsAsSafeOrSafer(lhs.MonitorCreateProcessAsUser, rhs.MonitorCreateProcessAsUser, SafeDefaults.MonitorCreateProcessAsUser);
         }
 
         /// <nodoc />

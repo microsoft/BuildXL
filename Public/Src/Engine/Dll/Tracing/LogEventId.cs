@@ -120,6 +120,7 @@ namespace BuildXL.Engine.Tracing
         PipTimedOutRemotely = 946,
         ConfigAssumeCleanOutputs = 947,
         ConfigIgnoreUntrackedPathsInFullReparsePointResolving = 948,
+        ConfigUnsafeMonitorCreateProcessAsUser = 949,
 
         StartInitializingCache = 1502,
         EndInitializingCache = 1503,

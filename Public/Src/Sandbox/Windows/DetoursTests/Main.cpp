@@ -1263,6 +1263,38 @@ int CallFindFirstEnumerateRoot()
     return ERROR_SUCCESS;
 }
 
+int CallCreateProcessAsUser()
+{
+    wchar_t args[200] = L"C:\\Windows\\System32\\cmd.exe /D /C exit 0";
+
+    STARTUPINFOW si;
+    ZeroMemory(&si, sizeof(STARTUPINFOW));
+    si.cb = sizeof(STARTUPINFOW);
+
+    PROCESS_INFORMATION pi;
+    ZeroMemory(&pi, sizeof(PROCESS_INFORMATION));
+
+    CreateProcessAsUserW(
+        /* hToken */ NULL,
+        NULL,
+        args,
+        0,
+        0,
+        0,
+        0,
+        NULL,
+        L"",
+        &si,
+        &pi
+    );
+
+    WaitForSingleObject(pi.hProcess, INFINITE);
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
+
+    return ERROR_SUCCESS;
+}
+
 // ----------------------------------------------------------------------------
 // STATIC FUNCTION DEFINITIONS
 // ----------------------------------------------------------------------------
@@ -1311,6 +1343,7 @@ static void GenericTests(const string& verb)
     IF_COMMAND(CallCreateFileWithNewLineCharacters);
     IF_COMMAND(CallDeleteFileWithoutClosingHandle);
     IF_COMMAND(CallFindFirstEnumerateRoot);
+    IF_COMMAND(CallCreateProcessAsUser);
 
 #undef IF_COMMAND1
 #undef IF_COMMAND2

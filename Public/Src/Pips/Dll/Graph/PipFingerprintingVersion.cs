@@ -82,6 +82,7 @@ namespace BuildXL.Pips.Graph
         /// 105: Add observation reclassification rules
         /// 106: Add IgnoreUntrackedPathsInFullReparsePointResolving
         /// 107: Detours transacted file operations
+        /// NOTE: When adding version 108, please also include UnsafeSandboxConfiguration.MonitorCreateProcessAsUser
         /// </remarks>
         TwoPhaseV2 = 107,
     }

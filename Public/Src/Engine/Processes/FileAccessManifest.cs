@@ -108,6 +108,7 @@ namespace BuildXL.Processes
             UnconditionallyEnableLinuxPTraceSandbox = false;
             IgnoreDeviceIoControlGetReparsePoint = true;
             IgnoreGetFinalPathNameByHandle = true;
+            MonitorCreateProcessAsUser = false;
         }
 
         private bool GetFlag(FileAccessManifestFlag flag) => (m_fileAccessManifestFlag & flag) != 0;
@@ -549,6 +550,18 @@ namespace BuildXL.Processes
         {
             get => GetExtraFlag(FileAccessManifestExtraFlag.IgnoreDeviceIoControlGetReparsePoint);
             set => SetExtraFlag(FileAccessManifestExtraFlag.IgnoreDeviceIoControlGetReparsePoint, value);
+        }
+
+        /// <summary>
+        /// When enabled, monitor CreateProcessAsUser calls in Detours.
+        /// </summary>
+        /// <remarks>
+        /// Only applicable on Windows
+        /// </remarks>
+        public bool MonitorCreateProcessAsUser
+        {
+            get => GetExtraFlag(FileAccessManifestExtraFlag.MonitorCreateProcessAsUser);
+            set => SetExtraFlag(FileAccessManifestExtraFlag.MonitorCreateProcessAsUser, value);
         }
 
         /// <summary>
@@ -1336,6 +1349,7 @@ namespace BuildXL.Processes
             UnconditionallyEnableLinuxPTraceSandbox = 0x20,
             IgnoreDeviceIoControlGetReparsePoint = 0x40,
             IgnoreUntrackedPathsInFullReparsePointResolving = 0x80,
+            MonitorCreateProcessAsUser = 0x100,
         }
 
         private readonly struct FileAccessScope

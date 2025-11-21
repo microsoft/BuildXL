@@ -95,7 +95,8 @@ namespace Test.BuildXL.Processes.Detours
             List<AbsolutePath> directoriesToEnableFullReparsePointParsing = null,
             bool preserveFileSharingBehaviour = false,
             bool ignoreDeviceIoControlGetReparsePoint = true,
-            DirectoryTranslator directoryTranslator = null)
+            DirectoryTranslator directoryTranslator = null,
+            bool monitorCreateProcessAsUser = false)
         {
             errorString = null;
             directoryTranslator ??= CreateDirectoryTranslator(context, directoriesToTranslate);
@@ -125,6 +126,7 @@ namespace Test.BuildXL.Processes.Detours
                     MonitorZwCreateOpenQueryFile = monitorZwCreateOpenQueryFile,
                     IgnorePreloadedDlls = ignorePreloadedDlls,
                     ProbeDirectorySymlinkAsDirectory = probeDirectorySymlinkAsDirectory,
+                    MonitorCreateProcessAsUser = monitorCreateProcessAsUser,
                 },
                 EnforceAccessPoliciesOnDirectoryCreation = enforceAccessPoliciesOnDirectoryCreation,
                 FailUnexpectedFileAccesses = unexpectedFileAccessesAreErrors,
@@ -8053,6 +8055,53 @@ namespace Test.BuildXL.Processes.Detours
 
                 VerifyFileAccesses(context, result.AllReportedFileAccesses, expectedFileAccesses.ToArray());
             }
+        }
+
+        [Fact]
+        public async Task CallCreateProcessAsUser()
+        {
+            var context = BuildXLContext.CreateInstanceForTesting();
+            var pathTable = context.PathTable;
+
+            using var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory);
+            var optionalOutput = tempFiles.GetFileName("optionalOutput");
+            var optionalOutputPath = AbsolutePath.Create(pathTable, optionalOutput);
+
+            var process = CreateDetourProcess(
+                context,
+                pathTable,
+                tempFiles,
+                argumentStr: "CallCreateProcessAsUser",
+                inputFiles: ReadOnlyArray<FileArtifact>.Empty,
+                inputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                outputFiles: ReadOnlyArray<FileArtifactWithAttributes>.FromWithoutCopy(
+                    [FileArtifactWithAttributes.Create(FileArtifact.CreateOutputFile(optionalOutputPath), FileExistence.Optional)]),
+                outputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                untrackedScopes: ReadOnlyArray<AbsolutePath>.Empty);
+
+            SandboxedProcessPipExecutionResult result = await RunProcessAsync(
+                pathTable: pathTable,
+                ignoreSetFileInformationByHandle: false,
+                ignoreZwRenameFileInformation: false,
+                monitorNtCreate: true,
+                ignoreReparsePoints: false,
+                disableDetours: false,
+                context: context,
+                pip: process,
+                errorString: out _,
+                unexpectedFileAccessesAreErrors: false,
+                ignoreFullReparsePointResolving: false,
+                ignoreDeviceIoControlGetReparsePoint: false,
+                monitorCreateProcessAsUser: true);
+
+            VerifyNormalSuccess(context, result);
+
+            XAssert.IsTrue(
+                result.AllReportedFileAccesses
+                    .Where(a => a.Path == @"C:\Windows\System32\cmd.exe" && a.Operation == ReportedFileOperation.CreateProcess)
+                    .Any(),
+                string.Join(Environment.NewLine, result.AllReportedFileAccesses.Select(a => a.Describe()))
+            );
         }
 
         private static Process CreateDetourProcess(

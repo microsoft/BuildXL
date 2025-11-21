@@ -281,6 +281,8 @@ vector<ShimProcessMatch*>* g_pShimProcessMatches = nullptr;
 
 CreateProcessW_t Real_CreateProcessW;
 CreateProcessA_t Real_CreateProcessA;
+CreateProcessAsUserW_t Real_CreateProcessAsUserW;
+CreateProcessAsUserA_t Real_CreateProcessAsUserA;
 CreateFileW_t Real_CreateFileW;
 
 RtlFreeHeap_t Real_RtlFreeHeap;
@@ -483,6 +485,7 @@ void LogEventLogMessage(const std::wstring& a_msg,
 CreateDetouredProcessStatus
 WINAPI
 InternalCreateDetouredProcess(
+    HANDLE hToken,
     LPCWSTR lpApplicationName,
     LPWSTR lpCommandLine,
     LPSECURITY_ATTRIBUTES lpProcessAttributes,
@@ -496,6 +499,7 @@ InternalCreateDetouredProcess(
     DetouredProcessInjector *pInjector,
     LPPROCESS_INFORMATION lpProcessInformation,
     CreateProcessW_t pfCreateProcessW,
+    CreateProcessAsUserW_t pfCreateProcessAsUserW,
     bool hardExitOnDetoursErrorIfEnabled)
 {
     // No detours should be called recursively from here.
@@ -555,17 +559,30 @@ InternalCreateDetouredProcess(
     while (true)
     {
         // Create the process as requested, but make sure it's suspended
-        fProcCreated = pfCreateProcessW(
-            lpApplicationName,
-            lpCommandLine,
-            lpProcessAttributes,
-            lpThreadAttributes,
-            bInheritHandles,
-            creationFlags,
-            lpEnvironment,
-            lpcwWorkingDirectory,
-            lpStartupInfo,
-            lpProcessInformation);
+        fProcCreated = hToken == nullptr
+            ? pfCreateProcessW(
+                lpApplicationName,
+                lpCommandLine,
+                lpProcessAttributes,
+                lpThreadAttributes,
+                bInheritHandles,
+                creationFlags,
+                lpEnvironment,
+                lpcwWorkingDirectory,
+                lpStartupInfo,
+                lpProcessInformation)
+            : pfCreateProcessAsUserW(
+                hToken,
+                lpApplicationName,
+                lpCommandLine,
+                lpProcessAttributes,
+                lpThreadAttributes,
+                bInheritHandles,
+                creationFlags,
+                lpEnvironment,
+                lpcwWorkingDirectory,
+                lpStartupInfo,
+                lpProcessInformation);
 
         if (fProcCreated == 0) // Failed
         {
@@ -949,6 +966,7 @@ CreateDetouredProcess(
     // Here we pass in the public CreateProcessW entry point as we are not within the
     // detour of CreateProcessW but rather doing one of our own.
     CreateDetouredProcessStatus status = InternalCreateDetouredProcess(
+        /* hToken */ NULL,
         /* lpApplicationName */ NULL,
         /* lpCommandLine */ buffer.get(),
         /* lpProcessAttributes */ NULL,
@@ -962,6 +980,7 @@ CreateDetouredProcess(
         injector,
         &pi,
         CreateProcessW,
+        CreateProcessAsUserW,
         /* hardExitOnDetoursErrorIfEnCaabled */ false // CreateDetouredProcess is a standalone API, and the caller should rely on the returned status and the error code of InternalCreateDetouredProcess.
     );
 
@@ -1210,6 +1229,8 @@ static bool DllProcessAttach()
 #pragma warning( disable : 5039)
         ATTACH(CreateProcessA);
         ATTACH(CreateProcessW);
+        ATTACH(CreateProcessAsUserA);
+        ATTACH(CreateProcessAsUserW);
 
         if (GetProcessKind() != SpecialProcessKind::WinDbg) {
             ATTACH(CreateFileW);

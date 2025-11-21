@@ -2733,18 +2733,18 @@ static bool ShouldBreakawayFromJob(const CanonicalizedPath& fullApplicationPath,
     return false;
 }
 
-IMPLEMENTED(Detoured_CreateProcessW)
-BOOL WINAPI Detoured_CreateProcessW(
-    _In_opt_    LPCWSTR               lpApplicationName,
-    _Inout_opt_ LPWSTR                lpCommandLine,
-    _In_opt_    LPSECURITY_ATTRIBUTES lpProcessAttributes,
-    _In_opt_    LPSECURITY_ATTRIBUTES lpThreadAttributes,
-    _In_        BOOL                  bInheritHandles,
-    _In_        DWORD                 dwCreationFlags,
-    _In_opt_    LPVOID                lpEnvironment,
-    _In_opt_    LPCWSTR               lpCurrentDirectory,
-    _In_        LPSTARTUPINFOW        lpStartupInfo,
-    _Out_       LPPROCESS_INFORMATION lpProcessInformation)
+BOOL WINAPI Detoured_CreateProcessCommonW(
+    _In_opt_      HANDLE                hToken,
+    _In_opt_      LPCWSTR               lpApplicationName,
+    _Inout_opt_   LPWSTR                lpCommandLine,
+    _In_opt_      LPSECURITY_ATTRIBUTES lpProcessAttributes,
+    _In_opt_      LPSECURITY_ATTRIBUTES lpThreadAttributes,
+    _In_          BOOL                  bInheritHandles,
+    _In_          DWORD                 dwCreationFlags,
+    _In_opt_      LPVOID                lpEnvironment,
+    _In_opt_      LPCWSTR               lpCurrentDirectory,
+    _In_          LPSTARTUPINFOW        lpStartupInfo,
+    _Out_         LPPROCESS_INFORMATION lpProcessInformation)
 {
     bool injectedShim = false;
     BOOL ret = MaybeInjectSubstituteProcessShim(
@@ -2769,17 +2769,30 @@ BOOL WINAPI Detoured_CreateProcessW(
 
     if (!MonitorChildProcesses() || scope.Detoured_IsDisabled())
     {
-        return Real_CreateProcessW(
-            lpApplicationName,
-            lpCommandLine,
-            lpProcessAttributes,
-            lpThreadAttributes,
-            bInheritHandles,
-            dwCreationFlags,
-            lpEnvironment,
-            lpCurrentDirectory,
-            lpStartupInfo,
-            lpProcessInformation);
+        return hToken == nullptr
+            ? Real_CreateProcessW(
+                lpApplicationName,
+                lpCommandLine,
+                lpProcessAttributes,
+                lpThreadAttributes,
+                bInheritHandles,
+                dwCreationFlags,
+                lpEnvironment,
+                lpCurrentDirectory,
+                lpStartupInfo,
+                lpProcessInformation)
+            : Real_CreateProcessAsUserW(
+                hToken,
+                lpApplicationName,
+                lpCommandLine,
+                lpProcessAttributes,
+                lpThreadAttributes,
+                bInheritHandles,
+                dwCreationFlags,
+                lpEnvironment,
+                lpCurrentDirectory,
+                lpStartupInfo,
+                lpProcessInformation);
     }
 
     CanonicalizedPath imagePath = GetImagePath(lpApplicationName, lpCommandLine);
@@ -2788,19 +2801,34 @@ BOOL WINAPI Detoured_CreateProcessW(
     {
         // If the process to be created is configured to breakaway from the current
         // job object, we use the regular process creation, and set the breakaway flag.
-        return Real_CreateProcessW(
-            lpApplicationName,
-            lpCommandLine,
-            lpProcessAttributes,
-            lpThreadAttributes,
-            // Since this process will be detached from the job, and could survive the parent, we don't
-            // want any handle inheritance to happen
-            /*bInheritHandles*/ FALSE,
-            dwCreationFlags | CREATE_BREAKAWAY_FROM_JOB,
-            lpEnvironment,
-            lpCurrentDirectory,
-            lpStartupInfo,
-            lpProcessInformation);
+        return hToken == nullptr
+            ? Real_CreateProcessW(
+                lpApplicationName,
+                lpCommandLine,
+                lpProcessAttributes,
+                lpThreadAttributes,
+                // Since this process will be detached from the job, and could survive the parent, we don't
+                // want any handle inheritance to happen
+                /*bInheritHandles*/ FALSE,
+                dwCreationFlags | CREATE_BREAKAWAY_FROM_JOB,
+                lpEnvironment,
+                lpCurrentDirectory,
+                lpStartupInfo,
+                lpProcessInformation)
+            : Real_CreateProcessAsUserW(
+                hToken,
+                lpApplicationName,
+                lpCommandLine,
+                lpProcessAttributes,
+                lpThreadAttributes,
+                // Since this process will be detached from the job, and could survive the parent, we don't
+                // want any handle inheritance to happen
+                /*bInheritHandles*/ FALSE,
+                dwCreationFlags | CREATE_BREAKAWAY_FROM_JOB,
+                lpEnvironment,
+                lpCurrentDirectory,
+                lpStartupInfo,
+                lpProcessInformation);;
     }
 
     FileOperationContext operationContext = FileOperationContext::CreateForRead(L"CreateProcess", !imagePath.IsNull() ? imagePath.GetPathString() : L"");
@@ -2851,6 +2879,7 @@ BOOL WINAPI Detoured_CreateProcessW(
         retryCreateProcess = false;
         // Make sure we pass the Real_CreateProcessW such that it calls into the prior entry point
         CreateDetouredProcessStatus status = InternalCreateDetouredProcess(
+            hToken,
             lpApplicationName,
             lpCommandLine,
             lpProcessAttributes,
@@ -2864,6 +2893,7 @@ BOOL WINAPI Detoured_CreateProcessW(
             g_pDetouredProcessInjector,
             lpProcessInformation,
             Real_CreateProcessW,
+            Real_CreateProcessAsUserW,
             // If enabled in the manifest, hard exit on Detours error on the final retry.
             retryCount == RETRY_DETOURING_PROCESS_COUNT);
 
@@ -2925,6 +2955,33 @@ BOOL WINAPI Detoured_CreateProcessW(
     return TRUE;
 }
 
+IMPLEMENTED(Detoured_CreateProcessW)
+BOOL WINAPI Detoured_CreateProcessW(
+    _In_opt_    LPCWSTR               lpApplicationName,
+    _Inout_opt_ LPWSTR                lpCommandLine,
+    _In_opt_    LPSECURITY_ATTRIBUTES lpProcessAttributes,
+    _In_opt_    LPSECURITY_ATTRIBUTES lpThreadAttributes,
+    _In_        BOOL                  bInheritHandles,
+    _In_        DWORD                 dwCreationFlags,
+    _In_opt_    LPVOID                lpEnvironment,
+    _In_opt_    LPCWSTR               lpCurrentDirectory,
+    _In_        LPSTARTUPINFOW        lpStartupInfo,
+    _Out_       LPPROCESS_INFORMATION lpProcessInformation)
+{
+    return Detoured_CreateProcessCommonW(
+        nullptr,
+        lpApplicationName,
+        lpCommandLine,
+        lpProcessAttributes,
+        lpThreadAttributes,
+        bInheritHandles,
+        dwCreationFlags,
+        lpEnvironment,
+        lpCurrentDirectory,
+        lpStartupInfo,
+        lpProcessInformation);
+}
+
 IMPLEMENTED(Detoured_CreateProcessA)
 BOOL WINAPI Detoured_CreateProcessA(
     _In_opt_    LPCSTR                lpApplicationName,
@@ -2984,6 +3041,109 @@ BOOL WINAPI Detoured_CreateProcessA(
     startupInfo.hStdError = lpStartupInfo->hStdError;
 
     BOOL result = Detoured_CreateProcessW(
+        applicationName,
+        commandLine.GetMutableString(),
+        lpProcessAttributes,
+        lpThreadAttributes,
+        bInheritHandles,
+        dwCreationFlags,
+        lpEnvironment,
+        currentDirectory,
+        &startupInfo,
+        lpProcessInformation);
+
+    return result;
+}
+
+IMPLEMENTED(Detoured_CreateProcessAsUserW)
+BOOL WINAPI Detoured_CreateProcessAsUserW(
+    _In_opt_    HANDLE                hToken,
+    _In_opt_    LPCWSTR               lpApplicationName,
+    _Inout_opt_ LPWSTR                lpCommandLine,
+    _In_opt_    LPSECURITY_ATTRIBUTES lpProcessAttributes,
+    _In_opt_    LPSECURITY_ATTRIBUTES lpThreadAttributes,
+    _In_        BOOL                  bInheritHandles,
+    _In_        DWORD                 dwCreationFlags,
+    _In_opt_    LPVOID                lpEnvironment,
+    _In_opt_    LPCWSTR               lpCurrentDirectory,
+    _In_        LPSTARTUPINFOW        lpStartupInfo,
+    _Out_       LPPROCESS_INFORMATION lpProcessInformation)
+{
+    Dbg(L"Detoured_CreateProcessAsUserW called");
+    // TODO: Remove this flag once testing is complete.
+    if (!MonitorCreateProcessAsUser())
+    {
+        return Real_CreateProcessAsUserW(
+            hToken,
+            lpApplicationName,
+            lpCommandLine,
+            lpProcessAttributes,
+            lpThreadAttributes,
+            bInheritHandles,
+            dwCreationFlags,
+            lpEnvironment,
+            lpCurrentDirectory,
+            lpStartupInfo,
+            lpProcessInformation);
+    }
+
+    return Detoured_CreateProcessCommonW(
+        hToken,
+        lpApplicationName,
+        lpCommandLine,
+        lpProcessAttributes,
+        lpThreadAttributes,
+        bInheritHandles,
+        dwCreationFlags,
+        lpEnvironment,
+        lpCurrentDirectory,
+        lpStartupInfo,
+        lpProcessInformation);
+}
+
+IMPLEMENTED(Detoured_CreateProcessAsUserA)
+BOOL WINAPI Detoured_CreateProcessAsUserA(
+    _In_opt_    HANDLE                hToken,
+    _In_opt_    LPCSTR                lpApplicationName,
+    _Inout_opt_ LPSTR                 lpCommandLine,
+    _In_opt_    LPSECURITY_ATTRIBUTES lpProcessAttributes,
+    _In_opt_    LPSECURITY_ATTRIBUTES lpThreadAttributes,
+    _In_        BOOL                  bInheritHandles,
+    _In_        DWORD                 dwCreationFlags,
+    _In_opt_    LPVOID                lpEnvironment,
+    _In_opt_    LPCSTR                lpCurrentDirectory,
+    _In_        LPSTARTUPINFOA        lpStartupInfo,
+    _Out_       LPPROCESS_INFORMATION lpProcessInformation)
+{
+    UnicodeConverter applicationName(lpApplicationName);
+    UnicodeConverter commandLine(lpCommandLine);
+    UnicodeConverter currentDirectory(lpCurrentDirectory);
+
+    UnicodeConverter desktop(lpStartupInfo->lpDesktop);
+    UnicodeConverter title(lpStartupInfo->lpTitle);
+
+    STARTUPINFOW startupInfo;
+    startupInfo.cb = sizeof(STARTUPINFOW);
+    startupInfo.lpReserved = NULL;
+    startupInfo.lpDesktop = desktop.GetMutableString();
+    startupInfo.lpTitle = title.GetMutableString();
+    startupInfo.dwX = lpStartupInfo->dwX;
+    startupInfo.dwY = lpStartupInfo->dwY;
+    startupInfo.dwXSize = lpStartupInfo->dwXSize;
+    startupInfo.dwYSize = lpStartupInfo->dwYSize;
+    startupInfo.dwXCountChars = lpStartupInfo->dwXCountChars;
+    startupInfo.dwYCountChars = lpStartupInfo->dwYCountChars;
+    startupInfo.dwFillAttribute = lpStartupInfo->dwFillAttribute;
+    startupInfo.dwFlags = lpStartupInfo->dwFlags;
+    startupInfo.wShowWindow = lpStartupInfo->wShowWindow;
+    startupInfo.cbReserved2 = lpStartupInfo->cbReserved2;
+    startupInfo.lpReserved2 = lpStartupInfo->lpReserved2;
+    startupInfo.hStdInput = lpStartupInfo->hStdInput;
+    startupInfo.hStdOutput = lpStartupInfo->hStdOutput;
+    startupInfo.hStdError = lpStartupInfo->hStdError;
+
+    BOOL result = Detoured_CreateProcessAsUserW(
+        hToken,
         applicationName,
         commandLine.GetMutableString(),
         lpProcessAttributes,

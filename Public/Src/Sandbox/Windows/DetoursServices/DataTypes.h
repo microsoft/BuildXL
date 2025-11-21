@@ -109,7 +109,8 @@ inline bool CheckReportAnyAccess(FileAccessManifestFlag flags, bool accessDenied
     m(AlwaysRemoteInjectDetoursFrom32BitProcess,        0x10) \
     m(UnconditionallyEnableLinuxPTraceSandbox,          0x20) \
     m(IgnoreDeviceIoControlGetReparsePoint,             0x40) \
-    m(IgnoreUntrackedPathsInFullReparsePointResolving,  0x80)
+    m(IgnoreUntrackedPathsInFullReparsePointResolving,  0x80) \
+    m(MonitorCreateProcessAsUser,                       0x100)
 
 enum class FileAccessManifestExtraFlag {
     FOR_ALL_FAM_EXTRA_FLAGS(GEN_FAM_FLAG_ENUM_NAME_VALUE)

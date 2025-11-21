@@ -53,6 +53,7 @@ enum class CreateDetouredProcessStatus : int {
 CreateDetouredProcessStatus
 WINAPI
 InternalCreateDetouredProcess(
+    HANDLE hToken,
     LPCWSTR lpApplicationName,
     LPWSTR lpCommandLine,
     LPSECURITY_ATTRIBUTES lpProcessAttributes,
@@ -66,6 +67,7 @@ InternalCreateDetouredProcess(
     DetouredProcessInjector *injector,
     LPPROCESS_INFORMATION lpProcessInformation,
     CreateProcessW_t pfCreateProcessW,
+    CreateProcessAsUserW_t pfCreateProcessAsUserW,
     bool hardExitOnDetoursErrorIfEnabled
 );
 

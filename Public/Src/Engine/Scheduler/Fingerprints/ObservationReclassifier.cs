@@ -206,12 +206,12 @@ namespace BuildXL.Scheduler.Fingerprints
                         errorBuilder.AppendLine("'All' is not a valid target for a reclassification");
                         hasErrors = true;
                     }
-                    else if (t == ObservationType.FileContentRead && rule.ResolvedObservationTypes.Any(s => s != ObservationType.FileContentRead || s != ObservationType.ExistingFileProbe))
+                    else if (t == ObservationType.FileContentRead && rule.ResolvedObservationTypes.Any(s => s != ObservationType.FileContentRead && s != ObservationType.ExistingFileProbe))
                     {
                         errorBuilder.AppendLine($"'{ObservationType.FileContentRead}' can only be reclassified from '{ObservationType.FileContentRead} or '{ObservationType.ExistingFileProbe}'");
                         hasErrors = true;
                     }
-                    else if (t == ObservationType.DirectoryEnumeration && rule.ResolvedObservationTypes.Any(s => s != ObservationType.DirectoryEnumeration || s != ObservationType.ExistingDirectoryProbe))
+                    else if (t == ObservationType.DirectoryEnumeration && rule.ResolvedObservationTypes.Any(s => s != ObservationType.DirectoryEnumeration && s != ObservationType.ExistingDirectoryProbe))
                     {
                         errorBuilder.AppendLine($"'{ObservationType.DirectoryEnumeration}' can only be reclassified from '{ObservationType.DirectoryEnumeration} or '{ObservationType.ExistingDirectoryProbe}'");
                         hasErrors = true;

@@ -102,6 +102,32 @@ namespace IntegrationTest.BuildXL.Scheduler
                     ]));
         }
 
+        [Theory]
+        [InlineData(true, ObservationType.ExistingFileProbe, ObservationType.FileContentRead)]
+        [InlineData(false, ObservationType.DirectoryEnumeration, ObservationType.FileContentRead)]
+        [InlineData(true, ObservationType.ExistingDirectoryProbe, ObservationType.DirectoryEnumeration)]
+        [InlineData(false, ObservationType.FileContentRead, ObservationType.DirectoryEnumeration)]
+        public void InvalidTranslationTest(bool expectValid, ObservationType from, ObservationType to)
+        {
+            var rules = new ObservationReclassifier();
+            var reclassificationRule = new ReclassificationRule()
+            {
+                PathRegex = "DIR",
+                Name = "MyRuleName",
+                ResolvedObservationTypes = [from],
+                ReclassifyTo = Rt(to)
+            };
+
+            if (expectValid)
+            {
+                rules.Initialize([ reclassificationRule ]);
+            }
+            else
+            {
+                Assert.Throws<BuildXLException>(() => rules.Initialize([reclassificationRule]));
+            }
+        }
+
         [Fact]
         public void Serialization()
         {

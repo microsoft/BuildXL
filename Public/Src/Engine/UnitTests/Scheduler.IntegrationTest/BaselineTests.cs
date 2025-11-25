@@ -2833,6 +2833,54 @@ namespace IntegrationTest.BuildXL.Scheduler
             }
         }
 
+        [Theory]
+        [InlineData(FileSystemMode.RealAndMinimalPipGraph)]
+        [InlineData(FileSystemMode.RealAndPipGraph)]
+        public void FullGraphDirectoryEnumerationsExcludeUntrackedScopes(FileSystemMode fileSystemMode)
+        {
+            var dirPath = AbsolutePath.Create(Context.PathTable, Path.Combine(SourceRoot, "dir"));
+            var dirToEnumerate = CreateAndScheduleSealDirectoryArtifact(dirPath, SealDirectoryKind.SourceAllDirectories);
+            Directory.CreateDirectory(dirToEnumerate.Path.ToString(Context.PathTable));
+
+            var globalUntrackedScope = DirectoryArtifact.CreateWithZeroPartialSealId(dirPath.Combine(Context.PathTable, "globalUntrackedDir"));
+            Directory.CreateDirectory(globalUntrackedScope.Path.ToString(Context.PathTable));
+
+            var pipUntrackedScope = DirectoryArtifact.CreateWithZeroPartialSealId(dirPath.Combine(Context.PathTable, "pipUntrackedDir"));
+            Directory.CreateDirectory(pipUntrackedScope.Path.ToString(Context.PathTable));
+
+            var pipUntrackedScope2 = DirectoryArtifact.CreateWithZeroPartialSealId(dirPath.Combine(Context.PathTable, "pipUntrackedDir2"));
+
+            Configuration.Sandbox.FileSystemMode = fileSystemMode;
+            Configuration.Sandbox.GlobalUnsafeUntrackedScopes = [globalUntrackedScope.Path];
+
+            var builder = CreatePipBuilder(new Operation[]
+            {
+                Operation.EnumerateDir(dirToEnumerate),
+                Operation.WriteFile(CreateOutputFileArtifact()) // dummy output
+            });
+            builder.AddUntrackedDirectoryScope(pipUntrackedScope);
+            builder.AddUntrackedDirectoryScope(pipUntrackedScope2);
+            builder.AddInputDirectory(dirToEnumerate);
+
+            var pip = SchedulePipBuilder(builder);
+
+            var result = RunScheduler().AssertSuccess();
+            result.AssertObservation(pip.Process.PipId, new ObservedPathEntry(dirPath, ObservedPathEntryFlags.DirectoryEnumeration, "*"));
+
+            Directory.CreateDirectory(pipUntrackedScope2.Path.ToString(Context.PathTable));
+            RunScheduler().AssertCacheHit(pip.Process.PipId);
+
+            Directory.Delete(globalUntrackedScope.Path.ToString(Context.PathTable), recursive: true);
+            RunScheduler().AssertCacheHit(pip.Process.PipId);
+
+            Directory.Delete(pipUntrackedScope.Path.ToString(Context.PathTable), recursive: true);
+            RunScheduler().AssertCacheHit(pip.Process.PipId);
+
+            var trackedDirectory = DirectoryArtifact.CreateWithZeroPartialSealId(dirPath.Combine(Context.PathTable, "trackedDir"));
+            Directory.CreateDirectory(trackedDirectory.Path.ToString(Context.PathTable));
+            RunScheduler().AssertCacheMiss(pip.Process.PipId);
+        }
+
         private Operation ProbeOp(string root, string relativePath = "")
         {
             return Operation.Probe(CreateFileArtifactWithName(root: root, name: relativePath), doNotInfer: true);

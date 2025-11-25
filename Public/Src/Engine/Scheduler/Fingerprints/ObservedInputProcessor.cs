@@ -2150,7 +2150,7 @@ namespace BuildXL.Scheduler.Fingerprints
                             result = m_env.State.DirectoryMembershipFingerprinter.TryComputeDirectoryFingerprint(
                                 directoryPath,
                                 process,
-                                TryEnumerateDirectoryWithFullGraph,
+                                TryEnumerateDirectoryWithFullGraph(process),
                                 cacheableFingerprint: cacheableFingerprint,
                                 rule: rule,
                                 eventData: eventData);
@@ -2193,7 +2193,7 @@ namespace BuildXL.Scheduler.Fingerprints
                     default:
                         Contract.Assert(enumerationMode == DirectoryEnumerationMode.RealFilesystem);
 
-                        var enumerateFunc = trackPathExistence ? (Func<EnumerationRequest, PathExistence?>) TryEnumerateAndTrackDirectoryWithFilesystem : TryEnumerateDirectoryWithFilesystem;
+                        var enumerateFunc = trackPathExistence ? (Func<EnumerationRequest, PathExistence?>) TryEnumerateAndTrackDirectoryWithFilesystem(process) : TryEnumerateDirectoryWithFilesystem(process);
                         using (Counters.StartStopwatch(PipExecutorCounter.RealFilesystemDirectoryEnumerationsDuration))
                         {
                             eventData.IsStatic = false;
@@ -2246,19 +2246,36 @@ namespace BuildXL.Scheduler.Fingerprints
 
         #region Methods for performing directory enumeration
 
-        private PathExistence? TryEnumerateAndTrackDirectoryWithFilesystem(EnumerationRequest request)
+        private Func<EnumerationRequest, PathExistence?> TryEnumerateAndTrackDirectoryWithFilesystem(CacheablePipInfo process)
         {
-            return TryEnumerateDirectory(request, FileSystemViewMode.Real);
+            return TryEnumerateCommon(process, FileSystemViewMode.Real);
         }
 
-        private PathExistence? TryEnumerateDirectoryWithFilesystem(EnumerationRequest request)
+        private Func<EnumerationRequest, PathExistence?> TryEnumerateDirectoryWithFilesystem(CacheablePipInfo process)
         {
-            return TryEnumerateDirectory(request, FileSystemViewMode.Real, trackPathExistence: false);
+            return TryEnumerateCommon(process, FileSystemViewMode.Real, trackPathExistence: false);
         }
 
-        private PathExistence? TryEnumerateDirectoryWithFullGraph(EnumerationRequest request)
+        private Func<EnumerationRequest, PathExistence?> TryEnumerateDirectoryWithFullGraph(CacheablePipInfo process)
         {
-            return TryEnumerateDirectory(request, FileSystemViewMode.FullGraph, trackPathExistence: false);
+            return TryEnumerateCommon(process, FileSystemViewMode.FullGraph, trackPathExistence: false);
+        }
+
+        private Func<EnumerationRequest, PathExistence?> TryEnumerateCommon(CacheablePipInfo process, FileSystemViewMode view, bool trackPathExistence = true)
+        {
+            return (request =>
+            {
+                var untrackedDirectoryScopes = process.UnderlyingPip.PipType == PipType.Process
+                        ? (process.UnderlyingPip as Process).UntrackedScopes
+                        : ReadOnlyArray<AbsolutePath>.Empty;
+
+                return TryEnumerateDirectory(
+                    request,
+                    view,
+                    trackPathExistence: trackPathExistence,
+                    pipUntrackedDirectoryScopes: untrackedDirectoryScopes,
+                    globalUntrackedDirectoryScopes: m_env.TranslatedGlobalUnsafeUntrackedScopes.ToArray());
+            });
         }
 
         private Func<EnumerationRequest, PathExistence?> TryEnumerateDirectoryWithMinimalGraphWithAlienFiles(
@@ -2323,6 +2340,12 @@ namespace BuildXL.Scheduler.Fingerprints
                                     {
                                         continue;
                                     }
+
+                                    // NOTE: We only check if the full path matches against untracked directory scopes here
+                                    // this is because directory enumerations only return direct children of the enumerated directory
+                                    // and not members under nested directories.
+                                    // Additionally, if an enumerated directory is an untracked scope then it is ignored anyways.
+                                    // Therefore it is not necessary to check if any of the paths have a parent that is a untracked scope.
 
                                     // If the entry is globally untracked, then it should be invisible for the enumeration
                                     // Observe that since this is a global collection of untracked scopes, excluding this entry makes sense for all pips
@@ -2455,13 +2478,49 @@ namespace BuildXL.Scheduler.Fingerprints
         /// <param name="trackPathExistence">
         /// Whether the existence of paths discovered during the enumeration should be tracked to optimize scheduling in future builds.
         /// </param>
-        private PathExistence? TryEnumerateDirectory(EnumerationRequest request, FileSystemViewMode mode, bool trackPathExistence = true)
+        /// <param name="pipUntrackedDirectoryScopes">List of untracked directory scopes to exclude from the enumeration.</param>
+        /// <param name="globalUntrackedDirectoryScopes">List of global untracked directory scopes to exclude from the enumeration.</param>
+        private PathExistence? TryEnumerateDirectory(
+            EnumerationRequest request,
+            FileSystemViewMode mode,
+            bool trackPathExistence = true,
+            ReadOnlyArray<AbsolutePath> pipUntrackedDirectoryScopes = default,
+            ReadOnlyArray<AbsolutePath> globalUntrackedDirectoryScopes = default)
         {
             var directoryContents = GetEnumerationResult(request, mode, trackPathExistence: trackPathExistence);
-            var path = request.DirectoryPath;
             var handleEntry = FilteredHandledEntry(request.HandleEntry);
+            var mutableDirectoryContents = new List<DirectoryMemberEntry>();
 
-            return HandleDirectoryContents(request, directoryContents, handleEntry);
+            // Perform any additional filtering on the enumeration if needed
+            if (directoryContents.IsValid)
+            {
+                foreach (var entry in directoryContents.Members)
+                {
+                    // NOTE: We only check if the full path matches against untracked directory scopes here
+                    // this is because directory enumerations only return direct children of the enumerated directory
+                    // and not members under nested directories.
+                    // Additionally, if an enumerated directory is an untracked scope then it is ignored anyways.
+                    // Therefore it is not necessary to check if any of the paths have a parent that is a untracked scope.
+
+                    // If the directory entry is part of a provided untracked scope, then exclude it
+                    if (pipUntrackedDirectoryScopes != default && pipUntrackedDirectoryScopes.Contains(entry.Item1))
+                    {
+                        continue;
+                    }
+
+                    // Similarly, if the directory entry is part of a global untracked scope, exclude it
+                    if (globalUntrackedDirectoryScopes != default && globalUntrackedDirectoryScopes.Contains(entry.Item1))
+                    {
+                        continue;
+                    }
+
+                    mutableDirectoryContents.Add(entry);
+                }
+            }
+
+            var filteredDirectoryContents = new DirectoryEnumerationResult(directoryContents.Existence, mutableDirectoryContents);
+
+            return HandleDirectoryContents(request, filteredDirectoryContents, handleEntry);
         }
 
         private PathExistence? HandleDirectoryContents(EnumerationRequest request, DirectoryEnumerationResult directoryContents, Action<AbsolutePath, string> handleEntry)

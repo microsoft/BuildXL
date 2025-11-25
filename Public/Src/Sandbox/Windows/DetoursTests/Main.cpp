@@ -18,6 +18,7 @@ using namespace std;
 #include "Timestamps.h"
 #include "CorrelationCalls.h"
 #include "Utils.h"
+#include <ktmw32.h>
 
 // ----------------------------------------------------------------------------
 // DEFINES
@@ -34,7 +35,13 @@ using namespace std;
 // warning C26493: Don't use C-style casts (type.4).
 // warning C26446: Prefer to use gsl::at() instead of unchecked subscript operator (bounds.4).
 // warning C26812: The enum type '_FILE_INFORMATION_CLASS' is unscoped. Prefer 'enum class' over 'enum' (Enum.3).
-#pragma warning( disable : 26472 26410 26415 26485 26490 26493 26414 26446 26812 )
+// warning C26440: Function 'CallCreateFile3' can be declared 'noexcept' (f.6).
+#pragma warning( disable : 26472 26410 26415 26485 26490 26493 26414 26446 26812 26440 )
+
+// TODO: remove this once the windows SDK is updated to version 26100 or newer
+#ifndef NTDDI_WIN11_GE
+#define NTDDI_WIN11_GE 0x0A000010
+#endif
 
 // Generic tests.
 int CallCreateNamedPipeTest()
@@ -1295,6 +1302,262 @@ int CallCreateProcessAsUser()
     return ERROR_SUCCESS;
 }
 
+int CallCreateFile2()
+{
+    wstring fullPath;
+    if (!TryGetFullPath(L"input/CreateFile2.txt", fullPath))
+    {
+        return static_cast<int>(GetLastError());
+    }
+
+    CREATEFILE2_EXTENDED_PARAMETERS extendedParams = { 0 };
+    extendedParams.dwSize = sizeof(CREATEFILE2_EXTENDED_PARAMETERS);
+    extendedParams.dwFileAttributes = FILE_ATTRIBUTE_NORMAL;
+    extendedParams.dwFileFlags = 0;
+    extendedParams.dwSecurityQosFlags = 0;
+    extendedParams.lpSecurityAttributes = NULL;
+    extendedParams.hTemplateFile = NULL;
+
+    HANDLE hFile = CreateFile2(
+        fullPath.c_str(),
+        GENERIC_WRITE,
+        FILE_SHARE_DELETE,
+        CREATE_ALWAYS,
+        &extendedParams);
+
+    if (hFile == INVALID_HANDLE_VALUE)
+    {
+        return static_cast<int>(GetLastError());
+    }
+
+    CloseHandle(hFile);
+    return 0;
+}
+
+int CallCreateFile3()
+{
+#if defined(NTDDI_VERSION) && NTDDI_VERSION >= NTDDI_WIN11_GE
+    wstring fullPath;
+    if (!TryGetFullPath(L"input/CreateFile3.txt", fullPath))
+    {
+        return static_cast<int>(GetLastError());
+    }
+
+    CREATEFILE3_EXTENDED_PARAMETERS createParams = {};
+    createParams.dwSize = sizeof(CREATEFILE3_EXTENDED_PARAMETERS);
+    createParams.dwFileAttributes = FILE_ATTRIBUTE_NORMAL;
+    createParams.dwSecurityQosFlags = 0;
+    createParams.lpSecurityAttributes = NULL;
+    createParams.hTemplateFile = NULL;
+
+    // Call CreateFile3 (Windows 11 24H2+ API)
+    HANDLE hFile = CreateFile3(
+        fullPath.c_str(),                   // lpFileName
+        GENERIC_WRITE | GENERIC_READ,       // dwDesiredAccess
+        FILE_SHARE_READ | FILE_SHARE_WRITE, // dwShareMode
+        CREATE_ALWAYS,                      // dwCreationDisposition
+        &createParams                       // pCreateExParams
+    );
+
+    if (hFile == INVALID_HANDLE_VALUE)
+    {
+        return static_cast<int>(GetLastError());
+    }
+    
+    CloseHandle(hFile);
+#endif
+    return 0;
+}
+
+int CallCreateFileTransactedW()
+{
+    std::wstring fullPath;
+    if (!TryGetFullPath(L"input/CreateFileTransactedW.txt", fullPath))
+    {
+        return static_cast<int>(GetLastError());
+    }
+
+    HANDLE hTransaction = CreateTransaction(NULL, NULL, 0, 0, 0, 0, NULL);
+
+    if (hTransaction == INVALID_HANDLE_VALUE)
+    {
+        return static_cast<int>(GetLastError());
+    }
+
+    HANDLE hFile = CreateFileTransactedW(
+        fullPath.c_str(),               // lpFileName
+        GENERIC_WRITE | GENERIC_READ,   // dwDesiredAccess
+        FILE_SHARE_READ,                // dwShareMode
+        NULL,                           // lpSecurityAttributes
+        CREATE_ALWAYS,                  // dwCreationDisposition
+        FILE_ATTRIBUTE_NORMAL,          // dwFlagsAndAttributes
+        NULL,                           // hTemplateFile
+        hTransaction,                   // hTransaction
+        NULL,                           // pusMiniVersion
+        NULL                            // lpExtendedParameter
+    );
+
+    const DWORD error = GetLastError();
+
+    if (hFile != INVALID_HANDLE_VALUE)
+    {
+        CloseHandle(hFile);
+    }
+
+    CommitTransaction(hTransaction);
+    CloseHandle(hTransaction);
+    
+    return static_cast<int>(error);
+}
+
+int CallDeleteFile2W()
+{
+#if defined(NTDDI_VERSION) && NTDDI_VERSION >= NTDDI_WIN11_GE
+    wstring fullPath;
+    if (!TryGetFullPath(L"DeleteFile2W.txt", fullPath))
+    {
+        return static_cast<int>(GetLastError());
+    }
+
+    // Should call NtCreateFile and ZwSetDispositionInformationFile which are detoured
+    const BOOL result = DeleteFile2W(
+        fullPath.c_str(),   // lpFileName
+        0                   // Flags
+    );
+
+    return result != 0 ? 0 : static_cast<int>(GetLastError());
+#else
+    return 0;
+#endif
+}
+
+int CallDeleteFileTransactedW()
+{
+    wstring fullPath;
+    if (!TryGetFullPath(L"DeleteFileTransactedW.txt", fullPath))
+    {
+        return static_cast<int>(GetLastError());
+    }
+
+    HANDLE hTransaction = CreateTransaction(NULL, NULL, 0, 0, 0, 0, NULL);
+
+    if (hTransaction == INVALID_HANDLE_VALUE)
+    {
+        return 1;
+    }
+
+    const BOOL result = DeleteFileTransactedW(
+        fullPath.c_str(),   // lpFileName
+        hTransaction        // hTransaction
+    );
+
+    const DWORD error = GetLastError();
+
+    if (result)
+    {
+        CommitTransaction(hTransaction);
+    }
+    else
+    {
+        RollbackTransaction(hTransaction);
+        CloseHandle(hTransaction);
+        return static_cast<int>(error);
+    }
+
+    CloseHandle(hTransaction);
+    return 0;
+}
+
+int CallCopyFile2()
+{
+    wstring sourceFullPath;
+    if (!TryGetFullPath(L"CopyFile2Source.txt", sourceFullPath))
+    {
+        return static_cast<int>(GetLastError());
+    }
+
+    wstring destFullPath;
+    if (!TryGetFullPath(L"CopyFile2Dest.txt", destFullPath))
+    {
+        return static_cast<int>(GetLastError());
+    }
+
+    COPYFILE2_EXTENDED_PARAMETERS copyParams = {};
+    copyParams.dwSize = sizeof(COPYFILE2_EXTENDED_PARAMETERS);
+    copyParams.dwCopyFlags = COPY_FILE_NO_BUFFERING;
+
+    // Should call NtCreateFile which is detoured
+    const HRESULT hr = CopyFile2(
+        sourceFullPath.c_str(), // pwszExistingFileName
+        destFullPath.c_str(),   // pwszNewFileName
+        &copyParams             // pExtendedParameters
+    );
+
+    return SUCCEEDED(hr) ? 0 : static_cast<int>(hr);
+}
+
+int CallFindFirstFileTransacted()
+{
+    HANDLE hTransaction = CreateTransaction(NULL, NULL, 0, 0, 0, 0, NULL);
+    if (hTransaction == INVALID_HANDLE_VALUE)
+    {
+        return static_cast<int>(GetLastError());
+    }
+
+    WIN32_FIND_DATAW findData;
+    const HANDLE hFind = FindFirstFileTransactedW(
+        L"*.txt",                       // lpFileName
+        FindExInfoStandard,             // fInfoLevelId
+        &findData,                      // lpFindFileData
+        FindExSearchNameMatch,          // fSearchOp
+        NULL,                           // lpSearchFilter
+        0,                              // dwAdditionalFlags
+        hTransaction                    // hTransaction
+    );
+
+    const DWORD error = GetLastError();
+
+    if (hFind != INVALID_HANDLE_VALUE)
+    {
+        FindClose(hFind);
+    }
+
+    CommitTransaction(hTransaction);
+    CloseHandle(hTransaction);
+    return static_cast<int>(error);
+}
+
+int CallGetFileAttributesTransacted()
+{
+    std::wstring fullPath;
+    if (!TryGetFullPath(L"source.txt", fullPath))
+    {
+        return static_cast<int>(GetLastError());
+    }
+
+    HANDLE hTransaction = CreateTransaction(NULL, NULL, 0, 0, 0, 0, NULL);
+    if (hTransaction == INVALID_HANDLE_VALUE)
+    {
+        return static_cast<int>(GetLastError());
+    }
+
+    WIN32_FILE_ATTRIBUTE_DATA fileAttributeData;
+
+    const BOOL result = GetFileAttributesTransactedW(
+        fullPath.c_str(),               // lpFileName - assume this exists
+        GetFileExInfoStandard,          // fInfoLevelId
+        &fileAttributeData,             // lpFileInformation
+        hTransaction                    // hTransaction
+    );
+
+    const DWORD error = GetLastError();
+
+    CommitTransaction(hTransaction);
+    CloseHandle(hTransaction);
+    
+    return result == 0 ? (int)error : 0;
+}
+
 // ----------------------------------------------------------------------------
 // STATIC FUNCTION DEFINITIONS
 // ----------------------------------------------------------------------------
@@ -1344,6 +1607,14 @@ static void GenericTests(const string& verb)
     IF_COMMAND(CallDeleteFileWithoutClosingHandle);
     IF_COMMAND(CallFindFirstEnumerateRoot);
     IF_COMMAND(CallCreateProcessAsUser);
+    IF_COMMAND(CallCreateFile2);
+    IF_COMMAND(CallCreateFile3);
+    IF_COMMAND(CallDeleteFile2W);
+    IF_COMMAND(CallDeleteFileTransactedW);
+    IF_COMMAND(CallCopyFile2);
+    IF_COMMAND(CallCreateFileTransactedW);
+    IF_COMMAND(CallFindFirstFileTransacted);
+    IF_COMMAND(CallGetFileAttributesTransacted);
 
 #undef IF_COMMAND1
 #undef IF_COMMAND2

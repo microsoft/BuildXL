@@ -8057,6 +8057,196 @@ namespace Test.BuildXL.Processes.Detours
             }
         }
 
+        [Theory]
+        [InlineData("CreateFile2", 0)]
+        [InlineData("CreateFile3", 0)]
+        [InlineData("CreateFileTransactedW", 0)]
+        public async Task CallCreateFile(string apiName, int expectedExitCode)
+        {
+            // CreateFile3 is only supported on 24H2+ (GE/10.0.26200)
+            if (apiName == "CreateFile3" && Environment.OSVersion.Version < new Version(10, 0, 26200))
+            {
+                return;
+            }
+
+            var context = BuildXLContext.CreateInstanceForTesting();
+            var pathTable = context.PathTable;
+
+            using var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory);
+            var createdInputPaths = new Dictionary<string, AbsolutePath>(OperatingSystemHelper.PathComparer);
+
+            var pip = SetupDetoursTests(
+                context,
+                tempFiles,
+                pathTable,
+                $"{apiName}.txt",
+                "",
+                $"Call{apiName}",
+                isDirectoryTest: false,
+                createSymlink: false,
+                addCreateFileInDirectoryToDependencies: false,
+                createFileInDirectory: false,
+                addFirstFileKind: AddFileOrDirectoryKinds.AsOutput,
+                addSecondFileOrDirectoryKind: AddFileOrDirectoryKinds.AsDependency,
+                createdInputPaths: createdInputPaths);
+
+            SandboxedProcessPipExecutionResult result = await RunProcessAsync(
+                pathTable: pathTable,
+                ignoreSetFileInformationByHandle: true,
+                ignoreZwRenameFileInformation: true,
+                monitorNtCreate: true,
+                ignoreReparsePoints: true,
+                ignoreZwOtherFileInformation: false,
+                monitorZwCreateOpenQueryFile: true,
+                context: context,
+                pip: pip,
+                errorString: out _);
+
+            var expectedOutputFile = pip.WorkingDirectory.Combine(pathTable, PathAtom.Create(context.StringTable, "input"), PathAtom.Create(context.StringTable, $"{apiName}.txt"));
+            var expectedFileOperation = apiName == "CreateFileTransactedW"
+                ? ReportedFileOperation.CreateFile
+                : ReportedFileOperation.NtCreateFile;
+
+            if (expectedExitCode == 0)
+            {
+                VerifyNormalSuccess(context, result);
+                XAssert.IsTrue(File.Exists(expectedOutputFile.ToString(pathTable)));
+            }
+            else
+            {
+                // The transacted create is expected to fail with
+                // Native: 0x1AB0: This object is not allowed to be opened in a transaction
+                // This is fine, all we need to verify is that a create was detoured
+                XAssert.AreEqual(expectedExitCode, result.ExitCode);
+                SetExpectedFailures(1, 0);
+            }
+
+            XAssert.IsTrue(
+                result.AllReportedFileAccesses
+                    .Where(a => a.ManifestPath.ToString(pathTable) == expectedOutputFile.ToString(pathTable) && a.Operation == expectedFileOperation)
+                    .Any(),
+                string.Join(Environment.NewLine, result.AllReportedFileAccesses.Select(a => $"{a.Operation}:{a.ManifestPath.ToString(pathTable)}"))
+            );
+        }
+
+        [Theory]
+        [InlineData("DeleteFile2W", 0)]
+        [InlineData("DeleteFileTransactedW", 0)]
+        public async Task CallDeleteFile(string apiName, int expectedExitCode)
+        {
+            // DeleteFile2W is only supported on 24H2+ (GE/10.0.26200)
+            if (apiName == "DeleteFile2W" && Environment.OSVersion.Version < new Version(10, 0, 26200))
+            {
+                return;
+            }
+
+            var context = BuildXLContext.CreateInstanceForTesting();
+            var pathTable = context.PathTable;
+
+            using var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory);
+            var createdInputPaths = new Dictionary<string, AbsolutePath>(OperatingSystemHelper.PathComparer);
+
+            string testFile = tempFiles.GetFileName($"{apiName}.txt");
+            WriteFile(testFile);
+            AbsolutePath deletedFile = AbsolutePath.Create(pathTable, testFile);
+
+            var pip = CreateDetourProcess(
+                context,
+                pathTable,
+                tempFiles,
+                argumentStr: $"Call{apiName}",
+                inputFiles: ReadOnlyArray<FileArtifact>.Empty,
+                inputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                outputFiles: ReadOnlyArray<FileArtifactWithAttributes>.FromWithoutCopy(
+                    FileArtifactWithAttributes.FromFileArtifact(FileArtifact.CreateSourceFile(deletedFile), FileExistence.Optional)),
+                outputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                untrackedScopes: ReadOnlyArray<AbsolutePath>.Empty);
+
+            SandboxedProcessPipExecutionResult result = await RunProcessAsync(
+                pathTable: pathTable,
+                ignoreSetFileInformationByHandle: true,
+                ignoreZwRenameFileInformation: true,
+                monitorNtCreate: true,
+                ignoreReparsePoints: true,
+                ignoreZwOtherFileInformation: false,
+                monitorZwCreateOpenQueryFile: true,
+                context: context,
+                pip: pip,
+                errorString: out _);
+
+            if (expectedExitCode == 0)
+            {
+                VerifyNormalSuccess(context, result);
+                XAssert.IsFalse(File.Exists(deletedFile.ToString(pathTable)));
+            }
+            else
+            {
+                // The transacted delete is expected to fail with
+                // Native: 0x1AB0: This object is not allowed to be opened in a transaction
+                // This is fine, all we need to verify is that a delete was detoured
+                XAssert.AreEqual(expectedExitCode, result.ExitCode);
+                SetExpectedFailures(1, 0);
+            }
+
+            var expectedOperation = apiName == "DeleteFile2W"
+                ? ReportedFileOperation.ZwSetDispositionInformationFile
+                : ReportedFileOperation.DeleteFile;
+
+            XAssert.IsTrue(
+                result.AllReportedFileAccesses
+                    .Where(a => a.ManifestPath.ToString(pathTable) == deletedFile.ToString(pathTable) && a.Operation == expectedOperation)
+                    .Any(),
+                "File Accesses: " + string.Join(Environment.NewLine, result.AllReportedFileAccesses.Select(a => $"{a.Operation}:{a.ManifestPath.ToString(pathTable)}"))
+            );
+        }
+
+        [Fact]
+        public async Task CallCopyFile2()
+        {
+            var context = BuildXLContext.CreateInstanceForTesting();
+            var pathTable = context.PathTable;
+
+            using var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory);
+            var createdInputPaths = new Dictionary<string, AbsolutePath>(OperatingSystemHelper.PathComparer);
+
+            string sourceFile = tempFiles.GetFileName("CopyFile2Source.txt");
+            WriteFile(sourceFile);
+            AbsolutePath sourceFilePath = AbsolutePath.Create(pathTable, sourceFile);
+            AbsolutePath destFilePath = AbsolutePath.Create(pathTable, tempFiles.GetFileName("CopyFile2Dest.txt"));
+
+            var pip = CreateDetourProcess(
+                context,
+                pathTable,
+                tempFiles,
+                argumentStr: "CallCopyFile2",
+                inputFiles: ReadOnlyArray<FileArtifact>.FromWithoutCopy([FileArtifact.CreateSourceFile(sourceFilePath)]),
+                inputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                outputFiles: ReadOnlyArray<FileArtifactWithAttributes>.FromWithoutCopy(
+                    [FileArtifactWithAttributes.Create(FileArtifact.CreateOutputFile(destFilePath), FileExistence.Optional)]),
+                outputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                untrackedScopes: ReadOnlyArray<AbsolutePath>.Empty);
+
+            SandboxedProcessPipExecutionResult result = await RunProcessAsync(
+                pathTable: pathTable,
+                ignoreSetFileInformationByHandle: true,
+                ignoreZwRenameFileInformation: true,
+                monitorNtCreate: true,
+                ignoreReparsePoints: true,
+                ignoreZwOtherFileInformation: false,
+                monitorZwCreateOpenQueryFile: true,
+                context: context,
+                pip: pip,
+                errorString: out _);
+
+            VerifyNormalSuccess(context, result);
+
+            XAssert.IsTrue(File.Exists(destFilePath.ToString(pathTable)));
+            XAssert.IsTrue(result.AllReportedFileAccesses.Where(a => a.ManifestPath.ToString(pathTable) == sourceFilePath.ToString(pathTable) && a.Operation == ReportedFileOperation.NtCreateFile && a.RequestedAccess == RequestedAccess.Read).Any(),
+                string.Join(Environment.NewLine, result.AllReportedFileAccesses.Select(a => a.Describe())));
+            XAssert.IsTrue(result.AllReportedFileAccesses.Where(a => a.ManifestPath.ToString(pathTable) == destFilePath.ToString(pathTable) && a.Operation == ReportedFileOperation.NtCreateFile && a.RequestedAccess == RequestedAccess.ReadWrite).Any(),
+                string.Join(Environment.NewLine, result.AllReportedFileAccesses.Select(a => a.Describe())));
+        }
+
         [Fact]
         public async Task CallCreateProcessAsUser()
         {
@@ -8102,6 +8292,100 @@ namespace Test.BuildXL.Processes.Detours
                     .Any(),
                 string.Join(Environment.NewLine, result.AllReportedFileAccesses.Select(a => a.Describe()))
             );
+        }
+
+        [Fact]
+        public async Task CallFindFirstFileTransacted()
+        {
+            var context = BuildXLContext.CreateInstanceForTesting();
+            var pathTable = context.PathTable;
+
+            using var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory);
+            var createdInputPaths = new Dictionary<string, AbsolutePath>(OperatingSystemHelper.PathComparer);
+
+            string sourceFile = tempFiles.GetFileName("source.txt");
+            WriteFile(sourceFile);
+            AbsolutePath sourceFilePath = AbsolutePath.Create(pathTable, sourceFile);
+            AbsolutePath destFilePath = AbsolutePath.Create(pathTable, tempFiles.GetFileName("dest.txt"));
+
+            var pip = CreateDetourProcess(
+                context,
+                pathTable,
+                tempFiles,
+                argumentStr: "CallFindFirstFileTransacted",
+                inputFiles: ReadOnlyArray<FileArtifact>.FromWithoutCopy([FileArtifact.CreateSourceFile(sourceFilePath)]),
+                inputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                outputFiles: ReadOnlyArray<FileArtifactWithAttributes>.FromWithoutCopy(
+                    [FileArtifactWithAttributes.Create(FileArtifact.CreateOutputFile(destFilePath), FileExistence.Optional)]),
+                outputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                untrackedScopes: ReadOnlyArray<AbsolutePath>.Empty);
+
+            SandboxedProcessPipExecutionResult result = await RunProcessAsync(
+                pathTable: pathTable,
+                ignoreSetFileInformationByHandle: true,
+                ignoreZwRenameFileInformation: true,
+                monitorNtCreate: true,
+                ignoreReparsePoints: true,
+                ignoreZwOtherFileInformation: false,
+                monitorZwCreateOpenQueryFile: true,
+                context: context,
+                pip: pip,
+                errorString: out _);
+
+            VerifyNormalSuccess(context, result);
+
+            XAssert.IsTrue(
+                result.AllReportedFileAccesses
+                    .Where(a => a.EnumeratePattern == "*.txt" && a.Operation == ReportedFileOperation.FindFirstFileEx)
+                    .Any(),
+                string.Join(Environment.NewLine, result.AllReportedFileAccesses.Select(a => a.Describe())));
+        }
+
+        [Fact]
+        public async Task CallGetFileAttributesTransacted()
+        {
+            var context = BuildXLContext.CreateInstanceForTesting();
+            var pathTable = context.PathTable;
+
+            using var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory);
+            var createdInputPaths = new Dictionary<string, AbsolutePath>(OperatingSystemHelper.PathComparer);
+
+            string sourceFile = tempFiles.GetFileName("source.txt");
+            WriteFile(sourceFile);
+            AbsolutePath sourceFilePath = AbsolutePath.Create(pathTable, sourceFile);
+            AbsolutePath destFilePath = AbsolutePath.Create(pathTable, tempFiles.GetFileName("dest.txt"));
+
+            var pip = CreateDetourProcess(
+                context,
+                pathTable,
+                tempFiles,
+                argumentStr: "CallGetFileAttributesTransacted",
+                inputFiles: ReadOnlyArray<FileArtifact>.FromWithoutCopy([FileArtifact.CreateSourceFile(sourceFilePath)]),
+                inputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                outputFiles: ReadOnlyArray<FileArtifactWithAttributes>.FromWithoutCopy(
+                    [FileArtifactWithAttributes.Create(FileArtifact.CreateOutputFile(destFilePath), FileExistence.Optional)]),
+                outputDirectories: ReadOnlyArray<DirectoryArtifact>.Empty,
+                untrackedScopes: ReadOnlyArray<AbsolutePath>.Empty);
+
+            SandboxedProcessPipExecutionResult result = await RunProcessAsync(
+                pathTable: pathTable,
+                ignoreSetFileInformationByHandle: true,
+                ignoreZwRenameFileInformation: true,
+                monitorNtCreate: true,
+                ignoreReparsePoints: true,
+                ignoreZwOtherFileInformation: false,
+                monitorZwCreateOpenQueryFile: true,
+                context: context,
+                pip: pip,
+                errorString: out _);
+
+            VerifyNormalSuccess(context, result);
+
+            XAssert.IsTrue(
+                result.AllReportedFileAccesses
+                    .Where(a => a.ManifestPath.ToString(pathTable) == sourceFilePath.ToString(pathTable) && a.Operation == ReportedFileOperation.GetFileAttributesEx)
+                    .Any(),
+                string.Join(Environment.NewLine, result.AllReportedFileAccesses.Select(a => a.Describe())));
         }
 
         private static Process CreateDetourProcess(

@@ -7,7 +7,7 @@ using Grpc.Core;
 namespace BuildXL.Plugin
 {
     /// <summary>
-    /// Plugin serivce client implementations
+    /// Plugin service client implementations
     /// </summary>
     public class PluginServiceClient : PluginService.PluginServiceClient
     {
@@ -16,7 +16,7 @@ namespace BuildXL.Plugin
         /// </summary>
         /// <param name="channel"></param>
         /// <param name="callInvoker"></param>
-        public PluginServiceClient(Channel channel, CallInvoker callInvoker) : base(callInvoker) { }
+        public PluginServiceClient(ChannelBase channel, CallInvoker callInvoker) : base(callInvoker) { }
 
         /// <summary>
         /// send logparse command to remote plugin server

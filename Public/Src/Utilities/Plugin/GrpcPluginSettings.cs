@@ -12,13 +12,15 @@ namespace BuildXL.Plugin
         /// <summary>
         /// The number of milliseconds before the request "expires" (referred to in gRPC as a "deadline").
         /// </summary>
-        public static int RequestTimeoutInMilliSeconds = 30000; // 30s might be considered a little extreme at this point, but it will be monitored (and adjusted) before being used in production (OE: 9836612)
+        public const int RequestTimeoutInMilliSeconds = 30000; // 30s might be considered a little extreme at this point, but it will be monitored (and adjusted) before being used in production (OE: 9836612)
         /// <nodoc />
-        public static int ConnectionTimeoutInMilliSeconds = 5000;
+        public const int ConnectionTimeoutInMilliSeconds = 5000;
         /// <nodoc />
         public const string PluginRequestId = "req_id";
         /// <nodoc />
         public const string PluginRequestRetryCount = "req_retry_count";
+
+        public const int MaxAttempts = 5;
 
         /// <nodoc />
         private static readonly ChannelOption[] s_defaultChannelOptions = new ChannelOption[] { 
@@ -26,7 +28,9 @@ namespace BuildXL.Plugin
             new ChannelOption(ChannelOptions.MaxReceiveMessageLength, -1) 
         };
 
-        /// <nodoc />
+        /// <summary>
+        /// This is for server side channel options which is not migrated to grpc.net yet
+        /// </summary>
         public static IEnumerable<ChannelOption> GetChannelOptions()
         {
             List<ChannelOption> channelOptions = new List<ChannelOption>();

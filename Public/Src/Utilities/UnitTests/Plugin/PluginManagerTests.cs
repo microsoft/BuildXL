@@ -34,21 +34,21 @@ namespace Test.BuildXL.Plugin
         private static readonly string s_pluginPort2 = IpcFactory.GetProvider().LoadAndRenderMoniker(IpcMoniker.CreateNew().Id);
         private static readonly string s_pluginPort3 = IpcFactory.GetProvider().LoadAndRenderMoniker(IpcMoniker.CreateNew().Id);
 
-        private readonly static Func<Task<PluginResponseResult<bool>>> s_booleanResponseSucceed = () => Task.FromResult(new PluginResponseResult<bool>(true, PluginResponseState.Succeeded, "0", 0));
-        private readonly static Func<Task<PluginResponseResult<bool>>> s_booleanResponseFailed = () => Task.FromResult(new PluginResponseResult<bool>(PluginResponseState.Failed, "0", 0, new Failure<string>("")));
+        private readonly static Func<Task<PluginResponseResult<bool>>> s_booleanResponseSucceed = () => Task.FromResult(new PluginResponseResult<bool>(true, PluginResponseState.Succeeded, "0"));
+        private readonly static Func<Task<PluginResponseResult<bool>>> s_booleanResponseFailed = () => Task.FromResult(new PluginResponseResult<bool>(PluginResponseState.Failed, "0", new Failure<string>("")));
         private readonly static Func<Task<PluginResponseResult<bool>>> s_booleanResponseThrowException = () => throw new Exception();
 
-        private readonly static Func<Task<PluginResponseResult<LogParseResult>>> s_logParseResponseSucceeded = () => Task.FromResult(new PluginResponseResult<LogParseResult>(new LogParseResult() { ParsedMessage = ""}, PluginResponseState.Succeeded, "0", 0));
-        private readonly static Func<Task<PluginResponseResult<LogParseResult>>> s_logParseResponseFailed = () => Task.FromResult(new PluginResponseResult<LogParseResult>(PluginResponseState.Failed, "0", 0, new Failure<string>("")));
+        private readonly static Func<Task<PluginResponseResult<LogParseResult>>> s_logParseResponseSucceeded = () => Task.FromResult(new PluginResponseResult<LogParseResult>(new LogParseResult() { ParsedMessage = ""}, PluginResponseState.Succeeded, "0"));
+        private readonly static Func<Task<PluginResponseResult<LogParseResult>>> s_logParseResponseFailed = () => Task.FromResult(new PluginResponseResult<LogParseResult>(PluginResponseState.Failed, "0", new Failure<string>("")));
         private readonly static Func<Task<PluginResponseResult<LogParseResult>>> s_logParseResponseThrowException = () => throw new Exception();
 
-        private readonly static Func<Task<PluginResponseResult<ProcessResultMessageResponse>>> s_processResultResponseSucceeded = () => Task.FromResult(new PluginResponseResult<ProcessResultMessageResponse>(new ProcessResultMessageResponse() { ExitCode = 1111 }, PluginResponseState.Succeeded, "0", 0));
-        private readonly static Func<Task<PluginResponseResult<ProcessResultMessageResponse>>> s_processResultResponseFailed = () => Task.FromResult(new PluginResponseResult<ProcessResultMessageResponse>(PluginResponseState.Failed, "0", 0, new Failure<string>("")));
+        private readonly static Func<Task<PluginResponseResult<ProcessResultMessageResponse>>> s_processResultResponseSucceeded = () => Task.FromResult(new PluginResponseResult<ProcessResultMessageResponse>(new ProcessResultMessageResponse() { ExitCode = 1111 }, PluginResponseState.Succeeded, "0"));
+        private readonly static Func<Task<PluginResponseResult<ProcessResultMessageResponse>>> s_processResultResponseFailed = () => Task.FromResult(new PluginResponseResult<ProcessResultMessageResponse>(PluginResponseState.Failed, "0", new Failure<string>("")));
         private readonly static Func<Task<PluginResponseResult<ProcessResultMessageResponse>>> s_processResultResponseThrowException = () => throw new Exception();
 
-        private readonly static Func<Task<PluginResponseResult<List<PluginMessageType>>>> s_pluginMessageTypeResponseSucceed = () => Task.FromResult(new PluginResponseResult<List<PluginMessageType>>(new List<PluginMessageType>() { PluginMessageType.ParseLogMessage }, PluginResponseState.Succeeded, "0", 0));
-        private readonly static Func<Task<PluginResponseResult<List<PluginMessageType>>>> s_unknownMessageTypeResponseSucceed = () => Task.FromResult(new PluginResponseResult<List<PluginMessageType>>(new List<PluginMessageType>(){ PluginMessageType.Unknown }, PluginResponseState.Succeeded, "0", 0));
-        private readonly static Func<Task<PluginResponseResult<List<PluginMessageType>>>> s_pluginMessageTypeResponseFailed = () => Task.FromResult(new PluginResponseResult<List<PluginMessageType>>(PluginResponseState.Failed, "0", 0, new Failure<string>("")));
+        private readonly static Func<Task<PluginResponseResult<List<PluginMessageType>>>> s_pluginMessageTypeResponseSucceed = () => Task.FromResult(new PluginResponseResult<List<PluginMessageType>>(new List<PluginMessageType>() { PluginMessageType.ParseLogMessage }, PluginResponseState.Succeeded, "0"));
+        private readonly static Func<Task<PluginResponseResult<List<PluginMessageType>>>> s_unknownMessageTypeResponseSucceed = () => Task.FromResult(new PluginResponseResult<List<PluginMessageType>>(new List<PluginMessageType>(){ PluginMessageType.Unknown }, PluginResponseState.Succeeded, "0"));
+        private readonly static Func<Task<PluginResponseResult<List<PluginMessageType>>>> s_pluginMessageTypeResponseFailed = () => Task.FromResult(new PluginResponseResult<List<PluginMessageType>>(PluginResponseState.Failed, "0", new Failure<string>("")));
         private readonly static Func<Task<PluginResponseResult<List<PluginMessageType>>>> s_pluginMessageTypeResponseThrowException = () => throw new Exception();
 
         private readonly MockedPluginClient m_mockedPluginClient = new MockedPluginClient(
@@ -339,6 +339,7 @@ namespace Test.BuildXL.Plugin
             Assert.False(logParseResult.Succeeded);
         }
 
+#if NET6_0_OR_GREATER
         [Fact]
         public async Task LoadNonMockedLogParsePluginShouldSucceedAsync()
         {
@@ -357,7 +358,8 @@ namespace Test.BuildXL.Plugin
             Assert.True(logParseResult.Succeeded);
             XAssert.Contains(logParseResult.Result.ParsedMessage, "[plugin]");
         }
-        
+#endif
+
         [Fact]
         public async Task FailedToGetProcessResultResponseAsync() //Not sure if this is necessary - it's nearly identical to FailedToGetLogParseResponseAsync and doesn't test much new functionality
         {
@@ -382,6 +384,7 @@ namespace Test.BuildXL.Plugin
             Assert.False(processResultMessageResponse.Succeeded);
         }
 
+#if NET6_0_OR_GREATER
         [Fact]
         public async Task LoadNonMockedProcessResultPluginShouldSucceedAsync()
         {
@@ -432,7 +435,7 @@ namespace Test.BuildXL.Plugin
             Assert.True(processResultMessageResponse.Succeeded);
             Assert.Equal(processExitCode, processResultMessageResponse.Result.ExitCode);
         }
-
+#endif
         public Task InitializeAsync()
         {
             return Task.Run(() => { });

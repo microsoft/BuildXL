@@ -33,9 +33,6 @@ namespace BuildXL.Plugin
         public readonly PluginResponseState State;
 
         /// <nodoc />
-        public readonly uint Attempts;
-
-        /// <nodoc />
         public readonly string RequestId;
 
         /// <nodoc />
@@ -62,20 +59,18 @@ namespace BuildXL.Plugin
         }
 
         /// <nodoc />
-        public PluginResponseResult(T value, PluginResponseState state, string requestId, uint attempts)
+        public PluginResponseResult(T value, PluginResponseState state, string requestId)
         {
             m_value = value;
             State = state;
-            Attempts = attempts;
             RequestId = requestId;
         }
 
         /// <nodoc />
-        public PluginResponseResult(PluginResponseState state, string requestId, uint attempts,  Failure failure)
+        public PluginResponseResult(PluginResponseState state, string requestId,  Failure failure)
         {
             State = state;
             m_failure = failure;
-            Attempts = attempts;
             RequestId = requestId;
         }
     }

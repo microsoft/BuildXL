@@ -12,16 +12,20 @@ using Grpc.Core;
 using Grpc.Core.Interceptors;
 using Grpc.Core.Logging;
 
+#if NET6_0_OR_GREATER
+using System.Net.Http;
+using Grpc.Net.Client;
+using Grpc.Net.Client.Configuration;
+#endif
+
 namespace BuildXL.Plugin
 {
     /// <nodoc />
-    public class PluginClient: IPluginClient, IDisposable
+    public class PluginClient : IPluginClient, IDisposable
     {
         private static int s_requestId = 0;
         private bool m_channelRequestToShutdown = false;
 
-        /// <nodoc />
-        public Channel Channel { get; }
 
         /// <nodoc />
         public PluginServiceClient PluginServiceClient { get; }
@@ -29,10 +33,10 @@ namespace BuildXL.Plugin
         /// <nodoc />
         public ILogger Logger { get; }
 
+#if NET6_0_OR_GREATER
         /// <nodoc />
-        public bool IsConnected => Channel.State == ChannelState.Ready;
-        /// <nodoc />
-        public bool IsShutDown => Channel.State == ChannelState.Shutdown;
+        public GrpcChannel Channel { get; }
+#endif
 
         /// <nodoc />
         private int m_overrideRequestTimeout;
@@ -60,29 +64,71 @@ namespace BuildXL.Plugin
         /// <nodoc />
         public PluginClient(string ipAddress, int port, ILogger logger = null)
         {
-            Channel = new Channel(
-                ipAddress,
-                port,
-                ChannelCredentials.Insecure,
-                GrpcPluginSettings.GetChannelOptions());
+#if NET6_0_OR_GREATER
+            Channel = CreateGrpcChannel(ipAddress, port);
             PluginServiceClient = new PluginServiceClient(Channel, Channel.Intercept(new PluginGrpcInterceptor(logger)));
+#endif
             Logger = logger;
         }
 
-        /// <nodoc />
-        public Task ShutDown()
+#if NET6_0_OR_GREATER
+        private GrpcChannel CreateGrpcChannel(string ipAddress, int port)
         {
-            m_channelRequestToShutdown = true;
-            // channel is shared by multiple clients so that only need to be disposed once
-            return Channel.ShutdownAsync();
+            var handler = new SocketsHttpHandler
+            {
+                UseCookies = false,
+                ConnectTimeout = TimeSpan.FromMilliseconds(GrpcPluginSettings.ConnectionTimeoutInMilliSeconds),
+                Expect100ContinueTimeout = TimeSpan.Zero,
+                PooledConnectionIdleTimeout = Timeout.InfiniteTimeSpan,
+                EnableMultipleHttp2Connections = true
+            };
+
+            var channelOptions = new GrpcChannelOptions
+            {
+                MaxSendMessageSize = int.MaxValue,
+                MaxReceiveMessageSize = int.MaxValue,
+                MaxRetryBufferPerCallSize = null, // No limit on retry buffer size
+                MaxRetryBufferSize = null, // No limit on retry buffer size
+                HttpHandler = handler,
+            };
+
+            var defaultMethodConfig = new MethodConfig
+            {
+                Names = { MethodName.Default },
+                RetryPolicy = new RetryPolicy
+                {
+                    MaxAttempts = GrpcPluginSettings.MaxAttempts,
+                    InitialBackoff = TimeSpan.FromSeconds(0.5),
+                    MaxBackoff = TimeSpan.FromSeconds(1),
+                    BackoffMultiplier = 1.1,
+                    RetryableStatusCodes = {
+                            StatusCode.Unavailable,
+                            StatusCode.Internal,
+                            StatusCode.Unknown }
+                }
+            };
+
+            channelOptions.ServiceConfig = new ServiceConfig
+            {
+                MethodConfigs = { defaultMethodConfig },
+                LoadBalancingConfigs = { new PickFirstConfig() },
+            };
+
+            string address = $"http://{ipAddress}:{port}";
+
+            return GrpcChannel.ForAddress(address, channelOptions);
         }
+#endif
 
         /// <inheritdoc />
         public void Dispose()
         {
             if (!m_channelRequestToShutdown)
             {
-                ShutDown().GetAwaiter().GetResult();
+#if NET6_0_OR_GREATER
+                // channel is shared by multiple clients so that only need to be disposed once
+                Channel.Dispose();
+#endif
             }
         }
 
@@ -101,62 +147,57 @@ namespace BuildXL.Plugin
 
         private async Task<PluginResponseResult<T>> HandleRpcExceptionWithCallAsync<T>(Func<Task<T>> asyncCall, string reqId)
         {
-            uint numOfRetry = 0;
             Failure<string> failure = null;
 
-            // Deadlines and retries: https://learn.microsoft.com/en-us/aspnet/core/grpc/deadlines-cancellation?view=aspnetcore-8.0#deadlines-and-retries
-            while (numOfRetry < MAX_RETRY && Channel.State != ChannelState.Shutdown)
+            try
             {
-                try
+                Logger.Debug($"Sending request for requestId:{reqId} at {DateTime.UtcNow:HH:mm:ss.fff} (current active requests: {m_currentActiveRequestsCount})");
+                Interlocked.Increment(ref m_currentActiveRequestsCount);
+                using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(RequestTimeout));
+                var response = await asyncCall.Invoke();
+                Logger.Debug($"Received response for requestId:{reqId} at {DateTime.UtcNow:HH:mm:ss.fff}");
+                return new PluginResponseResult<T>(response, PluginResponseState.Succeeded, reqId);
+            }
+            catch (RpcException e)
+            {
+                Logger.Debug($"requestId:{reqId} has failed due to RpcException {e}");
+                failure = new Failure<string>(e.Message);
+                if (e.StatusCode == StatusCode.Cancelled)
                 {
-                    Logger.Debug($"Sending request for requestId:{reqId} at {DateTime.UtcNow:HH:mm:ss.fff} (current active requests: {m_currentActiveRequestsCount})");
-                    Interlocked.Increment(ref m_currentActiveRequestsCount);
-                    var response = await asyncCall.Invoke();
-                    Logger.Debug($"Received response for requestId:{reqId} at {DateTime.UtcNow:HH:mm:ss.fff}");
-                    return new PluginResponseResult<T>(response, PluginResponseState.Succeeded, reqId, numOfRetry);
-                }
-                catch (RpcException e)
-                {
-                    Logger.Debug($"requestId:{reqId} has failed due to RpcException {e}");
-                    failure = new Failure<string>(e.Message);
-                    if (e.StatusCode == StatusCode.Cancelled)
-                    {
-                        Logger.Error(e.Message);
-                        return new PluginResponseResult<T>(PluginResponseState.Cancelled, reqId, numOfRetry, failure);
-                    }
-                    else if(e.StatusCode == StatusCode.Unimplemented)
-                    {
-                        Logger.Error($"plugin method is not implementated, this may be because unmatched plugin client is picked up, see details: {e.Message}");
-                        return new PluginResponseResult<T>(PluginResponseState.Fatal, reqId, numOfRetry, failure);
-                    }
-                    else if (e.StatusCode == StatusCode.DeadlineExceeded)
-                    {
-                        Logger.Error($"Deadline has been exceeded. Deadlines are global across all retries so retrying won't work");
-                        return new PluginResponseResult<T>(PluginResponseState.Failed, reqId, numOfRetry, failure);
-                    }
-                }
-                catch (NotImplementedException e)
-                {
-                    Logger.Debug($"requestId:{reqId} has failed due to NotImplementedException {e}");
-                    Logger.Error($"plugin method is not implementated, this may be because unmatched plugin client is picked up, see details: {e.Message}");
-                    return new PluginResponseResult<T>(PluginResponseState.Fatal, reqId, numOfRetry, failure);
-                }
-#pragma warning disable EPC12
-                catch (Exception e)
-                {
-                    Logger.Debug($"requestId:{reqId} has failed due to Exception {e}");
                     Logger.Error(e.Message);
-                    failure = new Failure<string>(e.Message);
+                    return new PluginResponseResult<T>(PluginResponseState.Cancelled, reqId, failure);
                 }
-#pragma warning restore EPC12
-                finally
+                else if (e.StatusCode == StatusCode.Unimplemented)
                 {
-                    Interlocked.Decrement(ref m_currentActiveRequestsCount);
-                    numOfRetry++;
+                    Logger.Error($"plugin method is not implementated, this may be because unmatched plugin client is picked up, see details: {e.Message}");
+                    return new PluginResponseResult<T>(PluginResponseState.Fatal, reqId, failure);
+                }
+                else if (e.StatusCode == StatusCode.DeadlineExceeded)
+                {
+                    Logger.Error($"Deadline has been exceeded. Deadlines are global across all retries so retrying won't work");
+                    return new PluginResponseResult<T>(PluginResponseState.Failed, reqId, failure);
                 }
             }
+            catch (NotImplementedException e)
+            {
+                Logger.Debug($"requestId:{reqId} has failed due to NotImplementedException {e}");
+                Logger.Error($"plugin method is not implementated, this may be because unmatched plugin client is picked up, see details: {e.Message}");
+                return new PluginResponseResult<T>(PluginResponseState.Fatal, reqId, failure);
+            }
+#pragma warning disable EPC12
+            catch (Exception e)
+            {
+                Logger.Debug($"requestId:{reqId} has failed due to Exception {e}");
+                Logger.Error(e.Message);
+                failure = new Failure<string>(e.Message);
+            }
+#pragma warning restore EPC12
+            finally
+            {
+                Interlocked.Decrement(ref m_currentActiveRequestsCount);
+            }
 
-            return new PluginResponseResult<T>(PluginResponseState.Failed, reqId, numOfRetry, failure);
+            return new PluginResponseResult<T>(PluginResponseState.Failed, reqId, failure);
         }
 
         /// <nodoc />
@@ -196,7 +237,8 @@ namespace BuildXL.Plugin
             var options = GetCallOptions(requestId);
             var request = new PluginMessage();
             var response = await HandleRpcExceptionWithCallAsync(
-                async () => {
+                async () =>
+                {
                     var response = await PluginServiceClient.SupportedOperationAsync(request, options);
 
                     Interlocked.Exchange(ref m_overrideRequestTimeout, response.SupportedOperationResponse.Timeout);
@@ -236,7 +278,7 @@ namespace BuildXL.Plugin
         }
 
         /// <nodoc />
-        public virtual async Task<PluginResponseResult<ProcessResultMessageResponse>> ProcessResultAsync(string executable, 
+        public virtual async Task<PluginResponseResult<ProcessResultMessageResponse>> ProcessResultAsync(string executable,
                                                                                                          string arguments,
                                                                                                          ProcessStream input,
                                                                                                          ProcessStream ouptut,
@@ -265,7 +307,7 @@ namespace BuildXL.Plugin
             {
                 ProcessResultMessage = message,
             };
-            
+
             var response = await HandleRpcExceptionWithCallAsync(
                 async () =>
                 {

@@ -21,7 +21,7 @@ namespace Plugin {
             importFrom("System.Runtime.CompilerServices.Unsafe").pkg,
             
             ...importFrom("BuildXL.Cache.ContentStore").getGrpcPackages(false),
-
+            ...importFrom("BuildXL.Cache.ContentStore").getGrpcDotNetPackages(),
             ...addIfLazy(!BuildXLSdk.isDotNetCore, () => [
                 importFrom("System.Text.Json").pkg,
             ]),

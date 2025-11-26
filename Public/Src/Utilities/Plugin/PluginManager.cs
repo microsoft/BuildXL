@@ -240,7 +240,7 @@ namespace BuildXL.Plugin
                 Interlocked.Increment(ref m_pluginProcessedRequestCounts);
                 Interlocked.Add(ref m_pluginTotalProcessTimeMs, sw.ElapsedMilliseconds);
 
-                Tracing.Logger.Log.PluginManagerLogMessage(m_loggingContext, $"Received response for requestId:{response.RequestId} for {messageType} in {sw.ElapsedMilliseconds} ms after {response.Attempts} retries " +
+                Tracing.Logger.Log.PluginManagerLogMessage(m_loggingContext, $"Received response for requestId:{response.RequestId} for {messageType} in {sw.ElapsedMilliseconds} ms " +
                     $"[{(response.Succeeded ? "SUCCEEDED" : $"FAILED (Failure: {response.Failure.Describe()}")}]");
 
                 if (sw.ElapsedMilliseconds > m_pluginLongestRequestProcessTimeMs)

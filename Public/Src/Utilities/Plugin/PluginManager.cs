@@ -553,12 +553,6 @@ namespace BuildXL.Plugin
 
             foreach (var pendingPlugin in m_plugins.Values)
             {
-                // Only wait on plugins that need to exit gracefully
-                if (pendingPlugin.PreloadedPlugin != null && !pendingPlugin.PreloadedPlugin.ExitGracefully)
-                {
-                    continue;
-                }
-
                 if (pendingPlugin.PluginTask.Result.Succeeded)
                 {
                     pendingPlugin.PluginTask.Result.Result.Dispose();

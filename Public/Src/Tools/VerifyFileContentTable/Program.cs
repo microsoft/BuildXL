@@ -76,7 +76,7 @@ namespace Tool.VerifyFileContentTable
                 }
 
                 Console.WriteLine(Resources.Verifying_path, path.ToString(pt));
-
+                
                 FileContentTable tableToVerify = TryLoadFileContentTable(pt, path).Result;
                 if (tableToVerify == null)
                 {
@@ -111,7 +111,7 @@ namespace Tool.VerifyFileContentTable
                 }
 
                 Console.WriteLine(Resources.Verification_summary, tableToVerify.Count, incorrectEntries.Count, sw.Elapsed);
-
+                
                 return incorrectEntries.Count == 0;
             }
         }
@@ -120,6 +120,7 @@ namespace Tool.VerifyFileContentTable
         {
             try
             {
+                ContentHashingUtilities.SetDefaultHashType();
                 return await FileContentTable.LoadAsync(new LoggingContext("VerifyContentTable"), path.ToString(pt));
             }
             catch (BuildXLException ex)

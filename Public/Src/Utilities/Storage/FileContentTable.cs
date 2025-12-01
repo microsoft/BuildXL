@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
@@ -13,16 +12,18 @@ using System.Runtime.ExceptionServices;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
+#if NETCOREAPP
+using System.Threading.Tasks.Dataflow;
+#endif
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Native.IO;
 using BuildXL.Storage.ChangeTracking;
 using BuildXL.Storage.FileContentTableAccessor;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
-using BuildXL.Utilities.Instrumentation.Common;
+using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Tasks;
-using BuildXL.Utilities.Tracing;
+using BuildXL.Utilities.Instrumentation.Common;
 using Microsoft.Win32.SafeHandles;
 
 #nullable enable
@@ -707,43 +708,29 @@ namespace BuildXL.Storage
                         int hashLength = ContentHashingUtilities.HashInfo.ByteLength;
                         var hashBuffer = new byte[hashLength];
 
-                        // Adding to the m_entries dictionary is about half of the work (in terms of wall clock time) of
-                        // deserialization for large FileContentTables. Perform that on another thread to get out of the
-                        // way of reading in the file as quickly as possible
-                        ConcurrentQueue<KeyValuePair<FileIdAndVolumeId, Entry>> itemsToInsert = new ConcurrentQueue<KeyValuePair<FileIdAndVolumeId, Entry>>();
-                        bool completeReadingFile = false;
+                        // Adding to the m_entries dictionary is the majority of the work of
+                        // deserialization for large FileContentTables. Perform it in parallel to spread the CPU intensive
+                        // work of dictionary growth
                         Exception? deserializationHelperException = null;
-                        Thread deserializationHelper = new Thread(() =>
+#if NETCOREAPP
+                        var dictionaryInserter = new ActionBlock<KeyValuePair<FileIdAndVolumeId, Entry>>(action: (item) => 
                         {
                             try
                             {
-                                while (true)
-                                {
-                                    KeyValuePair<FileIdAndVolumeId, Entry> item;
-                                    if (itemsToInsert.TryDequeue(out item))
-                                    {
-                                        bool added = loadedTable.m_entries.TryAdd(item.Key, item.Value);
-                                        Contract.Assume(added);
-                                    }
-                                    else
-                                    {
-                                        if (completeReadingFile && !itemsToInsert.TryPeek(out item))
-                                        {
-                                            break;
-                                        }
-
-                                        // The amount of sleep time for this thread doesn't noticeably change the end to end performance.
-                                        Thread.Sleep(5);
-                                    }
-                                }
+                                bool added = loadedTable.m_entries.TryAdd(item.Key, item.Value);
+                                Contract.Assume(added);
                             }
                             catch (Exception ex)
                             {
                                 deserializationHelperException = ex;
                             }
+                        },
+                        new ExecutionDataflowBlockOptions() 
+                        {
+                            // Experimental results show no additional return on multi-threaded Map insertion after 4 threads
+                            MaxDegreeOfParallelism = Math.Min(Environment.ProcessorCount, 4)
                         });
-                        deserializationHelper.Name = "FileContentTable deserialization helper";
-                        deserializationHelper.Start();
+#endif
 
                         for (uint i = 0; i < numberOfEntries; i++)
                         {
@@ -783,11 +770,18 @@ namespace BuildXL.Storage
                             thisEntryTimeToLive--;
 
                             var observedVersionAndHash = new Entry(usn, ContentHashingUtilities.CreateFrom(hashBuffer), length, thisEntryTimeToLive);
-                            itemsToInsert.Enqueue(new KeyValuePair<FileIdAndVolumeId, Entry>(fileIdAndVolumeId, observedVersionAndHash));
+#if NETCOREAPP
+                            dictionaryInserter.Post(new KeyValuePair<FileIdAndVolumeId, Entry>(fileIdAndVolumeId, observedVersionAndHash));
+
+#else
+                            loadedTable.m_entries.Add(fileIdAndVolumeId, observedVersionAndHash);
+#endif
                         }
 
-                        completeReadingFile = true;
-                        deserializationHelper.Join();
+#if NETCOREAPP
+                        dictionaryInserter.Complete();
+                        dictionaryInserter.Completion.Wait();
+#endif
 
                         // Allow exceptions within the deserializationHelper thread to be handled the same as main thread
                         // exception handling.

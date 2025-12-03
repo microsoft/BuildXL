@@ -165,6 +165,12 @@ jobs:
       condition: always()
       continueOnError: true
       displayName: Upload eBPF binaries for validations to consume
+    - output: pipelineArtifact
+      targetPath: $(Build.SourcesDirectory)/Out/Logs/Build
+      artifactName: Linux-eBPF-External-Logs
+      condition: always()
+      continueOnError: true
+      displayName: Upload eBPF external build logs
 
   steps:
   - template: ../steps/linux_prepare.yml

@@ -2,6 +2,13 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20251124.3.2 (Release [30777415](https://dev.azure.com/mseng/Domino/_build/results?buildId=30777415&view=results))
+- Add additional logging around Scheduler shutdown
+- Bring back console hyperlink support
+- [Detours] Detour CreateProcessAsUser[A|W]
+- Fix bug in observation reclassification rules processing
+- Exclude untracked directories from directory enumerations
+
 # 0.1.0-20251113.1 (Release [30722677](https://dev.azure.com/mseng/Domino/_build/results?buildId=30722677&view=results))
 - Pin Ubuntu 22.04 and AzureLinux validations to use interpose
 - Add retry logic when setting EBPF capabilities

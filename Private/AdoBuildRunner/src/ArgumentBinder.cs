@@ -24,7 +24,7 @@ namespace BuildXL.AdoBuildRunner
             //  IsRequired = true,
         };
 
-        private readonly Option<string> m_invocationKey = new(
+        private static readonly Option<string> s_invocationKey = new(
                 name: "--invocationKey",
                 description: "Used to disambiguate between invocations happening in the same ADO build. The value should be unique across a pipeline definition."
         )
@@ -115,11 +115,22 @@ namespace BuildXL.AdoBuildRunner
 
         public ArgumentBinder(RootCommand argumentParserCommand) => AddOptions(argumentParserCommand);
 
+        /// <summary>
+        /// Helper method that parses the command line just to extract the invocation key
+        /// </summary>
+        public static string? GetInvocationKeyValue(string[] args)
+        {
+            var root = new RootCommand();
+            root.AddOption(s_invocationKey);
+            ParseResult result = root.Parse(args);
+            return result.GetValueForOption(s_invocationKey);
+        }
+
         protected override IAdoBuildRunnerConfiguration GetBoundValue(BindingContext bindingContext)
         {
             T? get<T>(Option<T> o) => bindingContext.ParseResult.GetValueForOption(o);
 
-            var config = new AdoBuildRunnerConfiguration(get(m_engineLocationOption)!, get(m_invocationKey)!);
+            var config = new AdoBuildRunnerConfiguration(get(m_engineLocationOption)!, get(s_invocationKey)!);
             var cacheConfig = config.CacheConfigGenerationConfiguration;
 
             // Populate from specified options
@@ -150,7 +161,7 @@ namespace BuildXL.AdoBuildRunner
 
             add(m_engineLocationOption);
             add(m_agentRoleOption);
-            add(m_invocationKey);
+            add(s_invocationKey);
             add(m_disableEncryption);
             add(m_maximumWaitForWorkerSeconds);
             add(m_workerAlwaysSucceeds);

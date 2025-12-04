@@ -14,6 +14,11 @@ namespace BuildXL.AdoBuildRunner
         public const string BuildIdVarName = "BUILD_BUILDID";
 
         /// <summary>
+        /// Name of the environment variable that contains the build id
+        /// </summary>
+        public const string DefinitionIdVarName = "SYSTEM_DEFINITIONID";
+
+        /// <summary>
         /// Name of the environment variable that contains the build id of the build that triggered this one
         /// </summary>
         public const string TriggeredByBuildIdVarName = "BUILD_TRIGGEREDBY_BUILDID";
@@ -87,6 +92,11 @@ namespace BuildXL.AdoBuildRunner
         /// Name of the variable of the Url of the build repository
         /// </summary>
         public const string RepositoryUrlVariableName = "BUILD_REPOSITORY_URI";
+        
+        /// <summary>
+        /// Name of the variable of the name of the build repository
+        /// </summary>
+        public const string RepositoryNameVariableName = "BUILD_REPOSITORY_NAME";
 
         /// <summary>
         /// Name of the variable of the Url of the ADO collection (e.g. 

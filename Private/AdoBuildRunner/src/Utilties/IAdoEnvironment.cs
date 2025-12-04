@@ -18,6 +18,11 @@ namespace BuildXL.AdoBuildRunner
         public int BuildId { get; }
 
         /// <summary>
+        /// VSTS DefinitionId (also referred to as pipeline id). Identifies a pipeline
+        /// </summary>
+        public int DefinitionId { get; }
+
+        /// <summary>
         /// Team project that the build definition belongs to
         /// </summary>
         public string TeamProject { get; }
@@ -56,6 +61,11 @@ namespace BuildXL.AdoBuildRunner
         /// Url of the build repository
         /// </summary>
         public string RepositoryUrl { get; }
+
+        /// <summary>
+        /// Url of the build repository
+        /// </summary>
+        public string RepositoryName { get; }
 
         /// <summary>
         /// Name of the machine where the agent is running

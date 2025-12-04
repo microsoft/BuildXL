@@ -1,13 +1,15 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.CommandLine;
 using System;
 using System.Collections.Generic;
-using System.Threading.Tasks;
-using BuildXL.AdoBuildRunner.Vsts;
-using BuildXL.AdoBuildRunner.Utilties.Mocks;
+using System.CommandLine;
 using System.Linq;
+using System.Threading.Tasks;
+using AdoBuildRunner.Configuration;
+using AdoBuildRunner.Utilties;
+using BuildXL.AdoBuildRunner.Utilties.Mocks;
+using BuildXL.AdoBuildRunner.Vsts;
 
 namespace BuildXL.AdoBuildRunner
 {
@@ -22,6 +24,23 @@ namespace BuildXL.AdoBuildRunner
             }
 
             var logger = new Logger();
+
+            IAdoEnvironment adoEnvironment;
+#if DEBUG
+            if (Environment.GetEnvironmentVariable("__ADOBR_INTERNAL_MOCK_ADO") == "1")
+            {
+                adoEnvironment = new MockAdoEnvironment();
+            }
+            else
+            {
+                adoEnvironment = new AdoEnvironment(logger);
+            }
+#else
+                adoEnvironment = new AdoEnvironment(logger);
+#endif
+
+            var invocationKey = Environment.GetEnvironmentVariable(Constants.InvocationKey) ?? ArgumentBinder.GetInvocationKeyValue(arguments);
+            IBuildOverrides? buildOverrides = await BuildOverridesHelper.LoadBuildOverrides(invocationKey, adoEnvironment, logger);
 
             // Look for the "--" argument which separates 'runner' from 'buildXL' arguments
             var indexOfSeparator = -1;
@@ -63,6 +82,12 @@ namespace BuildXL.AdoBuildRunner
                 config = parsedArgs;
             }, new ArgumentBinder(argumentParserCommand));
 
+            if (!string.IsNullOrEmpty(buildOverrides?.AdditionalBuildRunnerArguments))
+            {
+                logger.Info($"Applying additional build runner arguments from global overrides: {buildOverrides.AdditionalBuildRunnerArguments}");
+                var additionalRunnerArgs = TransformBackwardsCompatible(buildOverrides.AdditionalBuildRunnerArguments.Split(' ', StringSplitOptions.RemoveEmptyEntries));
+                runnerArguments = runnerArguments.Concat(additionalRunnerArgs).ToArray();
+            }
 
             var parsingResult = await argumentParserCommand.InvokeAsync(runnerArguments);
             if (parsingResult != 0)
@@ -70,7 +95,7 @@ namespace BuildXL.AdoBuildRunner
                 return parsingResult;
             }
 
-            return await RunAsync(config, forwardingArguments.ToList(), logger);
+            return await RunAsync(adoEnvironment, config, buildOverrides, forwardingArguments.ToList(), logger);
         }
 
         /// <summary>
@@ -102,23 +127,18 @@ namespace BuildXL.AdoBuildRunner
             return result.ToArray();
         }
 
-        private static async Task<int> RunAsync(IAdoBuildRunnerConfiguration configuration, List<string> buildArgs, ILogger logger)
+        private static async Task<int> RunAsync(IAdoEnvironment adoEnvironment, IAdoBuildRunnerConfiguration configuration, IBuildOverrides? buildOverrides, List<string> buildArgs, ILogger logger)
         {
             try
             {
-                IAdoEnvironment adoEnvironment;
-#if DEBUG
-                if (Environment.GetEnvironmentVariable("__ADOBR_INTERNAL_MOCK_ADO") == "1")
+
+                if (!string.IsNullOrEmpty(buildOverrides?.AdditionalCommandLineArguments))
                 {
-                    adoEnvironment = new MockAdoEnvironment();
+                    logger.Info($"Applying additional build command line arguments from global overrides: {buildOverrides.AdditionalCommandLineArguments}");
+                    var additionalArgs = buildOverrides.AdditionalCommandLineArguments.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                    buildArgs.AddRange(additionalArgs);
                 }
-                else
-                {
-                    adoEnvironment = new AdoEnvironment(logger);
-                }
-#else
-                adoEnvironment = new AdoEnvironment(logger);
-#endif
+
                 // TODO: There are currently many arguments that are passed to the runner via environment variables.
                 // For now, fall back to these, if defined:
                 configuration.PopulateFromEnvVars(adoEnvironment, logger);
@@ -133,6 +153,7 @@ namespace BuildXL.AdoBuildRunner
                     AgentRole.Worker => new WorkerBuildExecutor(buildXLLauncher, adoBuildRunnerService, logger),
                     _ => throw new InvalidOperationException($"Invalid Machine Role: {adoBuildRunnerService.Config.AgentRole}")
                 };
+
                 var buildManager = new BuildManager(adoBuildRunnerService, buildExecutor, buildArgs.ToArray(), logger);
                 return await buildManager.BuildAsync();
             }

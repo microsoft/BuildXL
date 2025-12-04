@@ -24,6 +24,9 @@ namespace BuildXL.AdoBuildRunner {
             // Note: don't add internal dependencies here
             // We want this project to be separated from BuildXL for future portability
         ],
+        internalsVisibleTo: [
+            "Test.Tool.AdoBuildRunner"
+        ],
         nullable: true
     });
 

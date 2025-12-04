@@ -19,6 +19,9 @@ namespace BuildXL.AdoBuildRunner
         public int BuildId { get; }
 
         /// <inheritdoc />
+        public int DefinitionId { get; }
+
+        /// <inheritdoc />
         public string TeamProject { get; }
 
         /// <inheritdoc />
@@ -41,6 +44,9 @@ namespace BuildXL.AdoBuildRunner
 
         /// <inheritdoc />
         public string RepositoryUrl { get; }
+
+        /// <inheritdoc />
+        public string RepositoryName { get; }
 
         /// <inheritdoc />
         public string AgentMachineName { get; }
@@ -74,6 +80,7 @@ namespace BuildXL.AdoBuildRunner
         {
             // See: https://learn.microsoft.com/en-us/azure/devops/pipelines/build/variables?view=azure-devops&tabs=yaml
             BuildId = int.Parse(Environment.GetEnvironmentVariable(Constants.BuildIdVarName)!);
+            DefinitionId = int.Parse(Environment.GetEnvironmentVariable(Constants.DefinitionIdVarName)!);
             TeamProject = Environment.GetEnvironmentVariable(Constants.TeamProjectVarName)!;
             ServerUri = Environment.GetEnvironmentVariable(Constants.ServerUriVarName)!;
             AgentName = Environment.GetEnvironmentVariable(Constants.AgentNameVarName)!;
@@ -84,6 +91,7 @@ namespace BuildXL.AdoBuildRunner
             JobId = Environment.GetEnvironmentVariable(Constants.JobIdVariableName)!;
             PlanId = Environment.GetEnvironmentVariable(Constants.PlanIdVarName)!;
             RepositoryUrl = Environment.GetEnvironmentVariable(Constants.RepositoryUrlVariableName)!;
+            RepositoryName = Environment.GetEnvironmentVariable(Constants.RepositoryNameVariableName)!;
             CollectionUrl = Environment.GetEnvironmentVariable(Constants.CollectionUrlVariableName)!;
             MaximumWaitForWorkerSeconds = Environment.GetEnvironmentVariable(Constants.MaximumWaitForWorkerSecondsVariableName)!;
             LocalSourceBranch = Environment.GetEnvironmentVariable(Constants.SourceBranchVariableName)!;

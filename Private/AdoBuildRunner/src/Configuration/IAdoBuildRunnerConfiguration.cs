@@ -14,44 +14,44 @@ namespace BuildXL.AdoBuildRunner
         /// <summary>
         /// The directory containing the BuildXL engine executable
         /// </summary>
-        public string EngineLocation { get; }
+        string EngineLocation { get; }
 
 
         /// <summary>
         /// Key used to disambiguate between invocations happening in the same ADO build
         /// </summary>
-        public string InvocationKey { get; }
+        string InvocationKey { get; }
 
         /// <summary>
         /// Specifies the role of the pipeline in the ADO build runner
         /// </summary>
-        public AgentRole? AgentRole { get; }
+        AgentRole? AgentRole { get; }
 
         /// <summary>
         /// Indicates whether the worker always reports success regardless of actual outcome
         /// </summary>
-        public bool WorkerAlwaysSucceeds { get; }
+        bool WorkerAlwaysSucceeds { get; }
 
         /// <summary>
         /// Maximum time to wait for a worker to be available, in seconds
         /// </summary>
-        public int MaximumWaitForWorkerSeconds { get; }
+        int MaximumWaitForWorkerSeconds { get; }
 
         /// <summary>
         /// Disables encryption for the build process
         /// </summary>
-        public bool DisableEncryption { get; }
+        bool DisableEncryption { get; }
 
         /// <summary>
         /// Input needed to generate a cache config file
         /// </summary>
-        public ICacheConfigGenerationConfiguration CacheConfigGenerationConfiguration { get; }
+        ICacheConfigGenerationConfiguration CacheConfigGenerationConfiguration { get; }
 
         /// <summary>
         /// Set fallback values to ensure backwards compatibility until the changes are applied in the 1ESPT repo.
         /// See Bug: 2199401 for more details.
         /// </summary>
-        public void PopulateFromEnvVars(IAdoEnvironment adoEnvironment, ILogger logger);
+        void PopulateFromEnvVars(IAdoEnvironment adoEnvironment, ILogger logger);
 
         // If you add more fields here please update the ValidateConfiguration method below
     }

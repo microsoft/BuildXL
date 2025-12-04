@@ -1,6 +1,8 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using Microsoft.VisualStudio.Services.WebApi;
+
 namespace BuildXL.AdoBuildRunner.Utilties.Mocks
 {
     /// <summary>
@@ -10,6 +12,9 @@ namespace BuildXL.AdoBuildRunner.Utilties.Mocks
     {
         /// <inheritdoc />
         public int BuildId { get; set; }
+
+        /// <inheritdoc />
+        public int DefinitionId { get; set; }
 
         /// <inheritdoc />
         public string TeamProject { get; set; }
@@ -34,6 +39,9 @@ namespace BuildXL.AdoBuildRunner.Utilties.Mocks
 
         /// <inheritdoc />
         public string RepositoryUrl { get; set; }
+
+        /// <inheritdoc />
+        public string RepositoryName { get; set; }
 
         /// <inheritdoc />
         public string AgentMachineName { get; set; }
@@ -69,6 +77,7 @@ namespace BuildXL.AdoBuildRunner.Utilties.Mocks
         public MockAdoEnvironment()
         {
             BuildId = 12345;
+            DefinitionId = 2121;
             TeamProject = "MockTeamProject";
             TeamProjectId = "8e466b12-c3c1-4f66-a2f3-01b70ee74960";
             ServerUri = "https://dev.azure.com/mseng/";
@@ -79,6 +88,7 @@ namespace BuildXL.AdoBuildRunner.Utilties.Mocks
             JobId = "234";
             PlanId = "MockPlanId";
             RepositoryUrl = "MockRepositoryUrl";
+            RepositoryName = "MockRepositoryName";
             CollectionUrl = "MockCollectionUrl";
             MaximumWaitForWorkerSecondsVariableName = "1000";
             LocalSourceBranch = "MockLocalSourceBranch";

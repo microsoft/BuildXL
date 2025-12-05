@@ -1,5 +1,12 @@
 trigger: none  # Explicitly scheduled for PRs
 
+resources:
+  repositories:
+  - repository: 1esPipelines
+    type: git
+    name: 1ESPipelineTemplates/1ESPipelineTemplates
+    ref: refs/tags/release
+
 variables:
   - group: "BuildXL Common variables"
   - name: BuildXL.LogsDirectory.LKG
@@ -16,115 +23,122 @@ variables:
   - name: Codeql.Enabled
     value: "false"
 
-jobs:
-- job: Public_Validation
-  displayName: Public PR Validation
-  timeoutInMinutes: 120
-  cancelTimeoutInMinutes: 1
+extends:
+  template: v1/1ES.Unofficial.PipelineTemplate.yml@1esPipelines
+  parameters:
+    pool:
+      name: BuildXL-DevOpsAgents-Selfhost-BuildCache
+      os: windows
+      image: 1ESPT-Win2022-PME-3
+      vhd:
+        enabled: true     # AutoVhd
 
-  pool:
-    name: BuildXL-DevOpsAgents-Selfhost-BuildCache
-    os: windows
-    demands: 
-    - ImageOverride -equals 1ESPT-Win2022-PME-3
-    - AutoManagedVhd -equals true
+    stages:
+    - stage: ExternalPR
+      jobs:
+      - job: Public_Validation
+        displayName: Public PR Validation
+        timeoutInMinutes: 120
+        cancelTimeoutInMinutes: 1
+        steps:
+        - checkout: self
+        - template: /.azdo/common/journaling.yml@self # Enable journaling
+        - template: /.azdo/common/set-variable-pats.yml@self
 
-  steps:
-  - checkout: self
-    clean: false
-    fetchTags: false
-    fetchDepth: 1
+        # Step 1. Build bits and deploy to dev
+        - script: >-
+            .\bxl.cmd
+            -minimal
+            -deploy Dev
+            -deployconfig Release
+            -CacheNamespace BuildXL.Public
+            -SharedCacheMode ConsumeAndPublish
+            /p:[Sdk.BuildXL]microsoftInternal=1
+            /q:ReleaseNet9
+            /p:[BuildXL.Branding]SemanticVersion=$(BuildXL.SemanticVersion)
+            /p:[BuildXL.Branding]PrereleaseTag=$(BuildXL.PreReleaseTag)
+            /logOutput:FullOutputOnWarningOrError
+            /traceInfo:prvalidation=Public
+            /scrubDirectory:Out\objects
+            /logsDirectory:$(BuildXL.LogsDirectory.LKG)
+            /cachemiss:BxlPublicValidation
+          displayName: BuildXL -Deploy Dev
+          env:
+            1ESSHAREDASSETS_BUILDXL_FEED_PAT: $(1ESSHAREDASSETS_BUILDXL_FEED_PAT)
+            CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT: $(CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT)
+            MSENG_GIT_PAT: $(MSENG_GIT_PAT)
+            VSTSPERSONALACCESSTOKEN: $(VSTSPERSONALACCESSTOKEN)
+            ARTIFACT_CREDENTIALPROVIDERS_PATH: $(ARTIFACT_CREDENTIALPROVIDERS_PATH)
+            CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT_B64: $(CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT_B64)
+            VSS_NUGET_EXTERNAL_FEED_ENDPOINTS: $(VSS_NUGET_EXTERNAL_FEED_ENDPOINTS)
+        
+        - task: 1ES.PublishPipelineArtifact@1
+          displayName: Upload -Deploy Dev logs
+          condition: always()
+          continueOnError: True
+          inputs:
+            path: $(BuildXL.LogsDirectory.LKG)
+            artifactName: BuildXL -Deploy Dev logs
 
-  - template: /.azdo/common/journaling.yml # Enable journaling
+        # Step 2. Build microsoftInternal=0 using the built bits
+        - template: /.azdo/common/set-msvc-version.yml@self
+        - task: CmdLine@2
+          displayName: BuildXL -Use Dev (microsoftInternal=0) 
+          inputs:
+            script: >-
+              bxl.cmd
+              -Use Dev
+              -UseBlobL3
+              -SharedCacheMode ConsumeAndPublish
+              -CacheNamespace BuildXL.Public.Validation
+              /p:[Sdk.BuildXL]microsoftInternal=0
+              /q:$(BuildXL.Configuration)Net9
+              /logOutput:FullOutputOnWarningOrError
+              /p:RetryXunitTests=1
+              /processRetries:3
+              /traceInfo:prvalidation=PublicLKG
+              /p:xunitSemaphoreCount=12
+              /logsDirectory:$(BuildXL.LogsDirectory)
+              /scrubDirectory:Out\objects
+              /pipTimeoutMultiplier:2
 
-  # Step 1. Build bits and deploy to dev
-  - template: /.azdo/common/set-variable-pats.yml
+        # Step 3. Check to see if there are any unstaged files in the build and fail the build.
+        #         We avoid checking cg/nuget/cgmanifest.json and .sarif files, which we expect to change in the external build
+        - task: PowerShell@2
+          displayName: Check for unstaged files in the build
+          inputs:
+            targetType: inline
+            continueOnError: true
+            script: |
+              $gitStatus = git status --porcelain . -- ':!cg/nuget/cgmanifest.json' ':!*.sarif'
+              if (-not [string]::IsNullOrWhiteSpace($gitStatus))
+              {
+                  Write-Host "##vso[task.logissue type=error]There are unstaged files in the build."
+                  Write-Host "##vso[task.logissue type=error]Please commit these files and re-run the validation."
+                  $gitStatus.Split([Environment]::NewLine) | ForEach-Object {
+                      Write-Host "##vso[task.logissue type=error]$($_)"
+                  }
+                  Write-Host "git diff"
+                  git diff
+                  exit 1
+              }
 
-  - script: 'C:\windows\system32\fsutil usn createjournal m=0x20000000 a=0x8000000 F:'
-    displayName: 'Enable Journaling for F drive'
-
-
-  - script: >-
-      .\bxl.cmd
-      -minimal
-      -deploy Dev
-      -deployconfig Release
-      -CacheNamespace BuildXL.Public
-      -SharedCacheMode ConsumeAndPublish
-      /p:[Sdk.BuildXL]microsoftInternal=1
-      /q:ReleaseNet9
-      /p:[BuildXL.Branding]SemanticVersion=$(BuildXL.SemanticVersion)
-      /p:[BuildXL.Branding]PrereleaseTag=$(BuildXL.PreReleaseTag)
-      /logOutput:FullOutputOnWarningOrError
-      /traceInfo:prvalidation=Public
-      /scrubDirectory:Out\objects
-      /logsDirectory:$(BuildXL.LogsDirectory.LKG)
-      /cachemiss:BxlPublicValidation
-    displayName: BuildXL -Deploy Dev
-    env:
-      1ESSHAREDASSETS_BUILDXL_FEED_PAT: $(1ESSHAREDASSETS_BUILDXL_FEED_PAT)
-      CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT: $(CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT)
-      MSENG_GIT_PAT: $(MSENG_GIT_PAT)
-      VSTSPERSONALACCESSTOKEN: $(VSTSPERSONALACCESSTOKEN)
-      ARTIFACT_CREDENTIALPROVIDERS_PATH: $(ARTIFACT_CREDENTIALPROVIDERS_PATH)
-      CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT_B64: $(CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT_B64)
-      VSS_NUGET_EXTERNAL_FEED_ENDPOINTS: $(VSS_NUGET_EXTERNAL_FEED_ENDPOINTS)
-  
-  - task: PublishPipelineArtifact@1
-    displayName: Upload -Deploy Dev logs
-    condition: always()
-    continueOnError: True
-    inputs:
-      path: $(BuildXL.LogsDirectory.LKG)
-      artifactName: BuildXL -Deploy Dev logs
-
-  # Step 2. Build microsoftInternal=0 using the built bits
-  - template: /.azdo/common/set-msvc-version.yml
-  - task: CmdLine@2
-    displayName: BuildXL -Use Dev (microsoftInternal=0) 
-    inputs:
-      script: >-
-        bxl.cmd
-        -Use Dev
-        -UseBlobL3
-        -SharedCacheMode ConsumeAndPublish
-        -CacheNamespace BuildXL.Public.Validation
-        /p:[Sdk.BuildXL]microsoftInternal=0
-        /q:$(BuildXL.Configuration)Net9
-        /logOutput:FullOutputOnWarningOrError
-        /p:RetryXunitTests=1
-        /processRetries:3
-        /traceInfo:prvalidation=PublicLKG
-        /p:xunitSemaphoreCount=12
-        /logsDirectory:$(BuildXL.LogsDirectory)
-        /scrubDirectory:Out\objects
-        /pipTimeoutMultiplier:2
-
-  # Step 3. Check to see if there are any unstaged files in the build and fail the build.
-  #         We avoid checking cg/nuget/cgmanifest.json, which we expect to change in the external build
-  - task: PowerShell@2
-    displayName: Check for unstaged files in the build
-    inputs:
-      targetType: inline
-      continueOnError: true
-      script: |
-        $gitStatus = git status --porcelain . -- ':!cg/nuget/cgmanifest.json'
-        if (-not [string]::IsNullOrWhiteSpace($gitStatus))
-        {
-            Write-Host "##vso[task.logissue type=error]There are unstaged files in the build."
-            Write-Host "##vso[task.logissue type=error]Please commit these files and re-run the validation."
-            $gitStatus.Split([Environment]::NewLine) | ForEach-Object {
-                Write-Host "##vso[task.logissue type=error]$($_)"
+        # Rename all directories in $(BuildXL.LogsDirectory) that contain the suffix .dll or .exe to replace the dot with an underscore
+        # This is because the BinSkim task will fail if there are files with these extensions in directory names
+        # See Guardian bug here: https://dev.azure.com/mseng/1ES/_workitems/edit/2338825
+        - powershell: |
+            Get-ChildItem -Path "$(BuildXL.LogsDirectory)" -Recurse -Directory | Where-Object { $_.Name -match '\.(dll|exe)$' } | ForEach-Object {
+                $newName = $_.Name -replace '\.(dll|exe)$', '_$1'
+                $newPath = Join-Path -Path $_.Parent.FullName -ChildPath $newName
+                Rename-Item -Path $_.FullName -NewName $newName
+                Write-Host "Renamed directory '$($_.FullName)' to '$newPath'"
             }
-            Write-Host "git diff"
-            git diff
-            exit 1
-        }
+          displayName: 'Sanitize log directory before upload'
 
-  - task: PublishPipelineArtifact@1
-    displayName: Upload -Use Dev logs
-    condition: always()
-    continueOnError: True
-    inputs:
-      path: $(BuildXL.LogsDirectory)
-      artifactName: BuildXL -Use Dev logs
+        - task: 1ES.PublishPipelineArtifact@1
+          displayName: Upload -Use Dev logs
+          condition: always()
+          continueOnError: True
+          inputs:
+            targetPath: $(BuildXL.LogsDirectory)
+            artifactName: BuildXL -Use Dev logs

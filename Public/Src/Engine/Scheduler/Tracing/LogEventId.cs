@@ -533,8 +533,8 @@ namespace BuildXL.Scheduler.Tracing
         SchedulerComplete = 14540,
 
         EventStatsLogUnhandleEvent = 14600,
-        ObservationReclassified = 14601,
-        ObservationIgnored = 14602,
+        // was ObservationReclassified = 14601,
+        // was ObservationIgnored = 14602,
         FailedToInitalizeReclassificationRules = 14603,
 
         PendingEventsRemaingAfterDisposed = 14604,

@@ -15,5 +15,6 @@ namespace BuildXL.FrontEnd.Lage.Tracing
 
         // reserved 12600 .. 12700 for Lage front-end
         UsingToolAt = 12600,
+        YarnStrictStoreNotFound = 12601,
     }
 }

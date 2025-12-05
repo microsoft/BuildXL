@@ -1360,11 +1360,8 @@ namespace BuildXL.Scheduler
         NumReclassifiedObservations,
 
         /// <nodoc />
-        NumRegexMatchForReclassificationRules,
-
-        /// <nodoc />
         [CounterType(CounterType.Stopwatch)]
-        RegexMatchForReclassificationRulesDuration,
+        ReclassificationRulesDuration,
     }
 
     /// <summary>

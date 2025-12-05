@@ -2,14 +2,15 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
-using System.Diagnostics.ContractsLight;
 using System.Linq;
 using BuildXL.FrontEnd.JavaScript;
 using BuildXL.FrontEnd.JavaScript.ProjectGraph;
 using BuildXL.FrontEnd.Lage.ProjectGraph;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Workspaces.Core;
+using BuildXL.Native.IO;
 using BuildXL.Pips.Builders;
+using BuildXL.Pips.Reclassification;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Core;
@@ -80,6 +81,27 @@ namespace BuildXL.FrontEnd.Lage
             };
 
             processBuilder.ChildProcessesToBreakawayFromSandbox = processBuilder.ChildProcessesToBreakawayFromSandbox.Append(lageServerBreakaway).ToArray();
+
+            // If yarn strict awareness tracking is enabled, add the corresponding reclassification rule
+            if (m_resolverSettings.UseYarnStrictAwarenessTracking == true)
+            {
+                // The package store is always located under the .store folder in the repo root
+                var yarnStrictStore = m_resolverSettings.Root.Combine(PathTable, ".store");
+                var yarnStrictRule = new YarnStrictReclassificationRule(m_resolverSettings.ModuleName, yarnStrictStore);
+
+                if (!FileUtilities.DirectoryExistsNoFollow(yarnStrictStore.ToString(PathTable)))
+                {
+                    Tracing.Logger.Log.YarnStrictStoreNotFound(m_context.LoggingContext, m_resolverSettings.Location(PathTable), yarnStrictStore.ToString(m_context.PathTable));
+                    return false;
+                }
+
+                processBuilder.ReclassificationRules = processBuilder.ReclassificationRules.Append(yarnStrictRule).ToArray();
+
+                // When yarn strict awareness is enabled, the assumption is that no writes happen under it during the build. Let's enforce that by excluding that scope
+                // from the shared opaque umbrella.
+                processBuilder.AddOutputDirectoryExclusion(yarnStrictStore);
+            }
+
             return true;
         }
     }

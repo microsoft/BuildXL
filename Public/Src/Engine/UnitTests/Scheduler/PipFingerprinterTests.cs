@@ -29,6 +29,7 @@ using Xunit.Abstractions;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
 using BuildXL.Utilities;
+using BuildXL.Pips.Reclassification;
 
 namespace Test.BuildXL.Scheduler
 {
@@ -1349,37 +1350,37 @@ namespace Test.BuildXL.Scheduler
                            SealDirectoryCompositionActionKind.WidenDirectoryCone,
                            SealDirectoryCompositionActionKind.NarrowDirectoryCone),
 
-                       new FingerprintingTypeDescriptor<IReclassificationRule>(
-                           new ReclassificationRule()
+                       new FingerprintingTypeDescriptor<IInternalReclassificationRule>(
+                           new DScriptInternalReclassificationRule(0, new ReclassificationRule()
                            {
                                Name = "A",
                                PathRegex = ".*",
                                ReclassifyTo = new DiscriminatingUnion<ObservationType, UnitValue>(ObservationType.AbsentPathProbe),
                                ResolvedObservationTypes = [ObservationType.ExistingFileProbe]
-                           },
-                           new ReclassificationRule()
+                           }),
+                           new DScriptInternalReclassificationRule(1, new ReclassificationRule()
                            {
                                PathRegex = ".*",
                                ReclassifyTo = new DiscriminatingUnion<ObservationType, UnitValue>(ObservationType.AbsentPathProbe),
                                ResolvedObservationTypes = [ObservationType.ExistingFileProbe]
-                           },
-                           new ReclassificationRule()
+                           }),
+                           new DScriptInternalReclassificationRule(2, new ReclassificationRule()
                            {
                                PathRegex = ".*",
                                ReclassifyTo = new DiscriminatingUnion<ObservationType, UnitValue>(UnitValue.Unit),
                                ResolvedObservationTypes = [ObservationType.ExistingFileProbe]
-                           },
-                           new ReclassificationRule()
+                           }),
+                           new DScriptInternalReclassificationRule(3, new ReclassificationRule()
                            {
                                Name = "A",
                                PathRegex = ".*",
                                ResolvedObservationTypes = [ObservationType.ExistingFileProbe]
-                           },
-                           new ReclassificationRule()
+                           }),
+                           new DScriptInternalReclassificationRule(4, new ReclassificationRule()
                            {
                                PathRegex = ".*",
                                ResolvedObservationTypes = [ObservationType.ExistingFileProbe]
-                           }),
+                           })),
                        new FingerprintingTypeDescriptor<IBreakawayChildProcess>(
                            new BreakawayChildProcess() {ProcessName = PathAtom.Create(stringTable, "cmd")},
                            new BreakawayChildProcess() {ProcessName = PathAtom.Create(stringTable, "cmd"), RequiredArguments = "some args"},
@@ -1876,11 +1877,11 @@ namespace Test.BuildXL.Scheduler
                         ec.FingerprintOverlays)));
             }
 
-            if (type == typeof(ReadOnlyArray<IReclassificationRule>))
+            if (type == typeof(ReadOnlyArray<IInternalReclassificationRule>))
             {
-                return new FingerprintingTypeDescriptor<ReadOnlyArray<IReclassificationRule>>(
-                    baseVal: ReadOnlyArray<IReclassificationRule>.Empty,
-                    generateClasses: role => GenerateArrayVariants<IReclassificationRule>(descriptors, role));
+                return new FingerprintingTypeDescriptor<ReadOnlyArray<IInternalReclassificationRule>>(
+                    baseVal: ReadOnlyArray<IInternalReclassificationRule>.Empty,
+                    generateClasses: role => GenerateArrayVariants<IInternalReclassificationRule>(descriptors, role));
             }
 
             if (type == typeof(ReadOnlyArray<RegexDescriptor>))

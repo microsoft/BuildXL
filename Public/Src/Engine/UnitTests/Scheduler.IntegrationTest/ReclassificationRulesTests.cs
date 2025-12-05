@@ -3,6 +3,7 @@
 
 using System.Collections.Generic;
 using System.IO;
+using BuildXL.Pips.Reclassification;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Core;
@@ -131,7 +132,7 @@ namespace IntegrationTest.BuildXL.Scheduler
                 ResolvedObservationTypes = [ObservationType.ExistingDirectoryProbe],
                 ReclassifyTo = Rt(ObservationType.AbsentPathProbe)
             };
-            builder.ReclassificationRules = new[] { rule.GetRule() };
+            builder.ReclassificationRules = new[] { new DScriptInternalReclassificationRule(0, rule.GetRule()) };
             pip = SchedulePipBuilder(builder);
             RunScheduler().AssertSuccess().AssertCacheMiss(pip.Process.PipId);
             RunScheduler().AssertSuccess().AssertCacheHit(pip.Process.PipId);
@@ -140,7 +141,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             ResetPipGraphBuilder();
             builder = CreatePipBuilder(operations);
             rule.ResolvedObservationTypes = [ObservationType.ExistingFileProbe];
-            builder.ReclassificationRules = new[] { rule.GetRule() };
+            builder.ReclassificationRules = new[] { new DScriptInternalReclassificationRule(0, rule.GetRule()) };
             pip = SchedulePipBuilder(builder);
             RunScheduler().AssertSuccess().AssertCacheMiss(pip.Process.PipId);
         }
@@ -164,13 +165,13 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             var builderA = CreatePipBuilder(operationsA);
             builderA.ReclassificationRules = new[] {
-                new ReclassificationRule()
+                new DScriptInternalReclassificationRule(0, new ReclassificationRule()
                 {
                     PathRegex = "file.txt",
                     Name = "ReadsAreProbes",
                     ResolvedObservationTypes = [ ObservationType.AbsentPathProbe, useAll ? ObservationType.All : ObservationType.FileContentRead ],
                     ReclassifyTo = Rt(ObservationType.ExistingFileProbe)
-                }
+                })
             };
             builderA.Options |= global::BuildXL.Pips.Operations.Process.Options.AllowUndeclaredSourceReads;
             var pipA = SchedulePipBuilder(builderA);
@@ -204,14 +205,14 @@ namespace IntegrationTest.BuildXL.Scheduler
             // BuilderA reclassifies the read as a probe
             var builderA = CreatePipBuilder(operationsA);
             builderA.ReclassificationRules = new[] {
-                new ReclassificationRule()
+                new DScriptInternalReclassificationRule(0, new ReclassificationRule()
                 {
                     PathRegex = "file.txt",
                     ResolvedObservationTypes = [ ObservationType.FileContentRead ],
                     // The 'ignore: true' test case uses 'Unit' so the observation is flat-out ignored
                     // The 'ignore: false' case is used as a baseline - the probe is classified as existing
                     ReclassifyTo = ignore ? Rt(null) : Rt(ObservationType.ExistingFileProbe)
-                }
+                })
             };
             builderA.Options |= global::BuildXL.Pips.Operations.Process.Options.AllowUndeclaredSourceReads;
             var pipA = SchedulePipBuilder(builderA);
@@ -259,13 +260,13 @@ namespace IntegrationTest.BuildXL.Scheduler
             // only applies in the relevant cases.
             //
             // For the bug that motivated this test / behavior, see work item #2182113
-            var existingDirProbesAreAbsentRule = new ReclassificationRule()
+            var existingDirProbesAreAbsentRule = new DScriptInternalReclassificationRule(0, new ReclassificationRule()
             {
                 PathRegex = "probedpath",
                 Name = "ExistingDirProbesAreAbsent",
                 ResolvedObservationTypes = [ ObservationType.ExistingDirectoryProbe ],
                 ReclassifyTo = Rt(ObservationType.AbsentPathProbe)
-            };
+            });
 
             string dir = Path.Combine(SourceRoot, "probedpath");
             AbsolutePath dirPath = AbsolutePath.Create(Context.PathTable, dir);

@@ -32,3 +32,19 @@ config({
 ```
 
 Here we are specifying `build` and `test` as a way to define the build extent, but there is no implicit dependency between these commands and the order is not important: the dependency information will be provided by Lage.
+
+## Improving perf with yarn strict awaress tracking
+When doing package install via [Yarn strict](https://classic.yarnpkg.com/en/package/yarn-strict), the Lage resolver can be made aware of it with a resolver option:
+
+```typescript
+config({
+  resolvers: [
+      {
+        kind: "Lage",
+        ...
+        useYarnStrictAwarenessTracking: true,
+      }
+  ]
+});
+```
+When enabled, BuildXL assumes the name of each directory immediately under the yarn strict store (e.g. <repo_root>/.store/@babylonjs-core@7.54.3-d93831e7ae9116fa2dd7) determines the file layout and content under it. The net effect of this option is that BuildXL will need to track a potentially smaller set of files, improving cache lookups and post-processing times. Observe, however, this option opens the door to some level of unsafety. If any file is modified under a package in the yarn strict store after the install step happens, BuildXL will not be aware of it and an underbuild would be possible. Therefore, the recommendation is to turn this option on for lab builds, where this type of prerequisites are usually met, but leave it off (the default) for local builds. Even in the case of a lab build, care should be exercised if there is any step in between package install and the start of the build that can modify the package store.

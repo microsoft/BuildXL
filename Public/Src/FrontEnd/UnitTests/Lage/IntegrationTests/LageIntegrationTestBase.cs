@@ -85,7 +85,8 @@ namespace Test.BuildXL.FrontEnd.Lage
             string executeCommands = null,
             string since = null,
             string lageLocation = null,
-            bool? enforceSourceReadsUnderPackageRoots = null)
+            bool? enforceSourceReadsUnderPackageRoots = null,
+            bool? useYarnStrictAwarenessTracking = false)
         {
             environment ??= new Dictionary<string, DiscriminatingUnion<string, UnitValue>> { 
                 ["PATH"] = new DiscriminatingUnion<string, UnitValue>(PathToNodeFolder),
@@ -107,20 +108,22 @@ namespace Test.BuildXL.FrontEnd.Lage
                     executeCommands: executeCommands,
                     since: since,
                     lageLocation: lageLocation,
-                    enforceSourceReadsUnderPackageRoots));
+                    enforceSourceReadsUnderPackageRoots,
+                    useYarnStrictAwarenessTracking));
         }
 
         protected BuildXLEngineResult RunLageProjects(
             ICommandLineConfiguration config,
             TestCache testCache = null, 
-            IDetoursEventListener detoursListener = null)
+            IDetoursEventListener detoursListener = null,
+            Action postPackageInstallHook = null)
         {
-            BootstrapLage(config);
+            BootstrapLage(config, postPackageInstallHook);
 
             return RunEngine(config, testCache, detoursListener);
         }
 
-        protected void BootstrapLage(ICommandLineConfiguration config)
+        protected void BootstrapLage(ICommandLineConfiguration config, Action postPackageInstallHook = null)
         {
             // This bootstraps the 'repo'
             File.WriteAllText(config.Layout.SourceDirectory.Combine(PathTable, "package.json").ToString(PathTable), $@"
@@ -154,6 +157,8 @@ module.exports = {
             {
                 throw new InvalidOperationException("Yarn install failed.");
             }
+
+            postPackageInstallHook?.Invoke();
         }
 
         /// <summary>
@@ -188,7 +193,8 @@ module.exports = {
             string executeCommands,
             string since,
             string lageLocation,
-            bool? enforceSourceReadsUnderPackageRoots) => $@"
+            bool? enforceSourceReadsUnderPackageRoots,
+            bool? useYarnStrictAwarenessTracking) => $@"
 config({{
     resolvers: [
         {{
@@ -196,11 +202,14 @@ config({{
             moduleName: '{moduleName}',
             root: {root},
             nodeExeLocation: f`{PathToNode}`,
+            // npm writes some logs here
+            untrackedDirectoryScopes: [d`${{Context.getUserHomeDirectory()}}/.npm`],
             {DictionaryToExpression("environment", environment)}
             {(executeCommands == null ? string.Empty : $"execute: {executeCommands},")}
             {(since == null ? string.Empty : $"since: '{since}',")}
             {(lageLocation == null ? string.Empty : $"lageLocation: f`{lageLocation}`,")}
             {(enforceSourceReadsUnderPackageRoots != null ? $"enforceSourceReadsUnderPackageRoots: {enforceSourceReadsUnderPackageRoots.Value.ToString().ToLowerInvariant()}," : string.Empty)}
+            {(useYarnStrictAwarenessTracking != null ? $"useYarnStrictAwarenessTracking: {useYarnStrictAwarenessTracking.Value.ToString().ToLowerInvariant()}," : string.Empty)}
         }}
     ],
 }});";

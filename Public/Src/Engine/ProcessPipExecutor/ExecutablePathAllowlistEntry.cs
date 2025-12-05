@@ -7,6 +7,7 @@ using BuildXL.Processes;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using System;
+using BuildXL.Utilities;
 
 namespace BuildXL.ProcessPipExecutor
 {

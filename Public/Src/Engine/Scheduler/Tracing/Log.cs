@@ -4161,24 +4161,6 @@ namespace BuildXL.Scheduler.Tracing
         internal abstract void FailedToInitalizeReclassificationRules(LoggingContext loggingContext, string error);
 
         [GeneratedEvent(
-            (ushort)LogEventId.ObservationReclassified,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.UserMessage,
-            EventTask = (ushort)Tasks.PipExecutor,
-            Message = "[{pipDescription}] Observation on path {path} reclassified by rule '{rule}' from {from} to {to}. isCacheLookup: {isCacheLookup}")]
-        internal abstract void ObservationReclassified(LoggingContext loggingContext, string pipDescription, string path, string rule, string from, string to, bool isCacheLookup);
-
-        [GeneratedEvent(
-            (ushort)LogEventId.ObservationIgnored,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.UserMessage,
-            EventTask = (ushort)Tasks.PipExecutor,
-            Message = "[{pipDescription}] Observation on path {path} marked as ignored by rule '{rule}' from type {from}. isCacheLookup: {isCacheLookup}")]
-        internal abstract void ObservationIgnored(LoggingContext loggingContext, string pipDescription, string path, string rule, string from, bool isCacheLookup);
-
-        [GeneratedEvent(
             (ushort)LogEventId.PendingEventsRemaingAfterDisposed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,

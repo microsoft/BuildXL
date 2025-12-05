@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using BuildXL.Pips.Operations;
+using BuildXL.Pips.Reclassification;
 using BuildXL.Storage;
 using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities.Collections;
@@ -475,7 +476,7 @@ namespace BuildXL.Pips.Graph
             // so we mark the pip as dirty both with and without incremental scheduling enabled if these rules change
             if (process.ReclassificationRules.Length > 0)
             {
-                fingerprinter.AddCollection<IReclassificationRule, ReadOnlyArray<IReclassificationRule>>(nameof(Process.ReclassificationRules), process.ReclassificationRules, (fp, v) => fp.Add(v.Descriptor()));
+                fingerprinter.AddCollection<IInternalReclassificationRule, ReadOnlyArray<IInternalReclassificationRule>>(nameof(Process.ReclassificationRules), process.ReclassificationRules, (fp, v) => fp.Add(v.Descriptor()));
             }
         }
 

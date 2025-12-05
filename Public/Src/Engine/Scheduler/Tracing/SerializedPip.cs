@@ -187,24 +187,15 @@ namespace BuildXL.Scheduler.Tracing
         [JsonPropertyName("Untracked Scopes")]
         public List<string> UntrackedScopes { get; set; }
     }
-    
-    /// <nodoc/>
-    public class ReclassificationRuleJson
+
+    /// <summary>
+    /// Reclassification rules as a dictionary to allow for extensibility
+    /// </summary>
+    public class ReclassificationRuleJson : Dictionary<string, object>
     {
-        [JsonPropertyName("Index")]
-        public int Index { get; set; }
-
-        [JsonPropertyName("Name")]
-        public string Name { get; set; }
-
-        [JsonPropertyName("Path Regex")]
-        public string PathRegex { get; set; }
-
-        [JsonPropertyName("Resolved types")]
-        public List<string> ResolvedInputTypes { get; set; }
-
-        [JsonPropertyName("Reclassify to")]
-        public string ReclassifyTo { get; set; }
+        public ReclassificationRuleJson(IDictionary<string, object> dict) : base(dict)
+        {
+        }
     }
 
     /// <nodoc/>

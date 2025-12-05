@@ -14,6 +14,7 @@ using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
 using static BuildXL.Pips.Operations.Process;
 using BuildXL.Utilities.Configuration.Mutable;
+using BuildXL.Pips.Reclassification;
 
 namespace BuildXL.Pips.Builders
 {
@@ -149,7 +150,7 @@ namespace BuildXL.Pips.Builders
         public ReadOnlyArray<AbsolutePath> PreserveOutputAllowlist { get; set; } = ReadOnlyArray<AbsolutePath>.Empty;
 
         /// <nodoc />
-        public ReadOnlyArray<IReclassificationRule> ReclassificationRules { get; set; } = ReadOnlyArray<IReclassificationRule>.Empty;
+        public ReadOnlyArray<IInternalReclassificationRule> ReclassificationRules { get; set; } = ReadOnlyArray<IInternalReclassificationRule>.Empty;
 
         /// <summary>
         /// <see cref="RewritePolicy"/>. 

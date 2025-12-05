@@ -1,16 +1,17 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
 using System.Threading;
-using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL;
+using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Engine;
 using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.Artifacts;
-using BuildXL.Engine;
 using BuildXL.Native.IO;
 using BuildXL.Pips;
 using BuildXL.Pips.Builders;
@@ -18,24 +19,24 @@ using BuildXL.Pips.DirectedGraph;
 using BuildXL.Pips.Filter;
 using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
+using BuildXL.Pips.Reclassification;
 using BuildXL.Processes.Sideband;
 using BuildXL.Processes.VmCommandProxy;
 using BuildXL.ProcessPipExecutor;
 using BuildXL.Scheduler;
+using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Storage;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
+using BuildXL.Utilities.Core;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit.Abstractions;
 using ProcessOutputs = BuildXL.Pips.Builders.ProcessOutputs;
-using BuildXL.Scheduler.Fingerprints;
-using System;
 
 namespace Test.BuildXL.Scheduler
 {
@@ -483,7 +484,7 @@ namespace Test.BuildXL.Scheduler
             allowlist.Initialize(config);
 
             ObservationReclassifier reclassifier = new ObservationReclassifier();
-            reclassifier.Initialize(config.GlobalReclassificationRules.Select(r => r.GetRule()).ToList());
+            reclassifier.Initialize(config.GlobalReclassificationRules.Select((r, i) => new DScriptInternalReclassificationRule(i, r.GetRule())).ToList());
 
             IReadOnlyList<string> junctionRoots = Configuration.Engine.DirectoriesToTranslate?.Select(a => a.ToPath.ToString(Context.PathTable)).ToList();
 

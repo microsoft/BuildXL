@@ -11,6 +11,7 @@ using BuildXL.Utilities.Configuration;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using System.Linq;
+using BuildXL.Utilities;
 
 namespace Test.BuildXL.Processes
 {

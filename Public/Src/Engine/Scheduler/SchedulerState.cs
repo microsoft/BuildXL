@@ -6,6 +6,7 @@ using System.Diagnostics.ContractsLight;
 using BuildXL.Pips.DirectedGraph;
 using BuildXL.Pips.Filter;
 using BuildXL.Scheduler.IncrementalScheduling;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Scheduler
 {
@@ -55,6 +56,19 @@ namespace BuildXL.Scheduler
         }
 
         private readonly IIncrementalSchedulingState m_incrementalSchedulingState;
+        private readonly CounterCollection<PipExecutorCounter> m_pipExecutionCounters;
+
+        /// <summary>
+        /// Scheduler execution counters
+        /// </summary>
+        public CounterCollection<PipExecutorCounter> PipExecutionCounters
+        {
+            get
+            {
+                Contract.Requires(!IsDisposed);
+                return m_pipExecutionCounters;
+            }
+        }
 
         /// <summary>
         /// Whether this instance got disposed.
@@ -70,6 +84,7 @@ namespace BuildXL.Scheduler
             m_rootFilter = scheduler.RootFilter;
             m_filterPassingNodes = scheduler.FilterPassingNodes;
             m_incrementalSchedulingState = scheduler.IncrementalSchedulingState;
+            m_pipExecutionCounters = scheduler.PipExecutionCounters;
         }
 
         /// <summary>

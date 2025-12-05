@@ -637,32 +637,17 @@ namespace BuildXL.Scheduler.Fingerprints
                         if (reclassifierForPip.TryReclassify(path, pathTable, type, out var reclassification)
                             || environment.GlobalReclassificationRules.TryReclassify(path, pathTable, type, out reclassification))
                         {
-                            if (!reclassification.ReclassifyTo.HasValue)
+                            if (!reclassification.ReclassifyToType.HasValue)
                             {
-                                // Observation must be ignored
-                                Logger.Log.ObservationIgnored(
-                                    operationContext,
-                                    pip.Description,
-                                    path.ToString(pathTable),
-                                    reclassification.AppliedRuleName,
-                                    type.ToString(),
-                                    isCacheLookup);
-
+                                debugTrace.AppendLine($"Observation on path '{path.ToString(pathTable)}' marked as ignored by rule '{reclassification.AppliedRuleName}' from type {type}. isCacheLookup: {isCacheLookup}");
                                 continue;
                             }
                             else
                             {
-                                // Observation must be reclassified
-                                Logger.Log.ObservationReclassified(
-                                    operationContext,
-                                    pip.Description,
-                                    path.ToString(pathTable),
-                                    reclassification.AppliedRuleName,
-                                    type.ToString(),
-                                    reclassification.ToString(),
-                                    isCacheLookup);
+                                debugTrace.AppendLine($"Observation on path '{path.ToString(pathTable)}' with type {type} reclassified by rule '{reclassification.AppliedRuleName}' to type {reclassification.ReclassifyToType} and path '{reclassification.ReclassifyToPath.ToString(pathTable)}'. isCacheLookup: {isCacheLookup}");
 
-                                type = reclassification.ReclassifyTo.Value;
+                                path = reclassification.ReclassifyToPath;
+                                type = reclassification.ReclassifyToType.Value;
                             }
                         }
 

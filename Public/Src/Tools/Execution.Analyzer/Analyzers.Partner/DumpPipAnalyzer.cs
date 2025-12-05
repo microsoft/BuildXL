@@ -18,6 +18,7 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Pips.Reclassification;
 
 namespace BuildXL.Execution.Analyzer
 {
@@ -617,7 +618,7 @@ namespace BuildXL.Execution.Analyzer
                     m_html.CreateRow("IsStartOrShutdownKind", pip.IsStartOrShutdownKind)));
         }
 
-        private XElement GetReclassificationRulesDetails(ReadOnlyArray<IReclassificationRule> reclassificationRules)
+        private XElement GetReclassificationRulesDetails(ReadOnlyArray<IInternalReclassificationRule> reclassificationRules)
         {
             return m_html.CreateRow(
                 "Reclassification rules",
@@ -629,10 +630,7 @@ namespace BuildXL.Execution.Analyzer
                                 "div",
                                 new XAttribute("class", "miniGroup"),
                                     m_html.CreateRow("Index", i),
-                                    m_html.CreateRow("Name", r.Name),
-                                    m_html.CreateRow("Path Regex", r.PathRegex),
-                                    m_html.CreateRow("Resolved types", "[ " + string.Join(",", (r.ResolvedObservationTypes?.Select(o => o.ToString()) ?? Array.Empty<string>())) + " ]"),
-                                    m_html.CreateRow("Reclassify to", DumpPipLiteAnalysisUtilities.GetReclassifyValue(r.ReclassifyTo))
+                                    r.GetDisplayDescription(PathTable).Select(kvp => m_html.CreateRow(kvp.Key, kvp.Value.ToString()))
                             ))));
         }
 

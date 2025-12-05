@@ -3,175 +3,40 @@
 
 using System;
 using System.Collections.Generic;
-using System.Data;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Text;
-using System.Text.RegularExpressions;
 using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Cache.ContentStore.Interfaces.Extensions;
-using BuildXL.Processes;
+using BuildXL.Pips.Reclassification;
 using BuildXL.Storage;
-using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Core;
 
 namespace BuildXL.Scheduler.Fingerprints
 {
     /// <nodoc />
-    public readonly record struct ReclassificationResult(string AppliedRuleName, ObservedInputType? ReclassifyTo);
+    public readonly record struct FingerprintReclassificationResult(string AppliedRuleName, ObservedInputType? ReclassifyToType, AbsolutePath ReclassifyToPath);
 
     /// <inheritdoc />
     public class ObservationReclassifier
     {
-        /// <summary>
-        /// Encapsulates the mappings for a given 'rule set' in the configuration
-        /// </summary>
-        internal class ReclassificationRuleInternal
-        {
-            /// <nodoc />
-            public string Name { get; }
-
-            /// <summary>
-            /// The underlying Regex
-            /// </summary>
-            public SerializableRegex PathRegex { get; }
-
-            /// <nodoc />
-            public HashSet<ObservedInputType> From { get; }
-
-            /// <nodoc />
-            public ObservedInputType? To { get; }
-
-            public bool Ignore { get; }
-
-            /// <nodoc />
-            public static ReclassificationRuleInternal CreateFromConfig(IReclassificationRule rule)
-            {
-                var baseFlag = OperatingSystemHelper.IsPathComparisonCaseSensitive ? RegexOptions.None : RegexOptions.IgnoreCase;
-#if NET7_0_OR_GREATER
-                baseFlag |= RegexOptions.NonBacktracking;
-#endif
-                var regex = new SerializableRegex(rule.PathRegex, baseFlag | RegexOptions.Compiled | RegexOptions.CultureInvariant);
-
-                HashSet<ObservedInputType> from = null;
-                // If the rule contains 'All' as a mapped type, we will match every observation
-                if (!rule.ResolvedObservationTypes.Contains(ObservationType.All))
-                {
-                    from = rule.ResolvedObservationTypes.Select(cast).ToHashSet();
-                }
-
-                // If ReclassifyTo is unit
-                bool ignore = false;
-                ObservedInputType? to = null;
-                if (rule.ReclassifyTo != null)
-                {
-                    if (rule.ReclassifyTo.GetValue() is ObservationType t)
-                    {
-                        to = cast(t);
-                    }
-                    else
-                    {
-                        // The DiscriminatingUnion has type unit, it means ignore the observation
-                        ignore = true;
-                    }
-                }
-
-                return new ReclassificationRuleInternal(rule.Name, regex, from, ignore, to);
-
-                // We need to cast from the 'configuration' enums to the 'fingerprinting' enums
-                ObservedInputType cast(ObservationType from) => from switch
-                {
-                    ObservationType.AbsentPathProbe => ObservedInputType.AbsentPathProbe,
-                    ObservationType.FileContentRead => ObservedInputType.FileContentRead,
-                    ObservationType.DirectoryEnumeration => ObservedInputType.DirectoryEnumeration,
-                    ObservationType.ExistingDirectoryProbe => ObservedInputType.ExistingDirectoryProbe,
-                    ObservationType.ExistingFileProbe => ObservedInputType.ExistingFileProbe,
-                    // Should never happen as these values come from a union type in DScript
-                    _ => throw new ArgumentException($"Unknown ObservationType {from}")
-                };
-            }
-
-            private ReclassificationRuleInternal(string name, SerializableRegex pathRegex, HashSet<ObservedInputType> from, bool ignore, ObservedInputType? to)
-            {
-                Name = name;
-                PathRegex = pathRegex;
-                From = from;
-                Ignore = ignore;
-                To = to;
-            }
-
-            /// <nodoc />
-            public void Serialize(BuildXLWriter writer)
-            {
-                Contract.Requires(writer != null);
-                PathRegex.Write(writer);
-
-                writer.WriteNullableString(Name);
-                
-                writer.Write(From != null);
-                if (From != null)
-                {
-                    writer.Write(From.ToReadOnlyArray(), (w, v) => w.Write((int)v));
-                }
-
-                writer.Write(Ignore);
-
-                if (!Ignore)
-                {
-                    writer.Write(To.HasValue);
-                    if (To.HasValue)
-                    {
-                        writer.Write((int)To.Value);
-                    }
-                }
-            }
-
-            /// <nodoc />
-            public static ReclassificationRuleInternal Deserialize(BuildXLReader reader)
-            {
-                var regex = SerializableRegex.Read(reader);
-
-                string name = reader.ReadNullableString();
-                
-                HashSet<ObservedInputType> from = null;
-                if (reader.ReadBoolean())
-                {
-                    from = new HashSet<ObservedInputType>(reader.ReadReadOnlyArray(r => (ObservedInputType)r.ReadInt32()));
-                }
-
-                var ignore = reader.ReadBoolean();
-
-                ObservedInputType? to = null;
-                if (!ignore)
-                {
-                    if (reader.ReadBoolean())
-                    {
-                        to = (ObservedInputType)reader.ReadInt32();
-                    }
-                }
-
-                return new ReclassificationRuleInternal(name, regex, from, ignore, to);
-            }
-        }
-
         /// <nodoc />
-        public ObservationReclassifier() : this(Array.Empty<ReclassificationRuleInternal>()) { }
+        public ObservationReclassifier() : this(Array.Empty<IInternalReclassificationRule>()) { }
 
-        private ObservationReclassifier(ReclassificationRuleInternal[] rules)
+        private ObservationReclassifier(IInternalReclassificationRule[] rules)
         {
             m_rules = rules;
         }
 
         private CounterCollection<PipExecutorCounter> m_counters;
-        private ReclassificationRuleInternal[] m_rules;
+        private IInternalReclassificationRule[] m_rules;
 
         /// <summary>
         /// Initializes the rules given a user provided configuration. 
         /// This method throws <see cref="BuildXLException"/> if there is some error while initializing the rules, 
         /// such as forbidden reclassifications.
         /// </summary>
-        public void Initialize(IReadOnlyCollection<IReclassificationRule> rules, CounterCollection<PipExecutorCounter> counters = null)
+        public void Initialize(IReadOnlyCollection<IInternalReclassificationRule> rules, CounterCollection<PipExecutorCounter> counters = null)
         {
             if (!ValidateRules(rules, out var errors))
             {
@@ -179,10 +44,10 @@ namespace BuildXL.Scheduler.Fingerprints
             }
 
             m_counters = counters ?? new();
-            m_rules = rules.Select(static r => ReclassificationRuleInternal.CreateFromConfig(r)).ToArray();
+            m_rules = rules.ToArray();
         }
 
-        private bool ValidateRules(IReadOnlyCollection<IReclassificationRule> rules, out string errors)
+        private bool ValidateRules(IReadOnlyCollection<IInternalReclassificationRule> rules, out string errors)
         {
             var errorBuilder = new StringBuilder();
             bool hasErrors = false;
@@ -190,32 +55,18 @@ namespace BuildXL.Scheduler.Fingerprints
             foreach (var rule in rules)
             {
                 // 1. Rule name can't be repeated
-                if (!string.IsNullOrEmpty(rule.Name) && ruleNames.Contains(rule.Name))
+                if (!string.IsNullOrEmpty(rule.Name()) && ruleNames.Contains(rule.Name()))
                 {
-                    errorBuilder.AppendLine($"Duplicate rule name found: '{rule.Name}'");
+                    errorBuilder.AppendLine($"Duplicate rule name found: '{rule.Name()}'");
                     hasErrors = true;
                 }
 
-                ruleNames.Add(rule.Name);
+                ruleNames.Add(rule.Name());
 
-                // 2. Error on illegal transitions
-                if (rule.ReclassifyTo.GetValue() is ObservationType t)
+                if (!rule.Validate(out var error))
                 {
-                    if (t == ObservationType.All)
-                    {
-                        errorBuilder.AppendLine("'All' is not a valid target for a reclassification");
-                        hasErrors = true;
-                    }
-                    else if (t == ObservationType.FileContentRead && rule.ResolvedObservationTypes.Any(s => s != ObservationType.FileContentRead && s != ObservationType.ExistingFileProbe))
-                    {
-                        errorBuilder.AppendLine($"'{ObservationType.FileContentRead}' can only be reclassified from '{ObservationType.FileContentRead} or '{ObservationType.ExistingFileProbe}'");
-                        hasErrors = true;
-                    }
-                    else if (t == ObservationType.DirectoryEnumeration && rule.ResolvedObservationTypes.Any(s => s != ObservationType.DirectoryEnumeration && s != ObservationType.ExistingDirectoryProbe))
-                    {
-                        errorBuilder.AppendLine($"'{ObservationType.DirectoryEnumeration}' can only be reclassified from '{ObservationType.DirectoryEnumeration} or '{ObservationType.ExistingDirectoryProbe}'");
-                        hasErrors = true;
-                    }
+                    errorBuilder.AppendLine(error);
+                    hasErrors = true;
                 }
             }
 
@@ -225,39 +76,63 @@ namespace BuildXL.Scheduler.Fingerprints
 
         /// <summary>
         /// If true, the given path must be reclassified from its observed type to the one returned in the out parameter.
-        /// The out parameter is a <see cref="ReclassificationResult"/> which also includes the name of the rule that applied,
+        /// The out parameter is a <see cref="FingerprintReclassificationResult"/> which also includes the name of the rule that applied,
         /// for tracing purposes.
         /// </summary>
-        public bool TryReclassify(AbsolutePath path, PathTable pathTable, ObservedInputType type, out ReclassificationResult reclassification)
+        public bool TryReclassify(AbsolutePath path, PathTable pathTable, ObservedInputType type, out FingerprintReclassificationResult reclassification)
         {
             reclassification = default;
-            string pathString = null;
+
+            if (m_rules.Length == 0)
+            {
+                return false;
+            }
+            
+            ExpandedAbsolutePath expandedPath = path.Expand(pathTable);
 
             for (var i = 0; i < m_rules.Length; i++)
             {
                 var rule = m_rules[i];
-                // if From is null we match against any type
-                if (rule.From == null || rule.From.Contains(type))
+
+                using (m_counters.StartStopwatch(PipExecutorCounter.ReclassificationRulesDuration))
                 {
-                    pathString ??= path.ToString(pathTable);
-                    m_counters.IncrementCounter(PipExecutorCounter.NumRegexMatchForReclassificationRules);
-                    using (m_counters.StartStopwatch(PipExecutorCounter.RegexMatchForReclassificationRulesDuration))
+                    if (rule.TryReclassify(expandedPath, pathTable, FromObservedInputType(type), out var result))
                     {
-                        if (rule.PathRegex.Regex.IsMatch(pathString))
-                        {
-                            var ruleName = rule.Name ?? $"<untitled rule, index {i}>";
-                            // If the rule says 'ignore', return null. Else, the rule specifies a type or 'null' means 'don't reclassify'.
-                            ObservedInputType? reclassifyTo = rule.Ignore ? null : (rule.To ?? type);
-                            reclassification = new(ruleName, reclassifyTo);
-                            m_counters.IncrementCounter(PipExecutorCounter.NumReclassifiedObservations);
-                            return true;
-                        }
+                        m_counters.IncrementCounter(PipExecutorCounter.NumReclassifiedObservations);
+                        reclassification = new(result.AppliedRuleName, FromObservationType(result.ReclassifyToType), result.ReclassifyToPath);
+                        return true;
                     }
                 }
             }
 
             return false;
         }
+
+        // We need to cast from the 'configuration' enums to the 'fingerprinting' enums
+        private static ObservedInputType? FromObservationType(ObservationType? from) => from switch
+        {
+            ObservationType.AbsentPathProbe => ObservedInputType.AbsentPathProbe,
+            ObservationType.FileContentRead => ObservedInputType.FileContentRead,
+            ObservationType.DirectoryEnumeration => ObservedInputType.DirectoryEnumeration,
+            ObservationType.ExistingDirectoryProbe => ObservedInputType.ExistingDirectoryProbe,
+            ObservationType.ExistingFileProbe => ObservedInputType.ExistingFileProbe,
+            null => null,
+            // Should never happen as these values come from a union type in DScript
+            _ => throw new ArgumentException($"Unknown ObservationType {from}")
+        };
+
+        // We need to cast from the 'fingerprinting' enums to the 'configuration' enums
+        private static ObservationType FromObservedInputType(ObservedInputType from) => from switch
+        {
+            ObservedInputType.AbsentPathProbe => ObservationType.AbsentPathProbe,
+            ObservedInputType.FileContentRead => ObservationType.FileContentRead,
+            ObservedInputType.DirectoryEnumeration => ObservationType.DirectoryEnumeration,
+            ObservedInputType.ExistingDirectoryProbe => ObservationType.ExistingDirectoryProbe,
+            ObservedInputType.ExistingFileProbe => ObservationType.ExistingFileProbe,
+            // Should never happen as these values come from a union type in DScript
+            _ => throw new ArgumentException($"Unknown ObservedInputType {from}")
+        };
+
 
         /// <summary>
         /// Serialize
@@ -268,7 +143,7 @@ namespace BuildXL.Scheduler.Fingerprints
             writer.Write(m_rules.Length);
             foreach (var ruleSet in m_rules)
             {
-                ruleSet.Serialize(writer);
+                InternalReclassificationRuleSerialization.Serialize(writer, ruleSet);
             }
         }
 
@@ -279,10 +154,10 @@ namespace BuildXL.Scheduler.Fingerprints
         {
             Contract.Requires(reader != null);
             var count = reader.ReadInt32();
-            var ruleSets = new ReclassificationRuleInternal[count];
+            var ruleSets = new IInternalReclassificationRule[count];
             for (var i = 0; i < count; i++)
             {
-                ruleSets[i] = ReclassificationRuleInternal.Deserialize(reader);
+                ruleSets[i] = InternalReclassificationRuleSerialization.Deserialize(reader);
             }
 
             return new ObservationReclassifier(ruleSets);

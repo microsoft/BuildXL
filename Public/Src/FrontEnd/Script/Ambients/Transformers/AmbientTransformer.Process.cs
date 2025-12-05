@@ -21,6 +21,7 @@ using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 using BuildXL.Utilities.Configuration.Mutable;
+using BuildXL.Pips.Reclassification;
 
 namespace BuildXL.FrontEnd.Script.Ambients.Transformers
 {
@@ -1486,7 +1487,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
 
         private void ProcessReclassificationRules(Context context, ProcessBuilder processBuilder, ArrayLiteral reclassificationRules)
         {
-            var rules = new ReclassificationRule[reclassificationRules.Length];
+            var rules = new IInternalReclassificationRule[reclassificationRules.Length];
             for (var i = 0; i < reclassificationRules.Length; ++i)
             {
                 var rule = Converter.ExpectObjectLiteral(reclassificationRules[i], new ConversionContext(pos: i, objectCtx: reclassificationRules, name: m_executeReclassificationRules));
@@ -1517,13 +1518,15 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
                     }
                 }
 
-                rules[i] = new ReclassificationRule()
+                var reclassificationRule = new ReclassificationRule()
                 {
                     Name = name,
                     ReclassifyTo = reclassifyTo,
                     PathRegex = pathRegex,
                     ResolvedObservationTypes = resolvedTypes
                 };
+
+                rules[i] = new DScriptInternalReclassificationRule(i, reclassificationRule);
             }
 
             processBuilder.ReclassificationRules = rules;

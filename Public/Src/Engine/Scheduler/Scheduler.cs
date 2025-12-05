@@ -38,6 +38,7 @@ using BuildXL.Pips.DirectedGraph;
 using BuildXL.Pips.Filter;
 using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
+using BuildXL.Pips.Reclassification;
 using BuildXL.Processes;
 using BuildXL.Processes.Sideband;
 using BuildXL.Processes.Remoting;
@@ -1557,7 +1558,7 @@ namespace BuildXL.Scheduler
             m_globalReclassificationRules = globalReclassificationRules ?? new ObservationReclassifier();
             try
             {
-                m_globalReclassificationRules.Initialize(configuration.GlobalReclassificationRules.Select(rc => rc.GetRule()).ToList(), PipExecutionCounters);
+                m_globalReclassificationRules.Initialize(configuration.GlobalReclassificationRules.Select((rc, index) => new DScriptInternalReclassificationRule(index, rc.GetRule())).ToList(), PipExecutionCounters);
             }
             catch (BuildXLException ex)
             {

@@ -4,7 +4,7 @@
 using System.IO;
 using System.Text.RegularExpressions;
 
-namespace BuildXL.Processes
+namespace BuildXL.Utilities
 {
     /// <summary>
     /// Serializable representation of a Regex

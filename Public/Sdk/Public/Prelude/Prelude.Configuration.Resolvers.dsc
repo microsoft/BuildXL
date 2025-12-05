@@ -463,6 +463,14 @@ interface LageResolver extends JavaScriptResolverWithoutExecutionSemantics {
      * a project does not declare a dependency on an out-of-project *source* file (since BuildXL allows JavaScript pips to consume any source file as long as there are no races).
      */
     since?: string;
+
+    /**
+     * When enabled, BuildXL assumes the name of each directory immediately under the yarn strict store (e.g. <repo_root>/.store/@babylonjs-core@7.54.3-d93831e7ae9116fa2dd7) univocally determines the file layout and content under it.
+     * This option is a performance optimization: when this option is enabled, BuildXL can avoid tracking all files under the yarn strict store, which can be a large number of files, and instead only track the directory names.
+     * Caution must be taken to ensure that no other process mutates the content under the yarn strict store outside of yarn strict itself before a BuildXL build begins, otherwise underbuilds may occur. E.g. this setting should not be
+     * enabled for developer builds.
+     */
+    useYarnStrictAwarenessTracking?: boolean;
 }
 
 /**

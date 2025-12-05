@@ -5,6 +5,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Pips.Operations;
 using BuildXL.Processes;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 
 namespace BuildXL.ProcessPipExecutor

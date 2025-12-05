@@ -37,5 +37,16 @@ namespace BuildXL.FrontEnd.Lage.Tracing
             EventOpcode = (byte)Tasks.Parser,
             Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
         public abstract void UsingToolAt(LoggingContext context, Location location, string basePath);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.YarnStrictStoreNotFound,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Message = EventConstants.LabeledProvenancePrefix + "Yarn strict aware tracking has been turned on. However, the yarn strict store at '{storePath}' is not present.",
+            EventTask = (ushort)Tasks.Engine,
+            EventOpcode = (byte)Tasks.Parser,
+            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
+        public abstract void YarnStrictStoreNotFound(LoggingContext context, Location location, string storePath);
+
     }
 }

@@ -3,6 +3,7 @@
 
 using System.Collections.Generic;
 using System.IO;
+using BuildXL.Pips.Reclassification;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Core;
@@ -51,7 +52,7 @@ namespace IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests
             var builderA = CreatePipBuilder(operationsA);
             builderA.ReclassificationRules = new[]
             {
-                rule.GetRule()
+                new DScriptInternalReclassificationRule(0, rule.GetRule())
             };
 
             builderA.Options |= global::BuildXL.Pips.Operations.Process.Options.AllowUndeclaredSourceReads;
@@ -73,7 +74,7 @@ namespace IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests
                 rule.PathRegex = "ile.txt";
             }
 
-            builderA.ReclassificationRules = new[] { rule.GetRule() };
+            builderA.ReclassificationRules = new[] { new DScriptInternalReclassificationRule(0, rule.GetRule()) };
             builderA.Options |= global::BuildXL.Pips.Operations.Process.Options.AllowUndeclaredSourceReads;
             pipA = SchedulePipBuilder(builderA);
 

@@ -585,19 +585,23 @@ const schedulingFunction : (project: JavaScriptProject, argument: any) => Transf
             {
                 using (var inputProjectsWrapper = JavaScriptPools.JavaScriptProjectSet.GetInstance())
                 using (var inputLazyArtifactsWrapper = JavaScriptPools.LazyEvalSet.GetInstance())
+                using (var inputFileOrDirectoryWrapper = JavaScriptPools.FileOrDirectorySet.GetInstance())
                 {
                     var inputProjects = inputProjectsWrapper.Instance;
                     var inputLazyArtifacts = inputLazyArtifactsWrapper.Instance;
+                    var inputFileOrDirectories = inputFileOrDirectoryWrapper.Instance;
 
                     // Each dependency can be a selector over JavaScript projects or a lazy evaluation representing an artifact. 
                     // Here we care only about project dependencies
                     foreach (var dependency in additionalDependency.Dependencies)
                     {
+                        // Lazy eval case
                         if (dependency.GetValue() is ILazyEval eval)
                         {
                             inputLazyArtifacts.Add(eval);
                         }
-                        else
+                        // Project selector case
+                        else if (dependency.IsProjectSelector())
                         {
                             // Let's project the discriminating union to the types we know so we can reuse the project selector
                             var selector = new DiscriminatingUnion<string, IJavaScriptProjectSimpleSelector, IJavaScriptProjectRegexSelector>();
@@ -614,10 +618,26 @@ const schedulingFunction : (project: JavaScriptProject, argument: any) => Transf
 
                             inputProjects.AddRange(matches);
                         }
+                        // FileArtifact or DirectoryArtifact case
+                        else
+                        {
+                            FileOrDirectoryArtifact fileOrDirectoryArtifact;
+                            var fileOrDirectoryValue = dependency.GetValue();
+                            if (fileOrDirectoryValue is FileArtifact fileArtifact)
+                            {
+                                fileOrDirectoryArtifact = FileOrDirectoryArtifact.Create(fileArtifact);
+                            }
+                            else
+                            {
+                                fileOrDirectoryArtifact = FileOrDirectoryArtifact.Create((DirectoryArtifact) fileOrDirectoryValue);
+                            }
+
+                            inputFileOrDirectories.Add(fileOrDirectoryArtifact);
+                        }
                     }
 
                     // If there are no dependencies to add, shortcut the search
-                    if (inputProjects.Count == 0 && inputLazyArtifacts.Count == 0)
+                    if (inputProjects.Count == 0 && inputLazyArtifacts.Count == 0 && inputFileOrDirectories.Count == 0)
                     {
                         continue;
                     }
@@ -661,6 +681,18 @@ const schedulingFunction : (project: JavaScriptProject, argument: any) => Transf
                         else
                         {
                             additionalLazyArtifactDependenciesByProject[dependent] = new HashSet<ILazyEval>(inputLazyArtifacts);
+                        }
+
+                        foreach (var fileOrDirectory in inputFileOrDirectories)
+                        {
+                            if (fileOrDirectory.IsDirectory)
+                            {
+                                dependent.AddInputDirectory(fileOrDirectory.DirectoryArtifact);
+                            }
+                            else
+                            {
+                                dependent.AddInputFile(fileOrDirectory.FileArtifact);
+                            }
                         }
                     }
                 }

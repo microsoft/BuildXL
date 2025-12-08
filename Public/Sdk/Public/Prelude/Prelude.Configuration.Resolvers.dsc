@@ -695,11 +695,11 @@ interface CustomSchedulingCallBack {
 
 /**
  * A JavaScriptDependency configures all dependents to depend on all specified dependencies.
- * The way to specify additional files are directories are via LazyEval expressions to enable
- * importing values from other modules at configuration time.
+ * If additional files or directories come from other modules, the way to specify them are via LazyEval expressions. Otherwise
+ * just specify the File or StaticDirectory directly.
  */
 interface JavaScriptDependency {
-    dependencies: (JavaScriptProjectSelector | LazyEval<File> | LazyEval<StaticDirectory>)[], 
+    dependencies: (JavaScriptProjectSelector | LazyEval<File> | LazyEval<StaticDirectory> | File | StaticDirectory)[], 
     dependents: JavaScriptProjectSelector[]
 }
 

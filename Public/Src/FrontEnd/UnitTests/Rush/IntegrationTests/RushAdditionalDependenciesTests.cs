@@ -11,6 +11,7 @@ using Xunit;
 using Xunit.Abstractions;
 using LogEventId = global::BuildXL.FrontEnd.JavaScript.Tracing.LogEventId;
 using CoreLogEventId = global::BuildXL.FrontEnd.Core.Tracing;
+using System.IO;
 
 namespace Test.BuildXL.FrontEnd.Rush
 {
@@ -244,6 +245,28 @@ namespace Test.BuildXL.FrontEnd.Rush
             Assert.False(result.IsSuccess);
             AssertErrorEventLogged(LogEventId.InvalidRegexInProjectSelector);
             AssertErrorEventLogged(CoreLogEventId.LogEventId.CannotBuildWorkspace);
+        }
+
+        [Fact]
+        public void ValidateFileArtifactDependencies()
+        {
+            // Create a source file
+            var fileDependency = AbsolutePath.Create(PathTable, TemporaryDirectory).Combine(PathTable, "someFile.txt");
+            File.WriteAllText(fileDependency.ToString(PathTable), "content");
+
+            // Add it as a dependency to a project.
+            var config = Build(additionalDependencies: $"[{{dependencies:[f`{fileDependency.ToString(PathTable)}`], dependents: ['@ms/project-A']}}]")
+                .AddJavaScriptProject("@ms/project-A", "src/A")
+                .PersistSpecsAndGetConfiguration();
+
+            var result = RunRushProjects(config, new[] {
+                ("src/A", "@ms/project-A"),
+            });
+
+            // Check that the dependency is there
+            Assert.True(result.IsSuccess);
+            var pipA = result.EngineState.RetrieveProcess("@ms/project-A");
+            Assert.Contains(FileArtifact.CreateSourceFile(fileDependency), pipA.Dependencies);
         }
     }
 }

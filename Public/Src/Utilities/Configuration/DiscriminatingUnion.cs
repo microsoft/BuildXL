@@ -228,4 +228,86 @@ namespace BuildXL.Utilities.Configuration
             TrySetValue(value);
         }
     }
+
+    /// <summary>
+    /// A specialization of <see cref="DiscriminatingUnion"/> for the case of six disjuncts
+    /// </summary>
+    public sealed class DiscriminatingUnion<T, Q, R, S, U, V> : DiscriminatingUnion
+    {
+        /// <nodoc/>
+        public DiscriminatingUnion() : base(typeof(T), typeof(Q), typeof(R), typeof(S), typeof(U), typeof(V))
+        { }
+
+        /// <nodoc/>
+        public DiscriminatingUnion(T value) : base(typeof(T), typeof(Q), typeof(R), typeof(S), typeof(U), typeof(V))
+        {
+            TrySetValue(value);
+        }
+
+        /// <nodoc/>
+        public DiscriminatingUnion(Q value) : base(typeof(T), typeof(Q), typeof(R), typeof(S), typeof(U), typeof(V))
+        {
+            TrySetValue(value);
+        }
+
+        /// <nodoc/>
+        public DiscriminatingUnion(R value) : base(typeof(T), typeof(Q), typeof(R), typeof(S), typeof(U), typeof(V))
+        {
+            TrySetValue(value);
+        }
+
+        /// <nodoc/>
+        public DiscriminatingUnion(S value) : base(typeof(T), typeof(Q), typeof(R), typeof(S), typeof(U), typeof(V))
+        {
+            TrySetValue(value);
+        }
+
+        /// <nodoc/>
+        public DiscriminatingUnion(U value) : base(typeof(T), typeof(Q), typeof(R), typeof(S), typeof(U), typeof(V))
+        {
+            TrySetValue(value);
+        }
+
+        /// <nodoc/>
+        public DiscriminatingUnion(V value) : base(typeof(T), typeof(Q), typeof(R), typeof(S), typeof(U), typeof(V))
+        {
+            TrySetValue(value);
+        }
+
+        /// <nodoc/>
+        public void SetValue(T value)
+        {
+            TrySetValue(value);
+        }
+
+        /// <nodoc/>
+        public void SetValue(Q value)
+        {
+            TrySetValue(value);
+        }
+
+        /// <nodoc/>
+        public void SetValue(R value)
+        {
+            TrySetValue(value);
+        }
+
+        /// <nodoc/>
+        public void SetValue(S value)
+        {
+            TrySetValue(value);
+        }
+
+        /// <nodoc/>
+        public void SetValue(U value)
+        {
+            TrySetValue(value);
+        }
+
+        /// <nodoc/>
+        public void SetValue(V value)
+        {
+            TrySetValue(value);
+        }
+    }
 }

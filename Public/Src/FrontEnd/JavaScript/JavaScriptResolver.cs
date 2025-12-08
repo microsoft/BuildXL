@@ -213,7 +213,7 @@ namespace BuildXL.FrontEnd.JavaScript
                         }
                     }
 
-                    foreach (var dependency in additionalDependency.Dependencies.Where(dependency => dependency.GetValue() is not ILazyEval))
+                    foreach (var dependency in additionalDependency.Dependencies.Where(dependency => dependency.IsProjectSelector()))
                     {
                         var javaScriptProjectSelector = new DiscriminatingUnion<string, IJavaScriptProjectSimpleSelector, IJavaScriptProjectRegexSelector>();
                         javaScriptProjectSelector.TrySetValue(dependency.GetValue());

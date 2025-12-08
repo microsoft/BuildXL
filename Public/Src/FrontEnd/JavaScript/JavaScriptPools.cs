@@ -26,5 +26,12 @@ namespace BuildXL.FrontEnd.JavaScript
         public static ObjectPool<HashSet<ILazyEval>> LazyEvalSet { get; } = new ObjectPool<HashSet<ILazyEval>>(
             () => new HashSet<ILazyEval>(),
             s => s.Clear());
+
+        /// <summary>
+        /// Global pool of sets for collecting <see cref="FileOrDirectoryArtifact"/>
+        /// </summary>
+        public static ObjectPool<HashSet<FileOrDirectoryArtifact>> FileOrDirectorySet { get; } = new ObjectPool<HashSet<FileOrDirectoryArtifact>>(
+            () => new HashSet<FileOrDirectoryArtifact>(),
+            s => s.Clear());
     }
 }

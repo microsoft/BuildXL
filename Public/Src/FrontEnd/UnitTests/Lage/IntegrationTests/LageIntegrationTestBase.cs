@@ -86,7 +86,8 @@ namespace Test.BuildXL.FrontEnd.Lage
             string since = null,
             string lageLocation = null,
             bool? enforceSourceReadsUnderPackageRoots = null,
-            bool? useYarnStrictAwarenessTracking = false)
+            bool? useYarnStrictAwarenessTracking = false,
+            bool? disallowWritesUnderYarnStrictStore = null)
         {
             environment ??= new Dictionary<string, DiscriminatingUnion<string, UnitValue>> { 
                 ["PATH"] = new DiscriminatingUnion<string, UnitValue>(PathToNodeFolder),
@@ -109,7 +110,8 @@ namespace Test.BuildXL.FrontEnd.Lage
                     since: since,
                     lageLocation: lageLocation,
                     enforceSourceReadsUnderPackageRoots,
-                    useYarnStrictAwarenessTracking));
+                    useYarnStrictAwarenessTracking,
+                    disallowWritesUnderYarnStrictStore));
         }
 
         protected BuildXLEngineResult RunLageProjects(
@@ -194,7 +196,8 @@ module.exports = {
             string since,
             string lageLocation,
             bool? enforceSourceReadsUnderPackageRoots,
-            bool? useYarnStrictAwarenessTracking) => $@"
+            bool? useYarnStrictAwarenessTracking,
+            bool? disallowWritesUnderYarnStrictStore) => $@"
 config({{
     resolvers: [
         {{
@@ -210,6 +213,7 @@ config({{
             {(lageLocation == null ? string.Empty : $"lageLocation: f`{lageLocation}`,")}
             {(enforceSourceReadsUnderPackageRoots != null ? $"enforceSourceReadsUnderPackageRoots: {enforceSourceReadsUnderPackageRoots.Value.ToString().ToLowerInvariant()}," : string.Empty)}
             {(useYarnStrictAwarenessTracking != null ? $"useYarnStrictAwarenessTracking: {useYarnStrictAwarenessTracking.Value.ToString().ToLowerInvariant()}," : string.Empty)}
+            {(disallowWritesUnderYarnStrictStore != null ? $"disallowWritesUnderYarnStrictStore: {disallowWritesUnderYarnStrictStore.Value.ToString().ToLowerInvariant()}," : string.Empty)}
         }}
     ],
 }});";

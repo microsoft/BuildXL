@@ -82,11 +82,12 @@ namespace BuildXL.FrontEnd.Lage
 
             processBuilder.ChildProcessesToBreakawayFromSandbox = processBuilder.ChildProcessesToBreakawayFromSandbox.Append(lageServerBreakaway).ToArray();
 
+            // The package store is always located under the .store folder in the repo root
+            var yarnStrictStore = m_resolverSettings.Root.Combine(PathTable, ".store");
+
             // If yarn strict awareness tracking is enabled, add the corresponding reclassification rule
             if (m_resolverSettings.UseYarnStrictAwarenessTracking == true)
             {
-                // The package store is always located under the .store folder in the repo root
-                var yarnStrictStore = m_resolverSettings.Root.Combine(PathTable, ".store");
                 var yarnStrictRule = new YarnStrictReclassificationRule(m_resolverSettings.ModuleName, yarnStrictStore);
 
                 if (!FileUtilities.DirectoryExistsNoFollow(yarnStrictStore.ToString(PathTable)))
@@ -96,9 +97,14 @@ namespace BuildXL.FrontEnd.Lage
                 }
 
                 processBuilder.ReclassificationRules = processBuilder.ReclassificationRules.Append(yarnStrictRule).ToArray();
+            }
 
-                // When yarn strict awareness is enabled, the assumption is that no writes happen under it during the build. Let's enforce that by excluding that scope
-                // from the shared opaque umbrella.
+            // Disallow writes under the yarn strict store if explicitly specified, or if its value is left unspecified but yarn strict awareness tracking is on.
+            // The rationale is that when yarn strict awareness is enabled, the assumption is that no writes happen under it during the build. Let's enforce that by excluding that scope
+            // from the shared opaque umbrella, unless specified otherwise.
+            if (m_resolverSettings.DisallowWritesUnderYarnStrictStore == true || 
+                (m_resolverSettings.DisallowWritesUnderYarnStrictStore is null && m_resolverSettings.UseYarnStrictAwarenessTracking == true))
+            {
                 processBuilder.AddOutputDirectoryExclusion(yarnStrictStore);
             }
 

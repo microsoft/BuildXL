@@ -170,5 +170,37 @@ namespace Test.BuildXL.FrontEnd.Lage
             AssertErrorEventLogged(global::BuildXL.FrontEnd.JavaScript.Tracing.LogEventId.ProjectGraphConstructionError);
             AssertErrorEventLogged(global::BuildXL.FrontEnd.Core.Tracing.LogEventId.CannotBuildWorkspace);
         }
+
+        [Fact]
+        public void YarnsStrictAwarenessAddsReadOnlyExclusion()
+        {
+            var config = Build(useYarnStrictAwarenessTracking: true)
+                .AddJavaScriptProject("@ms/project-A", "src/A", "module.exports = function A(){}")
+                .AddFile(".store/mock-package@1.0.0/index.js", "function mockPackage(){}; module.exports = { mockPackage };")
+                .PersistSpecsAndGetConfiguration();
+
+            var result = RunLageProjects(config);
+            Assert.True(result.IsSuccess);
+
+            // By default the store is read-only, so we should have an exclusion for the store directory
+            var process = (Process)result.EngineState.PipGraph.RetrievePipsOfType(PipType.Process).Single();
+            Assert.Contains(config.Layout.SourceDirectory.Combine(PathTable, ".store"), process.OutputDirectoryExclusions);
+        }
+
+        [Fact]
+        public void YarnsStrictAwarenessReadOnlyExclusionCanBeTurnedOff()
+        {
+            var config = Build(useYarnStrictAwarenessTracking: true, disallowWritesUnderYarnStrictStore: false)
+                .AddJavaScriptProject("@ms/project-A", "src/A", "module.exports = function A(){}")
+                .AddFile(".store/mock-package@1.0.0/index.js", "function mockPackage(){}; module.exports = { mockPackage };")
+                .PersistSpecsAndGetConfiguration();
+
+            var result = RunLageProjects(config);
+            Assert.True(result.IsSuccess);
+
+            // When disallowWritesUnderYarnStrictStore is false, we should not have an exclusion for the store directory
+            var process = (Process)result.EngineState.PipGraph.RetrievePipsOfType(PipType.Process).Single();
+            Assert.Equal(0, process.OutputDirectoryExclusions.Length);
+        }
     }
 }

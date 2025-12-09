@@ -471,6 +471,13 @@ interface LageResolver extends JavaScriptResolverWithoutExecutionSemantics {
      * enabled for developer builds.
      */
     useYarnStrictAwarenessTracking?: boolean;
+
+    /**
+     * When enabled, BuildXL disallows writes under the yarn strict store.
+     * Unless specified, this setting defaults to the value of 'useYarnStrictAwarenessTracking'. This reflects the fact that whenever BuildXL is aware of the existence of the yarn strict store, it will also disallow 
+     * writes under it by default.
+     */
+    disallowWritesUnderYarnStrictStore?: boolean;
 }
 
 /**

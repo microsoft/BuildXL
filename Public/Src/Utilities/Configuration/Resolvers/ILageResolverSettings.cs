@@ -47,5 +47,14 @@ namespace BuildXL.Utilities.Configuration
         /// enabled for developer builds.
         /// </remarks>
         bool? UseYarnStrictAwarenessTracking { get; }
+
+        /// <summary>
+        /// When enabled, BuildXL disallows writes under the yarn strict store.
+        /// </summary>
+        /// <remarks>
+        /// Unless specified, this setting defaults to the value of <see cref="UseYarnStrictAwarenessTracking"/>. This reflects the fact that whenever BuildXL is aware of the existence of the yarn strict store, it will also disallow 
+        /// writes under it by default.
+        /// </remarks>
+        bool? DisallowWritesUnderYarnStrictStore { get; }
     }
 }

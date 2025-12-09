@@ -23,6 +23,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             LageLocation = pathRemapper.Remap(template.LageLocation);
             Since = template.Since;
             UseYarnStrictAwarenessTracking = template.UseYarnStrictAwarenessTracking;
+            DisallowWritesUnderYarnStrictStore = template.DisallowWritesUnderYarnStrictStore;
         }
 
         /// <inheritdoc/>
@@ -36,5 +37,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc/>
         public bool? UseYarnStrictAwarenessTracking { get; set; }
+
+        /// <inheritdoc/>
+        public bool? DisallowWritesUnderYarnStrictStore { get; set; }
     }
 }

@@ -50,12 +50,6 @@ public class BuildCacheConfigurationProvider
             return new Failure<string>($"{FailurePrefix}Malformed resource id '{buildCacheResourceId}'. {ExpectedIdFormat}. {e.Message}");
         }
 
-        // Check if the resource exists, so we can provide a more specific error message if it doesn't
-        if (!(await armClient.GetGenericResources().ExistsAsync(identifier, cancellationToken)))
-        {
-            return new Failure<string>($"{FailurePrefix}Resource '{buildCacheResourceId}' does not exist.");
-        }
-
         // Let's retrieve the default API version we should use for accessing the resource
         var cloudTestProvider = await armClient.GetTenantResourceProviderAsync(CloudTestResourceProvider, expand: null, cancellationToken);
         if (!cloudTestProvider.HasValue)

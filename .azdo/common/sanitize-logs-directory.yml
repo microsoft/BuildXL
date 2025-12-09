@@ -1,0 +1,16 @@
+parameters:
+- name: logsDirectory
+  type: string
+
+steps:
+# Rename all directories in the log directory that contain the suffix .dll or .exe to replace the dot with an underscore
+# This is because the BinSkim task will fail if there are files with these extensions in directory names
+# See Guardian bug here: https://dev.azure.com/mseng/1ES/_workitems/edit/2338825
+- powershell: |
+    Get-ChildItem -Path "${{ parameters.logsDirectory }}" -Recurse -Directory | Where-Object { $_.Name -match '\.(dll|exe)$' } | ForEach-Object {
+        $newName = $_.Name -replace '\.(dll|exe)$', '_$1'
+        $newPath = Join-Path -Path $_.Parent.FullName -ChildPath $newName
+        Rename-Item -Path $_.FullName -NewName $newName
+        Write-Host "Renamed directory '$($_.FullName)' to '$newPath'"
+    }
+  displayName: 'Sanitize log directory before upload'

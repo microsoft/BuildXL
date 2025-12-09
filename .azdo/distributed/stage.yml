@@ -38,7 +38,7 @@ stages:
           /environment:SelfHostPrivateBuild 
           /remoteCacheCutoff+ 
           /remoteCacheCutoffLength:2 
-          /f:~(dpt(spec='private\Guests\WDG\*'))and~((spec='Public\Src\Cache\*'))and~(tag='LongRunningTest')and~(spec='Public\Src\Deployment\cache.nugetpackages.dsc')and~(spec='Public\src\Deployment\privatePackages.dsc')and~(spec='Public\src\Deployment\ide.dsc')and~(spec='Public\src\Deployment\tests.dsc') 
+          /f:~(dpt((tag='test')))and~(dpt(spec='private\Guests\WDG\*'))and~((spec='Public\Src\Cache\*'))and~(dpt((tag='LongRunningTest')))and~(spec='Public\Src\Deployment\cache.nugetpackages.dsc')and~(spec='Public\src\Deployment\privatePackages.dsc')and~(spec='Public\src\Deployment\ide.dsc')and~(spec='Public\src\Deployment\tests.dsc') 
           /q:ReleaseNet9 
           /p:[Sdk.BuildXL]microsoftInternal=1 
           /p:BUILDXL_FINGERPRINT_SALT=* 

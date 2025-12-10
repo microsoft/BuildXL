@@ -12,5 +12,10 @@ namespace BuildXL.Utilities.Core
         /// Indicates the default process timeout in minutes. This should be the minimum value. values overwriting should be no less than this
         /// </summary>
         public const int ProcessTimeoutInMinutes = 10;
+
+        /// <summary>
+        /// Indicates the default process injection timeout in minutes.
+        /// </summary>
+        public const int ProcessInjectionTimeoutInMinutes = 3;
     }
 }

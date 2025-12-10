@@ -405,11 +405,10 @@ DWORD DetouredProcessInjector::RemoteInjectProcess(HANDLE processHandle, bool in
     // partial copy, the remote injector must retry the injection.
     HANDLE events[2] = { eventSuccess.get(), eventFailure.get() };
 
-    // If for some reason there is no timeout passed using the FileAccessManifest, set it to 10 min.
-    if (g_injectionTimeoutInMinutes < 10)
-    {
-        g_injectionTimeoutInMinutes = 10;
-    }
+    // If for some reason there is no timeout passed using the FileAccessManifest, set it to 3 min.
+    // If the machine is busy it can potentially take up to 3 minutes (maybe longer in other rare cases) for remote injection.
+    // CODESYNC: Defaults.ProcessInjectionTimeoutInMinutes in Public/Src/Utilities/Utilities.Core/Defaults.cs
+    g_injectionTimeoutInMinutes = 3;
 
     ULONGLONG startWait = GetTickCount64();
     DWORD result = WaitForMultipleObjects(2, events, FALSE, g_injectionTimeoutInMinutes * 60000); // Convert to ms.

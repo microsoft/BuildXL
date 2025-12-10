@@ -65,7 +65,6 @@ namespace BuildXL.Processes
         private IAsyncPipeReader? m_reportReader;
         private readonly SemaphoreSlim m_reportReaderSemaphore = TaskUtilities.CreateMutex();
         private Dictionary<uint, ReportedProcess>? m_survivingChildProcesses;
-        private readonly uint m_timeoutMins;
         private TaskSourceSlim<bool> m_standardInputTcs;
         private readonly PathTable m_pathTable;
         private readonly string[]? m_allowedSurvivingChildProcessNames;
@@ -84,13 +83,6 @@ namespace BuildXL.Processes
 
             // there could be a race here, but it just doesn't matter
             s_binaryPaths ??= new BinaryPaths(); // this can take a while; performs I/O
-
-            // If unspecified make the injection timeout the DefaultProcessTimeoutInMinutes. Also, make it no less than DefaultProcessTimeoutInMinutes.
-            m_timeoutMins = info.Timeout.HasValue ? ((uint)info.Timeout.Value.TotalMinutes) : Defaults.ProcessTimeoutInMinutes;
-            if (m_timeoutMins < Defaults.ProcessTimeoutInMinutes)
-            {
-                m_timeoutMins = Defaults.ProcessTimeoutInMinutes;
-            }
 
             m_fileAccessManifest = info.FileAccessManifest;
             m_fileAccessManifestStreamWrapper = Pools.MemoryStreamPool.GetInstance();
@@ -461,7 +453,7 @@ namespace BuildXL.Processes
 
                     bool debugFlagsMatch = true;
                     var manifestBytes = new ArraySegment<byte>();
-                    manifestBytes = m_fileAccessManifest.GetPayloadBytes(m_loggingContext, setup, FileAccessManifestStream, m_timeoutMins, ref debugFlagsMatch);
+                    manifestBytes = m_fileAccessManifest.GetPayloadBytes(m_loggingContext, setup, FileAccessManifestStream, Defaults.ProcessInjectionTimeoutInMinutes, ref debugFlagsMatch);
                     if (!debugFlagsMatch)
                     {
                         throw new BuildXLException("Mismatching build type for BuildXL and DetoursServices.dll.");

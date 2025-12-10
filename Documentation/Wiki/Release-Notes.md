@@ -2,6 +2,12 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20251208.4 (Release [30801950](https://dev.azure.com/mseng/Domino/_build/results?buildId=30801950&view=results))
+-	Parallelize FileContentTable deserialization
+-	Add the ability to control additional command line arguments via 1ES.Config
+-	Add Yarn strict awareness tracking to the Lage resolver
+-	Allow JS projects to specify additional dependencies on files or directories
+-	Bug fixes
 # 0.1.0-20251124.3.2 (Release [30777415](https://dev.azure.com/mseng/Domino/_build/results?buildId=30777415&view=results))
 - Add additional logging around Scheduler shutdown
 - Bring back console hyperlink support

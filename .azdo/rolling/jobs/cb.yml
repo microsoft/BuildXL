@@ -1,3 +1,8 @@
+parameters:
+- name: isExperimentalDeployment
+  type: boolean
+  default: false
+
 jobs:
 - template: cb-rolling.yml
   parameters:
@@ -13,6 +18,7 @@ jobs:
         /p:[BuildXL.Branding]SourceIdentification=$(Branding_SourceIdentification)
         /enableIncrementalFrontEnd-
         /p:[Sdk.BuildXL]microsoftInternal=1
+        ${{ iif(parameters.isExperimentalDeployment, '/p:[BuildXL.Sdk]experimentalDeployment=1', '') }}
         /logoutput:FullOutputAlways
       genericRunnerOptions: '{ "IsDropEnabled": "true", "DropName": "$(BuildXL.Candidate.DropName)", "ContentWriteMode": "WriteThrough" }'
       # Disabling compliance build in CB because some analysis, like policheck, does not work in network isolation.

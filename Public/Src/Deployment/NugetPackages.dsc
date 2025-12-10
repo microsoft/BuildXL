@@ -63,7 +63,10 @@ namespace NugetPackages {
 
     const canBuildAllPackagesOnThisHost = Context.getCurrentHost().os === "win";
 
-    const packageNamePrefix = BuildXLSdk.Flags.isMicrosoftInternal
+    const packageNamePrefix = 
+        BuildXLSdk.Flags.isExperimentalDeployment
+        ? "BuildXL-experimental" 
+        : BuildXLSdk.Flags.isMicrosoftInternal
         ? "BuildXL"
         : "Microsoft.BuildXL";
 

@@ -2,6 +2,12 @@ parameters:
 - name: isRollingBuild
   type: boolean
   default: true
+- name: packagePrefix
+  type: string
+  values:
+    - BuildXL
+    - BuildXL-experimental
+  default: BuildXL
 
 jobs:
 - job: PublishBinaries
@@ -53,42 +59,43 @@ jobs:
       sbomEnabled: false
       condition: or(succeeded(), eq(variables['IsRetryRun'], true))
 
-    - output: nuget
-      displayName: '📦 Push private NuGet packages to 1essharedassets/BuildXL.Internal feed'
-      packageParentPath: $(Agent.TempDirectory)/DownloadedDrop/release/private/pkgs 
-      packagesToPush: $(Agent.TempDirectory)/DownloadedDrop/release/private/pkgs/*.nupkg
-      nuGetFeedType: external
-      publishFeedCredentials: 'mseng-Domino-BuildXL-1ESSharedAssets_BuildXL.Internal'
-      sbomEnabled: false
-      allowPackageConflicts: $(NugetPushAllowPackageConflicts)
-      condition: or(succeeded(), eq(variables['IsRetryRun'], true))
+    - ${{ if ne(parameters.packagePrefix, 'BuildXL-experimental') }}: # Do not push library packages to nuget when pushing experimental bits
+      - output: nuget
+        displayName: '📦 Push private NuGet packages to 1essharedassets/BuildXL.Internal feed'
+        packageParentPath: $(Agent.TempDirectory)/DownloadedDrop/release/private/pkgs 
+        packagesToPush: $(Agent.TempDirectory)/DownloadedDrop/release/private/pkgs/*.nupkg
+        nuGetFeedType: external
+        publishFeedCredentials: 'mseng-Domino-BuildXL-1ESSharedAssets_BuildXL.Internal'
+        sbomEnabled: false
+        allowPackageConflicts: $(NugetPushAllowPackageConflicts)
+        condition: or(succeeded(), eq(variables['IsRetryRun'], true))
 
-    - output: nuget
-      displayName: '📦 Push public NuGet packages to 1essharedassets/BuildXL feed'
-      condition: and(or(succeeded(), eq(variables['IsRetryRun'], true)), ne(variables['ServicingOnlyBuild'], 'true'))
-      packageParentPath: $(Agent.TempDirectory)/DownloadedDrop/release/pkgs 
-      packagesToPush: $(Agent.TempDirectory)/DownloadedDrop/release/pkgs/*.nupkg
-      nuGetFeedType: external
-      publishFeedCredentials: 'mseng-Domino-BuildXL-1ESSharedAssets_BuildXL'
-      sbomEnabled: false
-      allowPackageConflicts: $(NugetPushAllowPackageConflicts)
+      - output: nuget
+        displayName: '📦 Push public NuGet packages to 1essharedassets/BuildXL feed'
+        condition: and(or(succeeded(), eq(variables['IsRetryRun'], true)), ne(variables['ServicingOnlyBuild'], 'true'))
+        packageParentPath: $(Agent.TempDirectory)/DownloadedDrop/release/pkgs 
+        packagesToPush: $(Agent.TempDirectory)/DownloadedDrop/release/pkgs/*.nupkg
+        nuGetFeedType: external
+        publishFeedCredentials: 'mseng-Domino-BuildXL-1ESSharedAssets_BuildXL'
+        sbomEnabled: false
+        allowPackageConflicts: $(NugetPushAllowPackageConflicts)
     
     - output: nuget
-      displayName: '📦 Push BuildXL.win-x64 to 1essharedassets/BuildXL feed'
+      displayName: '📦 Push ${{ parameters.packagePrefix }}.win-x64 to 1essharedassets/BuildXL feed'
       condition: and(or(succeeded(), eq(variables['IsRetryRun'], true)), ne(variables['ServicingOnlyBuild'], 'true'))
       useVstsNugetPush: true
       packageParentPath: $(LargePackagesStagingDir)
-      package: $(LargePackagesStagingDir)/BuildXL.win-x64.$(Build.BuildNumber).nupkg
+      package: $(LargePackagesStagingDir)/${{ parameters.packagePrefix }}.win-x64.$(Build.BuildNumber).nupkg
       feed: https://1essharedassets.pkgs.visualstudio.com/_packaging/BuildXL/nuget/v3/index.json
       serviceConnection: mseng-Domino-BuildXL-Pipelines
       sbomEnabled: false
 
     - output: nuget
-      displayName: '📦 Push public BuildXL.linux-x64 to 1essharedassets/BuildXL feed'
+      displayName: '📦 Push public ${{ parameters.packagePrefix }}.linux-x64 to 1essharedassets/BuildXL feed'
       condition: and(or(succeeded(), eq(variables['IsRetryRun'], true)), ne(variables['ServicingOnlyBuild'], 'true'))
       useVstsNugetPush: true
       packageParentPath: $(LargePackagesStagingDir)
-      package: $(LargePackagesStagingDir)/BuildXL.linux-x64.$(Build.BuildNumber).nupkg
+      package: $(LargePackagesStagingDir)/${{ parameters.packagePrefix }}.linux-x64.$(Build.BuildNumber).nupkg
       feed: https://1essharedassets.pkgs.visualstudio.com/_packaging/BuildXL/nuget/v3/index.json
       serviceConnection: mseng-Domino-BuildXL-Pipelines
       sbomEnabled: false

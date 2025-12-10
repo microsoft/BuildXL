@@ -327,6 +327,9 @@ namespace Flags {
      */
     @@public
     export const IsEBPFSandboxForTestsEnabled : boolean = Environment.getStringValue($.TestEnvironment.EnableLinuxEBPFSandboxForTestsEnvVar) === "1";
+
+    @@public
+    export const isExperimentalDeployment = Environment.getFlag(envVarNamePrefix + "experimentalDeployment");
 }
 
 @@public

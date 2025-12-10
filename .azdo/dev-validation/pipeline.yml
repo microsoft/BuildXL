@@ -47,6 +47,8 @@ extends:
       dependsOn: Setup
       jobs:
       - template: /.azdo/rolling/jobs/cb.yml@self
+        parameters:
+          isExperimentalDeployment: true
     
     - stage: LinuxBuild
       displayName: Linux build
@@ -63,5 +65,6 @@ extends:
       - template: /.azdo/rolling/jobs/publish.yml@self
         parameters:
           isRollingBuild: false
+          packagePrefix: BuildXL-experimental
     dependsOn:
     - Publish

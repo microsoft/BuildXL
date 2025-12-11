@@ -109,7 +109,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                     configuration.DeveloperBuildCacheTenantId,
                     configuration.AllowInteractiveAuth,
                     context.Token);
-                var maybeBuildCacheConfiguration = await BuildCacheConfigurationProvider.TryGetBuildCacheConfigurationAsync(token, configuration.DeveloperBuildCacheResourceId, context.Token);
+                var maybeBuildCacheConfiguration = await BuildCacheConfigurationProvider.TryGetBuildCacheConfigurationAsync(context.TracingContext, token, configuration.DeveloperBuildCacheResourceId, context.Token);
 
                 if (!maybeBuildCacheConfiguration.Succeeded)
                 {

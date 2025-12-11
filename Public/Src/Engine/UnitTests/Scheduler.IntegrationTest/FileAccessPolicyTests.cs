@@ -172,9 +172,8 @@ namespace IntegrationTest.BuildXL.Scheduler
             XAssert.AreEqual(checkpoint1, checkpoint3);
 
             // Delete untracked scope /dir
-            // Since /dir was an untracked scope, it was never part of the directory enumeration membership
-            // Deleting it should not result in a cache miss
             Directory.Delete(ArtifactToString(dir));
+            RunScheduler().AssertCacheMiss(pip.PipId);
             RunScheduler().AssertCacheHit(pip.PipId);
         }
 

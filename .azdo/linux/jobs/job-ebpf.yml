@@ -10,26 +10,22 @@ parameters:
   type: string
   default: 'ebpf-dev'
 
-# The default pool for the eBPF sandbox is Ubuntu 22.04 because it is currently the oldest platform we support.
-# The sandbox cannot be built on 20.04 due to lack of support for various eBPF features we use.
-# We also cannot build on a newer platform like Ubuntu 24.04 because we need to maintain backwards compatibility with older versions of glibc.
-- name: pool
-  type: object
-  default:
-    name: BuildXL-DevOpsAgents-Selfhost-BuildCache
-    image: ubuntu-22.04-PME-GPT
-    os: linux
-
 - name: sdkVersion
   type: string
-  default: '8.x'
 
 jobs:
 - template: job-build-selfhost-base.yml
   parameters:
     validationName: Bootstrap
     internal: ${{ parameters.internal }}
-    pool: ${{ parameters.pool }}
+
+    pool:
+    # The pool for the eBPF sandbox is Ubuntu 22.04 because it is currently the oldest platform we support.
+    # The sandbox cannot be built on 20.04 due to lack of support for various eBPF features we use.
+    # We also cannot build on a newer platform like Ubuntu 24.04 because we need to maintain backwards compatibility with older versions of glibc.
+      name: BuildXL-DevOpsAgents-Selfhost-BuildCache
+      image: ubuntu-22.04-PME-GPT
+      os: linux
     sdkVersion: ${{ parameters.sdkVersion }}
     
     outputs:

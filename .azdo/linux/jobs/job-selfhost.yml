@@ -4,10 +4,6 @@ parameters:
 
 - name: pool
   type: object
-  default:
-    name: BuildXL-DevOpsAgents-Selfhost-BuildCache
-    image: ubuntu-22.04-PME-GPT
-    os: linux
 
 - name: sdkVersion
   type: string

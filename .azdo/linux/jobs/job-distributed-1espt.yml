@@ -2,20 +2,6 @@ parameters:
 # The provided pool is expected to have at least one build cache associated to it
 - name: pool
   type: object
-  default:
-    name: BuildXL-DevOpsAgents-Selfhost-BuildCache
-    image: ubuntu-22.04-PME-GPT
-    os: linux
-
-- name: BxlDistributedArgs
-  type: string
-  default: '
-    /c:/home/subst/Private/AdoDistributionTests/config.dsc
-    /p:BUILDXL_FINGERPRINT_SALT=*
-    /p:BUILDXL_GRAPH_FINGERPRINT_SALT=*
-    /replicateOutputsToWorkers+ 
-    /p:BuildXLMinimumWaitForRemoteWorkerMin=5
-  '
 
 # Pre-build steps, including downloading BuildXL if needed
 - name: preBuildSteps
@@ -73,7 +59,12 @@ jobs:
       # We don't use the automatic installation for selfhost builds
       install: false
       invocationPrefix: $(BootstrapLocation)/AdoBuildRunner
-      arguments: ${{ parameters.BxlDistributedArgs }}
+      arguments: >-
+        /c:/home/subst/Private/AdoDistributionTests/config.dsc
+        /p:BUILDXL_FINGERPRINT_SALT=*
+        /p:BUILDXL_GRAPH_FINGERPRINT_SALT=*
+        /replicateOutputsToWorkers+
+        /p:BuildXLMinimumWaitForRemoteWorkerMin=5
       env:
         TRANSFORMERS_SDK_DIR: /home/subst/Public/Sdk/Public/Transformers
         OUTPUT_DIR: /home/subst/Out

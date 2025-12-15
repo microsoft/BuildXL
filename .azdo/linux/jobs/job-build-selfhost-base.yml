@@ -44,22 +44,9 @@ parameters:
 
 - name: pool
   type: object
-  default:
-    name: BuildXL-DevOpsAgents-Selfhost-BuildCache
-    image: ubuntu-22.04-PME-GPT
-    os: linux
   
 - name: sdkVersion
   type: string
-  default: '8.x'
-
-- name: fetchDepth
-  type: string
-  default: 1
-
-- name: fetchTags
-  type: string
-  default: false
 
 jobs:
 - job: Selfhost_${{ parameters.validationName }}

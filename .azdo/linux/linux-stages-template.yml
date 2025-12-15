@@ -1,33 +1,20 @@
 parameters:
-- name: BuildSelfhost
-  type: boolean
-  default: true
+# Do not use this parameter, and rather BxlExtraArgs below to append extra arguments.
+# This parameters is used as a constant to define arguments for all Linux builds below
 - name: BxlCommonArgs
   type: string
-  # We pass xunit semaphore `/p:[Sdk.BuildXL]xunitSemaphoreCount=8` to limit the number of parallel xunit pips.
-  # Too many xunit pips running in parallel can cause the long running ones to hang. 
-  default: '
+  default: >-
     /logObservedFileAccesses 
     /logoutput:FullOutputOnError 
     /p:[Sdk.BuildXL]xunitSemaphoreCount=8 
     /forceAddExecutionPermission-
-  '
-- name: BxlDistributedArgs
+
+- name: BxlExtraArgs
   type: string
-  default: '
-    /c:/home/subst/Private/AdoDistributionTests/config.dsc
-    /p:BUILDXL_FINGERPRINT_SALT=*
-    /p:BUILDXL_GRAPH_FINGERPRINT_SALT=*
-    /replicateOutputsToWorkers+ 
-    /p:BuildXLMinimumWaitForRemoteWorkerMin=5
-  '
+  default: ''
 
 - name: pool
   type: object
-  default: 
-    name: BuildXL-DevOpsAgents-Selfhost-BuildCache
-    image: ubuntu-22.04-PME-GPT
-    os: linux
 
 - name: sdkVersion
   type: string
@@ -40,14 +27,15 @@ parameters:
 
 stages:
 # This stage must run under Ubuntu 22.04 or newer for compatibility reasons when building the eBPF Sandbox.
+# This is why the pool parameter is not passed along here, and specified in job-ebpf.yml itself
 - stage: Bootstrap_Internal_eBPF
   displayName: Bootstrap eBPF Sandbox Internal
   dependsOn: []
   jobs:
   # Build the eBPF Sandbox binaries first for the next step to consume.
-  - template: /.azdo/linux/job-ebpf.yml@self
+  - template: /.azdo/linux/jobs/job-ebpf.yml@self
     parameters:
-      BxlCommonArgs: --shared-comp ${{ parameters.BxlCommonArgs }}
+      BxlCommonArgs: --shared-comp ${{ parameters.BxlCommonArgs }} ${{ parameters.BxlExtraArgs }}
       internal: true
       outputArtifactName: 'ebpf-dev-internal'
       sdkVersion: ${{ parameters.sdkVersion }}
@@ -59,14 +47,11 @@ stages:
   dependsOn: [Bootstrap_Internal_eBPF]
   jobs:
   # Build and test selfhost with BuildXL
-  - template: /.azdo/linux/job-bootstrap.yml@self
+  - template: /.azdo/linux/jobs/job-bootstrap.yml@self
     parameters:
       # TODO: When this step moves off of Ubuntu 20.04 the /enableLinuxEBPFSandbox- flag can be removed.
-      BxlCommonArgs: --shared-comp /p:BuildXLEbpfSandboxDeploymentOverridePath=$(Build.StagingDirectory)/Linux.eBPF ${{ parameters.BxlCommonArgs }} /enableLinuxEBPFSandbox-
-      pool:
-        name: BuildXL-DevOpsAgents-Selfhost-BuildCache
-        image: ubuntu-22.04-PME-GPT
-        os: linux
+      BxlCommonArgs: --shared-comp /p:BuildXLEbpfSandboxDeploymentOverridePath=$(Build.StagingDirectory)/Linux.eBPF ${{ parameters.BxlCommonArgs }} ${{ parameters.BxlExtraArgs }} /enableLinuxEBPFSandbox-
+      pool: ${{ parameters.pool }}
       sdkVersion: ${{ parameters.sdkVersion }}
       preBuildSteps:
       - task: DownloadPipelineArtifact@2
@@ -80,22 +65,21 @@ stages:
   dependsOn: []
   jobs:
   # Build the eBPF Sandbox binaries first for the next step to consume.
-  - template: /.azdo/linux/job-ebpf.yml@self
+  - template: /.azdo/linux/jobs/job-ebpf.yml@self
     parameters:
-      BxlCommonArgs: --shared-comp ${{ parameters.BxlCommonArgs }}
+      BxlCommonArgs: --shared-comp ${{ parameters.BxlCommonArgs }} ${{ parameters.BxlExtraArgs }}
       internal: false
       outputArtifactName: 'ebpf-dev-external'
       sdkVersion: ${{ parameters.sdkVersion }}
-
 
 - stage: Build_External
   displayName: External validation
   dependsOn: [Bootstrap_External_eBPF]
   jobs:
-    - template: /.azdo/linux/job-external.yml@self
+    - template: /.azdo/linux/jobs/job-external.yml@self
       parameters:
-        # TODO: When this step moves off of Ubuntu 20.04 the /enableLinuxEBPFSandbox- flag can be removed.
-        BxlCommonArgs: --shared-comp /p:BuildXLEbpfSandboxDeploymentOverridePath=$(Build.StagingDirectory)/Linux.eBPF ${{ parameters.BxlCommonArgs }} /enableLinuxEBPFSandbox-
+      # TODO: When this step moves off of Ubuntu 20.04 the /enableLinuxEBPFSandbox- flag can be removed.
+        BxlCommonArgs: --shared-comp /p:BuildXLEbpfSandboxDeploymentOverridePath=$(Build.StagingDirectory)/Linux.eBPF ${{ parameters.BxlCommonArgs }} ${{ parameters.BxlExtraArgs }} /enableLinuxEBPFSandbox-
         pool: ${{ parameters.pool }}
         sdkVersion: ${{ parameters.sdkVersion }}
         preBuildSteps:
@@ -116,9 +100,9 @@ stages:
   displayName: Internal validation
   dependsOn: Bootstrap_Internal
   jobs:
-  - template: /.azdo/linux/job-selfhost.yml@self
+  - template: /.azdo/linux/jobs/job-selfhost.yml@self
     parameters:
-      BxlCommonArgs: --shared-comp ${{ parameters.BxlCommonArgs }}
+      BxlCommonArgs: --shared-comp ${{ parameters.BxlCommonArgs }} ${{ parameters.BxlExtraArgs }}
       pool: ${{ parameters.pool }}
       sdkVersion: ${{ parameters.sdkVersion }}
       preBuildSteps:
@@ -129,9 +113,9 @@ stages:
   displayName: PTrace validation
   dependsOn: Bootstrap_Internal  
   jobs:
-  - template: /.azdo/linux/job-ptrace.yml@self
+  - template: /.azdo/linux/jobs/job-ptrace.yml@self
     parameters:
-      BxlCommonArgs: ${{ parameters.BxlCommonArgs }}
+      BxlCommonArgs: ${{ parameters.BxlCommonArgs }} ${{ parameters.BxlExtraArgs }}
       pool: ${{ parameters.pool }}
       sdkVersion: ${{ parameters.sdkVersion }}
 
@@ -139,9 +123,8 @@ stages:
   displayName: Distributed test
   dependsOn: [Build_Internal, Verify_PTrace] 
   jobs:
-  - template: /.azdo/linux/job-distributed-1espt.yml@self
+  - template: /.azdo/linux/jobs/job-distributed-1espt.yml@self
     parameters:
-      BxlDistributedArgs: ${{ parameters.BxlDistributedArgs }}
       pool:
         # This stage expects a pool with a build cache configured, so harcoding that one
         ${{ each kvp in parameters.pool }}:

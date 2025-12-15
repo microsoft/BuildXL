@@ -841,7 +841,7 @@ if ($isMicrosoftInternal -and (-not $isRunningOnADO)) {
     $statusCode = 0;
 
     try {
-        $response = Invoke-WebRequest -Uri "https://feeds.dev.azure.com/cloudbuild/CloudBuild/_apis/packaging/feeds?api-version=7.1-preview.1" -Method GET -Headers $headers
+        $response = Invoke-WebRequest -Uri "https://feeds.dev.azure.com/cloudbuild/CloudBuild/_apis/packaging/feeds?api-version=7.1-preview.1" -UseBasicParsing -Method GET -Headers $headers
         $statusCode = $response.StatusCode
     }
     catch {

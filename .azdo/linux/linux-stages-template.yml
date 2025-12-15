@@ -49,8 +49,7 @@ stages:
   # Build and test selfhost with BuildXL
   - template: /.azdo/linux/jobs/job-bootstrap.yml@self
     parameters:
-      # TODO: When this step moves off of Ubuntu 20.04 the /enableLinuxEBPFSandbox- flag can be removed.
-      BxlCommonArgs: --shared-comp /p:BuildXLEbpfSandboxDeploymentOverridePath=$(Build.StagingDirectory)/Linux.eBPF ${{ parameters.BxlCommonArgs }} ${{ parameters.BxlExtraArgs }} /enableLinuxEBPFSandbox-
+      BxlCommonArgs: --shared-comp /p:BuildXLEbpfSandboxDeploymentOverridePath=$(Build.StagingDirectory)/Linux.eBPF ${{ parameters.BxlCommonArgs }} ${{ parameters.BxlExtraArgs }}
       pool: ${{ parameters.pool }}
       sdkVersion: ${{ parameters.sdkVersion }}
       preBuildSteps:
@@ -78,8 +77,7 @@ stages:
   jobs:
     - template: /.azdo/linux/jobs/job-external.yml@self
       parameters:
-      # TODO: When this step moves off of Ubuntu 20.04 the /enableLinuxEBPFSandbox- flag can be removed.
-        BxlCommonArgs: --shared-comp /p:BuildXLEbpfSandboxDeploymentOverridePath=$(Build.StagingDirectory)/Linux.eBPF ${{ parameters.BxlCommonArgs }} ${{ parameters.BxlExtraArgs }} /enableLinuxEBPFSandbox-
+        BxlCommonArgs: --shared-comp /p:BuildXLEbpfSandboxDeploymentOverridePath=$(Build.StagingDirectory)/Linux.eBPF ${{ parameters.BxlCommonArgs }} ${{ parameters.BxlExtraArgs }}
         pool: ${{ parameters.pool }}
         sdkVersion: ${{ parameters.sdkVersion }}
         preBuildSteps:

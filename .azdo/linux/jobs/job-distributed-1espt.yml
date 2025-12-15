@@ -59,10 +59,11 @@ jobs:
       # We don't use the automatic installation for selfhost builds
       install: false
       invocationPrefix: $(BootstrapLocation)/AdoBuildRunner
+      # This build has a pip that is forced to run the ExecuteProcess step remotely
+      # We salt the build with * to ensure that it is run.
       arguments: >-
         /c:/home/subst/Private/AdoDistributionTests/config.dsc
         /p:BUILDXL_FINGERPRINT_SALT=*
-        /p:BUILDXL_GRAPH_FINGERPRINT_SALT=*
         /replicateOutputsToWorkers+
         /p:BuildXLMinimumWaitForRemoteWorkerMin=5
       env:

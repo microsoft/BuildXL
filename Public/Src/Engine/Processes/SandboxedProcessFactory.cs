@@ -193,7 +193,31 @@ namespace BuildXL.Processes
 
             /// <nodoc/>
             [CounterType(CounterType.Stopwatch)]
-            PrepareDirectoryOutputsDuration
+            PrepareDirectoryOutputsDuration,
+
+            /// <summary>
+            /// Duration of subset of (see "SandboxedProcessPipExecutor.TryGetObservedFileAccesses")
+            /// </summary>
+            [CounterType(CounterType.Stopwatch)]
+            SandboxedPipExecutorPhaseGettingObservedFileAccessesGrouping,
+
+            /// <summary>
+            /// Duration of subset of (see "SandboxedProcessPipExecutor.TryGetObservedFileAccesses")
+            /// </summary>
+            [CounterType(CounterType.Stopwatch)]
+            SandboxedPipExecutorPhaseGettingObservedFileAccessesEnumerateGroups,
+
+            /// <summary>
+            /// Duration of subset of (see "SandboxedProcessPipExecutor.TryGetObservedFileAccesses")
+            /// </summary>
+            [CounterType(CounterType.Stopwatch)]
+            SandboxedPipExecutorPhaseGettingObservedFileAccessesDynamicWrites,
+
+            /// <summary>
+            /// Duration of subset of (see "SandboxedProcessPipExecutor.TryGetObservedFileAccesses")
+            /// </summary>
+            [CounterType(CounterType.Stopwatch)]
+            SandboxedPipExecutorPhaseGettingObservedFileAccessesFinalProcessing,
         }
 
         /// <summary>

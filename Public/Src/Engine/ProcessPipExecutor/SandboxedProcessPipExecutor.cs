@@ -3993,6 +3993,7 @@ namespace BuildXL.ProcessPipExecutor
             using var createdDirectoriesMutableWrapper = Pools.GetAbsolutePathSet();
             var createdDirectoriesMutable = createdDirectoriesMutableWrapper.Instance;
 
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
             foreach (ReportedFileAccess reported in result.ExplicitlyReportedFileAccesses.Concat(GetEnumeratedFileAccessesForIncrementalTool(result)))
             {
                 Contract.Assert(
@@ -4070,6 +4071,8 @@ namespace BuildXL.ProcessPipExecutor
                 accessesByPath[parsedPath] = !shouldExclude ? existingAccessesToPath.Add(reported) : existingAccessesToPath;
             }
 
+            LogSubPhaseDuration(m_loggingContext, m_pip, SandboxedProcessCounters.SandboxedPipExecutorPhaseGettingObservedFileAccessesGrouping, stopwatch.Elapsed, $"(count: {result.ExplicitlyReportedFileAccesses.Count})");
+            stopwatch.Restart();
             foreach (var output in m_pip.FileOutputs)
             {
                 if (!accessesByPath.ContainsKey(output.Path))
@@ -4122,6 +4125,8 @@ namespace BuildXL.ProcessPipExecutor
             // Remove all the special file accesses that need removal.
             RemoveEmptyOrInjectableFileAccesses(accessesByPath);
 
+            LogSubPhaseDuration(m_loggingContext, m_pip, SandboxedProcessCounters.SandboxedPipExecutorPhaseGettingObservedFileAccessesGrouping, stopwatch.Elapsed, $"(count: {result.ExplicitlyReportedFileAccesses.Count})");
+            stopwatch.Restart();
             var accessesUnsorted = accessesUnsortedWrapper.Instance;
             foreach (KeyValuePair<AbsolutePath, CompactSet<ReportedFileAccess>> entry in accessesByPath)
             {
@@ -4258,6 +4263,9 @@ namespace BuildXL.ProcessPipExecutor
                 accessesUnsorted.Add(entry.Key, new ObservedFileAccess(entry.Key, observationFlags, entry.Value));
             }
 
+            LogSubPhaseDuration(m_loggingContext, m_pip, SandboxedProcessCounters.SandboxedPipExecutorPhaseGettingObservedFileAccessesEnumerateGroups, stopwatch.Elapsed, $"(count: {result.ExplicitlyReportedFileAccesses.Count})");
+            stopwatch.Restart();
+
             // AccessesUnsorted might include various accesses to directories leading to the files inside of shared opaques,
             // mainly CreateDirectory and ProbeDirectory. To make strong fingerprint computation more stable, we are excluding such
             // accesses from the list that is passed into the ObservedInputProcessor (as a result, they will not be a part of the path set).
@@ -4372,6 +4380,9 @@ namespace BuildXL.ProcessPipExecutor
 
             sharedDynamicDirectoryWriteAccesses = mutableWriteAccesses;
 
+            LogSubPhaseDuration(m_loggingContext, m_pip, SandboxedProcessCounters.SandboxedPipExecutorPhaseGettingObservedFileAccessesDynamicWrites, stopwatch.Elapsed, $"(count: {result.ExplicitlyReportedFileAccesses.Count})");
+            stopwatch.Restart();
+
             // Consider the scenario where path/dir/file gets probed but at probing time the path is absent. Afterwards, a dir junction path/dir gets created, pointing
             // to path/target, and then path/target/file is created. Since path/dir/file was absent at probing time, detours doesn't resolve it because there is nothing
             // to resolve. However, the creation of the dir junction and file makes path/dir/file existing but unresolved. However, path/dir/file won't be there on cache lookup, the probe will
@@ -4445,6 +4456,7 @@ namespace BuildXL.ProcessPipExecutor
 
             fileAccessesBeforeFirstUndeclaredReWrite = mutableFileAccessesBeforeFirstReWrite ?? CollectionUtilities.EmptyDictionary<AbsolutePath, RequestedAccess>();
 
+            LogSubPhaseDuration(m_loggingContext, m_pip, SandboxedProcessCounters.SandboxedPipExecutorPhaseGettingObservedFileAccessesFinalProcessing, stopwatch.Elapsed, $"(count: {result.ExplicitlyReportedFileAccesses.Count})");
             return true;
 
             bool shouldIncludeAccess(ObservedFileAccess access)

@@ -15,6 +15,7 @@ using System.Reflection;
 using System.Runtime;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Grpc;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
@@ -1724,6 +1725,7 @@ namespace BuildXL.Engine
 
             EngineState newEngineState = null;
             bool success = true;
+            bool completedTryBlock = false;
 
             using (var pm = PerformanceMeasurement.StartWithoutStatistic(
                 loggingContext,
@@ -2096,9 +2098,46 @@ namespace BuildXL.Engine
                                     UnexpectedCondition.Log(loggingContext, $"An exception occurred while serializing config to a file. Exception: {configLoggingResult.Failure.DescribeIncludingInnerFailures()}");
                                 }
 #endif
+                                completedTryBlock = true;
                             }
                             finally
                             {
+                                // This section on shutdown is known to hang in some scenarios on Linux
+                                // This background thread will kill the process if hung.
+                                // The cancellation token below will be signalled if no hang occurs.
+                                var timeoutCancellationTokenSource = new CancellationTokenSource();
+                                // success being true here means all pips in the build succeeded
+                                // since a pip failure would log an error and would trigger an assert in ValidateFailureLoggedErrors if success was true with no errors
+                                // In which case we should be safe to trigger exit with an abnormal exit code if necessary.
+                                if (success && completedTryBlock && OperatingSystemHelper.IsLinuxOS)
+                                {
+                                    // This thread will throw an exception on completion that will trigger dump collection
+                                    // on unhandled failure.
+                                    var backgroundThread = new Thread(() =>
+                                    {
+                                        try
+                                        {
+                                            Task.Delay(TimeSpan.FromMinutes(10), timeoutCancellationTokenSource.Token).GetAwaiter().GetResult();
+                                        }
+                                        catch (TaskCanceledException)
+                                        {
+                                            return;
+                                        }
+
+                                        if (timeoutCancellationTokenSource.Token.IsCancellationRequested)
+                                        {
+                                            return;
+                                        }
+
+                                        // CODESYNC: Private/AdoBuildRunner/src/BuildXLLauncher.cs
+                                        Environment.Exit(ExitCode.FromExitKind(ExitKind.AbnormalExit));
+                                    })
+                                    {
+                                        IsBackground = true
+                                    };
+                                    backgroundThread.Start();
+                                }
+
                                 if (ebpfDaemonTask != null)
                                 {
                                     // If EBPF is on, the daemon task has probably been awaited already by running pips. But since we are about to tear everything down
@@ -2218,6 +2257,12 @@ namespace BuildXL.Engine
                                 {
                                     Context.EngineCounters.LogAsStatistics("Engine", loggingContext);
                                 }
+#if NET8_0_OR_GREATER
+                                await timeoutCancellationTokenSource.CancelAsync();
+#else
+                                // Cancel the timeout task running in the background since this build did not hang
+                                timeoutCancellationTokenSource.Cancel();
+#endif
                             }
                         } // End of EngineCache mutex lock
                     } // End of object directory mutex Lock

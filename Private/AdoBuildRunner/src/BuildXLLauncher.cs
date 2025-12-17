@@ -76,7 +76,17 @@ namespace BuildXL.AdoBuildRunner
             process.BeginErrorReadLine();
             await process.WaitForExitAsync();
 
-            return process.ExitCode;
+            var exitCode = process.ExitCode;
+            // CODESYNC: Public/Src/Engine/Dll/Engine.cs
+            // NOTE: we explicitly don't use ExitKind here to avoid adding a dependency on BuildXL.Utilities.Configuration
+            if (exitCode == 7)
+            {
+                // We don't know what caused buildxl to hang, but we'll modify the exit value for now to avoid failing the pipeline.
+                errorDataRecieved("BuildXL successfully completed with an abnormal exit code.");
+                exitCode = 0;
+            }
+
+            return exitCode;
         }
     }
 }

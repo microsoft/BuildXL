@@ -114,5 +114,10 @@ namespace BuildXL.Utilities.Configuration
         /// Build Timeout via CB queue config
         /// </summary>
         BuildTimeout,
+
+        /// <summary>
+        /// The build engine exited abnormally without properly completing shutdown.
+        /// </summary>
+        AbnormalExit,
     }
 }

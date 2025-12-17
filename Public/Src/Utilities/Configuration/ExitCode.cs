@@ -47,6 +47,8 @@ namespace BuildXL.Utilities.Configuration
                     return 5;
                 case ExitKind.BuildTimeout:
                     return 6;
+                case ExitKind.AbnormalExit:
+                    return 7;
                 case ExitKind.InternalError:
                     return -1;
                 default:

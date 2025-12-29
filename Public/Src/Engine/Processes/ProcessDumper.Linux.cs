@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
@@ -315,6 +316,99 @@ namespace BuildXL.Processes
             {
                 throw new BuildXLException("Failed to enumerate child processes", ex);
             }
+        }
+
+        /// <summary>
+        /// Tries to dump managed stacks for a given process using dotnet-stack.
+        /// </summary>
+        private static int TryDumpManagedStacksLinux(int processId, string stackLogPath)
+        {
+            var currentProcessId =
+#if NETCOREAPP
+                Environment.ProcessId;
+#else
+                System.Diagnostics.Process.GetCurrentProcess().Id;
+#endif
+
+            if (!OperatingSystemHelper.IsLinuxOS || processId != currentProcessId)
+            {
+                // Currently only supported on Linux and when dumping the current process, but we could add Windows support in the future if needed
+                return -1;
+            }
+
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(stackLogPath));
+                FileUtilities.DeleteFile(stackLogPath);
+
+                // dotnet-stack needs to have the .net8 runtime installed with DOTNET_ROOT set to the path to the runtime
+                var dotnetRoot = Environment.GetEnvironmentVariable("DOTNET_ROOT");
+                if (string.IsNullOrEmpty(dotnetRoot))
+                {
+                    // For local builds dotnet root is usually installed in /usr/lib/dotnet
+                    dotnetRoot = "/usr/lib/dotnet";
+
+                    if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("TF_BUILD")))
+                    {
+                        // For ADO builds that use the useDotnet task install it under $(Agent.ToolsDirectory)/dotnet by default
+                        var agentToolsDir = Environment.GetEnvironmentVariable("AGENT_TOOLSDIRECTORY");
+                        if (!string.IsNullOrEmpty(agentToolsDir))
+                        {
+                            // Override DOTNET_ROOT to point to the ADO installed dotnet runtime
+                            dotnetRoot = Path.Combine(agentToolsDir, "dotnet");
+                        }
+                    }
+                }
+
+                var workingDirectory = Directory.GetParent(AssemblyHelper.GetAssemblyLocation(Assembly.GetExecutingAssembly())).FullName;
+                var dotnetPath = Path.Combine(dotnetRoot, "dotnet");
+                var dotnetStackDllPath = Path.Combine(workingDirectory, "tools", "dotnet-stack", "dotnet-stack.dll");
+
+                if (!File.Exists(dotnetPath))
+                {
+                    File.WriteAllText(stackLogPath, $"dotnet runtime not found at expected location: {dotnetPath}");
+                    return -1;
+                }
+
+                if (!File.Exists(dotnetStackDllPath))
+                {
+                    File.WriteAllText(stackLogPath, $"dotnet-stack tool not found at expected location: {dotnetStackDllPath}");
+                    return -1;
+                }
+
+                using var process = new System.Diagnostics.Process()
+                {
+                    StartInfo = new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = dotnetPath,
+                        Arguments = $"{dotnetStackDllPath} report -p {processId}",
+                        CreateNoWindow = true,
+                        UseShellExecute = false,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                    }
+                };
+
+                process.StartInfo.EnvironmentVariables["DOTNET_ROOT"] = dotnetRoot;
+
+                // dotnet might not have execute permissions, set those first before trying to start it
+                IO.SetFilePermissionsForFilePath(dotnetPath, IO.FilePermissions.S_IRWXU);
+
+                process.Start();
+                var stdOut = process.StandardOutput.ReadToEnd();
+                var stdErr = process.StandardError.ReadToEnd();
+                process.WaitForExit();
+
+                File.WriteAllText(stackLogPath, $"{stdOut}{Environment.NewLine}{Environment.NewLine}{stdErr}");
+
+                return process.ExitCode;
+            }
+            catch (Exception e)
+            {
+                File.WriteAllText(stackLogPath, $"Failed to dump managed stacks for process {processId}. Exception: {e}");
+            }
+
+            return -1;
         }
     }
 }

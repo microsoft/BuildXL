@@ -255,6 +255,13 @@ namespace BuildXL.Processes
         }
 
         /// <summary>
+        /// Attempts to dump managed stacks of a process using 'dotnet-stack' tool.
+        /// </summary>
+        public static int TryDumpManagedStacks(int processId, string stackLogPath) => OperatingSystemHelper.IsLinuxOS
+            ? TryDumpManagedStacksLinux(processId, stackLogPath)
+            : throw new PlatformNotSupportedException("Dumping managed stacks is only supported on Linux.");
+
+        /// <summary>
         /// Gets the identifiers and process ids of all active processes in a process tree
         /// </summary>
         /// <remarks>

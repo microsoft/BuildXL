@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 import * as Managed from "Sdk.Managed";
+import { Transformer } from "Sdk.Transformers";
 
 namespace Engine {
     @@public
@@ -67,5 +68,22 @@ namespace Engine {
             "Test.Tool.Analyzers",
             "BuildXL.FrontEnd.Script.Testing.Helper"
         ],
+        runtimeContent: [
+            // This explicitly does not include a check for the host OS despite being Linux only because this package can be built on Windows
+            // but still used on Linux since it's a dotnet library.
+            ...addIfLazy(BuildXLSdk.Flags.isMicrosoftInternal, () => [
+                {
+                    subfolder: r`tools`,
+                    contents: [
+                        {
+                            subfolder: r`dotnet-stack`,
+                            contents: [
+                                Transformer.reSealPartialDirectory(importFrom("dotnet-stack").pkg.contents, r`tools/net8.0/any/`)
+                            ]
+                        }
+                    ]
+                }
+            ]),
+        ]
     });
 }

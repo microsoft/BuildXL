@@ -71,5 +71,10 @@ namespace BuildXL.Utilities.Core
         /// Various network exceptions
         /// </summary>
         NetworkException,
+
+        /// <summary>
+        /// Indicates that the BuildXL process is hung.
+        /// </summary>
+        ProcessHung,
     }
 }

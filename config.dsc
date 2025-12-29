@@ -387,6 +387,9 @@ config({
 
                 // Compression streams
                 { id: "ZstdSharp.Port", version: "0.8.4" },
+
+                // dotnet-stack
+                { id: "dotnet-stack", version: "9.0.652701"},
             ],
         },
 

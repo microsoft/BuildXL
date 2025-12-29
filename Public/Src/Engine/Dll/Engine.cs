@@ -2106,6 +2106,8 @@ namespace BuildXL.Engine
                                 // This background thread will kill the process if hung.
                                 // The cancellation token below will be signalled if no hang occurs.
                                 var timeoutCancellationTokenSource = new CancellationTokenSource();
+                                Thread backgroundThread = null;
+
                                 // success being true here means all pips in the build succeeded
                                 // since a pip failure would log an error and would trigger an assert in ValidateFailureLoggedErrors if success was true with no errors
                                 // In which case we should be safe to trigger exit with an abnormal exit code if necessary.
@@ -2113,24 +2115,23 @@ namespace BuildXL.Engine
                                 {
                                     // This thread will throw an exception on completion that will trigger dump collection
                                     // on unhandled failure.
-                                    var backgroundThread = new Thread(() =>
+                                    backgroundThread = new Thread(() =>
                                     {
                                         try
                                         {
                                             Task.Delay(TimeSpan.FromMinutes(10), timeoutCancellationTokenSource.Token).GetAwaiter().GetResult();
+                                            if (timeoutCancellationTokenSource.IsCancellationRequested)
+                                            {
+                                                return;
+                                            }
+
+                                            // Throw an unhandled exception to trigger dump collection on the BuildXLApp layer
+                                            throw new BuildXLException("BuildXL hung on engine shutdown.", ExceptionRootCause.ProcessHung);
                                         }
                                         catch (TaskCanceledException)
                                         {
                                             return;
                                         }
-
-                                        if (timeoutCancellationTokenSource.Token.IsCancellationRequested)
-                                        {
-                                            return;
-                                        }
-
-                                        // CODESYNC: Private/AdoBuildRunner/src/BuildXLLauncher.cs
-                                        Environment.Exit(ExitCode.FromExitKind(ExitKind.AbnormalExit));
                                     })
                                     {
                                         IsBackground = true
@@ -2263,6 +2264,8 @@ namespace BuildXL.Engine
                                 // Cancel the timeout task running in the background since this build did not hang
                                 timeoutCancellationTokenSource.Cancel();
 #endif
+
+                                backgroundThread?.Join();
                             }
                         } // End of EngineCache mutex lock
                     } // End of object directory mutex Lock

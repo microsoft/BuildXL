@@ -2311,6 +2311,11 @@ namespace BuildXL
                         // TODO: Maybe log on in the file? Definitely avoid the console to prevent a stack overflow.
                         effectiveExitKind = ExitKind.Aborted;
                         break;
+                    case ExceptionRootCause.ProcessHung:
+                        // Process should be dumped for analysis in this case.
+                        effectiveExitKind = ExitKind.AbnormalExit;
+                        // Jump to the default case to log the catastrophic failure as well for this case.
+                        goto default;
                     default:
                         Logger.Log.CatastrophicFailure(pm.LoggingContext, failureMessage, s_buildInfo?.CommitId ?? string.Empty, s_buildInfo?.Build ?? string.Empty);
                         WriteToConsole(Strings.App_LogsDirectory);
@@ -2347,7 +2352,7 @@ namespace BuildXL
 
                 pm.Dispose();
 
-                if (rootCause == ExceptionRootCause.Unknown)
+                if (rootCause == ExceptionRootCause.Unknown || rootCause == ExceptionRootCause.ProcessHung)
                 {
                     // Sometimes the crash dumps don't actually get attached to the WER report. Stick a full heap dump
                     // next to the log file for good measure.
@@ -2356,8 +2361,15 @@ namespace BuildXL
                         string logPrefix = Path.GetFileNameWithoutExtension(loggers.LogPath);
                         string dumpDir = Path.Combine(loggers.RootLogDirectory, logPrefix, "dumps");
                         Directory.CreateDirectory(dumpDir);
-                        Exception dumpException;
-                        Analysis.IgnoreResult(BuildXL.Processes.ProcessDumper.TryDumpProcess(Process.GetCurrentProcess(), Path.Combine(dumpDir, "UnhandledFailure.zip"), out dumpException, compress: true));
+                        var currentProcess = Process.GetCurrentProcess();
+
+                        // If this is on Linux, lets also try to capture a stack dump with dotnet-stack
+                        if (OperatingSystemHelper.IsLinuxOS)
+                        {
+                            Analysis.IgnoreResult(Processes.ProcessDumper.TryDumpManagedStacks(currentProcess.Id, Path.Combine(dumpDir, "UnhandledFailure_Stacks.txt")));
+                        }
+
+                        Analysis.IgnoreResult(Processes.ProcessDumper.TryDumpProcess(currentProcess, Path.Combine(dumpDir, "UnhandledFailure.zip"), out Exception dumpException, compress: true));
                     }
 #pragma warning disable ERP022 // Unobserved exception in generic exception handler
                     catch

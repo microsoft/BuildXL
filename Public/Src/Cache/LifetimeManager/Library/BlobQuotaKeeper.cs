@@ -94,6 +94,17 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                         return currentSize;
                     }
 
+                    // Because Azure Blob Storage only updates last access time with a granularity of 1 day, we need to make sure that the theshold we use for deletion
+                    // accoutnts for that. Otherwise, we might end up deleting content that was accessed, say, 1 minute after this process started, even if more than the configured
+                    // threshold has passed since then.
+                    // For example, consider:
+                    // T1 = 1/1/2026, 00:00:00   A piece of content is accessed. Azure updates last access time to T1.
+                    // T2 = 1/1/2026, 00:01:00   GC starts
+                    // T3 = 1/1/2026, 00:01:01   The piece of content is accessed again. Azure does NOT update last access time because it only does that once every 24h.
+                    // T4 = 1/4/2026, 12:00:00   We're checking if we can delete the content
+                    // If we only used start time, it's possible that we'll observe last access time to be T1, while in reality it was accessed at T3.
+                    DateTime startTimeDeletionThreshold = startTime.AddDays(-1);
+
                     // Delete zero-reference content first, while periodically creating checkpoints in case we have a large backlog.
                     using (var contentSemaphore = new SemaphoreSlim(initialCount: contentDegreeOfParallelism))
                     using (var timer = new IntervalTimer(
@@ -108,7 +119,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                             contentSemaphore,
                             currentSize: currentSize,
                             maxSize: maxSize,
-                            startTime: startTime,
+                            startTimeDeletionThreshold: startTimeDeletionThreshold,
                             dryRun: dryRun);
                     }
 
@@ -134,7 +145,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                             enumerationResult,
                             currentSize,
                             fingerprintSemaphore,
-                            startTime);
+                            startTimeDeletionThreshold);
                     }
 
                     return currentSize;
@@ -151,7 +162,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             EnumerationResult enumerationResult,
             long currentSize,
             SemaphoreSlim semaphore,
-            DateTime startTime)
+            DateTime startTimeDeletionThreshold)
         {
             var tryDeleteContentHashActionBlock = ActionBlockSlim.CreateWithAsyncAction<(ContentHash hash, TaskSourceSlim<object?> tcs, OperationContext context)>(
                 configuration: new ActionBlockSlimConfiguration(contentDegreeOfParallelism),
@@ -177,7 +188,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                             return;
                         }
 
-                        var deleted = await TryDeleteContentAsync(opContext, contentHash, dryRun, contentEntry.BlobSize, startTime);
+                        var deleted = await TryDeleteContentAsync(opContext, contentHash, dryRun, contentEntry.BlobSize, startTimeDeletionThreshold);
                         if (deleted)
                         {
                             Interlocked.Add(ref currentSize, -contentEntry.BlobSize);
@@ -214,7 +225,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                         var fingerprint = BlobCacheTopologyExtensions.ExtractStrongFingerprintFromPath(chl.BlobName);
                         var client = await _topology.GetClientAsync(context, fingerprint);
 
-                        if (!await TryDeleteContentHashListAsync(opContext, client, chl, startTime, dryRun))
+                        if (!await TryDeleteContentHashListAsync(opContext, client, chl, startTimeDeletionThreshold, dryRun))
                         {
                             return;
                         }
@@ -295,7 +306,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             SemaphoreSlim semaphore,
             long currentSize,
             long maxSize,
-            DateTime startTime,
+            DateTime startTimeDeletionThreshold,
             bool dryRun)
         {
             Tracer.Info(context, "Starting enumeration of zero-reference content for garbage collection.");
@@ -306,7 +317,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                 async hashAndLength =>
                 {
                     using var token = await SemaphoreSlimToken.WaitAsync(semaphore);
-                    var deleted = await TryDeleteContentAsync(context, hashAndLength.hash, dryRun, hashAndLength.length, startTime);
+                    var deleted = await TryDeleteContentAsync(context, hashAndLength.hash, dryRun, hashAndLength.length, startTimeDeletionThreshold);
                     if (deleted)
                     {
                         Interlocked.Add(ref currentSize, -hashAndLength.length);
@@ -322,7 +333,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             return currentSize;
         }
 
-        private async Task<bool> TryDeleteContentAsync(OperationContext context, ContentHash contentHash, bool dryRun, long contentSize, DateTime startTime)
+        private async Task<bool> TryDeleteContentAsync(OperationContext context, ContentHash contentHash, bool dryRun, long contentSize, DateTime startTimeDeletionThreshold)
         {
             var (client, _) = await _topology.GetClientWithPathAsync(context, contentHash);
 
@@ -339,7 +350,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                 return true;
             }
 
-            if (blobVersion.Value.LastAccessTimeUtc > GetDeletionThreshold(startTime))
+            if (blobVersion.Value.LastAccessTimeUtc > GetDeletionThreshold(startTimeDeletionThreshold))
             {
                 Tracer.Debug(context,
                     $"Skipping deletion of {contentHash.ToShortString()} because it has been accessed too recently to be deleted. LastAccessTime=[{blobVersion}]");
@@ -371,7 +382,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             OperationContext context,
             BlobClient client,
             ContentHashList contentHashList,
-            DateTime startTime,
+            DateTime startTimeDeletionThreshold,
             bool dryRun)
         {
             // Ideally instead of checking for last access time, we would do a conditional delete based on last access time. However,
@@ -402,7 +413,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
                 return false;
             }
 
-            if (currentVersion.Value.LastAccessTimeUtc > GetDeletionThreshold(startTime))
+            if (currentVersion.Value.LastAccessTimeUtc > GetDeletionThreshold(startTimeDeletionThreshold))
             {
                 Tracer.Debug(context,
                     $"Skipping deletion of {contentHashList.BlobName} because it has been accessed too recently to be deleted. LastAccessTime=[{currentVersion}]");
@@ -527,12 +538,12 @@ namespace BuildXL.Cache.BlobLifetimeManager.Library
             }
         }
 
-        private DateTime GetDeletionThreshold(DateTime startTime)
+        private DateTime GetDeletionThreshold(DateTime startTimeDeletionThreshold)
         {
             var configuredThreshold = _clock.UtcNow.Add(-_lastAccessTimeDeletionThreshold);
 
-            return startTime < configuredThreshold
-                ? startTime
+            return startTimeDeletionThreshold < configuredThreshold
+                ? startTimeDeletionThreshold
                 : configuredThreshold;
         }
     }

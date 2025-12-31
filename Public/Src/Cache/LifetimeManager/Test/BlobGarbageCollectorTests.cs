@@ -63,7 +63,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
                         BlobNamespaceIds = new[] { namespaceId },
                     };
 
-                    var startTime = DateTime.UtcNow;
+                    var startTime = DateTime.UtcNow.AddDays(1);
                     using var db = await LifetimeDatabaseCreator.CreateAsync(
                         context,
                         dbConfig,
@@ -167,8 +167,6 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
                         UtcNow = DateTime.UtcNow
                     };
 
-                    var startTime = clock.UtcNow;
-
                     using var db = await LifetimeDatabaseCreator.CreateAsync(
                         context,
                         dbConfig,
@@ -210,7 +208,7 @@ namespace BuildXL.Cache.BlobLifetimeManager.Test
                         checkpointCreationInterval: TimeSpan.FromDays(1),
                         cacheInstance: "cacheInstance",
                         runId: "runId",
-                        startTime).ThrowIfFailure();
+                        startTime: clock.UtcNow.AddDays(1)).ThrowIfFailure();
 #pragma warning restore CS8625 // Cannot convert null literal to non-nullable reference type.
 
                     for (var i = 0; i < (totalContent - contentToKeep); i++)

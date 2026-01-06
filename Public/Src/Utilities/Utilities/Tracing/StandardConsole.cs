@@ -147,7 +147,7 @@ namespace BuildXL.Utilities.Tracing
             }
             else
             {
-                WriteOutput(messageLevel, target);
+                WriteOutput(messageLevel, text);
             }
         }
 

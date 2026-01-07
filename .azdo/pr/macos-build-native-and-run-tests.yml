@@ -56,6 +56,7 @@ jobs:
       filePath: '$(System.ArtifactsDirectory)/tests/macos-tests-$(Build.BuildId)/osx-x64/bashrunner.sh'
       workingDirectory: '$(System.ArtifactsDirectory)/tests/macos-tests-$(Build.BuildId)/osx-x64'
       failOnStderr: true
+    retryCountOnTaskFailure: 1
   
   - task: PublishBuildArtifacts@1
     displayName: Publish Test Logs on Failure

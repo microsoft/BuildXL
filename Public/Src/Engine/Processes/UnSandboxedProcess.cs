@@ -331,7 +331,24 @@ namespace BuildXL.Processes
                 ? ExitCodes.Timeout
                 : HasSandboxFailures
                     ? ExitCodes.MessageProcessingFailure
-                    : (Process?.ExitCode ?? ExitCodes.Timeout);
+                    : getProcessExitCode();
+
+            int getProcessExitCode()
+            {
+                if (Process == null)
+                {
+                    return ExitCodes.Timeout;
+                }
+
+                try
+                {
+                    return Process.HasExited ? Process.ExitCode : ExitCodes.Timeout;
+                }
+                catch (InvalidOperationException)
+                {
+                    return ExitCodes.Timeout;
+                }
+            }
 
             LogDebug("GetResultAsync: Freezing outputs and returning result");
             return new SandboxedProcessResult

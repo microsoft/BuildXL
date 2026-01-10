@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
@@ -17,7 +16,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Interop;
 using BuildXL.Native.IO;
-using BuildXL.Native.Processes;
 using BuildXL.Pips;
 using BuildXL.Pips.Filter;
 using BuildXL.Pips.Graph;
@@ -28,20 +26,39 @@ using BuildXL.Processes.External;
 using BuildXL.Processes.Remoting;
 using BuildXL.Processes.Sideband;
 using BuildXL.Processes.Tracing;
+using BuildXL.Processes.VmCommandProxy;
 using BuildXL.Utilities;
-using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Core;
+using BuildXL.Utilities.Core.Tasks;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.ParallelAlgorithms;
-using BuildXL.Utilities.Core.Tasks;
-using BuildXL.Processes.VmCommandProxy;
+using static BuildXL.Processes.FileAccessManifest;
 using static BuildXL.Processes.SandboxedProcessFactory;
 using static BuildXL.Utilities.Core.BuildParameters;
-using static BuildXL.Processes.FileAccessManifest;
 
 namespace BuildXL.ProcessPipExecutor
 {
+    /// <summary>
+    /// Kinds of processes that require special handling.
+    /// </summary>
+    internal enum SpecialProcessKind : byte
+    {
+        NotSpecial = 0,
+        Csc = 1,
+        Cvtres = 2,
+        Resonexe = 3,
+        RC = 4,
+        CCCheck = 5,
+        CCDocGen = 6,
+        CCRefGen = 7,
+        CCRewrite = 8,
+        WinDbg = 9,
+        XAMLWrapper = 11,
+        Mt = 12
+    }
+
     /// <summary>
     /// Adapter from <see cref="Process" /> pips to real (uncached) execution in a <see cref="SandboxedProcess" />.
     /// </summary>
@@ -187,11 +204,6 @@ namespace BuildXL.ProcessPipExecutor
         private ISandboxedProcess m_activeProcess;
 
         /// <summary>
-        /// Fragments of incremental tools.
-        /// </summary>
-        private readonly IReadOnlyList<string> m_incrementalToolFragments;
-
-        /// <summary>
         /// Inputs affected by file/source changes.
         /// </summary>
         private readonly IReadOnlyList<AbsolutePath> m_changeAffectedInputs;
@@ -203,8 +215,6 @@ namespace BuildXL.ProcessPipExecutor
         /// Whether the process invokes an incremental tool with preserveOutputs mode.
         /// </summary>
         private bool IsIncrementalPreserveOutputPip => m_shouldPreserveOutputs && m_pip.IncrementalTool;
-
-        private readonly ObjectCache<string, bool> m_incrementalToolMatchCache = new(37);
 
         /// <summary>
         /// Whether apply fake timestamp or not.
@@ -405,17 +415,6 @@ namespace BuildXL.ProcessPipExecutor
 
             m_vmInitializer = vmInitializer;
             m_remoteProcessManager = remoteProcessManager;
-
-            if (configuration.IncrementalTools != null)
-            {
-                m_incrementalToolFragments = configuration.IncrementalTools.Select(toolSuffix =>
-                    // Append leading separator to ensure suffix only matches valid relative path fragments
-                    Path.DirectorySeparatorChar + toolSuffix.ToString(context.StringTable)).ToArray();
-            }
-            else
-            {
-                m_incrementalToolFragments = Array.Empty<string>();
-            }
 
             // Directories specified in the directory translator can be directory symlinks or junctions that are meant to be directories in normal circumstances.
             m_directorySymlinksAsDirectories = directoryTranslator == null
@@ -850,6 +849,25 @@ namespace BuildXL.ProcessPipExecutor
                     string arguments = m_pip.Arguments.ToString(m_pipDataRenderer);
                     m_timeout = GetEffectiveTimeout(m_pip.Timeout, m_sandboxConfig.DefaultTimeout, m_sandboxConfig.TimeoutMultiplier);
 
+                    var fileAccessReportingContext = new FileAccessReportingContext(
+                        m_loggingContext,
+                        m_context,
+                        m_sandboxConfig,
+                        m_pip,
+                        m_validateDistribution,
+                        m_fileAccessAllowlist);
+
+                    var explicitlyReportedFileAccessProcessor = new ExplicitlyReportedFileAccessProcessor(
+                        m_configuration,
+                        m_shouldPreserveOutputs,
+                        m_fileAccessManifest,
+                        m_semanticPathExpander,
+                        m_directorySymlinksAsDirectories,
+                        fileAccessReportingContext,
+                        allInputPathsUnderSharedOpaques,
+                        m_pipGraphFileSystemView,
+                        m_fileSystemView);
+
                     var info = new SandboxedProcessInfo(
                         m_pathTable,
                         this,
@@ -866,7 +884,8 @@ namespace BuildXL.ProcessPipExecutor
                         // We always want to use gentle kill for EBPF to give the ebpf runner a chance to do proper tear down
                         useGentleKill: sandboxConnection?.Kind == SandboxKind.LinuxEBPF,
                         allowUndeclaredSourceReads: m_pip.AllowUndeclaredSourceReads,
-                        ringBufferSizeMultiplier: m_sandboxConfig.EBPFRingBufferSizeMultiplier)
+                        ringBufferSizeMultiplier: m_sandboxConfig.EBPFRingBufferSizeMultiplier,
+                        explicitlyReportedAccesses: explicitlyReportedFileAccessProcessor)
                     {
                         Arguments = arguments,
                         WorkingDirectory = m_workingDirectory,
@@ -899,8 +918,8 @@ namespace BuildXL.ProcessPipExecutor
                     }
 
                     var result = SandboxedProcessNeedsExecuteExternal
-                        ? await RunExternalAsync(info, allInputPathsUnderSharedOpaques, sandboxPrepTime, cancellationToken)
-                        : await RunInternalAsync(info, allInputPathsUnderSharedOpaques, sandboxPrepTime, cancellationToken);
+                        ? await RunExternalAsync(info, allInputPathsUnderSharedOpaques, sandboxPrepTime, fileAccessReportingContext, explicitlyReportedFileAccessProcessor, cancellationToken)
+                        : await RunInternalAsync(info, allInputPathsUnderSharedOpaques, sandboxPrepTime, fileAccessReportingContext, explicitlyReportedFileAccessProcessor, cancellationToken);
                     if (result.Status == SandboxedProcessPipExecutionStatus.PreparationFailed)
                     {
                         m_processIdListener?.Invoke(0);
@@ -948,6 +967,8 @@ namespace BuildXL.ProcessPipExecutor
             SandboxedProcessInfo info,
             HashSet<AbsolutePath> allInputPathsUnderSharedOpaques,
             System.Diagnostics.Stopwatch sandboxPrepTime,
+            FileAccessReportingContext fileAccessReportingContext,
+            ExplicitlyReportedFileAccessProcessor explicitlyReportedFileAccessProcessor,
             CancellationToken cancellationToken = default)
         {
             if (SandboxedProcessNeedsExecuteExternal)
@@ -1069,13 +1090,15 @@ namespace BuildXL.ProcessPipExecutor
                 }
             }
 
-            return await GetAndProcessResultAsync(process, allInputPathsUnderSharedOpaques, sandboxPrepTime, cancellationToken);
+            return await GetAndProcessResultAsync(process, allInputPathsUnderSharedOpaques, sandboxPrepTime, fileAccessReportingContext, explicitlyReportedFileAccessProcessor, cancellationToken);
         }
 
         private async Task<SandboxedProcessPipExecutionResult> RunExternalAsync(
             SandboxedProcessInfo info,
             HashSet<AbsolutePath> allInputPathsUnderSharedOpaques,
             System.Diagnostics.Stopwatch sandboxPrepTime,
+            FileAccessReportingContext fileAccessReportingContext,
+            ExplicitlyReportedFileAccessProcessor explicitlyReportedFileAccessProcessor,
             CancellationToken cancellationToken = default)
         {
             info.StandardInputSourceInfo = StandardInputInfoExtensions.CreateForProcess(m_pip, m_context.PathTable);
@@ -1184,7 +1207,7 @@ namespace BuildXL.ProcessPipExecutor
                     RetryInfo.GetDefault(RetryReason.ProcessStartFailure));
             }
 
-            return await GetAndProcessResultAsync(process, allInputPathsUnderSharedOpaques, sandboxPrepTime, cancellationToken);
+            return await GetAndProcessResultAsync(process, allInputPathsUnderSharedOpaques, sandboxPrepTime, fileAccessReportingContext, explicitlyReportedFileAccessProcessor, cancellationToken);
         }
 
         private void PopulateRemoteSandboxedProcessData(SandboxedProcessInfo info)
@@ -1246,6 +1269,8 @@ namespace BuildXL.ProcessPipExecutor
             ISandboxedProcess process,
             HashSet<AbsolutePath> allInputPathsUnderSharedOpaques,
             System.Diagnostics.Stopwatch sandboxPrepTime,
+            FileAccessReportingContext fileAccessReportingContext,
+            ExplicitlyReportedFileAccessProcessor explicitlyReportedFileAccessProcessor,
             CancellationToken cancellationToken)
         {
             using var cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, m_context.CancellationToken);
@@ -1340,7 +1365,7 @@ namespace BuildXL.ProcessPipExecutor
             // then make sure we augment the reported accesses based on the pip static input/output declarations
             if (m_pip.TrustStaticallyDeclaredAccesses && m_pip.ChildProcessesToBreakawayFromSandbox.Length > 0)
             {
-                AugmentWithTrustedAccessesFromDeclaredArtifacts(result, m_pip, m_directoryArtifactContext);
+                AugmentWithTrustedAccessesFromDeclaredArtifacts(result, m_pip, m_directoryArtifactContext, explicitlyReportedFileAccessProcessor);
             }
 
             var start = DateTime.UtcNow;
@@ -1352,7 +1377,9 @@ namespace BuildXL.ProcessPipExecutor
                         sandboxPrepTime.ElapsedMilliseconds,
                         cancellationTokenSource.Token,
                         allInputPathsUnderSharedOpaques,
-                        process);
+                        process,
+                        fileAccessReportingContext,
+                        explicitlyReportedFileAccessProcessor);
             LogSubPhaseDuration(m_loggingContext, m_pip, SandboxedProcessCounters.SandboxedPipExecutorPhaseProcessingSandboxProcessResult, DateTime.UtcNow.Subtract(start));
 
             return ValidateSandboxCommunication(
@@ -1363,7 +1390,7 @@ namespace BuildXL.ProcessPipExecutor
                 isMessageCountSemaphoreCreated);
         }
 
-        private void AugmentWithTrustedAccessesFromDeclaredArtifacts(SandboxedProcessResult result, Process process, IDirectoryArtifactContext directoryContext)
+        private void AugmentWithTrustedAccessesFromDeclaredArtifacts(SandboxedProcessResult result, Process process, IDirectoryArtifactContext directoryContext, ExplicitlyReportedFileAccessProcessor explicitlyReportedFileAccessProcessor)
         {
             // If no ReportedProcess is found it's ok to just create an unnamed one since ReportedProcess is used for descriptive purposes only
             var reportedProcess = result.Processes?.FirstOrDefault() ?? new ReportedProcess(0, string.Empty, string.Empty);
@@ -1373,8 +1400,15 @@ namespace BuildXL.ProcessPipExecutor
             // All files accesses is an optional field. If present, we augment it with all the trusted ones
             result.FileAccesses?.UnionWith(trustedAccesses);
 
-            // From all the trusted accesses, we only augment with the explicit ones
-            result.ExplicitlyReportedFileAccesses.UnionWith(trustedAccesses.Where(access => access.ExplicitlyReported));
+            // From all the trusted accesses, we only augment the explicit ones
+            var explicitlyReportedTrustedAccesses = trustedAccesses.Where(access => access.ExplicitlyReported);
+            // Reflect this after the fact augmentation in the explicitly reported file access processor as well
+            foreach (var access in explicitlyReportedTrustedAccesses)
+            {
+                explicitlyReportedFileAccessProcessor.Add(access);
+            }
+
+            result.ExplicitlyReportedFileAccesses.UnionWith(explicitlyReportedTrustedAccesses);
         }
 
         /// <summary>
@@ -1684,7 +1718,9 @@ namespace BuildXL.ProcessPipExecutor
             long sandboxPrepMs,
             CancellationToken cancellationToken,
             HashSet<AbsolutePath> allInputPathsUnderSharedOpaques,
-            ISandboxedProcess process)
+            ISandboxedProcess process,
+            FileAccessReportingContext fileAccessReportingContext,
+            ExplicitlyReportedFileAccessProcessor explicitlyReportedFileAccessProcessor)
         {
             var sw = System.Diagnostics.Stopwatch.StartNew();
 
@@ -1712,18 +1748,11 @@ namespace BuildXL.ProcessPipExecutor
 
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
 
-            var fileAccessReportingContext = new FileAccessReportingContext(
-                loggingContext,
-                m_context,
-                m_sandboxConfig,
-                m_pip,
-                m_validateDistribution,
-                m_fileAccessAllowlist);
-
             // If this operation fails, error was logged already
             bool sharedOpaqueProcessingSuccess = TryGetObservedFileAccesses(
                 fileAccessReportingContext,
                 result,
+                explicitlyReportedFileAccessProcessor,
                 allInputPathsUnderSharedOpaques,
                 out var unobservedOutputs,
                 out var sharedDynamicDirectoryWriteAccesses,
@@ -3589,22 +3618,6 @@ namespace BuildXL.ProcessPipExecutor
             return true;
         }
 
-        private enum SpecialProcessKind : byte
-        {
-            NotSpecial = 0,
-            Csc = 1,
-            Cvtres = 2,
-            Resonexe = 3,
-            RC = 4,
-            CCCheck = 5,
-            CCDocGen = 6,
-            CCRefGen = 7,
-            CCRewrite = 8,
-            WinDbg = 9,
-            XAMLWrapper = 11,
-            Mt = 12
-        }
-
         private static readonly Dictionary<string, SpecialProcessKind> s_specialTools = new Dictionary<string, SpecialProcessKind>(StringComparer.OrdinalIgnoreCase)
         {
             ["csc"] = SpecialProcessKind.Csc,
@@ -3642,214 +3655,12 @@ namespace BuildXL.ProcessPipExecutor
         /// If <paramref name="processOverride"/> is invalid, then the process kind is obtained from the executable path specified in the pip.
         /// </remarks>
         [SuppressMessage("Microsoft.Globalization", "CA1309", Justification = "Already using Comparison.OrdinalIgnoreCase - looks like a bug in FxCop rules.")]
-        private SpecialProcessKind GetProcessKind(AbsolutePath processOverride)
+        internal static SpecialProcessKind GetProcessKind(AbsolutePath processOverride, Process pip, PathTable pathTable)
         {
-            AbsolutePath processPath = processOverride.IsValid ? processOverride : m_pip.Executable.Path;
-            string toolName = processPath.GetName(m_pathTable).ToString(m_pathTable.StringTable);
+            AbsolutePath processPath = processOverride.IsValid ? processOverride : pip.Executable.Path;
+            string toolName = processPath.GetName(pathTable).ToString(pathTable.StringTable);
 
             return s_specialTools.TryGetValue(toolName.ToLowerInvariant(), out SpecialProcessKind kind) ? kind : SpecialProcessKind.NotSpecial;
-        }
-
-        private static bool StringLooksLikeRCTempFile(string fileName)
-        {
-            int len = fileName.Length;
-            if (len < 9)
-            {
-                return false;
-            }
-
-            char c1 = fileName[len - 9];
-            if (c1 != '\\')
-            {
-                return false;
-            }
-
-            char c2 = fileName[len - 8];
-            if (c2.ToUpperInvariantFast() != 'R')
-            {
-                return false;
-            }
-
-            char c3 = fileName[len - 7];
-            if (c3.ToUpperInvariantFast() != 'C' && c3.ToUpperInvariantFast() != 'D' && c3.ToUpperInvariantFast() != 'F')
-            {
-                return false;
-            }
-
-            char c4 = fileName[len - 4];
-            if (c4.ToUpperInvariantFast() == '.')
-            {
-                // RC's temp files have no extension.
-                return false;
-            }
-
-            return true;
-        }
-
-        private static bool StringLooksLikeMtTempFile(string fileName)
-        {
-            if (!fileName.EndsWith(".tmp", StringComparison.OrdinalIgnoreCase))
-            {
-                return false;
-            }
-
-            int beginCharIndex = fileName.LastIndexOf('\\');
-
-            if (beginCharIndex == -1 || beginCharIndex + 3 >= fileName.Length)
-            {
-                return false;
-            }
-
-            char c1 = fileName[beginCharIndex + 1];
-            if (c1.ToUpperInvariantFast() != 'R')
-            {
-                return false;
-            }
-
-            char c2 = fileName[beginCharIndex + 2];
-            if (c2.ToUpperInvariantFast() != 'C')
-            {
-                return false;
-            }
-
-            char c3 = fileName[beginCharIndex + 3];
-            if (c3.ToUpperInvariantFast() != 'X')
-            {
-                return false;
-            }
-
-            return true;
-        }
-
-        private static bool StringLooksLikeBuildExeTraceLog(string fileName)
-        {
-            // detect filenames of the following form
-            // _buildc_dep_out.pass<NUMBER>
-            int len = fileName.Length;
-
-            int trailingDigits = 0;
-            for (; len > 0 && fileName[len - 1] >= '0' && fileName[len - 1] <= '9'; len--)
-            {
-                trailingDigits++;
-            }
-
-            if (trailingDigits == 0)
-            {
-                return false;
-            }
-
-            return fileName.EndsWith("_buildc_dep_out.pass", StringComparison.OrdinalIgnoreCase);
-        }
-
-        /// <summary>
-        /// Returns whether we should exclude special file access reports from processing
-        /// </summary>
-        /// <param name="fileAccessPath">The reported file  access path.</param>
-        /// <returns>True is the file should be excluded, otherwise false.</returns>
-        /// <remarks>
-        /// This accounts for accesses when the FileAccessIgnoreCodeCoverage is set. A lot of our tests are running
-        /// with this flag set..
-        /// </remarks>
-        private bool GetSpecialCaseRulesForCoverageAndSpecialDevices(
-            AbsolutePath fileAccessPath)
-        {
-            Contract.Assert(fileAccessPath != AbsolutePath.Invalid);
-            Contract.Assert(!string.IsNullOrEmpty(fileAccessPath.ToString(m_pathTable)));
-
-            string accessedPath = fileAccessPath.ToString(m_pathTable);
-
-            // When running test cases with Code Coverage enabled, some more files are loaded that we should ignore
-            if (m_sandboxConfig.FileAccessIgnoreCodeCoverage)
-            {
-                if (accessedPath.EndsWith(".pdb", StringComparison.OrdinalIgnoreCase)
-                    || accessedPath.EndsWith(".nls", StringComparison.OrdinalIgnoreCase)
-                    || accessedPath.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        /// <summary>
-        /// Returns whether we should exclude special file access reports from processing
-        /// </summary>
-        /// <param name="processPath">Path of process that access the file.</param>
-        /// <param name="fileAccessPath">The reported file  access path.</param>
-        /// <returns>True is the file should be excluded, otherwise false.</returns>
-        /// <remarks>
-        /// Some perform file accesses, which don't yet fall into any configurable file access manifest category.
-        /// These special tools/cases should be allowlisted, but we already have customers deployed specs without
-        /// using allowlists.
-        /// </remarks>
-        private bool GetSpecialCaseRulesForSpecialTools(AbsolutePath processPath, AbsolutePath fileAccessPath)
-        {
-            if (m_pip.PipType != PipType.Process)
-            {
-                return true;
-            }
-
-            string fileName = fileAccessPath.ToString(m_pathTable);
-
-            switch (GetProcessKind(processPath))
-            {
-                case SpecialProcessKind.Csc:
-                case SpecialProcessKind.Cvtres:
-                case SpecialProcessKind.Resonexe:
-                    // Some tools emit temporary files into the same directory
-                    // as the final output file.
-                    if (fileName.EndsWith(".tmp", StringComparison.OrdinalIgnoreCase))
-                    {
-                        return true;
-                    }
-
-                    break;
-
-                case SpecialProcessKind.RC:
-                    // The native resource compiler (RC) emits temporary files into the same
-                    // directory as the final output file.
-                    if (StringLooksLikeRCTempFile(fileName))
-                    {
-                        return true;
-                    }
-
-                    break;
-
-                case SpecialProcessKind.Mt:
-                    if (StringLooksLikeMtTempFile(fileName))
-                    {
-                        return true;
-                    }
-
-                    break;
-
-                case SpecialProcessKind.CCCheck:
-                case SpecialProcessKind.CCDocGen:
-                case SpecialProcessKind.CCRefGen:
-                case SpecialProcessKind.CCRewrite:
-                    // The cc-line of tools like to find pdb files by using the pdb path embedded in a dll/exe.
-                    // If the dll/exe was built with different roots, then this results in somewhat random file accesses.
-                    if (fileName.EndsWith(".pdb", StringComparison.OrdinalIgnoreCase))
-                    {
-                        return true;
-                    }
-
-                    break;
-
-                case SpecialProcessKind.WinDbg:
-                case SpecialProcessKind.NotSpecial:
-                    // no special treatment
-                    break;
-            }
-
-            // build.exe and tracelog.dll capture dependency information in temporary files in the object root called _buildc_dep_out.<pass#>
-            if (StringLooksLikeBuildExeTraceLog(fileName))
-            {
-                return true;
-            }
-
-            return false;
         }
 
         /// <summary>
@@ -3872,17 +3683,9 @@ namespace BuildXL.ProcessPipExecutor
             return m_isDirSymlinkCache.GetOrAdd(path, PathContainsSymlinks);
         }
 
-        private bool CheckIfPathContainsSymlinks(AbsolutePath path)
-        {
-            using (Counters.StartStopwatch(SandboxedProcessCounters.DirectorySymlinkCheckingDuration))
-            {
-                return PathContainsSymlinksCached(path);
-            }
-        }
-
-        private IEnumerable<ReportedFileAccess> GetEnumeratedFileAccessesForIncrementalTool(SandboxedProcessResult result) =>
+        private IEnumerable<ReportedFileAccess> GetEnumeratedFileAccessesForIncrementalTool(ExplicitlyReportedFileAccessProcessor explicitlyReportedFileAccessProcessor, SandboxedProcessResult result) =>
             result.ExplicitlyReportedFileAccesses
-                .Where(r => r.RequestedAccess == RequestedAccess.Enumerate && IsIncrementalToolAccess(r) && r.Operation == ReportedFileOperation.NtQueryDirectoryFile)
+                .Where(r => r.RequestedAccess == RequestedAccess.Enumerate && explicitlyReportedFileAccessProcessor.IsIncrementalToolAccess(r) && r.Operation == ReportedFileOperation.NtQueryDirectoryFile)
                 .SelectMany(r =>
                 {
                     string maybeDirectory = r.GetPath(m_context.PathTable);
@@ -3918,34 +3721,6 @@ namespace BuildXL.ProcessPipExecutor
                 });
 
         /// <summary>
-        /// Returns true if a directory reparse point should be treated as a file.
-        /// </summary>
-        /// <remarks>
-        /// CODESYNC: Public\Src\Sandbox\Windows\DetoursServices\DetouredFunctions.cpp, ShouldTreatDirectoryReparsePointAsFile
-        ///           See comment there for the rationale.
-        /// </remarks>
-        private bool ShouldTreatDirectoryReparsePointAsFile(AbsolutePath path, ReportedFileAccess access) =>
-            // Only on Windows OS.
-            OperatingSystemHelper.IsWindowsOS
-            // Operation does not open reparse points, or it is a write operation (e.g., creating a symlink does not pass FILE_FLAG_OPEN_REPARSE_POINT)
-            && (access.FlagsAndAttributes.HasFlag(FlagsAndAttributes.FILE_FLAG_OPEN_REPARSE_POINT) || access.RequestedAccess == RequestedAccess.Write)
-            // The path is not specified to be treated as a directory.
-            && !m_directorySymlinksAsDirectories.Contains(path)
-            // The operation is not a probe or the configuration mandates that directory symlinks are not probed as directories.
-            && ((access.RequestedAccess != RequestedAccess.Probe && access.RequestedAccess != RequestedAccess.EnumerationProbe)
-                || !m_sandboxConfig.UnsafeSandboxConfiguration.ProbeDirectorySymlinkAsDirectory)
-            // Either full reparse point resolution is enabled, or the path is in the manifest and the policy mandates full reparse point resolution.
-            && (!m_fileAccessManifest.IgnoreFullReparsePointResolving
-                || (m_fileAccessManifest.TryFindManifestPathFor(path, out _, out FileAccessPolicy policy)
-                    && policy.HasFlag(FileAccessPolicy.EnableFullReparsePointParsing)));
-
-
-        private bool IsAccessingDirectoryLocation(AbsolutePath path, ReportedFileAccess access) =>
-            // If the path is available and ends with a trailing backlash, we know that represents a directory
-            (access.Path != null && access.Path.EndsWith(FileUtilities.DirectorySeparatorString, StringComparison.OrdinalIgnoreCase))
-            || access.IsOpenedHandleDirectory(() => ShouldTreatDirectoryReparsePointAsFile(path, access));
-
-        /// <summary>
         /// Creates an <see cref="ObservedFileAccess"/> for each unique path accessed.
         /// The returned array is sorted by the expanded path and additionally contains no duplicates.
         /// </summary>
@@ -3960,6 +3735,7 @@ namespace BuildXL.ProcessPipExecutor
         private bool TryGetObservedFileAccesses(
             FileAccessReportingContext fileAccessReportingContext,
             SandboxedProcessResult result,
+            ExplicitlyReportedFileAccessProcessor explicitlyReportedFileAccessProcessor,
             HashSet<AbsolutePath> allInputPathsUnderSharedOpaques,
             out List<AbsolutePath> unobservedOutputs,
             out IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> sharedDynamicDirectoryWriteAccesses,
@@ -3981,98 +3757,29 @@ namespace BuildXL.ProcessPipExecutor
                 return true;
             }
 
-            // Note that we are enumerating an unordered set to produce the array of observed paths.
-            // As noted in SandboxedProcessPipExecutionResult, the caller must assume no particular order.
-            // Since observed accesses contribute to a descriptor value (rather than a hashed key), this is fine; no normalization needed.
-            // Since we're projecting many acceses into groups per path into just paths, we need a temporary dictionary.
-            // TODO: Allocations ahoy!
-            using PooledObjectWrapper<Dictionary<AbsolutePath, CompactSet<ReportedFileAccess>>> accessesByPathWrapper = ProcessPools.ReportedFileAccessesByPathPool.GetInstance();
-
-            Dictionary<AbsolutePath, CompactSet<ReportedFileAccess>> accessesByPath = accessesByPathWrapper.Instance;
-            var excludedToolsAndPaths = new HashSet<(AbsolutePath, AbsolutePath)>();
-            using var createdDirectoriesMutableWrapper = Pools.GetAbsolutePathSet();
-            var createdDirectoriesMutable = createdDirectoriesMutableWrapper.Instance;
-
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-            foreach (ReportedFileAccess reported in result.ExplicitlyReportedFileAccesses.Concat(GetEnumeratedFileAccessesForIncrementalTool(result)))
+            // Inject incremental tool accesses into the explicitly reported accesses processor
+            var incrementalToolAccesses = GetEnumeratedFileAccessesForIncrementalTool(explicitlyReportedFileAccessProcessor, result);
+            foreach (var access in incrementalToolAccesses)
             {
-                Contract.Assert(
-                    reported.Status == FileAccessStatus.Allowed || reported.Method == FileAccessStatusMethod.FileExistenceBased,
-                    "Explicitly reported accesses are defined to be successful or denied only based on file existence");
-
-                // Enumeration probes have a corresponding Enumeration access (also explicitly reported).
-                // Presently we are interested in capturing the existence of enumerations themselves rather than what was seen
-                // (and for NtQueryDirectoryFile, we can't always report the individual probes anyway).
-                if (reported.RequestedAccess == RequestedAccess.EnumerationProbe)
-                {
-                    // If it is an incremental tool and the pip allows preserving outputs, then do not ignore because
-                    // the tool may depend on the directory membership.
-                    if (!IsIncrementalToolAccess(reported))
-                    {
-                        continue;
-                    }
-                }
-
-                AbsolutePath parsedPath;
-
-                // We want an AbsolutePath for the full access. This may not be parse-able due to the accessed path
-                // being invalid, or a path format we do not understand. Note that TryParseAbsolutePath logs as appropriate
-                // in the latter case.
-                if (!reported.TryParseAbsolutePath(m_context, m_loggingContext, m_pip, out parsedPath))
-                {
-                    continue;
-                }
-
-                bool shouldExclude = false;
-
-                // Remove special accesses see Bug: #121875.
-                // Some perform file accesses, which don't yet fall into any configurable file access manifest category.
-                // These special tools/cases should be allowlisted, but we already have customers deployed specs without
-                // using allowlists.
-                if (GetSpecialCaseRulesForCoverageAndSpecialDevices(parsedPath))
-                {
-                    shouldExclude = true;
-                }
-                else
-                {
-                    if (AbsolutePath.TryCreate(m_context.PathTable, reported.Process.Path, out AbsolutePath processPath)
-                        && (excludedToolsAndPaths.Contains((processPath, parsedPath))
-                            || GetSpecialCaseRulesForSpecialTools(processPath, parsedPath)))
-                    {
-                        shouldExclude = true;
-                        excludedToolsAndPaths.Add((processPath, parsedPath));
-                    }
-                }
-
-                // We want to know if a directory was created by this pip. This means the create directory operation succeeded, but also that this directory was not deleted before by the build.
-                // Directories that fall in this category were already reported in SandboxedProcessReports as report lines get received, so we only add it here if we can already find it. Consider the following cases:
-                // 1) The directory was there before the build started but some other pip deletes it first. Then it will be reported in SandboxedProcessReports as a deleted directory and won't be added as a created one here. So we won't
-                // consider it here as a created directory. This is correct since the directory is not actually created by the build.
-                // 2) Consider now that the pip that deletes the directory in 1) is a cache hit. Removed directories are not reported on cache hit (because a cache replay does not remove them). This means the directory is now present.
-                // And that means the directory cannot be effectively created by this pip (which may introduce a different behavior than the one in 1), but that's a bigger problem to solve). So we won't add it here either.
-                // 3) The directory is removed and re-created by this same pip. In that case it will be reported to the output filesystem as removed and won't be added here. Similarly to 1), this is the right behavior. On cache replay, the directory
-                // will never be removed, and the fact that it is still not considered as a created directory is sound.
-                if (m_pip.AllowUndeclaredSourceReads
-                    && reported.RequestedAccess.HasFlag(RequestedAccess.Write)
-                    && reported.IsDirectoryEffectivelyCreated()
-                       // m_fileSystemView can be null for some tests
-                    && m_fileSystemView?.ExistCreatedDirectoryInOutputFileSystem(parsedPath) == true)
-                {
-                    createdDirectoriesMutable.Add(parsedPath);
-                }
-
-                // We should exclude writes on directory paths from the accesses constructed here, which are supposed to be inputs to the pip
-                // Note the similar logic below with respect to accesses on output files, but in the case of directories we just remove the
-                // write operations while potentially keeping some other ones (like probes) in the observed accesses - this is because typically
-                // the directories are not fully declared as outputs, so we'd rather keep track of 'input' observations on those paths.
-                shouldExclude |= reported.IsDirectoryCreationOrRemoval();
-
-                accessesByPath.TryGetValue(parsedPath, out CompactSet<ReportedFileAccess> existingAccessesToPath);
-                accessesByPath[parsedPath] = !shouldExclude ? existingAccessesToPath.Add(reported) : existingAccessesToPath;
+                explicitlyReportedFileAccessProcessor.Add(access);
             }
 
-            LogSubPhaseDuration(m_loggingContext, m_pip, SandboxedProcessCounters.SandboxedPipExecutorPhaseGettingObservedFileAccessesGrouping, stopwatch.Elapsed, $"(count: {result.ExplicitlyReportedFileAccesses.Count})");
+            LogSubPhaseDuration(m_loggingContext, m_pip, SandboxedProcessCounters.SandboxedPipExecutorPhaseInjectedAccesses, stopwatch.Elapsed, $"(count: {result.ExplicitlyReportedFileAccesses.Count})");
             stopwatch.Restart();
+
+            // All explicitly reported accesses (including incremental tool accesses) have now been added to the processor. Freeze and get the result.
+            using var explicitAccessResult = explicitlyReportedFileAccessProcessor.FreezeAndReturn();
+
+            // The result is a disposable object because it may contain pooled collections, so we need to be careful to not let it escape the method.
+            var accessesByPath = explicitAccessResult.AccessesByPath;
+            var createdDirectoriesMutable = explicitAccessResult.CreatedDirectories;
+            var dynamicWriteAccesses = explicitAccessResult.DynamicWriteAccesses;
+            var sortedObservationsByPath = explicitAccessResult.SortedObservationsByPath;
+            var fileExistenceDenials = explicitAccessResult.FileExistenceDenials;
+            var maybeUnresolvedAbsentAccesses = explicitAccessResult.MaybeUnresolvedAbsentAccesses;
+
+            // Compute unobserved outputs (those declared outputs that were not observed as being written to)
             foreach (var output in m_pip.FileOutputs)
             {
                 if (!accessesByPath.ContainsKey(output.Path))
@@ -4089,20 +3796,6 @@ namespace BuildXL.ProcessPipExecutor
                 }
             }
 
-            using PooledObjectWrapper<Dictionary<AbsolutePath, HashSet<AbsolutePath>>> dynamicWriteAccessWrapper = ProcessPools.DynamicWriteAccesses.GetInstance();
-            using PooledObjectWrapper<Dictionary<AbsolutePath, ObservedFileAccess>> accessesUnsortedWrapper = ProcessPools.AccessUnsorted.GetInstance();
-            using var excludedPathsWrapper = Pools.GetAbsolutePathSet();
-            using var maybeUnresolvedAbsentAccessessWrapper = Pools.GetAbsolutePathSet();
-            using var fileExistenceDenialsWrapper = Pools.GetAbsolutePathSet();
-
-            var fileExistenceDenials = fileExistenceDenialsWrapper.Instance;
-
-            Dictionary<AbsolutePath, RequestedAccess> mutableFileAccessesBeforeFirstReWrite = null;
-            if (result.FileAccessesBeforeFirstUndeclaredReWrite != null)
-            {
-                mutableFileAccessesBeforeFirstReWrite = new Dictionary<AbsolutePath, RequestedAccess>(result.FileAccessesBeforeFirstUndeclaredReWrite.Count);
-            }
-
             // We count outputs created by this executor as part of pip preparation 
             // as 'created by the pip', for consistency with the output filesystem
             // TODO: This is conditionalized by AllowUndeclaredSourceReads because
@@ -4113,164 +3806,12 @@ namespace BuildXL.ProcessPipExecutor
                 createdDirectoriesMutable.AddRange(m_engineCreatedPipOutputDirectories);
             }
 
-            var maybeUnresolvedAbsentAccesses = maybeUnresolvedAbsentAccessessWrapper.Instance;
-
-            // Initializes all shared directories in the pip with no accesses
-            var dynamicWriteAccesses = dynamicWriteAccessWrapper.Instance;
-            foreach (var sharedDirectory in m_sharedOpaqueDirectoryRoots.Keys)
-            {
-                dynamicWriteAccesses[sharedDirectory] = new HashSet<AbsolutePath>();
-            }
-
-            // Remove all the special file accesses that need removal.
-            RemoveEmptyOrInjectableFileAccesses(accessesByPath);
-
-            LogSubPhaseDuration(m_loggingContext, m_pip, SandboxedProcessCounters.SandboxedPipExecutorPhaseGettingObservedFileAccessesGrouping, stopwatch.Elapsed, $"(count: {result.ExplicitlyReportedFileAccesses.Count})");
-            stopwatch.Restart();
-            var accessesUnsorted = accessesUnsortedWrapper.Instance;
-            foreach (KeyValuePair<AbsolutePath, CompactSet<ReportedFileAccess>> entry in accessesByPath)
-            {
-                bool isDirectoryLocation = false;
-                bool hasEnumeration = false;
-                bool isProbe = true;
-                bool hasDirectoryReparsePointTreatedAsFile = false;
-
-                // There is always at least one access for reported path by construction
-                // Since the set of accesses occur on the same path, the manifest path is
-                // the same for all of them. We only need to query one of them.
-                ReportedFileAccess firstAccess = entry.Value.First();
-
-
-                bool isPathCandidateToBeOwnedByASharedOpaque = false;
-
-                foreach (var access in entry.Value)
-                {
-                    // If isDirectoryLocation was not already set, try one of the methods below
-                    bool isAccessingDirectoryLocation = IsAccessingDirectoryLocation(entry.Key, access);
-                    isDirectoryLocation |= isAccessingDirectoryLocation;
-
-                    hasDirectoryReparsePointTreatedAsFile |=
-                        OperatingSystemHelper.IsWindowsOS // Only relevant on Windows.
-                        && !isAccessingDirectoryLocation
-                        && access.OpenedFileOrDirectoryAttributes.HasFlag(FlagsAndAttributes.FILE_ATTRIBUTE_REPARSE_POINT | FlagsAndAttributes.FILE_ATTRIBUTE_DIRECTORY);
-
-                    // To treat the paths as file probes, all accesses to the path must be the probe access.
-                    isProbe &= access.RequestedAccess == RequestedAccess.Probe;
-
-                    if (access.RequestedAccess == RequestedAccess.Probe && IsIncrementalToolAccess(access))
-                    {
-                        isProbe = false;
-                    }
-
-                    // TODO: Remove this when WDG can grog this feature with no flag.
-                    if (m_sandboxConfig.UnsafeSandboxConfiguration.ExistingDirectoryProbesAsEnumerations ||
-                        access.RequestedAccess == RequestedAccess.Enumerate)
-                    {
-                        hasEnumeration = true;
-                    }
-
-                    // if the access is a write on a file (that is, not on a directory), then the path is a candidate to be part of a shared opaque
-                    isPathCandidateToBeOwnedByASharedOpaque |=
-                        access.RequestedAccess.HasFlag(RequestedAccess.Write)
-                        && !access.FlagsAndAttributes.HasFlag(FlagsAndAttributes.FILE_ATTRIBUTE_DIRECTORY)
-                        && !access.IsDirectoryCreationOrRemoval();
-
-                    // If the access is a shared opaque candidate and it was denied based on file existence, keep track of it
-                    if (isPathCandidateToBeOwnedByASharedOpaque && access.Method == FileAccessStatusMethod.FileExistenceBased && access.Status == FileAccessStatus.Denied)
-                    {
-                        fileExistenceDenials.Add(entry.Key);
-                    }
-                }
-
-                // if the path is still a candidate to be part of a shared opaque, that means there was at least a write to that path. If the path is then
-                // in the cone of a shared opaque, then it is a dynamic write access
-                bool? isAccessUnderASharedOpaque = null;
-                if (isPathCandidateToBeOwnedByASharedOpaque &&
-                    IsAccessUnderASharedOpaque(firstAccess, dynamicWriteAccesses, out AbsolutePath sharedDynamicDirectoryRoot))
-                {
-                    bool shouldBeConsideredAsOutput = ShouldBeConsideredSharedOpaqueOutput(fileAccessReportingContext, firstAccess, out FileAccessAllowlist.MatchType matchType);
-
-                    if (matchType != FileAccessAllowlist.MatchType.NoMatch)
-                    {
-                        // If the match is cacheable/uncacheable, report the access so that pip executor knows if the pip can be cached or not.
-                        fileAccessReportingContext.AddAndReportUncacheableFileAccess(firstAccess, matchType);
-                    }
-
-                    if (shouldBeConsideredAsOutput)
-                    {
-                        dynamicWriteAccesses[sharedDynamicDirectoryRoot].Add(entry.Key);
-                        isAccessUnderASharedOpaque = true;
-
-                        // The access was an undeclared rewrite. Copy over the requested accesses to the final result. In this way we filter out the paths that come with the
-                        // sandboxed result that didn't end up being rewrites
-                        if (result.FileAccessesBeforeFirstUndeclaredReWrite?.TryGetValue(entry.Key, out RequestedAccess accessBeforeFirstUndeclaredReWrite) == true)
-                        {
-                            // If the file was accessed before the first undeclared re-write, we need to keep track of that access
-                            mutableFileAccessesBeforeFirstReWrite[entry.Key] = accessBeforeFirstUndeclaredReWrite;
-                        }
-
-                    }
-
-                    // This is a known output, so don't store it
-                    continue;
-                }
-                // if the candidate was discarded because it was not under a shared opaque, make sure the set of denials based on file existence is also kept in sync
-                else if (isPathCandidateToBeOwnedByASharedOpaque)
-                {
-                    fileExistenceDenials.Remove(entry.Key);
-                }
-
-                // The following two lines need to be removed in order to report file accesses for
-                // undeclared files and sealed directories. But since this is a breaking change, we do
-                // it under an unsafe flag.
-                if (m_sandboxConfig.UnsafeSandboxConfiguration.IgnoreUndeclaredAccessesUnderSharedOpaques)
-                {
-                    // If the access occurred under any of the pip shared opaque outputs, and the access is not happening on any known input paths (neither dynamic nor static)
-                    // then we just skip reporting the access. Together with the above step, this means that no accesses under shared opaques that represent outputs are actually
-                    // reported as observed accesses. This matches the same behavior that occurs on static outputs.
-                    if (!allInputPathsUnderSharedOpaques.Contains(entry.Key)
-                        && (isAccessUnderASharedOpaque == true || IsAccessUnderASharedOpaque(firstAccess, dynamicWriteAccesses, out _)))
-                    {
-                        continue;
-                    }
-                }
-
-                // Absent accesses may still contain reparse points. If we are fully resolving them, keep track of them for further processing
-                if (!hasEnumeration
-                    && EnableFullReparsePointResolving(m_configuration, m_pip)
-                    && entry.Value.All(fa => (fa.Error == NativeIOConstants.ErrorPathNotFound || fa.Error == NativeIOConstants.ErrorFileNotFound)))
-                {
-                    maybeUnresolvedAbsentAccesses.Add(entry.Key);
-                }
-
-                ObservationFlags observationFlags = ObservationFlags.None;
-
-                if (isProbe)
-                {
-                    observationFlags |= ObservationFlags.FileProbe;
-                }
-
-                if (isDirectoryLocation && !hasDirectoryReparsePointTreatedAsFile)
-                {
-                    observationFlags |= ObservationFlags.DirectoryLocation;
-                }
-
-                if (hasEnumeration)
-                {
-                    observationFlags |= ObservationFlags.Enumeration;
-                }
-
-                accessesUnsorted.Add(entry.Key, new ObservedFileAccess(entry.Key, observationFlags, entry.Value));
-            }
-
-            LogSubPhaseDuration(m_loggingContext, m_pip, SandboxedProcessCounters.SandboxedPipExecutorPhaseGettingObservedFileAccessesEnumerateGroups, stopwatch.Elapsed, $"(count: {result.ExplicitlyReportedFileAccesses.Count})");
-            stopwatch.Restart();
-
             // AccessesUnsorted might include various accesses to directories leading to the files inside of shared opaques,
             // mainly CreateDirectory and ProbeDirectory. To make strong fingerprint computation more stable, we are excluding such
             // accesses from the list that is passed into the ObservedInputProcessor (as a result, they will not be a part of the path set).
             //
             // Example, given this path: '\sod\dir1\dir2\file.txt', we will exclude accesses to dir1 and dir2 only.
+            using var excludedPathsWrapper = Pools.GetAbsolutePathSet();
             var excludedPaths = excludedPathsWrapper.Instance;
             foreach (var sod in dynamicWriteAccesses)
             {
@@ -4288,6 +3829,8 @@ namespace BuildXL.ProcessPipExecutor
             createdDirectories = createdDirectoriesMutable.ToReadOnlySet();
 
             var mutableWriteAccesses = new Dictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>>(dynamicWriteAccesses.Count);
+
+            var fileAccessesBeforeFirstUndeclaredReWriteMutable = new Dictionary<AbsolutePath, RequestedAccess>();
 
             // We know that all accesses here were write accesses, but we don't actually know if in the end the corresponding file
             // still exists or whether the file was replaced with a directory afterwards. E.g.:
@@ -4316,6 +3859,15 @@ namespace BuildXL.ProcessPipExecutor
                     mutableWriteAccesses[kvp.Key] = fileWrites;
                     foreach (AbsolutePath writeAccess in kvp.Value)
                     {
+                        // Let's reuse the shared opaque write traversal to construct the final file accesses before a rewrite
+                        // The access was an undeclared rewrite. Copy over the requested accesses to the final result. In this way we filter out the paths that come with the
+                        // sandboxed result that didn't end up being rewrites
+                        if (result.FileAccessesBeforeFirstUndeclaredReWrite?.TryGetValue(writeAccess, out RequestedAccess accessBeforeFirstUndeclaredReWrite) == true)
+                        {
+                            // If the file was accessed before the first undeclared re-write, we need to keep track of that access
+                            fileAccessesBeforeFirstUndeclaredReWriteMutable[writeAccess] = accessBeforeFirstUndeclaredReWrite;
+                        }
+
                         string outputPath = writeAccess.ToString(m_pathTable);
                         var maybeResult = FileUtilities.TryProbePathExistence(outputPath, followSymlink: false, out var isReparsePoint);
                         reparsePointProduced |= isReparsePoint;
@@ -4380,8 +3932,20 @@ namespace BuildXL.ProcessPipExecutor
 
             sharedDynamicDirectoryWriteAccesses = mutableWriteAccesses;
 
-            LogSubPhaseDuration(m_loggingContext, m_pip, SandboxedProcessCounters.SandboxedPipExecutorPhaseGettingObservedFileAccessesDynamicWrites, stopwatch.Elapsed, $"(count: {result.ExplicitlyReportedFileAccesses.Count})");
+            LogSubPhaseDuration(m_loggingContext, m_pip, SandboxedProcessCounters.SandboxedPipExecutorPhaseGettingObservedProcessOutputs, stopwatch.Elapsed, $"(count: {result.ExplicitlyReportedFileAccesses.Count})");
             stopwatch.Restart();
+
+            // Build the final observed accesses list
+            var sortedObservedFileAccesses = new ObservedFileAccess[sortedObservationsByPath.Count];
+            int index = 0;
+            foreach (var kvp in sortedObservationsByPath)
+            {
+                sortedObservedFileAccesses[index] = new ObservedFileAccess(
+                    kvp.Key,
+                    kvp.Value.ObservationFlags,
+                    kvp.Value.ReportedFileAccesses);
+                index++;
+            }
 
             // Consider the scenario where path/dir/file gets probed but at probing time the path is absent. Afterwards, a dir junction path/dir gets created, pointing
             // to path/target, and then path/target/file is created. Since path/dir/file was absent at probing time, detours doesn't resolve it because there is nothing
@@ -4419,7 +3983,7 @@ namespace BuildXL.ProcessPipExecutor
                         m_fileAccessManifest.TryFindManifestPathFor(resolvedPath, out AbsolutePath manifestPath, out _);
 
                         // Generate equivalent accesses with the resolved path
-                        foreach (ReportedFileAccess originalAccess in accessesByPath[absentAccess])
+                        foreach (ReportedFileAccess originalAccess in accessesByPath[absentAccess].ReportedFileAccesses)
                         {
                             ReportedFileAccess syntheticAccess = originalAccess.CreateWithPathAndAttributes(
                                 resolvedPath == manifestPath ? null : resolvedPath.ToString(m_pathTable),
@@ -4427,42 +3991,46 @@ namespace BuildXL.ProcessPipExecutor
                                 originalAccess.FlagsAndAttributes);
 
                             // Check if there is already an access with that path, and add to it in that case
-                            if (accessesUnsorted.TryGetValue(resolvedPath, out var observedFileAccess))
+                            if (accessesByPath.TryGetValue(resolvedPath, out var observedFileAccessAndFlags))
                             {
-                                accessesUnsorted[resolvedPath] = new ObservedFileAccess(
-                                    resolvedPath,
-                                    observedFileAccess.ObservationFlags,
-                                    observedFileAccess.Accesses.Add(syntheticAccess));
+                                observedFileAccessAndFlags.ReportedFileAccesses = observedFileAccessAndFlags.ReportedFileAccesses.Add(syntheticAccess);
                             }
                             else
                             {
-                                accessesUnsorted.Add(
-                                    resolvedPath,
-                                    new ObservedFileAccess(
-                                        resolvedPath,
-                                        ObservationFlags.FileProbe,
-                                        new CompactSet<ReportedFileAccess>().Add(syntheticAccess)));
+                                sortedObservationsByPath.Add(resolvedPath, new ReportedFileAccessesAndFlagsMutable()
+                                {
+                                    ObservationFlags = ObservationFlags.FileProbe,
+                                    ReportedFileAccesses = new CompactSet<ReportedFileAccess>().Add(syntheticAccess)
+                                });
                             }
                         }
                     }
                 }
             }
 
-            var filteredAccessesUnsorted = accessesUnsorted.Values.Where(shouldIncludeAccess);
+            LogSubPhaseDuration(m_loggingContext, m_pip, SandboxedProcessCounters.SandboxedPipExecutorPhaseResolveAbsentAccesses, stopwatch.Elapsed, $"(count: {result.ExplicitlyReportedFileAccesses.Count})");
+            stopwatch.Restart();
 
-            observedAccesses = SortedReadOnlyArray<ObservedFileAccess, ObservedFileAccessExpandedPathComparer>.CloneAndSort(
-                filteredAccessesUnsorted,
-                new ObservedFileAccessExpandedPathComparer(m_context.PathTable.ExpandedPathComparer));
+            // We have a sorted list already. Just traverse it in order and construct the final sorted collection of
+            // observed file accesses
+            var filteredAccessesSorted = sortedObservationsByPath
+                .Where(kvp => shouldIncludeAccess(kvp.Key, kvp.Value.ReportedFileAccesses, kvp.Value.ObservationFlags))
+                .Select(kvp => new ObservedFileAccess(kvp.Key, kvp.Value.ObservationFlags, kvp.Value.ReportedFileAccesses))
+                .ToArray();
 
-            fileAccessesBeforeFirstUndeclaredReWrite = mutableFileAccessesBeforeFirstReWrite ?? CollectionUtilities.EmptyDictionary<AbsolutePath, RequestedAccess>();
+            observedAccesses = SortedReadOnlyArray<ObservedFileAccess, ObservedFileAccessExpandedPathComparer>.FromSortedArrayUnsafe(filteredAccessesSorted, new ObservedFileAccessExpandedPathComparer(m_context.PathTable.ExpandedPathComparer));
 
-            LogSubPhaseDuration(m_loggingContext, m_pip, SandboxedProcessCounters.SandboxedPipExecutorPhaseGettingObservedFileAccessesFinalProcessing, stopwatch.Elapsed, $"(count: {result.ExplicitlyReportedFileAccesses.Count})");
+            fileAccessesBeforeFirstUndeclaredReWrite = fileAccessesBeforeFirstUndeclaredReWriteMutable;
+
+            
+            LogSubPhaseDuration(m_loggingContext, m_pip, SandboxedProcessCounters.SandboxedPipExecutorPhaseBuildObservedFileAccesses, stopwatch.Elapsed, $"(count: {result.ExplicitlyReportedFileAccesses.Count})");
+
             return true;
 
-            bool shouldIncludeAccess(ObservedFileAccess access)
+            bool shouldIncludeAccess(AbsolutePath path, CompactSet<ReportedFileAccess> accesses, ObservationFlags flags)
             {
                 // if not in the excludedPaths set --> include
-                if (!excludedPaths.Contains(access.Path))
+                if (!excludedPaths.Contains(path))
                 {
                     return true;
                 }
@@ -4471,88 +4039,9 @@ namespace BuildXL.ProcessPipExecutor
                 //   (1) access is a directory enumeration, AND
                 //   (2) the directory was not created by this pip
                 return
-                    access.ObservationFlags.HasFlag(ObservationFlags.Enumeration)
-                    && !access.Accesses.Any(rfa => rfa.IsDirectoryCreation());
+                    flags.HasFlag(ObservationFlags.Enumeration)
+                    && !accesses.Any(rfa => rfa.IsDirectoryCreation());
             }
-        }
-
-        private bool IsAccessUnderASharedOpaque(
-            ReportedFileAccess access,
-            Dictionary<AbsolutePath, HashSet<AbsolutePath>> dynamicWriteAccesses,
-            out AbsolutePath sharedDynamicDirectoryRoot)
-        {
-            sharedDynamicDirectoryRoot = AbsolutePath.Invalid;
-
-            // Shortcut the search if there are no shared opaques or the manifest path
-            // is invalid. For the latter, this can occur when the access happens on a location
-            // the path table doesn't know about. But this means the access is not under a shared opaque.
-            if (dynamicWriteAccesses.Count == 0 || !access.ManifestPath.IsValid)
-            {
-                return false;
-            }
-
-            // The only construct that defines a scope for detours that we allow under shared opaques is sealed directories
-            // (other constructs are allowed, but they don't affect detours manifest).
-            // This means we cannot directly use the manifest path to check if it is the root of a shared opaque,
-            // but we can start looking up from the reported manifest path.
-            // Because of bottom-up search, if a pip declares nested shared opaque directories, the innermost directory
-            // wins the ownership of a produced file.
-
-            var initialNode = access.ManifestPath.Value;
-
-            // TODO: consider adding a cache from manifest paths to containing shared opaques. It is likely
-            // that many writes for a given pip happens under the same cones.
-            bool isFirstNode = true;
-            foreach (var currentNode in m_context.PathTable.EnumerateHierarchyBottomUp(initialNode))
-            {
-                // In order to attribute accesses on shared opaque directory paths themselves to the parent
-                // shared opaque directory, this will skip checking the first node when enumerating the path
-                // as long as it is the same as the access 
-                if (isFirstNode && access.Path == null)
-                {
-                    isFirstNode = false;
-                    continue;
-                }
-
-                var currentPath = new AbsolutePath(currentNode);
-
-                if (dynamicWriteAccesses.ContainsKey(currentPath))
-                {
-                    sharedDynamicDirectoryRoot = currentPath;
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        /// <summary>
-        /// Checks whether a reported file access should be considered as an output under a shared opaque.
-        /// </summary>
-        private bool ShouldBeConsideredSharedOpaqueOutput(
-            FileAccessReportingContext fileAccessReportingContext,
-            ReportedFileAccess access,
-            out FileAccessAllowlist.MatchType matchType)
-        {
-            if (m_sandboxConfig.UnsafeSandboxConfiguration.DoNotApplyAllowListToDynamicOutputs())
-            {
-                matchType = FileAccessAllowlist.MatchType.NoMatch;
-                return true;
-            }
-
-            // Given a file access f under a shared opaque.
-            // - NoMatch => true
-            // - MatchCacheable / NotCacheable
-            //   - case 1: f is static source/output => true
-            //   - case 2: f is under exclusive opaque => true
-            //   - otherwise: false
-            //
-            // In case 1 & 2 above, f is considered an output so that the pip executor can detect for double writes.
-            matchType = fileAccessReportingContext.MatchReportedFileAccess(access);
-            return matchType == FileAccessAllowlist.MatchType.NoMatch
-                || (access.TryParseAbsolutePath(m_context, m_loggingContext, m_pip, out AbsolutePath accessPath)
-                    && (m_pipGraphFileSystemView.TryGetLatestFileArtifactForPath(accessPath).IsValid
-                        || (m_pipGraphFileSystemView.IsPathUnderOutputDirectory(accessPath, out bool isSharedOpaque) && !isSharedOpaque)));
         }
 
         /// <summary>
@@ -4565,50 +4054,6 @@ namespace BuildXL.ProcessPipExecutor
             return path.StartsWith(prefix, comparison.Value)
                    || path.StartsWith(@"\??\" + prefix, comparison.Value)
                    || path.StartsWith(@"\\?\" + prefix, comparison.Value);
-        }
-
-        private void RemoveEmptyOrInjectableFileAccesses(Dictionary<AbsolutePath, CompactSet<ReportedFileAccess>> accessesByPath)
-        {
-            var accessesToRemove = new List<AbsolutePath>();
-
-            // CollectionUtilities all the file accesses that need to be removed.
-            foreach (var absolutePath in accessesByPath.Keys)
-            {
-                if (!absolutePath.IsValid)
-                {
-                    continue;
-                }
-
-                if (accessesByPath[absolutePath].Count == 0)
-                {
-                    // Remove empty accesses and don't bother checking the rest.
-                    accessesToRemove.Add(absolutePath);
-                    continue;
-                }
-
-                // Remove only entries that come from unknown or from System, or Invalid mounts.
-                bool removeEntry = false;
-
-                if (m_semanticPathExpander != null)
-                {
-                    SemanticPathInfo semanticPathInfo = m_semanticPathExpander.GetSemanticPathInfo(absolutePath);
-                    removeEntry = !semanticPathInfo.IsValid || semanticPathInfo.IsSystem;
-                }
-
-                if (m_semanticPathExpander == null || removeEntry)
-                {
-                    if (IsRemovableInjectedFileAccess(absolutePath))
-                    {
-                        accessesToRemove.Add(absolutePath);
-                    }
-                }
-            }
-
-            // Now, remove all the entries that were scheduled for removal.
-            foreach (AbsolutePath pathToRemove in accessesToRemove)
-            {
-                accessesByPath.Remove(pathToRemove);
-            }
         }
 
         private void RemoveInjectableFileAccesses(ISet<ReportedFileAccess> unexpectedAccesses)
@@ -4636,7 +4081,7 @@ namespace BuildXL.ProcessPipExecutor
 
                 if (m_semanticPathExpander == null || removeEntry)
                 {
-                    if (IsRemovableInjectedFileAccess(absolutePath))
+                    if (IsRemovableInjectedFileAccess(absolutePath, m_pathTable))
                     {
                         accessesToRemove.Add(reportedAccess);
                     }
@@ -4650,12 +4095,14 @@ namespace BuildXL.ProcessPipExecutor
             }
         }
 
-        private bool IsRemovableInjectedFileAccess(AbsolutePath absolutePath)
+        /// <summary>
+        /// Whether a file access is a known injected one
+        /// </summary>
+        internal static bool IsRemovableInjectedFileAccess(AbsolutePath absolutePath, PathTable pathTable)
         {
-            string path = absolutePath.ToString(m_pathTable);
-            string filename = absolutePath.GetName(m_pathTable).IsValid ? absolutePath.GetName(m_pathTable).ToString(m_pathTable.StringTable) : null;
-            string extension = absolutePath.GetExtension(m_pathTable).IsValid ? absolutePath.GetExtension(m_pathTable).ToString(m_pathTable.StringTable) : null;
-
+            string path = absolutePath.ToString(pathTable);
+            string filename = absolutePath.GetName(pathTable).IsValid ? absolutePath.GetName(pathTable).ToString(pathTable.StringTable) : null;
+            string extension = absolutePath.GetExtension(pathTable).IsValid ? absolutePath.GetExtension(pathTable).ToString(pathTable.StringTable) : null;
             // Special case: The VC++ compiler probes %PATH% for c1xx.exe.  This file does not even exist, but
             // VC still looks for it.  We ignore it.
             if (StringComparer.OrdinalIgnoreCase.Equals(filename, "c1xx.exe"))
@@ -5229,7 +4676,7 @@ namespace BuildXL.ProcessPipExecutor
                 return;
             }
 
-            var process = GetProcessKind(AbsolutePath.Invalid);
+            var process = GetProcessKind(AbsolutePath.Invalid, m_pip, m_pathTable);
 
             if (process == SpecialProcessKind.Csc)
             {
@@ -5660,40 +5107,6 @@ namespace BuildXL.ProcessPipExecutor
             }
 
             return false;
-        }
-
-        private bool IsIncrementalToolAccess(ReportedFileAccess access)
-        {
-            if (!IsIncrementalPreserveOutputPip)
-            {
-                return false;
-            }
-
-            if (m_incrementalToolFragments.Count == 0)
-            {
-                return false;
-            }
-
-            string toolPath = access.Process.Path;
-
-            if (m_incrementalToolMatchCache.TryGetValue(toolPath, out bool result))
-            {
-                return result;
-            }
-
-            result = false;
-            foreach (var incrementalToolSuffix in m_incrementalToolFragments)
-            {
-                if (toolPath.EndsWith(incrementalToolSuffix, OperatingSystemHelper.PathComparison))
-                {
-                    result = true;
-                    break;
-                }
-            }
-
-            // Cache the result
-            m_incrementalToolMatchCache.AddItem(toolPath, result);
-            return result;
         }
 
         /// <summary>

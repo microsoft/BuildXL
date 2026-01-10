@@ -242,16 +242,16 @@ namespace BuildXL.Processes
         /// <summary>
         /// Deserializes an instance of <see cref="SandboxedProcessResult"/>.
         /// </summary>
-        public static SandboxedProcessResult Deserialize(Stream stream, Func<BuildXLReader, AbsolutePath>? readPath = null)
+        public static SandboxedProcessResult Deserialize(Stream stream, Func<BuildXLReader, AbsolutePath>? readPath = null, IExplicitlyReportedAccesses? explicitlyReportedAccesses = null)
         {
             using var reader = new BuildXLReader(false, stream, true);
-            return Deserialize(reader, readPath);
+            return Deserialize(reader, readPath, explicitlyReportedAccesses);
         }
 
         /// <summary>
         /// Deserializes an instance of <see cref="SandboxedProcessResult"/>.
         /// </summary>
-        public static SandboxedProcessResult Deserialize(BuildXLReader reader, Func<BuildXLReader, AbsolutePath>? readPath = null)
+        public static SandboxedProcessResult Deserialize(BuildXLReader reader, Func<BuildXLReader, AbsolutePath>? readPath = null, IExplicitlyReportedAccesses? explicitlyReportedAccesses = null)
         {
             int exitCode = reader.ReadInt32();
             bool killed = reader.ReadBoolean();
@@ -283,6 +283,16 @@ namespace BuildXL.Processes
             bool messageCountSemaphoreCreated = reader.ReadBoolean();
             SandboxedProcessOutput trace = reader.ReadNullable(r => SandboxedProcessOutput.Deserialize(r));
             int lastConfirmedMessageCount = reader.ReadInt32();
+
+            // For the case of an external execution we can't process explicitly reported accesses as they come in, so
+            // just replay them altogether here.
+            if (explicitlyReportedAccesses is not null && explicitlyReportedFileAccesses is not null)
+            {
+                foreach (var access in explicitlyReportedFileAccesses)
+                {
+                    explicitlyReportedAccesses.Add(access);
+                }
+            }
 
             return new SandboxedProcessResult()
             {

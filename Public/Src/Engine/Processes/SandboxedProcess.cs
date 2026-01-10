@@ -128,6 +128,7 @@ namespace BuildXL.Processes
                     info.DetoursEventListener,
                     info.SidebandWriter,
                     info.FileSystemView,
+                    info.ExplicitlyReportedAccesses,
                     m_traceBuilder);
 
             m_detouredProcess =
@@ -678,7 +679,8 @@ namespace BuildXL.Processes
                 AllUnexpectedFileAccesses = m_reports.FileUnexpectedAccesses,
                 FileAccesses = m_reports.FileAccesses,
                 DetouringStatuses = m_reports.ProcessDetoursStatuses,
-                ExplicitlyReportedFileAccesses = m_reports.ExplicitlyReportedFileAccesses,
+                // Let's make a copy to avoid mutations after we hand out the result. There are some cases where new explicit accesses get injected after this result is constructed.
+                ExplicitlyReportedFileAccesses = new HashSet<ReportedFileAccess>(m_reports.ExplicitlyReportedFileAccesses.ExplicitlyReportedFileAccesses()),
                 Processes = m_reports.Processes,
                 DumpFileDirectory = m_detouredProcess.DumpFileDirectory,
                 DumpCreationException = m_detouredProcess.DumpCreationException,

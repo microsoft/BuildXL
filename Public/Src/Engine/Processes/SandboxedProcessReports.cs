@@ -123,7 +123,7 @@ namespace BuildXL.Processes
         public readonly List<ReportedProcess> Processes = new();
         public readonly HashSet<ReportedFileAccess> FileUnexpectedAccesses;
         public readonly HashSet<ReportedFileAccess> FileAccesses;
-        public readonly HashSet<ReportedFileAccess> ExplicitlyReportedFileAccesses = new();
+        public readonly IExplicitlyReportedAccesses ExplicitlyReportedFileAccesses;
 
         public readonly List<ProcessDetouringStatusData> ProcessDetoursStatuses = new();
         
@@ -217,6 +217,7 @@ namespace BuildXL.Processes
             [MaybeNull] IDetoursEventListener detoursEventListener,
             [MaybeNull] SidebandWriter sharedOpaqueOutputLogger,
             [MaybeNull] ISandboxFileSystemView fileSystemView,
+            IExplicitlyReportedAccesses explicitlyReportedAccesses,
             [MaybeNull] SandboxedProcessTraceBuilder traceBuilder = null)
         {
             Contract.RequiresNotNull(manifest);
@@ -238,6 +239,7 @@ namespace BuildXL.Processes
             m_processesRequiringPTrace = OperatingSystemHelper.IsLinuxOS ? new List<AbsolutePath>() : null;
             m_fileName = fileName;
             m_allowUndeclaredFileReads = allowUndeclaredFileReads;
+            ExplicitlyReportedFileAccesses = explicitlyReportedAccesses;
         }
 
         /// <summary>ReportArgsMismatch

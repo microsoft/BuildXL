@@ -231,7 +231,7 @@ namespace BuildXL.Processes.External
             {
                 using (FileStream stream = File.OpenRead(file))
                 {
-                    return SandboxedProcessResult.Deserialize(stream, readPath);
+                    return SandboxedProcessResult.Deserialize(stream, readPath, SandboxedProcessInfo.ExplicitlyReportedAccesses);
                 }
             }
             catch (IOException ioException)

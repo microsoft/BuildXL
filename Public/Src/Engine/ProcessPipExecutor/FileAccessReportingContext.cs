@@ -43,6 +43,13 @@ namespace BuildXL.ProcessPipExecutor
 
         private readonly MatchComparer m_matchComparer;
 
+        /// <nodoc/>
+        public LoggingContext LoggingContext => m_loggingContext;
+        /// <nodoc/>
+        public PipExecutionContext PipExecutionContextContext => m_context;
+        /// <nodoc/>
+        public Process Pip => m_pip;
+
         /// <summary>
         /// Creates a context. All <see cref="Counters"/> are initially zero and will increase as accesses are reported.
         /// </summary>

@@ -181,6 +181,7 @@ namespace BuildXL.Processes
                 info.DetoursEventListener,
                 info.SidebandWriter,
                 info.FileSystemView,
+                info.ExplicitlyReportedAccesses,
                 m_traceBuilder);
 
             var executionOptions = new ActionBlockSlimConfiguration(

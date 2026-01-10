@@ -365,7 +365,8 @@ namespace BuildXL.Processes
                 AllUnexpectedFileAccesses = reports?.FileUnexpectedAccesses ?? EmptyFileAccessesSet,
                 FileAccesses = fileAccesses,
                 DetouringStatuses = reports?.ProcessDetoursStatuses,
-                ExplicitlyReportedFileAccesses = reports?.ExplicitlyReportedFileAccesses ?? EmptyFileAccessesSet,
+                // Let's make a copy to avoid mutations after we hand out the result. There are some cases where new explicit accesses get injected after this result is constructed.
+                ExplicitlyReportedFileAccesses = new HashSet<ReportedFileAccess>(reports?.ExplicitlyReportedFileAccesses.ExplicitlyReportedFileAccesses() ?? EmptyFileAccessesSet),
                 Processes = CoalesceProcesses(reports?.Processes),
                 MessageProcessingFailure = reports?.MessageProcessingFailure,
                 DumpCreationException = m_dumpCreationException,

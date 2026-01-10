@@ -94,6 +94,14 @@ namespace BuildXL.Processes
         public ISandboxFileSystemView? FileSystemView { get; }
 
         /// <summary>
+        /// The set of explicitly reported accesses.
+        /// </summary>
+        /// <remarks>
+        /// Injected from outside to allow processing explicit accesses as they are reported.
+        /// </remarks>
+        public IExplicitlyReportedAccesses ExplicitlyReportedAccesses { get; }
+
+        /// <summary>
         /// Whether the process creating a <see cref="SandboxedProcess"/> gets added to a job object
         /// with limit <see cref="JOBOBJECT_LIMIT_FLAGS.JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE"/>
         /// </summary>
@@ -169,7 +177,8 @@ namespace BuildXL.Processes
             int? gentleKillTimeoutMs = null,
             int? maxConcurrency = null,
             bool allowUndeclaredSourceReads = false,
-            int? ringBufferSizeMultiplier = null)
+            int? ringBufferSizeMultiplier = null,
+            IExplicitlyReportedAccesses? explicitlyReportedAccesses = null)
         {
             PathTable = pathTable;
             FileAccessManifest = fileAccessManifest ?? new FileAccessManifest(pathTable);
@@ -194,6 +203,8 @@ namespace BuildXL.Processes
             MaxConcurrency = maxConcurrency;
             AllowUndeclaredSourceReads = allowUndeclaredSourceReads;
             RingBufferSizeMultiplier = ringBufferSizeMultiplier;
+            // If not provided create a simple backing set
+            ExplicitlyReportedAccesses = explicitlyReportedAccesses ?? new ExplicitlyReportedAccessSet();
         }
 
         /// <summary>

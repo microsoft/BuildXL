@@ -82,7 +82,6 @@ namespace IntegrationTest.BuildXL.Scheduler
         [Fact]
         public void YarnStrictRuleBehavior()
         {
-            System.Diagnostics.Debugger.Launch();
             ObservationReclassifier reclassificationRules = new ObservationReclassifier();
             
             var storeRoot = AbsolutePath.Create(m_pathTable, TemporaryDirectory).Combine(m_pathTable, ".store");

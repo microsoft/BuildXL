@@ -31,7 +31,9 @@ export const qTestTool: Transformer.ToolDefinition = {
           d`${Context.getMount("LocalAppData").path}`,
           // To ensure that dmps are generated during crashes, QTest now includes procdmp.exe
           // However, this tool reads dbghelp.dll located in the following directory in CloudBuild machines
-          d`C:/Debuggers`
+          d`C:/Debuggers`,
+          // QTest writes files to this directory at runtime. Likely related to the PublishSingleFile on the QTest executable.
+          d`${root}/bin/SRM`
         ]
       : [
           d`/tmp/.dotnet/shm/`,

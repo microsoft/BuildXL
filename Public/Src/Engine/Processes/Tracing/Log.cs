@@ -1355,14 +1355,5 @@ namespace BuildXL.Processes.Tracing
             EventTask = (int)Tasks.Engine,
             Message = "Synchronously waited {0}ms for EBPF to finish initializing. {1}ms of EBPF initialization overlapped other processing")]
         public abstract void SynchronouslyWaitedForEBPF(LoggingContext context, int waitTimeMs, int overlappedTimeMs);
-
-        [GeneratedEvent(
-            (int)LogEventId.EBPFDisposed,
-            EventGenerators = EventGenerators.LocalOnly,
-            EventLevel = Level.Verbose,
-            Keywords = (int)Keywords.UserMessage,
-            EventTask = (int)Tasks.Engine,
-            Message = "EBPF disposed: {info}")]
-        public abstract void EBPFDisposed(LoggingContext context, string info);
     }
 }

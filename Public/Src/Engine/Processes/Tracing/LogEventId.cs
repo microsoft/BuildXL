@@ -186,7 +186,7 @@ namespace BuildXL.Processes.Tracing
 
         EBPFIsStillBeingInitialized = 14305,
         SynchronouslyWaitedForEBPF = 14306,
-        EBPFDisposed = 14307,
+        // was EBPFDisposed = 14307,
         LogSandboxInfoMessage = 14308,
     }
 }

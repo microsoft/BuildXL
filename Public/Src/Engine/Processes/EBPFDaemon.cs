@@ -354,14 +354,9 @@ namespace BuildXL.Processes
         /// <inheritdoc />
         public void Dispose()
         {
-            Tracing.Logger.Log.EBPFDisposed(m_loggingContext, "About to dispose EBPF");
-
             m_initializationTask?.Dispose();
             m_ebpfInitWatchdog.Dispose();
             m_daemon.Dispose();
-
-            Tracing.Logger.Log.EBPFDisposed(m_loggingContext, "EBPF disposed");
-
         }
     }
 

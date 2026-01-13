@@ -18,24 +18,29 @@ namespace Test.Tool.Analyzers
             using (var testEnv = new TestEnv("mytest", Path.GetTempPath()))
             using (AstredAnalyzer analyzer = new AstredAnalyzer(input: AnalysisInput.CreateForTest(testEnv.PipGraph.Build()), outputFilePath: null, useOriginalPaths: false))
             {
-                var responseFile = Path.GetTempFileName();
+                var multiLineResponseFile = Path.GetTempFileName();
+                var singleLineResponseFile = Path.GetTempFileName();
                 try
                 {
-                    File.WriteAllLines(responseFile, [
+                    File.WriteAllLines(multiLineResponseFile, [
                         "/fourth",
                     "/fifth: some option"]);
+                    File.WriteAllText(singleLineResponseFile, @"/sixth:""some path with spaces"" /seventh");
 
-                    ReportedProcess process = new ReportedProcess(processId: 10, path: "dummy", args: $@"/first ""/second:some path with spaces"" /third @{responseFile}");
+                    ReportedProcess process = new ReportedProcess(processId: 10, path: "dummy", args: $@"/first ""/second:some path with spaces"" /third @{multiLineResponseFile} @{singleLineResponseFile}");
                     var normalized = analyzer.NormalizeCommandLine(process);
                     Assert.Equal("/first", normalized[0]);
                     Assert.Equal("/second:some path with spaces", normalized[1]);
                     Assert.Equal("/third", normalized[2]);
                     Assert.Equal("/fourth", normalized[3]);
                     Assert.Equal("/fifth: some option", normalized[4]);
+                    Assert.Equal(@"/sixth:""some path with spaces""", normalized[5]);
+                    Assert.Equal("/seventh", normalized[6]);
                 }
                 finally
                 {
-                    File.Delete(responseFile);
+                    File.Delete(multiLineResponseFile);
+                    File.Delete(singleLineResponseFile);
                 }
             }
         }
@@ -87,6 +92,8 @@ namespace Test.Tool.Analyzers
                     "/DDEBUG=1",
                     "/DTRACE=1",
                     "-DRETAIL=1",
+                    "-DFOO:BAR",
+                    @"/DUNUSED:""VALUE WITH SPACES"""
                 }, unit);
 
                 Assert.Contains("C:\\IncludePath1", unit.IncludePaths);
@@ -95,6 +102,8 @@ namespace Test.Tool.Analyzers
                 Assert.Contains(new KeyValuePair<string, string>("DEBUG", "1"), unit.Defines);
                 Assert.Contains(new KeyValuePair<string, string>("TRACE", "1"), unit.Defines);
                 Assert.Contains(new KeyValuePair<string, string>("RETAIL", "1"), unit.Defines);
+                Assert.Contains(new KeyValuePair<string, string>("FOO", "BAR"), unit.Defines);
+                Assert.Contains(new KeyValuePair<string, string>("UNUSED", @"""VALUE WITH SPACES"""), unit.Defines);
             }
         }
     }

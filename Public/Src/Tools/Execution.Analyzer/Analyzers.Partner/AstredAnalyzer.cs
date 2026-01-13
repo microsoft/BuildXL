@@ -118,6 +118,102 @@ namespace BuildXL.Execution.Analyzer
 
         public class Unit
         {
+            public Unit()
+            {
+                // Empty constructor
+            }
+
+            public Unit(string language)
+            {
+                Language = language;
+                if (language.Equals("cpp", StringComparison.OrdinalIgnoreCase))
+                {
+                    AddPredefinedCppMacros();
+                }
+                else if (language.Equals("c", StringComparison.OrdinalIgnoreCase))
+                {
+                    AddPredefinedCMacros();
+                }
+            }
+
+            /// <summary>
+            /// Adds predefined C macros as per MSVC documentation
+            /// <see cref="https://learn.microsoft.com/en-us/cpp/preprocessor/predefined-macros?view=msvc-170"/>
+            /// </summary>
+            /// <remarks>These are sane defaults at the time of writing, but it'd be great to read them from the input data</remarks>
+            private void AddPredefinedCMacros()
+            {
+                Defines["__STDC_HOSTED__"] = "1";
+                Defines["_INTEGRAL_MAX_BITS"] = "64";
+                Defines["_IS_ASSIGNABLE_NOCHECK_SUPPORTED"] = "1";
+                Defines["_MSVC_EXECUTION_CHARACTER_SET"] = "1252";
+                Defines["_MSVC_TRADITIONAL"] = "0";
+                Defines["_MSVC_WARNING_LEVEL"] = "1L";
+                Defines["_M_X64"] = "100";
+                Defines["_M_AMD64"] = "100";
+                Defines["_MSC_BUILD"] = "0";
+                Defines["_MSC_EXTENSIONS"] = "1";
+                Defines["_MSC_FULL_VER"] = "193933523";
+                Defines["_MSC_VER"] = "1939";
+                Defines["_MT"] = "1";
+                Defines["_WIN32"] = "1";
+                Defines["_WIN64"] = "1";
+            }
+
+            /// <summary>
+            /// Adds predefined C++ macros as per MSVC documentation
+            /// <see cref="https://learn.microsoft.com/en-us/cpp/preprocessor/predefined-macros?view=msvc-170"/>
+            /// </summary>
+            /// <remarks>These are sane defaults at the time of writing, but it'd be great to read them from the input data</remarks>
+            private void AddPredefinedCppMacros()
+            {
+                AddPredefinedCMacros();
+                Defines["__cplusplus"] = "202002L"; // C++20 (see if we can load it from  compiler args instead)
+                Defines["__BOOL_DEFINED"] = "1";
+                Defines["__cpp_aggregate_nsdmi"] = "201304L";
+                Defines["__cpp_alias_templates"] = "200704L";
+                Defines["__cpp_attributes"] = "200809L";
+                Defines["__cpp_binary_literals"] = "201304L";
+                Defines["__cpp_constexpr"] = "201304L";
+                Defines["__cpp_decltype"] = "200707L";
+                Defines["__cpp_decltype_auto"] = "201304L";
+                Defines["__cpp_delegating_constructors"] = "200604L";
+                Defines["__cpp_enumerator_attributes"] = "201411L";
+                Defines["__cpp_generic_lambdas"] = "201304L";
+                Defines["__cpp_inheriting_constructors"] = "200802L";
+                Defines["__cpp_init_captures"] = "201304L";
+                Defines["__cpp_initializer_lists"] = "200806L";
+                Defines["__cpp_lambdas"] = "200907L";
+                Defines["__cpp_namespace_attributes"] = "201411L";
+                Defines["__cpp_nsdmi"] = "200809L";
+                Defines["__cpp_range_based_for"] = "200907L";
+                Defines["__cpp_raw_strings"] = "200710L";
+                Defines["__cpp_ref_qualifiers"] = "200710L";
+                Defines["__cpp_return_type_deduction"] = "201304L";
+                Defines["__cpp_rtti"] = "199711L";
+                Defines["__cpp_rvalue_references"] = "200610L";
+                Defines["__cpp_sized_deallocation"] = "201309L";
+                Defines["__cpp_static_assert"] = "200410L";
+                Defines["__cpp_threadsafe_static_init"] = "200806L";
+                Defines["__cpp_unicode_characters"] = "200704L";
+                Defines["__cpp_unicode_literals"] = "200710L";
+                Defines["__cpp_user_defined_literals"] = "200809L";
+                Defines["__cpp_variable_templates"] = "201304L";
+                Defines["__cpp_variadic_templates"] = "200704L";
+                Defines["__STDCPP_DEFAULT_NEW_ALIGNMENT__"] = "16ull";
+                Defines["__STDCPP_THREADS__"] = "1";
+                Defines["_CONSTEXPR_CHAR_TRAITS_SUPPORTED"] = "1";
+                Defines["_CRT_USE_BUILTIN_OFFSETOF"] = "1";
+                Defines["_HAS_CHAR16_T_LANGUAGE_SUPPORT"] = "1";
+                Defines["_MSVC_CONSTEXPR_ATTRIBUTE"] = "1";
+                Defines["_MSVC_LANG"] = "202002L";
+                Defines["_NATIVE_NULLPTR_SUPPORTED"] = "1";
+                Defines["_NATIVE_WCHAR_T_DEFINED"] = "1";
+                Defines["_WCHAR_T_DEFINED"] = "1";
+                Defines["_CPPRTTI"] = "1";
+            }
+
+
             [JsonPropertyName("language")]
             public string Language { get; set; }
 
@@ -152,7 +248,7 @@ namespace BuildXL.Execution.Analyzer
             public HashSet<string> IncludePathsSet = new HashSet<string>(comparer: OperatingSystemHelper.IsUnixOS ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase);
 
             [JsonPropertyName("defines")]
-            public Dictionary<string, string> Defines = new Dictionary<string, string>();
+            public Dictionary<string, string> Defines { get; set; } = new Dictionary<string, string>();
         }
         #endregion
 
@@ -200,9 +296,9 @@ namespace BuildXL.Execution.Analyzer
             foreach (var process in data.ReportedProcesses)
             {
                 // Cl.exe
-                if (process.Path.EndsWith("\\cl.exe", StringComparison.OrdinalIgnoreCase))
+                if (Path.GetFileName(process.Path).Equals("cl.exe", StringComparison.OrdinalIgnoreCase))
                 {
-                    Unit unit = new Unit() { Language = "C++" };
+                    Unit unit = new Unit("cpp");
                     ExtractClExeIncludesAndDefines(NormalizeCommandLine(process),  unit);
                     ExtractCompilerFileAccesses(data, unit);
                     m_astredProject.Units.Add(unit);
@@ -210,7 +306,7 @@ namespace BuildXL.Execution.Analyzer
                 // csc.exe (C#)
                 else if (IsCscInvocation(process))
                 {
-                    Unit unit = new Unit() { Language = "C#" };
+                    Unit unit = new Unit("C#");
                     ExtractCompilerFileAccesses(data, unit);
                     ExtractFromCscCommandLine(NormalizeCommandLine(process), unit);
                     m_astredProject.Units.Add(unit);
@@ -248,6 +344,9 @@ namespace BuildXL.Execution.Analyzer
         {
             ".h",
             ".hpp",
+            ".hxx",
+            ".inc",
+            ".inl",
         };
 
         private static readonly HashSet<string> s_compilerSourceFileExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
@@ -282,7 +381,7 @@ namespace BuildXL.Execution.Analyzer
                     if (s_compilerHeaderFileExtensions.Contains(Path.GetExtension(translatedPath)))
                     {
                         // Check to see whether the accessed header is under an existing include path and omit it if already covered
-                        if (!unit.IncludePaths.Contains(Path.GetDirectoryName(translatedPath)))
+                        if (!unit.IncludePathsSet.Contains(Path.GetDirectoryName(translatedPath)))
                         {
                             unit.IncludePathsSet.Add(translatedPath);
                         }
@@ -340,6 +439,11 @@ namespace BuildXL.Execution.Analyzer
                         name = def.Substring(0, sep);
                         value = def.Substring(sep + 1);
                     }
+                    else if ((sep = def.IndexOf(':')) >= 0) // Handle case of /DNAME:VALUE
+                    {
+                        name = def.Substring(0, sep);
+                        value = def.Substring(sep + 1);
+                    }
                     else
                     {
                         name = def;
@@ -351,6 +455,8 @@ namespace BuildXL.Execution.Analyzer
                     }
                 }
             }
+            // NOTE: The sorting isn't needed for functionality, but it makes the output more deterministic for testing and comparison, and the performance hit is negligible
+            unit.Defines = unit.Defines.OrderBy(kv => kv.Key).ToDictionary(kv => kv.Key, kv => kv.Value);
         }
 
         internal void ExtractFromCscCommandLine(List<string> normalizedArgs, Unit unit)
@@ -475,7 +581,7 @@ namespace BuildXL.Execution.Analyzer
             // Process each argument, expanding response files
             foreach (var arg in args)
             {
-                if (arg.StartsWith("@", StringComparison.Ordinal) && arg.Length > 1)
+                if (arg.StartsWith('@') && arg.Length > 1)
                 {
                     // Response file - attempt to expand it
                     string responseFilePath = arg.Substring(1);
@@ -491,11 +597,50 @@ namespace BuildXL.Execution.Analyzer
 
                     if (File.Exists(responseFilePath))
                     {
-                        string responseFileContent = File.ReadAllText(responseFilePath);
+                        // Process the response file
+                        // According to documentation https://learn.microsoft.com/en-us/visualstudio/msbuild/msbuild-response-files?view=vs-2022
+                        // response files should contain one argument per line OR be whitespace separated if only a single line
+                        string[] responseFileContent = File.ReadAllLines(responseFilePath);
+                        if (!responseFileContent.Any()) 
+                        {
+                            // Empty response file - skip
+                            continue;
+                        }
+                        if (responseFileContent.Length > 1)
+                        {
+                            // Multiple lines - each line is an argument
+                            result.AddRange(responseFileContent.Where(line => !string.IsNullOrWhiteSpace(line)).Select(line => line.Trim()));
+                        }
+                        else
+                        {
+                            // Single line - parse with whitespace and quote handling
+                            var argumentBuilder = new System.Text.StringBuilder();
+                            inQuotes = false;
 
-                        result.AddRange(responseFileContent.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries));
+                            foreach (var c in responseFileContent.Single())
+                            {
+                                inQuotes = c == '"' ? !inQuotes : inQuotes;
+                                if (!inQuotes && char.IsWhiteSpace(c))
+                                {
+                                    if (argumentBuilder.Length > 0)
+                                    {
+                                        result.Add(argumentBuilder.ToString());
+                                        argumentBuilder.Clear();
+                                    }
+                                }
+                                else
+                                {
+                                    argumentBuilder.Append(c);
+                                }
+                            }
+
+                            if (argumentBuilder.Length > 0)
+                            {
+                                result.Add(argumentBuilder.ToString());
+                            }
+                        }
                     }
-                    else 
+                    else
                     {
                         // If file doesn't exist, add the argument as-is
                         Console.WriteLine($"Warning: Response file '{responseFilePath}' not found. Adding argument as-is.");

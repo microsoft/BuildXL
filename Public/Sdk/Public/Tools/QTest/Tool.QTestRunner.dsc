@@ -491,7 +491,9 @@ export function runQTest(args: QTestArguments): Result {
             // However, this tool reads dbghelp.dll located in the following directory in CloudBuild machines
             // This should technically be part of the tool definition, but we want to make sure
             // that this scope does not get overridden when customers override qtesttool.
-            d`C:/Debuggers`
+            d`C:/Debuggers`,
+            // QTest writes files to this directory at runtime. Likely related to the PublishSingleFile on the QTest executable.
+            d`${root}/bin/SRM`
         ],
         requireGlobalDependencies: true,
         passThroughEnvironmentVariables: [

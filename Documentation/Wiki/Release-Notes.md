@@ -2,6 +2,11 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20260109.1 (Release [30926784](https://dev.azure.com/mseng/Domino/_build/results?buildId=30926784&view=results))
+- Process observed file accesses concurrently with pip execution
+- Fix fallback link when logging hyperlink console
+-	Bug fixes
+
 # 0.1.0-20251208.4 (Release [30801950](https://dev.azure.com/mseng/Domino/_build/results?buildId=30801950&view=results))
 -	Parallelize FileContentTable deserialization
 -	Add the ability to control additional command line arguments via 1ES.Config

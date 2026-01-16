@@ -112,18 +112,17 @@ namespace BuildXL.FrontEnd.Nuget
                 }
 
                 // Then track id or alias
-                if (!localIdToPackageMap.TryAdd(package.Id, package))
+                // Alias should always be tried before id.
+                // Consider the following two packages: { id: "A", alias: "B" } and { id: "A" }.
+                // Depending on the order that these packages are processes in this loop, it might be considered a duplicate when it is not.
+                // If the aliased package is processed first, and we use the Id as the key to the package map without considering the alias.
+                // then the second package without an alias will be considered a duplicate because it has no alias and has an Id we have already seen.
+                // To avoid this, we always use the alias as the key when it is defined over the package id.
+                var key = package.GetPackageIdentity();
+                if (!localIdToPackageMap.TryAdd(key, package))
                 {
                     // A package with the same id is already in the map.
-                    if (string.IsNullOrEmpty(package.Alias) || localIdToPackageMap.ContainsKey(package.Alias))
-                    {
-                        duplicateNames.Add(package.Alias ?? package.Id);
-                    }
-                    else
-                    {
-                        // This allows us to have the same package id coexist in our workspace as long as it defines a unique alias.
-                        localIdToPackageMap.Add(package.Alias, package);
-                    }
+                    duplicateNames.Add(key);
                 }
             }
 

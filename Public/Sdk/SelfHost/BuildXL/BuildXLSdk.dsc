@@ -566,8 +566,8 @@ export function bxlBindingRedirects() : Managed.AssemblyBindingRedirect[] {
                 name: "System.Runtime.CompilerServices.Unsafe",
                 publicKeyToken: "b03f5f7f11d50a3a",
                 culture: "neutral",
-                oldVersion: "0.0.0.0-6.0.0.0",
-                newVersion: "6.0.0.0",  // Corresponds to: { id: "System.Runtime.CompilerServices.Unsafe", version: "6.0.0" },
+                oldVersion: "0.0.0.0-6.0.3.0",
+                newVersion: "6.0.3.0",  // Corresponds to: { id: "System.Runtime.CompilerServices.Unsafe", version: "6.1.2" },
             },
         ];
 }
@@ -579,45 +579,45 @@ export function bxlBindingRedirects() : Managed.AssemblyBindingRedirect[] {
 export function cacheBindingRedirects() : Managed.AssemblyBindingRedirect[] {
     return [
         ...bxlBindingRedirects(),
-            // System.Memory 4.5.5 is a bit weird, because net461 version references System.Buffer.dll v.4.0.3.0
+            // System.Memory 4.6.1 is a bit weird, because net461 version references System.Buffer.dll v.4.0.5.0
             // but System.Memory.dll from netstandard2.0 references System.Buffer.dll v.4.0.2.0!
-            // And the rest of the world references System.Buffer.dll v.4.0.3.0
+            // And the rest of the world references System.Buffer.dll v.4.0.5.0
             // So we need to have a redirect to solve this problem.
             {
                 name: "System.Buffers",
                 publicKeyToken: "cc7b13ffcd2ddd51",
                 culture: "neutral",
                 oldVersion: "0.0.0.0-5.0.0.0",
-                newVersion: "4.0.3.0", // Corresponds to: { id: "System.Buffers", version: "4.5.1" },
+                newVersion: "4.0.5.0", // Corresponds to: { id: "System.Buffers", version: "4.6.1" },
             },
             {
                 name: "System.Numerics.Vectors",
                 publicKeyToken: "b03f5f7f11d50a3a",
                 culture: "neutral",
-                oldVersion: "0.0.0.0-4.1.4.0",
-                newVersion: "4.1.4.0", // Corresponds to: { id: "System.Numerics.Vectors", version: "4.5.0" },
+                oldVersion: "0.0.0.0-4.1.6.0",
+                newVersion: "4.1.6.0", // Corresponds to: { id: "System.Numerics.Vectors", version: "4.6.1" },
             },
 
             {
                 name: "Microsoft.Bcl.AsyncInterfaces",
                 publicKeyToken: "cc7b13ffcd2ddd51",
                 culture: "neutral",
-                oldVersion: "0.0.0.0-9.0.0.0",
-                newVersion: "9.0.0.0", // Corresponds to: { id: "Microsoft.Bcl.AsyncInterfaces", version: "9.0.0" },
+                oldVersion: "0.0.0.0-9.0.0.10",
+                newVersion: "9.0.0.10", // Corresponds to: { id: "Microsoft.Bcl.AsyncInterfaces", version: "9.0.10" },
             },
             {
                 name: "System.Threading.Tasks.Extensions", // Version=4.2.0.1, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51
                 publicKeyToken: "cc7b13ffcd2ddd51",
                 culture: "neutral",
                 oldVersion: "0.0.0.0-4.99.99.99",
-                newVersion: "4.2.0.1", // Corresponds to: { id: "System.Threading.Tasks.Extensions" },
+                newVersion: "4.2.1.0", // Corresponds to: { id: "System.Threading.Tasks.Extensions" },
             },
             {
                 name: "System.Memory",
                 publicKeyToken: "cc7b13ffcd2ddd51",
                 culture: "neutral",
-                oldVersion: "0.0.0.0-4.0.1.2",
-                newVersion: "4.0.1.2", // Corresponds to: { id: "System.Memory", version: "4.5.5" },
+                oldVersion: "0.0.0.0-4.0.2.0",
+                newVersion: "4.0.5.0", // Corresponds to: { id: "System.Memory", version: "4.6.3" },
             },
             {
                 name: "System.Interactive.Async",

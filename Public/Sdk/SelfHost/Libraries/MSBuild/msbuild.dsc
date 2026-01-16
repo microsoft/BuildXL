@@ -5,7 +5,7 @@ import * as Managed from "Sdk.Managed";
 import * as BuildXLSdk from "Sdk.BuildXL";
 import * as Deployment from "Sdk.Deployment";
 
-export declare const qualifier: BuildXLSdk.Net8QualifierWithNet472;
+export declare const qualifier: BuildXLSdk.Net9QualifierWithNet472;
 
 @@public
 export const msbuildReferences: Managed.ManagedNugetPackage[] = [
@@ -19,29 +19,30 @@ export const msbuildReferences: Managed.ManagedNugetPackage[] = [
 
 /** 
  * Runtime content for tests 
- * Observe that we use a net8-specific version of msbuild.
+ * Observe that we use a net9-specific version of msbuild.
  **/
 @@public
 export const msbuildRuntimeContent = [
-    importFrom("System.Memory").pkg,
+    importFrom("System.Memory").pkg,    
     importFrom("System.Numerics.Vectors").pkg,
     importFrom("System.Collections.Immutable").pkg,
     importFrom("System.Runtime.CompilerServices.Unsafe").pkg,
     importFrom("System.Threading.Tasks.Dataflow").pkg,
     importFrom("System.Threading.Tasks.Extensions").pkg,
-    importFrom("Microsoft.Bcl.AsyncInterfaces.v8").pkg,
+    importFrom("Microsoft.Bcl.AsyncInterfaces").pkg,
 
     ...BuildXLSdk.isDotNetCoreOrStandard ? [
         importFrom("System.Text.Encoding.CodePages").pkg,
         importFrom("Microsoft.Build.Tasks.Core").pkg,
-        importFrom("Microsoft.Build.Runtime").Contents.all.getFile(r`contentFiles/any/net8.0/MSBuild.dll`),
-        importFrom("Microsoft.Build.Runtime").Contents.all.getFile(r`contentFiles/any/net8.0/MSBuild.runtimeconfig.json`),
+        importFrom("Microsoft.Build.Runtime").Contents.all.getFile(r`contentFiles/any/net9.0/MSBuild.dll`),
+        importFrom("Microsoft.Build.Runtime").Contents.all.getFile(r`contentFiles/any/net9.0/MSBuild.runtimeconfig.json`),
         importFrom("Microsoft.NET.StringTools").pkg
     ]
     : [
         importFrom("Microsoft.Build.Runtime").Contents.all.getFile(r`contentFiles/any/net472/MSBuild.exe`),
-        importFrom("Microsoft.Build.Runtime").Contents.all.getFile(r`contentFiles/any/net472/MSBuild.exe.config`),
-    ],
+        // We have a custom config for msbuild in full framework, which is a copy of the original one that comes
+        // from the nuget package, with some binding redirects added.
+        f`${Context.getMount("SourceRoot").path}/Public/Src/FrontEnd/UnitTests/MsBuild/msbuild.exe.config`    ],
 ];
 
 function getFrameworkFolder() : string { 
@@ -59,12 +60,6 @@ export const deployment : Deployment.NestedDefinition[] = [
                     ...msbuildRuntimeContent,
                     ...msbuildReferences,
                 ],
-                // The filter must be defined at the same level as content that it applies to.
-                contentToSkip: [
-                    // MsBuild.exe needs "Microsoft.Bcl.AsyncInterfaces.v8". 
-                    // We skip the newer version of this package to resolve a deployment collision.
-                    importFrom("Microsoft.Bcl.AsyncInterfaces").pkg,
-                ]
             }
         ]
     },

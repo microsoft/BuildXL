@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-const aspVersion = "9.0.0";
+const aspVersion = "9.0.10";
 
 // Versions used by framework reference packages for reference assemblies
 // and runtime assemblies respectively

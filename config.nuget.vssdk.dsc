@@ -48,7 +48,7 @@ export const pkgs = [
     { id: "MessagePack", version: "2.5.187" },
     { id: "MessagePack.Annotations", version: "2.5.187" },
     { id: "Nerdbank.Streams", version: "2.6.81" },
-    { id: "Microsoft.IO.Redist", version: "6.0.1" },
+    { id: "Microsoft.IO.Redist", version: "6.1.0" },
     { id: "Microsoft.VisualStudio.SDK.Analyzers", version: "16.10.10" },
     { id: "Microsoft.VisualStudio.GraphModel", version: "17.0.0-previews-3-31605-261" },
     { id: "Microsoft.VisualStudio.Telemetry", version: "16.3.198" },

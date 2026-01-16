@@ -690,16 +690,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Bcl.AsyncInterfaces",
-          "Version": "8.0.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.Bcl.AsyncInterfaces",
-          "Version": "9.0.9"
+          "Version": "9.0.10"
         }
       }
     },
@@ -709,6 +700,15 @@
         "NuGet": {
           "Name": "Microsoft.Bcl.Build",
           "Version": "1.0.14"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Bcl.Cryptography",
+          "Version": "9.0.0"
         }
       }
     },
@@ -735,7 +735,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Build",
-          "Version": "17.11.48"
+          "Version": "17.14.28"
         }
       }
     },
@@ -744,7 +744,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Build.Framework",
-          "Version": "17.11.48"
+          "Version": "17.14.28"
         }
       }
     },
@@ -771,7 +771,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Build.Runtime",
-          "Version": "17.11.48"
+          "Version": "17.14.28"
         }
       }
     },
@@ -780,7 +780,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Build.Tasks.Core",
-          "Version": "17.11.48"
+          "Version": "17.14.28"
         }
       }
     },
@@ -789,7 +789,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Build.Utilities.Core",
-          "Version": "17.11.48"
+          "Version": "17.14.28"
         }
       }
     },
@@ -942,7 +942,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.ComponentDetection.Contracts",
-          "Version": "6.0.0"
+          "Version": "6.2.5"
         }
       }
     },
@@ -1059,7 +1059,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Extensions.Configuration",
-          "Version": "9.0.0"
+          "Version": "9.0.10"
         }
       }
     },
@@ -1068,7 +1068,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Extensions.Configuration.Abstractions",
-          "Version": "9.0.0"
+          "Version": "9.0.10"
         }
       }
     },
@@ -1077,7 +1077,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Extensions.Configuration.Binder",
-          "Version": "9.0.0"
+          "Version": "9.0.10"
         }
       }
     },
@@ -1086,7 +1086,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Extensions.DependencyInjection",
-          "Version": "9.0.0"
+          "Version": "9.0.10"
         }
       }
     },
@@ -1095,7 +1095,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Extensions.DependencyInjection.Abstractions",
-          "Version": "9.0.0"
+          "Version": "9.0.10"
         }
       }
     },
@@ -1212,7 +1212,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Extensions.Logging",
-          "Version": "9.0.0"
+          "Version": "9.0.10"
         }
       }
     },
@@ -1221,7 +1221,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Extensions.Logging.Abstractions",
-          "Version": "9.0.0"
+          "Version": "9.0.10"
         }
       }
     },
@@ -1257,7 +1257,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Extensions.Options",
-          "Version": "9.0.0"
+          "Version": "9.0.10"
         }
       }
     },
@@ -1284,7 +1284,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Extensions.Primitives",
-          "Version": "9.0.0"
+          "Version": "9.0.10"
         }
       }
     },
@@ -1338,7 +1338,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.IO.Redist",
-          "Version": "6.0.1"
+          "Version": "6.1.0"
         }
       }
     },
@@ -1455,7 +1455,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.NET.StringTools",
-          "Version": "17.11.48"
+          "Version": "17.14.28"
         }
       }
     },
@@ -1806,7 +1806,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Sbom.Adapters",
-          "Version": "4.1.2"
+          "Version": "4.1.5"
         }
       }
     },
@@ -1815,7 +1815,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Sbom.Common",
-          "Version": "4.1.2"
+          "Version": "4.1.5"
         }
       }
     },
@@ -1824,7 +1824,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Sbom.Contracts",
-          "Version": "4.1.2"
+          "Version": "4.1.5"
         }
       }
     },
@@ -1833,7 +1833,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Sbom.Extensions",
-          "Version": "4.1.2"
+          "Version": "4.1.5"
         }
       }
     },
@@ -1842,7 +1842,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Sbom.Parsers.Spdx22SbomParser",
-          "Version": "4.1.2"
+          "Version": "4.1.5"
         }
       }
     },
@@ -1851,7 +1851,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.SbomCore",
-          "Version": "6.1.4"
+          "Version": "6.1.9"
         }
       }
     },
@@ -2580,7 +2580,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Newtonsoft.Json",
-          "Version": "13.0.3"
+          "Version": "13.0.4"
         }
       }
     },
@@ -2823,7 +2823,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Buffers",
-          "Version": "4.5.1"
+          "Version": "4.6.1"
         }
       }
     },
@@ -2841,7 +2841,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.CodeDom",
-          "Version": "8.0.0"
+          "Version": "9.0.0"
         }
       }
     },
@@ -2868,7 +2868,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Collections.Immutable",
-          "Version": "8.0.0"
+          "Version": "9.0.0"
         }
       }
     },
@@ -3057,7 +3057,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Diagnostics.DiagnosticSource",
-          "Version": "9.0.2"
+          "Version": "9.0.10"
         }
       }
     },
@@ -3174,7 +3174,16 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Formats.Asn1",
-          "Version": "8.0.1"
+          "Version": "9.0.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Formats.Nrbf",
+          "Version": "9.0.0"
         }
       }
     },
@@ -3309,7 +3318,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.IO.Pipelines",
-          "Version": "9.0.9"
+          "Version": "9.0.10"
         }
       }
     },
@@ -3408,7 +3417,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Memory",
-          "Version": "4.5.5"
+          "Version": "4.6.3"
         }
       }
     },
@@ -3534,7 +3543,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Numerics.Vectors",
-          "Version": "4.5.0"
+          "Version": "4.6.1"
         }
       }
     },
@@ -3579,7 +3588,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Reactive",
-          "Version": "6.0.1"
+          "Version": "6.1.0"
         }
       }
     },
@@ -3651,7 +3660,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Reflection.Metadata",
-          "Version": "8.0.0"
+          "Version": "9.0.0"
         }
       }
     },
@@ -3660,7 +3669,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Reflection.MetadataLoadContext",
-          "Version": "8.0.0"
+          "Version": "9.0.0"
         }
       }
     },
@@ -3687,7 +3696,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Resources.Extensions",
-          "Version": "8.0.0"
+          "Version": "9.0.0"
         }
       }
     },
@@ -3750,7 +3759,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Runtime.CompilerServices.Unsafe",
-          "Version": "6.0.0"
+          "Version": "6.1.2"
         }
       }
     },
@@ -3957,7 +3966,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Security.Cryptography.Pkcs",
-          "Version": "8.0.0"
+          "Version": "9.0.0"
         }
       }
     },
@@ -3993,7 +4002,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Security.Cryptography.Xml",
-          "Version": "8.0.0"
+          "Version": "9.0.0"
         }
       }
     },
@@ -4074,7 +4083,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Text.Encoding.CodePages",
-          "Version": "7.0.0"
+          "Version": "9.0.0"
         }
       }
     },
@@ -4092,7 +4101,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Text.Encodings.Web",
-          "Version": "9.0.9"
+          "Version": "9.0.10"
         }
       }
     },
@@ -4101,7 +4110,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Text.Json",
-          "Version": "9.0.9"
+          "Version": "9.0.10"
         }
       }
     },
@@ -4173,7 +4182,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Threading.Tasks.Dataflow",
-          "Version": "8.0.0"
+          "Version": "9.0.0"
         }
       }
     },
@@ -4182,7 +4191,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Threading.Tasks.Extensions",
-          "Version": "4.5.4"
+          "Version": "4.6.0"
         }
       }
     },

@@ -49,18 +49,18 @@ namespace Test.MsBuild {
         runtimeContent: [
             // We need both the full framework and dotnet core versions of MSBuild, plus dotnet.exe for the dotnet core case
             ...importFrom("Sdk.Selfhost.MSBuild").withQualifier({targetFramework: "net472"}).deployment,
-            // TODO: Use Managed.TargetFrameworks.DefaultTargetFramework once Net8QualifierWithNet472 is dealt with.
-            ...importFrom("Sdk.Selfhost.MSBuild").withQualifier({targetFramework: "net8.0"}).deployment,
+            // TODO: Use Managed.TargetFrameworks.DefaultTargetFramework once Net9QualifierWithNet472 is dealt with.
+            ...importFrom("Sdk.Selfhost.MSBuild").withQualifier({targetFramework: "net9.0"}).deployment,
             {
                 subfolder: "dotnet",
-                contents: Frameworks.Helpers.getDotNetToolTemplate('net8.0').dependencies
+                contents: Frameworks.Helpers.getDotNetToolTemplate('net9.0').dependencies
             },
             {
                 subfolder: a`tools`,
-                // For the dotnet case, we are only deploying the tool for net8
+                // For the dotnet case, we are only deploying the tool for net9
                 // TODO: Remove condition when we stop building for other .net versions
-                contents: [qualifier.targetFramework === "net9.0"
-                    ? importFrom("BuildXL.Tools").MsBuildGraphBuilder.withQualifier({targetFramework: "net8.0"}).deployment
+                contents: [qualifier.targetFramework === "net8.0"
+                    ? importFrom("BuildXL.Tools").MsBuildGraphBuilder.withQualifier({targetFramework: "net9.0"}).deployment
                     : importFrom("BuildXL.Tools").MsBuildGraphBuilder.deployment]
             },
             {

@@ -11,7 +11,7 @@ import * as Shared from "Sdk.Managed.Shared";
 
 namespace MsBuildGraphBuilder {
 
-    export declare const qualifier: BuildXLSdk.Net8QualifierWithNet472;
+    export declare const qualifier: BuildXLSdk.Net9QualifierWithNet472;
 
     @@public
     export const exe = BuildXLSdk.executable({
@@ -19,6 +19,15 @@ namespace MsBuildGraphBuilder {
         skipDocumentationGeneration: true,
         skipDefaultReferences: true,
         sources: globR(d`.`, "*.cs"),
+        assemblyBindingRedirects: [
+            {
+                name: "System.Threading.Tasks.Extensions",
+                publicKeyToken: "cc7b13ffcd2ddd51",
+                culture: "neutral",
+                oldVersion: "0.0.0.0-4.99.99.99",
+                newVersion: "4.2.1.0", // Corresponds to: { id: "System.Threading.Tasks.Extensions" },
+            },
+        ],
         references:[
             importFrom("Newtonsoft.Json").pkg,
             importFrom("BuildXL.FrontEnd").MsBuild.Serialization.dll,

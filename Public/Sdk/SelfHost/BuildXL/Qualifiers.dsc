@@ -74,14 +74,14 @@ export interface Net9Qualifier extends Qualifier {
 }
 
 /**
- * Having a net8 specific qualifier (without net6/net7) for some specific tests that only
- * work in net 8.
+ * Having a net9 specific qualifier (without net6/net7) for some specific tests that only
+ * work in net 9.
  * TODO: This should be consolidated with DefaultQualifier when we stop compiling for multiple /net versions.
  */
 @@public
-export interface Net8QualifierWithNet472 extends Qualifier {
+export interface Net9QualifierWithNet472 extends Qualifier {
     configuration: "debug" | "release";
-    targetFramework: "net8.0" | "net472";
+    targetFramework: "net9.0" | "net472";
     targetRuntime: "win-x64" | "osx-x64" | "linux-x64";
 }
 

@@ -6,7 +6,7 @@ import * as MSBuild from "Sdk.Selfhost.MSBuild";
 
 namespace Test.Tool.MsBuildGraphBuilder {
 
-    export declare const qualifier: BuildXLSdk.Net8QualifierWithNet472;
+    export declare const qualifier: BuildXLSdk.Net9QualifierWithNet472;
 
     @@public
     export const dll = BuildXLSdk.test({
@@ -14,13 +14,34 @@ namespace Test.Tool.MsBuildGraphBuilder {
         sources: globR(d`.`, "*.cs"),
         assemblyBindingRedirects: [
             ...importFrom("Sdk.BuildXL").bxlBindingRedirects(),
-            // Microsoft.Build.Prediction asks for an older version of System.Text.Json 
+            // Microsoft.Build.Prediction asks for an older version of some assemblies 
             {
                 name: "System.Text.Json",
                 publicKeyToken: "cc7b13ffcd2ddd51",
                 culture: "neutral",
                 oldVersion: "0.0.0.0-9.0.0.9",
-                newVersion: "9.0.0.9",  // Corresponds to: { id: "System.Text.Json", version: "9.0.9" },
+                newVersion: "9.0.0.10",  // Corresponds to: { id: "System.Text.Json", version: "9.0.10" },
+            },
+            {
+                name: "System.Threading.Tasks.Extensions",
+                publicKeyToken: "cc7b13ffcd2ddd51",
+                culture: "neutral",
+                oldVersion: "0.0.0.0-4.99.99.99",
+                newVersion: "4.2.1.0", // Corresponds to: { id: "System.Threading.Tasks.Extensions" },
+            },
+            {
+                name: "Microsoft.IO.Redist",
+                publicKeyToken: "cc7b13ffcd2ddd51",
+                culture: "neutral",
+                oldVersion: "0.0.0.0-6.99.99.99",
+                newVersion: "6.1.0.0", // Corresponds to: { id: "Microsoft.IO.Redist" },
+            },
+            {
+                name: "System.Memory",
+                publicKeyToken: "cc7b13ffcd2ddd51",
+                culture: "neutral",
+                oldVersion: "0.0.0.0-4.0.2.0",
+                newVersion: "4.0.5.0", // Corresponds to: { id: "System.Memory", version: "4.6.3" },
             }
         ],
         references:[
@@ -33,9 +54,6 @@ namespace Test.Tool.MsBuildGraphBuilder {
         runtimeContent: [
             ...MSBuild.msbuildRuntimeContent,
             ...MSBuild.msbuildReferences,
-        ],
-        runtimeContentToSkip: [
-            importFrom("Microsoft.Bcl.AsyncInterfaces").pkg
         ],
     });
 }

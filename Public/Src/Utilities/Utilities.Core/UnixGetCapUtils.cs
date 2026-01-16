@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 
 namespace BuildXL.Utilities.Core;
@@ -38,8 +39,8 @@ public class UnixGetCapUtils : UnixUtilsBase
     /// <summary>
     /// Returns true if the provided binary contains the specified capability
     /// </summary>
-    public bool BinaryContainsCapabilities(string binaryPath, UnixCapability capability) =>
-        CheckConditionAgainstStandardOutput(binaryPath, binaryPath, (stdout) => stdout.Contains(capability.CapabilityString()), out _);
+    public bool BinaryContainsCapabilities(string binaryPath, List<UnixCapability> requiredCapabilities) =>
+        CheckConditionAgainstStandardOutput(binaryPath, binaryPath, (stdout) => HasRequiredCapabilities(stdout, requiredCapabilities), out _);
 
     /// <summary>
     /// Check if the environment variable TF_BUILD is set, which indicates an Azure DevOps build.
@@ -92,8 +93,25 @@ public class UnixGetCapUtils : UnixUtilsBase
     public static bool BinaryHasEBPFCapabilities(string binaryPath)
     {
         var getCapUtils = CreateGetCap();
-        return getCapUtils.BinaryContainsCapabilities(binaryPath, UnixCapability.CAP_SYS_ADMIN) &&
-               getCapUtils.BinaryContainsCapabilities(binaryPath, UnixCapability.CAP_DAC_OVERRIDE) &&
-               getCapUtils.BinaryContainsCapabilities(binaryPath, UnixCapability.CAP_SYS_NICE);
+        return getCapUtils.BinaryContainsCapabilities(binaryPath, [UnixCapability.CAP_SYS_ADMIN, UnixCapability.CAP_DAC_OVERRIDE, UnixCapability.CAP_SYS_NICE]);
+    }
+
+    /// <summary>
+    /// Checks whether getcap returned the required capabilities.
+    /// </summary>
+    private static bool HasRequiredCapabilities(string getcapStdOut, List<UnixCapability> requiredCapabilities)
+    {
+        // Check if each of the required capabilities is present in the getcap output
+        foreach (var capability in requiredCapabilities)
+        {
+            if (!getcapStdOut.Contains(capability.CapabilityString()))
+            {
+                return false;
+            }
+        }
+
+        // Check if the string "=ep" is present, which indicates that the capabilities are effective and permitted
+        // This bit will only show up once at the end of the string in the getcap output even if multiple capabilities are set
+        return getcapStdOut.Contains("=ep");
     }
 }

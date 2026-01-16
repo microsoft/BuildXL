@@ -37,9 +37,9 @@ public static class UnixCapabilityExtensions
     {
         return capability switch
         {
-            UnixCapability.CAP_SYS_ADMIN => "cap_sys_admin=ep",
-            UnixCapability.CAP_DAC_OVERRIDE => "cap_dac_override=ep",
-            UnixCapability.CAP_SYS_NICE => "cap_sys_nice=ep",
+            UnixCapability.CAP_SYS_ADMIN => "cap_sys_admin",
+            UnixCapability.CAP_DAC_OVERRIDE => "cap_dac_override",
+            UnixCapability.CAP_SYS_NICE => "cap_sys_nice",
             _ => throw new ArgumentOutOfRangeException(nameof(capability), capability, "Unknown capability")
         };
     }

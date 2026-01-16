@@ -33,7 +33,7 @@ public class UnixSetCapUtils : UnixUtilsBase
     public bool SetCapability(string binaryPath, bool interactive, int retries, Action<int, string> retryAction, out string standardError, params UnixCapability[] capabilities)
         => CheckConditionAgainstStandardOutput(
             binaryPath, 
-            $"\"{string.Join(" ", capabilities.Select(cap => cap.CapabilityString()))}\" {binaryPath}", 
+            $"\"{string.Join(" ", capabilities.Select(cap => $"{cap.CapabilityString()}=ep"))}\" {binaryPath}", 
             condition: string.IsNullOrEmpty, 
             runAsSudo: true,
             interactive: interactive,

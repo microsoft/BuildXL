@@ -942,7 +942,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.ComponentDetection.Contracts",
-          "Version": "6.2.5"
+          "Version": "6.2.6"
         }
       }
     },

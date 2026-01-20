@@ -79,7 +79,7 @@ export const pkgs = isMicrosoftInternal ? [
     { id: "Microsoft.Sbom.Common", version: "4.1.5" },
     { id: "Microsoft.Sbom.Parsers.Spdx22SbomParser", version: "4.1.5" },
     { id: "Microsoft.Sbom.Adapters", version: "4.1.5" },
-    { id: "Microsoft.ComponentDetection.Contracts", version: "6.2.5", dependentPackageIdsToSkip: ["System.Threading.Tasks.Dataflow"] },
+    { id: "Microsoft.ComponentDetection.Contracts", version: "6.2.6", dependentPackageIdsToSkip: ["System.Threading.Tasks.Dataflow"] },
     { id: "Microsoft.Sbom.Contracts", version: "4.1.5" },
     { id: "Microsoft.Sbom.Extensions", version: "4.1.5" },
 

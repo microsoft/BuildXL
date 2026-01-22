@@ -2,8 +2,10 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using BuildXL.Native.IO;
 using BuildXL.Scheduler.Tracing;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Core;
 
 #pragma warning disable 1591 // disabling warning about missing API documentation; TODO: Remove this line and write documentation!
@@ -23,6 +25,7 @@ namespace BuildXL.Scheduler
         DirectoryFingerprint? TryComputeDirectoryFingerprint(
             AbsolutePath directoryPath,
             CacheablePipInfo cachePipInfo,
+            IReadOnlySet<AbsolutePath> untrackedPaths,
             Func<EnumerationRequest, PathExistence?> tryEnumerateDirectory,
             bool cacheableFingerprint,
             DirectoryMembershipFingerprinterRule rule,

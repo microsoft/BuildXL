@@ -447,7 +447,8 @@ namespace Test.BuildXL.Scheduler
 
             public DirectoryFingerprint? TryComputeDirectoryFingerprint(
                 AbsolutePath directoryPath, 
-                CacheablePipInfo cachePipInfo, 
+                CacheablePipInfo cachePipInfo,
+                IReadOnlySet<AbsolutePath> untrackedPaths,
                 Func<EnumerationRequest, PathExistence?> tryEnumerateDirectory, 
                 bool cacheableFingerprint, 
                 global::BuildXL.Scheduler.DirectoryMembershipFingerprinterRule rule,

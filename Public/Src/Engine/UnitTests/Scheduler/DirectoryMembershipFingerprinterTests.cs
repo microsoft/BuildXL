@@ -85,6 +85,7 @@ namespace Test.BuildXL.Scheduler
             var fp = fingerprinter.TryComputeDirectoryFingerprint(
                 directoryPath: dirPath,
                 cachePipInfo: CacheableProcess.GetProcessCacheInfo(process, context),
+                untrackedPaths: new ReadOnlyHashSet<AbsolutePath>(),
                 tryEnumerateDirectory: enumerate,
                 cacheableFingerprint: false,
                 rule: rule,

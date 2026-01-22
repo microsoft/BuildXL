@@ -2833,6 +2833,93 @@ namespace IntegrationTest.BuildXL.Scheduler
             }
         }
 
+        [Theory]
+        [InlineData(FileSystemMode.RealAndMinimalPipGraph)]
+        [InlineData(FileSystemMode.RealAndPipGraph)]
+        public void FullGraphDirectoryEnumerationsExcludeUntrackedScopes(FileSystemMode fileSystemMode)
+        {
+            var dirPath = AbsolutePath.Create(Context.PathTable, Path.Combine(SourceRoot, "dir"));
+            var dirToEnumerate = CreateAndScheduleSealDirectoryArtifact(dirPath, SealDirectoryKind.SourceAllDirectories);
+            Directory.CreateDirectory(dirToEnumerate.Path.ToString(Context.PathTable));
+
+            var globalUntrackedScope = DirectoryArtifact.CreateWithZeroPartialSealId(dirPath.Combine(Context.PathTable, "globalUntrackedDir"));
+            Directory.CreateDirectory(globalUntrackedScope.Path.ToString(Context.PathTable));
+
+            var pipUntrackedScope = DirectoryArtifact.CreateWithZeroPartialSealId(dirPath.Combine(Context.PathTable, "pipUntrackedDir"));
+            Directory.CreateDirectory(pipUntrackedScope.Path.ToString(Context.PathTable));
+
+            var pipUntrackedScope2 = DirectoryArtifact.CreateWithZeroPartialSealId(dirPath.Combine(Context.PathTable, "pipUntrackedDir2"));
+
+            var trackedFile = CreateFileArtifactWithName("trackedFile.txt", dirPath.ToString(Context.PathTable));
+            File.WriteAllText(trackedFile.Path.ToString(Context.PathTable), "tracked");
+            var untrackedFile = CreateFileArtifactWithName("untrackedFile.txt", dirPath.ToString(Context.PathTable));
+            File.WriteAllText(untrackedFile.Path.ToString(Context.PathTable), "untracked");
+
+            Configuration.Sandbox.FileSystemMode = fileSystemMode;
+            Configuration.Sandbox.GlobalUnsafeUntrackedScopes = [globalUntrackedScope.Path];
+
+            var pip1Builder = CreatePipBuilder(
+            [
+                Operation.EnumerateDir(dirToEnumerate),
+                Operation.WriteFile(CreateOutputFileArtifact()) // dummy output
+            ]);
+            pip1Builder.AddUntrackedDirectoryScope(pipUntrackedScope);
+            pip1Builder.AddUntrackedDirectoryScope(pipUntrackedScope2);
+            pip1Builder.AddUntrackedFile(untrackedFile.Path);
+            pip1Builder.AddInputDirectory(dirToEnumerate);
+            var pip1 = SchedulePipBuilder(pip1Builder);
+
+            // Enumerates the same directory, but does not add a pip untracked scope
+            var pip2Builder = CreatePipBuilder(
+            [
+                Operation.EnumerateDir(dirToEnumerate),
+                Operation.WriteFile(CreateOutputFileArtifact()) // dummy output
+            ]);
+            pip2Builder.AddInputDirectory(dirToEnumerate);
+            var pip2 = SchedulePipBuilder(pip2Builder);
+
+            var result = RunScheduler().AssertSuccess();
+            result.AssertObservation(pip1.Process.PipId, new ObservedPathEntry(dirPath, ObservedPathEntryFlags.DirectoryEnumeration, "*"));
+            result.AssertObservation(pip2.Process.PipId, new ObservedPathEntry(dirPath, ObservedPathEntryFlags.DirectoryEnumeration, "*"));
+
+            Directory.CreateDirectory(pipUntrackedScope2.Path.ToString(Context.PathTable));
+            result = RunScheduler().AssertSuccess();
+            result.AssertCacheHit(pip1.Process.PipId);
+            // pip2 should still see a new directory and get a cache miss
+            result.AssertCacheMiss(pip2.Process.PipId);
+
+            Directory.Delete(globalUntrackedScope.Path.ToString(Context.PathTable), recursive: true);
+            // Global untracked scopes should affect all pips
+            result = RunScheduler().AssertSuccess();
+            result.AssertCacheHit(pip1.Process.PipId);
+            result.AssertCacheHit(pip2.Process.PipId);
+
+            Directory.Delete(pipUntrackedScope.Path.ToString(Context.PathTable), recursive: true);
+            result = RunScheduler().AssertSuccess();
+            result.AssertCacheHit(pip1.Process.PipId);
+            // pip2 should see the directory gone and get a cache miss
+            result.AssertCacheMiss(pip2.Process.PipId);
+
+            var trackedDirectory = DirectoryArtifact.CreateWithZeroPartialSealId(dirPath.Combine(Context.PathTable, "trackedDir"));
+            Directory.CreateDirectory(trackedDirectory.Path.ToString(Context.PathTable));
+            result = RunScheduler().AssertSuccess();
+            result.AssertCacheMiss(pip1.Process.PipId);
+            result.AssertCacheMiss(pip2.Process.PipId);
+
+            // Deleting a tracked file should result in a cache miss for both pips
+            File.Delete(trackedFile.Path.ToString(Context.PathTable));
+            result = RunScheduler().AssertSuccess();
+            result.AssertCacheMiss(pip1.Process.PipId);
+            result.AssertCacheMiss(pip2.Process.PipId);
+
+            // Deleting an untracked file should only affect pip2 because pip1 declares it as an untracked file but not pip2
+            File.Delete(untrackedFile.Path.ToString(Context.PathTable));
+            result = RunScheduler().AssertSuccess();
+            result.AssertCacheHit(pip1.Process.PipId);
+            result.AssertCacheMiss(pip2.Process.PipId);
+        }
+
+
         private Operation ProbeOp(string root, string relativePath = "")
         {
             return Operation.Probe(CreateFileArtifactWithName(root: root, name: relativePath), doNotInfer: true);

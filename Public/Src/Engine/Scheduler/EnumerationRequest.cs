@@ -5,6 +5,7 @@ using System;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
+using System.Collections.Generic;
 
 namespace BuildXL.Scheduler
 {
@@ -29,6 +30,11 @@ namespace BuildXL.Scheduler
         public readonly CacheablePipInfo PipInfo;
 
         /// <summary>
+        /// A set of paths to be ignored for this enumeration
+        /// </summary>
+        public readonly IReadOnlySet<AbsolutePath> UntrackedPaths;
+
+        /// <summary>
         /// Action to handle each directory member
         /// </summary>
         public readonly Action<AbsolutePath, string> HandleEntry;
@@ -40,7 +46,8 @@ namespace BuildXL.Scheduler
             ObjectCache<AbsolutePath, Lazy<DirectoryEnumerationResult>> cachedDirectoryContents,
             AbsolutePath directoryPath,
             CacheablePipInfo pipInfo,
-            Action<AbsolutePath, string> handleEntry)
+            Action<AbsolutePath, string> handleEntry,
+            IReadOnlySet<AbsolutePath> untrackedPaths)
         {
             Contract.Requires(cachedDirectoryContents != null);
             Contract.Requires(handleEntry != null);
@@ -51,6 +58,7 @@ namespace BuildXL.Scheduler
             DirectoryPath = directoryPath;
             PipInfo = pipInfo;
             HandleEntry = handleEntry;
+            UntrackedPaths = untrackedPaths;
         }
     }
 }

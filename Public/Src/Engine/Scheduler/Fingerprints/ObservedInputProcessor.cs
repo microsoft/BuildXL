@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
@@ -2119,7 +2120,45 @@ namespace BuildXL.Scheduler.Fingerprints
                     Counters.IncrementCounter(PipExecutorCounter.UniqueDirectoriesUnionFilter);
                 }
 
+                HashSet<AbsolutePath> relevantUntrackedPaths = [];
+                if (process.UnderlyingPip.PipType == PipType.Process 
+                    && enumerationMode != DirectoryEnumerationMode.MinimalGraph)
+                {
+                    // The only paths that affect enumerations are the ones that direct members of the directory being enumerated (not nested members)
+                    // Therefore we can exclude any paths where the parent of that path is not the directory being enumerated
+                    foreach (var path in (process.UnderlyingPip as Process).UntrackedScopes)
+                    {
+                        if (path.GetParent(Context.PathTable) == directoryPath)
+                        {
+                            relevantUntrackedPaths.Add(path);
+                        }
+                    }
+
+                    foreach (var path in (process.UnderlyingPip as Process).UntrackedPaths)
+                    {
+                        if (path.GetParent(Context.PathTable) == directoryPath)
+                        {
+                            relevantUntrackedPaths.Add(path);
+                        }
+                    }
+
+                    foreach (var path in m_env.TranslatedGlobalUnsafeUntrackedScopes)
+                    {
+                        if (path.GetParent(Context.PathTable) == directoryPath)
+                        {
+                            relevantUntrackedPaths.Add(path);
+                        }
+                    }
+                }
+
                 DirectoryFingerprint? result;
+                // net472 requires a copy of the list to be made for it to be a read-only set
+                IReadOnlySet<AbsolutePath> readonlyRelevantUntrackedPaths =
+#if !NET5_0_OR_GREATER
+                relevantUntrackedPaths.ToReadOnlySet();
+#else
+                relevantUntrackedPaths;
+#endif
                 switch (enumerationMode)
                 {
                     case DirectoryEnumerationMode.DefaultFingerprint:
@@ -2135,6 +2174,7 @@ namespace BuildXL.Scheduler.Fingerprints
                             result = m_env.State.DirectoryMembershipFingerprinter.TryComputeDirectoryFingerprint(
                                 directoryPath,
                                 process,
+                                readonlyRelevantUntrackedPaths,
                                 TryEnumerateDirectoryWithFullGraph,
                                 cacheableFingerprint: cacheableFingerprint,
                                 rule: rule,
@@ -2152,6 +2192,7 @@ namespace BuildXL.Scheduler.Fingerprints
                             result = m_env.State.DirectoryMembershipFingerprinter.TryComputeDirectoryFingerprint(
                                 directoryPath,
                                 process,
+                                readonlyRelevantUntrackedPaths,
                                 EnumerateDirectoryWithMinimalPipGraph,
                                 cacheableFingerprint: cacheableFingerprint,
                                 rule: rule,
@@ -2167,6 +2208,7 @@ namespace BuildXL.Scheduler.Fingerprints
                             result = m_env.State.DirectoryMembershipFingerprinter.TryComputeDirectoryFingerprint(
                                 directoryPath,
                                 process,
+                                untrackedPaths: readonlyRelevantUntrackedPaths,
                                 TryEnumerateDirectoryWithMinimalGraphWithAlienFiles(sharedOpaqueOutputs, alienFileEnumerationCache, rule),
                                 cacheableFingerprint: cacheableFingerprint,
                                 rule: null /* Only apply the rule within the filesystem enumeration in TryEnumerateDirectoryWithMinimalGraphWithAlienFiles */,
@@ -2186,6 +2228,7 @@ namespace BuildXL.Scheduler.Fingerprints
                             result = m_env.State.DirectoryMembershipFingerprinter.TryComputeDirectoryFingerprint(
                                 directoryPath,
                                 process,
+                                readonlyRelevantUntrackedPaths,
                                 enumerateFunc,
                                 cacheableFingerprint: cacheableFingerprint,
                                 rule: rule,
@@ -2309,10 +2352,10 @@ namespace BuildXL.Scheduler.Fingerprints
                                         continue;
                                     }
 
-                                    // If the entry is globally untracked, then it should be invisible for the enumeration
-                                    // Observe that since this is a global collection of untracked scopes, excluding this entry makes sense for all pips
-                                    // enumerating this directory, and therefore it is safe to cache
-                                    if (m_env.TranslatedGlobalUnsafeUntrackedScopes.Contains(realFileEntryPath))
+                                    // If the entry is untracked, then it should be invisible for the enumeration
+                                    // The cache in the directory membership fingerprint considers this set of untracked paths and
+                                    // it is therefore safe to cache.
+                                    if (request.UntrackedPaths.Contains(realFileEntryPath))
                                     {
                                         continue;
                                     }
@@ -2440,13 +2483,55 @@ namespace BuildXL.Scheduler.Fingerprints
         /// <param name="trackPathExistence">
         /// Whether the existence of paths discovered during the enumeration should be tracked to optimize scheduling in future builds.
         /// </param>
-        private PathExistence? TryEnumerateDirectory(EnumerationRequest request, FileSystemViewMode mode, bool trackPathExistence = true)
+        private PathExistence? TryEnumerateDirectory(
+            EnumerationRequest request,
+            FileSystemViewMode mode,
+            bool trackPathExistence = true)
         {
             var directoryContents = GetEnumerationResult(request, mode, trackPathExistence: trackPathExistence);
-            var path = request.DirectoryPath;
             var handleEntry = FilteredHandledEntry(request.HandleEntry);
 
-            return HandleDirectoryContents(request, directoryContents, handleEntry);
+            if (request.UntrackedPaths.Count == 0)
+            {
+                return HandleDirectoryContents(request, directoryContents, handleEntry);
+            }
+
+            List<DirectoryMemberEntry> mutableDirectoryContents = null;
+
+            // Perform any additional filtering on the enumeration if needed
+            if (directoryContents.IsValid)
+            {
+                for (int i = 0; i < directoryContents.Members.Count; i++)
+                {
+                    var entry = directoryContents.Members[i];
+
+                    // NOTE: We only check if the full path matches against untracked directory scopes and untracked files here
+                    // this is because directory enumerations only return direct children of the enumerated directory
+                    // and not members under nested directories.
+                    // Additionally, if an enumerated directory is an untracked scope then it is ignored anyways.
+                    // Therefore it is not necessary to check if any of the paths have a parent that is a untracked scope.
+                    // If the directory entry is part of a provided untracked scope, then exclude it
+                    // This is done to avoid unnecessary churn during enumerations since we know that this pip should not be affected by these paths.
+                    if (request.UntrackedPaths.Contains(entry.Item1))
+                    {
+                        if (mutableDirectoryContents == null)
+                        {
+                            mutableDirectoryContents = new List<DirectoryMemberEntry>(directoryContents.Members.Count);
+                            mutableDirectoryContents.AddRange(directoryContents.Members.Take(i));
+                        }
+                    }
+                    else
+                    {
+                        mutableDirectoryContents?.Add(entry);
+                    }
+                }
+            }
+
+            var filteredDirectoryContents = mutableDirectoryContents == null
+                ? directoryContents
+                : new DirectoryEnumerationResult(directoryContents.Existence, mutableDirectoryContents);
+
+            return HandleDirectoryContents(request, filteredDirectoryContents, handleEntry);
         }
 
         private PathExistence? HandleDirectoryContents(EnumerationRequest request, DirectoryEnumerationResult directoryContents, Action<AbsolutePath, string> handleEntry)

@@ -1,20 +1,19 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Native.IO;
+using BuildXL.Scheduler.Tracing;
+using BuildXL.Storage;
+using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Core;
+using BuildXL.Utilities.Instrumentation.Common;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using System.Text;
-using BuildXL.Cache.ContentStore.Hashing;
-using BuildXL.Native.IO;
-using BuildXL.Scheduler.Tracing;
-using BuildXL.Storage;
-using BuildXL.Utilities;
-using BuildXL.Utilities.Core;
-using BuildXL.Utilities.Collections;
-using BuildXL.Utilities.Instrumentation.Common;
 
 #pragma warning disable 1591 // disabling warning about missing API documentation; TODO: Remove this line and write documentation!
 
@@ -41,13 +40,59 @@ namespace BuildXL.Scheduler
     /// </remarks>
     public sealed class DirectoryMembershipFingerprinter : IDirectoryMembershipFingerprinter
     {
+        private readonly struct CachedFingerprintKey : IEquatable<CachedFingerprintKey>
+        {
+            private readonly int m_hashCode;
+            private readonly AbsolutePath m_directoryPath;
+            private readonly string m_enumeratePatternRegex;
+            private readonly IReadOnlySet<AbsolutePath> m_untrackedPaths;
+
+            public CachedFingerprintKey(AbsolutePath directoryPath, string enumeratePatternRegex, IReadOnlySet<AbsolutePath> untrackedPaths)
+            {
+                m_directoryPath = directoryPath;
+                m_enumeratePatternRegex = enumeratePatternRegex;
+                m_untrackedPaths = untrackedPaths;
+
+                // hash code won't change so we can compute it once only
+                m_hashCode = HashCodeHelper.Combine(
+                    (int[]) // this redudant cast is needed to resolve an ambiguity in method overload resolution
+                    [
+                        directoryPath.GetHashCode(),
+                        (enumeratePatternRegex?.GetHashCode() ?? 0),
+                        ..untrackedPaths.Select(path => path.GetHashCode())
+                    ]
+                );
+            }
+
+            public bool Equals(CachedFingerprintKey other)
+            {
+                return m_directoryPath == other.m_directoryPath
+                    && m_enumeratePatternRegex == other.m_enumeratePatternRegex
+#if !NET5_0_OR_GREATER
+                    && m_untrackedPaths.ToReadOnlySet().SetEquals(other.m_untrackedPaths.ToReadOnlySet());
+#else
+                    && m_untrackedPaths.SetEquals(other.m_untrackedPaths);
+#endif
+            }
+
+            public override bool Equals(object obj)
+            {
+                return obj is CachedFingerprintKey other && Equals(other);
+            }
+
+            public override int GetHashCode()
+            {
+                return m_hashCode;
+            }
+        }
+
         private readonly LoggingContext m_loggingContext;
         private readonly PipExecutionContext m_context;
 
         /// <summary>
         /// Cache of fingerprints computed from the filesystem or full graph
         /// </summary>
-        private readonly ConcurrentDictionary<(AbsolutePath, string), Lazy<DirectoryFingerprint?>> m_fingerprints;
+        private readonly ConcurrentDictionary<CachedFingerprintKey, Lazy<DirectoryFingerprint?>> m_fingerprints;
 
         /// <summary>
         /// Cache of directory contents that are enumerated via full graph or filesystem.
@@ -72,7 +117,7 @@ namespace BuildXL.Scheduler
             m_loggingContext = loggingContext;
             m_context = context;
             m_executionLog = executionLog;
-            m_fingerprints = new ConcurrentDictionary<(AbsolutePath, string), Lazy<DirectoryFingerprint?>>();
+            m_fingerprints = new ConcurrentDictionary<CachedFingerprintKey, Lazy<DirectoryFingerprint?>>();
 
             // 100k capacity was determined according to the Office x64 codebase, which has around 120k unique directory enumerations.
             CachedDirectoryContents = new ObjectCache<AbsolutePath, Lazy<DirectoryEnumerationResult>>(100000);
@@ -81,6 +126,7 @@ namespace BuildXL.Scheduler
         public DirectoryFingerprint? TryComputeDirectoryFingerprint(
             AbsolutePath directoryPath,
             CacheablePipInfo cachePipInfo,
+            IReadOnlySet<AbsolutePath> untrackedPaths,
             Func<EnumerationRequest, PathExistence?> tryEnumerateDirectory,
             bool cacheableFingerprint,
             DirectoryMembershipFingerprinterRule rule,
@@ -92,14 +138,17 @@ namespace BuildXL.Scheduler
             {
                 Contract.Assert(!eventData.IsSearchPath);
 
-                string enumerateFilter = eventData.EnumeratePatternRegex ?? RegexDirectoryMembershipFilter.AllowAllRegex;
+                string enumerateFilter = eventData.EnumeratePatternRegex ?? RegexDirectoryMembershipFilter.AllowAllRegex;    
+                var key = new CachedFingerprintKey(directoryPath, enumerateFilter, untrackedPaths);
+
                 // Filesystem fingerprints and fingerprints from the full graph may be cached if the filter is AllowAll.
-                return m_fingerprints.GetOrAdd((directoryPath, enumerateFilter), Lazy.Create(
+                return m_fingerprints.GetOrAdd(key, Lazy.Create(
                     () => TryComputeDirectoryFingerprintInternal(
                         directoryPath, 
-                        cachePipInfo, 
+                        cachePipInfo,
+                        untrackedPaths,
                         tryEnumerateDirectory, 
-                        rule, 
+                        rule,
                         eventData))).Value;
             }
 
@@ -107,6 +156,7 @@ namespace BuildXL.Scheduler
             return TryComputeDirectoryFingerprintInternal(
                 directoryPath,
                 cachePipInfo,
+                untrackedPaths,
                 tryEnumerateDirectory,
                 rule,
                 eventData);
@@ -115,6 +165,7 @@ namespace BuildXL.Scheduler
         private DirectoryFingerprint? TryComputeDirectoryFingerprintInternal(
             AbsolutePath directoryPath,
             CacheablePipInfo process,
+            IReadOnlySet<AbsolutePath> untrackedPaths,
             Func<EnumerationRequest, PathExistence?> tryEnumerateDirectory,
             DirectoryMembershipFingerprinterRule rule,
             DirectoryMembershipHashedEventData eventData)
@@ -158,7 +209,7 @@ namespace BuildXL.Scheduler
                     directoryMembers.Add(path);
                 };
 
-                existence = tryEnumerateDirectory(new EnumerationRequest(CachedDirectoryContents, directoryPath, process, handleEntry));
+                existence = tryEnumerateDirectory(new EnumerationRequest(CachedDirectoryContents, directoryPath, process, handleEntry, untrackedPaths));
 
                 if (existence == null)
                 {

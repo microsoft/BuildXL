@@ -2,6 +2,12 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20260116.1 (Release [30950145](https://dev.azure.com/mseng/Domino/_build/results?buildId=30950145&view=results))
+- Logging tweaks
+- Astred Analyzer fixes for Word codebase
+- SBOM package updates
+- Ebpf usability improvements for dev builds
+
 # 0.1.0-20260109.1 (Release [30926784](https://dev.azure.com/mseng/Domino/_build/results?buildId=30926784&view=results))
 - Process observed file accesses concurrently with pip execution
 - Fix fallback link when logging hyperlink console

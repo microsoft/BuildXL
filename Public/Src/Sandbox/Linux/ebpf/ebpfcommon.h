@@ -158,6 +158,7 @@ typedef enum kernel_function {
     KERNEL_FUNCTION(execveat),
     KERNEL_FUNCTION(security_bprm_committed_creds),
     KERNEL_FUNCTION(vfs_utimes),
+    KERNEL_FUNCTION(do_faccessat),
     KERNEL_FUNCTION(test_synthetic), // not a real operation, tests can inject these
     // When diagnostics is not turned on, we don't get the kernel function for events, so we use this as a placeholder
     // This is fine since when diagnostics is off the kernel function is not visible anyway
@@ -191,6 +192,7 @@ inline const char* kernel_function_to_string(kernel_function kf) {
         CONVERT_KERNEL_FUNCTION_TO_STRING(execveat)
         CONVERT_KERNEL_FUNCTION_TO_STRING(security_bprm_committed_creds)
         CONVERT_KERNEL_FUNCTION_TO_STRING(vfs_utimes)
+        CONVERT_KERNEL_FUNCTION_TO_STRING(do_faccessat)
         CONVERT_KERNEL_FUNCTION_TO_STRING(test_synthetic)
         default:
             return "[unknown kernel function]";

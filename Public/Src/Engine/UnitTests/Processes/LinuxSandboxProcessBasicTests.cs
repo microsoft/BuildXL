@@ -430,14 +430,14 @@ namespace Test.BuildXL.Processes
         public void CallTestaccess()
         {
             var result = RunNativeTest(GetNativeTestName(MethodBase.GetCurrentMethod().Name));
-             AssertLogContains(GetAccessReportRegex(UsingEBPFSandbox ? ReportedFileOperation.WriteFile : ReportedFileOperation.CreateFile, Path.Combine(result.rootDirectory, "testfile")));
+             AssertLogContains(GetAccessReportRegex(UsingEBPFSandbox ? ReportedFileOperation.Probe : ReportedFileOperation.CreateFile, Path.Combine(result.rootDirectory, "testfile")));
         }
 
         [Fact]
         public void CallTestfaccessat()
         {
             var result = RunNativeTest(GetNativeTestName(MethodBase.GetCurrentMethod().Name));
-            AssertLogContains(GetAccessReportRegex(UsingEBPFSandbox ? ReportedFileOperation.WriteFile : ReportedFileOperation.CreateFile, Path.Combine(result.rootDirectory, "testfile")));
+            AssertLogContains(GetAccessReportRegex(UsingEBPFSandbox ? ReportedFileOperation.Probe : ReportedFileOperation.CreateFile, Path.Combine(result.rootDirectory, "testfile")));
         }
 
         [Fact]

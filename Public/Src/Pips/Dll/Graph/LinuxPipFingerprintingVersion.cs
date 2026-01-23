@@ -23,6 +23,6 @@ namespace BuildXL.Pips.Graph
         /// <remarks>
         /// Bump this version when there is an Linux specific breaking change in pip fingerprinting.
         /// </remarks>
-        Version = 3
+        Version = 4
     }
 }

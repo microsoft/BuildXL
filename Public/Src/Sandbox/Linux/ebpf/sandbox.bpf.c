@@ -1066,7 +1066,7 @@ int BPF_PROG(security_inode_getattr_exit, const struct path *path, int ret)
     {
         return 0;
     }
-    
+
     char* temp_path = bpf_map_lookup_elem(&tmp_paths, &ZERO);
     if (!temp_path)
     {
@@ -1503,6 +1503,84 @@ int BPF_PROG(vfs_utimes, const struct path *path)
         pid,
         /* child_pid */ 0,
         /* mode */ mode,
+        /* error */ 0,
+        temp_path,
+        path_length
+    );
+
+    return 0;
+}
+
+/**
+ * do_faccessat_exit() - Handles faccessat system call.
+ *
+ * Used for checking access permissions on a file.
+ * In principle we don't really care about permission checks, but some consumers use this syscall
+ * to infer whether a file is present or not (e.g. JS fs.existsSync uses access under the hood).
+ * This syscall does not call any of the LSM functions we do trace. It calls security_inode_permission,
+ * but we cannot hook into that because we cannot infer a path from an inode alone. It also calls into pathlookupat,
+ * which we do trace, but only for unsuccessful lookups. Therefore we need to trace this function explicitly.
+ */
+SEC("fexit/do_faccessat")
+int BPF_PROG(do_faccessat, int dfd, const char /*__user*/ *user_filename, int mode, int flags, int ret)
+{
+    pid_t pid = bpf_get_current_pid_tgid() >> 32;
+    pid_t runner_pid;
+    if (!is_valid_pid(pid, &runner_pid)) {
+        return 0;
+    }
+
+    // We only care about the successful case. The unsuccesful one results in a probe,
+    // which will be tracked by lookupat
+    if (ret != 0) {
+        return 0;
+    }
+
+    // Copy the filename from user space
+    char* filename = bpf_map_lookup_elem(&tmp_paths, &ONE);
+    if (!filename) {
+        return 0;
+    }
+
+    int length = bpf_core_read_user_str(filename, PATH_MAX, user_filename);
+    if (length <= 0) {
+        return 0;
+    }
+
+    // Now resolve the full path
+    char* temp_path = bpf_map_lookup_elem(&tmp_paths, &ZERO);
+    if (!temp_path) {
+        return 0;
+    }
+
+    int path_length = fd_string_to_string(temp_path, dfd, filename, /* user string*/ false) & (PATH_MAX - 1);
+   
+    if (path_length <= 0) {
+        return 0;
+    }
+
+    // The path comes from user side and it may not be canonicalized
+    path_length = canonicalize_path(temp_path, path_length) & (PATH_MAX - 1);
+    if (path_length < 0 || path_length >= PATH_MAX) {
+        report_path_canonicalization_error(runner_pid);
+        return 0;
+    }
+
+    // Check the cache to see whether we have sent this before. 
+    if (!should_send_string(runner_pid, kGenericProbe, temp_path, path_length)) {
+        return 0;
+    }
+
+    submit_file_access(
+        runner_pid,
+        kGenericProbe,
+        KERNEL_FUNCTION(do_faccessat),
+        // filename path coming from user side, it may contain symlinks that need to be resolved
+        fullyResolve,
+        pid,
+        /* child_pid */ 0,
+        // We don't really know the mode here, so we set it to 0 and let the user side resolve it
+        /* mode */ 0,
         /* error */ 0,
         temp_path,
         path_length

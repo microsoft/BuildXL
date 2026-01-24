@@ -150,6 +150,43 @@ namespace Test.DScript.Ast.Incrementality
             }
         }
 
+        [Fact]
+        public void DirectoryProbeShouldInvalidateTheCache()
+        {
+            using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TestOutputDirectory))
+            {
+                var appDeployment = CreateAppDeployment(tempFiles);
+
+                // The same testRootDirectory is used for all invocations, so the spec cache can be reused.
+                var testRoot = tempFiles.GetUniqueDirectory(PathTable).ToString(PathTable);
+                // There is an globR happening in the test root, so make sure 'foo' is outside of it
+                var fooRoot = tempFiles.GetUniqueDirectory(PathTable).ToString(PathTable).Replace('\\', '/');
+
+                // We are going to probe two directories. One present and one absent. Start by creating the
+                // present one
+                Directory.CreateDirectory(Path.Combine(fooRoot, "existent-dir"));
+
+                // Spec probes the directory existence. A present and an absent one.
+                string spec = @$"
+export const r = Directory.exists(d`{fooRoot}/existent-dir`);
+export const s = Directory.exists(d`{fooRoot}/non-existent-dir`);";
+
+                var buildDefinition = CreateDefinition(spec); 
+
+                RunAndAssertGraphCacheMiss(WriteSpecs(testRoot, buildDefinition), appDeployment);
+
+                // Adding a directory that was probed absent should lead to a cache miss
+                Directory.CreateDirectory(Path.Combine(fooRoot, "non-existent-dir"));
+                RunAndAssertGraphCacheMiss(WriteSpecs(testRoot, buildDefinition), appDeployment);
+                AssertVerboseEventLogged(LogEventId.InputTrackerDetectedChangeInDirectoryExistenceNowPresent);
+
+                // Removing a directory that was probed present should lead to a cache miss
+                Directory.Delete(Path.Combine(fooRoot, "existent-dir"));
+                RunAndAssertGraphCacheMiss(WriteSpecs(testRoot, buildDefinition), appDeployment);
+                AssertVerboseEventLogged(LogEventId.InputTrackerDetectedChangedInputFileByCheckingContentHash);
+            }
+        }
+
         [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]
         [InlineData(true)]
         [InlineData(false)]

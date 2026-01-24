@@ -303,18 +303,9 @@ namespace BuildXL.Engine
             }
             else
             {
-                // Even if the file or directory exists, we have to hash the content
-                // to prevent the graph cache miss for cloud build scenarios.
-                if (result.Result == PathExistence.ExistsAsFile)
-                {
-                    RegisterFile(path, WellKnownContentHashes.ExistentFileProbe);
-                }
-                else
-                {
-                    Analysis.IgnoreResult(
-                        TryComputeDirectoryMembershipFingerprint(path)
-                    );
-                }
+                // Directory probes are tracked as files probes. It doesn't really make a difference since we only care about existence.
+                // Observe this is different than TrackDirectory, which tracks the membership of a directory in the event of an enumeration.
+                RegisterFile(path, WellKnownContentHashes.ExistentFileProbe);
             }
 
             return result.Result;
@@ -561,7 +552,7 @@ namespace BuildXL.Engine
                     });
             }
         }
-
+        
         /// <summary>
         /// Writes the consumed inputs to a file for consumption in next build.
         /// <paramref name="changeTrackingStatePath"/> is always required, but only populated if change tracking is enabled (journal provided on construction).
@@ -1344,7 +1335,29 @@ namespace BuildXL.Engine
 
             try
             {
-                if (!File.Exists(path))
+                var maybeExistence = FileUtilities.TryProbePathExistence(path, followSymlink: false);
+                if (!maybeExistence.Succeeded)
+                {
+                    // Just let the catch block handle the failure case.
+                    maybeExistence.Failure.Throw();
+                }
+
+                var existence = maybeExistence.Result;
+                if (existence == PathExistence.ExistsAsDirectory)
+                {
+                    if (fileToCheck.Item2 == WellKnownContentHashes.AbsentFile)
+                    {
+                        mismatched = true;
+
+                        if (Interlocked.Increment(ref reportedCount) <= MaxReportedChangedInputFiles)
+                        {
+                            Logger.Log.InputTrackerDetectedChangeInDirectoryExistenceNowPresent(
+                                loggingContext,
+                                path);
+                        }
+                    }
+                }
+                else if (existence == PathExistence.Nonexistent)
                 {
                     // Avoid try-catch by checking file existence.
                     if (fileToCheck.Item2 != WellKnownContentHashes.AbsentFile)
@@ -1356,12 +1369,12 @@ namespace BuildXL.Engine
                             Logger.Log.InputTrackerDetectedChangedInputFileByCheckingContentHash(
                                 loggingContext,
                                 path,
-                                WellKnownContentHashes.AbsentFile.ToString(), 
+                                WellKnownContentHashes.AbsentFile.ToString(),
                                 fileToCheck.Item2.ToString());
                         }
                     }
                 }
-                // If the path exists, then we only need to hash it and compare the result if the file was actually read
+                // If the path exists as a file, then we only need to hash it and compare the result if the file was actually read
                 // In the case of a probe-only access that resulted in the path being present, the fact that the path is 
                 // present is enough
                 else if (fileToCheck.Item2 != WellKnownContentHashes.ExistentFileProbe)
@@ -1371,12 +1384,12 @@ namespace BuildXL.Engine
                             path,
                             beforeClose: (handle, result) =>
                                          {
-                                         // Since the file potentially changed, we need to track it again.
-                                         Analysis.IgnoreResult(
-                                                 tracker.TryTrackChangesToFile(
-                                                     handle,
-                                                     path,
-                                                     result.VersionedFileIdentityAndContentInfo.Identity));
+                                             // Since the file potentially changed, we need to track it again.
+                                             Analysis.IgnoreResult(
+                                                     tracker.TryTrackChangesToFile(
+                                                         handle,
+                                                         path,
+                                                         result.VersionedFileIdentityAndContentInfo.Identity));
                                          }).GetAwaiter().GetResult().VersionedFileIdentityAndContentInfo;
 
                     if (identityAndContentInfo.FileContentInfo.Hash != fileToCheck.Item2)
@@ -1388,7 +1401,7 @@ namespace BuildXL.Engine
                             Logger.Log.InputTrackerDetectedChangedInputFileByCheckingContentHash(
                                 loggingContext,
                                 path,
-                                identityAndContentInfo.FileContentInfo.Hash.ToString(), 
+                                identityAndContentInfo.FileContentInfo.Hash.ToString(),
                                 fileToCheck.Item2.ToString());
                         }
                     }

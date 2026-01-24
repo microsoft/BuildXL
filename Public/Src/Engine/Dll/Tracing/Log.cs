@@ -180,6 +180,16 @@ namespace BuildXL.Engine.Tracing
         public abstract void InputTrackerDetectedChangeInEnumeratedDirectory(LoggingContext context, string directory, string recordedFingerprint, string currentFingerprint);
 
         [GeneratedEvent(
+           (ushort)LogEventId.InputTrackerDetectedChangeInDirectoryExistenceNowPresent,
+           EventGenerators = EventGenerators.LocalOnly,
+           EventLevel = Level.Verbose,
+           EventTask = (ushort)Tasks.Engine,
+           EventOpcode = (byte)EventOpcode.Start,
+           Keywords = (int)(Keywords.UserMessage),
+           Message = "Input tracker detected a change in directory existence: Directory '{directory}' was previously absent but now is present.")]
+        public abstract void InputTrackerDetectedChangeInDirectoryExistenceNowPresent(LoggingContext context, string directory);
+
+        [GeneratedEvent(
             (ushort)LogEventId.InputTrackerUnableToDetectChangeInEnumeratedDirectory,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,

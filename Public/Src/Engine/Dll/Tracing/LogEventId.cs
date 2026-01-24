@@ -206,6 +206,7 @@ namespace BuildXL.Engine.Tracing
         InputTrackerUnableToDetectChangedInputFileByCheckingContentHash = 2859,
         InputTrackerDetectedChangedInputFileByCheckingContentHash = 2860,
         InputTrackerDetectedChangeInEnumeratedDirectory = 2861,
+        InputTrackerDetectedChangeInDirectoryExistenceNowPresent = 2945,
         StartVisitingSpecFiles = 2862,
         EndVisitingSpecFiles = 2863,
         JournalDetectedNoInputChanges = 2864,

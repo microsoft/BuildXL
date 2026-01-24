@@ -949,7 +949,11 @@ namespace BuildXL.Engine
             BuildParameters.IBuildParameters buildParameters,
             IReadOnlyDictionary<string, IMount> mounts)
         {
-            var inputFiles = tracker.InputHashes.Select(kvp => new GraphPathInput(AbsolutePath.Create(PathTable, kvp.Key), kvp.Value, false));
+            // Directories can be both probed and enumerated. When they are enumerated, they appear in DirectoryFingerprints. When probed, they appear in InputHashes.
+            // We don't want duplicates in our final sorted list, and we prefer enumerations over probes, since that's a stronger observation wrt fingerprinting. 
+            var inputFiles = tracker.InputHashes
+                .Where(kvp => !tracker.DirectoryFingerprints.ContainsKey(kvp.Key))
+                .Select(kvp => new GraphPathInput(AbsolutePath.Create(PathTable, kvp.Key), kvp.Value, false));
             var inputDirectories = tracker.DirectoryFingerprints.Select(kvp => new GraphPathInput(AbsolutePath.Create(PathTable, kvp.Key), kvp.Value.Hash, true));
             var inputPaths = SortedReadOnlyArray<GraphPathInput, GraphPathInput.ByPathAndKindComparer>.SortUnsafe(
                 inputFiles.Concat(inputDirectories).ToArray(),

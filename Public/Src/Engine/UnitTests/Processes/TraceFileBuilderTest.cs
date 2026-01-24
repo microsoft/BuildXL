@@ -29,8 +29,8 @@ namespace Test.BuildXL.Processes
         {
             var builder = CreateBuilder();
             var path = GetPath(X("/c/foo/bar/file.txt"));
-            builder.ReportFileAccess(1, ReportedFileOperation.CreateFile, RequestedAccess.Write, path, 0, false, null, 123, 7);
-            builder.ReportFileAccess(1, ReportedFileOperation.CreateFile, RequestedAccess.Write, AbsolutePath.Invalid, 1, false, null, 456, 42);
+            builder.ReportFileAccess(1, ReportedFileOperation.CreateFile, RequestedAccess.Write, path, 0, false, null, 123, 7, FlagsAndAttributes.FILE_ATTRIBUTE_NORMAL, FlagsAndAttributes.FILE_ATTRIBUTE_TEMPORARY);
+            builder.ReportFileAccess(1, ReportedFileOperation.CreateFile, RequestedAccess.Write, AbsolutePath.Invalid, 1, false, null, 456, 42, FlagsAndAttributes.FILE_ATTRIBUTE_DIRECTORY, FlagsAndAttributes.FILE_ATTRIBUTE_REPARSE_POINT);
             builder.ReportProcess(new ReportedProcess(1, X("/c/cmd.exe"), "/c foo") { ExitCode = 0 });
             builder.ReportProcess(new ReportedProcess(2, X("/c/ps.exe"), "-Test bar") { ExitCode = 1 });
 
@@ -39,7 +39,7 @@ namespace Test.BuildXL.Processes
 
             var (version, operations, reportedProcesses) = SerializeAndDeserialize(builder);
 
-            XAssert.AreEqual(2, version);
+            XAssert.AreEqual(3, version);
             XAssert.AreEqual(2, operations.Count);
             XAssert.AreEqual(ReportedFileOperation.CreateFile, operations[0].FileOperation);
             XAssert.AreEqual(path, operations[0].Path);
@@ -51,9 +51,13 @@ namespace Test.BuildXL.Processes
 
             XAssert.AreEqual((uint)123, operations[0].ReportedFileAccessId);
             XAssert.AreEqual((uint)7, operations[0].ReportedFileAccessCorrelationId);
+            XAssert.AreEqual(FlagsAndAttributes.FILE_ATTRIBUTE_NORMAL, operations[0].FlagsAndAttributes);
+            XAssert.AreEqual(FlagsAndAttributes.FILE_ATTRIBUTE_TEMPORARY, operations[0].OpenedFileOrDirectoryAttributes);
 
             XAssert.AreEqual((uint)456, operations[1].ReportedFileAccessId);
             XAssert.AreEqual((uint)42, operations[1].ReportedFileAccessCorrelationId);
+            XAssert.AreEqual(FlagsAndAttributes.FILE_ATTRIBUTE_DIRECTORY, operations[1].FlagsAndAttributes);
+            XAssert.AreEqual(FlagsAndAttributes.FILE_ATTRIBUTE_REPARSE_POINT, operations[1].OpenedFileOrDirectoryAttributes);
         }
 
         [Fact]
@@ -66,13 +70,13 @@ namespace Test.BuildXL.Processes
             var copySourcePath2 = GetPath(X("/c/copySource2.txt"));
             var copyDestPath2 = GetPath(X("/c/copyDest2.txt"));
 
-            builder.ReportFileAccess(1, ReportedFileOperation.CreateFile, RequestedAccess.Write, path, 0, false, null, 123, 0);
-            builder.ReportFileAccess(1, ReportedFileOperation.CopyFileSource, RequestedAccess.Write, copySourcePath1, 0, false, null, 456, 0);
-            builder.ReportFileAccess(2, ReportedFileOperation.CopyFileSource, RequestedAccess.Write, copySourcePath2, 0, false, null, 666, 0);
-            builder.ReportFileAccess(3, ReportedFileOperation.CreateFile, RequestedAccess.Write, path, 0, false, null, 777, 0);
-            builder.ReportFileAccess(2, ReportedFileOperation.CopyFileDestination, RequestedAccess.Write, copyDestPath2, 0, false, null, 667, 666);
-            builder.ReportFileAccess(2, ReportedFileOperation.CopyFileDestination, RequestedAccess.Write, copyDestPath1, 0, false, null, 457, 456);
-            builder.ReportFileAccess(3, ReportedFileOperation.CreateFile, RequestedAccess.Write, path, 0, false, null, 778, 0);
+            builder.ReportFileAccess(1, ReportedFileOperation.CreateFile, RequestedAccess.Write, path, 0, false, null, 123, 0, 0, 0);
+            builder.ReportFileAccess(1, ReportedFileOperation.CopyFileSource, RequestedAccess.Write, copySourcePath1, 0, false, null, 456, 0, 0, 0);
+            builder.ReportFileAccess(2, ReportedFileOperation.CopyFileSource, RequestedAccess.Write, copySourcePath2, 0, false, null, 666, 0, 0, 0);
+            builder.ReportFileAccess(3, ReportedFileOperation.CreateFile, RequestedAccess.Write, path, 0, false, null, 777, 0, 0, 0);
+            builder.ReportFileAccess(2, ReportedFileOperation.CopyFileDestination, RequestedAccess.Write, copyDestPath2, 0, false, null, 667, 666, 0, 0);
+            builder.ReportFileAccess(2, ReportedFileOperation.CopyFileDestination, RequestedAccess.Write, copyDestPath1, 0, false, null, 457, 456, 0, 0);
+            builder.ReportFileAccess(3, ReportedFileOperation.CreateFile, RequestedAccess.Write, path, 0, false, null, 778, 0, 0, 0);
 
             builder.ReportProcess(new ReportedProcess(1, X("/c/cmd.exe"), "/c foo") { ExitCode = 0 });
             builder.ReportProcess(new ReportedProcess(2, X("/c/ps.exe"), "-Test bar") { ExitCode = 0 });

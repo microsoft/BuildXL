@@ -21,7 +21,7 @@ Once the pip is executed, the trace file will be one of the pip's outputs and ca
 
 The trace file is a text file with a simple format. 
 Each logical unit is placed on a separate line.
-The file is divided into seven blocks.
+The file is divided into eight blocks.
 
 1. Version number<br />
 An integer that represents current version.
@@ -123,6 +123,16 @@ Process details: executable path, parent process id, UTC ticks of start and end 
     ...
     175,145,0
     ```
+8. File Flags and Attributes values block
+    1. A count of observed operations
+    2. For each operation:
+        1. The id of operation from operation block.
+        2. uint representation of file attributes passed to an operation when applicable.
+        3. uint representation of file attributes of this operation operation's path.
+    
+    Each `uint` can be a combination of different flags/attributes. 
+    Invalid value is defined as `0xFFFFFFFF`, so take care when you are checking for a presence of a flag.
+    You can check the list of attribute [here](../../../Public/Src/Engine/Processes/FlagsAndAttributes.cs).
 
 ## Performance / space considerations
 To create a trace file, the sandbox requires data that is not usually collected. 

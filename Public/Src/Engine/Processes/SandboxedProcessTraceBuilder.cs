@@ -29,7 +29,7 @@ namespace BuildXL.Processes
     /// </remarks>
     internal sealed class SandboxedProcessTraceBuilder
     {
-        private const byte Version = 2;
+        private const byte Version = 3;
 
         private static readonly ObjectPool<HashSet<ReportedFileOperation>> s_reportedFileOperationSetPool = Pools.CreateSetPool<ReportedFileOperation>();
 
@@ -118,7 +118,9 @@ namespace BuildXL.Processes
             bool isAnAugmentedFileAccess,
             string enumeratePattern,
             uint reportedFileAccessId,
-            uint reportedFileAccessCorrelationId)
+            uint reportedFileAccessCorrelationId,
+            FlagsAndAttributes flagsAndAttributes,
+            FlagsAndAttributes openedFileOrDirectoryAttributes)
         {
             if (SkipOperation(operation))
             {
@@ -135,7 +137,9 @@ namespace BuildXL.Processes
                 IsAnAugmentedFileAccess: isAnAugmentedFileAccess,
                 EnumeratePattern: enumeratePattern,
                 ReportedFileAccessId: reportedFileAccessId,
-                ReportedFileAccessCorrelationId: reportedFileAccessCorrelationId));
+                ReportedFileAccessCorrelationId: reportedFileAccessCorrelationId,
+                FlagsAndAttributes: flagsAndAttributes,
+                OpenedFileOrDirectoryAttributes: openedFileOrDirectoryAttributes));
         }
 
         /// <summary>
@@ -258,7 +262,9 @@ namespace BuildXL.Processes
                     Path: path,
                     EnumeratePattern: enumeratePattern,
                     ReportedFileAccessId: 0,
-                    ReportedFileAccessCorrelationId: 0));
+                    ReportedFileAccessCorrelationId: 0,
+                    FlagsAndAttributes: 0,
+                    OpenedFileOrDirectoryAttributes: 0));
             }
 
             operationCount = int.Parse(reader.ReadLine());
@@ -272,6 +278,20 @@ namespace BuildXL.Processes
                 {
                     ReportedFileAccessId = reportedFileAccessId,
                     ReportedFileAccessCorrelationId = reportedFileAccessCorrelationId
+                };
+            }
+
+            operationCount = int.Parse(reader.ReadLine());
+            for (int i = 0; i < operationCount; i++)
+            {
+                // id, FlagsAndAttributes, OpenedFileOrDirectoryAttributes
+                var parts = reader.ReadLine().Split(',');
+                var flagsAndAttributes = (FlagsAndAttributes)uint.Parse(parts[1]);
+                var openedFileOrDirectoryAttributes = (FlagsAndAttributes)uint.Parse(parts[2]);
+                operations[i] = operations[i] with
+                {
+                    FlagsAndAttributes = flagsAndAttributes,
+                    OpenedFileOrDirectoryAttributes = openedFileOrDirectoryAttributes
                 };
             }
 
@@ -386,6 +406,18 @@ namespace BuildXL.Processes
                 sb.Clear();
             }
 
+            writer.WriteLine(m_operations.Count);
+            foreach (var operation in m_operations)
+            {
+                formatAttributes(operation, sb);
+#if NETCOREAPP3_0_OR_GREATER
+                writer.WriteLine(sb);
+#else
+                writer.WriteLine(sb.ToString());
+#endif
+                sb.Clear();
+            }
+
             static void formatReportedProcess(ReportedProcess process, StringBuilder sb)
             {
                 // PID, "path", ParentPID, startTimeUtcTicks, endTimeUtcTicks
@@ -409,6 +441,12 @@ namespace BuildXL.Processes
                 // id, reportedFileAccessId, reportedFileAccessCorrelationId
                 sb.Append($"{operation.Id},{operation.ReportedFileAccessId},{operation.ReportedFileAccessCorrelationId}");
             }
+
+            static void formatAttributes(Operation operation, StringBuilder sb)
+            {
+                // id, FlagsAndAttributes, OpenedFileOrDirectoryAttributes
+                sb.Append($"{operation.Id},{(uint)operation.FlagsAndAttributes},{(uint)operation.OpenedFileOrDirectoryAttributes}");
+            }
         }
 
         internal readonly record struct Operation(
@@ -421,6 +459,8 @@ namespace BuildXL.Processes
             AbsolutePath Path,
             string EnumeratePattern,
             uint ReportedFileAccessId,
-            uint ReportedFileAccessCorrelationId);
+            uint ReportedFileAccessCorrelationId,
+            FlagsAndAttributes FlagsAndAttributes,
+            FlagsAndAttributes OpenedFileOrDirectoryAttributes);
     }
 }

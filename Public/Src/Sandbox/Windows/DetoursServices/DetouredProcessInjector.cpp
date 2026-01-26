@@ -465,12 +465,13 @@ void WINAPI DetouredProcessInjector_Destroy(DetouredProcessInjector *injector)
 
 DWORD WINAPI DetouredProcessInjector_Inject(DetouredProcessInjector *injector, DWORD pid, bool)
 {
-    // Ensure that the report pipe is set so that Dbg() can write to it.
-    // This is important for remote injection because the injector can be created externally (e.g., by BuildXL's managed code)
-    // and this function is called from external code (e.g., by BuildXL's managed code) where the report pipe is not set.
-    if (g_reportFileHandle == NULL || g_reportFileHandle == INVALID_HANDLE_VALUE)
+    if (injector == nullptr)
     {
-        g_reportFileHandle = injector->ReportPipe();
+        // If no report pipe is set, this Dbg() call will be a no-op.
+        // If invalid parameter is returned at a different point in this function, there should also be a Dbg()
+        // message to differentiate it from this one.
+        Dbg(L"DetouredProcessInjector_Inject: Injector is null");
+        return ERROR_INVALID_PARAMETER;
     }
 
     if (!injector->IsValid()) {
@@ -478,10 +479,12 @@ DWORD WINAPI DetouredProcessInjector_Inject(DetouredProcessInjector *injector, D
         return ERROR_INVALID_FUNCTION;
     }
 
-    if (injector == nullptr)
+    // Ensure that the report pipe is set so that Dbg() can write to it.
+    // This is important for remote injection because the injector can be created externally (e.g., by BuildXL's managed code)
+    // and this function is called from external code (e.g., by BuildXL's managed code) where the report pipe is not set.
+    if (g_reportFileHandle == NULL || g_reportFileHandle == INVALID_HANDLE_VALUE)
     {
-        Dbg(L"DetouredProcessInjector_Inject: Injector is null");
-        return ERROR_SUCCESS;
+        g_reportFileHandle = injector->ReportPipe();
     }
 
     unique_handle<nullptr> processHandle (OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid));

@@ -23,6 +23,7 @@ This is the primary documentation for BuildXL (Microsoft Build Accelerator). If 
 * [Breakway processes](Wiki/Advanced-Features/Process-breakaway.md)
 * [Caching - Overview](../Public/Src/Cache/README.md)
 * [Caching - Build Graph](Wiki/Advanced-Features/Graph-Reuse.md)
+* [Caching - Cache Convergence and Delayed Cache Lookup](Wiki/Advanced-Features/Cache-Convergence.md)
 * [Caching - Two Phase Cache Lookup](Wiki/Advanced-Features/Two-Phase-Cache-Lookup.md)
 * [Cancellation](Wiki/How-To-Run-BuildXL/Cancellation-(CtrlC).md)
 * [Command line](Wiki/How-to-run-BuildXL.md)

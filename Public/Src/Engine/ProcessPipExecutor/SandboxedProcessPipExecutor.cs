@@ -4022,7 +4022,6 @@ namespace BuildXL.ProcessPipExecutor
 
             fileAccessesBeforeFirstUndeclaredReWrite = fileAccessesBeforeFirstUndeclaredReWriteMutable;
 
-            
             LogSubPhaseDuration(m_loggingContext, m_pip, SandboxedProcessCounters.SandboxedPipExecutorPhaseBuildObservedFileAccesses, stopwatch.Elapsed, $"(count: {result.ExplicitlyReportedFileAccesses.Count})");
 
             return true;

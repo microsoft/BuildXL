@@ -2919,6 +2919,67 @@ namespace IntegrationTest.BuildXL.Scheduler
             result.AssertCacheMiss(pip2.Process.PipId);
         }
 
+        /// <summary>
+        /// Reads a file with filename "nul" on Windows or "/dev/null" on Unix-like systems.
+        /// </summary>
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void NulFile(bool specifyInput)
+        {
+            Directory.CreateDirectory(SourceRoot);
+            FileArtifact nulFile = FileArtifact.CreateSourceFile(
+                AbsolutePath.Create(Context.PathTable, 
+                Path.Combine(SourceRoot, OperatingSystemHelper.IsUnixOS ? "/dev/null" : "nul")));
+
+            string nulFileFullPath = OperatingSystemHelper.IsWindowsOS
+                // On Windows, NUL is a reserved name, so we need to use the extended-length path prefix.
+                ? $@"\\?\{nulFile.Path.ToString(Context.PathTable)}" 
+                : nulFile.Path.ToString(Context.PathTable);
+
+            File.WriteAllText(nulFileFullPath, "This is some content");
+
+            FileArtifact refFile = CreateSourceFile();
+
+            // We potentially write a prefixed path here. It's intentional - we want to test that we can
+            // handle such paths, and for this we need a pip that can successfully work with such paths.
+            // Technically, we are not covering the case where a tool accesses a nul path without adding
+            // the prefix itself, but in this case the tool will fail and we won't step into any code that
+            // would try touching that path.
+            File.WriteAllText(refFile.Path.ToString(Context.PathTable), nulFileFullPath);
+
+            // Create a pip that reads a normal sources file and the nul file
+            var builder = CreatePipBuilder(new Operation[]
+            {
+                Operation.ReadFile(CreateSourceFile()),
+                Operation.ReadFileFromOtherFile(path: refFile),
+                Operation.WriteFile(CreateOutputFileArtifact())
+            });
+
+            // Declaring the nul file as an input takes the pip down a different pre-run path
+            if (specifyInput)
+            {
+                builder.AddInputFile(nulFile.Path);
+            }
+
+            ProcessWithOutputs process = SchedulePipBuilder(builder);
+
+            // Don't crash.
+            var result = RunScheduler();
+            if (specifyInput 
+                // /dev/null does not trigger DFA
+                || OperatingSystemHelper.IsLinuxOS)
+            {
+                result.AssertSuccess();
+            }
+            else
+            {
+                result.AssertFailure();
+                AssertErrorEventLogged(SchedulerLogEventId.FileMonitoringError);
+            }
+
+            IgnoreWarnings();
+        }
 
         private Operation ProbeOp(string root, string relativePath = "")
         {

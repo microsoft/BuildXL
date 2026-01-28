@@ -348,6 +348,24 @@ namespace Test.BuildXL.Storage
             XAssert.IsFalse(File.Exists(testFile));
         }
 
+#if NETCOREAPP
+        // For some reason, File.WriteAllText throws on .NET Framework when the test is run under QTest.
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        public void DeleteFileWithNulFilename()
+        {
+            string parentDirectory = GetFullPath("parent");
+            Directory.CreateDirectory(parentDirectory);
+            string nulFileWithoutPrefix = Path.Combine(parentDirectory, "nul");
+            string nulFileWithPrefix = $@"\\?\{nulFileWithoutPrefix}";
+            File.WriteAllText(nulFileWithPrefix, "hello");
+            XAssert.IsTrue(File.Exists(nulFileWithPrefix));
+            
+            // Delete the file without the prefix. File deletion logic should still delete the file
+            FileUtilities.DeleteFile(nulFileWithoutPrefix);
+            XAssert.IsFalse(File.Exists(nulFileWithPrefix));
+        }
+#endif // NETCOREAPP
+
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true, requiresAdmin: true)]
         public void TakeOwnershipOfFileAtMaxPathLength()
         {

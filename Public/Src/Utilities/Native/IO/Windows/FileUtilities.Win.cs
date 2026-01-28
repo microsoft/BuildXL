@@ -79,6 +79,22 @@ namespace BuildXL.Native.IO.Windows
         /// </summary>
         public static bool IsDriveLetter(char driveLetter) => char.IsLetter(driveLetter) && driveLetter > 64 && driveLetter < 123;
 
+        /// <summary>
+        /// Some names (like NUL) are reserved in Windows. To access files with such names, one must use the long path prefix.
+        /// </summary>
+        public static string PrefixPathIfNeeded(string path)
+        {
+            if (path.EndsWith(FileSystemWin.NulPathSuffix, StringComparison.OrdinalIgnoreCase)
+                && !path.StartsWith(FileSystemWin.LongPathPrefix))
+            {
+                return $"{FileSystemWin.LongPathPrefix}{path}";
+            }
+            else
+            {
+                return path;
+            }
+        }
+
         /// <inheritdoc />
         public bool? DoesLogicalDriveHaveSeekPenalty(char driveLetter)
         {
@@ -571,6 +587,9 @@ namespace BuildXL.Native.IO.Windows
         private bool DeleteFileInternal(string path, ITempCleaner tempDirectoryCleaner, out OpenFileResult deleteResult)
         {
             Contract.Requires(!string.IsNullOrEmpty(path));
+
+            // we may get paths that end with \nul, which confuses our native calls without the appropriate prefix
+            path = PrefixPathIfNeeded(path);
 
             if (PosixDeleteMode == PosixDeleteMode.RunFirst && RunPosixDelete(path, out deleteResult))
             {
@@ -2182,7 +2201,6 @@ namespace BuildXL.Native.IO.Windows
 
             return CheckFileSystemRightsForPath(path, fileSystemRights);
         }
-
 
         /// <inheritdoc />
         public bool HasWritableAttributeAccessControl(string path)

@@ -52,6 +52,11 @@ namespace BuildXL.Native.IO.Windows
         /// </summary>
         public const string LocalDevicePrefix = @"\\.\";
 
+        /// <summary>
+        /// NUL path suffix.
+        /// </summary>
+        public static readonly string NulPathSuffix = $"{Path.DirectorySeparatorChar}nul";
+
         private const int DefaultBufferSize = 4096;
 
         #endregion

@@ -413,6 +413,12 @@ namespace BuildXL.Engine.Cache.Artifacts
             bool forUsnQuery = false,
             bool createHandleWithSequentialScan = false)
         {
+            // If we are on Windows and the path ends with NUL, we need to prefix it with \\?\.
+            if (OperatingSystemHelper.IsWindowsOS)
+            {
+                expandedPath = FileUtilitiesWin.PrefixPathIfNeeded(expandedPath);
+            }
+
             FileFlagsAndAttributes openFlags = FileFlagsAndAttributes.None
                 // Open for asynchronous I/O.
                 | FileFlagsAndAttributes.FileFlagOverlapped

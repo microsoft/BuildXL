@@ -1919,7 +1919,8 @@ namespace BuildXL.Storage.ChangeTracking
                     FileFlagsAndAttributes openFlags = OpenFlags;
 
                     OpenFileResult openResult = FileUtilities.TryOpenDirectory(
-                        expandedPath,
+                        // If we are on Windows and a path ends with a reserved name NUL, we need to prefix the path with \\?\ to successfully open it.
+                        OperatingSystemHelper.IsWindowsOS ? FileUtilitiesWin.PrefixPathIfNeeded(expandedPath) : expandedPath,
                         desiredAccess,
                         FileShare.ReadWrite | FileShare.Delete,
                         openFlags,

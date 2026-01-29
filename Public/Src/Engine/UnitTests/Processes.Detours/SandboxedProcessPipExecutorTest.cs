@@ -2415,7 +2415,7 @@ namespace Test.BuildXL.Processes.Detours
                 tempDirectoryCleaner: MoveDeleteCleaner,
                 processIdListener: processIdListener,
                 directoryTranslator: directoryTranslator,
-                reparsePointResolver: reparsePointResolver).RunAsync(sandboxConnection: GetSandboxConnection());
+                reparsePointResolver: reparsePointResolver).RunAsync(sandboxConnection: GetEBPFAwareSandboxConnection());
         }
 
         private static void VerifyExitCode(BuildXLContext context, SandboxedProcessPipExecutionResult result, int expectedExitCode)

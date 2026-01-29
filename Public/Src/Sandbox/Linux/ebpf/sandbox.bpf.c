@@ -1181,48 +1181,40 @@ int BPF_PROG(do_readlink_exit, int dfd, const char *pathname, char *buf, int buf
     return 0;
 }
 
-/**
- * step_into_exit() - symlink traversal
- * we cannot use security_inode_follow_link because it only takes a dentry and we are missing the mount
- * To traverse the symlink, step_into() will call pick_link().
- * This tracepoint is triggered potentially after pick_link() has already been called.
- * In some cases pick_link() is skipped if the dentry is not a symlink.
- * 
- * NOTE: Used for kernels older than 6.8, where pick_link() does not have BTF type information.
- *  Autoattach is disabled, user side must attach it manually.
- */
-SEC("?fexit/step_into")
-int BPF_PROG(step_into_exit, struct nameidata *nd, int flags,
-		     struct dentry *dentry, char *ret)
+// security_inode_follow_link_exit() - symlink traversal
+// The issue with this function is that it does not take the mount as argument, only the dentry.
+// Therefore we need to store the mount in a map when step_into is called, and retrieve it here.
+// This is only used in older kernels where pick_link does not have BTF information. 
+// We still prefer pick_link_exit when possible as it is a more direct mechanism that does not involve storing state
+// across bpf programs.
+// Autoattach is disabled, user side must attach it manually.
+SEC("?fexit/security_inode_follow_link")
+int BPF_PROG(security_inode_follow_link_exit, struct dentry *dentry, struct inode *inode, bool rcu, int ret)
 {
-    pid_t pid = bpf_get_current_pid_tgid() >> 32;
+    u64 pid_tgid = bpf_get_current_pid_tgid();
+    pid_t pid = pid_tgid >> 32;
     pid_t runner_pid;
     if (!is_valid_pid(pid, &runner_pid)) {
         return 0;
     }
 
-    // We don't care about tracing this if it fails. Probes should be caught by lookupat
-    // CODESYNC: https://github.com/torvalds/linux/blob/02adc1490e6d8681cc81057ed86d123d0240909b/fs/namei.c#L1971
-    // The exit conditions here are based on whether step_into() will call into pick_link() or not.
-    // We want to ignore any branches that don't call into pick_link() because they represent intermediate
-    // calls that are not symlinks.
-    // This is done because kernels older than 6.8 do not provide BTF type information for pick_link(),
-    // so we can't hook into it directly.
-    // TODO: this function releases the dentry at the end (?), not sure if it's possible that it's invalid here
-    bool skip_step_into_not_symlink = 
-        !d_is_symlink(dentry)
-        || ((flags & WALK_TRAILING) && !(BPF_CORE_READ(nd, flags) & LOOKUP_FOLLOW))
-        || (flags & WALK_NOFOLLOW)
-        // Paths with no final component return NULL when pick_link() is called
-        // https://github.com/torvalds/linux/blob/02adc1490e6d8681cc81057ed86d123d0240909b/Documentation/filesystems/path-lookup.rst#symlinks-with-no-final-component
-        || ret == NULL;
-
-    if (skip_step_into_not_symlink || IS_ERR(ret))
+    // If the follow link failed, we don't need to report anything here. Probes should be caught by lookupat
+    if (ret != 0)
     {
         return 0;
     }
 
-    struct path link = BPF_CORE_READ(nd, path);
+    // Retrieve the mount stored in step_into_entry. We need this because security_inode_follow_link
+    // only provides a dentry, but we need the mount to construct the full path.
+    struct vfsmount **mount_ptr = bpf_map_lookup_elem(&follow_link_mount, &pid_tgid);
+    if (!mount_ptr) {
+        report_ring_buffer_error(runner_pid, "[ERROR] Could not retrieve mount from follow_link_mount map.");
+        return 0;
+    }
+    struct vfsmount *mount = *mount_ptr;
+
+    // Build the link with the current dentry and the retrieved mount
+    struct path link = {.dentry = dentry, .mnt = mount};
 
     if (!should_send_path(runner_pid, kGenericRead, &link))
     {
@@ -1251,6 +1243,51 @@ int BPF_PROG(step_into_exit, struct nameidata *nd, int flags,
         path_length
     );
 
+    return 0;
+}
+
+// step_into_entry() - symlink traversal
+// We cannot use security_inode_follow_link because it only takes a dentry and we are missing the mount.
+// Therefore we store the mount here for retrieval in security_inode_follow_link_exit.
+// This is only used in older kernels where pick_link does not have BTF information.
+// Autoattach is disabled, user side must attach it manually. 
+SEC("?fentry/step_into")
+int BPF_PROG(step_into_entry, struct nameidata *nd, int flags,
+		     struct dentry *dentry)
+{
+    u64 pid_tgid = bpf_get_current_pid_tgid();
+    pid_t pid = pid_tgid >> 32;
+    pid_t runner_pid;
+    if (!is_valid_pid(pid, &runner_pid)) {
+        return 0;
+    }
+
+    struct vfsmount* mount = BPF_CORE_READ(nd, path.mnt);
+    long ret = bpf_map_update_elem(&follow_link_mount, &pid_tgid, &mount, BPF_ANY);
+
+    if (ret != 0) {
+        report_ring_buffer_error(runner_pid, "[ERROR] Could not insert mount into follow_link_mount map");
+    }
+
+    return 0;
+}
+
+// step_into_exit() - symlink traversal
+// Just cleans up the map used to store mounts in step_into_entry.
+// This is only used in older kernels where pick_link does not have BTF information.
+// Autoattach is disabled, user side must attach it manually. 
+SEC("?fexit/step_into")
+int BPF_PROG(step_into_exit, struct nameidata *nd, int flags,
+		     struct dentry *dentry)
+{
+    u64 pid_tgid = bpf_get_current_pid_tgid();
+    pid_t pid = pid_tgid >> 32;
+    pid_t runner_pid;
+    if (!is_valid_pid(pid, &runner_pid)) {
+        return 0;
+    }
+
+    bpf_map_delete_elem(&follow_link_mount, &pid_tgid);
     return 0;
 }
 

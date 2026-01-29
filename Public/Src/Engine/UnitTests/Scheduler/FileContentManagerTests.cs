@@ -443,7 +443,7 @@ namespace Test.BuildXL.Scheduler
                     return;
                 }
 
-                Environment = new DummyPipExecutionEnvironment(CreateLoggingContextForTest(), m_context, Configuration, subst: m_subst, sandboxConnection: GetSandboxConnection());
+                Environment = new DummyPipExecutionEnvironment(CreateLoggingContextForTest(), m_context, Configuration, subst: m_subst, sandboxConnection: GetEBPFAwareSandboxConnection());
                 FileContentManager = new FileContentManager(Environment, new NullOperationTracker());
                 UntrackedOpContext = OperationContext.CreateUntracked(Environment.LoggingContext);
 

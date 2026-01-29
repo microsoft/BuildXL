@@ -60,6 +60,13 @@ namespace Test.BuildXL.FrontEnd.Utilities
 
             var toolDirectory = AbsolutePath.Create(Context.PathTable, CmdHelper.OsShellExe).GetParent(Context.PathTable);
 
+            // Make sure we honor EBPF sandboxing settings from the main config.
+            ((SandboxConfiguration)Configuration.Sandbox).EnableEBPFLinuxSandbox = UsingEBPFSandbox;
+            if (Configuration.Sandbox.EnableEBPFLinuxSandbox)
+            {
+                EBPFDaemon.AssumeEBPFDaemonTaskRunningForTesting();
+            }
+
             var result = FrontEndUtilities.RunSandboxedToolAsync(
                FrontEndContext,
                CmdHelper.OsShellExe,

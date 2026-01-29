@@ -267,6 +267,7 @@ namespace Test.BuildXL.FrontEnd.Ninja
             // The build will create an output file outside of the project root that we declare as the 'standard' cone for outputs
             var extraneousDirectory = Path.Combine(SourceRoot, "ExtraneousOutputs");
             var extraneousOutput = Path.Combine(extraneousDirectory, "foo.txt");
+            Directory.CreateDirectory(extraneousDirectory);
             var project = CreateProjectWithExtraneousWrite("first.txt", "second.txt", extraneousOutput);
 
             var additionalOutputDirectories = declareAdditionalOutput ? new[] { $"p`{extraneousDirectory}`" } : null;
@@ -283,7 +284,11 @@ namespace Test.BuildXL.FrontEnd.Ninja
                 Assert.False(engineResult.IsSuccess);
                 AssertVerboseEventLogged(global::BuildXL.Processes.Tracing.LogEventId.PipProcessDisallowedFileAccess, count: 1);
                 AssertErrorEventLogged(global::BuildXL.Scheduler.Tracing.LogEventId.FileMonitoringError, count: 1);
-                AssertErrorEventLogged(global::BuildXL.Processes.Tracing.LogEventId.PipProcessError, count: 1);
+                // EBPF is never blocking
+                if (!UsingEBPFSandbox) 
+                {
+                    AssertErrorEventLogged(global::BuildXL.Processes.Tracing.LogEventId.PipProcessError, count: 1);
+                }
                 AssertVerboseEventLogged(global::BuildXL.Scheduler.Tracing.LogEventId.DependencyViolationUndeclaredOutput, count: 1);
             }
         }

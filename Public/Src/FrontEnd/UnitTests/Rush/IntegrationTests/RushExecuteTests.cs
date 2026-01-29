@@ -334,13 +334,6 @@ namespace Test.BuildXL.FrontEnd.Rush
                 .AddJavaScriptProject("@ms/project-A", "src/A", scriptCommands: new[] { ("build", "build A") })
                 .PersistSpecsAndGetConfiguration();
 
-            // The graph construction process will spawn a sandboxed process. Make sure we honor EBPF sandboxing settings
-            // from the main config. Our test infra is not well prepped to handle the fact that EBPF is already running,
-            // for the frontend construction, so we just assume the daemon is running (given we checked that already in the
-            // first line of this test).
-            EBPFDaemon.AssumeEBPFDaemonTaskRunningForTesting();
-            ((SandboxConfiguration)config.Sandbox).EnableEBPFLinuxSandbox = UsingEBPFSandbox;
-            
             var result = RunRushProjects(config, new[] {
                 ("src/A", "@ms/project-A")
             });

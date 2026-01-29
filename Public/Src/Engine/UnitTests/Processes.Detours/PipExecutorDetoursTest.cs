@@ -160,7 +160,7 @@ namespace Test.BuildXL.Processes.Detours
                 buildEngineDirectory: binDirectory,
                 directoryTranslator: directoryTranslator,
                 tempDirectoryCleaner: MoveDeleteCleaner,
-                detoursListener: detoursListener).RunAsync(sandboxConnection: GetSandboxConnection());
+                detoursListener: detoursListener).RunAsync(sandboxConnection: GetEBPFAwareSandboxConnection());
         }
 
         private DirectoryTranslator CreateDirectoryTranslator(BuildXLContext context, List<TranslateDirectoryData> directoriesToTranslate)

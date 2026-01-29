@@ -693,7 +693,7 @@ namespace Test.BuildXL.TestUtilities
         /// <summary>
         /// Whether the EBPF sandbox is requested
         /// </summary>
-        public bool IsUsingEBPFSandbox()
+        public static bool IsUsingEBPFSandbox()
         {
             // CODESYNC: Public/Sdk/Public/Managed/Testing/XUnit/xunit.dsc
             return Environment.GetEnvironmentVariable("EnableLinuxEBPFSandboxForTests") == "1";

@@ -455,6 +455,18 @@ export function test(args: TestArguments) : TestResult {
         }, args);
     }
 
+    // Some tests set the capabilities on its own deployment of the runner before invoking the test process
+    // No need to track this
+    args = Object.merge<TestArguments>({
+        runTestArgs: {
+            unsafeTestRunArguments: {
+                untrackedPaths: [
+                    r`bxl-ebpf-runner`
+                ]
+            }
+        },
+    }, args);
+
     let result = Managed.test(args);
 
     if (!args.skipTestRun) {

@@ -68,7 +68,8 @@ namespace Test.BuildXL.FrontEnd.Lage.IntegrationTests
             // .store/mock-package@1.0.0/index.js
             // .store/mock-package@1.0.0/package.json
             // .store/package.json
-            Assert.Equal(3, reclassifiedObservations.Value);
+            // Plus a directory probe on .store/mock-package@1.0.0 when EBPF is on
+            Assert.Equal(UsingEBPFSandbox? 4 : 3, reclassifiedObservations.Value);
         }
     }
 }

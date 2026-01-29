@@ -77,7 +77,7 @@ jobs:
       cat ./Public/Src/Deployment/npm/package-linux.json
 
       bash bxl.sh --internal --use-adobuildrunner
-      --runner-arg /cacheConfigLogGeneratedConfiguration:true /p:BuildXLForceLaunchEBPFDaemon=0 
+      --runner-arg /cacheConfigLogGeneratedConfiguration:true
       /q:ReleaseLinux /q:DebugLinux "/f:output='/home/subst/Out/Bin/${{ parameters.Flavor }}/npm/*'oroutput='/home/subst/Out/Bin/${{ parameters.Flavor }}/pkgs/*'" "/p:Build.BuildId=0.1.0-${{ parameters.PackageName }}" "/p:[BuildXL.Branding]SourceIdentification=NpmExperimental-$(Build.BuildId)"
     displayName: Build packages
     workingDirectory: /home/subst

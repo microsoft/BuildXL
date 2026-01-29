@@ -36,5 +36,4 @@ jobs:
       continueOnError: true
       displayName: Upload eBPF binaries for validations to consume
 
-    # TODO: /enableLinuxEBPFSandbox- is temporary disabled for this step.
-    buildXLArguments: --minimal "/f:output='*/linux-x64/bxl-ebpf-runner'" /q:ReleaseLinux /q:DebugLinux ${{ parameters.BxlCommonArgs }} /enableLinuxEBPFSandbox-
+    buildXLArguments: --minimal "/f:output='*/linux-x64/bxl-ebpf-runner'" /q:ReleaseLinux /q:DebugLinux ${{ parameters.BxlCommonArgs }}

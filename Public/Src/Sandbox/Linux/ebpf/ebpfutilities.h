@@ -398,6 +398,21 @@ struct
     __uint(max_entries, 1);
 } derefpaths SEC(".maps");
 
+// Map used to temporarily hold the mount corresponding to follow_link calls
+// The map autocreate is disabled by user side when not needed (i.e., on newer kernels where pick_link BTF is available)
+struct
+{
+    __uint(type, BPF_MAP_TYPE_HASH);
+    __uint(key_size, sizeof(u64)); // bpf_get_current_pid_tgid as key -> unique identifier of the task
+    __uint(value_size, sizeof(struct vfsmount*)); 
+    // Max entries set to a reasonably high number to accommodate many concurrent tasks
+    // This maps has a rough size of 1MB. I theory we could use BPF_F_NO_PREALLOC to avoid preallocating memory,
+    // but considering this map is only used in older kernels and is a single instance, we can afford to preallocate 
+    // to favor performance.
+    __uint(max_entries, 1024 * 10);
+} follow_link_mount SEC(".maps");
+
+
 /**
  * Body of the loop used in deref_path_info.
  * This is used instead of defining it directly in the function because depending on the current kernel version

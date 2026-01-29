@@ -228,14 +228,6 @@ function setBxlCmdArgs {
         "/c:$MY_DIR/config.dsc"
     )
 
-    # We need to force the ebpf daemon for tests to run. If --minimal or --vs is specified, do not force it, as the right capabilities may not be set yet.
-    if [[ "${arg_Minimal}" -ne "1" && "${arg_Vs}" -ne "1" ]]; then
-        g_bxlCmdArgs+=(
-            # When running the selfhost, ebpf tests assume the ebpf daemon in running. TODO: remove when interpose can be retired
-            "/p:BuildXLForceLaunchEBPFDaemon=1"
-        )
-    fi
-
     if [[ "${OSTYPE}" == "linux-gnu" ]]; then
         g_bxlCmdArgs+=(
             /enableEvaluationThrottling
@@ -274,13 +266,15 @@ function setBxlCmdArgs {
        "$@"
     )
 
-    # Check for the last occurrence of /EnableLinuxEBPFSandbox (case-insensitive) not followed by a dash
-    # If found, add the EnableLinuxEBPFSandboxForTests property to the bxl command line arguments so tests
-    # can run with the EBPF sandbox enabled.
-    # TODO: this is temporary until we can enable EBPF by default.
+    # We want tests that spawn their own sandbox to follow the same sandbox configuration as the main bxl process.
+    # The ebpf sandbox is enabled by default. So check whether it is explicitly disabled (/EnableLinuxEBPFSandbox- (case-insensitive)).
+    # Set the EnableLinuxEBPFSandboxForTests property accordingly on the bxl command line so tests will honor the sandbox mode.
+    # TODO: this is temporary until we can retire interpose
     last_match=$(echo "${g_bxlCmdArgs[@]}" | grep -io '/EnableLinuxEBPFSandbox[+-]\{0,1\}' | tail -1)
-    if [[ -n "$last_match" && ! "$last_match" =~ - ]]; then
+    if [[ -n "$last_match" && "$last_match" =~ - ]]; then
         # CODESYNC: Public/Sdk/Public/Managed/Testing/XUnit/xunit.dsc
+        g_bxlCmdArgs+=("/p:EnableLinuxEBPFSandboxForTests=0")
+    else
         g_bxlCmdArgs+=("/p:EnableLinuxEBPFSandboxForTests=1")
     fi
 }

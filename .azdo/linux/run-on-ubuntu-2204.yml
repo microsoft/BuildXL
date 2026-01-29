@@ -4,4 +4,5 @@ extends:
   template: /.azdo/linux/pipeline_base.yml@self
   parameters:
     image: ubuntu-22.04-PME-GPT
-    BxlExtraArgs: /p:BUILDXL_FINGERPRINT_SALT=Ubuntu2204
+    # We keep using interpose for Ubuntu 22.04 as test coverage until we can retire the interpose sandbox.
+    BxlExtraArgs: /p:BUILDXL_FINGERPRINT_SALT=Ubuntu2204 /enableLinuxEBPFSandbox-

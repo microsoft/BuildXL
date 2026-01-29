@@ -56,6 +56,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
             bool requiresWindowsOrMacOperatingSystem = false,
             bool requiresWindowsOrLinuxOperatingSystem = false,
             bool requiresLinuxBasedOperatingSystem = false,
+            bool requiresEBPFEnabled = false,
             TestRequirements additionalRequirements = TestRequirements.None)
         {
             var requirements = additionalRequirements;
@@ -68,6 +69,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
             AddRequirement(ref requirements, requiresWindowsOrMacOperatingSystem, TestRequirements.WindowsOrMacOs);
             AddRequirement(ref requirements, requiresWindowsOrLinuxOperatingSystem, TestRequirements.WindowsOrLinuxOs);
             AddRequirement(ref requirements, requiresLinuxBasedOperatingSystem, TestRequirements.LinuxOs);
+            AddRequirement(ref requirements, requiresEBPFEnabled, TestRequirements.EBPFEnabled);
 
             Requirements = requirements;
 
@@ -213,6 +215,22 @@ namespace Test.BuildXL.TestUtilities.Xunit
                     if (!OperatingSystemHelper.IsLinuxOS)
                     {
                         return "Test must be run on Linux OS";
+                    }
+
+                    return null;
+                });
+
+            CheckRequirement(TestRequirements.EBPFEnabled,
+                () =>
+                {
+                    if (!OperatingSystemHelper.IsLinuxOS)
+                    {
+                        return "Test requires EBPF sandboxing, which is only available on Linux";
+                    }
+
+                    if (!BuildXLTestBase.IsUsingEBPFSandbox())
+                    {
+                        return "Test requires EBPF sandboxing to be enabled";
                     }
 
                     return null;

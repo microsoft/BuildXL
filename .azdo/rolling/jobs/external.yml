@@ -177,7 +177,6 @@ jobs:
     parameters:
       CacheNamespace: BuildXL.Linux.External  # TODO - this is the extent of isolation with the internal build we're getting right now / work item #2143786
 
-  # TODO: Enable the /enableLinuxEBPFSandbox option once the eBPF sandbox is available on external LKGs.
   - task: Bash@3
     displayName: Build Linux eBPF Sandbox Binaries
     inputs:
@@ -243,7 +242,6 @@ jobs:
       artifactName: 'Linux-eBPF-External-Binaries'
       targetPath: "$(Build.StagingDirectory)/Linux.eBPF"
 
-  # TODO: Enable the /enableLinuxEBPFSandbox option once the eBPF sandbox is available on external LKGs.
   - task: Bash@3
     displayName: Build LKG
     inputs:
@@ -258,7 +256,6 @@ jobs:
         /logsDirectory:"Out/Logs/Build"
       workingDirectory: /home/subst
 
-  # TODO: Enable the /enableLinuxEBPFSandbox option once the eBPF sandbox is available on external LKGs.
   - task: Bash@3
     displayName: Build Packages with LKG
     inputs:

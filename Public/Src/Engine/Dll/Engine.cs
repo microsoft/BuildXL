@@ -1601,6 +1601,15 @@ namespace BuildXL.Engine
         /// </remarks>
         public BuildXLEngineResult RunForFrontEndTests(LoggingContext loggingContext, EngineState engineState = null)
         {
+            // The graph construction process will spawn a sandboxed process. Make sure we honor EBPF sandboxing settings
+            // from the main config. Our test infra is not well prepped to handle the fact that EBPF is already running,
+            // for the frontend construction, so we just assume the daemon is running (given we checked that already in the
+            // first line of this test).
+            if (Configuration.Sandbox.EnableEBPFLinuxSandbox)
+            {
+                EBPFDaemon.AssumeEBPFDaemonTaskRunningForTesting();
+            }
+
             return DoRunAndVerifyEngineState(loggingContext, engineState, disposeFrontEnd: false);
         }
 
@@ -2936,41 +2945,36 @@ namespace BuildXL.Engine
             // Observe we do this here after the Context was maybe invalidated and a new one was loaded
             // We don't create an ebpf daemon for test instances of the Engine because BuildXL should have already started
             // the daemon.
-            if (TestHooks == null)
+            bool enableEBPF = Configuration.Sandbox.EnableEBPFLinuxSandbox;
+
+            // The EBPF runner needs to have the right capabilities set. This requires sudo rights.
+            if (OperatingSystemHelper.IsUnixOS && enableEBPF)
             {
-                // TODO: remove the forced option when interpose can be retired.
-                bool enableEBPF = Configuration.Sandbox.EnableEBPFLinuxSandbox || EngineEnvironmentSettings.ForceLaunchEBPFDaemon;
-
-                // The EBPF runner needs to have the right capabilities set. This requires sudo rights.
-                if (OperatingSystemHelper.IsUnixOS && enableEBPF)
+                if (!UnixGetCapUtils.TrySetEBPFCapabilitiesIfNeeded(
+                    SandboxConnectionLinuxEBPF.EBPFRunner,
+                    Configuration.Interactive,
+                    out string failure,
+                    () => Logger.Log.EBPFCapabilitiesSudoPrompt(loggingContext),
+                    // Try to set the capabilities with up to 3 retries. We've seen occasional transient failures when setting capabilities.
+                    retries: 3,
+                    (retriesLeft, error) => Logger.Log.EBPFCapabilitiesRetrying(loggingContext, retriesLeft, error)))
                 {
-                    if (!UnixGetCapUtils.TrySetEBPFCapabilitiesIfNeeded(
-                        SandboxConnectionLinuxEBPF.EBPFRunner,
-                        Configuration.Interactive,
-                        out string failure,
-                        () => Logger.Log.EBPFCapabilitiesSudoPrompt(loggingContext),
-                        // Try to set the capabilities with up to 3 retries. We've seen occasional transient failures when setting capabilities.
-                        retries: 3,
-                        (retriesLeft, error) => Logger.Log.EBPFCapabilitiesRetrying(loggingContext, retriesLeft, error)))
-                    {
-                        Logger.Log.CannotSetEBPFCapabilities(loggingContext, failure);
-                        return ConstructScheduleResult.Failure;
-                    }
+                    Logger.Log.CannotSetEBPFCapabilities(loggingContext, failure);
+                    return ConstructScheduleResult.Failure;
                 }
-
-                eBPFDaemonTask = EBPFDaemon.CreateEBPFDaemonTask(
-                    // TODO: remove the forced option when interpose can be retired.
-                    enableEBPF,
-                    Configuration.Layout.ObjectDirectory,
-                    Context.PathTable,
-                    loggingContext,
-                    // The max degree of parallelism is defined by the max number of processes that can run in parallel and require a sandbox. These are regular process
-                    // pips plus light pips.
-                    Configuration.Schedule.MaxLight + Configuration.Schedule.MaxProcesses,
-                    Configuration.Sandbox.LogObservedFileAccesses,
-                    Context.CancellationToken);
             }
-            
+
+            eBPFDaemonTask = EBPFDaemon.CreateEBPFDaemonTask(
+                // TODO: remove the forced option when interpose can be retired.
+                enableEBPF,
+                Configuration.Layout.ObjectDirectory,
+                Context.PathTable,
+                loggingContext,
+                // The max degree of parallelism is defined by the max number of processes that can run in parallel and require a sandbox. These are regular process
+                // pips plus light pips.
+                Configuration.Schedule.MaxLight + Configuration.Schedule.MaxProcesses,
+                Configuration.Sandbox.LogObservedFileAccesses,
+                Context.CancellationToken);
 
             if (Configuration.Engine.ExitOnNewGraph && !reusedGraph)
             {

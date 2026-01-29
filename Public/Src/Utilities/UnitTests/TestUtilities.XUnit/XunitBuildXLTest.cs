@@ -48,8 +48,8 @@ namespace Test.BuildXL.TestUtilities.Xunit
         /// Returns a sandbox connection that is aware of the existence of EBPF and returns it whenever
         /// <see cref="UsingEBPFSandbox"/> holds. TODO: remove when EBPF becomes the default
         /// </summary>
-        public ISandboxConnection GetEBPFAwareSandboxConnection() => GetSandboxConnection(
-            OperatingSystemHelper.IsLinuxOS && UsingEBPFSandbox
+        public static ISandboxConnection GetEBPFAwareSandboxConnection() => GetSandboxConnection(
+            OperatingSystemHelper.IsLinuxOS && IsUsingEBPFSandbox()
                 ? SandboxKind.LinuxEBPF 
                 : SandboxKind.Default);
 

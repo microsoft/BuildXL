@@ -40,6 +40,7 @@ namespace BuildXL.Processes
 
         private static EBPFDaemonTask? s_daemonTask;
         private static readonly object s_lock = new object();
+        private static bool s_daemonAlreadyRunningForTesting = false;
 
         /// <summary>
         /// Creates a task that initializes the EBPF system. This task is intended to be global and will be shared across all processes that use EBPF.
@@ -65,7 +66,13 @@ namespace BuildXL.Processes
 
             lock (s_lock)
             {
-                Contract.Assert(!enableEBPFLinuxSandbox || s_daemonTask == null, "The EBPF daemon task is already running. This should never happen.");
+                Contract.Assert(!enableEBPFLinuxSandbox || s_daemonAlreadyRunningForTesting || s_daemonTask == null, "The EBPF daemon task is already running. This should never happen.");
+
+                // Some tests spawn their own ebpf sandbox. We rely on the daemon already running in thoses cases, which is signaled by AssumeEBPFDaemonTaskRunningForTesting().
+                if (s_daemonAlreadyRunningForTesting)
+                {
+                    return s_daemonTask!;
+                }
 
                 DateTime startTime = DateTime.UtcNow;
                 // This will be disposed when the returns task is disposed.
@@ -131,6 +138,7 @@ namespace BuildXL.Processes
                 if (s_daemonTask == null)
                 {
                     var daemon = new EBPFDaemon();
+                    s_daemonAlreadyRunningForTesting = true;
                     s_daemonTask = new EBPFDaemonTask(daemon, DateTime.UtcNow, Task.FromResult(new Possible<EBPFDaemon>(daemon)), new LoggingContext("EBPFDaemonForTests"), CancellationToken.None);
                 }
             }

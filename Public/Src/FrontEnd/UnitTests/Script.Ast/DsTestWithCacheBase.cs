@@ -25,6 +25,7 @@ using Xunit;
 using Xunit.Abstractions;
 using AssemblyHelper = BuildXL.Utilities.Core.AssemblyHelper;
 using BuildXL.Processes;
+using BuildXL.Utilities.Configuration.Mutable;
 
 namespace Test.DScript.Ast
 {
@@ -120,6 +121,9 @@ namespace Test.DScript.Ast
                                                        DetoursListener = detoursListener,
                                                     })
             {
+                // Make sure we honor EBPF sandboxing settings from the main config.
+                ((SandboxConfiguration)config.Sandbox).EnableEBPFLinuxSandbox = UsingEBPFSandbox;
+
                 engine = CreateEngine(config, appDeployment, testRootDirectory, rememberAllChangedTrackedInputs, verifyEngineTestHooksData);
 
                 // Ignore DX222 for csc.exe being outside of src directory

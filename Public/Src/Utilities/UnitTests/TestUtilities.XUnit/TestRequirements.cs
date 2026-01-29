@@ -76,5 +76,10 @@ namespace Test.BuildXL.TestUtilities.Xunit
         /// Requires running on a Linux OS
         /// </summary>
         LinuxOs = 1 << 12,
+
+        /// <summary>
+        /// Requires EBPF to be enabled on Linux
+        /// </summary>
+        EBPFEnabled = 1 << 13,
     }
 }

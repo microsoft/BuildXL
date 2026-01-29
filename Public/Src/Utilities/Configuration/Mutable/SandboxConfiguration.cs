@@ -53,8 +53,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             UnconditionallyEnableLinuxPTraceSandbox = false;
             // TODO: flip the default once we have verified this is not a breaking change
             ForceAddExecutionPermission = true;
-            // TODO: flip the default once we are confident enough
-            EnableEBPFLinuxSandbox = false;
+            EnableEBPFLinuxSandbox = OperatingSystemHelper.IsLinuxOS;
         }
 
         /// <nodoc />

@@ -30,6 +30,7 @@ using Xunit;
 using Xunit.Abstractions;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 using InitializationLogger = global::BuildXL.FrontEnd.Core.Tracing.Logger;
+using BuildXL.Processes;
 
 namespace Test.BuildXL.Engine
 {
@@ -471,9 +472,15 @@ function execute(args: Transformer.ExecuteArguments): Transformer.ExecuteResult 
                 TestHooks.FrontEndEngineAbstraction = new BoxRef<FrontEndEngineAbstraction>();
             }
 
+            // Make sure we honor EBPF sandboxing settings from the main config.
+            ((SandboxConfiguration)Configuration.Sandbox).EnableEBPFLinuxSandbox = UsingEBPFSandbox;
+            if (Configuration.Sandbox.EnableEBPFLinuxSandbox)
+            {
+                EBPFDaemon.AssumeEBPFDaemonTaskRunningForTesting();
+            }
+
             var engine = CreateEngine(rememberAllChangedTrackedInputs);
             var result = engine.Run(LoggingContext, engineState: engineState);
-
 
             var assertMarker =  testMarker == null ? string.Empty : " (" + testMarker + ")";
             // Little bit more verbose but the xunit log will be much clearer about what the expected outcome is.

@@ -55,7 +55,6 @@ jobs:
         /logsDirectory:"Out/Logs/Bootstrap"
         /forceAddExecutionPermission-
         ${{ parameters.BxlCommonArgs }}
-        /enableLinuxEBPFSandbox-
       displayName: Build
       env:
         AdoBuildRunnerInvocationKey: BuildExternal

@@ -20,7 +20,7 @@ using BuildXL.Native.IO;
 
 namespace Test.BuildXL.Processes
 {
-    [TestClassIfSupported(requiresLinuxBasedOperatingSystem: true)]
+    [TestClassIfSupported(requiresEBPFEnabled: true)]
     public class EBPFSandboxProcessTest : SandboxedProcessTestBase
     {
         public EBPFSandboxProcessTest(ITestOutputHelper output) : base(output)

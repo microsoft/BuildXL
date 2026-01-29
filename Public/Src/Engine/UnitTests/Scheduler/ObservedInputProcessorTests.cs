@@ -739,7 +739,7 @@ namespace Test.BuildXL.Scheduler
                         context.PathTable,
                         AbsolutePath.Create(context.PathTable, OperatingSystemHelper.IsWindowsOS ? "C:\\foo\\config.dsc" : "/Users/foo/config.dsc"));
 
-                    DummyPipExecutionEnvironment dummy = new DummyPipExecutionEnvironment(loggingContext, context, config, sandboxConnection: GetSandboxConnection());
+                    DummyPipExecutionEnvironment dummy = new DummyPipExecutionEnvironment(loggingContext, context, config, sandboxConnection: GetEBPFAwareSandboxConnection());
 
                     State = new PipExecutionState.PipScopeState(
                         new PipExecutionState(
@@ -1245,7 +1245,7 @@ namespace Test.BuildXL.Scheduler
                 context.PathTable,
                 AbsolutePath.Create(context.PathTable, Path.Combine(TestOutputDirectory, "config.dc")));
 
-            DummyPipExecutionEnvironment dummy = new DummyPipExecutionEnvironment(LoggingContext, context, config, sandboxConnection: GetSandboxConnection());
+            DummyPipExecutionEnvironment dummy = new DummyPipExecutionEnvironment(LoggingContext, context, config, sandboxConnection: GetEBPFAwareSandboxConnection());
             DirectoryMembershipFingerprinter fingerprinter = new DirectoryMembershipFingerprinter(LoggingContext, context);
 
             DirectoryMembershipFingerprinterRule excludeFiles =

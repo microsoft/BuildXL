@@ -1355,11 +1355,15 @@ int SetAutoLoad(struct sandbox_bpf *skel) {
     int currentVersion = KERNEL_VERSION(versions[0], versions[1], versions[2]);
     if (currentVersion < KERNEL_VERSION(6, 8, 0)) {
         // Enable auto loading for programs that are used on older kernels
+        bpf_program__set_autoload(skel->progs.step_into_entry, true);
         bpf_program__set_autoload(skel->progs.step_into_exit, true);
+        bpf_program__set_autoload(skel->progs.security_inode_follow_link_exit, true);
     }
     else {
         // Enable auto loading for programs that are used on newer kernels
         bpf_program__set_autoload(skel->progs.pick_link_exit, true);
+        // This map is not used in this case, disable its autoloading to avoid loading unnecessary maps
+        bpf_map__set_autocreate(skel->maps.follow_link_mount, false);
     }
 
     return 0;

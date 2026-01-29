@@ -1321,7 +1321,7 @@ namespace Test.BuildXL.Scheduler
                 testHooks: testHooks,
                 pipSpecificPropertiesConfig: pipSpecificPropertiesConfig);
 
-            bool success = m_scheduler.InitForOrchestrator(LoggingContext, filter);
+            bool success = m_scheduler.InitForOrchestrator(LoggingContext, filter, sandboxConnection: GetEBPFAwareSandboxConnection());
             XAssert.IsTrue(success);
 
             m_scheduler.Start(LoggingContext);
@@ -2909,7 +2909,7 @@ namespace Test.BuildXL.Scheduler
                 testHooks: new SchedulerTestHooks(),
                 pipSpecificPropertiesConfig: pipSpecificPropertiesConfig);
 
-            newScheduler.InitForOrchestrator(LoggingContext, filter);
+            newScheduler.InitForOrchestrator(LoggingContext, filter, sandboxConnection: GetEBPFAwareSandboxConnection());
 
             testQueue.Unpause();
             newScheduler.Start(LoggingContext);

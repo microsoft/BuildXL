@@ -1,3 +1,8 @@
+parameters:
+- name: experimentalFlag
+  type: string
+  default: ''
+
 jobs:
 # Builds eBPF Sandbox binaries to be consumed by the next step.
 # This is necessary because building the eBPF sandbox requires kernel 6.6+
@@ -147,6 +152,7 @@ jobs:
         /q:DebugLinuxNet9
         /q:ReleaseLinuxNet9
         "/f:output='/home/subst/Out/Bin/*'ortag='test'"
+        ${{ parameters.experimentalFlag }}
       workingDirectory: /home/subst
     env:
       PAT1esSharedAssets: $(BuildXL-Pipeline-AccessToken)

@@ -48,13 +48,15 @@ extends:
       jobs:
       - template: /.azdo/rolling/jobs/cb.yml@self
         parameters:
-          isExperimentalDeployment: true
+          experimentalFlag: '/p:[Sdk.BuildXL]experimentalDeployment=1'
     
     - stage: LinuxBuild
       displayName: Linux build
       dependsOn: Setup
       jobs:
       - template: /.azdo/rolling/jobs/linux.yml@self
+        parameters:
+          experimentalFlag: '/p:[Sdk.BuildXL]experimentalDeployment=1'
 
     - stage: Publish
       displayName: Publish artifacts and NuGet packages

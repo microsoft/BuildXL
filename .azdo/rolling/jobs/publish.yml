@@ -187,8 +187,8 @@ jobs:
     inputs:
       targetType: 'inline'
       script: |
-        $windowsPkg = "$(Agent.TempDirectory)\DownloadedDrop\release\pkgs\BuildXL.win-x64.$(Build.BuildNumber).nupkg"
-        $linuxPkg = "$(Agent.TempDirectory)\DownloadedDrop\release\pkgs\BuildXL.linux-x64.$(Build.BuildNumber).nupkg"
+        $windowsPkg = "$(Agent.TempDirectory)\DownloadedDrop\release\pkgs\${{ parameters.packagePrefix }}.win-x64.$(Build.BuildNumber).nupkg"
+        $linuxPkg = "$(Agent.TempDirectory)\DownloadedDrop\release\pkgs\${{ parameters.packagePrefix }}.linux-x64.$(Build.BuildNumber).nupkg"
         $destinationDir = "$(LargePackagesStagingDir)"
 
         New-Item -ItemType Directory -Path $destinationDir -Force

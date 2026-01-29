@@ -211,19 +211,20 @@ jobs:
     condition: and(succeeded(), gt(variables['System.JobAttempt'], 1))
 
   # Set NuGet endpoints for the feeds we are going to push to. The NuGet push tasks are injected by 1ESPT using the 'output: nuget' context.
-  - template: /.azdo/common/set-nuget-endpoint.yml
-    parameters:
-      NuGetServiceConnectionId: 'bf3972a0-77c4-4dd8-8f89-cf4399bc0658'
-      NuGetServiceConnectionName: 'mseng-Domino-BuildXL-1ESSharedAssets_BuildXL.Internal'
-      AccessToken: $(BuildXL-Pipeline-AccessToken)
-      condition: or(succeeded(), eq(variables['IsRetryRun'], true))
+  - ${{ if ne(parameters.packagePrefix, 'BuildXL-experimental') }}: # Only needed for non-experimental builds to push to feeds outside of mseng
+    - template: /.azdo/common/set-nuget-endpoint.yml
+      parameters:
+        NuGetServiceConnectionId: 'bf3972a0-77c4-4dd8-8f89-cf4399bc0658'
+        NuGetServiceConnectionName: 'mseng-Domino-BuildXL-1ESSharedAssets_BuildXL.Internal'
+        AccessToken: $(BuildXL-Pipeline-AccessToken)
+        condition: or(succeeded(), eq(variables['IsRetryRun'], true))
 
-  - template: /.azdo/common/set-nuget-endpoint.yml
-    parameters:
-      NuGetServiceConnectionId: 'af9cb8db-5f2f-4b3e-b436-e1ff62614888'
-      NuGetServiceConnectionName: 'mseng-Domino-BuildXL-1ESSharedAssets_BuildXL'
-      AccessToken: $(BuildXL-Pipeline-AccessToken)
-      condition: or(succeeded(), eq(variables['IsRetryRun'], true))
+    - template: /.azdo/common/set-nuget-endpoint.yml
+      parameters:
+        NuGetServiceConnectionId: 'af9cb8db-5f2f-4b3e-b436-e1ff62614888'
+        NuGetServiceConnectionName: 'mseng-Domino-BuildXL-1ESSharedAssets_BuildXL'
+        AccessToken: $(BuildXL-Pipeline-AccessToken)
+        condition: or(succeeded(), eq(variables['IsRetryRun'], true))
 
 - ${{ if eq(parameters.isRollingBuild, true) }}:
   - job: GitHubForcePush

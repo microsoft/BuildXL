@@ -319,32 +319,38 @@ DWORD DetouredProcessInjector::RemoteInjectProcess(HANDLE processHandle, bool in
     LARGE_INTEGER counter = { { 0 } };
     long long unsigned timeValue = QueryPerformanceCounter(&counter) ? counter.QuadPart : GetTickCount64();
 
-    // The event name is 'Global\xxxxxxxx-yyyyyyyyyyyyyyyy-z', where:
-    // xxxxxxxx         - process id
+    // CODESYNC: Public/Src/Engine/Processes/Internal/ProcessTreeContext.cs
+    // The event name is 'Global\wwwwwwww-xxxxxxxx-yyyyyyyy-z', where:
+    // wwwwwwww         - child process id
+    // xxxxxxxx         - current process id
     // yyyyyyyyyyyyyyyy - timer part
     // z                - since we need two events -- success ends with S and failure ends with F.
-    // The length of the result is 7 characters for the head (Global\), 8 hex digits for the id,
-    // 16 hex digits for the tick count, one character for F OR S, and two characters for the dashes.
-    // And the null character makes 7 + 8 + 1 + 16 + 1 + 1 + 1 = 35.
-    wchar_t nameSuccess[35];
+    // The length of the result is 7 characters for the head (Global\),
+    // 8 hex digits for the child process id,
+    // 8 hex digits for the current process id,
+    // 16 hex digits for the tick count,
+    // one character for F OR S,
+    // and three characters for the dashes.
+    // And the null character makes 7 + 8 + 1 + 8 + 1 + 16 + 1 + 1 + 1 = 44.
+    wchar_t nameSuccess[44];
 
-    int retPrintf = swprintf_s(nameSuccess, 35, L"Global\\%08lx-%016llx-S", processId, timeValue);
+    int retPrintf = swprintf_s(nameSuccess, 44, L"Global\\%08lx-%08lx-%016llx-S", processId, GetCurrentProcessId(), timeValue);
     UNREFERENCED_PARAMETER(retPrintf);
     assert(retPrintf != -1);
 
-    wchar_t nameFailure[35];
-    wcscpy_s(nameFailure, 35, nameSuccess);
+    wchar_t nameFailure[44];
+    wcscpy_s(nameFailure, 44, nameSuccess);
     nameFailure[33] = L'F';
     
     // The remote injection request contains:
-    // - the success event name (34 characters)
-    // - the failure event name (34 characters)
+    // - the success event name (44 characters)
+    // - the failure event name (44 characters)
     // - True when inherited handles, False otherwise (5 character)
     // - process id as a hex number (8 characters)
     // The fields are separated by commas and terminated (<eventSuccess>,<eventFailure>,<True/False>,<processID>\r\n),
-    // making the total length 34+1+34+1+5+1+8+4=88 characters with the terminating null.
-    wchar_t request[88];
-    int charsWritten = swprintf_s(request, 88, L"%s,%s,%s,%08lx\r\n", nameSuccess, nameFailure, inheritedHandles ? L"True" : L"False", processId);
+    // making the total length 44+1+44+1+5+1+8+4=108 characters with the terminating null.
+    wchar_t request[108];
+    int charsWritten = swprintf_s(request, 108, L"%s,%s,%s,%08lx\r\n", nameSuccess, nameFailure, inheritedHandles ? L"True" : L"False", processId);
 
     assert(charsWritten != -1);
 

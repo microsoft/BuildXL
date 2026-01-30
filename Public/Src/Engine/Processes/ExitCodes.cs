@@ -47,5 +47,18 @@ namespace BuildXL.Processes
         /// The decimal representation is 3131746989
         /// </remarks>
         public const uint UninitializedProcessExitCode = 0xBAAAAAAD;
+
+        /// <summary>
+        /// Exit code assigned by BuildXL when a process exit code has not been initialized.
+        /// </summary>
+        /// <remarks>
+        /// This is the signed integer version of the exit code above.
+        /// </remarks>
+        public const int UninitializedIntProcessExitCode = -0xBAAAD;
+
+        /// <summary>
+        /// Exit code assigned by BuildXL when a process is still running when we try to get its exit code
+        /// </summary>
+        public const int Running = 27321977;
     }
 }

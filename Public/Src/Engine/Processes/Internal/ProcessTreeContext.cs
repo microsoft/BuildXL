@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.IO.Pipes;
@@ -325,7 +326,38 @@ namespace BuildXL.Processes
             {
                 // Need to get error code because when `WaitHandleCannotBeOpenedException` is thrown, it is not clear if the event does not exist, or if the name is invalid, or if it is inaccessible.
                 int errorCode = Marshal.GetLastWin32Error();
-                return new Failure<string>($"Failed to open event '{eventName}' after multiple delays with error code '{errorCode}': {ex}");
+
+                // CODESYNC: Public/Src/Sandbox/Windows/DetoursServices/DetouredProcessInjector.cpp
+                // The event name embeds the process id of the parent and child processes.
+                // Lets check if they are alive here before throwing
+                // Format: Global\wwwwwwww-xxxxxxxx-yyyyyyyyyyyyyyyy-z
+                var parts = eventName.Substring(7).Split('-');
+                var parentProcessExitCode = ExitCodes.UninitializedIntProcessExitCode;
+                var childProcessExitCode = ExitCodes.UninitializedIntProcessExitCode;
+                int childPid = -1;
+                int parentPid = -1;
+
+                if (parts.Length >= 3
+                    && int.TryParse(parts[0], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out childPid)
+                    && int.TryParse(parts[1], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out parentPid))
+                {
+                    try
+                    {
+                        var parent = Process.GetProcessById(parentPid);
+                        parentProcessExitCode = parent.HasExited ? parent.ExitCode : ExitCodes.Running;
+                        var child = Process.GetProcessById(childPid);
+                        childProcessExitCode = child.HasExited ? child.ExitCode : ExitCodes.Running;
+                    }
+                    catch (Exception)
+#pragma warning disable ERP022 // Unobserved exception in a generic exception handler
+                    {
+                        // Best effort. Ignore exceptions here.
+                    }
+#pragma warning restore ERP022 // Unobserved exception in a generic exception handler
+
+                }
+
+                return new Failure<string>($"Failed to open event '{eventName}' for parent process {parentPid}:{parentProcessExitCode} and child process {childPid}:{childProcessExitCode} after multiple delays with error code '{errorCode}': {ex}");
             }
         }
 

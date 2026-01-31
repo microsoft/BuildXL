@@ -754,17 +754,6 @@ namespace BuildXL.Scheduler
         }
 
         /// <summary>
-        /// Wrapper for <see cref="IQueryablePipDependencyGraph.TryFindProducer"/> that tracks <see cref="FileMonitoringViolationAnalysisCounter.ViolationClassificationGraphQueryDuration"/>
-        /// </summary>
-        private Pip TryFindProducer(AbsolutePath path, VersionDisposition versionDisposition, DependencyOrderingFilter? orderingFilter = null)
-        {
-            using (m_counters.StartStopwatch(FileMonitoringViolationAnalysisCounter.ViolationClassificationGraphQueryDuration))
-            {
-                return m_graph.TryFindProducer(path, versionDisposition, orderingFilter);
-            }
-        }
-
-        /// <summary>
         /// Reports violations for shared opaque directories
         /// </summary>
         /// <remarks>
@@ -984,7 +973,7 @@ namespace BuildXL.Scheduler
 
             // Now look for a static one. Any pip statically producing this file, regardless of the scheduled order,
             // is considered a double write violation
-            var maybeProducer = TryFindProducer(access.Path, VersionDisposition.Latest);
+            var maybeProducer = m_graph.TryFindProducer(access.Path, VersionDisposition.Latest);
 
             if (maybeProducer != null && maybeProducer.PipId != pip.PipId)
             {
@@ -1443,7 +1432,7 @@ namespace BuildXL.Scheduler
                 var undeclaredRead = undeclaredReadAndType.Key;
                 // We look for a static writer of the file. Any pip statically producing this file, regardless of the scheduled order,
                 // violates the assumption that undeclared reads should always happen against source files
-                var maybeProducer = TryFindProducer(undeclaredRead, VersionDisposition.Latest);
+                var maybeProducer = m_graph.TryFindProducer(undeclaredRead, VersionDisposition.Latest);
 
                 if (maybeProducer != null && maybeProducer.PipType != PipType.HashSourceFile)
                 {
@@ -1706,7 +1695,7 @@ namespace BuildXL.Scheduler
                         // DoubleWrite:
                         //      This pip has performed a write. If there is a pip that *could* have legitimately written the
                         //      file beforehand (perhaps not in this execution), we say this pip has performed a 'double write' on the file.
-                        Pip maybeProducer = TryFindProducer(
+                        Pip maybeProducer = m_graph.TryFindProducer(
                             violation.Path,
                             VersionDisposition.Latest,
                             new DependencyOrderingFilter(DependencyOrderingFilterType.PossiblyPrecedingInWallTime, pip));
@@ -1824,7 +1813,7 @@ namespace BuildXL.Scheduler
                         // ReadRace:
                         //      This pip has performed a read. If there is a pip that *could* have legitimately written the
                         //      file *concurrently with* this read (perhaps not in this execution), this was a race.
-                        Pip maybeConcurrentProducer = TryFindProducer(
+                        Pip maybeConcurrentProducer = m_graph.TryFindProducer(
                             violation.Path,
                             VersionDisposition.Earliest,
                             new DependencyOrderingFilter(DependencyOrderingFilterType.Concurrent, pip));
@@ -1851,7 +1840,7 @@ namespace BuildXL.Scheduler
                         //      The read file doesn't have a concurrent producer. It therefore has (a) a preceding producer, (b) a subsequent producer, or (c) no producer.
                         //      In the event of (a), we have an UndeclaredOrderedRead - the read is well-ordered but wasn't declared. That class of error is particularly
                         //      relevant to MLAM and distributed builds, which reserve the right to not materialize all transitive inputs of a process.
-                        Pip maybePrecedingProducer = TryFindProducer(
+                        Pip maybePrecedingProducer = m_graph.TryFindProducer(
                             violation.Path,
                             VersionDisposition.Earliest,
                             new DependencyOrderingFilter(DependencyOrderingFilterType.OrderedBefore, pip));
@@ -1875,7 +1864,7 @@ namespace BuildXL.Scheduler
                         }
 
                         // No preceding producer; check for a subsequent producer (with no DependencyOrderingFilter).
-                        Pip maybeSubsequentProducer = TryFindProducer(
+                        Pip maybeSubsequentProducer = m_graph.TryFindProducer(
                             violation.Path,
                             VersionDisposition.Latest);
 

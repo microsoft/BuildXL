@@ -11,13 +11,7 @@ namespace BuildXL.Scheduler
     public enum FileMonitoringViolationAnalysisCounter
     {
         /// <summary>
-        /// Elapsed time querying the pip graph (reachability checks, etc.) to classify violations.
-        /// </summary>
-        [CounterType(CounterType.Stopwatch)]
-        ViolationClassificationGraphQueryDuration,
-
-        /// <summary>
-        /// Elapsed time for analyzing pip violation. This duration subsumes <see cref="ViolationClassificationGraphQueryDuration" />.
+        /// Elapsed time for analyzing pip violation.
         /// </summary>
         [CounterType(CounterType.Stopwatch)]
         AnalyzePipViolationsDuration,

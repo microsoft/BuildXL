@@ -30,7 +30,7 @@ namespace Test.BuildXL.Scheduler.Utils
         public CounterCollection<FileMonitoringViolationAnalysisCounter> Counters => m_counters;
 
         /// <inheritdoc />
-        public bool AnalyzeDynamicViolations(
+        public bool AnalyzeDynamicViolationsOnCacheLookup(
             Process pip,
             [AllowNull] IReadOnlyCollection<(DirectoryArtifact, ReadOnlyArray<FileArtifactWithAttributes>)> exclusiveOpaqueDirectoryContent,
             [AllowNull] IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> sharedOpaqueDirectoryWriteAccesses,

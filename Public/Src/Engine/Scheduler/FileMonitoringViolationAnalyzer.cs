@@ -412,7 +412,15 @@ namespace BuildXL.Scheduler
                 }
 
                 var dynamicViolations = ReportDynamicViolations(
-                    pip, exclusiveOpaqueDirectoryContent, sharedOpaqueDirectoryWriteAccesses, allowedUndeclaredReads, dynamicObservations, outputArtifactInfo, allowedDoubleWriteViolations, fileAccessesBeforeFirstUndeclaredRewrite);
+                    pip, 
+                    exclusiveOpaqueDirectoryContent, 
+                    sharedOpaqueDirectoryWriteAccesses, 
+                    allowedUndeclaredReads, 
+                    dynamicObservations, 
+                    outputArtifactInfo, 
+                    allowedDoubleWriteViolations, 
+                    fileAccessesBeforeFirstUndeclaredRewrite, 
+                    isCacheLookup: false);
                 allowedSameContentViolations = new ReadOnlyDictionary<FileArtifact, (FileMaterializationInfo, ReportedViolation)>(allowedDoubleWriteViolations);
 
                 PopulateErrorsAndWarnings(dynamicViolations, errorPaths, warningPaths);
@@ -538,7 +546,7 @@ namespace BuildXL.Scheduler
         }
 
         /// <inheritdoc />
-        public bool AnalyzeDynamicViolations(
+        public bool AnalyzeDynamicViolationsOnCacheLookup(
             Process pip,
             IReadOnlyCollection<(DirectoryArtifact, ReadOnlyArray<FileArtifactWithAttributes>)> exclusiveOpaqueDirectoryContent,
             [AllowNull] IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> sharedOpaqueDirectoryWriteAccesses,
@@ -565,7 +573,8 @@ namespace BuildXL.Scheduler
                     // We don't need to collect allowed same content double writes here since this is used in the cache replay scenario only, when there is no convergence
                     allowedDoubleWriteViolations: null,
                     // We don't roundtrip the file accesses before first undeclared read.
-                    fileAccessesBeforeFirstUndeclaredRewrite: CollectionUtilities.EmptyDictionary<AbsolutePath, RequestedAccess>());
+                    fileAccessesBeforeFirstUndeclaredRewrite: CollectionUtilities.EmptyDictionary<AbsolutePath, RequestedAccess>(),
+                    isCacheLookup: true);
 
                 PopulateErrorsAndWarnings(dynamicViolations, errorPaths, warningPaths);
 
@@ -583,7 +592,8 @@ namespace BuildXL.Scheduler
             [AllowNull] IReadOnlyCollection<(AbsolutePath Path, DynamicObservationKind Kind)> dynamicObservations,
             IReadOnlyDictionary<FileArtifact, FileMaterializationInfo> outputArtifactInfo,
             [AllowNull] Dictionary<FileArtifact, (FileMaterializationInfo fileMaterializationInfo, ReportedViolation reportedViolation)> allowedDoubleWriteViolations,
-            IReadOnlyDictionary<AbsolutePath, RequestedAccess> fileAccessesBeforeFirstUndeclaredRewrite)
+            IReadOnlyDictionary<AbsolutePath, RequestedAccess> fileAccessesBeforeFirstUndeclaredRewrite,
+            bool isCacheLookup)
         {
             List<ReportedViolation> dynamicViolations = new List<ReportedViolation>();
             var absentPathProbesUnderOutputDirectories = dynamicObservations?
@@ -603,7 +613,7 @@ namespace BuildXL.Scheduler
 
             if (allowedUndeclaredReads?.Count > 0)
             {
-                ReportAllowedUndeclaredReadViolations(pip, allowedUndeclaredReads, dynamicViolations, allowedDoubleWriteViolations);
+                ReportAllowedUndeclaredReadViolations(pip, allowedUndeclaredReads, dynamicViolations, allowedDoubleWriteViolations, isCacheLookup);
             }
 
             if (absentPathProbesUnderOutputDirectories?.Count > 0)
@@ -1392,24 +1402,31 @@ namespace BuildXL.Scheduler
             Process pip,
             IReadOnlyDictionary<AbsolutePath, ObservedInputType> allowedUndeclaredReads,
             List<ReportedViolation> reportedViolations,
-            [AllowNull] Dictionary<FileArtifact, (FileMaterializationInfo fileMaterializationInfo, ReportedViolation reportedViolation)> allowedDoubleWriteViolations)
+            [AllowNull] Dictionary<FileArtifact, (FileMaterializationInfo fileMaterializationInfo, ReportedViolation reportedViolation)> allowedDoubleWriteViolations,
+            bool isCacheLookup)
         {
+            // We only need to perform the undeclared read restriction check if the pip has undeclared source reads restricted and this is not a cache lookup
+            // Observe that the fact of whether a DFA is emitted due to this check is only defined by the pip configuration and its accesses and does not depend on the behavior of
+            // other pips of the build. The pip configuration at this respect is being computed as part of the weak fingerprint. Therefore, if the pip was already cached,
+            // it means this check passed we don't need to re-check it.
+            bool performUndeclaredReadRestrictedCheck = pip.AreUndeclaredSourceReadsRestricted && !isCacheLookup;
+
             // If undeclared reads are restricted, let's build the collection of allowed scopes, paths and regexes for this pip
-            using var allowedScopesWrapper = pip.AreUndeclaredSourceReadsRestricted
+            using var allowedScopesWrapper = performUndeclaredReadRestrictedCheck
                 ? (PooledObjectWrapper<List<AbsolutePath>>?) Pools.AbsolutePathListPool.GetInstance() 
                 : null;
             var allowedScopes = allowedScopesWrapper?.Instance;
 
-            using var allowedPathsWrapper = pip.AreUndeclaredSourceReadsRestricted
+            using var allowedPathsWrapper = performUndeclaredReadRestrictedCheck
                 ? (PooledObjectWrapper<List<AbsolutePath>>?)Pools.AbsolutePathListPool.GetInstance()
                 : null;
             var allowedPaths = allowedPathsWrapper?.Instance;
 
-            using var allowedRegexesWrapper = pip.AreUndeclaredSourceReadsRestricted
+            using var allowedRegexesWrapper = performUndeclaredReadRestrictedCheck
                 ? (PooledObjectWrapper<List<Regex>>?)SchedulerPools.RegexList.GetInstance()
                 : null;
             var allowedRegexes = allowedRegexesWrapper?.Instance;
-            if (pip.AreUndeclaredSourceReadsRestricted)
+            if (performUndeclaredReadRestrictedCheck)
             {
                 // In addition to the explicit allowed scopes/paths configured on the pip, any untracked file or directory naturally applies to the allow list
                 allowedScopes.AddRange(pip.AllowedUndeclaredSourceReadScopes);
@@ -1509,7 +1526,7 @@ namespace BuildXL.Scheduler
                 var undeclaredReadType = undeclaredReadAndType.Value;
 
                 // For restricted reads, we only care about the ones that would have needed a declaration if undeclared reads were off. So that ends up being file reads/existing file probes.
-                if (pip.AreUndeclaredSourceReadsRestricted && (undeclaredReadType == ObservedInputType.FileContentRead || undeclaredReadType == ObservedInputType.ExistingFileProbe))
+                if (performUndeclaredReadRestrictedCheck && (undeclaredReadType == ObservedInputType.FileContentRead || undeclaredReadType == ObservedInputType.ExistingFileProbe))
                 {
                     // If undeclared reads are restricted, let's see whether the undeclared read falls under any of the allowed scopes
                     var canRead = allowedScopes.FirstOrDefault(allowedUndeclaredSourceReadScope 

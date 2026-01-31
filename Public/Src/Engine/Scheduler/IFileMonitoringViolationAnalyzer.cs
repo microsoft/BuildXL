@@ -44,9 +44,9 @@ namespace BuildXL.Scheduler
             out IReadOnlyDictionary<FileArtifact, (FileMaterializationInfo, ReportedViolation)> allowedSameContentViolations);
 
         /// <summary>
-        /// Analyzes all dynamic violations. This is useful when replaying a pip from the cache, since otherwise some violations may not be seen.
+        /// Analyzes all dynamic violations when replaying a pip from the cache, since otherwise some violations may not be seen.
         /// </summary>
-        bool AnalyzeDynamicViolations(
+        bool AnalyzeDynamicViolationsOnCacheLookup(
             Process pip,
             [AllowNull] IReadOnlyCollection<(DirectoryArtifact, ReadOnlyArray<FileArtifactWithAttributes>)> exclusiveOpaqueDirectoryContent,
             [AllowNull] IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> sharedOpaqueDirectoryWriteAccesses,

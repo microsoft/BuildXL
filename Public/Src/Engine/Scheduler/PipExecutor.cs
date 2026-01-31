@@ -1416,7 +1416,7 @@ namespace BuildXL.Scheduler
                     var exclusiveOpaqueContent = executionResult.DirectoryOutputs.Where(directoryArtifactWithContent => !directoryArtifactWithContent.directoryArtifact.IsSharedOpaque).ToReadOnlyArray();
 
                     if ((executionResult.SharedDynamicDirectoryWriteAccesses?.Count > 0 || executionResult.AllowedUndeclaredReads?.Count > 0 || executionResult.DynamicObservations.Length > 0 || exclusiveOpaqueContent.Length > 0)
-                        && !environment.FileMonitoringViolationAnalyzer.AnalyzeDynamicViolations(
+                        && !environment.FileMonitoringViolationAnalyzer.AnalyzeDynamicViolationsOnCacheLookup(
                                 pip,
                                 exclusiveOpaqueContent,
                                 executionResult.SharedDynamicDirectoryWriteAccesses,

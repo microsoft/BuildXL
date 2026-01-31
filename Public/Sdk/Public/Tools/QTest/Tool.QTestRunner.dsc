@@ -31,7 +31,9 @@ export const qTestTool: Transformer.ToolDefinition = {
           d`${Context.getMount("LocalAppData").path}`,
           // To ensure that dmps are generated during crashes, QTest now includes procdmp.exe
           // However, this tool reads dbghelp.dll located in the following directory in CloudBuild machines
-          d`C:/Debuggers`
+          d`C:/Debuggers`,
+          // QTest writes files to the SRM directory at runtime. Likely related to the PublishSingleFile on the QTest executable.
+          d`${Context.getMount("BuildEnginePath").path}/Sdk/Sdk.QTest/bin/SRM`,
         ]
       : [
           d`/tmp/.dotnet/shm/`,
@@ -477,6 +479,9 @@ export function runQTest(args: QTestArguments): Result {
             // QTest is probing the (symlinked on Windows) build engine directory
             Context.getBuildEngineDirectory(),
         ],
+        // Untracked scopes are here in addition to the ToolDefinition because the QTestRunner allows passing in an externally
+        // defined ToolDefinition instead of using the built-in qTestTool. In that case, we need to make sure that these scopes
+        // are still untracked.
         untrackedScopes: [
             // Untracking Recyclebin here to primarily unblock user scenarios that
             // deal with soft-delete and restoration of files from recycle bin.
@@ -487,9 +492,9 @@ export function runQTest(args: QTestArguments): Result {
             ...addIf(isJSProject, logDir),
             // To ensure that dmps are generated during crashes, QTest now includes procdmp.exe
             // However, this tool reads dbghelp.dll located in the following directory in CloudBuild machines
-            // This should technically be part of the tool definition, but we want to make sure
-            // that this scope does not get overridden when customers override qtesttool.
-            d`C:/Debuggers`
+            d`C:/Debuggers`,
+            // QTest writes files to the SRM directory at runtime. Likely related to the PublishSingleFile on the QTest executable.
+            d`${Context.getMount("BuildEnginePath").path}/Sdk/Sdk.QTest/bin/SRM`,
         ],
         requireGlobalDependencies: true,
         passThroughEnvironmentVariables: [

@@ -65,17 +65,17 @@ namespace AdoBuildRunner.Utilties
             }
         }
 
-        internal static ValueTask<OverridesConfiguration?> DeserializeOverrides(string path, ILogger logger)
+        internal static async ValueTask<OverridesConfiguration?> DeserializeOverrides(string path, ILogger logger)
         {
             try
             {
                 using var stream = File.OpenRead(path);
-                return JsonSerializer.DeserializeAsync<OverridesConfiguration?>(stream, s_jsonSerializerOptions);
+                return await JsonSerializer.DeserializeAsync<OverridesConfiguration?>(stream, s_jsonSerializerOptions);
             }
             catch (Exception e)
             {
                 logger.Warning($"Exception thrown while deserializing AdoBuildRunner overrides. Continuing build without overrides. Details: {e}");
-                return ValueTask.FromResult<OverridesConfiguration?>(null);
+                return null;
             }
         }
 

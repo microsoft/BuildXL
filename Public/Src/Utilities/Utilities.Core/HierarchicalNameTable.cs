@@ -1096,6 +1096,60 @@ namespace BuildXL.Utilities.Core
         }
 
         /// <summary>
+        /// Determines whether a name is within any of the given non-empty name hierarchies.
+        /// </summary>
+        /// <remarks>
+        /// This method is thread-safe without the need for any locking as long as the set of potential containers
+        /// is thread-safe for reads
+        /// </remarks>
+        public bool IsWithin(IReadOnlySet<HierarchicalNameId> potentialContainers, HierarchicalNameId value)
+        {
+            Contract.Requires(IsValid, "This Table has been invalidated. Likely you should be using a newly created one.");
+            Contract.RequiresNotNull(potentialContainers);
+            Contract.Requires(value.IsValid);
+            
+            if (potentialContainers.Count == 0)
+            {
+                return false;
+            }
+
+            // Compute the minimum index of the potential containers to allow early out
+            int minIndex = int.MaxValue;
+            foreach (var container in potentialContainers)
+            {
+                if (container.Index < minIndex)
+                {
+                    minIndex = container.Index;
+                }
+            }
+
+            // Parent paths must be added before child paths. Therefore if the minimum index of the potential containers
+            // is greater than the index of the value, we can bail out early, since as we traverse the parents of value, their
+            // indices will only get smaller.
+            if (minIndex > value.Index)
+            {
+                return false;
+            }
+
+            for (HierarchicalNameId currentNode = value;
+                currentNode != s_nullNode;
+                currentNode = GetNode(currentNode).GetContainer(DebugTag))
+            {
+                if (potentialContainers.Contains(currentNode))
+                {
+                    return true;
+                }
+
+                if (minIndex > currentNode.Index)
+                {
+                    return false;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
         /// Returns the container of the given name.
         /// </summary>
         /// <remarks>

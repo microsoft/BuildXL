@@ -17,8 +17,12 @@ namespace BuildXL.Scheduler
         AnalyzePipViolationsDuration,
 
         /// <summary>
-        /// Elapsed time for analyzing dynamic violation.
+        /// Elapsed time analyzing dynamic violations for a pip.
         /// </summary>
+        /// <remarks>
+        /// This is a subset of <see cref="AnalyzePipViolationsDuration"/> since dynamic violations are analyzed
+        /// as part of the overall pip violation analysis.
+        /// </remarks>
         [CounterType(CounterType.Stopwatch)]
         AnalyzeDynamicViolationsDuration,
 

@@ -2,11 +2,14 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.IO;
+using System.Linq;
+using BuildXL.Utilities.Collections;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 using static BuildXL.Utilities.Core.HierarchicalNameTable;
 
@@ -954,6 +957,39 @@ namespace BuildXL.Utilities.Core
             Contract.Requires(potentialContainer.IsValid);
 
             return table.IsWithin(potentialContainer.Value, Value);
+        }
+
+        /// <summary>
+        /// Returns true if this file is exactly equal to one of the given directories (ignoring case),
+        /// or if the file lies within one of the given directories.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="IsWithin(PathTable, AbsolutePath)"/>
+        /// This method is thread-safe without the need for any locking as long as the collection passed in is itself thread-safe for reads.
+        /// </remarks>
+        public bool IsWithin(PathTable table, IEnumerable<AbsolutePath> potentialContainers)
+        {
+            Contract.RequiresNotNull(table);
+            Contract.Requires(IsValid);
+            Contract.RequiresNotNull(potentialContainers);
+
+            return IsWithin(table, potentialContainers.Select(p => p.Value).ToReadOnlySet());
+        }
+
+        /// <summary>
+        /// Returns true if this file is exactly equal to one of the given directories (ignoring case),
+        /// or if the file lies within one of the given directories.
+        /// </summary>
+        /// <remarks>
+        /// Equivalent to <see cref="IsWithin(PathTable, IEnumerable{AbsolutePath})"/>, but avoids allocating and cloning collections.
+        /// </remarks>
+        public bool IsWithin(PathTable table, IReadOnlySet<HierarchicalNameId> potentialContainers)
+        {
+            Contract.RequiresNotNull(table);
+            Contract.Requires(IsValid);
+            Contract.RequiresNotNull(potentialContainers);
+
+            return table.IsWithin(potentialContainers, Value);
         }
 
         /// <summary>

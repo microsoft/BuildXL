@@ -556,32 +556,29 @@ namespace BuildXL.Scheduler
         {
             Contract.Requires(pip != null);
 
-            using (m_counters.StartStopwatch(FileMonitoringViolationAnalysisCounter.AnalyzeDynamicViolationsDuration))
-            {
-                var errorPaths = new HashSet<ReportedViolation>();
-                var warningPaths = new HashSet<ReportedViolation>();
+            var errorPaths = new HashSet<ReportedViolation>();
+            var warningPaths = new HashSet<ReportedViolation>();
 
-                UpdateUndeclaredReadersIfNeeded(pip, allowedUndeclaredReads);
+            UpdateUndeclaredReadersIfNeeded(pip, allowedUndeclaredReads);
 
-                List<ReportedViolation> dynamicViolations = ReportDynamicViolations(
-                    pip,
-                    exclusiveOpaqueDirectoryContent,
-                    sharedOpaqueDirectoryWriteAccesses,
-                    allowedUndeclaredReads,
-                    dynamicObservations,
-                    GetOutputArtifactInfoMap(pip, outputsContent),
-                    // We don't need to collect allowed same content double writes here since this is used in the cache replay scenario only, when there is no convergence
-                    allowedDoubleWriteViolations: null,
-                    // We don't roundtrip the file accesses before first undeclared read.
-                    fileAccessesBeforeFirstUndeclaredRewrite: CollectionUtilities.EmptyDictionary<AbsolutePath, RequestedAccess>(),
-                    isCacheLookup: true);
+            List<ReportedViolation> dynamicViolations = ReportDynamicViolations(
+                pip,
+                exclusiveOpaqueDirectoryContent,
+                sharedOpaqueDirectoryWriteAccesses,
+                allowedUndeclaredReads,
+                dynamicObservations,
+                GetOutputArtifactInfoMap(pip, outputsContent),
+                // We don't need to collect allowed same content double writes here since this is used in the cache replay scenario only, when there is no convergence
+                allowedDoubleWriteViolations: null,
+                // We don't roundtrip the file accesses before first undeclared read.
+                fileAccessesBeforeFirstUndeclaredRewrite: CollectionUtilities.EmptyDictionary<AbsolutePath, RequestedAccess>(),
+                isCacheLookup: true);
 
-                PopulateErrorsAndWarnings(dynamicViolations, errorPaths, warningPaths);
+            PopulateErrorsAndWarnings(dynamicViolations, errorPaths, warningPaths);
 
-                LogErrorsAndWarnings(pip, errorPaths, warningPaths);
+            LogErrorsAndWarnings(pip, errorPaths, warningPaths);
 
-                return errorPaths.Count == 0;
-            }
+            return errorPaths.Count == 0;
         }
 
         private List<ReportedViolation> ReportDynamicViolations(
@@ -595,33 +592,35 @@ namespace BuildXL.Scheduler
             IReadOnlyDictionary<AbsolutePath, RequestedAccess> fileAccessesBeforeFirstUndeclaredRewrite,
             bool isCacheLookup)
         {
-            List<ReportedViolation> dynamicViolations = new List<ReportedViolation>();
-            var absentPathProbesUnderOutputDirectories = dynamicObservations?
-                 .Where(o => o.Kind == DynamicObservationKind.AbsentPathProbeUnderOutputDirectory)
-                 .Select(o => o.Path)
-                 .ToReadOnlySet();
-
-            if (sharedOpaqueDirectoryWriteAccesses?.Count > 0)
+            using (m_counters.StartStopwatch(FileMonitoringViolationAnalysisCounter.AnalyzeDynamicViolationsDuration))
             {
-                ReportSharedOpaqueViolations(pip, sharedOpaqueDirectoryWriteAccesses, dynamicViolations, outputArtifactInfo, allowedDoubleWriteViolations, fileAccessesBeforeFirstUndeclaredRewrite);
-            }
+                List<ReportedViolation> dynamicViolations = new List<ReportedViolation>();
+                var absentPathProbesUnderOutputDirectories = dynamicObservations?
+                    .Where(o => o.Kind == DynamicObservationKind.AbsentPathProbeUnderOutputDirectory)
+                    .Select(o => o.Path)
+                    .ToReadOnlySet();
 
-            if (exclusiveOpaqueDirectories?.Count > 0)
-            {
-                ReportExclusiveOpaqueViolations(pip, exclusiveOpaqueDirectories, dynamicViolations, outputArtifactInfo);
-            }
+                if (sharedOpaqueDirectoryWriteAccesses?.Count > 0)
+                {
+                    ReportSharedOpaqueViolations(pip, sharedOpaqueDirectoryWriteAccesses, dynamicViolations, outputArtifactInfo, allowedDoubleWriteViolations, fileAccessesBeforeFirstUndeclaredRewrite);
+                }
 
-            if (allowedUndeclaredReads?.Count > 0)
-            {
-                ReportAllowedUndeclaredReadViolations(pip, allowedUndeclaredReads, dynamicViolations, allowedDoubleWriteViolations, isCacheLookup);
-            }
+                if (exclusiveOpaqueDirectories?.Count > 0)
+                {
+                    ReportExclusiveOpaqueViolations(pip, exclusiveOpaqueDirectories, dynamicViolations, outputArtifactInfo);
+                }
 
-            if (absentPathProbesUnderOutputDirectories?.Count > 0)
-            {
-                ReportAbsentPathProbesUnderOutputDirectoriesViolations(pip, absentPathProbesUnderOutputDirectories, dynamicViolations);
-            }
+                if (allowedUndeclaredReads?.Count > 0)
+                {
+                    ReportAllowedUndeclaredReadViolations(pip, allowedUndeclaredReads, dynamicViolations, allowedDoubleWriteViolations, isCacheLookup);
+                }
 
-            return dynamicViolations;
+                if (absentPathProbesUnderOutputDirectories?.Count > 0)
+                {
+                    ReportAbsentPathProbesUnderOutputDirectoriesViolations(pip, absentPathProbesUnderOutputDirectories, dynamicViolations);
+                }
+                return dynamicViolations;
+            }
         }
 
         private void LogErrorsAndWarnings(Process pip, HashSet<ReportedViolation> errorPaths, HashSet<ReportedViolation> warningPaths)
@@ -1413,35 +1412,69 @@ namespace BuildXL.Scheduler
 
             // If undeclared reads are restricted, let's build the collection of allowed scopes, paths and regexes for this pip
             using var allowedScopesWrapper = performUndeclaredReadRestrictedCheck
-                ? (PooledObjectWrapper<List<AbsolutePath>>?) Pools.AbsolutePathListPool.GetInstance() 
+                ? (PooledObjectWrapper<HashSet<HierarchicalNameId>>?) Pools.HierarchicalNameIdSetPool.GetInstance() 
                 : null;
             var allowedScopes = allowedScopesWrapper?.Instance;
 
             using var allowedPathsWrapper = performUndeclaredReadRestrictedCheck
-                ? (PooledObjectWrapper<List<AbsolutePath>>?)Pools.AbsolutePathListPool.GetInstance()
+                ? (PooledObjectWrapper<HashSet<AbsolutePath>>?)Pools.AbsolutePathSetPool.GetInstance()
                 : null;
             var allowedPaths = allowedPathsWrapper?.Instance;
 
-            using var allowedRegexesWrapper = performUndeclaredReadRestrictedCheck
+            // We use two different strategies for regex checking depending on the number of regexes configured.
+            // If there are many regexes, we just test each of them individually. If there are few, we combine them into a single regex by 'or'-ing them together
+            using var allowedRegexesWrapper = performUndeclaredReadRestrictedCheck && !ShouldUseRegexORStrategy(pip.AllowedUndeclaredSourceReadRegexes)
                 ? (PooledObjectWrapper<List<Regex>>?)SchedulerPools.RegexList.GetInstance()
                 : null;
+            // We will use this for the individual check case
             var allowedRegexes = allowedRegexesWrapper?.Instance;
+            // We will use this for the combined regex case
+            Regex combinedRegex = null;
+
             if (performUndeclaredReadRestrictedCheck)
             {
                 // In addition to the explicit allowed scopes/paths configured on the pip, any untracked file or directory naturally applies to the allow list
-                allowedScopes.AddRange(pip.AllowedUndeclaredSourceReadScopes);
-                allowedScopes.AddRange(pip.UntrackedScopes);
+                allowedScopes.AddRange(pip.AllowedUndeclaredSourceReadScopes.Select(scope => scope.Value));
+                allowedScopes.AddRange(pip.UntrackedScopes.Select(scope => scope.Value));
                 
                 allowedPaths.AddRange(pip.AllowedUndeclaredSourceReadPaths);
                 allowedPaths.AddRange(pip.UntrackedPaths);
                 
-                allowedRegexes.AddRange(
-                    pip.AllowedUndeclaredSourceReadRegexes.Select(
-                        // The whole flow in this class is not async. But still is useful to leverage the regex cache, it is likely
-                        // that regex patterns are shared across pips
-                        regexDescriptor => RegexFactory.GetRegexAsync(
-                            new ExpandedRegexDescriptor(regexDescriptor.Pattern.ToString(Context.StringTable), regexDescriptor.Options)
-                            ).GetAwaiter().GetResult()));
+                if (pip.AllowedUndeclaredSourceReadRegexes.Length > 0)
+                {
+                    if (ShouldUseRegexORStrategy(pip.AllowedUndeclaredSourceReadRegexes))
+                    {
+                        // We combine all regexes into a single one by 'or'-ing them together. This should have better performance than testing each regex individually, assuming
+                        // the following is true:
+                        // 1) We assuming few regexes. Regexes are manually specified by users, so we don't expect huge lists. Observe
+                        //    this is different that what happens with allowed scopes/paths, which also come from the graph construction phase
+                        // 2) Backtracking is disabled on all regexes (check the JavaScriptPipConstructor), so the combined regex should not suffer from combinatorial explosion issues.
+                        // 3) The same regexes are globally defined for all pips. So we can leverage the regex cache effectively (with its RegexOptions.Compiled flag  - on by default)
+                        //    And regexes order is defined by the order in which the user specify them, so that will remain the same across pips.
+                        // 4) Starting with Net7, the regex engine has various performance improvements regarding alternations (i.e., the 'or' operator). See https://devblogs.microsoft.com/dotnet/regular-expression-improvements-in-dotnet-7/
+                        // If, in particular, point 1 changes and we start having hundreds of regexes, we may need to revisit this decision. Also if each regex becomes very complex individually.
+                        combinedRegex = RegexFactory.GetRegexAsync(
+                            new ExpandedRegexDescriptor(
+                                // | has the least precedence among regex operators, so this is safe
+                                string.Join("|", pip.AllowedUndeclaredSourceReadRegexes.Select(r => r.Pattern.ToString(Context.StringTable))),
+                                // All options are expected to be the same across all regexes, so just take the first one
+                                pip.AllowedUndeclaredSourceReadRegexes[0].Options)
+                            // The whole flow in this class is not async. But still is useful to leverage the regex cache, it is likely
+                            // that regex patterns are shared across pips.
+                            ).GetAwaiter().GetResult();
+                    }
+                    else
+                    {
+                        // We will test each regex individually
+                        allowedRegexes.AddRange(
+                           pip.AllowedUndeclaredSourceReadRegexes.Select(
+                               // The whole flow in this class is not async. But still is useful to leverage the regex cache, it is likely
+                               // that regex patterns are shared across pips
+                               regexDescriptor => RegexFactory.GetRegexAsync(
+                                   new ExpandedRegexDescriptor(regexDescriptor.Pattern.ToString(Context.StringTable), regexDescriptor.Options)
+                                   ).GetAwaiter().GetResult()));
+                            }
+                }
             }
 
             foreach (var undeclaredReadAndType in allowedUndeclaredReads)
@@ -1529,21 +1562,16 @@ namespace BuildXL.Scheduler
                 if (performUndeclaredReadRestrictedCheck && (undeclaredReadType == ObservedInputType.FileContentRead || undeclaredReadType == ObservedInputType.ExistingFileProbe))
                 {
                     // If undeclared reads are restricted, let's see whether the undeclared read falls under any of the allowed scopes
-                    var canRead = allowedScopes.FirstOrDefault(allowedUndeclaredSourceReadScope 
-                        => undeclaredRead.IsWithin(Context.PathTable, allowedUndeclaredSourceReadScope)).IsValid;
-
                     // If no valid scope was found, check equivalently for allowed paths
-                    if (!canRead)
-                    {
-                        canRead = allowedPaths.FirstOrDefault(allowedUndeclaredSourceReadPath
-                            => undeclaredRead == allowedUndeclaredSourceReadPath).IsValid;
-                    }
-
                     // Finally, check whether there is a match against any of the defined regexes
-                    if (!canRead)
-                    {
-                        canRead = allowedRegexes.Any(regex => regex.IsMatch(undeclaredRead.ToString(Context.PathTable)));
-                    }
+#if NET5_0_OR_GREATER
+                    var canRead = undeclaredRead.IsWithin(Context.PathTable, allowedScopes)
+#else
+                    var canRead = undeclaredRead.IsWithin(Context.PathTable, allowedScopes.ToReadOnlySet())
+#endif
+                        || allowedPaths.Contains(undeclaredRead)
+                        || combinedRegex?.IsMatch(undeclaredRead.ToString(Context.PathTable)) == true // combined regex case
+                        || allowedRegexes?.Any(regex => regex.IsMatch(undeclaredRead.ToString(Context.PathTable))) == true; // individual regex check case
 
                     // If we didn't find any valid scope/path, this is a violation
                     if (!canRead)
@@ -1562,6 +1590,14 @@ namespace BuildXL.Scheduler
                 }
             }
         }
+
+        /// <summary>
+        /// Whether to use the regex 'or' strategy when evaluating allowed undeclared source read regexes
+        /// </summary>
+        /// <remarks>
+        /// We use a simple threshold based on the number of regexes (less than 100). This can be revisited in the future if needed.
+        /// </remarks>
+        internal static bool ShouldUseRegexORStrategy(ReadOnlyArray<RegexDescriptor> regexes) => regexes.Length < 100;
 
         private void ReportAbsentPathProbesUnderOutputDirectoriesViolations(
             Process pip,

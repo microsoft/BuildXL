@@ -67,6 +67,7 @@ namespace Scheduler {
             "Test.Bxl",
             "IntegrationTest.BuildXL.Scheduler",
             "Test.BuildXL.Distribution",
+            "Test.BuildXL.FrontEnd.Rush"
         ],
     });
 }

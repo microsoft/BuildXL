@@ -11,6 +11,7 @@ using BuildXL.Utilities.Collections;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
+using System.Linq;
 
 namespace Test.BuildXL.Utilities
 {
@@ -98,6 +99,29 @@ namespace Test.BuildXL.Utilities
             XAssert.IsFalse(tree.IsWithin(pt, path));
             XAssert.IsTrue(tree.IsWithin(pt, tree));
             XAssert.IsTrue(path.IsWithin(pt, path));
+        }
+
+        [Theory]
+        [InlineData("/c/windows/test", true)]
+        [InlineData("/c/windows/another-test", true)]
+        [InlineData("/c/windows/another-test/nested", true)]
+        [InlineData("/c/windows/another-test/nested/more-nested", true)]
+        [InlineData("/c/windows/another-folder", false)]
+        [InlineData("/c/windows", false)]
+        [InlineData("/d/linux", false)]
+        [InlineData("/h/whatever", false)]
+        public void IsPathWithinPathCollection(string path, bool contained)
+        {
+            var pt = new PathTable();
+            var collection = new[] {
+                X("/c/windows/test"),
+                X("/c/windows/another-test"),
+                X("/d/linux/another-platform"),
+            }.Select(p => AbsolutePath.Create(pt, p)).ToList();
+        
+            var absolutePath = AbsolutePath.Create(pt, X(path));
+
+            XAssert.AreEqual(contained, absolutePath.IsWithin(pt, collection));
         }
 
         [Fact]

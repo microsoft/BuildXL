@@ -997,7 +997,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                             }
                             else if (untrackedScopeSet.Count == 0 // Typical case.
                                 || (!untrackedScopeSet.Contains(currentPath)
-                                    && !untrackedScopeSet.Any(u => currentPath.IsWithin(m_internalPathTable, u))))
+                                    && !currentPath.IsWithin(m_internalPathTable, untrackedScopeSet)))
                             {
                                 m_dynamicallyObservedEnumerations.AddEntry(pipStableId, currentPath);
                             }

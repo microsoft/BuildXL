@@ -1646,7 +1646,7 @@ namespace BuildXL.Scheduler
                     // Since absentPathProbe is guaranteed to be a probe under an opaque directory 
                     // (we filtered on DynamicObservationKind.AbsentPathProbeUnderOutputDirectory),
                     // it is safe to enumerate over all directory dependencies here and not just 'opaque' dependencies. 
-                    var allowProbe = pip.DirectoryDependencies.Any(dir => absentPathProbe.IsWithin(Context.PathTable, dir));
+                    var allowProbe = absentPathProbe.IsWithin(Context.PathTable, pip.DirectoryDependencies.Select(dir => dir.Path));
 
                     // If the probe is outside of input directories the pip depends on, we do not need to check whether the probed path
                     // matches file dependencies. If it did match, the access would have been classified as read rather than probe.

@@ -1734,7 +1734,7 @@ namespace BuildXL.Scheduler
                         bool isDirty = false;
                         foreach (var absentPathProbe in absentPathProbesUnderNonDependenceOutputDirectories)
                         {
-                            if (!pip.DirectoryDependencies.Any(dir => absentPathProbe.IsWithin(pathTable, dir)))
+                            if (!absentPathProbe.IsWithin(pathTable, pip.DirectoryDependencies.Select(dir => dir.Path)))
                             {
                                 isDirty = true;
                                 break;
@@ -4784,7 +4784,7 @@ namespace BuildXL.Scheduler
 
             if (configuration.Sandbox.UnsafeSandboxConfiguration.IgnoreFullReparsePointResolving)
             {
-                if (configuration.Sandbox.DirectoriesToEnableFullReparsePointParsing.Any(x => outputPath.IsWithin(pathTable, x)))
+                if (outputPath.IsWithin(pathTable, configuration.Sandbox.DirectoriesToEnableFullReparsePointParsing))
                 {
                     return true;
                 }

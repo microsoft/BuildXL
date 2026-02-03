@@ -2546,7 +2546,7 @@ namespace BuildXL.ProcessPipExecutor
                     {
                         // Compute whether the output directory is under an exclusion. In that case we want to block writes, but configure the rest of the policy in the regular way so tools
                         // can operate normally as long as they don't produce any outputs under it
-                        bool isUnderAnExclusion = pip.OutputDirectoryExclusions.Any(exclusion => directory.Path.IsWithin(m_pathTable, exclusion));
+                        bool isUnderAnExclusion = directory.Path.IsWithin(m_pathTable, pip.OutputDirectoryExclusions);
 
                         // We need to allow the real timestamp to be seen under a directory output (since these are outputs). If this directory output happens to share the root with
                         // a directory dependency (shared opaque case), this is overridden for specific input files when processing directory dependencies below

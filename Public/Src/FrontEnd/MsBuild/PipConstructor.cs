@@ -391,7 +391,7 @@ namespace BuildXL.FrontEnd.MsBuild
                 // If any of the predicted inputs is under the predicted output folder of a dependency, then there is a very good chance the predicted input is actually an intermediate file
                 // In that case, don't add the input as a source file to stay on the safe side. Otherwise we will have a file that is both declared as a source file and contained in a directory
                 // dependency.
-                if (knownOutputDirectories.Any(outputFolder => buildInput.IsWithin(PathTable, outputFolder)))
+                if (buildInput.IsWithin(PathTable, knownOutputDirectories))
                 {
                     continue;
                 }
@@ -410,7 +410,7 @@ namespace BuildXL.FrontEnd.MsBuild
                 }
 
                 // If any of the predicted inputs is under an untracked directory scope, don't add it as an input
-                if (processBuilder.GetUntrackedDirectoryScopesSoFar().Any(untrackedDirectory => buildInput.IsWithin(PathTable, untrackedDirectory)))
+                if (buildInput.IsWithin(PathTable, processBuilder.GetUntrackedDirectoryScopesSoFar().Select(dir => dir.Path)))
                 {
                     continue;
                 }

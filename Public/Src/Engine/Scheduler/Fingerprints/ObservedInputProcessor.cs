@@ -998,23 +998,6 @@ namespace BuildXL.Scheduler.Fingerprints
             return I($"Path: {path.ToString(pathTable)} - PipDescription: {pip.Description} - IsUnderSourceSeal: {isUnderSourceSeal} - IsUnderSeal: {isUnderSeal} - Flags: {flagsStr.ToString()}");
         }
 
-        /// <summary>
-        /// Checks if a path is within any of a list of paths. This is not a very performant thing to do. make sure it stays
-        /// in the error reporting path only
-        /// </summary>
-        private static bool IsPathWithinAny(PathTable pathTable, AbsolutePath path, IEnumerable<AbsolutePath> paths)
-        {
-            foreach (var item in paths)
-            {
-                if (path.IsWithin(pathTable, item))
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
         private static ObservationInfo GetObservationInfo<TTarget, TEnv, TObservation>(
             TEnv environment,
             TTarget target,

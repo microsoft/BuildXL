@@ -6412,7 +6412,7 @@ namespace BuildXL.Scheduler
                 .Select(p => (SealDirectoryMutablePipState)m_pipTable.GetMutable(p))
                 .Where(s => s.SealDirectoryKind == SealDirectoryKind.SourceAllDirectories)
                 .Select(s => s.DirectoryRoot)
-                .Where(d => !readOnlyAll.Any(t => d.IsWithin(Context.PathTable, t)));
+                .Where(d => !d.IsWithin(Context.PathTable, readOnlyAll));
 
             RemoteProcessManager.RegisterStaticDirectories(readOnlyAll.Concat(allDirSourceSealedDirs).Distinct());
         }

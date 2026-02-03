@@ -133,7 +133,7 @@ namespace BuildXL.Processes.Sideband
         /// </remarks>
         public bool RecordFileWrite(PathTable pathTable, AbsolutePath path, bool flushImmediately)
         {
-            if (RootDirectories == null || GetConvertedRootDirectories(pathTable).Any(dir => path.IsWithin(pathTable, dir)))
+            if (RootDirectories == null || path.IsWithin(pathTable, GetConvertedRootDirectories(pathTable)))
             {
                 if (m_recordedPathsCache.Add(path))
                 {

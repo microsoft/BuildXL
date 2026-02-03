@@ -61,16 +61,13 @@ namespace BuildXL.FrontEnd.Core.Incrementality
                 // No need to keep the spec separately
                 if (!modulesToInclude.Contains(kvp.Value.OwningModule.Definition))
                 {
-                    foreach (var specRootToResolve in evaluationFilter.ValueDefinitionRootsToResolve)
+                    if (parsedSpec.IsWithin(m_pathTable, evaluationFilter.ValueDefinitionRootsToResolve))
                     {
-                        if (parsedSpec == specRootToResolve || parsedSpec.IsWithin(m_pathTable, specRootToResolve))
-                        {
-                            // File is not part of 'must have' module and is part of 'must have' spec.
-                            var map = partiallyFilteredModules.GetOrAdd(
-                                kvp.Value.OwningModule.Definition,
-                                k => new Dictionary<AbsolutePath, ISourceFile>());
-                            map[kvp.Key] = kvp.Value.SourceFile;
-                        }
+                        // File is not part of 'must have' module and is part of 'must have' spec.
+                        var map = partiallyFilteredModules.GetOrAdd(
+                            kvp.Value.OwningModule.Definition,
+                            k => new Dictionary<AbsolutePath, ISourceFile>());
+                        map[kvp.Key] = kvp.Value.SourceFile;
                     }
                 }
             }
@@ -132,13 +129,10 @@ namespace BuildXL.FrontEnd.Core.Incrementality
                 // No need to keep the spec separately
                 if (!modulesToInclude.Contains(kvp.OwningModule))
                 {
-                    foreach (var specRootToResolve in evaluationFilter.ValueDefinitionRootsToResolve)
-                    {
-                        if (specPath == specRootToResolve || specPath.IsWithin(m_pathTable, specRootToResolve))
-                        {
-                            filesToInclude.Add(specPath);
-                            AddUpStreamDependencies(filesToInclude, specPath, provider);
-                        }
+                    if (specPath.IsWithin(m_pathTable, evaluationFilter.ValueDefinitionRootsToResolve))
+                    { 
+                        filesToInclude.Add(specPath);
+                        AddUpStreamDependencies(filesToInclude, specPath, provider);
                     }
                 }
             }
@@ -201,13 +195,10 @@ namespace BuildXL.FrontEnd.Core.Incrementality
                 // No need to keep the spec separately
                 if (!modulesToInclude.Contains(kvp.Value.OwningModule))
                 {
-                    foreach (var specRootToResolve in evaluationFilter.ValueDefinitionRootsToResolve)
+                    if (parsedSpec.IsWithin(m_pathTable, evaluationFilter.ValueDefinitionRootsToResolve))
                     {
-                        if (parsedSpec == specRootToResolve || parsedSpec.IsWithin(m_pathTable, specRootToResolve))
-                        {
-                            filesToInclude.Add(parsedSpec);
-                            AddUpStreamDependencies(filesToInclude, kvp.Key, provider);
-                        }
+                        filesToInclude.Add(parsedSpec);
+                        AddUpStreamDependencies(filesToInclude, kvp.Key, provider);
                     }
                 }
             }

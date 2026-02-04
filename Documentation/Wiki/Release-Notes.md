@@ -2,6 +2,15 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20260130.6 (Release [31002496](https://dev.azure.com/mseng/Domino/_build/results?buildId=31002496&view=results))
+- Fixes/additional logging on detours remote injection.
+- Fixes crashes with paths that end in ‘nul’ in windows.
+- Turn on the EBPF-based sandbox by default for Linux.
+- Fix deserialization crash in ADO build runner.
+- Remove ViolationClassificationGraphQueryDuration counter
+- Avoid checking for restricted reads on cache replay
+- Update QTest to 26.1.21-gd08f9304
+
 # 0.1.0-20260116.1 (Release [30950145](https://dev.azure.com/mseng/Domino/_build/results?buildId=30950145&view=results))
 - Logging tweaks
 - Astred Analyzer fixes for Word codebase

@@ -206,6 +206,13 @@ namespace BuildXL.Processes
         private readonly bool m_allowUndeclaredFileReads;
         private int m_receivedReportCount = 0;
 
+        /// <summary>
+        /// Threshold for logging about excessive file access reports. 
+        /// When a pip exceeds this many reports, a verbose log is emitted to help identify 
+        /// processes with large access counts that could create perf or scale concerns.
+        /// </summary>
+        private const int ExcessiveFileAccessReportThreshold = 500_000;
+
         public SandboxedProcessReports(
             FileAccessManifest manifest,
             PathTable pathTable,
@@ -399,7 +406,14 @@ namespace BuildXL.Processes
                 try
                 {
                     m_manifest.MessageCountSemaphore.WaitOne(0);
-                    Interlocked.Increment(ref m_receivedReportCount);
+                    var currentCount = Interlocked.Increment(ref m_receivedReportCount);
+
+                    // Warn once when file access reports exceed the threshold to help identify 
+                    // runaway processes that could exhaust the StringTable.
+                    if (currentCount == ExcessiveFileAccessReportThreshold)
+                    {
+                        Tracing.Logger.Log.ExcessiveFileAccessReports(m_loggingContext, PipSemiStableHash, PipDescription, currentCount);
+                    }
                 }
                 catch (Exception ex)
                 {

@@ -375,6 +375,19 @@ namespace BuildXL.Processes.Tracing
             string message);
 
         [GeneratedEvent(
+            (int)LogEventId.ExcessiveFileAccessReports,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "Pip has reported abnormally large number of access reports: '{reportCount}'")]
+        public abstract void ExcessiveFileAccessReports(
+            LoggingContext context,
+            long pipSemiStableHash,
+            string pipDescription,
+            int reportCount);
+
+        [GeneratedEvent(
             (int)LogEventId.FindAnyBuildClient,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,

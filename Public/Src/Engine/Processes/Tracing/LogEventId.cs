@@ -188,5 +188,6 @@ namespace BuildXL.Processes.Tracing
         SynchronouslyWaitedForEBPF = 14306,
         // was EBPFDisposed = 14307,
         LogSandboxInfoMessage = 14308,
+        ExcessiveFileAccessReports = 14309,
     }
 }

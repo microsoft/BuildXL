@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
@@ -652,7 +653,13 @@ namespace BuildXL.Utilities.Core
                     }
 
                     // If we reach this line there's no more space in the table
-                    throw Contract.AssertFailure($"This string table ran out of space.");
+                    throw Contract.AssertFailure(
+                        $"This string table ran out of space. " +
+                        $"Count={m_count}, " +
+                        $"SizeInBytes={SizeInBytes}, " +
+                        $"ByteBuffers={m_byteBuffers.Length} (used={m_byteBuffers.Count(b => b != null)}), " +
+                        $"OverflowBuffers={m_overflowBufferCount} (currentIndex={m_currentOverflowIndex}, usedStrings={OverflowedStringCount}), " +
+                        $"LargeStringBuffer (count={LargeStringCount}, size={LargeStringSize})");
                 }
 
                 lock (m_byteBuffers)

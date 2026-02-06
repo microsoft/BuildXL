@@ -22,6 +22,8 @@ variables:
   # We have a separate pipeline that runs clean builds to get full CodeQL coverage.
   - name: Codeql.Enabled
     value: "false"
+  # Add CG exclusions
+  - template: /.azdo/common/component-detection-exclusions.yml
 
 extends:
   template: v1/1ES.Unofficial.PipelineTemplate.yml@1esPipelines

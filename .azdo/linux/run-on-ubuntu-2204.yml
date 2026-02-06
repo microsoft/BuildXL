@@ -1,4 +1,10 @@
-trigger: none  # Explicitly scheduled for PRs
+trigger: none
+
+variables:
+# Add CG exclusions
+- template: /.azdo/common/component-detection-exclusions.yml
+
+  # Explicitly scheduled for PRs
 
 extends:
   template: /.azdo/linux/pipeline_base.yml@self

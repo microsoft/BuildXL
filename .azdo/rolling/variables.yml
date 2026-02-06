@@ -14,7 +14,5 @@ variables:
 # We need to set this variable to make the agents compliant:
 - name: BUILDSECMON_OPT_IN
   value: true
-# Exclude directories where intermediate downloads are stored from component detection. False positives have been observed in these directories for artifacts that
-# are only downloaded but not used. Any file that is actually used will be copied to another location outside of these directories.
-- name: ComponentDetection.DirectoryExclusionPatterns
-  value: $(Build.SourcesDirectory)/Out/frontend/Download*
+# Add CG exclusions
+- template: .azdo/common/component-detection-exclusions.yml

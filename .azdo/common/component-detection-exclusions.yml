@@ -1,0 +1,5 @@
+# Exclude directories where intermediate downloads are stored from component detection. False positives have been observed in these directories for artifacts that
+# are only downloaded but not used. Any file that is actually used will be copied to another location outside of these directories.
+variables:
+- name: ComponentDetection.DirectoryExclusionPatterns
+  value: $(Build.SourcesDirectory)/Out/frontend/Download*;$(Build.SourcesDirectory)/Out/NodeJsForUnitTests*

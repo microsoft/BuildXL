@@ -69,10 +69,10 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             public CasConfig StreamCAS { get; set; }
 
             /// <summary>
-            /// Duration to wait for exclusive access to the cache directory before timing out.
+            /// Interval in seconds for periodic log flushing.
             /// </summary>
-            [DefaultValue(0)]
-            public uint LogFlushIntervalSeconds { get; set; }
+            [DefaultValue(5)]
+            public uint LogFlushIntervalSeconds { get; set; } = 5;
 
             /// <summary>
             /// Whether to check for file existence before pinning.

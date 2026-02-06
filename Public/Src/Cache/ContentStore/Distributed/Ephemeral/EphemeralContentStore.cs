@@ -188,8 +188,13 @@ public class EphemeralContentStore : StartupShutdownComponentBase, IContentStore
 
     protected override Task<BoolResult> ShutdownComponentAsync(OperationContext context)
     {
-        _ephemeralHost.FileSystem.DeleteDirectory(_ephemeralHost.Configuration.Workspace, DeleteOptions.All);
-        return BoolResult.SuccessTask;
+        return context.PerformOperationAsync(Tracer,
+            () =>
+            {
+                _ephemeralHost.FileSystem.DeleteDirectory(_ephemeralHost.Configuration.Workspace, DeleteOptions.All);
+                return BoolResult.SuccessTask;
+            },
+            caller: "DeleteOnShutdown");
     }
 
     public CreateSessionResult<IContentSession> CreateSession(Context context, string name, ImplicitPin implicitPin)

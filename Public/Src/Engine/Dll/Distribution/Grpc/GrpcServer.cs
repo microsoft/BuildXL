@@ -133,6 +133,15 @@ namespace BuildXL.Engine.Distribution.Grpc
                     {
                         // Remove the default (30MB) max request body limit so large unary gRPC messages are not rejected
                         options.Limits.MaxRequestBodySize = null; // unlimited
+
+                        // Configure HTTP/2 to keep connections alive even when idle.
+                        // The gRPC client (Grpc.Net.Client) expects connections to remain open (PooledConnectionIdleTimeout = Infinite)
+                        // but Kestrel by default may close idle connections, causing "socket is in a bad state" errors.
+                        options.Limits.Http2.KeepAlivePingDelay = TimeSpan.MaxValue; // Don't send server-initiated pings
+                        options.Limits.Http2.KeepAlivePingTimeout = TimeSpan.FromSeconds(20);
+                        options.Limits.MinRequestBodyDataRate = null; // Disable minimum data rate for request body
+                        options.Limits.MinResponseDataRate = null;    // Disable minimum data rate for response
+
                         options.Listen(IPAddress.Any, port, listenOptions =>
                         {
                             listenOptions.Protocols = HttpProtocols.Http2;

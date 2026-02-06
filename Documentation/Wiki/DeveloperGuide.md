@@ -75,3 +75,81 @@ If you wish to contribute to the repo, please refer to [this](https://mseng.visu
 
 ### Debugging
 The easiest way to get a debugger attached to bxl.exe is to specify an environment variable called `BuildXLDebugOnStart` and set it to 1. This will cause a debugger window to pop up and will let you choose a running Visual Studio instance to attach to the process and start debugging. Alternatively, placing a good old `System.Diagnostics.Debugger.Launch();` inside the code you want to debug, re-compiling BuildXL and running it with the `-use Dev` flag does the trick too.
+
+# Source Code Layout
+
+## Build System
+This repository uses **BuildXL with DScript** as its build system, not MSBuild. The `.dsc` files are the authoritative build definitions. The `.csproj` and `.sln` files are generated for IDE support (via `bxl -vs`) and should not be edited directly.
+
+## Directory Structure
+```
+BuildXL.Internal/
+├── Public/                    # Open source components
+│   ├── Src/
+│   │   ├── App/              # Application entry points
+│   │   ├── Cache/            # Caching infrastructure
+│   │   ├── Engine/           # Core build engine (scheduler, processes, etc.)
+│   │   ├── FrontEnd/         # Language frontends (MSBuild, JavaScript, Ninja, DScript)
+│   │   ├── Pips/             # Process/pip definitions
+│   │   ├── Sandbox/          # OS sandboxing (Windows Detours, macOS, Linux)
+│   │   ├── Tools/            # Supporting tools and analyzers
+│   │   └── Utilities/        # Shared utility libraries
+│   └── Sdk/                  # Build SDK and standard libraries
+├── Private/                   # Microsoft-internal components
+├── Shared/                    # Shared scripts and tools
+├── Documentation/             # All documentation
+├── config.dsc                 # Root build configuration
+└── bxl.cmd / bxl.sh          # Build entry points
+```
+
+## Test Location
+Unit tests are located in `UnitTests/` subdirectories within each component. For example:
+- `Public/Src/Engine/UnitTests/` - Engine unit tests
+- `Public/Src/Cache/ContentStore/Test/` - Cache content store tests
+
+# Code Style
+
+Code style is enforced via `.editorconfig` at the repository root. Key conventions:
+
+## Naming Conventions
+| Element | Convention | Example |
+|---------|------------|---------|
+| Private instance fields | `m_` prefix + camelCase | `m_processCount` |
+| Private static fields | `s_` prefix + camelCase | `s_defaultTimeout` |
+| Constants | PascalCase | `MaxRetryCount` |
+| Public members | PascalCase | `GetProcessInfo()` |
+| Parameters & locals | camelCase | `processId`, `filePath` |
+
+## Other Style Rules
+- Always use braces for control statements (even single-line)
+- Use `var` when type is apparent from the right-hand side
+- Prefer expression-bodied members for simple properties and accessors
+- Sort `using` directives with `System.*` first
+
+# Build Qualifiers
+
+BuildXL uses qualifiers to build different configurations. Common qualifiers:
+
+| Qualifier | Description |
+|-----------|-------------|
+| `Debug` | Debug build (default) |
+| `Release` | Release/optimized build |
+| `DebugDotNetCore` | Debug build targeting .NET Core |
+| `ReleaseDotNetCore` | Release build targeting .NET Core |
+| `DebugNet472` | Debug build targeting .NET Framework 4.7.2 |
+| `ReleaseNet472` | Release build targeting .NET Framework 4.7.2 |
+
+Specify qualifiers with `/q:` flag: `bxl.cmd /q:ReleaseDotNetCore`
+
+# Quick Validation
+
+Before submitting changes, run validation appropriate to your change scope:
+
+| Scope | Command |
+|-------|---------|
+| Quick build check | `bxl.cmd -minimal` |
+| Build specific component | `bxl.cmd <component>.dsc` |
+| Run specific test | `bxl.cmd <test>.dsc -TestMethod <FullName>` |
+| Full pre-checkin validation | `RunCheckInTests.cmd` |
+
+**Note:** `RunCheckInTests.cmd` performs comprehensive validation including multiple build configurations and fingerprint verification. It can take significant time. Typically running unit tests (`bxl.cmd`) locally is sufficient and the additional `RunCheckinTests.cmd` can be left to pull request validations.

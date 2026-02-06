@@ -9,6 +9,7 @@ using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Core;
 using Test.BuildXL.FrontEnd.Core;
+using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -40,7 +41,8 @@ namespace Test.BuildXL.FrontEnd.Rush.IntegrationTests
             yield return new object[] { $"[ {{ processName: a`{s_executable}`, requiredArguments: 'HI', requiredArgumentsIgnoreCase: true }} ]", true };
         }
 
-        [Theory]
+        // Bug #2354886: Test is flaky with eBPF on Linux
+        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]
         [MemberData(nameof(BreakawayMemberData))]
         public void BreakawayArgumentsAreHonored(string breakawayData, bool expectedToBreakaway)
         {

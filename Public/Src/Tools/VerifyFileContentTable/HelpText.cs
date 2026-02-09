@@ -22,6 +22,7 @@ namespace Tool.VerifyFileContentTable
             hw.WriteLine(Resources.Help_DisplayHelp_Usage);
             hw.WriteOption("/help", Resources.Help_DisplayHelp_Help);
             hw.WriteOption("/noLogo", Resources.Help_DisplayHelp_Usage);
+            hw.WriteOption("/loadOnly", "Only load the file content table and report load time; skip entry verification.");
         }
     }
 }

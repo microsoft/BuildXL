@@ -76,12 +76,22 @@ namespace Tool.VerifyFileContentTable
                 }
 
                 Console.WriteLine(Resources.Verifying_path, path.ToString(pt));
-                
+
+                Stopwatch sw = Stopwatch.StartNew();
                 FileContentTable tableToVerify = TryLoadFileContentTable(pt, path).Result;
+                sw.Stop();
+
+                Console.WriteLine("FileContentTable load time: " + sw.Elapsed);
+
                 if (tableToVerify == null)
                 {
                     // Note the error has already been logged via TryLoadFileContentTable
                     return false;
+                }
+
+                if (args.LoadOnly)
+                {
+                    return true;
                 }
 
                 if (!FileContentTableAccessorFactory.TryCreate(out IFileContentTableAccessor accessor, out string error))
@@ -90,7 +100,7 @@ namespace Tool.VerifyFileContentTable
                     return false;
                 }
 
-                Stopwatch sw = Stopwatch.StartNew();
+                sw.Restart();
                 List<FileContentTableDiagnosticExtensions.IncorrectFileContentEntry> incorrectEntries = null;
 
                 using (accessor)

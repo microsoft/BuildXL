@@ -2,6 +2,9 @@
 // Licensed under the MIT License.
 
 using System;
+#if NETCOREAPP
+using System.Buffers.Binary;
+#endif
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -80,6 +83,22 @@ namespace BuildXL.Native.IO
             FileId.Serialize(writer);
         }
 
+#if NETCOREAPP
+        /// <summary>
+        /// Serializes this instance of <see cref="FileIdAndVolumeId"/> into <paramref name="destination"/>.
+        /// </summary>
+        public void Serialize(Span<byte> destination)
+        {
+            BinaryPrimitives.WriteUInt64LittleEndian(destination, VolumeSerialNumber);
+            FileId.Serialize(destination.Slice(sizeof(ulong)));
+        }
+#endif
+
+        /// <summary>
+        /// The number of bytes written by <see cref="Serialize(BinaryWriter)"/>.
+        /// </summary>
+        public const int SerializedByteLength = sizeof(ulong) + FileId.SerializedByteLength;
+
         /// <summary>
         /// Deserializes into an instance of <see cref="FileIdAndVolumeId"/>.
         /// </summary>
@@ -87,5 +106,18 @@ namespace BuildXL.Native.IO
         {
             return new FileIdAndVolumeId(reader.ReadUInt64(), FileId.Deserialize(reader));
         }
+
+#if NETCOREAPP
+        /// <summary>
+        /// Deserializes an instance of <see cref="FileIdAndVolumeId"/> from <paramref name="source"/>.
+        /// </summary>
+        public static FileIdAndVolumeId Deserialize(ReadOnlySpan<byte> source, out int bytesRead)
+        {
+            ulong volumeSerialNumber = BinaryPrimitives.ReadUInt64LittleEndian(source);
+            FileId fileId = FileId.Deserialize(source.Slice(sizeof(ulong)), out int fileIdBytesRead);
+            bytesRead = sizeof(ulong) + fileIdBytesRead;
+            return new FileIdAndVolumeId(volumeSerialNumber, fileId);
+        }
+#endif
     }
 }

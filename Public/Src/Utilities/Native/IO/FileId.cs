@@ -2,6 +2,9 @@
 // Licensed under the MIT License.
 
 using System;
+#if NETCOREAPP
+using System.Buffers.Binary;
+#endif
 using System.IO;
 using System.Runtime.InteropServices;
 using BuildXL.Utilities;
@@ -80,6 +83,22 @@ namespace BuildXL.Native.IO
             writer.Write(Low);
         }
 
+#if NETCOREAPP
+        /// <summary>
+        /// Serializes this instance of <see cref="FileId"/> into <paramref name="destination"/>.
+        /// </summary>
+        public void Serialize(Span<byte> destination)
+        {
+            BinaryPrimitives.WriteUInt64LittleEndian(destination, High);
+            BinaryPrimitives.WriteUInt64LittleEndian(destination.Slice(sizeof(ulong)), Low);
+        }
+#endif
+
+        /// <summary>
+        /// The number of bytes written by <see cref="Serialize(BinaryWriter)"/>.
+        /// </summary>
+        public const int SerializedByteLength = 2 * sizeof(ulong);
+
         /// <summary>
         /// Deserializes into an instance of <see cref="FileId"/>.
         /// </summary>
@@ -87,5 +106,18 @@ namespace BuildXL.Native.IO
         {
             return new FileId(reader.ReadUInt64(), reader.ReadUInt64());
         }
+
+#if NETCOREAPP
+        /// <summary>
+        /// Deserializes an instance of <see cref="FileId"/> from <paramref name="source"/>.
+        /// </summary>
+        public static FileId Deserialize(ReadOnlySpan<byte> source, out int bytesRead)
+        {
+            ulong high = BinaryPrimitives.ReadUInt64LittleEndian(source);
+            ulong low = BinaryPrimitives.ReadUInt64LittleEndian(source.Slice(sizeof(ulong)));
+            bytesRead = SerializedByteLength;
+            return new FileId(high, low);
+        }
+#endif
     }
 }

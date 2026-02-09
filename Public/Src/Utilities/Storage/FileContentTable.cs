@@ -8,6 +8,9 @@ using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
+#if NETCOREAPP
+using System.Buffers.Binary;
+#endif
 using System.Runtime.ExceptionServices;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -73,7 +76,7 @@ namespace BuildXL.Storage
         /// <summary>
         /// These are the (global file ID) -> (USN, hash) mappings recorded or retrieved in this session.
         /// </summary>
-        private readonly ConcurrentBigMap<FileIdAndVolumeId, Entry> m_entries = new();
+        private readonly ConcurrentBigMap<FileIdAndVolumeId, Entry> m_entries;
 
         /// <summary>
         /// In the event a volume has a disabled change journal or not all files have USNs (journal enabled after last write to a
@@ -103,6 +106,20 @@ namespace BuildXL.Storage
             m_loggingContext = loggingContext;
             IsStub = isStub;
             EntryTimeToLive = entryTimeToLive;
+            m_entries = new ConcurrentBigMap<FileIdAndVolumeId, Entry>();
+        }
+
+        /// <summary>
+        /// Creates a table with a pre-built entries map (used during optimized deserialization).
+        /// </summary>
+        private FileContentTable(LoggingContext loggingContext, ConcurrentBigMap<FileIdAndVolumeId, Entry> entries, bool isStub = false, ushort entryTimeToLive = DefaultTimeToLive)
+        {
+            Contract.Requires(entryTimeToLive > 0);
+            Contract.RequiresNotNull(entries);
+            m_loggingContext = loggingContext;
+            IsStub = isStub;
+            EntryTimeToLive = entryTimeToLive;
+            m_entries = entries;
         }
 
         /// <summary>
@@ -702,93 +719,112 @@ namespace BuildXL.Storage
 
                     using (var reader = new BuildXLReader(debug: false, stream: stream, leaveOpen: true))
                     {
-                        var loadedTable = new FileContentTable(loggingContext);
-
                         uint numberOfEntries = reader.ReadUInt32();
                         int hashLength = ContentHashingUtilities.HashInfo.ByteLength;
-                        var hashBuffer = new byte[hashLength];
+                        int entrySize = FileIdAndVolumeId.SerializedByteLength + Entry.GetSerializedByteLength(hashLength);
 
-                        // Adding to the m_entries dictionary is the majority of the work of
-                        // deserialization for large FileContentTables. Perform it in parallel to spread the CPU intensive
-                        // work of dictionary growth
-                        Exception? deserializationHelperException = null;
+                        // ConcurrentBigSet (and thus ConcurrentBigMap) has int.MaxValue maximum entries. Validate that here instead
+                        // potentially blowing up in a less obvious place. As of early 2026, the largest existing FileContentTables are
+                        // around 200k entries, so only an order of magnitude off unfortunately.
+                        if (numberOfEntries > int.MaxValue)
+                        {
+                            return LoadResult.InvalidFormat(fileContentTablePath, "Number of entries is too large", sw.ElapsedMilliseconds);
+                        }
+
+                        var parsedItems = new KeyValuePair<FileIdAndVolumeId, Entry>[(int)numberOfEntries];
+
 #if NETCOREAPP
-                        var dictionaryInserter = new ActionBlock<KeyValuePair<FileIdAndVolumeId, Entry>>(action: (item) => 
-                        {
-                            try
-                            {
-                                bool added = loadedTable.m_entries.TryAdd(item.Key, item.Value);
-                                Contract.Assume(added);
-                            }
-                            catch (Exception ex)
-                            {
-                                deserializationHelperException = ex;
-                            }
-                        },
-                        new ExecutionDataflowBlockOptions() 
-                        {
-                            // Experimental results show no additional return on multi-threaded Map insertion after 4 threads
-                            MaxDegreeOfParallelism = Math.Min(Environment.ProcessorCount, 4)
-                        });
-#endif
+                        // Read entries in bulk chunks and deserialize in parallel using span-based parsing.
+                        // Each chunk is read sequentially from the stream into a shared byte buffer, then
+                        // entries within the chunk are parsed concurrently via Parallel.For into the
+                        // pre-allocated parsedItems array. This avoids per-entry BinaryReader overhead
+                        // and leverages multiple cores for deserialization.
+                        // Tested with chunks down to 10k. Smaller chunks should be less efficient but don't show a measurable difference in practice.
+                        const int EntriesPerChunk = 50_000;
+                        byte[] buffer = new byte[EntriesPerChunk * entrySize];
+                        uint entriesRemaining = numberOfEntries;
+                        uint globalOffset = 0;
+                        string? invalidFormatMessage = null;
 
-                        for (uint i = 0; i < numberOfEntries; i++)
+                        while (entriesRemaining > 0 && invalidFormatMessage == null)
                         {
-                            // Key: Volume and file ID
-                            var fileIdAndVolumeId = FileIdAndVolumeId.Deserialize(reader);
+                            int entriesToRead = (int)Math.Min(entriesRemaining, EntriesPerChunk);
+                            int bytesToRead = entriesToRead * entrySize;
 
-                            // Entry: USN, hash, length, time to live.
-                            Usn usn = new Usn(reader.ReadUInt64());
-
-                            int hashBytesRead = 0;
-                            while (hashBytesRead != hashLength)
+                            // Bulk read a chunk from the stream
+                            int totalRead = 0;
+                            while (totalRead < bytesToRead)
                             {
-                                int thisRead = reader.Read(hashBuffer, hashBytesRead, hashLength - hashBytesRead);
-                                if (thisRead == 0)
+                                int read = reader.Read(buffer, totalRead, bytesToRead - totalRead);
+                                if (read == 0)
                                 {
                                     return LoadResult.InvalidFormat(fileContentTablePath, "Unexpected end of stream", sw.ElapsedMilliseconds);
                                 }
 
-                                hashBytesRead += thisRead;
-                                Contract.Assert(hashBytesRead <= hashLength);
+                                totalRead += read;
                             }
 
-                            long length = reader.ReadInt64();
+                            // Parse entries from the buffer in parallel into the pre-allocated array
+                            uint chunkGlobalOffset = globalOffset;
+                            Parallel.For(0,
+                                entriesToRead,
+                                new ParallelOptions() { MaxDegreeOfParallelism = Math.Min(Environment.ProcessorCount, 8) },
+                                (i) =>
+                                {
+                                    if (Volatile.Read(ref invalidFormatMessage) != null)
+                                    {
+                                        return;
+                                    }
 
-                            ushort thisEntryTimeToLive = reader.ReadUInt16();
-                            if (thisEntryTimeToLive == 0)
-                            {
-                                return LoadResult.InvalidFormat(fileContentTablePath, "TTL value must be positive", sw.ElapsedMilliseconds);
-                            }
+                                    int offset = i * entrySize;
 
-                            thisEntryTimeToLive = Math.Min(thisEntryTimeToLive, entryTimeToLive);
-                            Contract.Assert(thisEntryTimeToLive > 0);
+                                    var fileIdAndVolumeId = FileIdAndVolumeId.Deserialize(
+                                        buffer.AsSpan(offset, FileIdAndVolumeId.SerializedByteLength), out int bytesRead);
+                                    offset += bytesRead;
 
-                            // We've loaded this entry just now and so clearly haven't used it yet. Tentatively decrement the TTL
-                            // for the in-memory table; if the table is saved again without using this entry, the TTL will stay at this
-                            // lower value.
-                            thisEntryTimeToLive--;
+                                    string? entryError = Entry.TryDeserialize(
+                                        buffer.AsSpan(offset, Entry.GetSerializedByteLength(hashLength)), hashLength, out var entry, out _);
+                                    if (entryError != null)
+                                    {
+                                        Volatile.Write(ref invalidFormatMessage, entryError);
+                                        return;
+                                    }
 
-                            var observedVersionAndHash = new Entry(usn, ContentHashingUtilities.CreateFrom(hashBuffer), length, thisEntryTimeToLive);
-#if NETCOREAPP
-                            dictionaryInserter.Post(new KeyValuePair<FileIdAndVolumeId, Entry>(fileIdAndVolumeId, observedVersionAndHash));
+                                    parsedItems[(int)chunkGlobalOffset + i] = new KeyValuePair<FileIdAndVolumeId, Entry>(
+                                        fileIdAndVolumeId, entry.ClampAndDecrementTimeToLive(entryTimeToLive));
+                                });
 
-#else
-                            loadedTable.m_entries.Add(fileIdAndVolumeId, observedVersionAndHash);
-#endif
+                            globalOffset += (uint)entriesToRead;
+                            entriesRemaining -= (uint)entriesToRead;
                         }
 
-#if NETCOREAPP
-                        dictionaryInserter.Complete();
-                        dictionaryInserter.Completion.Wait();
-#endif
-
-                        // Allow exceptions within the deserializationHelper thread to be handled the same as main thread
-                        // exception handling.
-                        if (deserializationHelperException != null)
+                        if (invalidFormatMessage != null)
                         {
-                            ExceptionDispatchInfo.Capture(deserializationHelperException).Throw();
+                            return LoadResult.InvalidFormat(fileContentTablePath, invalidFormatMessage, sw.ElapsedMilliseconds);
                         }
+#else
+                        for (uint i = 0; i < numberOfEntries; i++)
+                        {
+                            var fileIdAndVolumeId = FileIdAndVolumeId.Deserialize(reader);
+
+                            string? entryError = Entry.TryDeserialize(reader, hashLength, out var entry);
+                            if (entryError != null)
+                            {
+                                return LoadResult.InvalidFormat(fileContentTablePath, entryError, sw.ElapsedMilliseconds);
+                            }
+
+                            parsedItems[i] = new KeyValuePair<FileIdAndVolumeId, Entry>(
+                                fileIdAndVolumeId, entry.ClampAndDecrementTimeToLive(entryTimeToLive));
+                        }
+#endif
+
+                        // Bulk-build the ConcurrentBigMap using UnsafeAddItems (no per-item locking).
+                        var loadedTable = new FileContentTable(
+                            loggingContext,
+                            entries: ConcurrentBigMap<FileIdAndVolumeId, Entry>.Create(
+                                capacity: (int)numberOfEntries,
+                                items: parsedItems,
+                                checkExistingItem: false));
 
                         loadedTable.Counters.AddToCounter(FileContentTableCounters.NumEntries, loadedTable.Count);
                         loadedTable.Counters.AddToCounter(FileContentTableCounters.LoadDuration, sw.Elapsed);
@@ -935,12 +971,8 @@ namespace BuildXL.Storage
                                 // Key: Volume and File ID
                                 fileAndEntryPair.Key.Serialize(writer);
 
-                                // Entry: USN, hash, time to live.
-                                writer.Write(fileAndEntryPair.Value.Usn.Value);
-                                fileAndEntryPair.Value.Hash.SerializeHashBytes(hashBuffer, 0);
-                                writer.Write(hashBuffer);
-                                writer.Write(fileAndEntryPair.Value.Length);
-                                writer.Write(fileAndEntryPair.Value.TimeToLive);
+                                // Entry: USN, hash, length, time to live.
+                                fileAndEntryPair.Value.Serialize(writer, hashBuffer);
 
                                 entriesWritten++;
                             }
@@ -1020,6 +1052,104 @@ namespace BuildXL.Storage
             public static bool operator !=(Entry left, Entry right)
             {
                 return !left.Equals(right);
+            }
+
+            /// <summary>
+            /// The number of serialized bytes for an entry: Usn(8) + Hash(hashLength) + Length(8) + TimeToLive(2).
+            /// </summary>
+            public static int GetSerializedByteLength(int hashLength) => sizeof(ulong) + hashLength + sizeof(long) + sizeof(ushort);
+
+            /// <summary>
+            /// Serializes this entry using a <see cref="BinaryWriter"/>.
+            /// </summary>
+            public void Serialize(BinaryWriter writer, byte[] hashBuffer)
+            {
+                writer.Write(Usn.Value);
+                Hash.SerializeHashBytes(hashBuffer, 0);
+                writer.Write(hashBuffer);
+                writer.Write(Length);
+                writer.Write(TimeToLive);
+            }
+
+#if NETCOREAPP
+            /// <summary>
+            /// Deserializes an <see cref="Entry"/> from <paramref name="source"/>.
+            /// Returns null on success, or an error message if the data is invalid.
+            /// </summary>
+            public static string? TryDeserialize(ReadOnlySpan<byte> source, int hashLength, out Entry entry, out int bytesRead)
+            {
+                int offset = 0;
+
+                var usn = new Usn(BinaryPrimitives.ReadUInt64LittleEndian(source.Slice(offset)));
+                offset += sizeof(ulong);
+
+                var hash = ContentHashingUtilities.FromSpan(source.Slice(offset, hashLength));
+                offset += hashLength;
+
+                long length = BinaryPrimitives.ReadInt64LittleEndian(source.Slice(offset));
+                offset += sizeof(long);
+
+                ushort ttl = BinaryPrimitives.ReadUInt16LittleEndian(source.Slice(offset));
+                offset += sizeof(ushort);
+
+                if (ttl == 0)
+                {
+                    entry = default;
+                    bytesRead = 0;
+                    return "TTL value must be positive";
+                }
+
+                entry = new Entry(usn, hash, length, ttl);
+                bytesRead = offset;
+                return null;
+            }
+#endif
+
+            /// <summary>
+            /// Deserializes an <see cref="Entry"/> from a <see cref="BinaryReader"/>.
+            /// Returns null on success, or an error message if the data is invalid.
+            /// </summary>
+            public static string? TryDeserialize(BinaryReader reader, int hashLength, out Entry entry)
+            {
+                var usn = new Usn(reader.ReadUInt64());
+
+                var hashBuffer = new byte[hashLength];
+                int hashBytesRead = 0;
+                while (hashBytesRead != hashLength)
+                {
+                    int thisRead = reader.Read(hashBuffer, hashBytesRead, hashLength - hashBytesRead);
+                    if (thisRead == 0)
+                    {
+                        entry = default;
+                        return "Unexpected end of stream";
+                    }
+
+                    hashBytesRead += thisRead;
+                }
+
+                long length = reader.ReadInt64();
+                ushort ttl = reader.ReadUInt16();
+
+                if (ttl == 0)
+                {
+                    entry = default;
+                    return "TTL value must be positive";
+                }
+
+                entry = new Entry(usn, ContentHashingUtilities.CreateFrom(hashBuffer), length, ttl);
+                return null;
+            }
+
+            /// <summary>
+            /// Returns a new entry with the TTL clamped to <paramref name="maxTimeToLive"/> and decremented by one.
+            /// This represents an entry that was loaded but not yet used in the current session.
+            /// </summary>
+            public Entry ClampAndDecrementTimeToLive(ushort maxTimeToLive)
+            {
+                ushort ttl = Math.Min(TimeToLive, maxTimeToLive);
+                Contract.Assert(ttl > 0);
+                ttl--;
+                return new Entry(Usn, Hash, Length, ttl);
             }
         }
 

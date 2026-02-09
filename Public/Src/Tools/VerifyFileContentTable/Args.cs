@@ -16,6 +16,7 @@ namespace Tool.VerifyFileContentTable
     {
         private bool m_helpRequested;
         private bool m_noLogo;
+        private bool m_loadOnly;
         private readonly string m_fileContentTablePath;
 
         /// <summary>
@@ -37,6 +38,9 @@ namespace Tool.VerifyFileContentTable
                     case "NOLOGO":
                         HandleNologoOption(opt);
                         break;
+                    case "LOADONLY":
+                        HandleLoadOnlyOption(opt);
+                        break;
                     default:
                         Contract.Assume(!string.IsNullOrEmpty(Resources.Args_NotRecognized));
                         throw Error(Resources.Args_NotRecognized, opt.Name);
@@ -54,6 +58,12 @@ namespace Tool.VerifyFileContentTable
 
                 m_fileContentTablePath = arguments[0];
             }
+        }
+
+        private void HandleLoadOnlyOption(Option opt)
+        {
+            ParseVoidOption(opt);
+            m_loadOnly = true;
         }
 
         private void HandleNologoOption(Option opt)
@@ -74,6 +84,14 @@ namespace Tool.VerifyFileContentTable
         public bool HelpRequested
         {
             get { return m_helpRequested; }
+        }
+
+        /// <summary>
+        /// If true, only load the file content table and report load time without verifying entries.
+        /// </summary>
+        public bool LoadOnly
+        {
+            get { return m_loadOnly; }
         }
 
         /// <summary>

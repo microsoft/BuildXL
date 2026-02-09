@@ -42,11 +42,10 @@ jobs:
   - task: CodeQL3000Init@0
 
   # Filter the build all packages published by the BuildXL.Internal repo. It isn't important to scan unit tests
-  - task: CmdLine@1
+  - task: CmdLine@2
     displayName: Run bxl.cmd
     inputs:
-      filename: 'bxl.cmd'
-      arguments: '/p:BUILDXL_FINGERPRINT_SALT=* /logsDirectory:$(BuildXL.LogsDirectory) /p:[Sdk.BuildXL]microsoftInternal=0 /processRetries:3 /traceInfo:selfhostlkgflavor=Public /scrubDirectory:$(Build.SourcesDirectory)\Out /unsafe_GlobalUntrackedScopes:$(Agent.TempDirectory)\codeql3000 /p:CODEQL_TEMP_DIR=$(Agent.TempDirectory)\codeql3000  out\bin\debug\public\pkgs\*'
+      script: 'call bxl.cmd /p:BUILDXL_FINGERPRINT_SALT=* /logsDirectory:$(BuildXL.LogsDirectory) /p:[Sdk.BuildXL]microsoftInternal=0 /processRetries:3 /traceInfo:selfhostlkgflavor=Public /scrubDirectory:$(Build.SourcesDirectory)\Out /unsafe_GlobalUntrackedScopes:$(Agent.TempDirectory)\codeql3000 /p:CODEQL_TEMP_DIR=$(Agent.TempDirectory)\codeql3000  out\bin\debug\public\pkgs\*'
 
   - task: CodeQL3000Finalize@0
 

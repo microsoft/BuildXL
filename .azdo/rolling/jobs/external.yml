@@ -66,11 +66,12 @@ jobs:
       internal: false
       packageList: 'packages'
 
-  - task: CmdLine@1
+  - task: CmdLine@2
     displayName: Build external packages and VSCode extension
     inputs:
-      filename: bxl.cmd
-      arguments: >-
+      script: >-
+        call
+        bxl.cmd
         /f:$(PackagesFilter)oroutput='Out\Bin\release\ide\*'
         /q:Release /q:ReleaseLinux
         /p:[BuildXL.Branding]SemanticVersion=$(BuildXL.SemanticVersion)
@@ -110,11 +111,12 @@ jobs:
   steps:
   - template: ../steps/external_prepare.yml
 
-  - task: CmdLine@1
+  - task: CmdLine@2
     displayName: bxl.cmd -deploy dev
     inputs:
-      filename: bxl.cmd
-      arguments: >- 
+      script: >- 
+        call
+        bxl.cmd
         -deploy dev
         -minimal
         -deployconfig $(QualifierToBuild)
@@ -126,11 +128,12 @@ jobs:
         /processRetries:3
         /scrubDirectory:$(Build.SourcesDirectory)\Out\Objects
   
-  - task: CmdLine@1
+  - task: CmdLine@2
     displayName: bxl.cmd -use dev
     inputs:
-      filename: bxl.cmd
-      arguments: >-
+      script: >-
+        call
+        bxl.cmd
         -use dev
         /p:[Sdk.BuildXL]microsoftInternal=0
         /q:$(QualifierToBuild)

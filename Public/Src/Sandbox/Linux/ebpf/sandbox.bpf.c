@@ -1095,17 +1095,119 @@ int BPF_PROG(security_inode_getattr_exit, const struct path *path, int ret)
 }
 
 /**
+ * do_readlink_entry() - Call for reading a symlink.
+ * We cannot hook into an Linux Security Module (LSM) function to do this. See the comment in do_readlink_exit for more details. But we still
+ * want to use the path cache for readlink, since it is a common source of file accesses. do_readlinkat just gives us 
+ * raw strings and using the string cache is slow (and only used when the ringbuffer is under memory pressure). So this is 
+ * the way we do it:
+ * 1) When we enter do_readlinkat, we add the pid_tgid to should_send_readlink map to signal that the current filename lookup is being done for a readlink operation. 
+ * 2) In filename_lookup_exit (called by readlink to resolve the path), we check whether the pid_tgid is in the map. If it is, this means this filename lookup is being 
+ *    done for a readlink operation, so we check the path cache for the struct path corresponding to this filename and update the map entry to signal whether the path is 
+ *    in the cache or not.
+ * 3) In do_readlinkat_exit, we check should_send_readlink entry to see whether the path was in the cache or not. We later remove the entry from the map since we 
+ *    don't need it anymore.
+ * Check https://github.com/torvalds/linux/blob/05f7e89ab9731565d8a62e3b5d1ec206485eeb0b/fs/stat.c#L563 for the readlink implementation and how it relies on filename_lookup 
+ * to resolve the path.
+ * This is a bit convoluted, but it allows us to leverage the path cache for readlinks. The same strategy could be applied to other syscalls that take raw strings and
+ * are a common source of accesses, but for now we just apply it to readlink since it is the most common one.
+ */
+SEC("fentry/do_readlinkat")
+int BPF_PROG(do_readlink_entry, int dfd, const char *pathname, char *buf, int bufsiz)
+{
+    u64 pid_tgid = bpf_get_current_pid_tgid();
+    pid_t pid = pid_tgid >> 32;
+    pid_t runner_pid;
+    if (!is_valid_pid(pid, &runner_pid)) {
+        return 0;
+    }
+
+    // Add the pid_tgid to the map to signal filename_lookup that we want to know whether the struct path representing this path exists in the path cache.
+    // This initial value is not arbitrary, as filename_lookup_exit may not update it on error.
+    u8 should_send_path = true;
+    long ret = bpf_map_update_elem(&should_send_readlink, &pid_tgid, &should_send_path, BPF_ANY);
+
+    if (ret != 0) {
+        report_ring_buffer_error(runner_pid, "[ERROR] Could not insert into readlink_hash map");
+    }
+
+    return 0;
+}
+
+/**
+ * filename_lookup_exit() - This is called after the kernel looks up a filename and retrieves the corresponding struct path.
+ * Check do_readlinkat_entry for the rationale behind this function and the overall strategy for handling readlink accesses.
+ */
+SEC("fexit/filename_lookup")
+int BPF_PROG(filename_lookup_exit, int dfd, struct filename *name, unsigned flags,
+		    struct path *path, const struct path *root, int ret)
+{
+    // If the lookup failed, there is no path to check against the cache, so just return.
+    if (ret != 0)
+    {
+        return 0;
+    }
+
+    u64 pid_tgid = bpf_get_current_pid_tgid();
+    pid_t pid = pid_tgid >> 32;
+    pid_t runner_pid;
+    if (!is_valid_pid(pid, &runner_pid)) {
+        return 0;
+    }
+
+    // Check if the current lookup is being done for a readlink call by checking the presence of the pid_tgid in the map. 
+    // If it is not present, this means this is a lookup unrelated to readlink, and we don't need to do anything here.
+    u8 *value = bpf_map_lookup_elem(&should_send_readlink, &pid_tgid);
+    if (!value)
+    {
+        return 0;
+    }
+
+    // The struct filename should be valid here since the lookup is returning a 0 exit code. So here we should be able to check whether 
+    // we have seen this path before in the path cache
+    // This is for the readlink operation to consume, which emits a read.
+    // We could consider generalizing this strategy to other syscalls as well, where we handle raw strings instead of struct paths.
+    // In that case we'd have to model a way to request specific operations. For the time being we just hardcode this for readlink.
+    // Observe we have a pointer to the map value, so we can update it directly here and that will modify the value in the map.
+    *value = should_send_path(runner_pid, kGenericRead, path);
+
+    return 0;
+}
+
+/**
  * do_readlink_exit() - Call for reading a symlink.
  * Unfortunately we cannot use security_inode_readlink because it only takes a dentry
- * and the mount is missing. Without the mount we cannot successfully resolve a path
+ * and the mount is missing. Without the mount we cannot successfully resolve a path. In addition to that,
+ * readlink can be called for files that are not symlinks. In that case a read is actually performed, but security_inode_readlink is 
+ * not called at all, so we would miss those accesses if we relied on that function.
  * Observe that both pathname and buf belong to user space in this case (__user on the kernel side)
  */
 SEC("fexit/do_readlinkat")
 int BPF_PROG(do_readlink_exit, int dfd, const char *pathname, char *buf, int bufsiz, int ret)
 {
-    pid_t pid = bpf_get_current_pid_tgid() >> 32;
+    u64 pid_tgid = bpf_get_current_pid_tgid();
+    pid_t pid = pid_tgid >> 32;
     pid_t runner_pid;
     if (!is_valid_pid(pid, &runner_pid)) {
+        return 0;
+    }
+
+    u8 *should_send_path = bpf_map_lookup_elem(&should_send_readlink, &pid_tgid);
+    if (!should_send_path)
+    {
+        report_ring_buffer_error(runner_pid, "[ERROR] Could not find pid_tgid in readlink_hash map");
+        return 0;
+    }
+
+    // Copy the value to a local variable before deleting the map entry, as after we delete the entry we won't be able to access it anymore.
+    bool should_send = *should_send_path;
+    // We have done the cache check in filename_lookup_exit, so we know whether this path is in the cache or not. 
+    // We can remove the entry from the map now since we don't need it anymore, and this also avoids leaving stale entries in the map that 
+    // could cause issues for future lookups.
+    bpf_map_delete_elem(&should_send_readlink, &pid_tgid);
+
+    if (!should_send)
+    {
+        // This means that the corresponding filename_lookup_exit found the path in the cache, so we shouldn't send this event.
         return 0;
     }
 
@@ -1118,6 +1220,7 @@ int BPF_PROG(do_readlink_exit, int dfd, const char *pathname, char *buf, int buf
         return 0;
     }
 
+    // At this point we know we need to report this readlink access, so let's construct the final path.
     // Need to copy the filename from user space
     // retrieve temporary filepath storage
     char* temp_pathname = bpf_map_lookup_elem(&tmp_paths, &ZERO);
@@ -1145,21 +1248,11 @@ int BPF_PROG(do_readlink_exit, int dfd, const char *pathname, char *buf, int buf
         return 0;
     }
 
-    // Setting the operation type to kReadLink here will consider this a read on this directory rather than an enumerate.
-    operation_type op_type = kReadLink;
-
-    // Check the cache to see whether we have sent this before. Absent lookups are typically a significant source
-    // of accesses.
-    if (!should_send_string(runner_pid, op_type, temp_path, path_length))
-    {
-        return 0;
-    }
-
     submit_file_access(
         runner_pid,
-        // When successful, the function returns the number of bytes copied, and negative on error.
-        // On error, we report a probe, since the path was not actually read.
-        op_type,
+        // Setting the operation type to kReadLink here will consider this a read on this directory rather than an enumerate on the client side.
+        // The conceptual operation is still a read.
+        kReadLink,
         KERNEL_FUNCTION(do_readlinkat),
         // The path comes from user side, it may contain symlinks that need to be resolved. However we need to not resolve the final component,
         // as readlink is supposed to read the symlink itself, not the target.
@@ -1554,7 +1647,7 @@ int BPF_PROG(vfs_utimes, const struct path *path)
  * Used for checking access permissions on a file.
  * In principle we don't really care about permission checks, but some consumers use this syscall
  * to infer whether a file is present or not (e.g. JS fs.existsSync uses access under the hood).
- * This syscall does not call any of the LSM functions we do trace. It calls security_inode_permission,
+ * This syscall does not call any of the Linux Security Module (LSM) functions we do trace. It calls security_inode_permission,
  * but we cannot hook into that because we cannot infer a path from an inode alone. It also calls into pathlookupat,
  * which we do trace, but only for unsuccessful lookups. Therefore we need to trace this function explicitly.
  */

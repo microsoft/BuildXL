@@ -15,4 +15,4 @@ variables:
 - name: BUILDSECMON_OPT_IN
   value: true
 # Add CG exclusions
-- template: .azdo/common/component-detection-exclusions.yml
+- template: /.azdo/common/component-detection-exclusions.yml

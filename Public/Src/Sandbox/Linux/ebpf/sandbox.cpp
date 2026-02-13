@@ -251,6 +251,78 @@ void GetProgramFullName(const struct bpf_prog_info *prog_info, int prog_fd, char
     }
 }
 
+/**
+ * Retrieves the file descriptor of a BPF program by its name.
+ * The given program_name should be smaller than MAX_PROG_FULL_NAME. This is an arbitrary size, it can be increased if needed.
+ */
+int GetProgramFd(const char* program_name)
+{
+    assert(strlen(program_name) < MAX_PROG_FULL_NAME && "program_name exceeds MAX_PROG_FULL_NAME, no match is possible");
+
+    __u32 id = 0;
+    int err, fd = 0;
+    char prog_name[MAX_PROG_FULL_NAME];
+
+    // Iterate over all bpf programs
+    while (true) {
+        err = bpf_prog_get_next_id(id, &id);
+        if (err) {
+            break;
+        }
+
+        fd = bpf_prog_get_fd_by_id(id);
+        if (fd < 0) {
+            continue;
+        }
+
+        // We got a program with a valid file descriptor, retrieve its info
+        struct bpf_prog_info info = {};
+        __u32 len = sizeof(info);
+
+        err = bpf_obj_get_info_by_fd(fd, &info, &len);
+        if (err || !info.name)
+        {
+            continue;
+        }
+        // Check whether we find a program that is our loading witness
+        // (this is just an arbitrarily picked program among all the ones we load)
+        GetProgramFullName(&info, fd, prog_name, sizeof(prog_name));
+
+        if (strcmp(prog_name, program_name) == 0) {
+            return fd;
+        }
+
+        close(fd);
+	}
+
+    return -1;
+}
+
+/**
+ * Retrieves the current process namespace level by calling a custom bpf program.
+ */
+int GetCurrentProcessNamespaceLevel() {
+    LIBBPF_OPTS(bpf_test_run_opts, test_run_opts);
+
+    int get_current_namespace_level = GetProgramFd("get_current_namespace_level");
+
+    if (get_current_namespace_level < 0) {
+        g_bxl->LogError(getpid(), "Failed to get fd for get_current_namespace_level program: %s", strerror(errno));
+        return -1;
+    }
+
+    int err = bpf_prog_test_run_opts(get_current_namespace_level, &test_run_opts);
+    close(get_current_namespace_level);
+
+    if (err) {
+        g_bxl->LogError(getpid(), "Failed to run get_current_namespace_level program: %s", strerror(errno));
+        return -1;
+    }
+
+    return test_run_opts.retval;
+}
+
+
 bool ShouldForceEBPFLoading()
 {
     // If the environment variable is set, we always load EBPF. Mostly for testing purposes.
@@ -456,7 +528,7 @@ int RunRootProcess(const char *file, char *const argv[], char *const envp[]) {
             g_bxl->LogDebug(getpid(), "Can't add new pip id to map: %s", strerror(errno));
             return 1;
         }
-        
+
         // Root pid must be set before calling this function
         if (PopulateOptionsMapFromFam())
         {
@@ -838,7 +910,7 @@ int HandleDebugEvents(void *ctx, void *data, size_t data_sz) {
 int SetupMaps(struct sandbox_bpf *skel) {
     // If ebpf is already loaded, we need to reuse the pinned maps. This is something the ebpf helpers will do on load(), but
     // that logic is intertwined with loading the bpf object to the kernel, which is something that already happened and we want to avoid
-    if (g_ebpf_should_force_ebpf_loading || g_ebpf_already_loaded)
+    if (!g_ebpf_should_force_ebpf_loading && g_ebpf_already_loaded)
     {
         if (ReuseMaps(skel))
         {
@@ -846,7 +918,45 @@ int SetupMaps(struct sandbox_bpf *skel) {
             return -1;
         }
     }
+    else {
+        // We need to set the runner PID level as global data for all our bpf programs. This ensures that all pids reported by the sandbox
+        // are seen as part of the same pid namespace that the runner is in. The assumption here is that all runners will share the
+        // same pid namespace (which should be true since they are all spawned by bxl without a namespace change).
+        // We only do this once, when ebpf programs are being loaded. There is no need to reuse this map in the runner code
+        // as it is only accessed from kernel side.
+        // The alternative would be to communicate the pid of the runner to kernel side, but retrieving a task from a pid (bpf_task_from_pid)
+        // is not available for fentry/fexit programs.
 
+        // Retrieve the runner_pid_level map
+        int runner_pid_level_fd = bpf_object__find_map_fd_by_name(skel->obj, "runner_pid_level");
+        if (runner_pid_level_fd < 0) {
+            LogError("finding runner_pid_level in obj file failed\n");
+            Cleanup(skel);
+            return -1;
+        }
+
+        int level = GetCurrentProcessNamespaceLevel();
+
+        if (level < 0) {
+            LogError("Failed to get current process namespace level: %s\n", strerror(errno));
+            Cleanup(skel);
+            return -1;
+        }
+
+        // Set it in the global map
+        if (bpf_map_update_elem(runner_pid_level_fd, &ZERO, &level, BPF_ANY)){
+            LogError("Failed to set current pid namespace level in runner_pid_level map: %s\n", strerror(errno));
+            Cleanup(skel);
+            return -1;
+        }
+
+        // Freeze the map so it can be safely accessed from the kernel side without locks.
+        if (bpf_map_freeze(runner_pid_level_fd)) {
+            LogError("Failed to freeze runner_pid_level map: %s\n", strerror(errno));
+            Cleanup(skel);
+            return -1;
+        }
+    }
     if (BindPerPipMaps(skel))
     {
         Cleanup(skel);

@@ -115,6 +115,7 @@ namespace Processes {
                         importFrom("BuildXL.Sandbox.Linux.UnitTests").Test.eBPFSandbox.ringbufferTest,
                         importFrom("BuildXL.Sandbox.Linux.UnitTests").Test.eBPFSandbox.sendProbe,
                         importFrom("BuildXL.Sandbox.Linux.UnitTests").Test.eBPFSandbox.pathCanonicalization,
+                        importFrom("BuildXL.Sandbox.Linux.UnitTests").Test.eBPFSandbox.pidNamespaceTest,
                     ]
                 }
             ])

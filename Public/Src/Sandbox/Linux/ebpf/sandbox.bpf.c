@@ -47,13 +47,13 @@ int BPF_PROG(LOADING_WITNESS, struct task_struct *new_task)
         return 0;
     }
 
-    pid_t current_pid = bpf_get_current_pid_tgid() >> 32;
+    pid_t current_pid = bpf_get_current_ns_pid();
     pid_t runner_pid;
     if (!(is_valid_pid(current_pid, &runner_pid))) {
         return 0;
     }
 
-    pid_t new_pid = BPF_CORE_READ(new_task, pid);
+    pid_t new_pid = bpf_get_ns_pid(new_task);
 
     // If not monitoring child processes, 
     // then skip reporting and skip adding this PID to the pid_map
@@ -204,7 +204,7 @@ __attribute__((always_inline)) static inline int execve_common(pid_t pid, enum k
  */
 SEC("ksyscall/execve")
 int BPF_KPROBE_SYSCALL(execve_ksys_enter, const char *filename, char *const *argv, char *const *envp) {
-    pid_t pid = bpf_get_current_pid_tgid() >> 32;
+    pid_t pid = bpf_get_current_ns_pid();
     pid_t runner_pid;
     if (!is_valid_pid(pid, &runner_pid)) {
         return 0;
@@ -220,7 +220,7 @@ int BPF_KPROBE_SYSCALL(execve_ksys_enter, const char *filename, char *const *arg
  */
 SEC("ksyscall/execveat")
 int BPF_KPROBE_SYSCALL(execveat_ksys_enter, int fd, const char *filename, char *const *argv, char *const *envp, int flags) {
-    pid_t pid = bpf_get_current_pid_tgid() >> 32;
+    pid_t pid = bpf_get_current_ns_pid();
     pid_t runner_pid;
     if (!is_valid_pid(pid, &runner_pid)) {
         return 0;
@@ -238,7 +238,7 @@ int BPF_KPROBE_SYSCALL(execveat_ksys_enter, int fd, const char *filename, char *
  */
 SEC("fentry/security_bprm_committed_creds")
 int BPF_PROG(bprm_execve_enter, struct linux_binprm *bprm) {
-    pid_t pid = bpf_get_current_pid_tgid() >> 32;
+    pid_t pid = bpf_get_current_ns_pid();
     pid_t runner_pid;
     if (!is_valid_pid(pid, &runner_pid)) {
         return 0;
@@ -298,7 +298,7 @@ int BPF_PROG(taskstats_exit, struct task_struct *tsk, int group_dead)
         return 0;
     }
 
-    pid_t pid = bpf_get_current_pid_tgid() >> 32;
+    pid_t pid = bpf_get_current_ns_pid();
     pid_t runner_pid;
     if (!is_valid_pid(pid, &runner_pid)) {
         return 0;
@@ -341,7 +341,7 @@ SEC("fentry/security_path_rename")
 int BPF_PROG(security_path_rename_enter, const struct path *old_dir, struct dentry *old_dentry,
     const struct path *new_dir, struct dentry *new_dentry, unsigned int flags)
 {
-    pid_t pid = bpf_get_current_pid_tgid() >> 32;
+    pid_t pid = bpf_get_current_ns_pid();
     pid_t runner_pid;
     if (!is_valid_pid(pid, &runner_pid)) {
         return 0;
@@ -401,7 +401,7 @@ int BPF_PROG(security_path_rename_enter, const struct path *old_dir, struct dent
 SEC("fexit/do_mkdirat")
 int BPF_PROG(do_mkdirat_exit, int dfd, struct filename *name, umode_t mode, int ret)
 {
-    pid_t pid = bpf_get_current_pid_tgid() >> 32;
+    pid_t pid = bpf_get_current_ns_pid();
     pid_t runner_pid;
     if (!is_valid_pid(pid, &runner_pid)) {
         return 0;
@@ -454,7 +454,7 @@ int BPF_PROG(do_mkdirat_exit, int dfd, struct filename *name, umode_t mode, int 
 SEC("fexit/do_rmdir")
 int BPF_PROG(do_rmdir_exit, int dfd, struct filename *name, int ret)
 {
-    pid_t pid = bpf_get_current_pid_tgid() >> 32;
+    pid_t pid = bpf_get_current_ns_pid();
     pid_t runner_pid;
     if (!is_valid_pid(pid, &runner_pid)) {
         return 0;
@@ -508,7 +508,7 @@ int BPF_PROG(do_rmdir_exit, int dfd, struct filename *name, int ret)
 SEC("fentry/security_path_unlink")
 int BPF_PROG(security_path_unlink_enter, const struct path *dir, struct dentry *dentry)
 {
-    pid_t pid = bpf_get_current_pid_tgid() >> 32;
+    pid_t pid = bpf_get_current_ns_pid();
     pid_t runner_pid;
     if (!is_valid_pid(pid, &runner_pid)) {
         return 0;
@@ -559,7 +559,7 @@ SEC("fentry/security_path_link")
 int BPF_PROG(security_path_link_entry, struct dentry *old_dentry, const struct path *new_dir,
 		       struct dentry *new_dentry)
 {
-    pid_t pid = bpf_get_current_pid_tgid() >> 32;
+    pid_t pid = bpf_get_current_ns_pid();
     pid_t runner_pid;
     if (!is_valid_pid(pid, &runner_pid)) {
         return 0;
@@ -614,7 +614,7 @@ int BPF_PROG(security_path_link_entry, struct dentry *old_dentry, const struct p
 SEC("fexit/path_lookupat")
 int BPF_PROG(path_lookupat_exit, struct nameidata *nd, unsigned flags, struct path *path, int ret)
 {
-    pid_t pid = bpf_get_current_pid_tgid() >> 32;
+    pid_t pid = bpf_get_current_ns_pid();
     pid_t runner_pid;
     if (!is_valid_pid(pid, &runner_pid)) {
         return 0;
@@ -678,7 +678,7 @@ int BPF_PROG(path_lookupat_exit, struct nameidata *nd, unsigned flags, struct pa
 SEC("fexit/path_parentat")
 int BPF_PROG(path_parentat, struct nameidata *nd, unsigned flags, struct path *parent, int ret)
 {
-    pid_t pid = bpf_get_current_pid_tgid() >> 32;
+    pid_t pid = bpf_get_current_ns_pid();
     pid_t runner_pid;
     if (!is_valid_pid(pid, &runner_pid)) {
         return 0;
@@ -735,7 +735,7 @@ int BPF_PROG(path_parentat, struct nameidata *nd, unsigned flags, struct path *p
 SEC("fexit/path_openat")
 int BPF_PROG(path_openat_exit, struct nameidata *nd, const struct open_flags *op, unsigned flags, struct file * ret)
 {
-    pid_t pid = bpf_get_current_pid_tgid() >> 32;
+    pid_t pid = bpf_get_current_ns_pid();
     pid_t runner_pid;
     if (!is_valid_pid(pid, &runner_pid)) {
         return 0;
@@ -825,7 +825,7 @@ int BPF_PROG(path_openat_exit, struct nameidata *nd, const struct open_flags *op
 SEC("fentry/security_file_open")
 int BPF_PROG(security_file_open_enter, struct file *file)
 {
-    pid_t pid = bpf_get_current_pid_tgid() >> 32;
+    pid_t pid = bpf_get_current_ns_pid();
     pid_t runner_pid;
     if (!is_valid_pid(pid, &runner_pid)) {
         return 0;
@@ -880,7 +880,7 @@ int BPF_PROG(security_file_open_enter, struct file *file)
 SEC("fentry/security_file_permission")
 int BPF_PROG(security_file_permission_enter, struct file *file, int mask)
 {
-    pid_t pid = bpf_get_current_pid_tgid() >> 32;
+    pid_t pid = bpf_get_current_ns_pid();
     pid_t runner_pid;
     if (!is_valid_pid(pid, &runner_pid)) {
         return 0;
@@ -937,7 +937,7 @@ SEC("fentry/security_path_symlink")
 int BPF_PROG(security_path_symlink_enter, const struct path *parent_dir, struct dentry *dentry,
 			  const char *old_name)
 {
-    pid_t pid = bpf_get_current_pid_tgid() >> 32;
+    pid_t pid = bpf_get_current_ns_pid();
     pid_t runner_pid;
     if (!is_valid_pid(pid, &runner_pid)) {
         return 0;
@@ -991,7 +991,7 @@ int BPF_PROG(security_path_symlink_enter, const struct path *parent_dir, struct 
 SEC("fentry/security_path_mknod")
 int BPF_PROG(security_path_mknod_enter, const struct path *parent_dir, struct dentry *dentry, umode_t mode, unsigned int dev)
 {
-    pid_t pid = bpf_get_current_pid_tgid() >> 32;
+    pid_t pid = bpf_get_current_ns_pid();
     pid_t runner_pid;
     if (!is_valid_pid(pid, &runner_pid)) {
         return 0;
@@ -1042,7 +1042,7 @@ int BPF_PROG(security_path_mknod_enter, const struct path *parent_dir, struct de
 SEC("fexit/security_inode_getattr")
 int BPF_PROG(security_inode_getattr_exit, const struct path *path, int ret)
 {
-    pid_t pid = bpf_get_current_pid_tgid() >> 32;
+    pid_t pid = bpf_get_current_ns_pid();
     pid_t runner_pid;
     if (!is_valid_pid(pid, &runner_pid)) {
         return 0;
@@ -1114,8 +1114,7 @@ int BPF_PROG(security_inode_getattr_exit, const struct path *path, int ret)
 SEC("fentry/do_readlinkat")
 int BPF_PROG(do_readlink_entry, int dfd, const char *pathname, char *buf, int bufsiz)
 {
-    u64 pid_tgid = bpf_get_current_pid_tgid();
-    pid_t pid = pid_tgid >> 32;
+    pid_t pid = bpf_get_current_ns_pid();
     pid_t runner_pid;
     if (!is_valid_pid(pid, &runner_pid)) {
         return 0;
@@ -1123,6 +1122,7 @@ int BPF_PROG(do_readlink_entry, int dfd, const char *pathname, char *buf, int bu
 
     // Add the pid_tgid to the map to signal filename_lookup that we want to know whether the struct path representing this path exists in the path cache.
     // This initial value is not arbitrary, as filename_lookup_exit may not update it on error.
+    u64 pid_tgid = bpf_get_current_pid_tgid();
     u8 should_send_path = true;
     long ret = bpf_map_update_elem(&should_send_readlink, &pid_tgid, &should_send_path, BPF_ANY);
 
@@ -1148,7 +1148,7 @@ int BPF_PROG(filename_lookup_exit, int dfd, struct filename *name, unsigned flag
     }
 
     u64 pid_tgid = bpf_get_current_pid_tgid();
-    pid_t pid = pid_tgid >> 32;
+    pid_t pid = bpf_get_current_ns_pid();
     pid_t runner_pid;
     if (!is_valid_pid(pid, &runner_pid)) {
         return 0;
@@ -1184,13 +1184,13 @@ int BPF_PROG(filename_lookup_exit, int dfd, struct filename *name, unsigned flag
 SEC("fexit/do_readlinkat")
 int BPF_PROG(do_readlink_exit, int dfd, const char *pathname, char *buf, int bufsiz, int ret)
 {
-    u64 pid_tgid = bpf_get_current_pid_tgid();
-    pid_t pid = pid_tgid >> 32;
+    pid_t pid = bpf_get_current_ns_pid();
     pid_t runner_pid;
     if (!is_valid_pid(pid, &runner_pid)) {
         return 0;
     }
 
+    u64 pid_tgid = bpf_get_current_pid_tgid();
     u8 *should_send_path = bpf_map_lookup_elem(&should_send_readlink, &pid_tgid);
     if (!should_send_path)
     {
@@ -1284,8 +1284,7 @@ int BPF_PROG(do_readlink_exit, int dfd, const char *pathname, char *buf, int buf
 SEC("?fexit/security_inode_follow_link")
 int BPF_PROG(security_inode_follow_link_exit, struct dentry *dentry, struct inode *inode, bool rcu, int ret)
 {
-    u64 pid_tgid = bpf_get_current_pid_tgid();
-    pid_t pid = pid_tgid >> 32;
+    pid_t pid = bpf_get_current_ns_pid();
     pid_t runner_pid;
     if (!is_valid_pid(pid, &runner_pid)) {
         return 0;
@@ -1299,6 +1298,7 @@ int BPF_PROG(security_inode_follow_link_exit, struct dentry *dentry, struct inod
 
     // Retrieve the mount stored in step_into_entry. We need this because security_inode_follow_link
     // only provides a dentry, but we need the mount to construct the full path.
+    u64 pid_tgid = bpf_get_current_pid_tgid();
     struct vfsmount **mount_ptr = bpf_map_lookup_elem(&follow_link_mount, &pid_tgid);
     if (!mount_ptr) {
         report_ring_buffer_error(runner_pid, "[ERROR] Could not retrieve mount from follow_link_mount map.");
@@ -1348,14 +1348,14 @@ SEC("?fentry/step_into")
 int BPF_PROG(step_into_entry, struct nameidata *nd, int flags,
 		     struct dentry *dentry)
 {
-    u64 pid_tgid = bpf_get_current_pid_tgid();
-    pid_t pid = pid_tgid >> 32;
+    pid_t pid = bpf_get_current_ns_pid();
     pid_t runner_pid;
     if (!is_valid_pid(pid, &runner_pid)) {
         return 0;
     }
 
     struct vfsmount* mount = BPF_CORE_READ(nd, path.mnt);
+    u64 pid_tgid = bpf_get_current_pid_tgid();
     long ret = bpf_map_update_elem(&follow_link_mount, &pid_tgid, &mount, BPF_ANY);
 
     if (ret != 0) {
@@ -1373,13 +1373,13 @@ SEC("?fexit/step_into")
 int BPF_PROG(step_into_exit, struct nameidata *nd, int flags,
 		     struct dentry *dentry)
 {
-    u64 pid_tgid = bpf_get_current_pid_tgid();
-    pid_t pid = pid_tgid >> 32;
+    pid_t pid = bpf_get_current_ns_pid();
     pid_t runner_pid;
     if (!is_valid_pid(pid, &runner_pid)) {
         return 0;
     }
 
+    u64 pid_tgid = bpf_get_current_pid_tgid();
     bpf_map_delete_elem(&follow_link_mount, &pid_tgid);
     return 0;
 }
@@ -1395,7 +1395,7 @@ SEC("?fexit/pick_link")
 int BPF_PROG(pick_link_exit, struct nameidata *nd, struct path *link,
     struct inode *inode, int flags, char * ret)
 {
-    pid_t pid = bpf_get_current_pid_tgid() >> 32;
+    pid_t pid = bpf_get_current_ns_pid();
     pid_t runner_pid;
     if (!is_valid_pid(pid, &runner_pid)) {
         return 0;
@@ -1445,7 +1445,7 @@ int BPF_PROG(pick_link_exit, struct nameidata *nd, struct path *link,
 SEC("fentry/security_path_chown")
 int BPF_PROG(security_path_chown, const struct path *path)
 {
-    pid_t pid = bpf_get_current_pid_tgid() >> 32;
+    pid_t pid = bpf_get_current_ns_pid();
     pid_t runner_pid;
     if (!is_valid_pid(pid, &runner_pid)) {
         return 0;
@@ -1495,7 +1495,7 @@ int BPF_PROG(security_path_chown, const struct path *path)
 SEC("fentry/security_path_chmod")
 int BPF_PROG(security_path_chmod, const struct path *path)
 {
-    pid_t pid = bpf_get_current_pid_tgid() >> 32;
+    pid_t pid = bpf_get_current_ns_pid();
     pid_t runner_pid;
     if (!is_valid_pid(pid, &runner_pid)) {
         return 0;
@@ -1546,7 +1546,7 @@ int BPF_PROG(security_path_chmod, const struct path *path)
 SEC("fentry/security_file_truncate")
 int BPF_PROG(security_file_truncate, struct file *file)
 {
-    pid_t pid = bpf_get_current_pid_tgid() >> 32;
+    pid_t pid = bpf_get_current_ns_pid();
     pid_t runner_pid;
     if (!is_valid_pid(pid, &runner_pid)) {
         return 0;
@@ -1596,7 +1596,7 @@ int BPF_PROG(security_file_truncate, struct file *file)
 SEC("fentry/vfs_utimes")
 int BPF_PROG(vfs_utimes, const struct path *path)
 {
-    pid_t pid = bpf_get_current_pid_tgid() >> 32;
+    pid_t pid = bpf_get_current_ns_pid();
     pid_t runner_pid;
     if (!is_valid_pid(pid, &runner_pid)) {
         return 0;
@@ -1654,7 +1654,7 @@ int BPF_PROG(vfs_utimes, const struct path *path)
 SEC("fexit/do_faccessat")
 int BPF_PROG(do_faccessat, int dfd, const char /*__user*/ *user_filename, int mode, int flags, int ret)
 {
-    pid_t pid = bpf_get_current_pid_tgid() >> 32;
+    pid_t pid = bpf_get_current_ns_pid();
     pid_t runner_pid;
     if (!is_valid_pid(pid, &runner_pid)) {
         return 0;
@@ -1720,13 +1720,30 @@ int BPF_PROG(do_faccessat, int dfd, const char /*__user*/ *user_filename, int mo
 }
 
 /**
+ * get_current_namespace_level() - Program to get the current task namespace level.
+ * Called from userspace to retrieve the namespace level of the runner task.
+ * This information is not available on user side, so we expose this bpf program for userspace to call into.
+ * Having the level available allow us to directly index into the pid_namespace array without incurring into a more expensive lookup.
+ */
+SEC("syscall")
+int get_current_namespace_level() {
+    struct task_struct *task = (struct task_struct *)bpf_get_current_task();
+    if (!task) {
+        // This can actually never happen, just keeping the verifier happy
+        return -1;
+    }
+    int level = BPF_CORE_READ(task, thread_pid, level);
+    return level;
+}
+
+/**
  * Test program to write a test message to the ring buffer.
  * Not actually tracing anything, this gets called with bpf_prog_test_run_opts from user side for testing purposes. 
  */
 SEC("syscall")
 int test_write_ringbuf(struct test_write_ringbuf_args *args)
 {
-    pid_t pid = bpf_get_current_pid_tgid() >> 32;
+    pid_t pid = bpf_get_current_ns_pid();
 
     pid_t runner_pid = args->runner_pid;
     int args_number = args->number;
@@ -1760,7 +1777,7 @@ int test_write_ringbuf(struct test_write_ringbuf_args *args)
  */
 SEC("syscall")
 int test_incremental_event(struct test_incremental_event_args *event) {
-    pid_t pid = bpf_get_current_pid_tgid() >> 32;
+    pid_t pid = bpf_get_current_ns_pid();
     pid_t runner_pid;
     if (!is_valid_pid(pid, &runner_pid)) {
         return 0;
@@ -1836,7 +1853,7 @@ int test_incremental_event(struct test_incremental_event_args *event) {
  */
 SEC("syscall")
 int test_path_canonicalization(struct test_path_canonicalization_args *event) {
-    pid_t pid = bpf_get_current_pid_tgid() >> 32;
+    pid_t pid = bpf_get_current_ns_pid();
     pid_t runner_pid;
     if (!is_valid_pid(pid, &runner_pid)) {
         return 0;

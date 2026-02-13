@@ -87,4 +87,21 @@ namespace Test.eBPFSandbox {
             libraries: [ "rt", "dl", "pthread", "m", "elf", "z", "numa" ]
         })
     : undefined;
+
+    const pidNamespaceTestSources = [
+        f`pid_namespace_test.cpp`,
+    ];
+
+    const pidNamespaceTestObj = pidNamespaceTestSources.map(compile);
+
+    @@public
+    export const pidNamespaceTest = EBPF.eBPFSandbox.hostSupportsBuildingEBPF
+        ?
+            Native.Linux.Compilers.link({
+                outputName: a`pid_namespace_test`,
+                tool: Native.Linux.Compilers.gxxTool,
+                objectFiles: [...pidNamespaceTestObj],
+                libraries: [ "pthread" ]
+            })
+        : undefined;
 }

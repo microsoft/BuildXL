@@ -436,5 +436,81 @@ namespace Test.BuildXL.Processes
             var expectedAccess = result.FileAccesses?.Single(access => access.ManifestPath == expectedPath);
             XAssert.IsNotNull(expectedAccess, $"Expected to find an access to {expectedPath} in the unexpected accesses: {string.Join(Environment.NewLine, result.FileAccesses?.Select(a => a.Path) ?? Array.Empty<string>())}");
         }
+
+        [Theory]
+        [InlineData(1)]
+        [InlineData(4)]
+        public void ProcessesInChildPidNamespaceAreTracked(int numThreads)
+        {
+            // For now this test only runs in ADO builds, where we can set the required capabilities without an interactive prompt.
+            if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("TF_BUILD")))
+            {
+                return;
+            }
+
+            // CODESYNC: Public/Src/Engine/UnitTests/Processes/Test.BuildXL.Processes.dsc
+            string pidNamespaceTest = SandboxedProcessUnix.EnsureDeploymentFile("RingBufferTest/pid_namespace_test");
+
+            // The test needs the ability to create a PID namespace (CAP_SYS_ADMIN)
+            var setCapResult = UnixGetCapUtils.TrySetEBPFCapabilitiesIfNeeded(pidNamespaceTest, interactive: false, out _);
+            // This test only runs on ADO, and therefore we should be able to set the capabilities without an interactive prompt.
+            XAssert.IsTrue(setCapResult);
+
+            // Use a base path for absent files. Each thread will stat <basePath>_thread_<N>
+            // and the main thread will stat <basePath>_main. None of these files exist,
+            // so each stat produces a unique absent probe
+            var basePath = Path.Combine(TemporaryDirectory, "ns_test_file");
+
+            var fileAccessManifest = new FileAccessManifest(Context.PathTable)
+            {
+                FailUnexpectedFileAccesses = false,
+                ReportFileAccesses = true,
+                MonitorChildProcesses = true,
+                PipId = 1,
+                EnableLinuxSandboxLogging = true
+            };
+
+            var info =
+                new SandboxedProcessInfo(
+                    Context.PathTable,
+                    new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory),
+                    pidNamespaceTest,
+                    fileAccessManifest,
+                    disableConHostSharing: false,
+                    loggingContext: LoggingContext,
+                    useGentleKill: true)
+                {
+                    Arguments = $"{basePath} {numThreads}",
+                    WorkingDirectory = TemporaryDirectory,
+                    PipSemiStableHash = fileAccessManifest.PipId,
+                    PipDescription = "EBPF PID namespace test",
+                    SandboxConnection = new SandboxConnectionLinuxEBPF(isInTestMode: true),
+                };
+
+            var process = SandboxedProcessFactory.StartAsync(info, forceSandboxing: true).GetAwaiter().GetResult();
+            var result = process.GetResultAsync().GetAwaiter().GetResult();
+            AssertExitCode(result, 0);
+
+            // Build the set of expected absent file paths: one per thread + one for the main thread
+            var expectedPaths = Enumerable.Range(0, numThreads).Select(i => $"{basePath}_thread_{i}").ToList();
+            expectedPaths.Add($"{basePath}_main");
+
+            // The child process (and its threads) each stat a unique absent file. Even though they run in a
+            // different PID namespace, the sandbox must translate PIDs correctly and track all these accesses.
+            var allAccessPaths = result.FileAccesses?.Select(a => a.GetPath(Context.PathTable)).ToHashSet();
+            var matchedPaths = expectedPaths.Where(p => allAccessPaths!.Contains(p)).ToList();
+
+            // We expect numThreads + 1 distinct accesses (one per thread + one for the main thread)
+            int expectedCount = numThreads + 1;
+            XAssert.AreEqual(expectedCount, matchedPaths.Count,
+                $"Expected {expectedCount} distinct file accesses from {numThreads} threads + main thread in the new PID namespace, but found {matchedPaths.Count}.{Environment.NewLine}" +
+                $"Expected paths: {string.Join(", ", expectedPaths)}{Environment.NewLine}" +
+                $"Matched paths: {string.Join(", ", matchedPaths)}{Environment.NewLine}" +
+                $"All reported accesses:{Environment.NewLine}{string.Join(Environment.NewLine, result.FileAccesses?.Select(a => a.Describe()) ?? Array.Empty<string>())}");
+        
+            // Verify the child actually ran in a new PID namespace (PID 1 inside it)
+            var stdout = result.StandardOutput!.ReadValueAsync().GetAwaiter().GetResult();
+            XAssert.Contains(stdout, "Child process started with PID 1");
+        }
     }
 }

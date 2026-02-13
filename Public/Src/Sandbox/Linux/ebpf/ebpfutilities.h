@@ -242,6 +242,23 @@ struct {
 } untracked_scopes_per_pip SEC(".maps");
 
 /**
+ * Map to hold the runner pid namespace level. This is computed on user side since retrieving tasks based on pids is not
+ * allowed under fentry programs.
+ * This is used to translate all traced tasks pids to the same namespace level, so userspace and kernel side are aligned 
+ * on the same pid values.
+ */
+struct {
+    __uint(type, BPF_MAP_TYPE_ARRAY);
+    __type(key, __u32);
+    // The level we want to store is an unsigned int
+    __type(value, __u32);
+    // We are just going to store the runner pid namespace level, so we just need one entry in this map.
+    __uint(max_entries, 1);
+    // Block writes from kernel side. This has a good performance benefit (together with freezing the map - done in userspace).
+    __uint(map_flags, BPF_F_RDONLY_PROG);
+} runner_pid_level SEC(".maps");
+
+/**
  * Holds a temporary per-CPU untracked scope key, so we can construct one for doing lookups.
  */
 struct {
@@ -1709,5 +1726,115 @@ __attribute__((always_inline)) static void submit_exec(
     bpf_ringbuf_submit_dynptr(&ptr, get_flags(file_access_ring_buffer));
 }
 
+/**
+ * first_elem_map() - Callback for first_elem_map, which retrieves the value of the first element in the map and stores it in the given context.
+ */
+__attribute__((always_inline)) static long first_elem_map_callback(struct bpf_map *map, const void *key, void *value, void *ctx) {
+    void **first_value = (void **)ctx;
+    *first_value = value;
+
+    // We don't want to continue, we are just after the first element.
+    return 1;
+}
+
+/**
+ * first_elem_map() - Retrieves the value of the first element in the given map. Returns NULL if the map is empty.
+ */
+__attribute__((always_inline)) static void* first_elem_in_map(void *map) {
+    void *first_value = NULL;
+    bpf_for_each_map_elem(map, first_elem_map_callback, &first_value, 0);
+    return first_value;
+}
+
+/**
+ * Attempts to reserve space on the debug ring buffer to report a problem
+ * This serves the case where the runnner is not known, so we pick an arbitrary runner to report the error
+ * There is a slim chance that the pip that happens to receive this message is about to be torn down and the error won't
+ * get through. Use with care, should only be used for reporting unexpected errors that happen in edge cases.
+ */
+__attribute__((always_inline)) static inline void report_ring_buffer_error_unknown_runner(const char* error_message) {
+    pid_t* runner_pid = first_elem_in_map(&pid_map); 
+    if (!runner_pid) {
+        // This should never happen, the map should have at least one element
+        bpf_printk("Unable to report error to ring buffer: no runner found. Error message: %s", error_message);
+        return;
+    }
+
+    report_ring_buffer_error(*runner_pid, error_message);
+}
+
+/**
+ * bpf_get_ns_pid() - Retrieves the PID of the given task as seen by the userspace pid namespace.
+ * 
+ * The runner_namespace_level map is populated by userspace at initialization time
+ * with the namespace level of the runner process.
+ * If this operation fails for any reason, an error is logged And 0 is returned. If at some point we come to the conclusion that
+ * it is impossible for a given task to be something we would care about, 0 is returned as well. Even though 0 is technically a
+ * valid PID, in practice it not possible to have a real process with PID 0 in the userspace namespace.
+ */
+__attribute__((always_inline)) static pid_t bpf_get_ns_pid(struct task_struct *task) {
+    int level = BPF_CORE_READ(task, thread_pid, level);
+
+    // Level 0 means we're in the initial namespace. That means the userspace runner cannot be in a different one. 
+    // So we can return the regular tgid and avoid more expensive lookups
+    if (level == 0) {
+        return BPF_CORE_READ(task, tgid);
+    }
+
+    // Get the runner's namespace level (pre-populated by userspace)
+    int* runner_ns_level = bpf_map_lookup_elem(&runner_pid_level, &ZERO);
+    if (!runner_ns_level) {
+        // This actually can never fail. We are just keeping the verifier happy.
+        // Indexes are constants and bounds checked by the verifier. For arrays this means a direct memory access and
+        // a guaranteed non-null result.
+        return 0;
+    }
+    
+    // Validate that the runner namespace level is a parent of the current task namespace level.
+    if (*runner_ns_level > level) {
+        // This means we are looking at a task that is not in the hierarchy of the runner. So we are sure we are not interested.
+        return 0;
+    }
+
+    // Get the pid structure from the task's group leader.
+    // We must use group_leader->thread_pid (not task->thread_pid) because thread_pid
+    // is per-thread: for non-leader threads it holds the TID, not the TGID.
+    // Using the group leader's thread_pid ensures we always get the TGID at the target
+    // namespace level, consistent with the level-0 fast path that returns task->tgid.
+    struct pid *pid_struct = BPF_CORE_READ(task, group_leader, thread_pid);
+    if (!pid_struct) {
+        // Just keeping the verifier happy, this should never happen
+        return 0;
+    }
+
+    // Read the specific upid element at the runner's namespace level
+    // We need to mask the index to keep the verifier happy
+    int target_level = *runner_ns_level & (MAX_PID_NS_LEVEL - 1);
+    struct upid upid_data;
+    
+    // Use bpf_core_read to read the specific element directly
+    if (bpf_core_read(&upid_data, sizeof(struct upid), 
+                        &pid_struct->numbers[target_level]) != 0) {
+        // This is not expected to happen, we should always be able to read the upid data of a namespace.
+        // Try to report it to the ring buffer, even if we don't know the runner pid, just for added robustness.
+        report_ring_buffer_error_unknown_runner("Failed to read upid data for task.");
+        return 0;
+    }
+
+    return upid_data.nr;
+}
+
+/**
+ * bpf_get_current_ns_pid() - Retrieves the PID of the current task in the userspace namespace.
+ */
+__attribute__((always_inline)) static pid_t bpf_get_current_ns_pid() {
+    struct task_struct *task = (struct task_struct *)bpf_get_current_task();
+    if (!task) {
+        // This can actually never happen, just keeping the verifier happy
+        return 0;
+    }
+
+    return bpf_get_ns_pid(task);
+}
 
 #endif // __PUBLIC_SRC_SANDBOX_LINUX_EBPF_EBPFUTILITIES_H

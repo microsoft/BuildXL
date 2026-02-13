@@ -5,15 +5,15 @@ parameters:
   type: object
   default:
   - Microsoft.SBOMCore@latest@1essharedassets@1esPkgs@SBOMTool@BuildXL-Pipeline-AccessToken
-  - Microsoft.Sbom.Common@latest@nuget.org
-  - Microsoft.Sbom.Parsers.Spdx22SbomParser@latest@nuget.org
-  - Microsoft.SBOM.Adapters@latest@nuget.org
+  - Microsoft.Sbom.Common@latest@mseng@AzureDevOps@ManifestTool@BuildXL-Pipeline-AccessToken
+  - Microsoft.Sbom.Parsers.Spdx22SbomParser@latest@mseng@AzureDevOps@ManifestTool@BuildXL-Pipeline-AccessToken
+  - Microsoft.SBOM.Adapters@latest@mseng@AzureDevOps@ManifestTool@BuildXL-Pipeline-AccessToken
   - Microsoft.ManifestInterface@latest@1essharedassets@1esPkgs@SBOMTool@BuildXL-Pipeline-AccessToken
-  - Microsoft.Sbom.Contracts@latest@nuget.org
+  - Microsoft.Sbom.Contracts@latest@mseng@AzureDevOps@ManifestTool@BuildXL-Pipeline-AccessToken
   - Microsoft.ComponentDetection.Contracts@latest@nuget.org
   - python@latest@nuget.org
   - Microsoft.VisualStudio.Services.Governance.ComponentDetection@latest@mseng@none@ComponentGovernance@BuildXL-Pipeline-AccessToken
-  - Microsoft.Sbom.Extensions@latest@nuget.org
+  - Microsoft.Sbom.Extensions@latest@mseng@AzureDevOps@ManifestTool@BuildXL-Pipeline-AccessToken
 
 pool:
   name: BuildXL-DevOpsAgents-Selfhost-BuildCache

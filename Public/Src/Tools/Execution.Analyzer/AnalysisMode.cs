@@ -65,6 +65,7 @@ namespace BuildXL.Execution.Analyzer
         WinIdeDependency,
         ConcurrentPipsAnalyzer,
         LinuxPipDebug,
-        AstredAnalyzer
+        AstredAnalyzer,
+        Benchmark,
     }
 }

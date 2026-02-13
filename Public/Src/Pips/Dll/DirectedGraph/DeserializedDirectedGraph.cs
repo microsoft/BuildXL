@@ -1,7 +1,12 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
+#if NETCOREAPP
+using System.Buffers.Binary;
+#endif
 using System.Diagnostics.ContractsLight;
+using System.IO;
 using System.Threading.Tasks;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
@@ -77,19 +82,33 @@ namespace BuildXL.Pips.DirectedGraph
             m_edgeBuffer.Initialize(m_edgeCount * 2);
             int edgeIndex = 0;
 
-            // Read the out edges
+            // Phase 1 (~55% of load time): Read the out edges
             {
+                byte[] readBuffer = new byte[64 * 1024];
                 var accessor = m_edgeBuffer.GetAccessor();
 
-                // TODO: This loop takes 70% of the deserialization time; make faster.
                 for (uint i = 1; i <= m_lastNodeId; ++i)
                 {
                     int outNodeCount = reader.ReadInt32Compact();
                     int startEdgeIndex = edgeIndex;
-                    for (int j = 0; j < outNodeCount; ++j)
+
+                    int bytesToRead = outNodeCount * Edge.SizeInBytes;
+                    if (bytesToRead > readBuffer.Length)
                     {
-                        var outgoingEdge = Edge.Deserialize(reader);
-                        accessor[edgeIndex] = outgoingEdge;
+                        readBuffer = new byte[bytesToRead];
+                    }
+
+                    ReadAllBytes(reader, readBuffer, bytesToRead);
+
+                    for (int j = 0; j < outNodeCount; j++)
+                    {
+#if NETCOREAPP
+                        uint edgeValue = BinaryPrimitives.ReadUInt32LittleEndian(
+                            readBuffer.AsSpan(j * Edge.SizeInBytes));
+                        accessor[edgeIndex] = new Edge(edgeValue);
+#else
+                        accessor[edgeIndex] = new Edge(BitConverter.ToUInt32(readBuffer, j * Edge.SizeInBytes));
+#endif
                         edgeIndex++;
                     }
 
@@ -97,8 +116,7 @@ namespace BuildXL.Pips.DirectedGraph
                 }
             }
 
-            // Read the count of in edges
-            // TODO: This loop takes 10% of the deserialization time; make faster.
+            // Phase 2 (~5% of load time): Read the in-edge counts
             for (uint i = 1; i <= m_lastNodeId; i++)
             {
                 int nodeHeight = reader.ReadInt32Compact();
@@ -106,15 +124,14 @@ namespace BuildXL.Pips.DirectedGraph
 
                 int inEdgeCount = reader.ReadInt32Compact();
 
-                // first edge index starts at end of edge span for this node and is decrements as edges
+                // first edge index starts at end of edge span for this node and is decremented as edges
                 // are discovered and added below. At the end the first edge index will
                 // be at the beginning of the span
                 edgeIndex += inEdgeCount;
                 InEdges[i] = new NodeEdgeListHeader(edgeIndex, inEdgeCount);
             }
 
-            // Write each out edge set to graph and compute the in edges
-            // TODO: This parallel loop takes 20% of the (sequential) deserialization time; make faster.
+            // Phase 3 (~40% of load time): Write each out edge set to graph and compute the in edges
             Parallel.For(1, m_lastNodeId + 1,
                 (i) =>
                 {
@@ -135,6 +152,24 @@ namespace BuildXL.Pips.DirectedGraph
                         accessor[index] = inEdge;
                     }
                 });
+        }
+
+        /// <summary>
+        /// Reads exactly <paramref name="count"/> bytes from the reader into the buffer.
+        /// </summary>
+        private static void ReadAllBytes(BuildXLReader reader, byte[] buffer, int count)
+        {
+            int offset = 0;
+            while (offset < count)
+            {
+                int read = reader.Read(buffer, offset, count - offset);
+                if (read == 0)
+                {
+                    throw new EndOfStreamException();
+                }
+
+                offset += read;
+            }
         }
     }
 }

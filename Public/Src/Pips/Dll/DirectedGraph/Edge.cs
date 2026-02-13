@@ -15,6 +15,11 @@ namespace BuildXL.Pips.DirectedGraph
     /// </summary>
     public readonly struct Edge : IEquatable<Edge>
     {
+        /// <summary>
+        /// The serialized size of an edge in bytes.
+        /// </summary>
+        internal const int SizeInBytes = sizeof(uint);
+
         private const byte EdgeTypeShift = 31;
 
         private const uint LightEdgeBit = 1U << EdgeTypeShift;

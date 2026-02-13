@@ -139,7 +139,11 @@ namespace BuildXL.Execution.Analyzer
                 case AnalysisMode.SpecClosure:
                     var analyzer = InitializeSpecClosureAnalyzer();
                     analyzer.Analyze();
-                    break;
+                    return;
+                case AnalysisMode.Benchmark:
+                    var benchmarkAnalyzer = InitializeBenchmarkAnalyzer();
+                    benchmarkAnalyzer.Run();
+                    return;
             }
 
             if (string.IsNullOrEmpty(m_analysisInput.ExecutionLogPath) && string.IsNullOrEmpty(cachedGraphDirectory))
@@ -694,6 +698,9 @@ namespace BuildXL.Execution.Analyzer
 
             writer.WriteLine("");
             WriteAstredAnalyzerHelp(writer);
+
+            writer.WriteLine("");
+            WriteBenchmarkAnalyzerHelp(writer);
         }
 
         public void LogEventSummary()

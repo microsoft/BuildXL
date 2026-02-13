@@ -58,6 +58,7 @@ namespace Engine {
             importFrom("ZstdSharp.Port").pkg,
         ],
         internalsVisibleTo: [
+            "bxlanalyzer",
             "BxlPipGraphFragmentGenerator",
             "IntegrationTest.BuildXL.Scheduler",
             "Test.BuildXL.Engine",

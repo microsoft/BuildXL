@@ -88,6 +88,16 @@ namespace BuildXL.FrontEnd.Rush
                 }
             }
 
+            // TrackDependenciesWithShrinkwrapDepsFile untracks the entire common temp folder, while UsePnpmStoreAwarenessTracking
+            // relies on accesses under that folder to reclassify them. These two options are therefore incompatible.
+            if (rushResolverSettings.TrackDependenciesWithShrinkwrapDepsFile == true && rushResolverSettings.UsePnpmStoreAwarenessTracking == true)
+            {
+                Tracing.Logger.Log.InvalidRushResolverSettings(Context.LoggingContext, Location.FromFile(rushResolverSettings.File.ToString(Context.PathTable)),
+                    "'trackDependenciesWithShrinkwrapDepsFile' and 'usePnpmStoreAwarenessTracking' cannot be enabled at the same time. " +
+                    "The former untracks the entire common temp folder, while the latter requires observing accesses under it for reclassification.");
+                return false;
+            }
+
             if (!base.ValidateResolverSettings(rushResolverSettings))
             {
                 return false;

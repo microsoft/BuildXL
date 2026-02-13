@@ -9,8 +9,10 @@ using BuildXL.FrontEnd.Rush.ProjectGraph;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Utilities;
 using BuildXL.FrontEnd.Workspaces.Core;
+using BuildXL.Native.IO;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
+using BuildXL.Pips.Reclassification;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using System.Linq;
@@ -24,6 +26,7 @@ namespace BuildXL.FrontEnd.Rush
     {
         private readonly RushConfiguration m_rushConfiguration;
         private readonly IRushResolverSettings m_resolverSettings;
+        private readonly FrontEndContext m_context;
 
         /// <summary>
         /// Project-specific user profile folder
@@ -49,6 +52,7 @@ namespace BuildXL.FrontEnd.Rush
 
             m_rushConfiguration = rushConfiguration;
             m_resolverSettings = resolverSettings;
+            m_context = context;
         }
 
         protected override Dictionary<string, string> DoCreateEnvironment(JavaScriptProject project)
@@ -107,6 +111,34 @@ namespace BuildXL.FrontEnd.Rush
             if (m_resolverSettings.TrackDependenciesWithShrinkwrapDepsFile == true)
             {
                 processBuilder.AddUntrackedDirectoryScope(DirectoryArtifact.CreateWithZeroPartialSealId(m_rushConfiguration.CommonTempFolder));
+            }
+
+            // The pnpm store is located under <common temp folder>/node_modules/.pnpm
+            var pnpmStore = m_rushConfiguration.CommonTempFolder
+                .Combine(PathTable, "node_modules")
+                .Combine(PathTable, ".pnpm");
+
+            // If pnpm store awareness tracking is enabled, add the corresponding reclassification rule
+            if (m_resolverSettings.UsePnpmStoreAwarenessTracking == true)
+            {
+                var pnpmStoreRule = new JavaScriptPackageStoreReclassificationRule(m_resolverSettings.ModuleName, pnpmStore);
+
+                if (!FileUtilities.DirectoryExistsNoFollow(pnpmStore.ToString(PathTable)))
+                {
+                    Tracing.Logger.Log.PnpmStoreNotFound(m_context.LoggingContext, m_resolverSettings.Location(PathTable), pnpmStore.ToString(m_context.PathTable));
+                    return false;
+                }
+
+                processBuilder.ReclassificationRules = processBuilder.ReclassificationRules.Append(pnpmStoreRule).ToArray();
+            }
+
+            // Disallow writes under the pnpm store if explicitly specified, or if its value is left unspecified but pnpm store awareness tracking is on.
+            // The rationale is that when pnpm store awareness is enabled, the assumption is that no writes happen under it during the build. Let's enforce that by excluding that scope
+            // from the shared opaque umbrella, unless specified otherwise.
+            if (m_resolverSettings.DisallowWritesUnderPnpmStore == true ||
+                (m_resolverSettings.DisallowWritesUnderPnpmStore is null && m_resolverSettings.UsePnpmStoreAwarenessTracking == true))
+            {
+                processBuilder.AddOutputDirectoryExclusion(pnpmStore);
             }
 
             return true;

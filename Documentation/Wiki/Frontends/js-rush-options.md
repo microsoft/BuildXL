@@ -77,3 +77,25 @@ config({
 });
 ```
 When enabled, this option will make BuildXL ignore any changes in the project dependencies and instead use `shrinkwrap-deps.json` as a witness for that. The net effect is that BuildXL will need to track for changes a potentially much smaller set of files, improving cache lookups and post-processing times. Observe, however, this option opens the door to some level of unsafety since using `shrinkwrap-deps.json` will do the trick as long as it is up-to-date. If any `package.json` file is modified and `rush update` is not run, this file might not be appropriately updated and therefore package dependencies not properly reflected. Therefore, an underbuild is possible, where a true dependency that is not listed in `shrinkwrap-deps.json` changes. Therefore, the recommendation is to turn this option on for lab builds, where this type of prerequisites are usually met, but leave it off (the default) for local builds.
+
+**Note:** This option is not compatible with `usePnpmStoreAwarenessTracking` (see below), since the latter relies on observing accesses under the common temp folder, which this option untracks entirely.
+
+## Improving perf with pnpm store awareness tracking
+Rush uses pnpm as its package manager, which stores installed packages in a content-addressable store, typically under `common/temp/node_modules/.pnpm`. The Rush resolver can be made aware of this store structure with a resolver option:
+
+```typescript
+config({
+    resolvers: [
+    {
+        kind: "Rush",
+        ...
+        usePnpmStoreAwarenessTracking: true,
+    }]
+});
+```
+
+When enabled, BuildXL assumes the name of each directory immediately under the pnpm store (e.g. `common/temp/node_modules/.pnpm/@babylonjs-core@7.54.3`) determines the file layout and content under it. The net effect of this option is that BuildXL will need to track a potentially smaller set of files, improving cache lookups and post-processing times. Observe, however, this option opens the door to some level of unsafety. If any file is modified under a package in the pnpm store after the install step happens, BuildXL will not be aware of it and an underbuild would be possible. Therefore, the recommendation is to turn this option on for lab builds, where this type of prerequisites are usually met, but leave it off (the default) for local builds. Even in the case of a lab build, care should be exercised if there is any step in between package install and the start of the build that can modify the package store.
+
+Turning on pnpm store awareness tracking also adds by default an enforcement where no writes should happen under the pnpm store, since after package install this should be a read-only directory. To turn this restriction off, you can pass `disallowWritesUnderPnpmStore: false`.
+
+**Note:** This option is not compatible with `trackDependenciesWithShrinkwrapDepsFile` (see above), since that option untracks the entire common temp folder, which this option needs to observe for reclassification.

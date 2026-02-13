@@ -88,7 +88,7 @@ namespace BuildXL.FrontEnd.Lage
             // If yarn strict awareness tracking is enabled, add the corresponding reclassification rule
             if (m_resolverSettings.UseYarnStrictAwarenessTracking == true)
             {
-                var yarnStrictRule = new YarnStrictReclassificationRule(m_resolverSettings.ModuleName, yarnStrictStore);
+                var yarnStrictRule = new JavaScriptPackageStoreReclassificationRule(m_resolverSettings.ModuleName, yarnStrictStore);
 
                 if (!FileUtilities.DirectoryExistsNoFollow(yarnStrictStore.ToString(PathTable)))
                 {

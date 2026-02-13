@@ -70,5 +70,24 @@ namespace BuildXL.Utilities.Configuration
         /// Only available when <see cref="GraphConstructionMode"/> is set to 'rush-build-graph'. Enforced by the type checker
         /// </remarks>
         IReadOnlyList<DiscriminatingUnion<string, IAdditionalNameValueParameter>> AdditionalRushParameters { get; }
+
+        /// <summary>
+        /// When enabled, BuildXL assumes the name of each directory immediately under the pnpm virtual store (e.g. common/temp/node_modules/.pnpm/@babylonjs-core@7.54.3) univocally determines the file layout and content under it.
+        /// </summary>
+        /// <remarks>
+        /// This option is a performance optimization: when this option is enabled, BuildXL can avoid tracking all files under the pnpm virtual store, which can be a large number of files, and instead only track the directory names.
+        /// Caution must be taken to ensure that no other process mutates the content under the pnpm virtual store outside of pnpm itself before a BuildXL build begins, otherwise underbuilds may occur. E.g. this setting should not be
+        /// enabled for developer builds.
+        /// </remarks>
+        bool? UsePnpmStoreAwarenessTracking { get; }
+
+        /// <summary>
+        /// When enabled, BuildXL disallows writes under the pnpm store.
+        /// </summary>
+        /// <remarks>
+        /// Unless specified, this setting defaults to the value of <see cref="UsePnpmStoreAwarenessTracking"/>. This reflects the fact that whenever BuildXL is aware of the existence of the pnpm store, it will also disallow 
+        /// writes under it by default.
+        /// </remarks>
+        bool? DisallowWritesUnderPnpmStore { get; }
     }
 }

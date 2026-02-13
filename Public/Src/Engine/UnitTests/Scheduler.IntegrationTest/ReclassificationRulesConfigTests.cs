@@ -97,7 +97,7 @@ namespace IntegrationTest.BuildXL.Scheduler
             File.WriteAllText(testPackageContent2.ToString(m_pathTable), "console.log('Hello, world!');");
 
             reclassificationRules.Initialize([
-                new YarnStrictReclassificationRule("test-module", storeRoot)
+                new JavaScriptPackageStoreReclassificationRule("test-module", storeRoot)
              ]);
 
             FingerprintReclassificationResult reclassification;

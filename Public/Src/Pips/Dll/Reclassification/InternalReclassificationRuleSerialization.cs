@@ -21,8 +21,8 @@ namespace BuildXL.Pips.Reclassification
             {
                 case ReclassificationRuleType.DScript:
                     return DScriptInternalReclassificationRule.Deserialize(reader);
-                case ReclassificationRuleType.YarnStrict:
-                    return YarnStrictReclassificationRule.Deserialize(reader);
+                case ReclassificationRuleType.JavaScriptPackageStore:
+                    return JavaScriptPackageStoreReclassificationRule.Deserialize(reader);
                 default:
                     throw new NotSupportedException($"Deserialization of reclassification rule of type '{ruleType}' is not supported.");
             }
@@ -37,9 +37,9 @@ namespace BuildXL.Pips.Reclassification
                     writer.WriteCompact((int)ReclassificationRuleType.DScript);
                     dScriptRule.Serialize(writer);
                     break;
-                case YarnStrictReclassificationRule yarnStrictRule:
-                    writer.WriteCompact((int)ReclassificationRuleType.YarnStrict);
-                    yarnStrictRule.Serialize(writer);
+                case JavaScriptPackageStoreReclassificationRule packageStoreRule:
+                    writer.WriteCompact((int)ReclassificationRuleType.JavaScriptPackageStore);
+                    packageStoreRule.Serialize(writer);
                     break;
                 default:
                     throw new NotSupportedException($"Serialization of reclassification rule of type '{rule.GetType()}' is not supported.");

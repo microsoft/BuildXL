@@ -16,5 +16,6 @@ namespace BuildXL.FrontEnd.Rush.Tracing
         // reserved 11700 .. 11800 for Rush front-end
         InvalidRushResolverSettings = 11700,
         UsingRushLibBaseAt = 11701,
+        PnpmStoreNotFound = 11702,
     }
 }

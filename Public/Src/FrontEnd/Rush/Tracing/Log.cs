@@ -46,5 +46,15 @@ namespace BuildXL.FrontEnd.Rush.Tracing
             EventOpcode = (byte)Tasks.Parser,
             Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
         public abstract void UsingRushLibBaseAt(LoggingContext context, Location location, string basePath);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.PnpmStoreNotFound,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Message = EventConstants.LabeledProvenancePrefix + "Pnpm store awareness tracking has been turned on. However, the pnpm store at '{storePath}' is not present.",
+            EventTask = (ushort)Tasks.Engine,
+            EventOpcode = (byte)Tasks.Parser,
+            Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
+        public abstract void PnpmStoreNotFound(LoggingContext context, Location location, string storePath);
     }
 }

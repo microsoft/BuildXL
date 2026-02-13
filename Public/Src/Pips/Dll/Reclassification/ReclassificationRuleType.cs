@@ -19,11 +19,11 @@ namespace BuildXL.Pips.Reclassification
         /// </remarks>
         DScript = 0,
         /// <summary>
-        /// A Yarn-strict-aware reclassification rule
+        /// A JavaScript package-store-aware reclassification rule
         /// </summary>
         /// <remarks>
-        /// <see cref="YarnStrictReclassificationRule"/>
+        /// <see cref="JavaScriptPackageStoreReclassificationRule"/>
         /// </remarks>
-        YarnStrict = 1
+        JavaScriptPackageStore = 1
     }
 }

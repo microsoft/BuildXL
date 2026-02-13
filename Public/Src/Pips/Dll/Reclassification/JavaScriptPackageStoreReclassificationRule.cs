@@ -13,15 +13,15 @@ using BuildXL.Utilities.Core;
 namespace BuildXL.Pips.Reclassification
 { 
     /// <summary>
-    /// A reclassification rule for codebases using Yarn strict for package management. <see href="https://github.com/VincentBailly/midgard-yarn-strict"/>
+    /// A reclassification rule for codebases using content-addressable package stores (e.g. Yarn strict, pnpm) for package management.
     /// </summary>
     /// <remarks>
-    /// The goal of this rule is to reduce the number of accesses BuildXL needs to track. The idea is that when using Yarn strict, the directory name containing the package files
+    /// The goal of this rule is to reduce the number of accesses BuildXL needs to track. The idea is that when using a content-addressable package store, the directory name containing the package files
     /// univocally determines the package content. E.g. ".store\@babylonjs-core@7.54.3-d93831e7ae9116fa2dd7" should always contain the same files.
     /// Therefore, we can reclassify all accesses under a package directory to a probe on the package directory itself, which reduces the number of tracked accesses significantly.
-    /// This assumes no writes happen during the build under the package store location, and that the only writer is the package manager itself (Yarn strict).
+    /// This assumes no writes happen during the build under the package store location, and that the only writer is the package manager itself.
     /// </remarks>
-    public class YarnStrictReclassificationRule : IInternalReclassificationRule
+    public class JavaScriptPackageStoreReclassificationRule : IInternalReclassificationRule
     {
         private readonly AbsolutePath m_packageStoreLocation;
         private readonly string m_ruleName;
@@ -32,20 +32,20 @@ namespace BuildXL.Pips.Reclassification
         public string Name() => m_ruleName;
 
         /// <nodoc/>
-        public YarnStrictReclassificationRule(string moduleName, AbsolutePath packageStoreLocation)
+        public JavaScriptPackageStoreReclassificationRule(string moduleName, AbsolutePath packageStoreLocation)
         {
             Contract.Requires(!string.IsNullOrEmpty(moduleName));
             Contract.Requires(packageStoreLocation.IsValid);
 
             m_packageStoreLocation = packageStoreLocation;
-            m_ruleName = $"YarnStrictReclassificationRule({moduleName})";
+            m_ruleName = $"JavaScriptPackageStoreReclassificationRule({moduleName})";
             m_moduleName = moduleName;
         }
 
         /// <summary>
         /// Bump the descriptor when the implementation changes in a breaking way
         /// </summary>
-        public string Descriptor() => "YarnStrictReclassificationRuleV1";
+        public string Descriptor() => "JavaScriptPackageStoreReclassificationRuleV1";
 
         /// <nodoc/>
         public void Serialize(BuildXLWriter writer)
@@ -59,7 +59,7 @@ namespace BuildXL.Pips.Reclassification
         {
             var moduleName = reader.ReadString();
             var packageStoreLocationString = reader.ReadAbsolutePath();
-            return new YarnStrictReclassificationRule(moduleName, packageStoreLocationString);
+            return new JavaScriptPackageStoreReclassificationRule(moduleName, packageStoreLocationString);
         }
 
         /// <inheritdoc/>
@@ -69,7 +69,7 @@ namespace BuildXL.Pips.Reclassification
             var isRelative = m_packageStoreLocation.TryGetRelative(pathTable, path.Path, out var relativeToPackageStore);
             if (isRelative && !relativeToPackageStore.IsEmpty)
             {
-                // The package name is the first segment of the relative path (under yarn strict, each package is stored under its own directory, directly under the package store directory)
+                // The package name is the first segment of the relative path (under a JS package store, each package is stored under its own directory, directly under the package store directory)
                 var relativePackageStoreAtoms = relativeToPackageStore.GetAtoms();
                 var packageName = relativePackageStoreAtoms[0];
                 // We want to reclassify to a probe on the package directory itself, but only the first time we see an access under that package. We can just ignore all other accesses under
@@ -108,7 +108,7 @@ namespace BuildXL.Pips.Reclassification
                             reclassifiedType = ObservationType.ExistingDirectoryProbe;
                         }
                         // A slightly less common case, where there is a file right under the package store (instead of a directory). In this case we map it to a corresponding file probe
-                        // Not that we really expect this case, the yarn strict store should always contain directories directly under it, but we handle it just in case
+                        // Not that we really expect this case, the package store should always contain directories directly under it, but we handle it just in case
                         else if (exists.Result == PathExistence.ExistsAsFile)
                         {
                             reclassifiedType = ObservationType.ExistingFileProbe;
@@ -152,7 +152,7 @@ namespace BuildXL.Pips.Reclassification
         {
             return new Dictionary<string, object>
             {
-                ["Type"] = nameof(YarnStrictReclassificationRule),
+                ["Type"] = nameof(JavaScriptPackageStoreReclassificationRule),
                 ["Name"] = m_ruleName,
                 ["Module Name"] = m_moduleName,
                 ["Package Store Location"] = m_packageStoreLocation.ToString(pathTable),

@@ -28,6 +28,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
             GraphConstructionMode = resolverSettings.GraphConstructionMode;
             RushCommand = resolverSettings.RushCommand;
             AdditionalRushParameters = resolverSettings.AdditionalRushParameters;
+            UsePnpmStoreAwarenessTracking = resolverSettings.UsePnpmStoreAwarenessTracking;
+            DisallowWritesUnderPnpmStore = resolverSettings.DisallowWritesUnderPnpmStore;
         }
 
         /// <inheritdoc/>
@@ -47,5 +49,11 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc/>
         public IReadOnlyList<DiscriminatingUnion<string, IAdditionalNameValueParameter>> AdditionalRushParameters { get; set; }
+
+        /// <inheritdoc/>
+        public bool? UsePnpmStoreAwarenessTracking { get; set; }
+
+        /// <inheritdoc/>
+        public bool? DisallowWritesUnderPnpmStore { get; set; }
     }
 }

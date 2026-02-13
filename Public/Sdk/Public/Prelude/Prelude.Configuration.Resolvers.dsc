@@ -402,8 +402,27 @@ interface RushResolverBase extends JavaScriptResolver {
      * However, it opens the door to underbuilds in the case any package.json is modified and BuildXL is executed without 
      * running 'rush update/install' first, since shrinkwrap-deps.json files may be out of date.
      * Defaults to false.
+     * This option is not compatible with 'usePnpmStoreAwarenessTracking', since the latter relies on observing accesses under the common temp folder,
+     * which this option untracks entirely.
      */
     trackDependenciesWithShrinkwrapDepsFile?: boolean;
+
+    /**
+     * When enabled, BuildXL assumes the name of each directory immediately under the pnpm store (e.g. common/temp/node_modules/.pnpm/@babylonjs-core@7.54.3) univocally determines the file layout and content under it.
+     * This option is a performance optimization: when this option is enabled, BuildXL can avoid tracking all files under the pnpm store, which can be a large number of files, and instead only track the directory names.
+     * Caution must be taken to ensure that no other process mutates the content under the pnpm store outside of pnpm itself before a BuildXL build begins, otherwise underbuilds may occur. E.g. this setting should not be
+     * enabled for developer builds.
+     * This option is not compatible with 'trackDependenciesWithShrinkwrapDepsFile', since the latter untracks the entire common temp folder,
+     * which this option needs to observe for reclassification.
+     */
+    usePnpmStoreAwarenessTracking?: boolean;
+
+    /**
+     * When enabled, BuildXL disallows writes under the pnpm store.
+     * Unless specified, this setting defaults to the value of 'usePnpmStoreAwarenessTracking'. This reflects the fact that whenever BuildXL is aware of the existence of the pnpm store, it will also disallow 
+     * writes under it by default.
+     */
+    disallowWritesUnderPnpmStore?: boolean;
 }
 
 /**

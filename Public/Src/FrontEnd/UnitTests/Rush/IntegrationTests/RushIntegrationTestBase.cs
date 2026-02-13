@@ -66,7 +66,7 @@ namespace Test.BuildXL.FrontEnd.Rush
 
         private string RushUserProfile => Path.Combine(TestRoot, OperatingSystemHelper.IsWindowsOS ? "USERPROFILE" : "HOME").Replace("\\", "/");
 
-        private string RushTempFolder => Path.Combine(TestRoot, "RUSH_TEMP_FOLDER").Replace("\\", "/");
+        protected string RushTempFolder => Path.Combine(TestRoot, "RUSH_TEMP_FOLDER").Replace("\\", "/");
 
         protected override bool DisableDefaultSourceResolver => true;
 
@@ -124,7 +124,9 @@ namespace Test.BuildXL.FrontEnd.Rush
             string errorRegex = null,
             string rushCommand = null,
             string additionalRushParameters = null,
-            bool enableProjectGraphVerboseLogging = false)
+            bool enableProjectGraphVerboseLogging = false,
+            bool? usePnpmStoreAwarenessTracking = null,
+            bool? disallowWritesUnderPnpmStore = null)
         {
             environment ??= new Dictionary<string, string> { 
                 ["PATH"] = PathToNodeFolder,
@@ -155,7 +157,9 @@ namespace Test.BuildXL.FrontEnd.Rush
                 errorRegex,
                 rushCommand,
                 additionalRushParameters,
-                enableProjectGraphVerboseLogging);
+                enableProjectGraphVerboseLogging,
+                usePnpmStoreAwarenessTracking,
+                disallowWritesUnderPnpmStore);
         }
 
         /// <inheritdoc/>
@@ -183,7 +187,9 @@ namespace Test.BuildXL.FrontEnd.Rush
             string errorRegex = null,
             string rushCommand = null,
             string additionalRushParameters = null,
-            bool enableProjectGraphVerboseLogging = false)
+            bool enableProjectGraphVerboseLogging = false,
+            bool? usePnpmStoreAwarenessTracking = null,
+            bool? disallowWritesUnderPnpmStore = null)
         {
             environment ??= new Dictionary<string, DiscriminatingUnion<string, UnitValue>> { 
                 ["PATH"] = new DiscriminatingUnion<string, UnitValue>(PathToNodeFolder),
@@ -230,7 +236,9 @@ namespace Test.BuildXL.FrontEnd.Rush
                     errorRegex,
                     rushCommand,
                     additionalRushParameters,
-                    enableProjectGraphVerboseLogging));
+                    enableProjectGraphVerboseLogging,
+                    usePnpmStoreAwarenessTracking,
+                    disallowWritesUnderPnpmStore));
         }
 
         protected BuildXLEngineResult RunRushProjects(
@@ -346,7 +354,9 @@ namespace Test.BuildXL.FrontEnd.Rush
             string errorRegex = null,
             string rushCommand = null,
             string additionalRushParameters = null,
-            bool enableProjectGraphVerboseLogging = false) => $@"
+            bool enableProjectGraphVerboseLogging = false,
+            bool? usePnpmStoreAwarenessTracking = null,
+            bool? disallowWritesUnderPnpmStore = null) => $@"
 config({{
     resolvers: [
         {{
@@ -374,6 +384,8 @@ config({{
             {(rushCommand != null ? $"rushCommand: {rushCommand}," : string.Empty)}
             {(additionalRushParameters != null ? $"additionalRushParameters: {additionalRushParameters}," : string.Empty)}
             {(enableProjectGraphVerboseLogging == true ? $"enableProjectGraphVerboseLogging: true," : string.Empty)}
+            {(usePnpmStoreAwarenessTracking == true ? $"usePnpmStoreAwarenessTracking: true," : string.Empty)}
+            {(disallowWritesUnderPnpmStore != null ? $"disallowWritesUnderPnpmStore: {disallowWritesUnderPnpmStore.Value.ToString().ToLowerInvariant()}," : string.Empty)}
         }},
         {(addDScriptResolver? "{kind: 'DScript', modules: [f`module.config.dsc`, f`${Context.getBuildEngineDirectory()}/Sdk/Sdk.Transformers/package.config.dsc`]}" : string.Empty)}
     ],

@@ -16817,8 +16817,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 SharpZipLib 1.3.3 - MIT
 
 
-Copyright 2000-2021 SharpZipLib
-Copyright (c) 2000-2021 SharpZipLib
+Copyright 2000-2021
+Copyright (c) 2000-2021
 
 MIT License
 

@@ -1020,7 +1020,7 @@ static long breakaway_map_callback(struct bpf_map *map, const uint32_t *key, bre
  */
 static long basename_loop_callback(u64 index, exec_event_metadata **ctx) {
     exec_event_metadata *event = *ctx;
-    u64 i = (event->exe_path_len - index) & (PATH_MAX - 1);
+    u64 i = (event->exe_path_len - 1 - index) & (PATH_MAX - 1);
 
     // Since bpf_loop can only start at 0 and increment, keep track of the last '/'
     // If the next character is a '\0' then it's a trailing '/' which can be ignored.

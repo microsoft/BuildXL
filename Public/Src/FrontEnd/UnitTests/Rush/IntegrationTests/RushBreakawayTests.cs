@@ -41,8 +41,7 @@ namespace Test.BuildXL.FrontEnd.Rush.IntegrationTests
             yield return new object[] { $"[ {{ processName: a`{s_executable}`, requiredArguments: 'HI', requiredArgumentsIgnoreCase: true }} ]", true };
         }
 
-        // Bug #2354886: Test is flaky with eBPF on Linux
-        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [Theory]
         [MemberData(nameof(BreakawayMemberData))]
         public void BreakawayArgumentsAreHonored(string breakawayData, bool expectedToBreakaway)
         {

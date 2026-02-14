@@ -942,7 +942,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.ComponentDetection.Contracts",
-          "Version": "6.3.0"
+          "Version": "6.4.0"
         }
       }
     },
@@ -1806,7 +1806,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Sbom.Adapters",
-          "Version": "4.1.5"
+          "Version": "4.1.8"
         }
       }
     },
@@ -1815,7 +1815,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Sbom.Common",
-          "Version": "4.1.5"
+          "Version": "4.1.8"
         }
       }
     },
@@ -1824,7 +1824,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Sbom.Contracts",
-          "Version": "4.1.5"
+          "Version": "4.1.8"
         }
       }
     },
@@ -1833,7 +1833,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Sbom.Extensions",
-          "Version": "4.1.5"
+          "Version": "4.1.8"
         }
       }
     },
@@ -1842,7 +1842,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Sbom.Parsers.Spdx22SbomParser",
-          "Version": "4.1.5"
+          "Version": "4.1.8"
         }
       }
     },
@@ -1851,7 +1851,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.SbomCore",
-          "Version": "6.2.2"
+          "Version": "6.2.3"
         }
       }
     },

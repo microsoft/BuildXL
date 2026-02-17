@@ -21,6 +21,10 @@
 // Copied from include/uapi/asm-generic/errno-base.h
 #define	EPERM		 1	/* Operation not permitted */
 #define	ENOENT		 2	/* No such file or directory */
+#define	ECHILD		10	/* No child processes */
+
+// Copied from include/uapi/asm-generic/errno.h
+#define	ESTALE		116	/* Stale file handle */
 
 // Copied from fcntl.h
 #define O_ACCMODE   00000003

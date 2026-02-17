@@ -627,6 +627,13 @@ int BPF_PROG(path_lookupat_exit, struct nameidata *nd, unsigned flags, struct pa
         return 0;
     }
 
+    // -ECHILD and -ESTALE trigger retries by filename_lookup (RCU → non-RCU → REVAL).
+    // These are not real errors — the walk will be retried, so don't report anything.
+    if (ret == -ECHILD || ret == -ESTALE)
+    {
+        return 0;
+    }
+
     char* temp_path = bpf_map_lookup_elem(&tmp_paths, &ZERO);
     if (!temp_path)
     {
@@ -691,6 +698,13 @@ int BPF_PROG(path_parentat, struct nameidata *nd, unsigned flags, struct path *p
         return 0;
     }
 
+    // -ECHILD and -ESTALE trigger retries by __filename_parentat (RCU → non-RCU → REVAL).
+    // These are not real errors — the walk will be retried, so don't report anything.
+    if (ret == -ECHILD || ret == -ESTALE)
+    {
+        return 0;
+    }
+
     char* temp_path = bpf_map_lookup_elem(&tmp_paths, &ZERO);
     if (!temp_path)
     {
@@ -738,6 +752,15 @@ int BPF_PROG(path_openat_exit, struct nameidata *nd, const struct open_flags *op
     pid_t pid = bpf_get_current_ns_pid();
     pid_t runner_pid;
     if (!is_valid_pid(pid, &runner_pid)) {
+        return 0;
+    }
+
+    // -ECHILD and -ESTALE trigger retries by do_filp_open (RCU → non-RCU → REVAL).
+    // These are not real errors — the walk will be retried, so don't report anything.
+    // Additionally, reading nd->inode after an -ECHILD return is unsafe: terminate_walk
+    // has already called rcu_read_unlock(), so nd->inode could be a stale pointer.
+    if (PTR_ERR(ret) == -ECHILD || PTR_ERR(ret) == -ESTALE)
+    {
         return 0;
     }
 

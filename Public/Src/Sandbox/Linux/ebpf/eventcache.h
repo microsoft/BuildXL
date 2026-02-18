@@ -87,17 +87,83 @@ __attribute__((always_inline)) static bool should_send_path(pid_t runner_pid, op
     }
 
     // If the key is not there, we should send the event and add the key as well
-    // We could use BPF_NOEXIST and save one lookup operation, but it looks like this flag is not working properly in some circumstances and
-    // the lookup comes back with a successful error code when the element exists.
-    if (bpf_map_lookup_elem(event_cache, &key) == NULL)
+    if (bpf_map_update_elem(event_cache, &key, &NO_VALUE, BPF_NOEXIST) == 0)
     {
-        bpf_map_update_elem(event_cache, &key, &NO_VALUE, BPF_ANY);
-        __sync_fetch_and_add(&stats->event_cache_miss, 1);
+        // Key didn't exist — first-time event for this pip.
+        // Racy increment: we favor performance over accuracy for diagnostic stats
+        stats->event_cache_miss += 1;
         return true;
     }
 
-    __sync_fetch_and_add(&stats->event_cache_hit, 1);
+    // Key already existed (-EEXIST) — repeat event, skip it.
+    // Racy increment (see above)
+    stats->event_cache_hit += 1;
     // If the lookup found the key, don't send the event
+    return false;
+}
+
+// ==================== Negative Dentry Cache ====================
+
+/**
+ * Per-pip LRU cache of negative dentries (absent path components), used by fexit/step_into
+ * to deduplicate absent probe events. Keyed by {dentry_ptr, d_parent_ptr, d_name.hash_len}.
+ */
+struct neg_dentry_cache {
+    __uint(type, BPF_MAP_TYPE_LRU_HASH);
+    __uint(max_entries, NEG_DENTRY_CACHE_MAP_SIZE);
+    __type(key, neg_dentry_cache_key);
+    // We don't really care about the value, we use this map as a set
+    __type(value, short);
+} neg_dentry_cache SEC(".maps");
+
+/**
+ * Outer map holding one negative dentry cache per pip.
+ */
+struct {
+    __uint(type, BPF_MAP_TYPE_HASH_OF_MAPS);
+    __type(key, pid_t);
+    // We need all runners to share this map
+    __uint(pinning, LIBBPF_PIN_BY_NAME);
+    __uint(map_flags, BPF_F_NO_PREALLOC);
+    __array(values, struct neg_dentry_cache);
+} neg_dentry_cache_per_pip SEC(".maps");
+
+/**
+ * Whether the negative dentry has been seen before for this pip. Returns true if the dentry is NOT
+ * in the cache (i.e., this is a first-time absent probe that should be reported), and adds it to the cache.
+ * Returns false if the dentry was already cached (i.e., this is a repeat absent probe that can be skipped).
+ */
+__attribute__((always_inline)) static bool should_send_neg_dentry(pid_t runner_pid, const struct dentry *dentry)
+{
+    neg_dentry_cache_key key = {
+        .dentry_ptr = ptr_to_long(dentry),
+        .d_parent_ptr = ptr_to_long(BPF_CORE_READ(dentry, d_parent)),
+        .d_name_hash_len = BPF_CORE_READ(dentry, d_name.hash_len),
+    };
+
+    void *cache = bpf_map_lookup_elem(&neg_dentry_cache_per_pip, &runner_pid);
+    if (cache == NULL) {
+        report_event_neg_cache_not_found(runner_pid);
+        return true;
+    }
+
+    struct pip_stats *stats = bpf_map_lookup_elem(&stats_per_pip, &runner_pid);
+    if (!stats) {
+        report_stats_not_found(runner_pid);
+        return true;
+    }
+
+    if (bpf_map_update_elem(cache, &key, &NO_VALUE, BPF_NOEXIST) == 0)
+    {
+        // Key didn't exist — first-time absent probe for this pip.
+        // Racy increment (see should_send_path)
+        stats->neg_dentry_cache_miss += 1;
+        return true;
+    }
+
+    // Key already existed (-EEXIST) — repeat absent probe, skip it.
+    // Racy increment (see should_send_path)
+    stats->neg_dentry_cache_hit += 1;
     return false;
 }
 

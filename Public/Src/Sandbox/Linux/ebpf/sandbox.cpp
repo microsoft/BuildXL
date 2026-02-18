@@ -46,7 +46,7 @@
 
 
 /** Constants */
-const int PINNED_MAPS_SIZE = 10;
+const int PINNED_MAPS_SIZE = 11;
 
 /** Globals */
 BxlObserver *g_bxl;
@@ -58,7 +58,7 @@ static volatile sig_atomic_t g_root_process_exited = 0;
 int g_root_pid = 0, g_runner_pid = 0;
 struct ring_buffer *g_debug_ring_buffer = nullptr;
 int g_pid_map_fd, g_sandbox_options_per_pip_map_fd, g_stats_per_pip_map_fd, g_file_access_per_pip_fd, g_last_path_per_pip_fd = -1;
-int g_debug_buffer_per_pip_fd, g_breakaway_processes_map_fd, g_event_cache_per_pip_fd, g_string_cache_per_pip_fd, g_breakaway_processes_per_pip_fd, g_untracked_scopes_per_pip = -1;
+int g_debug_buffer_per_pip_fd, g_breakaway_processes_map_fd, g_event_cache_per_pip_fd, g_string_cache_per_pip_fd, g_neg_dentry_cache_per_pip_fd, g_breakaway_processes_per_pip_fd, g_untracked_scopes_per_pip = -1;
 sem_t g_root_process_populated_semaphore;
 bool g_ebpf_already_loaded, g_ebpf_should_force_ebpf_loading = false;
 buildxl::common::ConcurrentQueue<ebpf_event *> g_event_queue;
@@ -780,6 +780,7 @@ int ReuseMaps(struct sandbox_bpf *skel) {
         skel->maps.sandbox_options_per_pip,
         skel->maps.event_cache_per_pip,
         skel->maps.string_cache_per_pip,
+        skel->maps.neg_dentry_cache_per_pip,
         skel->maps.stats_per_pip,
         skel->maps.last_path_per_pip,
         skel->maps.untracked_scopes_per_pip
@@ -847,6 +848,15 @@ int BindPerPipMaps(struct sandbox_bpf *skel) {
     if (g_string_cache_per_pip_fd < 0)
     {
         LogError("Failed to retrieve string cache per pip\n");
+        Cleanup(skel);
+        return -1;
+    }
+
+    // Retrieve the per-pip negative dentry cache
+    g_neg_dentry_cache_per_pip_fd = bpf_object__find_map_fd_by_name(skel->obj, "neg_dentry_cache_per_pip");
+    if (g_neg_dentry_cache_per_pip_fd < 0)
+    {
+        LogError("Failed to retrieve negative dentry cache per pip\n");
         Cleanup(skel);
         return -1;
     }
@@ -1072,6 +1082,27 @@ int SetupMaps(struct sandbox_bpf *skel) {
         g_bxl->LogDebug(getpid(), "Added string cache for runner PID %d", key);
     }
 
+    LIBBPF_OPTS(bpf_map_create_opts, neg_dentry_cache_options);
+    int neg_dentry_cache_fd = bpf_map_create(BPF_MAP_TYPE_LRU_HASH, "neg_dentry_cache", sizeof(struct neg_dentry_cache_key), sizeof(short), NEG_DENTRY_CACHE_MAP_SIZE, &neg_dentry_cache_options);
+    if (neg_dentry_cache_fd < 0)
+    {
+        LogError("Failed to create negative dentry cache: [%d]%s\n", errno, strerror(errno));
+        Cleanup(skel);
+        return -1;
+    }
+
+    // Add the negative dentry cache to the per-pip outer map
+    if (bpf_map_update_elem(g_neg_dentry_cache_per_pip_fd, &key, &neg_dentry_cache_fd, BPF_ANY))
+    {
+        LogError("Failed to add negative dentry cache to outer map for runner PID %d: %s\n", key, strerror(errno));
+        Cleanup(skel);
+        return -1;
+    }
+    else
+    {
+        g_bxl->LogDebug(getpid(), "Added negative dentry cache for runner PID %d", key);
+    }
+
     LIBBPF_OPTS(bpf_map_create_opts, breakaway_processes_options);
     g_breakaway_processes_map_fd =  bpf_map_create(BPF_MAP_TYPE_ARRAY, "breakaway_processes", sizeof(uint32_t), sizeof(breakaway_process), MAX_BREAKAWAY_PROCESSES, &breakaway_processes_options);
     if (g_breakaway_processes_map_fd < 0)
@@ -1150,6 +1181,7 @@ void CleanupPinnedMaps(struct sandbox_bpf *skel) {
         skel->maps.sandbox_options_per_pip,
         skel->maps.event_cache_per_pip,
         skel->maps.string_cache_per_pip,
+        skel->maps.neg_dentry_cache_per_pip,
         skel->maps.stats_per_pip,
         skel->maps.last_path_per_pip,
         skel->maps.untracked_scopes_per_pip
@@ -1250,12 +1282,13 @@ int ConfigurePerPipMapSizes(struct sandbox_bpf *skel) {
         skel->maps.sandbox_options_per_pip,
         skel->maps.event_cache_per_pip,
         skel->maps.string_cache_per_pip,
+        skel->maps.neg_dentry_cache_per_pip,
         skel->maps.stats_per_pip,
         skel->maps.last_path_per_pip,
         skel->maps.untracked_scopes_per_pip
     };
 
-    for (int i = 0 ; i < 9; i++) {
+    for (int i = 0 ; i < 10; i++) {
         bpf_map* per_pip_map = per_pip_maps[i];
 
         if (bpf_map__set_max_entries(per_pip_map, concurrency))
@@ -1275,6 +1308,7 @@ void DeletePerPipMaps(sandbox_bpf *skel, pid_t runner_pid) {
     DeletePerPipMap(g_debug_buffer_per_pip_fd, runner_pid, "debug buffer", /* errorOnNotFound */ true);
     DeletePerPipMap(g_event_cache_per_pip_fd, runner_pid, "event cache", /* errorOnNotFound */ true);
     DeletePerPipMap(g_string_cache_per_pip_fd, runner_pid, "string cache", /* errorOnNotFound */ true);
+    DeletePerPipMap(g_neg_dentry_cache_per_pip_fd, runner_pid, "negative dentry cache", /* errorOnNotFound */ true);
     DeletePerPipMap(g_breakaway_processes_per_pip_fd, runner_pid, "breakaway processes", /* errorOnNotFound */ true);
     DeletePerPipMap(g_sandbox_options_per_pip_map_fd, runner_pid, "sandbox options", /* errorOnNotFound */ true);
     DeletePerPipMap(g_stats_per_pip_map_fd, runner_pid, "stats", /* errorOnNotFound */ true);
@@ -1466,7 +1500,6 @@ int SetAutoLoad(struct sandbox_bpf *skel) {
     if (currentVersion < KERNEL_VERSION(6, 8, 0)) {
         // Enable auto loading for programs that are used on older kernels
         bpf_program__set_autoload(skel->progs.step_into_entry, true);
-        bpf_program__set_autoload(skel->progs.step_into_exit, true);
         bpf_program__set_autoload(skel->progs.security_inode_follow_link_exit, true);
     }
     else {

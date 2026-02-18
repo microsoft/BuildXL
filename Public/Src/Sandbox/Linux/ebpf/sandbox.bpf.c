@@ -606,6 +606,74 @@ int BPF_PROG(security_path_link_entry, struct dentry *old_dentry, const struct p
 }
 
 /**
+ * step_into_exit() - Tracks negative dentries (absent path components) during path walks and takes
+ * care of symlink traversal (the latter only for older kernels).
+ *
+ * step_into is the single funnel point for ALL component resolutions in the VFS path walk — both
+ * dcache hits (lookup_fast → step_into) and dcache misses (lookup_slow → step_into). It receives
+ * the dentry as a parameter.
+ *
+ * We insert whether the absent probe is a cache hit or miss when a negative dentry is actually encountered. 
+ * This avoids overhead on successful path walks. The counterpart is that we need to clean up this entry
+ * when all known callers exit to avoid stale entries. Luckily all known callers (path_lookupat, 
+ * path_parentat and path_openat) are already being traced.
+ *
+ * When the dentry is negative (d_inode == NULL), we resolve the pid, check the per-pip negative dentry cache:
+ * - Cache miss: insert REPORT (first-time absent probe for this pip)
+ * - Cache hit: insert SKIP (repeat absent probe, already reported)
+ *
+ * We only insert once per walk — the first negative dentry is the one that matters. Subsequent
+ * negative dentries in the same walk are ignored because an entry already exists.
+ *
+ * The dentry is still cache-hot at this point, so the BPF_CORE_READ of d_inode is essentially free.
+ */
+SEC("fexit/step_into")
+int BPF_PROG(step_into_exit, struct nameidata *nd, int flags, struct dentry *dentry, const char *ret)
+{
+    u64 pid_tgid = bpf_get_current_pid_tgid();
+
+    // This is the symlink traversal part. Just cleans up the map used to store mounts in step_into_entry.
+    // This is only used in older kernels where pick_link does not have BTF information.
+    // On >= 6.8 the follow_link_mount map is not even created (autocreate disabled in sandbox.cpp).
+    if (LINUX_KERNEL_VERSION < KERNEL_VERSION(6, 8, 0))
+    {
+        bpf_map_delete_elem(&follow_link_mount, &pid_tgid);
+    }
+
+    // Only interested in negative dentries (d_inode == NULL means path component doesn't exist).
+    // This check is very cheap — the dentry is cache-hot from the just-completed step_into call.
+    if (BPF_CORE_READ(dentry, d_inode) != NULL) {
+        return 0;
+    }
+
+    // If we already inserted a decision for this walk (from a previous component), don't override.
+    // The first negative dentry in a walk is the one that matters.
+    if (bpf_map_lookup_elem(&should_send_absent_probe, &pid_tgid) != NULL) {
+        return 0;
+    }
+
+    // Pid resolution is pushed down here so it only runs when a negative dentry is found.
+    // In non-root pid namespaces, bpf_get_current_ns_pid() is more expensive (namespace walk),
+    // so avoiding it on the hot path (successful walks) is a meaningful win.
+    pid_t pid = bpf_get_current_ns_pid();
+    pid_t runner_pid;
+    if (!is_valid_pid(pid, &runner_pid)) {
+        return 0;
+    }
+
+    // should_send_neg_dentry returns true on cache miss (first time), false on cache hit (repeat)
+    u8 status = should_send_neg_dentry(runner_pid, dentry)
+        ? ABSENT_PROBE_REPORT
+        : ABSENT_PROBE_SKIP;
+
+    if (bpf_map_update_elem(&should_send_absent_probe, &pid_tgid, &status, BPF_NOEXIST)) {
+        report_ring_buffer_error(runner_pid, "[ERROR]: Could not update should_send_absent_probe map");
+    }
+
+    return 0;
+}
+
+/**
  * path_lookupat_exit() - Handles path resolutions.
  *
  * Used for tracing absent probes when called by system calls like `stat` or `chmod`. Present ones
@@ -620,6 +688,18 @@ int BPF_PROG(path_lookupat_exit, struct nameidata *nd, unsigned flags, struct pa
         return 0;
     }
 
+    // Always clean up any should_send_absent_probe entry step_into may have inserted during
+    // this walk. This must happen before any early return because:
+    // - On success (ret == 0): step_into shouldn't have seen a negative dentry, but during
+    //   retries (after -ECHILD/-ESTALE) a stale entry from a previous aborted walk may linger.
+    // - On -ECHILD/-ESTALE: the walk will be retried — don't carry stale state into the retry.
+    u64 pid_tgid = bpf_get_current_pid_tgid();
+    u8 *request = bpf_map_lookup_elem(&should_send_absent_probe, &pid_tgid);
+    u8 request_value = request ? *request : ABSENT_PROBE_NOT_SET;
+    if (request) {
+        bpf_map_delete_elem(&should_send_absent_probe, &pid_tgid);
+    }
+
     // We really only care about absent probes, as present ones will be handled by the security layer
     // So if the lookup succeeds (exit code 0) we don't send any event
     if (ret == 0)
@@ -630,6 +710,13 @@ int BPF_PROG(path_lookupat_exit, struct nameidata *nd, unsigned flags, struct pa
     // -ECHILD and -ESTALE trigger retries by filename_lookup (RCU → non-RCU → REVAL).
     // These are not real errors — the walk will be retried, so don't report anything.
     if (ret == -ECHILD || ret == -ESTALE)
+    {
+        return 0;
+    }
+
+    // If step_into determined this is a repeat absent probe (negative dentry already in per-pip cache),
+    // skip it. We've already reported this absent path for this pip.
+    if (request_value == ABSENT_PROBE_SKIP)
     {
         return 0;
     }
@@ -649,16 +736,13 @@ int BPF_PROG(path_lookupat_exit, struct nameidata *nd, unsigned flags, struct pa
         return 0;
     }
 
-    // Check the cache to see whether we have sent this before. Absent lookups are typically a significant source
-    // of accesses.
+    // Here the request value can be either REPORT or NOT_SET. For both cases, check the string cache
+    // Even if we got a REPORT back, the kernel cache is also lossy, so we may have seen this path before.
     if (!should_send_string(runner_pid, kGenericProbe, temp_path, path_length))
     {
         return 0;
     }
 
-    // This operation is hard to check against the cache since for absent probes there is no in-memory structure to
-    // represent the path, and using strings is not very performant. For now just keep them out
-    // of the cache, we shouldn't get a big number of absent probes on the same path for the same process
     submit_file_access(
         runner_pid,
         kGenericProbe,
@@ -667,7 +751,7 @@ int BPF_PROG(path_lookupat_exit, struct nameidata *nd, unsigned flags, struct pa
         noResolve,
         pid,
         /* child_pid */ 0,
-        /* mode */ ret == 0 ? BPF_CORE_READ(nd, inode, i_mode) : 0,
+        /* mode */ 0,
         /* error */ ret,
         temp_path,
         path_length
@@ -691,6 +775,18 @@ int BPF_PROG(path_parentat, struct nameidata *nd, unsigned flags, struct path *p
         return 0;
     }
 
+    // Always clean up any should_send_absent_probe entry step_into may have inserted during
+    // this walk. This must happen before any early return because:
+    // - On success (ret == 0): step_into shouldn't have seen a negative dentry, but during
+    //   retries (after -ECHILD/-ESTALE) a stale entry from a previous aborted walk may linger.
+    // - On -ECHILD/-ESTALE: the walk will be retried — don't carry stale state into the retry.
+    u64 pid_tgid = bpf_get_current_pid_tgid();
+    u8 *request = bpf_map_lookup_elem(&should_send_absent_probe, &pid_tgid);
+    u8 request_value = request ? *request : ABSENT_PROBE_NOT_SET;
+    if (request) {
+        bpf_map_delete_elem(&should_send_absent_probe, &pid_tgid);
+    }
+
     // We really only care about absent probes, as present ones will be handled by the security layer
     // So if the lookup succeeds (exit code 0) we don't send any event
     if (ret == 0)
@@ -701,6 +797,13 @@ int BPF_PROG(path_parentat, struct nameidata *nd, unsigned flags, struct path *p
     // -ECHILD and -ESTALE trigger retries by __filename_parentat (RCU → non-RCU → REVAL).
     // These are not real errors — the walk will be retried, so don't report anything.
     if (ret == -ECHILD || ret == -ESTALE)
+    {
+        return 0;
+    }
+
+    // If step_into determined this is a repeat absent probe (negative dentry already in per-pip cache),
+    // skip it. We've already reported this absent path for this pip.
+    if (request_value == ABSENT_PROBE_SKIP)
     {
         return 0;
     }
@@ -719,7 +822,9 @@ int BPF_PROG(path_parentat, struct nameidata *nd, unsigned flags, struct path *p
         return 0;
     }
 
-    if (!should_send_string(runner_pid, kGenericProbe, temp_path, path_length))
+    // Here the request value can be either REPORT or NOT_SET. For both cases, check the string cache
+    // Even if we got a REPORT back, the kernel cache is also lossy, so we may have seen this path before.
+      if (!should_send_string(runner_pid, kGenericProbe, temp_path, path_length))
     {
         return 0;
     }
@@ -732,7 +837,7 @@ int BPF_PROG(path_parentat, struct nameidata *nd, unsigned flags, struct path *p
         noResolve,
         pid,
         /* child_pid */ 0,
-        /* mode */ ret == 0 ? BPF_CORE_READ(nd, inode, i_mode) : 0,
+        /* mode */ 0,
         /* error */ ret,
         temp_path,
         path_length
@@ -754,6 +859,14 @@ int BPF_PROG(path_openat_exit, struct nameidata *nd, const struct open_flags *op
     if (!is_valid_pid(pid, &runner_pid)) {
         return 0;
     }
+
+    // Always clean up any should_send_absent_probe entry step_into may have inserted during
+    // this walk, before any early return. On -ECHILD/-ESTALE the walk will be retried and we
+    // must not carry stale state into the retry.
+    // We don't use the neg dentry status here — path_openat already deduplicates via
+    // event_cache (success) and string_cache (failure).
+    u64 pid_tgid = bpf_get_current_pid_tgid();
+    bpf_map_delete_elem(&should_send_absent_probe, &pid_tgid);
 
     // -ECHILD and -ESTALE trigger retries by do_filp_open (RCU → non-RCU → REVAL).
     // These are not real errors — the walk will be retried, so don't report anything.
@@ -1385,25 +1498,6 @@ int BPF_PROG(step_into_entry, struct nameidata *nd, int flags,
         report_ring_buffer_error(runner_pid, "[ERROR] Could not insert mount into follow_link_mount map");
     }
 
-    return 0;
-}
-
-// step_into_exit() - symlink traversal
-// Just cleans up the map used to store mounts in step_into_entry.
-// This is only used in older kernels where pick_link does not have BTF information.
-// Autoattach is disabled, user side must attach it manually. 
-SEC("?fexit/step_into")
-int BPF_PROG(step_into_exit, struct nameidata *nd, int flags,
-		     struct dentry *dentry)
-{
-    pid_t pid = bpf_get_current_ns_pid();
-    pid_t runner_pid;
-    if (!is_valid_pid(pid, &runner_pid)) {
-        return 0;
-    }
-
-    u64 pid_tgid = bpf_get_current_pid_tgid();
-    bpf_map_delete_elem(&follow_link_mount, &pid_tgid);
     return 0;
 }
 

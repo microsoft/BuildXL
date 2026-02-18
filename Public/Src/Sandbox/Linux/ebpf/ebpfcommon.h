@@ -35,12 +35,16 @@
 #define DEBUG_RINGBUFFER_SIZE (4096 * 64) 
 // Size of the event cache map. This is used to avoid sending repetitive events for the same operation+path.
 // With the current key+value size, this is about 1.8 MB in size per pip.
-#define EVENT_CACHE_MAP_SIZE (16834)
+#define EVENT_CACHE_MAP_SIZE (16384)
 // Size of the string cache map. This is used to avoid sending repetitive events for paths-as-strings (when we don't have a struct path available).
 // With the current key+value size, this is about 2.4 MB in size per pip.
 #define STRING_CACHE_MAP_SIZE (4096)
 // The maximum size of a path that we can handle in the string cache. Paths longer than this will not be cached.
 #define STRING_CACHE_PATH_MAX 512
+// Size of the negative dentry cache map. This is used to avoid sending repetitive absent probe events.
+// Negative dentries are cached using {dentry_ptr, d_parent_ptr, d_name.hash_len} as the key (24 bytes per entry + 2 bytes value).
+// With the current key+value size, this is about 1.4 MB in size per pip.
+#define NEG_DENTRY_CACHE_MAP_SIZE (16384)
 
 #define KERNEL_FUNCTION(name) KERNEL_##name
 #define CONVERT_KERNEL_FUNCTION_TO_STRING(fn) case KERNEL_FUNCTION(fn): return #fn;
@@ -403,6 +407,8 @@ typedef struct pip_stats {
     int string_cache_hit;
     int string_cache_miss;
     int string_cache_uncacheable;
+    int neg_dentry_cache_hit;
+    int neg_dentry_cache_miss;
     int untracked_path_count;
     long untracked_path_bytes;
 } pip_stats;
@@ -423,6 +429,19 @@ typedef struct cache_event_key {
     long unsigned int inode_number;
     operation_type op_type;
 } cache_event_key;
+
+/**
+ * A cache key for negative dentries (absent path components). Used to deduplicate absent probes per-pip.
+ * The key combines the dentry pointer with its parent and name hash to detect slab reuse:
+ * - dentry_ptr: fast O(1) identity for the kernel dentry object
+ * - d_parent_ptr: guards against slab reuse under a different parent directory
+ * - d_name_hash_len: 32-bit hash + 32-bit length of the component name, guards against reuse with a different name
+ */
+typedef struct neg_dentry_cache_key {
+    unsigned long dentry_ptr;
+    unsigned long d_parent_ptr;
+    unsigned long d_name_hash_len;
+} neg_dentry_cache_key;
 
 /** This structure is used to pass arguments to the test_write_ringbuf syscall  */
 typedef struct test_write_ringbuf_args {

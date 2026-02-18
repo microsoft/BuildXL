@@ -62,7 +62,8 @@ __attribute__((always_inline)) static bool is_cacheable(pid_t runner_pid, int pa
             return false;
         }
 
-        __sync_fetch_and_add(&stats->string_cache_uncacheable, 1);
+        // Racy increment: we favor performance over accuracy for diagnostic stats
+        stats->string_cache_uncacheable += 1;
         return false;
     }
 
@@ -145,11 +146,13 @@ __attribute__((always_inline)) static bool should_send_string(pid_t runner_pid, 
     if (bpf_map_lookup_elem(string_cache, path) == NULL)
     {
         bpf_map_update_elem(string_cache, path, &NO_VALUE, BPF_ANY);
-        __sync_fetch_and_add(&stats->string_cache_miss, 1);
+        // Racy increment (see is_cacheable_path)
+        stats->string_cache_miss += 1;
         return true;
     }
 
-    __sync_fetch_and_add(&stats->string_cache_hit, 1);
+    // Racy increment (see is_cacheable_path)
+    stats->string_cache_hit += 1;
     // If the lookup found the key, don't send the event
     return false;
 }

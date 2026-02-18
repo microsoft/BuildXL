@@ -647,6 +647,13 @@ void SyscallHandler::SendStats()
             "[Ring buffer monitoring] Event cache hit: %d (%.2f%%), Event cache miss: %d",
             stats.event_cache_hit, event_cache_hit_percentage, stats.event_cache_miss);
 
+        double neg_dentry_cache_hit_percentage = (stats.neg_dentry_cache_hit + stats.neg_dentry_cache_miss > 0) ? (100.0 * stats.neg_dentry_cache_hit / (stats.neg_dentry_cache_hit + stats.neg_dentry_cache_miss)) : 0.0;
+        
+        m_bxl->LogInfo(
+            getpid(),
+            "[Ring buffer monitoring] Absent event cache hit: %d (%.2f%%), Absent event cache miss: %d",
+            stats.neg_dentry_cache_hit, neg_dentry_cache_hit_percentage, stats.neg_dentry_cache_miss);
+
         double string_cache_hit_percentage = (stats.string_cache_hit + stats.string_cache_miss > 0) ? (100.0 * stats.string_cache_hit / (stats.string_cache_hit + stats.string_cache_miss)) : 0.0;
         m_bxl->LogInfo(
             getpid(),

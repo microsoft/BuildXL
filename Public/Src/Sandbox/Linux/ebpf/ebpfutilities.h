@@ -329,6 +329,11 @@ __attribute__((always_inline)) static inline void report_event_cache_not_found(p
     report_ring_buffer_error(runner_pid, "[ERROR] Could not find event cache.");
 }
 
+__attribute__((always_inline)) static inline void report_event_neg_cache_not_found(pid_t runner_pid)
+{
+    report_ring_buffer_error(runner_pid, "[ERROR] Could not find negative event cache.");
+}
+
 __attribute__((always_inline)) static inline void report_stats_not_found(pid_t runner_pid)
 {
     report_ring_buffer_error(runner_pid, "[ERROR] Could not find stats.");
@@ -441,6 +446,28 @@ struct
     // to favor performance.
     __uint(max_entries, 1024 * 10);
 } should_send_readlink SEC(".maps");
+
+// Request values for absent_probe_request map
+// Details about the dentry cache (dcache) here: https://www.kernel.org/doc/Documentation/filesystems/vfs.txt
+#define ABSENT_PROBE_NOT_SET  0  // No entry in map (step_into didn't see a negative dentry for this walk)
+#define ABSENT_PROBE_REPORT   1  // Negative dentry dcache miss observed — report this absent probe
+#define ABSENT_PROBE_SKIP     2  // Negative dentry was already in per-pip cache — skip this absent probe
+
+// Map used to track whether step_into encountered a negative dentry during a path walk.
+// 1) fexit/step_into checks d_inode. Only when NULL (negative dentry), it resolves the pid,
+//    checks the per-pip negative dentry cache, and inserts REPORT (cache miss) or SKIP (cache hit).
+// 2) fexit of the path walk function checks for an entry. If present → use it; if absent →
+//    no negative dentry was seen (common case for successful walks — zero overhead).
+struct
+{
+    __uint(type, BPF_MAP_TYPE_HASH);
+    // bpf_get_current_pid_tgid as key
+    __uint(key_size, sizeof(u64)); 
+    // ABSENT_PROBE_NOT_SET, ABSENT_PROBE_REPORT, or ABSENT_PROBE_SKIP
+    __uint(value_size, sizeof(u8));
+    // Max entries set to a reasonably high number to accommodate many concurrent tasks
+    __uint(max_entries, 1024 * 10);
+} should_send_absent_probe SEC(".maps");
 
 /**
  * Body of the loop used in deref_path_info.
@@ -1359,8 +1386,9 @@ __attribute__((always_inline)) static bool is_path_untracked(int runner_pid, con
             return true;
         }
 
-        __sync_fetch_and_add(&stats->untracked_path_count, 1);
-        __sync_fetch_and_add(&stats->untracked_path_bytes, path_length);
+        // Racy increments: we favor performance over accuracy for diagnostic stats
+        stats->untracked_path_count += 1;
+        stats->untracked_path_bytes += path_length;
         return true;
     }
 

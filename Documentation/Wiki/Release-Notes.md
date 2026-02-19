@@ -2,6 +2,17 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20260213.7 (Release [31057480](https://dev.azure.com/mseng/Domino/_build/results?buildId=31057480&view=results))
+- Make sure cache logs are flushed regularly
+- Enable kestrel by default
+- Added diagnostics for string table capacity exhaustion
+- File content table optimizations
+- Speed up readlink operation for the Linux sandbox
+- Optimize the deserialization of the pip graph
+- Support BuildXL sandbox under Linux containers
+- Add a pnpm aware rule for the Rush resolver
+- Bug fixes
+
 # 0.1.0-20260130.6 (Release [31002496](https://dev.azure.com/mseng/Domino/_build/results?buildId=31002496&view=results))
 - Fixes/additional logging on detours remote injection.
 - Fixes crashes with paths that end in ‘nul’ in windows.

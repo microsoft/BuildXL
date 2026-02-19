@@ -208,6 +208,12 @@ export interface TestFramework {
     name: string;
 }
 
+/** Returns true if the given framework is an xunit v3 framework (standalone or QTest-wrapped). */
+@@public
+export function isXUnitV3Framework(framework: TestFramework) : boolean {
+    return framework && framework.name && framework.name.indexOf("XUnitV3") !== -1;
+}
+
 @@public
 export interface TestResult extends Result {
 }

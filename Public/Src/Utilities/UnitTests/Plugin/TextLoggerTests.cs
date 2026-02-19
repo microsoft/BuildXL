@@ -1,17 +1,29 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.IO;
+using System.Threading;
 using BuildXL.Plugin;
-using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Test.BuildXL.Plugin
 {
-    public sealed class TextLoggerTests : TemporaryStorageTestBase
+    public sealed class TextLoggerTests : IDisposable
     {
-        public TextLoggerTests(ITestOutputHelper output) : base(output) { }
+        private static int s_counter;
+        private readonly string m_tempDir;
+        public string TemporaryDirectory => m_tempDir;
+
+        // TODO: Inherit from TemporaryStorageTestBase once it is ported to xunit v3.
+        public TextLoggerTests()
+        {
+            m_tempDir = Path.Combine(Path.GetTempPath(), "bxl-tests", "TextLogger", Interlocked.Increment(ref s_counter).ToString());
+            if (Directory.Exists(m_tempDir)) Directory.Delete(m_tempDir, true);
+            Directory.CreateDirectory(m_tempDir);
+        }
+
+        public void Dispose() { try { Directory.Delete(m_tempDir, true); } catch (IOException) { } }
 
         [Fact]
         public void BasicFunctionalityTest()
@@ -38,19 +50,19 @@ namespace Test.BuildXL.Plugin
             }
 
             // check that the log file was produced
-            XAssert.FileExists(logFileFullPath);
+            Assert.True(File.Exists(logFileFullPath), $"Log file not found: {logFileFullPath}");
 
             // check that the verbose message was not logged unless 'logVerbose' is true
             var logLines = File.ReadAllLines(logFileFullPath);
 
-            // check that every line contains the prefix;
-            XAssert.All(logLines, line => line.Contains(nameof(TextLoggerTests)));
+            // check that every line contains the prefix
+            Assert.All(logLines, line => Assert.Contains(nameof(TextLoggerTests), line));
 
             // check individual log messages
-            XAssert.Contains(logLines[0], infoMessage);
-            XAssert.Contains(logLines[1], warningMessage);
-            XAssert.Contains(logLines[2], errorMessage);
-            XAssert.Contains(logLines[3], debugMessage);
+            Assert.Contains(infoMessage, logLines[0]);
+            Assert.Contains(warningMessage, logLines[1]);
+            Assert.Contains(errorMessage, logLines[2]);
+            Assert.Contains(debugMessage, logLines[3]);
         }
     }
 }

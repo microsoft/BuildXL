@@ -3,7 +3,6 @@
 
 import * as Managed from "Sdk.Managed";
 import {Transformer} from "Sdk.Transformers";
-import * as XUnit from "Sdk.Managed.Testing.XUnit";
 
 namespace Core.SBOM {
     export declare const qualifier: BuildXLSdk.Net8Qualifier;
@@ -14,6 +13,7 @@ namespace Core.SBOM {
     @@public
     export const dll = BuildXLSdk.test({
         assemblyName: "Test.BuildXL.Utilities.SBOM",
+        qTestXUnitV3: true,
         allowUnsafeBlocks: true,
         sources: globR(d`.`, "*.cs"),
         references: [

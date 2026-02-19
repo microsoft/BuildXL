@@ -13,6 +13,7 @@ import * as Native from "Sdk.Native";
 import * as Shared from "Sdk.Managed.Shared";
 import * as XUnit from "Sdk.Managed.Testing.XUnit";
 import * as QTest from "Sdk.Managed.Testing.QTest";
+import * as XUnitV3 from "Sdk.Managed.Testing.XUnitV3";
 import * as Frameworks from "Sdk.Managed.Frameworks";
 import * as Net472 from "Sdk.Managed.Frameworks.Net472";
 import * as BinarySigner from "Sdk.Managed.Tools.BinarySigner";
@@ -116,6 +117,12 @@ export interface Result extends Managed.Assembly {
 
 @@public
 export interface TestArguments extends Arguments, Managed.TestArguments {
+    /** 
+     * When true, QTest wraps xunit v3 instead of v2. Only takes effect when QTest is enabled
+     * and no explicit testFramework is set. To use v3 standalone (no QTest), set
+     * testFramework: XUnitV3.framework instead.
+     */
+    qTestXUnitV3?: boolean;
 }
 
 @@public
@@ -467,7 +474,11 @@ export function test(args: TestArguments) : TestResult {
         },
     }, args);
 
-    let result = Managed.test(args);
+    // xunit v3 requires building as executable (not library) because the v3 runner
+    // launches the test assembly as a process for test discovery and execution.
+    let result = Managed.isXUnitV3Framework(args.testFramework)
+        ? testV3AsExecutable(args)
+        : Managed.test(args);
 
     if (!args.skipTestRun) {
         if (Flags.buildRequiredAdminPrivilegeTestInVm) {
@@ -480,7 +491,7 @@ export function test(args: TestArguments) : TestResult {
                 executeTestUntracked = args.runTestArgs.unsafeTestRunArguments.runWithUntrackedDependencies;
                 forceXunitForAdminTests = args.runTestArgs.unsafeTestRunArguments.forceXunitForAdminTests;
             }
-            if (!Flags.doNotForceXUnitFrameworkInVm || executeTestUntracked || forceXunitForAdminTests) {
+            if (!Managed.isXUnitV3Framework(framework) && (!Flags.doNotForceXUnitFrameworkInVm || executeTestUntracked || forceXunitForAdminTests)) {
                 framework = importFrom("Sdk.Managed.Testing.XUnit").framework;
             }
 
@@ -1021,9 +1032,63 @@ function shouldUseQTest(runTestArgs: Managed.TestRunArguments) : boolean {
         && !(runTestArgs && runTestArgs.parallelBucketCount);  // QTest does not support passing environment variables to the underlying process
 }
 
-/** Gets test framework. */
-function getTestFramework(args: Managed.TestArguments) : Managed.TestFramework {
-    return args.testFramework || (shouldUseQTest(args.runTestArgs) ? QTest.getFramework(XUnit.framework) : XUnit.framework);
+
+/**
+ * Build and deploy an xunit v3 test as an executable.
+ * v3 requires test assemblies to be executables with entry points for test discovery.
+ * This is equivalent to Managed.test() but uses Managed.executable() instead of library().
+ */
+function testV3AsExecutable(args: Managed.TestArguments) : Managed.TestResult {
+    const testFramework = args.testFramework;
+
+    // Apply framework compile arguments (adds v3 xunit references)
+    if (testFramework.compileArguments) {
+        args = testFramework.compileArguments(args);
+    }
+
+    // Inject v3 boilerplate source (entry point, Microsoft Testing Platform hooks, runner reporters)
+    args = args.merge({
+        sources: [ XUnitV3.boilerplateSource ],
+    });
+
+    // Add additional runtime content (v3 adapter files, runner DLLs)
+    if (testFramework.additionalRuntimeContent) {
+        args = args.merge({
+            runtimeContent: testFramework.additionalRuntimeContent(args)
+        });
+    }
+
+    // Build as executable (required for v3)
+    const assembly = Managed.executable(args);
+
+    // Deploy to test directory
+    const testDeployFolder = Context.getNewOutputDirectory("testRun");
+    const testDeployment = Deployment.deployToDisk({
+        definition: {
+            contents: [
+                assembly,
+            ],
+        },
+        targetDirectory: testDeployFolder,
+        primaryFile: assembly.runtime.binary.name,
+        deploymentOptions: args.deploymentOptions,
+        tags: [ "testDeployment" ],
+    });
+
+    // Run tests via the framework's runTest.
+    // Merge assembly into result so the TestResult also has ManagedAssembly properties
+    // (e.g., .dll, .compile, .runtime) needed when other projects reference this test.
+    return assembly.merge<Managed.TestResult>(Managed.runTestOnly(
+        args,
+        /* compileArguments: */ false,
+        /* testDeployment:   */ testDeployment));
+}
+
+/** Gets test framework. testFramework wins if set; otherwise useXUnitV3 controls QTest's xunit version. */
+function getTestFramework(args: TestArguments) : Managed.TestFramework {
+    if (args.testFramework) return args.testFramework;
+    const baseFramework = args.qTestXUnitV3 ? XUnitV3.framework : XUnit.framework;
+    return shouldUseQTest(args.runTestArgs) ? QTest.getFramework(baseFramework) : baseFramework;
 }
 
 function processTestArguments(args: Managed.TestArguments) : Managed.TestArguments {
@@ -1033,16 +1098,20 @@ function processTestArguments(args: Managed.TestArguments) : Managed.TestArgumen
         ? Environment.getNumberValue(envVarNamePrefix + "xunitSemaphoreCount")
         : undefined;
     let testFramework = getTestFramework(args);
+    const isV3 = Managed.isXUnitV3Framework(testFramework);
 
     args = Object.merge<Managed.TestArguments>({
         testFramework: testFramework,
         skipDocumentationGeneration: true,
         sources: [
-            testFrameworkOverrideAttribute,
+            // v2 framework override attribute is not applicable to v3
+            ...addIf(!isV3, testFrameworkOverrideAttribute),
         ],
         references: [
+            // TestUtilities.dll has general helpers (XAssert etc.) — shared by both v2 and v3
             importFrom("BuildXL.Utilities.UnitTests").TestUtilities.dll,
-            importFrom("BuildXL.Utilities.UnitTests").TestUtilities.XUnit.dll,
+            // TestUtilities.XUnit.dll depends on v2 Xunit.Abstractions — skip for v3
+            ...addIf(!isV3, importFrom("BuildXL.Utilities.UnitTests").TestUtilities.XUnit.dll),
             ...addIf(isFullFramework,
                 importFrom("System.Runtime.Serialization.Primitives").pkg
             ),

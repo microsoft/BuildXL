@@ -474,7 +474,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.ApplicationInsights",
-          "Version": "2.22.0"
+          "Version": "2.23.0"
         }
       }
     },
@@ -1950,7 +1950,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.TestPlatform.ObjectModel",
-          "Version": "17.7.2"
+          "Version": "17.13.0"
         }
       }
     },
@@ -1960,6 +1960,42 @@
         "NuGet": {
           "Name": "Microsoft.TestPlatform.TestHost",
           "Version": "16.4.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Testing.Extensions.Telemetry",
+          "Version": "1.9.1"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Testing.Extensions.TrxReport.Abstractions",
+          "Version": "1.9.1"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Testing.Platform",
+          "Version": "1.9.1"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Testing.Platform.MSBuild",
+          "Version": "1.9.1"
         }
       }
     },
@@ -4784,6 +4820,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "xunit.analyzers",
+          "Version": "1.27.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "xunit.assert",
           "Version": "2.5.3"
         }
@@ -4840,6 +4885,96 @@
         "NuGet": {
           "Name": "xunit.runner.visualstudio",
           "Version": "2.5.3"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "xunit.runner.visualstudio",
+          "Version": "3.1.5"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "xunit.v3",
+          "Version": "3.2.2"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "xunit.v3.assert",
+          "Version": "3.2.2"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "xunit.v3.common",
+          "Version": "3.2.2"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "xunit.v3.core.mtp-v1",
+          "Version": "3.2.2"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "xunit.v3.extensibility.core",
+          "Version": "3.2.2"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "xunit.v3.mtp-v1",
+          "Version": "3.2.2"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "xunit.v3.runner.common",
+          "Version": "3.2.2"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "xunit.v3.runner.console",
+          "Version": "3.2.2"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "xunit.v3.runner.inproc.console",
+          "Version": "3.2.2"
         }
       }
     }

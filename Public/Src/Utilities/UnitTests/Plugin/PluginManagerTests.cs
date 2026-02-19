@@ -1,7 +1,9 @@
-﻿using System;
+using System;
 using System.Net;
 using System.Text.Json;
 using System.Collections.Generic;
+using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Ipc;
 using BuildXL.Ipc.Common;
@@ -10,20 +12,34 @@ using BuildXL.Plugin;
 using BuildXL.Plugin.Grpc;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
-using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using ILogger = Grpc.Core.Logging.ILogger;
-using Xunit.Abstractions;
 
 namespace Test.BuildXL.Plugin
 {
     /// <summary>
     /// Tests for <see cref="PluginManager" />
     /// </summary>
-    public class PluginManagerTests : TemporaryStorageTestBase, IAsyncLifetime
+    public class PluginManagerTests : IAsyncLifetime, IDisposable
     {
         private readonly PluginManager m_pluginManager;
         private readonly LoggingContext m_loggingContext = new LoggingContext("UnitTest");
+
+        // Tracks the MockPluginServer shutdown so DisposeAsync can wait for the port to be released.
+        private TaskCompletionSource<bool> m_serverShutdownCompletion;
+
+        // Simple temp directory support (replaces TemporaryStorageTestBase)
+        private static int s_counter;
+        private readonly string m_tempDir;
+        protected string GetFullPath(string path) => Path.IsPathRooted(path) ? path : Path.Combine(m_tempDir, path);
+        protected string WriteFile(string relativePath, string contents)
+        {
+            var fullPath = GetFullPath(relativePath);
+            Directory.CreateDirectory(Path.GetDirectoryName(fullPath));
+            File.WriteAllText(fullPath, contents);
+            return fullPath;
+        }
+        public void Dispose() { try { Directory.Delete(m_tempDir, true); } catch (IOException) { } }
  
         private const string PluginPath1 = "test1";
         private const string PluginId1 = "test1";
@@ -62,8 +78,12 @@ namespace Test.BuildXL.Plugin
         private readonly ILogger m_logger = new MockLogger();
         private readonly int m_port = TcpIpConnectivity.ParsePortNumber(s_pluginPort3);
 
-        public PluginManagerTests(ITestOutputHelper output) : base(output)
+        // TODO: Inherit from TemporaryStorageTestBase once it is ported to xunit v3.
+        public PluginManagerTests()
         {
+            m_tempDir = Path.Combine(Path.GetTempPath(), "bxl-tests", "PluginMgr", Interlocked.Increment(ref s_counter).ToString());
+            if (Directory.Exists(m_tempDir)) Directory.Delete(m_tempDir, true);
+            Directory.CreateDirectory(m_tempDir);
             m_pluginManager = new PluginManager(m_loggingContext, "empty", new[] { "empty" });
         }
 
@@ -109,6 +129,7 @@ namespace Test.BuildXL.Plugin
 
         private PluginCreationArgument GetPluginCreationArguments(Func<PluginConnectionOption, IPluginClient> pluginClientCreator)
         {
+            m_serverShutdownCompletion = new TaskCompletionSource<bool>();
             return new PluginCreationArgument()
             {
                 PluginPath = PluginPath1,
@@ -124,11 +145,18 @@ namespace Test.BuildXL.Plugin
                 CreatePluginClientFunc = pluginClientCreator,
                 RunInPluginThreadAction = () =>
                 {
-                    using (var pluginServer = new MockPluginServer(m_port, new MockLogger()))
+                    try
                     {
-                        pluginServer.Start();
+                        using (var pluginServer = new MockPluginServer(m_port, new MockLogger()))
+                        {
+                            pluginServer.Start();
 
-                        pluginServer.ShutdownCompletionTask.GetAwaiter().GetResult();
+                            pluginServer.ShutdownCompletionTask.GetAwaiter().GetResult();
+                        }
+                    }
+                    finally
+                    {
+                        m_serverShutdownCompletion.TrySetResult(true);
                     }
                 }
             };
@@ -349,14 +377,14 @@ namespace Test.BuildXL.Plugin
             });
 
             var res = await m_pluginManager.GetOrCreateAsync(args);
-            XAssert.PossiblySucceeded(res);
+            Assert.True(res.Succeeded);
             Assert.Equal(1, m_pluginManager.PluginLoadedSuccessfulCount);
             Assert.Equal(1, m_pluginManager.PluginsCount);
             Assert.True(m_pluginManager.CanHandleMessage(PluginMessageType.ParseLogMessage));
 
             var logParseResult = await m_pluginManager.LogParseAsync("", "", true);
             Assert.True(logParseResult.Succeeded);
-            XAssert.Contains(logParseResult.Result.ParsedMessage, "[plugin]");
+            Assert.Contains("[plugin]", logParseResult.Result.ParsedMessage);
         }
 #endif
 
@@ -394,7 +422,7 @@ namespace Test.BuildXL.Plugin
             });
 
             var res = await m_pluginManager.GetOrCreateAsync(args);
-            XAssert.PossiblySucceeded(res);
+            Assert.True(res.Succeeded);
             Assert.Equal(1, m_pluginManager.PluginLoadedSuccessfulCount);
             Assert.Equal(1, m_pluginManager.PluginsCount);
             Assert.True(m_pluginManager.CanHandleMessage(PluginMessageType.ProcessResult));
@@ -420,7 +448,7 @@ namespace Test.BuildXL.Plugin
             });
 
             var res = await m_pluginManager.GetOrCreateAsync(args);
-            XAssert.PossiblySucceeded(res);
+            Assert.True(res.Succeeded);
             Assert.Equal(1, m_pluginManager.PluginLoadedSuccessfulCount);
             Assert.Equal(1, m_pluginManager.PluginsCount);
             Assert.True(m_pluginManager.CanHandleMessage(PluginMessageType.ProcessResult));
@@ -436,18 +464,22 @@ namespace Test.BuildXL.Plugin
             Assert.Equal(processExitCode, processResultMessageResponse.Result.ExitCode);
         }
 #endif
-        public Task InitializeAsync()
+        public ValueTask InitializeAsync()
         {
-            return Task.Run(() => { });
+            return default;
         }
 
-        public Task DisposeAsync()
+        public async ValueTask DisposeAsync()
         {
-            return Task.Run(() =>
+            await m_pluginManager.Stop();
+            m_pluginManager.Clear();
+
+            // Wait for the MockPluginServer thread to fully shut down and release the port,
+            // preventing port conflicts with the next test instance.
+            if (m_serverShutdownCompletion != null)
             {
-                m_pluginManager.Stop().Wait();
-                m_pluginManager.Clear();
-            });
+                await m_serverShutdownCompletion.Task;
+            }
         }
     }
 }

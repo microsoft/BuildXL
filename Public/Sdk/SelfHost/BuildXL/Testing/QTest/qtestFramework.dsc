@@ -20,6 +20,8 @@ export interface TestRunArguments extends Managed.TestRunArguments, Qtest.QTestA
 
 @@public
 export function getFramework(frameworkToWrap: Managed.TestFramework) : Managed.TestFramework {
+    const isV3 = Managed.isXUnitV3Framework(frameworkToWrap);
+
     return {
         compileArguments: (args: Managed.Arguments) => {
             if (Shared.isDotNetCore(qualifier.targetFramework)) {
@@ -38,33 +40,37 @@ export function getFramework(frameworkToWrap: Managed.TestFramework) : Managed.T
         },
         additionalRuntimeContent: (args: Managed.Arguments) => [ 
             ...(frameworkToWrap.additionalRuntimeContent ? frameworkToWrap.additionalRuntimeContent(args) : []), 
-            ...(Shared.isDotNetCore(qualifier.targetFramework) ? [
-                // hand picking files to avoid collisions with xunit assemblies specified elsewhere
-                ...importFrom("xunit.runner.visualstudio").Contents.all.getFiles([
-                    r`build/net6.0/xunit.runner.reporters.netcoreapp10.dll`,
-                    r`build/net6.0/xunit.runner.visualstudio.dotnetcore.testadapter.dll`,
-                    r`build/net6.0/xunit.runner.visualstudio.props`
-                ]),
+            // v2: deploy adapter files and xunit.runner.json
+            // v3: adapter files are provided by the wrapped framework's additionalRuntimeContent
+            ...addIfLazy(!isV3, () => [
+                ...(Shared.isDotNetCore(qualifier.targetFramework) ? [
+                    // hand picking files to avoid collisions with xunit assemblies specified elsewhere
+                    ...importFrom("xunit.runner.visualstudio").Contents.all.getFiles([
+                        r`build/net6.0/xunit.runner.reporters.netcoreapp10.dll`,
+                        r`build/net6.0/xunit.runner.visualstudio.dotnetcore.testadapter.dll`,
+                        r`build/net6.0/xunit.runner.visualstudio.props`
+                    ]),
                 ] : []),
-            f`xunit.runner.json`
+                f`xunit.runner.json`
+            ])
         ],
-        runTest: runTest,
+        runTest: isV3 ? (args: TestRunArguments) => runTest(args, true) : runTest,
         name: `QTest.${frameworkToWrap.name}`,
     };
 };
 
-function runMultipleQTests(args: TestRunArguments) : File[]
+function runMultipleQTests(args: TestRunArguments, isV3?: boolean) : File[]
 {
     const resultsFromParallelGroups = args.parallelGroups.mapMany(testGroup => runTest(args.override<Qtest.QTestArguments>({
         // disable breaking down in groups again
         parallelGroups: undefined,
         limitGroups: [testGroup]
-    })));
+    }), isV3));
     
     const resultsFromRest = runTest(args.override<Qtest.QTestArguments>({
         parallelGroups: undefined,
         skipGroups: args.parallelGroups
-    }));
+    }), isV3);
     
     return [
         ...resultsFromParallelGroups,
@@ -84,7 +90,7 @@ function getQTestDotNetFramework() : Qtest.QTestDotNetFramework {
     }
 }
 
-function runTest(args : TestRunArguments) : File[] {
+function runTest(args : TestRunArguments, isV3?: boolean) : File[] {
 
     // Extracting a variable, because the type checker can't analyze a dotted names properly.
     const targetFramework = qualifier.targetFramework;
@@ -94,8 +100,14 @@ function runTest(args : TestRunArguments) : File[] {
      
     let additionalOptions = undefined;
     let filterArgs = [];
-    let rootTestAdapterPath = importFrom("xunit.runner.visualstudio").Contents.all;
-    let testAdapterFolder = Shared.isDotNetCore(targetFramework) ? "net6.0" : "net462";
+
+    // Select adapter package based on xunit version (v2 vs v3)
+    let rootTestAdapterPath = isV3
+        ? importFrom("xunit.runner.visualstudio.v3").Contents.all
+        : importFrom("xunit.runner.visualstudio").Contents.all;
+    let testAdapterFolder = isV3
+        ? (Shared.isDotNetCore(targetFramework) ? "net8.0" : "net472")
+        : (Shared.isDotNetCore(targetFramework) ? "net6.0" : "net462");
     let testAdapterPath =  d`${rootTestAdapterPath}/build/${testAdapterFolder}`;
 
     // when testmethod or testclass ignore limitGroups and skipGroups arguments
@@ -116,7 +128,7 @@ function runTest(args : TestRunArguments) : File[] {
             Contract.fail("XUnit runner does not support combining parallel runs with restricting or skipping test groups");
         }
 
-        return runMultipleQTests(args);
+        return runMultipleQTests(args, isV3);
     }
 
     if (args.limitGroups) {

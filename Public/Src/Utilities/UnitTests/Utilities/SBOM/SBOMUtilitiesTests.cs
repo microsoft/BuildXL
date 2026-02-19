@@ -4,18 +4,15 @@
 #if MICROSOFT_INTERNAL
 using System.IO;
 using BuildXL.Utilities.SBOMUtilities;
-using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Microsoft.Sbom.Contracts;
-using Xunit.Abstractions;
 using System;
 using Microsoft.Sbom.Contracts.Enums;
 
 namespace Test.BuildXL.Utilities
 {
-    public class SBOMUtilitiesTest : XunitBuildXLTest
+    public class SBOMUtilitiesTest
     {
-        public SBOMUtilitiesTest(ITestOutputHelper output) : base(output) { }
 
         [Theory]
         [InlineData(true)]
@@ -40,13 +37,13 @@ namespace Test.BuildXL.Utilities
                 metadata = bsiHelper.ProduceSbomMetadata("BuildXL", packageName, packageVersion);
             }
 
-            XAssert.AreEqual("BuildXL", metadata.BuildEnvironmentName);
-            XAssert.AreEqual(packageName, metadata.PackageName);
-            XAssert.AreEqual(SampleBranch, metadata.Branch);
-            XAssert.AreEqual(SampleBuildQueueName, metadata.BuildName);
-            XAssert.AreEqual(SampleSessionId, metadata.BuildId);
-            XAssert.AreEqual(SampleChangeId, metadata.CommitId);
-            XAssert.AreEqual(uri, metadata.RepositoryUri);
+            Assert.Equal("BuildXL", metadata.BuildEnvironmentName);
+            Assert.Equal(packageName, metadata.PackageName);
+            Assert.Equal(SampleBranch, metadata.Branch);
+            Assert.Equal(SampleBuildQueueName, metadata.BuildName);
+            Assert.Equal(SampleSessionId, metadata.BuildId);
+            Assert.Equal(SampleChangeId, metadata.CommitId);
+            Assert.Equal(uri, metadata.RepositoryUri);
         }
 
         [Theory]
@@ -56,11 +53,11 @@ namespace Test.BuildXL.Utilities
         [InlineData("OFFDEPOT_7727", false)]    
         public void ExtractValidUriFromMetadata(string jsonUri, bool isValid)
         {
-            XAssert.AreEqual(Uri.IsWellFormedUriString(jsonUri, UriKind.Absolute), isValid);
+            Assert.Equal(Uri.IsWellFormedUriString(jsonUri, UriKind.Absolute), isValid);
             var path = Path.GetTempFileName();
             File.WriteAllText(path, SampleBsiJson(jsonUri));
             var metadata = BsiMetadataExtractor.ProduceSbomMetadata(path, "BuildXL", "packageName", "1.0");
-            XAssert.IsTrue(Uri.IsWellFormedUriString(metadata.RepositoryUri, UriKind.Absolute));
+            Assert.True(Uri.IsWellFormedUriString(metadata.RepositoryUri, UriKind.Absolute));
         }
 
         [Fact]
@@ -69,13 +66,13 @@ namespace Test.BuildXL.Utilities
             var path = Path.GetTempFileName();
             File.WriteAllText(path, "{ }");
             var metadata = BsiMetadataExtractor.ProduceSbomMetadata(path, "BuildXL", "packageName", "1.0");
-            XAssert.AreEqual("BuildXL", metadata.BuildEnvironmentName);
-            XAssert.AreEqual("packageName", metadata.PackageName);
-            XAssert.IsNull(metadata.Branch);
-            XAssert.IsNull(metadata.BuildName);
-            XAssert.IsNull(metadata.BuildId);
-            XAssert.IsNull(metadata.CommitId);
-            XAssert.IsNull(metadata.RepositoryUri);
+            Assert.Equal("BuildXL", metadata.BuildEnvironmentName);
+            Assert.Equal("packageName", metadata.PackageName);
+            Assert.Null(metadata.Branch);
+            Assert.Null(metadata.BuildName);
+            Assert.Null(metadata.BuildId);
+            Assert.Null(metadata.CommitId);
+            Assert.Null(metadata.RepositoryUri);
         }
 
         [Fact]

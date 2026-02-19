@@ -201,7 +201,7 @@ config({
                 { id: "Azure.Storage.Blobs.Batch", version: "12.10.0" },
                 { id: "Azure.Storage.Blobs.ChangeFeed", version: "12.0.0-preview.34" },
 
-                // xUnit
+                // xUnit v2 (still used by most test projects)
                 { id: "xunit.abstractions", version: "2.0.3" },
                 { id: "xunit.assert", version: "2.5.3" },
                 { id: "xunit.extensibility.core", version: "2.5.3" },
@@ -212,6 +212,23 @@ config({
                 { id: "xunit.runner.reporters", version: "2.5.3" },
                 // comes from https://dev.azure.com/dnceng/public/_artifacts/feed/dotnet-eng/NuGet/Microsoft.DotNet.XUnitConsoleRunner/versions
                 { id: "Microsoft.DotNet.XUnitConsoleRunner", version: "2.5.1-beta.22179.1" },
+
+                // xUnit v3
+                { id: "xunit.v3", version: "3.2.2" },
+                { id: "xunit.v3.assert", version: "3.2.2" },
+                { id: "xunit.v3.common", version: "3.2.2" },
+                { id: "xunit.v3.extensibility.core", version: "3.2.2" },
+                { id: "xunit.v3.core.mtp-v1", version: "3.2.2" },
+                { id: "xunit.v3.mtp-v1", version: "3.2.2" },
+                { id: "xunit.v3.runner.common", version: "3.2.2" },
+                { id: "xunit.v3.runner.inproc.console", version: "3.2.2" },
+                { id: "xunit.v3.runner.console", version: "3.2.2" },
+                { id: "xunit.analyzers", version: "1.27.0" },
+                { id: "xunit.runner.visualstudio", version: "3.1.5", alias: "xunit.runner.visualstudio.v3" },
+                { id: "Microsoft.Testing.Platform", version: "1.9.1" },
+                { id: "Microsoft.Testing.Platform.MSBuild", version: "1.9.1" },
+                { id: "Microsoft.Testing.Extensions.Telemetry", version: "1.9.1" },
+                { id: "Microsoft.Testing.Extensions.TrxReport.Abstractions", version: "1.9.1" },
 
                 // SQL
                 { id: "Microsoft.Data.SqlClient", version: "5.2.1" },
@@ -228,7 +245,7 @@ config({
 
                 // microsoft test platform
                 { id: "Microsoft.TestPlatform.TestHost", version: "16.4.0"},
-                { id: "Microsoft.TestPlatform.ObjectModel", version: "17.7.2"},
+                { id: "Microsoft.TestPlatform.ObjectModel", version: "17.13.0"},
                 { id: "Microsoft.NET.Test.Sdk", version: "15.9.0" },
                 { id: "Microsoft.CodeCoverage", version: "15.9.0" },
 
@@ -268,7 +285,7 @@ config({
 
                 { id: "DotNet.Glob", version: "2.0.3" },
                 { id: "Minimatch", version: "2.0.0" },
-                { id: "Microsoft.ApplicationInsights", version: "2.22.0", dependentPackageIdsToIgnore: ["System.RunTime.InteropServices"] },
+                { id: "Microsoft.ApplicationInsights", version: "2.23.0", dependentPackageIdsToIgnore: ["System.RunTime.InteropServices"] },
                 { id: "Microsoft.ApplicationInsights.Agent.Intercept", version: "2.4.0" },
                 { id: "Microsoft.ApplicationInsights.DependencyCollector", version: "2.22.0" },
                 { id: "Microsoft.ApplicationInsights.PerfCounterCollector", version: "2.22.0" },

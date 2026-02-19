@@ -159,6 +159,13 @@ namespace BuildXL.Processes
                 FailUnexpectedFileAccesses = false,
                 ReportFileAccesses = logObservedFileAccesses,
                 MonitorChildProcesses = true,
+                // For the EBPF daemon we lump together turning on both managed and native logging with a single flag (/logObservedFileAccesses).
+                // This is just to expose an option that allows debugging native messages for the EBPF daemon.
+                // Observe users can't use the regular way to enable native verbose logging for it since that is done via /pipProperty, and the daemon
+                // doesn't have a stable pip id (and the pip property logic is not applied here either). 
+                // This is admittedly not completely consistent compared to other pips, but having a new CLI option just for this sounds like an overkill
+                // given the EBPF daemon is not something users will interact with directly, and debugging the daemon is likely a BuildXL dev only scenario.
+                 EnableLinuxSandboxLogging = logObservedFileAccesses,
             };
 
             // Make sure the root node is configured so all accesses are reported

@@ -39,14 +39,6 @@ jobs:
         artifactName: Dev
         # Use the path that --deploy-dev would use, because we --use-dev in the validation
         targetPath: "$(Build.SourcesDirectory)/Out/Selfhost/Dev"
-    - task: Bash@3
-      displayName: 'Cleanup pinned BPF maps'
-      inputs:
-        targetType: 'inline'
-        script: |
-          # Remove pinned maps and other BPF artifacts; tolerate failures
-          # We do this in case the LKG left some pinned maps that are incompatible with the current running daemon
-          sudo find /sys/fs/bpf -mindepth 1 -maxdepth 1 -exec rm -rf {} \; || true
 
     - ${{ each step in parameters.preBuildSteps }}:
       - ${{ step }}

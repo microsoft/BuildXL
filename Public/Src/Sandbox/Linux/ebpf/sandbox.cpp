@@ -769,6 +769,74 @@ void *PollDebugBuffer(void *arg) {
     return NULL;
 }
 
+/**
+ * Removes stale pinned maps that are incompatible with the current skeleton.
+ *
+ * When the engine is updated and map definitions change (e.g., a struct gets a new field,
+ * max_entries changes, etc.), previously pinned maps become incompatible. libbpf's load()
+ * will fail with "parameter mismatch" when it tries to reuse them. This function detects
+ * the mismatch and unlinks the stale pins so load() can create fresh maps.
+ */
+int UnpinStaleMaps(struct sandbox_bpf *skel) {
+    struct bpf_map *map;
+
+    bpf_object__for_each_map(map, skel->obj) {
+        const char *pin_path = bpf_map__get_pin_path(map);
+        // We only care about pinned maps
+        if (!pin_path) {
+            continue;
+        }
+
+        // Try to open the existing pinned map
+        int pin_fd = bpf_obj_get(pin_path);
+        if (pin_fd < 0) {
+            // No pinned map at this path — nothing to clean up
+            continue;
+        }
+
+        // Get info about the pinned map
+        struct bpf_map_info info = {};
+        __u32 info_len = sizeof(info);
+        int err = bpf_obj_get_info_by_fd(pin_fd, &info, &info_len);
+        int saved_errno = errno;
+        close(pin_fd);
+
+        if (err) {
+            // Can't inspect it — unpin defensively
+            g_bxl->LogDebug(getpid(), "Cannot inspect pinned map '%s', unlinking: %s", pin_path, strerror(saved_errno));
+            if (unlink(pin_path) != 0) {
+                LogError("Failed to unlink pinned map '%s': %s", pin_path, strerror(errno));
+                return -1;
+            }
+            continue;
+        }
+
+        // Compare the pinned map's parameters with what the skeleton expects.
+        // Any mismatch means the map definition changed and the stale pin must go.
+        bool mismatch = false;
+        mismatch |= (info.type != bpf_map__type(map));
+        mismatch |= (info.key_size != bpf_map__key_size(map));
+        mismatch |= (info.value_size != bpf_map__value_size(map));
+        mismatch |= (info.max_entries != bpf_map__max_entries(map));
+
+        if (mismatch) {
+            g_bxl->LogDebug(getpid(),
+                "Unpinning stale map '%s' (type:%u->%u, key:%u->%u, val:%u->%u, max:%u->%u)",
+                bpf_map__name(map),
+                info.type, bpf_map__type(map),
+                info.key_size, bpf_map__key_size(map),
+                info.value_size, bpf_map__value_size(map),
+                info.max_entries, bpf_map__max_entries(map));
+            if (unlink(pin_path) != 0) {
+                LogError("Failed to unlink stale pinned map '%s': %s", pin_path, strerror(errno));
+                return -1;
+            }
+        }
+    }
+
+    return 0;
+}
+
 // Reuses the pinned maps, assuming bpf is already loaded.
 int ReuseMaps(struct sandbox_bpf *skel) {
     // These are the `PINNED_MAPS_SIZE` pinned maps we have. Retrieve their pin paths and reuse them
@@ -1340,6 +1408,15 @@ int Start(sandbox_bpf *skel, char **argv) {
         if (ConfigurePerPipMapSizes(skel))
         {
             LogError("Failed to configure per-pip map sizes\n");
+            Cleanup(skel);
+            return -1;
+        }
+
+        // Before loading, check for stale pinned maps from a previous engine version.
+        // If any pinned map has incompatible parameters (e.g., struct size changed), unlink it
+        // so libbpf can create a fresh one instead of failing with "parameter mismatch".
+        if (UnpinStaleMaps(skel)) {
+            LogError("Failed to unpin stale maps\n");
             Cleanup(skel);
             return -1;
         }

@@ -86,13 +86,6 @@ stages:
           inputs:
             artifactName: 'ebpf-dev-external'
             targetPath: "$(Build.StagingDirectory)/Linux.eBPF"
-        - task: Bash@3
-          displayName: 'Cleanup pinned BPF maps'
-          inputs:
-            targetType: 'inline'
-            script: |
-              # We do this in case the LKG left some pinned maps that are incompatible with the current running daemon
-              sudo find /sys/fs/bpf -mindepth 1 -maxdepth 1 -exec rm -rf {} \; || true
 
 - stage: Build_Internal
   displayName: Internal validation

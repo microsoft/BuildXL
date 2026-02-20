@@ -33,7 +33,7 @@ const enum ClientType
     VisualStudio,
 }
 
-export function activate(context: ExtensionContext) {
+export async function activate(context: ExtensionContext) {
     xlgstatus.activate(context);
 
     extensionContext = context;
@@ -77,18 +77,15 @@ export function activate(context: ExtensionContext) {
     // Create the language client
     languageClient = new LanguageClient('DScriptLanguageClient', 'BuildXL DScript Language Client', serverOptions, clientOptions);
 
-    // Set up our "back channel" RPC messags
-    languageClient.onReady().then(() => {
-        languageClient.onNotification(WorkspaceLoadingNotification.type, WorkspaceLoadingNotification.handler);
-        languageClient.onNotification(LogFileLocationNotification.type, LogFileLocationNotification.handler);
-        languageClient.onNotification(OutputTracer.type, OutputTracer.handler);
+    // Set up our "back channel" RPC messages after the client is ready.
+    await languageClient.start();
 
-        // Need to set-up tracer explicitely to enable push notifications into the output window.
-        OutputTracer.setUpTracer(languageClient);
-    });
+    languageClient.onNotification(WorkspaceLoadingNotification.type, WorkspaceLoadingNotification.handler);
+    languageClient.onNotification(LogFileLocationNotification.type, LogFileLocationNotification.handler);
+    languageClient.onNotification(OutputTracer.type, OutputTracer.handler);
 
-    // Now start the client
-    let languageServer = languageClient.start();
+    // Need to set-up tracer explicitly to enable push notifications into the output window.
+    OutputTracer.setUpTracer(languageClient);
 
     context.subscriptions.push(commands.registerCommand('DScript.reloadWorkspace', () => {
         return reloadWorkspace();

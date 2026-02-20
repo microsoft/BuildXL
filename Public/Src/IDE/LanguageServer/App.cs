@@ -288,11 +288,17 @@ namespace BuildXL.Ide.LanguageServer
         protected object Initialize(JToken token)
         {
             var result = GetCapabilities();
-            var initializeParams = token.ToObject<InitializeParams>();
+            // Deserialize only the minimal information we need. We are using an old
+            // protocol assembly and the client will send newer capabilities that we don't support.
+            var initializeObject = token as JObject;
 
-            if (initializeParams.RootUri != null)
+            if (initializeObject != null)
             {
-                m_rootUri = initializeParams.RootUri;
+                var rootUriString = initializeObject["rootUri"]?.Value<string>();
+                if (!string.IsNullOrEmpty(rootUriString) && Uri.TryCreate(rootUriString, UriKind.Absolute, out var rootUri))
+                {
+                    m_rootUri = rootUri;
+                }
             }
 
             // We can start loading the workspace as soon as a folder gets opened
@@ -302,9 +308,10 @@ namespace BuildXL.Ide.LanguageServer
                 TryWaitForWorkspaceLoaded(out _, out _);
             }
             
-            if (initializeParams.InitializationOptions != null)
+            var initializationOptionsToken = initializeObject?["initializationOptions"];
+            if (initializationOptionsToken != null && initializationOptionsToken.Type != JTokenType.Null)
             {
-                var initializationOptions = ((JToken)initializeParams.InitializationOptions).ToObject<InitializationOptions>();
+                var initializationOptions = initializationOptionsToken.ToObject<InitializationOptions>();
                 var clientType = initializationOptions.ClientType.ToString();
 
                 Logger.LanguageServerClientType(LoggingContext, clientType);

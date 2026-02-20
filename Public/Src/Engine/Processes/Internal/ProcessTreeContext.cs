@@ -359,7 +359,7 @@ namespace BuildXL.Processes
                     // Parent and child are separated here so that we can get a signal when one of them throws.
                     try
                     {
-                        var parent = Process.GetProcessById(parentPid);
+                        using var parent = Process.GetProcessById(parentPid);
                         parentProcessExitCode = parent.HasExited ? parent.ExitCode : ExitCodes.Running;
                     }
                     catch (Exception)
@@ -372,7 +372,7 @@ namespace BuildXL.Processes
                     
                     try
                     {
-                        var child = Process.GetProcessById(childPid);
+                        using var child = Process.GetProcessById(childPid);
                         childProcessExitCode = child.HasExited ? child.ExitCode : ExitCodes.Running;
                     }
                     catch (Exception)

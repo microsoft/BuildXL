@@ -547,7 +547,8 @@ namespace BuildXL.Processes.Internal
                             dllNameX86,
                             m_numRetriesPipeReadOnCancel,
                             m_debugReporter,
-                            m_loggingContext);
+                            m_loggingContext,
+                            onBrokeredInjectionFailure: () => Kill(ExitCodes.Killed));
 
                         if (!m_jobObjectCreatedExternally)
                         {

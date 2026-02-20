@@ -1592,13 +1592,26 @@ namespace BuildXL.ProcessPipExecutor
                 }
                 case SandboxedProcessPipExecutionStatus.ExecutionFailed:
                 {
-                    // The failure could also be due to an internal error with the sandbox.
-                    if (processResult.ExitCode == ExitCodes.MessageProcessingFailure && OperatingSystemHelper.IsLinuxOS)
+                    if (OperatingSystemHelper.IsLinuxOS)
                     {
-                        // Encountered a retriable error on the sandbox. If retries are available, then this pip will be retried.
-                        // Error message already logged on the SandboxedProcessUnix level.
-                        return SandboxedProcessPipExecutionResult.SandboxInternalErrorFailure(pipExecutionExecutionResult);
+                        // The failure could also be due to an internal error with the sandbox.
+                        if (processResult.ExitCode == ExitCodes.MessageProcessingFailure)
+                        {
+                            // Encountered a retriable error on the sandbox. If retries are available, then this pip will be retried.
+                            // Error message already logged on the SandboxedProcessUnix level.
+                            return SandboxedProcessPipExecutionResult.SandboxInternalErrorFailure(pipExecutionExecutionResult);
+                        }
                     }
+                    else if (OperatingSystemHelper.IsWindowsOS)
+                    {
+                        // If a brokered injection failed (e.g., the parent process died before we could signal the injection event),
+                        // mark the pip for retry. The failure details have already been logged by ProcessTreeContext.ReportFailedInjection.
+                        if (processResult.HasDetoursInjectionFailures)
+                        {
+                            return SandboxedProcessPipExecutionResult.SandboxInternalErrorFailure(pipExecutionExecutionResult);
+                        }
+                    }
+
                     break;
                 }
                 default:

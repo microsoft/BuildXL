@@ -56,6 +56,7 @@ namespace BuildXL.Processes
 
         private readonly Action<string> m_debugReporter;
         private readonly LoggingContext m_loggingContext;
+        private readonly Action m_onBrokeredInjectionFailure;
 
         public ProcessTreeContext(
             Guid payloadGuid,
@@ -65,7 +66,8 @@ namespace BuildXL.Processes
             string dllNameX86,
             int numRetriesPipeReadOnCancel,
             Action<string> debugReporter,
-            LoggingContext loggingContext)
+            LoggingContext loggingContext,
+            Action onBrokeredInjectionFailure = null)
         {
             // We cannot create this object in a wow64 process
             Contract.Assume(!ProcessUtilities.IsWow64Process(), "ProcessTreeContext:ctor - Cannot run injection server in a wow64 32 bit process");
@@ -73,6 +75,7 @@ namespace BuildXL.Processes
 
             m_debugReporter = debugReporter;
             m_loggingContext = loggingContext;
+            m_onBrokeredInjectionFailure = onBrokeredInjectionFailure;
             SafeFileHandle childHandle = null;
             NamedPipeServerStream serverStream = null;
 
@@ -284,7 +287,7 @@ namespace BuildXL.Processes
 
             string eventName = succeeded ? eventPathSuccess : eventPathFailure;
 
-            Possible<EventWaitHandle> signalEventResult = TrySignalEventWithFallback(eventName);
+            Possible<EventWaitHandle> signalEventResult = TrySignalEventWithFallback(eventName, out bool parentProcessIsAlive);
             if (signalEventResult.Succeeded)
             {
                 EventWaitHandle e = signalEventResult.Result;
@@ -294,13 +297,25 @@ namespace BuildXL.Processes
             else
             {
                 ReportFailedInjection(processId, signalEventResult.Failure.DescribeIncludingInnerFailures());
+
+                // If the parent process that requested the injection is still alive we don't want to kill the pip here
+                // because inside the native code we have an internal retry for remote injection which is preferred 
+                // to killing the whole process tree from the managed side.
+                // If the internal retry fails, we already return a special error code to retry the pip at a higher layer.
+                if (!parentProcessIsAlive)
+                {
+                    // Kill the process tree early so the pip can be retried sooner rather than
+                    // waiting for the full execution to complete with an unreliable process tree.
+                    m_onBrokeredInjectionFailure?.Invoke();
+                }
             }
 
             return signalEventResult.Succeeded;
         }
 
-        private Possible<EventWaitHandle> TrySignalEventWithFallback(string eventName)
+        private Possible<EventWaitHandle> TrySignalEventWithFallback(string eventName, out bool parentProcessIsAlive)
         {
+            parentProcessIsAlive = true;
             EventWaitHandle eventWaitHandle;
 
             foreach (var delay in m_signalInjectionDelaysMs)
@@ -341,10 +356,22 @@ namespace BuildXL.Processes
                     && int.TryParse(parts[0], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out childPid)
                     && int.TryParse(parts[1], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out parentPid))
                 {
+                    // Parent and child are separated here so that we can get a signal when one of them throws.
                     try
                     {
                         var parent = Process.GetProcessById(parentPid);
                         parentProcessExitCode = parent.HasExited ? parent.ExitCode : ExitCodes.Running;
+                    }
+                    catch (Exception)
+#pragma warning disable ERP022 // Unobserved exception in a generic exception handler
+                    {
+                        // Best effort. Ignore exceptions here.
+                        parentProcessIsAlive = false;
+                    }
+#pragma warning restore ERP022 // Unobserved exception in a generic exception handler
+                    
+                    try
+                    {
                         var child = Process.GetProcessById(childPid);
                         childProcessExitCode = child.HasExited ? child.ExitCode : ExitCodes.Running;
                     }

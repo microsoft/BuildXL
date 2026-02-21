@@ -4982,7 +4982,7 @@ namespace BuildXL.Scheduler
                         if (processRunnable.Weight > 1)
                         {
                             // Only log for pips with non-standard process weights
-                            Logger.Log.ProcessPipProcessWeight(loggingContext, processRunnable.Description, processRunnable.Weight);
+                            Logger.Log.ProcessPipProcessWeight(loggingContext, processRunnable.Description, processRunnable.Weight, processRunnable.Process.Weight);
                         }
 
                         processRunnable.Executed = true;

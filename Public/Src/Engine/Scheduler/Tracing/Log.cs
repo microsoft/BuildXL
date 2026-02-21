@@ -334,8 +334,8 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.Storage,
-            Message = "[{pipDescription}] Executing process with process weight: {weight}.")]
-        internal abstract void ProcessPipProcessWeight(LoggingContext loggingContext, string pipDescription, int weight);
+            Message = "[{pipDescription}] Executing process with process weight: {weight} (user-provided weight: {processWeight}).")]
+        internal abstract void ProcessPipProcessWeight(LoggingContext loggingContext, string pipDescription, int weight, int processWeight);
 
         [GeneratedEvent(
             (ushort)LogEventId.IOPipExecutionStepTakeLong,

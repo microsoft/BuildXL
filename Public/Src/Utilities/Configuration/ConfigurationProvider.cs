@@ -121,7 +121,7 @@ namespace BuildXL.Utilities.Configuration
             config.Server = ServerMode.Disabled;
 
             config.Schedule.SchedulerSimulator = true;
-            config.Schedule.UseHistoricalCpuUsageInfo = false;
+            config.Schedule.UseHistoricalCpuUsageInfo = true;
             config.Schedule.UseHistoricalRamUsageInfo = true;
             config.Schedule.EnableLessAggressiveMemoryProjection = true;
             config.Schedule.MaximumRamUtilizationPercentage = 98;

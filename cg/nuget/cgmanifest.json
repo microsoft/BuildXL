@@ -582,7 +582,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.AspNetCore.App.Ref",
-          "Version": "9.0.10"
+          "Version": "9.0.13"
         }
       }
     },
@@ -600,7 +600,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.AspNetCore.App.Runtime.linux-x64",
-          "Version": "9.0.10"
+          "Version": "9.0.13"
         }
       }
     },
@@ -618,7 +618,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.AspNetCore.App.Runtime.osx-x64",
-          "Version": "9.0.10"
+          "Version": "9.0.13"
         }
       }
     },
@@ -636,7 +636,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.AspNetCore.App.Runtime.win-x64",
-          "Version": "9.0.10"
+          "Version": "9.0.13"
         }
       }
     },
@@ -690,7 +690,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Bcl.AsyncInterfaces",
-          "Version": "9.0.10"
+          "Version": "9.0.13"
         }
       }
     },
@@ -942,7 +942,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.ComponentDetection.Contracts",
-          "Version": "6.4.0"
+          "Version": "6.5.0"
         }
       }
     },
@@ -1059,7 +1059,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Extensions.Configuration",
-          "Version": "9.0.10"
+          "Version": "9.0.13"
         }
       }
     },
@@ -1068,7 +1068,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Extensions.Configuration.Abstractions",
-          "Version": "9.0.10"
+          "Version": "9.0.13"
         }
       }
     },
@@ -1077,7 +1077,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Extensions.Configuration.Binder",
-          "Version": "9.0.10"
+          "Version": "9.0.13"
         }
       }
     },
@@ -1086,7 +1086,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Extensions.DependencyInjection",
-          "Version": "9.0.10"
+          "Version": "9.0.13"
         }
       }
     },
@@ -1095,7 +1095,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Extensions.DependencyInjection.Abstractions",
-          "Version": "9.0.10"
+          "Version": "9.0.13"
         }
       }
     },
@@ -1212,7 +1212,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Extensions.Logging",
-          "Version": "9.0.10"
+          "Version": "9.0.13"
         }
       }
     },
@@ -1221,7 +1221,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Extensions.Logging.Abstractions",
-          "Version": "9.0.10"
+          "Version": "9.0.13"
         }
       }
     },
@@ -1257,7 +1257,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Extensions.Options",
-          "Version": "9.0.10"
+          "Version": "9.0.13"
         }
       }
     },
@@ -1284,7 +1284,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Extensions.Primitives",
-          "Version": "9.0.10"
+          "Version": "9.0.13"
         }
       }
     },
@@ -1491,7 +1491,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.NETCore.App.Host.linux-x64",
-          "Version": "9.0.10"
+          "Version": "9.0.13"
         }
       }
     },
@@ -1518,7 +1518,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.NETCore.App.Host.osx-x64",
-          "Version": "9.0.10"
+          "Version": "9.0.13"
         }
       }
     },
@@ -1545,7 +1545,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.NETCore.App.Host.win-x64",
-          "Version": "9.0.10"
+          "Version": "9.0.13"
         }
       }
     },
@@ -1572,7 +1572,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.NETCore.App.Ref",
-          "Version": "9.0.10"
+          "Version": "9.0.13"
         }
       }
     },
@@ -1599,7 +1599,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.NETCore.App.Runtime.linux-x64",
-          "Version": "9.0.10"
+          "Version": "9.0.13"
         }
       }
     },
@@ -1626,7 +1626,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.NETCore.App.Runtime.osx-x64",
-          "Version": "9.0.10"
+          "Version": "9.0.13"
         }
       }
     },
@@ -1653,7 +1653,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.NETCore.App.Runtime.win-x64",
-          "Version": "9.0.10"
+          "Version": "9.0.13"
         }
       }
     },
@@ -3093,7 +3093,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Diagnostics.DiagnosticSource",
-          "Version": "9.0.10"
+          "Version": "9.0.13"
         }
       }
     },
@@ -3354,7 +3354,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.IO.Pipelines",
-          "Version": "9.0.10"
+          "Version": "9.0.13"
         }
       }
     },
@@ -4137,7 +4137,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Text.Encodings.Web",
-          "Version": "9.0.10"
+          "Version": "9.0.13"
         }
       }
     },
@@ -4146,7 +4146,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Text.Json",
-          "Version": "9.0.10"
+          "Version": "9.0.13"
         }
       }
     },

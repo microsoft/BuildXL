@@ -27,6 +27,13 @@ namespace MsBuildGraphBuilder {
                 oldVersion: "0.0.0.0-4.99.99.99",
                 newVersion: "4.2.1.0", // Corresponds to: { id: "System.Threading.Tasks.Extensions" },
             },
+            {
+                name: "Microsoft.Bcl.AsyncInterfaces",
+                publicKeyToken: "cc7b13ffcd2ddd51",
+                culture: "neutral",
+                oldVersion: "0.0.0.0-9.0.0.12",
+                newVersion: "9.0.0.13", // Corresponds to: { id: "Microsoft.Bcl.AsyncInterfaces", version: "9.0.13" },
+            },
         ],
         references:[
             importFrom("Newtonsoft.Json").pkg,

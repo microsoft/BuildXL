@@ -9565,7 +9565,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ---------------------------------------------------------
 
-Microsoft.AspNetCore.App.Ref 9.0.10 - MIT
+Microsoft.AspNetCore.App.Ref 9.0.13 - MIT
 
 
 Copyright Jorn Zaefferer
@@ -9665,7 +9665,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ---------------------------------------------------------
 
-Microsoft.AspNetCore.App.Runtime.linux-x64 9.0.10 - MIT
+Microsoft.AspNetCore.App.Runtime.linux-x64 9.0.13 - MIT
 
 
 Copyright Jorn Zaefferer
@@ -9765,7 +9765,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ---------------------------------------------------------
 
-Microsoft.AspNetCore.App.Runtime.osx-x64 9.0.10 - MIT
+Microsoft.AspNetCore.App.Runtime.osx-x64 9.0.13 - MIT
 
 
 Copyright Jorn Zaefferer
@@ -9865,7 +9865,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ---------------------------------------------------------
 
-Microsoft.AspNetCore.App.Runtime.win-x64 9.0.10 - MIT
+Microsoft.AspNetCore.App.Runtime.win-x64 9.0.13 - MIT
 
 
 Copyright Jorn Zaefferer
@@ -9973,7 +9973,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ---------------------------------------------------------
 
-Microsoft.Bcl.AsyncInterfaces 9.0.10 - MIT
+Microsoft.Bcl.AsyncInterfaces 9.0.13 - MIT
 
 
 Copyright (c) 2021
@@ -10729,7 +10729,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ---------------------------------------------------------
 
-Microsoft.Extensions.Configuration 9.0.10 - MIT
+Microsoft.Extensions.Configuration 9.0.13 - MIT
 
 
 Copyright (c) 2021
@@ -10819,7 +10819,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-Microsoft.Extensions.Configuration.Abstractions 9.0.10 - MIT
+Microsoft.Extensions.Configuration.Abstractions 9.0.13 - MIT
 
 
 Copyright (c) 2021
@@ -10909,7 +10909,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-Microsoft.Extensions.Configuration.Binder 9.0.10 - MIT
+Microsoft.Extensions.Configuration.Binder 9.0.13 - MIT
 
 
 Copyright (c) 2021
@@ -10999,7 +10999,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-Microsoft.Extensions.DependencyInjection 9.0.10 - MIT
+Microsoft.Extensions.DependencyInjection 9.0.13 - MIT
 
 
 Copyright (c) 2021
@@ -11089,7 +11089,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-Microsoft.Extensions.DependencyInjection.Abstractions 9.0.10 - MIT
+Microsoft.Extensions.DependencyInjection.Abstractions 9.0.13 - MIT
 
 
 Copyright (c) 2021
@@ -11765,7 +11765,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ---------------------------------------------------------
 
-Microsoft.Extensions.Logging 9.0.10 - MIT
+Microsoft.Extensions.Logging 9.0.13 - MIT
 
 
 Copyright (c) 2021
@@ -11855,7 +11855,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-Microsoft.Extensions.Logging.Abstractions 9.0.10 - MIT
+Microsoft.Extensions.Logging.Abstractions 9.0.13 - MIT
 
 
 Copyright (c) 2021
@@ -12081,7 +12081,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ---------------------------------------------------------
 
-Microsoft.Extensions.Options 9.0.10 - MIT
+Microsoft.Extensions.Options 9.0.13 - MIT
 
 
 Copyright (c) 2021
@@ -12257,7 +12257,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-Microsoft.Extensions.Primitives 9.0.10 - MIT
+Microsoft.Extensions.Primitives 9.0.13 - MIT
 
 
 Copyright (c) 2021
@@ -12875,7 +12875,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-Microsoft.NETCore.App.Host.linux-x64 9.0.10 - MIT
+Microsoft.NETCore.App.Host.linux-x64 9.0.13 - MIT
 
 
 (c) E Pffff
@@ -13129,7 +13129,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-Microsoft.NETCore.App.Host.osx-x64 9.0.10 - MIT
+Microsoft.NETCore.App.Host.osx-x64 9.0.13 - MIT
 
 
 Copyright (c) 2021
@@ -13382,7 +13382,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-Microsoft.NETCore.App.Host.win-x64 9.0.10 - MIT
+Microsoft.NETCore.App.Host.win-x64 9.0.13 - MIT
 
 
 Copyright (c) 2021
@@ -13637,7 +13637,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-Microsoft.NETCore.App.Ref 9.0.10 - MIT
+Microsoft.NETCore.App.Ref 9.0.13 - MIT
 
 
 Copyright (c) 2021
@@ -13890,7 +13890,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-Microsoft.NETCore.App.Runtime.linux-x64 9.0.10 - MIT
+Microsoft.NETCore.App.Runtime.linux-x64 9.0.13 - MIT
 
 
 (c) E Pffff
@@ -14145,7 +14145,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-Microsoft.NETCore.App.Runtime.osx-x64 9.0.10 - MIT
+Microsoft.NETCore.App.Runtime.osx-x64 9.0.13 - MIT
 
 
 Copyright (c) 2021
@@ -14401,7 +14401,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-Microsoft.NETCore.App.Runtime.win-x64 9.0.10 - MIT
+Microsoft.NETCore.App.Runtime.win-x64 9.0.13 - MIT
 
 
 Copyright (c) 2021
@@ -17293,7 +17293,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-System.Diagnostics.DiagnosticSource 9.0.10 - MIT
+System.Diagnostics.DiagnosticSource 9.0.13 - MIT
 
 
 Copyright (c) 2021
@@ -17968,7 +17968,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-System.IO.Pipelines 9.0.10 - MIT
+System.IO.Pipelines 9.0.13 - MIT
 
 
 Copyright (c) 2021
@@ -19944,7 +19944,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-System.Text.Encodings.Web 9.0.10 - MIT
+System.Text.Encodings.Web 9.0.13 - MIT
 
 
 Copyright (c) 2021
@@ -20034,7 +20034,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-System.Text.Json 9.0.10 - MIT
+System.Text.Json 9.0.13 - MIT
 
 
 Copyright (c) 2021

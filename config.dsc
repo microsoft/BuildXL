@@ -72,7 +72,7 @@ config({
 
                 { id: "Microsoft.NETFramework.ReferenceAssemblies.net472", version: "1.0.0" },
 
-                { id: "System.Diagnostics.DiagnosticSource", version: "9.0.10" },
+                { id: "System.Diagnostics.DiagnosticSource", version: "9.0.13" },
 
                 // Roslyn
                 // The old compiler used by integration tests only.
@@ -254,7 +254,7 @@ config({
                 // CloudStore dependencies
                 { id: "Microsoft.Bcl", version: "1.1.10" },
                 { id: "Microsoft.Bcl.Async", version: "1.0.168" },
-                { id: "Microsoft.Bcl.AsyncInterfaces", version: "9.0.10" },
+                { id: "Microsoft.Bcl.AsyncInterfaces", version: "9.0.13" },
                 { id: "Microsoft.Bcl.Build", version: "1.0.14" },
                 { id: "Microsoft.Bcl.HashCode", version: "1.1.1" },
                 
@@ -294,7 +294,7 @@ config({
                 { id: "Microsoft.Extensions.Caching.Memory", version: "1.0.0" },
                 { id: "Microsoft.Extensions.Caching.Abstractions", version: "1.0.0" },
                 { id: "System.Security.Cryptography.Xml", version: "9.0.0" },
-                { id: "System.Text.Encodings.Web", version: "9.0.10" },
+                { id: "System.Text.Encodings.Web", version: "9.0.13" },
                 { id: "System.Security.Permissions", version: "7.0.0" },
                 { id: "System.Windows.Extensions", version: "7.0.0" },
                 { id: "System.Drawing.Common", version: "7.0.0" },
@@ -331,7 +331,7 @@ config({
                 { id: "System.Buffers", version: "4.6.1" }, /* Change Sync: BuildXLSdk.cacheBindingRedirects() */ // A different version, because StackExchange.Redis uses it.
                 { id: "System.Memory", version: "4.6.3" }, /* Change Sync: BuildXLSdk.cacheBindingRedirects() */
                 { id: "System.Runtime.CompilerServices.Unsafe", version: "6.1.2" }, /* Change Sync: BuildXLSdk.cacheBindingRedirects() */
-                { id: "System.IO.Pipelines", version: "9.0.10" },
+                { id: "System.IO.Pipelines", version: "9.0.13" },
                 { id: "System.Numerics.Vectors", version: "4.6.1" }, /* Change Sync: BuildXLSdk.cacheBindingRedirects() */
 
                 // Extra dependencies to make MSBuild work
@@ -367,7 +367,7 @@ config({
                 { id: "boost", version: "1.71.0.0" },
 
                 // Needed for SBOM Generation
-                { id: "Microsoft.Extensions.Logging.Abstractions", version: "9.0.10" },
+                { id: "Microsoft.Extensions.Logging.Abstractions", version: "9.0.13" },
                 { id: "packageurl-dotnet", version: "1.1.0" },
                 { id: "System.Reactive", version: "6.1.0" },
 

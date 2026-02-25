@@ -1218,7 +1218,7 @@ namespace BuildXL.Pips.Graph
             return true;
         }
 
-        private sealed class PipFilterContext : IPipFilterContext
+        private sealed class PipFilterContext : IPipFilterContext, IDisposable
         {
             private readonly PipGraph m_graph;
 
@@ -1237,14 +1237,39 @@ namespace BuildXL.Pips.Graph
                 m_graph = graph;
             }
 
+            /// <summary>
+            /// Releases the strong pip references held during filtering,
+            /// allowing the GC to reclaim hydrated pips.
+            /// </summary>
+            public void Dispose()
+            {
+#if NET6_0_OR_GREATER
+                m_strongPipRefs.Clear();
+#endif
+            }
+
             public PathTable PathTable => m_graph.Context.PathTable;
 
             public IList<PipId> AllPips => m_graph.PipTable.StableKeys;
 
+            /// <summary>
+            /// Strong references to hydrated pips, preventing GC from collecting them
+            /// while filtering is in progress. This ensures the PipTable's weak reference
+            /// cache remains effective across multiple filter evaluations.
+            /// </summary>
+#if NET6_0_OR_GREATER
+            private readonly System.Collections.Concurrent.ConcurrentBag<Pip> m_strongPipRefs =
+                new System.Collections.Concurrent.ConcurrentBag<Pip>();
+#endif
+
             public Pip HydratePip(PipId pipId)
             {
                 Contract.Requires(pipId.IsValid);
-                return m_graph.PipTable.HydratePip(pipId, PipQueryContext.PipGraphFilterNodes);
+                var pip = m_graph.PipTable.HydratePip(pipId, PipQueryContext.PipGraphFilterNodes);
+#if NET6_0_OR_GREATER
+                m_strongPipRefs.Add(pip);
+#endif
+                return pip;
             }
 
             public PipType GetPipType(PipId pipId)
@@ -1358,9 +1383,11 @@ namespace BuildXL.Pips.Graph
                 return outputs;
             }
 
-            var context = new PipFilterContext(this);
-            var pipFilter = filter.PipFilter;
-            return pipFilter.FilterOutputs(context);
+            using (var context = new PipFilterContext(this))
+            {
+                var pipFilter = filter.PipFilter;
+                return pipFilter.FilterOutputs(context);
+            }
         }
 
         #endregion Filtering

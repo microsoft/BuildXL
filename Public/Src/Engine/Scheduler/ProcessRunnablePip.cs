@@ -85,6 +85,12 @@ namespace BuildXL.Scheduler
         private readonly int m_weightBasedOnHistoricCpuUsage;
 
         /// <summary>
+        /// The weight based on historic CPU usage only (without considering Process.Weight).
+        /// Used by the early worker release algorithm to symmetrically track pending process pip slots.
+        /// </summary>
+        internal int HistoricCpuWeight => m_weightBasedOnHistoricCpuUsage;
+
+        /// <summary>
         /// Maintain a list of all execution results from all retries, including retries that happened on different workers
         /// </summary>
         private readonly List<ExecutionResult> m_allExecutionResults = new();
@@ -101,19 +107,11 @@ namespace BuildXL.Scheduler
             int priority,
             Func<RunnablePip, Task> executionFunc,
             IPipExecutionEnvironment environment,
-            ushort cpuUsageInPercents = 0,
+            int weightBasedOnHistoricCpuUsage,
             Pip pip = null)
             : base(phaseLoggingContext, pipId, PipType.Process, priority, executionFunc, environment, pip)
         {
-            if (cpuUsageInPercents > 100)
-            {
-                m_weightBasedOnHistoricCpuUsage = (int)Math.Round(cpuUsageInPercents / 100.0);
-            }
-            else
-            {
-                // If cpu usage is less than 100%, just use the lowest possible weight.
-                m_weightBasedOnHistoricCpuUsage = Process.MinWeight;
-            }
+            m_weightBasedOnHistoricCpuUsage = weightBasedOnHistoricCpuUsage;
         }
 
         /// <summary>

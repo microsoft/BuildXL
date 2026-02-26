@@ -616,7 +616,16 @@ namespace Test.BuildXL.Scheduler
 
                 // Verify internal data of scheduler.
                 verifySchedulerPostRun?.Invoke(testScheduler);
-                
+
+                if (success)
+                {
+                    // After a successful run, all process pips should have completed and the pending slot counter
+                    // should be back to zero. A non-zero value indicates a mismatch between slot accounting at
+                    // schedule time (PrioritizeAndSchedule) and completion time.
+                    XAssert.AreEqual(0, testScheduler.PendingProcessPipExpectedSlots,
+                        "PendingProcessPipExpectedSlots should be 0 after all pips complete successfully.");
+                }
+
                 var runResult = new ScheduleRunResult
                 {
                     Graph = graph,

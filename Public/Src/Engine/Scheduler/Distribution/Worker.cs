@@ -413,6 +413,11 @@ namespace BuildXL.Scheduler.Distribution
         public int AcquiredProcessSlots => Volatile.Read(ref m_acquiredProcessSlots);
 
         /// <summary>
+        /// Gets the currently acquired process pips
+        /// </summary>
+        public int AcquiredProcessPips => Volatile.Read(ref m_acquiredProcessPips);
+
+        /// <summary>
         /// Gets the currently acquired postprocess slots
         /// </summary>
         public int AcquiredPostProcessSlots => Volatile.Read(ref m_acquiredPostProcessSlots);

@@ -506,7 +506,48 @@ namespace BuildXL.Scheduler
         }
 
         /// <summary>
-        /// The pip runtime information 
+        /// The total estimated slots for all pending (non-completed) process pips, based on historic CPU usage.
+        /// Initialized in PrioritizeAndSchedule for all process pips and decremented on pip completion.
+        /// Used by the early worker release algorithm when UseHistoricalCpuUsageInfoForEarlyWorkerRelease is enabled.
+        /// </summary>
+        private long m_pendingProcessPipExpectedSlots;
+
+        /// <summary>
+        /// Exposes the pending process pip expected slots counter for testing.
+        /// Should be 0 after the scheduler finishes successfully.
+        /// </summary>
+        public long PendingProcessPipExpectedSlots => Volatile.Read(ref m_pendingProcessPipExpectedSlots);
+
+        /// <summary>
+        /// Computes the weight based on historic CPU usage for the given pip.
+        /// Looks up the historic perf data and checks the UseHistoricalCpuUsageInfo configuration.
+        /// Caps the value to 1000 (weight 10) on Linux to avoid unreasonably high weights.
+        /// </summary>
+        private int ComputeHistoricCpuWeight(PipId pipId)
+        {
+            ushort cpuUsageInPercent = m_scheduleConfiguration.UseHistoricalCpuUsageInfo()
+                ? HistoricPerfDataTable[m_pipTable.GetPipSemiStableHash(pipId)].ProcessorsInPercents
+                : (ushort)0;
+
+            // TODO(seokur): cpuUsageInPercent sometimes becomes way higher than the number of physical threads of the machine. 
+            // There is an issue about getting user and kernel time for processes in some cases. It is under investigation.
+            // For now, we cap the cpuUsageInPercent to 1000 (weight:10). 
+            if (OperatingSystemHelper.IsLinuxOS)
+            {
+                cpuUsageInPercent = Math.Min(cpuUsageInPercent, (ushort)1000); // TEMPORARY. Work item #2116515
+            }
+
+            if (cpuUsageInPercent > 100)
+            {
+                return (int)Math.Round(cpuUsageInPercent / 100.0);
+            }
+
+            // If cpu usage is less than 100%, just use the lowest possible weight.
+            return Process.MinWeight;
+        }
+
+        /// <summary>
+        /// The pip runtime information
         /// </summary>
         private PipRuntimeInfo[] m_pipRuntimeInfos;
 
@@ -2844,7 +2885,7 @@ namespace BuildXL.Scheduler
 
                 if (m_configuration.Distribution.EarlyWorkerRelease && IsDistributedOrchestrator)
                 {
-                    PerformEarlyReleaseWorker(numProcessPipsPending, numProcessPipsAllocatedSlots);
+                    PerformEarlyReleaseWorker(numProcessPipsPending);
                 }
 
                 if (m_materializeOutputsQueued &&
@@ -2991,7 +3032,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Decide whether we can release a remote worker. This method is executed every 2 seconds depending on the frequency of LogStatus timer.
         /// </summary>
-        private void PerformEarlyReleaseWorker(long numProcessPipsPending, long numProcessPipsAllocatedSlots)
+        private void PerformEarlyReleaseWorker(long numProcessPipsPending)
         {
             if (Workers.Where(w => w.EverAvailable).Count() < m_configuration.Distribution.MinimumWorkers)
             {
@@ -3005,7 +3046,22 @@ namespace BuildXL.Scheduler
                 return;
             }
 
-            long numProcessPipsWaiting = numProcessPipsPending - numProcessPipsAllocatedSlots;
+            // Pips pending => pips not completed yet
+            // Pips waiting => all pending pips - currentlyAssignedPips (i.e., pips have not been assigned to a worker yet)
+            long numProcessPipsWaiting = numProcessPipsPending - Workers.Sum(a => a.AcquiredProcessPips);
+
+            // When enabled, estimate the total slots needed by pending pips using historic CPU weight,
+            // instead of assuming 1 pip = 1 slot. This accounts for pips that consume multiple slots.
+            // m_pendingProcessPipExpectedSlots tracks the sum of estimated weights for all non-completed process pips.
+            long estimatedSlotsForWaitingPips;
+            if (EngineEnvironmentSettings.UseHistoricalCpuUsageInfoForEarlyWorkerRelease)
+            {
+                estimatedSlotsForWaitingPips = Volatile.Read(ref m_pendingProcessPipExpectedSlots) - Workers.Sum(a => a.AcquiredProcessSlots);
+            }
+            else
+            {
+                estimatedSlotsForWaitingPips = numProcessPipsWaiting;
+            }
 
             // Try releasing the remote worker which has the lowest acquired slots for process execution.
             // It is intentional that we do not include cachelookup slots here as cachelookup step is a lot faster than execute step.
@@ -3019,14 +3075,15 @@ namespace BuildXL.Scheduler
             int totalProcessSlots = LocalWorker.TotalProcessSlots +
                (int)Math.Ceiling(m_configuration.Distribution.EarlyWorkerReleaseMultiplier * m_remoteWorkers.Where(a => a.IsAvailable && !a.IsEarlyReleaseInitiated).Sum(a => a.TotalProcessSlots));
 
-            // Release worker if numProcessPipsWaiting can be satisfied by remaining workers
+            // Release worker if estimated slots for waiting pips can be satisfied by remaining workers
             var remainingSlotsPostRelease = totalProcessSlots - workerToReleaseCandidate.TotalProcessSlots;
-            if (numProcessPipsWaiting >= 0 && numProcessPipsWaiting < remainingSlotsPostRelease)
+            if (estimatedSlotsForWaitingPips >= 0 && estimatedSlotsForWaitingPips < remainingSlotsPostRelease)
             {
                 Logger.Log.InitiateWorkerRelease(
                         m_loggingContext,
                         workerToReleaseCandidate.Name,
                         numProcessPipsWaiting,
+                        estimatedSlotsForWaitingPips,
                         remainingSlotsPostRelease,
                         workerToReleaseCandidate.TotalProcessSlots,
                         workerToReleaseCandidate.AcquiredCacheLookupSlots,
@@ -3560,6 +3617,12 @@ namespace BuildXL.Scheduler
                 if (!wasAlreadyCompleted)
                 {
                     pipRuntimeInfo.RefCount = CompletedRefCount;
+
+                    // Decrement the pending process pip slot counter (used by early worker release).
+                    if (pipType == PipType.Process)
+                    {
+                        Interlocked.Add(ref m_pendingProcessPipExpectedSlots, -((ProcessRunnablePip)runnablePip).HistoricCpuWeight);
+                    }
                 }
 
                 // Possibly begin tearing down the schedule (without executing all pips) on failure.
@@ -4114,18 +4177,6 @@ namespace BuildXL.Scheduler
             // If it is a meta or SealDirectory pip and the PipQueue has started draining, then the execution will be inlined here!
             // Because it is not worth to enqueue the fast operations such as the execution of meta and SealDirectory pips.
 
-            ushort cpuUsageInPercent = m_scheduleConfiguration.UseHistoricalCpuUsageInfo()
-                ? HistoricPerfDataTable[m_pipTable.GetPipSemiStableHash(pipId)].ProcessorsInPercents
-                : (ushort)0;
-
-            // TODO(seokur): cpuUsageInPercent sometimes becomes way higher than the number of physical threads of the machine. 
-            // There is an issue about getting user and kernel time for processes in some cases. It is under investigation.
-            // For now, we cap the cpuUsageInPercent to 1000 (weight:10). 
-            if (OperatingSystemHelper.IsLinuxOS)
-            {
-                cpuUsageInPercent = Math.Min(cpuUsageInPercent, (ushort)1000); // TEMPORARY. Work item #2116515
-            }
-
             var runnablePip = RunnablePip.Create(
                 m_executePhaseLoggingContext,
                 this,
@@ -4133,7 +4184,7 @@ namespace BuildXL.Scheduler
                 pipType,
                 priority ?? GetPipPriority(pipId),
                 m_executePipFunc,
-                cpuUsageInPercent);
+                ComputeHistoricCpuWeight(pipId));
 
             runnablePip.SetObserver(observer);
             if (IsDistributedWorker)
@@ -6869,9 +6920,11 @@ namespace BuildXL.Scheduler
                                 // historical data for that pip type. Avoiding the failed lookup here means that we have more
                                 // useful 'hit' / 'miss' counters for the running time table.
                                 uint historicalMilliseconds = 0;
+                                ProcessPipHistoricPerfData historicPerfData = default;
                                 if (pipType == PipType.Process && HistoricPerfDataTable != null)
                                 {
-                                    historicalMilliseconds = HistoricPerfDataTable[m_pipTable.GetPipSemiStableHash(pipId)].RunDurationInMs;
+                                    historicPerfData = HistoricPerfDataTable[m_pipTable.GetPipSemiStableHash(pipId)];
+                                    historicalMilliseconds = historicPerfData.RunDurationInMs;
                                 }
 
                                 if (historicalMilliseconds != 0)
@@ -6905,6 +6958,13 @@ namespace BuildXL.Scheduler
 
                                     criticalPath += estimatedMilliseconds;
                                 }
+
+                                // Track the estimated slots for all pending process pips (used by early worker release).
+                                if (pipType == PipType.Process)
+                                {
+                                    int historicCpuWeight = ComputeHistoricCpuWeight(pipId);
+                                    Interlocked.Add(ref m_pendingProcessPipExpectedSlots, historicCpuWeight);
+                                }
                             }
 
                             long currentLongestPath;
@@ -6922,6 +6982,7 @@ namespace BuildXL.Scheduler
 
                             Contract.Assert(pipType != PipType.HashSourceFile);
                             pipRuntimeInfo.Transition(m_pipStateCounters, pipType, PipState.Waiting);
+
                             if (pipType == PipType.Process && ((ProcessMutablePipState)pipState).IsStartOrShutdown)
                             {
                                 Interlocked.Increment(ref m_numServicePipsScheduled);

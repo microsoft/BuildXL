@@ -285,6 +285,13 @@ namespace BuildXL.Utilities.Configuration
         public static readonly Setting<bool> AlwaysEnsureMinimumWorkers = CreateSetting("BuildXLAlwaysEnsureMinimumWorkers", value => value == "1");
 
         /// <summary>
+        /// If true, the early worker release algorithm will use historical CPU usage info to estimate the number of slots
+        /// needed by pending process pips, instead of assuming 1 pip = 1 slot.
+        /// TODO: This flag is temporary for A/B testing. Remove once the feature is validated and rolled out.
+        /// </summary>
+        public static readonly Setting<bool> UseHistoricalCpuUsageInfoForEarlyWorkerRelease = CreateSetting("BuildXLUseHistoricalCpuForEarlyWorkerRelease", value => value == "1");
+
+        /// <summary>
         /// If true, the build will fail early with an internal error when the number of problematic workers exceeds half of the remote workers.
         /// </summary>
         /// <remarks>

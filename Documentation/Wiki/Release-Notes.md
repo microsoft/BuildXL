@@ -2,6 +2,16 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20260220.2 (Release [31084063](https://dev.azure.com/mseng/Domino/_build/results?buildId=31084063&view=results))
+- Dispose Process in ProcessTreeContext
+- Kill pip early on remote injection failures to be retried
+- Update VSCode client to the latest versions
+- Have a way to turn on native verbose logging for the ebpf daemon
+- xunit v3 framework support for BuildXL tests
+- [EBPF] Unpin stale pinned maps when loading ebpf
+- [EBPF] Use negative dentry cache for absent probes
+- [EBPF] Do not report absent probes on ECHILD/ESTALE
+
 # 0.1.0-20260213.7 (Release [31057480](https://dev.azure.com/mseng/Domino/_build/results?buildId=31057480&view=results))
 - Make sure cache logs are flushed regularly
 - Enable kestrel by default

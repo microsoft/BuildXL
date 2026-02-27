@@ -462,6 +462,16 @@ namespace BuildXL.Engine.Tracing
             Keywords = (int)(Keywords.Diagnostics | Keywords.UserMessage))]
         public abstract void CacheReportedRecoverableError(LoggingContext context, string error);
 
+        [GeneratedEvent(
+            (ushort)LogEventId.RemoteCacheFallbackToLocal,
+            EventGenerators = EventGenerators.LocalAndTelemetry,
+            Message = "Remote cache failed to initialize. Falling back to local cache only: {errorMessage}",
+            EventLevel = Level.Warning,
+            EventTask = (ushort)Tasks.CacheInteraction,
+            EventOpcode = (byte)EventOpcode.Info,
+            Keywords = (int)(Keywords.Diagnostics | Keywords.UserMessage))]
+        public abstract void RemoteCacheFallbackToLocal(LoggingContext context, string errorMessage);
+
         #region Distribution
 
         [GeneratedEvent(

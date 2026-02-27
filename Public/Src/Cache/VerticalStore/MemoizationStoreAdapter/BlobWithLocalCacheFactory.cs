@@ -3,7 +3,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
@@ -38,13 +37,15 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
 
         private static async Task<Possible<ICache, Failure>> InitializeCacheAsync(BlobWithLocalCacheConfig blobWithLocalCacheConfig)
         {
-            // Initialize remote cache
             var remoteCacheConfig = blobWithLocalCacheConfig.RemoteCache;
+            var localCacheConfig = blobWithLocalCacheConfig.LocalCache;
 
-            MemoizationStore.Interfaces.Caches.ICache remoteCache;
+            MemoizationStore.Interfaces.Caches.ICache remoteCache = null;
             ILogger combinedLogger = null;
-            ContentStore.Interfaces.FileSystem.AbsolutePath logPath;
+            ContentStore.Interfaces.FileSystem.AbsolutePath logPath = null;
+            Failure remoteFailure = null;
 
+            // Try to initialize the remote cache
             try
             {
                 // This call will also set up Kusto logging if configured
@@ -53,13 +54,23 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             }
             catch (Exception e)
             {
-                combinedLogger?.Dispose();
-                return new CacheConstructionFailure(remoteCacheConfig.CacheId, e);
+                remoteFailure = new CacheConstructionFailure(remoteCacheConfig.CacheId, e);
+
+                if (blobWithLocalCacheConfig.FailIfRemoteFails)
+                {
+                    combinedLogger?.Dispose();
+                    return remoteFailure;
+                }
+
+                // If the logger wasn't created (failed during logger creation), create a basic one from local config
+                if (combinedLogger == null)
+                {
+                    logPath = new ContentStore.Interfaces.FileSystem.AbsolutePath(localCacheConfig.CacheLogPath);
+                    combinedLogger = new DisposeLogger(new EtwFileLog(logPath.Path, localCacheConfig.CacheId), localCacheConfig.LogFlushIntervalSeconds);
+                }
             }
 
             // Initialize local cache
-            var localCacheConfig = blobWithLocalCacheConfig.LocalCache;
-
             MemoizationStore.Interfaces.Caches.ICache localCache;
 
             try
@@ -69,31 +80,52 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             }
             catch (Exception e)
             {
+                combinedLogger?.Dispose();
                 return new CacheConstructionFailure(localCacheConfig.CacheId, e);
             }
 
-            var twoLevelCacheConfig = new TwoLevelCacheConfiguration
-            {
-                RemoteCacheIsReadOnly = remoteCacheConfig.IsReadOnly,
-                AlwaysUpdateFromRemote = true,
-                BatchRemotePinsOnPut = false,
-                SkipRemotePutIfAlreadyExistsInLocal = false,
-                SkipRemotePinOnPut = true,
-            };
+            MemoizationStore.Interfaces.Caches.ICache innerCache;
+            CacheId cacheId;
+            var stateDegradationFailures = new List<Failure>();
 
-            var innerCache = new TwoLevelCache(localCache, remoteCache, twoLevelCacheConfig);
+            if (remoteCache != null)
+            {
+                // Both remote and local succeeded — create the two-level cache
+                var twoLevelCacheConfig = new TwoLevelCacheConfiguration
+                {
+                    RemoteCacheIsReadOnly = remoteCacheConfig.IsReadOnly,
+                    AlwaysUpdateFromRemote = true,
+                    BatchRemotePinsOnPut = false,
+                    SkipRemotePutIfAlreadyExistsInLocal = false,
+                    SkipRemotePinOnPut = true,
+                };
+
+                innerCache = new TwoLevelCache(localCache, remoteCache, twoLevelCacheConfig);
+                cacheId = new CacheId(localCacheConfig.CacheId, remoteCacheConfig.CacheId);
+            }
+            else
+            {
+                // Remote failed — fall back to local only
+                innerCache = localCache;
+                cacheId = localCacheConfig.CacheId;
+
+                string warningMessage = BuildRemoteCacheFailureWarning(remoteCacheConfig, remoteFailure);
+                stateDegradationFailures.Add(new RemoteCacheFallbackFailure(warningMessage));
+                combinedLogger.Log(Severity.Warning, warningMessage);
+            }
 
             var statsFilePath = new ContentStore.Interfaces.FileSystem.AbsolutePath(logPath.Path + ".stats");
 
             var cache = new MemoizationStoreAdapterCache(
-                    new CacheId(localCacheConfig.CacheId, remoteCacheConfig.CacheId),
+                    cacheId,
                     innerCache,
                     combinedLogger,
                     statsFilePath,
                     // Not really used at this level. Each local & remote cache carry their own config at this respect.
                     isReadOnly: false,
                     replaceExistingOnPlaceFile: false,
-                    implicitPin: ContentStore.Interfaces.Stores.ImplicitPin.None);
+                    implicitPin: ContentStore.Interfaces.Stores.ImplicitPin.None,
+                    precedingStateDegradationFailures: stateDegradationFailures);
 
             var startupResult = await cache.StartupAsync();
             if (!startupResult.Succeeded)
@@ -104,6 +136,22 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
 
             BlobCacheAccessor.CacheLogger!.Value?.SetValue(combinedLogger);
             return cache;
+        }
+
+        /// <summary>
+        /// Builds a warning message for remote cache construction failure, including an actionable URL when available.
+        /// </summary>
+        private static string BuildRemoteCacheFailureWarning(BlobCacheConfig remoteCacheConfig, Failure remoteFailure)
+        {
+            var message = remoteFailure.Describe();
+
+            // Include an actionable URL when a developer build cache resource is configured
+            if (!string.IsNullOrEmpty(remoteCacheConfig.DeveloperBuildCacheResourceId))
+            {
+                message += $" To manage cache access, visit: https://portal.azure.com/#@/resource{remoteCacheConfig.DeveloperBuildCacheResourceId}";
+            }
+
+            return message;
         }
 
         /// <inheritdoc/>

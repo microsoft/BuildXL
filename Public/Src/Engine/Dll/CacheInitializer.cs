@@ -389,7 +389,17 @@ namespace BuildXL.Engine
                 cache = maybeCache.Result;
 
                 cache.SuscribeForCacheStateDegredationFailures(
-                    failure => { Tracing.Logger.Log.CacheReportedRecoverableError(loggingContext, failure.DescribeIncludingInnerFailures()); });
+                    failure =>
+                    {
+                        if (failure is RemoteCacheFallbackFailure)
+                        {
+                            Tracing.Logger.Log.RemoteCacheFallbackToLocal(loggingContext, failure.DescribeIncludingInnerFailures());
+                        }
+                        else
+                        {
+                            Tracing.Logger.Log.CacheReportedRecoverableError(loggingContext, failure.DescribeIncludingInnerFailures());
+                        }
+                    });
 
                 // Log the cache ID we got.
                 Tracing.Logger.Log.CacheInitialized(loggingContext, cache.CacheId);

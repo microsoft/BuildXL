@@ -75,6 +75,87 @@ namespace BuildXL.Cache.Tests
             Assert.True(lines.Any(line => line.Contains(cacheRecord.StrongFingerprint.WeakFingerprint.ToString()) && line.Contains("RocksDbMemoizationDatabase.CompareExchangeAsync")));
         }
 
+        [Fact]
+        public async Task TestFallbackToLocalOnRemoteFailure()
+        {
+            var testName = nameof(TestFallbackToLocalOnRemoteFailure);
+            Directory.CreateDirectory(Path.Combine(ScratchPath, testName));
+
+            var logDir = Path.Combine(ScratchPath, testName, "logs");
+            var baseLogPath = Path.Combine(logDir, "blobWithLocal");
+            var rootDir = Path.Combine(ScratchPath, testName, "root");
+
+            // Point to a non-existent configuration file so the remote cache construction fails
+            var config = $@"{{
+  ""Assembly"": ""BuildXL.Cache.MemoizationStoreAdapter"",
+  ""Type"": ""BuildXL.Cache.MemoizationStoreAdapter.BlobWithLocalCacheFactory"",
+  ""FailIfRemoteFails"": false,
+  ""LocalCache"": {{
+    ""MaxCacheSizeInMB"": 40480,
+    ""CacheLogPath"": ""{baseLogPath.Replace("\\", "\\\\")}.local.log"",
+    ""CacheRootPath"": ""{rootDir.Replace("\\", "\\\\")}"",
+    ""CacheId"": ""TestLocal""
+  }},
+  ""RemoteCache"": {{
+    ""CacheLogPath"": ""{baseLogPath.Replace("\\", "\\\\")}"",
+    ""CacheId"": ""TestBlob"",
+    ""HostedPoolBuildCacheConfigurationFile"": ""NonExistentFile.json"",
+    ""ConnectionStringFileDataProtectionEncrypted"": false
+  }}
+}}
+";
+
+            // The cache should initialize successfully with local-only, despite the remote failure
+            FullCacheRecord cacheRecord = await CreateCacheAndRunPip(config);
+
+            // In the fallback case, the logger was created from the remote config's log path.
+            // Verify local cache activity is logged there (the pip should have been stored in the local cache).
+#if NET
+            var lines = await File.ReadAllLinesAsync(baseLogPath);
+#else
+            var lines = File.ReadAllLines(baseLogPath);
+#endif
+            Assert.True(lines.Any(line => line.Contains(cacheRecord.StrongFingerprint.WeakFingerprint.ToString()) && line.Contains("RocksDbMemoizationDatabase.CompareExchangeAsync")));
+        }
+
+        [Fact]
+        public async Task TestFailIfRemoteFails()
+        {
+            var testName = nameof(TestFailIfRemoteFails);
+            Directory.CreateDirectory(Path.Combine(ScratchPath, testName));
+
+            var logDir = Path.Combine(ScratchPath, testName, "logs");
+            var baseLogPath = Path.Combine(logDir, "blobWithLocal");
+            var rootDir = Path.Combine(ScratchPath, testName, "root");
+
+            // Point to a non-existent configuration file so the remote cache construction fails.
+            // With FailIfRemoteFails: true (the default), cache initialization should fail.
+            var config = $@"{{
+  ""Assembly"": ""BuildXL.Cache.MemoizationStoreAdapter"",
+  ""Type"": ""BuildXL.Cache.MemoizationStoreAdapter.BlobWithLocalCacheFactory"",
+  ""FailIfRemoteFails"": true,
+  ""LocalCache"": {{
+    ""MaxCacheSizeInMB"": 40480,
+    ""CacheLogPath"": ""{baseLogPath.Replace("\\", "\\\\")}.local.log"",
+    ""CacheRootPath"": ""{rootDir.Replace("\\", "\\\\")}"",
+    ""CacheId"": ""TestLocal""
+  }},
+  ""RemoteCache"": {{
+    ""CacheLogPath"": ""{baseLogPath.Replace("\\", "\\\\")}"",
+    ""CacheId"": ""TestBlob"",
+    ""HostedPoolBuildCacheConfigurationFile"": ""NonExistentFile.json"",
+    ""ConnectionStringFileDataProtectionEncrypted"": false
+  }}
+}}
+";
+
+            var configuration = new ConfigurationImpl();
+            var cacheResult = await CacheFactory.InitializeCacheAsync(config, default(Guid), configuration, _context);
+
+            // With FailIfRemoteFails: true, cache initialization should fail
+            Assert.False(cacheResult.Succeeded);
+        }
+
         private async Task<FullCacheRecord> CreateCacheAndRunPip(string config)
         {
             ICache? cache = null;

@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.ComponentModel;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Utilities.Configuration;
@@ -23,6 +24,13 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         /// The blob-based remote cache configuration
         /// </summary>
         public BlobCacheConfig RemoteCache { get; set; }
+
+        /// <summary>
+        /// When true (the default), cache initialization fails if the remote cache cannot be constructed.
+        /// When false, the factory falls back to using the local cache only when the remote cache fails to initialize.
+        /// </summary>
+        [DefaultValue(true)]
+        public bool FailIfRemoteFails { get; set; } = true;
 
         /// <inheritdoc/>
         public bool TryPopulateFrom(Guid activityId, IConfiguration configuration, BuildXLContext buildXLContext, out Failure failure)

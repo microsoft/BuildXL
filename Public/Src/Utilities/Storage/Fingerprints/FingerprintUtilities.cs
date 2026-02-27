@@ -184,7 +184,7 @@ namespace BuildXL.Storage.Fingerprints
         /// 1 bytes => 2 char (base16) => (40 char) // easy to code, each byte matches
         /// 5 bytes => 8 char (base32) => (32 char) // nice on bit boundary
         /// 2 bytes => 3 char (base41) => (30 char) // not on bit-boundary so harder to code
-        /// 3 bytes => 4 char (base64) => (28 char) // nice on bit-boundary, but need extended characters like '�', '�', '�', '�' etc.
+        /// 3 bytes => 4 char (base64) => (28 char) // nice on bit-boundary, but need extended characters like 'α', 'ß', 'Γ', 'Σ' etc.
         /// 4 bytes => 5 char (base85) => (25 char) // not in bit-boundary so harder to code.
         ///
         /// For now the character savings of higher bases is not worth it so we'll stick with base32.

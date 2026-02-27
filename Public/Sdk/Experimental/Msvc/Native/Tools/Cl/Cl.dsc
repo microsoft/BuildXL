@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft. All rights reserved.
+﻿// Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 import {Artifact, Cmd, Tool, Transformer} from "Sdk.Transformers";
@@ -830,7 +830,7 @@ export interface ClOptions {
     enableExtraGSProtectionForControlFlowGuard?: boolean;
 
     /**
-        * Enables a �dispatch-mode� for Control Flow Guard checks, dispatching to target instead of returning to caller.
+        * Enables a "dispatch-mode" for Control Flow Guard checks, dispatching to target instead of returning to caller.
         * This will become enabled by default with the /guard:cf flag in the next Visual Studio update (for AMD64).
         */
     @@Tool.option("/d2guardcfgdispatch")

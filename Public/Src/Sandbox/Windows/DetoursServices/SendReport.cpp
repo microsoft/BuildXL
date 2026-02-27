@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft. All rights reserved.
+﻿// Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 #include "stdafx.h"
@@ -190,27 +190,27 @@ void ReportFileAccess(
     size_t reportBufferSize = fileNameLength + filterLength + fileProcessCommandLineLength + operationLen + 124; // in characters
 
     // Adding 124 should be enough for now since the max values for the members of the message are:
-    // buildxl::common::ReportType::kFileAccess � 1 char
-    // g_currentProcessId � 8 chars
-    // FileOperationContext.Id � 8 chars
-    // FileOperationContext.CorrelationId � 8 chars
-    // accessCheckResult.RequestedAccess � 1 char
-    // status � 1 char
-    // (int)(accessCheckResult.ReportLevel == ReportLevel::ReportExplicit) � 1 char(0 or 1)
-    // Error � 8 chars
-    // RawError � 8 chars
-    // Usn � 16 chars
-    // fileOperationContext.DesiredAccess � 8 chars
-    // fileOperationContext.ShareMode � 8 chars
-    // fileOperationContext.CreationDisposition � 8 chars,
-    // fileOperationContext.FlagsAndAttributes � 8 chars
-    // policyResult.IsIndeterminate() ? 0 : policyResult.GetPathId() � 8 chars
+    // buildxl::common::ReportType::kFileAccess - 1 char
+    // g_currentProcessId - 8 chars
+    // FileOperationContext.Id - 8 chars
+    // FileOperationContext.CorrelationId - 8 chars
+    // accessCheckResult.RequestedAccess - 1 char
+    // status - 1 char
+    // (int)(accessCheckResult.ReportLevel == ReportLevel::ReportExplicit) - 1 char(0 or 1)
+    // Error - 8 chars
+    // RawError - 8 chars
+    // Usn - 16 chars
+    // fileOperationContext.DesiredAccess - 8 chars
+    // fileOperationContext.ShareMode - 8 chars
+    // fileOperationContext.CreationDisposition - 8 chars,
+    // fileOperationContext.FlagsAndAttributes - 8 chars
+    // policyResult.IsIndeterminate() ? 0 : policyResult.GetPathId() - 8 chars
     // filename separately added
     // filterStr separately added
-    // fileOrDirectoryAttribute � 8 chars
-    // g_currentProcessCommandLine � separately added
+    // fileOrDirectoryAttribute - 8 chars
+    // g_currentProcessCommandLine - separately added
     // 15 chars for | chars
-    // 5 chars for �, �  � : � �\r� �\n� �\0� chars
+    // 5 chars for ',', ':', '\r', '\n', '\0' chars
     // Total : 128 characters.
 
     unique_ptr<wchar_t[]> report(new wchar_t[reportBufferSize]);

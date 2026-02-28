@@ -46,7 +46,7 @@ namespace Tool.DropDaemon
         public async static Task<Possible<string>> GenerateSignedCatalogAsync(
             string makeCatToolPath,
             string esrpSignToolPath,
-            IList<(string Path, string FileName)> buildManifestLocalFiles,
+            IList<(string Path, string RelativePath)> buildManifestLocalFiles,
             string bsiFileLocalPath)
         {
             // Details about the [CatalogFiles] section: https://stackoverflow.com/questions/52285385/makecat-failure-no-members-found/53205550#53205550
@@ -55,8 +55,8 @@ namespace Tool.DropDaemon
 
             foreach (var file in buildManifestLocalFiles)
             {
-                catFileSb.Append($@"{Environment.NewLine}<HASH>{file.FileName}={file.Path}");
-                catFileSb.Append($@"{Environment.NewLine}<HASH>{file.FileName}ATTR1=0x11010001:File:{file.FileName}");
+                catFileSb.Append($@"{Environment.NewLine}<HASH>{file.RelativePath}={file.Path}");
+                catFileSb.Append($@"{Environment.NewLine}<HASH>{file.RelativePath}ATTR1=0x11010001:File:{file.RelativePath}");
             }
 
             catFileSb.Append($@"{Environment.NewLine}<HASH>{BsiFilename}={bsiFileLocalPath}");

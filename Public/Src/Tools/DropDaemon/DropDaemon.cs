@@ -937,7 +937,7 @@ namespace Tool.DropDaemon
             // Drop all generated files
             // TODO: The API will provide the paths of the generated files in the result in a future version 
             IList<IDropItem> dropItems = new List<IDropItem>();
-            IList<(string Path, string FileName)> filesToSign = new List<(string, string)>();
+            IList<(string Path, string RelativePath)> filesToSign = new List<(string, string)>();
             FileUtilities.EnumerateFiles(sbomGenerationRootDirectory, recursive: true, pattern: "*",
                  (directory, fileName, _, _) =>
                  {
@@ -947,10 +947,12 @@ namespace Tool.DropDaemon
                      {
                          throw new InvalidOperationException($"The path {filePath} is not under {sbomGenerationRootDirectory}");
                      }
-                     var relativeDropPath = filePath.Substring(sbomGenerationRootDirectory.Length);
+                     // Ensure the root directory ends with a separator and trim it
+                     var trimmedRootDirectory = sbomGenerationRootDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+                     var relativeDropPath = filePath.Substring(trimmedRootDirectory.Length);
                      var dropItem = new DropItemForFile(fullDropName, filePath, relativeDropPath);
                      dropItems.Add(dropItem);
-                     filesToSign.Add((filePath, fileName));
+                     filesToSign.Add((filePath, relativeDropPath));
                  });
 
             foreach (var item in dropItems)
@@ -1111,7 +1113,7 @@ namespace Tool.DropDaemon
         /// Generates and uploads a catalog file for <see cref="BuildManifestHelper.BuildManifestFilename"/> and <see cref="BuildManifestHelper.BsiFilename"/>
         /// Should be called only when DropConfig.GenerateBuildManifest is true and DropConfig.SignBuildManifest is true.
         /// </summary>
-        private async Task<IIpcResult> GenerateAndSignBuildManifestCatalogFileAsync(DropConfig dropConfig, IList<(string Path, string FileName)> buildManifestLocalFiles)
+        private async Task<IIpcResult> GenerateAndSignBuildManifestCatalogFileAsync(DropConfig dropConfig, IList<(string Path, string RelativePath)> buildManifestLocalFiles)
         {
             Contract.Requires(dropConfig.GenerateBuildManifest, "GenerateAndSignBuildManifestCatalogFileAsync API called even though Build Manifest Generation is Disabled in DropConfig");
             Contract.Requires(dropConfig.SignBuildManifest, "GenerateAndSignBuildManifestCatalogFileAsync API called even though SignBuildManifest is Disabled in DropConfig");

@@ -164,6 +164,12 @@ BuildXL.Internal/
 - `DebugNet472`, `ReleaseNet472`
 - Specify with `/q:` flag, e.g., `/q:ReleaseDotNetCore`
 
+## Git Branch Naming Convention
+When creating branches, always use the format: `dev/[username]/[feature-description]`
+- `[username]` should be normalized to a valid ref component (lowercase, no spaces or backslashes) or use a ref-safe value like the GitHub username
+- `[feature-description]` is a short kebab-case summary of the change
+- Example: `dev/mpysson/fix-refs-hardlink-test`
+
 ## Common Pitfalls
 - **Typos in test filters**: If `-TestMethod` matches nothing, the build still **succeeds silently** — always verify the filter matches an actual test
 - **Generated files**: Never edit `.csproj` or `.sln` files; edit `.dsc` specs instead

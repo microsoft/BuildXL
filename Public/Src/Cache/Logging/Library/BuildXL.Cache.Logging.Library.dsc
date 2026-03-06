@@ -28,6 +28,13 @@ namespace Library {
             importFrom("System.Threading.Tasks.Extensions").pkg,
             ...BuildXLSdk.systemThreadingTasksDataflowPackageReference,
             ...addIf(BuildXLSdk.isFullFramework, $.withQualifier({targetFramework:"net472"}).NetFx.System.Xml.dll),
+            // Kusto ingestion
+            importFrom("Azure.Storage.Queues").pkg,
+            importFrom("System.Threading.Channels").pkg,
+            importFrom("Microsoft.Azure.Kusto.Data").pkg,
+            importFrom("Microsoft.Azure.Kusto.Ingest").pkg,
+            importFrom("Microsoft.Azure.Kusto.Ingest.Common").pkg,
+            importFrom("System.ClientModel").pkg,
         ],
         internalsVisibleTo: [
             "BuildXL.Cache.Logging.Test"

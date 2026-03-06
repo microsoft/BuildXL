@@ -314,7 +314,7 @@ namespace BuildXL.Execution.Analyzer
             AuthenticationResult result = null;
             try
             {
-                result = await app.AcquireTokenByIntegratedWindowsAuth(scopes)
+                result = await app.AcquireTokenInteractive(scopes)
                                   .ExecuteAsync();
                 Console.WriteLine("Integrated Windows Authentication was successful.");
             }

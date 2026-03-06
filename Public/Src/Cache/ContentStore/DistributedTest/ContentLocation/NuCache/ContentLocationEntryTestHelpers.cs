@@ -3,7 +3,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Distributed.NuCache;
@@ -50,7 +49,7 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
         {
             Contract.Requires(entry.Locations is LocationChangeMachineIdSet || entry.Locations.Count == 0, $"Type: {entry.Locations.GetType()}");
             return ContentLocationEntry.Create(
-                new SortedLocationChangeMachineIdSet((entry.Locations as LocationChangeMachineIdSet)?.LocationStates ?? ImmutableArray<LocationChange>.Empty),
+                new SortedLocationChangeMachineIdSet((entry.Locations as LocationChangeMachineIdSet)?.LocationStates ?? Array.Empty<LocationChange>()),
                 entry.ContentSize,
                 entry.LastAccessTimeUtc,
                 entry.CreationTimeUtc);
@@ -132,7 +131,7 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
             var sortedMerge = (object)MachineIdSet.Deserialize(ref mergeReader);
 
             // Need to sort the merge result manually in order to compare that the results are the same.
-            var manuallySorted = new SortedLocationChangeMachineIdSet(merge.LocationStates.Sort(comparer));
+            var manuallySorted = new SortedLocationChangeMachineIdSet(merge.LocationStates.OrderBy(x =>x, comparer).ToArray());
             sortedMerge.Should().Be(manuallySorted, "Sorted merge result must be the same as in-memory merge result.");
             return merge;
         }

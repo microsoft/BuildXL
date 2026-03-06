@@ -19,9 +19,11 @@ jobs:
     sdkVersion: ${{ parameters.sdkVersion }}
     
     # Enabling EBPF for validating ptrace doesn't make much sense
+    # TODO: Move the logToKustoIngestUri to a common location once the feature becomes part of the LKG
     buildXLArguments: >-
       --minimal
       --use-dev 
+      "/logToKustoIngestUri:https://buildxl.eastus2.kusto.windows.net/BuildXLProd?clientId=1fbd9009-2b6d-4363-9e4c-c4f677961c92&tenantId=72f988bf-86f1-41af-91ab-2d7cd011db47&serviceConnectionId=861f8f3b-77a2-497a-a955-fbd921dc48de"
       ${{ parameters.BxlCommonArgs }}
       /forceEnableLinuxPTraceSandbox+
       /injectCacheMisses:0.3

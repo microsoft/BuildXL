@@ -348,4 +348,7 @@
   <data name="MachineOpenFileDescriptors" xml:space="preserve">
     <value>MachineOpenFileDescriptors</value>
   </data>
+  <data name="KustoIngestionDisposeDurationMs" xml:space="preserve">
+    <value>KustoIngestionDisposeDurationMs</value>
+  </data>
 </root>

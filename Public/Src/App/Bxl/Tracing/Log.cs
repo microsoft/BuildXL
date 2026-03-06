@@ -600,6 +600,22 @@ namespace BuildXL.App.Tracing
             Message = "Log to Kusto is disabled because option {option} is not provided.",
             Keywords = (int)Keywords.UserMessage)]
         public abstract void LogToKustoDisabledWarning(LoggingContext context, string option);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.LogToKustoStatusMessage,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Message = "Log to Kusto: {message}",
+            Keywords = (int)Keywords.UserMessage)]
+        public abstract void LogToKustoStatusMessage(LoggingContext context, string message);
+
+        [GeneratedEvent(
+            (ushort)LogEventId.LogToKustoWarning,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Message = "A problem ocurred while uploading logs to Kusto:: {message}",
+            Keywords = (int)Keywords.UserMessage)]
+        public abstract void LogToKustoWarning(LoggingContext context, string message);
     }
 
     /// <summary>

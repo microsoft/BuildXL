@@ -71,6 +71,7 @@ namespace Distributed {
                 importFrom("System.Private.ServiceModel").pkg),
             importFrom("Polly").pkg,
             importFrom("Polly.Contrib.WaitAndRetry").pkg,
+            importFrom("System.ClientModel").pkg,
 
             ...(BuildXLSdk.isFullFramework 
                 ? [ 

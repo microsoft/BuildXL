@@ -182,7 +182,7 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
             {
                 // Need to sort the source to guarantee equality in the next assert.
                 source = new SortedLocationChangeMachineIdSet(
-                    sorted.LocationStates.Sort(LocationChangeMachineIdSet.LocationChangeMachineIdComparer.Instance));
+                    sorted.LocationStates.OrderBy(x => x, LocationChangeMachineIdSet.LocationChangeMachineIdComparer.Instance).ToArray());
             }
 
             Assert.Equal(source, readFromSpan);

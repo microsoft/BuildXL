@@ -441,6 +441,11 @@ namespace BuildXL.Utilities.Configuration
         public string LogToKustoIdentityId { get; }
 
         /// <summary>
+        /// Kusto cluster URI and database for direct ingestion of engine unstructed telemetry.
+        /// </summary>
+        public string LogToKustoIngestUri { get; }
+
+        /// <summary>
         /// Collection of log event ids that should be sent to the console
         /// </summary>
         public IReadOnlyList<int> LogEventsToConsole { get; }

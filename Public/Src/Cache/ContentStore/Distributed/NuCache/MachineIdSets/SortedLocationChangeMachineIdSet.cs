@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
@@ -24,7 +25,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         protected override SetFormat Format => SetFormat.LocationChangeSorted;
 
         /// <nodoc />
-        public SortedLocationChangeMachineIdSet(ImmutableArray<LocationChange> sortedMachineIds)
+        public SortedLocationChangeMachineIdSet(IReadOnlyCollection<LocationChange> sortedMachineIds)
             : base(sortedMachineIds)
         {
         }
@@ -42,15 +43,16 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
             // the length is not an int written in the compact form, but plain 'ushort'!
             // Its important because the merge without deserialization logic expects it to be short.
             var locationStates = GetSortedLocations();
-            writer.Write((ushort)locationStates.Length);
+            writer.Write((ushort)locationStates.Count());
             SerializeLocationChanges(locationStates, ref writer);
         }
 
-        private ImmutableArray<LocationChange> GetSortedLocations()
+        private IReadOnlyCollection<LocationChange> GetSortedLocations()
         {
             // Sort only if necessary.
             var locationStates = LocationStates;
-            return locationStates.Length > 1 ? locationStates.Sort(LocationChangeMachineIdComparer.Instance) : locationStates;
+
+            return locationStates.Count() > 1 ? locationStates.OrderBy(x => x, LocationChangeMachineIdComparer.Instance).ToArray() : locationStates;
         }
         
         internal static MachineIdSet DeserializeCoreSorted(ref SpanReader reader)

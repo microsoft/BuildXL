@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
+using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using NLog;
 using ILogger = BuildXL.Cache.ContentStore.Interfaces.Logging.ILogger;
 
@@ -33,10 +34,10 @@ namespace BuildXL.Cache.Logging.External
         /// </summary>
         public bool ObserveUnobservedTaskExceptions { get; set; } = true;
 
-        private readonly AzureBlobStorageLog _log;
+        private readonly IKustoLog _log;
 
         /// <nodoc />
-        public NLogAdapter(ILogger logger, NLog.Config.LoggingConfiguration configuration, AzureBlobStorageLog log)
+        public NLogAdapter(ILogger logger, NLog.Config.LoggingConfiguration configuration, IKustoLog log)
         {
             Contract.RequiresNotNull(logger);
             Contract.RequiresNotNull(configuration);
@@ -306,11 +307,11 @@ namespace BuildXL.Cache.Logging.External
 
                 try
                 {
-                    _log.ShutdownAsync().GetAwaiter().GetResult().ThrowIfFailure();
+                    _log.ShutdownAsync(new Context(ContentStore.Logging.NullLogger.Instance)).GetAwaiter().GetResult().ThrowIfFailure();
                 }
                 catch (Exception exception)
                 {
-                    _host.Error(exception, $"Failed to shutdown {nameof(AzureBlobStorageLog)} instance");
+                    _host.Error(exception, $"Failed to shutdown {_log.GetType().Name} instance");
                 }
 
                 try

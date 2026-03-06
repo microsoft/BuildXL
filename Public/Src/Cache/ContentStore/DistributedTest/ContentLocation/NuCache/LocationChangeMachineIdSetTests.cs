@@ -52,7 +52,7 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
             var set2 = set1.Merge(MachineIdSet.Empty, sortLocations: true);
             set2.Should().BeOfType<SortedLocationChangeMachineIdSet>();
             set2.LocationStates.Should()
-                .BeEquivalentTo(set1.LocationStates.Sort(LocationChangeMachineIdSet.LocationChangeMachineIdComparer.Instance));
+                .BeEquivalentTo(set1.LocationStates.OrderBy(x => x, LocationChangeMachineIdSet.LocationChangeMachineIdComparer.Instance));
 
             set2 = MachineIdSet.Empty.Merge(set1, sortLocations: true);
             set2.Should().BeOfType<SortedLocationChangeMachineIdSet>();
@@ -86,7 +86,7 @@ namespace ContentStoreTest.Distributed.ContentLocation.NuCache
             SortedLocationChangeMachineIdSet clonedSet = set1.CloneWithSpan();
 
             clonedSet.LocationStates.Should()
-                .BeEquivalentTo(set1.LocationStates.Sort(LocationChangeMachineIdSet.LocationChangeMachineIdComparer.Instance));
+                .BeEquivalentTo(set1.LocationStates.OrderBy(x => x, LocationChangeMachineIdSet.LocationChangeMachineIdComparer.Instance));
         }
     }
 

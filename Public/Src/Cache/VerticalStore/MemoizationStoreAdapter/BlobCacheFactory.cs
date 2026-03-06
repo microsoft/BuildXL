@@ -37,6 +37,8 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
     /// </remarks>
     public class BlobCacheFactory : BlobCacheFactoryBase<BlobCacheConfig>, ICacheFactory
     {
+        private const string UserFacingDeviceCodeMessage = "Accessing the shared cache requires interactive user authentication.";
+
         internal async override Task<MemoizationStore.Interfaces.Caches.ICache> CreateInnerCacheAsync(ILogger logger, BlobCacheConfig configuration)
         {
             return (MemoizationStore.Interfaces.Caches.ICache)(await CreateCacheAsync(logger, configuration)).Cache;
@@ -217,7 +219,12 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
 
                 context.TracingContext.Info("Authenticating with (maybe silent) interactive browser", nameof(BlobCacheFactory));
                 credentials = new Dictionary<BlobCacheStorageAccountName, IAzureStorageCredentials>();
-                var tokenCredential = new InteractiveClientTokenCredential(context.TracingContext, configuration.DeveloperBuildCacheTenantId, configuration.Console, token);
+                var tokenCredential = new InteractiveClientTokenCredential(
+                    debug => context.TracingContext.Info(debug, nameof(BlobCacheFactory)),
+                    UserFacingDeviceCodeMessage,
+                    configuration.DeveloperBuildCacheTenantId,
+                    configuration.Console,
+                    token);
                 var credential = new UriAzureStorageTokenCredential(tokenCredential, uri);
                 credentials.Add(BlobCacheStorageAccountName.Parse(credential.GetAccountName()), credential);
             }
@@ -275,7 +282,12 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
 
             // Otherwise, we fallback to interactive authentication
             // The build cache resource ID is used to uniquely identify the auth token for the build cache, so it can be cached when doing interactive auth.
-            return new InteractiveClientTokenCredential(context, buildCacheTenantId, console, cancellationToken);
+            return new InteractiveClientTokenCredential(
+                debugMessage => context.Info(debugMessage, nameof(BlobCacheFactory)),
+                UserFacingDeviceCodeMessage,
+                buildCacheTenantId,
+                console,
+                cancellationToken);
         }
 
         private static bool TryCodespacesAuthentication(Context context, out TokenCredential tokenCredential)

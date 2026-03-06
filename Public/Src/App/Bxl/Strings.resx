@@ -982,6 +982,9 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   <data name="HelpText_DisplayHelp_LogToKustoIdentityId" xml:space="preserve">
     <value>Specifies the identity ID to use when sending log events to Kusto. The format is /logToKustoIdentityId:{Identity guid}. This option must be used with /logToKustoBlobUri.</value>
   </data>
+  <data name="HelpText_DisplayHelp_LogToKustoIngestUri" xml:space="preserve">
+    <value>Kusto cluster URI and database for direct queued ingestion of unstructured telemetry. Expected format: https://&lt;cluster&gt;.&lt;region&gt;.kusto.windows.net/&lt;database&gt;?clientId=&lt;clientId&gt;&amp;tenantId=&lt;tenantId&gt;&amp;serviceConnectionId=&lt;serviceConnectionId&gt;</value>
+  </data>
   <data name="App_ConfigureFileLogging_CannotCreateBlobListener" xml:space="preserve">
     <value>The option /logToKusto has been specified, but the connection to the blob storage account for sending log events to Kusto could not be established: {0}</value>
   </data>

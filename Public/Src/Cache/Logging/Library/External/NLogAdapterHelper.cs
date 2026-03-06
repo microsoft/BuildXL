@@ -54,7 +54,50 @@ namespace BuildXL.Cache.Logging.External
             Dictionary<string, string> configurationReplacements,
             AzureBlobStorageLog log)
         {
-            return CreateAdapterAsync(logger, telemetryFieldsProvider, role, buildId: telemetryFieldsProvider.BuildId, nLogConfigurationPath: null, configurationContent: GetNLogClientConfigurationContent(), configurationReplacements, log);
+            return CreateAdapterAsync(logger, telemetryFieldsProvider, role, buildId: telemetryFieldsProvider.BuildId, nLogConfigurationPath: null, configurationContent: GetNLogClientConfigurationContent(nameof(AzureBlobStorageLogTarget)), configurationReplacements, log);
+        }
+
+        /// <summary>
+        /// Creates a <see cref="IStructuredLogger"/> that uploads log lines directly to a Kusto cluster for the cache client,
+        /// using <see cref="KustoCacheDirectIngestLog"/> as the underlying sink.
+        /// </summary>
+        public static Task<IStructuredLogger> CreateAdapterForCacheClientDirectAsync(
+            ILogger logger,
+            ITelemetryFieldsProvider telemetryFieldsProvider,
+            string role,
+            Dictionary<string, string> configurationReplacements,
+            KustoCacheDirectIngestLog log)
+        {
+            // This is done for performance. See: https://github.com/NLog/NLog/wiki/performance#configure-nlog-to-not-scan-for-assemblies
+            NLog.Config.ConfigurationItemFactory.Default = new NLog.Config.ConfigurationItemFactory(typeof(NLog.ILogger).GetTypeInfo().Assembly);
+
+            // Dependency injection: construct the target with the caller-provided log instance.
+            var defaultConstructor = NLog.Config.ConfigurationItemFactory.Default.CreateInstance;
+            NLog.Config.ConfigurationItemFactory.Default.CreateInstance = type =>
+            {
+                if (type == typeof(KustoCacheDirectIngestLogTarget))
+                {
+                    return new KustoCacheDirectIngestLogTarget(log);
+                }
+
+                return defaultConstructor(type);
+            };
+
+            NLog.Targets.Target.Register<KustoCacheDirectIngestLogTarget>(nameof(KustoCacheDirectIngestLogTarget));
+
+            RegisterTelemetryRenderers(telemetryFieldsProvider, role, telemetryFieldsProvider.BuildId);
+
+            var configurationContent = GetNLogClientConfigurationContent(nameof(KustoCacheDirectIngestLogTarget));
+            foreach (var replacement in configurationReplacements)
+            {
+                configurationContent = configurationContent.Replace(replacement.Key, replacement.Value);
+            }
+
+            var textReader = new StringReader(configurationContent);
+            var reader = XmlReader.Create(textReader);
+            var configuration = new NLog.Config.XmlLoggingConfiguration(reader, /* configurationFilePath */ null);
+
+            return Task.FromResult((IStructuredLogger)new NLogAdapter(logger, configuration, log));
         }
 
         private static Task<IStructuredLogger> CreateAdapterAsync(
@@ -86,26 +129,7 @@ namespace BuildXL.Cache.Logging.External
 
             NLog.Targets.Target.Register<AzureBlobStorageLogTarget>(nameof(AzureBlobStorageLogTarget));
 
-            LayoutRenderer.Register("APEnvironment", _ => telemetryFieldsProvider.APEnvironment);
-            LayoutRenderer.Register("APCluster", _ => telemetryFieldsProvider.APCluster);
-            LayoutRenderer.Register("APMachineFunction", _ => telemetryFieldsProvider.APMachineFunction);
-            LayoutRenderer.Register("MachineName", _ => telemetryFieldsProvider.MachineName);
-            LayoutRenderer.Register("ServiceName", _ => telemetryFieldsProvider.ServiceName);
-            LayoutRenderer.Register("ServiceVersion", _ => telemetryFieldsProvider.ServiceVersion);
-            LayoutRenderer.Register("Stamp", _ => telemetryFieldsProvider.Stamp);
-            LayoutRenderer.Register("Ring", _ => telemetryFieldsProvider.Ring);
-            LayoutRenderer.Register("ConfigurationId", _ => telemetryFieldsProvider.ConfigurationId);
-            LayoutRenderer.Register("CacheVersion", _ => Utilities.Branding.Version);
-
-            // GlobalInfoStorage values can be updated so we want to get the latest value when the log is written
-            LayoutRenderer.Register("Role", _ => role ?? GlobalInfoStorage.GetGlobalInfo(GlobalInfoKey.LocalLocationStoreRole));
-            LayoutRenderer.Register("BuildId", _ => buildId ?? GlobalInfoStorage.GetGlobalInfo(GlobalInfoKey.BuildId));
-
-            // Follows ISO8601 without timezone specification.
-            // See: https://kusto.azurewebsites.net/docs/query/scalar-data-types/datetime.html
-            // See: https://docs.microsoft.com/en-us/dotnet/standard/base-types/standard-date-and-time-format-strings?view=netframework-4.8#the-round-trip-o-o-format-specifier
-            var processStartTimeUtc = SystemClock.Instance.UtcNow.ToString("o", System.Globalization.CultureInfo.InvariantCulture);
-            NLog.LayoutRenderers.LayoutRenderer.Register("ProcessStartTimeUtc", _ => processStartTimeUtc);
+            RegisterTelemetryRenderers(telemetryFieldsProvider, role, buildId);
 
 #pragma warning disable AsyncFixer02 // Long-running or blocking operations inside an async method
             // If the log path is specified, retrieve the content from it
@@ -129,7 +153,34 @@ namespace BuildXL.Cache.Logging.External
             return Task.FromResult((IStructuredLogger)new NLogAdapter(logger, configuration, log));
         }
 
-        private static string GetNLogClientConfigurationContent()
+        private static void RegisterTelemetryRenderers(
+            ITelemetryFieldsProvider telemetryFieldsProvider,
+            string? role,
+            string? buildId)
+        {
+            LayoutRenderer.Register("APEnvironment", _ => telemetryFieldsProvider.APEnvironment);
+            LayoutRenderer.Register("APCluster", _ => telemetryFieldsProvider.APCluster);
+            LayoutRenderer.Register("APMachineFunction", _ => telemetryFieldsProvider.APMachineFunction);
+            LayoutRenderer.Register("MachineName", _ => telemetryFieldsProvider.MachineName);
+            LayoutRenderer.Register("ServiceName", _ => telemetryFieldsProvider.ServiceName);
+            LayoutRenderer.Register("ServiceVersion", _ => telemetryFieldsProvider.ServiceVersion);
+            LayoutRenderer.Register("Stamp", _ => telemetryFieldsProvider.Stamp);
+            LayoutRenderer.Register("Ring", _ => telemetryFieldsProvider.Ring);
+            LayoutRenderer.Register("ConfigurationId", _ => telemetryFieldsProvider.ConfigurationId);
+            LayoutRenderer.Register("CacheVersion", _ => Utilities.Branding.Version);
+
+            // GlobalInfoStorage values can be updated so we want to get the latest value when the log is written
+            LayoutRenderer.Register("Role", _ => role ?? GlobalInfoStorage.GetGlobalInfo(GlobalInfoKey.LocalLocationStoreRole));
+            LayoutRenderer.Register("BuildId", _ => buildId ?? GlobalInfoStorage.GetGlobalInfo(GlobalInfoKey.BuildId));
+
+            // Follows ISO8601 without timezone specification.
+            // See: https://kusto.azurewebsites.net/docs/query/scalar-data-types/datetime.html
+            // See: https://docs.microsoft.com/en-us/dotnet/standard/base-types/standard-date-and-time-format-strings?view=netframework-4.8#the-round-trip-o-o-format-specifier
+            var processStartTimeUtc = SystemClock.Instance.UtcNow.ToString("o", System.Globalization.CultureInfo.InvariantCulture);
+            NLog.LayoutRenderers.LayoutRenderer.Register("ProcessStartTimeUtc", _ => processStartTimeUtc);
+        }
+
+        private static string GetNLogClientConfigurationContent(string targetTypeName)
         {
             return $@"<?xml version=""1.0"" encoding=""utf-8"" ?>
 <nlog xmlns=""http://www.nlog-project.org/schemas/NLog.xsd""
@@ -141,7 +192,7 @@ namespace BuildXL.Cache.Logging.External
 
     <targets>
         <target name=""LogUpload""
-            xsi:type=""AzureBlobStorageLogTarget"">
+            xsi:type=""{targetTypeName}"">
             
             <layout xsi:type=""CsvLayout"" quoting=""Nothing"" withHeader=""false"" delimiter=""Comma"">
                 <column name=""PreciseTimeStamp"" layout=""${{longdate:universalTime=true}}"" quoting=""Nothing"" />

@@ -51,7 +51,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Azure.Core",
-          "Version": "1.44.1"
+          "Version": "1.50.0"
         }
       }
     },
@@ -68,8 +68,17 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "Azure.Data.Tables",
+          "Version": "12.10.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "Azure.Identity",
-          "Version": "1.11.4"
+          "Version": "1.17.1"
         }
       }
     },
@@ -123,7 +132,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Azure.Storage.Blobs",
-          "Version": "12.16.0"
+          "Version": "12.26.0"
         }
       }
     },
@@ -150,7 +159,16 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Azure.Storage.Common",
-          "Version": "12.15.0"
+          "Version": "12.25.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Azure.Storage.Queues",
+          "Version": "12.24.0"
         }
       }
     },
@@ -655,6 +673,51 @@
         "NuGet": {
           "Name": "Microsoft.Azure.KeyVault.Core",
           "Version": "2.0.4"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Azure.Kusto.Cloud.Platform",
+          "Version": "14.0.3"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Azure.Kusto.Cloud.Platform.Msal",
+          "Version": "14.0.3"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Azure.Kusto.Data",
+          "Version": "14.0.3"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Azure.Kusto.Ingest",
+          "Version": "14.0.3"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Microsoft.Azure.Kusto.Ingest.Common",
+          "Version": "14.0.3"
         }
       }
     },
@@ -1329,7 +1392,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.IO.RecyclableMemoryStream",
-          "Version": "2.3.2"
+          "Version": "3.0.1"
         }
       }
     },
@@ -1347,7 +1410,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Identity.Client",
-          "Version": "4.68.0"
+          "Version": "4.78.0"
         }
       }
     },
@@ -1356,7 +1419,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Identity.Client.Broker",
-          "Version": "4.68.0"
+          "Version": "4.78.0"
         }
       }
     },
@@ -1365,7 +1428,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Identity.Client.Extensions.Msal",
-          "Version": "4.68.0"
+          "Version": "4.78.0"
         }
       }
     },
@@ -1374,7 +1437,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Identity.Client.NativeInterop",
-          "Version": "0.16.2"
+          "Version": "0.19.4"
         }
       }
     },
@@ -1383,7 +1446,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.IdentityModel.Abstractions",
-          "Version": "8.1.2"
+          "Version": "8.14.0"
         }
       }
     },
@@ -1392,7 +1455,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.IdentityModel.JsonWebTokens",
-          "Version": "8.1.2"
+          "Version": "8.14.0"
         }
       }
     },
@@ -1401,7 +1464,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.IdentityModel.Logging",
-          "Version": "8.1.2"
+          "Version": "8.14.0"
         }
       }
     },
@@ -1428,7 +1491,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.IdentityModel.Tokens",
-          "Version": "8.1.2"
+          "Version": "8.14.0"
         }
       }
     },
@@ -2868,7 +2931,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.ClientModel",
-          "Version": "1.2.1"
+          "Version": "1.8.0"
         }
       }
     },
@@ -2904,7 +2967,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Collections.Immutable",
-          "Version": "9.0.0"
+          "Version": "9.0.7"
         }
       }
     },
@@ -3327,7 +3390,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.IO.Hashing",
-          "Version": "6.0.0"
+          "Version": "9.0.7"
         }
       }
     },
@@ -3390,7 +3453,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.IdentityModel.Tokens.Jwt",
-          "Version": "8.1.2"
+          "Version": "8.14.0"
         }
       }
     },
@@ -3462,7 +3525,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Memory.Data",
-          "Version": "6.0.0"
+          "Version": "8.0.1"
         }
       }
     },
@@ -3930,7 +3993,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Security.AccessControl",
-          "Version": "6.0.0"
+          "Version": "6.0.1"
         }
       }
     },
@@ -4218,7 +4281,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Threading.Tasks.Dataflow",
-          "Version": "9.0.0"
+          "Version": "9.0.7"
         }
       }
     },

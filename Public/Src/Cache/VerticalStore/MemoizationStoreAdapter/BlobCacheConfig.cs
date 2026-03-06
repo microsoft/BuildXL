@@ -163,6 +163,12 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         public bool LogToKusto { get; set; }
 
         /// <summary>
+        /// When set, cache logs are ingested directly into a Kusto cluster via queued ingestion
+        /// </summary>
+        [DefaultValue(null)]
+        public string LogToKustoDirectIngestUri { get; set; }
+
+        /// <summary>
         /// Host parameters for logging
         /// </summary>
         [DefaultValue(null)]
@@ -235,6 +241,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             AllowInteractiveAuth = configuration.Interactive;
 
             Console = buildXLContext.Console;
+            LogToKustoDirectIngestUri = configuration.Logging.LogToKustoIngestUri;
 
             if (!logToKusto)
             {

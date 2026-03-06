@@ -161,6 +161,48 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                 // We want the blob upload to happen in addition to the regular etw/file logging, so let's compose both
                 logger = new CompositeLogger(fileLogger, nLogger);
             }
+            else if (!string.IsNullOrEmpty(configuration.LogToKustoDirectIngestUri))
+            {
+                // Direct Kusto ingestion path (no blob storage intermediary).
+                var directLog = new KustoCacheDirectIngestLog(
+                    sessionId: new Guid(configuration.BuildId),
+                    ingestUri: configuration.LogToKustoDirectIngestUri,
+                    allowInteractiveAuth: configuration.AllowInteractiveAuth,
+                    errorLogger: msg => fileLogger.Error(msg),
+                    debugLogger: msg => fileLogger.Info(msg),
+                    console: configuration.Console,
+                    cancellationToken: CancellationToken.None);
+
+                if (directLog != null)
+                {
+                    var hostParameters = HostParameters.FromEnvironment(configuration.LogParameters ?? new(), prefix: null);
+                    hostParameters.ServiceVersion ??= Utilities.Branding.Version;
+                    hostParameters.MachineFunction ??= configuration.Role;
+                    var telemetryFieldsProvider = new HostTelemetryFieldsProvider(hostParameters)
+                    {
+                        ServiceName = "BuildXL",
+                        BuildId = configuration.BuildId,
+                    };
+
+                    await directLog.StartupAsync().ThrowIfFailure();
+                    fileLogger.Debug("Created Kusto direct ingest cache logger.");
+
+                    var nLogger = await NLogAdapterHelper.CreateAdapterForCacheClientDirectAsync(
+                        fileLogger,
+                        telemetryFieldsProvider,
+                        configuration.Role,
+                        new Dictionary<string, string>(),
+                        directLog);
+
+                    storageLogEnabled = true;
+                    logger = new CompositeLogger(fileLogger, nLogger);
+                }
+                else
+                {
+                    fileLogger.Warning("Direct ingest log could not be created; falling back to file-only logging.");
+                    logger = fileLogger;
+                }
+            }
             else
             {
                 logger = fileLogger;

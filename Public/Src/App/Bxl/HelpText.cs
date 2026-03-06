@@ -219,6 +219,11 @@ namespace BuildXL
                 HelpLevel.Verbose);
 
             hw.WriteOption(
+                "/logToKustoIngestUri:<https://cluster.region.kusto.windows.net/database>",
+                Strings.HelpText_DisplayHelp_LogToKustoIngestUri,
+                HelpLevel.Verbose);
+
+            hw.WriteOption(
                 "/noLog:<id list>",
                 Strings.HelpText_DisplayHelp_NoLog,
                 HelpLevel.Verbose);

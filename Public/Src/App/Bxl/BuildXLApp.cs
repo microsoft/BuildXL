@@ -483,11 +483,11 @@ namespace BuildXL
                 {
                     AriaV2StaticState.Disable();
                 }
-
+                
                 return RunWithLoggingScope(
-                    configureLogging: loggingContext =>
+                    configureLogging: (loggingContext, relatedActivityId) =>
                     {
-                        appLoggers.ConfigureLogging(m_configuration.Distribution.BuildRole, loggingContext);
+                        appLoggers.ConfigureLogging(m_configuration.Distribution.BuildRole, loggingContext, m_configuration.Interactive, relatedActivityId);
                         if (m_configuration.Logging.EnableCloudBuildEtwLoggingIntegration)
                         {
                             appLoggers.EnableEtwOutputLogging(loggingContext);
@@ -963,7 +963,7 @@ namespace BuildXL
             }
         }
 
-        private AppResult RunWithLoggingScope(Func<PerformanceMeasurement, AppResult> run, Action sendFinalStatistics, Action<LoggingContext> configureLogging = null)
+        private AppResult RunWithLoggingScope(Func<PerformanceMeasurement, AppResult> run, Action sendFinalStatistics, Action<LoggingContext, Guid> configureLogging = null)
         {
             AppResult result = AppResult.Create(ExitKind.InternalError, null, "FailedBeforeRunAttempted");
             Guid relatedActivityId;
@@ -1015,7 +1015,7 @@ namespace BuildXL
                     var utcNow = DateTime.UtcNow;
                     var localNow = utcNow.ToLocalTime();
 
-                    configureLogging?.Invoke(loggingContext);
+                    configureLogging?.Invoke(loggingContext, relatedActivityId);
 
                     string translatedLogDirectory = string.Empty;
                     if (m_configuration.Logging.LogsDirectory.IsValid)
@@ -1583,7 +1583,7 @@ namespace BuildXL
 
             public TrackingEventListener TrackingEventListener { get; private set; }
 
-            public void ConfigureLogging(DistributedBuildRoles buildRole, LoggingContext loggingContext)
+            public void ConfigureLogging(DistributedBuildRoles buildRole, LoggingContext loggingContext, bool interactive, Guid relatedActivityId)
             {
                 lock (m_lock)
                 {
@@ -1627,6 +1627,12 @@ namespace BuildXL
                     else if (!string.IsNullOrEmpty(m_configuration.LogToKustoIdentityId))
                     {
                         Logger.Log.LogToKustoDisabledWarning(loggingContext, nameof(m_configuration.LogToKustoBlobUri));
+                    }
+
+                    // Configure direct Kusto ingestion if required.
+                    if (!string.IsNullOrEmpty(m_configuration.LogToKustoIngestUri))
+                    {
+                        ConfigureKustoDirectIngestion(loggingContext, interactive, relatedActivityId);
                     }
 
                     // We don't surface logs in the worker consoles to avoid user-level duplicate messages:
@@ -2017,6 +2023,56 @@ namespace BuildXL
                             onDisabledDueToDiskWriteFailure: OnListenerDisabledDueToDiskWriteFailure,
                             pathTranslator: PathTranslatorForLogging);
                     });
+            }
+
+            private void ConfigureKustoDirectIngestion(LoggingContext loggingContext, bool interactive, Guid relatedActivityId)
+            {
+                // Errors from the Kusto ingest path are non-fatal: print as warnings
+                // (same policy as the blob-based path) and continue building.
+                void errorLogger(string msg) => Logger.Log.LogToKustoWarning(loggingContext, msg);
+
+                // Just log verbose messages
+                void debugLogger(string msg) => Logger.Log.LogToKustoStatusMessage(loggingContext, msg);
+
+                var kustoDirectIngestLog = KustoEngineDirectIngestLogFactory.TryCreateForEngine(
+                    relatedActivityId,
+                    ingestUri: m_configuration.LogToKustoIngestUri,
+                    allowInteractiveAuth: interactive,
+                    errorLogger: errorLogger,
+                    debugLogger: debugLogger,
+                    console: m_console,
+                    cancellationToken: m_cancellationToken);
+
+                if (kustoDirectIngestLog == null)
+                {
+                    // Errors should be logged already
+                    return;
+                }
+
+                var eventMask = new EventMask(enabledEvents: null, disabledEvents: m_configuration.NoLog, nonMaskableLevel: EventLevel.Error);
+
+                try
+                {
+                    var listener = new KustoDirectWriterEventListener(
+                        Events.Log,
+                        kustoDirectIngestLog,
+                        m_baseTime,
+                        m_warningManager.GetState,
+                        !m_notWorker,
+                        loggingContext,
+                        errorLogger,
+                        m_configuration.FileVerbosity.ToEventLevel(),
+                        TimeDisplay.Milliseconds,
+                        eventMask,
+                        onDisabledDueToDiskWriteFailure: OnListenerDisabledDueToDiskWriteFailure,
+                        pathTranslator: PathTranslatorForLogging);
+
+                    AddListener(listener);
+                }
+                catch (Exception ex)
+                {
+                    errorLogger($"Failed to create event listener: {ex.GetLogEventMessage()}");
+                }
             }
 
             private void ConfigureConsoleRedirection(LoggingContext loggingContext)

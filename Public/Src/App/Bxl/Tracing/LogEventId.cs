@@ -81,5 +81,7 @@ namespace BuildXL.App.Tracing
         Username = 15013,
 
         LogToKustoDisabledWarning = 15014,
+        LogToKustoStatusMessage = 15015,
+        LogToKustoWarning = 15016,
     }
 }

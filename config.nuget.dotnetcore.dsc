@@ -14,7 +14,7 @@ const core80VersionPlatforms = "8.0.0-preview.7.23375.6";
 const pkgVersion = "4.3.0";
 const pkgVersionNext = "4.7.0";
 const pkgVersion5 = "5.0.0";
-const pkgVersion6 = "6.0.0";
+const pkgVersion6 = "6.0.1";
 const pkgVersion6Preview = "6.0.0-preview.5.21301.5";
 
 const cryptographyOpenSslVersion = "4.3.2";
@@ -272,5 +272,5 @@ export const pkgs = [
     { id: "System.Threading.Tasks.Extensions", version: "4.6.0" }, // If you change this version, please change cacheBindingRedirects in BuildXLSdk.dsc
 
     { id: "System.Security.Cryptography.OpenSsl", version: "5.0.0" },
-    { id: "System.Collections.Immutable", version: "9.0.0" },
+    { id: "System.Collections.Immutable", version: "9.0.7" },
 ];

@@ -631,6 +631,10 @@ namespace BuildXL
                         OptionHandlerFactory.CreateOption(
                             "logToKustoTenantId",
                             opt => {/* Do nothing. 1JS still passes this flag even though it is not needed. */}),
+                        // Direct Kusto ingestion via cert-based service principal (ADO only).
+                        OptionHandlerFactory.CreateOption(
+                            "logToKustoIngestUri",
+                            opt => loggingConfiguration.LogToKustoIngestUri = opt.Value),
                         OptionHandlerFactory.CreateOption(
                             "logsToRetain",
                             opt => loggingConfiguration.LogsToRetain = CommandLineUtilities.ParseInt32Option(opt, 1, 1000)),

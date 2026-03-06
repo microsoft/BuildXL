@@ -23,7 +23,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         // The field is intentionally not made readonly to avoid defensive copies accessing
         // non-readonly struct.
         // ushort here should be used as 'LocationChange' instance.
-        private ImmutableArray<LocationChange> _locationStates;
+        private readonly ImmutableArray<LocationChange> _locationStates;
 
         /// <nodoc />
         public static LocationChangeMachineIdSet EmptyInstance { get; } = new(ImmutableArray<LocationChange>.Empty);
@@ -38,13 +38,13 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         public override int Count { get; }
 
         /// <nodoc />
-        internal LocationChangeMachineIdSet(ImmutableArray<LocationChange> machineIds)
+        internal LocationChangeMachineIdSet(IReadOnlyCollection<LocationChange> machineIds)
         {
-            _locationStates = machineIds;
+            _locationStates = machineIds.ToImmutableArray();
 
             // Need to count the number of machines with the location information because some of the states
             // represent the location removal events.
-            Count = countMachineIds(machineIds);
+            Count = countMachineIds(_locationStates);
 
             static int countMachineIds(ImmutableArray<LocationChange> machineIds)
             {
@@ -155,7 +155,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         /// <summary>
         /// Gets all the location changes of the current instance.
         /// </summary>
-        public ImmutableArray<LocationChange> LocationStates => _locationStates;
+        public IReadOnlyCollection<LocationChange> LocationStates => _locationStates;
 
         /// <inheritdoc />
         public override IEnumerable<MachineId> EnumerateMachineIds()
@@ -196,10 +196,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
         }
         
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        protected static void SerializeLocationChanges(in ImmutableArray<LocationChange> locationStates, ref SpanWriter writer)
+        protected static void SerializeLocationChanges(in IReadOnlyCollection<LocationChange> locationStates, ref SpanWriter writer)
         {
 #if NET5_0_OR_GREATER
-            writer.WriteSpan(MemoryMarshal.AsBytes(locationStates.AsSpan()));
+            writer.WriteSpan(MemoryMarshal.AsBytes(locationStates.ToArray().AsSpan()));
 #else
             foreach (var locationChange in locationStates)
             {

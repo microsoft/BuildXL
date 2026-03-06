@@ -32,7 +32,8 @@ namespace Test {
             importFrom("Google.Protobuf").pkg,
             importFrom("System.Threading.Tasks.Extensions").pkg,
             importFrom("Azure.Core").pkg,
-
+            importFrom("System.ClientModel").pkg,
+            
             UtilitiesCore.dll,
             Hashing.dll,
             Distributed.dll,

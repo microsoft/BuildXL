@@ -33,6 +33,7 @@ namespace Interfaces {
             ...getAzureBlobStorageSdkPackages(true),
             importFrom("BuildXL.Cache.BuildCacheResource").Helper.dll,
             importFrom("Azure.ResourceManager").pkg,
+            importFrom("System.ClientModel").pkg,
         ],
         nullable: true,
         allowUnsafeBlocks: true,

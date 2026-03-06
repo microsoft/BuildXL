@@ -164,6 +164,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             LogCachedPipOutputs = template.LogCachedPipOutputs;
             LogToKustoBlobUri = template.LogToKustoBlobUri;
             LogToKustoIdentityId = template.LogToKustoIdentityId;
+            LogToKustoIngestUri = template.LogToKustoIngestUri;
             LogEventsToConsole = new List<int>(template.LogEventsToConsole);
             RemoteTelemetryFlushTimeout = template.RemoteTelemetryFlushTimeout;
             DisplayWarningErrorTime = template.DisplayWarningErrorTime;
@@ -421,6 +422,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc/>
         public string LogToKustoIdentityId { get; set; }
+
+        /// <inheritdoc/>
+        public string LogToKustoIngestUri { get; set; }
 
         /// <nodoc/>
         public List<int> LogEventsToConsole { get; set; }

@@ -386,9 +386,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.NuCache
 
         public MachineRecord? PrimaryMachineRecord { get; }
 
-        public ImmutableDictionary<MachineId, MachineRecord> RecordsByMachineId { get; }
+        public IReadOnlyDictionary<MachineId, MachineRecord> RecordsByMachineId { get; }
 
-        public ImmutableDictionary<MachineLocation, MachineRecord> RecordsByMachineLocation { get; }
+        public IReadOnlyDictionary<MachineLocation, MachineRecord> RecordsByMachineLocation { get; }
 
         public HashSet<MachineId> OpenMachines { get; }
 

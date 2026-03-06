@@ -140,7 +140,7 @@ config({
                 // Please do not upgrade this dll (or if you do, make sure this happens in coordination with the QuickBuild team)
                 { id: "System.Reflection.Metadata", version: "5.0.0", alias: "System.Reflection.Metadata.ForVBCS" },
 
-                { id: "System.Threading.Tasks.Dataflow", version: "9.0.0" },
+                { id: "System.Threading.Tasks.Dataflow", version: "9.0.7" },
 
                 // Nuget
                 { id: "NuGet.Packaging", version: "6.9.1" },
@@ -165,26 +165,26 @@ config({
                 { id: "Azure.Core.Amqp", version: "1.3.0"},
                 { id: "Azure.Messaging.EventHubs", version: "5.9.0" },
                 { id: "Microsoft.Azure.KeyVault.Core", version: "2.0.4" },
-                { id: "Microsoft.IdentityModel.Logging", version: "8.1.2" },
-                { id: "Microsoft.IdentityModel.Tokens", version: "8.1.2" },
-                { id: "System.IdentityModel.Tokens.Jwt", version: "8.1.2" },
-                { id: "Microsoft.IdentityModel.JsonWebTokens", version: "8.1.2" },
+                { id: "Microsoft.IdentityModel.Logging", version: "8.14.0" },
+                { id: "Microsoft.IdentityModel.Tokens", version: "8.14.0" },
+                { id: "System.IdentityModel.Tokens.Jwt", version: "8.14.0" },
+                { id: "Microsoft.IdentityModel.JsonWebTokens", version: "8.14.0" },
 
                 // Key Vault
                 { id: "Azure.Security.KeyVault.Secrets", version: "4.5.0" },
                 { id: "Azure.Security.KeyVault.Certificates", version: "4.5.1" },
-                { id: "Azure.Identity", version: "1.11.4" },
-                { id: "Microsoft.Identity.Client", version: "4.68.0" },
-                { id: "Microsoft.IdentityModel.Abstractions", version: "8.1.2" },
-                { id: "Microsoft.Identity.Client.Extensions.Msal", version: "4.68.0" },
-                { id: "Azure.Core", version: "1.44.1" },
+                { id: "Azure.Identity", version: "1.17.1" },
+                { id: "Microsoft.Identity.Client", version: "4.78.0" },
+                { id: "Microsoft.IdentityModel.Abstractions", version: "8.14.0" },
+                { id: "Microsoft.Identity.Client.Extensions.Msal", version: "4.78.0" },
+                { id: "Azure.Core", version: "1.50.0" },
                 { id: "Azure.Identity.Broker", version: "1.1.0" },
-                { id: "System.Memory.Data", version: "6.0.0" },
-                { id: "System.ClientModel", version: "1.2.1" },
+                { id: "System.Memory.Data", version: "8.0.1" },
+                { id: "System.ClientModel", version: "1.8.0" },
 
                 // Authentication
-                { id: "Microsoft.Identity.Client.Broker", version: "4.68.0" },
-                { id: "Microsoft.Identity.Client.NativeInterop", version: "0.16.2" },
+                { id: "Microsoft.Identity.Client.Broker", version: "4.78.0" },
+                { id: "Microsoft.Identity.Client.NativeInterop", version: "0.19.4" },
                 { id: "Azure.ResourceManager", version: "1.13.0"},
                 
                 // Package sets
@@ -194,12 +194,21 @@ config({
                 ...importFile(f`config.nuget.grpc.dsc`).pkgs,
                 ...importFile(f`config.microsoftInternal.dsc`).pkgs,
 
-                // Azure Blob Storage SDK V12
-                { id: "Azure.Storage.Blobs", version: "12.16.0" },
-                { id: "Azure.Storage.Common", version: "12.15.0" },
-                { id: "System.IO.Hashing", version: "6.0.0" },
+                // Azure Blob Storage SDK
+                { id: "Azure.Storage.Blobs", version: "12.26.0" },
+                { id: "Azure.Storage.Common", version: "12.25.0" },
+                { id: "Azure.Storage.Queues", version: "12.24.0" },
+                { id: "System.IO.Hashing", version: "9.0.7" },
                 { id: "Azure.Storage.Blobs.Batch", version: "12.10.0" },
                 { id: "Azure.Storage.Blobs.ChangeFeed", version: "12.0.0-preview.34" },
+
+                // Kusto SDK - for direct ingestion
+                { id: "Microsoft.Azure.Kusto.Data", version: "14.0.3" },
+                { id: "Microsoft.Azure.Kusto.Ingest", version: "14.0.3" },
+                { id: "Microsoft.Azure.Kusto.Ingest.Common", version: "14.0.3" },
+                { id: "Microsoft.Azure.Kusto.Cloud.Platform.Msal", version: "14.0.3" },
+                { id: "Microsoft.Azure.Kusto.Cloud.Platform", version: "14.0.3" },
+                { id: "Azure.Data.Tables", version: "12.10.0" },
 
                 // xUnit v2 (still used by most test projects)
                 { id: "xunit.abstractions", version: "2.0.3" },
@@ -404,7 +413,7 @@ config({
                 { id: "Polly.Extensions", version: "8.0.0" },
                 { id: "Microsoft.Bcl.TimeProvider", version: "8.0.1" },
                 { id: "Polly.RateLimiting", version: "8.0.0" },
-                { id: "Microsoft.IO.RecyclableMemoryStream", version: "2.3.2" },
+                { id: "Microsoft.IO.RecyclableMemoryStream", version: "3.0.1" },
 
                 // Compression streams
                 { id: "ZstdSharp.Port", version: "0.8.4" },

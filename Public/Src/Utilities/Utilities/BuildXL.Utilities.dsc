@@ -13,10 +13,12 @@ export const dll = BuildXLSdk.library({
     addPolySharpAttributes: false,
     references: [
         ...addIf(BuildXLSdk.isFullFramework,
+            NetFx.System.Data.dll,
             NetFx.System.Xml.dll,
             NetFx.System.Xml.Linq.dll,
             NetFx.System.Management.dll,
-            NetFx.System.Security.dll
+            NetFx.System.Security.dll,
+            NetFx.System.Web.dll
         ),
         Utilities.Core.dll,
 
@@ -37,6 +39,13 @@ export const dll = BuildXLSdk.library({
         ...BuildXLSdk.tplPackages,
         importFrom("Microsoft.Bcl.AsyncInterfaces").pkg,
         importFrom("Newtonsoft.Json").pkg,
+        importFrom("Azure.Core").pkg,
+        importFrom("Azure.Identity").pkg,
+        importFrom("Azure.Identity.Broker").pkg,
+        importFrom("System.ClientModel").pkg,
+        importFrom("Microsoft.Azure.Kusto.Data").pkg,
+        importFrom("Microsoft.Azure.Kusto.Ingest").pkg,
+        importFrom("Microsoft.Azure.Kusto.Ingest.Common").pkg,
         ...BuildXLSdk.systemMemoryDeployment,
     ],
     defineConstants: qualifier.configuration === "debug" ? ["DebugStringTable"] : [],

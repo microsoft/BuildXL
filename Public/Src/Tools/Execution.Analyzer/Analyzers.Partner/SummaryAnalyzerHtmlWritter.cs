@@ -1284,6 +1284,22 @@ namespace BuildXL.Execution.Analyzer.Analyzers
             button:hover {background-color: #1C1C1C}
             acronym {
                 color: #104E8B;
+            }
+
+            @media (prefers-color-scheme: dark) {
+                html, body { background-color: #1e1e1e; color: #d4d4d4; }
+                h1, h2 { color: #9cdcfe; border-bottom-color: #444; }
+                h3 { color: #b5cea8; }
+                caption { color: #9cdcfe; }
+                table { border-color: #444; }
+                th, td { border-color: #444; }
+                th { background-color: #264f78; color: #d4d4d4; }
+                tr:hover { background-color: #3c3c3c; }
+                tr:nth-child(even) { background-color: #2d2d2d; }
+                a { color: #569cd6; }
+                button { background-color: #0e639c; }
+                button:hover { background-color: #1177bb; }
+                acronym { color: #569cd6; }
             }");
             writer.WriteEndElement();
         }

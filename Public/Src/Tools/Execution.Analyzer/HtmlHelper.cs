@@ -66,6 +66,15 @@ namespace BuildXL.Execution.Analyzer
     border-left: 4px solid red;
     border-bottom: 1px solid red;
 }
+@media (prefers-color-scheme: dark) {
+    html, body { background-color: #1e1e1e; color: #d4d4d4; }
+    h1, h2 { color: #9cdcfe; border-color: #444; }
+    h3, h4, h5, h6 { color: #b5cea8; }
+    a { color: #569cd6; }
+    .keyCol { color: #9cdcfe; }
+    .warning { border-color: #c68a00; }
+    .error { border-color: #f44747; }
+}
 ")),
                     new XElement(
                         "body",

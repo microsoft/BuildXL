@@ -48,7 +48,7 @@ namespace BuildXL.Pips.Graph
         /// 72: Added PreserveoutputsTrustLevel.
         /// 73: Added Trust statically declared accesses.
         /// 74: Added IgnoreCreateProcessReport in IUnsafeSandboxConfiguration.
-        /// 75: Changed the type of <see cref="Utilities.Configuration.IUnsafeSandboxConfiguration.IgnoreDynamicWritesOnAbsentProbes"/> 
+        /// 75: Changed the type of <see cref="Utilities.Configuration.IUnsafeSandboxConfigurationWithSafeOrSafer.IgnoreDynamicWritesOnAbsentProbes"/> 
         ///     from <c>bool</c> to <see cref="Utilities.Configuration.DynamicWriteOnAbsentProbePolicy"/>.
         /// 76: Put extra salt's options in weakfingerprint instead of ExecutionAndFingerprintOptionsHash.
         /// 77: Change semantics related to tracking dependencies under untracked scopes.
@@ -82,7 +82,8 @@ namespace BuildXL.Pips.Graph
         /// 105: Add observation reclassification rules
         /// 106: Add IgnoreUntrackedPathsInFullReparsePointResolving
         /// 107: Detours transacted file operations
-        /// NOTE: When adding version 108, please also include UnsafeSandboxConfiguration.MonitorCreateProcessAsUser
+        /// NOTE: When adding version 108, please also include UnsafeSandboxConfiguration.MonitorCreateProcessAsUser. Also change UnsafeSandboxConfigurationExtensions Serialize/Deserialize 
+        /// to use IUnsafeSandboxConfigurationWithSafeOrSafer.
         /// </remarks>
         TwoPhaseV2 = 107,
     }

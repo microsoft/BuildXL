@@ -396,6 +396,10 @@ typedef struct sandbox_options {
     int is_monitoring_child_processes;
     // Whether to send a diagnostic event (which includes debugging information, as the kernel function name) for each event processed
     bool enable_diagnostics;
+    // Servicing flag to turn a security_inode_getattr read into a probe. In the past this was a probe, but retrieving an inode
+    // may give users information on the content of the file (e.g., its size or whether it is a symlink), so we turned it into a read.
+    // The change may have an impact on cache hit rate, so we want to be able to toggle it on and off for testing and diagnostics purposes.
+    bool security_inode_getattr_is_probe;
 } sandbox_options;
 
 /**

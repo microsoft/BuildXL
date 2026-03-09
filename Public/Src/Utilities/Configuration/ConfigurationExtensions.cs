@@ -58,7 +58,7 @@ namespace BuildXL.Utilities.Configuration
         /// Whether full reparse point resolving should be enabled
         /// </summary>
         /// <remarks>
-        /// The value can be explicitly configured with <see cref="IUnsafeSandboxConfiguration.EnableFullReparsePointResolving"/>, in which case it is honored. Otherwise
+        /// The value can be explicitly configured with <see cref="IUnsafeSandboxConfigurationWithSafeOrSafer.EnableFullReparsePointResolving"/>, in which case it is honored. Otherwise
         /// if any configured resolver requires it via <see cref="IResolverSettings.RequestFullReparsePointResolving"/>, then it is enabled.
         /// </remarks>
         public static bool EnableFullReparsePointResolving(this IConfiguration configuration)

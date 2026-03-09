@@ -287,7 +287,8 @@ namespace BuildXL.ProcessPipExecutor
         /// All reported file accesses.
         /// </summary>
         /// <remarks>
-        /// This field is null if <see cref=" BuildXL.Utilities.Configuration.ISandboxConfiguration.LogObservedFileAccesses"/> is false or <see cref=" BuildXL.Utilities.Configuration.IUnsafeSandboxConfiguration.MonitorFileAccesses"/> is false.
+        /// This field is null if <see cref=" BuildXL.Utilities.Configuration.ISandboxConfiguration.LogObservedFileAccesses"/> is false or 
+        /// <see cref=" BuildXL.Utilities.Configuration.IUnsafeSandboxConfigurationWithSafeOrSafer.MonitorFileAccesses"/> is false.
         /// </remarks>
         public readonly IReadOnlyList<ReportedFileAccess> AllReportedFileAccesses;
 

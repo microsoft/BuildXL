@@ -28,25 +28,25 @@ namespace BuildXL.Utilities.Configuration
         // Extension methods
 
         /// <nodoc/>
-        public static RewritePolicy DoubleWritePolicy(this IUnsafeSandboxConfiguration configuration) =>
+        public static RewritePolicy DoubleWritePolicy(this IUnsafeSandboxConfigurationWithSafeOrSafer configuration) =>
             configuration.DoubleWritePolicy ?? DefaultDoubleWritePolicy;
 
         /// <nodoc/>
-        public static RewritePolicy SourceWritePolicy(this IUnsafeSandboxConfiguration configuration) =>
+        public static RewritePolicy SourceWritePolicy(this IUnsafeSandboxConfigurationWithSafeOrSafer configuration) =>
             configuration.DoubleWritePolicy ?? DefaultSourceRewritePolicy;
 
         /// <summary>
-        /// Whether <see cref="IUnsafeSandboxConfiguration.EnableFullReparsePointResolving"/> is enabled and we are in a Windows-based OS
+        /// Whether <see cref="IUnsafeSandboxConfigurationWithSafeOrSafer.EnableFullReparsePointResolving"/> is enabled and we are in a Windows-based OS
         /// </summary>
-        public static bool EnableFullReparsePointResolving(this IUnsafeSandboxConfiguration configuration) =>
+        public static bool EnableFullReparsePointResolving(this IUnsafeSandboxConfigurationWithSafeOrSafer configuration) =>
             ((configuration.EnableFullReparsePointResolving ?? DefaultEnableFullReparsePointResolving) || !configuration.IgnoreFullReparsePointResolving);
 
         /// <nodoc/>
-        public static bool SkipFlaggingSharedOpaqueOutputs(this IUnsafeSandboxConfiguration configuration) =>
+        public static bool SkipFlaggingSharedOpaqueOutputs(this IUnsafeSandboxConfigurationWithSafeOrSafer configuration) =>
             (configuration.SkipFlaggingSharedOpaqueOutputs ?? DefaultSkipFlaggingSharedOpaqueOutputs);
 
         /// <nodoc/>
-        public static bool DoNotApplyAllowListToDynamicOutputs(this IUnsafeSandboxConfiguration configuration) =>
+        public static bool DoNotApplyAllowListToDynamicOutputs(this IUnsafeSandboxConfigurationWithSafeOrSafer configuration) =>
             (configuration.DoNotApplyAllowListToDynamicOutputs ?? DefaultsDoNotApplyAllowListToDynamicOutputs);
     }
 }

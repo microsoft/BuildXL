@@ -49,6 +49,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
             MonitorCreateProcessAsUser = true;
 
+            TreatStatAsProbe = true;
+
             // Make sure to update SafeOptions below if necessary when new flags are added
         }
 
@@ -66,6 +68,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             IgnoreDeviceIoControlGetReparsePoint = true,
             IgnoreGetFinalPathNameByHandle = true,
             IgnoreUntrackedPathsInFullReparsePointResolving = false,
+            TreatStatAsProbe = false,
         };
 
         /// <nodoc />
@@ -99,6 +102,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             DoNotApplyAllowListToDynamicOutputs = template.DoNotApplyAllowListToDynamicOutputs;
             IgnoreUntrackedPathsInFullReparsePointResolving = template.IgnoreUntrackedPathsInFullReparsePointResolving;
             MonitorCreateProcessAsUser = template.MonitorCreateProcessAsUser;
+            TreatStatAsProbe = template.TreatStatAsProbe;
         }
 
         /// <inheritdoc />
@@ -157,6 +161,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public RewritePolicy? DoubleWritePolicy { get; set; }
+
+        /// <inheritdoc />
+        public bool TreatStatAsProbe { get; set; }
 
         /// <inheritdoc />
         public bool IgnoreUndeclaredAccessesUnderSharedOpaques { get; set; }

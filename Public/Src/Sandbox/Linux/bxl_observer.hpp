@@ -379,6 +379,7 @@ public:
 
     bool IsMonitoringChildProcesses() const { return !fam_ || CheckMonitorChildProcesses(fam_->GetFlags()); }
     bool IsReportingProcessArgs() const { return !fam_ || CheckReportProcessArgs(fam_->GetFlags()); }
+    bool ShouldSecurityInodeGetattrBeProbe() const { return !fam_ || CheckSecurityInodeGetattrIsProbe(fam_->GetExtraFlags()); }
 
     void report_intermediate_symlinks(const char *pathname, pid_t associatedPid, pid_t associatedParentPid);
 

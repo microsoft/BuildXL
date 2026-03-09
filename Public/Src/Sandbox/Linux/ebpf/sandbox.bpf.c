@@ -1198,7 +1198,15 @@ int BPF_PROG(security_inode_getattr_exit, const struct path *path, int ret)
         return 0;
     }
 
-    if (!should_send_path(runner_pid, kGenericProbe, path))
+    operation_type operation = kGenericRead;
+
+    // Turn this operation into a probe if the pip has the corresponding option enabled.
+    struct sandbox_options *options = bpf_map_lookup_elem(&sandbox_options_per_pip, &runner_pid);
+    if (options && options->security_inode_getattr_is_probe) {
+        operation = kGenericProbe;
+    }
+
+    if (!should_send_path(runner_pid, operation, path))
     {
         return 0;
     }
@@ -1215,7 +1223,7 @@ int BPF_PROG(security_inode_getattr_exit, const struct path *path, int ret)
 
     submit_file_access(
         runner_pid,
-        kGenericProbe,
+        operation,
         KERNEL_FUNCTION(security_inode_getattr),
         // A path coming from a dentry is always fully resolved
         noResolve,

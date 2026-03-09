@@ -109,6 +109,9 @@ namespace BuildXL.Processes
             IgnoreDeviceIoControlGetReparsePoint = true;
             IgnoreGetFinalPathNameByHandle = true;
             MonitorCreateProcessAsUser = false;
+            // This is an unsafe flag with an unsafe default, so that we don't accidentally break customers who rely on the old behavior. 
+            // We will eventually flip the default and/or remove the flag.
+            SecurityInodeGetattrIsProbe = true;
         }
 
         private bool GetFlag(FileAccessManifestFlag flag) => (m_fileAccessManifestFlag & flag) != 0;
@@ -562,6 +565,19 @@ namespace BuildXL.Processes
         {
             get => GetExtraFlag(FileAccessManifestExtraFlag.MonitorCreateProcessAsUser);
             set => SetExtraFlag(FileAccessManifestExtraFlag.MonitorCreateProcessAsUser, value);
+        }
+
+        /// <summary>
+        /// When enabled, the Linux sandbox will treat SecurityInodeGetattr operations as a probe.
+        /// </summary>
+        /// <remarks>
+        /// Only applicable on Linux.
+        /// Otherwise, security_inode_getattr is treated as a regular file read
+        /// </remarks>
+        public bool SecurityInodeGetattrIsProbe
+        {
+            get => GetExtraFlag(FileAccessManifestExtraFlag.SecurityInodeGetAttrIsProbe);
+            set => SetExtraFlag(FileAccessManifestExtraFlag.SecurityInodeGetAttrIsProbe, value);
         }
 
         /// <summary>
@@ -1350,6 +1366,7 @@ namespace BuildXL.Processes
             IgnoreDeviceIoControlGetReparsePoint = 0x40,
             IgnoreUntrackedPathsInFullReparsePointResolving = 0x80,
             MonitorCreateProcessAsUser = 0x100,
+            SecurityInodeGetAttrIsProbe = 0x200,
         }
 
         private readonly struct FileAccessScope

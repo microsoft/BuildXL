@@ -354,6 +354,8 @@ namespace BuildXL.ProcessPipExecutor
                     IgnoreDeviceIoControlGetReparsePoint = m_sandboxConfig.UnsafeSandboxConfiguration.IgnoreDeviceIoControlGetReparsePoint,
                     IgnoreUntrackedPathsInFullReparsePointResolving = m_sandboxConfig.UnsafeSandboxConfiguration.IgnoreUntrackedPathsInFullReparsePointResolving,
                     MonitorCreateProcessAsUser = m_sandboxConfig.UnsafeSandboxConfiguration.MonitorCreateProcessAsUser,
+                    // The name in the sandbox configuration is more user friendly, but for the sandbox we use the actual kernel function in the LSM that corresponds to the stat family
+                    SecurityInodeGetattrIsProbe = m_sandboxConfig.UnsafeSandboxConfiguration.TreatStatAsProbe
                 };
 
             if (!MonitorFileAccesses)

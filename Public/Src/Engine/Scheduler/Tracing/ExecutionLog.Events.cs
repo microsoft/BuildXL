@@ -514,6 +514,11 @@ namespace BuildXL.Scheduler.Tracing
         /// </summary>
         public LinuxFingerprintingVersion LinuxFingerprintingVersion;
 
+        /// <summary>
+        /// Treats stat calls as probes. Linux specific.
+        /// </summary>
+        public bool TreatStatAsProbe;
+
         /// <inheritdoc />
         public ExecutionLogEventMetadata<BuildSessionConfigurationEventData> Metadata => ExecutionLogMetadata.BuildSessionConfiguration;
 
@@ -551,6 +556,7 @@ namespace BuildXL.Scheduler.Tracing
             LinuxOSName = salts.LinuxOSName;
             UsingEBPFSandbox = salts.UsingEBPFSandbox;
             LinuxFingerprintingVersion = salts.LinuxFingerprintingVersion;
+            TreatStatAsProbe = salts.TreatStatAsProbe;
         }
 
         /// <summary>
@@ -589,7 +595,8 @@ namespace BuildXL.Scheduler.Tracing
                        honorDirectoryCasingOnDisk: HonorDirectoryCasingOnDisk,
                        linuxOSName: LinuxOSName,
                        usingEBPFSandbox: UsingEBPFSandbox,
-                       linuxFingerprintingVersion: LinuxFingerprintingVersion
+                       linuxFingerprintingVersion: LinuxFingerprintingVersion,
+                       treatStatAsProbe: TreatStatAsProbe
                    )
                    {
                        // Constructor appends EngineEnvironmentSettings.FingerprintSalt
@@ -631,6 +638,7 @@ namespace BuildXL.Scheduler.Tracing
             writer.Write(LinuxOSName);
             writer.Write(UsingEBPFSandbox);
             writer.Write((int)LinuxFingerprintingVersion);
+            writer.Write(TreatStatAsProbe);
         }
 
         /// <inheritdoc />
@@ -665,6 +673,7 @@ namespace BuildXL.Scheduler.Tracing
             LinuxOSName = reader.ReadString();
             UsingEBPFSandbox = reader.ReadBoolean();
             LinuxFingerprintingVersion = (LinuxFingerprintingVersion) reader.ReadInt32();
+            TreatStatAsProbe = reader.ReadBoolean();
         }
     }
 

@@ -301,6 +301,59 @@ namespace Test.BuildXL.Processes
         }
 
         [Theory]
+        [InlineData(true, RequestedAccess.Probe, ReportedFileOperation.Probe)]
+        [InlineData(false, RequestedAccess.Read, ReportedFileOperation.ReadFile)]
+        public void StatAccessCanBeTreatedAsProbe(bool treatStatAsProbe, RequestedAccess expectedRequestedAccess, ReportedFileOperation expectedOperation)
+        {
+            var fileAccessManifest = new FileAccessManifest(Context.PathTable)
+            {
+                FailUnexpectedFileAccesses = false,
+                ReportFileAccesses = true,
+                MonitorChildProcesses = true,
+                PipId = 1,
+                EnableLinuxSandboxLogging = true,
+                SecurityInodeGetattrIsProbe = treatStatAsProbe,
+            };
+
+            var statTarget = Path.Combine(TemporaryDirectory, "stat_target");
+            File.WriteAllText(statTarget, "content");
+
+            var info =
+                new SandboxedProcessInfo(
+                    Context.PathTable,
+                    new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory),
+                    "/usr/bin/stat",
+                    fileAccessManifest,
+                    disableConHostSharing: false,
+                    loggingContext: LoggingContext,
+                    useGentleKill: true)
+                {
+                    Arguments = statTarget,
+                    WorkingDirectory = TemporaryDirectory,
+                    PipSemiStableHash = fileAccessManifest.PipId,
+                    PipDescription = $"EBPF stat access mode test (treat as probe: {treatStatAsProbe})",
+                    SandboxConnection = new SandboxConnectionLinuxEBPF(isInTestMode: true),
+                };
+
+            var process = SandboxedProcessFactory.StartAsync(info, forceSandboxing: true).GetAwaiter().GetResult();
+            var result = process.GetResultAsync().GetAwaiter().GetResult();
+            AssertExitCode(result, 0);
+
+            var expectedPath = AbsolutePath.Create(Context.PathTable, statTarget);
+            var matchingAccesses = result.FileAccesses?
+                .Where(access => access.ManifestPath == expectedPath)
+                .ToList() ?? new List<ReportedFileAccess>();
+
+            var matchingAccess = matchingAccesses.SingleOrDefault(access => access.RequestedAccess == expectedRequestedAccess && access.Operation == expectedOperation);
+
+            XAssert.IsNotNull(
+                matchingAccess,
+                $"Expected stat access to be '{expectedRequestedAccess}' / '{expectedOperation}' for '{statTarget}' when SecurityInodeGetattrIsProbe={treatStatAsProbe}.{Environment.NewLine}" +
+                $"Matching accesses for path:{Environment.NewLine}{string.Join(Environment.NewLine, matchingAccesses.Select(a => a.Describe()))}{Environment.NewLine}" +
+                $"All reported accesses:{Environment.NewLine}{string.Join(Environment.NewLine, result.FileAccesses?.Select(a => a.Describe()) ?? Array.Empty<string>())}");
+        }
+
+        [Theory]
         [InlineData("/test/this//path", "/test/this/path")]
         [InlineData("/test/this/./path", "/test/this/path")]
         [InlineData("/test/this/path/", "/test/this/path")]

@@ -1171,6 +1171,9 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   <data name="HelpText_DisplayHelp_Unsafe_MonitorCreateProcessAsUser" xml:space="preserve">
     <value>Control whether detours on Windows will monitor CreateProcessAsUser[A|W]. Enabled by default.</value>
   </data>
+  <data name="HelpText_DisplayHelp_Unsafe_TreatStatAsProbe" xml:space="preserve">
+    <value>Control whether on Linux stat calls are treated as probes. Enabled by default. The correct behavior is to treat stat calls as reads. The unsafe option is for now the default behavior for compatibility reasons.</value>
+  </data>
   <data name="HelpText_DisplayHelp_BuildManifestVerifyFileContentOnHashComputation" xml:space="preserve">
     <value>When enabled, ensures that file's content matches the hash provided by the engine before proceeding to compute a build manifest hash for that file.</value>
   </data>

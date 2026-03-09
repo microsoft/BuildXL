@@ -49,7 +49,9 @@ namespace BuildXL.Pips.Graph
             honorDirectoryCasingOnDisk: false,
             linuxOSName: OperatingSystemHelper.IsLinuxOS ? OperatingSystemHelperExtension.GetLinuxDistribution().Id : string.Empty,
             usingEBPFSandbox: false,
-            linuxFingerprintingVersion: LinuxFingerprintingVersion.Version);
+            linuxFingerprintingVersion: LinuxFingerprintingVersion.Version,
+            // This matches the unsafe default
+            treatStatAsProbe: true);
 
         /// <summary>
         /// Returns a default value for this struct.
@@ -100,7 +102,8 @@ namespace BuildXL.Pips.Graph
                 config.Cache.HonorDirectoryCasingOnDisk,
                 OperatingSystemHelper.IsLinuxOS ? OperatingSystemHelperExtension.GetLinuxDistribution().Id : string.Empty,
                 OperatingSystemHelper.IsLinuxOS && config.Sandbox.EnableEBPFLinuxSandbox,
-                LinuxFingerprintingVersion.Version
+                LinuxFingerprintingVersion.Version,
+                config.Sandbox.UnsafeSandboxConfiguration.TreatStatAsProbe
             )
         {
         }
@@ -148,6 +151,7 @@ namespace BuildXL.Pips.Graph
         /// <param name="linuxOSName">The linux os name (Ubuntu or Mariner), string.Empty if current environment is windows</param>
         /// <param name="usingEBPFSandbox">Whether the EBPF sandbox is being used (on Linux)</param>
         /// <param name="linuxFingerprintingVersion">Version for Linux-specific breaking changes in pip fingerprinting</param>
+        /// <param name="treatStatAsProbe">Whether /unsafe_treatStatAsProbe was passed to BuildXL.</param>
         public ExtraFingerprintSalts(
             bool ignoreSetFileInformationByHandle,
             bool ignoreZwRenameFileInformation,
@@ -176,7 +180,8 @@ namespace BuildXL.Pips.Graph
             bool honorDirectoryCasingOnDisk,
             string linuxOSName,
             bool usingEBPFSandbox,
-            LinuxFingerprintingVersion linuxFingerprintingVersion)
+            LinuxFingerprintingVersion linuxFingerprintingVersion,
+            bool treatStatAsProbe)
         {
             IgnoreSetFileInformationByHandle = ignoreSetFileInformationByHandle;
             IgnoreZwRenameFileInformation = ignoreZwRenameFileInformation;
@@ -207,6 +212,7 @@ namespace BuildXL.Pips.Graph
             LinuxOSName = linuxOSName;
             UsingEBPFSandbox = usingEBPFSandbox;
             LinuxFingerprintingVersion = linuxFingerprintingVersion;
+            TreatStatAsProbe = treatStatAsProbe;
         }
 #pragma warning restore CS1572
 
@@ -358,6 +364,11 @@ namespace BuildXL.Pips.Graph
         /// </summary>
         public LinuxFingerprintingVersion LinuxFingerprintingVersion { get; }
 
+        /// <summary>
+        /// Treats stat calls as probes. Linux specific.
+        /// </summary>
+        public bool TreatStatAsProbe { get; }
+
         /// <nodoc />
         public static bool operator ==(ExtraFingerprintSalts left, ExtraFingerprintSalts right)
         {
@@ -406,7 +417,8 @@ namespace BuildXL.Pips.Graph
                 && other.HonorDirectoryCasingOnDisk.Equals(HonorDirectoryCasingOnDisk)
                 && string.Equals(LinuxOSName, other.LinuxOSName)
                 && UsingEBPFSandbox == other.UsingEBPFSandbox
-                && LinuxFingerprintingVersion == other.LinuxFingerprintingVersion;
+                && LinuxFingerprintingVersion == other.LinuxFingerprintingVersion
+                && TreatStatAsProbe == other.TreatStatAsProbe;
         }
 
         /// <inheritdoc />
@@ -448,6 +460,9 @@ namespace BuildXL.Pips.Graph
                 hashCode = (hashCode * 397) ^ (string.IsNullOrEmpty(LinuxOSName) ? 0 : LinuxOSName.GetHashCode());
                 hashCode = (hashCode * 397) ^ UsingEBPFSandbox.GetHashCode();
                 hashCode = (hashCode * 397) ^ (LinuxFingerprintingVersion.GetHashCode());
+                // This is an unsafe flag with an unsafe default. Only change the hash code if the flag is explicitly set to false,
+                // which is the safe value, to avoid unnecessary cache misses.
+                hashCode = (hashCode * 397) ^ (TreatStatAsProbe ? 0 : 1).GetHashCode();
 
                 return hashCode;
             }
@@ -541,6 +556,12 @@ namespace BuildXL.Pips.Graph
             {
                 fingerprinter.Add(nameof(UsingEBPFSandbox), UsingEBPFSandbox ? 1 : 0);
                 fingerprinter.Add(nameof(LinuxFingerprintingVersion), (int) LinuxFingerprintingVersion);
+            }
+
+            // This is a Linux-specific unsafe flag with an unsafe default. Only change the fingerprint if the flag is explicitly set to false, which is the safe value, to avoid unnecessary cache misses.
+            if (OperatingSystemHelper.IsLinuxOS && !TreatStatAsProbe)
+            {
+                fingerprinter.Add(nameof(TreatStatAsProbe), 1);
             }
         }
 

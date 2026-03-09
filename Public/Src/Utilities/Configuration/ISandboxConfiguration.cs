@@ -246,7 +246,8 @@ namespace BuildXL.Utilities.Configuration
 
         /// <summary>
         /// List of directory paths where full reparse point resolving will be applied to any path under them.
-        /// This list is only considered when <see cref="IUnsafeSandboxConfiguration.IgnoreFullReparsePointResolving"/> is set to true and<see cref="IUnsafeSandboxConfiguration.EnableFullReparsePointResolving"/> is set to false. 
+        /// This list is only considered when <see cref="IUnsafeSandboxConfigurationWithSafeOrSafer.IgnoreFullReparsePointResolving"/> 
+        /// is set to true and<see cref="IUnsafeSandboxConfigurationWithSafeOrSafer.EnableFullReparsePointResolving"/> is set to false. 
         /// </summary>
         IReadOnlyList<AbsolutePath> DirectoriesToEnableFullReparsePointParsing { get; }
 

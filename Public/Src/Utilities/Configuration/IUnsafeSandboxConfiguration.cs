@@ -37,15 +37,52 @@ namespace BuildXL.Utilities.Configuration
     /// <summary>
     /// Unsafe Sandbox Configuration
     /// </summary>
-    public interface IUnsafeSandboxConfiguration
+    public interface IUnsafeSandboxConfiguration : IUnsafeSandboxConfigurationWithSafeOrSafer
     {
+        /// <summary>
+        /// When enabled, if BuildXL detects that a tool accesses a file that was not declared in the specification dependencies, it is treated as an error instead of a warning. Turning this
+        /// option off results in an unsafe configuration (for diagnostic purposes only). Defaults to on.
+        /// </summary>
+        /// <remarks>
+        /// When a pip has an unexpected file access, PipExecutor.cs enforces that its metadata is not stored to the cache. Therefore it is not necessary 
+        /// to consider this setting for safe or safer caching.
+        /// </remarks>
+        bool UnexpectedFileAccessesAreErrors { get; }
+
         /// <summary>
         /// Whether BuildXL preserves the existing output file from a previous invocation of a process before invoking it.
         /// Preserving output files can be a source of nondeterminism since the behavior of the process can change based
         /// on the state of the outputs.
         /// </summary>
+        /// <remarks>
+        /// The sandbox configuration setting globally decides whether preserve outputs. Whether the current run is as safe 
+        /// or safer also depends on whether preserve outputs is allowed for the pip in question. Because that requires pip 
+        /// specific details, that is determined in UnsafeOptions
+        /// </remarks>
         PreserveOutputsMode PreserveOutputs { get; }
 
+        /// <summary>
+        /// Treats stat calls as probes. Linux specific.
+        /// </summary>
+        bool TreatStatAsProbe { get; }
+
+        // NOTE: if you add a property here, there are two main options regarding how the new flag will behave:
+        // 1) The new flag is expected to be on and off for the same pips, at least for a period of time, and you think that pips that run with
+        // the unsafe option on should benefit from getting cache hits from the same pips running with the unsafe option off. In that case, you should:
+        //  a) Add the new flag to IUnsafeSandboxConfigurationWithSafeOrSafer and UnsafeSandboxConfigurationExtensions Serialize/Deserialize/IsAsSafeOrSaferThan methods.
+        //  b) You should also bump the figerprint version in PipFingerprintingVersion (the serialized unsafe options go into the pathset, so you need
+        //  to force a cache miss via weak fp so serialization does not break)
+        // 2) You don't think that getting hits across safe/unsafe pips is needed. In that case, you can just add the new flag to IUnsafeSandboxConfiguration.
+        // You don't need to modify Serialize/Deserialize/IsAsSafeOrSaferThan methods. You may or may not need to update how the weak fingerprint is computed (bump the fingerprint version in PipFingerprintingVersion,
+        // update ExtraFingerprintSalt) depending on whether the new flag affects pip execution.
+    }
+
+    /// <summary>
+    /// Unsafe Sandbox Configuration with options that can be considered safe or safer, so an unsafe pip can
+    /// get a hit from a safe counterpart.
+    /// </summary>
+    public interface IUnsafeSandboxConfigurationWithSafeOrSafer
+    {
         /// <summary>
         /// Trust level of how much we trust the preserveoutputs per pip.
         /// </summary>
@@ -150,12 +187,6 @@ namespace BuildXL.Utilities.Configuration
         SandboxKind SandboxKind { get; }
 
         /// <summary>
-        /// When enabled, if BuildXL detects that a tool accesses a file that was not declared in the specification dependencies, it is treated as an error instead of a warning. Turning this
-        /// option off results in an unsafe configuration (for diagnostic purposes only). Defaults to on.
-        /// </summary>
-        bool UnexpectedFileAccessesAreErrors { get; }
-
-        /// <summary>
         /// Whether BuildXL is to detour the GetFinalPathNameByHandle API.
         /// </summary>
         /// <remarks>
@@ -244,9 +275,7 @@ namespace BuildXL.Utilities.Configuration
         /// </summary>
         bool MonitorCreateProcessAsUser { get; }
 
-        // NOTE: if you add a property here, don't forget to update UnsafeSandboxConfigurationExtensions
-
-        // NOTE: whenever unsafe options change, the fingerprint version needs to be bumped
+        // NOTE: whenever unsafe options change, see note at the bottom of ISandboxConfiguration
     }
 
     /// <summary>
@@ -262,12 +291,15 @@ namespace BuildXL.Utilities.Configuration
         /// <summary>
         /// Returns whether sandboxing is disabled.
         /// </summary>
-        public static bool DisableDetours(this IUnsafeSandboxConfiguration @this)
+        public static bool DisableDetours(this IUnsafeSandboxConfigurationWithSafeOrSafer @this)
         {
             return @this.SandboxKind == SandboxKind.None;
         }
 
-        /// <nodoc/>
+        /// <summary>
+        /// TODO: Change to IUnsafeSandboxConfigurationWithSafeOrSafer on the next fingerprint version bump.
+        /// Properties here that are not part of IUnsafeSandboxConfigurationWithSafeOrSafer shouldn't be serialized (just because serializing them is just done so we can call IsAsSafeOrSaferThan on them)
+        /// </summary>
         public static void Serialize(this IUnsafeSandboxConfiguration @this, BuildXLWriter writer)
         {
             writer.Write((byte)@this.SandboxKind);
@@ -316,7 +348,10 @@ namespace BuildXL.Utilities.Configuration
             writer.Write(@this.MonitorCreateProcessAsUser);
         }
 
-        /// <nodoc/>
+        /// <summary>
+        /// TODO: Change to IUnsafeSandboxConfigurationWithSafeOrSafer on the next fingerprint version bump.
+        /// Properties here that are not part of IUnsafeSandboxConfigurationWithSafeOrSafer shouldn't be serialized (just because serializing them is just done so we can call IsAsSafeOrSaferThan on them)
+        /// </summary>
         public static IUnsafeSandboxConfiguration Deserialize(BuildXLReader reader)
         {
             return new Mutable.UnsafeSandboxConfiguration()
@@ -355,15 +390,8 @@ namespace BuildXL.Utilities.Configuration
         /// <summary>
         /// Returns <code>true</code> if <paramref name="lhs"/> does not contain a single unsafe value that is not present in <paramref name="rhs"/>.
         /// </summary>
-        public static bool IsAsSafeOrSaferThan(this IUnsafeSandboxConfiguration lhs, IUnsafeSandboxConfiguration rhs)
+        public static bool IsAsSafeOrSaferThan(this IUnsafeSandboxConfigurationWithSafeOrSafer lhs, IUnsafeSandboxConfigurationWithSafeOrSafer rhs)
         {
-            // Intentionally missing fields:
-            //
-            // - UnexpectedFileAccessesAreErrors: When a pip has an unexpected file access, PipExecutor.cs enforces that its metadata
-            //      is not stored to the cache. Therefore it is not necessary to consider this setting for sake of caching.
-            // - PreserveOutputs: The sandbox configuration setting globally decides whether preserve outputs.
-            //      Whether the current run is as safe or safer also depends on whether preserve outputs is allowed for
-            //      the pip in question. Because that requires pip specific details, that is determined in UnsafeOptions
             return IsAsSafeOrSafer(lhs.DisableDetours(), rhs.DisableDetours(), SafeDefaults.DisableDetours())
                 && IsAsSafeOrSafer(lhs.ExistingDirectoryProbesAsEnumerations, rhs.ExistingDirectoryProbesAsEnumerations, SafeDefaults.ExistingDirectoryProbesAsEnumerations)
                 && IsAsSafeOrSafer(lhs.IgnoreGetFinalPathNameByHandle, rhs.IgnoreGetFinalPathNameByHandle, SafeDefaults.IgnoreGetFinalPathNameByHandle)

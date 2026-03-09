@@ -947,6 +947,10 @@ namespace BuildXL
                 "/unsafe_MonitorCreateProcessAsUser[+|-]",
                 Strings.HelpText_DisplayHelp_Unsafe_MonitorCreateProcessAsUser);
 
+            hw.WriteOption(
+                "/unsafe_TreatStatAsProbe[+|-]",
+                Strings.HelpText_DisplayHelp_Unsafe_TreatStatAsProbe);
+
             #endregion
 
             hw.WriteBanner(

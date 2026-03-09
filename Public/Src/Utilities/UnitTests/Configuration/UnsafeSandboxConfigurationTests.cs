@@ -10,6 +10,7 @@ using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
+using System.Linq;
 
 namespace Test.BuildXL.Utilities
 {
@@ -122,7 +123,11 @@ namespace Test.BuildXL.Utilities
         public static IEnumerable<object[]> TestSerializationIncludesPropertyData()
         {
             var result = new List<object[]>();
-            foreach (var propertyInfo in typeof(UnsafeSandboxConfiguration).GetProperties())
+            // We want all the properties in UnsafeSandboxConfiguration that are also in IUnsafeSandboxConfigurationWithSafeOrSafer,
+            // since those are the properties that affect the safety comparison and should be accounted for during serialization.
+            foreach (var propertyInfo in typeof(UnsafeSandboxConfiguration)
+                .GetProperties()
+                .Where(property => typeof(IUnsafeSandboxConfigurationWithSafeOrSafer).GetProperty(property.Name) != null))
             {
                 Type propertyType = propertyInfo.PropertyType;
                 var nullableUnderlyingType = Nullable.GetUnderlyingType(propertyType);

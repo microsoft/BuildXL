@@ -472,6 +472,7 @@ int PopulateOptionsMapFromFam()
         .root_pid = g_root_pid,
         .is_monitoring_child_processes = g_bxl->IsMonitoringChildProcesses(),
         .enable_diagnostics = g_bxl->LogDebugEnabled(),
+        .security_inode_getattr_is_probe = g_bxl->ShouldSecurityInodeGetattrBeProbe()
     };
 
     if (bpf_map_update_elem(g_sandbox_options_per_pip_map_fd, &key, &options, BPF_ANY))

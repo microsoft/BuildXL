@@ -1167,6 +1167,9 @@ namespace BuildXL
                             "unsafe_MonitorCreateProcessAsUser",
                             sign => sandboxConfiguration.UnsafeSandboxConfigurationMutable.MonitorCreateProcessAsUser = sign),
                         OptionHandlerFactory.CreateBoolOption(
+                            "unsafe_TreatStatAsProbe",
+                            sign => sandboxConfiguration.UnsafeSandboxConfigurationMutable.TreatStatAsProbe = sign),
+                        OptionHandlerFactory.CreateBoolOption(
                             "unsafe_MonitorFileAccesses",
                             sign =>
                             sandboxConfiguration.UnsafeSandboxConfigurationMutable.MonitorFileAccesses = sign,

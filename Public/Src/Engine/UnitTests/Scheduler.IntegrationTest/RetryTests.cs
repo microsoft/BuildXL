@@ -4,12 +4,17 @@
 using System.IO;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities.Core;
+using BuildXL.ProcessPipExecutor;
+using BuildXL.Scheduler;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.Scheduler;
 using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using Xunit.Abstractions;
+
+
+using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
 
 namespace IntegrationTest.BuildXL.Scheduler
 {
@@ -53,6 +58,64 @@ namespace IntegrationTest.BuildXL.Scheduler
             // Expect a warning for each retry and an error for the final failure
             IgnoreWarnings();
             AssertErrorEventLogged(LogEventId.ExcessivePipRetriesDueToRetryableFailures);
+        }
+
+
+        /// <summary>
+        /// Verifies that detours injection failures are retried successfully and the build succeeds, without logging errors for the failed attempts.
+        /// </summary>
+        [TheoryIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [InlineData(2)]
+        [InlineData(3)]
+        [Feature(Features.PipRetry)]
+        public void DetoursInjectionFailureRetriedSuccessfullyNotError(int numOfRetriesBeforeSucceed)
+        {
+            Context.TestHooks = new TestHooks() { SimulateDetoursInjectionFailureCount = numOfRetriesBeforeSucceed };
+            ResetPipGraphBuilder();
+
+            FileArtifact stateFile = FileArtifact.CreateOutputFile(ObjectRootPath.Combine(Context.PathTable, "stateFile.txt"));
+
+            var builder = CreatePipBuilder(new Operation[]
+            {
+                Operation.WriteFile(CreateOutputFileArtifact()),
+                Operation.SucceedOnRetry(stateFile, failExitCode: -1, numberOfRetriesToSucceed: numOfRetriesBeforeSucceed)
+            });
+            builder.AddUntrackedFile(stateFile.Path);
+            SchedulePipBuilder(builder);
+
+            var result = RunScheduler();
+            result.AssertSuccess();
+
+            AssertErrorEventLogged(ProcessesLogEventId.PipProcessError, count: 0);
+            AssertErrorEventLogged(LogEventId.PipFailedDueToSandboxInternalError, count: 0);      
+
+            AssertVerboseEventLogged(LogEventId.PipProcessRetriedInline, count: numOfRetriesBeforeSucceed);       
+        }
+
+        /// <summary>
+        /// Verifies that when all retries are exhausted, the final attempt logs PipFailedDueToSandboxInternalError. 
+        /// </summary>
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        [Feature(Features.PipRetry)]
+        public void DetoursInjectionFailureExhaustsRetriesLogsError()
+        {
+            int retriesExceedingMax = PipExecutor.InternalSandboxedProcessExecutionFailureRetryCountMax + 1;
+            Context.TestHooks = new TestHooks() { SimulateDetoursInjectionFailureCount = retriesExceedingMax };
+            ResetPipGraphBuilder();
+            FileArtifact stateFile = FileArtifact.CreateOutputFile(ObjectRootPath.Combine(Context.PathTable, "stateFile.txt"));
+
+            var builder = CreatePipBuilder(new Operation[]
+            {
+                Operation.WriteFile(CreateOutputFileArtifact()),
+                Operation.SucceedOnRetry(stateFile, failExitCode: -1, numberOfRetriesToSucceed: retriesExceedingMax)
+            });
+            builder.AddUntrackedFile(stateFile.Path);
+            SchedulePipBuilder(builder);
+
+            var result = RunScheduler();
+            result.AssertFailure();
+            AssertErrorEventLogged(ProcessesLogEventId.PipProcessError, count: 0);  // never logged
+            AssertErrorEventLogged(LogEventId.PipFailedDueToSandboxInternalError, count: 1); 
         }
     }
 }

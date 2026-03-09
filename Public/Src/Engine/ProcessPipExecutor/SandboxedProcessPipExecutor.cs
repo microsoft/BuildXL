@@ -1289,6 +1289,11 @@ namespace BuildXL.ProcessPipExecutor
                 {
                     m_processIdListener?.Invoke(process.ProcessId);
                     result = await process.GetResultAsync();
+                    if (m_context?.TestHooks?.SimulateDetoursInjectionFailureCount > 0)
+                    {
+                        result.HasDetoursInjectionFailures = true;
+                        m_context.TestHooks.SimulateDetoursInjectionFailureCount--;
+                    }
                 }
                 finally
                 {
@@ -1929,11 +1934,16 @@ namespace BuildXL.ProcessPipExecutor
             //         is set (failedDueToWritingToStdErr)
             bool mainProcessSuccess = mainProcessExitedCleanly && allOutputsPresent && !failedDueToWritingToStdErr;
             bool azureWatsonRetriable = !mainProcessSuccess && !result.TimedOut && !canceled && azWatsonDeadProcess != null;
-
             if (azureWatsonRetriable)
             {
                 // Azure watson exit code is retriable only if the pip did not time out and was not canceled.
                 // Since the pip will be retried in this case, we should not log the error.
+                loggingSuccess = false;
+            }
+
+            if(result.HasDetoursInjectionFailures && OperatingSystemHelper.IsWindowsOS)
+            {
+                // Since the pip can be retried, we should not log the error. If retries don't succeed, the calling method deciding not to retry anymore should log the error.
                 loggingSuccess = false;
             }
 
@@ -4678,7 +4688,6 @@ namespace BuildXL.ProcessPipExecutor
                 optionalMessage,
                 m_pip.GetShortDescription(m_context),
                 totalElapsedTimeMS);
-
         }
 
         private void HandleErrorsFromTool(string error)

@@ -18,5 +18,11 @@ namespace BuildXL.Utilities.Core
         /// Causes VmCommandProxy to simulate failures
         /// </summary>
         public SandboxedProcessExecutorTestHook SandboxedProcessExecutorTestHook { get; set; }
+
+        /// <summary>
+        /// Simulates Detours injection failures for a specified number of times before allowing it to succeed.
+        /// A value of -1 (default) means disabled; set to a positive value to activate.
+        /// </summary>
+         public int? SimulateDetoursInjectionFailureCount { get; set; } = null;
     }
 }

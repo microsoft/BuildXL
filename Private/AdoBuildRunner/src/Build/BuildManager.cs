@@ -47,8 +47,8 @@ namespace BuildXL.AdoBuildRunner
             var returnCode = await m_executor.ExecuteDistributedBuild(m_buildArguments);
 
             LogExitCode(returnCode);
-
-            return returnCode;
+            
+            return returnCode; 
         }
 
         /// <summary>
@@ -56,7 +56,7 @@ namespace BuildXL.AdoBuildRunner
         /// </summary>
         private void LogExitCode(int returnCode)
         {
-            Action<string> logAction = returnCode != 0 ? m_logger.Error : m_logger.Info;
+            Action<string> logAction = returnCode != 0 ? m_logger.TaskCompleteAsFailed : m_logger.Info;
             logAction.Invoke($"The BuildXL process completed with exit code {returnCode}");
         }
     }

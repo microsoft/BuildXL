@@ -36,5 +36,8 @@ namespace BuildXL.AdoBuildRunner.Vsts
 
         /// <nodoc />
         void Error(Exception ex, string errorMessage);
+        
+        /// <nodoc />
+        void TaskCompleteAsFailed(string message);
     }
 }

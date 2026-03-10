@@ -207,5 +207,34 @@ namespace Test.Tool.AdoBuildRunner
 
             return (orchestrator, worker);
         }
+        
+        /// <summary>
+        /// Tests that when a build fails, the exit code message is not logged as an ADO error
+        /// but failure is signaled via ##vso[task.complete result=Failed] instead.
+        /// </summary>
+        [Fact]
+        public async Task FailedBuildProducesRedundantErrorMessages()
+        {
+            // Simulate a failed BuildXL run (exit code 1)
+            var orchestrator = CreateOrchestrator();
+            orchestrator.MockLauncher.ReturnCode = 1;
+            MockApiService.AddBuild(orchestrator.AdoEnvironment.BuildId, CreateTestBuild(orchestrator.AdoEnvironment));
+            orchestrator.Initialize();
+
+            var buildArgs = new[] { "/foo" };
+            var manager = new BuildManager(orchestrator.RunnerService, orchestrator.BuildExecutor, buildArgs, orchestrator.MockLogger);
+
+            var exitCode = await manager.BuildAsync();
+
+            // Keep exit code so error "bash exited with code 1" will still be there. This keeps the basics working.
+            Assert.Equal(1, exitCode);
+
+            // The exit code message is not logged as an ADO error issue
+            orchestrator.MockLogger.AssertLogNotContains("task.logissue type=error;");
+         
+            // The exit code message is still logged, and failure is signaled via task.complete (not via error)
+            orchestrator.MockLogger.AssertLogContains("The BuildXL process completed with exit code 1");
+            orchestrator.MockLogger.AssertLogContains("##vso[task.complete result=Failed;]");
+        }
     }
 }

@@ -26,6 +26,11 @@ namespace BuildXL.AdoBuildRunner.Vsts
         /// This is the vso format for writing debug info to the agent console where {0} is the message
         /// </summary>
         private const string LogDebugFormat = "##vso[task.debug]{0}";
+        
+        /// <summary>
+        /// This is the vso format for marking the task complete with a failed result where {0} is the message 
+        /// </summary>
+        private const string TaskCompleteFailedFormat = "##vso[task.complete result=Failed;]{0}";
 
         /// <nodoc />
         public void Error(string message)
@@ -87,6 +92,13 @@ namespace BuildXL.AdoBuildRunner.Vsts
         public void Info(string message)
         {
             Output(WithTimeStamp(message));
+        }
+        
+        /// <nodoc />
+        public void TaskCompleteAsFailed(string message)
+        {
+            string completeFailedCommand = string.Format(TaskCompleteFailedFormat, WithTimeStamp(message));
+            Output(completeFailedCommand);
         }
 
         /// <summary>

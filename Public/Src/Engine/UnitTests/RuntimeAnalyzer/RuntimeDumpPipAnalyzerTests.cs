@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Pips.Operations;
@@ -205,6 +206,83 @@ namespace Test.BuildXL.RuntimeAnalyzer
             
             // Failed pip json should be dumped
             Assert.True(File.Exists(failingLogFile), failingLogFile);
+        }
+
+        /// <summary>
+        /// Test that pips involved in a dependency violation (double write in a shared opaque)
+        /// get their JSON dump created, even when both processes exit successfully (exit code 0).
+        /// This covers the scenario where ExecutionLevel stays Executed and
+        /// NumFileAccessViolationsNotAllowlisted is 0, but DependencyViolationReported fires.
+        /// </summary>
+        [Fact]
+        public void TestDumpPipForDependencyViolationInSharedOpaque()
+        {
+            var sharedOpaqueDir = Path.Combine(ObjectRoot, "sharedopaquedir");
+            AbsolutePath sharedOpaqueDirPath = AbsolutePath.Create(Context.PathTable, sharedOpaqueDir);
+            var sharedOpaqueDirArtifact = DirectoryArtifact.CreateWithZeroPartialSealId(sharedOpaqueDirPath);
+
+            // Both pips write to the same file inside a shared opaque directory
+            FileArtifact doubleWriteArtifact = CreateOutputFileArtifact(sharedOpaqueDir);
+
+            // PipA writes the file
+            var builderA = CreatePipBuilder(new Operation[]
+            {
+                Operation.WriteFileWithRetries(doubleWriteArtifact, doNotInfer: true),
+                Operation.WriteFile(CreateOutputFileArtifact(ObjectRoot))
+            });
+            builderA.AddOutputDirectory(sharedOpaqueDirArtifact, SealDirectoryKind.SharedOpaque);
+            var resA = SchedulePipBuilder(builderA);
+
+            // PipB writes the same file, creating a double-write violation
+            var builderB = CreatePipBuilder(new Operation[]
+            {
+                Operation.WriteFileWithRetries(doubleWriteArtifact, doNotInfer: true),
+            });
+            builderB.AddOutputDirectory(sharedOpaqueDirArtifact, SealDirectoryKind.SharedOpaque);
+            // Order B after A to avoid file lock contention
+            builderB.AddInputFile(resA.ProcessOutputs.GetOutputFiles().Single());
+            var resB = SchedulePipBuilder(builderB);
+
+            IgnoreWarnings();
+            var schedulerResult = RunScheduler().AssertFailure();
+
+            AssertVerboseEventLogged(LogEventId.DependencyViolationDoubleWrite);
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
+            AllowErrorEventMaybeLogged(LogEventId.StorageCachePutContentFailed);
+            AllowErrorEventMaybeLogged(LogEventId.ProcessingPipOutputFileFailed);
+
+            var logFolder = Path.Combine(schedulerResult.Config.Logging.LogsDirectory.ToString(Context.PathTable), "FailedPips");
+
+            // Both pips involved in the dependency violation should have their JSON dump created
+            var pipADumpFile = Path.Combine(logFolder, $"{resA.Process.FormattedSemiStableHash}.json");
+            var pipBDumpFile = Path.Combine(logFolder, $"{resB.Process.FormattedSemiStableHash}.json");
+
+            Assert.True(File.Exists(pipADumpFile), $"Expected dump for pip A (violator or related): {pipADumpFile}");
+            Assert.True(File.Exists(pipBDumpFile), $"Expected dump for pip B (violator or related): {pipBDumpFile}");
+
+            // Verify the JSON content contains accurate dependency violation data
+            var pipAJson = JsonSerializer.Deserialize<SerializedPip>(File.ReadAllText(pipADumpFile));
+            var pipBJson = JsonSerializer.Deserialize<SerializedPip>(File.ReadAllText(pipBDumpFile));
+
+            Assert.NotNull(pipAJson.DependencyViolations);
+            Assert.NotNull(pipBJson.DependencyViolations);
+            Assert.True(pipAJson.DependencyViolations.Count > 0, "Pip A should have dependency violation data");
+            Assert.True(pipBJson.DependencyViolations.Count > 0, "Pip B should have dependency violation data");
+
+            // Both dumps should reference a DoubleWrite violation on the shared file
+            var allViolations = pipAJson.DependencyViolations.Concat(pipBJson.DependencyViolations).ToList();
+            Assert.Contains(allViolations, v => v.ViolationType == "DoubleWrite");
+
+            // The violation should reference both pip hashes
+            var pipAHash = resA.Process.FormattedSemiStableHash;
+            var pipBHash = resB.Process.FormattedSemiStableHash;
+            Assert.Contains(allViolations, v =>
+                (v.ViolatorPipId == pipAHash || v.ViolatorPipId == pipBHash) &&
+                (v.RelatedPipId == pipAHash || v.RelatedPipId == pipBHash));
+
+            // The violation path should reference the double-written file
+            var doubleWritePath = doubleWriteArtifact.Path.ToString(Context.PathTable);
+            Assert.Contains(allViolations, v => v.Path == doubleWritePath);
         }
     }
 }

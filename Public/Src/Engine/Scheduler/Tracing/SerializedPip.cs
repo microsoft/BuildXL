@@ -36,6 +36,8 @@ namespace BuildXL.Scheduler.Tracing
         public List<ReportedProcessData> ReportedProcesses { get; set; }
         public List<ReportedFileAccessData> ReportedFileAccesses { get; set; }
         public List<ProcessDetouringStatusDataJson> ProcessDetouringStatuses { get; set; }
+        [JsonPropertyName("Dependency Violations")]
+        public List<DependencyViolationData> DependencyViolations { get; set; }
     }
 
     /// <nodoc/>
@@ -346,6 +348,22 @@ namespace BuildXL.Scheduler.Tracing
         public uint CreateProcessStatusReturn { get; set; }    
     }
     #endregion ObservedFileAccesses
+
+    #region DependencyViolations
+    public class DependencyViolationData
+    {
+        [JsonPropertyName("Violation Type")]
+        public string ViolationType { get; set; }
+        [JsonPropertyName("Access Level")]
+        public string AccessLevel { get; set; }
+        [JsonPropertyName("Path")]
+        public string Path { get; set; }
+        [JsonPropertyName("Violator Pip Id")]
+        public string ViolatorPipId { get; set; }
+        [JsonPropertyName("Related Pip Id")]
+        public string RelatedPipId { get; set; }
+    }
+    #endregion DependencyViolations
 
 #pragma warning restore 1591
 }

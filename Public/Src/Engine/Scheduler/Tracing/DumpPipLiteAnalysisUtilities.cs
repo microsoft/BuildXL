@@ -55,9 +55,10 @@ namespace BuildXL.Scheduler.Tracing
         /// <param name="symbolTable"> Symbol table. </param>
         /// <param name="pipGraph"> Pip graph for resolving qualifier ids. </param>
         /// <param name="loggingContext"> Logging context for logging any potential errors (can be null for post build). </param>
+        /// <param name="dependencyViolations"> Contains dependency violation data to be dumped. </param>
         /// <returns> True if log file was written successfully. </returns>
         /// <remarks> An error will be logged if this function returns false. </remarks>
-        public static bool DumpPip(Pip pip, ProcessExecutionMonitoringReportedEventData? dynamicData, string logPath, PathTable pathTable, StringTable stringTable, SymbolTable symbolTable, PipGraph pipGraph, LoggingContext loggingContext)
+        public static bool DumpPip(Pip pip, ProcessExecutionMonitoringReportedEventData? dynamicData, string logPath, PathTable pathTable, StringTable stringTable, SymbolTable symbolTable, PipGraph pipGraph, LoggingContext loggingContext, List<DependencyViolationEventData> dependencyViolations = null)
         {
             var outputFilePath = Path.Combine(logPath, $"{pip.FormattedSemiStableHash}.json");
             var serializerOptions = new JsonSerializerOptions
@@ -68,7 +69,7 @@ namespace BuildXL.Scheduler.Tracing
 
             try
             {
-                var pipToBeLogged = CreateObjectForSerialization(pip, dynamicData, pathTable, stringTable, symbolTable, pipGraph);
+                var pipToBeLogged = CreateObjectForSerialization(pip, dynamicData, pathTable, stringTable, symbolTable, pipGraph, dependencyViolations);
                 var dumpContents = JsonSerializer.SerializeToUtf8Bytes(pipToBeLogged, serializerOptions);
                 File.WriteAllBytes(outputFilePath, dumpContents);
             }
@@ -128,12 +129,13 @@ namespace BuildXL.Scheduler.Tracing
         /// </summary>
         /// <param name="pip"></param>
         /// <param name="dynamicData"></param>
+        /// <param name="dependencyViolations"></param>
         /// <param name="pathTable"></param>
         /// <param name="stringTable"></param>
         /// <param name="symbolTable"></param>
         /// <param name="pipGraph"></param>
         /// <returns>Serialized Pip object.</returns>
-        public static SerializedPip CreateObjectForSerialization(Pip pip, ProcessExecutionMonitoringReportedEventData? dynamicData, PathTable pathTable, StringTable stringTable, SymbolTable symbolTable, PipGraph pipGraph)
+        public static SerializedPip CreateObjectForSerialization(Pip pip, ProcessExecutionMonitoringReportedEventData? dynamicData, PathTable pathTable, StringTable stringTable, SymbolTable symbolTable, PipGraph pipGraph, List<DependencyViolationEventData> dependencyViolations = null)
         {
             SerializedPip serializedPip = new SerializedPip
             {
@@ -201,6 +203,15 @@ namespace BuildXL.Scheduler.Tracing
                     {
                         serializedPip.ProcessDetouringStatuses.Add(CreateProcessDetouringStatusDataJson(processDetouringStatus));
                     }
+                }
+            }
+
+            if (dependencyViolations != null && dependencyViolations.Count > 0)
+            {
+                serializedPip.DependencyViolations = new List<DependencyViolationData>();
+                foreach (var violation in dependencyViolations)
+                {
+                    serializedPip.DependencyViolations.Add(CreateDependencyViolationData(violation, pathTable, pipGraph));
                 }
             }
 
@@ -505,6 +516,32 @@ namespace BuildXL.Scheduler.Tracing
             };
         }
         #endregion ObservedFileAccesses
+
+        #region DependencyViolations
+        private static DependencyViolationData CreateDependencyViolationData(DependencyViolationEventData data, PathTable pathTable, PipGraph pipGraph)
+        {
+            string violatorPipHash = null;
+            if (data.ViolatorPipId.IsValid)
+            {
+                violatorPipHash = pipGraph.PipTable.GetFormattedSemiStableHash(data.ViolatorPipId);
+            }
+
+            string relatedPipHash = null;
+            if (data.RelatedPipId.IsValid)
+            {
+                relatedPipHash = pipGraph.PipTable.GetFormattedSemiStableHash(data.RelatedPipId);
+            }
+
+            return new DependencyViolationData
+            {
+                ViolationType = data.ViolationType.ToString(),
+                AccessLevel = data.AccessLevel.ToString(),
+                Path = data.Path.IsValid ? data.Path.ToString(pathTable) : null,
+                ViolatorPipId = violatorPipHash,
+                RelatedPipId = relatedPipHash,
+            };
+        }
+        #endregion DependencyViolations
 
         #region StringHelperFunctions
         private static string CreateString(AbsolutePath value, PathTable pathTable)

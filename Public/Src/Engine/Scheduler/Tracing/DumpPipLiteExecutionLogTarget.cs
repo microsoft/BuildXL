@@ -1,7 +1,9 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Threading;
 using BuildXL.Pips;
 using BuildXL.Pips.Graph;
@@ -64,9 +66,25 @@ namespace BuildXL.Scheduler.Tracing
         private bool m_loggingErrorOccured;
 
         /// <summary>
+        /// Whether further data collection should be skipped (error occurred or log limit reached).
+        /// </summary>
+        private bool ShouldSkipCollecting => m_loggingErrorOccured || m_numLogFilesGenerated >= m_maxLogFiles;
+
+        /// <summary>
         /// Holds data collected by this execution log target until it is ready to be dumped.
         /// </summary>
         private readonly ConcurrentDictionary<PipId, ProcessExecutionMonitoringReportedEventData?> m_dynamicDataDictionary;
+
+        /// <summary>
+        /// Collects dependency violation data per pip, indexed by both violator and related pip IDs.
+        /// Used both to trigger dumps and to include violation details in the JSON output.
+        /// </summary>
+        private readonly ConcurrentDictionary<PipId, List<DependencyViolationEventData>> m_dependencyViolations;
+
+        /// <summary>
+        /// Tracks pip IDs that have already been dumped to avoid duplicates.
+        /// </summary>
+        private readonly ConcurrentDictionary<PipId, byte> m_dumpedPips;
 
         /// <summary>
         /// Indicates whether any data other than just static pip data should be dumped.
@@ -95,6 +113,8 @@ namespace BuildXL.Scheduler.Tracing
             m_maxLogFiles = configuration.Logging.DumpFailedPipsLogLimit.GetValueOrDefault();
             m_numLogFilesGenerated = 0;
             m_dynamicDataDictionary = new ConcurrentDictionary<PipId, ProcessExecutionMonitoringReportedEventData?>();
+            m_dependencyViolations = new ConcurrentDictionary<PipId, List<DependencyViolationEventData>>();
+            m_dumpedPips = new ConcurrentDictionary<PipId, byte>();
             m_shouldDumpDynamicData = configuration.Logging.DumpFailedPipsWithDynamicData.HasValue &&
                                       configuration.Logging.DumpFailedPipsWithDynamicData.Value &&
                                       ((configuration.Sandbox.UnsafeSandboxConfiguration.MonitorFileAccesses && 
@@ -129,40 +149,98 @@ namespace BuildXL.Scheduler.Tracing
         /// </remarks>
         public override void PipExecutionPerformance(PipExecutionPerformanceEventData data)
         {
+            if (m_loggingErrorOccured)
+            {
+                return;
+            }
+
             // Get the number of file access violations for this pip from ProcessPipExecutionPerformance if pip is a process pip
             var fileAccessViolationCount = 0;
             var processPerformance = data.ExecutionPerformance as ProcessPipExecutionPerformance;
             if (m_pipTable.GetPipType(data.PipId) == PipType.Process && processPerformance != null)
             {
+                // Cancelled process pips have default perf with ProcessExecutionTime = Zero.
+                // No need to dump them.
+                if (processPerformance.ProcessExecutionTime == TimeSpan.Zero)
+                {
+                    return;
+                }
+
                 fileAccessViolationCount = processPerformance.FileMonitoringViolations.NumFileAccessViolationsNotAllowlisted;
             }
 
-            if ((data.ExecutionPerformance.ExecutionLevel == PipExecutionLevel.Failed || fileAccessViolationCount > 0) && !m_loggingErrorOccured)
+            bool pipActuallyFailed = data.ExecutionPerformance.ExecutionLevel == PipExecutionLevel.Failed;
+
+            if (pipActuallyFailed || fileAccessViolationCount > 0 || m_dependencyViolations.ContainsKey(data.PipId))
             {
-                var currentNumLogFiles = Interlocked.Increment(ref m_numLogFilesGenerated);
-
-                if (currentNumLogFiles <= m_maxLogFiles)
-                {
-                    var pip = m_pipTable.HydratePip(data.PipId, PipQueryContext.DumpPipLiteAnalyzer);
-                    ProcessExecutionMonitoringReportedEventData? dynamicData = null;
-
-                    if (m_shouldDumpDynamicData)
-                    {
-                        m_dynamicDataDictionary.TryRemove(data.PipId, out dynamicData);
-                    }
-
-                    DumpPip(pip, dynamicData, currentNumLogFiles);
-                }
+                DumpPip(data.PipId);
             }
             else
             {
-                // If m_loggingErrorOccured is set to true, then no data is being added to the dictionary anyway, so there is no need to remove
-                if (!m_loggingErrorOccured && m_shouldDumpDynamicData)
+                // The pip is not in a failed state, so it does not need to be dumped.
+                // Clean up any collected dynamic data.
+                if (m_shouldDumpDynamicData)
                 {
-                    // The pip is not in a failed state, so it does not need to be dumped.
                     m_dynamicDataDictionary.TryRemove(data.PipId, out _);
                 }
             }
+        }
+
+        /// <summary>
+        /// Records pips involved in dependency violations so they will be dumped.
+        /// Both the violator and related pips are tracked.
+        /// </summary>
+        public override void DependencyViolationReported(DependencyViolationEventData data)
+        {
+            if (ShouldSkipCollecting)
+            {
+                return;
+            }
+
+            AddViolationForPip(data.ViolatorPipId, data);
+
+            if (data.RelatedPipId.IsValid)
+            {
+                AddViolationForPip(data.RelatedPipId, data);
+            }
+        }
+
+        /// <summary>
+        /// Adds a dependency violation entry for the specified pip.
+        /// Thread-safe: uses locking on the per-pip list.
+        /// </summary>
+        private void AddViolationForPip(PipId pipId, DependencyViolationEventData data)
+        {
+            m_dependencyViolations.AddOrUpdate(
+                pipId,
+                _ => new List<DependencyViolationEventData> { data },
+                (_, existing) =>
+                {
+                    lock (existing)
+                    {
+                        existing.Add(data);
+                    }
+
+                    return existing;
+                });
+        }
+
+        /// <summary>
+        /// Flushes any remaining pips that have dependency violations but were not dumped
+        /// during their own <see cref="PipExecutionPerformance"/> event (e.g., the related pip's
+        /// perf event fired before the violation was reported).
+        /// </summary>
+        public override void Dispose()
+        {
+            if (!m_loggingErrorOccured)
+            {
+                foreach (var kvp in m_dependencyViolations)
+                {
+                    DumpPip(kvp.Key);
+                }
+            }
+
+            base.Dispose();
         }
 
         /// <summary>
@@ -173,21 +251,52 @@ namespace BuildXL.Scheduler.Tracing
         /// <param name="data"></param>
         public override void ProcessExecutionMonitoringReported(ProcessExecutionMonitoringReportedEventData data)
         {
-            if (m_shouldDumpDynamicData && !m_loggingErrorOccured && m_numLogFilesGenerated < m_maxLogFiles)
+            if (m_shouldDumpDynamicData && !ShouldSkipCollecting)
             {
                 m_dynamicDataDictionary.TryAdd(data.PipId, data);
             }
         }
 
         /// <summary>
+        /// Dumps pip data to a JSON file if it hasn't already been dumped and the log file limit hasn't been reached.
         /// Ensures that a log path is created, calls <see cref="o:DumpPipLiteAnalysisUtilities.DumpPip"/>, and updates
         /// the state of the analyzer if it runs into an error.
         /// </summary>
-        /// <param name="pip">Pip to be dumped.</param>
-        /// <param name="dynamicData"> Dynamic data to be dumped.</param>
-        /// <param name="currentNumLogFiles">The current number of dump pip lite files that have been created.</param>
-        private void DumpPip(Pip pip, ProcessExecutionMonitoringReportedEventData? dynamicData, int currentNumLogFiles)
+        /// <param name="pipId">ID of the pip to be dumped.</param>
+        private void DumpPip(PipId pipId)
         {
+            if (m_loggingErrorOccured)
+            {
+                return;
+            }
+
+            // Dedup: only dump each pip once
+            if (!m_dumpedPips.TryAdd(pipId, 0))
+            {
+                return;
+            }
+
+            var currentNumLogFiles = Interlocked.Increment(ref m_numLogFilesGenerated);
+            if (currentNumLogFiles > m_maxLogFiles)
+            {
+                if (currentNumLogFiles == m_maxLogFiles + 1)
+                {
+                    Logger.Log.RuntimeDumpPipLiteLogLimitReached(m_loggingContext, m_maxLogFiles);
+                }
+
+                return;
+            }
+
+            var pip = m_pipTable.HydratePip(pipId, PipQueryContext.DumpPipLiteAnalyzer);
+            ProcessExecutionMonitoringReportedEventData? dynamicData = null;
+
+            if (m_shouldDumpDynamicData)
+            {
+                m_dynamicDataDictionary.TryRemove(pipId, out dynamicData);
+            }
+
+            m_dependencyViolations.TryRemove(pipId, out var dependencyViolations);
+
             var dumpPipResult = false;
 
             if (!m_logPathCreated)
@@ -206,19 +315,14 @@ namespace BuildXL.Scheduler.Tracing
                                                                      m_pipExecutionContext.StringTable,
                                                                      m_pipExecutionContext.SymbolTable,
                                                                      m_pipGraph,
-                                                                     m_loggingContext);
+                                                                     m_loggingContext,
+                                                                     dependencyViolations);
             }
 
             if (!(m_logPathCreated && dumpPipResult))
             {
                 // This failure was already logged in DumpPipLiteAnalysisUtilies
                 m_loggingErrorOccured = true;
-            }
-
-            if (currentNumLogFiles >= m_maxLogFiles)
-            {
-                // Log limit reached, log this once
-                Logger.Log.RuntimeDumpPipLiteLogLimitReached(m_loggingContext, m_maxLogFiles);
             }
         }
     }

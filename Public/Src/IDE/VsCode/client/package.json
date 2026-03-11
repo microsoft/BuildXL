@@ -316,6 +316,9 @@
     "vscode-languageclient": "^10.0.0-next.20",
     "vscode-nls": "^5.2.0"
   },
+  "overrides": {
+    "minimatch": "^10.2.3"
+  },
   "directories": {
     "bin": "./bin"
   }

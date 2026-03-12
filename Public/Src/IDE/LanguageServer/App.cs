@@ -20,7 +20,9 @@ using BuildXL.Utilities.Instrumentation.Common;
 using LanguageServer;
 using LanguageServer.Json;
 using Microsoft.VisualStudio.LanguageServer.Protocol;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using BuildXL.Ide.LanguageServer.Utilities;
 using StreamJsonRpc;
 using Location = Microsoft.VisualStudio.LanguageServer.Protocol.Location;
 
@@ -38,6 +40,17 @@ namespace BuildXL.Ide.LanguageServer
 
         private const string OpenLogFileCommandString = "openLogFile";
         private const string ReloadWorkspaceCommandString = "reloadWorkspace";
+
+        /// <summary>
+        /// VS Code may send code action requests containing CodeActionKind values registered by other extensions
+        /// (e.g., "source.fixAll.eslint") that are not part of the LSP protocol enum. The default deserializer
+        /// throws on these unknown values, crashing the language server. This serializer uses a tolerant converter
+        /// that maps unrecognized CodeActionKind values to CodeActionKind.Empty.
+        /// </summary>
+        private static readonly JsonSerializer s_tolerantCodeActionSerializer = JsonSerializer.Create(new JsonSerializerSettings
+        {
+            Converters = { new TolerantCodeActionKindConverter() }
+        });
 
         private DScriptSettings m_settings;
 
@@ -574,7 +587,7 @@ namespace BuildXL.Ide.LanguageServer
         [JsonRpcMethod("textDocument/codeAction")]
         protected Result<Command[], ResponseError> CodeAction(JToken jToken, CancellationToken cancellationToken)
         {
-            var codeActionParams = jToken.ToObject<CodeActionParams>();
+            var codeActionParams = jToken.ToObject<CodeActionParams>(s_tolerantCodeActionSerializer);
 
             return TryExecuteHandler((providers, token) => providers.CodeAction(codeActionParams, token), cancellationToken);
         }

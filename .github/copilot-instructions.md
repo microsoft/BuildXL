@@ -84,7 +84,7 @@ module({
 bxl.cmd -minimal                    # Quick build (bxl.exe + deps only)
 bxl.cmd                             # Standard build + tests
 bxl.cmd -all                        # Build everything
-bxl.cmd /q:ReleaseDotNetCore        # Build with specific qualifier
+bxl.cmd /q:ReleaseNet8              # Build with specific qualifier
 bxl -deploy dev -minimal            # Build and deploy debug bxl.exe
 bxl -use dev                        # Use locally-built bxl.exe
 ```
@@ -108,7 +108,7 @@ bxl "/f:tag='test'"
 | Flag | Purpose |
 |------|---------|
 | `/f` or `/Filter` | Filter expression to build specific pips |
-| `/q` or `/Qualifier` | Set build qualifier (e.g., `/q:ReleaseDotNetCore`) |
+| `/q` or `/Qualifier` | Set build qualifier (e.g., `/q:DebugNet8`) |
 | `/cv` or `/ConsoleVerbosity` | Output level: Off, Error, Warning, Informational, Verbose |
 | `/cacheMiss+` | Analyze cache misses |
 | `/Phase` | Stop at phase: Parse, Evaluate, Schedule, Execute |
@@ -160,9 +160,10 @@ BuildXL.Internal/
 
 ## Common Qualifiers
 - `Debug` (default), `Release`
-- `DebugDotNetCore`, `ReleaseDotNetCore`
 - `DebugNet472`, `ReleaseNet472`
-- Specify with `/q:` flag, e.g., `/q:ReleaseDotNetCore`
+- `DebugDotNetCoreMac`, `DebugLinux` (platform-specific)
+- Specify with `/q:` flag, e.g., `/q:DebugNet8`
+- **Note**: If a qualifier is invalid, the build fails fast with error DX11250 listing all available qualifiers
 
 ## Git Branch Naming Convention
 When creating branches, always use the format: `dev/[username]/[feature-description]`
@@ -173,6 +174,10 @@ When creating branches, always use the format: `dev/[username]/[feature-descript
 ## Common Pitfalls
 - **Typos in test filters**: If `-TestMethod` matches nothing, the build still **succeeds silently** — always verify the filter matches an actual test
 - **Generated files**: Never edit `.csproj` or `.sln` files; edit `.dsc` specs instead
-- **Qualifiers**: Default is Debug; use `/q:Release` or `/q:ReleaseDotNetCore` for release builds
+- **Qualifiers**: Default is Debug; use `/q:Release` to do release builds for testing performance optimizations
 - **Sandbox violations**: Undeclared file accesses cause build failures or prevent caching — all inputs/outputs must be declared in the pip spec
 - **DScript immutability**: Variables are `const` by default; there's no `let` reassignment or mutable state
+
+## Checking Build and Test Results
+
+`bxl.cmd` output may not flow cleanly to the calling shell. Check `Out\Logs\` directly — the newest subdirectory contains logs for the most recent build. If `BuildXL.err` in that directory is empty, the build and all tests succeeded. If it has content, it contains the errors.

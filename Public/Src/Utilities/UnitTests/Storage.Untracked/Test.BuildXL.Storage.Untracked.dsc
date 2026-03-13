@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+import * as XUnitV3 from "Sdk.Managed.Testing.XUnitV3";
+
 namespace Storage.Untracked {
 
     @@public
@@ -11,11 +13,7 @@ namespace Storage.Untracked {
                 runWithUntrackedDependencies: !BuildXLSdk.Flags.IsEBPFSandboxForTestsEnabled,
             },
         },
-        // TODO: Switch to QTest.
-        //       The reason for using XUnit here is for debugging purpose.
-        //       When debugging a failed test, QTest throws exception in this test assembly, and
-        //       thus one cannot see the test result.
-        testFramework: importFrom("Sdk.Managed.Testing.XUnit").framework,
+        testFramework: XUnitV3.framework,
         assemblyName: "Test.BuildXL.Storage.Admin",
         sources: globR(d`.`, "*.cs"),
         references: [

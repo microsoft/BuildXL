@@ -12,7 +12,6 @@ using BuildXL.Utilities.ParallelAlgorithms;
 using FluentAssertions;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
 using static Test.BuildXL.Utilities.ParallelAlgorithmsTests.ParallelAlgorithmsHelper;
 
 namespace Test.BuildXL.Utilities.ParallelAlgorithmsTests

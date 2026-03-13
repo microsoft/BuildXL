@@ -92,7 +92,7 @@ function extract_xunit_stats { # (xunitXmlFile)
     fi
 
     printf "Time: %7ss | Passed: %4s | Failed: %3s | Skipped: %3s | Errors: %3s | %s %s" $exeTime $numPassed $numFailed $numSkipped $numErrors $asmName "$traitsStr"
-    test $numFailed -eq 0 -a $numErrors -eq 0
+    test "${numFailed:-1}" -eq 0 -a "${numErrors:-1}" -eq 0
 }
 
 # Runs an XUnit test
@@ -155,18 +155,48 @@ function run_xunit { #(folderName, dllName, ...extraXunitArgs)
     # which is PTHREAD_STACK_MIN for the CLR running on Unix systems
     export COMPlus_DefaultStackSize=400000
 
-    dotnet xunit.console.dll $dllName        \
-        -nocolor -parallel none -noappdomain \
-        -noTrait "Category=WindowsOSOnly"    \
-        -noTrait "Category=WindowsOSSkip"    \
-        -noTrait "Category=Performance"      \
-        -noTrait "Category=QTestSkip"        \
-        -noTrait "Category=DominoTestSkip"   \
-        -noTrait "Category=SkipDotNetCore"   \
-        -noTrait "Category=SkipLinux"        \
-        -xml $xunitResultFname               \
-        "${extraXunitArgs[@]}" >"${xunitStdoutFname}" 2>"${xunitStderrFname}"
-    exitCode=$?
+    # Detect xunit v3 tests: v3 test assemblies are standalone executables (no xunit.console.dll needed).
+    # Check for the native apphost binary (same name as DLL but without extension).
+    local exeName="${dllName%.dll}"
+    if [[ -f "$exeName" && -x "$exeName" ]]; then
+        # xunit v3: run the test executable directly with v3 command-line syntax
+        # Convert v2 args to v3: -notrait → -trait-, -trait stays the same
+        local v3Args=()
+        for arg in "${extraXunitArgs[@]}"; do
+            if [[ "$arg" == "-notrait" ]]; then
+                v3Args+=("-trait-")
+            else
+                v3Args+=("$arg")
+            fi
+        done
+
+        ./$exeName                               \
+            -parallel none                       \
+            -trait- "Category=WindowsOSOnly"     \
+            -trait- "Category=WindowsOSSkip"     \
+            -trait- "Category=Performance"       \
+            -trait- "Category=QTestSkip"          \
+            -trait- "Category=DominoTestSkip"     \
+            -trait- "Category=SkipDotNetCore"     \
+            -trait- "Category=SkipLinux"          \
+            -xml $xunitResultFname               \
+            "${v3Args[@]}" >"${xunitStdoutFname}" 2>"${xunitStderrFname}"
+        exitCode=$?
+    else
+        # xunit v2: run through the external xunit.console.dll runner
+        dotnet xunit.console.dll $dllName        \
+            -nocolor -parallel none -noappdomain \
+            -noTrait "Category=WindowsOSOnly"    \
+            -noTrait "Category=WindowsOSSkip"    \
+            -noTrait "Category=Performance"      \
+            -noTrait "Category=QTestSkip"         \
+            -noTrait "Category=DominoTestSkip"    \
+            -noTrait "Category=SkipDotNetCore"    \
+            -noTrait "Category=SkipLinux"         \
+            -xml $xunitResultFname               \
+            "${extraXunitArgs[@]}" >"${xunitStdoutFname}" 2>"${xunitStderrFname}"
+        exitCode=$?
+    fi
 
     # extract statistics from XUnit's XML result file
     stats=$(extract_xunit_stats $xunitResultFname)

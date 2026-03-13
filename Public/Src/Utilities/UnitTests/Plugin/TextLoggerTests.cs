@@ -3,28 +3,14 @@
 
 using System;
 using System.IO;
-using System.Threading;
 using BuildXL.Plugin;
+using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 
 namespace Test.BuildXL.Plugin
 {
-    public sealed class TextLoggerTests : IDisposable
+    public sealed class TextLoggerTests : TemporaryStorageTestBase
     {
-        private static int s_counter;
-        private readonly string m_tempDir;
-        public string TemporaryDirectory => m_tempDir;
-
-        // TODO: Inherit from TemporaryStorageTestBase once it is ported to xunit v3.
-        public TextLoggerTests()
-        {
-            m_tempDir = Path.Combine(Path.GetTempPath(), "bxl-tests", "TextLogger", Interlocked.Increment(ref s_counter).ToString());
-            if (Directory.Exists(m_tempDir)) Directory.Delete(m_tempDir, true);
-            Directory.CreateDirectory(m_tempDir);
-        }
-
-        public void Dispose() { try { Directory.Delete(m_tempDir, true); } catch (IOException) { } }
-
         [Fact]
         public void BasicFunctionalityTest()
         {

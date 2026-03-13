@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using BuildXL.Utilities.Collections;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
 using SortedReadOnlyIntArray = BuildXL.Utilities.Collections.SortedReadOnlyArray<int, System.Collections.Generic.IComparer<int>>;
 
 namespace Test.BuildXL.Utilities

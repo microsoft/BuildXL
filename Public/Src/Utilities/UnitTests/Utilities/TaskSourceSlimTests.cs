@@ -9,7 +9,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Utilities.Core.Tasks;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Test.BuildXL.Utilities
 {
@@ -93,7 +92,7 @@ namespace Test.BuildXL.Utilities
             // Because continuation runs synchronously for TCS's subscribers,
             // it may cause a deadlock.
 
-            var secondProducer = new SecondProducerConsumer(m_output);
+            using var secondProducer = new SecondProducerConsumer(m_output);
 
             var firstEventProcessed = new ManualResetEventSlim(false);
 

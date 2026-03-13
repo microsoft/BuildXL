@@ -109,7 +109,9 @@ namespace BuildXL.Utilities.Core.Tasks
 
             try
             {
-                m_loopTask.GetAwaiter().GetResult();
+                // Wait on a thread pool thread to avoid sync-over-async deadlocks
+                // when the flush loop's continuation needs to run on the current thread.
+                Task.Run(() => m_loopTask).GetAwaiter().GetResult();
             }
             catch (OperationCanceledException) { }
             finally

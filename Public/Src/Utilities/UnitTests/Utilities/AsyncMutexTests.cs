@@ -11,7 +11,6 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
 using static Test.BuildXL.Executables.AsyncMutexClient.Program;
 
 namespace Test.BuildXL.Utilities

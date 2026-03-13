@@ -5,7 +5,6 @@ using BuildXL.ToolSupport;
 using BuildXL.Utilities.Tracing;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Test.BuildXL.ToolSupport
 {

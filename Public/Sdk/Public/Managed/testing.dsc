@@ -44,7 +44,17 @@ export function test(args: TestArguments) : TestResult {
         });
     }
 
-    const assembly = library(args);
+    // xunit v3 requires test assemblies to be executables with entry points.
+    // /main: disambiguates the entry point when test sources include other programs with Main methods.
+    const assembly = isXUnitV3Framework(testFramework)
+        ? executable(args.merge({
+            tools: {
+                csc: {
+                    main: "Xunit.V3.BuildXL.Generated.XunitEntryPoint",
+                }
+            }
+        }))
+        : library(args);
 
     // Deploy assemblies (with all dependencies) to special folder.
     const testDeployFolder = Context.getNewOutputDirectory("testRun");

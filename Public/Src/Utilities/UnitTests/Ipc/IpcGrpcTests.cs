@@ -3,7 +3,6 @@
 
 using System;
 using Xunit;
-using Xunit.Abstractions;
 using Test.BuildXL.TestUtilities.Xunit;
 
 #if NET6_0_OR_GREATER

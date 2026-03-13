@@ -7,7 +7,6 @@ using System.IO;
 using BuildXL.ToolSupport;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Test.BuildXL.ToolSupport
 {

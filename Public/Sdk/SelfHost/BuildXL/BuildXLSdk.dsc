@@ -474,11 +474,7 @@ export function test(args: TestArguments) : TestResult {
         },
     }, args);
 
-    // xunit v3 requires building as executable (not library) because the v3 runner
-    // launches the test assembly as a process for test discovery and execution.
-    let result = Managed.isXUnitV3Framework(args.testFramework)
-        ? testV3AsExecutable(args)
-        : Managed.test(args);
+    let result = Managed.test(args);
 
     if (!args.skipTestRun) {
         if (Flags.buildRequiredAdminPrivilegeTestInVm) {
@@ -1019,10 +1015,18 @@ function getRootContent(contents: StaticDirectory): Managed.Binary[] {
 }
 
 /** Generates a csharp file with an attribute that turns on BuildXL-specific Xunit extension. */
-const testFrameworkOverrideAttribute = Transformer.writeAllLines({
+const testFrameworkOverrideAttributeV2 = Transformer.writeAllLines({
     outputPath: Context.getNewOutputDirectory("TestFrameworkOverride").combine("TestFrameworkOverride.g.cs"),
     lines: [
         '[assembly: Test.BuildXL.TestUtilities.XUnit.Extensions.TestFrameworkOverride]'
+    ]
+});
+
+/** Generates a csharp file that applies BuildXL test behaviors (console capture, contract checks, etc.) for v3 tests. */
+const testFrameworkOverrideAttributeV3 = Transformer.writeAllLines({
+    outputPath: Context.getNewOutputDirectory("BuildXLTestBehavior").combine("BuildXLTestBehavior.g.cs"),
+    lines: [
+        '[assembly: Test.BuildXL.TestUtilities.Xunit.BuildXLTestBehavior]'
     ]
 });
 
@@ -1032,57 +1036,6 @@ function shouldUseQTest(runTestArgs: Managed.TestRunArguments) : boolean {
         && !(runTestArgs && runTestArgs.parallelBucketCount);  // QTest does not support passing environment variables to the underlying process
 }
 
-
-/**
- * Build and deploy an xunit v3 test as an executable.
- * v3 requires test assemblies to be executables with entry points for test discovery.
- * This is equivalent to Managed.test() but uses Managed.executable() instead of library().
- */
-function testV3AsExecutable(args: Managed.TestArguments) : Managed.TestResult {
-    const testFramework = args.testFramework;
-
-    // Apply framework compile arguments (adds v3 xunit references)
-    if (testFramework.compileArguments) {
-        args = testFramework.compileArguments(args);
-    }
-
-    // Inject v3 boilerplate source (entry point, Microsoft Testing Platform hooks, runner reporters)
-    args = args.merge({
-        sources: [ XUnitV3.boilerplateSource ],
-    });
-
-    // Add additional runtime content (v3 adapter files, runner DLLs)
-    if (testFramework.additionalRuntimeContent) {
-        args = args.merge({
-            runtimeContent: testFramework.additionalRuntimeContent(args)
-        });
-    }
-
-    // Build as executable (required for v3)
-    const assembly = Managed.executable(args);
-
-    // Deploy to test directory
-    const testDeployFolder = Context.getNewOutputDirectory("testRun");
-    const testDeployment = Deployment.deployToDisk({
-        definition: {
-            contents: [
-                assembly,
-            ],
-        },
-        targetDirectory: testDeployFolder,
-        primaryFile: assembly.runtime.binary.name,
-        deploymentOptions: args.deploymentOptions,
-        tags: [ "testDeployment" ],
-    });
-
-    // Run tests via the framework's runTest.
-    // Merge assembly into result so the TestResult also has ManagedAssembly properties
-    // (e.g., .dll, .compile, .runtime) needed when other projects reference this test.
-    return assembly.merge<Managed.TestResult>(Managed.runTestOnly(
-        args,
-        /* compileArguments: */ false,
-        /* testDeployment:   */ testDeployment));
-}
 
 /** Gets test framework. testFramework wins if set; otherwise useXUnitV3 controls QTest's xunit version. */
 function getTestFramework(args: TestArguments) : Managed.TestFramework {
@@ -1105,13 +1058,17 @@ function processTestArguments(args: Managed.TestArguments) : Managed.TestArgumen
         skipDocumentationGeneration: true,
         sources: [
             // v2 framework override attribute is not applicable to v3
-            ...addIf(!isV3, testFrameworkOverrideAttribute),
+            ...addIf(!isV3, testFrameworkOverrideAttributeV2),
+            // v3: apply BuildXL test behaviors (console capture, contract checks, SynchronizationContext)
+            ...addIf(isV3, testFrameworkOverrideAttributeV3),
         ],
         references: [
             // TestUtilities.dll has general helpers (XAssert etc.) — shared by both v2 and v3
             importFrom("BuildXL.Utilities.UnitTests").TestUtilities.dll,
             // TestUtilities.XUnit.dll depends on v2 Xunit.Abstractions — skip for v3
             ...addIf(!isV3, importFrom("BuildXL.Utilities.UnitTests").TestUtilities.XUnit.dll),
+            // TestUtilities.XUnitV3.dll provides v3-compatible base classes and behaviors
+            ...addIf(isV3, importFrom("BuildXL.Utilities.UnitTests").TestUtilities.XUnitV3.dll),
             ...addIf(isFullFramework,
                 importFrom("System.Runtime.Serialization.Primitives").pkg
             ),

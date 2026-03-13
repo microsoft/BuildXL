@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 using System;
-using BuildXL.Utilities.Tracing;
 
 namespace Test.BuildXL.TestUtilities.Xunit
 {

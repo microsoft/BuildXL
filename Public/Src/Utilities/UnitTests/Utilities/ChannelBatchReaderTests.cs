@@ -109,7 +109,7 @@ namespace Test.BuildXL.Utilities
         [Fact]
         public async Task TimerTriggerFlushesWithoutDispose()
         {
-            var flushed = new TaskCompletionSource<List<string>>();
+            var flushed = new TaskCompletionSource<List<string>>(TaskCreationOptions.RunContinuationsAsynchronously);
 
             using var cbr = new ChannelBatchReader(
                 async (stream, ct) =>

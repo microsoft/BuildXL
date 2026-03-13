@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Diagnostics.Tracing;
@@ -688,6 +689,29 @@ namespace Test.BuildXL.TestUtilities
 
             var testDataFile = Path.Combine(GetTestAssemblyDirectory(), TestRunDataXmlFileName);
             return ReadTestDataFromXml(testDataFile);
+        }
+
+        /// <summary>
+        /// Value returned by <see cref="DiscoverCurrentlyExecutingTestMethodFQN"/> when it cannot discover
+        /// the currently executing test method.
+        /// </summary>
+        protected const string UnknownTestMethod = "<unknown>";
+
+        /// <summary>
+        /// Tries to discover the name of the currently executing test method via reflection.
+        /// </summary>
+        protected string DiscoverCurrentlyExecutingTestMethodFQN()
+        {
+            StackFrame testMethodFrame = new StackTrace()
+                .GetFrames()
+                .LastOrDefault(f => f.GetMethod().Module.Assembly == Assembly.GetAssembly(GetType()));
+
+            if (testMethodFrame == null)
+            {
+                return UnknownTestMethod;
+            }
+
+            return $"{testMethodFrame.GetMethod().DeclaringType.FullName}.{testMethodFrame.GetMethod().Name}";
         }
 
         /// <summary>

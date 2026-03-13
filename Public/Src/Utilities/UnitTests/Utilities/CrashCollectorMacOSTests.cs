@@ -8,7 +8,6 @@ using System.Linq;
 using BuildXL.Utilities.CrashReporting;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
 using static BuildXL.Utilities.CrashReporting.CrashCollectorMacOS;
 
 namespace Test.BuildXL.Utilities

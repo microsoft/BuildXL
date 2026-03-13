@@ -12,7 +12,6 @@ using BuildXL.Ipc.MultiplexingSocketBasedIpc;
 using BuildXL.Ipc.SocketBasedIpc;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
 #if NET6_0_OR_GREATER
 using BuildXL.Ipc.GrpcBasedIpc;
 #endif

@@ -19,6 +19,7 @@ namespace Plugin {
             importFrom("BuildXL.Utilities").Plugin.dll,
             importFrom("BuildXL.Utilities").Utilities.Core.dll,
             importFrom("System.Runtime.CompilerServices.Unsafe").pkg,
+            TestUtilities.XUnitV3.dll,
             
             ...importFrom("BuildXL.Cache.ContentStore").getGrpcPackages(false),
             ...importFrom("BuildXL.Cache.ContentStore").getGrpcDotNetPackages(),

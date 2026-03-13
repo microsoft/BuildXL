@@ -14,7 +14,6 @@ using BuildXL.Ipc.Interfaces;
 using BuildXL.Ipc.MultiplexingSocketBasedIpc;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Test.BuildXL.Ipc
 {

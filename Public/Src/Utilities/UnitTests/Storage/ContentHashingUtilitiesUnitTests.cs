@@ -5,7 +5,6 @@ using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Storage;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
 
 #nullable enable
 

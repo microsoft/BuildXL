@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 using BuildXL.Utilities.Collections;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
 
 // ReSharper disable UseObjectOrCollectionInitializer
 namespace Test.BuildXL.Utilities

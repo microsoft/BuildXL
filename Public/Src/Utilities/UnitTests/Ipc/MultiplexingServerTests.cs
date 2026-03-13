@@ -16,7 +16,6 @@ using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Tasks;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Test.BuildXL.Ipc
 {

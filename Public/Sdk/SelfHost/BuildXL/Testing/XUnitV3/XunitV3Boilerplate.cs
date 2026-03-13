@@ -15,6 +15,11 @@
 // Test projects should NOT need to include this file directly. Instead, use
 // XUnitV3.testAsExecutable() in the .dsc file and it will be injected as a source.
 
+// CS0436: This boilerplate is injected into every test assembly. When a test project
+// references another test project, both contain BuildXLSelfRegisteredExtensions in the
+// same namespace, causing a type conflict. The local definition is the correct one.
+#pragma warning disable CS0436
+
 // ---- Runner reporter registrations (from xunit.v3.core.mtp-v1/_content/DefaultRunnerReporters.cs) ----
 [assembly: global::Xunit.Runner.Common.RegisterRunnerReporter(typeof(global::Xunit.Runner.Common.DefaultRunnerReporter))]
 [assembly: global::Xunit.Runner.Common.RegisterRunnerReporter(typeof(global::Xunit.Runner.Common.JsonReporter))]
@@ -32,7 +37,7 @@ namespace Xunit.V3.BuildXL.Generated
         public static int Main(string[] args)
         {
             if (global::System.Linq.Enumerable.Any(args, arg => arg == "--server" || arg == "--internal-msbuild-node"))
-                return global::Xunit.MicrosoftTestingPlatform.TestPlatformTestFramework.RunAsync(args, SelfRegisteredExtensions.AddSelfRegisteredExtensions).GetAwaiter().GetResult();
+                return global::Xunit.MicrosoftTestingPlatform.TestPlatformTestFramework.RunAsync(args, BuildXLSelfRegisteredExtensions.AddSelfRegisteredExtensions).GetAwaiter().GetResult();
             else
                 return global::Xunit.Runner.InProc.SystemConsole.ConsoleRunner.Run(args).GetAwaiter().GetResult();
         }
@@ -40,7 +45,7 @@ namespace Xunit.V3.BuildXL.Generated
 
     // ---- Microsoft Testing Platform self-registration (from Microsoft.Testing.Platform.MSBuild) ----
     [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
-    internal static class SelfRegisteredExtensions
+    internal static class BuildXLSelfRegisteredExtensions
     {
         public static void AddSelfRegisteredExtensions(this global::Microsoft.Testing.Platform.Builder.ITestApplicationBuilder builder, string[] args)
         {

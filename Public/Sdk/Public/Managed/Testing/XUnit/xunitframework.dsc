@@ -110,7 +110,8 @@ function runTest(args : TestRunArguments) : File[] {
     ];
 }
 
-function wrapInUntrackedCmd(executeArguments: Transformer.ExecuteArguments) : Transformer.ExecuteArguments
+@@public
+export function wrapInUntrackedCmd(executeArguments: Transformer.ExecuteArguments) : Transformer.ExecuteArguments
 {
     // Since we are going to untrack these processes the sealed directories will not be dynamically tracked
     // So attempt to statically list all the files for now

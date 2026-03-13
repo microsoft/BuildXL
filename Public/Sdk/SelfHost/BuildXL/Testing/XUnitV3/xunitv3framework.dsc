@@ -10,31 +10,29 @@
 // Two usage modes:
 //   - Per-project: BuildXLSdk.test({ useXUnitV3: true }) — QTest wrapping controlled globally
 //   - Explicit:    BuildXLSdk.test({ testFramework: XUnitV3.framework }) — opt out of QTest
-//
-// TODO: Port the v2 custom TestFramework features to v3. The v2 TestFrameworkOverride
-// (TestUtilities.XUnit/Extensions/) provides per-test timeouts, MTA thread support,
-// contract violation fail-fast, hash-based test distribution, console stream isolation,
-// and SynchronizationContext clearing. Most of these can be implemented via a custom
-// FactAttribute with a default timeout, BeforeAfterTestAttribute, and a base test class
-// rather than a full framework override.
-//
-// TODO: Create a TestUtilities.XUnitV3 assembly that ports XunitBuildXLTest,
-// TemporaryStorageTestBase, XAssert, and the portable parts of TestUtilities.XUnit
-// to xunit v3 (namespace change from Xunit.Abstractions to Xunit, drop Extensions/).
 
 import {Artifact, Cmd, Tool, Transformer} from "Sdk.Transformers";
 import {isDotNetCore, DotNetCoreVersion, Framework} from "Sdk.Managed.Shared";
 import * as Managed      from "Sdk.Managed";
 import * as Shared       from "Sdk.Managed.Shared";
 import * as Deployment   from "Sdk.Deployment";
+import * as XUnit        from "Sdk.Managed.Testing.XUnit";
 
 export declare const qualifier : Managed.TargetFrameworks.All;
 
 // xunit v3 compile references
-const xunitV3References : Managed.Reference[] = [
+@@public
+export const xunitV3References : Managed.Reference[] = [
     importFrom("xunit.v3.assert").pkg,
     importFrom("xunit.v3.extensibility.core").pkg,
     importFrom("xunit.v3.common").pkg,
+    // xunit v3 targets netstandard2.0 which requires these packages on net472
+    // (.NET Core has them built-in). Without these, test projects get CS0012 errors for
+    // ValueTask<>, IAsyncDisposable, Memory<>, Span<>, etc.
+    ...addIf(qualifier.targetFramework === "net472",
+        importFrom("System.Threading.Tasks.Extensions").pkg,
+        importFrom("System.Memory").pkg,
+        importFrom("Microsoft.Bcl.AsyncInterfaces").pkg),
 ];
 
 // The v3 test adapter package (aliased in config.dsc to avoid conflicts with v2)
@@ -59,8 +57,12 @@ export const framework : Managed.TestFramework = {
 };
 
 function processArguments(args: Managed.TestArguments): Managed.TestArguments {
-    return Object.merge<Managed.TestArguments>(
+    let result = Object.merge<Managed.TestArguments>(
         {
+            // Boilerplate source provides the v3 entry point (Main), Microsoft Testing Platform hooks,
+            // and runner reporter registrations. Injected here so both Managed.test() and
+            // BuildXLSdk.testV3AsExecutable() get it via the framework's compileArguments.
+            sources: [ boilerplateSource ],
             references: [
                 ...xunitV3References,
                 importFrom("xunit.v3.runner.inproc.console").pkg,
@@ -92,9 +94,9 @@ function processArguments(args: Managed.TestArguments): Managed.TestArguments {
                     importFrom("Sdk.Managed.Frameworks.Net472").NetFx.Netstandard.dll,
                     importFrom("System.Collections.Immutable").pkg,
                 ],
-                // xunit v3 transitively references System.Collections.Immutable 6.0.0.0,
-                // but the deployed version is 9.0.0.0. The global binding redirect only
-                // covers up to 1.5.0.0, so we need a wider redirect here.
+                // Binding redirects required by xunit v3 on net472. DScript's Object.merge
+                // appends arrays by default, so project-specific redirects from args are
+                // preserved automatically.
                 assemblyBindingRedirects: [
                     {
                         name: "System.Collections.Immutable",
@@ -103,9 +105,32 @@ function processArguments(args: Managed.TestArguments): Managed.TestArguments {
                         oldVersion: "0.0.0.0-9.0.0.7",
                         newVersion: "9.0.0.7",
                     },
+                    {
+                        name: "System.Threading.Tasks.Extensions",
+                        publicKeyToken: "cc7b13ffcd2ddd51",
+                        culture: "neutral",
+                        oldVersion: "0.0.0.0-4.99.99.99",
+                        newVersion: "4.2.1.0",
+                    },
+                    {
+                        name: "Microsoft.Bcl.AsyncInterfaces",
+                        publicKeyToken: "cc7b13ffcd2ddd51",
+                        culture: "neutral",
+                        oldVersion: "0.0.0.0-9.0.0.13",
+                        newVersion: "9.0.0.13",
+                    },
+                    {
+                        name: "System.Memory",
+                        publicKeyToken: "cc7b13ffcd2ddd51",
+                        culture: "neutral",
+                        oldVersion: "0.0.0.0-4.0.5.0",
+                        newVersion: "4.0.5.0",
+                    },
                 ],
             },
         args);
+
+    return result;
 }
 
 function additionalRuntimeContent(args: Managed.TestArguments) : Deployment.DeployableItem[] {
@@ -261,6 +286,13 @@ function runStandaloneV3(args : Managed.TestRunArguments) : File[] {
         execArguments = importFrom("Sdk.Managed.Frameworks").Helpers.wrapInDotNetExeForCurrentOs(targetFramework, execArguments);
     }
 
+    // Handle runWithUntrackedDependencies by wrapping the test process in cmd/bash
+    // with hasUntrackedChildProcesses, matching v2 xunit framework behavior.
+    // Must be applied after the dotnet wrapper so cmd wraps the full dotnet exec command.
+    if (args.unsafeTestRunArguments && args.unsafeTestRunArguments.runWithUntrackedDependencies) {
+        execArguments = XUnit.wrapInUntrackedCmd(execArguments);
+    }
+
     execArguments = Managed.TestHelpers.applyTestRunExecutionArgs(execArguments, args);
 
     const result = Transformer.execute(execArguments);
@@ -269,8 +301,13 @@ function runStandaloneV3(args : Managed.TestRunArguments) : File[] {
     const qualifierRelative = r`${qualifier.configuration}/${qualifier.targetFramework}/${qualifier.targetRuntime}`;
     const parallelRelative = args.parallelBucketIndex !== undefined ? `${args.parallelBucketIndex}` : `0`;
     const privilege = args.privilegeLevel || "standard";
+    // When running as part of parallelGroups, use the limit group name as a suffix to avoid filename collisions
+    const groupSuffix = args.limitGroups && args.limitGroups.length > 0 ? `.${args.limitGroups[0]}` : ``;
     const xunitLogDir = d`${Context.getMount("LogsDirectory").path}/XUnit/${Context.getLastActiveUseModuleName()}/${Context.getLastActiveUseName()}/${qualifierRelative}/${privilege}/${parallelRelative}`;
-    result.getOutputFiles().map(f => Transformer.copyFile(f, p`${xunitLogDir}/${f.name}`));
+    result.getOutputFiles().map(f => {
+        const destName = groupSuffix !== `` ? f.name.changeExtension(a`${groupSuffix}${f.name.extension}`) : f.name;
+        return Transformer.copyFile(f, p`${xunitLogDir}/${destName}`);
+    });
 
     return [
         xmlResultFile && result.getOutputFile(xmlResultFile),
@@ -282,7 +319,9 @@ function runStandaloneV3(args : Managed.TestRunArguments) : File[] {
  * plus a final run excluding all groups. Mirrors v2 runMultipleConsoleTests.
  */
 function runMultipleStandaloneV3(args : Managed.TestRunArguments) : File[] {
-    // Run tests for each parallel group (filtered by trait)
+    // Run tests for each parallel group (filtered by trait).
+    // Each group gets a unique XML result filename to avoid collisions
+    // in the log copy directory (mirrors v2 runMultipleConsoleTests behavior).
     for (let testGroup of args.parallelGroups) {
         runStandaloneV3(args.override<Managed.TestRunArguments>({
             parallelGroups: undefined,

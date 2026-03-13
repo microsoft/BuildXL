@@ -12,6 +12,7 @@ using BuildXL.Plugin;
 using BuildXL.Plugin.Grpc;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
+using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using ILogger = Grpc.Core.Logging.ILogger;
 
@@ -20,26 +21,13 @@ namespace Test.BuildXL.Plugin
     /// <summary>
     /// Tests for <see cref="PluginManager" />
     /// </summary>
-    public class PluginManagerTests : IAsyncLifetime, IDisposable
+    public class PluginManagerTests : TemporaryStorageTestBase
     {
         private readonly PluginManager m_pluginManager;
         private readonly LoggingContext m_loggingContext = new LoggingContext("UnitTest");
 
         // Tracks the MockPluginServer shutdown so DisposeAsync can wait for the port to be released.
         private TaskCompletionSource<bool> m_serverShutdownCompletion;
-
-        // Simple temp directory support (replaces TemporaryStorageTestBase)
-        private static int s_counter;
-        private readonly string m_tempDir;
-        protected string GetFullPath(string path) => Path.IsPathRooted(path) ? path : Path.Combine(m_tempDir, path);
-        protected string WriteFile(string relativePath, string contents)
-        {
-            var fullPath = GetFullPath(relativePath);
-            Directory.CreateDirectory(Path.GetDirectoryName(fullPath));
-            File.WriteAllText(fullPath, contents);
-            return fullPath;
-        }
-        public void Dispose() { try { Directory.Delete(m_tempDir, true); } catch (IOException) { } }
  
         private const string PluginPath1 = "test1";
         private const string PluginId1 = "test1";
@@ -78,12 +66,8 @@ namespace Test.BuildXL.Plugin
         private readonly ILogger m_logger = new MockLogger();
         private readonly int m_port = TcpIpConnectivity.ParsePortNumber(s_pluginPort3);
 
-        // TODO: Inherit from TemporaryStorageTestBase once it is ported to xunit v3.
         public PluginManagerTests()
         {
-            m_tempDir = Path.Combine(Path.GetTempPath(), "bxl-tests", "PluginMgr", Interlocked.Increment(ref s_counter).ToString());
-            if (Directory.Exists(m_tempDir)) Directory.Delete(m_tempDir, true);
-            Directory.CreateDirectory(m_tempDir);
             m_pluginManager = new PluginManager(m_loggingContext, "empty", new[] { "empty" });
         }
 
@@ -464,12 +448,7 @@ namespace Test.BuildXL.Plugin
             Assert.Equal(processExitCode, processResultMessageResponse.Result.ExitCode);
         }
 #endif
-        public ValueTask InitializeAsync()
-        {
-            return default;
-        }
-
-        public async ValueTask DisposeAsync()
+        public override async ValueTask DisposeAsync()
         {
             await m_pluginManager.Stop();
             m_pluginManager.Clear();
@@ -480,6 +459,8 @@ namespace Test.BuildXL.Plugin
             {
                 await m_serverShutdownCompletion.Task;
             }
+
+            await base.DisposeAsync();
         }
     }
 }

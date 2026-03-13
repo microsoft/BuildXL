@@ -22,7 +22,6 @@ namespace PackedExecution {
             Core.dll,
             TestProcess.exe,
             TestUtilities.dll,
-            TestUtilities.XUnit.dll,
             importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
             importFrom("BuildXL.Core.UnitTests").EngineTestUtilities.dll,
             importFrom("BuildXL.Core.UnitTests").Scheduler.dll,

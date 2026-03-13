@@ -3,7 +3,7 @@
 
 import * as Managed from "Sdk.Managed";
 import {Transformer} from "Sdk.Transformers";
-import * as XUnit from "Sdk.Managed.Testing.XUnit";
+import * as XUnitV3 from "Sdk.Managed.Testing.XUnitV3";
 
 namespace Core {
     export declare const qualifier: BuildXLSdk.Net8PlusQualifier;
@@ -18,7 +18,7 @@ namespace Core {
         sources: globR(d`.`, "*.cs").filter(f => !f.isWithin(d`SBOM`)),
         // TODO - there is some issue with deploying the git binaries to the unit test directory under QTest.
         // Leave this as xunit for now
-        testFramework: XUnit.framework,
+        testFramework: XUnitV3.framework,
         runTestArgs: {
             unsafeTestRunArguments: {
                 untrackedScopes: [

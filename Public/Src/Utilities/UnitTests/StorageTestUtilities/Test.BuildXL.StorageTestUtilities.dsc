@@ -9,7 +9,8 @@ namespace StorageTestUtilities {
         addNotNullAttributeFile: true,
         references: [
             TestUtilities.dll,
-            TestUtilities.XUnit.dll,
+            TestUtilities.XUnitV3.dll,
+            ...importFrom("Sdk.Managed.Testing.XUnitV3").xunitV3References,
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Utilities").Storage.dll,

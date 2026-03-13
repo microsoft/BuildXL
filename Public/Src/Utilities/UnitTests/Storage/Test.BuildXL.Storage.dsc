@@ -2,12 +2,14 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 import * as Managed from "Sdk.Managed";
+import * as XUnitV3 from "Sdk.Managed.Testing.XUnitV3";
 
 namespace Storage {
     @@public
     export const dll = BuildXLSdk.test({
         assemblyName: "Test.BuildXL.Storage",
         allowUnsafeBlocks: true,
+        testFramework: XUnitV3.framework,
         assemblyBindingRedirects: BuildXLSdk.cacheBindingRedirects(),
         runTestArgs: {
             unsafeTestRunArguments: {

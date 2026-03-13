@@ -2,18 +2,15 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Threading.Tasks;
 using BuildXL.Ipc.Interfaces;
 using BuildXL.Ipc.Common;
 using BuildXL.Native.Streams.Windows;
 using BuildXL.Processes;
 using BuildXL.Processes.Sideband;
-using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Tracing;
@@ -139,27 +136,9 @@ namespace Test.BuildXL.TestUtilities.Xunit
         }
 
         /// <summary>
-        /// Value returned by <see cref="DiscoverCurrentlyExecutingXunitTestMethodFQN"/> when it cannot discover
-        /// the currently executing XUnit method.
+        /// Backward-compatible wrapper for <see cref="BuildXLTestBase.DiscoverCurrentlyExecutingTestMethodFQN"/>.
         /// </summary>
-        protected const string UnknownXunitMethod = "<unknown>";
-
-        /// <summary>
-        /// Tries to discover the name of the currently executing XUnit method via reflection.
-        /// </summary>
-        protected string DiscoverCurrentlyExecutingXunitTestMethodFQN()
-        {
-            StackFrame testMethodFrame = new StackTrace()
-                .GetFrames()
-                .LastOrDefault(f => f.GetMethod().Module.Assembly == Assembly.GetAssembly(GetType()));
-
-            if (testMethodFrame == null)
-            {
-                return UnknownXunitMethod;
-            }
-
-            return $"{testMethodFrame.GetMethod().DeclaringType.FullName}.{testMethodFrame.GetMethod().Name}";
-        }
+        protected string DiscoverCurrentlyExecutingXunitTestMethodFQN() => DiscoverCurrentlyExecutingTestMethodFQN();
 
         /// <summary>
         /// Uses <see cref="PathGeneratorUtilities.GetAbsolutePath(string, string[])"/> to compose a platform-independent

@@ -2,15 +2,9 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
-using System.IO;
-using BuildXL.Native.IO;
-using BuildXL.Native.Processes;
-using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
-using BuildXL.Utilities.Core.Tasks;
 using Xunit.Sdk;
 
 namespace Test.BuildXL.TestUtilities.Xunit
@@ -35,10 +29,6 @@ namespace Test.BuildXL.TestUtilities.Xunit
         /// <inheritdoc />
         public TestRequirements Requirements { get; }
 
-        // Cache these at the test process invocation level
-        private static readonly ConcurrentDictionary<TestRequirements, string> s_requirementsToFailureMessageMap
-            = new ConcurrentDictionary<TestRequirements, string>();
-
         /// <nodoc/>
         public FactIfSupportedAttribute(TestRequirements requirements)
             : this(additionalRequirements: requirements)
@@ -59,207 +49,45 @@ namespace Test.BuildXL.TestUtilities.Xunit
             bool requiresEBPFEnabled = false,
             TestRequirements additionalRequirements = TestRequirements.None)
         {
-            var requirements = additionalRequirements;
-            AddRequirement(ref requirements, requiresAdmin, TestRequirements.Admin);
-            AddRequirement(ref requirements, requiresJournalScan, TestRequirements.JournalScan);
-            AddRequirement(ref requirements, requiresSymlinkPermission, TestRequirements.SymlinkPermission);
-            AddRequirement(ref requirements, requiresWindowsBasedOperatingSystem, TestRequirements.WindowsOs);
-            AddRequirement(ref requirements, requiresUnixBasedOperatingSystem, TestRequirements.UnixBasedOs);
-            AddRequirement(ref requirements, requiresMacOperatingSystem, TestRequirements.MacOs);
-            AddRequirement(ref requirements, requiresWindowsOrMacOperatingSystem, TestRequirements.WindowsOrMacOs);
-            AddRequirement(ref requirements, requiresWindowsOrLinuxOperatingSystem, TestRequirements.WindowsOrLinuxOs);
-            AddRequirement(ref requirements, requiresLinuxBasedOperatingSystem, TestRequirements.LinuxOs);
-            AddRequirement(ref requirements, requiresEBPFEnabled, TestRequirements.EBPFEnabled);
-
-            Requirements = requirements;
+            Requirements = TestRequirementsChecker.BuildRequirements(
+                additionalRequirements,
+                requiresAdmin,
+                requiresJournalScan,
+                requiresSymlinkPermission,
+                requiresWindowsBasedOperatingSystem,
+                requiresUnixBasedOperatingSystem,
+                requiresMacOperatingSystem,
+                requiresWindowsOrMacOperatingSystem,
+                requiresWindowsOrLinuxOperatingSystem,
+                requiresLinuxBasedOperatingSystem,
+                requiresEBPFEnabled);
 
             if (Skip != null)
             {
-                // If skip is specified, do nothing because the test will be skipped anyway.
                 return;
             }
 
-            CheckRequirement(TestRequirements.NotSupported, () => "Test is marked not supported.");
-
-            CheckRequirement(
-                TestRequirements.Admin,
-                () => 
-                {
-                    if (OperatingSystemHelper.IsWindowsOS)
-                    {
-                        return !CurrentProcess.IsElevated ? "Test must be run elevated!" : null;
-                    }
-                    else
-                    {
-                        return !CurrentProcess.CanSudoNonInteractive() ? "Test must be able to do a non-interactive sudo!" : null;
-                    }
-                });
-
-            CheckRequirement(
-                TestRequirements.SymlinkPermission,
-                () =>
-                {
-                    string tempFile = FileUtilities.GetTempFileName();
-                    string symlinkPath = FileUtilities.GetTempFileName();
-                    FileUtilities.DeleteFile(symlinkPath);
-
-                    // For reliable tests, we ensure that the symlink is created.
-                    var canCreateSymlink = FileUtilities.TryCreateSymbolicLink(symlinkPath, tempFile, true).Succeeded && FileUtilities.FileExistsNoFollow(symlinkPath);
-                    FileUtilities.DeleteFile(symlinkPath);
-                    FileUtilities.DeleteFile(tempFile);
-
-                    return !canCreateSymlink ? "Test must be run with symbolic link creation privileged" : null;
-                });
-
-            CheckRequirement(
-                TestRequirements.JournalScan,
-                () =>
-                {
-                    if (OperatingSystemHelper.IsUnixOS)
-                    {
-                        return $"Test requires a journaled Windows file system, can't be executed on non-windows systems.";
-                    }
-
-                    var loggingContext = new LoggingContext("Dummy", "Dummy");
-                    var map = JournalUtils.TryCreateMapOfAllLocalVolumes(loggingContext);
-                    var accessor = JournalUtils.TryGetJournalAccessorForTest(map);
-                    if (!accessor.Succeeded)
-                    {
-                        return accessor.Failure.Describe();
-                    }
-
-                    return null;
-                });
-
-            CheckRequirement(
-                TestRequirements.WindowsOs,
-                () =>
-                {
-                    if (OperatingSystemHelper.IsUnixOS)
-                    {
-                        return "Test must be run on the CLR on Windows based operating systems!";
-                    }
-
-                    return null;
-                });
-
-            CheckRequirement(
-                TestRequirements.UnixBasedOs,
-                () =>
-                {
-                    if (!OperatingSystemHelper.IsUnixOS)
-                    {
-                        return "Test must be run on the CoreCLR on Unix based operating systems!";
-                    }
-
-                    return null;
-                });
-
-            CheckRequirement(
-                TestRequirements.MacOs,
-                () =>
-                {
-                    if (!OperatingSystemHelper.IsMacOS)
-                    {
-                        return "Test must be run on macOS";
-                    }
-
-                    return null;
-                });
-
-            CheckRequirement(
-                TestRequirements.WindowsProjFs,
-                () =>
-                {
-                    if (OperatingSystemHelper.IsUnixOS)
-                    {
-                        return "WindowsProjFs requires running on Windows operating system";
-                    }
-
-                    bool foundGvfsService = System.Diagnostics.Process.GetProcessesByName("GVFS.Service").Length != 0;
-                    if (!foundGvfsService)
-                    {
-                        return "Could not find GVFS.Service. Is Windows Projected FileSystem enabled?";
-                    }
-
-                    return null;
-                });
-
-            CheckRequirement(
-                TestRequirements.WindowsOrMacOs,
-                () =>
-                {
-                    if (OperatingSystemHelper.IsLinuxOS)
-                    {
-                        return "Test must be run on Windows or macOS";
-                    }
-
-                    return null;
-                });
-
-            CheckRequirement(
-                TestRequirements.WindowsOrLinuxOs,
-                () =>
-                {
-                    if (OperatingSystemHelper.IsMacOS)
-                    {
-                        return "Test must be run on Windows or Linux OS";
-                    }
-
-                    return null;
-                });
-
-            CheckRequirement(TestRequirements.LinuxOs,
-                () =>
-                {
-                    if (!OperatingSystemHelper.IsLinuxOS)
-                    {
-                        return "Test must be run on Linux OS";
-                    }
-
-                    return null;
-                });
-
-            CheckRequirement(TestRequirements.EBPFEnabled,
-                () =>
-                {
-                    if (!OperatingSystemHelper.IsLinuxOS)
-                    {
-                        return "Test requires EBPF sandboxing, which is only available on Linux";
-                    }
-
-                    if (!BuildXLTestBase.IsUsingEBPFSandbox())
-                    {
-                        return "Test requires EBPF sandboxing to be enabled";
-                    }
-
-                    return null;
-                });
+            Skip = TestRequirementsChecker.GetSkipReason(
+                Requirements,
+                (TestRequirements.JournalScan, JournalScanCheck));
         }
 
-        private void CheckRequirement(TestRequirements requirement, Func<string> check)
+        private static string JournalScanCheck()
         {
-            if (Requirements.HasFlag(requirement))
+            if (OperatingSystemHelper.IsUnixOS)
             {
-                if (!s_requirementsToFailureMessageMap.TryGetValue(requirement, out var failureMessage))
-                {
-                    failureMessage = check();
-                    s_requirementsToFailureMessageMap[requirement] = failureMessage;
-                }
-
-                if (!string.IsNullOrEmpty(failureMessage))
-                {
-                    Skip = failureMessage;
-                }
+                return "Test requires a journaled Windows file system, can't be executed on non-windows systems.";
             }
-        }
 
-        private static void AddRequirement(ref TestRequirements requirements, bool condition, TestRequirements requirement)
-        {
-            if (condition)
+            var loggingContext = new LoggingContext("Dummy", "Dummy");
+            var map = JournalUtils.TryCreateMapOfAllLocalVolumes(loggingContext);
+            var accessor = JournalUtils.TryGetJournalAccessorForTest(map);
+            if (!accessor.Succeeded)
             {
-                requirements |= requirement;
+                return accessor.Failure.Describe();
             }
+
+            return null;
         }
     }
 }

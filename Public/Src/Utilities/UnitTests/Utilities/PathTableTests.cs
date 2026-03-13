@@ -10,7 +10,6 @@ using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
 using System.Linq;
 
 namespace Test.BuildXL.Utilities

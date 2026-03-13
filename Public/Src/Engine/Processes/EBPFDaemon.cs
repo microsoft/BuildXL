@@ -22,6 +22,8 @@ namespace BuildXL.Processes
     /// </summary>
     public sealed class EBPFDaemon : IDisposable
     {
+        private const int ListenerTimeoutSeconds = 30;
+
         private CancellationTokenRegistration m_registration;
         private ISandboxedProcess? m_process;
         private readonly ConcurrentQueue<string> m_ebpfErrors = new ();
@@ -32,7 +34,12 @@ namespace BuildXL.Processes
         /// <remarks>
         /// This may include errors that were reported after EBPF was successfully initialized.
         /// </remarks>
-        public IReadOnlyCollection<string> EBPFErrors => m_ebpfErrors.ToArray();
+        public string EBPFErrors => string.Join(Environment.NewLine, m_ebpfErrors.ToArray());
+
+        /// <summary>
+        /// The number of errors that have been reported by EBPF during the lifetime of the daemon
+        /// </summary>
+        public int EBPFErrorCount => m_ebpfErrors.Count;
 
         private EBPFDaemon()
         {
@@ -246,14 +253,23 @@ namespace BuildXL.Processes
 
                 return cancellationToken.IsCancellationRequested
                     // If the process finished due to cancellation, report it as a failure
-                    ? new Possible<Unit>(new Failure<string>("EBPF initialization has been cancelled"))
+                    // There might be errors that were reported before cancellation, so let's include them in the message to help debugging cancellation issues.
+                    ? new Possible<Unit>(new Failure<string>($"EBPF initialization has been cancelled. {EBPFErrors}"))
                     // Otherwise, the process shouldn't have finished
-                    : new Possible<Unit>(new Failure<string>($"EBPF daemon terminated unexpectedly: {string.Join(Environment.NewLine, EBPFErrors)}"));
+                    : new Possible<Unit>(new Failure<string>($"EBPF daemon terminated unexpectedly: {EBPFErrors}"));
             });
 
-            // Wait for the process running under EBPF to reach the point where we receive the first event (success) or 
-            // when the process finishes (cancellation or unexpected termination).
-            var any = await Task.WhenAny(ebpfListener.ProcessEventReceived, processFinishedTask);
+            // Wait for the process running under EBPF to reach the point where we receive the first event (success),
+            // when the process finishes (cancellation or unexpected termination), or when a timeout expires (the listener
+            // never got a first message within a reasonable time).
+            Task<Possible<Unit>> listenerTimeoutTask = Task.Delay(TimeSpan.FromSeconds(ListenerTimeoutSeconds), cancellationToken).ContinueWith(t =>
+            {
+                return t.IsCanceled
+                    ? new Possible<Unit>(new Failure<string>($"EBPF initialization has been cancelled. {EBPFErrors}"))
+                    : new Possible<Unit>(new Failure<string>($"EBPF daemon did not receive a first event within {ListenerTimeoutSeconds} seconds. {EBPFErrors}"));
+            });
+
+            var any = await Task.WhenAny(ebpfListener.ProcessEventReceived, processFinishedTask, listenerTimeoutTask);
             return await any;
         }
 

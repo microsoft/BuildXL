@@ -2162,10 +2162,9 @@ namespace BuildXL.Engine
                                         // These errors are not expected. They are indicating a situation where EBPF was initialized successfully
                                         // but then the daemon failed at some point while the build was running. Pips may have failed as well as a result
                                         // but log these errors to provide more insights into the failure.
-                                        var afterInitErrors = ebpfDaemon.Result.EBPFErrors;
-                                        if (afterInitErrors.Count > 0)
+                                        if (ebpfDaemon.Result.EBPFErrorCount > 0)
                                         {
-                                            Logger.Log.ErrorEBPFFailedUnexpectedly(loggingContext, string.Join(Environment.NewLine, afterInitErrors));
+                                            Logger.Log.ErrorEBPFFailedUnexpectedly(loggingContext, ebpfDaemon.Result.EBPFErrors);
                                             success = false;
                                         }
                                     }

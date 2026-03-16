@@ -1,8 +1,6 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-import * as XUnitV3 from "Sdk.Managed.Testing.XUnitV3";
-
 namespace Storage.Untracked {
 
     @@public
@@ -13,7 +11,7 @@ namespace Storage.Untracked {
                 runWithUntrackedDependencies: !BuildXLSdk.Flags.IsEBPFSandboxForTestsEnabled,
             },
         },
-        testFramework: XUnitV3.framework,
+        qTestXUnitV3: true,
         assemblyName: "Test.BuildXL.Storage.Admin",
         sources: globR(d`.`, "*.cs"),
         references: [

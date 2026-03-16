@@ -71,38 +71,6 @@ namespace BuildXL.Native.IO.Windows
         private static readonly IntPtr INVALID_HANDLE_VALUE = new IntPtr(-1);
 
         /// <summary>
-        /// OSVERSIONINFOEX
-        /// See http://msdn.microsoft.com/en-us/library/windows/desktop/ms724833(v=vs.85).aspx
-        /// </summary>
-        /// <remarks>
-        /// This definition is taken with minor modifications from the BCL.
-        /// </remarks>
-        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-        private sealed class OsVersionInfoEx
-        {
-            public static readonly int Size = Marshal.SizeOf<OsVersionInfoEx>();
-
-            public OsVersionInfoEx()
-            {
-                // This must be set to Size before use, since it is validated by consumers such as VerifyVersionInfo.
-                OSVersionInfoSize = Size;
-            }
-
-            public int OSVersionInfoSize;
-            public int MajorVersion;
-            public int MinorVersion;
-            public int BuildNumber;
-            public int PlatformId;
-            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
-            public string CSDVersion;
-            public ushort ServicePackMajor;
-            public ushort ServicePackMinor;
-            public short SuiteMask;
-            public byte ProductType;
-            public byte Reserved;
-        }
-
-        /// <summary>
         /// Request structure indicating this program's supported version range of Usn records.
         /// See http://msdn.microsoft.com/en-us/library/windows/desktop/hh802705(v=vs.85).aspx
         /// </summary>
@@ -623,21 +591,6 @@ namespace BuildXL.Native.IO.Windows
             out int numBytesWritten,
             NativeOverlapped* lpOverlapped);
 
-        [SuppressMessage("Microsoft.Globalization", "CA2101:SpecifyMarshalingForPInvokeStringArguments", MessageId = "OsVersionInfoEx.CSDVersion",
-            Justification = "This appears impossible to satisfy.")]
-        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode, BestFitMapping = false, ThrowOnUnmappableChar = true)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool VerifyVersionInfo(
-            [In] OsVersionInfoEx versionInfo,
-            uint typeMask,
-            ulong conditionMask);
-
-        [DllImport("kernel32.dll", SetLastError = true)]
-        private static extern ulong VerSetConditionMask(
-            ulong existingMask,
-            uint typeMask,
-            byte conditionMask);
-
         [DllImport("kernel32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         private static extern bool DeviceIoControl(
@@ -984,14 +937,6 @@ namespace BuildXL.Native.IO.Windows
         #endregion
 
         /// <summary>
-        /// <see cref="StaticIsOSVersionGreaterOrEqual(int, int)"/>
-        /// </summary>
-        public static bool StaticIsOSVersionGreaterOrEqual(Version version)
-        {
-            return StaticIsOSVersionGreaterOrEqual(version.Major, version.Minor);
-        }
-
-        /// <summary>
         /// Calculates quad aligned size.
         /// </summary>
         public static ulong QuadAlign(ulong size) => (size + 7) & 0xfffffff8;
@@ -1005,35 +950,6 @@ namespace BuildXL.Native.IO.Windows
         /// Gets the max and min sizes of a <see cref="NativeUsnRecordV2"/> structure.
         /// </summary>
         public static (int max, int min) GetUsnRecordV2Sizes() => (NativeUsnRecordV2.MaximumSize, NativeUsnRecordV2.MinimumSize);
-
-        /// <summary>
-        /// Calls VerifyVersionInfo to determine if the running OS's version meets or exceeded the given major.minor version.
-        /// </summary>
-        /// <remarks>
-        /// Unlike <see cref="Environment.OSVersion"/>, this works for Windows 8.1 and above.
-        /// See the deprecation warnings at http://msdn.microsoft.com/en-us/library/windows/desktop/ms724451(v=vs.85).aspx
-        /// </remarks>
-        public static bool StaticIsOSVersionGreaterOrEqual(int major, int minor)
-        {
-            const uint ErrorOldWinVersion = 0x47e; // ERROR_OLD_WIN_VERSION
-            const uint MajorVersion = 0x2; // VER_MAJOR_VERSION
-            const uint MinorVersion = 0x1; // VER_MINOR_VERSION
-            const byte CompareGreaterOrEqual = 0x3; // VER_GREATER_EQUAL
-
-            ulong conditionMask = VerSetConditionMask(0, MajorVersion, CompareGreaterOrEqual);
-            conditionMask = VerSetConditionMask(conditionMask, MinorVersion, CompareGreaterOrEqual);
-
-            OsVersionInfoEx comparand = new OsVersionInfoEx { OSVersionInfoSize = OsVersionInfoEx.Size, MajorVersion = major, MinorVersion = minor };
-            bool satisfied = VerifyVersionInfo(comparand, MajorVersion | MinorVersion, conditionMask);
-            int hr = Marshal.GetLastWin32Error();
-
-            if (!satisfied && hr != ErrorOldWinVersion)
-            {
-                throw ThrowForNativeFailure(hr, "VerifyVersionInfo");
-            }
-
-            return satisfied;
-        }
 
         /// <nodoc />
         public static readonly int MaxDirectoryPath = 260;

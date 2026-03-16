@@ -1041,6 +1041,28 @@ function shouldUseQTest(runTestArgs: Managed.TestRunArguments) : boolean {
 function getTestFramework(args: TestArguments) : Managed.TestFramework {
     if (args.testFramework) return args.testFramework;
     const baseFramework = args.qTestXUnitV3 ? XUnitV3.framework : XUnit.framework;
+    // QTest's vstest.console.exe (v16.7.0-preview) ships testhost.exe (v15.0.0)
+    // whose Microsoft.VisualStudio.TestPlatform.ObjectModel.dll (assembly version
+    // 15.0.0.0, file version 15.0.0) is missing methods required by the xunit v3
+    // vstest adapter (xunit.runner.visualstudio v3.1.5), specifically
+    // UriDataAttachment.CreateFrom(String, String) which was added in ObjectModel
+    // v17.x (assembly version 15.0.0.0, file version 17.13+).  Because both the
+    // old and new ObjectModel share assembly version 15.0.0.0, binding redirects
+    // cannot resolve this — the testhost loads its own old copy during
+    // initialization before any adapter code runs.
+    //
+    // On .NET Core the test runs via `dotnet exec` in a separate process with the
+    // newer ObjectModel from the deployment directory, so the conflict doesn't
+    // arise.  On .NET Framework the testhost loads the old ObjectModel in-process,
+    // causing MissingMethodException → test process crash after 60s timeout.
+    //
+    // To fix properly, QTest needs to update its bundled vstest tooling from
+    // v15/v16 to v17+ so that testhost.exe ships an ObjectModel.dll with the
+    // methods the xunit v3 adapter expects.  Until then, fall back to the
+    // standalone xunit v3 runner (runs Test.*.exe directly) for net472.
+    if (args.qTestXUnitV3 && isFullFramework) {
+        return baseFramework;
+    }
     return shouldUseQTest(args.runTestArgs) ? QTest.getFramework(baseFramework) : baseFramework;
 }
 

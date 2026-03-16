@@ -2,7 +2,6 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 import * as Managed from "Sdk.Managed";
-import * as XUnitV3 from "Sdk.Managed.Testing.XUnitV3";
 
 namespace Authentication {
     @@public
@@ -10,7 +9,7 @@ namespace Authentication {
         assemblyName: "Test.BuildXL.Utilities.Authentication",
         allowUnsafeBlocks: true,
         sources: globR(d`.`, "*.cs"),
-        testFramework: XUnitV3.framework,
+        qTestXUnitV3: true,
         references: [
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Authentication.dll,

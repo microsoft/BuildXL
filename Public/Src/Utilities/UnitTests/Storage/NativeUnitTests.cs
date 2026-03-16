@@ -82,24 +82,5 @@ namespace Test.BuildXL.Storage
                 neq: (a, b) => a != b,
                 skipHashCodeForNotEqualValues: false);
         }
-
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
-        public void OsVersionCheckConsistency()
-        {
-            // On Windows 8.1, this will return Windows 8.
-            OperatingSystem version = Environment.OSVersion;
-            XAssert.IsTrue(FileSystemWin.StaticIsOSVersionGreaterOrEqual(version.Version.Major, version.Version.Minor));
-        }
-
-        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
-        public void OsVersionCheckNegative()
-        {
-            // This comment is a time capsule to the person who has to fix this test when 999.5 is a shipping Windows version
-            // (perhaps Windows Aquamarine Space Station Edition): Sorry!
-
-            // The major.minor version 999.5 is definitely not a valid Windows version as of writing (we are at 10.0 currently),
-            // and shouldn't be for a long while. But it would be very unfortunate if IsOSVersionGreaterOrEqual always returned true.
-            XAssert.IsFalse(FileSystemWin.StaticIsOSVersionGreaterOrEqual(999, 5));
-        }
     }
 }

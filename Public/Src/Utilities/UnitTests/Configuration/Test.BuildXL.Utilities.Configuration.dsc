@@ -1,14 +1,12 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-import * as XUnitV3 from "Sdk.Managed.Testing.XUnitV3";
-
 namespace Configuration {
     @@public
     export const dll = BuildXLSdk.test({
         assemblyName: "Test.BuildXL.Utilities.Configuration",
         sources: globR(d`.`, "*.cs"),
-        testFramework: XUnitV3.framework,
+        qTestXUnitV3: true,
         references: [
             importFrom("BuildXL.FrontEnd").Script.dll,
             importFrom("BuildXL.FrontEnd").TypeScript.Net.dll,

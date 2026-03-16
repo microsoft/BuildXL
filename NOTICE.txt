@@ -5848,7 +5848,7 @@ limitations under the License."
 
 ---------------------------------------------------------
 
-minimatch 10.2.1 - BlueOak-1.0.0
+minimatch 10.2.4 - BlueOak-1.0.0
 https://github.com/isaacs/minimatch#readme
 
 

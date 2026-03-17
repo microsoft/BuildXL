@@ -657,20 +657,9 @@ namespace BuildXL
                 unobservedTaskHandler =
                     (sender, eventArgs) =>
                     {
-                        // GRPC tends to leave unobserved task exceptions in its normal operation. Eat those.
-                        if (eventArgs.Exception != null)
-                        {
-                            if ((Exception)eventArgs.Exception is Grpc.Core.RpcException)
-                            {
-                                UnexpectedCondition.Log(pm.LoggingContext, $"Swallow the following unobserved task exception. Root cause: {ExceptionRootCause.NetworkException}, Exception: {eventArgs.Exception.ToStringDemystified()}");
-                                return;
-                            }
-                        }
-
-                        HandleUnhandledFailure(
-                            eventArgs.Exception,
-                            appLoggers,
-                            pm);
+                        // Unobserved task exceptions are expected in various retry patterns and should not crash the application.
+                        // Log them as verbose/unexpected conditions for diagnostic purposes only.
+                        UnexpectedCondition.Log(pm.LoggingContext, $"Unobserved task exception (not fatal): {eventArgs.Exception?.ToStringDemystified()}");
                     };
 
                 TaskScheduler.UnobservedTaskException += unobservedTaskHandler;

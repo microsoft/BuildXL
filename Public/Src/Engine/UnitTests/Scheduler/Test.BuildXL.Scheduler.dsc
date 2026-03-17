@@ -20,6 +20,7 @@ namespace Scheduler {
 
     @@public
     export const dll = BuildXLSdk.test({
+        qTestXUnitV3: true,
         // These tests require the sandbox to run itself, so we won't sandbox the test runner process itself
         assemblyName: "Test.BuildXL.Scheduler",
         sources: globR(d`.`, "*.cs"),

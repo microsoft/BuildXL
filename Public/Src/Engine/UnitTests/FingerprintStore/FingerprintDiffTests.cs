@@ -1,11 +1,10 @@
-﻿// Copyright (c) Microsoft Corporation.
+// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
 using System.Linq;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
 using static BuildXL.Scheduler.Tracing.FingerprintDiff;
 
 namespace Test.BuildXL.FingerprintStore

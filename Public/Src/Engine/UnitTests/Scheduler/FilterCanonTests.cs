@@ -7,7 +7,6 @@ using System.Linq;
 using BuildXL.Pips.Filter;
 using BuildXL.Utilities.Core;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Test.BuildXL.Scheduler
 {

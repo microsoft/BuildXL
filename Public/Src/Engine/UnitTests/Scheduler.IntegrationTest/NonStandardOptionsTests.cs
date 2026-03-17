@@ -13,7 +13,6 @@ using Test.BuildXL.Scheduler;
 using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
 using BuildXLConfiguration = BuildXL.Utilities.Configuration;
 using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
 using StorageLogEventId = BuildXL.Storage.Tracing.LogEventId;

@@ -11,7 +11,6 @@ using BuildXL.Utilities.Collections;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Test.BuildXL.Engine.Cache
 {

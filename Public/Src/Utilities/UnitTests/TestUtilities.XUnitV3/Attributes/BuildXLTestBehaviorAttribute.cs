@@ -43,6 +43,10 @@ namespace Test.BuildXL.TestUtilities.Xunit
         [ThreadStatic]
         private static EventHandler<ContractFailedEventArgs> s_contractHandler;
 
+        // Cached hash-based test filter settings (read once from environment)
+        private static readonly int? s_testFilterHashIndex = ParseEnvironmentInt32("[UnitTest]TestFilterHashIndex");
+        private static readonly int? s_testFilterHashCount = ParseEnvironmentInt32("[UnitTest]TestFilterHashCount");
+
         /// <summary>
         /// Static constructor ensures ContentHashingUtilities is initialized before any tests run.
         /// In v2, this was done in the custom AssemblyRunner.
@@ -57,11 +61,28 @@ namespace Test.BuildXL.TestUtilities.Xunit
         /// <inheritdoc />
         public override void Before(MethodInfo methodUnderTest, IXunitTest test)
         {
+            // Hash-based test case filtering for parallelBucketCount support.
+            // In v2, the custom AssemblyRunner.FilterTestCases() handled this;
+            // in v3, we check it here since we don't have a custom runner.
+            // Tests whose method name hash doesn't match the current bucket are skipped.
+            if (s_testFilterHashIndex != null && s_testFilterHashCount != null)
+            {
+                int hash = Math.Abs(HashCodeHelper.GetOrdinalIgnoreCaseHashCode(methodUnderTest.Name));
+                if ((hash % s_testFilterHashCount.Value) != s_testFilterHashIndex.Value)
+                {
+                    Assert.Skip($"Test filtered out by hash bucket (bucket {s_testFilterHashIndex}/{s_testFilterHashCount})");
+                }
+            }
+
             // Check class-level skip attribute. In v2, the custom ClassRunner handled this;
             // in v3, we check it here since we don't have a custom runner.
+            // Use test.TestCase.TestClass.Class instead of methodUnderTest.DeclaringType
+            // because DeclaringType returns the base class where the method is defined,
+            // not the derived class that has the [TestClassIfSupported] attribute.
             try
             {
-                var classSkipAttr = methodUnderTest.DeclaringType?
+                var testClassType = test.TestCase.TestClass.Class;
+                var classSkipAttr = testClassType?
                     .GetCustomAttributes(typeof(TestClassIfSupportedAttribute), inherit: true);
                 if (classSkipAttr != null)
                 {
@@ -162,6 +183,17 @@ namespace Test.BuildXL.TestUtilities.Xunit
                 s_savedConsoleOut = null;
                 s_savedConsoleError = null;
             }
+        }
+
+        private static int? ParseEnvironmentInt32(string key)
+        {
+            var value = Environment.GetEnvironmentVariable(key);
+            if (value == null)
+            {
+                return null;
+            }
+
+            return int.Parse(value);
         }
     }
 }

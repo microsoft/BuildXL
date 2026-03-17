@@ -11,7 +11,7 @@ using BuildXL.Processes;
 using BuildXL.Utilities.Core;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.Scheduler;
-using Xunit.Abstractions;
+using Xunit;
 
 namespace Test.BuildXL.Processes
 {

@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft Corporation.
+// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
@@ -8,7 +8,6 @@ using BuildXL.Execution.Analyzer;
 using BuildXL.Utilities.Core;
 using Test.BuildXL.Executables.TestProcess;
 using Xunit;
-using Xunit.Abstractions;
 using static BuildXL.ToolSupport.CommandLineUtilities;
 
 namespace Test.Tool.Analyzers

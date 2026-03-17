@@ -6,7 +6,6 @@ using BuildXL.Engine.Distribution;
 using BuildXL.Utilities.Configuration.Mutable;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
 using GrpcPipBuildRequest = BuildXL.Distribution.Grpc.PipBuildRequest;
 using BuildXL.Scheduler;
 using BuildXL.Utilities.Instrumentation.Common;

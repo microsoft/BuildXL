@@ -23,7 +23,6 @@ using BuildXL.Utilities.Core.Tasks;
 using BuildXL.Utilities.Instrumentation.Common;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
 using static BuildXL.Engine.Cache.Fingerprints.PipCacheDescriptorV2Metadata.Types;
 
 namespace Test.BuildXL.Scheduler

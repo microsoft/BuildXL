@@ -19,7 +19,6 @@ using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.Scheduler;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
 using static BuildXL.Scheduler.Tracing.FingerprintStore;
 using static BuildXL.ToolSupport.CommandLineUtilities;
 using static Test.Tool.Analyzers.AnalyzerTestBase;

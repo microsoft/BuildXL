@@ -4,7 +4,6 @@
 using System;
 using System.Threading.Tasks;
 using Xunit;
-using Xunit.Abstractions;
 using BuildXL.Engine.Tracing;
 using BuildXL.Scheduler;
 using BuildXL.Utilities.Configuration;

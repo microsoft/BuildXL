@@ -13,7 +13,6 @@ using Test.BuildXL.Scheduler;
 using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
 using LogEventId = BuildXL.Scheduler.Tracing.LogEventId;
 using BuildXL.Cache.ContentStore.UtilitiesCore.Internal;
 

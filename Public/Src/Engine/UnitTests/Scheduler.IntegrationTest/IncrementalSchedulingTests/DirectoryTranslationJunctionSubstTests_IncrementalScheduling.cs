@@ -3,7 +3,7 @@
 
 using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
-using Xunit.Abstractions;
+using Xunit;
 
 namespace IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests
 {

@@ -8,7 +8,6 @@ using BuildXL.Execution.Analyzer;
 using BuildXL.Utilities.Core;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
 using static BuildXL.ToolSupport.CommandLineUtilities;
 
 namespace Test.Tool.Analyzers

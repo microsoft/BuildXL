@@ -10,7 +10,6 @@ using BuildXL.Native.IO;
 using BuildXL.Scheduler;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Test.BuildXL.Scheduler
 {

@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 using Test.BuildXL.TestUtilities.Xunit;
-using Xunit.Abstractions;
+using Xunit;
 
 namespace IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests
 {

@@ -9,6 +9,7 @@ namespace Test.BuildXL.RuntimeAnalyzer {
 
     @@public
     export const dll = BuildXLSdk.test({
+        qTestXUnitV3: true,
         runTestArgs: {
             unsafeTestRunArguments: {
                 runWithUntrackedDependencies: !BuildXLSdk.Flags.IsEBPFSandboxForTestsEnabled,

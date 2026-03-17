@@ -8,6 +8,7 @@ namespace Distribution {
     
     @@public
     export const dll = BuildXLSdk.test({
+        qTestXUnitV3: true,
         assemblyName: "Test.BuildXL.Distribution",
         sources: globR(d`.`, "*.cs"),
         references: [

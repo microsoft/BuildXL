@@ -16,7 +16,6 @@ using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Tracing;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
 using FileId = System.Int32;
 using PathId = System.Int32;
 

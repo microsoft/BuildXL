@@ -24,7 +24,6 @@ using BuildXL.Utilities.Core.Tasks;
 using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
 using CachePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 
 namespace Test.BuildXL.Engine

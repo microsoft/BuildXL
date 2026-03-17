@@ -13,8 +13,8 @@ using BuildXL.Utilities.Configuration;
 using Test.BuildXL.EngineTestUtilities;
 using Test.BuildXL.Processes;
 using Test.BuildXL.TestUtilities.Xunit;
-using Xunit.Abstractions;
 using SchedulerLogEventId = BuildXL.Scheduler.Tracing.LogEventId;
+using Xunit;
 
 namespace Test.BuildXL.Engine
 {

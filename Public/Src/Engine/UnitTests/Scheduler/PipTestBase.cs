@@ -30,7 +30,6 @@ using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.Processes;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
 
 using Process = BuildXL.Pips.Operations.Process;
 using BuildXL.Utilities;

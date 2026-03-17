@@ -20,7 +20,6 @@ using BuildXL.Scheduler.Tracing;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.Scheduler;
 using Xunit;
-using Xunit.Abstractions;
 using BuildXLConfiguration = BuildXL.Utilities.Configuration;
 using Test.BuildXL.TestUtilities.Xunit;
 

@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 using Xunit;
-using Xunit.Abstractions;
 
 namespace IntegrationTest.BuildXL.Scheduler
 {

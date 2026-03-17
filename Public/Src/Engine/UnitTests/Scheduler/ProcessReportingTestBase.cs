@@ -18,7 +18,6 @@ using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Core;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace Test.BuildXL.Scheduler

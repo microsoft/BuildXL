@@ -16,7 +16,6 @@ using BuildXL.Utilities.Tracing;
 using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
 
 using static BuildXL.Tracing.LogEventId;
 

@@ -35,8 +35,8 @@ using BuildXL.Utilities.Core;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
-using Xunit.Abstractions;
 using ProcessOutputs = BuildXL.Pips.Builders.ProcessOutputs;
+using Xunit;
 
 namespace Test.BuildXL.Scheduler
 {

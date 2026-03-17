@@ -13,7 +13,6 @@ using BuildXL.Processes;
 using BuildXL.Utilities.Core;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
 using FileUtilities = BuildXL.Native.IO.FileUtilities;
 using Operation = Test.BuildXL.Executables.TestProcess.Operation;
 using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;

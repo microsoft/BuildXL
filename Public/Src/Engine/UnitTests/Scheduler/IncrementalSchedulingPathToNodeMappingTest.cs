@@ -7,7 +7,6 @@ using System.Linq;
 using BuildXL.Pips.DirectedGraph;
 using BuildXL.Utilities.Core;
 using Xunit;
-using Xunit.Abstractions;
 using IncrementalSchedulingPathToNodeMapping = BuildXL.Scheduler.IncrementalScheduling.IncrementalSchedulingPathMapping<BuildXL.Pips.DirectedGraph.NodeId>;
 
 namespace Test.BuildXL.Scheduler

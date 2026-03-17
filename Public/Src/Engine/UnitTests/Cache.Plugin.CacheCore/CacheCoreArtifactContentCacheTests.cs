@@ -14,7 +14,6 @@ using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Tasks;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
 using System.Diagnostics.CodeAnalysis;
 
 namespace Test.BuildXL.Engine.Cache.Plugin.CacheCore

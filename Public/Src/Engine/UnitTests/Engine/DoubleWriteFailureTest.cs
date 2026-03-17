@@ -7,7 +7,6 @@ using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Tracing;
 using Test.BuildXL.Engine;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Test.BuildXL.EngineTests
 {

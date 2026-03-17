@@ -22,7 +22,6 @@ using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.Scheduler;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
 using static BuildXL.Scheduler.Tracing.FingerprintStore;
 using FingerprintStoreClass = BuildXL.Scheduler.Tracing.FingerprintStore;
 using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;

@@ -19,7 +19,6 @@ using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Tracing;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
 using static BuildXL.Scheduler.FileMonitoringViolationAnalyzer;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 

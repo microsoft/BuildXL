@@ -27,7 +27,6 @@ using Test.BuildXL.FrontEnd.Core;
 using Test.BuildXL.Processes;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 using InitializationLogger = global::BuildXL.FrontEnd.Core.Tracing.Logger;
 using BuildXL.Processes;

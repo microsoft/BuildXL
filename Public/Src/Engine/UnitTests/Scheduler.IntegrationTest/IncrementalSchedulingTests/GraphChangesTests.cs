@@ -11,7 +11,6 @@ using BuildXL.Utilities.Core;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
 using BuildXL.Pips;
 
 namespace IntegrationTest.BuildXL.Scheduler.IncrementalSchedulingTests

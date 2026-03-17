@@ -7,7 +7,6 @@ using BuildXL.Engine.Distribution;
 using BuildXL.Engine.Distribution.Grpc;
 using BuildXL.Utilities.Configuration;
 using Xunit;
-using Xunit.Abstractions;
 using static BuildXL.Engine.Distribution.RemoteWorker;
 
 namespace Test.BuildXL.Distribution

@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft Corporation.
+// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
 using BuildXL.Engine;
@@ -7,7 +7,6 @@ using BuildXL.Storage.ChangeTracking;
 using BuildXL.Utilities.Core;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Test.BuildXL.Engine
 {

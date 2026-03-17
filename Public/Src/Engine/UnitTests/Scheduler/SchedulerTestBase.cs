@@ -11,7 +11,7 @@ using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration.Mutable;
 using Test.BuildXL.TestUtilities;
-using Xunit.Abstractions;
+using Xunit;
 
 namespace Test.BuildXL.Scheduler
 {

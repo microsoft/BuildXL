@@ -25,7 +25,6 @@ using BuildXL.Utilities.Configuration.Mutable;
 using Test.BuildXL.Scheduler.Utils;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
 using BuildXL.Utilities;

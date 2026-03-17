@@ -9,7 +9,6 @@ using BuildXL.Processes;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
 using BuildXL.Native.IO;
 using System.Collections.Generic;
 using System.IO;

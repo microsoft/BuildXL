@@ -11,7 +11,6 @@ using Test.BuildXL.Scheduler;
 using Test.BuildXL.TestUtilities.Xunit;
 using BuildXL.Execution.Analyzer;
 using Xunit;
-using Xunit.Abstractions;
 using static BuildXL.ToolSupport.CommandLineUtilities;
 using static Test.Tool.Analyzers.AnalyzerTestBase;
 using BuildXLConfiguration = BuildXL.Utilities.Configuration;

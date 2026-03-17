@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft Corporation.
+// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
 using System.Globalization;
@@ -12,7 +12,6 @@ using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities.Core;
 using Test.BuildXL.Scheduler;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Test.BuildXL.RuntimeAnalyzer
 {

@@ -3,7 +3,6 @@
 
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
 using BuildXL.Processes;
 using BuildXL.Native.IO;
 using BuildXL.Utilities.Core;

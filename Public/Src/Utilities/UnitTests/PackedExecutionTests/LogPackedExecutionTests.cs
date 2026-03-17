@@ -9,7 +9,6 @@ using BuildXL.Utilities.PackedExecution;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.Scheduler;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Test.Tool.Analyzers
 {

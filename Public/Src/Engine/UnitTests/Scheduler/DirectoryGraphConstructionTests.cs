@@ -3,6 +3,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Reflection;
+using System.Threading.Tasks;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
@@ -12,7 +14,8 @@ using BuildXL.Utilities.Configuration.Mutable;
 using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
+using Xunit.Sdk;
+using Xunit.v3;
 using static Test.BuildXL.Scheduler.SchedulerTestHelper;
 
 namespace Test.BuildXL.Scheduler
@@ -193,7 +196,7 @@ namespace Test.BuildXL.Scheduler
     /// Works similarly as <see cref="InlineDataAttribute"/>, but runs each test twice: one time for the case of regular opaque directories and another time for shared opaque directories.
     /// The first argument passed to the test is a generic addDirectory method that adds a regular or shared opaque to the pip builder, depending on the case
     /// </summary>
-    public sealed class InlineDataForOutputDirectoryAttribute : Xunit.Sdk.DataAttribute
+    public sealed class InlineDataForOutputDirectoryAttribute : DataAttribute
     {
         private readonly object[] m_dataForRegularOpaque;
         private readonly object[] m_dataForSharedOpaque;
@@ -209,11 +212,17 @@ namespace Test.BuildXL.Scheduler
             m_dataForSharedOpaque = AddDirectoryCallback(s_addSharedOpaqueDirectory, data);
         }
 
-        public override IEnumerable<object[]> GetData(System.Reflection.MethodInfo testMethod)
+        public override ValueTask<IReadOnlyCollection<ITheoryDataRow>> GetData(MethodInfo testMethod, DisposalTracker disposalTracker)
         {
-            yield return m_dataForRegularOpaque;
-            yield return m_dataForSharedOpaque;
+            var rows = new ITheoryDataRow[]
+            {
+                ConvertDataRow(m_dataForRegularOpaque),
+                ConvertDataRow(m_dataForSharedOpaque),
+            };
+            return new ValueTask<IReadOnlyCollection<ITheoryDataRow>>(rows);
         }
+
+        public override bool SupportsDiscoveryEnumeration() => false;
 
         private static object[] AddDirectoryCallback(AddDirectory addDirectoryCallback, object[] originalData)
         {

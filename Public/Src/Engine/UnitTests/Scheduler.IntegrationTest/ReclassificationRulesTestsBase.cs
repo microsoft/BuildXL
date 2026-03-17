@@ -4,7 +4,7 @@
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using Test.BuildXL.Scheduler;
-using Xunit.Abstractions;
+using Xunit;
 
 namespace IntegrationTest.BuildXL.Scheduler
 {

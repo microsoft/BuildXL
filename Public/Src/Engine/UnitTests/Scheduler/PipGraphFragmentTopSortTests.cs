@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft Corporation.
+// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
 using System.Linq;
@@ -10,7 +10,6 @@ using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Core;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
 using Process = BuildXL.Pips.Operations.Process;
 using ProcessOutputs = BuildXL.Pips.Builders.ProcessOutputs;
 

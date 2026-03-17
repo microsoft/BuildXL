@@ -11,7 +11,6 @@ using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using Test.BuildXL.Scheduler;
 using Xunit;
-using Xunit.Abstractions;
 using Test.BuildXL.Executables.TestProcess;
 using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
 

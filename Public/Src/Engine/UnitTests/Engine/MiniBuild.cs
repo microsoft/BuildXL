@@ -14,7 +14,6 @@ using Test.BuildXL.EngineTestUtilities;
 using Test.BuildXL.Processes;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 using FrontEndEventId = BuildXL.FrontEnd.Core.Tracing.LogEventId;
 using SchedulerEventId = BuildXL.Scheduler.Tracing.LogEventId;

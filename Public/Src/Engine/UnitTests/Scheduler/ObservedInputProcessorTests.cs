@@ -28,7 +28,6 @@ using BuildXL.Utilities.Configuration.Mutable;
 using Test.BuildXL.Scheduler.Utils;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
 using DirectoryMembershipFingerprinterRule = BuildXL.Scheduler.DirectoryMembershipFingerprinterRule;
 using SortedFileArtifacts =
     BuildXL.Utilities.Collections.SortedReadOnlyArray<BuildXL.Utilities.Core.FileArtifact, BuildXL.Utilities.Core.OrdinalFileArtifactComparer>;

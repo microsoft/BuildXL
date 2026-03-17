@@ -3,7 +3,7 @@
 
 import * as Managed from "Sdk.Managed";
 import * as Deployment from "Sdk.Deployment";
-import * as XUnit from "Sdk.Managed.Testing.XUnit";
+import * as XUnitV3 from "Sdk.Managed.Testing.XUnitV3";
 
 namespace ExternalToolTest {
     export declare const qualifier : BuildXLSdk.DefaultQualifier;
@@ -17,7 +17,7 @@ namespace ExternalToolTest {
                 runWithUntrackedDependencies: !BuildXLSdk.Flags.IsEBPFSandboxForTestsEnabled,
             },
         },
-        testFramework: XUnit.framework,
+        testFramework: XUnitV3.framework,
         sources: globR(d`.`, "*.cs"),
         references: [
             Scheduler.dll,

@@ -18,7 +18,6 @@ using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Core.Tasks;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
 using static BuildXL.Engine.Distribution.Grpc.ClientConnectionManager;
 using static BuildXL.Engine.Distribution.RemoteWorker;
 using static BuildXL.Distribution.Grpc.HelloResponse.Types;

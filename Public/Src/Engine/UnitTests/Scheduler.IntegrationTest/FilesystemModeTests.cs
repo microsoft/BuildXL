@@ -7,7 +7,6 @@ using Test.BuildXL.Scheduler;
 using Test.BuildXL.TestUtilities.Xunit;
 using Test.BuildXL.Executables.TestProcess;
 using Xunit;
-using Xunit.Abstractions;
 using System.Linq;
 using BuildXL.Utilities.Core;
 using BuildXL.Scheduler;

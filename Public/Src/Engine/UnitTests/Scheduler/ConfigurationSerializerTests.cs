@@ -15,7 +15,6 @@ using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Tracing;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
 
 #nullable enable
 

@@ -11,7 +11,6 @@ using BuildXL.Native.IO;
 using BuildXL.Pips.Graph;
 using BuildXL.Utilities.Core;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Test.BuildXL.Scheduler
 {

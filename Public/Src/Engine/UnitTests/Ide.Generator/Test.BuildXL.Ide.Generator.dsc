@@ -4,6 +4,7 @@
 namespace Ide.Generator {
     @@public
     export const dll = BuildXLSdk.test({
+        qTestXUnitV3: true,
         assemblyName: "Test.BuildXL.Ide.Generator",
         sources: globR(d`.`, "*.cs"),
         references: [

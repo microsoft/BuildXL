@@ -1,10 +1,9 @@
-﻿// Copyright (c) Microsoft Corporation.
+// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
 using BuildXL.Processes;
 using BuildXL.Utilities.Core;
 using Test.BuildXL.TestUtilities.Xunit;
-using Xunit.Abstractions;
 using Xunit;
 using System.IO;
 using System.Collections.Generic;

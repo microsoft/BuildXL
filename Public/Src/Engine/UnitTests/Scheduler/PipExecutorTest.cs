@@ -37,7 +37,6 @@ using Test.BuildXL.Processes;
 using Test.BuildXL.Scheduler.Utils;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 using OperationHints = BuildXL.Cache.ContentStore.Interfaces.Sessions.OperationHints;
 using Process = BuildXL.Pips.Operations.Process;

@@ -14,6 +14,7 @@ namespace Processes {
     const bxlSdk = importFrom("Sdk.BuildXL");
 
     const testArgs : BuildXLSdk.TestArguments = {
+        qTestXUnitV3: true,
         assemblyName: "Test.BuildXL.Processes",
         allowUnsafeBlocks: true,
         runTestArgs: {

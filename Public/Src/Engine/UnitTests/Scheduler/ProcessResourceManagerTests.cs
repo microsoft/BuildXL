@@ -14,7 +14,6 @@ using BuildXL.Utilities.Core.Tasks;
 using BuildXL.Utilities.Tracing;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Test.BuildXL.Scheduler
 {

@@ -4,7 +4,6 @@
 using BuildXL.Pips.DirectedGraph;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Test.BuildXL.Scheduler
 {

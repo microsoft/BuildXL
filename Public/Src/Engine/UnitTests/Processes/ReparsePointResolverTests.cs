@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft Corporation.
+// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
 using System.IO;
@@ -9,7 +9,7 @@ using BuildXL.ProcessPipExecutor;
 using BuildXL.Utilities.Core;
 using Test.BuildXL.Scheduler;
 using Test.BuildXL.TestUtilities.Xunit;
-using Xunit.Abstractions;
+using Xunit;
 
 namespace Test.BuildXL.Processes
 {

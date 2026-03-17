@@ -8,7 +8,6 @@ using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using Test.BuildXL.TestUtilities;
 using Xunit;
-using Xunit.Abstractions;
 using static Test.BuildXL.Scheduler.SchedulerTestHelper;
 
 namespace Test.BuildXL.Scheduler

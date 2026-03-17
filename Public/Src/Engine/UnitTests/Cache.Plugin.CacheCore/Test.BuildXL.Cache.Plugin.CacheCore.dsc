@@ -4,6 +4,7 @@
 namespace Cache.Plugin.Core {
     @@public
     export const dll = BuildXLSdk.test({
+        qTestXUnitV3: true,
         assemblyName: "Test.BuildXL.Engine.Cache.Plugin.Core",
         sources: globR(d`.`, "*.cs"),
         references: [

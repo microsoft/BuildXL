@@ -3,7 +3,7 @@
 
 using BuildXL.Utilities.Configuration.Mutable;
 using Test.BuildXL.TestUtilities.Xunit;
-using Xunit.Abstractions;
+using Xunit;
 
 namespace Test.BuildXL.Distribution
 {

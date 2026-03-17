@@ -6,7 +6,7 @@ using BuildXL.Engine;
 using Test.BuildXL.Scheduler;
 using Test.BuildXL.TestUtilities.Xunit;
 using BuildXL.Execution.Analyzer;
-using Xunit.Abstractions;
+using Xunit;
 using BuildXL.Utilities.Collections;
 using System.Collections.Generic;
 using BuildXL.Utilities.Core;

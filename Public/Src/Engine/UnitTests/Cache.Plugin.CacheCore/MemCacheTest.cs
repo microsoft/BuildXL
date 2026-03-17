@@ -9,7 +9,7 @@ using BuildXL.Cache.Interfaces;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Storage;
 using Test.BuildXL.TestUtilities.Xunit;
-using Xunit.Abstractions;
+using Xunit;
 
 namespace Test.BuildXL.Engine.Cache.Plugin.CacheCore
 {

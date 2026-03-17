@@ -18,7 +18,6 @@ using Test.BuildXL.Scheduler;
 using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
 using ArtificialCacheMissConfig = BuildXL.Utilities.Configuration.Mutable.ArtificialCacheMissConfig;
 using StorageLogEventId = BuildXL.Storage.Tracing.LogEventId;
 using System.Linq;

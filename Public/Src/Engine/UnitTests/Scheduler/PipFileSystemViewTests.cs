@@ -10,7 +10,6 @@ using BuildXL.Utilities.Configuration.Mutable;
 using Test.BuildXL.Scheduler.Utils;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
 using System.IO;
 using BuildXL.Scheduler;
 using BuildXL.Storage;

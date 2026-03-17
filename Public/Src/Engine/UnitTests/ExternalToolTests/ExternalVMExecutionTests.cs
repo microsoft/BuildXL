@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft Corporation.
+// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
 using System.IO;
@@ -10,7 +10,6 @@ using BuildXL.Utilities.Collections;
 using Test.BuildXL.Executables.TestProcess;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
 using ProcessLogId = BuildXL.Processes.Tracing.LogEventId;
 
 namespace ExternalToolTest.BuildXL.Scheduler

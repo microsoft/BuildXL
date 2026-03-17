@@ -8,7 +8,6 @@ using BuildXL.Storage;
 using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities.Core;
 using Test.BuildXL.TestUtilities.Xunit;
-using Xunit.Abstractions;
 using Xunit;
 
 namespace Test.BuildXL.Engine.Cache

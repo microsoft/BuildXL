@@ -30,8 +30,6 @@ namespace MsBuildGraphBuilderTool
 
         private bool IsSuccessfullyInitialized => m_streamWriter != null && m_pipe != null;
 
-        private bool m_triedToInitializePipe = false;
-
         /// <summary>
         /// The errors the reporter has found so far. Each of these errors are also
         /// printed to standard error.
@@ -47,6 +45,9 @@ namespace MsBuildGraphBuilderTool
                 // we just want a single thread to take care of dispatching messages through the pipe
                 degreeOfParallelism: 1,
                 message => SendMessageThroughPipe(message));
+            // Initialize the pipe server eagerly so clients can connect as soon as the reporter is created,
+            // avoiding a race condition where clients attempt to connect before the server exists.
+            InitializePipe();
         }
 
         /// <summary>
@@ -57,15 +58,8 @@ namespace MsBuildGraphBuilderTool
         /// </returns>
         public bool ReportMessage(string message)
         {
-            // The pipe is initialized when the first message is reported
-            if (!m_triedToInitializePipe)
-            {
-                InitializePipe();
-            }
-
-            // The pipe is already initialized, but it may have encountered some problems. In that case
-            // message reporting is off, and no messages are sent.
-            // The initialization problem is already reported at this point by TryCreateServerPipe
+            // The pipe may have failed to initialize (initialization problem is already reported
+            // by TryCreateServerPipe). In that case message reporting is off and no messages are sent.
             if (!IsSuccessfullyInitialized)
             {
                 return false;
@@ -79,8 +73,6 @@ namespace MsBuildGraphBuilderTool
 
         private void InitializePipe()
         {
-            m_triedToInitializePipe = true;
-
             if (!TryCreateServerPipe(m_pipeName, out m_pipe))
             {
                 return;

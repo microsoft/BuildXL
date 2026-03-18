@@ -118,9 +118,9 @@ export interface Result extends Managed.Assembly {
 @@public
 export interface TestArguments extends Arguments, Managed.TestArguments {
     /** 
-     * When true, QTest wraps xunit v3 instead of v2. Only takes effect when QTest is enabled
-     * and no explicit testFramework is set. To use v3 standalone (no QTest), set
-     * testFramework: XUnitV3.framework instead.
+     * When false, QTest wraps xunit v2 instead of v3. Defaults to true (v3).
+     * Only takes effect when QTest is enabled and no explicit testFramework is set.
+     * To use v3 standalone (no QTest), set testFramework: XUnitV3.framework instead.
      */
     qTestXUnitV3?: boolean;
 }
@@ -1040,7 +1040,7 @@ function shouldUseQTest(runTestArgs: Managed.TestRunArguments) : boolean {
 /** Gets test framework. testFramework wins if set; otherwise useXUnitV3 controls QTest's xunit version. */
 function getTestFramework(args: TestArguments) : Managed.TestFramework {
     if (args.testFramework) return args.testFramework;
-    const baseFramework = args.qTestXUnitV3 ? XUnitV3.framework : XUnit.framework;
+    const baseFramework = args.qTestXUnitV3 !== false ? XUnitV3.framework : XUnit.framework;
     // QTest's vstest.console.exe (v16.7.0-preview) ships testhost.exe (v15.0.0)
     // whose Microsoft.VisualStudio.TestPlatform.ObjectModel.dll (assembly version
     // 15.0.0.0, file version 15.0.0) is missing methods required by the xunit v3
@@ -1060,7 +1060,7 @@ function getTestFramework(args: TestArguments) : Managed.TestFramework {
     // v15/v16 to v17+ so that testhost.exe ships an ObjectModel.dll with the
     // methods the xunit v3 adapter expects.  Until then, fall back to the
     // standalone xunit v3 runner (runs Test.*.exe directly) for net472.
-    if (args.qTestXUnitV3 && isFullFramework) {
+    if (args.qTestXUnitV3 !== false && isFullFramework) {
         return baseFramework;
     }
     return shouldUseQTest(args.runTestArgs) ? QTest.getFramework(baseFramework) : baseFramework;

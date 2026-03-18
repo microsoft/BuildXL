@@ -5,7 +5,6 @@ using TypeScript.Net.Reformatter;
 using TypeScript.Net.Types;
 using TypeScript.Net.UnitTests.Utils;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace TypeScript.Net.UnitTests.Parsing
 {

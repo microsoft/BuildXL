@@ -216,7 +216,7 @@ function runStandaloneV3(args : Managed.TestRunArguments) : File[] {
         arguments = [...arguments, Cmd.option("-trait- ", `Category=${group}`)];
     }
 
-    let passthroughEnvVars : string[] = [];
+    let passthroughEnvVars : string[] = args.passThroughEnvVars || [];
 
     let unsafeArgs: Transformer.UnsafeExecuteArguments = {
         untrackedScopes: [
@@ -257,6 +257,7 @@ function runStandaloneV3(args : Managed.TestRunArguments) : File[] {
         unsafe: unsafeArgs,
         privilegeLevel: args.privilegeLevel,
         weight: args.weight,
+        allowUndeclaredSourceReads: args.allowUndeclaredSourceReads,
     };
 
     // Non-Windows: additional environment and untracked paths

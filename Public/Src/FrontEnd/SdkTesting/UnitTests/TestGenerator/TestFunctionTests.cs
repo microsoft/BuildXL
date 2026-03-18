@@ -9,7 +9,6 @@ using TypeScript.Net.DScript;
 using TypeScript.Net.Parsing;
 using TypeScript.Net.Types;
 using Xunit;
-using Xunit.Abstractions;
 
 using static Test.BuildXL.TestUtilities.Xunit.XunitBuildXLTest;
 

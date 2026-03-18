@@ -6,7 +6,6 @@ using BuildXL.FrontEnd.MsBuild.Tracing;
 using BuildXL.Utilities.Configuration.Mutable;
 using Test.BuildXL.FrontEnd.MsBuild.Infrastructure;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Test.BuildXL.FrontEnd.MsBuild
 {

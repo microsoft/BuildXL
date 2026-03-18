@@ -15,7 +15,7 @@ using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using Test.BuildXL.FrontEnd.Core;
 using Test.BuildXL.TestUtilities.Xunit;
-using Xunit.Abstractions;
+using Xunit;
 using static Test.BuildXL.TestUtilities.TestEnv;
 
 namespace Test.DScript.Ast.Scheduling

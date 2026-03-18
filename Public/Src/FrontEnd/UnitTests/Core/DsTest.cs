@@ -40,7 +40,6 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Test.BuildXL.Utilities;
 using TypeScript.Net.Utilities;
 using Xunit;
-using Xunit.Abstractions;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 using AssemblyHelper = BuildXL.Utilities.Core.AssemblyHelper;
 using FileType = BuildXL.FrontEnd.Script.FileType;

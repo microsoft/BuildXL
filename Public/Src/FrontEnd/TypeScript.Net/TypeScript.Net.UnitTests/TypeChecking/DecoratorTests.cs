@@ -8,7 +8,6 @@ using TypeScript.Net.DScript;
 using TypeScript.Net.UnitTests.TypeChecking;
 using TypeScript.Net.UnitTests.Utils;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Test.DScript.TypeChecking
 {

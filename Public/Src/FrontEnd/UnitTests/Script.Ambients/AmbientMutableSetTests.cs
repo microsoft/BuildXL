@@ -9,7 +9,6 @@ using BuildXL.FrontEnd.Script.Values;
 using Test.BuildXL.TestUtilities.Xunit;
 using Test.DScript.Ast.DScriptV2;
 using Xunit;
-using Xunit.Abstractions;
 using DsMutableSet = BuildXL.FrontEnd.Script.Ambients.Set.MutableSet;
 
 namespace Test.DScript.Ast.Interpretation

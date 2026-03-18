@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft Corporation.
+// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
 using System;
@@ -11,7 +11,6 @@ using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Test.DScript.Ast;
 using Xunit;
-using Xunit.Abstractions;
 using System.Linq;
 
 namespace Test.BuildXL.FrontEnd.Nuget

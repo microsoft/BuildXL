@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft Corporation.
+// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 using System;
 using System.Collections.Generic;
@@ -11,7 +11,7 @@ using BuildXL.Utilities.Configuration;
 using BuildXL.App.Tracing;
 using Newtonsoft.Json;
 using Test.BuildXL.TestUtilities.Xunit;
-using Xunit.Abstractions;
+using Xunit;
 
 namespace IntegrationTest.BuildXL.Executable
 {

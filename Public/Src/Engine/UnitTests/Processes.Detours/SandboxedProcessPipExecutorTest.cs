@@ -1817,7 +1817,10 @@ namespace Test.BuildXL.Processes.Detours
                     additionalTempDirectories: ReadOnlyArray<AbsolutePath>.Empty,
                     allowedSurvivingChildProcessNames: ReadOnlyArray<PathAtom>.FromWithoutCopy(
                         PathAtom.Create(context.StringTable, "cmd.exe"),
-                        PathAtom.Create(context.StringTable, "conhost.exe")),
+                        PathAtom.Create(context.StringTable, "conhost.exe"),
+                        // In xunit v3, timeout.exe may still be running when surviving children
+                        // are enumerated. In v2 it was killed by the job object before enumeration.
+                        PathAtom.Create(context.StringTable, "timeout.exe")),
                     nestedProcessTerminationTimeout: TimeSpan.Zero
                 );
 

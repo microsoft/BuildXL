@@ -8,7 +8,6 @@ using BuildXL.FrontEnd.MsBuild.Serialization;
 using Test.BuildXL.TestUtilities.Xunit;
 using Test.BuildXL.FrontEnd.MsBuild.Infrastructure;
 using Xunit;
-using Xunit.Abstractions;
 using BuildXL.Utilities.Configuration.Mutable;
 
 namespace Test.BuildXL.FrontEnd.MsBuild

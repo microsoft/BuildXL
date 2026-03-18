@@ -9,7 +9,6 @@ namespace KeyValueStoreTests {
         assemblyName: "Test.BuildXL.Utilities.KeyValueStore",
         sources: globR(d`.`, "*.cs"),
         nullable: true,
-        qTestXUnitV3: true,
         assemblyBindingRedirects: BuildXLSdk.cacheBindingRedirects(),
         references: [
             importFrom("BuildXL.Utilities").dll,

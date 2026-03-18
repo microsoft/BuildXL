@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 using BuildXL.FrontEnd.Workspaces.Core;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Test.DScript.Workspaces
 {

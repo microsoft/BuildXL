@@ -8,7 +8,6 @@ using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using Test.BuildXL.FrontEnd.Core;
 using Xunit;
-using Xunit.Abstractions;
 using LogEventId = global::BuildXL.FrontEnd.JavaScript.Tracing.LogEventId;
 using CoreLogEventId = global::BuildXL.FrontEnd.Core.Tracing;
 using System.IO;

@@ -9,7 +9,6 @@ using BuildXL.Pips.Filter;
 using BuildXL.Utilities.Core;
 using Test.DScript.Ast.DScriptV2;
 using Xunit;
-using Xunit.Abstractions;
 using DsTracing = BuildXL.FrontEnd.Script.Tracing;
 
 namespace Test.DScript.Ast.ErrorHandling

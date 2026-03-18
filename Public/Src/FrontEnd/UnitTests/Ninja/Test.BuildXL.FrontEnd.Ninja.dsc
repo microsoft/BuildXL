@@ -26,7 +26,7 @@ namespace Test.Ninja {
             importFrom("BuildXL.Engine").Engine.dll,
             importFrom("BuildXL.Core.UnitTests").EngineTestUtilities.dll,
             importFrom("BuildXL.Utilities.UnitTests").TestUtilities.dll,
-            importFrom("BuildXL.Utilities.UnitTests").TestUtilities.XUnit.dll,
+            importFrom("BuildXL.Utilities.UnitTests").TestUtilities.XUnitV3.dll,
             importFrom("BuildXL.FrontEnd").Core.dll,
             importFrom("BuildXL.FrontEnd").Ninja.dll,
             importFrom("BuildXL.FrontEnd").Ninja.Serialization.dll,

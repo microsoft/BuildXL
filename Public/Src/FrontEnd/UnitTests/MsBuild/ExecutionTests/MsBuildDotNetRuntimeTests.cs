@@ -10,7 +10,6 @@ using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Graph;
 using Test.BuildXL.EngineTestUtilities;
 using Xunit;
-using Xunit.Abstractions;
 using System;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;

@@ -14,7 +14,6 @@ using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Test.BuildXL.FrontEnd.Core;
 using Xunit;
-using Xunit.Abstractions;
 using static BuildXL.FrontEnd.Script.Constants.Names;
 
 namespace Test.DScript.Ast.Incrementality

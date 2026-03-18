@@ -5,7 +5,6 @@ using BuildXL.Utilities.Core;
 using Test.BuildXL.TestUtilities.Xunit;
 using Test.BuildXL.FrontEnd.Core;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Test.DScript.Ast.Interpretation
 {

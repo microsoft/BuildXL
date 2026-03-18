@@ -22,8 +22,8 @@ namespace Script.TestBase {
             importFrom("BuildXL.Utilities").Configuration.dll,
             importFrom("BuildXL.Utilities").Utilities.Core.dll,
             importFrom("BuildXL.Utilities.UnitTests").TestUtilities.dll,
-            importFrom("BuildXL.Utilities.UnitTests").TestUtilities.XUnit.dll,
-            importFrom("xunit.abstractions").pkg,
+            importFrom("BuildXL.Utilities.UnitTests").TestUtilities.XUnitV3.dll,
+            importFrom("xunit.v3.extensibility.core").pkg,
         ],
         runtimeContent: [
             {

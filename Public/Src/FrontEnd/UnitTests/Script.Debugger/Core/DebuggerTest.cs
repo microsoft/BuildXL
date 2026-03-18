@@ -17,7 +17,7 @@ using Test.BuildXL.TestUtilities.Xunit;
 using VSCode.DebugAdapter;
 using VSCode.DebugProtocol;
 using Xunit;
-using Xunit.Abstractions;
+using TestResult = Test.BuildXL.FrontEnd.Core.TestResult;
 
 namespace Test.DScript.Debugger
 {

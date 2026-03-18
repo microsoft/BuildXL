@@ -10,7 +10,7 @@ using BuildXL.Scheduler.Graph;
 using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Test.BuildXL.FrontEnd.Core;
-using Xunit.Abstractions;
+using Xunit;
 
 using static Test.BuildXL.FrontEnd.Core.ModuleConfigurationBuilder;
 

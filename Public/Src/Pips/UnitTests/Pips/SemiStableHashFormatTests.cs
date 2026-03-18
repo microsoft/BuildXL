@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using BuildXL.Pips.Operations;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Test.BuildXL.Pips
 {

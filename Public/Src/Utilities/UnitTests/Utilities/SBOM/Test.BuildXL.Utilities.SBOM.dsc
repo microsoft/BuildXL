@@ -13,7 +13,6 @@ namespace Core.SBOM {
     @@public
     export const dll = BuildXLSdk.test({
         assemblyName: "Test.BuildXL.Utilities.SBOM",
-        qTestXUnitV3: true,
         allowUnsafeBlocks: true,
         sources: globR(d`.`, "*.cs"),
         references: [

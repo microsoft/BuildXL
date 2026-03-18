@@ -11,7 +11,6 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Test.ProjectGraphBuilder.Utilities;
 using Test.Tool.ProjectGraphBuilder.Mocks;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Test.ProjectGraphBuilder
 {

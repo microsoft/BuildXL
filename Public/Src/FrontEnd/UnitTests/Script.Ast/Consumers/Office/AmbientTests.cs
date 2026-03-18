@@ -10,7 +10,6 @@ using BuildXL.FrontEnd.Script.Values;
 using Test.BuildXL.TestUtilities.Xunit;
 using Test.BuildXL.FrontEnd.Core;
 using Xunit;
-using Xunit.Abstractions;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
 
 namespace Test.DScript.Ast.Consumers.Office

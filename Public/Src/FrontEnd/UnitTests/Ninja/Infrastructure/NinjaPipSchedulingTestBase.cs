@@ -23,7 +23,7 @@ using Test.DScript.Ast;
 using Test.BuildXL.FrontEnd.Core;
 using Test.BuildXL.FrontEnd.MsBuild.Infrastructure;
 using Test.BuildXL.TestUtilities.Xunit;
-using Xunit.Abstractions;
+using Xunit;
 using static Test.BuildXL.TestUtilities.TestEnv;
 using Test.BuildXL.Processes;
 

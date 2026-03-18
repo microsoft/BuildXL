@@ -1,10 +1,9 @@
-﻿// Copyright (c) Microsoft Corporation.
+// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
 using System.Net;
 using Test.DScript.Ast.DScriptV2;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Test.BuildXL.FrontEnd.Download
 {

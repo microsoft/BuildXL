@@ -9,7 +9,6 @@ namespace PackedExecution {
 
     @@public
     export const dll = BuildXLSdk.test({
-        qTestXUnitV3: true,
         assemblyName: "Test.BuildXL.PackedExecution",
         allowUnsafeBlocks: true,
         sources: globR(d`.`, "*.cs"),

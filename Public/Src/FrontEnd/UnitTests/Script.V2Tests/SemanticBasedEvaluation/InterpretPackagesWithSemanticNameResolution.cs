@@ -7,7 +7,6 @@ using BuildXL.FrontEnd.Script.Constants;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Test.DScript.Ast.DScriptV2
 {

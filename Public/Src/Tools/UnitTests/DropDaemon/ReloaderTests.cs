@@ -7,7 +7,6 @@ using System.Threading;
 using Test.BuildXL.TestUtilities.Xunit;
 using Tool.ServicePipDaemon;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Test.Tool.DropDaemon
 {

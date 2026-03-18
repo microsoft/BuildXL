@@ -7,7 +7,7 @@ using BuildXL.FrontEnd.Utilities;
 using BuildXL.Utilities.Core;
 using Newtonsoft.Json;
 using Test.BuildXL.TestUtilities.Xunit;
-using Xunit.Abstractions;
+using Xunit;
 
 namespace Test.Tool.Javascript
 {

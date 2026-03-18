@@ -6,7 +6,6 @@ using System.IO;
 using BuildXL.FrontEnd.Script.Testing.TestGenerator;
 using TypeScript.Net.Types;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Test.BuildXL.FrontEnd.Script.Testing.TestGenerator
 {

@@ -17,7 +17,7 @@ using Test.BuildXL.EngineTestUtilities;
 using Test.BuildXL.FrontEnd.Core;
 using Test.BuildXL.TestUtilities;
 using Test.DScript.Ast;
-using Xunit.Abstractions;
+using Xunit;
 
 namespace Test.BuildXL.FrontEnd.Lage
 {

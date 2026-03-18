@@ -9,7 +9,6 @@ using BuildXL.Scheduler.Graph;
 using BuildXL.Utilities.Core;
 using Test.BuildXL.TestUtilities;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Test.DScript.Ast.PartialEvaluation
 {

@@ -3,7 +3,7 @@
 
 using System;
 using System.IO;
-using Xunit.Abstractions;
+using Xunit;
 
 namespace Test.BuildXL.FrontEnd.Script.Testing.TestGenerator
 {

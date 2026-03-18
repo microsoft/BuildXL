@@ -21,7 +21,6 @@ using Microsoft.VisualStudio.Services.ItemStore.Common;
 using Test.BuildXL.TestUtilities.Xunit;
 using Tool.ServicePipDaemon;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Test.Tool.DropDaemon
 {

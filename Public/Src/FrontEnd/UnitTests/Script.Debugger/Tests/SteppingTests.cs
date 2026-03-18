@@ -4,7 +4,7 @@
 using BuildXL.FrontEnd.Script.Evaluator;
 using Test.BuildXL.FrontEnd.Core;
 using VSCode.DebugProtocol;
-using Xunit.Abstractions;
+using Xunit;
 
 namespace Test.DScript.Debugger
 {

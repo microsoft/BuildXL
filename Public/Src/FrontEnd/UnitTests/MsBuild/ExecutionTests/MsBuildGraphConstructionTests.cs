@@ -13,7 +13,6 @@ using BuildXL.Utilities.Configuration;
 using BuildXL.FrontEnd.MsBuild.Tracing;
 using TypeScript.Net.Extensions;
 using Xunit;
-using Xunit.Abstractions;
 using System.IO;
 using BuildXL.Utilities.Configuration.Mutable;
 

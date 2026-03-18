@@ -7,7 +7,6 @@ using BuildXL.Pips.Operations;
 using BuildXL.FrontEnd.Workspaces.Core;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
 using static Test.BuildXL.TestUtilities.SimpleGraph;
 using static Test.DScript.Ast.PartialEvaluation.GraphBasedTestBase;
 

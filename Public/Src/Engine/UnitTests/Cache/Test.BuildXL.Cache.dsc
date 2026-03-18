@@ -4,7 +4,6 @@
 namespace Cache {
     @@public
     export const dll = BuildXLSdk.test({
-        qTestXUnitV3: true,
         assemblyName: "Test.BuildXL.Engine.Cache",
         sources: globR(d`.`, "*.cs"),
         references: [

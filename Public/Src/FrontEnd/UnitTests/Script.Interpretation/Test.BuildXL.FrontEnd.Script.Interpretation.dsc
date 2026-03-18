@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-import * as XUnit from "Sdk.Managed.Testing.XUnit";
+import * as XUnitV3 from "Sdk.Managed.Testing.XUnitV3";
 
 namespace Script.Interpretation {
     @@public
@@ -9,7 +9,7 @@ namespace Script.Interpretation {
         assemblyName: "Test.BuildXL.FrontEnd.Script.Interpretation",
         sources: globR(d`.`, "*.cs"),
         // TODO - These tests time out under qtest
-        testFramework: XUnit.framework,
+        testFramework: XUnitV3.framework,
         references: [
             Core.dll,
             Script.TestBase.dll,

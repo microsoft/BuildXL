@@ -12,7 +12,6 @@ using BuildXL.Utilities.CLI;
 using Tool.DropDaemon;
 using Tool.ServicePipDaemon;
 using Xunit;
-using Xunit.Abstractions;
 using static Tool.DropDaemon.DropDaemon;
 using static Tool.ServicePipDaemon.ServicePipDaemon;
 
@@ -26,6 +25,13 @@ namespace Test.Tool.DropDaemon
             : base(output)
         {
             Output = output;
+
+            // Force DropDaemon's static field initializers to run, which register
+            // drop-specific commands (create, finalize, addfile, etc.) into the
+            // Commands dictionary. Without this, only ServicePipDaemon base commands
+            // are available. In xunit v3, the test runner doesn't eagerly initialize
+            // referenced assemblies the way v2 did via AppDomains.
+            System.Runtime.CompilerServices.RuntimeHelpers.RunClassConstructor(typeof(global::Tool.DropDaemon.DropDaemon).TypeHandle);
         }
 
         [Theory]

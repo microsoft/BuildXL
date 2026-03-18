@@ -3,7 +3,6 @@
 
 using Test.DScript.Ast.DScriptV2;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Test.DScript.Ast.Interpretation
 {

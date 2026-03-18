@@ -4,7 +4,6 @@
 using BuildXL.FrontEnd.Script.Tracing;
 using Test.DScript.Ast.DScriptV2;
 using Xunit;
-using Xunit.Abstractions;
 
 using static Test.BuildXL.FrontEnd.Core.ModuleConfigurationBuilder;
 

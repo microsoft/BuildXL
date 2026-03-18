@@ -13,7 +13,6 @@ using BuildXL.Ipc.Interfaces;
 using BuildXL.Utilities.CLI;
 using Tool.ServicePipDaemon;
 using Xunit;
-using Xunit.Abstractions;
 using static Tool.DropDaemon.DropDaemon;
 using static Tool.ServicePipDaemon.ServicePipDaemon;
 

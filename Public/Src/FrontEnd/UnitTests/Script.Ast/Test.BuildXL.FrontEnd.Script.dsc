@@ -2,7 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 import * as Managed from "Sdk.Managed";
-import * as XUnit from "Sdk.Managed.Testing.XUnit";
+import * as XUnitV3 from "Sdk.Managed.Testing.XUnitV3";
 
 namespace Script {
 
@@ -19,7 +19,7 @@ namespace Script {
         assemblyName: "Test.BuildXL.FrontEnd.Script",
         sources: globR(d`.`, "*.cs"),
         // TODO - QTest has an intermittent AccessViolationException when it runs these tests
-        testFramework: XUnit.framework,
+        testFramework: XUnitV3.framework,
         runTestArgs: {
             parallelGroups: categoriesToRunInParallel,
             unsafeTestRunArguments: {

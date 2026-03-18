@@ -6,7 +6,7 @@ using BuildXL.FrontEnd.Script.Values;
 using Test.BuildXL.TestUtilities.Xunit;
 using Test.BuildXL.FrontEnd.Core;
 using Xunit;
-using Xunit.Abstractions;
+using TestResult = Test.BuildXL.FrontEnd.Core.TestResult;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 using static Test.DScript.Ast.Interpretation.ArrayLiteralEqualityComparer;
 using System.Linq;

@@ -12,7 +12,7 @@ using Test.BuildXL.TestUtilities;
 using Test.DScript.Ast;
 using Test.BuildXL.FrontEnd.Ninja.Infrastructure;
 using Test.BuildXL.TestUtilities.Xunit;
-using Xunit.Abstractions;
+using Xunit;
 using Test.BuildXL.Processes;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Core;

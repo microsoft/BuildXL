@@ -6,7 +6,6 @@ using MsBuildGraphBuilderTool;
 using Test.BuildXL.TestUtilities.Xunit;
 using Test.ProjectGraphBuilder.Utilities;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Test.ProjectGraphBuilder
 {

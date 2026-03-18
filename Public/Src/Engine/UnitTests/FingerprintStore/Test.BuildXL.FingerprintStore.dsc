@@ -9,7 +9,6 @@ namespace Test.BuildXL.FingerprintStore {
 
     @@public
     export const dll = BuildXLSdk.test({
-        qTestXUnitV3: true,
         runTestArgs: {
             unsafeTestRunArguments: {
                 // These tests require Detours to run itself, so we won't detour the test runner process itself

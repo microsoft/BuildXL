@@ -11,7 +11,6 @@ using BuildXL.Utilities.Configuration.Mutable;
 using Test.BuildXL.FrontEnd.Core;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
 using LogEventId = global::BuildXL.FrontEnd.JavaScript.Tracing.LogEventId;
 
 namespace Test.BuildXL.FrontEnd.Rush

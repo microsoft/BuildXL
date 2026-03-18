@@ -6,7 +6,6 @@ namespace Configuration {
     export const dll = BuildXLSdk.test({
         assemblyName: "Test.BuildXL.Utilities.Configuration",
         sources: globR(d`.`, "*.cs"),
-        qTestXUnitV3: true,
         references: [
             importFrom("BuildXL.FrontEnd").Script.dll,
             importFrom("BuildXL.FrontEnd").TypeScript.Net.dll,

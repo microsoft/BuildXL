@@ -9,7 +9,6 @@ using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Core;
 using Test.BuildXL.FrontEnd.Core;
 using Xunit;
-using Xunit.Abstractions;
 using Process = BuildXL.Pips.Operations.Process;
 
 namespace Test.BuildXL.FrontEnd.Lage

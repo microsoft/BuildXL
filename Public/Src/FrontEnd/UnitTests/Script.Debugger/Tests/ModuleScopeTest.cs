@@ -7,7 +7,6 @@ using BuildXL.FrontEnd.Script.Debugger;
 using Test.BuildXL.FrontEnd.Core;
 using VSCode.DebugProtocol;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Test.DScript.Debugger
 {

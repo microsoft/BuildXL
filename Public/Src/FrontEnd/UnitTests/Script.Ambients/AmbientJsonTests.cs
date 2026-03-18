@@ -9,7 +9,6 @@ using BuildXL.FrontEnd.Script.Values;
 using Test.BuildXL.FrontEnd.Core;
 using BuildXL.Pips.Operations;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Test.DScript.Ast.Interpretation.Ambients
 {

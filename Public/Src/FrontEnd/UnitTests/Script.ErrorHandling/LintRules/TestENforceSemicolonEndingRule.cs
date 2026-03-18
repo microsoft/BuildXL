@@ -7,7 +7,6 @@ using System.Reflection;
 using BuildXL.FrontEnd.Script.Tracing;
 using Test.BuildXL.FrontEnd.Core;
 using Xunit;
-using Xunit.Abstractions;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace Test.DScript.Ast.ErrorHandling

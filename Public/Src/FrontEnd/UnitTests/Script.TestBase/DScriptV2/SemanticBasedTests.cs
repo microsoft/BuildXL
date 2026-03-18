@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using Xunit;
-using Xunit.Abstractions;
 
 #pragma warning disable 1591
 

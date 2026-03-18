@@ -5,7 +5,7 @@ using System.IO;
 using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.FrontEnd.Sdk;
 using Test.BuildXL.FrontEnd.Core;
-using Xunit.Abstractions;
+using Xunit;
 
 #pragma warning disable 1591
 

@@ -18,7 +18,6 @@ using BuildXL.Utilities.Configuration.Mutable;
 using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
 using AssemblyHelper = BuildXL.Utilities.Core.AssemblyHelper;
 
 #pragma warning disable AsyncFixer02

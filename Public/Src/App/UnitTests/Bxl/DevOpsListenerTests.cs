@@ -17,7 +17,6 @@ using BuildXL.ViewModel;
 using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
 using Xunit.Sdk;
 
 namespace Test.BuildXL

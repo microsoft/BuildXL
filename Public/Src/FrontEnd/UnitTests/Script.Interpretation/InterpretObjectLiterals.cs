@@ -4,7 +4,6 @@
 using Test.BuildXL.FrontEnd.Core;
 using TypeScript.Net.Diagnostics;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Test.DScript.Ast.Interpretation
 {

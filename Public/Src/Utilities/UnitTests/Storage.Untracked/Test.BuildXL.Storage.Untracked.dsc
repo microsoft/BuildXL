@@ -11,7 +11,6 @@ namespace Storage.Untracked {
                 runWithUntrackedDependencies: !BuildXLSdk.Flags.IsEBPFSandboxForTestsEnabled,
             },
         },
-        qTestXUnitV3: true,
         assemblyName: "Test.BuildXL.Storage.Admin",
         sources: globR(d`.`, "*.cs"),
         references: [

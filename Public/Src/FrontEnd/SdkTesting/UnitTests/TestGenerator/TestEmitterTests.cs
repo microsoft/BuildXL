@@ -9,7 +9,6 @@ using BuildXL.Utilities.CodeGenerationHelper;
 using BuildXL.FrontEnd.Script.Testing.TestGenerator;
 using TypeScript.Net.Types;
 using Xunit;
-using Xunit.Abstractions;
 
 using static Test.BuildXL.TestUtilities.Xunit.XunitBuildXLTest;
 

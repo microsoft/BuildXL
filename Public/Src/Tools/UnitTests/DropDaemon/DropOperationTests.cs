@@ -25,7 +25,6 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Tool.DropDaemon;
 using Tool.ServicePipDaemon;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Test.Tool.DropDaemon
 {

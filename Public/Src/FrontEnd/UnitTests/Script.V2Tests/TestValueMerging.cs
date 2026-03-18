@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 using Xunit;
-using Xunit.Abstractions;
 
 using static Test.BuildXL.FrontEnd.Core.ModuleConfigurationBuilder;
 

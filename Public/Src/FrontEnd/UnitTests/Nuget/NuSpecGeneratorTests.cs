@@ -11,7 +11,6 @@ using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Core;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Test.BuildXL.FrontEnd.Nuget
 {

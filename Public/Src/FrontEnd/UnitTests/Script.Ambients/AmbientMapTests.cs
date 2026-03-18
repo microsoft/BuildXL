@@ -9,7 +9,6 @@ using BuildXL.FrontEnd.Script.Values;
 using Test.BuildXL.TestUtilities.Xunit;
 using Test.BuildXL.FrontEnd.Core;
 using Xunit;
-using Xunit.Abstractions;
 using DsMap = BuildXL.FrontEnd.Script.Ambients.Map.OrderedMap;
 
 namespace Test.DScript.Ast.Interpretation

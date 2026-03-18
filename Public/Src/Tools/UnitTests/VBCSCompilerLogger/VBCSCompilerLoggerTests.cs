@@ -7,7 +7,6 @@ using System.Text;
 using System.Reflection;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
 using System.Collections.Generic;
 using Microsoft.Build.Utilities;
 

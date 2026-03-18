@@ -16,7 +16,6 @@ using BuildXL.FrontEnd.Script.Tracing;
 using BuildXL.FrontEnd.Script.Evaluator;
 using Test.BuildXL.FrontEnd.Core;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Test.DScript.Ast.Configuration
 {

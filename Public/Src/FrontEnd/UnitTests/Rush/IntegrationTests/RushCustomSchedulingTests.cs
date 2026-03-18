@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft Corporation.
+// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
@@ -6,7 +6,6 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using Test.BuildXL.FrontEnd.Core;
 using Xunit;
-using Xunit.Abstractions;
 using LogEventId = global::BuildXL.FrontEnd.Core.Tracing.LogEventId;
 
 namespace Test.BuildXL.FrontEnd.Rush.IntegrationTests

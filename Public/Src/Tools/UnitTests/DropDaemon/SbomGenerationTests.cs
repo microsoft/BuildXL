@@ -17,7 +17,6 @@ using System.Threading.Tasks;
 using Test.BuildXL.TestUtilities.Xunit;
 using Tool.DropDaemon;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Test.Tool.DropDaemon
 {

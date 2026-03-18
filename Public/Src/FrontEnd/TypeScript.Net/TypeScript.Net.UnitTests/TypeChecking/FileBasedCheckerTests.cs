@@ -13,7 +13,6 @@ using TypeScript.Net.Diagnostics;
 using TypeScript.Net.DScript;
 using TypeScript.Net.UnitTests.Utils;
 using Xunit;
-using Xunit.Abstractions;
 using Xunit.Sdk;
 using static TypeScript.Net.UnitTests.Utils.DiagnosticProcessor;
 

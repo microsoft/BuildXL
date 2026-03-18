@@ -7,7 +7,6 @@ using BuildXL.FrontEnd.Script.Values;
 using BuildXL.FrontEnd.Script.Evaluator;
 using Test.DScript.Ast.DScriptV2;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Test.DScript.Ast.Profiler
 {

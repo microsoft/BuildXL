@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Test.DScript.Ast.DScriptV2
 {

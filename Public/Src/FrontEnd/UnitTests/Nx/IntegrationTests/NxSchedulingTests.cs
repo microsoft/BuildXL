@@ -11,7 +11,6 @@ using BuildXL.Utilities.Core;
 using Test.BuildXL.FrontEnd.Core;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
 using Process = BuildXL.Pips.Operations.Process;
 
 namespace Test.BuildXL.FrontEnd.Nx

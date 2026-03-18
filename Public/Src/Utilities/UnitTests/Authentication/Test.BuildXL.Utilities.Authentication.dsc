@@ -9,7 +9,6 @@ namespace Authentication {
         assemblyName: "Test.BuildXL.Utilities.Authentication",
         allowUnsafeBlocks: true,
         sources: globR(d`.`, "*.cs"),
-        qTestXUnitV3: true,
         references: [
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Authentication.dll,

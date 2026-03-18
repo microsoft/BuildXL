@@ -11,7 +11,6 @@ using Microsoft.Build.Execution;
 using MsBuildGraphBuilderTool;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Test.ProjectGraphBuilder
 {

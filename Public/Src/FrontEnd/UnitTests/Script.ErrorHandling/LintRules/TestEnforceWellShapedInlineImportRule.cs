@@ -4,7 +4,6 @@
 using BuildXL.Utilities.Instrumentation.Common;
 using Test.DScript.Ast.DScriptV2;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Test.DScript.Ast.ErrorHandling
 {

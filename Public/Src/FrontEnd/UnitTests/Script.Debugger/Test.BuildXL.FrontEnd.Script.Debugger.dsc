@@ -26,7 +26,7 @@ namespace Script.Debugger {
             importFrom("BuildXL.Utilities").Storage.dll,
             importFrom("BuildXL.Utilities").Utilities.Core.dll,
             importFrom("BuildXL.Utilities.UnitTests").TestUtilities.dll,
-            importFrom("BuildXL.Utilities.UnitTests").TestUtilities.XUnit.dll,
+            importFrom("BuildXL.Utilities.UnitTests").TestUtilities.XUnitV3.dll,
             ...addIf(BuildXLSdk.isFullFramework,
                 importFrom("System.Collections.Immutable").pkg
             ),

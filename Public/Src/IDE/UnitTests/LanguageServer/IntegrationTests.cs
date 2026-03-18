@@ -11,7 +11,6 @@ using BuildXL.Ide.LanguageServer.UnitTests.Helpers;
 using Microsoft.VisualStudio.LanguageServer.Protocol;
 using TypeScript.Net.Diagnostics;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace BuildXL.Ide.LanguageServer.UnitTests
 {

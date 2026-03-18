@@ -17,7 +17,6 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Test.DScript.Ast.Utilities;
 using Test.DScript.Workspaces.Utilities;
 using Xunit;
-using Xunit.Abstractions;
 using static Test.BuildXL.TestUtilities.SimpleGraph;
 
 namespace Test.DScript.Ast.PartialEvaluation

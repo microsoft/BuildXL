@@ -8,7 +8,6 @@ using BuildXL.Pips.Operations;
 using BuildXL.Utilities.Configuration;
 using TypeScript.Net.Extensions;
 using Xunit;
-using Xunit.Abstractions;
 using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Engine;
 

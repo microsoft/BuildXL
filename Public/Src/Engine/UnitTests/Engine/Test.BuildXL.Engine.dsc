@@ -56,7 +56,6 @@ namespace Engine {
 
     @@public
     export const dll = BuildXLSdk.test({
-        qTestXUnitV3: true,
         assemblyName: "Test.BuildXL.Engine",
         rootNamespace: "Test.BuildXL.EngineTests",
         sources: globR(d`.`, "*.cs"),

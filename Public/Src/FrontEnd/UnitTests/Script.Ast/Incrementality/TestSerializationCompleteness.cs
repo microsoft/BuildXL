@@ -24,7 +24,6 @@ using Test.DScript.Ast.DScriptV2;
 using Test.BuildXL.Utilities;
 using TypeScript.Net.Utilities;
 using Xunit;
-using Xunit.Abstractions;
 using LineInfo = TypeScript.Net.Utilities.LineInfo;
 using Type = System.Type;
 using System.Linq;

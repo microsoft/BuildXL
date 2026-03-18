@@ -7,7 +7,6 @@ using BuildXL.FrontEnd.Script.Values;
 using Test.DScript.Ast.DScriptV2;
 using TypeScript.Net.Diagnostics;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Test.DScript.Ast.Interpretation
 {

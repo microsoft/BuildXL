@@ -5,7 +5,6 @@ using System.Linq;
 using Test.BuildXL.FrontEnd.Core;
 using VSCode.DebugProtocol;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Test.DScript.Debugger
 {

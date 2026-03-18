@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft Corporation.
+// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
 using System;
@@ -10,7 +10,6 @@ using Microsoft.Build.Graph;
 using Test.BuildXL.TestUtilities.Xunit;
 using Test.ProjectGraphBuilder.Utilities;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Test.Tool.ProjectGraphBuilder
 {

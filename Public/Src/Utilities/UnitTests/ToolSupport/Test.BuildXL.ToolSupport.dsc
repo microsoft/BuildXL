@@ -6,7 +6,6 @@ namespace ToolSupport {
     export const dll = BuildXLSdk.test({
         assemblyName: "Test.BuildXL.ToolSupport",
         sources: globR(d`.`, "*.cs"),
-        qTestXUnitV3: true,
         references: [
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").ToolSupport.dll,

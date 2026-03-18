@@ -9,7 +9,6 @@ using BuildXL.FrontEnd.Script.Values;
 using BuildXL.FrontEnd.Script.Ambients.Set;
 using Test.BuildXL.FrontEnd.Core;
 using Xunit;
-using Xunit.Abstractions;
 using DsSet = BuildXL.FrontEnd.Script.Ambients.Set.OrderedSet;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 

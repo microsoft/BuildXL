@@ -14,7 +14,7 @@ using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using Test.BuildXL.TestUtilities.Xunit;
 using Test.DScript.Ast.Scheduling;
-using Xunit.Abstractions;
+using Xunit;
 using ProjectWithPredictions = BuildXL.FrontEnd.MsBuild.Serialization.ProjectWithPredictions<BuildXL.Utilities.Core.AbsolutePath>;
 
 namespace Test.BuildXL.FrontEnd.MsBuild.Infrastructure

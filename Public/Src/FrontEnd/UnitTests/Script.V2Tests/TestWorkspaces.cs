@@ -3,7 +3,6 @@
 
 using System.Linq;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Test.DScript.Ast.DScriptV2
 {

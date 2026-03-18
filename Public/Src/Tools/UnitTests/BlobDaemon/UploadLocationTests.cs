@@ -4,7 +4,6 @@ using System;
 using Test.BuildXL.TestUtilities.Xunit;
 using Tool.BlobDaemon;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Test.Tool.BlobDaemon
 {

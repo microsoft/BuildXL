@@ -8,7 +8,6 @@ using BuildXL.FrontEnd.Sdk;
 using BuildXL.Utilities.Configuration;
 using Test.BuildXL.FrontEnd.Core;
 using Xunit;
-using Xunit.Abstractions;
 
 [assembly: CollectionBehavior(MaxParallelThreads = 1)]
 

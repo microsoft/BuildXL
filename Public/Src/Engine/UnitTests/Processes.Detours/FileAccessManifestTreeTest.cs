@@ -10,7 +10,6 @@ using BuildXL.Processes;
 using BuildXL.Utilities.Core;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Test.BuildXL.Processes.Detours
 {

@@ -14,7 +14,7 @@ using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using Test.BuildXL.TestUtilities.Xunit;
 using Test.DScript.Ast.Scheduling;
-using Xunit.Abstractions;
+using Xunit;
 
 namespace Test.BuildXL.FrontEnd.Rush
 {

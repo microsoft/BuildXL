@@ -5,7 +5,6 @@ using System;
 using System.Collections.Generic;
 using BuildXL.FrontEnd.Script.Values;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Test.DScript.Ast.DScriptV2
 {

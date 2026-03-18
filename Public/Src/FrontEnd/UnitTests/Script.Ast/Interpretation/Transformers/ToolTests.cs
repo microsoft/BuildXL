@@ -8,7 +8,6 @@ using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Test.DScript.Ast;
 using Xunit;
-using Xunit.Abstractions;
 using PipsOperations = global::BuildXL.Pips.Operations;
 namespace Test.BuildXL.FrontEnd.Script.Interpretation.Transformers
 {

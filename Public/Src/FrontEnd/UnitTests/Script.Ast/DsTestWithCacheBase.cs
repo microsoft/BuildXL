@@ -22,7 +22,6 @@ using Test.BuildXL.EngineTestUtilities;
 using Test.BuildXL.TestUtilities;
 using Test.BuildXL.FrontEnd.Core;
 using Xunit;
-using Xunit.Abstractions;
 using AssemblyHelper = BuildXL.Utilities.Core.AssemblyHelper;
 using BuildXL.Processes;
 using BuildXL.Utilities.Configuration.Mutable;

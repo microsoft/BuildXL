@@ -26,7 +26,6 @@ using BuildXL.FrontEnd.Sdk.FileSystem;
 using BuildXL.FrontEnd.Workspaces;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
 using Logger = BuildXL.FrontEnd.Core.Tracing.Logger;
 
 namespace Test.BuildXL.FrontEnd.Core

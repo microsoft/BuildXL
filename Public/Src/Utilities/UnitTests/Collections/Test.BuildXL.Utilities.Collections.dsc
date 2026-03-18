@@ -6,7 +6,6 @@ namespace Collections {
     export const dll = BuildXLSdk.test({
         assemblyName: "Test.BuildXL.Utilities.Collections",
         sources: globR(d`.`, "*.cs"),
-        qTestXUnitV3: true,
         references: [
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Native.dll,

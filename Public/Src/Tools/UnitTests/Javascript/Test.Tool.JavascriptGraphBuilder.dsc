@@ -34,7 +34,7 @@ namespace Test.Tool.JavascriptGraphBuilder {
                 contents: [Node.Node.nodeExecutables]
             },
         ],
-        testFramework: importFrom("Sdk.Managed.Testing.XUnit").framework,
+        testFramework: importFrom("Sdk.Managed.Testing.XUnitV3").framework,
         runTestArgs:{
             unsafeTestRunArguments: {
                 untrackedScopes: [

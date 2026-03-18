@@ -5,7 +5,6 @@ using System.Linq;
 using BuildXL.Utilities.Configuration;
 using Test.BuildXL.FrontEnd.Core;
 using Xunit;
-using Xunit.Abstractions;
 using LogEventId = global::BuildXL.FrontEnd.JavaScript.Tracing.LogEventId;
 
 namespace Test.BuildXL.FrontEnd.Rush

@@ -15,7 +15,6 @@ using BuildXL.FrontEnd.MsBuild.Serialization;
 using Test.BuildXL.TestUtilities.Xunit;
 using Test.BuildXL.FrontEnd.MsBuild.Infrastructure;
 using Xunit;
-using Xunit.Abstractions;
 using BuildXL.Native.Processes;
 using BuildXL.Utilities.Configuration.Resolvers;
 using BuildXL.Utilities.Configuration.Resolvers.Mutable;

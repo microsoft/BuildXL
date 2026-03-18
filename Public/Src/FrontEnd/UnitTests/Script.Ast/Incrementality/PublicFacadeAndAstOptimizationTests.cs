@@ -12,7 +12,6 @@ using BuildXL.FrontEnd.Core.Incrementality;
 using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Core;
 

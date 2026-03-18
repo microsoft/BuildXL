@@ -21,7 +21,7 @@ namespace Test.Lage {
     @@public
     export const dll = isRunningOnSupportedSystem && BuildXLSdk.test({
         // QTest is not supporting opaque directories as part of the deployment
-        testFramework: importFrom("Sdk.Managed.Testing.XUnit").framework,
+        testFramework: importFrom("Sdk.Managed.Testing.XUnitV3").framework,
         runTestArgs: {
             // Under linux (EBPF) these tests probe files all over the place (yarn most likely to blame)
             // TODO: we should try to keep accesses under control, otherwise these tests will almost never be a cache hit

@@ -7,7 +7,6 @@ using BuildXL.Utilities.Core;
 using Test.BuildXL.TestUtilities.Xunit;
 using Test.BuildXL.FrontEnd.MsBuild.Infrastructure;
 using Xunit;
-using Xunit.Abstractions;
 using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.FrontEnd.Script.Util;
 using BuildXL.Utilities.Configuration;

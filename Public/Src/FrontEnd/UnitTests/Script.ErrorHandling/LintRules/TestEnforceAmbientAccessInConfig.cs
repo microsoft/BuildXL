@@ -11,7 +11,6 @@ using BuildXL.FrontEnd.Script.Values;
 using Test.BuildXL.FrontEnd.Core;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Test.DScript.Ast.ErrorHandling
 {
@@ -101,7 +100,7 @@ namespace Test.DScript.Ast.ErrorHandling
 
             // Extract string parameter for each InlineDataAttribute for each method.
             string[] inlineDataContent = GetType().GetMethods()
-                .SelectMany(mi => mi.GetCustomAttributes<InlineDataAttribute>().Select(attr => (string)attr?.GetData(null)?.FirstOrDefault()[0]))
+                .SelectMany(mi => mi.GetCustomAttributes<InlineDataAttribute>().Select(attr => (string)attr.GetData(null, new Xunit.Sdk.DisposalTracker()).Result.FirstOrDefault()?.GetData()[0]))
                 .Select(s => s.Substring(0, s.IndexOf("(")))
                 .ToArray();
 

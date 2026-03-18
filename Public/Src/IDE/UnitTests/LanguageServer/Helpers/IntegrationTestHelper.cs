@@ -13,7 +13,7 @@ using Nerdbank.Streams;
 using Newtonsoft.Json.Linq;
 using StreamJsonRpc;
 using Test.BuildXL.FrontEnd.Core;
-using Xunit.Abstractions;
+using Xunit;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 
 namespace BuildXL.Ide.LanguageServer.UnitTests.Helpers

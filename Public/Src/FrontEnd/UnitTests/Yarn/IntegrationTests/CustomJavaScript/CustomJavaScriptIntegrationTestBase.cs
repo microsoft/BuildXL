@@ -16,7 +16,7 @@ using Test.BuildXL.FrontEnd.Core;
 using Test.BuildXL.TestUtilities;
 using Test.BuildXL.TestUtilities.Xunit;
 using Test.DScript.Ast;
-using Xunit.Abstractions;
+using Xunit;
 
 namespace Test.BuildXL.FrontEnd.Yarn
 {

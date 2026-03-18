@@ -7,7 +7,6 @@ namespace Ipc {
         assemblyName: "Test.BuildXL.Ipc",
         assemblyBindingRedirects: BuildXLSdk.cacheBindingRedirects(),
         sources: globR(d`.`, "*.cs"),
-        qTestXUnitV3: true,
         references: [
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Ipc.dll,

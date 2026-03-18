@@ -11,7 +11,6 @@ namespace Scheduler.IntegrationTest {
     const includeCredScan = BuildXLSdk.Flags.isMicrosoftInternal && BuildXLSdk.isDotNetCore;
 
     const testArgs : BuildXLSdk.TestArguments = {
-        qTestXUnitV3: true,
         assemblyName: "IntegrationTest.BuildXL.Scheduler",
         sources: globR(d`.`, "*.cs"),
         runTestArgs: {

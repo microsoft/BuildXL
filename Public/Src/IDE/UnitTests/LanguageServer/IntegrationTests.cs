@@ -33,7 +33,7 @@ namespace BuildXL.Ide.LanguageServer.UnitTests
         {
             var messages = IntegrationTestHelper
                 .CreateApp(Output, forceSynchronousMessages: true)
-                .Invoke("exit")
+                .Shutdown()
                 .WorkspaceLoadingMessages;
 
             Assert.True(messages.Any(message => message.Status == WorkspaceLoadingState.Success));

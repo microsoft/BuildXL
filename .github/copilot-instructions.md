@@ -79,14 +79,27 @@ module({
 
 ## Build & Test Commands
 
+Use `bxl.cmd` on Windows and `bxl.sh` on Linux. The examples below use `bxl.cmd`; substitute `./bxl.sh` and Linux-style flags (e.g., `--minimal`, `--deploy-dev`, `--use-dev`, `--release`, `--test-class`, `--test-method`) on Linux.
+
 ### Common Build Commands
 ```bash
+# Windows
 bxl.cmd -minimal                    # Quick build (bxl.exe + deps only)
 bxl.cmd                             # Standard build + tests
 bxl.cmd -all                        # Build everything
 bxl.cmd /q:ReleaseNet8              # Build with specific qualifier
 bxl -deploy dev -minimal            # Build and deploy debug bxl.exe
 bxl -use dev                        # Use locally-built bxl.exe
+
+# Linux
+# --internal is for Microsoft internal developers accessing internal dependencies (internal NuGet feeds, etc.).
+# Non-Microsoft developers should omit it. On Windows this is auto-detected from machine information,
+# but on Linux it must be passed explicitly.
+./bxl.sh --internal --minimal       # Quick build
+./bxl.sh --internal                 # Standard build + tests
+./bxl.sh --internal --release       # Release build
+./bxl.sh --internal --deploy-dev --minimal  # Build and deploy debug bxl
+./bxl.sh --internal --use-dev       # Use locally-built bxl
 ```
 
 ### Running Tests
@@ -94,11 +107,13 @@ bxl -use dev                        # Use locally-built bxl.exe
 # Target a specific test project
 bxl IntegrationTest.BuildXL.Scheduler.dsc
 
-# Run a specific test class
+# Run a specific test class (Windows / Linux)
 bxl IntegrationTest.BuildXL.Scheduler.dsc -TestClass IntegrationTest.BuildXL.Scheduler.BaselineTests
+./bxl.sh --internal --test-class IntegrationTest.BuildXL.Scheduler.BaselineTests
 
-# Run a specific test method
+# Run a specific test method (Windows / Linux)
 bxl IntegrationTest.BuildXL.Scheduler.dsc -TestMethod IntegrationTest.BuildXL.Scheduler.BaselineTests.VerifyGracefulTeardownOnPipFailure
+./bxl.sh --internal --test-method IntegrationTest.BuildXL.Scheduler.BaselineTests.VerifyGracefulTeardownOnPipFailure
 
 # Run only tests (filter by tag)
 bxl "/f:tag='test'"
@@ -171,6 +186,10 @@ When creating branches, always use the format: `dev/[username]/[feature-descript
 - `[feature-description]` is a short kebab-case summary of the change
 - Example: `dev/mpysson/fix-refs-hardlink-test`
 
+## Git Workflow Rules
+- **Do not rewrite git history** — no `--amend`, `rebase`, or `force-push`. Always make new commits with changes unless explicitly requested by the user.
+- **Do not push to remote branches** unless the user explicitly asks. Commit locally by default.
+
 ## Common Pitfalls
 - **Typos in test filters**: If `-TestMethod` matches nothing, the build still **succeeds silently** — always verify the filter matches an actual test
 - **Generated files**: Never edit `.csproj` or `.sln` files; edit `.dsc` specs instead
@@ -178,6 +197,24 @@ When creating branches, always use the format: `dev/[username]/[feature-descript
 - **Sandbox violations**: Undeclared file accesses cause build failures or prevent caching — all inputs/outputs must be declared in the pip spec
 - **DScript immutability**: Variables are `const` by default; there's no `let` reassignment or mutable state
 
-## Checking Build and Test Results
+## Running Builds from Agents / Automated Tooling
 
-`bxl.cmd` output may not flow cleanly to the calling shell. Check `Out\Logs\` directly — the newest subdirectory contains logs for the most recent build. If `BuildXL.err` in that directory is empty, the build and all tests succeeded. If it has content, it contains the errors.
+### How builds are launched
+Both `bxl.cmd` (Windows) and `bxl.sh` (Linux) are **synchronous** — they block until the build completes and propagate the exit code. Wait for the script's process to exit to know when the build is done.
+
+- **Windows**: `bxl.cmd` calls `powershell Bxl.ps1`, which uses `Start-Process bxl.exe` + `Wait-Process`
+- **Linux**: `bxl.sh` directly invokes the `bxl` binary and captures `$?`
+
+### Important: `bxl` server process
+BuildXL runs in **server mode** by default. After a build completes, a `bxl` server process remains running in the background to speed up subsequent builds. **Do not** check for running `bxl` processes to determine if a build is still running — the server process will always be present. Instead, wait for the `bxl.cmd`/`bxl.sh` process to exit.
+
+### Checking build and test results
+Build console output is noisy (credential provider output, progress bars) and may not flow cleanly to the calling shell. **Do not rely on console output** to determine success or failure.
+
+Instead:
+
+1. **Run `bxl.cmd` (Windows) or `bxl.sh` (Linux)** and wait for the process to exit
+2. **Check `Out/Logs/<latest>/BuildXL.err`** (newest timestamped subdirectory) — this is the authoritative result:
+   - **Empty or missing** → build and all tests succeeded
+   - **Has content** → contains errors, including test failure messages and stack traces
+3. **For more details**, error messages in `BuildXL.err` may reference additional log files — follow those paths for full output

@@ -141,6 +141,8 @@ config({
                 { id: "System.Reflection.Metadata", version: "5.0.0", alias: "System.Reflection.Metadata.ForVBCS" },
 
                 { id: "System.Threading.Tasks.Dataflow", version: "9.0.7" },
+                // VBCSCompiler is used in CB against older versions of MSBuild that don't have binding redirects for the newer versions of System.Threading.Tasks.Dataflow.
+                { id: "System.Threading.Tasks.Dataflow", alias: "System.Threading.Tasks.Dataflow.ForVBCS", version: "9.0.0" },
 
                 // Nuget
                 { id: "NuGet.Packaging", version: "6.9.1" },

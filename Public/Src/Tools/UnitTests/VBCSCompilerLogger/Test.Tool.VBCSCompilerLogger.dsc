@@ -18,7 +18,9 @@ namespace Test.Tool.VBCSCompilerLogger {
             importFrom("BuildXL.Tools").VBCSCompilerLogger.dll,
         ],
         runtimeContentToSkip: [
-            // Avoid deploying the standard reference in favor of the old one
+            // Avoid deploying the standard reference in favor of the old ones
+            importFrom("System.Collections.Immutable").pkg,
+            importFrom("System.Threading.Tasks.Dataflow").pkg,
             importFrom("System.Reflection.Metadata").pkg,
         ],
         runtimeContent: [

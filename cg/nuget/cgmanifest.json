@@ -2967,6 +2967,15 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Collections.Immutable",
+          "Version": "9.0.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Collections.Immutable",
           "Version": "9.0.7"
         }
       }
@@ -4273,6 +4282,15 @@
         "NuGet": {
           "Name": "System.Threading.Tasks",
           "Version": "4.3.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "System.Threading.Tasks.Dataflow",
+          "Version": "9.0.0"
         }
       }
     },

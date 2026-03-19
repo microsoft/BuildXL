@@ -29,16 +29,19 @@ namespace VBCSCompilerLogger {
             importFrom("Microsoft.CodeAnalysis.VisualBasic").pkg,
             importFrom("Microsoft.CodeAnalysis.Common").pkg,
             // Roslyn API returns ImmutableArray.
-            ...addIf(BuildXLSdk.isFullFramework, importFrom("System.Collections.Immutable").pkg),
+            ...addIf(BuildXLSdk.isFullFramework, importFrom("System.Collections.Immutable.ForVBCS").pkg),
             NetFx.Netstandard.dll, // due to issue https://github.com/dotnet/standard/issues/542
         ],
         runtimeContent:[
+            importFrom("System.Collections.Immutable.ForVBCS").pkg,    
             importFrom("System.Reflection.Metadata.ForVBCS").pkg,
+            importFrom("System.Threading.Tasks.Dataflow.ForVBCS").pkg,
             importFrom("System.Runtime.CompilerServices.Unsafe").pkg,
             importFrom("System.Numerics.Vectors").pkg,
         ],
         runtimeContentToSkip: [
             importFrom("System.Collections.Immutable").pkg,
+            importFrom("System.Threading.Tasks.Dataflow").pkg,
             importFrom("System.Memory").pkg,
             // Avoid deploying the standard reference in favor of the old one
             importFrom("System.Reflection.Metadata").pkg,

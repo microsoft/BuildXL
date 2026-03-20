@@ -274,5 +274,5 @@ export const pkgs = [
     { id: "System.Security.Cryptography.OpenSsl", version: "5.0.0" },
     { id: "System.Collections.Immutable", version: "9.0.7" },
     // VBCSCompiler is used in CB against older versions of MSBuild that don't have binding redirects for the newer versions of System.Collections.Immutable.
-    { id: "System.Collections.Immutable", alias: "System.Collections.Immutable.ForVBCS", version: "9.0.0" },
+    { id: "System.Collections.Immutable", alias: "System.Collections.Immutable.ForVBCS", version: "8.0.0" },
 ];

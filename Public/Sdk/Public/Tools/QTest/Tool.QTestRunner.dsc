@@ -2,7 +2,6 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 import {Artifact, Cmd, Transformer, Tool} from "Sdk.Transformers";
-import * as Json from "Sdk.Json";
 
 const root = d`.`;
 const dynamicCodeCovString = "DynamicCodeCov";
@@ -281,21 +280,24 @@ function getContextInfoFile(args: QTestArguments) : File {
     // We are running on ADO. Generate the context file based on the environment.
     const contextInfoPath = p`${Context.getNewOutputDirectory("QTestContextInfo")}/QTestContextInfo.json`;
     const pullRequestId = Environment.getStringValue("SYSTEM_PULLREQUEST_PULLREQUESTID");
+    const prId = pullRequestId !== undefined ? pullRequestId : "";
 
-    infoFile = Json.write(contextInfoPath, {
-        RequestInfo: {
-            ProjectId: Environment.getStringValue("SYSTEM_TEAMPROJECTID"),
-            VstsUrl: Environment.getStringValue("SYSTEM_TEAMFOUNDATIONCOLLECTIONURI"),
-            ProjectName: Environment.getStringValue("SYSTEM_TEAMPROJECT"),
-            JobId: Environment.getStringValue("SYSTEM_JOBID"),
-            VstsBuildId: Environment.getStringValue("BUILD_BUILDID"),
-            VstsPullRequestId: pullRequestId !== undefined ? pullRequestId : "",
-        },
-        BranchName: Environment.getStringValue("BUILD_SOURCEBRANCHNAME"),
-        BuildQueue: Environment.getStringValue("SYSTEM_DEFINITIONID"),
-        // This environment variable is exposed by the BuildXL workflow under 1ESPT
-        AuthTokenEnvVarName: "SYSTEM_ACCESSTOKEN",
-    }, '"');
+    // We could use our JSON facilities (Sdk.Json package), but Office generates a very restrictive config file for its pip graph fragment generator which does not include
+    // the JSON package. Considering this is just a pretty straighforward JSON file, we can just generate it as a string and avoid the breaking change.
+    infoFile = Transformer.writeAllText(contextInfoPath, 
+    `{
+  "RequestInfo": {
+    "ProjectId": "${Environment.getStringValue("SYSTEM_TEAMPROJECTID")}",
+    "VstsUrl": "${Environment.getStringValue("SYSTEM_TEAMFOUNDATIONCOLLECTIONURI")}",
+    "ProjectName": "${Environment.getStringValue("SYSTEM_TEAMPROJECT")}",
+    "JobId": "${Environment.getStringValue("SYSTEM_JOBID")}",
+    "VstsBuildId": "${Environment.getStringValue("BUILD_BUILDID")}",
+    "VstsPullRequestId": "${prId}"
+  },
+  "BranchName": "${Environment.getStringValue("BUILD_SOURCEBRANCHNAME")}",
+  "BuildQueue": "${Environment.getStringValue("SYSTEM_DEFINITIONID")}",
+  "AuthTokenEnvVarName": "SYSTEM_ACCESSTOKEN"
+}`);
 
     return infoFile;
 }

@@ -539,6 +539,169 @@ namespace Test.BuildXL.Storage
             VerifyTable(table);
         }
 
+        [Fact]
+        public async Task BackgroundLoadRestoresEntries()
+        {
+            WriteTestFiles();
+
+            // Create a table, record entries, and save to disk.
+            var originalTable = FileContentTable.CreateNew(LoggingContext);
+            RecordContentHash(originalTable, m_testFileA, s_hashA);
+            RecordContentHash(originalTable, m_testFileB, s_hashB);
+            await SaveTable(originalTable);
+
+            // Load via background loading and wait for completion.
+            var hooks = new FileContentTable.TestHooks();
+            var backgroundTable = FileContentTable.CreateWithBackgroundLoad(LoggingContext, GetFullPath(Table), FileContentTable.DefaultTimeToLive, testHooks: hooks);
+            await hooks.BackgroundLoadCompletion;
+
+            ExpectHashKnown(backgroundTable, m_testFileA, s_hashA);
+            ExpectHashKnown(backgroundTable, m_testFileB, s_hashB);
+
+            VerifyTable(backgroundTable);
+        }
+
+        [Fact]
+        public void BackgroundLoadTableIsImmediatelyUsable()
+        {
+            WriteTestFiles();
+
+            // Create with background load from a path that doesn't exist yet — there's nothing to load.
+            var table = FileContentTable.CreateWithBackgroundLoad(LoggingContext, GetFullPath(Table));
+
+            // Table should be usable immediately: unknown entries, and recording works.
+            ExpectHashUnknown(table, m_testFileA);
+            RecordContentHash(table, m_testFileA, s_hashA);
+            ExpectHashKnown(table, m_testFileA, s_hashA);
+        }
+
+        [Fact]
+        public async Task BackgroundLoadPreservesEntriesRecordedDuringLoad()
+        {
+            WriteTestFiles();
+
+            // Create a table with only fileA and save to disk.
+            var originalTable = FileContentTable.CreateNew(LoggingContext);
+            RecordContentHash(originalTable, m_testFileA, s_hashA);
+            await SaveTable(originalTable);
+
+            // Use test hooks to hold the merge gate open so we can record entries during the loading window.
+            var hooks = new FileContentTable.TestHooks { MergeGate = new TaskCompletionSource<bool>() };
+            var backgroundTable = FileContentTable.CreateWithBackgroundLoad(LoggingContext, GetFullPath(Table), FileContentTable.DefaultTimeToLive, testHooks: hooks);
+
+            // Wait for disk load to finish — merge is paused.
+            await hooks.LoadedFromDisk.Task;
+
+            // Record fileB while merge is blocked — this goes into the live (empty) map.
+            RecordContentHash(backgroundTable, m_testFileB, s_hashB);
+
+            // Release the merge.
+            hooks.MergeGate.SetResult(true);
+            await hooks.BackgroundLoadCompletion;
+
+            // Both entries should be present: fileA from disk, fileB from live recording.
+            ExpectHashKnown(backgroundTable, m_testFileA, s_hashA);
+            ExpectHashKnown(backgroundTable, m_testFileB, s_hashB);
+
+            VerifyTable(backgroundTable);
+        }
+
+        [Fact]
+        public async Task BackgroundLoadLiveEntryWinsOverStaleLoadedEntry()
+        {
+            WriteTestFiles();
+
+            // Create a table with fileA -> hashA and save to disk.
+            var originalTable = FileContentTable.CreateNew(LoggingContext);
+            RecordContentHash(originalTable, m_testFileA, s_hashA);
+            await SaveTable(originalTable);
+
+            // Modify fileA so the on-disk entry becomes stale.
+            ModifyContents(m_testFileA);
+
+            // Use test hooks to hold the merge gate.
+            var hooks = new FileContentTable.TestHooks { MergeGate = new TaskCompletionSource<bool>() };
+            var backgroundTable = FileContentTable.CreateWithBackgroundLoad(LoggingContext, GetFullPath(Table), FileContentTable.DefaultTimeToLive, testHooks: hooks);
+
+            await hooks.LoadedFromDisk.Task;
+
+            // Record fileA with hashB (new content) while merge is blocked.
+            RecordContentHash(backgroundTable, m_testFileA, s_hashB);
+
+            // Release merge — live entry (hashB, higher USN) should win over loaded entry (hashA, stale USN).
+            hooks.MergeGate.SetResult(true);
+            await hooks.BackgroundLoadCompletion;
+
+            ExpectHashKnown(backgroundTable, m_testFileA, s_hashB);
+        }
+
+        [Fact]
+        public async Task BackgroundLoadNeverReturnsWrongHashAfterSwap()
+        {
+            WriteTestFiles();
+
+            // Create a table with fileA and fileB, save to disk.
+            var originalTable = FileContentTable.CreateNew(LoggingContext);
+            RecordContentHash(originalTable, m_testFileA, s_hashA);
+            RecordContentHash(originalTable, m_testFileB, s_hashB);
+            await SaveTable(originalTable);
+
+            // Gate both the swap and the drain so we can observe the post-swap, pre-drain window.
+            var hooks = new FileContentTable.TestHooks
+            {
+                MergeGate = new TaskCompletionSource<bool>(),
+                DrainGate = new TaskCompletionSource<bool>(),
+            };
+            var backgroundTable = FileContentTable.CreateWithBackgroundLoad(LoggingContext, GetFullPath(Table), FileContentTable.DefaultTimeToLive, testHooks: hooks);
+
+            // Wait for disk load, then release the swap but hold the drain.
+            await hooks.LoadedFromDisk.Task;
+            hooks.MergeGate.SetResult(true);
+            await hooks.SwapComplete.Task;
+
+            // Modify fileA on disk without informing the table. This changes its USN,
+            // so the loaded entry's USN no longer matches.
+            ModifyContents(m_testFileA);
+
+            // fileA should be unknown (stale USN causes a miss, not a wrong hash).
+            // fileB is unmodified and should still be known.
+            ExpectHashUnknown(backgroundTable, m_testFileA);
+            ExpectHashKnown(backgroundTable, m_testFileB, s_hashB);
+
+            // Release drain and let it finish.
+            hooks.DrainGate.SetResult(true);
+            await hooks.BackgroundLoadCompletion;
+
+            // After drain, fileA should still be unknown — no path can produce a wrong hash.
+            ExpectHashUnknown(backgroundTable, m_testFileA);
+            ExpectHashKnown(backgroundTable, m_testFileB, s_hashB);
+        }
+
+        [Fact]
+        public async Task BackgroundLoadSaveRoundTrips()
+        {
+            WriteTestFiles();
+
+            // Create, record, save.
+            var originalTable = FileContentTable.CreateNew(LoggingContext);
+            RecordContentHash(originalTable, m_testFileA, s_hashA);
+            RecordContentHash(originalTable, m_testFileB, s_hashB);
+            await SaveTable(originalTable);
+
+            // Background load, wait, then save again.
+            var hooks = new FileContentTable.TestHooks();
+            var backgroundTable = FileContentTable.CreateWithBackgroundLoad(LoggingContext, GetFullPath(Table), FileContentTable.DefaultTimeToLive, testHooks: hooks);
+            await hooks.BackgroundLoadCompletion;
+            await backgroundTable.SaveAsync(GetFullPath(Table));
+
+            // Load normally and verify all entries survived the round-trip.
+            var reloadedTable = await LoadTable();
+            ExpectHashKnown(reloadedTable, m_testFileA, s_hashA);
+            ExpectHashKnown(reloadedTable, m_testFileB, s_hashB);
+
+            VerifyTable(reloadedTable);
+        }
+
         private void ExpectHashKnown(FileContentTable table, AbsolutePath path, ContentHash hash)
         {
             VersionedFileIdentityAndContentInfo? maybeKnownHash = table.TryGetKnownContentHash(path.ToString(m_pathTable));

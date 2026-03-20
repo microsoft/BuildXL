@@ -463,6 +463,16 @@ namespace BuildXL.Storage.Tracing
                 "Load file content table at '{path}': Status: {status} | Reason: {reason} | Elapsed: {elapsed}ms{stackTrace}")]
         public abstract void StorageLoadFileContentTable(LoggingContext context, string path, string status, string reason, long elapsed, string stackTrace);
 
+        [GeneratedEvent(
+            (int)LogEventId.StorageFileContentTableBackgroundLoadComplete,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Storage,
+            Message =
+                "File content table background load complete: Loaded {loadedEntries} entries, final table has {totalEntries} entries. Elapsed: {elapsed}ms")]
+        public abstract void StorageFileContentTableBackgroundLoadComplete(LoggingContext context, int loadedEntries, int totalEntries, long elapsed);
+
         /*
         [GeneratedEvent(
             (int)LogEventId.StorageCacheFlushingBegin,

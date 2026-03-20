@@ -75,8 +75,9 @@ namespace BuildXL.Storage
 
         /// <summary>
         /// These are the (global file ID) -> (USN, hash) mappings recorded or retrieved in this session.
+        /// Not readonly because <see cref="BackgroundLoadAndMerge"/> swaps in the loaded map.
         /// </summary>
-        private readonly ConcurrentBigMap<FileIdAndVolumeId, Entry> m_entries;
+        private ConcurrentBigMap<FileIdAndVolumeId, Entry> m_entries;
 
         /// <summary>
         /// In the event a volume has a disabled change journal or not all files have USNs (journal enabled after last write to a
@@ -96,6 +97,16 @@ namespace BuildXL.Storage
 
         private readonly ObserverData m_observerData = new();
         private readonly LoggingContext m_loggingContext;
+
+        /// <summary>
+        /// When non-null, a background task that is loading entries from disk and will merge them into <see cref="m_entries"/> upon completion.
+        /// </summary>
+        private Task? m_backgroundLoadTask;
+
+        /// <summary>
+        /// Optional hooks for tests to observe and control the background load/merge lifecycle.
+        /// </summary>
+        private TestHooks? m_testHooks;
 
         /// <summary>
         /// Creates a table that can durably store file -> content hash mappings. The table is initially empty.
@@ -172,6 +183,44 @@ namespace BuildXL.Storage
                     kvp.Key,
                     kvp.Value.WithTimeToLive((ushort)Math.Min(entryTimeToLive, kvp.Value.TimeToLive - 1)))),
                 checkExistingItem: false);
+        }
+
+        /// <summary>
+        /// Creates a <see cref="FileContentTable"/> that is immediately usable and loads entries from disk in the background.
+        /// Before loading completes, <see cref="TryGetKnownContentHash(string)"/> will report misses for entries not yet loaded.
+        /// <see cref="RecordContentHash(FileStream, ContentHash, bool?)"/> works immediately; entries recorded during loading
+        /// take priority over loaded entries during the merge.
+        /// If loading fails, the table remains empty (equivalent to <see cref="CreateNew"/>).
+        /// </summary>
+        public static FileContentTable CreateWithBackgroundLoad(
+            LoggingContext loggingContext,
+            string fileContentTablePath,
+            ushort entryTimeToLive = DefaultTimeToLive)
+        {
+            return CreateWithBackgroundLoad(loggingContext, fileContentTablePath, entryTimeToLive, testHooks: null);
+        }
+
+        /// <summary>
+        /// Overload accepting <see cref="TestHooks"/> for unit tests to control background load timing.
+        /// </summary>
+        internal static FileContentTable CreateWithBackgroundLoad(
+            LoggingContext loggingContext,
+            string fileContentTablePath,
+            ushort entryTimeToLive,
+            TestHooks? testHooks)
+        {
+            Contract.Requires(!string.IsNullOrWhiteSpace(fileContentTablePath));
+            Contract.Requires(entryTimeToLive > 0);
+
+            var table = new FileContentTable(loggingContext, isStub: false, entryTimeToLive: entryTimeToLive);
+            table.m_testHooks = testHooks;
+            table.m_backgroundLoadTask = Task.Run(() => table.BackgroundLoadAndMerge(fileContentTablePath, entryTimeToLive));
+            if (testHooks != null)
+            {
+                testHooks.BackgroundLoadCompletion = table.m_backgroundLoadTask;
+            }
+
+            return table;
         }
 
         /// <summary>
@@ -578,6 +627,10 @@ namespace BuildXL.Storage
             FileShare fileShare,
             Func<FileIdAndVolumeId, SafeFileHandle, string, Usn, ContentHash, bool> visitor)
         {
+            // Force the background loading task to complete so tests and diagnostics can be in sync
+            // with the deserialized entries in the table
+            m_backgroundLoadTask?.GetAwaiter().GetResult();
+
             foreach (KeyValuePair<FileIdAndVolumeId, Entry> entry in m_entries)
             {
                 if (accessor.TryGetFileHandleAndPathFromFileIdAndVolumeId(entry.Key, fileShare, out SafeFileHandle handle, out string path))
@@ -686,6 +739,72 @@ namespace BuildXL.Storage
 
                 return loadResult.LoadedFileContentTable;
             });
+        }
+
+        /// <summary>
+        /// Loads entries from disk and merges them into this table's <see cref="m_entries"/>.
+        /// Entries already present in <see cref="m_entries"/> (e.g., recorded by concurrent <see cref="RecordContentHash(FileStream, ContentHash, bool?)"/> calls
+        /// during loading) take priority and are not overwritten by loaded entries.
+        /// </summary>
+        private void BackgroundLoadAndMerge(string fileContentTablePath, ushort entryTimeToLive)
+        {
+            var sw = Stopwatch.StartNew();
+            int loadedEntryCount = 0;
+
+            try
+            {
+                LoadResult loadResult = TryLoadInternal(m_loggingContext, fileContentTablePath, entryTimeToLive);
+                loadResult.Log(m_loggingContext);
+
+                if (!loadResult.Succeeded)
+                {
+                    return;
+                }
+
+                var loadedTable = loadResult.LoadedFileContentTable!;
+                loadedEntryCount = loadedTable.Count;
+
+                // Signal that loading from disk is complete and wait for the test to release the merge gate.
+                m_testHooks?.OnLoadedFromDisk(loadedTable.Count);
+
+                using (Counters.StartStopwatch(FileContentTableCounters.MergeDuration))
+                {
+                    // Swap m_entries to the loaded map. This can have some collateral damage as any newly
+                    // added entries are temporarily unavailable during the merge.
+                    // It is still safe to use the reloaded entries map because the USN on out of date files won't match
+                    var oldEntries = Interlocked.Exchange(ref m_entries, loadedTable.m_entries);
+                    Counters.AddToCounter(FileContentTableCounters.NumFileIdMismatchDuringLoad, oldEntries.Count);
+
+                    // Signal that the swap is complete and wait for the test to release the drain gate.
+                    m_testHooks?.OnSwapComplete();
+
+                    // Merge in any entries recorded during loading, keeping whichever entry has the higher USN.
+                    foreach (var kvp in oldEntries)
+                    {
+                        m_entries.AddOrUpdate(
+                            kvp.Key,
+                            kvp.Value,
+                            addValueFactory: static (key, liveEntry) => liveEntry,
+                            updateValueFactory: static (key, liveEntry, existingEntry) =>
+                                liveEntry.Usn >= existingEntry.Usn ? liveEntry : existingEntry);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // TryLoadInternal catches its own exceptions, but guard against unexpected failures during merge.
+                LoadResult.Exception(fileContentTablePath, ex, sw.ElapsedMilliseconds).Log(m_loggingContext);
+                return;
+            }
+
+            Counters.AddToCounter(FileContentTableCounters.NumEntries, Count);
+            Counters.AddToCounter(FileContentTableCounters.LoadDuration, sw.Elapsed);
+
+            Tracing.Logger.Log.StorageFileContentTableBackgroundLoadComplete(
+                m_loggingContext,
+                loadedEntryCount,
+                Count,
+                sw.ElapsedMilliseconds);
         }
 
         [SuppressMessage("Microsoft.Usage", "CA2202:Do not dispose objects multiple times")]
@@ -921,6 +1040,10 @@ namespace BuildXL.Storage
         [SuppressMessage("Microsoft.Usage", "CA2202:Do not dispose objects multiple times")]
         private void SaveInternal(string fileContentTablePath)
         {
+            // Ensure background loading is complete before saving,
+            // otherwise loaded entries that haven't been merged yet would be lost.
+            m_backgroundLoadTask?.GetAwaiter().GetResult();
+
             ExceptionUtilities.HandleRecoverableIOException(
                 () =>
                 {
@@ -1220,6 +1343,10 @@ namespace BuildXL.Storage
         /// <inheritdoc />
         public void OnInit()
         {
+            // Ensure background loading is complete before journal scanning begins,
+            // as scanning needs the full set of entries to correctly update/remove stale ones.
+            m_backgroundLoadTask?.GetAwaiter().GetResult();
+
             m_observerData.Init();
         }
 
@@ -1249,5 +1376,53 @@ namespace BuildXL.Storage
         }
 
         #endregion Observer
+
+        /// <summary>
+        /// Hooks for tests to observe and control the background load/merge lifecycle.
+        /// </summary>
+        internal class TestHooks
+        {
+            /// <summary>
+            /// Signaled after entries are loaded from disk but before the swap+merge into <see cref="m_entries"/>.
+            /// Tests can await this to know the loading window is open.
+            /// </summary>
+            public TaskCompletionSource<bool> LoadedFromDisk { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            /// <summary>
+            /// If non-null, the background load waits on this task before performing the swap+merge.
+            /// Tests set this result to release the merge and control exactly when it happens.
+            /// </summary>
+            public TaskCompletionSource<bool>? MergeGate { get; set; }
+
+            /// <summary>
+            /// Signaled after the swap but before the drain loop merges
+            /// old live entries back. Tests can await this to observe the table in the post-swap, pre-drain state.
+            /// </summary>
+            public TaskCompletionSource<bool> SwapComplete { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            /// <summary>
+            /// If non-null, the background load waits on this task after the swap but before draining
+            /// old live entries into the loaded map. Tests set this result to release the drain.
+            /// </summary>
+            public TaskCompletionSource<bool>? DrainGate { get; set; }
+
+            /// <summary>
+            /// The background load task. Await this to wait for loading and merging to fully complete.
+            /// Set by <see cref="CreateWithBackgroundLoad(LoggingContext, string, ushort, TestHooks?)"/>.
+            /// </summary>
+            public Task BackgroundLoadCompletion { get; set; } = Task.CompletedTask;
+
+            internal void OnLoadedFromDisk(int entryCount)
+            {
+                LoadedFromDisk.TrySetResult(true);
+                MergeGate?.Task.GetAwaiter().GetResult();
+            }
+
+            internal void OnSwapComplete()
+            {
+                SwapComplete.TrySetResult(true);
+                DrainGate?.Task.GetAwaiter().GetResult();
+            }
+        }
     }
 }

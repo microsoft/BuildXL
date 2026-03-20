@@ -133,28 +133,13 @@ namespace BuildXL.Engine
         internal IFrontEndController FrontEndController { get; private set; }
 
         /// <summary>
-        /// FileContentTable used for retrieving file hash information
+        /// FileContentTable used for retrieving file hash information.
+        /// When created via background loading, the table is immediately usable
+        /// but may report cache misses for entries not yet loaded from disk.
         /// </summary>
-        /// <remarks>
-        /// Starts loading asynchronously in Run() and will synchronously wait for loading to complete on first access.
-        /// </remarks>
-        private FileContentTable FileContentTable
-        {
-            get
-            {
-                if (m_fileContentTask != null)
-                {
-                    m_fileContentTable = m_fileContentTask.Result;
-                    m_fileContentTask = null;
-                }
-
-                return m_fileContentTable;
-            }
-        }
+        private FileContentTable FileContentTable { get; set; }
 
         private enum FileContentTableType { Stub, FromFileOrNew, FromEngineState }
-        private FileContentTable m_fileContentTable;
-        private Task<FileContentTable> m_fileContentTask;
 
         private Task<bool> m_graphCacheContentCachePut;
 
@@ -1801,7 +1786,7 @@ namespace BuildXL.Engine
                                 }
                             }
 
-                            m_fileContentTask = LoadFileContentTableAsync(engineState, engineLoggingContext);
+                            FileContentTable = LoadFileContentTable(engineState, engineLoggingContext);
                             EngineSchedule engineSchedule = null;
 
                             // Task representing the async initialization of this engine's cache.
@@ -2300,7 +2285,7 @@ namespace BuildXL.Engine
                 shouldDisposePreviousEngineState: false /* Engine state can still be usable. */);
         }
 
-        private async Task<FileContentTable> LoadFileContentTableAsync(EngineState engineState, LoggingContext engineLoggingContext)
+        private FileContentTable LoadFileContentTable(EngineState engineState, LoggingContext engineLoggingContext)
         {
             FileContentTableType type;
             FileContentTable fct;
@@ -2314,9 +2299,11 @@ namespace BuildXL.Engine
             }
             else if (!EngineState.IsUsable(engineState) || engineState.FileContentTable.IsStub)
             {
-                // Load FCT if engineState is not available or if last build used a stub (i.e. UseFCT was false last run)
+                // Create FCT immediately and load entries from disk in the background.
+                // The table is usable right away; entries loaded from disk are merged in when loading completes.
                 type = FileContentTableType.FromFileOrNew;
-                fct = await FileContentTable.LoadOrCreateAsync(engineLoggingContext,
+                fct = FileContentTable.CreateWithBackgroundLoad(
+                                engineLoggingContext,
                                 Configuration.Layout.FileContentTableFile.ToString(Context.PathTable),
                                 Configuration.Cache.FileContentTableEntryTimeToLive ?? FileContentTable.DefaultTimeToLive);
             }

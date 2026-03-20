@@ -106,6 +106,8 @@ namespace BuildXL.Storage.Tracing
         EndSavingChangeTracker = 8031,
         SavingChangeTracker = 8032,
 
+        StorageFileContentTableBackgroundLoadComplete = 8033,
+
         ExceptionOnCreatingInputChangeList = 8201,
         InvalidFormatOfInputChange = 8202,
         InvalidChangedPathOfInputChange = 8203,

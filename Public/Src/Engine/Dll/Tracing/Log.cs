@@ -1363,7 +1363,7 @@ If you can't update and need this feature after July 2018 please reach out to th
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Engine,
-            Message = "Load file content table. Source: '{source}'. Loading time: {loadingTime}ms")]
+            Message = "Initialized file content table. Source: '{source}'. Initialization time: {loadingTime}ms. Entries are being loaded in the background.")]
         public abstract void EngineLoadedFileContentTable(LoggingContext context, string source, long loadingTime);
 
         [GeneratedEvent(

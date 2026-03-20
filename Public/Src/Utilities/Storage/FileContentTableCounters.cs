@@ -16,6 +16,13 @@ namespace BuildXL.Storage
         NumFileIdMismatch,
 
         /// <summary>
+        /// The number of entries recorded into the live table while background loading was still in progress.
+        /// This is an upper bound on the number of unnecessary hashes caused by the table not being fully loaded yet;
+        /// some of these entries would have been recorded regardless.
+        /// </summary>
+        NumFileIdMismatchDuringLoad,
+
+        /// <summary>
         /// The number of files whose usn numbers are changed but not the content.
         /// </summary>
         NumUsnMismatch,
@@ -73,5 +80,11 @@ namespace BuildXL.Storage
         /// </summary>
         [CounterType(CounterType.Stopwatch)]
         SaveDuration,
+
+        /// <summary>
+        /// Time spent merging loaded entries into the live table during background loading.
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        MergeDuration,
     }
 }

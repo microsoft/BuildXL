@@ -5,7 +5,10 @@ import {Artifact, Cmd, Tool, Transformer} from "Sdk.Transformers";
 import * as Shared       from "Sdk.Managed.Shared";
 import * as Managed      from "Sdk.Managed";
 // Switch this to  "BuildXL.Tools.QTest" to use the QTest SDK from source in the repo instead of the binary version
-import * as Qtest        from "Sdk.QTest";
+//import * as Qtest        from "Sdk.QTest";
+// Temporary switch to a local copy of QTest SDK to pick up some recent changes that haven't been published yet.
+//  TODO: switch back to the official package once those changes are published.
+import * as Qtest        from "BuildXL.Tools.QTest";
 
 export declare const qualifier : Managed.TargetFrameworks.All;
 const qTestContents = importFrom("CB.QTest").Contents.all;
@@ -137,7 +140,18 @@ function runTest(args : TestRunArguments, isV3?: boolean) : File[] {
 
     if (args.skipGroups) {
         filterArgs = filterArgs.concat(args.skipGroups.map(testGroup => "(TestCategory!=" + testGroup + "&Category!=" + testGroup + ")"));
-    }       
+    }
+
+    let allowForZeroTestCases = args.unsafeTestRunArguments && args.unsafeTestRunArguments.allowForZeroTestCases;
+    // On Linux, skip tests marked with [Trait("Category", "SkipLinux")] or [Trait("Category", "WindowsOSOnly")]
+    if (!Context.isWindowsOS()) {
+        filterArgs = filterArgs.concat([
+            "(TestCategory!=SkipLinux&Category!=SkipLinux)",
+            "(TestCategory!=WindowsOSOnly&Category!=WindowsOSOnly)"
+        ]);
+        // With the above filter, it's possible that no test case will be selected to run. Allowing for zero test case prevents vstest from treating that as an error.
+        allowForZeroTestCases = true;
+    }
 
     if(filterArgs.length > 0){
         additionalOptions = `/testcaseFilter:"${filterArgs.join("&")}"`;
@@ -148,7 +162,7 @@ function runTest(args : TestRunArguments, isV3?: boolean) : File[] {
     // because the junction's target changes in every build, incremental scheduling can unnecesarily
     // makes the pips dirty. However, if we don't use a stable junction, then we won't get any cache
     // hit because the log directory can change in every build.
-    const qtestLogDir = Environment.hasVariable("BUILDXL_IS_IN_CLOUDBUILD")
+    const qtestLogDir = Qtest.isRunningOnCloudBuild()
         ? d`${Context.getMount("LogsDirectory").path}/QTest/${args.testDeployment.primaryFile.name}`
         : d`${Context.getNewOutputDirectory("QTestLog")}`;
 
@@ -175,7 +189,16 @@ function runTest(args : TestRunArguments, isV3?: boolean) : File[] {
         ];
     }
 
+    let passThroughVars = [
+        ...args.passThroughEnvVars || [],
+        // Some tests on Linux look for the HOME folder.
+        ...addIf(Context.getCurrentHost().os === "unix", "HOME")];
+
+
     let result = Qtest.runQTest({
+        logging: true,
+        // Uploading results is only possible when there is a VSTS connection available (CloudBuild or ADO)
+        qTestUploadResultsToVsts: Qtest.isRunningOnCloudBuild() || Qtest.isRunningOnAzureDevOps(),
         testAssembly: args.testDeployment.primaryFile.path,
         qTestType: Qtest.QTestType.msTest_latest,
         qTestDirToDeploy: args.testDeployment.contents,
@@ -203,13 +226,13 @@ function runTest(args : TestRunArguments, isV3?: boolean) : File[] {
         vstestSettingsFileForCoverage : f`coverage.test.runsettings`,
         qTestTool: qTestTool,
         qTestLogs: logDir,
-        tags: args.tags,
+        tags: [...(args.tags || []), "test"],
         weight: args.weight,
         privilegeLevel: args.privilegeLevel,
         qTestBuildType: qualifier.configuration,
         testSourceDir: Context.getMount("SourceRoot").path.getRelative(Context.getSpecFileDirectory().path),
         qTestUnsafeArguments: args.unsafeTestRunArguments ? { 
-            doNotFailForZeroTestCases: args.unsafeTestRunArguments.allowForZeroTestCases, 
+            doNotFailForZeroTestCases: allowForZeroTestCases, 
             doNotTrackDependencies: args.unsafeTestRunArguments.runWithUntrackedDependencies 
         } : undefined,
         qTestRuntimeDependencies: qTestRuntimeDependencies,
@@ -217,6 +240,7 @@ function runTest(args : TestRunArguments, isV3?: boolean) : File[] {
         qTestAcquireSemaphores: args.tools && args.tools.exec && args.tools.exec.acquireSemaphores,
         qTestDisableCodeCoverage : args.disableCodeCoverage,
         tools: args.tools,
+        qTestPassThroughEnvironmentVariables: passThroughVars,
         qTestUntrackedScopes: args.unsafeTestRunArguments && args.unsafeTestRunArguments.untrackedScopes,
         qTestUntrackedPaths:  (
             args.unsafeTestRunArguments && 

@@ -5,7 +5,6 @@ const isMicrosoftInternal = Environment.getFlag("[Sdk.BuildXL]microsoftInternal"
 
 const artifactNugetVersion = "19.254.35907-buildid29691232";
 const azureDevopsNugetVersion = "19.254.0-internal202503071";
-const qtestNugetVersion = "26.1.21-gd08f9304";
 
 // These packages are Microsoft internal packages.
 // These consist of internally repackaged products that we can't push to a public feed and have to rely on users installing locally.
@@ -24,8 +23,8 @@ export const pkgs = isMicrosoftInternal ? [
 
     // Windows and Linux QTest packages are not aligned wrt versions. QTest folks will work on aligning them, but for the time being
     // these two may differ on the version number
-    { id: "CB.QTest", version: qtestNugetVersion, osSkip: [ "macOS", "unix" ] },
-    { id: "CB.QTestLinux", version: qtestNugetVersion, osSkip: [ "macOS"  ] },
+    { id: "CB.QTest", version: "26.3.20.733-ga2b09e18", osSkip: [ "macOS", "unix" ] },
+    { id: "CB.QTestLinux", version: "26.3.20.731-ga2b09e18", osSkip: [ "macOS"  ] },
 
     { id: "BuildXL.Tracing.AriaTenantToken", version: "1.0.0" },
 

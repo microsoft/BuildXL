@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 import {Artifact, Cmd, Transformer, Tool} from "Sdk.Transformers";
+import * as Json from "Sdk.Json";
 
 const root = d`.`;
 const dynamicCodeCovString = "DynamicCodeCov";
@@ -262,13 +263,60 @@ function getContextInfoFile(args: QTestArguments) : File {
     // QTest team should investigate this.
 
     // TODO: Renaming the internal flag passing from GBR, will remove the old one when the new one roll out from GBR
-    return (args.privilegeLevel === "admin")
+    let infoFile = (args.privilegeLevel === "admin")
         ? undefined
         : (
             Environment.getFileValue("[Sdk.BuildXL.CBInternal]qtestContextInfo") ||
             Environment.getFileValue("[Sdk.BuildXL]qtestContextInfo") ||
             Environment.getFileValue("QTEST_CONTEXT_INFO_JSON_PATH") // For Linux
           );
+    
+    // If the context info file is already set, assume the file is being provided from the outside and just honor it.
+    // If we are not running on ADO, there is no need to generate the context info file, as it is only used for
+    // uploading test result to ADO, so just return whatever value we have (even if it is undefined).  
+    if (infoFile !== undefined || !isRunningOnAzureDevOps()) {
+        return infoFile;
+    }
+
+    // We are running on ADO. Generate the context file based on the environment.
+    const contextInfoPath = p`${Context.getNewOutputDirectory("QTestContextInfo")}/QTestContextInfo.json`;
+    const pullRequestId = Environment.getStringValue("SYSTEM_PULLREQUEST_PULLREQUESTID");
+
+    infoFile = Json.write(contextInfoPath, {
+        RequestInfo: {
+            ProjectId: Environment.getStringValue("SYSTEM_TEAMPROJECTID"),
+            VstsUrl: Environment.getStringValue("SYSTEM_TEAMFOUNDATIONCOLLECTIONURI"),
+            ProjectName: Environment.getStringValue("SYSTEM_TEAMPROJECT"),
+            JobId: Environment.getStringValue("SYSTEM_JOBID"),
+            VstsBuildId: Environment.getStringValue("BUILD_BUILDID"),
+            VstsPullRequestId: pullRequestId !== undefined ? pullRequestId : "",
+        },
+        BranchName: Environment.getStringValue("BUILD_SOURCEBRANCHNAME"),
+        BuildQueue: Environment.getStringValue("SYSTEM_DEFINITIONID"),
+        // This environment variable is exposed by the BuildXL workflow under 1ESPT
+        AuthTokenEnvVarName: "SYSTEM_ACCESSTOKEN",
+    }, '"');
+
+    return infoFile;
+}
+
+/**
+ * Detect if the current environment is Azure DevOps by checking for the existence of specific environment variables
+ *  that are only present in Azure DevOps environment.
+ */
+@@public
+export function isRunningOnAzureDevOps(): boolean {
+    return Environment.hasVariable("BUILD_BUILDID") 
+        && Environment.hasVariable("SYSTEM_TEAMFOUNDATIONCOLLECTIONURI") 
+        && Environment.hasVariable("SYSTEM_TEAMPROJECT");
+}
+
+/**
+ * Detect if the current environment is CloudBuild by checking for the existence of specific environment variable
+ */
+@@public
+export function isRunningOnCloudBuild(): boolean {
+    return Environment.hasVariable("BUILDXL_IS_IN_CLOUDBUILD");
 }
 
 interface IQTestContextInfoJson {
@@ -282,7 +330,12 @@ function parseQTestContextInfoJson(qTestContextInfoFile: File): IQTestContextInf
         // See work item #2250022
         return {};
     }
-    if (qTestContextInfoFile) {
+
+    // Here we are interested in the "AuthTokenEnvVarName" field in the context info file, which is used to pass the 
+    // environment variable name that contains the auth token for uploading test result to ADO. 
+    // The token may be provided in the case of a pre-build generated info file, so here we check for the existence of the file
+    // as a source file.
+    if (qTestContextInfoFile && File.exists(f`${qTestContextInfoFile.path}`)) {
         const qtestContextInfoFileRawContents: string = File.readAllText(f`${qTestContextInfoFile}`);
         // TODO: Replace this with a real JSON parser
         let envVarNameStartIndex: number = qtestContextInfoFileRawContents.indexOf(AUTH_TOKEN_ENV_VAR_NAME_JSON_KEY);
@@ -420,7 +473,12 @@ export function runQTest(args: QTestArguments): Result {
         Cmd.option("--msBuildToolsRoot ", args.qTestMsTestPlatformRootPathValue !== undefined ? args.qTestMsTestPlatformRootPathValue : Artifact.input(args.qTestMsTestPlatformRootPath)),
         Cmd.option("--targetIdForTelemetry ", args.qTestTargetIdForTelemetry),
         Cmd.option("--targetIdForFlakyTestSuppression ", args.qTestTargetIdForFlakyTestSuppression),
-        Cmd.option("--additionalQTestArgumentsFile ", Artifact.none(args.additionalQTestArgumentsFile))
+        Cmd.option("--additionalQTestArgumentsFile ", Artifact.none(args.additionalQTestArgumentsFile)),
+        Cmd.flag("--waitForDebugger", args.waitForDebugger),
+        Cmd.flag("--logging", args.logging),
+        // The default is to upload test results to VSTS if the context info file is provided, so make sure we opt out 
+        // if specified.
+        Cmd.option("--qTestUploadResultsToVsts ", args.qTestUploadResultsToVsts !== undefined ? (args.qTestUploadResultsToVsts ? "true" : "false") : undefined),
     ];
 
     if (isJSProject) {
@@ -470,7 +528,7 @@ export function runQTest(args: QTestArguments): Result {
     }
 
     const qTestContextInfoFileContents: { AuthTokenEnvVarName?: string } = parseQTestContextInfoJson(qTestContextInfoFile);
-    let unsafeOptions = {
+    let unsafeOptions : Transformer.UnsafeExecuteArguments = {
         hasUntrackedChildProcesses: args.qTestUnsafeArguments && args.qTestUnsafeArguments.doNotTrackDependencies,
         untrackedPaths: [
             ...addIf(qTestContextInfoFile !== undefined, qTestContextInfoFile),
@@ -495,12 +553,17 @@ export function runQTest(args: QTestArguments): Result {
             d`C:/Debuggers`,
             // QTest writes files to the SRM directory at runtime. Likely related to the PublishSingleFile on the QTest executable.
             d`${Context.getMount("BuildEnginePath").path}/Sdk/Sdk.QTest/bin/SRM`,
+            ...addIfLazy(Context.getCurrentHost().os === "unix", () => [
+                d`${Context.getUserHomeDirectory().path}/.dotnet/corefx/cryptography`])
         ],
         requireGlobalDependencies: true,
         passThroughEnvironmentVariables: [
           "BUILD_SESSION_ID",
           ...(isJSProject ? jsProject.passThroughEnvironmentVariables : []),
           ...(qTestContextInfoFileContents.AuthTokenEnvVarName ? [qTestContextInfoFileContents.AuthTokenEnvVarName] : []),
+          ...(args.qTestPassThroughEnvironmentVariables || []),
+          // Pass SYSTEM_ACCESSTOKEN through to enable test result upload when running on Azure DevOps
+          ...addIf(isRunningOnAzureDevOps(), "SYSTEM_ACCESSTOKEN")
         ],
     };
 
@@ -540,7 +603,8 @@ export function runQTest(args: QTestArguments): Result {
                     ...(args.qTestInputs || (args.qTestDirToDeploy ? args.qTestDirToDeploy.contents : [])),
                     ...(args.qTestRuntimeDependencies || []),
                     ...(isJSProject ? jsProject.inputs : []),
-                    args.qTestMsTestPlatformRootPath
+                    args.qTestMsTestPlatformRootPath,
+                    ...addIf(qTestContextInfoFile !== undefined, qTestContextInfoFile)
                 ],
                 unsafe: unsafeOptions,
                 retryExitCodes: [2, 42],
@@ -589,7 +653,8 @@ export function runQTest(args: QTestArguments): Result {
             workingDirectory: qtestCodeCovUploadTempDirectory,
             disableCacheLookup: true,
             unsafe: unsafeOptions,
-            retryExitCodes: [2]
+            retryExitCodes: [2],
+            dependencies: [...addIf(qTestContextInfoFile !== undefined, qTestContextInfoFile)]
         });
     }
 
@@ -734,6 +799,8 @@ export interface QTestArguments extends Transformer.RunnerArguments {
     qTestBuildType?: string;
     /** Specifies the environment variables to forward to qtest */
     qTestEnvironmentVariables?: Transformer.EnvironmentVariable[];
+    /** Specifies the environment variables that are not included in the pip fingerprint */
+    qTestPassThroughEnvironmentVariables?: string[];
     /** Specify the path relative to enlistment root of the sources from which the test target is built */
     testSourceDir?: RelativePath;
     /** File which contains a list of target file names excluded for code coverage processing*/
@@ -788,6 +855,12 @@ export interface QTestArguments extends Transformer.RunnerArguments {
         exec?: Transformer.ExecuteArgumentsComposible;
         wrapExec?: (exec: Transformer.ExecuteArguments) => Transformer.ExecuteArguments;
     };
+    /** When true, the process will wait for a debugger to attach before starting execution */
+    waitForDebugger?: boolean;
+    /** When true, logging is enabled */
+    logging?: boolean;
+    /** When true, test results will be uploaded to VSTS/ADO. When false, uploading is explicitly disabled. */
+    qTestUploadResultsToVsts?: boolean;
 }
 
 /**

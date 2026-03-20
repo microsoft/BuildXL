@@ -208,6 +208,7 @@ function setInternal() {
     arg_Positional+=("/p:[Sdk.BuildXL]microsoftInternal=1")
     arg_Positional+=("/remoteTelemetry+")
     arg_Positional+=("/generateCgManifestForNugets:cg/nuget/cgmanifest.json")
+    arg_Positional+=("/p:[Sdk.BuildXL]useQTest=true")
 
     for arg in "$@"
     do

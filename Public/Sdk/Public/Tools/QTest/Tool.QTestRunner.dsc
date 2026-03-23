@@ -273,7 +273,7 @@ function getContextInfoFile(args: QTestArguments) : File {
     // If the context info file is already set, assume the file is being provided from the outside and just honor it.
     // If we are not running on ADO, there is no need to generate the context info file, as it is only used for
     // uploading test result to ADO, so just return whatever value we have (even if it is undefined).  
-    if (infoFile !== undefined || !isRunningOnAzureDevOps()) {
+    if (!shouldGenerateInfoFile(infoFile)) {
         return infoFile;
     }
 
@@ -300,6 +300,13 @@ function getContextInfoFile(args: QTestArguments) : File {
 }`);
 
     return infoFile;
+}
+
+/**
+ * We only want to generate the file when running on Azure DevOps and the file is not provided, as the file is only used for uploading test result to ADO.
+ */
+function shouldGenerateInfoFile(infoFile: File) : boolean {
+    return infoFile === undefined && isRunningOnAzureDevOps();
 }
 
 /**
@@ -606,7 +613,9 @@ export function runQTest(args: QTestArguments): Result {
                     ...(args.qTestRuntimeDependencies || []),
                     ...(isJSProject ? jsProject.inputs : []),
                     args.qTestMsTestPlatformRootPath,
-                    ...addIf(qTestContextInfoFile !== undefined, qTestContextInfoFile)
+                    // We declare the context info file as a dependency only when we generate it (and it is therefore not a source file)
+                    // Otherwise, this file is untracked and no need to declare it as a dependency (in some contexts it comes from outside of known mountpoints, so adding it here will introduce an error)
+                    ...addIf(shouldGenerateInfoFile(qTestContextInfoFile), qTestContextInfoFile)
                 ],
                 unsafe: unsafeOptions,
                 retryExitCodes: [2, 42],
@@ -656,7 +665,9 @@ export function runQTest(args: QTestArguments): Result {
             disableCacheLookup: true,
             unsafe: unsafeOptions,
             retryExitCodes: [2],
-            dependencies: [...addIf(qTestContextInfoFile !== undefined, qTestContextInfoFile)]
+            // We declare the context info file as a dependency only when we generate it (and it is therefore not a source file)
+            // Otherwise, this file is untracked and no need to declare it as a dependency (in some contexts it comes from outside of known mountpoints, so adding it here will introduce an error)
+            dependencies: [...addIf(shouldGenerateInfoFile(qTestContextInfoFile), qTestContextInfoFile)]
         });
     }
 

@@ -153,6 +153,7 @@ jobs:
         /q:ReleaseLinuxNet9
         "/f:output='/home/subst/Out/Bin/*'ortag='test'"
         ${{ parameters.experimentalFlag }}
+        /p:[Sdk.BuildXL]useQTest=false
       workingDirectory: /home/subst
     env:
       PAT1esSharedAssets: $(BuildXL-Pipeline-AccessToken)

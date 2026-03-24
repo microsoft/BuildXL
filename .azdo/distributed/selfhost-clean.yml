@@ -8,7 +8,7 @@ resources:
   - repository: 1esPipelines
     type: git
     name: 1ESPipelineTemplates/1ESPipelineTemplates
-    ref: 0cb05cfc9d767dfaca21b2d6a6854ad5df266647  # Pinned: last known good before PR 902166 broke ONEES_TOOL_LOCATION
+    ref: refs/tags/canary
 
 variables:
   - group: "BuildXL Common variables"
@@ -26,7 +26,7 @@ extends:
         compiled:
           enabled: false
           justificationForDisabling: 'CodeQL would not be effective on this pipeline because builds are incremental and distributed. We have a dedicated pipeline for CodeQL.'
-
+    
     pool:
       name: BuildXL-DevOpsAgents-Selfhost-BuildCache
       os: windows

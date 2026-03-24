@@ -483,13 +483,6 @@ config({
                     archiveType: "tgz",
                 },
 
-                // The following are needed for dotnet core MSBuild test deployments
-                {
-                    moduleName: "DotNet-Runtime.win-x64.2.2.2",
-                    url: "https://download.visualstudio.microsoft.com/download/pr/97b97652-4f74-4866-b708-2e9b41064459/7c722daf1a80a89aa8c3dec9103c24fc/dotnet-runtime-2.2.2-linux-x64.tar.gz",
-                    hash: "VSO0:6E5172671364C65B06C9940468A62BAF70EE27392CB2CA8B2C8BFE058CCD088300",
-                    archiveType: "tgz",
-                },
                 // NodeJs
                 {
                     moduleName: "NodeJs.win-x64",

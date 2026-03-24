@@ -1,5 +1,10 @@
 # Copilot Instructions for BuildXL
 
+!CRITICAL! BEFORE DOING ANYTHING: At the start of EVERY session, you MUST read the following files:
+1. [memory-bank.instructions.md](../.agents/instructions/memory-bank.instructions.md) — Persistent context across sessions
+2. [.memory-bank/activeContext.md](../.memory-bank/activeContext.md) — Current work focus and next steps
+3. [.memory-bank/learnings.md](../.memory-bank/learnings.md) — Project technical assessment
+
 ## Primary References
 - **[Documentation/Wiki/DeveloperGuide.md](../Documentation/Wiki/DeveloperGuide.md)** — Build commands, test commands, code style
 - **[Documentation/Wiki/CoreConcepts.md](../Documentation/Wiki/CoreConcepts.md)** — Architecture, pips, caching, sandboxing

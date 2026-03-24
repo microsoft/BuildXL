@@ -33,14 +33,18 @@ namespace VBCSCompilerLogger {
             NetFx.Netstandard.dll, // due to issue https://github.com/dotnet/standard/issues/542
         ],
         runtimeContent:[
-            importFrom("System.Collections.Immutable.ForVBCS").pkg,    
+            // Do not deploy System.Collections.Immutable or System.Threading.Tasks.Dataflow here.
+            // VBCSCompilerLogger runs inside MSBuild's process, which already provides these assemblies.
+            // MSBuild's binding redirects handle version unification. Deploying separate copies causes
+            // MissingMethodException due to type identity mismatches (e.g., ImmutableArray<T> from
+            // different assembly versions are treated as different types by the CLR).
             importFrom("System.Reflection.Metadata.ForVBCS").pkg,
-            importFrom("System.Threading.Tasks.Dataflow.ForVBCS").pkg,
             importFrom("System.Runtime.CompilerServices.Unsafe").pkg,
             importFrom("System.Numerics.Vectors").pkg,
         ],
         runtimeContentToSkip: [
             importFrom("System.Collections.Immutable").pkg,
+            importFrom("System.Collections.Immutable.ForVBCS").pkg,
             importFrom("System.Threading.Tasks.Dataflow").pkg,
             importFrom("System.Memory").pkg,
             // Avoid deploying the standard reference in favor of the old one

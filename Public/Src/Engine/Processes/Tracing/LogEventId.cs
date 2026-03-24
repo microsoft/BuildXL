@@ -189,5 +189,7 @@ namespace BuildXL.Processes.Tracing
         // was EBPFDisposed = 14307,
         LogSandboxInfoMessage = 14308,
         ExcessiveFileAccessReports = 14309,
+        EBPFDaemonRetrying = 14310,
+        EBPFDaemonRetriesExhausted = 14311,
     }
 }

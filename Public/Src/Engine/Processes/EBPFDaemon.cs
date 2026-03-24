@@ -23,6 +23,10 @@ namespace BuildXL.Processes
     public sealed class EBPFDaemon : IDisposable
     {
         private const int ListenerTimeoutSeconds = 30;
+        /// <summary>
+        /// The maximum number of attempts for EBPF initialization.
+        /// </summary>
+        internal const int MaxAttempts = 3;
 
         private CancellationTokenRegistration m_registration;
         private ISandboxedProcess? m_process;
@@ -156,9 +160,79 @@ namespace BuildXL.Processes
             m_ebpfErrors.Enqueue(error);
         }
 
-        private async Task<Possible<Unit>> RunInfiniteEBPFProcessAsync(AbsolutePath workingDirectory, PathTable pathTable, LoggingContext loggingContext, int maxConcurrency, bool logObservedFileAccesses, CancellationToken cancellationToken)
+        private Task<Possible<Unit>> RunInfiniteEBPFProcessAsync(AbsolutePath workingDirectory, PathTable pathTable, LoggingContext loggingContext, int maxConcurrency, bool logObservedFileAccesses, CancellationToken cancellationToken)
         {
             Contract.Assert(OperatingSystemHelper.IsLinuxOS);
+
+            return RetryOperationAsync(
+                () => RunInfiniteEBPFProcessCoreAsync(workingDirectory, pathTable, loggingContext, maxConcurrency, logObservedFileAccesses, cancellationToken),
+                () => CleanupProcessAsync(),
+                MaxAttempts,
+                loggingContext,
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// Retries the given operation up to <paramref name="maxAttempts"/> times, calling <paramref name="cleanup"/> before each retry.
+        /// </summary>
+        internal static async Task<Possible<Unit>> RetryOperationAsync(
+            Func<Task<Possible<Unit>>> operation,
+            Func<Task> cleanup,
+            int maxAttempts,
+            LoggingContext loggingContext,
+            CancellationToken cancellationToken)
+        {
+            Possible<Unit> lastResult = new Failure<string>("EBPF initialization failed for an unknown reason");
+            for (int attempt = 0; attempt < maxAttempts; attempt++)
+            {
+                if (attempt > 0)
+                {
+                    Tracing.Logger.Log.EBPFDaemonRetrying(loggingContext, attempt + 1, maxAttempts, lastResult.Failure!.Describe());
+
+                    await cleanup();
+                }
+
+                lastResult = await operation();
+                if (lastResult.Succeeded)
+                {
+                    return lastResult;
+                }
+
+                // Don't retry on cancellation
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    return lastResult;
+                }
+            }
+
+            Tracing.Logger.Log.EBPFDaemonRetriesExhausted(loggingContext, maxAttempts, lastResult.Failure!.Describe());
+            return lastResult;
+        }
+
+        private async Task CleanupProcessAsync()
+        {
+            if (m_process != null)
+            {
+                try
+                {
+                    await m_process.KillAsync();
+                }
+                catch (Exception)
+#pragma warning disable ERP022 // Unobserved exception in a generic exception handler
+                {
+                    // The process may already be dead
+                }
+#pragma warning restore ERP022 // Unobserved exception in a generic exception handler
+                m_process.Dispose();
+                m_process = null;
+            }
+
+            m_registration.Dispose();
+            m_registration = default;
+        }
+
+        private async Task<Possible<Unit>> RunInfiniteEBPFProcessCoreAsync(AbsolutePath workingDirectory, PathTable pathTable, LoggingContext loggingContext, int maxConcurrency, bool logObservedFileAccesses, CancellationToken cancellationToken)
+        {
 
             var toolBuildStorage = new EBPFBuildStorage(pathTable, workingDirectory);
             var fileAccessManifest = new FileAccessManifest(pathTable)

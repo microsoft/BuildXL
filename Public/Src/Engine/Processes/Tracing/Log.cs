@@ -1368,5 +1368,23 @@ namespace BuildXL.Processes.Tracing
             EventTask = (int)Tasks.Engine,
             Message = "Synchronously waited {0}ms for EBPF to finish initializing. {1}ms of EBPF initialization overlapped other processing")]
         public abstract void SynchronouslyWaitedForEBPF(LoggingContext context, int waitTimeMs, int overlappedTimeMs);
+
+        [GeneratedEvent(
+            (int)LogEventId.EBPFDaemonRetrying,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Engine,
+            Message = "EBPF daemon initialization failed, retrying (attempt {0}/{1}). Previous failure: {2}")]
+        public abstract void EBPFDaemonRetrying(LoggingContext context, int attempt, int maxAttempts, string previousFailure);
+
+        [GeneratedEvent(
+            (int)LogEventId.EBPFDaemonRetriesExhausted,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Engine,
+            Message = "EBPF daemon failed to initialize after {0} attempts. Last failure: {1}")]
+        public abstract void EBPFDaemonRetriesExhausted(LoggingContext context, int maxAttempts, string lastFailure);
     }
 }

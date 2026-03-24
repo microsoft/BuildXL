@@ -198,7 +198,23 @@ namespace BuildXL.Processes
                     HandleAccessReport(accessReport, info.ForceAddExecutionPermission);
                 });
             // install 'ProcessReady' and 'ProcessStarted' handlers to inform the sandbox
-            ProcessReady += () => SandboxConnection.NotifyPipReady(info.LoggingContext, info.FileAccessManifest, this, m_pendingReports.Completion);
+            ProcessReady += () => 
+                { 
+                    try 
+                    {
+                        SandboxConnection.NotifyPipReady(info.LoggingContext, info.FileAccessManifest, this, m_pendingReports.Completion); 
+                    }
+                    catch (BuildXLException ex)
+                    {
+                        // Treat any exception thrown when notifying pip readiness as an infrastructure error.
+                        m_infraErrorReceived = true;
+                        Logger.Log.SandboxInternalError(info.LoggingContext, info.PipSemiStableHash, info.PipDescription!);
+                        Logger.Log.FullSandboxInternalErrorMessage(info.LoggingContext, info.PipDescription!, ex.ToString());
+                        // Complete pending reports so GetReportsAsync doesn't hang waiting for sandbox
+                        // events that will never arrive since the sandbox was never set up.
+                        m_pendingReports.Complete();
+                    }
+                };
             ProcessStarted += (pid) => OnProcessStartedAsync(info).GetAwaiter().GetResult();
         }
 

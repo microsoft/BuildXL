@@ -1,2 +1,5 @@
 # Do not normalize line endings
 *       -text
+
+# Merge word lists without conflicts (each side's additions are kept)
+*.dic   merge=union

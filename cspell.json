@@ -1,0 +1,16 @@
+{
+    "version": "0.2",
+    "language": "en",
+    "files": ["**/*.cs"],
+    "ignorePaths": [
+        "Out/**",
+        "third_party/**"
+    ],
+    "dictionaryDefinitions": [
+        {
+            "name": "project-words",
+            "path": "./exclusion.dic"
+        }
+    ],
+    "dictionaries": ["csharp", "dotnet", "project-words"]
+}

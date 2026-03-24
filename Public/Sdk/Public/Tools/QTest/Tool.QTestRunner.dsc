@@ -231,9 +231,9 @@ function createInputsManifest(args: QTestArguments) : File {
 }
 
 /**
- * Get context info file. Microsoft internal cloud service use only
+ * Get context info file and whether it was generated. Microsoft internal cloud service use only
  */
-function getContextInfoFile(args: QTestArguments) : File {
+function getContextInfoFile(args: QTestArguments) : [File, boolean] {
 
     // If the privilege level is admin, QTest will most likely be executed in VM. However, currently running QTest in VM can result in
     // the following exeception:
@@ -274,7 +274,7 @@ function getContextInfoFile(args: QTestArguments) : File {
     // If we are not running on ADO, there is no need to generate the context info file, as it is only used for
     // uploading test result to ADO, so just return whatever value we have (even if it is undefined).  
     if (!shouldGenerateInfoFile(infoFile)) {
-        return infoFile;
+        return [infoFile, false];
     }
 
     // We are running on ADO. Generate the context file based on the environment.
@@ -299,7 +299,7 @@ function getContextInfoFile(args: QTestArguments) : File {
   "AuthTokenEnvVarName": "SYSTEM_ACCESSTOKEN"
 }`);
 
-    return infoFile;
+    return [infoFile, true];
 }
 
 /**
@@ -380,7 +380,10 @@ export function runQTest(args: QTestArguments): Result {
     // attempt to find the file at the source root.
     let flakyFile = args.qTestFlakySuppressionFile ? args.qTestFlakySuppressionFile : findFlakyFile();
 
-    let qTestContextInfoFile = getContextInfoFile(args);
+    let infoFileResult = getContextInfoFile(args);
+    let qTestContextInfoFile = infoFileResult[0];
+    let isContextFileGenerated = infoFileResult[1];
+
     let jsProject = args.javaScriptProject;
     let isJSProject = jsProject !== undefined;
     let changeAffectedInputListWrittenFileArg = {};
@@ -615,7 +618,7 @@ export function runQTest(args: QTestArguments): Result {
                     args.qTestMsTestPlatformRootPath,
                     // We declare the context info file as a dependency only when we generate it (and it is therefore not a source file)
                     // Otherwise, this file is untracked and no need to declare it as a dependency (in some contexts it comes from outside of known mountpoints, so adding it here will introduce an error)
-                    ...addIf(shouldGenerateInfoFile(qTestContextInfoFile), qTestContextInfoFile)
+                    ...addIf(isContextFileGenerated, qTestContextInfoFile)
                 ],
                 unsafe: unsafeOptions,
                 retryExitCodes: [2, 42],
@@ -667,7 +670,7 @@ export function runQTest(args: QTestArguments): Result {
             retryExitCodes: [2],
             // We declare the context info file as a dependency only when we generate it (and it is therefore not a source file)
             // Otherwise, this file is untracked and no need to declare it as a dependency (in some contexts it comes from outside of known mountpoints, so adding it here will introduce an error)
-            dependencies: [...addIf(shouldGenerateInfoFile(qTestContextInfoFile), qTestContextInfoFile)]
+            dependencies: [...addIf(isContextFileGenerated, qTestContextInfoFile)]
         });
     }
 

@@ -251,6 +251,10 @@ function runStandaloneV3(args : Managed.TestRunArguments) : File[] {
             }],
         dependencies: args.untrackTestDirectory ? testDeployment.contents.contents : [ testDeployment.contents, ...(testDeployment.targetOpaques || []) ],
         warningRegex: "^(?=a)b",
+        // Filter out xunit v3 [SKIP] lines and their "Test filtered out by hash bucket" reasons
+        // from error output. Without this, every output line is reported as ##[error] when a pip
+        // fails, flooding ADO logs with hundreds of irrelevant skip messages.
+        errorRegex: "^(?!.*\\[SKIP\\])(?!\\s+Test filtered out by hash bucket)",
         workingDirectory: testDeployment.contents.root,
         retryExitCodes: Environment.getFlag("RetryXunitTests") ? [1, 3] : [],
         processRetries: Environment.hasVariable("NumXunitRetries") ? Environment.getNumberValue("NumXunitRetries") : undefined,

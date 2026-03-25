@@ -2,6 +2,12 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20260319.3.1 (Release [31228605](https://dev.azure.com/mseng/Domino/_build/results?buildId=31228605&view=results))
+- Fixed a crash where unobserved task exceptions (common in retry patterns) would terminate the bxl application. These are now logged as non-fatal unexpected conditions instead.
+- Fixed VBCSCompiler to use older DLL versions, restoring compatibility with CloudBuild's older MSBuild binding redirects
+- Added retries to the EBPF daemon startup to improve reliability
+- Bug fixes
+
 # 0.1.0-20260313.1 (Release [31175060](https://dev.azure.com/mseng/Domino/_build/results?buildId=31175060&view=results))
 - [EBPF] Add 30-second timeout for sandbox daemon when no initial message is received, improving error reporting for stalled processes
 - [DScript] Fix VS Code plugin crash when receiving unrecognized code actions from newer language protocol versions

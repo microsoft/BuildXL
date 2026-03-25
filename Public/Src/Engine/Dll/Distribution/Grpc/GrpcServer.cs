@@ -20,6 +20,7 @@ using BuildXL.Utilities.Instrumentation.Common;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Configuration;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server.Features;
@@ -127,6 +128,14 @@ namespace BuildXL.Engine.Distribution.Grpc
         {
             Logger.Log.GrpcServerTrace(m_loggingContext, $"Starting Kestrel server on port {port} with encryption enabled: {GrpcSettings.EncryptionEnabled}");
             var hostBuilder = Host.CreateDefaultBuilder()
+                .ConfigureAppConfiguration((context, config) =>
+                {
+                    // Disable reloadOnChange for file-based configuration sources to avoid potential deadlocks
+                    foreach (var source in config.Sources.OfType<FileConfigurationSource>())
+                    {
+                        source.ReloadOnChange = false;
+                    }
+                })
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
                     webBuilder.ConfigureKestrel(options =>

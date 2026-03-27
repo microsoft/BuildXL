@@ -174,6 +174,12 @@ namespace Test.BuildXL.Utilities
                 return new global::BuildXL.Utilities.Core.LineInfo(1, 1);
             }
 
+            if (type == typeof(global::BuildXL.Utilities.Configuration.EngineDumpTrigger))
+            {
+                return new global::BuildXL.Utilities.Configuration.EngineDumpTrigger(
+                    global::BuildXL.Utilities.Configuration.EngineDumpTriggerKind.MemoryMb, 8000);
+            }
+
             if (type.GetTypeInfo().IsEnum)
             {
                 bool first = true;

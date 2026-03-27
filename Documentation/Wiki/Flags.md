@@ -65,6 +65,7 @@ This page lists flags that can be used to configure BuildXL.
 | EnforceAccessPoliciesOnDirectoryCreation | Indicates whether {ShortProductName} should enforce access policies on CreateDirectory for paths under writable mounts as well as the cases when the directory already exists. Defaults to off. |
 | EnforceFullReparsePointsUnderPath | Enforce that files accessed which begin with the given path will enforce reparse points underneath said path. All transitive reparse points encountered after enforcing and resolving the first one are also enforced, regardless of path. |
 | EngineCacheDirectory | Allows overriding where engine state will be cached. If unset, it will be stored in a subdirectory of the artifact cache. |
+| EngineDumpTrigger | Captures a memory dump of the BuildXL process when a threshold is met. Specify a value with a unit suffix: 8000mb (when process memory exceeds 8000 MB), 600s (after 600 seconds of build execution), or 50pct (when 50% of pips are complete). The dump is written to the logs directory. Prefers dotnet-gcdump if installed; otherwise falls back to a full process dump. |
 | Environment | Environment build is running in. Allowed values '{0}'. |
 | ExitOnNewGraph | When enabled, exit early if a new graph needs to be created.  This differs from phase:schedule because it doesn't actually create the graph. |
 | Experimental__0 | Enables an experimental feature (short form: /exp). Available experimental features: {0} |

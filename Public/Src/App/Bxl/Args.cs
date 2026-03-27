@@ -508,6 +508,17 @@ namespace BuildXL
                         OptionHandlerFactory.CreateOption(
                             "generateCgManifestForNugets",
                             opt => frontEndConfiguration.GenerateCgManifestForNugets = CommandLineUtilities.ParsePathOption(opt, pathTable)),
+                        OptionHandlerFactory.CreateOption(
+                            "EngineDumpTrigger",
+                            opt =>
+                            {
+                                if (!EngineDumpTrigger.TryParse(opt.Value, out var trigger))
+                                {
+                                    throw CommandLineUtilities.Error("The /EngineDumpTrigger option requires a value with a unit suffix: e.g. 8000mb, 600s, or 50pct.");
+                                }
+
+                                loggingConfiguration.EngineDumpTrigger = trigger;
+                            }),
                         OptionHandlerFactory.CreateBoolOption(
                             "hardExitOnErrorInDetours",
                             sign => sandboxConfiguration.HardExitOnErrorInDetours = sign),

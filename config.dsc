@@ -420,6 +420,8 @@ config({
                 // Compression streams
                 { id: "ZstdSharp.Port", version: "0.8.4" },
 
+                // dotnet-gcdump
+                { id: "dotnet-gcdump", version: "9.0.661903"},
                 // dotnet-stack
                 { id: "dotnet-stack", version: "9.0.652701"},
             ],

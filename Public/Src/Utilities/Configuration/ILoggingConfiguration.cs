@@ -465,5 +465,20 @@ namespace BuildXL.Utilities.Configuration
         /// False by default
         /// </remarks>
         public bool EnableCloudBuildEtwLoggingIntegration { get; }
+
+        /// <summary>
+        /// Configures a trigger for capturing a GC heap dump of the bxl.exe process.
+        /// </summary>
+        /// <remarks>
+        /// Disabled by default. When enabled, the trigger fires at most once per build and writes
+        /// a .gcdump file to the logs directory for offline analysis with Visual Studio, PerfView,
+        /// or dotnet-gcdump. If dotnet-gcdump is not installed, falls back to a full process dump (.dmp).
+        ///
+        /// CLI usage: /EngineDumpTrigger:&lt;value&gt;&lt;unit&gt;
+        ///   /EngineDumpTrigger:8000mb  — capture when process memory exceeds 8000 MB
+        ///   /EngineDumpTrigger:600s    — capture after 600 seconds of build execution
+        ///   /EngineDumpTrigger:50pct   — capture when 50% of pips are complete
+        /// </remarks>
+        public EngineDumpTrigger EngineDumpTrigger { get; }
     }
 }

@@ -77,6 +77,13 @@ namespace Engine {
                     subfolder: r`tools`,
                     contents: [
                         {
+                            // CodeSync: path must match EngineDumpCollector.TryCaptureEngineDump (tools/dotnet-gcdump)
+                            subfolder: r`dotnet-gcdump`,
+                            contents: [
+                                Transformer.reSealPartialDirectory(importFrom("dotnet-gcdump").pkg.contents, r`tools/net8.0/any/`)
+                            ]
+                        },
+                        {
                             subfolder: r`dotnet-stack`,
                             contents: [
                                 Transformer.reSealPartialDirectory(importFrom("dotnet-stack").pkg.contents, r`tools/net8.0/any/`)

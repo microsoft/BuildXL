@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <root>
   <!-- 
     Microsoft ResX Schema 
@@ -921,6 +921,9 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   </data>
   <data name="HelpText_DisplayHelp_DumpFailedPipsWithDynamicData" xml:space="preserve">
     <value>Enable this option to dump observed file accesses and processes with the dump pip lite analyzer (requires /logObservedFileAccesses+ and/or /logProcesses+ to be set as well).</value>
+  </data>
+  <data name="HelpText_DisplayHelp_EngineDumpTrigger" xml:space="preserve">
+    <value>Captures a memory dump of the BuildXL process when a threshold is met. Specify a value with a unit suffix: 8000mb (when process memory exceeds 8000 MB), 600s (after 600 seconds of build execution), or 50pct (when 50% of pips are complete). The dump is written to the logs directory. Prefers dotnet-gcdump if installed; otherwise falls back to a full process dump.</value>
   </data>
   <data name="HelpText_DisplayHelp_EnforceFullReparsePointsUnderPath" xml:space="preserve">
     <value>Enforce that files accessed which begin with the given path will enforce reparse points underneath said path. All transitive reparse points encountered after enforcing and resolving the first one are also enforced, regardless of path.</value>

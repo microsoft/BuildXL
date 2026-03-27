@@ -4256,6 +4256,33 @@ namespace BuildXL.Scheduler.Tracing
             LoggingContext context,
             string component,
             long milliseconds);
+
+        [GeneratedEvent(
+            (int)LogEventId.EngineDumpCollectorTriggered,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Informational,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Scheduler,
+            Message = "Attempting to dump BuildXL process memory because {triggerReason}. Target: {dumpPath}")]
+        public abstract void EngineDumpCollectorTriggered(LoggingContext context, string triggerReason, string dumpPath);
+
+        [GeneratedEvent(
+            (int)LogEventId.EngineDumpCollectorCompleted,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Informational,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Scheduler,
+            Message = "BuildXL process dump captured successfully at {dumpPath}")]
+        public abstract void EngineDumpCollectorCompleted(LoggingContext context, string dumpPath);
+
+        [GeneratedEvent(
+            (int)LogEventId.EngineDumpCollectorFailed,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Scheduler,
+            Message = "Failed to dump BuildXL process: {errorMessage}")]
+        public abstract void EngineDumpCollectorFailed(LoggingContext context, string errorMessage);
     }
 }
 #pragma warning restore CA1823 // Unused field

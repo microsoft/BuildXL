@@ -65,6 +65,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             LogEventsToConsole = new List<int>();
             DisplayWarningErrorTime = false;
             EnableCloudBuildEtwLoggingIntegration = false;
+            EngineDumpTrigger = EngineDumpTrigger.Disabled;
         }
 
         /// <nodoc />
@@ -169,6 +170,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             RemoteTelemetryFlushTimeout = template.RemoteTelemetryFlushTimeout;
             DisplayWarningErrorTime = template.DisplayWarningErrorTime;
             EnableCloudBuildEtwLoggingIntegration = template.EnableCloudBuildEtwLoggingIntegration;
+            EngineDumpTrigger = template.EngineDumpTrigger;
         }
 
         /// <inheritdoc />
@@ -440,5 +442,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc/>
         public bool EnableCloudBuildEtwLoggingIntegration { get; set; }
+
+        /// <inheritdoc/>
+        public EngineDumpTrigger EngineDumpTrigger { get; set; }
     }
 }

@@ -4487,6 +4487,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "dotnet-gcdump",
+          "Version": "9.0.661903"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "dotnet-stack",
           "Version": "9.0.652701"
         }

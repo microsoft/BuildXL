@@ -562,5 +562,9 @@ namespace BuildXL.Scheduler.Tracing
         SchedulerSimulatorFailed = 14614,
         SourceRewrittenOriginalContentLost = 14615,
         VerboseShutdownStatus = 14616,
+
+        EngineDumpCollectorTriggered = 14617,
+        EngineDumpCollectorCompleted = 14618,
+        EngineDumpCollectorFailed = 14619,
     }
 }

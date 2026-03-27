@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft Corporation.
+// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
 using System;
@@ -971,6 +971,11 @@ namespace BuildXL.Scheduler
         private DateTime m_previousStatusLogTimeUtc;
 
         /// <summary>
+        /// Collects a heap dump when a configured trigger condition is met.
+        /// </summary>
+        private EngineDumpCollector m_engineDumpCollector;
+
+        /// <summary>
         /// The fingerprint of the build engine.
         /// </summary>
         private readonly string m_buildEngineFingerprint;
@@ -1683,6 +1688,16 @@ namespace BuildXL.Scheduler
             Contract.Requires(loggingContext != null);
 
             m_executePhaseLoggingContext = loggingContext;
+
+            var engineDumpTrigger = m_configuration.Logging.EngineDumpTrigger;
+            if (engineDumpTrigger.IsEnabled)
+            {
+                m_engineDumpCollector = new EngineDumpCollector(
+                    engineDumpTrigger,
+                    m_configuration.Logging.LogsDirectory.ToString(Context.PathTable),
+                    loggingContext);
+            }
+
             m_serviceManager.Start(loggingContext, OperationTracker);
 
             if (PipGraph.ApiServerMoniker.IsValid)
@@ -2729,17 +2744,32 @@ namespace BuildXL.Scheduler
                 // will be equal and also not give an accurate measurement.
                 int pipsWaitingOnResources = m_executionStepTracker.CurrentSnapshot[PipExecutionStep.ChooseWorkerCpu];
 
+                // Compute once — reused by CloudBuild statistics, engine dump trigger, and LogPipStatus.
+                long totalNonIgnoredPips = m_pipTypesToLogCountersSnapshot.Total - m_pipTypesToLogCountersSnapshot[PipState.Ignored];
+                long pipsSuccessfullyExecuted = m_pipTypesToLogCountersSnapshot.DoneCount;
+
+                // Check if engine dump trigger condition is met.
+                if (m_engineDumpCollector?.HasDumped == false)
+                {
+                    int buildPercentage = totalNonIgnoredPips > 0 ? (int)(pipsSuccessfullyExecuted * 100 / totalNonIgnoredPips) : 0;
+                    double elapsedSeconds = m_processStartTimeUtc.HasValue
+                        ? (DateTime.UtcNow - m_processStartTimeUtc.Value).TotalSeconds
+                        : 0;
+
+                    m_engineDumpCollector.CheckTriggerAndDump(m_perfInfo.ProcessWorkingSetMB, elapsedSeconds, buildPercentage);
+                }
+
                 // Log pip statistics to CloudBuild.
                 if (isLoggingEnabled && m_configuration.Logging.EnableCloudBuildEtwLoggingIntegration)
                 {
                     CloudBuildEventSource.Log.DominoContinuousStatisticsEvent(new DominoContinuousStatisticsEvent
                     {
                         // The number of ignored pips should not contribute to the total because Batmon progress depends on this calculation: executedPips / totalPips
-                        TotalPips = m_pipTypesToLogCountersSnapshot.Total - m_pipTypesToLogCountersSnapshot[PipState.Ignored],
+                        TotalPips = totalNonIgnoredPips,
                         TotalProcessPips = m_processStateCountersSnapshot.Total - m_processStateCountersSnapshot[PipState.Ignored] - m_numServicePipsScheduled,
                         PipsFailed = m_pipTypesToLogCountersSnapshot[PipState.Failed],
                         PipsSkippedDueToFailedDependencies = m_pipTypesToLogCountersSnapshot.SkippedDueToFailedDependenciesCount,
-                        PipsSuccessfullyExecuted = m_pipTypesToLogCountersSnapshot.DoneCount,
+                        PipsSuccessfullyExecuted = pipsSuccessfullyExecuted,
                         // This gives the number of pips that were in ExecuteProcess state and does not include pips from other steps like ChooseWorker, MaterializeInputs. 
                         PipsExecuting = m_executionStepTracker.CurrentSnapshot[PipExecutionStep.ExecuteProcess],
                         PipsReadyToRun = pipsReady,

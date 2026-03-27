@@ -400,6 +400,10 @@ namespace BuildXL
                 Strings.HelpText_DisplayHelp_DumpFailedPipsLogLimit);
 
             hw.WriteOption(
+                "/EngineDumpTrigger:<value><unit>",
+                Strings.HelpText_DisplayHelp_EngineDumpTrigger);
+
+            hw.WriteOption(
                 "/logToConsole:<event id list>",
                 Strings.HelpText_DisplayHelp_LogToConsole,
                 HelpLevel.Verbose);

@@ -514,6 +514,27 @@ namespace BuildXL.Processes
         public long PipSemiStableHash { get; set; }
 
         /// <summary>
+        /// Maximum time allowed between consecutive Detours report messages before the process
+        /// is considered stalled and killed. When null (default), stall detection is disabled
+        /// and only the wall-clock <see cref="Timeout"/> applies.
+        /// </summary>
+        /// <remarks>
+        /// Windows only. Detours-based file access reporting is not used on other platforms.
+        /// </remarks>
+        public TimeSpan? ReportActivityTimeout { get; set; }
+
+        /// <summary>
+        /// Maximum time to wait for the first Detours report before considering the process stalled.
+        /// This is typically longer than <see cref="ReportActivityTimeout"/> to give processes time
+        /// to initialize (DLL loading, network handshake, etc.) before stall detection engages.
+        /// When null, defaults to <see cref="ReportActivityTimeout"/>.
+        /// </summary>
+        /// <remarks>
+        /// Windows only. See <see cref="ReportActivityTimeout"/>.
+        /// </remarks>
+        public TimeSpan? FirstReportActivityTimeout { get; set; }
+
+        /// <summary>
         /// Root directory where timeout dumps for the process should be stored. This directory may contain other outputs
         /// for the process.
         /// </summary>

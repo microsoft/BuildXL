@@ -100,6 +100,18 @@ namespace BuildXL.Utilities.Configuration
         int WarningTimeoutMultiplier { get; }
 
         /// <summary>
+        /// How long to wait (in milliseconds) between consecutive Detours file access reports before flagging a process as stalled.
+        /// When null, stall detection is disabled. Windows only.
+        /// </summary>
+        int? ReportActivityTimeout { get; }
+
+        /// <summary>
+        /// How long to wait (in milliseconds) for the first Detours file access report before flagging a process as stalled.
+        /// When null, falls back to <see cref="ReportActivityTimeout"/>. Windows only.
+        /// </summary>
+        int? FirstReportActivityTimeout { get; }
+
+        /// <summary>
         /// Root directory where timeout dumps should be saved
         /// </summary>
         AbsolutePath TimeoutDumpDirectory { get; }

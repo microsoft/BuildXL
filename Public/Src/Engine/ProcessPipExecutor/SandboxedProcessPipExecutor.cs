@@ -906,6 +906,12 @@ namespace BuildXL.ProcessPipExecutor
                         NumRetriesPipeReadOnCancel = EngineEnvironmentSettings.SandboxNumRetriesPipeReadOnCancel.Value
                             ?? SandboxedProcessInfo.DefaultPipeReadRetryOnCancellationCount,
                         CreateSandboxTraceFile = m_pip.TraceFile.IsValid,
+                        ReportActivityTimeout = m_sandboxConfig.ReportActivityTimeout.HasValue
+                            ? TimeSpan.FromMilliseconds(m_sandboxConfig.ReportActivityTimeout.Value)
+                            : null,
+                        FirstReportActivityTimeout = m_sandboxConfig.FirstReportActivityTimeout.HasValue
+                            ? TimeSpan.FromMilliseconds(m_sandboxConfig.FirstReportActivityTimeout.Value)
+                            : null,
                     };
 
                     if (m_pluginEP != null)

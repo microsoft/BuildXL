@@ -70,6 +70,11 @@ namespace BuildXL.Processes
         private readonly string[]? m_allowedSurvivingChildProcessNames;
         private readonly string? m_survivingPipProcessChildrenDumpDirectory;
         private readonly int m_numRetriesPipeReadOnCancel;
+        private readonly TimeSpan? m_reportActivityTimeout;
+        private readonly TimeSpan? m_firstReportActivityTimeout;
+        private Timer? m_stallTimer;
+        private long m_lastReportReceivedTimeTicks;
+        private DateTime m_processStartTimeUtc;
 
         private readonly Aggregation m_peakWorkingSet = new();
         private readonly Aggregation m_workingSet = new();
@@ -92,6 +97,8 @@ namespace BuildXL.Processes
             m_loggingContext = info.LoggingContext;
             m_survivingPipProcessChildrenDumpDirectory = info.SurvivingPipProcessChildrenDumpDirectory;
             m_numRetriesPipeReadOnCancel = info.NumRetriesPipeReadOnCancel;
+            m_reportActivityTimeout = info.ReportActivityTimeout;
+            m_firstReportActivityTimeout = info.FirstReportActivityTimeout;
 
             Encoding inputEncoding = info.StandardInputEncoding ?? Console.InputEncoding;
             m_standardInputReader = info.StandardInputReader;
@@ -371,6 +378,17 @@ namespace BuildXL.Processes
                 m_resultTaskCompletionSource.Task.Wait();
             }
 
+            // Dispose the stall timer before m_detouredProcess, since the timer callback
+            // accesses m_detouredProcess. Use Dispose(WaitHandle) to guarantee no in-flight
+            // callback is still running after this returns.
+            if (m_stallTimer != null)
+            {
+                using var timerDone = new ManualResetEvent(false);
+                m_stallTimer.Dispose(timerDone);
+                timerDone.WaitOne();
+                m_stallTimer = null;
+            }
+
             m_detouredProcess?.Dispose();
             m_detouredProcess = null;
 
@@ -472,6 +490,7 @@ namespace BuildXL.Processes
                     // This knowledge is significant for ensuring correct cleanup if we did vs. did not start a process;
                     // if started, we expect teardown to happen eventually and clean everything up.
                     m_processStarted = true;
+                    m_processStartTimeUtc = DateTime.UtcNow;
 
                     ProcessId = detouredProcess.GetProcessId();
                 }
@@ -528,6 +547,20 @@ namespace BuildXL.Processes
                 }
 
                 m_reportReader.BeginReadLine();
+
+                // Start the stall detection timer if configured. The timer uses a one-shot
+                // pattern: it fires once and the callback reschedules the next tick via Change().
+                // This prevents overlapping callbacks if the handler takes longer than expected.
+                // We avoid calling Timer.Change() on every report — only the low-frequency
+                // timer callback calls Change(), not the hot report-processing path.
+                if (m_reportActivityTimeout.HasValue)
+                {
+                    // Seed with the process start time so OnStallTimerFired can distinguish
+                    // "no reports ever received" from "reports stopped after some activity".
+                    m_lastReportReceivedTimeTicks = m_processStartTimeUtc.Ticks;
+                    var firstTimeout = m_firstReportActivityTimeout ?? m_reportActivityTimeout.Value;
+                    m_stallTimer = new Timer(OnStallTimerFired, null, firstTimeout, Timeout.InfiniteTimeSpan);
+                }
             }
 
             // don't wait, we want feeding in of standard input to happen asynchronously
@@ -536,6 +569,13 @@ namespace BuildXL.Processes
 
         private bool ReportLineReceived(string data)
         {
+            // Reset stall timestamp on every real report. On EOF (data == null), don't touch
+            // it — the process is exiting and OnProcessExitedAsync will dispose the timer.
+            if (data != null)
+            {
+                Volatile.Write(ref m_lastReportReceivedTimeTicks, DateTime.UtcNow.Ticks);
+            }
+
             SandboxedProcessFactory.Counters.IncrementCounter(SandboxedProcessFactory.SandboxedProcessCounters.AccessReportCount);
             using (SandboxedProcessFactory.Counters.StartStopwatch(SandboxedProcessFactory.SandboxedProcessCounters.HandleAccessReportDuration))
             {
@@ -544,6 +584,90 @@ namespace BuildXL.Processes
         }
 
         private void DebugReport(string data) => m_reports.ReportLineReceived($"{(int)ReportType.DebugMessage},{data}");
+
+        private void OnStallTimerFired(object? state)
+        {
+            var lastReport = new DateTime(Volatile.Read(ref m_lastReportReceivedTimeTicks), DateTimeKind.Utc);
+            var timeSinceLastReport = DateTime.UtcNow - lastReport;
+            var timeSinceStart = DateTime.UtcNow - m_processStartTimeUtc;
+
+            // Check whether enough silence has elapsed to constitute a stall.
+            var threshold = lastReport == m_processStartTimeUtc
+                ? (m_firstReportActivityTimeout ?? m_reportActivityTimeout!.Value)
+                : m_reportActivityTimeout!.Value;
+
+            if (timeSinceLastReport >= threshold)
+            {
+                var reason = lastReport == m_processStartTimeUtc
+                    ? $"No file access reports received since process start at {m_processStartTimeUtc:O} ({timeSinceStart.TotalSeconds:F1}s ago)"
+                    : $"No file access reports received for {timeSinceLastReport.TotalSeconds:F1}s (last report: {lastReport:O}, process started: {m_processStartTimeUtc:O})";
+
+                var sb = new StringBuilder();
+                sb.Append(reason);
+
+                // Collect live resource usage from the job object while the process is still running.
+                try
+                {
+                    var jobObject = m_detouredProcess?.GetJobObject();
+                    if (jobObject != null)
+                    {
+                        var accounting = jobObject.GetAccountingInformation();
+                        var startTime = m_processStartTimeUtc;
+                        var elapsed = DateTime.UtcNow - startTime;
+                        var cpuTime = accounting.UserTime + accounting.KernelTime;
+                        var cpuPercent = elapsed.TotalMilliseconds > 0
+                            ? cpuTime.TotalMilliseconds / elapsed.TotalMilliseconds * 100.0
+                            : 0;
+
+                        sb.Append($" | CPU: {cpuPercent:F1}% (user: {accounting.UserTime.TotalSeconds:F1}s, kernel: {accounting.KernelTime.TotalSeconds:F1}s, wall: {elapsed.TotalSeconds:F1}s)");
+                        sb.Append($" | IO: read {accounting.IO.ReadCounters.TransferCount / (1024 * 1024):F1} MB ({accounting.IO.ReadCounters.OperationCount} ops), write {accounting.IO.WriteCounters.TransferCount / (1024 * 1024):F1} MB ({accounting.IO.WriteCounters.OperationCount} ops)");
+                        sb.Append($" | Memory: peak {accounting.MemoryCounters.PeakWorkingSetMb} MB");
+                        sb.Append($" | Processes: {accounting.NumberOfProcesses}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // Best-effort — process may have exited between timer firing and metric collection.
+                    sb.Append($" | [Failed to collect metrics: {ex.GetType().Name}]");
+                }
+
+                Tracing.Logger.Log.PipProcessStallDetected(
+                    m_loggingContext,
+                    m_reports.PipSemiStableHash,
+                    m_reports.PipDescription,
+                    sb.ToString());
+            }
+
+            // Reschedule the next one-shot check. The timer may have been disposed
+            // concurrently by OnProcessExitedAsync or Dispose.
+            try
+            {
+                m_stallTimer?.Change(m_reportActivityTimeout!.Value, Timeout.InfiniteTimeSpan);
+            }
+            catch (ObjectDisposedException)
+            {
+            }
+        }
+
+        private string? BuildDiagnosticMessage()
+        {
+            var sb = new StringBuilder();
+
+            if (m_detouredProcess?.Diagnostics != null)
+            {
+                sb.Append(m_detouredProcess.Diagnostics);
+            }
+
+            if ((m_detouredProcess?.Killed == true || m_detouredProcess?.TimedOut == true) && m_reportActivityTimeout.HasValue)
+            {
+                var lastReport = new DateTime(Volatile.Read(ref m_lastReportReceivedTimeTicks), DateTimeKind.Utc);
+                var timeSinceLastReport = DateTime.UtcNow - lastReport;
+                sb.AppendLine();
+                sb.AppendLine($"[Report Activity] Last report received: {lastReport:O} ({timeSinceLastReport.TotalSeconds:F1}s ago)");
+            }
+
+            return sb.Length > 0 ? sb.ToString() : null;
+        }
 
         private static async Task FeedStandardInputAsync(DetouredProcess detouredProcess, TextReader? reader, TaskSourceSlim<bool> stdInTcs)
         {
@@ -663,6 +787,16 @@ namespace BuildXL.Processes
                 exitCode = m_detouredProcess.GetExitCode();
             }
 
+            // Dispose the stall timer — the process has exited and no more reports will arrive.
+            // Use Dispose(WaitHandle) to guarantee no in-flight callback is still running.
+            if (m_stallTimer != null)
+            {
+                using var timerDone = new ManualResetEvent(false);
+                m_stallTimer.Dispose(timerDone);
+                timerDone.WaitOne();
+                m_stallTimer = null;
+            }
+
             var result = new SandboxedProcessResult
             {
                 // If there is a message parsing failure, fail the pip.
@@ -688,7 +822,7 @@ namespace BuildXL.Processes
                 MessageProcessingFailure = m_reports.MessageProcessingFailure,
                 ProcessStartTime = m_detouredProcess.StartTime,
                 HasReadWriteToReadFileAccessRequest = m_reports.HasReadWriteToReadFileAccessRequest,
-                DiagnosticMessage = m_detouredProcess.Diagnostics,
+                DiagnosticMessage = BuildDiagnosticMessage(),
                 FileAccessesBeforeFirstUndeclaredReWrite = m_reports.FileAccessesBeforeFirstUndeclaredReWrite
             };
 

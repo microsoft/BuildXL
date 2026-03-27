@@ -23,6 +23,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
             DefaultWarningTimeout = (int)(.85 * DefaultTimeout);
             TimeoutMultiplier = 1;
             WarningTimeoutMultiplier = 1;
+            ReportActivityTimeout = null;
+            FirstReportActivityTimeout = null;
             OutputReportingMode = OutputReportingMode.TruncatedOutputOnError;
             FileSystemMode = FileSystemMode.Unset;
             ForceReadOnlyForRequestedReadWrite = false;
@@ -69,6 +71,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
             DefaultWarningTimeout = template.DefaultWarningTimeout;
             TimeoutMultiplier = template.TimeoutMultiplier;
             WarningTimeoutMultiplier = template.WarningTimeoutMultiplier;
+            ReportActivityTimeout = template.ReportActivityTimeout;
+            FirstReportActivityTimeout = template.FirstReportActivityTimeout;
             TimeoutDumpDirectory = pathRemapper.Remap(template.TimeoutDumpDirectory);
             SurvivingPipProcessChildrenDumpDirectory = pathRemapper.Remap(template.SurvivingPipProcessChildrenDumpDirectory);
             LogObservedFileAccesses = template.LogObservedFileAccesses;
@@ -165,6 +169,12 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public int WarningTimeoutMultiplier { get; set; }
+
+        /// <inheritdoc />
+        public int? ReportActivityTimeout { get; set; }
+
+        /// <inheritdoc />
+        public int? FirstReportActivityTimeout { get; set; }
 
         /// <inheritdoc />
         public AbsolutePath TimeoutDumpDirectory { get; set; }

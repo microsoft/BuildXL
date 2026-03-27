@@ -1036,6 +1036,9 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   <data name="Args_DelayedCacheLookup_IncorrectValue" xml:space="preserve">
     <value>/delayCacheLookupMin cannot be bigger than /delayCacheLookupMax.</value>
   </data>
+  <data name="Args_FirstReportActivityTimeout_RequiresReportActivityTimeout" xml:space="preserve">
+    <value>/pipFirstReportActivityTimeout requires /pipReportActivityTimeout to also be specified.</value>
+  </data>
   <data name="Args_ArgumentValue_CannotBeConvertedToInt" xml:space="preserve">
     <value>The /{0} argument contains an item '{1}' that could not be converted to an integer.</value>
   </data>
@@ -1104,6 +1107,12 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   </data>
   <data name="HelpText_DisplayHelp_PipDefaultWarningTimeout" xml:space="preserve">
     <value>After how much time to issue a warning that an individual process ran too long. The argument allows an expression that represents a time duration, like "3s", "500ms", "30m", "1.5h". The allowed suffixes are 'ms', 's', 'm', 'h', and no suffix is interpreted as an amount in milliseconds. Setting this value will only have an effect if no other timeout is specified for a process.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_PipReportActivityTimeout" xml:space="preserve">
+    <value>How long to wait between consecutive file access reports before warning a process may be stalled. The argument allows an expression that represents a time duration, like "3s", "500ms", "30m", "1.5h". Disabled by default. Windows only.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_PipFirstReportActivityTimeout" xml:space="preserve">
+    <value>How long to wait for the first file access report before warning a process may be stalled. Allows a longer startup window for slow-initializing processes. When not set, falls back to pipReportActivityTimeout. Windows only.</value>
   </data>
   <data name="HelpText_DisplayHelp_Debug_LoadGraph" xml:space="preserve">
     <value>Loads a cached build graph stored under the given fingerprint (40 digit hex string, no delimiters), path to cached graph directory, or canonical name.</value>

@@ -199,6 +199,15 @@ namespace BuildXL.Processes.Tracing
         public abstract void PipProcessTookTooLongError(LoggingContext context, long pipSemiStableHash, string pipDescription, string actual, string time, string dumpDetails, string outputToLog);
 
         [GeneratedEvent(
+            (int)LogEventId.PipProcessStallDetected,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "Process stopped producing Detours file access reports (possible stall). The process was not terminated and will continue until the wall-clock timeout. Diagnostics: {2}")]
+        public abstract void PipProcessStallDetected(LoggingContext context, long pipSemiStableHash, string pipDescription, string diagnostics);
+
+        [GeneratedEvent(
             (int)LogEventId.PipProcessStandardOutput,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,

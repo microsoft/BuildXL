@@ -828,6 +828,16 @@ namespace BuildXL
                             sandboxConfiguration.DefaultWarningTimeout =
                             CommandLineUtilities.ParseDurationOptionToMilliseconds(opt, 1, (int)Process.MaxTimeout.TotalMilliseconds)),
                         OptionHandlerFactory.CreateOption(
+                            "pipReportActivityTimeout",
+                            opt =>
+                            sandboxConfiguration.ReportActivityTimeout =
+                            CommandLineUtilities.ParseDurationOptionToMilliseconds(opt, 60000, (int)Process.MaxTimeout.TotalMilliseconds)),
+                        OptionHandlerFactory.CreateOption(
+                            "pipFirstReportActivityTimeout",
+                            opt =>
+                            sandboxConfiguration.FirstReportActivityTimeout =
+                            CommandLineUtilities.ParseDurationOptionToMilliseconds(opt, 60000, (int)Process.MaxTimeout.TotalMilliseconds)),
+                        OptionHandlerFactory.CreateOption(
                             "pipTimeoutMultiplier",
                             opt => sandboxConfiguration.TimeoutMultiplier = (int)CommandLineUtilities.ParseDoubleOption(opt, 0.000001, 1000000)),
                         OptionHandlerFactory.CreateOption(
@@ -1387,6 +1397,11 @@ namespace BuildXL
                     && schedulingConfiguration.DelayedCacheLookupMinMultiplier.Value > schedulingConfiguration.DelayedCacheLookupMaxMultiplier.Value)
                 {
                     throw CommandLineUtilities.Error(Strings.Args_DelayedCacheLookup_IncorrectValue);
+                }
+
+                if (sandboxConfiguration.FirstReportActivityTimeout.HasValue && !sandboxConfiguration.ReportActivityTimeout.HasValue)
+                {
+                    throw CommandLineUtilities.Error(Strings.Args_FirstReportActivityTimeout_RequiresReportActivityTimeout);
                 }
 
                 // Validate logging configuration.

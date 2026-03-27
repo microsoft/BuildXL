@@ -1992,6 +1992,186 @@ namespace Test.BuildXL.Processes
 
         private static string[] ToLines(string str)
             => str.Trim().Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+
+        #region Stall detection tests
+
+        // These tests detect a stalled pip.
+        //   - SandboxedProcessInfo gets ReportActivityTimeout (TimeSpan) and FirstReportActivityTimeout (TimeSpan, optional).
+        //   - A periodic timer fires every ReportActivityTimeout (first tick after FirstReportActivityTimeout if set).
+        //   - Each report updates a timestamp via Volatile.Write (no Timer.Change on the hot path).
+        //   - When the timer fires, it checks elapsed time since the last report against the threshold.
+        //   - If the silence exceeds the threshold: a warning is logged (audit mode, process is NOT killed).
+        //   - The process continues running until the wall-clock Timeout kills it.
+        //
+        // FirstReportActivityTimeout handles the case where a process takes time to initialize before
+        // generating any file accesses (DLL loading, network handshake, etc.).
+
+        // ---- Core stall detection — idle process with no IO ----
+
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        public async Task IdleProcessIsDetectedAsStalled()
+        {
+            // A process that blocks forever without doing any file I/O.
+            // In audit mode, the stall timer fires, but the process continues running
+            // until the wall-clock timeout kills it.
+            var info = GetInfiniteWaitProcessInfo();
+            info.Timeout = TimeSpan.FromSeconds(8);
+            info.ReportActivityTimeout = TimeSpan.FromSeconds(3);
+
+            SandboxedProcessResult result = await RunProcess(info);
+
+            AssertVerboseEventLogged(global::BuildXL.Processes.Tracing.LogEventId.PipProcessStallDetected, allowMore: true);
+        }
+
+        // ---- Active process keeps updating the last-report timestamp ----
+
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        public async Task ActiveProcessIsNotDetectedAsStalled()
+        {
+            // A process doing file I/O spread over time should complete normally — each file
+            // access report updates the last-report timestamp, so when the periodic timer
+            // fires it sees recent activity and does not log a stall event.
+            var outFile1 = CreateOutputFileArtifact();
+            var outFile2 = CreateOutputFileArtifact();
+            var outFile3 = CreateOutputFileArtifact();
+            var info = ToProcessInfo(
+                ToProcess(
+                    Operation.WriteFile(outFile1, "batch1"),
+                    Operation.ReadFile(outFile1),
+                    Operation.Sleep(2000),
+                    Operation.WriteFile(outFile2, "batch2"),
+                    Operation.ReadFile(outFile2),
+                    Operation.Sleep(2000),
+                    Operation.WriteFile(outFile3, "batch3"),
+                    Operation.ReadFile(outFile3)));
+            info.Timeout = TimeSpan.FromSeconds(30);
+            info.ReportActivityTimeout = TimeSpan.FromSeconds(3);
+
+            SandboxedProcessResult result = await RunProcess(info);
+
+            XAssert.AreEqual(0, result.ExitCode, "Process should have exited successfully");
+            // No stall assertion — the framework will fail if PipProcessStallDetected was unexpectedly logged.
+        }
+
+        // ----  Parent exits, child hangs — the ESRP scenario ----
+
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        public async Task StalledChildProcessIsDetected()
+        {
+            // Parent spawns a child that blocks forever (no I/O), parent exits with code 0.
+            // Child stays alive in the job object. After the parent completes, the child produces
+            // no reports. In audit mode, stall detection fires but the process continues
+            // until the wall-clock timeout.
+            var info = ToProcessInfo(
+                ToProcess(
+                    Operation.Echo("parent starting"),
+                    Operation.Spawn(Context.PathTable, waitToFinish: false, Operation.Block())));
+            info.Timeout = TimeSpan.FromSeconds(8);
+            info.NestedProcessTerminationTimeout = TimeSpan.FromSeconds(8);
+            info.ReportActivityTimeout = TimeSpan.FromSeconds(3);
+
+            SandboxedProcessResult result = await RunProcess(info);
+
+            AssertVerboseEventLogged(global::BuildXL.Processes.Tracing.LogEventId.PipProcessStallDetected, allowMore: true);
+        }
+
+        // ---- Partial IO then stall ----
+
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        public async Task ProcessThatDoesIOThenStallsIsDetected()
+        {
+            // A process that does some file I/O (updating the last-report timestamp) then blocks forever.
+            // In audit mode, the periodic timer eventually detects the silence and logs a stall event,
+            // but the process continues until the wall-clock timeout.
+            var outputFile = CreateOutputFileArtifact();
+            var info = ToProcessInfo(
+                ToProcess(
+                    Operation.WriteFile(outputFile, "partial work"),
+                    Operation.ReadFile(outputFile),
+                    Operation.Block()));
+            info.Timeout = TimeSpan.FromSeconds(8);
+            info.ReportActivityTimeout = TimeSpan.FromSeconds(3);
+
+            SandboxedProcessResult result = await RunProcess(info);
+
+            AssertVerboseEventLogged(global::BuildXL.Processes.Tracing.LogEventId.PipProcessStallDetected, allowMore: true);
+
+            // Verify the stall message contains resource metrics with non-zero values.
+            // This process did file I/O before stalling, so IO counters must be non-zero.
+            var messages = m_eventListener.GetLogMessagesForEventId(
+                (int)global::BuildXL.Processes.Tracing.LogEventId.PipProcessStallDetected);
+            XAssert.IsTrue(messages.Length > 0, "Expected at least one PipProcessStallDetected message");
+
+            var message = messages[0];
+            XAssert.IsTrue(message.Contains("CPU:"), $"Missing CPU metrics in: {message}");
+            XAssert.IsTrue(message.Contains("IO:"), $"Missing IO metrics in: {message}");
+            XAssert.IsTrue(message.Contains("Memory:"), $"Missing Memory metrics in: {message}");
+            XAssert.IsTrue(message.Contains("Processes:"), $"Missing process count in: {message}");
+            // The process did file I/O, so read ops must be non-zero.
+            XAssert.IsFalse(message.Contains("IO: read 0.0 MB (0 ops), write 0.0 MB (0 ops)"), $"IO metrics are all zeros — expected non-zero values. Full message: {message}");
+        }
+
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        public async Task WallClockTimeoutWinsOverStallTimeout()
+        {
+            // When the stall timeout is longer than the wall-clock timeout, the normal
+            // timeout should fire first and the process should be marked as timed out, not stalled.
+            var info = GetInfiniteWaitProcessInfo();
+            info.Timeout = TimeSpan.FromMilliseconds(500);
+            info.ReportActivityTimeout = TimeSpan.FromMinutes(5);  // Much longer than Timeout
+
+            SandboxedProcessResult result = await RunProcess(info);
+
+            XAssert.IsTrue(result.TimedOut, "Process should have timed out (wall-clock timeout is shorter)");
+            XAssert.AreEqual(ExitCodes.Timeout, result.ExitCode);
+            // No stall assertion — stall timeout is much longer than wall-clock, so it should not fire.
+        }
+
+        // ---- Process fails fast (non-zero exit) — not a stall ----
+
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        public async Task QuickFailureIsNotStall()
+        {
+            // A process that fails quickly with a non-zero exit code.
+            // This is NOT a stall — it's a quick failure. Stall detection should not interfere.
+            var info = ToProcessInfo(ToProcess(Operation.Fail()));
+            info.Timeout = TimeSpan.FromSeconds(30);
+            info.ReportActivityTimeout = TimeSpan.FromSeconds(3);
+
+            SandboxedProcessResult result = await RunProcess(info);
+
+            XAssert.AreNotEqual(0, result.ExitCode, "Process should have failed");
+            // No stall assertion — process exits too fast for stall timer to fire.
+        }
+
+        // ---- FirstReportActivityTimeout gives grace period for initialization ----
+
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        public async Task FirstReportActivityTimeoutGivesGracePeriod()
+        {
+            // A process that sleeps briefly (simulating slow init) before doing file I/O.
+            // With a short ReportActivityTimeout but a longer FirstReportActivityTimeout,
+            // the process should NOT be killed during the initial sleep.
+            // Once the first report arrives (from the WriteFile), the timer switches to ReportActivityTimeout.
+            var outputFile = CreateOutputFileArtifact();
+            var info = ToProcessInfo(
+                ToProcess(
+                    Operation.Sleep(2000),  // 2s sleep before any file IO
+                    Operation.WriteFile(outputFile, "after init"),
+                    Operation.ReadFile(outputFile)));
+            info.Timeout = TimeSpan.FromSeconds(30);
+            info.ReportActivityTimeout = TimeSpan.FromSeconds(5);
+            info.FirstReportActivityTimeout = TimeSpan.FromSeconds(15);
+
+            SandboxedProcessResult result = await RunProcess(info);
+
+            // The sleep is within the first-report window, so the process should survive
+            // and complete normally after the sleep.
+            XAssert.AreEqual(0, result.ExitCode, "Process should have exited successfully");
+            // No stall assertion — the sleep is within the first-report window.
+        }
+
+        #endregion
     }
 
     internal class RelaxedReportedFileAccessComparer : EqualityComparer<ReportedFileAccess>

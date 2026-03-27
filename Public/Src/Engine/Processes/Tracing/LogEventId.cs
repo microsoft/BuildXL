@@ -71,6 +71,8 @@ namespace BuildXL.Processes.Tracing
         PipProcessNeedsExecuteExternalButExecuteInternal = 92,
         LogPhaseDuration = 93,
 
+        PipProcessStallDetected = 95,
+
         PipProcessDisallowedFileAccessAllowlistedCacheable = 264,
         PipProcessDisallowedFileAccessAllowlistedNonCacheable = 269,
         FileAccessAllowlistFailedToParsePath = 274,

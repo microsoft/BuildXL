@@ -606,6 +606,16 @@ namespace BuildXL
                 Strings.HelpText_DisplayHelp_PipDefaultWarningTimeout);
 
             hw.WriteOption(
+                "/pipReportActivityTimeout:<ms>",
+                Strings.HelpText_DisplayHelp_PipReportActivityTimeout,
+                HelpLevel.Verbose);
+
+            hw.WriteOption(
+                "/pipFirstReportActivityTimeout:<ms>",
+                Strings.HelpText_DisplayHelp_PipFirstReportActivityTimeout,
+                HelpLevel.Verbose);
+
+            hw.WriteOption(
                 "/pipTimeoutMultiplier:<float>",
                 Strings.HelpText_DisplayHelp_PipTimeoutMultiplier,
                 HelpLevel.Verbose);

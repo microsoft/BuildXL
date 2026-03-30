@@ -491,6 +491,7 @@ export function runQTest(args: QTestArguments): Result {
         // The default is to upload test results to VSTS if the context info file is provided, so make sure we opt out 
         // if specified.
         Cmd.option("--qTestUploadResultsToVsts ", args.qTestUploadResultsToVsts !== undefined ? (args.qTestUploadResultsToVsts ? "true" : "false") : undefined),
+        Cmd.flag("--emitGenevaTelemetry", args.emitGenevaTelemetry),
     ];
 
     if (isJSProject) {
@@ -566,7 +567,9 @@ export function runQTest(args: QTestArguments): Result {
             // QTest writes files to the SRM directory at runtime. Likely related to the PublishSingleFile on the QTest executable.
             d`${Context.getMount("BuildEnginePath").path}/Sdk/Sdk.QTest/bin/SRM`,
             ...addIfLazy(Context.getCurrentHost().os === "unix", () => [
-                d`${Context.getUserHomeDirectory().path}/.dotnet/corefx/cryptography`])
+                d`${Context.getUserHomeDirectory().path}/.dotnet/corefx/cryptography`]),
+            ...addIfLazy(Context.getCurrentHost().os === "win", () => [
+                d`${Context.getUserHomeDirectory().path}/AppData/LocalLow/Microsoft/CryptnetUrlCache`])
         ],
         requireGlobalDependencies: true,
         passThroughEnvironmentVariables: [
@@ -877,6 +880,8 @@ export interface QTestArguments extends Transformer.RunnerArguments {
     logging?: boolean;
     /** When true, test results will be uploaded to VSTS/ADO. When false, uploading is explicitly disabled. */
     qTestUploadResultsToVsts?: boolean;
+    /** When true, telemetry will be emitted to Geneva. */
+    emitGenevaTelemetry?: boolean;
 }
 
 /**

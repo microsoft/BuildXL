@@ -19,6 +19,11 @@ parameters:
   type: stepList
   default: []
 
+# Post-build steps
+- name: postBuildSteps
+  type: stepList
+  default: []
+
 - name: buildXLArguments
   type: string
 
@@ -104,6 +109,9 @@ jobs:
 
     ${{ if parameters.publishTestResults }}:
       postBuildSteps:
+      - ${{ each step in parameters.postBuildSteps }}:
+        - ${{ step }}
+
       - task: PublishTestResults@2
         displayName: Publish Test Results
         inputs:

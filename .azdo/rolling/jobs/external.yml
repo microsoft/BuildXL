@@ -4,6 +4,19 @@ parameters:
   default:
     - Debug
     - Release
+# When true, publish packages and VS Code extensions as artifact drops instead of pipeline artifacts.
+# This is used by the standalone external pipeline so the release pipeline can download them by drop name.
+- name: useDropsForArtifacts
+  type: boolean
+  default: false
+# The rolling pipeline's build number and ID, used in drop names so the release pipeline
+# can locate artifacts by the rolling build number it already knows.
+- name: RollingBuildNumber
+  type: string
+  default: '$(Build.BuildNumber)'
+- name: RollingBuildId
+  type: string
+  default: '$(Build.BuildId)'
 
 jobs:
 - job: External_Lkg
@@ -32,17 +45,37 @@ jobs:
       targetPath: $(Build.SourcesDirectory)\Out\Logs
       sbomEnabled: false    # SBOM is not needed for logs
   
-    - output: pipelineArtifact
-      displayName: Upload external packages
-      continueOnError: True
-      artifact: buildxl-external.pkgs.$(Build.BuildNumber)
-      targetPath: $(Build.SourcesDirectory)\Out\Bin\release\public\pkgs
+    - ${{ if eq(parameters.useDropsForArtifacts, true) }}:
+      - output: artifactsDrop
+        displayName: Publish external packages to drop
+        continueOnError: True
+        dropServiceURI: https://mseng.artifacts.visualstudio.com/DefaultCollection
+        buildNumber: BuildXL/External/Pkgs/${{ parameters.RollingBuildNumber }}/${{ parameters.RollingBuildId }}
+        sourcePath: $(Build.SourcesDirectory)\Out\Bin\release\public\pkgs
+        retentionDays: 5
+        dropMetadataContainerName: DropMetadata-External-Pkgs
+    - ${{ else }}:
+      - output: pipelineArtifact
+        displayName: Upload external packages
+        continueOnError: True
+        artifact: buildxl-external.pkgs.${{ parameters.RollingBuildNumber }}
+        targetPath: $(Build.SourcesDirectory)\Out\Bin\release\public\pkgs
 
-    - output: pipelineArtifact
-      displayName: Upload VS Code extension
-      continueOnError: True
-      artifact: buildxl-external.vscode.$(Build.BuildNumber)
-      targetPath: $(Build.SourcesDirectory)\Out\Bin\release\ide
+    - ${{ if eq(parameters.useDropsForArtifacts, true) }}:
+      - output: artifactsDrop
+        displayName: Publish VS Code extension to drop
+        continueOnError: True
+        dropServiceURI: https://mseng.artifacts.visualstudio.com/DefaultCollection
+        buildNumber: BuildXL/External/VsCode/${{ parameters.RollingBuildNumber }}/${{ parameters.RollingBuildId }}
+        sourcePath: $(Build.SourcesDirectory)\Out\Bin\release\ide
+        retentionDays: 5
+        dropMetadataContainerName: DropMetadata-External-VsCode
+    - ${{ else }}:
+      - output: pipelineArtifact
+        displayName: Upload VS Code extension
+        continueOnError: True
+        artifact: buildxl-external.vscode.${{ parameters.RollingBuildNumber }}
+        targetPath: $(Build.SourcesDirectory)\Out\Bin\release\ide
 
   steps:
  
@@ -216,16 +249,26 @@ jobs:
     - output: artifactsDrop
       displayName: Publish Packages to Intermediate Drop
       dropServiceURI: https://mseng.artifacts.visualstudio.com/DefaultCollection
-      buildNumber: BuildXL/Linux/External/Intermediate/$(Build.BuildNumber)/$(Build.BuildId)
+      buildNumber: BuildXL/Linux/External/Intermediate/${{ parameters.RollingBuildNumber }}/${{ parameters.RollingBuildId }}
       sourcePath: $(Build.SourcesDirectory)/Out/Bin/release/public/pkgs
       retentionDays: 5
       dropMetadataContainerName: DropMetadata-Linux-Intermediate-External
 
-    - output: pipelineArtifact
-      displayName: Upload Linux VS Code extension
-      continueOnError: True
-      artifact: buildxl-external.vscode.linux-x64.$(Build.BuildNumber)
-      targetPath: $(Build.SourcesDirectory)/Out/Bin/release/ide
+    - ${{ if eq(parameters.useDropsForArtifacts, true) }}:
+      - output: artifactsDrop
+        displayName: Publish Linux VS Code extension to drop
+        continueOnError: True
+        dropServiceURI: https://mseng.artifacts.visualstudio.com/DefaultCollection
+        buildNumber: BuildXL/External/VsCode/Linux/${{ parameters.RollingBuildNumber }}/${{ parameters.RollingBuildId }}
+        sourcePath: $(Build.SourcesDirectory)/Out/Bin/release/ide
+        retentionDays: 5
+        dropMetadataContainerName: DropMetadata-External-VsCode-Linux
+    - ${{ else }}:
+      - output: pipelineArtifact
+        displayName: Upload Linux VS Code extension
+        continueOnError: True
+        artifact: buildxl-external.vscode.linux-x64.${{ parameters.RollingBuildNumber }}
+        targetPath: $(Build.SourcesDirectory)/Out/Bin/release/ide
 
     - output: buildArtifacts 
       displayName: Publish build logs

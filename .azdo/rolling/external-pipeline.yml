@@ -1,0 +1,79 @@
+# This pipeline runs the external (public/open-source, microsoftInternal=0) validation
+# of BuildXL as a standalone pipeline. It is triggered by the rolling pipeline via
+# the schedule-build-in-ado.yml mechanism.
+#
+# All version information is passed as queue-time variables by the rolling pipeline:
+#   - Branding_SemanticVersion  (e.g., "0.1.0")
+#   - Branding_PrereleaseTag    (e.g., "20250326.1")
+#   - RollingBuildNumber        (e.g., "0.1.0-20250326.1")
+#   - RollingBuildId            (e.g., "12345")
+
+trigger: none  # Only triggered by the rolling pipeline
+
+variables:
+- group: "BuildXL Common variables"
+- template: variables.yml
+# Map queue-time variables to the names the external.yml jobs expect
+- name: BuildXL.SemanticVersion
+  value: $(Branding_SemanticVersion)
+- name: BuildXL.PreReleaseTag
+  value: $(Branding_PrereleaseTag)
+
+resources:
+  repositories:
+  - repository: 1esPipelines
+    type: git
+    name: 1ESPipelineTemplates/1ESPipelineTemplates
+    ref: refs/tags/release
+
+extends:
+  template: v1/1ES.Official.PipelineTemplate.yml@1esPipelines
+  parameters:
+    pool:
+      name: BuildXL-DevOpsAgents-Selfhost-BuildCache
+      os: windows
+      image: 1ESPT-Win2022-PME-3
+    featureFlags:
+      autoBaseline: false
+      incrementalSDLBinaryAnalysis: true
+    sdl:
+      sourceAnalysisPool:
+        name: Windows-SDL-Agents
+        os: windows
+      spotBugs:
+        enabled: false
+      baseline:
+        baselineFile: $(Build.SourcesDirectory)\.config\guardian\.gdnbaselines
+      codeql:
+        compiled:
+          enabled: false
+          justificationForDisabling: 'CodeQL would not be effective on this pipeline because builds are incremental. We will create a separate clean build pipeline for CodeQL.'
+      binskim:
+        enabled: true
+        scanOutputDirectoryOnly: true
+        preReleaseVersion: '4.3.1'
+    stages:
+    - stage: External
+      displayName: Build and validate external bits
+      jobs:
+      - job: SetBuildNumber
+        displayName: Set build number
+        steps:
+        - checkout: none
+        - task: CmdLine@2
+          displayName: Set build number from rolling pipeline
+          inputs:
+            script: |
+              @echo off
+              if defined RollingBuildNumber (
+                echo Setting build number to External-%RollingBuildNumber%
+                echo ##vso[build.updatebuildnumber]External-%RollingBuildNumber%
+              ) else (
+                echo RollingBuildNumber not set, keeping default build number
+              )
+
+      - template: /.azdo/rolling/jobs/external.yml@self
+        parameters:
+          useDropsForArtifacts: true
+          RollingBuildNumber: $(RollingBuildNumber)
+          RollingBuildId: $(RollingBuildId)

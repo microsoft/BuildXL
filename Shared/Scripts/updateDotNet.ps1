@@ -1,7 +1,7 @@
 # Mostly Copilot generated. Excuse the quirks..
 # 
 # This script queries the .NET 8.0 and 9.0 download pages to determine the latest runtime version,
-# updates the constants in config.nuget.aspNetCore.dsc,
+# updates the constants in config.nuget.aspNetCore.dsc and config.nuget.dotnetcore.dsc,
 # and updates download URLs in config.dsc by navigating to the thank-you pages and extracting Direct download links.
 
 function Get-LatestDotNetVersion {
@@ -66,13 +66,15 @@ if (-not $latestDotnet8 -or -not $latestDotnet9) {
 # Files to update.
 $ConfigFile = Join-Path $PSScriptRoot "..\..\config.dsc"
 $NugetFile = Join-Path $PSScriptRoot "..\..\config.nuget.aspNetCore.dsc"
+$DotNetCoreNugetFile = Join-Path $PSScriptRoot "..\..\config.nuget.dotnetcore.dsc"
 
 Write-Host "Updating NuGet config file: $NugetFile"
 
 # (Existing logic to update version constants in the NuGet config remains unchanged)
 (Get-Content $NugetFile) |
     ForEach-Object {
-        $_ -replace 'const\s+asp8RefVersion\s*=\s*".*?"', "const asp8RefVersion = `"$latestDotnet8`"" `
+        $_ -replace 'const\s+aspVersion\s*=\s*".*?"', "const aspVersion = `"$latestDotnet9`"" `
+           -replace 'const\s+asp8RefVersion\s*=\s*".*?"', "const asp8RefVersion = `"$latestDotnet8`"" `
            -replace 'const\s+asp8RuntimeVersion\s*=\s*".*?"', "const asp8RuntimeVersion = `"$latestDotnet8`"" `
            -replace 'const\s+asp9RefVersion\s*=\s*".*?"', "const asp9RefVersion = `"$latestDotnet9`"" `
            -replace 'const\s+asp9RuntimeVersion\s*=\s*".*?"', "const asp9RuntimeVersion = `"$latestDotnet9`""
@@ -80,7 +82,17 @@ Write-Host "Updating NuGet config file: $NugetFile"
 
 Write-Host "Updated NuGet file: $NugetFile"
 
-Write-Host "Updating config file: $NugetFile"
+Write-Host "Updating NuGet dotnet core config file: $DotNetCoreNugetFile"
+
+(Get-Content $DotNetCoreNugetFile) |
+    ForEach-Object {
+        $_ -replace 'const\s+core80Version\s*=\s*".*?"', "const core80Version = `"$latestDotnet8`"" `
+           -replace 'const\s+core90Version\s*=\s*".*?"', "const core90Version = `"$latestDotnet9`""
+    } | Set-Content $DotNetCoreNugetFile
+
+Write-Host "Updated NuGet dotnet core config file: $DotNetCoreNugetFile"
+
+Write-Host "Updating config file: $ConfigFile"
 
 $osList = @("windows-x64", "macos-x64", "linux-x64")
 

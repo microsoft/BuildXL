@@ -116,8 +116,8 @@ function processArguments(args: Managed.TestArguments): Managed.TestArguments {
                         name: "Microsoft.Bcl.AsyncInterfaces",
                         publicKeyToken: "cc7b13ffcd2ddd51",
                         culture: "neutral",
-                        oldVersion: "0.0.0.0-9.0.0.13",
-                        newVersion: "9.0.0.13",
+                        oldVersion: "0.0.0.0-9.0.0.14",
+                        newVersion: "9.0.0.14",
                     },
                     {
                         name: "System.Memory",

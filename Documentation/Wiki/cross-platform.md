@@ -5,8 +5,30 @@
 * macOS is not currently supported.
 
 ## Linux Support
-The following features are not properly supported, or are only partially supported on Linux with the interpose and ptrace sandbox types.
-- Breakaway Processes
+
+### Prerequisites
+On Linux, BuildXL uses an eBPF-based sandbox for file access monitoring. This requires the following native shared libraries to be installed on the system:
+
+<!-- CODESYNC: Public/Src/Engine/Processes/SandboxConnectionLinuxEBPF.cs (s_requiredNativeLibraries) -->
+<!-- CODESYNC: Public/Src/Sandbox/Linux/ebpf/BuildXL.Sandbox.Linux.eBPF.dsc (libraries list in link step) -->
+
+| Library | Ubuntu/Debian | Mariner/Azure Linux |
+|---------|---------------|---------------------|
+| `libelf` | `libelf1` | `elfutils-libelf` |
+| `zlib` | `zlib1g` | `zlib` |
+| `libnuma` | `libnuma1` | `numactl-libs` |
+
+```bash
+# Ubuntu/Debian
+sudo apt install libelf1 zlib1g libnuma1
+
+# Mariner/Azure Linux
+sudo dnf install elfutils-libelf zlib numactl-libs
+```
+
+BuildXL will check for these libraries at startup and report a clear error message if any are missing.
+
+### Limitations
 
 The following features are not supported on the PTrace sandbox.
 - Blocking disallowed file accesses

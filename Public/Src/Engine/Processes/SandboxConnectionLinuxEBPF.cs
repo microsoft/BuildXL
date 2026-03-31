@@ -39,6 +39,63 @@ namespace BuildXL.Processes
     public sealed class SandboxConnectionLinuxEBPF : ISandboxConnection
     {
         /// <summary>
+        /// The native shared libraries that the eBPF runner requires at runtime.
+        /// Standard glibc libraries (rt, dl, pthread, m) are always present and don't need checking.
+        /// </summary>
+        /// <remarks>
+        /// CODESYNC: Public/Src/Sandbox/Linux/ebpf/BuildXL.Sandbox.Linux.eBPF.dsc (libraries list in link step)
+        /// </remarks>
+        private static readonly (string SoName, string UbuntuPackage, string MarinerPackage)[] s_requiredNativeLibraries =
+        {
+            ("libelf.so.1", "libelf1", "elfutils-libelf"),
+            ("libz.so.1", "zlib1g", "zlib"),
+            ("libnuma.so.1", "libnuma1", "numactl-libs"),
+        };
+
+        /// <summary>
+        /// Validates that all native shared libraries required by the eBPF runner are installed on the system.
+        /// </summary>
+        /// <returns>True if all libraries are available; false otherwise, with <paramref name="errorMessage"/> describing what's missing.</returns>
+        public static bool TryValidateRequiredNativeLibraries(out string errorMessage)
+        {
+            var missingLibraries = new List<(string soName, string ubuntuPackage, string marinerPackage)>();
+
+            foreach (var (soName, ubuntuPackage, marinerPackage) in s_requiredNativeLibraries)
+            {
+#if NETCOREAPP
+                if (NativeLibrary.TryLoad(soName, out IntPtr handle))
+                {
+                    NativeLibrary.Free(handle);
+                }
+                else
+                {
+                    missingLibraries.Add((soName, ubuntuPackage, marinerPackage));
+                }
+#endif
+            }
+
+            if (missingLibraries.Count > 0)
+            {
+                var sb = new StringBuilder();
+                sb.AppendLine("Missing libraries:");
+                foreach (var (soName, ubuntuPackage, marinerPackage) in missingLibraries)
+                {
+                    sb.AppendLine($"  - {soName}");
+                }
+
+                sb.AppendLine("To install the missing libraries:");
+                sb.AppendLine($"  Ubuntu/Debian: sudo apt install {string.Join(" ", missingLibraries.Select(l => l.ubuntuPackage))}");
+                sb.AppendLine($"  Mariner/Azure Linux: sudo dnf install {string.Join(" ", missingLibraries.Select(l => l.marinerPackage))}");
+
+                errorMessage = sb.ToString();
+                return false;
+            }
+
+            errorMessage = null;
+            return true;
+        }
+
+        /// <summary>
         /// Tracks which binaries have already been checked for EBPF capabilities.
         /// </summary>
         /// <remarks>

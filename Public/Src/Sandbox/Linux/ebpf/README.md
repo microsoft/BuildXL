@@ -1,5 +1,33 @@
 ### BuildXL eBPF Sandbox
 
+## Prerequisites
+The eBPF sandbox runner (`bxl-ebpf-runner`) requires the following native shared libraries to be installed on the system at runtime. BuildXL will validate their presence at startup and report a clear error if any are missing.
+
+<!-- CODESYNC: Public/Src/Engine/Processes/SandboxConnectionLinuxEBPF.cs (s_requiredNativeLibraries) -->
+<!-- CODESYNC: the libraries list in the link step below in BuildXL.Sandbox.Linux.eBPF.dsc -->
+
+| Library | Ubuntu/Debian package | Mariner/Azure Linux package |
+|---------|----------------------|----------------------------|
+| `libelf.so.1` | `libelf1` | `elfutils-libelf` |
+| `libz.so.1` | `zlib1g` | `zlib` |
+| `libnuma.so.1` | `libnuma1` | `numactl-libs` |
+
+Other linked libraries (`librt`, `libdl`, `libpthread`, `libm`) are part of glibc and are always present.
+
+Install on Ubuntu/Debian:
+```bash
+sudo apt install libelf1 zlib1g libnuma1
+```
+
+Install on Mariner/Azure Linux:
+```bash
+sudo dnf install elfutils-libelf zlib numactl-libs
+```
+
+For building the eBPF sandbox from source (BuildXL developers), the corresponding `-dev` / `-devel` packages are needed instead.
+
+Additionally, the runner requires Linux kernel 6.6+ and the following capabilities: `cap_sys_admin`, `cap_bpf`, `cap_sys_ptrace`. BuildXL will attempt to set these automatically (may require sudo).
+
 ## Coding style
 # BPF programs
 - BPF programs that trace a function should use the following convention on enter `<function name>_enter` and the following on exit `<function name>_exit`

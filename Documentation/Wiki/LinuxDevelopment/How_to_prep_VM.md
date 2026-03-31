@@ -4,11 +4,17 @@
 ### Ubuntu 22.04 and 24.04
 ```bash
 # install packages
+# Note: libelf-dev, zlib1g-dev, and libnuma-dev are required by the eBPF sandbox (CODESYNC: Public/Src/Sandbox/Linux/ebpf/BuildXL.Sandbox.Linux.eBPF.dsc)
 sudo apt-get update 
-sudo apt-get install –y git build-essential libc6-dev openssh-server curl dotnet9 clang libelf-dev libnuma-dev
+sudo apt-get install –y git build-essential libc6-dev openssh-server curl dotnet9 clang libelf-dev zlib1g-dev libnuma-dev
 
 # link libdl.so
 sudo ln -vs /lib/x86_64-linux-gnu/libdl.so.2 /usr/lib/x86_64-linux-gnu/libdl.so
+```
+
+### Mariner / Azure Linux
+```bash
+sudo dnf install -y rsync glibc-static.x86_64 time dotnet-sdk-9.0 clang elfutils-libelf elfutils-libelf-devel zlib-devel libnuma-devel
 ```
 
 ### Install .NET

@@ -434,6 +434,7 @@ namespace BuildXL.Engine.Tracing
         EBPFCapabilitiesSudoPrompt = 7146,
         CannotSetEBPFCapabilities = 7147,
         EBPFCapabilitiesRetrying = 7148,
+        EBPFRequiredNativeLibrariesMissing = 7149,
 
         RemoteCacheFallbackToLocal = 7155,
         // max 7200

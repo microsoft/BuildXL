@@ -2965,6 +2965,15 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void EBPFCapabilitiesRetrying(LoggingContext context, int retriesLeft, string error);
 
         [GeneratedEvent(
+            (int)LogEventId.EBPFRequiredNativeLibrariesMissing,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
+            EventTask = (int)Tasks.Engine,
+            Message = "The eBPF sandbox requires native libraries that are not installed on this system. {errorMessage}")]
+        public abstract void EBPFRequiredNativeLibrariesMissing(LoggingContext context, string errorMessage);
+
+        [GeneratedEvent(
             (int)LogEventId.ConfigUnsafeMonitorCreateProcessAsUser,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,

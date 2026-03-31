@@ -229,7 +229,7 @@ namespace eBPFSandbox {
     export const libbpfa : File = libbpf.getOutputDirectory(objDir).assertExistence(r`libbpf.a`);
 
     // Build final sandbox binary
-    // CODESYNC Public/Src/Engine/Processes/SandboxConnectionLinuxEBPF.cs
+    // CODESYNC Public/Src/Engine/Processes/SandboxConnectionLinuxEBPF.cs (EBPFRunner name and s_requiredNativeLibraries)
     @@public
     export const sandbox = hostSupportsBuildingEBPF
     ?

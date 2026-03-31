@@ -2937,6 +2937,13 @@ namespace BuildXL.Engine
             // The EBPF runner needs to have the right capabilities set. This requires sudo rights.
             if (OperatingSystemHelper.IsUnixOS && enableEBPF)
             {
+                // Check that all required native libraries are installed before attempting anything else.
+                if (!SandboxConnectionLinuxEBPF.TryValidateRequiredNativeLibraries(out string missingLibsError))
+                {
+                    Logger.Log.EBPFRequiredNativeLibrariesMissing(loggingContext, missingLibsError);
+                    return ConstructScheduleResult.Failure;
+                }
+
                 if (!UnixGetCapUtils.TrySetEBPFCapabilitiesIfNeeded(
                     SandboxConnectionLinuxEBPF.EBPFRunner,
                     Configuration.Interactive,

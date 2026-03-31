@@ -780,16 +780,8 @@ namespace BuildXL.Processes
             // create a FIFO (named pipe)
             createNewFifo(fifoPath);
 
-            // create and save info for this pip
-            var info = new Info(m_failureCallback, process, fifoPath, famPath, IsInTestMode);
-            if (!m_pipProcesses.TryAdd(process.PipId, info))
-            {
-                throw new BuildXLException($"Process with PidId {process.PipId} already exists");
-            }
-
-            info.Start();
-
-            // If a daemon task was provided, wait for it to finish
+            // If a daemon task was provided, wait for it to finish before setting up the sandbox infrastructure for this pip.
+            // We check this before starting the worker thread to avoid leaving a dangling thread if the daemon failed.
             if (m_ebpfDaemonTask != null)
             {
                 var result = m_ebpfDaemonTask.GetAwaiter().GetResult();
@@ -798,6 +790,15 @@ namespace BuildXL.Processes
                     throw new BuildXLException($"EBPF daemon failed to initialize: {result.Failure.DescribeIncludingInnerFailures()}");
                 }
             }
+
+            // create and save info for this pip
+            var info = new Info(m_failureCallback, process, fifoPath, famPath, IsInTestMode);
+            if (!m_pipProcesses.TryAdd(process.PipId, info))
+            {
+                throw new BuildXLException($"Process with PidId {process.PipId} already exists");
+            }
+
+            info.Start();
 
             void createNewFifo(string fifo)
             {

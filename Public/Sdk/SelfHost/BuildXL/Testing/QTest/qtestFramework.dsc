@@ -197,8 +197,10 @@ function runTest(args : TestRunArguments, isV3?: boolean) : File[] {
 
     let result = Qtest.runQTest({
         logging: true,
-        // Uncomment when the geneva registration step is part of 1ESPT bxl workflow.
-        // emitGenevaTelemetry: Qtest.isRunningOnAzureDevOps(), // Only emit Geneva telemetry when running in ADO
+        // Only emit Geneva telemetry when running in ADO
+        // On CB, events are already being captured by a CB-deployed monitoring agent.
+        // For local builds there is no point in emitting QTest telemetry because there is no one to consume it
+        emitGenevaTelemetry: Qtest.isRunningOnAzureDevOps(),
         // Uploading results is only possible when there is a VSTS connection available (CloudBuild or ADO)
         qTestUploadResultsToVsts: Qtest.isRunningOnCloudBuild() || Qtest.isRunningOnAzureDevOps(),
         testAssembly: args.testDeployment.primaryFile.path,

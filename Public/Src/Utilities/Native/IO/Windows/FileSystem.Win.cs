@@ -4121,37 +4121,6 @@ namespace BuildXL.Native.IO.Windows
 
         private static bool IsDirectorySeparatorCore(char c) => c == Path.DirectorySeparatorChar || c == Path.AltDirectorySeparatorChar;
 
-        /// <inheritdoc />
-        private Possible<string> TryGetFinalPathByHandle(string path)
-        {
-            SafeFileHandle handle = CreateFileW(
-                ToLongPathIfExceedMaxPath(path),
-                FileDesiredAccess.None,
-                FileShare.None,
-                lpSecurityAttributes: IntPtr.Zero,
-                dwCreationDisposition: FileMode.Open,
-                dwFlagsAndAttributes: FileFlagsAndAttributes.FileFlagBackupSemantics,
-                hTemplateFile: IntPtr.Zero);
-            int hr = Marshal.GetLastWin32Error();
-
-            if (handle.IsInvalid)
-            {
-                return new NativeFailure(hr);
-            }
-
-            using (handle)
-            {
-                try
-                {
-                    return GetFinalPathNameByHandle(handle);
-                }
-                catch (NativeWin32Exception e)
-                {
-                    return NativeFailure.CreateFromException(e);
-                }
-            }
-        }
-
         /// <summary>
         /// Resolves the reparse points with relative target.
         /// </summary>

@@ -563,35 +563,6 @@ namespace BuildXL.Processes
             m_pendingReports.Post(report, throwOnFullOrComplete: true);
         }
 
-        private static string? EnsureQuoted(string? cmdLineArgs)
-        {
-#if NETCOREAPP
-            if (cmdLineArgs == null)
-            {
-                return null;
-            }
-
-            using var sbHandle = Pools.GetStringBuilder();
-            StringBuilder sb = sbHandle.Instance;
-            foreach (var arg in CommandLineEscaping.SplitArguments(cmdLineArgs))
-            {
-                sb.Append(sb.Length > 0 ? " " : string.Empty);
-                string escaped = CommandLineEscaping.EscapeAsCommandLineWord(arg.Value.ToString());
-                if (escaped.Length > 0 && escaped[0] == '"')
-                {
-                    sb.Append(escaped);
-                }
-                else
-                {
-                    sb.Append('"').Append(escaped).Append('"');
-                }
-            }
-
-            return sb.ToString();
-#else
-            throw new ArgumentException($"Running {nameof(SandboxedProcessUnix)} in a non .NET Core environment should not be possible");
-#endif
-        }
         private async Task FeedStdInAsync(SandboxedProcessInfo info, string? processStdinFileName, bool forceAddExecutionPermission = true)
         {
             if (processStdinFileName != null)

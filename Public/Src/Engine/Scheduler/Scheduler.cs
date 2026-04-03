@@ -7648,50 +7648,6 @@ namespace BuildXL.Scheduler
             string pipDesc,
             string pipValueId);
 
-        private delegate void PipProvenanceEventWithFilePath(
-            LoggingContext loggingContext,
-            string file,
-            int line,
-            int column,
-            string pipDesc,
-            string pipValueId,
-            string filePath);
-
-        // Handy for errors related to sealed directories, since there is a directory root associated with the file.
-        private delegate void PipProvenanceEventWithFilePathAndDirectoryPath(
-            LoggingContext loggingContext,
-            string file,
-            int line,
-            int column,
-            string pipDesc,
-            string pipValueId,
-            string filePath,
-            string directoryPath);
-
-        private delegate void PipProvenanceEventWithFilePathAndRelatedPip(
-            LoggingContext loggingContext,
-            string file,
-            int line,
-            int column,
-            string pipDesc,
-            string pipValueId,
-            string outputFile,
-            string producingPipDesc,
-            string producingPipValueId);
-
-        // Handy for errors related to sealed directories, since there is a directory root associated with the file.
-        private delegate void PipProvenanceEventWithFilePathAndDirectoryPathAndRelatedPip(
-            LoggingContext loggingContext,
-            string file,
-            int line,
-            int column,
-            string pipDesc,
-            string pipValueId,
-            string outputFile,
-            string directoryPath,
-            string producingPipDesc,
-            string producingPipValueId);
-
         private PipProvenance m_dummyProvenance;
 
         private readonly CancellationTokenRegistration m_cancellationTokenRegistration;

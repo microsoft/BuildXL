@@ -3349,17 +3349,6 @@ namespace BuildXL.Pips.Graph
                 string rootPath,
                 string name);
 
-            private delegate void PipProvenanceEventWithDirectoryPathAndRootPath(
-                LoggingContext loggingContext,
-                string file,
-                int line,
-                int column,
-                long pipSemiStableHash,
-                string pipDesc,
-                string pipValueId,
-                string directoryPath,
-                string rootPath);
-
             private delegate void PipProvenanceEventWithFilePathAndRelatedPip(
                 LoggingContext loggingContext,
                 string file,

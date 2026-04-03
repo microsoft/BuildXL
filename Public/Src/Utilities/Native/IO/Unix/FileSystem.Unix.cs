@@ -39,16 +39,6 @@ namespace BuildXL.Native.IO.Unix
 
         private const ulong UnusedFileIdPart = 0;
 
-        private static readonly Dictionary<FileFlagsAndAttributes, FileOptions> s_fileOptionsFlags = new Dictionary<FileFlagsAndAttributes, FileOptions>()
-        {
-            { FileFlagsAndAttributes.FileAttributeEncrypted, FileOptions.Encrypted },
-            { FileFlagsAndAttributes.FileFlagDeleteOnClose, FileOptions.DeleteOnClose },
-            { FileFlagsAndAttributes.FileFlagSequentialScan, FileOptions.SequentialScan },
-            { FileFlagsAndAttributes.FileFlagRandomAccess, FileOptions.RandomAccess },
-            { FileFlagsAndAttributes.FileFlagOverlapped, FileOptions.Asynchronous },
-            { FileFlagsAndAttributes.FileFlagWriteThrough, FileOptions.WriteThrough }
-        };
-
         private Lazy<bool> m_supportPreciseFileVersion = default;
 
         private readonly ConcurrentDictionary<string, Regex> m_patternRegexes;
@@ -420,10 +410,6 @@ namespace BuildXL.Native.IO.Unix
         /// <inheritdoc />
         public ulong GetVolumeSerialNumberByHandle(SafeFileHandle fileHandle)
             => 0; // TODO: Task #1272136 (FileContentTable)
-
-        /// <nodoc />
-        private static FileOptions FileFlagsAndAttributesToFileOptions(FileFlagsAndAttributes flagsAndAttributes) =>
-            s_fileOptionsFlags.Aggregate(FileOptions.None, (acc, kvp) => flagsAndAttributes.HasFlag(kvp.Key) ? acc | kvp.Value : acc);
 
         /// <nodoc />
         internal static FileAccess FileDesiredAccessToFileAccess(FileDesiredAccess desiredAccess)

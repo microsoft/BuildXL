@@ -278,8 +278,6 @@ namespace BuildXL.Engine.Cache.Artifacts
             }
         }
 
-        private string ExpandFileName(ref PathAtom fileName) => fileName.IsValid ? fileName.ToString(m_pathTable.StringTable) : default;
-
         /// <summary>
         /// Creates a reparse point. Reparse point targets must be a non-empty string.
         /// </summary>

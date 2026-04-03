@@ -471,12 +471,6 @@ namespace BuildXL.Pips.Operations
             m_entries[m_currentPipDataCountInfo.StartEntryIndex] = PipDataEntry.CreateNestedDataStart(m_entries.Count - m_currentPipDataCountInfo.StartEntryIndex);
         }
 
-        private static void CompleteNestedData(PipDataEntry[] entries, PipDataCountInfo pipdataCountInfo)
-        {
-            entries[entries.Length - 1] = PipDataEntry.CreateNestedDataEnd(pipdataCountInfo.FragmentCount);
-            entries[0] = PipDataEntry.CreateNestedDataStart(entries.Length);
-        }
-
         /// <summary>
         /// Tracks information about the number of fragments for a nested PipData. and the location of the start entry
         /// </summary>

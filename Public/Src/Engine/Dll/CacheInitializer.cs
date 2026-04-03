@@ -538,17 +538,6 @@ namespace BuildXL.Engine
             return statistics;
         }
 
-        private static void Subtract(IDictionary<string, long> newStats, IDictionary<string, long> baseline)
-        {
-            foreach (var key in newStats.Keys.ToList())
-            {
-                if (baseline.TryGetValue(key, out var oldValue))
-                {
-                    newStats[key] = newStats[key] - oldValue;
-                }
-            }
-        }
-
         /// <summary>
         /// Builds a mapping of caches from their hierarchical names to Lx nomenclature.
         /// </summary>

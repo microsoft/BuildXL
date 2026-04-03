@@ -2,18 +2,56 @@
 # of BuildXL as a standalone pipeline. It is triggered by the rolling pipeline via
 # the schedule-build-in-ado.yml mechanism.
 #
-# All version information is passed as queue-time variables by the rolling pipeline:
-#   - Branding_SemanticVersion  (e.g., "0.1.0")
-#   - Branding_PrereleaseTag    (e.g., "20250326.1")
-#   - RollingBuildNumber        (e.g., "0.1.0-20250326.1")
-#   - RollingBuildId            (e.g., "12345")
+# All version information is passed as parameters by the rolling pipeline.
 
 trigger: none  # Only triggered by the rolling pipeline
+
+# Set the ADO build number to match the rolling pipeline's build number.
+# This is critical because $(Build.BuildNumber) is used in package names and filters.
+name: $(RollingBuildNumber)
+
+parameters:
+- name: Branding_SemanticVersion
+  displayName: Semantic version (e.g., 0.1.0)
+  type: string
+  default: '0.1.0'
+- name: Branding_PrereleaseTag
+  displayName: Pre-release tag (e.g., 20250326.1)
+  type: string
+  default: ''
+- name: RollingBuildNumber
+  displayName: Rolling pipeline build number (leave 'auto' for manual runs)
+  type: string
+  default: 'auto'
+- name: RollingBuildId
+  displayName: Rolling pipeline build ID (leave 'auto' for manual runs)
+  type: string
+  default: 'auto'
 
 variables:
 - group: "BuildXL Common variables"
 - template: variables.yml
-# Map queue-time variables to the names the external.yml jobs expect
+# These variables support two trigger modes:
+# 1. Manual runs: values come from parameters (shown in ADO "Run pipeline" UI)
+# 2. API-triggered runs (schedule-build-in-ado.yml): values come as runtime variables
+#    via queueTimeVars, which are set AFTER compile-time parameter resolution.
+# We define from parameters (compile-time), but the API-set runtime variables with
+# the same names will override them at runtime.
+- name: Branding_SemanticVersion
+  value: ${{ parameters.Branding_SemanticVersion }}
+- name: Branding_PrereleaseTag
+  value: ${{ parameters.Branding_PrereleaseTag }}
+- name: RollingBuildNumber
+  ${{ if eq(parameters.RollingBuildNumber, 'auto') }}:
+    value: ${{ parameters.Branding_SemanticVersion }}-${{ parameters.Branding_PrereleaseTag }}
+  ${{ else }}:
+    value: ${{ parameters.RollingBuildNumber }}
+- name: RollingBuildId
+  ${{ if eq(parameters.RollingBuildId, 'auto') }}:
+    value: $(Build.BuildId)
+  ${{ else }}:
+    value: ${{ parameters.RollingBuildId }}
+# Map to the names the external.yml jobs expect
 - name: BuildXL.SemanticVersion
   value: $(Branding_SemanticVersion)
 - name: BuildXL.PreReleaseTag
@@ -56,22 +94,6 @@ extends:
     - stage: External
       displayName: Build and validate external bits
       jobs:
-      - job: SetBuildNumber
-        displayName: Set build number
-        steps:
-        - checkout: none
-        - task: CmdLine@2
-          displayName: Set build number from rolling pipeline
-          inputs:
-            script: |
-              @echo off
-              if defined RollingBuildNumber (
-                echo Setting build number to External-%RollingBuildNumber%
-                echo ##vso[build.updatebuildnumber]External-%RollingBuildNumber%
-              ) else (
-                echo RollingBuildNumber not set, keeping default build number
-              )
-
       - template: /.azdo/rolling/jobs/external.yml@self
         parameters:
           useDropsForArtifacts: true

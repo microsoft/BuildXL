@@ -31,6 +31,10 @@ variables:
 
 resources:
   repositories:
+  - repository: DominoReleaseManagement
+    type: git
+    name: Domino.ReleaseManagement
+    ref: master
   - repository: 1esPipelines
     type: git
     name: 1ESPipelineTemplates/1ESPipelineTemplates
@@ -87,14 +91,95 @@ extends:
       jobs:
       - template: .azdo/rolling/jobs/linux.yml@self
 
-    - stage: External
-      displayName: Build and validate external bits
+    - stage: TriggerExternal
+      displayName: Trigger External Validation Pipeline
       dependsOn: prepare
       variables:
         BuildXL.SemanticVersion: $[ stageDependencies.prepare.SetBuildNumber.outputs['SetBuildNumber.BuildXLSemanticVersion'] ]
         BuildXL.PreReleaseTag: $[ stageDependencies.prepare.SetBuildNumber.outputs['SetBuildNumber.BuildXLPreReleaseTag'] ]
       jobs:
-      - template: .azdo/rolling/jobs/external.yml@self
+      - job: TriggerExternalPipeline
+        displayName: Trigger and wait for External Validation
+        timeoutInMinutes: 240
+        pool:
+          name: BuildXL-DevOpsAgents-Selfhost-BuildCache
+          os: windows
+          image: 1ESPT-Win2022-PME-3
+        steps:
+        - checkout: none
+        - template: /pipelines/common/generate-access-token.yml@DominoReleaseManagement
+          parameters:
+            accessTokenVariable: 'BuildXLPipelinesAccessToken'
+            resource: '499b84ac-1321-427f-aa17-267ca6975798'
+            serviceConnection: 'mseng-Domino-BuildXL-Pipelines'
+        - task: PowerShell@2
+          displayName: Trigger and wait for External Validation
+          inputs:
+            targetType: inline
+            script: |
+              $ErrorActionPreference = "Stop"
+              $pipelineId = 22402
+              $org = "mseng"
+              $project = "Domino"
+              $apiVersion = "7.1-preview.1"
+              $token = $env:BUILDXL_PIPELINES_PAT
+              $headers = @{
+                Authorization = "Bearer $token"
+                "Content-Type" = "application/json"
+              }
+
+              # Trigger the external validation pipeline using template parameters
+              $body = @{
+                resources = @{
+                  repositories = @{
+                    self = @{
+                      refName = "$(Build.SourceBranch)"
+                      version = "$(Build.SourceVersion)"
+                    }
+                  }
+                }
+                templateParameters = @{
+                  Branding_SemanticVersion = "$(BuildXL.SemanticVersion)"
+                  Branding_PrereleaseTag = "$(BuildXL.PreReleaseTag)"
+                  RollingBuildNumber = "$(Build.BuildNumber)"
+                  RollingBuildId = "$(Build.BuildId)"
+                }
+              } | ConvertTo-Json -Depth 5
+
+              Write-Host "Triggering External Validation pipeline ($pipelineId) for version $(Build.BuildNumber)"
+              Write-Host "Request body: $body"
+
+              $runUrl = "https://dev.azure.com/$org/$project/_apis/pipelines/$pipelineId/runs?api-version=$apiVersion"
+              $response = Invoke-RestMethod -Uri $runUrl -Method Post -Headers $headers -Body $body
+              $runId = $response.id
+              $webUrl = $response._links.web.href
+
+              Write-Host "Pipeline run started: $webUrl (run ID: $runId)"
+
+              # Poll for completion
+              $statusUrl = "https://dev.azure.com/$org/$project/_apis/pipelines/$pipelineId/runs/${runId}?api-version=$apiVersion"
+              $pollInterval = 30
+              while ($true) {
+                Start-Sleep -Seconds $pollInterval
+                $status = Invoke-RestMethod -Uri $statusUrl -Method Get -Headers $headers
+                $state = $status.state
+                $result = $status.result
+
+                Write-Host "$(Get-Date -Format 'HH:mm:ss') - State: $state, Result: $result"
+
+                if ($state -eq "completed") {
+                  if ($result -eq "succeeded") {
+                    Write-Host "External Validation succeeded!"
+                    exit 0
+                  } else {
+                    Write-Host "##[error]External Validation failed with result: $result"
+                    Write-Host "##[error]See: $webUrl"
+                    exit 1
+                  }
+                }
+              }
+          env:
+            BUILDXL_PIPELINES_PAT: $(BuildXLPipelinesAccessToken)
 
     - stage: Mac
       displayName: Mac
@@ -106,7 +191,7 @@ extends:
       displayName: Publish
       variables:
       - group: "BuildXL GitHub Secrets"
-      dependsOn: [CB, RCIT, External, Linux, Mac]
+      dependsOn: [CB, RCIT, TriggerExternal, Linux, Mac]
       condition: and(succeeded(), eq(${{ parameters.triggerReleasePipeline }}, true), eq(variables.isPublishingBranch, true))
       jobs:
       - template: .azdo/rolling/jobs/publish.yml@self

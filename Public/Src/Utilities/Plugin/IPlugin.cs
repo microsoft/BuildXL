@@ -27,5 +27,11 @@ namespace BuildXL.Plugin
         Task StartCompletionTask { get; }
         /// <nodoc />
         List<PluginMessageType> SupportedMessageType { get; set; }
+
+        /// <summary>
+        /// Callback invoked when the plugin process exits unexpectedly.
+        /// The PluginManager subscribes to this to proactively unregister the plugin.
+        /// </summary>
+        Action<IPlugin> OnFaulted { get; set; }
     }
 }

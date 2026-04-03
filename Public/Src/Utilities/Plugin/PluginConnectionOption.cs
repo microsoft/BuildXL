@@ -16,5 +16,13 @@ namespace BuildXL.Plugin
         public string IpcMoniker;
         /// <nodoc />
         public ILogger Logger;
+        /// <summary>
+        /// How often (in seconds) the client sends HTTP/2 PING frames.
+        /// </summary>
+        public int KeepAlivePingDelayInSeconds = GrpcPluginSettings.KeepAlivePingDelayInSeconds;
+        /// <summary>
+        /// How long (in seconds) to wait for PING acknowledgement.
+        /// </summary>
+        public int KeepAlivePingTimeoutInSeconds = GrpcPluginSettings.KeepAlivePingTimeoutInSeconds;
     }
 }

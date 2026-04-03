@@ -43,6 +43,10 @@ namespace BuildXL.Plugin
         /// The plugin communication round-trip did not come back before the gRPC deadline
         /// </summary>
         TimeoutExceeded,
+        /// <summary>
+        /// The plugin process exited unexpectedly while the build was still running
+        /// </summary>
+        PluginProcessExited,
         // Add more values here as needed (and the assignment of that value elsewhere)
     }
 
@@ -294,6 +298,9 @@ namespace BuildXL.Plugin
 
             pluginCreationArgument.PluginPath = config.PluginPath;
 
+            pluginCreationArgument.ConnectionOption.KeepAlivePingDelayInSeconds = config.KeepAlivePingDelayInSeconds;
+            pluginCreationArgument.ConnectionOption.KeepAlivePingTimeoutInSeconds = config.KeepAlivePingTimeoutInSeconds;
+
             IPluginClient client = pluginCreationArgument.CreatePluginClientFunc.Invoke(pluginCreationArgument.ConnectionOption);
             client.RequestTimeout = config.Timeout;
             client.SupportedProcesses = new HashSet<string>(config.SupportedProcesses, StringComparer.OrdinalIgnoreCase);
@@ -335,6 +342,13 @@ namespace BuildXL.Plugin
                 {
                     Interlocked.Increment(ref m_pluginLoadedSuccessfulCount);
                     var plugin = result.Result;
+                    plugin.OnFaulted = faultedPlugin =>
+                    {
+                        Tracing.Logger.Log.PluginManagerWarningMessage(m_loggingContext,
+                            $"Plugin process {faultedPlugin.Name}-{faultedPlugin.Id} exited unexpectedly. Unregistering plugin.");
+                        PluginFailureReason = PluginFailureReason.PluginProcessExited;
+                        UnRegisterPlugin(faultedPlugin);
+                    };
                     Tracing.Logger.Log.PluginManagerLoadingPlugin(m_loggingContext, plugin.FilePath, plugin.Name, plugin.Id);
                 }
                 else
@@ -430,7 +444,7 @@ namespace BuildXL.Plugin
                 CreatePluginClientFunc = options =>
                 {
                     int port = TcpIpConnectivity.ParsePortNumber(options.IpcMoniker);
-                    return new PluginClient(IPAddress.Loopback.ToString(), port, options.Logger);
+                    return new PluginClient(IPAddress.Loopback.ToString(), port, options.Logger, options.KeepAlivePingDelayInSeconds, options.KeepAlivePingTimeoutInSeconds);
                 }
             };
         }

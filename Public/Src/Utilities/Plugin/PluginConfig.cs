@@ -44,5 +44,17 @@ namespace BuildXL.Plugin
         /// "Stop" message)
         /// </summary>
         public bool ExitGracefully { get; set; } = true; // On by default
+
+        /// <summary>
+        /// How often (in seconds) the client sends HTTP/2 PING frames to detect dead connections.
+        /// If not set, defaults to <see cref="GrpcPluginSettings.KeepAlivePingDelayInSeconds"/>.
+        /// </summary>
+        public int KeepAlivePingDelayInSeconds { get; set; }
+
+        /// <summary>
+        /// How long (in seconds) to wait for a PING acknowledgement before considering the connection dead.
+        /// If not set, defaults to <see cref="GrpcPluginSettings.KeepAlivePingTimeoutInSeconds"/>.
+        /// </summary>
+        public int KeepAlivePingTimeoutInSeconds { get; set; }
     }
 }

@@ -62,25 +62,31 @@ namespace BuildXL.Plugin
         /// <nodoc />
         public const int MAX_RETRY = 5;
         /// <nodoc />
-        public PluginClient(string ipAddress, int port, ILogger logger = null)
+        public PluginClient(string ipAddress, int port, ILogger logger = null, int keepAlivePingDelayInSeconds = 0, int keepAlivePingTimeoutInSeconds = 0)
         {
 #if NET6_0_OR_GREATER
-            Channel = CreateGrpcChannel(ipAddress, port);
+            Channel = CreateGrpcChannel(ipAddress, port, keepAlivePingDelayInSeconds, keepAlivePingTimeoutInSeconds);
             PluginServiceClient = new PluginServiceClient(Channel, Channel.Intercept(new PluginGrpcInterceptor(logger)));
 #endif
             Logger = logger;
         }
 
 #if NET6_0_OR_GREATER
-        private GrpcChannel CreateGrpcChannel(string ipAddress, int port)
+        private GrpcChannel CreateGrpcChannel(string ipAddress, int port, int keepAlivePingDelayInSeconds, int keepAlivePingTimeoutInSeconds)
         {
+            int pingDelay = keepAlivePingDelayInSeconds > 0 ? keepAlivePingDelayInSeconds : GrpcPluginSettings.KeepAlivePingDelayInSeconds;
+            int pingTimeout = keepAlivePingTimeoutInSeconds > 0 ? keepAlivePingTimeoutInSeconds : GrpcPluginSettings.KeepAlivePingTimeoutInSeconds;
+
             var handler = new SocketsHttpHandler
             {
                 UseCookies = false,
                 ConnectTimeout = TimeSpan.FromMilliseconds(GrpcPluginSettings.ConnectionTimeoutInMilliSeconds),
                 Expect100ContinueTimeout = TimeSpan.Zero,
                 PooledConnectionIdleTimeout = Timeout.InfiniteTimeSpan,
-                EnableMultipleHttp2Connections = true
+                EnableMultipleHttp2Connections = true,
+                KeepAlivePingDelay = TimeSpan.FromSeconds(pingDelay),
+                KeepAlivePingTimeout = TimeSpan.FromSeconds(pingTimeout),
+                KeepAlivePingPolicy = HttpKeepAlivePingPolicy.Always,
             };
 
             var channelOptions = new GrpcChannelOptions
@@ -90,6 +96,7 @@ namespace BuildXL.Plugin
                 MaxRetryBufferPerCallSize = null, // No limit on retry buffer size
                 MaxRetryBufferSize = null, // No limit on retry buffer size
                 HttpHandler = handler,
+                DisposeHttpClient = true, // Dispose the SocketsHttpHandler when the channel is disposed, ensuring keepalive pings stop and connections close
             };
 
             var defaultMethodConfig = new MethodConfig

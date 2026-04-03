@@ -64,6 +64,9 @@ namespace BuildXL.Plugin
         /// <nodoc />
         public List<PluginMessageType> SupportedMessageType { get; set; }
 
+        /// <inheritdoc />
+        public Action<IPlugin> OnFaulted { get; set; }
+
         /// <nodoc />
         public int RequestTimeout
         {
@@ -168,6 +171,7 @@ namespace BuildXL.Plugin
         private void HandleProcessExisted(object sender, EventArgs args)
         {
             Status = PluginStatus.Faulted;
+            OnFaulted?.Invoke(this);
         }
 
         /// <nodoc />

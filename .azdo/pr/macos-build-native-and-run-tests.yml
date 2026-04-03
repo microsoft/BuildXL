@@ -25,7 +25,6 @@ jobs:
       downloadType: 'single'
       artifactName: 'macos-tests-$(Build.BuildId)'
       downloadPath: '$(System.ArtifactsDirectory)/tests'
-      cleanDestinationFolder: true
 
   - task: Bash@3
     displayName: Prepare Intermediate Directories

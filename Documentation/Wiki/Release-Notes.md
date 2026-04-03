@@ -2,6 +2,15 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20260327.3 (Release [31250634](https://dev.azure.com/mseng/Domino/_build/results?buildId=31250634&view=results))
+- New `/pipReportActivityTimeout` and `/pipFirstReportActivityTimeout` flags to emit warnings for detecting stalled pips that stop producing Detours file access reports
+- New `/engineDumpTrigger` CLI flag for on-demand process dumps triggered by memory threshold, elapsed time, or pip completion percentage
+- [EBPF] Add retries on failure to the EBPF daemon and flag affected pips as infra errors for automatic retry
+- [Performance] Load `FileContentTable` in background without blocking engine startup, improving build initialization in CloudBuild scenarios
+- [Linux] Fix shutdown deadlock caused by gRPC config file change monitoring during engine teardown
+- [QTest] Multiple improvements: fix file info generation, support for local Linux development, avoid dependency on untracked source files
+- [VBCSCompilerLogger] Fix `MissingMethodException` caused by assembly version mismatches with System.Collections.Immutable
+
 # 0.1.0-20260319.3.1 (Release [31228605](https://dev.azure.com/mseng/Domino/_build/results?buildId=31228605&view=results))
 - Fixed a crash where unobserved task exceptions (common in retry patterns) would terminate the bxl application. These are now logged as non-fatal unexpected conditions instead.
 - Fixed VBCSCompiler to use older DLL versions, restoring compatibility with CloudBuild's older MSBuild binding redirects

@@ -1,0 +1,108 @@
+trigger: none  # Triggered by PR policy
+
+parameters:
+- name: AdditionalBuildXLArgs
+  type: string
+  displayName: Additional BuildXL arguments for the full build
+  default: ' '
+
+resources:
+  repositories:
+  - repository: 1esPipelines
+    type: git
+    name: 1ESPipelineTemplates/1ESPipelineTemplates
+    ref: refs/tags/release
+
+variables:
+- group: "BuildXL Common variables"
+- name: BuildXLDropName
+  value: buildxl.pr.$(Build.BuildId)
+# Add CG exclusions for the native ADO Component Detection task
+# CODESYNC: .azdo/rolling/jobs/cb-rolling.yml (CloudBuild CG exclusions via CG_DirectoryExclusionList)
+- template: /.azdo/common/component-detection-exclusions.yml
+
+extends:
+  template: v1/1ES.Unofficial.PipelineTemplate.yml@1esPipelines
+  parameters:
+    pool:
+      name: Windows-SDL-Agents
+      os: windows
+    sdl:
+      codeql:
+        compiled:
+          enabled: false
+          justificationForDisabling: 'CodeQL is run in a separate dedicated pipeline.'
+
+    stages:
+    - stage: CB
+      displayName: CloudBuild PR Validation
+      jobs:
+      - job: MinimalBuild
+        displayName: Build minimal in CloudBuild
+        timeoutInMinutes: 180
+        variables:
+        # Pass directory exclusions to CloudBuild's Component Governance integration.
+        # This must currently be set here as a pipeline variable rather than in the
+        # build queue config because of a bug in CloudBuild's Coordinator where
+        # ApplyPipelineTemplateOverrides unconditionally stomps queue-level CG
+        # settings with empty defaults from the 1ES Pipeline Template.
+        # CODESYNC: .azdo/common/component-detection-exclusions.yml (native ADO CG exclusions)
+        - name: CG_DirectoryExclusionList
+          value: '["**\\Out\\frontend\\Download**","**\\Out\\NodeJsForUnitTests**"]'
+        templateContext:
+          type: cloudBuildJob
+          arguments:
+            connectedServiceName: 2aef3ce3-3585-4f28-94a9-9b6cf2ff8dfe # CloudBuild Prod
+            buildQueue: BuildXL_Internal_PR
+            additionalFlags: >-
+              /f:spec='Public/Src/Deployment/buildXL.dsc'
+              /p:[Sdk.BuildXL]microsoftInternal=1
+              /validateCgManifestForNugets:cg\nuget\cgmanifest.json
+              /cacheMiss+
+              /q:ReleaseNet9
+            sendEmail: false
+            genericRunnerOptions: '{ "IsDropEnabled": "true", "DropName": "$(BuildXLDropName)", "ContentWriteMode": "WriteThrough" }'
+            minBuilders: 2
+            maxBuilders: 2
+        pool:
+          name: Windows-SDL-Agents
+          os: windows
+
+      - job: FullBuild
+        displayName: Build all qualifiers in CloudBuild with new BuildXL
+        timeoutInMinutes: 180
+        dependsOn: MinimalBuild
+        variables:
+        # Pass directory exclusions to CloudBuild's Component Governance integration.
+        # CODESYNC: .azdo/common/component-detection-exclusions.yml (native ADO CG exclusions)
+        - name: CG_DirectoryExclusionList
+          value: '["**\\Out\\frontend\\Download**","**\\Out\\NodeJsForUnitTests**"]'
+        templateContext:
+          type: cloudBuildJob
+          arguments:
+            connectedServiceName: 2aef3ce3-3585-4f28-94a9-9b6cf2ff8dfe # CloudBuild Prod
+            buildQueue: BuildXL_Internal_PR
+            additionalFlags: >-
+              /q:DebugNet8
+              /q:ReleaseNet8
+              /q:ReleaseDotNetCoreMac
+              /q:ReleaseNet472
+              /q:DebugNet472
+              /q:DebugNet9
+              /q:ReleaseNet9
+              /p:[Sdk.BuildXL]microsoftInternal=1
+              /enableEvaluationThrottling
+              /validateCgManifestForNugets:cg\nuget\cgmanifest.json
+              /p:[Sdk.BuildXL]DoNotForceXUnitFrameworkInVm=1
+              /p:[Sdk.BuildXL]enableRoslynAnalyzers=true
+              /cacheMiss:[BuildXL_PR]
+              /earlyWorkerRelease-
+              /maxWorkersPerModule:0
+              ${{ parameters.AdditionalBuildXLArgs }}
+              /replayWarnings
+            sendEmail: false
+            genericRunnerOptions: '{"CodeCoverageOption":"DynamicChangeList"}'
+            toolPaths: '{ "DominoEngine": "https://cloudbuild.artifacts.visualstudio.com/DefaultCollection/_apis/drop/drops/$(BuildXLDropName)?root=release/win-x64" }'
+        pool:
+          name: Windows-SDL-Agents
+          os: windows

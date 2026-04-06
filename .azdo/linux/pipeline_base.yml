@@ -31,6 +31,7 @@ extends:
     stages:
     - template: /.azdo/linux/linux-stages-template.yml
       parameters:
+        bootstrap: true
         pool:
           name: BuildXL-DevOpsAgents-Selfhost-BuildCache
           image: ${{ parameters.image }}

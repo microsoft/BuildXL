@@ -1,0 +1,26 @@
+parameters:
+- name: BxlCommonArgs
+  type: string
+  default: ''
+
+- name: sdkVersion
+  type: string
+  default: '9.x'
+
+stages:
+# Bootstrap runs on Ubuntu 22.04, producing an engine consumed by validation stages.
+# This mirrors the rolling build, which also bootstraps on 22.04 to produce
+# glibc-compatible binaries for all supported distros.
+# The eBPF sandbox is compiled natively since all supported platforms have kernel 6.6+.
+- stage: Bootstrap_Internal
+  displayName: Bootstrap engine
+  dependsOn: []
+  jobs:
+  - template: /.azdo/linux/jobs/job-bootstrap.yml@self
+    parameters:
+      BxlCommonArgs: --shared-comp ${{ parameters.BxlCommonArgs }}
+      pool:
+        name: BuildXL-DevOpsAgents-Selfhost-BuildCache
+        image: ubuntu-22.04-PME-GPT
+        os: linux
+      sdkVersion: ${{ parameters.sdkVersion }}

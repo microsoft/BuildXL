@@ -8,6 +8,10 @@ parameters:
 - name: sdkVersion
   type: string
 
+- name: suffix
+  type: string
+  default: ''
+
 - name: preBuildSteps
   type: stepList
   default: []
@@ -25,7 +29,7 @@ jobs:
     outputs:
     - output: pipelineArtifact
       targetPath: $(Build.SourcesDirectory)/Out/Logs/Bootstrap
-      artifactName: BuildXL-Logs.External.Bootstrap.$(System.JobAttempt)
+      artifactName: BuildXL-Logs.External.Bootstrap${{ parameters.suffix }}.$(System.JobAttempt)
       condition: always()
       continueOnError: true
       displayName: Upload bootstrap Logs
@@ -59,6 +63,6 @@ jobs:
         ${{ parameters.BxlCommonArgs }}
       displayName: Build
       env:
-        AdoBuildRunnerInvocationKey: BuildExternal
+        AdoBuildRunnerInvocationKey: BuildExternal${{ parameters.suffix }}
         SYSTEM_ACCESSTOKEN: $(System.AccessToken)
         workingDirectory: /home/subst

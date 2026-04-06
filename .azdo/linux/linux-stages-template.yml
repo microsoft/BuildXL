@@ -1,6 +1,6 @@
 parameters:
 # Do not use this parameter, and rather BxlExtraArgs below to append extra arguments.
-# This parameters is used as a constant to define arguments for all Linux builds below
+# This parameter is used as a constant to define arguments for all Linux builds below.
 - name: BxlCommonArgs
   type: string
   default: >-
@@ -16,6 +16,23 @@ parameters:
 - name: pool
   type: object
 
+# Suffix appended to stage names to make them unique when this template
+# is invoked multiple times in the same pipeline (e.g., _Ubuntu2204, _AzureLinux3).
+- name: suffix
+  type: string
+  default: ''
+
+# Human-readable prefix shown in display names (e.g., '[Ub22.04] ').
+# Include the trailing space in the value itself.
+- name: displayPrefix
+  type: string
+  default: ''
+
+# TODO: Remove the 'bootstrap' parameter once the entry point pipeline is run-linux-pr.yml.
+- name: bootstrap
+  type: boolean
+  default: true
+
 - name: sdkVersion
   type: string
   default: '9.x'
@@ -26,69 +43,38 @@ parameters:
   default: []
 
 stages:
-# This stage must run under Ubuntu 22.04 or newer for compatibility reasons when building the eBPF Sandbox.
-# This is why the pool parameter is not passed along here, and specified in job-ebpf.yml itself
-- stage: Bootstrap_Internal_eBPF
-  displayName: Bootstrap eBPF Sandbox Internal
+# TODO: Remove this step and the 'bootstrap' parameter once the entry point pipeline is run-linux-pr.yml.
+# Bootstrap runs on Ubuntu 22.04, producing an engine consumed by validation stages.
+# This mirrors the rolling build, which also bootstraps on 22.04 to produce
+# glibc-compatible binaries for all supported distros.
+# The eBPF sandbox is compiled natively since all supported platforms have kernel 6.6+.
+- ${{ if parameters.bootstrap }}:
+  - stage: Bootstrap_Internal
+    displayName: Bootstrap engine
+    dependsOn: []
+    jobs:
+    - template: /.azdo/linux/jobs/job-bootstrap.yml@self
+      parameters:
+        BxlCommonArgs: --shared-comp ${{ parameters.BxlCommonArgs }}
+        pool:
+          name: BuildXL-DevOpsAgents-Selfhost-BuildCache
+          image: ubuntu-22.04-PME-GPT
+          os: linux
+        sdkVersion: ${{ parameters.sdkVersion }}
+
+- stage: Build_External${{ parameters.suffix }}
+  displayName: ${{ parameters.displayPrefix }}External validation
   dependsOn: []
   jobs:
-  # Build the eBPF Sandbox binaries first for the next step to consume.
-  - template: /.azdo/linux/jobs/job-ebpf.yml@self
+  - template: /.azdo/linux/jobs/job-external.yml@self
     parameters:
       BxlCommonArgs: --shared-comp ${{ parameters.BxlCommonArgs }} ${{ parameters.BxlExtraArgs }}
-      internal: true
-      outputArtifactName: 'ebpf-dev-internal'
-      sdkVersion: ${{ parameters.sdkVersion }}
-
-# This stage may run on an older version of Ubuntu such as 20.04
-# It's necessary for the interpose sandbox to be built on Ubuntu 20.04 to maintain compatibility with older versions of glibc.
-- stage: Bootstrap_Internal
-  displayName: Bootstrap engine for validations
-  dependsOn: [Bootstrap_Internal_eBPF]
-  jobs:
-  # Build and test selfhost with BuildXL
-  - template: /.azdo/linux/jobs/job-bootstrap.yml@self
-    parameters:
-      BxlCommonArgs: --shared-comp /p:BuildXLEbpfSandboxDeploymentOverridePath=$(Build.StagingDirectory)/Linux.eBPF ${{ parameters.BxlCommonArgs }} ${{ parameters.BxlExtraArgs }}
       pool: ${{ parameters.pool }}
       sdkVersion: ${{ parameters.sdkVersion }}
-      preBuildSteps:
-      - task: DownloadPipelineArtifact@2
-        displayName: 'Download eBPF Sandbox binaries'
-        inputs:
-          artifactName: 'ebpf-dev-internal'
-          targetPath: "$(Build.StagingDirectory)/Linux.eBPF"
+      suffix: ${{ parameters.suffix }}
 
-- stage: Bootstrap_External_eBPF
-  displayName: Bootstrap eBPF Sandbox External
-  dependsOn: []
-  jobs:
-  # Build the eBPF Sandbox binaries first for the next step to consume.
-  - template: /.azdo/linux/jobs/job-ebpf.yml@self
-    parameters:
-      BxlCommonArgs: --shared-comp ${{ parameters.BxlCommonArgs }} ${{ parameters.BxlExtraArgs }}
-      internal: false
-      outputArtifactName: 'ebpf-dev-external'
-      sdkVersion: ${{ parameters.sdkVersion }}
-
-- stage: Build_External
-  displayName: External validation
-  dependsOn: [Bootstrap_External_eBPF]
-  jobs:
-    - template: /.azdo/linux/jobs/job-external.yml@self
-      parameters:
-        BxlCommonArgs: --shared-comp /p:BuildXLEbpfSandboxDeploymentOverridePath=$(Build.StagingDirectory)/Linux.eBPF ${{ parameters.BxlCommonArgs }} ${{ parameters.BxlExtraArgs }}
-        pool: ${{ parameters.pool }}
-        sdkVersion: ${{ parameters.sdkVersion }}
-        preBuildSteps:
-        - task: DownloadPipelineArtifact@2
-          displayName: 'Download eBPF Sandbox binaries'
-          inputs:
-            artifactName: 'ebpf-dev-external'
-            targetPath: "$(Build.StagingDirectory)/Linux.eBPF"
-
-- stage: Build_Internal
-  displayName: Internal validation
+- stage: Build_Internal${{ parameters.suffix }}
+  displayName: ${{ parameters.displayPrefix }}Internal validation
   dependsOn: Bootstrap_Internal
   jobs:
   - template: /.azdo/linux/jobs/job-selfhost.yml@self
@@ -100,9 +86,9 @@ stages:
       - ${{ each step in parameters.preBuildSteps }}:
         - ${{ step }}
 
-- stage: Verify_PTrace
-  displayName: PTrace validation
-  dependsOn: Bootstrap_Internal  
+- stage: Verify_PTrace${{ parameters.suffix }}
+  displayName: ${{ parameters.displayPrefix }}PTrace validation
+  dependsOn: Bootstrap_Internal
   jobs:
   - template: /.azdo/linux/jobs/job-ptrace.yml@self
     parameters:
@@ -110,14 +96,16 @@ stages:
       pool: ${{ parameters.pool }}
       sdkVersion: ${{ parameters.sdkVersion }}
 
-- stage: Build_Distributed
-  displayName: Distributed test
-  dependsOn: [Build_Internal, Verify_PTrace] 
+- stage: Build_Distributed${{ parameters.suffix }}
+  displayName: ${{ parameters.displayPrefix }}Distributed test
+  dependsOn:
+  - Build_Internal${{ parameters.suffix }}
+  - Verify_PTrace${{ parameters.suffix }}
   jobs:
   - template: /.azdo/linux/jobs/job-distributed-1espt.yml@self
     parameters:
       pool:
-        # This stage expects a pool with a build cache configured, so harcoding that one
+        # This stage expects a pool with a build cache configured, so hardcoding that one
         ${{ each kvp in parameters.pool }}:
           ${{ if not(in(kvp.key, 'name')) }}:
             ${{ kvp.key }}: ${{ kvp.value }}

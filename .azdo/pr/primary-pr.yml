@@ -54,6 +54,7 @@ extends:
           arguments:
             connectedServiceName: 2aef3ce3-3585-4f28-94a9-9b6cf2ff8dfe # CloudBuild Prod
             buildQueue: BuildXL_Internal_PR
+            uploadDropMetadata: false
             additionalFlags: >-
               /f:spec='Public/Src/Deployment/buildXL.dsc'
               /p:[Sdk.BuildXL]microsoftInternal=1
@@ -82,6 +83,7 @@ extends:
           arguments:
             connectedServiceName: 2aef3ce3-3585-4f28-94a9-9b6cf2ff8dfe # CloudBuild Prod
             buildQueue: BuildXL_Internal_PR
+            uploadDropMetadata: false
             additionalFlags: >-
               /q:DebugNet8
               /q:ReleaseNet8

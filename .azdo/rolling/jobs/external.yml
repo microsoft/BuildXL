@@ -50,7 +50,7 @@ jobs:
         displayName: Publish external packages to drop
         continueOnError: True
         dropServiceURI: https://mseng.artifacts.visualstudio.com/DefaultCollection
-        buildNumber: BuildXL/External/Pkgs/${{ parameters.RollingBuildNumber }}/${{ parameters.RollingBuildId }}
+        buildNumber: buildxl/external/pkgs/${{ parameters.RollingBuildNumber }}/${{ parameters.RollingBuildId }}
         sourcePath: $(Build.SourcesDirectory)\Out\Bin\release\public\pkgs
         retentionDays: 5
         dropMetadataContainerName: DropMetadata-External-Pkgs
@@ -66,7 +66,7 @@ jobs:
         displayName: Publish VS Code extension to drop
         continueOnError: True
         dropServiceURI: https://mseng.artifacts.visualstudio.com/DefaultCollection
-        buildNumber: BuildXL/External/VsCode/${{ parameters.RollingBuildNumber }}/${{ parameters.RollingBuildId }}
+        buildNumber: buildxl/external/vscode/${{ parameters.RollingBuildNumber }}/${{ parameters.RollingBuildId }}
         sourcePath: $(Build.SourcesDirectory)\Out\Bin\release\ide
         retentionDays: 5
         dropMetadataContainerName: DropMetadata-External-VsCode
@@ -249,7 +249,7 @@ jobs:
     - output: artifactsDrop
       displayName: Publish Packages to Intermediate Drop
       dropServiceURI: https://mseng.artifacts.visualstudio.com/DefaultCollection
-      buildNumber: BuildXL/Linux/External/Intermediate/${{ parameters.RollingBuildNumber }}/${{ parameters.RollingBuildId }}
+      buildNumber: buildxl/linux/external/intermediate/${{ parameters.RollingBuildNumber }}/${{ parameters.RollingBuildId }}
       sourcePath: $(Build.SourcesDirectory)/Out/Bin/release/public/pkgs
       retentionDays: 5
       dropMetadataContainerName: DropMetadata-Linux-Intermediate-External
@@ -259,7 +259,7 @@ jobs:
         displayName: Publish Linux VS Code extension to drop
         continueOnError: True
         dropServiceURI: https://mseng.artifacts.visualstudio.com/DefaultCollection
-        buildNumber: BuildXL/External/VsCode/Linux/${{ parameters.RollingBuildNumber }}/${{ parameters.RollingBuildId }}
+        buildNumber: buildxl/external/vscode/linux/${{ parameters.RollingBuildNumber }}/${{ parameters.RollingBuildId }}
         sourcePath: $(Build.SourcesDirectory)/Out/Bin/release/ide
         retentionDays: 5
         dropMetadataContainerName: DropMetadata-External-VsCode-Linux

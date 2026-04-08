@@ -294,13 +294,6 @@ namespace BuildXL.Scheduler
                         serviceProcess,
                         processId =>
                         {
-                            if (processId < 0)
-                            {
-                                // processIdListener is called twice: 'processId' after the process has started, and
-                                // '-processId' after the process has exited. Here we are only interested in the first call.
-                                return;
-                            }
-
                             if (isStartup)
                             {
                                 var pipIdCompletion = GetServicePipIdCompletionByProcessId(processId);

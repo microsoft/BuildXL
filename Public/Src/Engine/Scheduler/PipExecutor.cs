@@ -1481,13 +1481,21 @@ namespace BuildXL.Scheduler
                 }
             }
 
+            // Use a detours event listener to detect the root process of a sandboxed process and invoke the callback.
+            // We use this instead of a regular process listener because for service pips we need the process id as
+            // seen from the outside to correlate with the self-reported process id the (sandboxed) service pip is running in.
+            // In particular, for EBPF-based monitoring, these don't match (as the ebpf-runner is injected in the process tree as the main process)
+            var detoursListener = processIdListener != null
+                ? new ProcessStartEventListener(processIdListener, environment.SandboxConnection?.Kind)
+                : null;
+
             var result = await ExecuteProcessAsync(
                 operationContext,
                 environment,
                 environment.State.GetScope(pip),
                 pip,
                 fingerprint: null,
-                processIdListener: processIdListener);
+                detoursEventListener: detoursListener);
 
             result.Seal();
             return result;

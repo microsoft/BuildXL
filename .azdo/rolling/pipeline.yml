@@ -51,6 +51,9 @@ extends:
       autoBaseline: false
       incrementalSDLBinaryAnalysis: true
     sdl:
+      componentgovernance:
+        # CODESYNC: .azdo/common/component-detection-exclusions.yml
+        ignoreDirectories: 'Out/frontend/Download,Out/NodeJsForUnitTests'
       sourceAnalysisPool:
         name: Windows-SDL-Agents
         os: windows

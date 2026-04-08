@@ -22,15 +22,6 @@ jobs:
   timeoutInMinutes: 180
   dependsOn: ${{ parameters.dependsOn }}
   continueOnError: ${{ parameters.continueOnError }}
-  variables:
-  # Pass directory exclusions to CloudBuild's Component Governance integration.
-  # This must currently be set here as a pipeline variable rather than in the
-  # build queue config because of a bug in CloudBuild's Coordinator where
-  # ApplyPipelineTemplateOverrides unconditionally stomps queue-level CG
-  # settings with empty defaults from the 1ES Pipeline Template.
-  # CODESYNC: .azdo/common/component-detection-exclusions.yml (native ADO CG exclusions)
-  - name: CG_DirectoryExclusionList
-    value: '["**\\Out\\frontend\\Download**","**\\Out\\NodeJsForUnitTests**"]'
   ${{ if parameters.condition }}:
     condition: ${{ parameters.condition }}
   templateContext:

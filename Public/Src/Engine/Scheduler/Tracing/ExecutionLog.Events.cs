@@ -705,7 +705,7 @@ namespace BuildXL.Scheduler.Tracing
         public void Serialize(BinaryLogger.EventWriter writer)
         {
             writer.Write(FileArtifact);
-            FileContentInfo.Hash.SerializeHashBytes(writer);
+            ContentHashSerializer.WriteContentHash(writer, FileContentInfo.Hash);
             writer.WriteCompact(FileContentInfo.Length);
             writer.Write((byte)OutputOrigin);
         }
@@ -715,7 +715,7 @@ namespace BuildXL.Scheduler.Tracing
         {
             FileArtifact = reader.ReadFileArtifact();
             FileContentInfo = new FileContentInfo(
-                hash: ContentHashingUtilities.CreateFrom(reader),
+                hash: ContentHashSerializer.ReadContentHash(reader),
                 length: reader.ReadInt64Compact());
             OutputOrigin = (PipOutputOrigin)reader.ReadByte();
         }
@@ -1041,7 +1041,8 @@ namespace BuildXL.Scheduler.Tracing
         public void Serialize(BinaryLogger.EventWriter writer)
         {
             writer.Write(Directory);
-            DirectoryFingerprint.Hash.Serialize(writer);
+            ContentHashSerializer.WriteContentHash(writer, DirectoryFingerprint.Hash);
+
             writer.Write((byte)m_flags);
             writer.Write((byte)EnumerationMode);
             PipId.Serialize(writer);
@@ -1059,7 +1060,8 @@ namespace BuildXL.Scheduler.Tracing
         public void DeserializeAndUpdate(BinaryLogReader.EventReader reader)
         {
             Directory = reader.ReadAbsolutePath();
-            DirectoryFingerprint = new DirectoryFingerprint(new ContentHash(reader));
+            DirectoryFingerprint = new DirectoryFingerprint(ContentHashSerializer.ReadDirectoryMembershipHash(reader));
+
             m_flags = (Flags)reader.ReadByte();
             EnumerationMode = (DirectoryEnumerationMode)reader.ReadByte();
             PipId = PipId.Deserialize(reader);

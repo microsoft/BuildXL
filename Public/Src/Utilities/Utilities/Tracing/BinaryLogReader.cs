@@ -76,6 +76,18 @@ namespace BuildXL.Utilities.Tracing
         protected ConcurrentDenseIndex<StringId> m_capturedStrings;
 
         /// <summary>
+        /// As deduplicated content hash bytes are read from the log, they are stored here
+        /// </summary>
+        protected ConcurrentDenseIndex<byte[]> m_capturedContentHashes;
+
+        /// <summary>
+        /// Indicates whether this log uses content hash interning (AddContentHash events).
+        /// Set to true when the first AddContentHash event is encountered.
+        /// Used by deserializers to determine whether to read interned indices or raw hash bytes.
+        /// </summary>
+        public bool HasContentHashInterning { get; protected set; }
+
+        /// <summary>
         /// The event handlers to use when processing events from the log
         /// </summary>
         protected EventHandler[] m_handlers;
@@ -114,6 +126,7 @@ namespace BuildXL.Utilities.Tracing
             m_capturedPaths = new ConcurrentDenseIndex<AbsolutePath>(debug: false);
             m_capturedStrings = new ConcurrentDenseIndex<StringId>(debug: false);
             m_capturedStrings[0] = StringId.Invalid;
+            m_capturedContentHashes = new ConcurrentDenseIndex<byte[]>(debug: false);
             m_logStreamReader = new EventReader(this);
             m_handlers = new EventHandler[1024];
 
@@ -207,6 +220,9 @@ namespace BuildXL.Utilities.Tracing
                             case BinaryLogger.LogSupportEventId.AddStringId:
                                 ReadStringIdEvent(m_logStreamReader);
                                 break;
+                            case BinaryLogger.LogSupportEventId.AddContentHash:
+                                ReadContentHashEvent(m_logStreamReader);
+                                break;
                         }
 
                         Contract.Assert(LogStream.Position == (position + header.EventPayloadSize));
@@ -273,6 +289,18 @@ namespace BuildXL.Utilities.Tracing
             string name = reader.ReadString();
             var stringId = StringId.Create(m_context.StringTable, name);
             m_capturedStrings[(uint)index] = stringId;
+            return (uint)index;
+        }
+
+        /// <nodoc />
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1011:ConsiderPassingBaseTypesAsParameters")]
+        protected uint ReadContentHashEvent(EventReader reader)
+        {
+            HasContentHashInterning = true;
+            int index = reader.ReadInt32Compact();
+            int length = reader.ReadInt32Compact();
+            byte[] hashBytes = reader.ReadBytes(length);
+            m_capturedContentHashes[(uint)index] = hashBytes;
             return (uint)index;
         }
 
@@ -383,6 +411,24 @@ namespace BuildXL.Utilities.Tracing
             {
                 return GetStringFromDynamicIndex((uint)ReadInt32Compact());
             }
+
+            /// <summary>
+            /// Returns the interned content hash bytes for the given index.
+            /// </summary>
+            public virtual byte[] GetContentHashBytes(int index)
+            {
+                return LogReader.m_capturedContentHashes[(uint)index];
+            }
+
+            /// <summary>
+            /// Whether the log being read uses content hash interning.
+            /// </summary>
+            /// <remarks>
+            /// Used to maintain backwards compatibility with reading in older logs. Can be removed
+            /// in the future.Technically we don't provide any backward compatibility guarantees
+            /// for XLG files anywyay.
+            /// </remarks>
+            public bool HasContentHashInterning => LogReader.HasContentHashInterning;
 
             /// <summary>
             /// Converts a dynamic index into StringId

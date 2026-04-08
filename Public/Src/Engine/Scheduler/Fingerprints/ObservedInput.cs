@@ -5,6 +5,7 @@ using System;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Processes;
+using BuildXL.Scheduler.Tracing;
 using BuildXL.Storage;
 using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
@@ -312,7 +313,7 @@ namespace BuildXL.Scheduler.Fingerprints
             PathEntry.Serialize(writer);
             if (!HasPredefinedHash(Type))
             {
-                Hash.SerializeHashBytes(writer);
+                ContentHashSerializer.WriteContentHash(writer, Hash);
             }
         }
 
@@ -320,9 +321,12 @@ namespace BuildXL.Scheduler.Fingerprints
         {
             ObservedInputType type = (ObservedInputType)reader.ReadInt32Compact();
             ObservedPathEntry pathEntry = ObservedPathEntry.Deserialize(reader);
-            ContentHash? hash = HasPredefinedHash(type)
-                ? (ContentHash?) null
-                : ContentHashingUtilities.CreateFrom(reader); // don't specific explicit hash for predefined hash input types
+            ContentHash? hash = null;
+            if (!HasPredefinedHash(type))
+            {
+                hash = ContentHashSerializer.ReadContentHash(reader);
+            }
+
             return new ObservedInput(type, hash, pathEntry);
         }
     }

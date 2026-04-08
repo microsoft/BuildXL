@@ -67,5 +67,6 @@ namespace BuildXL.Execution.Analyzer
         LinuxPipDebug,
         AstredAnalyzer,
         Benchmark,
+        ReplayXlg,
     }
 }

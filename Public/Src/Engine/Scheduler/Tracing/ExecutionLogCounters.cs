@@ -30,5 +30,15 @@ namespace BuildXL.Scheduler.Tracing
         /// Remaing pending events after execution log disposed.
         /// </summary>
         RemaingPendingEvents,
+
+        /// <summary>
+        /// Number of unique content hashes deduplicated in the execution log.
+        /// </summary>
+        UniqueContentHashCount,
+
+        /// <summary>
+        /// Total number of content hash references written to the execution log (including duplicates).
+        /// </summary>
+        ContentHashEntriesWritten,
     }
 }

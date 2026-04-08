@@ -378,6 +378,9 @@ namespace BuildXL.Execution.Analyzer
                 case AnalysisMode.AstredAnalyzer:
                     m_analyzer = InitializeAstredAnalyzer();
                     break;
+                case AnalysisMode.ReplayXlg:
+                    m_analyzer = InitializeReplayXlgAnalyzer();
+                    break;
                 default:
                     Contract.Assert(false, "Unhandled analysis mode");
                     break;
@@ -701,6 +704,9 @@ namespace BuildXL.Execution.Analyzer
 
             writer.WriteLine("");
             WriteBenchmarkAnalyzerHelp(writer);
+
+            writer.WriteLine("");
+            WriteReplayXlgAnalyzerHelp(writer);
         }
 
         public void LogEventSummary()

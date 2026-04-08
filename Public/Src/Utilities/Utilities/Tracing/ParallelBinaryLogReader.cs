@@ -163,6 +163,9 @@ namespace BuildXL.Utilities.Tracing
                                 case BinaryLogger.LogSupportEventId.AddStringId:
                                     ReadStringIdEvent(parallelEventReader);
                                     break;
+                                case BinaryLogger.LogSupportEventId.AddContentHash:
+                                    ReadContentHashEvent(parallelEventReader);
+                                    break;
                             }
 
                             Contract.Assert(fileStream.Position == startOfNextEvent);
@@ -413,6 +416,26 @@ namespace BuildXL.Utilities.Tracing
                 // Currently, ParallelEventReader/ParallelBinaryLogReader do not support dynamically written StringIds.
                 // ParallelLogReader.m_capturedPaths might not contain a proper mapping when a call to this method is made.
                 return StringId.Invalid;
+            }
+
+            /// <summary>
+            /// Returns the interned content hash bytes for the given index in a parallel-safe manner.
+            /// Spins until the AddContentHash event for the requested index has been processed.
+            /// </summary>
+            public override byte[] GetContentHashBytes(int index)
+            {
+                byte[] result = ParallelLogReader.m_capturedContentHashes[(uint)index];
+                if (result == null)
+                {
+                    var spinWait = new SpinWait();
+                    while (result == null)
+                    {
+                        spinWait.SpinOnce();
+                        result = ParallelLogReader.m_capturedContentHashes[(uint)index];
+                    }
+                }
+
+                return result;
             }
         }
     }

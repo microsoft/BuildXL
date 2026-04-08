@@ -453,6 +453,8 @@ namespace BuildXL.Scheduler.Tracing
         {
             Counters.AddToCounter(ExecutionLogCounters.MaxPendingEvents, m_logFile.MaxPendingEventsCount);
             Counters.AddToCounter(ExecutionLogCounters.EventWriterFactoryCalls, m_logFile.EventWriterFactoryCalls);
+            Counters.AddToCounter(ExecutionLogCounters.UniqueContentHashCount, m_logFile.UniqueContentHashCount);
+            Counters.AddToCounter(ExecutionLogCounters.ContentHashEntriesWritten, m_logFile.ContentHashEntriesWritten);
         }
 
         /// <inheritdoc />

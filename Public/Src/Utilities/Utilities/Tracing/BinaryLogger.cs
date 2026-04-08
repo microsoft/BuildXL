@@ -2,7 +2,9 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Buffers.Binary;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
 using System.IO;
@@ -41,8 +43,17 @@ namespace BuildXL.Utilities.Tracing
         private readonly BuildXLWriter m_logStreamWriter;
         private readonly Stopwatch m_watch;
         private readonly ObjectPool<EventWriter> m_writerPool;
+
+        // These maps intern frequently-repeated values (paths, strings, content hashes) to compact
+        // integer indices in the event stream. The bool value tracks whether the corresponding
+        // side-channel registration event (AddPath, AddStringId, AddContentHash) has been written
+        // (true) or is still pending (false). Multiple threads may race to add the same key; each
+        // thread that sees the bool as false writes a (possibly duplicate but harmless) registration
+        // event, ensuring the reader always processes the definition before any reference regardless
+        // of event queue ordering.
         private readonly ConcurrentBigMap<AbsolutePath, bool> m_capturedPaths;
         private readonly ConcurrentBigMap<StringId, bool> m_capturedStrings;
+        private readonly ConcurrentBigMap<ContentHashKey, bool> m_capturedContentHashes;
         private readonly PipExecutionContext m_context;
         private readonly Action m_onEventWritten;
 
@@ -55,6 +66,8 @@ namespace BuildXL.Utilities.Tracing
 
         private long m_pendingEventsCount;
         private long m_maxPendingEventsCount;
+        private long m_contentHashEntriesWritten;
+        private long m_contentHashOverflowCount;
 
         /// <summary>
         /// Max pending events in the binary logger.
@@ -70,6 +83,27 @@ namespace BuildXL.Utilities.Tracing
         /// Number of event writer creations.
         /// </summary>
         public long EventWriterFactoryCalls => m_writerPool.FactoryCalls;
+
+        /// <summary>
+        /// Number of unique content hashes deduplicated in the log.
+        /// </summary>
+        public long UniqueContentHashCount => m_capturedContentHashes.Count;
+
+        /// <summary>
+        /// Total number of content hash references written (including duplicates).
+        /// </summary>
+        public long ContentHashEntriesWritten => Volatile.Read(ref m_contentHashEntriesWritten);
+
+        /// <summary>
+        /// Number of content hash writes that bypassed interning because the table was full.
+        /// </summary>
+        public long ContentHashOverflowCount => Volatile.Read(ref m_contentHashOverflowCount);
+
+        /// <summary>
+        /// When true, WriteContentHash writes raw bytes instead of interning.
+        /// Used for benchmarking to compare serialization sizes.
+        /// </summary>
+        public bool SuppressContentHashInterning { get; set; }
 
         /// <summary>
         /// Creates a new binary logger to write to the given stream
@@ -92,6 +126,7 @@ namespace BuildXL.Utilities.Tracing
             {
                 { StringId.Invalid, true }
             };
+            m_capturedContentHashes = new ConcurrentBigMap<ContentHashKey, bool>();
             m_writerPool = new ObjectPool<EventWriter>(() => new EventWriter(this), writer => { writer.Clear(); return writer; });
             m_onEventWritten = onEventWritten;
             m_logWriterBlock = ActionBlockSlim.Create<IQueuedAction>(
@@ -229,6 +264,11 @@ namespace BuildXL.Utilities.Tracing
             /// Adds a dynamic StringId
             /// </summary>
             AddStringId = 2,
+
+            /// <summary>
+            /// Adds a deduplicated content hash
+            /// </summary>
+            AddContentHash = 3,
 
             // First 20 event Ids are reserved for use as internal events
             Max = 20,
@@ -407,6 +447,67 @@ namespace BuildXL.Utilities.Tracing
                 WriteCompact(result.Index);
             }
 
+            /// <summary>
+            /// Whether content hash interning is suppressed (for benchmarking).
+            /// </summary>
+            public bool SuppressContentHashInterning => m_logWriter.SuppressContentHashInterning;
+
+            /// <summary>
+            /// Current number of unique content hashes in the intern table.
+            /// </summary>
+            public int ContentHashInternCount => m_logWriter.m_capturedContentHashes.Count;
+
+            /// <summary>
+            /// Looks up or adds a content hash key in the intern table.
+            /// Returns the result including the boolean flag indicating whether the
+            /// AddContentHash side-channel event has been written for this entry.
+            /// </summary>
+            internal ConcurrentBigSet<KeyValuePair<ContentHashKey, bool>>.GetAddOrUpdateResult GetOrAddContentHash(ContentHashKey key)
+            {
+                return m_logWriter.m_capturedContentHashes.GetOrAdd(key, false);
+            }
+
+            /// <summary>
+            /// Looks up a content hash key in the intern table without adding.
+            /// Used when the table is over capacity to check for previously interned hashes.
+            /// </summary>
+            internal ConcurrentBigSet<KeyValuePair<ContentHashKey, bool>>.GetAddOrUpdateResult TryGetContentHash(ContentHashKey key)
+            {
+                return m_logWriter.m_capturedContentHashes.TryGet(key);
+            }
+
+            /// <summary>
+            /// Writes an AddContentHash side-channel event that registers hash bytes at the given
+            /// index, then marks the entry as written so other threads skip duplicate registration.
+            /// </summary>
+            internal void WriteAddContentHashEvent(ContentHashKey key, int index, byte[] hashBytes, int offset, int length)
+            {
+                using (var eventScope = m_logWriter.StartEvent(LogSupportEventId.AddContentHash))
+                {
+                    eventScope.Writer.WriteCompact(index);
+                    eventScope.Writer.WriteCompact(length);
+                    eventScope.Writer.Write(hashBytes, offset, length);
+                }
+
+                m_logWriter.m_capturedContentHashes[key] = true;
+            }
+
+            /// <summary>
+            /// Increments the interned content hash reference counter.
+            /// </summary>
+            public void IncrementContentHashEntries()
+            {
+                Interlocked.Increment(ref m_logWriter.m_contentHashEntriesWritten);
+            }
+
+            /// <summary>
+            /// Increments the overflow (inline) content hash write counter.
+            /// </summary>
+            public void IncrementContentHashOverflow()
+            {
+                Interlocked.Increment(ref m_logWriter.m_contentHashOverflowCount);
+            }
+
             void IQueuedAction.Run() => m_logWriter.WriteEventDataAndReturnWriter(this);
 
             /// <summary>
@@ -416,6 +517,104 @@ namespace BuildXL.Utilities.Tracing
             {
                 Seek(0, SeekOrigin.Begin);
                 Exception = null;
+            }
+        }
+
+        /// <summary>
+        /// Lightweight struct used as a dictionary key for content hash deduplication.
+        /// Stores raw hash bytes (up to 33 bytes) without depending on the ContentHash type.
+        /// </summary>
+        /// <remarks>
+        /// ContentHash (from BuildXL.Cache.ContentStore.Hashing) cannot be used directly here
+        /// because BuildXL.Utilities does not depend on that assembly. Adding that dependency
+        /// would violate the existing module layering. A raw byte[] also cannot serve as a
+        /// dictionary key because arrays use reference equality. This struct provides value-based
+        /// equality over the hash bytes by packing them into fixed-size primitive fields.
+        ///
+        /// The struct stores the first 32 bytes of the hash (4 × 8-byte longs). This is sufficient
+        /// because all hashes in a single build use the same algorithm, so the hash type byte
+        /// (byte 33 for VSO0) does not need to be included for uniqueness. Hashes shorter than
+        /// 32 bytes are zero-padded in the upper fields.
+        /// </remarks>
+        internal readonly struct ContentHashKey : IEquatable<ContentHashKey>
+        {
+            /// <summary>
+            /// Maximum number of hash bytes this struct can represent.
+            /// </summary>
+            public const int MaxSupportedLength = 33;
+
+            private readonly long _a, _b, _c, _d;
+
+            public ContentHashKey(byte[] data, int offset, int length)
+            {
+                Contract.Requires(data != null);
+                Contract.Requires(offset >= 0);
+                Contract.Requires(length > 0, "Content hash must have at least 1 byte");
+                Contract.Requires(length <= MaxSupportedLength, $"Content hash length {length} exceeds maximum supported length of {MaxSupportedLength} bytes");
+                Contract.Requires(offset + length <= data.Length);
+
+                // Fast path for hashes that fill complete 8-byte longs (SHA256 = 32 bytes, VSO0 = 33 bytes)
+                if (length >= 32)
+                {
+                    var span = data.AsSpan(offset);
+                    _a = BinaryPrimitives.ReadInt64LittleEndian(span);
+                    _b = BinaryPrimitives.ReadInt64LittleEndian(span.Slice(8));
+                    _c = BinaryPrimitives.ReadInt64LittleEndian(span.Slice(16));
+                    _d = BinaryPrimitives.ReadInt64LittleEndian(span.Slice(24));
+                }
+                else
+                {
+                    // Slower path for shorter hashes (e.g. SHA1 = 20 bytes, MD5 = 16 bytes)
+                    _a = ReadPartialLong(data, offset, length, 0);
+                    _b = ReadPartialLong(data, offset, length, 8);
+                    _c = ReadPartialLong(data, offset, length, 16);
+                    _d = ReadPartialLong(data, offset, length, 24);
+                }
+            }
+
+            private static long ReadPartialLong(byte[] data, int offset, int totalLength, int longOffset)
+            {
+                if (longOffset >= totalLength)
+                {
+                    return 0;
+                }
+
+                int remaining = totalLength - longOffset;
+
+                // If at least 8 bytes remain, read a full long in one shot
+                if (remaining >= 8)
+                {
+                    return BinaryPrimitives.ReadInt64LittleEndian(data.AsSpan(offset + longOffset));
+                }
+
+                // Otherwise, assemble the partial long byte-by-byte
+                long result = 0;
+                for (int i = 0; i < remaining; i++)
+                {
+                    result |= (long)data[offset + longOffset + i] << (i * 8);
+                }
+
+                return result;
+            }
+
+            /// <inheritdoc />
+            public bool Equals(ContentHashKey other) =>
+                _a == other._a && _b == other._b && _c == other._c && _d == other._d;
+
+            /// <inheritdoc />
+            public override bool Equals(object obj) => obj is ContentHashKey k && Equals(k);
+
+            /// <inheritdoc />
+            /// <remarks>
+            /// Only _a and _b (first 16 bytes) are used for the hash code. This is sufficient because
+            /// content hashes are cryptographic and have excellent entropy in every byte.
+            /// </remarks>
+            public override int GetHashCode()
+            {
+                unchecked
+                {
+                    return (int)(_a ^ (_a >> 32)) * 397 ^ (int)(_b ^ (_b >> 32));
+                }
             }
         }
     }

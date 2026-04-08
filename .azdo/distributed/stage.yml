@@ -28,7 +28,8 @@ stages:
         installerOptions:
           version: ${{ parameters.buildXLVersion }}
         arguments: >-
-          /unsafe_GlobalPassthroughEnvVars:NUGET_CREDENTIALPROVIDERS_PATH
+          /unsafe_GlobalPassthroughEnvVars:NUGET_CREDENTIALPROVIDERS_PATH;VSS_NUGET_EXTERNAL_FEED_ENDPOINTS
+          /unsafe_GlobalUntrackedScopes:$(NugetCredentialProviderPath);C:\ProgramData\Microsoft\NetFramework\BreadcrumbStore
           /config:config.dsc 
           /IncrementalScheduling 
           /historicMetadataCache+ 

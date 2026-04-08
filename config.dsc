@@ -507,7 +507,9 @@ config({
                 {
                     moduleName: "YarnTool",
                     extractedValueName: "yarnPackage",
-                    url: 'https://registry.npmjs.org/yarn/-/yarn-1.22.19.tgz',
+                    url: importFile(f`config.microsoftInternal.dsc`).isMicrosoftInternal
+                        ? 'https://cloudbuild.pkgs.visualstudio.com/_packaging/BuildXL.Selfhost/npm/registry/yarn/-/yarn-1.22.19.tgz'
+                        : 'https://registry.npmjs.org/yarn/-/yarn-1.22.19.tgz',
                     archiveType: "tgz"
                 },
                 {

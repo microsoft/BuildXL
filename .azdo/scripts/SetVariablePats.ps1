@@ -47,5 +47,19 @@ if ($NcPath)
     Set-Variable "NUGET_CREDENTIALPROVIDERS_PATH" $NcPath
 }
 
-$vssEndpoints = "{`"endpointCredentials`": [{`"endpoint`":`"https://pkgs.dev.azure.com/1essharedassets/_packaging/BuildXL/nuget/v3/index.json`", `"password`":`"$OneEsPat`"}, {`"endpoint`":`"https://pkgs.dev.azure.com/cloudbuild/_packaging/BuildXL.Selfhost/nuget/v3/index.json`", `"password`":`"$CbPat`"}]}"
+$endpointCredentials = @(
+    @{
+        endpoint = "https://pkgs.dev.azure.com/1essharedassets/_packaging/BuildXL/nuget/v3/index.json"
+        password = $OneEsPat
+    },
+    @{
+        endpoint = "https://pkgs.dev.azure.com/cloudbuild/_packaging/BuildXL.Selfhost/nuget/v3/index.json"
+        password = $CbPat
+    },
+    @{
+        endpoint = "https://cloudbuild.pkgs.visualstudio.com/_packaging/BuildXL.Selfhost/npm/registry/yarn/-/yarn-1.22.19.tgz"
+        password = $CbPat
+    }
+)
+$vssEndpoints = @{ endpointCredentials = $endpointCredentials } | ConvertTo-Json -Compress
 Set-Variable "VSS_NUGET_EXTERNAL_FEED_ENDPOINTS" $vssEndpoints

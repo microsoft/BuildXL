@@ -272,7 +272,11 @@ namespace BuildXL.FrontEnd.Download
                 $"  d`{pathToTool.GetParent(m_context.PathTable).ToString(m_context.PathTable)}`," +
                 $"  ...addIfLazy(Context.getCurrentHost().os === \"win\", () => [d`${{Context.getMount(\"LocalLow\").path}}/Microsoft/CryptnetFlushCache`])," +
                 $"  ...addIfLazy(Context.getCurrentHost().os === \"win\", () => [d`${{Context.getMount(\"ProgramFiles\").path}}/WindowsApps`])," +
+                $"  ...addIfLazy(Context.getCurrentHost().os === \"win\", () => [d`${{Context.getMount(\"ProgramData\").path}}/Microsoft/NetFramework/BreadcrumbStore`])," +
                 $"  ...addIfLazy(Context.getCurrentHost().os !== \"win\", () => [d`/usr/local/lib`])," +
+                // For non-Windows OS the credential provider uses a named mutex for concurrency control. The mutex translates into a file created under /tmp.
+                // CODESYNC: Public\Src\Tools\NugetDownloader\LiteralFiles\Tool.NugetDownloader.dsc.literal
+                $"  ...addIfLazy(Context.getCurrentHost().os !== \"win\", () => [d`/tmp/.dotnet/shm`])," +
                 $"  ...addIfLazy(Context.getCurrentHost().os !== \"win\" && Context.hasMount(\"UserProfile\"), () => [d`${{Context.getMount(\"UserProfile\").path}}/.dotnet`])" +
                 $"]}};";
         }
@@ -285,6 +289,13 @@ namespace BuildXL.FrontEnd.Download
             // We disable reparse point resolving for this pip (and the extract one below) since the frontend directory
             // sometimes is placed under a junction (typically when CB junction outputs) and with full reparse point resolution enabled this 
             // would generate a DFA. We know these pips do not interact with reparse points, so this is safe.
+            // allowUndeclaredSourceReads is needed to avoid DFAs under the credential provider directory, which is
+            // an arbitrarily specified directory that would need to be contained in a statically declared read mount
+            // otherwise. On Linux, the credential provider also runs via dotnet, pulling in the .NET runtime from a
+            // machine-dependent location. This is the same approach used by the NuGet downloader SDK.
+            // CODESYNC: Public\Src\Tools\NugetDownloader\LiteralFiles\Tool.NugetDownloader.dsc.literal
+            // passThroughEnvironmentVariables is needed to support downloading from authenticated feeds (e.g. Azure DevOps).
+            // The credential provider reads VSS_NUGET_EXTERNAL_FEED_ENDPOINTS to find pre-configured auth tokens.
             return $@"<TransformerExecuteResult> _PreludeAmbientHack_Transformer.execute({{
                 tool: downloadTool,
                 tags: ['download'],
@@ -298,7 +309,13 @@ namespace BuildXL.FrontEnd.Download
                 ],
                 outputs: [f`{data.DownloadedFilePath.ToString(m_context.PathTable)}`],
                 isLight: true,
-                unsafe: {{disableFullReparsePointResolving: true}},
+                allowUndeclaredSourceReads: true,
+                unsafe: {{
+                    disableFullReparsePointResolving: true,
+                    passThroughEnvironmentVariables: [
+                        ""VSS_NUGET_EXTERNAL_FEED_ENDPOINTS"",
+                    ],
+                }},
             }});";
         }
 

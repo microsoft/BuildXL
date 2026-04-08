@@ -309,8 +309,16 @@ function compileWithBxl() {
         # Ignore accesses related to a VSCode tunnel
         /unsafe_GlobalUntrackedScopes:$HOME/.vscode-server
         /unsafe_GlobalUntrackedScopes:$HOME/.vscode-server-insiders
-        "$@"
     )
+
+    # Only pass through feed credentials for internal builds
+    if [[ -n "$arg_Internal" ]]; then
+        args+=("/unsafe_GlobalPassthroughEnvVars:NUGET_CREDENTIALPROVIDERS_PATH;VSS_NUGET_EXTERNAL_FEED_ENDPOINTS")
+        # Credential provider mutex for non-Windows concurrency control
+        args+=("/unsafe_GlobalUntrackedScopes:/tmp/.dotnet/shm")
+    fi
+
+    args+=("$@")
 
     setBxlCmdArgs "${args[@]}"
 
@@ -498,7 +506,7 @@ if [[ -n "$arg_Internal" && -n "$ADOBuild" && (! -n $VSS_NUGET_EXTERNAL_FEED_END
         exit 1
     fi
 
-    export VSS_NUGET_EXTERNAL_FEED_ENDPOINTS="{\"endpointCredentials\":[{\"endpoint\":\"https://pkgs.dev.azure.com/1essharedassets/_packaging/BuildXL/nuget/v3/index.json\",\"password\":\"$PAT1esSharedAssets\"},{\"endpoint\":\"https://pkgs.dev.azure.com/cloudbuild/_packaging/BuildXL.Selfhost/nuget/v3/index.json\",\"password\":\"$PATCloudBuild\"}]}" 
+    export VSS_NUGET_EXTERNAL_FEED_ENDPOINTS="{\"endpointCredentials\":[{\"endpoint\":\"https://pkgs.dev.azure.com/1essharedassets/_packaging/BuildXL/nuget/v3/index.json\",\"password\":\"$PAT1esSharedAssets\"},{\"endpoint\":\"https://pkgs.dev.azure.com/cloudbuild/_packaging/BuildXL.Selfhost/nuget/v3/index.json\",\"password\":\"$PATCloudBuild\"},{\"endpoint\":\"https://cloudbuild.pkgs.visualstudio.com/_packaging/BuildXL.Selfhost/npm/registry/yarn/-/yarn-1.22.19.tgz\",\"password\":\"$PATCloudBuild\"}]}" 
     export CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT_B64=$(echo -ne "$PATCloudBuild" | base64)
 fi
 

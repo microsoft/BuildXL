@@ -614,7 +614,7 @@ Log " version of BuildXL.";
 
 $Nuget_CredentialProviders_Path = [Environment]::GetEnvironmentVariable("NUGET_CREDENTIALPROVIDERS_PATH").TrimEnd('\\'); 
 
-$AdditionalBuildXLArguments += "/environment:$($useDeployment.telemetryEnvironment) /unsafe_GlobalUntrackedScopes:""$Nuget_CredentialProviders_Path"" /unsafe_GlobalPassthroughEnvVars:NUGET_CREDENTIALPROVIDERS_PATH /remoteCacheCutoff+ /remoteCacheCutoffLength:2";
+$AdditionalBuildXLArguments += "/environment:$($useDeployment.telemetryEnvironment) /unsafe_GlobalUntrackedScopes:""$Nuget_CredentialProviders_Path"";""C:\ProgramData\Microsoft\NetFramework\BreadcrumbStore"" /unsafe_GlobalPassthroughEnvVars:NUGET_CREDENTIALPROVIDERS_PATH;VSS_NUGET_EXTERNAL_FEED_ENDPOINTS /remoteCacheCutoff+ /remoteCacheCutoffLength:2";
 
 $GenerateCgManifestFilePath = "$enlistmentRoot\cg\nuget\cgmanifest.json";
 $AdditionalBuildXLArguments += "/generateCgManifestForNugets:$GenerateCgManifestFilePath";

@@ -110,14 +110,17 @@ namespace BuildXL.Scheduler.Performance
                 return possibleCacheEntry.Failure;
             }
 
-            Logger.Log.HistoricPerfDataCacheTrace(
-                loggingContext,
-                I($"Loaded running time table entry from cache: Fingerprint='{graphSemistableFingerprint}' MetadataHash={possibleCacheEntry.Result?.MetadataHash ?? ContentHashingUtilities.ZeroHash}"));
-
             if (!possibleCacheEntry.Result.HasValue)
             {
+                Logger.Log.HistoricPerfDataCacheTrace(
+                    loggingContext,
+                    I($"No running time table cache entry found in cache for fingerprint '{graphSemistableFingerprint}'. The temporal cache lookup succeeded but returned no entry, meaning no historic perf data has been stored for this fingerprint."));
                 return false;
             }
+
+            Logger.Log.HistoricPerfDataCacheTrace(
+                loggingContext,
+                I($"Loaded running time table entry from cache: Fingerprint='{graphSemistableFingerprint}' MetadataHash={possibleCacheEntry.Result.Value.MetadataHash}"));
 
             var runningTimeTableHash = possibleCacheEntry.Result.Value.MetadataHash;
 

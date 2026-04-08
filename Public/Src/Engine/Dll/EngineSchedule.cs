@@ -711,9 +711,15 @@ namespace BuildXL.Engine
                                         context.CancellationToken);
                             }
 
-                            if (!result.Succeeded || !result.Result)
+                            if (!result.Succeeded)
                             {
-                                SchedulerLogger.Log.HistoricPerfDataCacheTrace(pm.LoggingContext, I($"Could not load historic perf data from cache"));
+                                SchedulerLogger.Log.HistoricPerfDataCacheTrace(pm.LoggingContext, I($"Could not load historic perf data from cache: Failure: {result.Failure.DescribeIncludingInnerFailures()}"));
+                                return null;
+                            }
+
+                            if (!result.Result)
+                            {
+                                SchedulerLogger.Log.HistoricPerfDataCacheTrace(pm.LoggingContext, I($"Could not load historic perf data from cache: No entry was found for performance data fingerprint '{performanceDataFingerprint}'"));
                                 return null;
                             }
 

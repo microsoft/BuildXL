@@ -174,7 +174,8 @@ export namespace DropDaemonRunner {
                 },
                 serviceTrackableTag: dropTag,
                 serviceTrackableTagDisplayName: "DropTrackerOverhangMs",
-                moniker: moniker
+                moniker: moniker,
+                dependsOnCurrentHostOSDirectories: true
             })
         );
         

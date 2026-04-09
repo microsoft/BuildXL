@@ -564,17 +564,23 @@ namespace BuildXL.Scheduler.Distribution
                 return false;
             }
 
+            // We acquire the slots in advance and then perform the checks to avoid the race condition.
+            // UpdateProcessSlots returns the new m_acquiredProcessPips value (via atomic Interlocked.Add).
+            var (acquiredSlots, newPipCount) = UpdateProcessSlots(processRunnablePip);
+            int totalSlots = processRunnablePip.IsLight ? TotalLightProcessSlots : TotalProcessSlots;
+
             // If there is no process pip assigned to the worker, the resources should be acquired forcefully to prevent deadlocks.
             // There might be some pips requiring more resources than the machine has. In those cases, we should allow one pip to run.
-            bool force = m_acquiredProcessPips == 0;
-
-            // We acquire the slots in advance and then perform the checks to avoid the race condition.
-            int acquiredSlots = UpdateProcessSlots(processRunnablePip);
-            int totalSlots = processRunnablePip.IsLight ? TotalLightProcessSlots : TotalProcessSlots;
+            // We use the atomic return value of Interlocked.Add (newPipCount) rather than re-reading m_acquiredProcessPips,
+            // because multiple ChooseWorkerCpu threads can concurrently call TryAcquireProcess. With MaxChooseWorkerCpu=5 (default),
+            // all threads could observe m_acquiredProcessPips==0 before any of them completes UpdateProcessSlots, causing all to set
+            // force=true and bypass user-defined semaphore limits. Using newPipCount==1 ensures only the thread that actually
+            // increments the count from 0 to 1 gets force=true.
+            bool force = newPipCount == 1;
 
             // If a process has a weight higher than the total number of process slots, still allow it to run as long as there are no other
             // processes running (the number of acquired process pips is 1)
-            if (m_acquiredProcessPips > 1 && 
+            if (newPipCount > 1 && 
                 acquiredSlots > totalSlots * loadFactor)
             {
                 limitingResource = (!IsLocal || ((LocalWorker)this).MemoryResourceAvailable) ? WorkerResource.AvailableProcessSlots : WorkerResource.MemoryResourceAvailable;
@@ -628,16 +634,21 @@ namespace BuildXL.Scheduler.Distribution
             return false;
         }
 
-        private int UpdateProcessSlots(ProcessRunnablePip processRunnable, bool release = false)
+        private (int acquiredSlots, int newPipCount) UpdateProcessSlots(ProcessRunnablePip processRunnable, bool release = false)
         {
-            Interlocked.Add(ref m_acquiredProcessPips, release ? -1 : 1);
+            int newPipCount = Interlocked.Add(ref m_acquiredProcessPips, release ? -1 : 1);
 
+            int acquiredSlots;
             if (processRunnable.IsLight)
             {
-                return Interlocked.Add(ref m_acquiredLightProcessSlots, (release ? -1 : 1) * processRunnable.Weight);
+                acquiredSlots = Interlocked.Add(ref m_acquiredLightProcessSlots, (release ? -1 : 1) * processRunnable.Weight);
+            }
+            else
+            {
+                acquiredSlots = Interlocked.Add(ref m_acquiredProcessSlots, (release ? -1 : 1) * processRunnable.Weight);
             }
 
-            return Interlocked.Add(ref m_acquiredProcessSlots, (release ? -1 : 1) * processRunnable.Weight);
+            return (acquiredSlots, newPipCount);
         }
 
         private void UpdateMachineSemaphores(int? engineRamMb, int? engineCpuUsage)

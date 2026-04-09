@@ -131,7 +131,7 @@ public class InteractiveClientTokenCredential : ChainedTokenCredential
         try
         {
             internalTokenSource.CancelAfter(userTimeout);
-            await credential.GetTokenAsync(new TokenRequestContext(new string[] { "https://management.azure.com//.default" }), tokenSource.Token);
+            await credential.GetTokenAsync(new TokenRequestContext(new string[] { "https://management.azure.com/.default" }), tokenSource.Token);
         }
         // If the user doesn't respond in time, we cancel the operation. A TokenCredential will throw an AuthenticationFailedException
         // if the cancellation happens while the interactive prompt is ongoing, so we account for that case as well.

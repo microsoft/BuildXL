@@ -96,7 +96,7 @@ public class BuildCacheConfigurationProvider
             return new Failure<string>($"{FailurePrefix}{CloudTestResourceProvider} resource provider does not have a '{BuildCacheResourceType}' resource type.");
         }
 
-        var token = await tokenCredential.GetTokenAsync(new TokenRequestContext(new string[] { "https://management.azure.com//.default" }), cancellationToken);
+        var token = await tokenCredential.GetTokenAsync(new TokenRequestContext(new string[] { "https://management.azure.com/.default" }), cancellationToken);
 
         // Unfortunately the ResourceManager APIs don't support applying arbitrary actions on generic resources (open issue https://github.com/Azure/azure-rest-api-specs/issues/24706)
         // so we have to use a plain HttpClient to access the resource

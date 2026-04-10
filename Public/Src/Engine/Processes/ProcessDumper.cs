@@ -33,6 +33,14 @@ namespace BuildXL.Processes
         };
 
         /// <summary>
+        /// Lighter dump flags used as a fallback when the full heap dump fails.
+        /// This captures just thread stacks and basic process info, which is better than no dump at all.
+        /// </summary>
+        private static readonly uint s_lightDumpFlags = (uint)(
+            ProcessUtilitiesWin.MINIDUMP_TYPE.MiniDumpNormal |
+            ProcessUtilitiesWin.MINIDUMP_TYPE.MiniDumpIgnoreInaccessibleMemory);
+
+        /// <summary>
         /// Attempts to create a process memory dump at the requested location. Any file already existing at that location will be overwritten
         /// </summary>
         public static bool TryDumpProcess(Process process, string dumpPath, out Exception dumpCreationException, bool compress = false, Action<string> debugLogger = null) =>
@@ -56,7 +64,7 @@ namespace BuildXL.Processes
 
             try
             {
-                bool dumpResult = TryDumpProcess(processHandle, processId, dumpPath, out dumpCreationException, compress);
+                bool dumpResult = TryDumpProcess(processHandle, processId, dumpPath, out dumpCreationException, compress, debugLogger);
                 if (!dumpResult)
                 {
                     Contract.Assume(dumpCreationException != null, "Exception was null on failure.");
@@ -85,7 +93,7 @@ namespace BuildXL.Processes
         /// Attempts to create a process memory dump at the requested location. Any file already existing at that location will be overwritten
         /// </summary>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2202:DoNotDisposeObjectsMultipleTimes")]
-        public static bool TryDumpProcess(SafeHandle processHandle, int processId, string dumpPath, out Exception dumpCreationException, bool compress = false)
+        public static bool TryDumpProcess(SafeHandle processHandle, int processId, string dumpPath, out Exception dumpCreationException, bool compress = false, Action<string> debugLogger = null)
         {
             if (OperatingSystemHelper.IsUnixOS)
             {
@@ -123,8 +131,46 @@ namespace BuildXL.Processes
                         {
                             var code = Marshal.GetLastWin32Error();
                             var message = new Win32Exception(code).Message;
+                            var fullHeapError = $"Full heap dump failed for process {processId}. Native error: ({code:x}) {message}, dump-path={dumpPath}";
+                            debugLogger?.Invoke(fullHeapError);
 
-                            throw new BuildXLException($"Failed to create process dump. Native error: ({code:x}) {message}, dump-path={dumpPath}");
+                            // Log process thread states for diagnostics
+                            string threadStateSummary = GetProcessThreadStateSummary(processId);
+                            debugLogger?.Invoke($"Process {processId} thread state at time of dump failure: {threadStateSummary}");
+
+                            // Fallback: try a lighter dump with just thread stacks and basic info.
+                            // This is much more likely to succeed for processes that are suspended or
+                            // partially initialized (e.g., during Detours injection).
+                            debugLogger?.Invoke($"Retrying with lightweight dump flags for process {processId}");
+
+                            // Reset the file stream for the retry
+                            fs.SetLength(0);
+                            fs.Seek(0, SeekOrigin.Begin);
+
+                            bool lightDumpSuccess = ProcessUtilitiesWin.MiniDumpWriteDump(
+                                hProcess: processHandle.DangerousGetHandle(),
+                                processId: (uint)processId,
+                                hFile: fs.SafeFileHandle,
+                                dumpType: s_lightDumpFlags,
+                                expParam: IntPtr.Zero,
+                                userStreamParam: IntPtr.Zero,
+                                callbackParam: IntPtr.Zero);
+
+                            if (!lightDumpSuccess)
+                            {
+                                var fallbackCode = Marshal.GetLastWin32Error();
+                                var fallbackMessage = new Win32Exception(fallbackCode).Message;
+                                debugLogger?.Invoke($"Lightweight dump also failed for process {processId}. Native error: ({fallbackCode:x}) {fallbackMessage}");
+
+                                throw new BuildXLException(
+                                    $"Failed to create process dump (both full and lightweight attempts failed). " +
+                                    $"Full dump error: ({code:x}) {message}. " +
+                                    $"Lightweight dump error: ({fallbackCode:x}) {fallbackMessage}. " +
+                                    $"Process thread state: {threadStateSummary}, " +
+                                    $"dump-path={dumpPath}");
+                            }
+
+                            debugLogger?.Invoke($"Lightweight dump succeeded for process {processId} at {dumpPath}");
                         }
                     }
                 }
@@ -153,6 +199,64 @@ namespace BuildXL.Processes
             {
                 dumpCreationException = ex;
                 return false;
+            }
+        }
+
+        /// <summary>
+        /// Gets a summary of thread states for a process, useful for diagnosing dump failures.
+        /// Returns info about whether threads are suspended, waiting, or in other states.
+        /// </summary>
+        private static string GetProcessThreadStateSummary(int processId)
+        {
+            try
+            {
+                using (var process = Process.GetProcessById(processId))
+                {
+                    var threads = process.Threads;
+                    int totalThreads = threads.Count;
+                    int waitingThreads = 0;
+                    int suspendedCount = 0;
+                    int runningThreads = 0;
+                    int otherThreads = 0;
+
+                    foreach (ProcessThread thread in threads)
+                    {
+                        try
+                        {
+                            switch (thread.ThreadState)
+                            {
+                                case System.Diagnostics.ThreadState.Wait:
+                                    if (thread.WaitReason == ThreadWaitReason.Suspended)
+                                    {
+                                        suspendedCount++;
+                                    }
+                                    else
+                                    {
+                                        waitingThreads++;
+                                    }
+                                    break;
+                                case System.Diagnostics.ThreadState.Running:
+                                    runningThreads++;
+                                    break;
+                                default:
+                                    otherThreads++;
+                                    break;
+                            }
+                        }
+                        catch (InvalidOperationException)
+                        {
+                            // Thread may have exited
+                            otherThreads++;
+                        }
+                    }
+
+                    return $"Total={totalThreads}, Running={runningThreads}, Waiting={waitingThreads}, Suspended={suspendedCount}, Other={otherThreads}" +
+                           (suspendedCount > 0 ? " [PROCESS HAS SUSPENDED THREADS - may be hung during Detours injection]" : string.Empty);
+                }
+            }
+            catch (Exception ex)
+            {
+                return $"Unable to query thread states: {ex}";
             }
         }
 

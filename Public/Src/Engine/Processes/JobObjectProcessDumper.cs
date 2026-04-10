@@ -56,9 +56,15 @@ namespace BuildXL.Processes
             var survivingChildProcesses = new Dictionary<uint, ReportedProcess>();
             foreach (uint processId in survivingChildProcessIds)
             {
+                // PROCESS_DUP_HANDLE is required for MiniDumpWriteDump to enumerate handle data
+                // (MiniDumpWithHandleData). Internally, it calls DuplicateHandle on each handle in
+                // the target process to inspect its type and name. Without this right, dump creation
+                // may fail with access errors for suspended or partially-initialized processes.
+                // See: https://learn.microsoft.com/en-us/windows/win32/api/minidumpapiset/nf-minidumpapiset-minidumpwritedump
                 using (SafeProcessHandle processHandle = ProcessUtilities.OpenProcess(
                     ProcessSecurityAndAccessRights.PROCESS_QUERY_INFORMATION |
-                    ProcessSecurityAndAccessRights.PROCESS_VM_READ,
+                    ProcessSecurityAndAccessRights.PROCESS_VM_READ |
+                    ProcessSecurityAndAccessRights.PROCESS_DUP_HANDLE,
                     false,
                     processId))
                 {
@@ -151,7 +157,13 @@ namespace BuildXL.Processes
 
             var executableName =  Path.GetFileNameWithoutExtension(reportedProcess.Path);
             string dumpPath = Path.Combine(survivingPipProcessDumpDirectory, $"Dump_{reportedProcess.ParentProcessId}_{reportedProcess.ProcessId}_{executableName}.zip");
-            if (!ProcessDumper.TryDumpProcess(processHandle, (int)reportedProcess.ProcessId, executableName, dumpPath, out Exception dumpException, compress: true))
+
+            // Use the logging context to create a debug logger that feeds into the DumpSurvivingPipProcessChildrenStatus event,
+            // so dump diagnostics (including fallback attempts and thread state) are captured in the build log.
+            Action<string> debugLogger = (message) =>
+                Tracing.Logger.Log.DumpSurvivingPipProcessChildrenStatus(loggingContext, executableName, message);
+
+            if (!ProcessDumper.TryDumpProcess(processHandle, (int)reportedProcess.ProcessId, executableName, dumpPath, out Exception dumpException, compress: true, debugLogger: debugLogger))
             {
                 Tracing.Logger.Log.DumpSurvivingPipProcessChildrenStatus(loggingContext, executableName, $"Failed with exception: {dumpException?.Message}");
                 childDumpException = dumpException;

@@ -952,6 +952,44 @@ namespace BuildXL
             }
         }
 
+        /// <summary>
+        /// Logs file sizes for the major build log files as statistics.
+        /// </summary>
+        private void LogLogFileSizes(LoggingContext loggingContext)
+        {
+            var statistics = new Dictionary<string, long>();
+
+            tryAddFileSize("LogFileSize.Log", m_configuration.Logging.Log);
+            tryAddFileSize("LogFileSize.ExecutionLog", m_configuration.Logging.ExecutionLog);
+            tryAddFileSize("LogFileSize.CacheLog", m_configuration.Cache.CacheLogFilePath);
+
+            if (statistics.Count > 0)
+            {
+                BuildXL.Tracing.Logger.Log.BulkStatistic(loggingContext, statistics);
+            }
+
+            void tryAddFileSize(string statName, AbsolutePath logPath)
+            {
+                if (logPath.IsValid)
+                {
+                    try
+                    {
+                        var fileInfo = new FileInfo(logPath.ToString(m_pathTable));
+                        if (fileInfo.Exists)
+                        {
+                            statistics[statName] = fileInfo.Length;
+                        }
+                    }
+                    // Best-effort file size check; not critical if it fails.
+#pragma warning disable ERP022 // Unobserved exception in generic exception handler
+                    catch (Exception)
+                    {
+                    }
+#pragma warning restore ERP022 // Unobserved exception in generic exception handler
+                }
+            }
+        }
+
         private AppResult RunWithLoggingScope(Func<PerformanceMeasurement, AppResult> run, Action sendFinalStatistics, Action<LoggingContext, Guid> configureLogging = null)
         {
             AppResult result = AppResult.Create(ExitKind.InternalError, null, "FailedBeforeRunAttempted");
@@ -1080,6 +1118,8 @@ namespace BuildXL
                 },
                 (loggingContext) =>
                 {
+                    LogLogFileSizes(loggingContext);
+
                     var exitKind = result.ExitKind;
                     var utcNow = DateTime.UtcNow;
                     LogDominoCompletion(

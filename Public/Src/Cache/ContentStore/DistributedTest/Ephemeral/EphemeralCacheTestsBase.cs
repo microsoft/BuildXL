@@ -381,7 +381,9 @@ public abstract class EphemeralCacheTestsBase : TestWithOutput
             foreach (var machineNum in Enumerable.Range(0, numInstances))
             {
                 var port = PortExtensions.GetNextAvailablePort(context);
-                var location = MachineLocation.Create(Environment.MachineName, port);
+                // Use "localhost" rather than Environment.MachineName because the machine name
+                // (e.g. a container ID) may not resolve via DNS on Azure Linux.
+                var location = MachineLocation.Create("localhost", port);
 
                 var machineContext = context.CreateNested(nameof(AddRingAsync), caller: $"CreateMachineContext({machineNum})");
                 Tracer.Warning(machineContext, $"This context was created for {machineNum} -> {location}");
@@ -483,7 +485,9 @@ public abstract class EphemeralCacheTestsBase : TestWithOutput
             foreach (var machineNum in Enumerable.Range(0, numInstances))
             {
                 var port = PortExtensions.GetNextAvailablePort(context);
-                var location = MachineLocation.Create(Environment.MachineName, port);
+                // Use "localhost" rather than Environment.MachineName because the machine name
+                // (e.g. a container ID) may not resolve via DNS on Azure Linux.
+                var location = MachineLocation.Create("localhost", port);
                 if (leader is null)
                 {
                     leader = location;

@@ -48,7 +48,9 @@ public class GrpcClusterStateStorageTests
             .ThrowIfFailureAsync();
 
         // Setup client-side
-        var location = MachineLocation.Create(Environment.MachineName, port);
+        // Use "localhost" rather than Environment.MachineName because the machine name
+        // (e.g. a container ID) may not resolve via DNS on Azure Linux.
+        var location = MachineLocation.Create("localhost", port);
 
         var connectionHandle = new ConnectionHandle(context, location);
         await connectionHandle.StartupAsync(context).ThrowIfFailureAsync();

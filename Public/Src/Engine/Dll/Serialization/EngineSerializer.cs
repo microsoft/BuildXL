@@ -384,7 +384,7 @@ namespace BuildXL.Engine
                     }
                     else
                     {
-                        using (var writer = new BuildXLWriter(m_debug, fileStream, leaveOpen: true, logStats: false))
+                        using (var writer = new BuildXLWriter(m_debug, new BufferedStream(fileStream, 65536), leaveOpen: true, logStats: false))
                         {
                             serializer(writer);
                             uncompressedLength = writer.BaseStream.Length;

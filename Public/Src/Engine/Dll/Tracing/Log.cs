@@ -1631,7 +1631,7 @@ If you can't update and need this feature after July 2018 please reach out to th
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Engine,
-            Message = "Storing pip graph descriptor to cache: Status: {status} | Hop count: {hopCount} | Reason: {reason} | Elapsed time: {elapsed}ms (Hashing graph inputs: {hashingGraphInputsElapsed}ms, Storing fingerprint entry: {storingFingerprintEntryElapsedMs}ms, Loading and deserialize metadata: {loadingDeserializeElapsedMs}ms) | Fingerprint loop-up chain: [{fingerprintChains}]")]
+            Message = "Storing pip graph descriptor to cache: Status: {status} | Hop count: {hopCount} | Reason: {reason} | Elapsed time: {elapsed}ms (Creating observed graph inputs: {createObservedGraphInputsElapsedMs}ms, Converting to descriptor: {toPipGraphInputDescriptorElapsedMs}ms, Hashing graph inputs: {hashingGraphInputsElapsed}ms, Storing fingerprint entry: {storingFingerprintEntryElapsedMs}ms, Loading and deserialize metadata: {loadingDeserializeElapsedMs}ms) | Fingerprint loop-up chain: [{fingerprintChains}]")]
         public abstract void StorePipGraphCacheDescriptorToCache(
             LoggingContext context,
             string status,
@@ -1641,6 +1641,8 @@ If you can't update and need this feature after July 2018 please reach out to th
             int hashingGraphInputsElapsed,
             int storingFingerprintEntryElapsedMs,
             int loadingDeserializeElapsedMs,
+            int createObservedGraphInputsElapsedMs,
+            int toPipGraphInputDescriptorElapsedMs,
             string fingerprintChains);
 
         [GeneratedEvent(

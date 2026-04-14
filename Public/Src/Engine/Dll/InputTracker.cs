@@ -641,20 +641,24 @@ namespace BuildXL.Engine
 
             // Write the input files. Sort by filename so when they are read to check for graph reuse, they can be queued
             // in an order more optimal for disk access when checking that the file hashes match.
+            var inputHashArray = m_inputHashes.ToArray();
+            Array.Sort(inputHashArray, (a, b) => string.Compare(a.Key, b.Key, StringComparison.Ordinal));
+
             writer.Write(m_inputHashes.Count);
-            foreach (var file in m_inputHashes.Select(kvp => (kvp.Key, kvp.Value)).OrderBy(kvp => kvp.Item1))
+            foreach (var file in inputHashArray)
             {
-                writer.Write(file.Item1);
-                file.Item2.SerializeHashBytes(writer);
+                writer.Write(file.Key);
+                file.Value.SerializeHashBytes(writer);
             }
 
+            var dirFingerprintArray = m_directoryFingerprints.ToArray();
+            Array.Sort(dirFingerprintArray, (a, b) => string.Compare(a.Key, b.Key, StringComparison.Ordinal));
+
             writer.Write(m_directoryFingerprints.Count);
-            foreach (
-                var directory in
-                    m_directoryFingerprints.Select(kvp => (kvp.Key, kvp.Value)).OrderBy(kvp => kvp.Item1))
+            foreach (var directory in dirFingerprintArray)
             {
-                writer.Write(directory.Item1);
-                directory.Item2.Hash.SerializeHashBytes(writer);
+                writer.Write(directory.Key);
+                directory.Value.Hash.SerializeHashBytes(writer);
             }
         }
 

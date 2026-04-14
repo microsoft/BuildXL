@@ -311,7 +311,10 @@ namespace BuildXL.Engine
             Contract.Requires(pipGraphCacheDescriptor != null);
 
             var graphFingerprint = inputTracker.GraphFingerprint;
+
+            var createObservedGraphInputsSw = Stopwatch.StartNew();
             var observedGraphInputs = CreateObservedGraphInputs(inputTracker, buildParametersImpactingBuild, mountsImpactingBuild);
+            createObservedGraphInputsSw.Stop();
 
             // Instead of using build parameters and mounts that impact the build, we use the available ones for computing the hashes of graph inputs
             // while traversing the chain of fingerprint look ups for storing the pip graph cache descriptor. We use the available ones because
@@ -333,13 +336,23 @@ namespace BuildXL.Engine
             // E changes from one build to another. If we mistakenly include E in the first build, then it will stay in I forever. If now we stop referring to E
             // during evaluation, E will still be used during storing and fetching the pip graph cache descriptor because I is in the chain of look-ups.
             // The only way out is to modify the graph fingerprint, and the easiest way is to pass a graph fingerprint salt.
+            var toPipGraphInputDescriptorSw = Stopwatch.StartNew();
+            PipGraphInputDescriptor initialGraphInputDescriptor = observedGraphInputs.IsEmpty
+                ? null
+                : observedGraphInputs.ToPipGraphInputDescriptor(PathTable);
+            toPipGraphInputDescriptorSw.Stop();
+
             var storeResult = await TryStorePipGraphCacheDescriptorAsync(
                 inputTracker,
                 availableBuildParameters,
                 availableMounts,
                 graphFingerprint.OverallFingerprint,
                 observedGraphInputs,
+                initialGraphInputDescriptor,
                 pipGraphCacheDescriptor);
+
+            storeResult.CreateObservedGraphInputsElapsedMs = (long)createObservedGraphInputsSw.Elapsed.TotalMilliseconds;
+            storeResult.ToPipGraphInputDescriptorElapsedMs = (long)toPipGraphInputDescriptorSw.Elapsed.TotalMilliseconds;
 
             LogStorePipGraphCacheDescriptorToCache(storeResult);
 
@@ -352,6 +365,7 @@ namespace BuildXL.Engine
             IReadOnlyDictionary<string, IMount> mountsForHashingGraphInput,
             ContentFingerprint graphFingerprint,
             ObservedGraphInputs observedGraphInputs,
+            PipGraphInputDescriptor initialGraphInputDescriptor,
             PipGraphCacheDescriptor pipGraphCacheDescriptor)
         {
             Contract.Requires(inputTracker != null);
@@ -367,9 +381,7 @@ namespace BuildXL.Engine
 
             var currentFingerprint = graphFingerprint;
             PipFingerprintEntry graphEntry = pipGraphCacheDescriptor.ToEntry();
-            PipGraphInputDescriptor observedGraphInputsToStore = observedGraphInputs.IsEmpty
-                ? null
-                : observedGraphInputs.ToPipGraphInputDescriptor(PathTable);
+            PipGraphInputDescriptor observedGraphInputsToStore = initialGraphInputDescriptor;
 
             var fingerprintChains = new List<ContentFingerprint>(MaxHopCount);
             int hopCount = 0;
@@ -661,6 +673,8 @@ namespace BuildXL.Engine
                 unchecked((int) result.HashingGraphInputsElapsedMs),
                 unchecked((int) result.StoringFingerprintEntryElapsedMs),
                 unchecked((int) result.LoadingAndDeserializingElapsedMs),
+                unchecked((int) result.CreateObservedGraphInputsElapsedMs),
+                unchecked((int) result.ToPipGraphInputDescriptorElapsedMs),
                 fingerprintChain);
         }
 
@@ -1502,6 +1516,16 @@ namespace BuildXL.Engine
         /// Elapsed time for loading and deserializing metadata.
         /// </summary>
         public readonly long LoadingAndDeserializingElapsedMs;
+
+        /// <summary>
+        /// Elapsed time for creating observed graph inputs (AbsolutePath creation + sorting).
+        /// </summary>
+        public long CreateObservedGraphInputsElapsedMs { get; set; }
+
+        /// <summary>
+        /// Elapsed time for converting observed graph inputs to PipGraphInputDescriptor (path expansion + protobuf construction).
+        /// </summary>
+        public long ToPipGraphInputDescriptorElapsedMs { get; set; }
 
         /// <summary>
         /// Chains of fingerprints.

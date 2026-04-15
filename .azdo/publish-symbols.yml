@@ -17,23 +17,18 @@ jobs:
     demands: ImageOverride -equals 1ESPT-Win2022-PME-3
 
   steps:
-  - task: DownloadPipelineArtifact@2
+  # External packages are now published as drops by the standalone external pipeline.
+  # Download from the drop instead of pipeline artifacts.
+  - task: ms-vscs-artifact.build-tasks.artifactDropDownloadTask-1.artifactDropDownloadTask@1
+    displayName: 'Download external packages from drop'
     inputs:
-      buildType: 'specific'
-      project: '9ed2c125-1cd5-4a17-886b-9d267f3a5fab'
-      definition: '15756'
-      buildVersionToDownload: 'specific'
-      pipelineId: '$(RollingBuild.BuildId)'
-      artifactName: 'buildxl-external.pkgs.$(RollingBuild.BuildNumber)'
-      # Microsoft.BuildXL.win pkg exclude BuildXLNative.pdb and DetoursServices.pdb
-      # Add Microsoft.BuildXL.Processes and Microsoft.BuildXL.Native to include the pdb files
-      itemPattern: |
-        Microsoft.BuildXL.win-x64.0.1.0* 
-        Microsoft.BuildXL.Processes.0.1.0*
-        Microsoft.BuildXL.Native.0.1.0*
-      targetPath: '$(System.DefaultWorkingDirectory)\win'
+      buildNumber: 'buildxl/external/pkgs/$(RollingBuild.BuildNumber)/$(RollingBuild.BuildId)'
+      dropServiceURI: 'https://mseng.artifacts.visualstudio.com/DefaultCollection'
+      destinationPath: '$(System.DefaultWorkingDirectory)\win'
+      entraServiceConnection: 'mseng-Domino-BuildXL-Pipelines'
 
   - task: PowerShell@2
+    displayName: 'Expand selected NuGet packages'
     inputs:
         targetType: 'inline'
         script: |
@@ -41,7 +36,14 @@ jobs:
             $directory = "$(System.DefaultWorkingDirectory)\Win"
             $destinationDirectory = "$(System.DefaultWorkingDirectory)\WinExpanded"
 
-            $nupkgFiles = Get-ChildItem -Path $directory -Filter *.nupkg
+            # Only expand the specific packages needed for symbol publishing.
+            # Microsoft.BuildXL.win pkg excludes BuildXLNative.pdb and DetoursServices.pdb,
+            # so we also include Microsoft.BuildXL.Processes and Microsoft.BuildXL.Native.
+            $patterns = @("Microsoft.BuildXL.win-x64.0.1.0*", "Microsoft.BuildXL.Processes.0.1.0*", "Microsoft.BuildXL.Native.0.1.0*")
+            $nupkgFiles = @()
+            foreach ($pattern in $patterns) {
+                $nupkgFiles += Get-ChildItem -Path $directory -Filter $pattern
+            }
             foreach($file in $nupkgFiles) {
               $nameWithoutExtension = [System.IO.Path]::GetFileNameWithoutExtension($file.FullName)
 

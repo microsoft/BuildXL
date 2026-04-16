@@ -771,7 +771,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Bcl.Cryptography",
-          "Version": "9.0.0"
+          "Version": "9.0.15"
         }
       }
     },
@@ -3282,7 +3282,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Formats.Asn1",
-          "Version": "9.0.0"
+          "Version": "9.0.15"
         }
       }
     },
@@ -4074,7 +4074,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Security.Cryptography.Pkcs",
-          "Version": "9.0.0"
+          "Version": "9.0.15"
         }
       }
     },
@@ -4110,7 +4110,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "System.Security.Cryptography.Xml",
-          "Version": "9.0.0"
+          "Version": "9.0.15"
         }
       }
     },

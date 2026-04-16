@@ -304,14 +304,14 @@ config({
                 { id: "Microsoft.ApplicationInsights.WindowsServer.TelemetryChannel", version: "2.22.0" },
                 { id: "Microsoft.Extensions.Caching.Memory", version: "1.0.0" },
                 { id: "Microsoft.Extensions.Caching.Abstractions", version: "1.0.0" },
-                { id: "System.Security.Cryptography.Xml", version: "9.0.0" },
+                { id: "System.Security.Cryptography.Xml", version: "9.0.15" },
                 { id: "System.Text.Encodings.Web", version: "9.0.14" },
                 { id: "System.Security.Permissions", version: "7.0.0" },
                 { id: "System.Windows.Extensions", version: "7.0.0" },
                 { id: "System.Drawing.Common", version: "7.0.0" },
                 { id: "Microsoft.Win32.SystemEvents", version: "7.0.0" },
-                { id: "System.Security.Cryptography.Pkcs", version: "9.0.0" },
-                { id: "Microsoft.Bcl.Cryptography", version: "9.0.0" },
+                { id: "System.Security.Cryptography.Pkcs", version: "9.0.15" },
+                { id: "Microsoft.Bcl.Cryptography", version: "9.0.15" },
 
                 { id: "ILRepack", version: "2.0.16" },
 

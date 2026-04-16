@@ -241,7 +241,7 @@ export const pkgs = [
     { id: "System.Threading", version: pkgVersion },
     { id: "System.Threading.Overlapped", version: pkgVersion },
     { id: "System.Threading.Tasks", version: pkgVersion },
-    { id: "System.Formats.Asn1", version: "9.0.0"},
+    { id: "System.Formats.Asn1", version: "9.0.15"},
     
     { id: "System.Threading.Tasks.Parallel", version: pkgVersion },
     { id: "System.Threading.Thread", version: pkgVersion },

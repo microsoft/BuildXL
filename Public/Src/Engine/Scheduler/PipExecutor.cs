@@ -3066,6 +3066,10 @@ namespace BuildXL.Scheduler
 
                                     if (result.CanRunFromCache)
                                     {
+                                        // The recursive call found a cache hit. Propagate Hit type back to the
+                                        // outer pipCacheMiss so it will be recorded correctly.
+                                        pipCacheMiss.Value.CacheMissType = PipCacheMissType.Hit;
+
                                         // Fetch the augmenting path set entry to keep it alive
                                         // NOTE: This is best-effort so we don't observe the result here. This would
                                         // be a good candidate for incorporate since we don't actually need the cache entry
@@ -3188,6 +3192,11 @@ namespace BuildXL.Scheduler
                 RunnableFromCacheResult runnableFromCacheResult;
 
                 bool isCacheHit = cacheHitData != null;
+
+                if (isCacheHit)
+                {
+                    pipCacheMiss.Value.CacheMissType = PipCacheMissType.Hit;
+                }
 
                 if (!isCacheHit)
                 {

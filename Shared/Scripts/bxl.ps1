@@ -170,6 +170,9 @@ param(
 
 $ErrorActionPreference = "Stop";
 Set-StrictMode -Version Latest;
+# Suppress PowerShell progress bars (e.g., Invoke-WebRequest download progress)
+# to keep console output clean for automated tooling and CI agents.
+$ProgressPreference = "SilentlyContinue";
 
 if ($GenerateFlagsMd) {
     & "$(Get-Location)/Shared/Scripts/HelpTextToMarkdown.ps1" -ResxFile "$(Get-Location)/Public/Src/App/Bxl/Strings.resx" -Output "$(Get-Location)/Documentation/Wiki/Flags.md"

@@ -1,10 +1,5 @@
 # Copilot Instructions for BuildXL
 
-!CRITICAL! BEFORE DOING ANYTHING: At the start of EVERY session, you MUST read the following files:
-1. [memory-bank.instructions.md](../.agents/instructions/memory-bank.instructions.md) — Persistent context across sessions
-2. [.memory-bank/activeContext.md](../.memory-bank/activeContext.md) — Current work focus and next steps
-3. [.memory-bank/learnings.md](../.memory-bank/learnings.md) — Project technical assessment
-
 ## Primary References
 - **[Documentation/Wiki/DeveloperGuide.md](../Documentation/Wiki/DeveloperGuide.md)** — Build commands, test commands, code style
 - **[Documentation/Wiki/CoreConcepts.md](../Documentation/Wiki/CoreConcepts.md)** — Architecture, pips, caching, sandboxing
@@ -28,7 +23,7 @@ BuildXL (Build Accelerator) is a build engine for large-scale distributed, cache
 ## Build System is DScript, not MSBuild
 - **`.dsc` files define builds** — these are the source of truth
 - `.csproj`/`.sln` files are **generated** for IDE support only — **do not edit them**
-- Generate VS solution: `bxl -vs` (or `bxl -vs -cache` to include cache projects)
+- Generate VS solution: `bxl -vs` (or `bxl -vs -cache` to include cache projects, or `bxl -vsall` for all projects)
 - Root config: `config.dsc` defines resolvers, qualifiers, and module references
 
 ### DScript Basics
@@ -145,6 +140,7 @@ bxl -use Dev                        # Rebuild and run with local bxl.exe
 ```bash
 bxl.cmd -minimal                    # Quick sanity check
 bxl.cmd                             # Runs all unit tests (slow)
+RunCheckInTests.cmd                 # Full pre-checkin validation (multiple configs + fingerprint checks — very slow, usually left to PR CI)
 ```
 
 ## Code Style (enforced by .editorconfig)
@@ -157,6 +153,14 @@ bxl.cmd                             # Runs all unit tests (slow)
 | Public members | PascalCase | `GetProcessInfo()` |
 | Parameters/locals | camelCase | `processId`, `filePath` |
 | Control statements | Always use braces | Even for single-line `if`/`for` |
+
+**File header**: Every `.cs` file must start with:
+```csharp
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+```
+
+**`var` usage**: Use `var` when the type is apparent from the right-hand side (e.g., `var customer = new Customer();`). Use explicit types for built-in types and when the type isn't obvious.
 
 ## Source Layout
 ```
@@ -204,22 +208,48 @@ When creating branches, always use the format: `dev/[username]/[feature-descript
 
 ## Running Builds from Agents / Automated Tooling
 
-### How builds are launched
-Both `bxl.cmd` (Windows) and `bxl.sh` (Linux) are **synchronous** — they block until the build completes and propagate the exit code. Wait for the script's process to exit to know when the build is done.
+### How to run a build
 
-- **Windows**: `bxl.cmd` calls `powershell Bxl.ps1`, which uses `Start-Process bxl.exe` + `Wait-Process`
-- **Linux**: `bxl.sh` directly invokes the `bxl` binary and captures `$?`
+```powershell
+# Windows — Minimal build (bxl.exe + deps, no tests) — ~2-5 min first run, seconds with cache hits
+cmd /c "call bxl.cmd -minimal /server-"
 
-### Important: `bxl` server process
-BuildXL runs in **server mode** by default. After a build completes, a `bxl` server process remains running in the background to speed up subsequent builds. **Do not** check for running `bxl` processes to determine if a build is still running — the server process will always be present. Instead, wait for the `bxl.cmd`/`bxl.sh` process to exit.
+# Windows — Build + tests for a specific component
+cmd /c "call bxl.cmd Test.BuildXL.Utilities.Collections.dsc /server-"
 
-### Checking build and test results
-Build console output is noisy (credential provider output, progress bars) and may not flow cleanly to the calling shell. **Do not rely on console output** to determine success or failure.
+# Windows — Run a single test method
+cmd /c "call bxl.cmd Test.BuildXL.Utilities.Collections.dsc -TestMethod Test.BuildXL.Utilities.Collections.BitSetTests.RoundToValidBitCount /server-"
 
-Instead:
+# Linux — equivalents use bxl.sh (add --internal for Microsoft internal developers)
+./bxl.sh --internal --minimal /server-
+./bxl.sh --internal Test.BuildXL.Utilities.Collections.dsc /server-
+```
 
-1. **Run `bxl.cmd` (Windows) or `bxl.sh` (Linux)** and wait for the process to exit
-2. **Check `Out/Logs/<latest>/BuildXL.err`** (newest timestamped subdirectory) — this is the authoritative result:
-   - **Empty or missing** → build and all tests succeeded
-   - **Has content** → contains errors, including test failure messages and stack traces
-3. **For more details**, error messages in `BuildXL.err` may reference additional log files — follow those paths for full output
+**Use `cmd /c "call bxl.cmd ..."`** (Windows) or `./bxl.sh` (Linux) from the repo root. The command blocks until completion and returns exit code 0 (success) or non-zero (failure). Use a long timeout (300+ seconds) — the first run in a session involves credential provider setup and LKG package download before the build starts.
+
+### Key flags for agent builds
+
+| Flag | Purpose |
+|------|---------|
+| `/server-` | Prevents a persistent bxl server process from being left running after the build |
+| `-Minimal` | Build only bxl.exe + dependencies (fastest sanity check) |
+
+### Checking build results
+
+Console output ends with `Build Succeeded` or `Build FAILED`. The exit code reflects this (0 = success, non-zero = failure). Compile errors (e.g., `error CS1002: ; expected`) and test failures (e.g., `error DX0064: ... failed with exit code 1`) appear inline in stdout with file paths and line numbers.
+
+On failure, the log directory path is printed to stdout (e.g., `Log Directory: Q:\src\BuildXL.Internal\Out\Logs\20260417-141028`). Check `BuildXL.err` in that directory for the full error details and stack traces.
+
+### Log directory contents
+
+| File | Purpose |
+|------|---------|
+| `BuildXL.err` | **Authoritative result** — missing = success, has content = errors |
+| `BuildXL.log` | Full build log with all details |
+
+### The `bxl` server process
+
+When running **without** `/server-`, a `bxl` server process remains running after the build to speed up subsequent builds. If you've changed `config.dsc` or other build configuration, kill the server before re-running to avoid stale graph state:
+```powershell
+Get-Process bxl -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.Id }
+```

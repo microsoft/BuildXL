@@ -102,8 +102,8 @@ function processArguments(args: Managed.TestArguments): Managed.TestArguments {
                         name: "System.Collections.Immutable",
                         publicKeyToken: "b03f5f7f11d50a3a",
                         culture: "neutral",
-                        oldVersion: "0.0.0.0-9.0.0.7",
-                        newVersion: "9.0.0.7",
+                        oldVersion: "0.0.0.0-9.0.0.15",
+                        newVersion: "9.0.0.15",
                     },
                     {
                         name: "System.Threading.Tasks.Extensions",
@@ -116,8 +116,8 @@ function processArguments(args: Managed.TestArguments): Managed.TestArguments {
                         name: "Microsoft.Bcl.AsyncInterfaces",
                         publicKeyToken: "cc7b13ffcd2ddd51",
                         culture: "neutral",
-                        oldVersion: "0.0.0.0-9.0.0.14",
-                        newVersion: "9.0.0.14",
+                        oldVersion: "0.0.0.0-9.0.0.15",
+                        newVersion: "9.0.0.15",
                     },
                     {
                         name: "System.Memory",

@@ -4,8 +4,8 @@
 const coreVersion = "3.1.0";
 const core50Version = "5.0.0";
 const core60Version = "6.0.33";
-const core80Version = "8.0.25";
-const core90Version = "9.0.14";
+const core80Version = "8.0.26";
+const core90Version = "9.0.15";
 
 // Microsoft.NETCore.Platforms has become out of sync with the rest of the packages that use core60Version
 // Updaters of this file might want to try to restore the sync: for now we are using the latest version we can
@@ -263,7 +263,7 @@ export const pkgs = [
     // NOTE: this package is explicitly on version 5.0.0.0 because 6.0.0.0 was delisted from nuget.
     { id: "System.Security.Principal.Windows", version: pkgVersion5 },
     
-    { id: "System.Text.Json", version: "9.0.14" },
+    { id: "System.Text.Json", version: "9.0.15" },
     { id: "System.Threading.AccessControl", version: pkgVersion5 },
 
     // Non-standard version ones
@@ -272,7 +272,7 @@ export const pkgs = [
     { id: "System.Threading.Tasks.Extensions", version: "4.6.0" }, // If you change this version, please change cacheBindingRedirects in BuildXLSdk.dsc
 
     { id: "System.Security.Cryptography.OpenSsl", version: "5.0.0" },
-    { id: "System.Collections.Immutable", version: "9.0.7" },
+    { id: "System.Collections.Immutable", version: "9.0.15" },
     // VBCSCompiler is used in CB against older versions of MSBuild that don't have binding redirects for the newer versions of System.Collections.Immutable.
     { id: "System.Collections.Immutable", alias: "System.Collections.Immutable.ForVBCS", version: "8.0.0" },
 ];

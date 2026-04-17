@@ -5,10 +5,7 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.IO;
-using System.Reflection;
 using Xunit;
-using Xunit.Abstractions;
-using Xunit.Sdk;
 
 namespace BuildXL.FrontEnd.Script.Testing.Helper
 {
@@ -43,7 +40,7 @@ namespace BuildXL.FrontEnd.Script.Testing.Helper
         {
             Contract.Requires(!string.IsNullOrEmpty(identifier));
 
-            var testFolder = GetAndCleanTestFolder();
+            var testFolder = GetAndCleanTestFolder(shortName);
 
             var diagnosticHandler = new XUnitDiagnosticHandler(m_output);
             var updateFailedTests = Environment.GetEnvironmentVariable("AutoFixLkgs") == "1";
@@ -56,23 +53,14 @@ namespace BuildXL.FrontEnd.Script.Testing.Helper
         /// <summary>
         /// Gets a unique test folder for the test.
         /// </summary>
-        protected string GetAndCleanTestFolder()
+        protected string GetAndCleanTestFolder(string testMethodName)
         {
             var testRoot = Environment.GetEnvironmentVariable("TestOutputDir") ??
                            Environment.GetEnvironmentVariable("TEMP") ??
                            Path.Combine(Path.GetDirectoryName(BuildXL.Utilities.Core.AssemblyHelper.GetAssemblyLocation(GetType().Assembly)), "TestGen");
 
-            var testOutputHelper = (TestOutputHelper)m_output;
-            var iTestObject = testOutputHelper
-                .GetType()
-                .GetField("test", BindingFlags.NonPublic | BindingFlags.Instance)
-                .GetValue(testOutputHelper);
-            var test = (ITest)iTestObject;
-
-            var testClass = test.TestCase.TestMethod.TestClass.Class.Name;
-            var testName = test.TestCase.TestMethod.Method.Name;
-
-            var testFolder = Path.Combine(testRoot, testClass, testName);
+            var testClass = GetType().FullName;
+            var testFolder = Path.Combine(testRoot, testClass, testMethodName);
 
             if (Directory.Exists(testFolder))
             {

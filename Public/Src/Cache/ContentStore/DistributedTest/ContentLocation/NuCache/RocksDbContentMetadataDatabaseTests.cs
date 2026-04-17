@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
@@ -24,7 +24,6 @@ using BuildXL.Utilities.Serialization;
 using ContentStoreTest.Test;
 using FluentAssertions;
 using Xunit;
-using Xunit.Abstractions;
 using Test.BuildXL.TestUtilities.Xunit;
 using static BuildXL.Cache.ContentStore.Distributed.MetadataService.RocksDbContentMetadataDatabase;
 using static BuildXL.Cache.ContentStore.Distributed.MetadataService.RocksDbOperations;

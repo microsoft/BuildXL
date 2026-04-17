@@ -69,10 +69,10 @@ export function test(args: TestArguments): Managed.TestResult {
         sdksToTest: sealedSdksToTest,
     });
 
-    // Run the test with Xunit
+    // Run the test with xUnit v3
     const result = Managed.test({
         // TODO: QTest
-        testFramework: importFrom("Sdk.Managed.Testing.XUnit").framework,
+        testFramework: importFrom("Sdk.Managed.Testing.XUnitV3").framework,
         framework: Frameworks.framework,
         assemblyName: "Testing",
         sourceFolders: [
@@ -86,7 +86,6 @@ export function test(args: TestArguments): Managed.TestResult {
         references: [
             SdkTesting.Helper.dll,
             importFrom("System.Runtime.CompilerServices.Unsafe").pkg,
-            ...importFrom("Sdk.Managed.Testing.XUnit").xunitReferences
         ],
         tools: {
             csc: {

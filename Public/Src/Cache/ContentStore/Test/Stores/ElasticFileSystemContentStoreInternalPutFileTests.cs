@@ -13,7 +13,6 @@ using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.InterfacesTest.Time;
 using BuildXL.Cache.ContentStore.Utils;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace ContentStoreTest.Stores
 {

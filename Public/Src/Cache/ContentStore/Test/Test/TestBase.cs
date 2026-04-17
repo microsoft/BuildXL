@@ -10,7 +10,7 @@ using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest;
-using Xunit.Abstractions;
+using Xunit;
 
 namespace ContentStoreTest.Test
 {

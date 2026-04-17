@@ -21,7 +21,6 @@ using ContentStoreTest.Distributed.Redis;
 using ContentStoreTest.Test;
 using FluentAssertions;
 using Xunit;
-using Xunit.Abstractions;
 
 #nullable enable
 

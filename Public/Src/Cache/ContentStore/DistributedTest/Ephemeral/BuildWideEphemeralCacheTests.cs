@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft Corporation.
+// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
 #nullable enable
@@ -15,7 +15,6 @@ using ContentStoreTest.Sessions;
 using FluentAssertions;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
 using static BuildXL.Cache.ContentStore.Distributed.Test.Ephemeral.BuildWideEphemeralCacheTestsWithService;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Test.Ephemeral;

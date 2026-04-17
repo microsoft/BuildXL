@@ -13,7 +13,6 @@ using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace BuildXL.Cache.ContentStore.InterfacesTest.Sessions
 {

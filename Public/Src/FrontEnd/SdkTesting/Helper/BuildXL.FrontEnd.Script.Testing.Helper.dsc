@@ -28,7 +28,7 @@ namespace Helper {
             importFrom("BuildXL.Utilities").Script.Constants.dll,
             importFrom("BuildXL.Utilities").Utilities.Core.dll,
             importFrom("BuildXL.Utilities.UnitTests").TestUtilities.dll,
-            ...importFrom("Sdk.Managed.Testing.XUnit").xunitReferences,
+            ...importFrom("Sdk.Managed.Testing.XUnitV3").xunitV3References,
         ],
     });
 }

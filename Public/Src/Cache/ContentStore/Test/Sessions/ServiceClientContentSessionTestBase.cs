@@ -15,7 +15,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using ContentStoreTest.Stores;
 using ContentStoreTest.Test;
-using Xunit.Abstractions;
+using Xunit;
 
 namespace ContentStoreTest.Sessions
 {

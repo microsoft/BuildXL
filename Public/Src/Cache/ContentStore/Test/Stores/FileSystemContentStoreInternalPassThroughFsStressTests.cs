@@ -14,7 +14,6 @@ using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.InterfacesTest.Time;
 using ContentStoreTest.Test;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace ContentStoreTest.Stores
 {

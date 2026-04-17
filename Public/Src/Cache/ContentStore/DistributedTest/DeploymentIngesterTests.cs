@@ -32,7 +32,6 @@ using BuildXL.Utilities.Collections;
 using ContentStoreTest.Test;
 using FluentAssertions;
 using Xunit;
-using Xunit.Abstractions;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 using RelativePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.RelativePath;
 

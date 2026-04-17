@@ -7,7 +7,7 @@ using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.InterfacesTest.FileSystem;
 using BuildXL.Cache.ContentStore.InterfacesTest.Time;
 using ContentStoreTest.Test;
-using Xunit.Abstractions;
+using Xunit;
 
 namespace ContentStoreTest.Stores
 {

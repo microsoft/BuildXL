@@ -14,7 +14,6 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using FluentAssertions;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
 {

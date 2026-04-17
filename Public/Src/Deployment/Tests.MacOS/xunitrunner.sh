@@ -157,8 +157,10 @@ function run_xunit { #(folderName, dllName, ...extraXunitArgs)
 
     # Detect xunit v3 tests: v3 test assemblies are standalone executables (no xunit.console.dll needed).
     # Check for the native apphost binary (same name as DLL but without extension).
+    # BuildXL normalizes file permissions on outputs, so ensure the apphost is executable.
     local exeName="${dllName%.dll}"
-    if [[ -f "$exeName" && -x "$exeName" ]]; then
+    if [[ -f "$exeName" ]]; then
+        chmod +x "$exeName"
         # xunit v3: run the test executable directly with v3 command-line syntax
         # Convert v2 args to v3: -notrait → -trait-, -trait stays the same
         local v3Args=()

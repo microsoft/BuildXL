@@ -4,7 +4,7 @@
 import * as Managed from "Sdk.Managed";
 import * as BuildXLSdk from "Sdk.BuildXL";
 import * as Deployment from "Sdk.Deployment";
-import * as XUnit from "Sdk.Managed.Testing.XUnit";
+import * as XUnitV3 from "Sdk.Managed.Testing.XUnitV3";
 
 export declare const qualifier: BuildXLSdk.DefaultQualifier;
 
@@ -13,7 +13,7 @@ namespace Test.BuildXL.AdoBuildRunner {
     export const dll = BuildXLSdk.test({
         assemblyName: "Test.Tool.AdoBuildRunner",
         sources: globR(d`.`, "*.cs"),
-        testFramework: XUnit.framework,
+        testFramework: XUnitV3.framework,
         references: [
             importFrom("BuildXL.AdoBuildRunner").BuildXL.AdoBuildRunner.exe,
 

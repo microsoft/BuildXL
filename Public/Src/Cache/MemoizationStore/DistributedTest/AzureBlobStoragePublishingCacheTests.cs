@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft Corporation.
+// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
 #if MICROSOFT_INTERNAL
@@ -16,7 +16,6 @@ using BuildXL.Cache.MemoizationStore.Test.Sessions;
 using ContentStoreTest.Distributed.Redis;
 using ContentStoreTest.Test;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace BuildXL.Cache.MemoizationStore.Distributed.Test
 {

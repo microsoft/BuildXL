@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
@@ -21,7 +21,6 @@ using BuildXL.Utilities.Tracing;
 using ContentStoreTest.Test;
 using FluentAssertions;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace ContentStoreTest.Distributed.ContentLocation.NuCache
 {

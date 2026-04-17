@@ -46,7 +46,6 @@ namespace Test.BuildXL.FrontEnd.Script.Testing.TestGenerator
             Assert.Contains("// Copyright (c) Microsoft Corporation. All rights reserved.", resultLines);
             Assert.Contains("using BuildXL.FrontEnd.Script.Testing.Helper;", resultLines);
             Assert.Contains("using Xunit;", resultLines);
-            Assert.Contains("using Xunit.Abstractions;", resultLines);
             Assert.Contains("public sealed class @testName : UnitTestBase", resultLines);
             Assert.Contains("public @testName(ITestOutputHelper output)", resultLines);
 

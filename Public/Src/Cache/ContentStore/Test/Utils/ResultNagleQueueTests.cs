@@ -10,7 +10,6 @@ using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Utilities.Core.Tasks;
 using FluentAssertions;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace ContentStoreTest.Utils
 {

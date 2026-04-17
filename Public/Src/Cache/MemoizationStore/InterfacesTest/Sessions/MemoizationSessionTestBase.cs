@@ -17,7 +17,6 @@ using BuildXL.Cache.MemoizationStore.Interfaces.Stores;
 using BuildXL.Cache.MemoizationStore.InterfacesTest.Results;
 using ContentStoreTest.Test;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions
 {

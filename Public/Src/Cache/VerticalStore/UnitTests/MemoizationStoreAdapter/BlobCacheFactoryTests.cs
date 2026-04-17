@@ -13,7 +13,6 @@ using BuildXL.Cache.MemoizationStoreAdapter;
 using ContentStoreTest.Distributed.Redis;
 using ContentStoreTest.Test;
 using Xunit;
-using Xunit.Abstractions;
 
 #nullable enable
 

@@ -548,8 +548,9 @@ export const polySharpAttributes : PolySharpAttributes = {
 @@public
 export function cacheTest(args: TestArguments) : TestResult {
     args = Object.merge<Managed.TestArguments>({
-        // Cache tests don't use QTest because QTest doesn't support skipGroups and skipGroups is needed because cache tests fail otherwise.
-        testFramework: XUnit.framework,
+        // Cache tests use standalone xUnit v3 (not QTest) because QTest doesn't support skipGroups
+        // and skipGroups is needed because cache tests fail otherwise.
+        testFramework: XUnitV3.framework,
         runTestArgs: {
             skipGroups: [ "QTestSkip", "Performance", "Simulation", ...(isDotNetCore ? [ "SkipDotNetCore" ] : []) ],
             tags: [ "cacheTest" ],

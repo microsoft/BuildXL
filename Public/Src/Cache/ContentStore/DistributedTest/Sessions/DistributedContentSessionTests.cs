@@ -13,7 +13,6 @@ using BuildXL.Cache.ContentStore.InterfacesTest.Sessions;
 using ContentStoreTest.Distributed.Redis;
 using ContentStoreTest.Test;
 using Xunit;
-using Xunit.Abstractions;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;

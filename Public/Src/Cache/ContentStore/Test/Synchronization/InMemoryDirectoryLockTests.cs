@@ -3,7 +3,7 @@
 
 using BuildXL.Cache.ContentStore.InterfacesTest.FileSystem;
 using BuildXL.Cache.ContentStore.InterfacesTest.Time;
-using Xunit.Abstractions;
+using Xunit;
 
 namespace ContentStoreTest.Synchronization
 {

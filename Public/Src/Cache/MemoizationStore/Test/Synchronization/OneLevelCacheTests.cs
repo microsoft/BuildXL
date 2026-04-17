@@ -7,7 +7,6 @@ using BuildXL.Cache.ContentStore.InterfacesTest;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using FluentAssertions;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace BuildXL.Cache.MemoizationStore.Test.Synchronization
 {

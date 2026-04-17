@@ -16,7 +16,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Logging;
 using BuildXL.Cache.ContentStore.Logging;
 using BuildXL.Utilities.ParallelAlgorithms;
 using ContentStoreTest.Test;
-using Xunit.Abstractions;
+using Xunit;
 
 namespace BuildXL.Cache.Logging
 {

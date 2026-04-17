@@ -21,7 +21,6 @@ using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using ContentStoreTest.Test;
 using FluentAssertions;
 using Xunit;
-using Xunit.Abstractions;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
 
 namespace ContentStoreTest.Stores

@@ -24,7 +24,6 @@ using BuildXL.Cache.ContentStore.InterfacesTest.Utils;
 using BuildXL.Cache.ContentStore.InterfacesTest;
 using FluentAssertions;
 using Xunit;
-using Xunit.Abstractions;
 using BuildXL.Cache.ContentStore.Extensions;
 using BuildXL.Cache.ContentStore.Sessions.Internal;
 

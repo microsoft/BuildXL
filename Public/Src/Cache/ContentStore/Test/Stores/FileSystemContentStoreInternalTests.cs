@@ -21,7 +21,6 @@ using ContentStoreTest.Test;
 using FluentAssertions;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
 using static BuildXL.Cache.ContentStore.Stores.FileSystemContentStoreInternalChecker;
 using BuildXL.Cache.ContentStore.Tracing;
 

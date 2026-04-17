@@ -22,7 +22,6 @@ using ContentStoreTest.Test;
 using FluentAssertions;
 using BuildXL.Cache.MemoizationStore.InterfacesTest.Sessions;
 using Xunit;
-using Xunit.Abstractions;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 
 namespace BuildXL.Cache.MemoizationStore.Test.Sessions

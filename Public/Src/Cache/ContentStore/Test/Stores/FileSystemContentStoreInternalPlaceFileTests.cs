@@ -21,7 +21,6 @@ using FluentAssertions;
 using Xunit;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
-using Xunit.Abstractions;
 
 namespace ContentStoreTest.Stores
 {

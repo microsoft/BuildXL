@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft Corporation.
+// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
 #nullable enable
@@ -37,7 +37,6 @@ using ContentStoreTest.Extensions;
 using ContentStoreTest.Test;
 using FluentAssertions;
 using Xunit;
-using Xunit.Abstractions;
 using IContentResolver = BuildXL.Cache.ContentStore.Distributed.Ephemeral.IContentResolver;
 // ReSharper disable ExplicitCallerInfoArgument
 

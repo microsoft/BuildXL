@@ -72,7 +72,6 @@ namespace BuildXL.FrontEnd.Script.Testing.TestGenerator
             gen.Ln();
             gen.Ln("using BuildXL.FrontEnd.Script.Testing.Helper;");
             gen.Ln("using Xunit;");
-            gen.Ln("using Xunit.Abstractions;");
             gen.Ln();
             gen.GenerateNoDoc();
             gen.Ln(I($"public sealed class @{className} : UnitTestBase"));

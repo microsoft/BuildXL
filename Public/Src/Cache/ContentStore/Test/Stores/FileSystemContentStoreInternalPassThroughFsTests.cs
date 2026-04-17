@@ -22,7 +22,6 @@ using ContentStoreTest.Test;
 using FluentAssertions;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
 using SystemProcess = System.Diagnostics.Process;
 
 namespace BuildXL.Cache.ContentStore.Test.Stores

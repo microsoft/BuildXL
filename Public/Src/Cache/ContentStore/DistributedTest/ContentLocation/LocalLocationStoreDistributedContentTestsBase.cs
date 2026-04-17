@@ -38,7 +38,7 @@ using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Utilities.Collections;
 using ContentStoreTest.Distributed.Redis;
 using ContentStoreTest.Test;
-using Xunit.Abstractions;
+using Xunit;
 
 namespace ContentStoreTest.Distributed.Sessions
 {

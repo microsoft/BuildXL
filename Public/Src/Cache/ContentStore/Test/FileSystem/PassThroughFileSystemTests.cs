@@ -19,7 +19,6 @@ using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Utilities.ParallelAlgorithms;
 using BuildXL.Utilities.Core.Tracing;
-using Xunit.Abstractions;
 
 namespace ContentStoreTest.FileSystem
 {

@@ -7,7 +7,6 @@ using System.Runtime.InteropServices;
 using BuildXL.Cache.ContentStore.Hashing;
 using FluentAssertions;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace BuildXL.Cache.ContentStore.InterfacesTest.Hashing
 {

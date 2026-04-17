@@ -13,7 +13,6 @@ using BuildXL.Cache.Interfaces.Test;
 using BuildXL.Native.IO;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace BuildXL.Cache.Tests
 {

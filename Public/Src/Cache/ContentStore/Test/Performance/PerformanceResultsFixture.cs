@@ -4,7 +4,7 @@
 using System;
 using System.Threading;
 using ContentStoreTest.Test;
-using Xunit.Abstractions;
+using Xunit;
 
 namespace ContentStoreTest.Performance
 {

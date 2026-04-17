@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft Corporation.
+// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
 using System;
@@ -8,7 +8,6 @@ using BuildXL.Cache.ContentStore.UtilitiesCore;
 using BuildXL.Utilities.Core;
 using FluentAssertions;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace BuildXL.Cache.ContentStore.InterfacesTest.Counters
 {

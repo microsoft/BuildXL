@@ -13,7 +13,6 @@ using BuildXL.Cache.ContentStore.Hashing;
 using ContentStoreTest.Test;
 using FluentAssertions;
 using Xunit;
-using Xunit.Abstractions;
 using System.Diagnostics.ContractsLight;
 using System.Collections.Generic;
 using System.Diagnostics;

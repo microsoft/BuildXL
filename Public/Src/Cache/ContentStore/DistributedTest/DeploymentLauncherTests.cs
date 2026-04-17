@@ -6,7 +6,6 @@ using BuildXL.Cache.Host.Configuration;
 using Xunit;
 using ContentStoreTest.Test;
 using BuildXL.Cache.Host.Service;
-using Xunit.Abstractions;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Hashing;
@@ -138,8 +137,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Test
                         {"testsecret", new() { Kind = SecretKind.SasToken } },
                         {"testsecretwithrename", new() { Name = "realsecretname",  } },
                     },
-                    // Need an existing path. Pick the current dll and use %LauncherHostDir% token to ensure it's replaced correctly.
-                    Executable = $"%LauncherHostDir%/{Assembly.GetExecutingAssembly().GetName().Name}.dll",
+                    // Need an existing path. Pick the current executable and use %LauncherHostDir% token to ensure it's replaced correctly.
+                    // xunit v3 tests are self-hosted executables (.exe), not DLLs.
+                    Executable = $"%LauncherHostDir%/{Assembly.GetExecutingAssembly().GetName().Name}.exe",
                     ShutdownTimeoutSeconds = 60,
 
                 }

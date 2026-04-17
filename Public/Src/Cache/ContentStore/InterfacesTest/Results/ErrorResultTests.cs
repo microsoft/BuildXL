@@ -1,4 +1,4 @@
-﻿// --------------------------------------------------------------------
+// --------------------------------------------------------------------
 //  
 // Copyright (c) Microsoft Corporation.  All rights reserved.
 //  
@@ -7,7 +7,6 @@
 using System;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace BuildXL.Cache.ContentStore.InterfacesTest.Results
 {

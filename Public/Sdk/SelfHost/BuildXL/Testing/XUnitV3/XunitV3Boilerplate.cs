@@ -36,11 +36,59 @@ namespace Xunit.V3.BuildXL.Generated
     {
         public static int Main(string[] args)
         {
+#if !NETCOREAPP
+            // xunit v3 tests are self-hosted executables. The v2 runner (xunit.console.exe)
+            // handled assembly version unification internally; for v3 on .NET Framework we
+            // install a fallback resolver so that version-mismatched assemblies are found
+            // in the application directory (replacing the need for binding redirects).
+            InstallAssemblyResolver();
+#endif
+
             if (global::System.Linq.Enumerable.Any(args, arg => arg == "--server" || arg == "--internal-msbuild-node"))
                 return global::Xunit.MicrosoftTestingPlatform.TestPlatformTestFramework.RunAsync(args, BuildXLSelfRegisteredExtensions.AddSelfRegisteredExtensions).GetAwaiter().GetResult();
             else
                 return global::Xunit.Runner.InProc.SystemConsole.ConsoleRunner.Run(args).GetAwaiter().GetResult();
         }
+
+#if !NETCOREAPP
+        /// <summary>
+        /// Installs assembly resolution handler so that version-mismatched assemblies
+        /// can be found in the application directory on .NET Framework. This replaces
+        /// the need for extensive binding redirects that the v2 xunit.console.exe
+        /// runner handled internally.
+        /// </summary>
+        private static void InstallAssemblyResolver()
+        {
+            var appBase = System.AppDomain.CurrentDomain.BaseDirectory;
+
+            System.AppDomain.CurrentDomain.AssemblyResolve += (sender, resolveArgs) =>
+            {
+                var requestedName = new System.Reflection.AssemblyName(resolveArgs.Name);
+                if (requestedName.Name == null || requestedName.Name.EndsWith(".resources"))
+                {
+                    return null;
+                }
+
+                // Return already-loaded assembly with same simple name (version-mismatch unification)
+                foreach (var loaded in System.AppDomain.CurrentDomain.GetAssemblies())
+                {
+                    if (string.Equals(loaded.GetName().Name, requestedName.Name, System.StringComparison.OrdinalIgnoreCase))
+                    {
+                        return loaded;
+                    }
+                }
+
+                // Try to load from the application directory
+                var path = System.IO.Path.Combine(appBase, requestedName.Name + ".dll");
+                if (System.IO.File.Exists(path))
+                {
+                    return System.Reflection.Assembly.LoadFrom(path);
+                }
+
+                return null;
+            };
+        }
+#endif
     }
 
     // ---- Microsoft Testing Platform self-registration (from Microsoft.Testing.Platform.MSBuild) ----

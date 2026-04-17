@@ -4,7 +4,7 @@
 using System.Text;
 using System.Diagnostics.Tracing;
 using BuildXL.Utilities.Instrumentation.Common;
-using Xunit.Abstractions;
+using Xunit;
 
 namespace BuildXL.FrontEnd.Script.Testing.Helper
 {

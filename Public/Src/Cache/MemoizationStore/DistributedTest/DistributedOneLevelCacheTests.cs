@@ -38,7 +38,6 @@ using ContentStoreTest.Distributed.Sessions;
 using FluentAssertions;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace BuildXL.Cache.MemoizationStore.Distributed.Test
 {

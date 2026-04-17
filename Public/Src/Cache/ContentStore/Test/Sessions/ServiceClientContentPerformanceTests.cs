@@ -16,7 +16,6 @@ using ContentStoreTest.Sessions;
 using ContentStoreTest.Stores;
 using ContentStoreTest.Test;
 using Xunit;
-using Xunit.Abstractions;
 
 #pragma warning disable SA1402 // File may only contain a single class
 

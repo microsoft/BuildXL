@@ -22,7 +22,6 @@ using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using ContentStoreTest.Test;
 using FluentAssertions;
 using Xunit;
-using Xunit.Abstractions;
 using FileInfo = BuildXL.Cache.ContentStore.Interfaces.FileSystem.FileInfo;
 using BuildXL.Cache.ContentStore.Tracing;
 

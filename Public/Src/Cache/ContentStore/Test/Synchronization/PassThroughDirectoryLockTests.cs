@@ -4,7 +4,6 @@
 using BuildXL.Cache.ContentStore.FileSystem;
 using ContentStoreTest.Test;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace ContentStoreTest.Synchronization
 {

@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft Corporation.
+// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
 using System;
@@ -19,7 +19,6 @@ using ContentStoreTest.Test;
 using FluentAssertions;
 using RocksDbSharp;
 using Xunit;
-using Xunit.Abstractions;
 using static BuildXL.Cache.BlobLifetimeManager.Library.RocksDbLifetimeDatabase;
 using BuildXL.Cache.ContentStore.Distributed.Blob;
 

@@ -24,7 +24,6 @@ using BuildXL.Launcher.Server;
 using ContentStoreTest.Distributed.Redis;
 using ContentStoreTest.Test;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace ContentStoreTest.Distributed.Sessions
 {

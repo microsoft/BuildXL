@@ -9,7 +9,6 @@ using ContentStoreTest.Performance;
 using FluentAssertions;
 using BuildXL.Cache.ContentStore.InterfacesTest;
 using Xunit;
-using Xunit.Abstractions;
 
 #pragma warning disable SA1402 // File may only contain a single class
 

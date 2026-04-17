@@ -10,7 +10,7 @@ using System.Reflection;
 using System.Text;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Utilities.Core;
-using Xunit.Abstractions;
+using Xunit;
 
 namespace BuildXL.Cache.ContentStore.InterfacesTest
 {

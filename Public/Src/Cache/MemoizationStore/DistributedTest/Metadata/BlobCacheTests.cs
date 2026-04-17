@@ -31,7 +31,6 @@ using BuildXL.Cache.ContentStore.Distributed.Test;
 using ContentStoreTest.Distributed.Redis;
 using System.Collections.Generic;
 using System.Threading;
-using Xunit.Abstractions;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.ContentStore.Distributed.Blob;
 using BuildXL.Cache.ContentStore.UtilitiesCore;

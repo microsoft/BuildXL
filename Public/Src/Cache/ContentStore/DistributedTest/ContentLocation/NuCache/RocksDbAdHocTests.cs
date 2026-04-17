@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
 using BuildXL.Cache.ContentStore.UtilitiesCore;
@@ -6,7 +6,6 @@ using BuildXL.Engine.Cache.KeyValueStores;
 using ContentStoreTest.Test;
 using FluentAssertions;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace BuildXL.Cache.ContentStore.Distributed.Test.ContentLocation.NuCache
 {

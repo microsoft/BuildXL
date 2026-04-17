@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft Corporation.
+// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
 using System;
@@ -19,7 +19,6 @@ using BuildXL.Cache.ContentStore.Utils;
 using BuildXL.Cache.Host.Configuration;
 using ContentStoreTest.Test;
 using Xunit;
-using Xunit.Abstractions;
 using Exception = System.Exception;
 
 namespace BuildXL.Cache.ContentStore.Test.Tracing

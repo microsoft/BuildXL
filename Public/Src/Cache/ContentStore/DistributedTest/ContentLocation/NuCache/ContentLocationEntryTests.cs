@@ -8,7 +8,6 @@ using BuildXL.Cache.ContentStore.Distributed.NuCache;
 using BuildXL.Cache.ContentStore.Utils;
 using FluentAssertions;
 using Xunit;
-using Xunit.Abstractions;
 using static ContentStoreTest.Distributed.ContentLocation.NuCache.ContentLocationEntryTestHelpers;
 
 namespace ContentStoreTest.Distributed.ContentLocation.NuCache

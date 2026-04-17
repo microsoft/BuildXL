@@ -5,7 +5,6 @@ using System;
 using System.Linq;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace BuildXL.Cache.ContentStore.InterfacesTest.Results
 {

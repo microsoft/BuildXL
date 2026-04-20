@@ -1735,6 +1735,26 @@ namespace BuildXL.Engine
                         return BuildXLEngineResult.Failed(engineState);
                     }
 
+                    // Check the build sentinel BEFORE the engine writes any artifacts into EngineCache.
+                    // At this point, CreateOutputDirectories has ensured the directory exists, but only
+                    // files from a prior build (if any) are present. Later steps (FileContentTable, etc.)
+                    // will populate EngineCache, which would poison the HasPriorBuild() check.
+                    bool skipScrubbingOnCleanMachine = false;
+                    if (Configuration.Engine.SkipScrubbingOnCleanMachine)
+                    {
+                        var engineCachePath = Configuration.Layout.EngineCacheDirectory.ToString(Context.PathTable);
+                        var sentinel = new BuildSentinel(engineCachePath);
+
+                        skipScrubbingOnCleanMachine = !sentinel.HasPriorBuild();
+
+                        // Always write the sentinel so subsequent builds detect this execution.
+                        if (!sentinel.TryMarkBuildStarted())
+                        {
+                            Logger.Log.FailedToWriteBuildSentinel(engineLoggingContext, sentinel.SentinelFilePath ?? "<unavailable>");
+                            return BuildXLEngineResult.Failed(engineState);
+                        }
+                    }
+
                     // Once output directories including MoveDeleteTempDirectory have been created,
                     // create a TempCleaner for cleaning all temp directories
                     m_tempCleaner = new TempCleaner(engineLoggingContext, tempDirectory: m_moveDeleteTempDirectory);
@@ -1902,6 +1922,7 @@ namespace BuildXL.Engine
                                     cacheInitializationTask,
                                     journalState,
                                     engineState,
+                                    skipScrubbingOnCleanMachine,
                                     out ebpfDaemonTask,
                                     out engineSchedule,
                                     out rootFilter);
@@ -2807,6 +2828,7 @@ namespace BuildXL.Engine
             CacheInitializationTask cacheInitializationTask,
             JournalState journalState,
             EngineState engineState,
+            bool skipScrubbingOnCleanMachine,
             out EBPFDaemonTask eBPFDaemonTask,
             out EngineSchedule engineSchedule,
             out RootFilter rootFilter)
@@ -3204,7 +3226,8 @@ namespace BuildXL.Engine
                     previousSchedulerState,
                     ref rootFilter,
                     GetNonScrubbablePaths(),
-                    m_enginePerformanceInfo))
+                    m_enginePerformanceInfo,
+                    skipScrubbingOnCleanMachine))
                 {
                     MakeScheduleInfoAvailableToViewer(engineSchedule);
                     Contract.Assume(loggingContext.ErrorWasLogged, "An error should have been logged during graph scheduling.");

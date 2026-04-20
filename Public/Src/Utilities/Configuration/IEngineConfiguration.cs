@@ -111,6 +111,12 @@ namespace BuildXL.Utilities.Configuration
         bool? AssumeCleanOutputs { get; }
 
         /// <summary>
+        /// When enabled, dynamically skips scrubbing if no prior BuildXL execution has occurred on this machine.
+        /// Detection is based on a sentinel file in LocalApplicationData that is written after each successful build.
+        /// </summary>
+        bool SkipScrubbingOnCleanMachine { get; }
+
+        /// <summary>
         /// Before executing, scrubs (deletes) files and directories not marked as inputs or outputs of the current build in the specified directories.
         /// </summary>
         [MaybeNull]

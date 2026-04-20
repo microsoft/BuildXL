@@ -748,6 +748,11 @@ namespace BuildXL
                 HelpLevel.Verbose);
 
             hw.WriteOption(
+                "/skipScrubbingOnCleanMachine[+|-]",
+                Strings.HelpText_DisplayHelp_SkipScrubbingOnCleanMachine,
+                HelpLevel.Verbose);
+
+            hw.WriteOption(
                 "/scrubDirectory:<path>",
                 Strings.HelpText_DisplayHelp_ScrubDirectory,
                 HelpLevel.Verbose);

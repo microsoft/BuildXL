@@ -437,6 +437,9 @@ namespace BuildXL.Engine.Tracing
         EBPFRequiredNativeLibrariesMissing = 7149,
 
         RemoteCacheFallbackToLocal = 7155,
+
+        ScrubbingSkippedCleanMachine = 7156,
+        FailedToWriteBuildSentinel = 7157,
         // max 7200
     }
 }

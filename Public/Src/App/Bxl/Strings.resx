@@ -495,6 +495,9 @@
   <data name="HelpText_DisplayHelp_Scrub" xml:space="preserve">
     <value>Before executing, scrubs (deletes) files not marked as inputs or outputs of the current build. Only applies to mounts marked as Scrubbable. This includes the object directory but none others by default. Defaults to off.</value>
   </data>
+  <data name="HelpText_DisplayHelp_SkipScrubbingOnCleanMachine" xml:space="preserve">
+    <value>When enabled, skips scrubbing if no prior BuildXL execution has occurred on this machine. Enabled by default in ADO pipelines. Defaults to off.</value>
+  </data>
   <data name="HelpText_DisplayHelp_CleanOnly" xml:space="preserve">
     <value>Deletes output files that would have been produced by the build. Pips will not be executed.</value>
   </data>

@@ -791,8 +791,20 @@ namespace BuildXL.Engine
             IConfiguration configuration,
             IEnumerable<string> nonScrubbablePaths,
             ITempCleaner tempCleaner,
-            RootFilter filter)
+            RootFilter filter,
+            bool skipScrubbing = false)
         {
+            if (skipScrubbing)
+            {
+                Logger.Log.ScrubbingSkippedCleanMachine(loggingContext);
+
+                // On a clean machine there are no prior sideband files, so use eager deletion.
+                // This avoids issues with SidebandExaminer.Examine(false) passing null extraneousFiles
+                // to CreateForLazyDeletion when UnsafeLazySODeletion is enabled.
+                scheduler.SetSidebandState(SidebandState.CreateForEagerDeletion());
+                return;
+            }
+
             var pathsToScrub = new List<string>();
             HashSet<AbsolutePath> moduleScrubDirectories = scheduler.PipGraph.Modules
                 .Where(m => m.Key.IsValid)
@@ -1004,11 +1016,12 @@ namespace BuildXL.Engine
             return nonScrubbablePaths;
         }
 
-        private void ScrubExtraneousFilesAndDirectories(
+        private bool ScrubExtraneousFilesAndDirectories(
             LoggingContext loggingContext,
             IConfiguration configuration,
             IEnumerable<string> nonScrubbablePaths,
-            RootFilter filter)
+            RootFilter filter,
+            bool skipScrubbing = false)
         {
             ScrubExtraneousFilesAndDirectories(
                 MountPathExpander,
@@ -1017,7 +1030,9 @@ namespace BuildXL.Engine
                 configuration,
                 nonScrubbablePaths,
                 m_tempCleaner,
-                filter);
+                filter,
+                skipScrubbing);
+            return true;
         }
 
         /// <summary>
@@ -1030,7 +1045,8 @@ namespace BuildXL.Engine
             SchedulerState schedulerState,
             ref RootFilter filter,
             IReadOnlyList<string> nonScrubbablePaths,
-            EnginePerformanceInfo enginePerformanceInfo)
+            EnginePerformanceInfo enginePerformanceInfo,
+            bool skipScrubbingOnCleanMachine = false)
         {
             Contract.Requires(!HasFailed, "Build has already failed. Engine should have bailed out");
 
@@ -1057,7 +1073,7 @@ namespace BuildXL.Engine
             // filesystem state used later by the scheduler. Scrubbing modifies the filesystem and would make the state that init captures
             // incorrect if they were to be interleaved.
             var scrubbingStopwatch = System.Diagnostics.Stopwatch.StartNew();
-            ScrubExtraneousFilesAndDirectories(loggingContext, configuration, nonScrubbablePaths, filter);
+            bool result = ScrubExtraneousFilesAndDirectories(loggingContext, configuration, nonScrubbablePaths, filter, skipScrubbingOnCleanMachine);
             enginePerformanceInfo.ScrubbingDurationMs = scrubbingStopwatch.ElapsedMilliseconds;
 
             if (configuration.Distribution.BuildRole == DistributedBuildRoles.Worker)
@@ -1066,10 +1082,10 @@ namespace BuildXL.Engine
             }
 
             var initStopwatch = System.Diagnostics.Stopwatch.StartNew();
-            bool initResult = Scheduler.InitForOrchestrator(loggingContext, filter, schedulerState);
+            result &= Scheduler.InitForOrchestrator(loggingContext, filter, schedulerState);
             enginePerformanceInfo.SchedulerInitDurationMs = initStopwatch.ElapsedMilliseconds;
 
-            return initResult;
+            return result;
         }
 
         /// <summary>

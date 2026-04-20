@@ -118,6 +118,8 @@ namespace BuildXL.Utilities.Configuration
             config.Logging.StoreFingerprints = true;
             config.FrontEnd.EnableCredScan = true;
             config.Sandbox.RetryOnAzureWatsonExitCode = true;
+            // Azure DevOps builds are run on stateless machines so we expect scrubbing to generally be unnecessary
+            config.Engine.SkipScrubbingOnCleanMachine = true;
             config.Server = ServerMode.Disabled;
 
             config.Schedule.SchedulerSimulator = true;

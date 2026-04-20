@@ -976,6 +976,9 @@ namespace BuildXL
                         OptionHandlerFactory.CreateBoolOption(
                             "scrub",
                             sign => engineConfiguration.Scrub = sign),
+                        OptionHandlerFactory.CreateBoolOption(
+                            "skipScrubbingOnCleanMachine",
+                            sign => engineConfiguration.SkipScrubbingOnCleanMachine = sign),
                         OptionHandlerFactory.CreateOption(
                             "scrubDirectory",
                             opt => engineConfiguration.ScrubDirectories.Add(CommandLineUtilities.ParsePathOption(opt, pathTable))),

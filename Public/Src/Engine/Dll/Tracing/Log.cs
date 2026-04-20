@@ -2016,6 +2016,24 @@ If you can't update and need this feature after July 2018 please reach out to th
         public abstract void ScrubbingStatus(LoggingContext context, int filesCompleteCount);
 
         [GeneratedEvent(
+            (int)LogEventId.ScrubbingSkippedCleanMachine,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Engine,
+            Message = EventConstants.PhasePrefix + "Scrubbing skipped: no prior BuildXL execution detected on this machine.")]
+        public abstract void ScrubbingSkippedCleanMachine(LoggingContext context);
+
+        [GeneratedEvent(
+            (int)LogEventId.FailedToWriteBuildSentinel,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Engine,
+            Message = EventConstants.PhasePrefix + "Failed to write build sentinel file '{sentinelPath}'. Build will not continue because subsequent build using these settings will be unsafe. To disable this feature, use '/skipScrubbingOnCleanMachine-'.")]
+        public abstract void FailedToWriteBuildSentinel(LoggingContext context, string sentinelPath);
+
+        [GeneratedEvent(
             (int)LogEventId.ScrubbingProgress,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,

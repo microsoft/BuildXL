@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using BuildXL.FrontEnd.Core;
 using BuildXL.FrontEnd.JavaScript.ProjectGraph;
 using BuildXL.FrontEnd.Script;
+using BuildXL.FrontEnd.Script.Ambients.Map;
 using BuildXL.FrontEnd.Script.Ambients.Transformers;
 using BuildXL.FrontEnd.Script.Declarations;
 using BuildXL.FrontEnd.Script.Evaluator;
@@ -391,7 +392,21 @@ namespace BuildXL.FrontEnd.JavaScript
                 return EvaluationResult.Error;
             }
 
-            var processOutputs = export.ExportedProjects.SelectMany(project =>
+            if (export.IncludeProjectMapping)
+            {
+                return CollectProjectOutputsAsMap(export);
+            }
+
+            return CollectProjectOutputsAsArray(export);
+        }
+
+        /// <summary>
+        /// Collects the output directories for each exported project as an array of (project, sealedDirectories) pairs,
+        /// logging an informational message for any project that was not scheduled (e.g. due to filtering).
+        /// </summary>
+        private IEnumerable<(JavaScriptProject project, EvaluationResult[] sealedDirectories)> CollectPerProjectOutputDirectories(ResolvedJavaScriptExport export)
+        {
+            foreach (var project in export.ExportedProjects)
             {
                 if (!m_scheduledProcessOutputs.TryGetValue(project, out var projectOutputs))
                 {
@@ -404,15 +419,46 @@ namespace BuildXL.FrontEnd.JavaScript
                         export.FullSymbol.ToString(Context.SymbolTable),
                         project.Name,
                         project.ScriptCommandName);
+                    continue;
                 }
 
-                return projectOutputs;
-            });
+                var sealedDirectories = projectOutputs
+                    .SelectMany(process => process.GetOutputDirectories().Select(staticDirectory => new EvaluationResult(staticDirectory)))
+                    .ToArray();
 
-            // Let's put together all output directories for all pips under this project
-            var sealedDirectories = processOutputs.SelectMany(process => process.GetOutputDirectories().Select(staticDirectory => new EvaluationResult(staticDirectory))).ToArray();
+                yield return (project, sealedDirectories);
+            }
+        }
 
-            return new EvaluationResult(new EvaluatedArrayLiteral(sealedDirectories, default, m_javaScriptWorkspaceResolver.ExportsFile));
+        private EvaluationResult CollectProjectOutputsAsArray(ResolvedJavaScriptExport export)
+        {
+            var allDirectories = CollectPerProjectOutputDirectories(export)
+                .SelectMany(entry => entry.sealedDirectories)
+                .ToArray();
+
+            return new EvaluationResult(new EvaluatedArrayLiteral(allDirectories, default, m_javaScriptWorkspaceResolver.ExportsFile));
+        }
+
+        private EvaluationResult CollectProjectOutputsAsMap(ResolvedJavaScriptExport export)
+        {
+            var map = OrderedMap.Empty;
+
+            foreach (var (project, sealedDirectories) in CollectPerProjectOutputDirectories(export))
+            {
+                // Create the key: a JavaScriptProjectIdentifier with packageName and command
+                // CODESYNC: Public\Sdk\Public\Prelude\Prelude.Configuration.Resolvers.dsc (JavaScriptProjectIdentifier)
+                var key = new EvaluationResult(ObjectLiteral.Create(new List<Binding>
+                {
+                    new Binding(StringId.Create(Context.StringTable, "packageName"), new EvaluationResult(project.Name), location: default),
+                    new Binding(StringId.Create(Context.StringTable, "command"), new EvaluationResult(project.ScriptCommandName), location: default),
+                }, default, m_javaScriptWorkspaceResolver.ExportsFile));
+
+                var value = new EvaluationResult(new EvaluatedArrayLiteral(sealedDirectories, default, m_javaScriptWorkspaceResolver.ExportsFile));
+
+                map = map.Add(key, value);
+            }
+
+            return new EvaluationResult(map);
         }
 
         /// <inheritdoc/>

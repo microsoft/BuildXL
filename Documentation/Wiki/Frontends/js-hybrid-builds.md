@@ -62,6 +62,52 @@ In this example we are defining two resolvers. A JavaScript one that will make s
 
 The DScript resolver references the module "MyJSRepo", defined by the Rush resolver and imports one of the exported values, `fooAndBar`, to generate a manifest for it.
 
+### Project mapping
+
+By default, exported values are flat arrays of `StaticDirectory` — all output directories from the selected projects are merged together. When consumers need to identify which project produced which output directories, the `includeProjectMapping` option can be set to `true`:
+
+```typescript
+config({
+  resolvers: [
+      {
+        kind: "Rush",
+        moduleName: "MyJSRepo"
+        ...
+        exports: [{
+           symbolName: "fooAndBar", content: ["@ms/foo", "@ms/bar"], includeProjectMapping: true
+        }],
+      },
+      {
+          kind: "DScript",
+          modules: [{moduleName: "Manifest.Generator", projects: [f`manifest.dsc`]}]
+      }
+  ]
+});
+```
+
+When `includeProjectMapping` is `true`, the type of the exported value becomes `Map<JavaScriptProjectIdentifier, StaticDirectory[]>` instead of `StaticDirectory[]`. Each entry in the map corresponds to a single JavaScript project, where the key identifies the project:
+
+```typescript
+interface JavaScriptProjectIdentifier {
+    packageName: string;
+    command: string;
+}
+```
+
+This allows consumers to iterate the map and process each project's outputs individually:
+
+```typescript
+// manifest.dsc
+import {fooAndBar} from "MyJSRepo";
+import * as ManifestGenerator from "SDK.Manifest"
+
+// Iterate over each project's outputs
+const manifests = fooAndBar.forEach((projectId, outputs) => 
+    ManifestGenerator.generate(projectId.packageName, outputs));
+```
+
+The `includeProjectMapping` option defaults to `false`, so existing configurations are unaffected. The built-in `all` export always remains `StaticDirectory[]` regardless of this setting.
+
 ## Custom scheduling
 In a regular scenario, each JavaScript project reported by the corresponding coordinator is automatically scheduled by the configured JavaScript resolver. However, in some circumstances users may need more control over how a project gets scheduled. This can mean either enhancing what a particular script command does, or by actually changing the behavior altogether.
 

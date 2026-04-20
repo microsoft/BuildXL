@@ -19,6 +19,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
         {
             SymbolName = template.SymbolName;
             Content = template.Content;
+            IncludeProjectMapping = template.IncludeProjectMapping;
         }
 
         /// <inheritdoc/>
@@ -26,5 +27,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc/>
         public IReadOnlyList<DiscriminatingUnion<string, IJavaScriptProjectSimpleSelector, IJavaScriptProjectRegexSelector>> Content { get; set; }
+
+        /// <inheritdoc/>
+        public bool? IncludeProjectMapping { get; set; }
     }
 }

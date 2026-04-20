@@ -175,5 +175,98 @@ import {{exportSymbol}} from 'rushTest';
             AssertErrorEventLogged(global::BuildXL.FrontEnd.Core.Tracing.LogEventId.CannotBuildWorkspace);
             AssertErrorEventLogged(LogEventId.SpecifiedExportIsAReservedName);
         }
+
+        [Fact]
+        public void ExportedValuesWithProjectMappingCanBeConsumed()
+        {
+            // Set up a rush resolver side-by-side with a DScript resolver.
+            // With includeProjectMapping: true, the export should produce a Map<JavaScriptProjectIdentifier, SharedOpaqueDirectory[]>
+            var config =
+                Build(
+                    rushExports: "[{symbolName: 'exportSymbol', content: ['@ms/project-A'], includeProjectMapping: true}]",
+                    moduleName: "rushTest",
+                    addDScriptResolver: true)
+               .AddJavaScriptProject("@ms/project-A", "src/A")
+               .AddSpec("module.config.dsc", "module({name: 'dscriptTest', nameResolutionSemantics: NameResolutionSemantics.implicitProjectReferences});")
+               // Consume 'exportSymbol' from DScript with explicit type annotations to validate the type checker accepts the generated type
+               .AddSpec(@"
+import {exportSymbol} from 'rushTest'; 
+
+const typedExport : Map<JavaScriptProjectIdentifier, SharedOpaqueDirectory[]> = exportSymbol;
+const entries : [JavaScriptProjectIdentifier, SharedOpaqueDirectory[]][] = typedExport.toArray();
+const assertion1 = Contract.assert(entries.length === 1);
+
+// Each entry is a [key, value] tuple
+const entry : [JavaScriptProjectIdentifier, SharedOpaqueDirectory[]] = entries[0];
+const projectId : JavaScriptProjectIdentifier = entry[0];
+const outputs : SharedOpaqueDirectory[] = entry[1];
+const assertion2 = Contract.assert(projectId.packageName === '@ms/project-A');
+const assertion3 = Contract.assert(projectId.command === 'build');
+const assertion4 = Contract.assert(typeof(outputs[0]) === 'SharedOpaqueDirectory');
+const assertion5 = Contract.assert(outputs[0].root.isWithin(d`src/A`));")
+               .PersistSpecsAndGetConfiguration();
+
+            var result = RunRushProjects(config, new[] {
+                ("src/A", "@ms/project-A")
+            });
+
+            Assert.True(result.IsSuccess);
+        }
+
+        [Fact]
+        public void ExportWithProjectMappingDefaultIsFalse()
+        {
+            // Without includeProjectMapping (defaults to false), the export is a StaticDirectory[]
+            var config =
+                Build(
+                    rushExports: "[{symbolName: 'exportSymbol', content: ['@ms/project-A']}]",
+                    moduleName: "rushTest",
+                    addDScriptResolver: true)
+               .AddJavaScriptProject("@ms/project-A", "src/A")
+               .AddSpec("module.config.dsc", "module({name: 'dscriptTest', nameResolutionSemantics: NameResolutionSemantics.implicitProjectReferences});")
+               .AddSpec(@"
+import {exportSymbol} from 'rushTest'; 
+
+const typedExport : SharedOpaqueDirectory[] = exportSymbol;
+const firstOutput : SharedOpaqueDirectory = typedExport[0];
+const assertion1 = Contract.assert(typeof(firstOutput) === 'SharedOpaqueDirectory');")
+               .PersistSpecsAndGetConfiguration();
+
+            var result = RunRushProjects(config, new[] {
+                ("src/A", "@ms/project-A")
+            });
+
+            Assert.True(result.IsSuccess);
+        }
+
+        [Fact]
+        public void ProjectMappingWithMultipleProjects()
+        {
+            // With multiple projects in the export content and includeProjectMapping: true,
+            // the map should have one entry per project+command
+            var config =
+                Build(
+                    rushExports: "[{symbolName: 'exportSymbol', content: ['@ms/project-A', '@ms/project-B'], includeProjectMapping: true}]",
+                    moduleName: "rushTest",
+                    addDScriptResolver: true)
+               .AddJavaScriptProject("@ms/project-A", "src/A")
+               .AddJavaScriptProject("@ms/project-B", "src/B")
+               .AddSpec("module.config.dsc", "module({name: 'dscriptTest', nameResolutionSemantics: NameResolutionSemantics.implicitProjectReferences});")
+               // Verify the map has 2 entries, with explicit type annotation
+               .AddSpec(@"
+import {exportSymbol} from 'rushTest'; 
+
+const typedExport : Map<JavaScriptProjectIdentifier, SharedOpaqueDirectory[]> = exportSymbol;
+const entries : [JavaScriptProjectIdentifier, SharedOpaqueDirectory[]][] = typedExport.toArray();
+const assertion1 = Contract.assert(entries.length === 2);")
+               .PersistSpecsAndGetConfiguration();
+
+            var result = RunRushProjects(config, new[] {
+                ("src/A", "@ms/project-A"),
+                ("src/B", "@ms/project-B")
+            });
+
+            Assert.True(result.IsSuccess);
+        }
     }
 }

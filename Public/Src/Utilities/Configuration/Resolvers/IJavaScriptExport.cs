@@ -12,7 +12,7 @@ namespace BuildXL.Utilities.Configuration
     /// <remarks>
     /// A symbol name must be specified (for now, no namespaces are allowed, just a plain name, e.g. 'outputs').
     /// The resolver will expose 'symbolName : StaticDirectory[]' value, with all the output directories from the projects 
-    /// specified as content.
+    /// specified as content. When <see cref="IncludeProjectMapping"/> is true, the type becomes Map&lt;JavaScriptProjectIdentifier, StaticDirectory[]&gt; instead.
     /// A project can be just a package name(that will be matched against names declared in package.json), in which case the exposed
     /// outputs under a given symbol will be of all the commands in that project, or it can be a <see cref="IJavaScriptProjectSimpleSelector"/>
     /// or <see cref="IJavaScriptProjectRegexSelector"/> where specific script commands can be specified.
@@ -24,5 +24,12 @@ namespace BuildXL.Utilities.Configuration
 
         /// <nodoc/>
         IReadOnlyList<DiscriminatingUnion<string, IJavaScriptProjectSimpleSelector, IJavaScriptProjectRegexSelector>> Content { get; }
+
+        /// <summary>
+        /// When true, the export type becomes Map&lt;JavaScriptProjectIdentifier, StaticDirectory[]&gt; instead of StaticDirectory[],
+        /// where each key identifies the JavaScript project (by package name and command) that produced the corresponding output directories.
+        /// Defaults to false.
+        /// </summary>
+        bool? IncludeProjectMapping { get; }
     }
 }

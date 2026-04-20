@@ -274,7 +274,7 @@ namespace BuildXL.FrontEnd.JavaScript
                     }
                 }
 
-                exports.Add(new ResolvedJavaScriptExport(export.SymbolName, projectsForSymbol));
+                exports.Add(new ResolvedJavaScriptExport(export.SymbolName, projectsForSymbol, export.IncludeProjectMapping ?? false));
             }
 
             return true;
@@ -405,22 +405,46 @@ const schedulingFunction : (project: JavaScriptProject, argument: any) => Transf
                 // is placed on a random spec in the module, and we have to account for that randomness)
                 sourceFile.AddDefaultQualifierDeclaration();
 
-                // For each exported symbol, add a top-level value with type SharedOpaqueDirectory[]
+                // For each exported symbol, add a top-level value with the appropriate type.
+                // When includeProjectMapping is false (the default), the type is SharedOpaqueDirectory[].
+                // When includeProjectMapping is true, the type is Map<JavaScriptProjectIdentifier, SharedOpaqueDirectory[]>.
                 // The initializer value is defined as 'undefined', but that's not really important
                 // since the evaluation of these symbols is customized in the resolver
                 int pos = 1;
                 foreach (var export in ComputedProjectGraph.Result.Exports)
                 {
                     // The type reference needs pos and end set, otherwise the type checker believes this is a missing node
-                    var typeReference = new TypeReferenceNode("SharedOpaqueDirectory");
-                    typeReference.TypeName.Pos = pos;
-                    typeReference.TypeName.End = pos + 1;
+                    var sharedOpaqueDirectoryType = new TypeReferenceNode("SharedOpaqueDirectory");
+                    sharedOpaqueDirectoryType.TypeName.Pos = pos;
+                    sharedOpaqueDirectoryType.TypeName.End = pos + 1;
+
+                    var arrayType = new ArrayTypeNode { ElementType = sharedOpaqueDirectoryType };
+
+                    ITypeNode exportType;
+                    if (export.IncludeProjectMapping)
+                    {
+                        // Map<JavaScriptProjectIdentifier, SharedOpaqueDirectory[]>
+                        var keyType = new TypeReferenceNode("JavaScriptProjectIdentifier");
+                        keyType.TypeName.Pos = pos;
+                        keyType.TypeName.End = pos + 1;
+
+                        var mapType = new TypeReferenceNode("Map");
+                        mapType.TypeName.Pos = pos;
+                        mapType.TypeName.End = pos + 1;
+                        mapType.TypeArguments = NodeArray.Create<ITypeNode>(keyType, arrayType);
+
+                        exportType = mapType;
+                    }
+                    else
+                    {
+                        exportType = arrayType;
+                    }
 
                     // Each symbol is added at position (start,end) = (n, n+1), with n starting in 1 for the first symbol
                     FrontEndUtilities.AddExportToSourceFile(
                         sourceFile,
                         export.FullSymbol.ToString(Context.SymbolTable),
-                        new ArrayTypeNode { ElementType = typeReference },
+                        exportType,
                         pos,
                         pos + 1);
                     pos += 2;

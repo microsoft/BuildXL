@@ -24,6 +24,8 @@ extends:
       sourceAnalysisPool:
         name: Windows-SDL-Agents
         os: windows
+      policheck:
+        enabled: true
 
     stages:
     # Bootstrap once on Ubuntu 22.04, then fan out validations across all distros.

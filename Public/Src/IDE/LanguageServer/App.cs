@@ -49,6 +49,7 @@ namespace BuildXL.Ide.LanguageServer
         /// </summary>
         private static readonly JsonSerializer s_tolerantCodeActionSerializer = JsonSerializer.Create(new JsonSerializerSettings
         {
+            ContractResolver = new TolerantCodeActionKindContractResolver(),
             Converters = { new TolerantCodeActionKindConverter() }
         });
 

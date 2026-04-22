@@ -5,6 +5,7 @@ using System;
 using Microsoft.VisualStudio.LanguageServer.Protocol;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
+using Newtonsoft.Json.Serialization;
 
 namespace BuildXL.Ide.LanguageServer.Utilities
 {
@@ -33,6 +34,28 @@ namespace BuildXL.Ide.LanguageServer.Utilities
             {
                 return CodeActionKind.Empty;
             }
+        }
+    }
+
+    /// <summary>
+    /// A contract resolver that forces <see cref="TolerantCodeActionKindConverter"/> for all
+    /// <see cref="CodeActionKind"/> properties, overriding any type-level <c>[JsonConverter]</c>
+    /// attribute that would otherwise take precedence over settings-level converters.
+    /// </summary>
+    internal sealed class TolerantCodeActionKindContractResolver : DefaultContractResolver
+    {
+        private static readonly TolerantCodeActionKindConverter s_converter = new TolerantCodeActionKindConverter();
+
+        /// <inheritdoc/>
+        protected override JsonConverter ResolveContractConverter(Type objectType)
+        {
+            Type underlying = Nullable.GetUnderlyingType(objectType) ?? objectType;
+            if (underlying == typeof(CodeActionKind))
+            {
+                return s_converter;
+            }
+
+            return base.ResolveContractConverter(objectType);
         }
     }
 }

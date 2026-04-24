@@ -653,13 +653,16 @@ namespace BuildXL.Utilities.Core
                     }
 
                     // If we reach this line there's no more space in the table
-                    throw Contract.AssertFailure(
-                        $"This string table ran out of space. " +
-                        $"Count={m_count}, " +
-                        $"SizeInBytes={SizeInBytes}, " +
-                        $"ByteBuffers={m_byteBuffers.Length} (used={m_byteBuffers.Count(b => b != null)}), " +
-                        $"OverflowBuffers={m_overflowBufferCount} (currentIndex={m_currentOverflowIndex}, usedStrings={OverflowedStringCount}), " +
-                        $"LargeStringBuffer (count={LargeStringCount}, size={LargeStringSize})");
+                    throw new StringTableExhaustedException(
+                        stringCount: m_count,
+                        sizeInBytes: SizeInBytes,
+                        byteBuffersCount: m_byteBuffers.Length,
+                        byteBuffersUsed: m_byteBuffers.Count(b => b != null),
+                        overflowBuffersCount: m_overflowBufferCount,
+                        overflowCurrentIndex: m_currentOverflowIndex,
+                        overflowUsedStrings: OverflowedStringCount,
+                        largeStringCount: LargeStringCount,
+                        largeStringSize: LargeStringSize);
                 }
 
                 lock (m_byteBuffers)
@@ -1184,6 +1187,100 @@ namespace BuildXL.Utilities.Core
         /// Gets how many strings are in this table.
         /// </summary>
         public int Count => m_count;
+
+        /// <summary>
+        /// Returns the zero-based ordinal of the most recently filled overflow buffer (the one whose fill triggered
+        /// exhaustion at the time of an <c>AddStringToBuffer</c> failure), or <c>-1</c> if no overflow buffer has been
+        /// used yet. Intended for diagnostics on a failed table.
+        /// </summary>
+        private int LastFilledOverflowBufferOrdinal
+        {
+            get
+            {
+                if (m_overflowBuffers == null || m_overflowBufferCount == 0)
+                {
+                    return -1;
+                }
+
+                // m_currentOverflowIndex points at the next index to write. At exhaustion it equals m_overflowBufferCount.
+                int candidate = Math.Min(m_currentOverflowIndex, m_overflowBufferCount - 1);
+                while (candidate >= 0 && m_overflowBuffers[candidate] == null)
+                {
+                    candidate--;
+                }
+
+                return candidate;
+            }
+        }
+
+        /// <summary>
+        /// Enumerates up to <paramref name="maxCount"/> of the most recently interned strings from the most recently
+        /// filled overflow buffer (walking its slots from the highest filled index downward). Read-only and safe to
+        /// call on a table whose <c>AddStringToBuffer</c> has already failed: only existing byte buffers are read; no
+        /// interning is performed. Slots that were reserved but never assigned (possible in racy fill scenarios) are
+        /// skipped.
+        /// </summary>
+        /// <remarks>
+        /// Intended for the StringTable-exhaustion diagnostic; do not use on hot paths. This view captures any string
+        /// interned in the table (path components, symbol components, raw <see cref="StringId.Create(StringTable, string)"/>
+        /// calls), which the path-only view from <see cref="HierarchicalNameTable"/> cannot.
+        /// </remarks>
+        public IEnumerable<string> EnumerateMostRecentlyAddedStrings(int maxCount)
+        {
+            Contract.Requires(maxCount >= 0);
+
+            int ordinal = LastFilledOverflowBufferOrdinal;
+            if (ordinal < 0 || maxCount == 0)
+            {
+                yield break;
+            }
+
+            var buffer = m_overflowBuffers[ordinal];
+            if (buffer == null)
+            {
+                yield break;
+            }
+
+            int slotCount = buffer.Count;
+            int absoluteBufferNum = m_overflowBuffersStartingNumber + ordinal;
+            int firstSlot = Math.Max(0, slotCount - maxCount);
+
+            // Walk from highest slot down so the dump is "most recently added first".
+            for (int slot = slotCount - 1; slot >= firstSlot; slot--)
+            {
+                byte[] bytes;
+                try
+                {
+                    bytes = buffer[slot];
+                }
+                catch (Exception slotEx)
+                {
+                    // Slot was reserved but the byte[] hasn't been assigned yet (racing thread). Skip it.
+                    Analysis.IgnoreException(nameof(slotEx) + ": skipping unassigned slot during diagnostic dump.");
+                    continue;
+                }
+
+                if (bytes == null)
+                {
+                    continue;
+                }
+
+                // Reuse the standard expansion path so encoding (ASCII vs Utf16Marker) is handled identically to GetString.
+                StringId id = ComputeStringId(absoluteBufferNum, offset: slot);
+                string expanded;
+                try
+                {
+                    expanded = GetString(id);
+                }
+                catch (Exception decodeEx)
+                {
+                    Analysis.IgnoreException(nameof(decodeEx) + ": skipping undecodable entry during diagnostic dump.");
+                    continue;
+                }
+
+                yield return expanded;
+            }
+        }
 
         /// <summary>
         /// Gets the number of cache misses on the name expansion cache.

@@ -7,7 +7,9 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
+using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using BuildXL.Native.IO;
 using BuildXL.Processes.Sideband;
@@ -207,6 +209,20 @@ namespace BuildXL.Processes
         private int m_receivedReportCount = 0;
 
         /// <summary>
+        /// Process-wide guard so that the StringTable-exhaustion path-table dump runs at most once,
+        /// even if multiple report-handling threads hit the failure concurrently. Otherwise we could
+        /// produce multiple multi-gigabyte snapshots that would themselves exhaust resources.
+        /// </summary>
+        private static int s_pathTableDumpedFlag;
+
+        /// <summary>
+        /// Directory to which the StringTable-exhaustion diagnostic dump is written. Supplied by the caller
+        /// (typically the engine's logs directory). When <c>null</c> at dump time, the system temp directory
+        /// is used as a fallback.
+        /// </summary>
+        private readonly string m_stringTableExhaustionDumpDirectory;
+
+        /// <summary>
         /// Threshold for logging about excessive file access reports. 
         /// When a pip exceeds this many reports, a verbose log is emitted to help identify 
         /// processes with large access counts that could create perf or scale concerns.
@@ -225,7 +241,8 @@ namespace BuildXL.Processes
             [MaybeNull] SidebandWriter sharedOpaqueOutputLogger,
             [MaybeNull] ISandboxFileSystemView fileSystemView,
             IExplicitlyReportedAccesses explicitlyReportedAccesses,
-            [MaybeNull] SandboxedProcessTraceBuilder traceBuilder = null)
+            [MaybeNull] SandboxedProcessTraceBuilder traceBuilder = null,
+            [MaybeNull] string stringTableExhaustionDumpDirectory = null)
         {
             Contract.RequiresNotNull(manifest);
             Contract.RequiresNotNull(pathTable);
@@ -246,6 +263,7 @@ namespace BuildXL.Processes
             m_processesRequiringPTrace = OperatingSystemHelper.IsLinuxOS ? new List<AbsolutePath>() : null;
             m_fileName = fileName;
             m_allowUndeclaredFileReads = allowUndeclaredFileReads;
+            m_stringTableExhaustionDumpDirectory = stringTableExhaustionDumpDirectory;
             ExplicitlyReportedFileAccesses = explicitlyReportedAccesses;
         }
 
@@ -484,6 +502,173 @@ namespace BuildXL.Processes
 
         private static Failure<string> CreateMessageProcessingFailure(string message) => new Failure<string>(I($"Error message: {message}"));
         private static Failure<string> CreateMessageProcessingFailure(string rawData, string message) => CreateMessageProcessingFailure(I($"{message} | Raw data: {rawData}"));
+
+        /// <summary>
+        /// Maximum number of full <see cref="AbsolutePath"/> values to write to the diagnostic dump file.
+        /// The diagnostic is intentionally bounded so the dump stays small enough to inspect quickly.
+        /// </summary>
+        private const int MaxPathsToDump = 100_000;
+
+        /// <summary>
+        /// Maximum number of raw <see cref="StringTable"/> entries to write to the diagnostic dump file.
+        /// Captures the most recently interned strings (any kind: path components, symbol components, raw
+        /// <see cref="StringId.Create(StringTable, string)"/> calls), so we can tell whether the table was
+        /// filled by full paths vs. raw strings interned outside the path machinery.
+        /// </summary>
+        private const int MaxStringsToDump = 100_000;
+
+        /// <summary>
+        /// Dumps two diagnostic views to a single text file inside the configured dump directory (or
+        /// <see cref="Path.GetTempPath"/> as fallback): up to <see cref="MaxPathsToDump"/> most-recently-interned
+        /// fully-expanded <see cref="AbsolutePath"/> values from the <see cref="PathTable"/>, and up to
+        /// <see cref="MaxStringsToDump"/> most-recently-interned raw strings from the underlying
+        /// <see cref="StringTable"/>'s last-filled overflow buffer. Invoked from the catch block around
+        /// <see cref="AbsolutePath.TryGet"/>/<see cref="AbsolutePath.TryCreate(PathTable, string, out AbsolutePath)"/>
+        /// in <see cref="FileAccessReportLineReceived{T}"/> when the shared <see cref="StringTable"/> runs out of space.
+        /// The dump runs at most once per process (guarded by <see cref="s_pathTableDumpedFlag"/>) and is wrapped in
+        /// its own try/catch so a failure during diagnostics can never replace the original fatal exception that the
+        /// caller is about to rethrow.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// The two views answer different questions. The path view shows whether the offending pattern is in the
+        /// shape of paths the sandbox is reporting. The string view captures any string ever interned (regardless of
+        /// whether it ended up in a path), so it can reveal a non-path code path interning huge numbers of raw
+        /// strings via <see cref="StringId.Create(StringTable, string)"/>. If the string view is dominated by entries
+        /// that don't look like path components, the leak is in some other subsystem.
+        /// </para>
+        /// <para>
+        /// Reading the tables only walks existing entries; no new strings are interned, so this is safe to call on a
+        /// just-exhausted table.
+        /// </para>
+        /// </remarks>
+        private void DumpPathTableToLog(string triggerPath, ReportedFileOperation operation, StringTableExhaustedException originalException)
+        {
+            // One-shot guard: only the first thread to hit the failure dumps. Concurrent reporters that hit the
+            // same exception will simply rethrow without dumping.
+            if (Interlocked.CompareExchange(ref s_pathTableDumpedFlag, 1, 0) != 0)
+            {
+                return;
+            }
+
+            string dumpFilePath = null;
+            int pathsToDump = 0;
+            int firstIndex = 0;
+            int lastIndex = 0;
+
+            try
+            {
+                int pathTableCount = m_pathTable.IsValid ? m_pathTable.Count : 0;
+                StringTable stringTable = m_pathTable.IsValid ? m_pathTable.StringTable : null;
+                int stringTableCount = stringTable != null ? stringTable.Count : 0;
+
+                pathsToDump = Math.Min(MaxPathsToDump, pathTableCount);
+                lastIndex = pathTableCount;
+                firstIndex = pathTableCount - pathsToDump + 1;
+                if (firstIndex < 1)
+                {
+                    firstIndex = 1;
+                }
+
+                string dumpDirectory = m_stringTableExhaustionDumpDirectory ?? Path.GetTempPath();
+
+                try
+                {
+                    Directory.CreateDirectory(dumpDirectory);
+                }
+                catch (Exception createDirEx)
+                {
+                    Analysis.IgnoreException(nameof(createDirEx) + ": will attempt write anyway and surface any failure below.");
+                }
+
+                string fileName = string.Format(
+                    CultureInfo.InvariantCulture,
+                    "StringTableExhaustion-{0:yyyyMMdd-HHmmss}-Pip{1:X16}.txt",
+                    DateTime.UtcNow,
+                    PipSemiStableHash);
+                dumpFilePath = Path.Combine(dumpDirectory, fileName);
+
+                using (var stream = new FileStream(dumpFilePath, FileMode.Create, FileAccess.Write, FileShare.Read))
+                using (var writer = new StreamWriter(stream, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false)))
+                {
+                    // Header: a few lines of context so the file is self-describing.
+                    writer.WriteLine("# BuildXL StringTable exhaustion dump");
+                    writer.WriteLine("# Timestamp (UTC): " + DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture));
+                    writer.WriteLine("# Pip semi-stable hash: " + PipSemiStableHash.ToString("X16", CultureInfo.InvariantCulture));
+                    writer.WriteLine("# Trigger operation: " + operation);
+                    writer.WriteLine("# Trigger path: " + (triggerPath ?? string.Empty));
+                    writer.WriteLine("# PathTable.Count: " + pathTableCount.ToString(CultureInfo.InvariantCulture));
+                    writer.WriteLine("# StringTable.Count: " + stringTableCount.ToString(CultureInfo.InvariantCulture));
+                    writer.WriteLine("# Original failure: " + (originalException.Message ?? string.Empty));
+
+                    // Section 1: most-recently-interned full paths from PathTable.
+                    writer.WriteLine();
+                    writer.WriteLine(string.Format(
+                        CultureInfo.InvariantCulture,
+                        "# === Section 1: last {0} fully-expanded AbsolutePaths (ids [{1}..{2}], one per line) ===",
+                        pathsToDump,
+                        firstIndex,
+                        lastIndex));
+
+                    if (m_pathTable.IsValid && pathsToDump > 0)
+                    {
+                        for (int i = firstIndex; i <= lastIndex; i++)
+                        {
+                            string expanded;
+                            try
+                            {
+                                expanded = new AbsolutePath(i).ToString(m_pathTable);
+                            }
+                            catch (Exception expandEx)
+                            {
+                                // Skip ids that can't be expanded (sentinel/special values, races at the boundary).
+                                Analysis.IgnoreException(nameof(expandEx) + ": skipping un-expandable AbsolutePath id during diagnostic dump.");
+                                continue;
+                            }
+
+                            writer.WriteLine(expanded);
+                        }
+                    }
+
+                    // Section 2: most-recently-interned raw strings from the StringTable's last filled overflow buffer.
+                    // Captures any string interned for any reason (paths, symbols, raw StringId.Create) so we can tell
+                    // whether the leak is in path interning or somewhere else.
+                    writer.WriteLine();
+                    writer.WriteLine(string.Format(
+                        CultureInfo.InvariantCulture,
+                        "# === Section 2: up to {0} most-recently interned raw StringTable entries (newest first, one per line) ===",
+                        MaxStringsToDump));
+
+                    if (stringTable != null)
+                    {
+                        foreach (var s in stringTable.EnumerateMostRecentlyAddedStrings(MaxStringsToDump))
+                        {
+                            writer.WriteLine(s);
+                        }
+                    }
+
+                    writer.Flush();
+                }
+            }
+            catch (Exception dumpEx)
+            {
+                // Diagnostics must never mask the original fatal exception. Best-effort: clean up any
+                // partially-written file and swallow so the caller can rethrow the original exception.
+                if (dumpFilePath != null)
+                {
+                    try
+                    {
+                        File.Delete(dumpFilePath);
+                    }
+                    catch (Exception deleteEx)
+                    {
+                        Analysis.IgnoreException(nameof(deleteEx) + ": partial dump file could not be deleted; harmless.");
+                    }
+                }
+
+                Analysis.IgnoreException(nameof(dumpEx) + ": diagnostic dump failed; original StringTableExhaustedException will still propagate.");
+            }
+        }
 
         private bool ProcessDetouringStatusReceived(string data, out string errorMessage)
         {
@@ -1036,16 +1221,32 @@ namespace BuildXL.Processes
                 path = process.Path;
             }
 
+            AbsolutePath finalPath = AbsolutePath.Invalid;
+
             // For exact matches (i.e., not a scope rule), the manifest path is the same as the full path.
             // In that case we don't want to keep carrying around the giant string.
-            if (AbsolutePath.TryGet(m_pathTable, path, out AbsolutePath finalPath) && finalPath == manifestPath)
+            //
+            // The two AbsolutePath calls below intern path components into the shared StringTable and can
+            // throw a StringTableExhaustedException when the StringTable runs out of space. We catch that
+            // here, dump the most-recently-interned paths and raw strings to the log directory (so the
+            // offending pattern can be analyzed post-mortem), and rethrow to preserve the existing
+            // fatal-failure behavior.
+            try
             {
-                path = null;
-            }
+                if (AbsolutePath.TryGet(m_pathTable, path, out finalPath) && finalPath == manifestPath)
+                {
+                    path = null;
+                }
 
-            if (!finalPath.IsValid)
+                if (!finalPath.IsValid)
+                {
+                    AbsolutePath.TryCreate(m_pathTable, path, out finalPath);
+                }
+            }
+            catch (StringTableExhaustedException ex)
             {
-                AbsolutePath.TryCreate(m_pathTable, path, out finalPath);
+                DumpPathTableToLog(path, operation, ex);
+                throw;
             }
 
             if (finalPath.IsValid && m_sharedOpaqueOutputLogger != null && (requestedAccess & RequestedAccess.Write) != 0)

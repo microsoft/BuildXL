@@ -136,7 +136,8 @@ namespace BuildXL.Processes
                     info.SidebandWriter,
                     info.FileSystemView,
                     info.ExplicitlyReportedAccesses,
-                    m_traceBuilder);
+                    m_traceBuilder,
+                    info.StringTableExhaustionDumpDirectory);
 
             m_detouredProcess =
                 new DetouredProcess(

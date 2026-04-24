@@ -546,6 +546,14 @@ namespace BuildXL.Processes
         public string? SurvivingPipProcessChildrenDumpDirectory { get; set; }
 
         /// <summary>
+        /// Directory where the StringTable-exhaustion diagnostic dump file is written when the shared
+        /// <see cref="StringTable"/> runs out of space while interning sandboxed-process file-access reports.
+        /// Typically set to the engine's logs directory so the file lands next to the rest of the build logs.
+        /// When unset, the system temp directory is used as a fallback.
+        /// </summary>
+        public string? StringTableExhaustionDumpDirectory { get; set; }
+
+        /// <summary>
         /// The kind of sandboxing to use.
         /// </summary>
         public SandboxKind SandboxKind { get; set; }
@@ -640,6 +648,7 @@ namespace BuildXL.Processes
                 writer.Write(PipSemiStableHash);
                 writer.WriteNullableString(TimeoutDumpDirectory);
                 writer.WriteNullableString(SurvivingPipProcessChildrenDumpDirectory);
+                writer.WriteNullableString(StringTableExhaustionDumpDirectory);
                 writer.Write((byte)SandboxKind);
                 writer.WriteNullableString(PipDescription);
 
@@ -728,6 +737,7 @@ namespace BuildXL.Processes
                 long pipSemiStableHash = reader.ReadInt64();
                 string? timeoutDumpDirectory = reader.ReadNullableString();
                 string? survivingPipProcessChildrenDumpDirectory = reader.ReadNullableString();
+                string? stringTableExhaustionDumpDirectory = reader.ReadNullableString();
                 SandboxKind sandboxKind = (SandboxKind)reader.ReadByte();
                 string? pipDescription = reader.ReadNullableString();
                 SandboxedProcessStandardFiles sandboxedProcessStandardFiles = SandboxedProcessStandardFiles.Deserialize(reader);
@@ -799,6 +809,7 @@ namespace BuildXL.Processes
                     PipSemiStableHash = pipSemiStableHash,
                     TimeoutDumpDirectory = timeoutDumpDirectory,
                     SurvivingPipProcessChildrenDumpDirectory = survivingPipProcessChildrenDumpDirectory,
+                    StringTableExhaustionDumpDirectory = stringTableExhaustionDumpDirectory,
                     SandboxKind = sandboxKind,
                     PipDescription = pipDescription,
                     SandboxedProcessStandardFiles = sandboxedProcessStandardFiles,

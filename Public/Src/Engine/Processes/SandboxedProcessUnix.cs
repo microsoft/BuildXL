@@ -182,7 +182,8 @@ namespace BuildXL.Processes
                 info.SidebandWriter,
                 info.FileSystemView,
                 info.ExplicitlyReportedAccesses,
-                m_traceBuilder);
+                m_traceBuilder,
+                info.StringTableExhaustionDumpDirectory);
 
             var executionOptions = new ActionBlockSlimConfiguration(
                 // Must be one, otherwise SandboxedPipExecutor will fail asserting valid reports

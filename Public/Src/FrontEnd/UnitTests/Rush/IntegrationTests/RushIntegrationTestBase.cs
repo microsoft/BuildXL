@@ -71,6 +71,7 @@ namespace Test.BuildXL.FrontEnd.Rush
         protected override bool DisableDefaultSourceResolver => true;
 
         private readonly bool m_isInternalBuild;
+        private readonly string m_npmrcLocation;
 
         protected RushIntegrationTestBase(ITestOutputHelper output) : base(output, true)
         {
@@ -96,6 +97,7 @@ namespace Test.BuildXL.FrontEnd.Rush
             if (npmrc != null)
             {
                 m_isInternalBuild = true;
+                m_npmrcLocation = npmrc;
                 File.Copy(npmrc, Path.Combine(RushUserProfile, ".npmrc"), overwrite: true);
             }
         }
@@ -419,6 +421,29 @@ config({{
                     "\"pnpmVersion\": \"8.15.8\"",
                     "\"pnpmVersion\": \"10.10.0\"");
 
+                // Suppress Rush's built-in check that explicitly contacts registry.npmjs.org
+                // to determine if this is a public vs enterprise version. See SFI network isolation guidance.
+                // The rush init template has this line commented out: // "suppressRushIsPublicVersionCheck": false,
+                // We need to uncomment it and set to true, or inject if absent entirely.
+                if (updatedRushJson.Contains("// \"suppressRushIsPublicVersionCheck\""))
+                {
+                    updatedRushJson = updatedRushJson.Replace(
+                        "// \"suppressRushIsPublicVersionCheck\": false,",
+                        "\"suppressRushIsPublicVersionCheck\": true,");
+                }
+                else if (updatedRushJson.Contains("\"suppressRushIsPublicVersionCheck\": false"))
+                {
+                    updatedRushJson = updatedRushJson.Replace(
+                        "\"suppressRushIsPublicVersionCheck\": false",
+                        "\"suppressRushIsPublicVersionCheck\": true");
+                }
+                else if (!updatedRushJson.Contains("\"suppressRushIsPublicVersionCheck\": true"))
+                {
+                    var lastBrace = updatedRushJson.LastIndexOf('}');
+                    updatedRushJson = updatedRushJson.Insert(lastBrace, 
+                        "  ,\"suppressRushIsPublicVersionCheck\": true" + Environment.NewLine);
+                }
+
                 File.WriteAllText(pathToRushJson, updatedRushJson);
 
                 // Update npmrc for internal builds.
@@ -431,7 +456,16 @@ config({{
                         File.Delete(defaultNpmRcPath);
                     }
 
-                    File.WriteAllText(defaultNpmRcPath, $"registry=https://cloudbuild.pkgs.visualstudio.com/_packaging/BuildXL.Selfhost/npm/registry/{Environment.NewLine}always-auth=true");
+                    // CODESYNC: .npmrc
+                    // Read auth tokens from the provided npmrc file, stripping any registry= or
+                    // always-auth= lines to avoid overriding the internal registry we set above.
+                    var authLines = File.ReadAllLines(m_npmrcLocation)
+                        .Where(line => !line.TrimStart().StartsWith("registry=", StringComparison.OrdinalIgnoreCase)
+                                    && !line.TrimStart().StartsWith("always-auth=", StringComparison.OrdinalIgnoreCase));
+                    File.WriteAllText(defaultNpmRcPath,
+                        $"registry=https://cloudbuild.pkgs.visualstudio.com/_packaging/BuildXL.Selfhost/npm/registry/{Environment.NewLine}" +
+                        $"always-auth=true{Environment.NewLine}" +
+                        string.Join(Environment.NewLine, authLines));
                 }
             }
 

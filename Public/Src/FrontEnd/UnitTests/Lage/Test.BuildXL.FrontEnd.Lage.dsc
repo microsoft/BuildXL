@@ -29,12 +29,21 @@ namespace Test.Lage {
             unsafeTestRunArguments: {
                 // These tests require Detours to run itself, so we won't detour the test runner process itself
                 runWithUntrackedDependencies: !BuildXLSdk.Flags.IsEBPFSandboxForTestsEnabled,
+                untrackedPaths: [
+                    BuildXLSdk.NpmRc.getUserNpmRc(),
+                ],
                 untrackedScopes: [
                     // The V8 compiler accesses the temp directory
                     // Npm dumps logs under $HOME/.npm
                     ...addIfLazy(!Context.isWindowsOS(), () => [d`/tmp`, d`${Environment.getDirectoryValue("HOME")}/.npm`])
                 ]
             },
+            envVars: [
+                ...addIf(BuildXLSdk.Flags.isMicrosoftInternal, { name: "UserProfileNpmRcLocation", value: BuildXLSdk.NpmRc.getUserNpmRc() })
+            ],
+            passThroughEnvVars: [
+                ...addIf(BuildXLSdk.NpmRc.getNpmPasswordEnvironmentVariableName() !== undefined, BuildXLSdk.NpmRc.getNpmPasswordEnvironmentVariableName())
+            ]
         },
         assemblyName: "Test.BuildXL.FrontEnd.Lage",
         sources: globR(d`.`, "*.cs"), 

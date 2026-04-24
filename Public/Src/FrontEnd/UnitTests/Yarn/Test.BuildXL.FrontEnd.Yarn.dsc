@@ -28,13 +28,21 @@ namespace Test.Yarn {
                 runWithUntrackedDependencies: !BuildXLSdk.Flags.IsEBPFSandboxForTestsEnabled,
                 untrackedPaths: [
                     // node may access the npmrc under the source root
-                    f`${Context.getMount("SourceRoot").path}/.npmrc`
+                    f`${Context.getMount("SourceRoot").path}/.npmrc`,
+                    // node may access the user-level npmrc (.ci-npmrc on ADO, ~/.npmrc on local dev)
+                    BuildXLSdk.NpmRc.getUserNpmRc(),
                 ],
                 untrackedScopes: [
                     // The V8 compiler cache is accessed by node.
                     ...addIfLazy(!Context.isWindowsOS(), () => [d`/tmp`])
                 ]
             },
+            envVars: [
+                ...addIf(BuildXLSdk.Flags.isMicrosoftInternal, { name: "UserProfileNpmRcLocation", value: BuildXLSdk.NpmRc.getUserNpmRc() })
+            ],
+            passThroughEnvVars: [
+                ...addIf(BuildXLSdk.NpmRc.getNpmPasswordEnvironmentVariableName() !== undefined, BuildXLSdk.NpmRc.getNpmPasswordEnvironmentVariableName())
+            ]
         },
         assemblyName: "Test.BuildXL.FrontEnd.Yarn",
         sources: globR(d`.`, "*.cs"), 

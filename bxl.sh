@@ -144,6 +144,7 @@ function installLkg() {
     local nugetConfig="<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>
 <configuration>
     <packageSources>
+        <clear />
         <add key=\"BuildXL\" value=\"$feed\" />
     </packageSources>
 </configuration>"
@@ -163,7 +164,7 @@ function installLkg() {
     echo "$csproj" > "$csprojFile"
 
     # Run dotnet install to download the BuildXL package to the nuget cache
-    dotnet restore --interactive "$csprojFile"
+    dotnet restore --interactive --configfile "$nugetConfigFile" "$csprojFile"
 }
 
 function getLkg() {

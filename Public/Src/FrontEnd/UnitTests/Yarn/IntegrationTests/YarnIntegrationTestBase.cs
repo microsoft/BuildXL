@@ -54,6 +54,8 @@ namespace Test.BuildXL.FrontEnd.Yarn
 
         protected override bool DisableDefaultSourceResolver => true;
 
+        private readonly bool m_isInternalBuild;
+
         protected YarnIntegrationTestBase(ITestOutputHelper output) : base(output, true)
         {
             RegisterEventSource(global::BuildXL.Engine.ETWLogger.Log);
@@ -67,6 +69,9 @@ namespace Test.BuildXL.FrontEnd.Yarn
 
             SourceRoot = Path.Combine(TestRoot, RelativeSourceRoot);
             OutDir = "target";
+
+            // This variable is only set for internal builds
+            m_isInternalBuild = Environment.GetEnvironmentVariable("UserProfileNpmRcLocation") != null;
         }
 
         protected SpecEvaluationBuilder Build(
@@ -141,6 +146,17 @@ namespace Test.BuildXL.FrontEnd.Yarn
             TestCache testCache = null, 
             IDetoursEventListener detoursListener = null)
         {
+            // Write .npmrc with internal registry for internal builds before any yarn operations.
+            // Only registry URL is needed here - Yarn test projects have no external deps,
+            // so auth is not required. This just prevents yarn from contacting registry.npmjs.org.
+            // CODESYNC: RushIntegrationTestBase.cs, .npmrc
+            if (m_isInternalBuild)
+            {
+                File.WriteAllText(
+                    Path.Combine(config.Layout.SourceDirectory.ToString(PathTable), ".npmrc"),
+                    $"registry=https://cloudbuild.pkgs.visualstudio.com/_packaging/BuildXL.Selfhost/npm/registry/{Environment.NewLine}always-auth=true");
+            }
+
             // This bootstraps the 'repo'
             if (!YarnInit(config.Layout.SourceDirectory))
             {
@@ -254,6 +270,14 @@ config({{
             
             startInfo.Environment["PATH"] += $";{PathToNodeFolder}";
             startInfo.Environment["APPDATA"] = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+
+            // Passthrough the PAT for internal builds (only set for ADO builds)
+            // CODESYNC: RushIntegrationTestBase.cs
+            var npmFeedPat = Environment.GetEnvironmentVariable("CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT_B64");
+            if (npmFeedPat != null)
+            {
+                startInfo.Environment["CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT_B64"] = npmFeedPat;
+            }
 
             var runYarn = Process.Start(startInfo);
             runYarn.WaitForExit();

@@ -7,22 +7,22 @@ using BuildXL.Utilities.Core;
 namespace BuildXL.Pips.Operations
 {
     /// <summary>
-    /// Exception thrown when a <see cref="PipFragmentRenderer"/> cannot resolve a content hash for a specific file artifact.
+    /// Exception thrown when a <see cref="PipFragmentRenderer"/> cannot resolve a content hash for a specific file or directory artifact.
     /// </summary>
-    public sealed class PipFragmentRendererFileHashException : Exception
+    public sealed class PipFragmentRendererHashException : Exception
     {
         /// <summary>
-        /// FileArtifact associated with the exception (i.e., the file for which the hash could not be computed).
+        /// FileOrDirectoryArtifact associated with the exception (i.e., the file or directory artifact for which the hash could not be computed).
         /// </summary>
-        public FileArtifact FileArtifact { get; }
+        public FileOrDirectoryArtifact FileOrDirectoryArtifact { get; }
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="PipFragmentRendererFileHashException"/> class with a specified error message.
+        /// Initializes a new instance of the <see cref="PipFragmentRendererHashException"/> class with a specified error message.
         /// </summary>
-        public PipFragmentRendererFileHashException(string message, FileArtifact fileArtifact, Exception innerException)
+        public PipFragmentRendererHashException(string message, FileOrDirectoryArtifact fileOrDirectoryArtifact, Exception innerException)
             : base(message, innerException)
         {
-            FileArtifact = fileArtifact;
+            FileOrDirectoryArtifact = fileOrDirectoryArtifact;
         }
     }
 }

@@ -103,7 +103,7 @@ namespace BuildXL.Pips.Operations
             {
                 var entry = this[i];
                 entry.Serialize(writer);
-                if (entry.EntryType == PipDataEntryType.DirectoryIdHeaderSealId)
+                if (entry.EntryType == PipDataEntryType.DirectoryIdHeaderSealId || entry.EntryType == PipDataEntryType.VsoHashDirectoryEntry1SealId)
                 {
                     // Get next entry and write out the full directory artifact rather than serializing an entry path
                     i++;
@@ -125,13 +125,23 @@ namespace BuildXL.Pips.Operations
                 for (int i = 0; i < count; i++)
                 {
                     var entry = PipDataEntry.Deserialize(reader);
-                    if (entry.EntryType == PipDataEntryType.DirectoryIdHeaderSealId)
+                    if (entry.EntryType == PipDataEntryType.DirectoryIdHeaderSealId || entry.EntryType == PipDataEntryType.VsoHashDirectoryEntry1SealId)
                     {
                         var directory = reader.ReadDirectoryArtifact();
 
-                        PipDataEntry.CreateDirectoryIdEntries(directory, out var entry1SealId, out var entry2Path);
-                        yield return entry1SealId;
-                        yield return entry2Path;
+                        if (entry.EntryType == PipDataEntryType.VsoHashDirectoryEntry1SealId)
+                        {
+                            PipDataEntry.CreateVsoHashDirectoryEntry(directory, out var vsoEntry1SealId, out var vsoEntry2Path);
+                            yield return vsoEntry1SealId;
+                            yield return vsoEntry2Path;
+                        }
+                        else
+                        {
+                            PipDataEntry.CreateDirectoryIdEntries(directory, out var entry1SealId, out var entry2Path);
+                            yield return entry1SealId;
+                            yield return entry2Path;
+                        }
+
                         i++; // Skip next entry since the directory artifact encapsulates both
                     }
                     else

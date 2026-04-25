@@ -30,6 +30,39 @@ export namespace Cmd {
     }
 
     /**
+     * Adds an artifact's hash to the command-line for the process. The argument value is a string representing 
+     * the hash of the artifact.
+     * For directories, only opaque directories (shared or exclusive) are supported.
+     */
+    @@public
+    export function vsoHash(value: File | OpaqueDirectory) : Argument {
+        if (value === undefined) {
+            return undefined;
+        }
+
+        return {
+            name: undefined,
+            value: Artifact.vsoHash(value),
+        };
+    }
+
+    /**
+     * Adds a set of artifact hashes to the command-line for the process. The argument value is a string representing
+     * the hashes of the artifacts.
+     */
+    @@public
+    export function vsoHashes(values: (File | OpaqueDirectory)[]): Argument {
+        if (values === undefined || values.length === 0) {
+            return undefined;
+        }
+
+        return {
+            name: undefined,
+            value: Artifact.vsoHashes(values),
+        };
+    }
+
+    /**
      * Adds a flag argument to the tool command lines if 'flagValue' is true.
      * Example: Cmd.flag("/nologo", arg.noLogo) => /nologo argument would be added only when arg.noLogo is true.
      */

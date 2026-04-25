@@ -63,6 +63,7 @@ namespace BuildXL.Pips.Graph
 
         private readonly PathTable m_pathTable;
         private readonly PipFragmentRenderer.ContentHashLookup m_contentHashLookup;
+        private readonly PipFragmentRenderer.DirectoryContentHashLookup m_directoryContentHashLookup;
         private readonly PipDataLookup m_pipDataLookup;
         private readonly SourceChangeAffectedInputsLookup m_sourceChangeAffectedInputsLookup;
         private readonly ExpandedPathFileArtifactComparer m_expandedPathFileArtifactComparer;
@@ -116,12 +117,14 @@ namespace BuildXL.Pips.Graph
             PathExpander pathExpander = null,
             PipDataLookup pipDataLookup = null,
             SourceChangeAffectedInputsLookup sourceChangeAffectedInputsLookup = null,
-            PipFingerprintSaltLookup pipFingerprintSaltLookup = null)
+            PipFingerprintSaltLookup pipFingerprintSaltLookup = null,
+            PipFragmentRenderer.DirectoryContentHashLookup directoryContentHashLookup = null)
         {
             Contract.Requires(pathTable != null);
 
             m_pathTable = pathTable;
             m_contentHashLookup = contentHashLookup ?? new PipFragmentRenderer.ContentHashLookup(file => FileContentInfo.CreateWithUnknownLength(ContentHashingUtilities.ZeroHash));
+            m_directoryContentHashLookup = directoryContentHashLookup ?? new PipFragmentRenderer.DirectoryContentHashLookup(dir => FileContentInfo.CreateWithUnknownLength(ContentHashingUtilities.ZeroHash));
             ExtraFingerprintSalts = extraFingerprintSalts ?? ExtraFingerprintSalts.Default();
             m_pipDataLookup = pipDataLookup ?? new PipDataLookup(file => PipData.Invalid);
             PathExpander = pathExpander ?? PathExpander.Default;
@@ -137,7 +140,8 @@ namespace BuildXL.Pips.Graph
                 monikerRenderer: m => m,
                 // Use the hash lookup delegate that was passed as an argument.
                 // PipFragmentRenderer can accept a null value here, and it has special logic for such cases.
-                m_contentHashLookup);
+                m_contentHashLookup,
+                m_directoryContentHashLookup);
             m_pipFingerprintSaltLookup = pipFingerprintSaltLookup ?? new PipFingerprintSaltLookup(_ => string.Empty);
             m_regexDescriptorComparer = new RegexDescriptorComparer(pathTable.StringTable.OrdinalComparer);
             m_breakawayChildProcessComparer = new BreakawayChildProcessComparer(pathTable.StringTable.OrdinalComparer);
@@ -147,6 +151,11 @@ namespace BuildXL.Pips.Graph
         /// Returns the content hash lookup function used by this fingerprinter.
         /// </summary>
         public PipFragmentRenderer.ContentHashLookup ContentHashLookupFunction => (file) => m_contentHashLookup(file);
+
+        /// <summary>
+        /// Returns the directory content hash lookup function used by this fingerprinter.
+        /// </summary>
+        public PipFragmentRenderer.DirectoryContentHashLookup DirectoryContentHashLookupFunction => (directory) => m_directoryContentHashLookup(directory);
 
         /// <summary>
         /// Computes the weak fingerprint of a pip. This accounts for all statically declared inputs.

@@ -633,10 +633,10 @@ namespace BuildXL.Scheduler
                 // We might get an exception on payload rendering if there in an unknown file artifact.
                 ipcOperationPayload = pip.MessageBody.ToString(environment.PipFragmentRenderer, useIpcEscaping: true);
             }
-            catch (PipFragmentRendererFileHashException e)
+            catch (PipFragmentRendererHashException e)
             {
                 // The pip already failed, so let's spend a bit of time and collect additional info about the path.
-                var filePath = e.FileArtifact.Path.ToString(pathTable);
+                var filePath = e.FileOrDirectoryArtifact.Path.ToString(pathTable);
                 var pathExists = FileUtilities.FileExistsNoFollow(filePath);
                 var isSymlinkOrJunction = pathExists
                     && FileUtilities.TryGetReparsePointType(filePath) is var possibleReparsePointType
@@ -646,7 +646,7 @@ namespace BuildXL.Scheduler
                 Logger.Log.PipIpcFailedDueToUnknownFileHash(
                     operationContext,
                     pip.GetDescription(environment.Context),
-                    e.FileArtifact.ToString(),
+                    e.FileOrDirectoryArtifact.ToString(),
                     filePath,
                     pathExists,
                     isSymlinkOrJunction);
@@ -3972,7 +3972,8 @@ namespace BuildXL.Scheduler
             var pipDataRenderer = new PipFragmentRenderer(
                 pathTable,
                 monikerRenderer: monikerGuid => environment.IpcProvider.LoadAndRenderMoniker(monikerGuid),
-                hashLookup: environment.ContentFingerprinter.ContentHashLookupFunction);
+                hashLookup: environment.ContentFingerprinter.ContentHashLookupFunction,
+                directoryHashLookup: environment.ContentFingerprinter.DirectoryContentHashLookupFunction);
 
             var executor = new SandboxedProcessPipExecutor(
                 environment.Context,

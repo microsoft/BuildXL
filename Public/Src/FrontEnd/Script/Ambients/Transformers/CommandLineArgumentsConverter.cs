@@ -331,7 +331,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
 
             ThrowConvertExceptionIf<AbsolutePath>(artifactKind == ArtifactKind.Output && !path.IsValid && !directory.IsValid, value, convContext, "Output artifacts must be specified as paths or directories.");
             ThrowConvertExceptionIf<AbsolutePath>(artifactKind == ArtifactKind.Rewritten && !path.IsValid && !file.IsValid, value, convContext, "Rewritten artifacts must be specified as files if in-place rewrite or as paths otherwise.");
-            ThrowConvertExceptionIf<FileArtifact>(artifactKind == ArtifactKind.VsoHash && !file.IsValid, value, convContext, "VsoHash artifacts must be specified as files.");
+            ThrowConvertExceptionIf<FileArtifact>(artifactKind == ArtifactKind.VsoHash && !file.IsValid && !directory.IsValid, value, convContext, "VsoHash artifacts must be specified as files or directories.");
             ThrowConvertExceptionIf<FileArtifact>(artifactKind == ArtifactKind.FileId && !file.IsValid, value, convContext, "FileId artifacts must be specified as files.");
             ThrowConvertExceptionIf<DirectoryArtifact>(artifactKind == ArtifactKind.SharedOpaque && !directory.IsValid, value, convContext, "Shared opaque must be specified as directories.");
             ThrowConvertExceptionIf<DirectoryArtifact>(artifactKind == ArtifactKind.DirectoryId && !directory.IsValid, value, convContext, "DirectoryId artifacts must be specified as directories.");

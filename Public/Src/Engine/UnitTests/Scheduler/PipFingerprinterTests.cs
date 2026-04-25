@@ -788,6 +788,75 @@ namespace Test.BuildXL.Scheduler
             XAssert.AreNotEqual(contentFingerprint1, contentFingerprint2);
         }
 
+        [Fact]
+        public void TestVsoHashDirectoryInArgumentsRenderedProperly()
+        {
+            var executablePath = X("/x/pkgs/tool.exe");
+            var pathTable = m_context.PathTable;
+            var executable = FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, executablePath));
+
+            var dependencies = new HashSet<FileArtifact>() { executable };
+            var pb = GetDefaultProcessBuilder(pathTable, executable)
+                .WithDependencies(dependencies);
+
+            var inputDirPath = AbsolutePath.Create(pathTable, X("/x/pkgs/inputDir"));
+            var inputDir = DirectoryArtifact.CreateDirectoryArtifactForTesting(inputDirPath, 0);
+
+            pb.WithDirectoryDependencies(new[] { inputDir });
+
+            PipDataBuilder b = new PipDataBuilder(pathTable.StringTable);
+            b.AddVsoHash(inputDir);
+
+            pb.WithArguments(b.ToPipData(string.Empty, PipDataFragmentEscaping.NoEscaping));
+            var process = pb.Build();
+
+            MountPathExpander expander = new MountPathExpander(pathTable);
+
+            var directoryHash1 = FileContentInfo.CreateWithUnknownLength(ContentHashingUtilities.CreateSpecialValue(10));
+            var directoryHash2 = FileContentInfo.CreateWithUnknownLength(ContentHashingUtilities.CreateSpecialValue(20));
+            var currentDirHash = directoryHash1;
+
+            PipFragmentRenderer.DirectoryContentHashLookup dirHashLookup = dir =>
+            {
+                if (dir == inputDir)
+                {
+                    return currentDirHash;
+                }
+
+                return FileContentInfo.CreateWithUnknownLength(ContentHashingUtilities.ZeroHash);
+            };
+
+            var fingerprinter1 = new PipContentFingerprinter(
+                 m_context.PathTable,
+                 file => FileContentInfo.CreateWithUnknownLength(ContentHashingUtilities.ZeroHash),
+                 ExtraFingerprintSalts.Default(),
+                 pathExpander: expander,
+                 directoryContentHashLookup: dirHashLookup)
+            {
+                FingerprintTextEnabled = true
+            };
+
+            var contentFingerprint1 = fingerprinter1.ComputeWeakFingerprint(process, out string fingerprintText1);
+
+            // 'change' the directory hash => the rendering of an argument should result in a different value => should compute a different fingerprint
+            currentDirHash = directoryHash2;
+
+            var fingerprinter2 = new PipContentFingerprinter(
+                 m_context.PathTable,
+                 file => FileContentInfo.CreateWithUnknownLength(ContentHashingUtilities.ZeroHash),
+                 ExtraFingerprintSalts.Default(),
+                 pathExpander: expander,
+                 directoryContentHashLookup: dirHashLookup)
+            {
+                FingerprintTextEnabled = true
+            };
+
+            var contentFingerprint2 = fingerprinter2.ComputeWeakFingerprint(process, out string fingerprintText2);
+
+            XAssert.AreNotEqual(fingerprintText1, fingerprintText2, $"fp1: '{fingerprintText1}'; fp2: '{fingerprintText2}'");
+            XAssert.AreNotEqual(contentFingerprint1, contentFingerprint2);
+        }
+
         /// <summary>
         ///  Ensure the pipSpecificFingerprint salt is used in the computation of weak fingerprint for Static and ContentFingperinter.
         /// </summary>

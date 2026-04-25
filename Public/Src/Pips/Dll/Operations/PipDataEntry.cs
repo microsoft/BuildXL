@@ -82,6 +82,8 @@ namespace BuildXL.Pips.Operations
                         return PipFragmentType.FileId;
                     case PipDataEntryType.DirectoryIdHeaderSealId:
                         return PipFragmentType.DirectoryId;
+                    case PipDataEntryType.VsoHashDirectoryEntry1SealId:
+                        return PipFragmentType.VsoHashDirectory;
                     case PipDataEntryType.IpcMoniker:
                         return PipFragmentType.IpcMoniker;
                     case PipDataEntryType.NestedDataHeader:
@@ -128,13 +130,14 @@ namespace BuildXL.Pips.Operations
         /// Returns the current value as an unsigned integer.
         /// </summary>
         /// <remarks>
-        /// You can only call this function for instances where <see cref="EntryType" /> is equal to <see cref="PipDataEntryType.DirectoryIdHeaderSealId" />.
+        /// You can only call this function for instances where <see cref="EntryType" /> is equal to 
+        /// <see cref="PipDataEntryType.DirectoryIdHeaderSealId" /> or <see cref="PipDataEntryType.VsoHashDirectoryEntry1SealId" />.
         /// </remarks>
         /// <returns>Value as an unsigned integer.</returns>
         public uint GetUInt32Value()
         {
             Contract.Requires(
-                EntryType == PipDataEntryType.DirectoryIdHeaderSealId);
+                EntryType == PipDataEntryType.DirectoryIdHeaderSealId || EntryType == PipDataEntryType.VsoHashDirectoryEntry1SealId);
             return unchecked((uint)RawData);
         }
 
@@ -184,6 +187,16 @@ namespace BuildXL.Pips.Operations
         {
             Contract.Requires(directory.IsValid);
             entry1SealId = new PipDataEntry(PipDataFragmentEscaping.Invalid, PipDataEntryType.DirectoryIdHeaderSealId, unchecked((int)(directory.IsSharedOpaquePlusPartialSealId)));
+            entry2Path = directory.Path;
+        }
+
+        /// <summary>
+        /// Creates entries that constitute a VsoHashDirectory pip data fragment.
+        /// </summary>
+        public static void CreateVsoHashDirectoryEntry(DirectoryArtifact directory, out PipDataEntry entry1SealId, out PipDataEntry entry2Path)
+        {
+            Contract.Requires(directory.IsValid);
+            entry1SealId = new PipDataEntry(PipDataFragmentEscaping.Invalid, PipDataEntryType.VsoHashDirectoryEntry1SealId, unchecked((int)(directory.IsSharedOpaquePlusPartialSealId)));
             entry2Path = directory.Path;
         }
 
@@ -281,6 +294,7 @@ namespace BuildXL.Pips.Operations
                 case PipDataEntryType.VsoHashEntry2RewriteCount:
                 case PipDataEntryType.FileId2RewriteCount:
                 case PipDataEntryType.DirectoryIdHeaderSealId:
+                case PipDataEntryType.VsoHashDirectoryEntry1SealId:
                     writer.WriteCompact(RawData);
                     break;
                 case PipDataEntryType.AbsolutePath:
@@ -315,6 +329,7 @@ namespace BuildXL.Pips.Operations
                 case PipDataEntryType.VsoHashEntry2RewriteCount:
                 case PipDataEntryType.FileId2RewriteCount:
                 case PipDataEntryType.DirectoryIdHeaderSealId:
+                case PipDataEntryType.VsoHashDirectoryEntry1SealId:
                     data = reader.ReadInt32Compact();
                     break;
                 case PipDataEntryType.AbsolutePath:

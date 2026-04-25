@@ -112,6 +112,16 @@ namespace BuildXL.Pips.Operations
         }
 
         /// <summary>
+        /// Factory to create a PipFragment containing a VsoHashDirectory.
+        /// FOR TESTING PURPOSES ONLY.
+        /// </summary>
+        internal static PipFragment VsoHashFromDirectoryForTesting(DirectoryArtifact directory)
+        {
+            PipDataEntry.CreateVsoHashDirectoryEntry(directory, out var entry1, out var entry2);
+            return new PipFragment(new[] { entry1, entry2 }, 0);
+        }        
+        
+        /// <summary>
         /// Factory to create a PipFragment containing an IpcMoniker.
         /// FOR TESTING PURPOSES ONLY.
         /// </summary>
@@ -164,18 +174,18 @@ namespace BuildXL.Pips.Operations
         }
 
         /// <summary>
-        /// Returns the current value as a FileArtifact.
+        /// Returns the current value as a DirectoryArtifact.
         /// </summary>
         /// <remarks>
-        /// You can only call this function for instances where Type is equal to <see cref="PipFragmentType.VsoHash"/> or <see cref="PipFragmentType.FileId"/>.
+        /// You can only call this function for instances where Type is equal to <see cref="PipFragmentType.VsoHashDirectory"/> or <see cref="PipFragmentType.DirectoryId"/>.
         /// </remarks>
         public DirectoryArtifact GetDirectoryValue()
         {
-            Contract.Requires(FragmentType == PipFragmentType.DirectoryId);
+            Contract.Requires(FragmentType == PipFragmentType.DirectoryId || FragmentType == PipFragmentType.VsoHashDirectory);
 
             Contract.Assert(m_entries.Count >= 2);
             var entry1 = m_entries[0];
-            Contract.Assert(entry1.EntryType == PipDataEntryType.DirectoryIdHeaderSealId);
+            Contract.Assert(entry1.EntryType == PipDataEntryType.DirectoryIdHeaderSealId || entry1.EntryType == PipDataEntryType.VsoHashDirectoryEntry1SealId);
             var entry2 = m_entries[1];
             Contract.Assert(entry2.EntryType == PipDataEntryType.AbsolutePath);
             return new DirectoryArtifact(entry2.GetPathValue(), entry1.GetUInt32Value());

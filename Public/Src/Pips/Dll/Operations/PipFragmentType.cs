@@ -73,5 +73,15 @@ namespace BuildXL.Pips.Operations
         /// Directory id, i.e., path and its partial seal id.
         /// </summary>
         DirectoryId,
+
+        /// <summary>
+        /// VSO hash of all files in a directory.
+        /// </summary>
+        /// <remarks>
+        /// The fragment resolves at execution time to a single aggregated
+        /// hash that incorporates the VSO hash and relative path of every
+        /// file in the directory.
+        /// </remarks>
+        VsoHashDirectory,
     }
 }

@@ -47,8 +47,9 @@ namespace BuildXL.Pips.Graph
             PipDataLookup pipDataLookup = null,
             SourceChangeAffectedInputsLookup sourceChangeAffectedInputsLookup = null,
             StaticHashLookup staticHashLookup = null,
-            PipFingerprintSaltLookup pipFingerprintSaltLookup = null)
-            : base(pathTable, contentHashLookup, extraFingerprintSalts, pathExpander, pipDataLookup, sourceChangeAffectedInputsLookup, pipFingerprintSaltLookup)
+            PipFingerprintSaltLookup pipFingerprintSaltLookup = null,
+            PipFragmentRenderer.DirectoryContentHashLookup directoryContentHashLookup = null)
+            : base(pathTable, contentHashLookup, extraFingerprintSalts, pathExpander, pipDataLookup, sourceChangeAffectedInputsLookup, pipFingerprintSaltLookup, directoryContentHashLookup)
         {
             Contract.Requires(pathTable != null);
             Contract.Requires(contentHashLookup != null);

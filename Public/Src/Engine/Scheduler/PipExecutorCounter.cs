@@ -635,6 +635,12 @@ namespace BuildXL.Scheduler
         FileContentManagerPlaceFilesVerifiedPinDuration,
 
         /// <summary>
+        /// The amount of time FileContentManager spent computing the aggregated content hash for a directory.
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        FileContentManagerGetDirectoryAggregatedContent,
+
+        /// <summary>
         /// The time pips spent in the running state
         /// </summary>
         [CounterType(CounterType.Stopwatch)]

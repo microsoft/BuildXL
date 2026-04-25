@@ -476,6 +476,7 @@ namespace BuildXL.Pips.Operations
                                 canContinue = true;
                                 break;
                             case PipDataEntryType.DirectoryIdHeaderSealId:
+                            case PipDataEntryType.VsoHashDirectoryEntry1SealId:
                                 Contract.Assert(m_currentIndex + 1 < m_pipData.Entries.Count);
                                 Contract.Assert(m_pipData.Entries[m_currentIndex + 1].EntryType == PipDataEntryType.AbsolutePath);
                                 m_currentIndex += 2;

@@ -43,6 +43,12 @@ namespace BuildXL.Scheduler
                 c => c.Clear());
 
         /// <summary>
+        /// Pool for (relative path, content hash) entry lists used during directory content aggregation.
+        /// </summary>
+        public static readonly ObjectPool<List<(string RelativePath, ContentHash Hash)>> PathHashEntryListPool =
+            Pools.CreateListPool<(string RelativePath, ContentHash Hash)>();
+
+        /// <summary>
         /// Pool for regexes
         /// </summary>
         public static readonly ObjectPool<List<Regex>> RegexList =

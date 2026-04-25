@@ -163,6 +163,12 @@ namespace BuildXL.Scheduler.Artifacts
         private readonly ConcurrentBigSet<DirectoryArtifact> m_registeredSealDirectories = new ConcurrentBigSet<DirectoryArtifact>();
 
         /// <summary>
+        /// Cache for computed aggregated directory content hashes. Safe to cache since a DirectoryArtifact
+        /// is an immutable representation of a directory with fixed content.
+        /// </summary>
+        private readonly ConcurrentBigMap<DirectoryArtifact, FileContentInfo> m_directoryAggregatedContentCache = new ConcurrentBigMap<DirectoryArtifact, FileContentInfo>();
+
+        /// <summary>
         /// Maps paths to the corresponding seal source directory artifact
         /// </summary>
         private readonly ConcurrentBigMap<AbsolutePath, DirectoryArtifact> m_sealedSourceDirectories =
@@ -1169,6 +1175,64 @@ namespace BuildXL.Scheduler.Artifacts
             }
 
             return materializationInfo;
+        }
+
+        /// <summary>
+        /// Computes an aggregated content hash for all files in an opaque directory (shared or exclusive).
+        /// The hash incorporates the canonicalized relative path and content hash of every file, sorted by relative path for determinism.
+        /// Only opaque directories are supported because their file content hashes are guaranteed to be available
+        /// (reported by the producer pip during PostProcess). Source and fully sealed directories may contain source
+        /// files whose hashes have not yet been computed at fingerprinting time.
+        /// </summary>
+        public FileContentInfo GetDirectoryAggregatedContent(DirectoryArtifact directory)
+        {
+            var sealDirectoryKind = m_host.GetSealDirectoryKind(directory);
+            Contract.Requires(
+                sealDirectoryKind.IsDynamicKind(),
+                "GetDirectoryAggregatedContent is only supported for opaque directories");
+
+            if (m_directoryAggregatedContentCache.TryGetValue(directory, out var cachedResult))
+            {
+                return cachedResult;
+            }
+
+            using (var operationContext = OperationTracker.StartOperation(PipExecutorCounter.FileContentManagerGetDirectoryAggregatedContent, m_host.LoggingContext))
+            {
+                var content = ListSealedDirectoryContents(directory);
+
+                // Build a list of (canonicalRelativePath, hash) pairs, where each relative path is relative to the root of the directory
+                using var entriesWrapper = SchedulerPools.PathHashEntryListPool.GetInstance();
+                var entries = entriesWrapper.Instance;
+                foreach (var file in content)
+                {
+                    string relativePath = directory.Path
+                        .ExpandRelative(Context.PathTable, file.Path)
+                        .ToCanonicalizedPath();
+                    var contentInfo = GetInputContent(file).FileContentInfo;
+                    entries.Add((relativePath, contentInfo.Hash));
+                }
+
+                // Sort by canonicalized relative path for determinism (the result of ListSealedDirectoryContents 
+                // is sorted by hierarchy id, so path table dependent, but here we need a hash that is stable across builds)
+                entries.Sort((a, b) => StringComparer.Ordinal.Compare(a.RelativePath, b.RelativePath));
+
+                // Combine all paths and hashes into a single aggregated hash.
+                using var streamWrapper = Pools.MemoryStreamPool.GetInstance();
+                var stream = streamWrapper.Instance;
+                using (var writer = new BinaryWriter(stream, System.Text.Encoding.UTF8, leaveOpen: true))
+                {
+                    foreach (var (canonicalPath, hash) in entries)
+                    {
+                        writer.Write(canonicalPath);
+                        writer.Write(hash.ToHashByteArray());
+                    }
+                }
+
+                var aggregatedHash = ContentHashingUtilities.HashBytes(stream.ToArray());
+                var result = FileContentInfo.CreateWithUnknownLength(aggregatedHash);
+                m_directoryAggregatedContentCache.TryAdd(directory, result);
+                return result;
+            }
         }
 
         /// <summary>

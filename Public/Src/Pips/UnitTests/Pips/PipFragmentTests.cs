@@ -55,7 +55,7 @@ namespace Test.BuildXL.Pips
             var pathTable = new PathTable();
             var fakeContentInfo = FileContentInfo.CreateWithUnknownLength(ContentHash.Random());
             var expectedHash = fakeContentInfo.Render();
-            var renderer = new PipFragmentRenderer(pathTable, (mId) => "XYZ:" + mId, (f) => fakeContentInfo);
+            var renderer = new PipFragmentRenderer(pathTable, (mId) => "XYZ:" + mId, (f) => fakeContentInfo, (d) => fakeContentInfo);
             DoTestRenderer(pathTable, renderer, expectedHash);
 
             var moniker = new IpcMoniker("123");
@@ -91,6 +91,9 @@ namespace Test.BuildXL.Pips
             XAssert.AreEqual(expectedHash, renderer.Render(PipFragment.VsoHashFromFileForTesting(rw2File)));
 
             XAssert.AreEqual(DirectoryId.ToString(opaqueDir), renderer.Render(PipFragment.DirectoryIdForTesting(opaqueDir)));
+            // VsoHashDirectory
+            XAssert.AreEqual(expectedHash, renderer.Render(PipFragment.VsoHashFromDirectoryForTesting(opaqueDir)));
+            XAssert.AreEqual(expectedHash, renderer.Render(PipFragment.VsoHashFromDirectoryForTesting(sharedDir)));
             XAssert.AreEqual(DirectoryId.ToString(sharedDir), renderer.Render(PipFragment.DirectoryIdForTesting(sharedDir)));
 
         }

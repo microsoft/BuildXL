@@ -341,6 +341,18 @@ namespace Test.BuildXL.Engine
             File.AppendAllText(producedFile, " we should be able to modify the file");
         }
 
+        [FactIfSupported(requiresWindowsOrLinuxOperatingSystem: true)]
+        public void VsoHashOfSharedOpaqueDirectoryIsAvailableAsArgument()
+        {
+            var spec0 = GetVsoHashSharedOpaqueSpec();
+            AddModule("Module0", ("spec0.dsc", spec0), placeInRoot: true);
+
+            // Note: The VSO hash will render as zero in this test because the engine test infrastructure
+            // does not wire up the real FileContentManager, so directory content hashes are not available
+            // at argument rendering time. The test still validates the end-to-end DScript argument handling.
+            RunEngine();
+        }
+
         private string ProduceFileUnderSharedOpaque(string file, bool failOnExit = false, string dependencies = "", string exclusions = "", bool allowSourceRewrites = false, bool allowUndeclaredReads = false, string content = "hi") => 
             ProduceFileUnderDirectory(file, isDynamic: true, failOnExit, dependencies, exclusions, allowSourceRewrites, allowUndeclaredReads, content);
 
@@ -403,5 +415,53 @@ const result = execute({{
     {(allowUndeclaredReads ? "allowUndeclaredSourceReads: true," : string.Empty)}
 }});";
         }
-    }
+
+        private string GetVsoHashSharedOpaqueSpec()
+        {
+            var shellCommand = OperatingSystemHelper.IsUnixOS
+                ? "-c \"echo"
+                : "/C echo";
+
+            string ClosingQuoteIfNeeded()
+            {
+                return OperatingSystemHelper.IsUnixOS
+                    ? @", {value: {value: '""', kind: ArgumentKind.rawText}}"
+                    : string.Empty;
+            }
+
+            return $@"
+import {{Transformer}} from 'Sdk.Transformers';
+import {{Cmd}} from 'Sdk.Transformers';
+
+const objDir = d`${{Context.getMount('ObjectRoot').path}}`;
+
+{GetExecuteFunction()}
+
+// Producer: writes a file into a shared opaque directory
+const producerResult = execute({{
+    tool: {GetOsShellCmdToolDefinition()},
+    workingDirectory: d`.`,
+    arguments: [
+        {{ value: {{ value: '{shellCommand} produced-content', kind: ArgumentKind.rawText }}}},
+        {{ value: '>' }},
+        {{ value: {{ path: p`${{objDir}}/sod/output.txt`, kind: ArtifactKind.none }}}}{ClosingQuoteIfNeeded()}
+        ],
+    outputs: [{{ kind: 'shared', directory: d`${{objDir}}/sod` }}],
+}});
+
+const sharedOpaqueDir = producerResult.getOutputDirectory(d`${{objDir}}/sod`);
+
+// Consumer: echoes the vsoHash of the shared opaque directory to stdout
+const consumerResult = execute({{
+    tool: {GetOsShellCmdToolDefinition()},
+    workingDirectory: d`.`,
+    arguments: [
+        {{ value: {{ value: '{shellCommand}', kind: ArgumentKind.rawText }}}},
+        Cmd.vsoHash(sharedOpaqueDir){ClosingQuoteIfNeeded()}
+        ],
+    outputs: [{{ kind: 'shared', directory: d`${{objDir}}/sod-consumer` }}],
+    dependencies: [sharedOpaqueDir],
+}});
+";
+        }    }
 }

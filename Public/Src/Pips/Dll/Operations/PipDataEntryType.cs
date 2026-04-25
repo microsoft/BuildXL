@@ -58,6 +58,13 @@ namespace BuildXL.Pips.Operations
         VsoHashEntry2RewriteCount,
 
         /// <summary>
+        /// First entry of a <see cref="PipFragmentType.VsoHashDirectory"/> fragment which holds the
+        /// partial seal ID of the corresponding DirectoryArtifact. Must
+        /// be followed by an entry of type <see cref="PipDataEntryType.AbsolutePath"/> with the directory path.
+        /// </summary>
+        VsoHashDirectoryEntry1SealId,
+
+        /// <summary>
         /// First entry of a <see cref="PipFragmentType.FileId"/> fragment which holds the
         /// <see cref="BuildXL.Utilities.Core.FileArtifact.Path"/> value of the corresponding FileArtifact.  Must
         /// be followed by an entry of type <see cref="PipDataEntryType.FileId2RewriteCount"/>.
@@ -123,7 +130,8 @@ namespace BuildXL.Pips.Operations
         {
             return
                 entryType == PipDataEntryType.VsoHashEntry1Path ||
-                entryType == PipDataEntryType.VsoHashEntry2RewriteCount;
+                entryType == PipDataEntryType.VsoHashEntry2RewriteCount ||
+                entryType == PipDataEntryType.VsoHashDirectoryEntry1SealId;
         }
     }
 }

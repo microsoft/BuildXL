@@ -110,6 +110,11 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             AddOption(prefix, value, valueIsEmpty: value == FileArtifact.Invalid, writeValue: (b, v) => b.AddVsoHash(v));
         }
 
+        private void AddVsoHashDirectoryOption(string prefix, DirectoryArtifact value)
+        {
+            AddOption(prefix, value, valueIsEmpty: value == DirectoryArtifact.Invalid, writeValue: (b, v) => b.AddVsoHash(v));
+        }
+
         private void AddDirectoryIdOption(string prefix, DirectoryArtifact value)
         {
             AddOption(prefix, value, valueIsEmpty: value == DirectoryArtifact.Invalid, writeValue: (b, v) => b.AddDirectoryId(v));
@@ -366,7 +371,8 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
                         m_processBuilder.AddInputFile(artifact.File);
                         break;
                     case ArtifactValueType.Directory:
-                        Contract.Assert(false); // should never happen because of preconditions in CommandLineArgumentsConverter
+                        AddVsoHashDirectoryOption(argumentName, artifact.Directory);
+                        m_processBuilder.AddInputDirectory(artifact.Directory);
                         break;
                     case ArtifactValueType.AbsolutePath:
                         Contract.Assert(false); // should never happen because of preconditions in CommandLineArgumentsConverter
@@ -592,7 +598,14 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
 
                     break;
                 case ArtifactValueType.Directory:
-                    pipDataBuilder.Add(artifact.Directory.Path);
+                    if (artifact.Kind == ArtifactKind.VsoHash)
+                    {
+                        pipDataBuilder.AddVsoHash(artifact.Directory);
+                    }
+                    else
+                    {
+                        pipDataBuilder.Add(artifact.Directory.Path);
+                    }
                     break;
                 case ArtifactValueType.AbsolutePath:
                     pipDataBuilder.Add(artifact.Path);

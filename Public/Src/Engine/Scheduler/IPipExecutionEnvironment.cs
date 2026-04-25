@@ -287,7 +287,11 @@ namespace BuildXL.Scheduler
         /// </summary>
         public static PipFragmentRenderer CreatePipFragmentRenderer(this IPipExecutionEnvironment env)
         {
-            return new PipFragmentRenderer(env.Context.PathTable, mId => env.IpcProvider.LoadAndRenderMoniker(mId), env.ContentFingerprinter.ContentHashLookupFunction);
+            return new PipFragmentRenderer(
+                env.Context.PathTable,
+                mId => env.IpcProvider.LoadAndRenderMoniker(mId),
+                env.ContentFingerprinter.ContentHashLookupFunction,
+                env.ContentFingerprinter.DirectoryContentHashLookupFunction);
         }
     }
 }

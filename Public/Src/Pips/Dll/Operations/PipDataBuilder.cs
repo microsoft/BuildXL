@@ -261,6 +261,26 @@ namespace BuildXL.Pips.Operations
         }
 
         /// <summary>
+        /// Adds a VSO hash reference for a directory to the pip data.
+        /// At execution time this resolves to an aggregated hash that
+        /// incorporates the VSO hash and relative path of every file
+        /// in the directory. Only opaque directories (shared or exclusive) are supported;
+        /// source and fully sealed directories are not supported because their file
+        /// content hashes may not be available at fingerprinting time.
+        /// </summary>
+        public void AddVsoHash(DirectoryArtifact directory)
+        {
+            Contract.Requires(directory.IsValid);
+
+            m_currentPipDataCountInfo.FragmentCount++;
+            PipDataEntry entry1;
+            PipDataEntry entry2;
+            PipDataEntry.CreateVsoHashDirectoryEntry(directory, out entry1, out entry2);
+            m_entries.Add(entry1);
+            m_entries.Add(entry2);
+        }
+
+        /// <summary>
         /// Adds a file id of a file to the pip data.
         /// </summary>
         public void AddFileId(FileArtifact file)

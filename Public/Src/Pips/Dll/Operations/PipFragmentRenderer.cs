@@ -26,6 +26,12 @@ namespace BuildXL.Pips.Operations
         public delegate FileContentInfo ContentHashLookup(FileArtifact artifact);
 
         /// <summary>
+        /// Delegate type for looking up the aggregated VSO hash of all files in a directory.
+        /// The returned <see cref="FileContentInfo"/> contains the aggregated hash information.
+        /// </summary>
+        public delegate FileContentInfo DirectoryContentHashLookup(DirectoryArtifact artifact);
+
+        /// <summary>
         /// String representation of a <see cref="FileContentInfo"/> with zero hash and unknonw file length.
         /// </summary>
         /// <remarks>
@@ -65,6 +71,11 @@ namespace BuildXL.Pips.Operations
         private ContentHashLookup HashLookup { get; }
 
         /// <summary>
+        /// Function used to look up the aggregated VSO hash of all files in a directory.
+        /// </summary>
+        private DirectoryContentHashLookup DirectoryHashLookup { get; }
+
+        /// <summary>
         /// Takes a moniker ID (<see cref="BuildXL.Ipc.Common.IpcMoniker.Id"/>) and renders its value.
         /// </summary>
         [MaybeNull]
@@ -82,7 +93,8 @@ namespace BuildXL.Pips.Operations
             Func<AbsolutePath, string> pathExpander,
             StringTable stringTable,
             Func<string, string> monikerRenderer,
-            ContentHashLookup hashLookup = null)
+            ContentHashLookup hashLookup = null,
+            DirectoryContentHashLookup directoryHashLookup = null)
         {
             Contract.Requires(pathExpander != null);
             Contract.Requires(stringTable != null);
@@ -91,18 +103,20 @@ namespace BuildXL.Pips.Operations
             StringTable = stringTable;
             IpcMonikerRenderer = monikerRenderer;
             HashLookup = hashLookup;
+            DirectoryHashLookup = directoryHashLookup;
         }
 
         /// <nodoc />
         public PipFragmentRenderer(PathTable pathTable)
-            : this(pathTable, null, null) { }
+            : this(pathTable, null, null, null) { }
 
         /// <nodoc />
         public PipFragmentRenderer(
             PathTable pathTable,
             Func<string, string> monikerRenderer,
-            ContentHashLookup hashLookup)
-            : this(path => path.ToString(pathTable), pathTable.StringTable, monikerRenderer, hashLookup)
+            ContentHashLookup hashLookup,
+            DirectoryContentHashLookup directoryHashLookup)
+            : this(path => path.ToString(pathTable), pathTable.StringTable, monikerRenderer, hashLookup, directoryHashLookup)
         {
             Contract.Requires(pathTable != null);
         }
@@ -147,7 +161,21 @@ namespace BuildXL.Pips.Operations
                     }
                     catch (Exception e)
                     {
-                        throw new PipFragmentRendererFileHashException($"Failed to get a hash for a file artifact '{fileArtifact.ToString()}'.", fileArtifact, e);
+                        throw new PipFragmentRendererHashException($"Failed to get a hash for a file artifact '{fileArtifact.ToString()}'.", fileArtifact, e);
+                    }
+                }
+                case PipFragmentType.VsoHashDirectory:
+                {
+                    DirectoryArtifact directoryArtifact = fragment.GetDirectoryValue();
+                    try
+                    {
+                        return DirectoryHashLookup != null
+                            ? DirectoryHashLookup(directoryArtifact).Render()
+                            : s_unknownLengthFileInfoString;
+                    }
+                    catch (Exception e)
+                    {
+                        throw new PipFragmentRendererHashException($"Failed to get aggregated hash for directory artifact '{directoryArtifact.ToString()}'.", directoryArtifact, e);
                     }
                 }
                 case PipFragmentType.FileId:
@@ -221,8 +249,8 @@ namespace BuildXL.Pips.Operations
                 return maxPathLength + numExtraCharactersForEscaping;
             }
 
-            // VsoHash
-            if (fragment.FragmentType == PipFragmentType.VsoHash)
+            // VsoHash or VsoHashDirectory
+            if (fragment.FragmentType == PipFragmentType.VsoHash || fragment.FragmentType == PipFragmentType.VsoHashDirectory)
             {
                 return s_maxVsoHashStringLength; // vso hash should never need any escaping
             }

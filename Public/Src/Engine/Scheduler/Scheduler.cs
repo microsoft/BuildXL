@@ -5872,6 +5872,7 @@ namespace BuildXL.Scheduler
 
                     long pipDurationMs = performance.CalculatePipDurationMs(this);
                     long pipQueueDurationMs = performance.CalculateQueueDurationMs();
+                    long cacheLookupDurationMs = (long)performance.StepDurations.GetOrDefault(PipExecutionStep.CacheLookup).TotalMilliseconds;
 
                     pipDurationCriticalPathMs += pipDurationMs;
                     exeDurationCriticalPathMs += runtimeInfo.ProcessExecuteTimeMs;
@@ -5882,6 +5883,7 @@ namespace BuildXL.Scheduler
                         pipDurationMs: pipDurationMs,
                         exeDurationMs: runtimeInfo.ProcessExecuteTimeMs,
                         queueDurationMs: pipQueueDurationMs,
+                        cacheLookupDurationMs: cacheLookupDurationMs,
                         indexFromBeginning: criticalPath.Count - index - 1,
                         isExplicitlyScheduled: (m_explicitlyScheduledProcessNodes == null ? false : m_explicitlyScheduledProcessNodes.Contains(node.Item2.ToNodeId())),
                         executionLevel: runtimeInfo.Result.ToString(),

@@ -3415,7 +3415,7 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.CriticalPaths,
-            Message = "Critical Path Pip Duration={pipDurationMs}ms Result={executionLevel} ExplicitlyScheduled={isExplicitlyScheduled} Index={indexFromBeginning} {pipDescription}")]
+            Message = "Critical Path Pip Duration={pipDurationMs}ms CacheLookup={cacheLookupDurationMs}ms Result={executionLevel} ExplicitlyScheduled={isExplicitlyScheduled} Index={indexFromBeginning} {pipDescription}")]
         public abstract void CriticalPathPipRecord(
             LoggingContext context,
             long pipSemiStableHash,
@@ -3423,6 +3423,7 @@ namespace BuildXL.Scheduler.Tracing
             long pipDurationMs,
             long exeDurationMs,
             long queueDurationMs,
+            long cacheLookupDurationMs,
             int indexFromBeginning,
             bool isExplicitlyScheduled,
             string executionLevel,

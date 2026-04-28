@@ -548,7 +548,7 @@ namespace Test.Tool.DropDaemon
                         dropClient,
                         (daemon, etwListener, dropConfig) =>
                         {
-                            var addArtifactsCommand = global::Tool.ServicePipDaemon.ServicePipDaemon.ParseArgs(
+                            var addArtifactsCommand = global::Tool.ServicePipDaemon.ServicePipDaemon.ParseArgsForIPCCall(
                                 $"addartifacts --ipcServerMoniker {moniker.Id} --service {dropConfig.Service} --name {dropConfig.Name} --directory {directoryPath} --directoryId {fakeDirectoryId} --directoryDropPath {remoteDirectoryPath} --directoryFilter {filter} --directoryRelativePathReplace ## --directoryFilterUseRelativePath false",
                                 new UnixParser());
                             var ipcResult = addArtifactsCommand.Command.ServerAction(addArtifactsCommand, daemon).GetAwaiter().GetResult();
@@ -616,7 +616,7 @@ namespace Test.Tool.DropDaemon
                         dropClient,
                         (daemon, etwListener, dropConfig) =>
                         {
-                            var addArtifactsCommand = global::Tool.ServicePipDaemon.ServicePipDaemon.ParseArgs(
+                            var addArtifactsCommand = global::Tool.ServicePipDaemon.ServicePipDaemon.ParseArgsForIPCCall(
                                 $"addartifacts --ipcServerMoniker {moniker.Id} --service {dropConfig.Service} --name {dropConfig.Name} --directory {directoryPath} --directoryId {fakeDirectoryId} --directoryDropPath . --directoryFilter .* --directoryRelativePathReplace ## --directoryFilterUseRelativePath false",
                                 new UnixParser());
                             var ipcResult = addArtifactsCommand.Command.ServerAction(addArtifactsCommand, daemon).GetAwaiter().GetResult();
@@ -651,7 +651,7 @@ namespace Test.Tool.DropDaemon
                 {
                     // only hash and file rewrite count are important here; the rest are just fake values
                     var hash = FileContentInfo.CreateWithUnknownLength(ContentHashingUtilities.CreateSpecialValue(1)).Render();
-                    var addArtifactsCommand = global::Tool.ServicePipDaemon.ServicePipDaemon.ParseArgs(
+                    var addArtifactsCommand = global::Tool.ServicePipDaemon.ServicePipDaemon.ParseArgsForIPCCall(
                         $"addartifacts --ipcServerMoniker {daemon.Config.Moniker} --service {dropConfig.Service} --name {dropConfig.Name} --file non-existent-file.txt --dropPath remote-file-name.txt --hash {hash} --fileId 12345:{(isSourceFile ? 0 : 1)}",
                         new UnixParser());
                     var ipcResult = addArtifactsCommand.Command.ServerAction(addArtifactsCommand, daemon).GetAwaiter().GetResult();
@@ -711,7 +711,7 @@ namespace Test.Tool.DropDaemon
                         dropClient,
                         (daemon, etwListener, dropConfig) =>
                         {
-                            var addArtifactsCommand = global::Tool.ServicePipDaemon.ServicePipDaemon.ParseArgs(
+                            var addArtifactsCommand = global::Tool.ServicePipDaemon.ServicePipDaemon.ParseArgsForIPCCall(
                                 $"addartifacts --ipcServerMoniker {moniker.Id} --service {dropConfig.Service} --name {dropConfig.Name} --directory {directoryPath} --directoryId {fakeDirectoryId} --directoryDropPath {remoteDirectoryPath} --directoryFilter .* --directoryRelativePathReplace ## --directoryFilterUseRelativePath false",
                                 new UnixParser());
                             var ipcResult = addArtifactsCommand.Command.ServerAction(addArtifactsCommand, daemon).GetAwaiter().GetResult();
@@ -853,7 +853,7 @@ namespace Test.Tool.DropDaemon
                         dropClient,
                         (daemon, etwListener, dropConfig) =>
                         {
-                            var addArtifactsCommand = global::Tool.ServicePipDaemon.ServicePipDaemon.ParseArgs(
+                            var addArtifactsCommand = global::Tool.ServicePipDaemon.ServicePipDaemon.ParseArgsForIPCCall(
                                 $"addartifacts --ipcServerMoniker {moniker.Id} --service {dropConfig.Service} --name {dropConfig.Name} --directory {directoryPath} --directoryId {fakeDirectoryId} --directoryDropPath {dropPath} --directoryFilter .* --directoryRelativePathReplace {serializeReplaceArgument(replaceOldValue, replaceNewValue)} --directoryFilterUseRelativePath false",
                                 new UnixParser());
                             var ipcResult = addArtifactsCommand.Command.ServerAction(addArtifactsCommand, daemon).GetAwaiter().GetResult();

@@ -97,7 +97,7 @@ namespace Test.Tool.DropDaemon
                     Console.WriteLine(format);
                     Output.WriteLine(format);
                 });
-                ConfiguredCommand conf = ParseArgs(cmdLine, UnixParser.Instance, logger);
+                ConfiguredCommand conf = ParseArgsForIPCCall(cmdLine, UnixParser.Instance, logger);
                 var exitCode = conf.Command.ClientAction(conf, client);
                 Assert.Equal(0, exitCode);
             }, creationOptions: TaskCreationOptions.LongRunning);

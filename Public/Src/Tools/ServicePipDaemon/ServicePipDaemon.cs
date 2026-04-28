@@ -525,7 +525,7 @@ namespace Tool.ServicePipDaemon
             ConfiguredCommand conf;
             using (m_counters.StartStopwatch(DaemonCounter.ParseArgsDuration))
             {
-                conf = ParseArgs(cmdLine, m_parser);
+                conf = ParseArgsForIPCCall(cmdLine, m_parser);
             }
 
             IIpcResult result;
@@ -550,17 +550,18 @@ namespace Tool.ServicePipDaemon
         }
 
         /// <summary>
-        /// Parses a string and returns a ConfiguredCommand.
+        /// Parses a string that comes via IPC and returns a ConfiguredCommand.
         /// </summary>        
-        public static ConfiguredCommand ParseArgs(string allArgs, IParser parser, IIpcLogger logger = null, bool ignoreInvalidOptions = false)
+        public static ConfiguredCommand ParseArgsForIPCCall(string allArgs, IParser parser, IIpcLogger logger = null, bool ignoreInvalidOptions = false)
         {
-            return ParseArgs(parser.SplitArgs(allArgs), parser, logger, ignoreInvalidOptions);
+            // There is never a response file in IPC calls (and this also allows arguments to contains an '@' without triggering response file processing)
+            return ParseArgs(parser.SplitArgs(allArgs), parser, logger, ignoreInvalidOptions, processResponseFiles: false);
         }
 
         /// <summary>
         /// Parses a list of arguments and returns a ConfiguredCommand.
         /// </summary>  
-        public static ConfiguredCommand ParseArgs(string[] args, IParser parser, IIpcLogger logger = null, bool ignoreInvalidOptions = false)
+        public static ConfiguredCommand ParseArgs(string[] args, IParser parser, IIpcLogger logger = null, bool ignoreInvalidOptions = false, bool processResponseFiles = true)
         {
             var usageMessage = Lazy.Create(() => "Usage:" + Environment.NewLine + Usage());
 
@@ -572,7 +573,7 @@ namespace Tool.ServicePipDaemon
             var argsQueue = new Queue<string>(args.Length);
             foreach (var arg in args)
             {
-                if (arg[0] == ResponseFilePrefix)
+                if (processResponseFiles && arg[0] == ResponseFilePrefix)
                 {
                     foreach (var argFromFile in ProcessResponseFile(arg, parser))
                     {

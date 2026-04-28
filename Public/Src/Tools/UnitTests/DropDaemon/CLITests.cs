@@ -363,7 +363,20 @@ namespace Test.Tool.DropDaemon
         private ConfiguredCommand ParseArgs(string fullCmdLine, bool ignoreInvalidOptions = false)
         {
             var logger = new LambdaLogger((level, format, args) => Output.WriteLine(format, args));
-            return global::Tool.ServicePipDaemon.ServicePipDaemon.ParseArgs(fullCmdLine, UnixParser.Instance, logger, ignoreInvalidOptions: ignoreInvalidOptions);
+            return global::Tool.ServicePipDaemon.ServicePipDaemon.ParseArgsForIPCCall(fullCmdLine, UnixParser.Instance, logger, ignoreInvalidOptions: ignoreInvalidOptions);
+        }
+
+        [Fact]
+        public void TestParseArgsForIPCCallDoesNotProcessResponseFiles()
+        {
+            // An argument starting with '@' should be treated literally in IPC calls, not as a response file reference.
+            var logger = new LambdaLogger((level, format, args) => Output.WriteLine(format, args));
+            var conf = global::Tool.ServicePipDaemon.ServicePipDaemon.ParseArgsForIPCCall(
+                "stop --name @notAResponseFile",
+                UnixParser.Instance,
+                logger,
+                ignoreInvalidOptions: true);
+            Assert.NotNull(conf);
         }
     }
 }

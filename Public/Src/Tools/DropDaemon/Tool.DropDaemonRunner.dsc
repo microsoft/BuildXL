@@ -489,7 +489,8 @@ export namespace DropDaemonRunner {
                     // Remove after A/B testing
                     "BuildXLEnableGrpcIpc"
                 ]
-            }   
+            },
+            dependsOnCurrentHostOSDirectories: true
         };
     }
 

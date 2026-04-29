@@ -28,8 +28,11 @@ namespace BuildXL.Utilities
             // two tasks, one for running the process and one for the completion callback. Each pip execution
             // may update cache in async way, and this requires another task. With this change, in short experiments
             // (20 trials) with large benchmarks from the nightly perf. tests, the gaps in the execution phase do not occur.
+            // IOCP threads are scaled alongside worker threads because gRPC HTTP/2 transport, cache operations,
+            // and other async I/O depend on IOCP threads for completion callbacks.
             ThreadPool.GetMinThreads(out workerThreads, out completionPortThreads);
             workerThreads = Math.Max(workerThreads, maxProcesses * multiplier);
+            completionPortThreads = Math.Max(completionPortThreads, maxProcesses * multiplier);
             ThreadPool.SetMinThreads(workerThreads, completionPortThreads);
         }
     }

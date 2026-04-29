@@ -141,13 +141,15 @@ namespace BuildXL.Plugin
 
         private static string GetRequestId() => Interlocked.Increment(ref s_requestId).ToString();
 
-        private CallOptions GetCallOptions(string requestId)
+        private CallOptions GetCallOptions(string requestId, bool waitForReady = false)
         {
-            return new CallOptions(deadline: DateTime.UtcNow.AddMilliseconds(RequestTimeout))
-            .WithWaitForReady(true).WithHeaders(new Metadata
+            var options = new CallOptions(deadline: DateTime.UtcNow.AddMilliseconds(RequestTimeout))
+            .WithHeaders(new Metadata
             {
                 { GrpcPluginSettings.PluginRequestId, requestId },
             });
+
+            return waitForReady ? options.WithWaitForReady(true) : options;
         }
 
         private int m_currentActiveRequestsCount = 0;
@@ -160,8 +162,7 @@ namespace BuildXL.Plugin
             {
                 Logger.Debug($"Sending request for requestId:{reqId} at {DateTime.UtcNow:HH:mm:ss.fff} (current active requests: {m_currentActiveRequestsCount})");
                 Interlocked.Increment(ref m_currentActiveRequestsCount);
-                using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(RequestTimeout));
-                var response = await asyncCall.Invoke();
+                var response = await asyncCall.Invoke().ConfigureAwait(false);
                 Logger.Debug($"Received response for requestId:{reqId} at {DateTime.UtcNow:HH:mm:ss.fff}");
                 return new PluginResponseResult<T>(response, PluginResponseState.Succeeded, reqId);
             }
@@ -211,7 +212,7 @@ namespace BuildXL.Plugin
         public virtual async Task<PluginResponseResult<bool>> StartAsync()
         {
             var requestId = GetRequestId();
-            var options = GetCallOptions(requestId);
+            var options = GetCallOptions(requestId, waitForReady: true);
             var request = new PluginMessage();
             var response = await HandleRpcExceptionWithCallAsync(
                 async () =>

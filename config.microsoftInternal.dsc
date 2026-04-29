@@ -73,13 +73,13 @@ export const pkgs = isMicrosoftInternal ? [
     // their net6.0 version and our nuget resolver doesn't handle the case where the framework is gone in newer versions.
     // TODO: we should be able to remove the skipped packages whenever Microsoft.SbomCore
     // expose updated versions that point to the latest (net8 only) SBOM packages
-    { id: "Microsoft.SbomCore", version: "6.2.3", dependentPackageIdsToSkip: ["Microsoft.Sbom.Parsers.Spdx22SbomParser"] },
-    { id: "Microsoft.Sbom.Common", version: "4.1.8" },
-    { id: "Microsoft.Sbom.Parsers.Spdx22SbomParser", version: "4.1.8" },
-    { id: "Microsoft.Sbom.Adapters", version: "4.1.8" },
-    { id: "Microsoft.ComponentDetection.Contracts", version: "7.0.7", dependentPackageIdsToSkip: ["System.Threading.Tasks.Dataflow"] },
-    { id: "Microsoft.Sbom.Contracts", version: "4.1.8" },
-    { id: "Microsoft.Sbom.Extensions", version: "4.1.8" },
+    { id: "Microsoft.SbomCore", version: "6.2.4", dependentPackageIdsToSkip: ["Microsoft.Sbom.Parsers.Spdx22SbomParser"] },
+    { id: "Microsoft.Sbom.Common", version: "4.1.9" },
+    { id: "Microsoft.Sbom.Parsers.Spdx22SbomParser", version: "4.1.9" },
+    { id: "Microsoft.Sbom.Adapters", version: "4.1.9" },
+    { id: "Microsoft.ComponentDetection.Contracts", version: "7.1.1", dependentPackageIdsToSkip: ["System.Threading.Tasks.Dataflow"] },
+    { id: "Microsoft.Sbom.Contracts", version: "4.1.9" },
+    { id: "Microsoft.Sbom.Extensions", version: "4.1.9" },
 
     // Process remoting
     { id: "AnyBuild.SDK", version: "0.2.0" },

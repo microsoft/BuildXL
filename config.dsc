@@ -379,7 +379,7 @@ config({
 
                 // Needed for SBOM Generation
                 { id: "Microsoft.Extensions.Logging.Abstractions", version: "9.0.15" },
-                { id: "packageurl-dotnet", version: "1.1.0" },
+                { id: "packageurl-dotnet", version: "2.0.0" },
                 { id: "System.Reactive", version: "6.1.0" },
 
                 // CredScan

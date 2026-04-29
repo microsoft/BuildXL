@@ -1005,7 +1005,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.ComponentDetection.Contracts",
-          "Version": "7.0.7"
+          "Version": "7.1.1"
         }
       }
     },
@@ -1869,7 +1869,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Sbom.Adapters",
-          "Version": "4.1.8"
+          "Version": "4.1.9"
         }
       }
     },
@@ -1878,7 +1878,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Sbom.Common",
-          "Version": "4.1.8"
+          "Version": "4.1.9"
         }
       }
     },
@@ -1887,7 +1887,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Sbom.Contracts",
-          "Version": "4.1.8"
+          "Version": "4.1.9"
         }
       }
     },
@@ -1896,7 +1896,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Sbom.Extensions",
-          "Version": "4.1.8"
+          "Version": "4.1.9"
         }
       }
     },
@@ -1905,7 +1905,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Sbom.Parsers.Spdx22SbomParser",
-          "Version": "4.1.8"
+          "Version": "4.1.9"
         }
       }
     },
@@ -1914,7 +1914,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.SbomCore",
-          "Version": "6.2.3"
+          "Version": "6.2.4"
         }
       }
     },
@@ -4506,7 +4506,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "packageurl-dotnet",
-          "Version": "1.1.0"
+          "Version": "2.0.0"
         }
       }
     },

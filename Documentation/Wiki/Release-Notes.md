@@ -2,6 +2,13 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20260424.5 (Release [31400398](https://dev.azure.com/mseng/Domino/_build/results?buildId=31400398&view=results))
+- `Cmd.vsoHash` now supports opaque directories (exclusive and shared), enabling hash computation for directory outputs
+- [Performance] Skip scrubbing on clean machines with no prior BuildXL execution, reducing startup time for first-time builds
+- [JavaScript] Add optional provenance information for exported JavaScript values
+- [DScript] Improve JSON deserialization robustness in the DScript VS Code plugin
+- [Diagnostics] Dump PathTable to log on StringTable capacity exhaustion in sandboxed process reports for easier debugging
+
 # 0.1.0-20260327.3 (Release [31250634](https://dev.azure.com/mseng/Domino/_build/results?buildId=31250634&view=results))
 - New `/pipReportActivityTimeout` and `/pipFirstReportActivityTimeout` flags to emit warnings for detecting stalled pips that stop producing Detours file access reports
 - New `/engineDumpTrigger` CLI flag for on-demand process dumps triggered by memory threshold, elapsed time, or pip completion percentage

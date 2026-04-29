@@ -392,7 +392,11 @@ function Write-CacheConfigJson {
     param([string]$ConfigPath, [bool]$UseSharedCache, [bool]$PublishToSharedCache, [string]$VsoAccount, [string]$CacheNamespace);
 
     $configOptions = Get-CacheConfig -UseSharedCache $UseSharedCache -PublishToSharedCache $PublishToSharedCache -VsoAccount $VsoAccount -CacheNamespace $CacheNamespace;
-    Set-Content -Path $configPath -Value (ConvertTo-Json $configOptions)
+    # Write to a temp file first, then move into place atomically to avoid torn reads
+    # when multiple worktrees write CacheCore.json to the same shared cache directory.
+    $tempPath = $ConfigPath + "." + [System.IO.Path]::GetRandomFileName();
+    Set-Content -Path $tempPath -Value (ConvertTo-Json $configOptions);
+    Move-Item -Path $tempPath -Destination $ConfigPath -Force;
 }
 
 function Get-CacheConfig {

@@ -253,3 +253,11 @@ When running **without** `/server-`, a `bxl` server process remains running afte
 ```powershell
 Get-Process bxl -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.Id }
 ```
+
+## Git Worktrees
+
+Use git worktrees for parallel work. Place worktrees in the sibling directory `../BuildXL.Internal.worktrees/<feature>` (e.g., `git worktree add -b dev/<user>/<feature> ../BuildXL.Internal.worktrees/<feature> main`).
+
+All worktrees automatically share the main worktree's `Out\Cache` directory (via `SetDefaultCacheDirectory.cmd`), and subst normalization ensures cache fingerprints match across worktrees. A build in one worktree gets full cache hits from another.
+
+Builds from different worktrees are **serialized** — only one runs at a time on the shared `B:` subst drive. If a build appears to hang, it is likely waiting for another build to finish.

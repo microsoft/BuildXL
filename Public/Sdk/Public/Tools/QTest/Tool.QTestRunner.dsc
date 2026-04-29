@@ -64,7 +64,9 @@ const defaultArgs: QTestArguments = {
     tags: [
         'test',
         'telemetry:QTest'
-    ]
+    ],
+    // On ADO/1ESHP there is always a Geneva monitoring agent listening. Turn on Geneva telemetry by default when running in this environment.
+    emitGenevaTelemetry: isRunningOnAzureDevOps(),
 };
 
 const enum CoverageOptions {

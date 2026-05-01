@@ -24,20 +24,30 @@ namespace BuildXL.LogGen.Generators
             {
                 m_codeGenerator.Lns("var eventData = new {0}.AriaEvent(\"{1}\", \"{2}\", \"{3}\")", GlobalInstrumentationNamespaceCommon, site.Method.Name, m_targetFramework, m_targetRuntime);
 
-                // Save context fields that all events save
-                m_codeGenerator.Lns("eventData.SetProperty(\"Environment\", {0}.Session.Environment)", site.LoggingContextParameterName);
+                // SessionId / RelatedSessionId are stamped on every event so consumers can correlate
+                // events from a single build (and join back to DominoInvocation for build-level
+                // metadata such as Environment / UserName / MachineName / User — see below).
                 m_codeGenerator.Lns("eventData.SetProperty(\"SessionId\", {0}.Session.Id)", site.LoggingContextParameterName);
                 m_codeGenerator.Lns("eventData.SetProperty(\"RelatedSessionId\", {0}.Session.RelatedId)", site.LoggingContextParameterName);
 
-                // We only capture the username for MS internal
-                m_codeGenerator.Ln("if ({0}.UserName.IsInternalCollectionAllowed)", GlobalInstrumentationNamespaceCommon);
-                using (m_codeGenerator.Br)
+                // Environment / UserName / MachineName / User are constant for the lifetime of a
+                // build, so duplicating them on every telemetry event is pure overhead. We emit them
+                // exclusively from DominoInvocation; downstream Kusto queries that need them should
+                // join their event to DominoInvocation on SessionId.
+                if (site.Method.Name == "DominoInvocation")
                 {
-                    m_codeGenerator.Lns("eventData.SetProperty(\"UserName\", EngineEnvironmentSettings.BuildXLUserName.Value ?? Environment.UserName)");
-                    m_codeGenerator.Lns("eventData.SetProperty(\"MachineName\", Environment.MachineName)");
-                }
+                    m_codeGenerator.Lns("eventData.SetProperty(\"Environment\", {0}.Session.Environment)", site.LoggingContextParameterName);
 
-                m_codeGenerator.Lns("eventData.SetProperty(\"User\", EngineEnvironmentSettings.BuildXLUserName.Value ?? Environment.UserName, {0}.PiiType.Identity)", GlobalInstrumentationNamespaceCommon);
+                    // We only capture the username for MS internal
+                    m_codeGenerator.Ln("if ({0}.UserName.IsInternalCollectionAllowed)", GlobalInstrumentationNamespaceCommon);
+                    using (m_codeGenerator.Br)
+                    {
+                        m_codeGenerator.Lns("eventData.SetProperty(\"UserName\", EngineEnvironmentSettings.BuildXLUserName.Value ?? Environment.UserName)");
+                        m_codeGenerator.Lns("eventData.SetProperty(\"MachineName\", Environment.MachineName)");
+                    }
+
+                    m_codeGenerator.Lns("eventData.SetProperty(\"User\", EngineEnvironmentSettings.BuildXLUserName.Value ?? Environment.UserName, {0}.PiiType.Identity)", GlobalInstrumentationNamespaceCommon);
+                }
 
                 foreach (var item in site.FlattenedPayload)
                 {

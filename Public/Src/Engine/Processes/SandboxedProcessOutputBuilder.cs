@@ -117,20 +117,27 @@ namespace BuildXL.Processes
                     Contract.Assert(m_stringBuilder.Length == m_length);
                     if (m_length > m_maxMemoryLength && m_fileStorage != null)
                     {
-                        m_fileName = m_fileStorage.GetFileName(m_file);
                         HandleRecoverableIOException(
                             () =>
                             {
-                                FileUtilities.CreateDirectory(Path.GetDirectoryName(m_fileName));
+                                string fileName = m_fileStorage.GetFileName(m_file);
+                                FileUtilities.CreateDirectory(Path.GetDirectoryName(fileName));
 
                                 // Note that we use CreateReplacementFile since the target may be a read-only hardlink (e.g. in the build cache).
                                 FileStream stream = FileUtilities.CreateReplacementFile(
-                                    m_fileName,
+                                    fileName,
                                     FileShare.Read | FileShare.Delete,
                                     openAsync: false);
                                 m_textWriter = new StreamWriter(stream, Encoding);
                                 m_textWriter.Write(m_stringBuilder.ToString());
                                 ReleaseStringBuilder();
+
+                                // Only assign m_fileName after all file operations succeed.
+                                // Previously, m_fileName was set before entering this lambda, which meant
+                                // that if an unexpected (non-IO) exception occurred during file creation,
+                                // m_fileName would remain set while m_stringBuilder was still non-null,
+                                // violating the XOR invariant in SandboxedProcessOutput's constructor.
+                                m_fileName = fileName;
                             });
                     }
                 }

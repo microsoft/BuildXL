@@ -16,7 +16,7 @@ import {isDotNetCore, DotNetCoreVersion, Framework} from "Sdk.Managed.Shared";
 import * as Managed      from "Sdk.Managed";
 import * as Shared       from "Sdk.Managed.Shared";
 import * as Deployment   from "Sdk.Deployment";
-import * as XUnit        from "Sdk.Managed.Testing.XUnit";
+
 
 export declare const qualifier : Managed.TargetFrameworks.All;
 
@@ -292,10 +292,10 @@ function runStandaloneV3(args : Managed.TestRunArguments) : File[] {
     }
 
     // Handle runWithUntrackedDependencies by wrapping the test process in cmd/bash
-    // with hasUntrackedChildProcesses, matching v2 xunit framework behavior.
+    // with hasUntrackedChildProcesses.
     // Must be applied after the dotnet wrapper so cmd wraps the full dotnet exec command.
     if (args.unsafeTestRunArguments && args.unsafeTestRunArguments.runWithUntrackedDependencies) {
-        execArguments = XUnit.wrapInUntrackedCmd(execArguments);
+        execArguments = wrapInUntrackedCmd(execArguments);
     }
 
     execArguments = Managed.TestHelpers.applyTestRunExecutionArgs(execArguments, args);
@@ -321,12 +321,12 @@ function runStandaloneV3(args : Managed.TestRunArguments) : File[] {
 
 /**
  * Runs tests split by parallelGroups: one run per group (trait-filtered),
- * plus a final run excluding all groups. Mirrors v2 runMultipleConsoleTests.
+ * plus a final run excluding all groups.
  */
 function runMultipleStandaloneV3(args : Managed.TestRunArguments) : File[] {
     // Run tests for each parallel group (filtered by trait).
     // Each group gets a unique XML result filename to avoid collisions
-    // in the log copy directory (mirrors v2 runMultipleConsoleTests behavior).
+    // in the log copy directory.
     for (let testGroup of args.parallelGroups) {
         runStandaloneV3(args.override<Managed.TestRunArguments>({
             parallelGroups: undefined,
@@ -339,4 +339,56 @@ function runMultipleStandaloneV3(args : Managed.TestRunArguments) : File[] {
         parallelGroups: undefined,
         skipGroups: [...(args.skipGroups || []), ...args.parallelGroups],
     }));
+}
+
+@@public
+export function wrapInUntrackedCmd(executeArguments: Transformer.ExecuteArguments) : Transformer.ExecuteArguments
+{
+    // Since we are going to untrack these processes the sealed directories will not be dynamically tracked
+    // So attempt to statically list all the files for now
+    let  staticDirectoryContents = executeArguments
+        .dependencies
+        .mapMany(dependency =>
+            isStaticDirectory(dependency) ? dependency.contents : []
+        );
+
+    const runningInWindows = Context.getCurrentHost().os === "win";
+    return Object.merge<Transformer.ExecuteArguments>(
+        executeArguments, 
+        {
+            tool: {
+                exe: runningInWindows ? Environment.getFileValue("COMSPEC") : f`/bin/bash`,
+            },
+            unsafe: {
+                hasUntrackedChildProcesses: true,
+                untrackedPaths: addIf(!runningInWindows, executeArguments.tool.exe.path), // because of chmod +x
+            },
+            arguments: [
+                ...(runningInWindows ? [
+                    Cmd.argument("/D"), Cmd.argument("/C")
+                ] : [
+                    Cmd.option("-c ", 'prog="$1"; shift; chmod +x "$prog"; "$prog" "$@"'),
+                    Cmd.rawArgument("--"),
+                ]),
+                Cmd.argument(Artifact.input(executeArguments.tool.exe))
+            ].prependWhenMerged(),
+            dependencies: staticDirectoryContents,
+            tags: ["test", "telemetry:xUnitUntracked"]
+        });
+}
+
+function isStaticDirectory(item: Transformer.InputArtifact) : item is StaticDirectory {
+    const itemType = typeof item;
+    switch (itemType) {
+        case "FullStaticContentDirectory":
+        case "PartialStaticContentDirectory":
+        case "SourceAllDirectory":
+        case "SourceTopDirectory": 
+        case "SharedOpaqueDirectory":
+        case "ExclusiveOpaqueDirectory": 
+        case "StaticDirectory": 
+            return true;
+        default: 
+            false;
+    }
 }

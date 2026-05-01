@@ -155,50 +155,39 @@ function run_xunit { #(folderName, dllName, ...extraXunitArgs)
     # which is PTHREAD_STACK_MIN for the CLR running on Unix systems
     export COMPlus_DefaultStackSize=400000
 
-    # Detect xunit v3 tests: v3 test assemblies are standalone executables (no xunit.console.dll needed).
-    # Check for the native apphost binary (same name as DLL but without extension).
+    # xunit v3 test assemblies are standalone executables.
+    # The native apphost binary has the same name as DLL but without extension.
     # BuildXL normalizes file permissions on outputs, so ensure the apphost is executable.
     local exeName="${dllName%.dll}"
-    if [[ -f "$exeName" ]]; then
-        chmod +x "$exeName"
-        # xunit v3: run the test executable directly with v3 command-line syntax
-        # Convert v2 args to v3: -notrait → -trait-, -trait stays the same
-        local v3Args=()
-        for arg in "${extraXunitArgs[@]}"; do
-            if [[ "$arg" == "-notrait" ]]; then
-                v3Args+=("-trait-")
-            else
-                v3Args+=("$arg")
-            fi
-        done
-
-        ./$exeName                               \
-            -parallel none                       \
-            -trait- "Category=WindowsOSOnly"     \
-            -trait- "Category=WindowsOSSkip"     \
-            -trait- "Category=Performance"       \
-            -trait- "Category=QTestSkip"          \
-            -trait- "Category=DominoTestSkip"     \
-            -trait- "Category=SkipDotNetCore"     \
-            -trait- "Category=SkipLinux"          \
-            -xml $xunitResultFname               \
-            "${v3Args[@]}" >"${xunitStdoutFname}" 2>"${xunitStderrFname}"
-        exitCode=$?
-    else
-        # xunit v2: run through the external xunit.console.dll runner
-        dotnet xunit.console.dll $dllName        \
-            -nocolor -parallel none -noappdomain \
-            -noTrait "Category=WindowsOSOnly"    \
-            -noTrait "Category=WindowsOSSkip"    \
-            -noTrait "Category=Performance"      \
-            -noTrait "Category=QTestSkip"         \
-            -noTrait "Category=DominoTestSkip"    \
-            -noTrait "Category=SkipDotNetCore"    \
-            -noTrait "Category=SkipLinux"         \
-            -xml $xunitResultFname               \
-            "${extraXunitArgs[@]}" >"${xunitStdoutFname}" 2>"${xunitStderrFname}"
-        exitCode=$?
+    if [[ ! -f "$exeName" ]]; then
+        print_error "Test executable '$exeName' not found in '$folderName'"
+        popd > /dev/null
+        return -1
     fi
+
+    chmod +x "$exeName"
+    # Convert legacy args: -notrait → -trait-, -trait stays the same
+    local v3Args=()
+    for arg in "${extraXunitArgs[@]}"; do
+        if [[ "$arg" == "-notrait" ]]; then
+            v3Args+=("-trait-")
+        else
+            v3Args+=("$arg")
+        fi
+    done
+
+    ./$exeName                               \
+        -parallel none                       \
+        -trait- "Category=WindowsOSOnly"     \
+        -trait- "Category=WindowsOSSkip"     \
+        -trait- "Category=Performance"       \
+        -trait- "Category=QTestSkip"          \
+        -trait- "Category=DominoTestSkip"     \
+        -trait- "Category=SkipDotNetCore"     \
+        -trait- "Category=SkipLinux"          \
+        -xml $xunitResultFname               \
+        "${v3Args[@]}" >"${xunitStdoutFname}" 2>"${xunitStderrFname}"
+    exitCode=$?
 
     # extract statistics from XUnit's XML result file
     stats=$(extract_xunit_stats $xunitResultFname)

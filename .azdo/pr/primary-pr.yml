@@ -81,7 +81,6 @@ extends:
               /p:[Sdk.BuildXL]microsoftInternal=1
               /enableEvaluationThrottling
               /validateCgManifestForNugets:cg\nuget\cgmanifest.json
-              /p:[Sdk.BuildXL]DoNotForceXUnitFrameworkInVm=1
               /p:[Sdk.BuildXL]enableRoslynAnalyzers=true
               /cacheMiss:[BuildXL_PR]
               /earlyWorkerRelease-

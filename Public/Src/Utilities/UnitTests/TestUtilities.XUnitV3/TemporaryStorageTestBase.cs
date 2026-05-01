@@ -193,8 +193,7 @@ namespace Test.BuildXL.TestUtilities.Xunit
         /// false on non-Windows.
         ///
         /// CAUTION:
-        /// This method only works if the unit test itself is called in undetoured environment. Or, in terms of
-        /// BuildXL Script for selfhost, the unit test itself is executed using <code>Sdk.Managed.Testing.XUnit.UnsafeUnDetoured</code> framework.
+        /// This method only works if the unit test itself is called in undetoured environment (i.e., with runWithUntrackedDependencies).
         /// Recall that this method calls <code>GetFinalPathNameByHandle</code> internally. If it is called in a detoured environment,
         /// then the detoured version of <code>GetFinalPathNameByHandle</code> will be called, and that detoured version takes into account
         /// the subst specified by the selfhost via the directory translation. Thus, for the above example, calling the detoured version on

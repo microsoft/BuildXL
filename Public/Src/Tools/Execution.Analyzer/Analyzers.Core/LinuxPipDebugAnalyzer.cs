@@ -101,7 +101,8 @@ namespace BuildXL.Execution.Analyzer
         public override int Analyze()
         {
             var workingDirectory = m_pip.WorkingDirectory.ToString(PathTable);
-            var program = Path.Combine(workingDirectory, "xunit.console.dll");
+            // xunit v3 tests are standalone executables — use the pip's own tool as the program
+            var program = m_pip.Executable.Path.ToString(PathTable);
 
             var json = new JsonObject
             {

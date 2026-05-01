@@ -113,7 +113,7 @@ namespace BuildXL.Ide.Generator
             if (ProjectsByQualifier.TryGetValue(qualifier, out var project))
             {
                 AddPackageReference(project, "Microsoft.NET.Test.Sdk", "16.5.0");
-                var pkgRef = AddPackageReference(project, "xunit.runner.visualstudio", "2.4.1");
+                var pkgRef = AddPackageReference(project, "xunit.runner.visualstudio", "3.1.5");
                     pkgRef.SetMetadata("PrivateAssets", "all");
                     pkgRef.SetMetadata("IncludeAssets", "runtime; build; native; contentfiles; analyzers; buildtransitive");
             }

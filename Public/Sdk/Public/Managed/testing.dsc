@@ -28,7 +28,7 @@ namespace TestEnvironment {
 export function test(args: TestArguments) : TestResult {
     const testFramework = args.testFramework;
     if (!testFramework) {
-        Contract.fail("You must specify a Testing framework. For exmple: 'importFrom(\"Sdk.Managed.Testing.XUnit\").framework' ");
+        Contract.fail("You must specify a Testing framework. For example: 'importFrom(\"Sdk.Managed.Testing.XUnitV3\").framework' ");
     }
 
     if (testFramework.compileArguments) {
@@ -90,7 +90,7 @@ export function runTestOnly(args: TestArguments, compileArguments: boolean, test
 {
     let testFramework = args.testFramework;
     if (!testFramework) {
-        Contract.fail("You must specify a Testing framework. For exmple: 'importFrom(\"Sdk.Managed.Testing.XUnit\").framework' ");
+        Contract.fail("You must specify a Testing framework. For example: 'importFrom(\"Sdk.Managed.Testing.XUnitV3\").framework' ");
     }
 
     if (testFramework.compileArguments && compileArguments) {
@@ -321,9 +321,6 @@ export interface UnsafeTestRunArguments {
     
     /** Allow dependencies to go untracked. */
     runWithUntrackedDependencies?: boolean;
-
-    /** When set, XUnit test framework is used for running admin tests irrespective of any other settings */
-    forceXunitForAdminTests?: boolean;
 
     /** Blocks scrubbing of stale files under the test deployment. Useful when the test happens to create or lock files
      * under the deployment root

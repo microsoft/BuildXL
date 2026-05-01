@@ -11,9 +11,6 @@ namespace Storage {
         assemblyBindingRedirects: BuildXLSdk.cacheBindingRedirects(),
         runTestArgs: {
             unsafeTestRunArguments: {
-                // when run as admin, tests leave some files around that causes qtest to fail with
-                // System.IO.IOException: The data present in the reparse point buffer is invalid.
-                forceXunitForAdminTests: true
             }
         },
         sources: globR(d`.`, "*.cs"),

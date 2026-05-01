@@ -42,7 +42,6 @@ jobs:
         /p:Build.BuildId=$(Build.BuildNumber)
         /p:[BuildXL.Branding]SourceIdentification=$(Branding_SourceIdentification)
         /p:[Sdk.BuildXL]microsoftInternal=1
-        /p:[Sdk.BuildXL]DoNotForceXUnitFrameworkInVm=1
         /validateCgManifestForNugets:cg\nuget\cgmanifest.json
         /p:[Sdk.BuildXL.CBInternal]CodeCoverageOption=DynamicFull
         /p:[Sdk.BuildXL]enableRoslynAnalyzers=true

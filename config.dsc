@@ -212,17 +212,8 @@ config({
                 { id: "Microsoft.Azure.Kusto.Cloud.Platform", version: "14.0.3" },
                 { id: "Azure.Data.Tables", version: "12.10.0" },
 
-                // xUnit v2 (still used by most test projects)
+                // xUnit shared (needed by v3 test adapter at runtime)
                 { id: "xunit.abstractions", version: "2.0.3" },
-                { id: "xunit.assert", version: "2.5.3" },
-                { id: "xunit.extensibility.core", version: "2.5.3" },
-                { id: "xunit.extensibility.execution", version: "2.5.3" },
-                { id: "xunit.runner.console", version: "2.5.3" },
-                { id: "xunit.runner.visualstudio", version: "2.5.3" },
-                { id: "xunit.runner.utility", version: "2.5.3" },
-                { id: "xunit.runner.reporters", version: "2.5.3" },
-                // comes from https://dev.azure.com/dnceng/public/_artifacts/feed/dotnet-eng/NuGet/Microsoft.DotNet.XUnitConsoleRunner/versions
-                { id: "Microsoft.DotNet.XUnitConsoleRunner", version: "2.5.1-beta.22179.1" },
 
                 // xUnit v3
                 { id: "xunit.v3", version: "3.2.2" },

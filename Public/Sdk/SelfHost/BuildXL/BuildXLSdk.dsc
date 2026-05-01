@@ -11,7 +11,6 @@ import * as Deployment from "Sdk.Deployment";
 import * as Managed from "Sdk.Managed";
 import * as Native from "Sdk.Native";
 import * as Shared from "Sdk.Managed.Shared";
-import * as XUnit from "Sdk.Managed.Testing.XUnit";
 import * as QTest from "Sdk.Managed.Testing.QTest";
 import * as XUnitV3 from "Sdk.Managed.Testing.XUnitV3";
 import * as Frameworks from "Sdk.Managed.Frameworks";
@@ -117,12 +116,6 @@ export interface Result extends Managed.Assembly {
 
 @@public
 export interface TestArguments extends Arguments, Managed.TestArguments {
-    /** 
-     * When false, QTest wraps xunit v2 instead of v3. Defaults to true (v3).
-     * Only takes effect when QTest is enabled and no explicit testFramework is set.
-     * To use v3 standalone (no QTest), set testFramework: XUnitV3.framework instead.
-     */
-    qTestXUnitV3?: boolean;
 }
 
 @@public
@@ -253,12 +246,6 @@ namespace Flags {
      */
     @@public
     export const buildRequiredAdminPrivilegeTestInVm = Environment.getFlag("[Sdk.BuildXL]BuildRequiredAdminPrivilegeTestInVm");
-
-    /**
-     * When running tests in VM, use the specified test framework; do not let BuildXL force the framework to XUnit.
-     */
-    @@public
-    export const doNotForceXUnitFrameworkInVm = Environment.getFlag("[Sdk.BuildXL]DoNotForceXUnitFrameworkInVm");
 
     /**
      * Use shared compilation for csc calls. Experimental feature.
@@ -478,22 +465,9 @@ export function test(args: TestArguments) : TestResult {
 
     if (!args.skipTestRun) {
         if (Flags.buildRequiredAdminPrivilegeTestInVm) {
-            
-            let framework = args.testFramework;
-
-            let executeTestUntracked = false;
-            let forceXunitForAdminTests = false;
-            if (args.runTestArgs && args.runTestArgs.unsafeTestRunArguments) {
-                executeTestUntracked = args.runTestArgs.unsafeTestRunArguments.runWithUntrackedDependencies;
-                forceXunitForAdminTests = args.runTestArgs.unsafeTestRunArguments.forceXunitForAdminTests;
-            }
-            if (!Managed.isXUnitV3Framework(framework) && (!Flags.doNotForceXUnitFrameworkInVm || executeTestUntracked || forceXunitForAdminTests)) {
-                framework = importFrom("Sdk.Managed.Testing.XUnit").framework;
-            }
 
             Contract.assert(args.testFramework !== undefined, "testFramework must have been set by processTestArguments");
             args = args.merge({
-                testFramework: framework,
                 runTestArgs: {
                     privilegeLevel: <"standard"|"admin">"admin",
                     limitGroups: ["RequiresAdmin"],
@@ -1015,16 +989,8 @@ function getRootContent(contents: StaticDirectory): Managed.Binary[] {
         .map(file => Managed.Factory.createBinary(contents, file));
 }
 
-/** Generates a csharp file with an attribute that turns on BuildXL-specific Xunit extension. */
-const testFrameworkOverrideAttributeV2 = Transformer.writeAllLines({
-    outputPath: Context.getNewOutputDirectory("TestFrameworkOverride").combine("TestFrameworkOverride.g.cs"),
-    lines: [
-        '[assembly: Test.BuildXL.TestUtilities.XUnit.Extensions.TestFrameworkOverride]'
-    ]
-});
-
 /** Generates a csharp file that applies BuildXL test behaviors (console capture, contract checks, etc.) for v3 tests. */
-const testFrameworkOverrideAttributeV3 = Transformer.writeAllLines({
+const testFrameworkOverrideAttribute = Transformer.writeAllLines({
     outputPath: Context.getNewOutputDirectory("BuildXLTestBehavior").combine("BuildXLTestBehavior.g.cs"),
     lines: [
         '[assembly: Test.BuildXL.TestUtilities.Xunit.BuildXLTestBehavior]'
@@ -1038,10 +1004,10 @@ function shouldUseQTest(runTestArgs: Managed.TestRunArguments) : boolean {
 }
 
 
-/** Gets test framework. testFramework wins if set; otherwise useXUnitV3 controls QTest's xunit version. */
+/** Gets test framework. */
 function getTestFramework(args: TestArguments) : Managed.TestFramework {
     if (args.testFramework) return args.testFramework;
-    const baseFramework = args.qTestXUnitV3 !== false ? XUnitV3.framework : XUnit.framework;
+    const baseFramework = XUnitV3.framework;
     // QTest's vstest.console.exe (v16.7.0-preview) ships testhost.exe (v15.0.0)
     // whose Microsoft.VisualStudio.TestPlatform.ObjectModel.dll (assembly version
     // 15.0.0.0, file version 15.0.0) is missing methods required by the xunit v3
@@ -1061,7 +1027,7 @@ function getTestFramework(args: TestArguments) : Managed.TestFramework {
     // v15/v16 to v17+ so that testhost.exe ships an ObjectModel.dll with the
     // methods the xunit v3 adapter expects.  Until then, fall back to the
     // standalone xunit v3 runner (runs Test.*.exe directly) for net472.
-    if (args.qTestXUnitV3 !== false && isFullFramework) {
+    if (isFullFramework) {
         return baseFramework;
     }
     return shouldUseQTest(args.runTestArgs) ? QTest.getFramework(baseFramework) : baseFramework;
@@ -1074,24 +1040,16 @@ function processTestArguments(args: Managed.TestArguments) : Managed.TestArgumen
         ? Environment.getNumberValue(envVarNamePrefix + "xunitSemaphoreCount")
         : undefined;
     let testFramework = getTestFramework(args);
-    const isV3 = Managed.isXUnitV3Framework(testFramework);
 
     args = Object.merge<Managed.TestArguments>({
         testFramework: testFramework,
         skipDocumentationGeneration: true,
         sources: [
-            // v2 framework override attribute is not applicable to v3
-            ...addIf(!isV3, testFrameworkOverrideAttributeV2),
-            // v3: apply BuildXL test behaviors (console capture, contract checks, SynchronizationContext)
-            ...addIf(isV3, testFrameworkOverrideAttributeV3),
+            testFrameworkOverrideAttribute,
         ],
         references: [
-            // TestUtilities.dll has general helpers (XAssert etc.) — shared by both v2 and v3
             importFrom("BuildXL.Utilities.UnitTests").TestUtilities.dll,
-            // TestUtilities.XUnit.dll depends on v2 Xunit.Abstractions — skip for v3
-            ...addIf(!isV3, importFrom("BuildXL.Utilities.UnitTests").TestUtilities.XUnit.dll),
-            // TestUtilities.XUnitV3.dll provides v3-compatible base classes and behaviors
-            ...addIf(isV3, importFrom("BuildXL.Utilities.UnitTests").TestUtilities.XUnitV3.dll),
+            importFrom("BuildXL.Utilities.UnitTests").TestUtilities.XUnitV3.dll,
             ...addIf(isFullFramework,
                 importFrom("System.Runtime.Serialization.Primitives").pkg
             ),

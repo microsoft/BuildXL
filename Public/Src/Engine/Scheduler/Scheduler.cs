@@ -150,7 +150,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Interval used to capture the status snapshot
         /// </summary>
-        private const long StatusSnapshotInterval = 60;
+        private const long StatusSnapshotInterval = 120;
 
         /// <summary>
         /// Interval used to trigger/unpause ChooseWorkerCpu queue
@@ -343,6 +343,13 @@ namespace BuildXL.Scheduler
         private readonly PipPropertyInfo m_pipPropertyInfo = new PipPropertyInfo();
 
         private readonly HashSet<string> m_diskSpaceMonitoredDrives;
+
+        /// <summary>
+        /// Drives whose disk stats are written to status.csv. Limited to drives that matter for the build
+        /// (source drive, object directory drive, and the OS drive on Windows) to keep status.csv compact.
+        /// Null on non-Windows platforms (no filtering).
+        /// </summary>
+        private readonly HashSet<string> m_importantDrivesForStatus;
 
         /// <summary>
         /// Top N Pip performance info for telemetry logging
@@ -1415,6 +1422,28 @@ namespace BuildXL.Scheduler
                 if (driveName != null)
                 {
                     m_diskSpaceMonitoredDrives.Add(driveName);
+                }
+            }
+
+            // Restrict status.csv per-drive disk columns to the drives/mounts that matter for the build:
+            // the source drive and the object directory drive (plus the OS drive C on Windows).
+            // This keeps status.csv from ballooning when the machine has many fixed drives/mount points.
+            m_importantDrivesForStatus = new HashSet<string>(OperatingSystemHelper.IsUnixOS ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase);
+            if (!OperatingSystemHelper.IsUnixOS)
+            {
+                m_importantDrivesForStatus.Add("C");
+            }
+            foreach (var path in new[] { m_configuration.Layout.SourceDirectory, m_configuration.Layout.ObjectDirectory, m_configuration.Layout.CacheDirectory })
+            {
+                if (path.IsValid)
+                {
+                    var driveName = !OperatingSystemHelper.IsUnixOS
+                        ? GetRootDriveForPath(path, reverseDirectoryTranslator, context, loggingContext)
+                        : IO.GetMountNameForPath(path.ToString(Context.PathTable));
+                    if (driveName != null)
+                    {
+                        m_importantDrivesForStatus.Add(driveName);
+                    }
                 }
             }
 
@@ -2494,7 +2523,17 @@ namespace BuildXL.Scheduler
 
         private StatusRows GetStatusRows()
         {
-            var windowsDiskStats = !OperatingSystemHelper.IsUnixOS ? PerformanceAggregator?.DiskStats : null; // Some disk stats are available only in Windows, we remove these columns from Mac builds for a cleaner status.csv file
+            // Project DiskStats into (stat, originalIndex) pairs so we can filter to only the
+            // "important" drives for status.csv while preserving the original index used to look
+            // up values in DiskPercents/DiskQueueDepths/DiskAvailableSpaceGb.
+            var diskStatsWithIndex = PerformanceAggregator?.DiskStats?.Select((s, i) => (Stat: s, Index: i)).ToArray();
+            var filteredDiskStats = diskStatsWithIndex;
+            if (diskStatsWithIndex != null && m_importantDrivesForStatus != null)
+            {
+                filteredDiskStats = diskStatsWithIndex.Where(x => m_importantDrivesForStatus.Contains(x.Stat.Drive)).ToArray();
+            }
+
+            var windowsDiskStats = !OperatingSystemHelper.IsUnixOS ? filteredDiskStats : null; // Some disk stats are available only in Windows, we remove these columns from Mac builds for a cleaner status.csv file
             return new StatusRows()
             {
                 { "Cpu Percent", data => data.CpuPercent },
@@ -2517,13 +2556,9 @@ namespace BuildXL.Scheduler
                 { "Commit Percent", data => data.CommitPercent , OperatingSystemHelper.IsWindowsOS},
                 { "Used Commit Mb", data => data.CommitUsedMb , OperatingSystemHelper.IsWindowsOS},
                 { "Free Commit Mb", data => data.CommitFreeMb , OperatingSystemHelper.IsWindowsOS},
-                { "NetworkBandwidth", data => m_perfInfo.MachineBandwidth },
                 { "MachineKbitsPerSecSent", data => (long)m_perfInfo.MachineKbitsPerSecSent },
                 { "MachineKbitsPerSecReceived", data => (long)m_perfInfo.MachineKbitsPerSecReceived },
-                { "DispatchIterations", data => OptionalPipQueueImpl?.DispatcherIterations ?? 0 },
                 { "DispatchMs", data => (long)(OptionalPipQueueImpl?.DispatcherLoopTime.TotalMilliseconds ?? 0) },
-                { "ChooseQueueFastNextCount", data => OptionalPipQueueImpl?.ChooseQueueFastNextCount ?? 0 },
-                { "ChooseQueueRunTimeMs", data => OptionalPipQueueImpl?.ChooseQueueRunTime.TotalMilliseconds ?? 0 },
                 { "LastSchedulerConcurrencyLimiter", data => m_chooseWorkerCpu.LastConcurrencyLimiter?.Name ?? "N/A" },
                 { "LimitingResource", data => data.LimitingResource},
                 { "MemoryResourceAvailability", data => LocalWorker.MemoryResource.ToString().Replace(',', '-')},
@@ -2571,18 +2606,14 @@ namespace BuildXL.Scheduler
                 { "Total Run Process Remotely", data => data.TotalRunRemotelyProcesses },
                 { "Total Run Process Locally", data => data.TotalRunLocallyProcesses },
                 { "Running service pips", data => m_serviceManager.RunningServicesCount },
-                { "PipTable.ReadCount", data => m_pipTable.Reads },
-                { "PipTable.ReadDurationMs", data => m_pipTable.ReadsMilliseconds },
-                { "PipTable.WriteCount", data => m_pipTable.Writes },
-                { "PipTable.WriteDurationMs", data => m_pipTable.WritesMilliseconds },
 
                 // Drive stats
-                { windowsDiskStats, d => I($"Drive \'{d.Drive}\' % Active"), (d, index) => (data => data.DiskPercents[index]) },
-                { windowsDiskStats, d => I($"Drive \'{d.Drive}\' QueueDepth"), (d, index) => (data => data.DiskQueueDepths[index]) },
-                { PerformanceAggregator?.DiskStats, d => I($"Drive \'{d.Drive}\' AvailableSpaceGB"), (d, index) => (data => data.DiskAvailableSpaceGb[index]) },
+                { windowsDiskStats, x => I($"Drive \'{x.Stat.Drive}\' % Active"), (x, _) => (data => data.DiskPercents[x.Index]) },
+                { windowsDiskStats, x => I($"Drive \'{x.Stat.Drive}\' QueueDepth"), (x, _) => (data => data.DiskQueueDepths[x.Index]) },
+                { filteredDiskStats, x => I($"Drive \'{x.Stat.Drive}\' AvailableSpaceGB"), (x, _) => (data => data.DiskAvailableSpaceGb[x.Index]) },
 
                 {
-                    EnumTraits<PipType>.EnumerateValues().Where(pipType => pipType != PipType.Max), (rows, pipType) =>
+                    EnumTraits<PipType>.EnumerateValues().Where(pipType => pipType != PipType.Max && !pipType.IsMetaPip() && pipType != PipType.HashSourceFile), (rows, pipType) =>
                     {
                         if (!IsDistributedWorker)
                         {
@@ -2618,20 +2649,14 @@ namespace BuildXL.Scheduler
                 {
                     m_workers, (rows, worker) =>
                     {
-                        rows.Add(I($"W{worker.WorkerId} Total CacheLookup Slots"), _ => worker.TotalCacheLookupSlots, includeInSnapshot: false);
                         rows.Add(I($"W{worker.WorkerId} Used CacheLookup Slots"), _ => worker.AcquiredCacheLookupSlots, includeInSnapshot: false);
-                        rows.Add(I($"W{worker.WorkerId} Total MaterializeInput Slots"), _ => worker.TotalMaterializeInputSlots, includeInSnapshot: false);
                         rows.Add(I($"W{worker.WorkerId} Used MaterializeInput Slots"), _ => worker.AcquiredMaterializeInputSlots, includeInSnapshot: false);
-                        rows.Add(I($"W{worker.WorkerId} Total Process Slots"), _ => worker.TotalProcessSlots, includeInSnapshot: false);
                         rows.Add(I($"W{worker.WorkerId} Used Process Slots"), _ => worker.AcquiredProcessSlots, includeInSnapshot: false);
                         rows.Add(I($"W{worker.WorkerId} Used PostProcess Slots"), _ => worker.AcquiredPostProcessSlots, includeInSnapshot: false);
-                        rows.Add(I($"W{worker.WorkerId} Total LightProcess Slots"), _ => worker.TotalLightProcessSlots, includeInSnapshot: false);
                         rows.Add(I($"W{worker.WorkerId} Used LightProcess Slots"), _ => worker.AcquiredLightProcessSlots, includeInSnapshot: false);
-                        rows.Add(I($"W{worker.WorkerId} Total Ipc Slots"), _ => worker.TotalIpcSlots, includeInSnapshot: false);
                         rows.Add(I($"W{worker.WorkerId} Used Ipc Slots"), _ => worker.AcquiredIpcSlots, includeInSnapshot: false);
                         rows.Add(I($"W{worker.WorkerId} Waiting BuildRequests Count"), _ => worker.WaitingBuildRequestsCount, includeInSnapshot: false);
                         rows.Add(I($"W{worker.WorkerId} BatchSize Count"), _ => worker.CurrentBatchSize, includeInSnapshot: false);
-                        rows.Add(I($"W{worker.WorkerId} Total Ram Mb"), _ => worker.TotalRamMb ?? 0, includeInSnapshot: false);
                         rows.Add(I($"W{worker.WorkerId} Projected Pips Ram Mb"), _ => worker.ProjectedPipsRamUsageMb, includeInSnapshot: false);
                         rows.Add(I($"W{worker.WorkerId} Ram Semaphore Limit Mb"), _ => worker.RamSemaphoreLimitMb, includeInSnapshot: false);
                         rows.Add(I($"W{worker.WorkerId} Projected Pips Cpu"), _ => worker.ProjectedPipsCpuUsage, includeInSnapshot: false);

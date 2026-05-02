@@ -4,10 +4,8 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
-using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Utilities.Core.Tasks;
-using BuildXL.Utilities.Core.Tracing;
 
 namespace BuildXL.Scheduler.WorkDispatcher
 {
@@ -22,25 +20,6 @@ namespace BuildXL.Scheduler.WorkDispatcher
     {
         private readonly DedicatedThreadsTaskScheduler m_taskScheduler;
         private readonly TaskFactory m_taskFactory;
-        private long m_fastChooseNextCount;
-
-        /// <summary>
-        /// The number of times choose worker queue could immediately start next task without blocking
-        /// </summary>
-        internal virtual long FastChooseNextCount => m_fastChooseNextCount;
-
-        private long m_runTimeTicks;
-
-        /// <summary>
-        /// Time spent running work on the queue
-        /// </summary>
-        public virtual TimeSpan RunTime
-        {
-            get
-            {
-                return TimeSpan.FromTicks(m_runTimeTicks);
-            }
-        }
 
         /// <summary>
         /// Constructor
@@ -63,16 +42,10 @@ namespace BuildXL.Scheduler.WorkDispatcher
             {
                 await m_taskFactory.StartNew(async () =>
                 {
-                    var startTime = TimestampUtilities.Timestamp;
-
                     await RunCoreAsync(runnablePip);
-
-                    Interlocked.Add(ref m_runTimeTicks, (TimestampUtilities.Timestamp - startTime).Ticks);
 
                     if (NumAcquiredSlots < MaxParallelDegree)
                     {
-                        Interlocked.Increment(ref m_fastChooseNextCount);
-
                         // Fast path for running more work which queues the task to
                         // execute the next item before the task completes so the 
                         // queue does not block waiting for work

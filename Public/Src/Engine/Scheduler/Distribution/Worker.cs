@@ -118,52 +118,28 @@ namespace BuildXL.Scheduler.Distribution
         }
 
         private int m_totalProcessSlots;
-        private int m_totalCacheLookupSlots;
 
         /// <summary>
-        /// The total amount of slots for cache lookup (i.e., max degree of pip parallelism)
+        /// The total amount of slots for cache lookup (i.e., max degree of pip parallelism).
+        /// Initialized once during worker setup and not adjusted dynamically afterwards.
         /// </summary>
-        public int TotalCacheLookupSlots
-        {
-            get
-            {
-                return Volatile.Read(ref m_totalCacheLookupSlots);
-            }
-
-            protected set
-            {
-                var oldValue = Volatile.Read(ref m_totalCacheLookupSlots);
-                Volatile.Write(ref m_totalCacheLookupSlots, value);
-                OnWorkerResourcesChanged(WorkerResource.TotalCacheLookupSlots, value > oldValue);
-            }
-        }
-
-        private int m_totalLightProcessSlots;
+        public int TotalCacheLookupSlots { get; protected set; }
 
         /// <summary>
-        /// The total amount of slots for light process pips (i.e., max degree of pip parallelism)
+        /// The total amount of slots for light process pips (i.e., max degree of pip parallelism).
+        /// Initialized once during worker setup and not adjusted dynamically afterwards.
         /// </summary>
-        public int TotalLightProcessSlots
-        {
-            get => Volatile.Read(ref m_totalLightProcessSlots);
-
-            protected set => Volatile.Write(ref m_totalLightProcessSlots, value);
-        }
-
-        private int m_totalIpcSlots;
+        public int TotalLightProcessSlots { get; protected set; }
 
         /// <summary>
-        /// The total amount of slots for IPC pips (i.e., max degree of pip parallelism)
+        /// The total amount of slots for IPC pips (i.e., max degree of pip parallelism).
+        /// Initialized once during worker setup and not adjusted dynamically afterwards.
         /// </summary>
-        public int TotalIpcSlots
-        {
-            get => Volatile.Read(ref m_totalIpcSlots);
-
-            protected set => Volatile.Write(ref m_totalIpcSlots, value);
-        }
+        public int TotalIpcSlots { get; protected set; }
 
         /// <summary>
-        /// The total amount of slots for materialize input
+        /// The total amount of slots for materialize input.
+        /// Initialized once during worker setup and not adjusted dynamically afterwards.
         /// </summary>
         public int TotalMaterializeInputSlots { get; protected set; }
 

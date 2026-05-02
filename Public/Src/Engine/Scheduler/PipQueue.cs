@@ -113,17 +113,6 @@ namespace BuildXL.Scheduler
         /// <inheritdoc/>
         public bool IsDisposed { get; private set; }
 
-        /// <summary>
-        /// See <see cref="ChooseWorkerQueue.FastChooseNextCount"/>
-        /// </summary>
-        internal long ChooseQueueFastNextCount => (m_chooseWorkerCpuQueue is ChooseWorkerQueue queue) ? queue.FastChooseNextCount : 0;
-
-        /// <summary>
-        /// Run time of tasks in choose worker queue
-        /// </summary>
-        internal TimeSpan ChooseQueueRunTime => (m_chooseWorkerCpuQueue is ChooseWorkerQueue queue) ? queue.RunTime : default;
-
-        private long m_dispatcherLoopCount;
         private TimeSpan m_dispatcherLoopTime;
         private TimeSpan? m_cancelTimeout = null;
 
@@ -135,17 +124,6 @@ namespace BuildXL.Scheduler
             get
             {
                 return m_dispatcherLoopTime;
-            }
-        }
-
-        /// <summary>
-        /// Number of dispatcher loop iterations
-        /// </summary>
-        public long DispatcherIterations
-        {
-            get
-            {
-                return m_dispatcherLoopCount;
             }
         }
 
@@ -284,7 +262,6 @@ namespace BuildXL.Scheduler
             while (!IsFinished)
             {
                 var startTime = TimestampUtilities.Timestamp;
-                Interlocked.Increment(ref m_dispatcherLoopCount);
 
                 m_hasAnyChange.Reset();
 

@@ -12,8 +12,8 @@ namespace Core {
     export const dll = BuildXLSdk.test({
         assemblyName: "Test.BuildXL.Utilities",
         allowUnsafeBlocks: true,
-        // The SBOM utilities have their own dll since it cannot be a net6.0 due to latest SBOM packages not supporting net6.0 anymore.
-        // TODO: merge SBOM utilities back to this dll once we stop building for net6.0. 
+        // The SBOM utilities have their own dll since latest SBOM packages are net8.0+ only.
+        // TODO: merge SBOM utilities back into this dll now that net6.0 is no longer supported.
         // CODESYNC: Public\Src\Utilities\UnitTests\Utilities\SBOM\Test.BuildXL.Utilities.SBOM.dsc
         sources: globR(d`.`, "*.cs").filter(f => !f.isWithin(d`SBOM`)),
         // TODO - there is some issue with deploying the git binaries to the unit test directory under QTest.

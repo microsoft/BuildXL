@@ -7,9 +7,8 @@ import {Transformer} from "Sdk.Transformers";
 namespace Core.SBOM {
     export declare const qualifier: BuildXLSdk.Net8Qualifier;
 
-    // The SBOM utility tests don't have a conceptual need to be a separate dll, but latest version of SBOM packages are net8.0 only, so
-    // we cannot build this for net6.0. TODO: move Public\Src\Utilities\UnitTests\Utilities\SBOM\SBOMUtilitiesTests.cs back to be part of
-    // the regular test utilities whenever we stop building for net6.0. CODESYNC: Public\Src\Utilities\UnitTests\Utilities\Test.BuildXL.Utilities.dsc
+    // The SBOM utility tests don't have a conceptual need to be a separate dll, but latest version of SBOM packages are net8.0+ only.
+    // TODO: merge these tests back into the regular test utilities dll. CODESYNC: Public\Src\Utilities\UnitTests\Utilities\Test.BuildXL.Utilities.dsc
     @@public
     export const dll = BuildXLSdk.test({
         assemblyName: "Test.BuildXL.Utilities.SBOM",

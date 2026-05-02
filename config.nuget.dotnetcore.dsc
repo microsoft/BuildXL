@@ -3,11 +3,10 @@
 
 const coreVersion = "3.1.0";
 const core50Version = "5.0.0";
-const core60Version = "6.0.33";
 const core80Version = "8.0.26";
 const core90Version = "9.0.15";
 
-// Microsoft.NETCore.Platforms has become out of sync with the rest of the packages that use core60Version
+// Microsoft.NETCore.Platforms has become out of sync with the rest of the packages.
 // Updaters of this file might want to try to restore the sync: for now we are using the latest version we can
 const core80VersionPlatforms = "8.0.0-preview.7.23375.6";
 
@@ -29,33 +28,6 @@ export const pkgs = [
     { id: "Microsoft.NETCore.DotNetHostResolver", version: core80Version },
 
     { id: "Microsoft.NETCore.DotNetAppHost", version: core80Version },
-
-    // .NET 6
-
-    // .NET Core 6.0 Dependencies
-    { id: "Microsoft.NETCore.App.Ref", version: core60Version, alias: "Microsoft.NETCore.App.Ref60" },
-
-   
-    // .NET Core Self-Contained Deployment
-    { id: "Microsoft.NETCore.DotNetHostPolicy", version: core60Version, alias: "Microsoft.NETCore.DotNetHostPolicy.6.0" },
-
-    // .NET Core win-x64 runtime deps
-    { id: "Microsoft.NETCore.App.Host.win-x64", version: core60Version, osSkip: [ "macOS", "unix" ], alias: "Microsoft.NETCore.App.Host.win-x64.6.0" },
-    { id: "Microsoft.NETCore.App.Runtime.win-x64", version: core60Version, osSkip: [ "macOS", "unix" ], alias: "Microsoft.NETCore.App.Runtime.win-x64.6.0" },
-    { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver", version: core60Version, osSkip: [ "macOS", "unix" ], alias: "runtime.win-x64.Microsoft.NETCore.DotNetHostResolver.6.0" },
-    { id: "runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy", version: core60Version, osSkip: [ "macOS", "unix" ], alias: "runtime.win-x64.Microsoft.NETCore.DotNetHostPolicy.6.0" },
-
-    // .NET Core osx-x64 runtime deps
-    { id: "Microsoft.NETCore.App.Host.osx-x64", version: core60Version, alias: "Microsoft.NETCore.App.Host.osx-x64.6.0" },
-    { id: "Microsoft.NETCore.App.Runtime.osx-x64", version: core60Version, alias: "Microsoft.NETCore.App.Runtime.osx-x64.6.0"},
-    { id: "runtime.osx-x64.Microsoft.NETCore.DotNetHostResolver", version: core60Version, alias: "runtime.osx-x64.Microsoft.NETCore.DotNetHostResolver.6.0" },
-    { id: "runtime.osx-x64.Microsoft.NETCore.DotNetHostPolicy", version: core60Version, alias: "runtime.osx-x64.Microsoft.NETCore.DotNetHostPolicy.6.0" },
-
-    // .NET Core linux-x64 runtime deps
-    { id: "Microsoft.NETCore.App.Runtime.linux-x64", version: core60Version, alias: "Microsoft.NETCore.App.Runtime.linux-x64.6.0" },
-    { id: "Microsoft.NETCore.App.Host.linux-x64", version: core60Version, alias: "Microsoft.NETCore.App.Host.linux-x64.6.0" },
-    { id: "runtime.linux-x64.Microsoft.NETCore.DotNetHostResolver", version: core60Version, alias: "runtime.linux-x64.Microsoft.NETCore.DotNetHostResolver.6.0" },
-    { id: "runtime.linux-x64.Microsoft.NETCore.DotNetHostPolicy", version: core60Version, alias: "runtime.linux-x64.Microsoft.NETCore.DotNetHostPolicy.6.0" },    
 
     // .NET 8
 

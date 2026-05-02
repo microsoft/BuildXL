@@ -50,16 +50,13 @@ export function patchBinary(args: Arguments) : Result {
 
     const contents: StaticDirectory = 
         args.targetRuntimeVersion === "win-x64"
-            ? importFrom("Microsoft.NETCore.App.Host.win-x64.6.0").Contents.all
+            ? importFrom("Microsoft.NETCore.App.Host.win-x64.8.0").Contents.all
             :
-        // args.targetRuntimeVersion === "win-x86"
-        //     ? importFrom("Microsoft.NETCore.App.Host.win-x86.6.0").Contents.all
-        //     :
         args.targetRuntimeVersion === "linux-x64"
-            ? importFrom("Microsoft.NETCore.App.Host.linux-x64.6.0").Contents.all
+            ? importFrom("Microsoft.NETCore.App.Host.linux-x64.8.0").Contents.all
             :
         args.targetRuntimeVersion === "osx-x64"
-            ? importFrom("Microsoft.NETCore.App.Host.osx-x64.6.0").Contents.all
+            ? importFrom("Microsoft.NETCore.App.Host.osx-x64.8.0").Contents.all
             : Contract.fail("Unknown target runtime: " + args.targetRuntimeVersion);
 
     // Pick the apphost based on the target OS, not the current OS

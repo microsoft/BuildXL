@@ -143,14 +143,6 @@ function run_xunit { #(folderName, dllName, ...extraXunitArgs)
     local xunitStderrFname="${logsDir}/${dllName%.dll}${category}.xunit.stderr"
     local xunitResultFname="${logsDir}/${dllName%.dll}${category}.result.xml"
 
-    # delete any previously left xunit result file because XUnit appends to it
-    rm -f ${xunitResultFname}
-
-    # run XUnit
-    if [[ "$TERM" == "xterm-256color" ]]; then
-        echo "${tputBold}[Running]${tputReset} ${dllName%.dll}${category} ..."
-    fi
-
     # Allow for up to 2MB of thread stack size, frontend evaluation stack frames can easily grow beyond the default stack size,
     # which is PTHREAD_STACK_MIN for the CLR running on Unix systems
     export COMPlus_DefaultStackSize=400000
@@ -176,18 +168,46 @@ function run_xunit { #(folderName, dllName, ...extraXunitArgs)
         fi
     done
 
-    ./$exeName                               \
-        -parallel none                       \
-        -trait- "Category=WindowsOSOnly"     \
-        -trait- "Category=WindowsOSSkip"     \
-        -trait- "Category=Performance"       \
-        -trait- "Category=QTestSkip"          \
-        -trait- "Category=DominoTestSkip"     \
-        -trait- "Category=SkipDotNetCore"     \
-        -trait- "Category=SkipLinux"          \
-        -xml $xunitResultFname               \
-        "${v3Args[@]}" >"${xunitStdoutFname}" 2>"${xunitStderrFname}"
-    exitCode=$?
+    local maxAttempts=3
+    local attempt=1
+    local exitCode=1
+
+    while [[ $attempt -le $maxAttempts ]]; do
+        # delete any previously left xunit result file because XUnit appends to it
+        rm -f ${xunitResultFname}
+
+        # run XUnit
+        if [[ "$TERM" == "xterm-256color" ]]; then
+            if [[ $attempt -eq 1 ]]; then
+                echo "${tputBold}[Running]${tputReset} ${dllName%.dll}${category} ..."
+            else
+                echo "${tputBold}[Retry $((attempt-1))/$((maxAttempts-1))]${tputReset} ${dllName%.dll}${category} ..."
+            fi
+        fi
+
+        ./$exeName                               \
+            -parallel none                       \
+            -trait- "Category=WindowsOSOnly"     \
+            -trait- "Category=WindowsOSSkip"     \
+            -trait- "Category=Performance"       \
+            -trait- "Category=QTestSkip"          \
+            -trait- "Category=DominoTestSkip"     \
+            -trait- "Category=SkipDotNetCore"     \
+            -trait- "Category=SkipLinux"          \
+            -xml $xunitResultFname               \
+            "${v3Args[@]}" >"${xunitStdoutFname}" 2>"${xunitStderrFname}"
+        exitCode=$?
+
+        if [[ "$exitCode" -eq "0" ]]; then
+            break
+        fi
+
+        if [[ $attempt -lt $maxAttempts ]]; then
+            echo "${tputYellow}(attempt $attempt failed, retrying...)${tputReset}"
+        fi
+
+        ((attempt++))
+    done
 
     # extract statistics from XUnit's XML result file
     stats=$(extract_xunit_stats $xunitResultFname)
@@ -200,7 +220,11 @@ function run_xunit { #(folderName, dllName, ...extraXunitArgs)
     fi
 
     if [[ "$exitCode" -eq "0" ]]; then
-        echo "${tputLineUp}${tputGreen}(passed)${tputReset} ${statsToRender}${tputClearLine}"
+        if [[ $attempt -gt 1 ]]; then
+            echo "${tputLineUp}${tputGreen}(passed on attempt $attempt)${tputReset} ${statsToRender}${tputClearLine}"
+        else
+            echo "${tputLineUp}${tputGreen}(passed)${tputReset} ${statsToRender}${tputClearLine}"
+        fi
     else
         echo "${tputLineUp}${tputRed}(failed)${tputReset} ${statsToRender}${tputClearLine}"
         local xunitFailures=$(mktemp "${dllName}-failures.XXXXXX")

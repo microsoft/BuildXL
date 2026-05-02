@@ -2353,7 +2353,7 @@ namespace BuildXL.ProcessPipExecutor
             m_fileAccessManifest.ReportUnexpectedFileAccesses = true;
             m_fileAccessManifest.ReportFileAccesses =
                 m_sandboxConfig.LogObservedFileAccesses
-                // When sandboxed process needs to be remoted, the remoting infrastructure, like AnyBuild, typically requires all
+                // When sandboxed process needs to be remoted, the remoting infrastructure typically requires all
                 // reported file accesses.
                 || SandboxedProcessShouldExecuteRemote
                 || m_verboseProcessLoggingEnabled;

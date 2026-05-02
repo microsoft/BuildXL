@@ -72,9 +72,6 @@ namespace Processes {
                 bxlSdk.NetFx.System.Net.Http.dll,
                 bxlSdk.NetFx.Netstandard.dll
             ),
-            ...addIfLazy(bxlSdk.Flags.isMicrosoftInternal, () => [
-                  importFrom("AnyBuild.SDK").pkg,
-            ])
         ],
         runtimeContent: [
             ...addIfLazy(qualifier.targetRuntime === "win-x64", () => [

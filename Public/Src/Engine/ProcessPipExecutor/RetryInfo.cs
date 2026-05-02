@@ -234,7 +234,7 @@ namespace BuildXL.ProcessPipExecutor
         }
 
         /// <summary>
-        /// Is retryable failure due to a pre process execution failure or due to remoting (VM or AnyBuild) infrastructure error.
+        /// Is retryable failure due to a pre process execution failure or due to remoting (VM or remote agent) infrastructure error.
         /// </summary>
         public static bool IsPreProcessExecOrRemotingInfraFailure(this RetryReason retryReason) =>
                 retryReason.IsPreProcessExecRetryableFailure()

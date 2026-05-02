@@ -81,9 +81,6 @@ export const pkgs = isMicrosoftInternal ? [
     { id: "Microsoft.Sbom.Contracts", version: "4.1.9" },
     { id: "Microsoft.Sbom.Extensions", version: "4.1.9" },
 
-    // Process remoting
-    { id: "AnyBuild.SDK", version: "0.2.0" },
-
     // Part of VSSDK used by IDE/VsIntegration
     { id: "Microsoft.Internal.VisualStudio.Interop", version: "17.2.32405.191" },
     { id: "Microsoft.VisualStudio.ProjectSystem", version: "17.3.74-pre" },
@@ -113,7 +110,6 @@ export const resolver = {
         f`Private/InternalSdk/CB.QTest/module.config.dsc`,
         f`Private/InternalSdk/Drop/module.config.dsc`,
         f`Private/InternalSdk/BuildXL.Tracing.AriaTenantToken/module.config.dsc`,
-        f`Private/InternalSdk/AnyBuild.SDK/module.config.dsc`,
         f`Private/InternalSdk/Microsoft.Internal.VisualStudio.Interop/module.config.dsc`,
         f`Private/InternalSdk/Microsoft.VisualStudio.ProjectSystem/module.config.dsc`,
         f`Private/InternalSdk/DeduplicationSigned/module.config.dsc`,

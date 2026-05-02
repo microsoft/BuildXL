@@ -104,69 +104,10 @@ namespace BuildXL.Utilities.Configuration
         public static readonly Setting<string> VmCommandProxyPath = CreateSetting("BUILDXL_VMCOMMANDPROXY_PATH", value => value);
 
         /// <summary>
-        /// Directory where AnyBuild client is installed.
-        /// </summary>
-        /// <remarks>
-        /// This property can be set to override the default AnyBuild client installation directory. AnyBuild client is needed
-        /// for process remoting via AnyBuild.
-        /// </remarks>
-        public static readonly Setting<string> AnyBuildInstallDir = CreateSetting("BUILDXL_ANYBUILD_CLIENT_INSTALL_DIR", value => value);
-
-        /// <summary>
-        /// Extra arguments to be passed to AnyBuild daemon for process remoting.
-        /// </summary>
-        /// <remarks>
-        /// Due to possibly complicated interaction with the batch/powershell scripts that call BuildXL, 
-        /// - the space separator can be replaced by double tilde,
-        /// - double quotes can be replaced by double exclamation mark. 
-        /// For example, '--NoCheckForUpdates --AnyBuildConfig "C:\path with space\foo.json"' can be written as '--NoCheckForUpdates~~--AnyBuildConfig~~!!C:\path~~with~~space\foo.json!!'.
-        /// </remarks>
-        public static readonly Setting<string> AnyBuildExtraArgs = CreateSetting("BUILDXL_ANYBUILD_EXTRA_ARGS", value => value);
-
-        /// <summary>
-        /// When true, force installation of AnyBuild client by removing existing installation.
-        /// </summary>
-        /// <remarks>
-        /// This setting is only applicable when BUILDXL_ANYBUILD_CLIENT_INSTALL_DIR is unspecified.
-        /// </remarks>
-        public static readonly Setting<bool> AnyBuildForceInstall = CreateSetting("BUILDXL_ANYBUILD_FORCE_INSTALL", value => value == "1");
-
-        /// <summary>
-        /// Source of AnyBuild client installation.
-        /// </summary>
-        /// <remarks>
-        /// The source is an URI that can be suffixed with the installation ring specification, e.g., 'https://anybuild.azureedge.net/clientreleases?ring=Dogfood'.
-        /// </remarks>
-        public static readonly Setting<string> AnyBuildClientSource = CreateSetting("BUILDXL_ANYBUILD_SOURCE", value => value);
-
-        /// <summary>
-        /// Path to PowerShell.exe for installing AnyBuild.
-        /// </summary>
-        /// <remarks>
-        /// Typically launching `powershell.exe` is sufficient, but in some pipelines/environment that exe cannot be found.
-        /// </remarks>
-        public static readonly Setting<string> AnyBuildPsPath = CreateSetting("BUILDXL_ANYBUILD_PSPATH", value => value);
-
-        /// <summary>
-        /// Skip version check when deciding whether to install AnyBuild or not.
-        /// </summary>
-        /// <remarks>
-        /// This flag is useful when AnyBuild decides to change its version location and format.
-        /// </remarks>
-        public static readonly Setting<bool> AnyBuildSkipClientVersionCheck = CreateSetting("BUILDXL_ANYBUILD_SKIP_VERSION_CHECK", value => value == "1");
-
-        /// <summary>
-        /// Sets AnyBuild VFS pre-rendering mode. Available values are 'Disabled', 'Placeholder', 'Hardlink', 'Copy'.
-        /// </summary>
-        public static readonly Setting<string> AnyBuildVfsPreRenderingMode = CreateSetting("BUILDXL_ANYBUILD_VFS_PRERENDERING_MODE", value => value);
-
-        /// <summary>
         /// Salt for process remoting purpose.
         /// </summary>
         /// <remarks>
-        /// Remoting engine can use command-line argument to perform caching operation.
-        /// For example, in AnyBuild although Action cache is most-likely disabled, AnyBuild
-        /// service can use the command-line argument to get cached historic information for VFS pre-rendering.
+        /// A remoting engine can use command-line arguments to perform caching operations.
         /// To avoid getting a cache hit, we can use this setting to add an option to the remoted command that makes the remoted command
         /// different.
         /// </remarks>

@@ -24,7 +24,7 @@ namespace BuildXL.ProcessPipExecutor
         Local,
 
         /// <summary>
-        /// Process is expected to run on a remote agent via AnyBuild.
+        /// Process is expected to run on a remote agent.
         /// </summary>
         Remote,
     }

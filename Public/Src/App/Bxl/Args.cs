@@ -367,7 +367,13 @@ namespace BuildXL
                             sign => schedulingConfiguration.EnablePlugin = sign),
                         OptionHandlerFactory.CreateBoolOption(
                             "enableProcessRemoting",
-                            sign => schedulingConfiguration.EnableProcessRemoting = sign),
+                            sign =>
+                            {
+                                if (sign)
+                                {
+                                    throw CommandLineUtilities.Error("Process remoting is not currently supported. No remoting service is integrated.");
+                                }
+                            }),
                         OptionHandlerFactory.CreateBoolOption(
                             "enableLinuxEBPFSandbox",
                             sign => sandboxConfiguration.EnableEBPFLinuxSandbox = sign),

@@ -156,9 +156,6 @@ param(
     [switch]$EnableProcessRemoting = $false,
 
     [Parameter(Mandatory = $false)]
-    [string]$AnyBuildClientDir,
-
-    [Parameter(Mandatory = $false)]
     [string]$GenerateFlagsMd = $true,
 
     [Parameter(Mandatory = $false)]
@@ -343,15 +340,10 @@ if (($DominoArguments -match "logsDirectory:.*").Length -eq 0 -and ($DominoArgum
 }
 
 if ($EnableProcessRemoting) {
-    # Unit tests are not supported for remoting because change journal is not enabled on agents
-    # and all volumes in agents have the same serial.
+    Write-Warning "Process remoting is no longer supported. The -EnableProcessRemoting flag will cause BuildXL to fail."
     $AdditionalBuildXLArguments += @(
         "/enableProcessRemoting+",
         "/processCanRunRemoteTags:compile;cacheTest");
-
-    if (-not [string]::IsNullOrEmpty($AnyBuildClientDir)) {
-        $AdditionalBuildXLArguments += " /p:BUILDXL_ANYBUILD_CLIENT_INSTALL_DIR=`"$AnyBuildClientDir`""
-    }
 }
 
 if ($Deploy -eq "LKG") {

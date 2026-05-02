@@ -29,10 +29,7 @@ namespace Processes.External {
             importFrom("BuildXL.Utilities").Native.dll,
             importFrom("BuildXL.Utilities").Configuration.dll,
             importFrom("BuildXL.Utilities").Utilities.Core.dll,
-            
-            ...addIfLazy(BuildXLSdk.Flags.isMicrosoftInternal, () => [
-                  importFrom("AnyBuild.SDK").pkg,
-            ]),
+
             ...importFrom("BuildXL.Cache.ContentStore").getProtobufPackages(),
         ],
         internalsVisibleTo: [

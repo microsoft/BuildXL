@@ -10,8 +10,16 @@ using BuildXL.Utilities.Instrumentation.Common;
 namespace BuildXL.Processes.Remoting
 {
     /// <summary>
-    /// Factor for <see cref="IRemoteProcessManager"/>.
+    /// Factory for <see cref="IRemoteProcessManager"/>.
     /// </summary>
+    /// <remarks>
+    /// Process remoting is not currently supported. To add a new remoting service:
+    /// 1. Implement <see cref="IRemoteProcessManager"/> for the new service (see the IRemoteProcessPip and
+    ///    IRemoteProcessPipResult interfaces for the contract each remote process must fulfill).
+    /// 2. Implement <see cref="IRemoteProcessManagerInstaller"/> if the service requires client installation.
+    /// 3. In <see cref="Create"/>, instantiate the new manager when <see cref="IScheduleConfiguration.EnableProcessRemoting"/> is true.
+    /// 4. Re-enable the /enableProcessRemoting command-line flag in Args.cs.
+    /// </remarks>
     public class RemoteProcessManagerFactory
     {
         /// <summary>
@@ -44,18 +52,8 @@ namespace BuildXL.Processes.Remoting
                 return s_preSetRemoteProcessManager;
             }
 
-#if FEATURE_ANYBUILD_PROCESS_REMOTING
-            if (configuration.Schedule.EnableProcessRemoting)
-            { 
-                return new AnyBuildRemoteProcessManager(
-                    loggingContext,
-                    executionContext,
-                    configuration,
-                    filePredictor,
-                    counters);
-            }
-#endif
-
+            // TODO: When a new remoting service is available, check configuration.Schedule.EnableProcessRemoting
+            // and instantiate the appropriate IRemoteProcessManager implementation here.
             return new NoRemotingRemoteProcessManager();
         }
 

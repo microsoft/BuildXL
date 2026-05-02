@@ -1994,8 +1994,8 @@ INTERPOSE(ssize_t, copy_file_range, int fd_in, loff_t *off_in, int fd_out, loff_
     //
     // Due to (possibly) kernel bug, copy_file_range does no longer work when the file descriptors are not mounted on the same
     // filesystems, despite what is said in the manual https://man7.org/linux/man-pages/man2/copy_file_range.2.html.
-    // This bug breaks AnyBuild virtual filesystem (VFS) because the source file will be in the read-only (lower) layer of overlayfs, and this
-    // layer is mounted on AnyBuild FUSE, and the target file will be in the writable (upper) layer of overlayfs.
+    // This bug breaks FUSE-based virtual filesystems because the source file will be in the read-only (lower) layer of overlayfs, and this
+    // layer is mounted on FUSE, and the target file will be in the writable (upper) layer of overlayfs.
     //
     // In the commented code below, we try to check if the file descriptors are mounted on the same filesystem, and if so, we simply call
     // copy_file_range. On the user space, the descriptors are mounted on the same filesystem. However, when copy_file_range is called,

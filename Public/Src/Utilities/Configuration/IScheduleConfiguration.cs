@@ -433,8 +433,12 @@ namespace BuildXL.Utilities.Configuration
         bool UpdateFileContentTableByScanningChangeJournal { get; }
 
         /// <summary>
-        /// Makes scheduler aware of process remoting via AnyBuild.
+        /// Makes scheduler aware of process remoting.
         /// </summary>
+        /// <remarks>
+        /// Process remoting is not currently supported. This flag is retained for future use when a new remoting
+        /// service is integrated. Passing /enableProcessRemoting+ will currently produce an error.
+        /// </remarks>
         bool EnableProcessRemoting { get; }
 
         /// <summary>
@@ -444,15 +448,9 @@ namespace BuildXL.Utilities.Configuration
         /// This setting determines the maximum number of processes that can be executed remotely at one time
         /// when <see cref="EnableProcessRemoting"/> is true.
         /// 
-        /// AnyBuild agents have a leasing mechanism for executing processes in them. AnyBuild client needs to get a lease
-        /// from an agent in order to execute a process in that agent. The more agents we have, the more leases available, and
-        /// the more processes can be executed remotely.
-        /// 
-        /// In the current implementation, BuildXL does not know the number of available leases (or agents). So, in conjuction with <see cref="MaxProcesses"/>,
+        /// In the current implementation, BuildXL does not know the number of available leases (or agents). So, in conjunction with <see cref="MaxProcesses"/>,
         /// this number is only used to increase the number of ready-to-execute processes that can be released at one time by the CPU dispatcher queue. Having
         /// more released processes gives the scheduler chance to execute some of them remotely.
-        /// 
-        /// TODO: Get information about agent leases from AnyBuild, and so this number can be set dynamically.
         /// </remarks>
         int? NumOfRemoteAgentLeases { get; }
 

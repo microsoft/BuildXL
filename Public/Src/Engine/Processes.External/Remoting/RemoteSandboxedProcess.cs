@@ -17,9 +17,12 @@ namespace BuildXL.Processes.Remoting
     /// Class encapsulating a sandboxed process that should run remotely.
     /// </summary>
     /// <remarks>
-    /// This sandboxed process adds process remoting capability for BuildXL via AnyBuild's shim server.
+    /// This sandboxed process adds process remoting capability for BuildXL.
     /// The remoting mechanism leverages the SandboxedProcessExecutor used for executing processes in VM. That is, instead of executing
-    /// the process directly, AnyBuild will be instructed to execute SandboxedProcessExecutor given the process' SandboxedProcessInfo.
+    /// the process directly, the remote service will be instructed to execute SandboxedProcessExecutor given the process' SandboxedProcessInfo.
+    ///
+    /// NOTE: Process remoting is not currently supported (no remoting service is integrated). This class is retained
+    /// as infrastructure for future remoting service integrations.
     /// </remarks>
     public class RemoteSandboxedProcess : ExternalSandboxedProcess
     {

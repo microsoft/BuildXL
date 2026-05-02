@@ -36,8 +36,6 @@ Param(
 
  [Parameter(Mandatory=$false)]
  [switch]$EnableProcessRemoting = $false,
- [Parameter(Mandatory=$false)]
- [string]$AnyBuildClientDir,
 
  [Parameter(Mandatory=$false)]
  [ValidateSet("Disable", "Consume", "ConsumeAndPublish")]

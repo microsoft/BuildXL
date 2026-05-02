@@ -60,7 +60,6 @@ This page lists flags that can be used to configure BuildXL.
 | EnableLinuxEBPFSandbox | Enables an EBPF-based sandbox on Linux. Defaults to on. |
 | EnableLinuxPTraceSandbox | Enables the ptrace sandbox on Linux when a statically linked binary is detected. Note that this will have a negative impact on performance, but is necessary to ensure correctness on some Linux builds. |
 | EnablePlugins | When enabled, plugins are allowed to be loaded. Defaults to off. |
-| EnableProcessRemoting | Enable process remoting via AnyBuild. Defaults to off. |
 | EnableWorkerSourceFileMaterialization | Enables materialization of source files on distributed workers. NOTE: Source files are required to be present in the worker's remote or local cache. |
 | EnforceAccessPoliciesOnDirectoryCreation | Indicates whether {ShortProductName} should enforce access policies on CreateDirectory for paths under writable mounts as well as the cases when the directory already exists. Defaults to off. |
 | EnforceFullReparsePointsUnderPath | Enforce that files accessed which begin with the given path will enforce reparse points underneath said path. All transitive reparse points encountered after enforcing and resolving the first one are also enforced, regardless of path. |
@@ -147,7 +146,6 @@ This page lists flags that can be used to configure BuildXL.
 | NoLogo | Suppress copyright message |
 | NormalizeReadTimestamps | When enabled, all file reads seen by processes will have normalized timestamps across builds. When disabled, the actual timestamps will be allowed to flow through to processes, so long as they are newer than the static timestamp used to enforce rewrite ordering (2002). Defaults to on. |
 | NoWarn | Disable specific warning messages. These messages will still be logged in the main log file. |
-| NumRemoteAgentLeases | Static number of remote agent leases. Only applicable when /enableProcessRemoting is set to true. Defaults to 2 * /maxProc. |
 | NumRetryFailedPipsOnAnotherWorker | Specify the number of times a pip failing due to worker failures, should be retried on another worker. Default value set to 0 (disabled). |
 | ObjectDirectory | Specifies the root directory for primary build outputs (short form: /o) |
 | OrchestratorCpuMultiplier | Specifies the cpu queue limit in terms of a multiplier of the normal limit when at least one remote worker gets connected. Defaults to 0. |
@@ -166,8 +164,6 @@ This page lists flags that can be used to configure BuildXL.
 | PipWarningTimeoutMultiplier | Multiplier applied to the warning timeout for individual processes. Setting a multiplier greater than one will increase the warning timeout accordingly for all pips, even those with an explicit non-default warning timeout set. |
 | PluginPaths | Specify a list of plugin paths that be loaded -  each path is seperated by ";'. Defaults to empty list |
 | PosixDeleteMode | Controls the applicability of file/directory deletion using POSIX delete. Allowed values are NoRun, RunFirst, and RunLast. Defaults for Windows is RunLast, and for Unix is RunFirst |
-| ProcessCanRunRemoteTags | Tags for processes that can run remotely when process remoting is enabled. When unspecified, every process can be remoted, unless it has a tag specified in /processMustRunLocalTags.  |
-| ProcessMustRunLocalTags | Tags for processes that must run locally when process remoting is enabled. When unspecified, it is assumed to be empty. |
 | ProcessRetries | Number of retries for process execution if the process exits with exit codes that allow for retries. Defaults to 0. |
 | ProfileReportDestination | Destination file of the profiling report. Default is '{0}' and it is generated in the current directory. Only considered if /profileScript is specified. |
 | ProfileScript | Runs a profiler for {ShortScriptName} evaluation, generating a TSV file with profiling information. |
@@ -175,9 +171,7 @@ This page lists flags that can be used to configure BuildXL.
 | Qualifier | Qualifiers controlling what flavor to build (short form: /q) |
 | RamSemaphoreMultiplier | Represents the RAM semaphore limit as a multiplier of the available RAM at the start of the build. |
 | RelatedActivityId | An external related ETW activity identifier. The top level {ShortProductName} activity will be logged as a child of this one. |
-| RemoteAgentWaitTimeSec | The amount of wait time in seconds for getting a remote agent to execute process pip remotely when /enableProcessRemoting is set to true. Defaults to 2s. |
 | RemoteTelemetry | When enabled, sends telemetry information for remote collection. Defaults to off. |
-| RemotingThresholdMultiplier | Multiplier for threshold before starting to remote process pips when /enableProcessRemoting is set to true. The threshold is obtained by multiplying /maxProc with this multiplier. Defaults to 1.5. |
 | ReplayWarnings | When enabled, {ShortProductName} will replay warning messages from pips that were cache hits. Defaults to on. |
 | ResponseFile | Read response file for more options |
 | ReuseEngineState | Reuse engine state between client sessions if /server and /cacheGraph are enabled. Defaults to on. |

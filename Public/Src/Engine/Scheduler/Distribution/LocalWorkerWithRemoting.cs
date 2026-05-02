@@ -16,8 +16,14 @@ using BuildXL.Utilities.Configuration;
 namespace BuildXL.Scheduler.Distribution
 {
     /// <summary>
-    /// Local worker with process remoting ability via AnyBuild.
+    /// Local worker with process remoting ability.
     /// </summary>
+    /// <remarks>
+    /// Process remoting is not currently supported (no remoting service is integrated). This class is retained
+    /// as infrastructure for future remoting service integrations. When a new remoting service is added,
+    /// this class handles the logic of deciding whether to run processes locally or remotely based on
+    /// configurable thresholds and tags.
+    /// </remarks>
     public class LocalWorkerWithRemoting : LocalWorker
     {
         private readonly SemaphoreSlim m_localExecutionSemaphore;
@@ -57,7 +63,7 @@ namespace BuildXL.Scheduler.Distribution
         public int TotalRemoteFallbackRetryLocally => Volatile.Read(ref m_totalRemoteFallbackRetryLocally);
 
         /// <summary>
-        /// Disable remoting when unexpected scenario (e.g., failed installing AnyBuild) happens.
+        /// Disable remoting when unexpected scenario (e.g., failed installing remote process manager) happens.
         /// </summary>
         public bool DisableRemoting { get; set; } = false;
 

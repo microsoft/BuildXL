@@ -1034,44 +1034,6 @@ namespace BuildXL
                 HelpLevel.Verbose);
             #endregion
 
-            hw.WriteBanner(
-                Strings.HelpText_DisplayHelp_ProcessRemotingBanner,
-                HelpLevel.Verbose);
-
-            #region Process Remoting
-
-            hw.WriteOption(
-                "/enableProcessRemoting[+|-]",
-                Strings.HelpText_DisplayHelp_EnableProcessRemoting,
-                HelpLevel.Verbose);
-
-            hw.WriteOption(
-                "/processCanRunRemoteTags:<semi-colon separated tags>",
-                Strings.HelpText_DisplayHelp_ProcessCanRunRemoteTags,
-                HelpLevel.Verbose);
-
-            hw.WriteOption(
-                "/processMustRunLocalTags:<semi-colon separated tags>",
-                Strings.HelpText_DisplayHelp_ProcessMustRunLocalTags,
-                HelpLevel.Verbose);
-
-            hw.WriteOption(
-                "/remotingThresholdMultiplier:<double>",
-                Strings.HelpText_DisplayHelp_RemotingThresholdMultiplier,
-                HelpLevel.Verbose);
-
-            hw.WriteOption(
-                "/numRemoteAgentLeases:<int>",
-                Strings.HelpText_DisplayHelp_NumRemoteAgentLeases,
-                HelpLevel.Verbose);
-
-            hw.WriteOption(
-                "/remoteAgentWaitTimeSec:<double>",
-                Strings.HelpText_DisplayHelp_RemoteAgentWaitTimeSec,
-                HelpLevel.Verbose);
-
-            #endregion
-
 
             hw.WriteBanner(Strings.HelpText_DisplayHelp_DiagBanner);
 

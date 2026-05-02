@@ -47,9 +47,7 @@ namespace BuildXL.SandboxedProcessExecutor
                 else if (OptionEquals(option, "remoteArgSalt"))
                 {
                     // Remoting engine can use command-line argument to perform cache operation.
-                    // For example, in AnyBuild although Action cache is most-likely disabled, AnyBuild
-                    // service can use the command-line argument to get cached historic information for VFS pre-rendering.
-                    // To avoid getting a cache hit, without modifying/re-deploying AnyBuild service we can use this option to make
+                    // To avoid getting a cache hit, we can use this option to make
                     // the command-line argument different.
 
                     // Simply eat up the string salt.

@@ -169,24 +169,6 @@ namespace BuildXL.Processes
             [CounterType(CounterType.Stopwatch)]
             SandboxedPipExecutorInitializingRemoteProcessManager,
 
-            /// <summary>
-            /// Duration of finding AnyBuild during remoting process manager initialization.
-            /// </summary>
-            [CounterType(CounterType.Stopwatch)]
-            SandboxedPipExecutorRemoteProcessManagerFindAnyBuild,
-
-            /// <summary>
-            /// Duration of starting AnyBuild daemon during remoting process manager initialization.
-            /// </summary>
-            [CounterType(CounterType.Stopwatch)]
-            SandboxedPipExecutorRemoteProcessManagerStartAnyBuildDaemon,
-
-            /// <summary>
-            /// Duration of getting AnyBuild remote process factory during remoting process manager initialization.
-            /// </summary>
-            [CounterType(CounterType.Stopwatch)]
-            SandboxedPipExecutorRemoteProcessManagerGetAnyBuildRemoteFactory,
-
             /// <nodoc/>
             [CounterType(CounterType.Stopwatch)]
             PrepareOutputsDuration,

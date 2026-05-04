@@ -18,6 +18,8 @@ variables:
 extends:
   template: v1/1ES.Unofficial.PipelineTemplate.yml@1esPipelines
   parameters:
+    settings:
+      networkIsolationPolicy: Permissive,CFSClean,CFSClean2,CFSClean3
     sdl:
       sourceAnalysisPool:
         name: Windows-SDL-Agents

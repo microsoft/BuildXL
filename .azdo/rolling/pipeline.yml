@@ -47,6 +47,8 @@ extends:
       name: BuildXL-DevOpsAgents-Selfhost-BuildCache
       os: windows
       image: 1ESPT-Win2022-PME-3
+    settings:
+      networkIsolationPolicy: Permissive,CFSClean,CFSClean2,CFSClean3
     featureFlags:
       autoBaseline: false
       incrementalSDLBinaryAnalysis: true

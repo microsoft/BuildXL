@@ -254,13 +254,17 @@ namespace BuildXL.FrontEnd.Script.Ambients
 
         private static EvaluationResult GetUserHomeDirectory(Context context, ModuleLiteral env, EvaluationStackFrame args)
         {
+            // Use string.IsNullOrEmpty instead of just ?? to handle environments where
+            // HOMEDRIVE/HOMEPATH can be set to empty strings rather than being unset.
             string homePath = Host.Current.CurrentOS == BuildXL.Interop.OperatingSystem.Win
-                ? I($"{Environment.GetEnvironmentVariable("HOMEDRIVE") ?? "C:"}{Path.DirectorySeparatorChar}{Environment.GetEnvironmentVariable("HOMEPATH") ?? "Users"}")
+                ? I($"{NullIfEmpty(Environment.GetEnvironmentVariable("HOMEDRIVE")) ?? "C:"}{Path.DirectorySeparatorChar}{NullIfEmpty(Environment.GetEnvironmentVariable("HOMEPATH")) ?? "Users"}")
                 : Environment.GetEnvironmentVariable("HOME");
 
             var directoryPath = AbsolutePath.Create(context.FrontEndContext.PathTable, homePath);
             return EvaluationResult.Create(DirectoryArtifact.CreateWithZeroPartialSealId(directoryPath));
         }
+
+        private static string NullIfEmpty(string value) => string.IsNullOrEmpty(value) ? null : value;
 
         private static EvaluationResult GetSpecFile(Context context, ModuleLiteral env, EvaluationStackFrame args)
         {

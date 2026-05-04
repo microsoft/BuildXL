@@ -53,6 +53,8 @@ namespace Test.BuildXL.FrontEnd.Nx
         /// </summary>
         protected string SourceRoot { get; }
 
+        private readonly bool m_isInternalBuild;
+
         // By default the engine runs e2e
         protected virtual EnginePhases Phase => EnginePhases.Execute;
 
@@ -60,6 +62,7 @@ namespace Test.BuildXL.FrontEnd.Nx
 
         protected NxIntegrationTestBase(ITestOutputHelper output) : base(output, true)
         {
+            m_isInternalBuild = Environment.GetEnvironmentVariable("UserProfileNpmRcLocation") != null;
             RegisterEventSource(global::BuildXL.Engine.ETWLogger.Log);
             RegisterEventSource(global::BuildXL.Processes.ETWLogger.Log);
             RegisterEventSource(global::BuildXL.Scheduler.ETWLogger.Log);
@@ -116,6 +119,17 @@ namespace Test.BuildXL.FrontEnd.Nx
 
         protected void BootstrapNx(ICommandLineConfiguration config)
         {
+            // Write .npmrc with internal registry for internal builds.
+            // Only registry URL is needed here - Nx test projects have no external deps,
+            // so auth is not required. This just prevents node from contacting registry.npmjs.org.
+            // CODESYNC: LageIntegrationTestBase.cs, YarnIntegrationTestBase.cs, RushIntegrationTestBase.cs
+            if (m_isInternalBuild)
+            {
+                File.WriteAllText(
+                    Path.Combine(config.Layout.SourceDirectory.ToString(PathTable), ".npmrc"),
+                    $"registry=https://cloudbuild.pkgs.visualstudio.com/_packaging/BuildXL.Selfhost/npm/registry/{Environment.NewLine}always-auth=true");
+            }
+
             // This bootstraps the 'repo'
             File.WriteAllText(config.Layout.SourceDirectory.Combine(PathTable, "package.json").ToString(PathTable), $@"
             {{

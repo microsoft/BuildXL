@@ -74,12 +74,12 @@ export const pkgs = isMicrosoftInternal ? [
     // TODO: we should be able to remove the skipped packages whenever Microsoft.SbomCore
     // expose updated versions that point to the latest (net8 only) SBOM packages
     { id: "Microsoft.SbomCore", version: "6.2.4", dependentPackageIdsToSkip: ["Microsoft.Sbom.Parsers.Spdx22SbomParser"] },
-    { id: "Microsoft.Sbom.Common", version: "4.1.9" },
-    { id: "Microsoft.Sbom.Parsers.Spdx22SbomParser", version: "4.1.9" },
-    { id: "Microsoft.Sbom.Adapters", version: "4.1.9" },
+    { id: "Microsoft.Sbom.Common", version: "4.1.11" },
+    { id: "Microsoft.Sbom.Parsers.Spdx22SbomParser", version: "4.1.11" },
+    { id: "Microsoft.Sbom.Adapters", version: "4.1.11" },
     { id: "Microsoft.ComponentDetection.Contracts", version: "7.1.1", dependentPackageIdsToSkip: ["System.Threading.Tasks.Dataflow"] },
-    { id: "Microsoft.Sbom.Contracts", version: "4.1.9" },
-    { id: "Microsoft.Sbom.Extensions", version: "4.1.9" },
+    { id: "Microsoft.Sbom.Contracts", version: "4.1.11" },
+    { id: "Microsoft.Sbom.Extensions", version: "4.1.11" },
 
     // Part of VSSDK used by IDE/VsIntegration
     { id: "Microsoft.Internal.VisualStudio.Interop", version: "17.2.32405.191" },

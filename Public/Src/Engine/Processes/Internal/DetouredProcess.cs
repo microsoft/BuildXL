@@ -863,32 +863,86 @@ namespace BuildXL.Processes.Internal
             }
         }
 
+        /// <summary>
+        /// Maximum time we wait for the pipe-reader's <see cref="IAsyncPipeReader.CompletionAsync"/>
+        /// to drain on the kill / cancel teardown path. Bounded so a wedged reader cannot stall
+        /// teardown forever; the reader's writer side closes very quickly once the process is
+        /// terminated, so completion typically arrives in milliseconds.
+        /// </summary>
+        private static readonly TimeSpan s_killPathReaderDrainTimeout = TimeSpan.FromSeconds(30);
+
         private async Task WaitUntilErrorAndOutputEof(bool cancel, TaskUtilities.SemaphoreReleaser semaphoreReleaser)
         {
             Contract.Requires(semaphoreReleaser.IsValid && semaphoreReleaser.CurrentCount == 0);
+            bool killOrCancel = m_killed || cancel;
             if (m_outputReader != null)
             {
-                if (!m_killed && !cancel)
-                {
-                    await m_outputReader.CompletionAsync(true);
-                }
-
+                await DrainAsync(m_outputReader);
                 m_outputReader.Dispose();
                 m_outputReader = null;
             }
 
             if (m_errorReader != null)
             {
-                if (!m_killed && !cancel)
-                {
-                    await m_errorReader.CompletionAsync(true);
-                }
-
+                await DrainAsync(m_errorReader);
                 m_errorReader.Dispose();
                 m_errorReader = null;
             }
 
             InternalCloseStandardInput(semaphoreReleaser);
+
+            // Drains the pipe reader by awaiting its CompletionAsync. Even on kill/cancel
+            // we wait (with a bounded timeout below) so the reader's
+            // 'finally { FlushMessages(); }' block finishes before the caller proceeds to
+            // dispose the output builder — otherwise FlushMessages can race AppendLine
+            // against Freeze in SandboxedProcessOutputBuilder.
+            async Task DrainAsync(IAsyncPipeReader reader)
+            {
+                Task completion = reader.CompletionAsync(true);
+
+                if (!killOrCancel)
+                {
+                    // Normal exit path: the await is the observer. Any reader fault propagates
+                    // up to CompletionCallbackAsync, where it is treated as fatal.
+                    await completion;
+                    return;
+                }
+
+                // Kill / cancel path: we won't directly await `completion` (the bounded WhenAny
+                // doesn't observe the loser's exception), so we must attach a fault-only
+                // observer BEFORE WhenAny / Dispose / fault to guarantee any exception is
+                // observed regardless of timing. Reader exceptions on this path are expected
+                // (pipe was forcibly torn down by Kill or Dispose) and aren't actionable; we
+                // just don't want them surfacing as UnobservedTaskException at finalizer time.
+                // OnlyOnFaulted means the continuation is skipped if completion succeeds.
+                _ = completion.ContinueWith(
+                    static t => Analysis.IgnoreArgument(t.Exception),
+                    CancellationToken.None,
+                    TaskContinuationOptions.ExecuteSynchronously | TaskContinuationOptions.OnlyOnFaulted,
+                    TaskScheduler.Default);
+
+                // Bounded await. Cancel the delay as soon as completion wins so we don't
+                // leak a 30 s timer per killed pip. Prefer CancelAsync where available
+                // (it awaits callbacks); fall back to sync Cancel() on net472.
+                var delayCts = new CancellationTokenSource();
+                try
+                {
+                    Task delay = Task.Delay(s_killPathReaderDrainTimeout, delayCts.Token);
+                    Task winner = await Task.WhenAny(completion, delay);
+                    if (winner == completion)
+                    {
+#if NETCOREAPP
+                        await delayCts.CancelAsync();
+#else
+                        delayCts.Cancel();
+#endif
+                    }
+                }
+                finally
+                {
+                    delayCts.Dispose();
+                }
+            }
         }
 
         private void InternalCloseStandardInput(TaskUtilities.SemaphoreReleaser semaphoreReleaser)

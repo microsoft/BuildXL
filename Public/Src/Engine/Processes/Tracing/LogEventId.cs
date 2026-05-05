@@ -150,6 +150,7 @@ namespace BuildXL.Processes.Tracing
         SandboxInternalError = 10110,
         FullSandboxInternalErrorMessage = 10111,
         SandboxInternalWarningMessage = 10112,
+        InjectorPipeStopAsyncTimedOut = 10113,
 
         FailedToCreateHardlinkOnMerge = 12209,
         DoubleWriteAllowedDueToPolicy = 12210,

@@ -135,6 +135,22 @@ namespace BuildXL.Processes.Internal
         }
 
         /// <inheritdoc/>
+        public bool TryDisconnect()
+        {
+            try
+            {
+                m_pipeStream.Disconnect();
+                return true;
+            }
+#pragma warning disable ERP022 // Per IAsyncPipeReader.TryDisconnect contract: swallow benign teardown races and report false.
+            catch (Exception)
+            {
+                return false;
+            }
+#pragma warning restore ERP022
+        }
+
+        /// <inheritdoc/>
         public Task CompletionAsync(bool waitForEof) => m_completionTask;
     }
 }

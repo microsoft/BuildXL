@@ -484,6 +484,15 @@ namespace BuildXL.Processes.Internal
         /// <inheritdoc/>
         public Task CompletionAsync(bool waitForEof) => waitForEof ? WaitUntilEofAsync() : Task.CompletedTask;
 
+        /// <inheritdoc/>
+        /// <remarks>
+        /// The legacy reader is backed by an anonymous pipe (<see cref="IAsyncFile"/>), which has no
+        /// equivalent of <c>NamedPipeServerStream.Disconnect</c>: closing the read side fails subsequent
+        /// writes but doesn't unblock an in-flight read. Always returns false so callers can fall back
+        /// to disposal/cancelation.
+        /// </remarks>
+        public bool TryDisconnect() => false;
+
         /// <summary>
         /// Debug reporter for <see cref="AsyncPipeReader"/>.
         /// </summary>

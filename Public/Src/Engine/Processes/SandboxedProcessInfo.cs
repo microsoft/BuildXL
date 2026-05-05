@@ -52,6 +52,12 @@ namespace BuildXL.Processes
 #endif
 
         /// <summary>
+        /// Default timeout, in milliseconds, for <see cref="ProcessTreeContext.StopAsync"/> to drain the injector
+        /// control pipe before forcibly disconnecting it. See <see cref="InjectorPipeStopTimeoutMs"/>.
+        /// </summary>
+        public const int DefaultInjectorPipeStopTimeoutMs = 30_000;
+
+        /// <summary>
         /// Make sure we always wait for a moment after the main process exits by default.
         /// </summary>
         /// <remarks>
@@ -315,6 +321,38 @@ namespace BuildXL.Processes
         /// When set to value &lt; 0, the pipe reading retries are unlimited.
         /// </remarks>
         public int NumRetriesPipeReadOnCancel { get; set; } = DefaultPipeReadRetryOnCancellationCount;
+
+        /// <summary>
+        /// Timeout (in milliseconds) for <see cref="ProcessTreeContext.StopAsync"/> to drain the injector
+        /// control pipe. On expiry, the server-end of the pipe is forcibly disconnected to unblock the
+        /// reader regardless of whether any external (non-self) process still holds a writer-end handle.
+        /// </summary>
+        /// <remarks>
+        /// The injector pipe is inherited by every detoured descendant. If a descendant breaks away from the
+        /// job (e.g. via CREATE_BREAKAWAY_FROM_JOB) or duplicates the writer handle into a non-job process and
+        /// then survives our top-level process exit, the kernel cannot signal EOF to the reader and the
+        /// teardown stalls indefinitely. This timeout bounds that stall so a single long-lived holder cannot
+        /// pin a pip-execution slot for the lifetime of the holder.
+        ///
+        /// Must be positive. Negative values - including <see cref="System.Threading.Timeout.Infinite"/> (-1) -
+        /// are rejected so a misconfiguration cannot silently disable the bounded-drain behavior.
+        /// </remarks>
+        public int InjectorPipeStopTimeoutMs
+        {
+            get => m_injectorPipeStopTimeoutMs;
+            set
+            {
+                if (value <= 0)
+                {
+                    throw new ArgumentOutOfRangeException(
+                        nameof(value),
+                        value,
+                        "InjectorPipeStopTimeoutMs must be a positive number of milliseconds; negative or zero values would defeat the bounded-drain behavior in ProcessTreeContext.StopAsync.");
+                }
+                m_injectorPipeStopTimeoutMs = value;
+            }
+        }
+        private int m_injectorPipeStopTimeoutMs = DefaultInjectorPipeStopTimeoutMs;
 
         /// <summary>
         /// Force set the execute permission bit for the root process of process pips in Linux builds.
@@ -671,6 +709,7 @@ namespace BuildXL.Processes
                 writer.Write(StandardInputSourceInfo, (w, v) => v!.Serialize(w));
                 writer.Write(StandardObserverDescriptor, (w, v) => v!.Serialize(w));
                 writer.Write(NumRetriesPipeReadOnCancel);
+                writer.Write(InjectorPipeStopTimeoutMs);
                 writer.Write(
                     RedirectedTempFolders,
                     (w, v) => w.WriteReadOnlyList(v, (w2, v2) => { w2.Write(v2.source); w2.Write(v2.target); }));
@@ -744,6 +783,7 @@ namespace BuildXL.Processes
                 StandardInputInfo? standardInputSourceInfo = reader.ReadNullable(r => StandardInputInfo.Deserialize(r));
                 SandboxObserverDescriptor? standardObserverDescriptor = reader.ReadNullable(r => SandboxObserverDescriptor.Deserialize(r));
                 int numRetriesPipeReadOnCancel = reader.ReadInt32();
+                int injectorPipeStopTimeoutMs = reader.ReadInt32();
 
                 (string source, string target)[]? redirectedTempFolder = reader.ReadNullable(r => r.ReadReadOnlyList(r2 => (source: r2.ReadString(), target: r2.ReadString())))?.ToArray();
 
@@ -819,6 +859,7 @@ namespace BuildXL.Processes
                     DetoursFailureFile = detoursFailureFile,
                     ExternalVmSandboxStaleFilesToClean = externalVmSandboxStaleFilesToClean,
                     NumRetriesPipeReadOnCancel = numRetriesPipeReadOnCancel,
+                    InjectorPipeStopTimeoutMs = injectorPipeStopTimeoutMs,
                     CreateSandboxTraceFile = createSandboxTraceFile,
                 };
             }

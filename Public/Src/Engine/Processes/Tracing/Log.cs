@@ -360,6 +360,20 @@ namespace BuildXL.Processes.Tracing
         public abstract void BrokeredDetoursInjectionFailed(LoggingContext context, uint processId, string error);
 
         [GeneratedEvent(
+            (int)LogEventId.InjectorPipeStopAsyncTimedOut,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = "[Pip{pipSemiStableHash:X16}] Detours injector pipe StopAsync drain timed out after {elapsedMs} ms (timeout: {timeoutMs} ms); disconnect-succeeded: {disconnectSucceeded}. A descendant process likely held the writer end of the injector pipe past parent exit (e.g. CREATE_BREAKAWAY_FROM_JOB or DuplicateHandle to a non-job process).")]
+        public abstract void InjectorPipeStopAsyncTimedOut(
+            LoggingContext context,
+            long pipSemiStableHash,
+            int timeoutMs,
+            long elapsedMs,
+            bool disconnectSucceeded);
+
+        [GeneratedEvent(
             (int)LogEventId.LogDetoursDebugMessage,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,

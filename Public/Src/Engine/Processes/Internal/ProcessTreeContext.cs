@@ -57,6 +57,8 @@ namespace BuildXL.Processes
         private readonly Action<string> m_debugReporter;
         private readonly LoggingContext m_loggingContext;
         private readonly Action m_onBrokeredInjectionFailure;
+        private readonly long m_pipSemiStableHash;
+        private readonly int m_injectorPipeStopTimeoutMs;
 
         public ProcessTreeContext(
             Guid payloadGuid,
@@ -67,15 +69,20 @@ namespace BuildXL.Processes
             int numRetriesPipeReadOnCancel,
             Action<string> debugReporter,
             LoggingContext loggingContext,
+            long pipSemiStableHash,
+            int injectorPipeStopTimeoutMs,
             Action onBrokeredInjectionFailure = null)
         {
             // We cannot create this object in a wow64 process
             Contract.Assume(!ProcessUtilities.IsWow64Process(), "ProcessTreeContext:ctor - Cannot run injection server in a wow64 32 bit process");
             Contract.Requires(loggingContext != null);
+            Contract.Requires(injectorPipeStopTimeoutMs > 0);
 
             m_debugReporter = debugReporter;
             m_loggingContext = loggingContext;
             m_onBrokeredInjectionFailure = onBrokeredInjectionFailure;
+            m_pipSemiStableHash = pipSemiStableHash;
+            m_injectorPipeStopTimeoutMs = injectorPipeStopTimeoutMs;
             SafeFileHandle childHandle = null;
             NamedPipeServerStream serverStream = null;
 
@@ -165,10 +172,73 @@ namespace BuildXL.Processes
         {
             PrepareToStop();
 
-            // Wait until reader is done
-            if (m_injectionRequestReader != null)
+            // The injector pipe is a kernel object whose read side EOFs only after every writer-end
+            // handle is released. If a non-self process still holds a writer end (e.g. a
+            // CREATE_BREAKAWAY_FROM_JOB descendant, or a process that received the writer via
+            // DuplicateHandle), an unbounded await here parks indefinitely. SandboxedProcess.Dispose
+            // chains into this synchronously, so the stall translates to a permanently leaked
+            // pip-execution slot.
+            //
+            // Bound the wait. On timeout, forcibly disconnect the server end via TryDisconnect; that
+            // EOFs the reader regardless of remaining writer handles in the kernel. PrepareToStop
+            // already set m_stopping=true above, so any post-disconnect InjectCallback short-circuits.
+            //
+            // Snapshot the reader: defensive against a future caller invoking Dispose concurrently with
+            // StopAsync (which nulls m_injectionRequestReader after disposing the reader).
+            IAsyncPipeReader reader = m_injectionRequestReader;
+            if (reader == null)
             {
-                await m_injectionRequestReader.CompletionAsync(true);
+                return;
+            }
+
+            Task completion = reader.CompletionAsync(true);
+
+            if (completion.IsCompleted)
+            {
+                // Fast path: reader already drained. Avoid allocating a CTS / Task.Delay timer.
+                await completion;
+                return;
+            }
+
+            using var delayCts = new CancellationTokenSource();
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            Task winner = await Task.WhenAny(completion, Task.Delay(m_injectorPipeStopTimeoutMs, delayCts.Token));
+
+            if (winner == completion)
+            {
+                // Cancel the delay so its timer doesn't linger.
+#if NETCOREAPP
+                await delayCts.CancelAsync();
+#else
+                delayCts.Cancel();
+#endif
+                await completion;
+                return;
+            }
+
+            // Timeout. Forcibly EOF the reader and observe the eventual completion.
+            bool disconnectSucceeded = reader.TryDisconnect();
+
+            Tracing.Logger.Log.InjectorPipeStopAsyncTimedOut(
+                m_loggingContext,
+                m_pipSemiStableHash,
+                m_injectorPipeStopTimeoutMs,
+                stopwatch.ElapsedMilliseconds,
+                disconnectSucceeded);
+
+            // Always observe `completion`, even when TryDisconnect returned false (legacy reader, or
+            // a swallowed teardown race); otherwise the pipe handle leaks. Reader exceptions on this
+            // path are expected (writer was forcibly torn down) and not actionable beyond the telemetry
+            // above.
+            try
+            {
+                await completion;
+            }
+            catch (Exception ex)
+            {
+#pragma warning disable EPC12 // Diagnostic-only swallow; full ToString preserves the failure context.
+                m_debugReporter?.Invoke($"InjectionRequestReader: completion observed exception after disconnect: {ex.ToStringDemystified()}");
+#pragma warning restore EPC12
             }
         }
 
@@ -177,12 +247,22 @@ namespace BuildXL.Processes
         public bool HasDetoursInjectionFailures { get; private set; }
 
         /// <summary>
-        /// Called to indicate that the process was killed
+        /// Called to indicate that the process was killed.
         /// </summary>
+        /// <remarks>
+        /// Sets the stopping flag so subsequent <see cref="InjectCallback"/> invocations short-circuit,
+        /// then forcibly disconnects the injector pipe to unblock any in-flight <see cref="StopAsync"/>
+        /// drain. Best-effort (TryDisconnect does not throw); no-op for legacy anonymous-pipe readers.
+        /// Order matters: m_stopping must be set before disconnect so any final callback the reader
+        /// flushes is short-circuited rather than processed.
+        /// </remarks>
         public void OnKilled()
         {
             // Stop processing additional messages.
             Volatile.Write(ref m_stopping, true);
+
+            // Volatile read defends against a concurrent Dispose nulling the field.
+            Volatile.Read(ref m_injectionRequestReader)?.TryDisconnect();
         }
 
         public void Dispose()

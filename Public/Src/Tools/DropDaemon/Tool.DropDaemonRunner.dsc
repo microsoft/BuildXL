@@ -116,6 +116,55 @@ export namespace DropDaemonRunner {
         testReadFile: runner.testReadFile,
     };
 
+    /**
+     * Returns a default drop configuration for the given drop name and service.
+     * Useful for simple cases where the caller just wants to create a drop with default settings and doesn't want to bother with providing a full configuration object.
+    */
+    @@public
+    export function getDefaultDropConfig(dropName: string, service: string): DropOperationArguments {
+        return <DropCreateArguments>{
+            // DropSettings
+            /** Service URL. */
+            service: service,
+
+            /** Size of batches in which to send 'associate' requests to drop service. */
+            batchSize: 5,
+
+            /** Maximum time in milliseconds before triggering a batch 'associate' request. */
+            nagleTimeMillis: 2000,
+
+            /** Retention period in days for uploaded drops. */
+            retentionDays: 7,
+
+            // DaemonSettings
+            /** Maximum number of clients DropDaemon should process concurrently. */
+            maxConcurrentClients: 5,
+
+            /** Verbose logging. */
+            verbose: true,
+
+            // DropOperationArguments extends CommonArguments
+            /** Number of retries to connect to a running DropDaemon process. */
+            maxConnectRetries: 20,
+
+            /** Delay between retries to connect to a running DropDaemon process. */
+            connectRetryDelayMillis: 3000,
+
+            /** Request name. */
+            name: dropName,
+
+            generateBuildManifest: false,
+
+            signBuildManifest: false,
+
+            // name of the env var that contains a PAT
+            patEnvironmentVariable: "SYSTEM_ACCESSTOKEN",
+
+            // make sure that the var is visible to dropD
+            forwardEnvironmentVars: ["SYSTEM_ACCESSTOKEN"]
+        };
+    }
+
     function fileInfoToDropFileInfo(fileInfo: FileInfo): DropFileInfo { 
         return <DropFileInfo>{ 
             kind: "file", 

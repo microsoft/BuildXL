@@ -1,0 +1,19 @@
+{
+    "name": "@test/b-package",
+    "description": "Calculator that depends on a-package",
+    "version": "1.0.0",
+    "license": "MIT",
+    "private": true,
+    "main": "dist/calculator.js",
+    "scripts": {
+        "build": "tsc",
+        "test": "node dist/calculator.test.js"
+    },
+    "dependencies": {
+        "@test/a-package": "*"
+    },
+    "devDependencies": {
+        "@types/node": "^20.0.0",
+        "typescript": "^5.4.0"
+    }
+}

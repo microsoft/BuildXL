@@ -72,6 +72,14 @@ function createSdkDeploymentDefinition(serverDeployment: boolean, minimalDeploym
                                 importFrom("BuildXL.Tools.QTest").selectDeployment(evaluationOnly)
                             ]
                         },
+                        {
+                            subfolder: "Sdk.CloudTestClient",
+                            contents: [ 
+                                importFrom("BuildXL.Tools.CloudTestClient").withQualifier({
+                                    targetFramework: "net9.0",
+                                }).selectDeployment(evaluationOnly)
+                            ]
+                        },
                         // Daemon tools are not included in the minimal deployment
                         ...addIf(!minimalDeployment, 
                             {

@@ -1,0 +1,4 @@
+module({
+    name: "Sdk.CloudTestClient",
+    projects: [ p`Tool.CloudTestClientRunner.APIs.dsc`, p`Tool.CloudTestClientRunner.Helpers.dsc` ]
+});

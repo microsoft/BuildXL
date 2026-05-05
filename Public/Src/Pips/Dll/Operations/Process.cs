@@ -899,6 +899,12 @@ namespace BuildXL.Pips.Operations
         public override bool BypassFingerprintSalt => (ProcessOptions & Options.BypassFingerprintSalt) != 0;
 
         /// <summary>
+        /// Whether this process must execute on the orchestrator node in a distributed build.
+        /// </summary>
+        [PipCaching(FingerprintingRole = FingerprintingRole.None)]
+        public bool MustRunOnOrchestrator => (ProcessOptions & Options.MustRunOnOrchestrator) != 0;
+
+        /// <summary>
         /// What policy to apply when merging redirected outputs back
         /// </summary>
         [PipCaching(FingerprintingRole = FingerprintingRole.Semantic)]

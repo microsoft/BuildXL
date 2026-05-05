@@ -99,7 +99,18 @@ namespace BuildXL.Scheduler
         public IEnumerable<ExecutionResult> AllExecutionResults => m_allExecutionResults;
 
         /// <nodoc/>
-        public bool MustRunOnOrchestrator { get; set; }
+        private bool m_mustRunOnOrchestrator;
+
+        /// <summary>
+        /// Whether this pip must run on the orchestrator. This can be set statically via
+        /// <see cref="Process.Options.MustRunOnOrchestrator"/> on the process pip definition,
+        /// or dynamically at runtime (e.g., when a distribution failure forces a retry on the orchestrator).
+        /// </summary>
+        public bool MustRunOnOrchestrator
+        {
+            get => m_mustRunOnOrchestrator || (Pip as Process)?.MustRunOnOrchestrator == true;
+            set => m_mustRunOnOrchestrator = value;
+        }
 
         internal ProcessRunnablePip(
             LoggingContext phaseLoggingContext,

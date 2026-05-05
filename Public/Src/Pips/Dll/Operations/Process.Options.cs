@@ -182,6 +182,11 @@ namespace BuildXL.Pips.Operations
             /// When set, the pip fingerprint is not sensitive to fingerprint salts. This excludes both <see cref="EngineEnvironmentSettings.DebugFingerprintSalt"/> and PipFingerprintingVersion.TwoPhaseV2
             /// </summary>
             BypassFingerprintSalt = 1 << 21,
+
+            /// <summary>
+            /// Whether this process must execute on the orchestrator node in a distributed build.
+            /// </summary>
+            MustRunOnOrchestrator = 1 << 22,
         }
     }
 }

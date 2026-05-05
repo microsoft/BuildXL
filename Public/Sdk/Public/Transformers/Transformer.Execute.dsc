@@ -277,6 +277,11 @@ namespace Transformer {
          *  Details: Documentation\Wiki\Advanced-Features\TraceFile.md
          */
         fileAccessTraceFile?: Path;
+
+        /**
+         * Whether this pip must execute on the orchestrator node in a distributed build. Defaults to false.
+         */
+        mustRunOnOrchestrator?: boolean;
     }
 
     @@public

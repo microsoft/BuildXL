@@ -112,6 +112,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         private SymbolAtom m_privilegeLevel;
         private SymbolAtom m_disableCacheLookup;
         private SymbolAtom m_uncancellable;
+        private SymbolAtom m_mustRunOnOrchestrator;
         private SymbolAtom m_outputDirectoryExclusions;
         private SymbolAtom m_writingToStandardErrorFailsExecution;
         private SymbolAtom m_executeWarningRegex;
@@ -265,6 +266,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             m_privilegeLevel = Symbol("privilegeLevel");
             m_disableCacheLookup = Symbol("disableCacheLookup");
             m_uncancellable = Symbol("uncancellable");
+            m_mustRunOnOrchestrator = Symbol("mustRunOnOrchestrator");
             m_outputDirectoryExclusions = Symbol("outputDirectoryExclusions");
             m_writingToStandardErrorFailsExecution = Symbol("writingToStandardErrorFailsExecution");
             m_executeTags = Symbol("tags");
@@ -713,6 +715,12 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             if (Converter.ExtractOptionalBoolean(obj, m_uncancellable) == true)
             {
                 processBuilder.Options |= Process.Options.Uncancellable;
+            }
+
+            // mustRunOnOrchestrator flag
+            if (Converter.ExtractOptionalBoolean(obj, m_mustRunOnOrchestrator) == true)
+            {
+                processBuilder.Options |= Process.Options.MustRunOnOrchestrator;
             }
 
             // outputDirectoryExclusions

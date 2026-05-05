@@ -141,6 +141,9 @@
   <data name="Counter_ProcessMaximumHeldMB" xml:space="preserve">
     <value>ProcessMaximumHeldMB</value>
   </data>
+  <data name="Counter_ProcessTotalAllocatedMB" xml:space="preserve">
+    <value>ProcessTotalAllocatedMB</value>
+  </data>
   <data name="Counter_ProcessMaximumPrivateMB" xml:space="preserve">
     <value>ProcessMaximumPrivateMB</value>
   </data>

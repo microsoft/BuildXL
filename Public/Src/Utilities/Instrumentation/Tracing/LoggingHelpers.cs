@@ -52,6 +52,9 @@ namespace BuildXL.Tracing
                     dict.Add(GetCategorizedStatisticName(description, Statistics.Counter_ProcessMaximumHeldMB), processMaximumHeldMegaBytess);
                 }
 
+                int processTotalAllocatedMB = ConvertToInt(aggregator.ProcessAllocatedMB.Range);
+                dict.Add(GetCategorizedStatisticName(description, Statistics.Counter_ProcessTotalAllocatedMB), processTotalAllocatedMB);
+
                 dict.Add(GetCategorizedStatisticName(description, Statistics.Counter_ProcessAverageCPUTime), processAverageCPUTime);
                 dict.Add(GetCategorizedStatisticName(description, Statistics.Counter_MachineAverageCPUTime), machineAverageCPUTime);
                 dict.Add(GetCategorizedStatisticName(description, Statistics.Counter_MachineAverageCPUWMITime), machineAverageCPUWMITime);

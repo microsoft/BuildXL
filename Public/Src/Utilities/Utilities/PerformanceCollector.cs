@@ -279,6 +279,11 @@ namespace BuildXL.Utilities
                 double processPrivateBytes = currentProcess.PrivateMemorySize64;
                 double processWorkingSetBytes = currentProcess.WorkingSet64;
                 double processHeldBytes = m_collectHeldBytesFromGC ? GC.GetTotalMemory(forceFullCollection: true) : 0;
+#if NETCOREAPP
+                double processAllocatedBytes = GC.GetTotalAllocatedBytes(precise: false);
+#else
+                double processAllocatedBytes = 0;
+#endif
 
                 double? jobObjectCpu = null;
                 double? jobObjectProcesses = null;
@@ -341,6 +346,7 @@ namespace BuildXL.Utilities
                             processWorkingSetBytes: processWorkingSetBytes,
                             processThreads: processThreads,
                             processGcHeldBytes: processHeldBytes,
+                            processAllocatedBytes: processAllocatedBytes,
                             machineCpu: machineCpu,
                             machineTotalPhysicalBytes: machineTotalPhysicalBytes,
                             machineAvailablePhysicalBytes: machineAvailablePhysicalBytes,
@@ -1109,6 +1115,12 @@ namespace BuildXL.Utilities
             public readonly Aggregation ProcessHeldMB;
 
             /// <summary>
+            /// The total megabytes allocated by the process (cumulative, monotonically increasing).
+            /// Use Range (Latest - First) to get allocations during the aggregator's lifetime.
+            /// </summary>
+            public readonly Aggregation ProcessAllocatedMB;
+
+            /// <summary>
             /// Total Network bandwidth available on the machine
             /// </summary>
             public readonly Aggregation MachineBandwidth;
@@ -1230,6 +1242,7 @@ namespace BuildXL.Utilities
                 ProcessWorkingSetMB = new Aggregation();
                 ProcessThreadCount = new Aggregation();
                 ProcessHeldMB = new Aggregation();
+                ProcessAllocatedMB = new Aggregation();
 
                 MachineCpu = new Aggregation();
                 MachineCpuWMI = new Aggregation();
@@ -1433,6 +1446,7 @@ namespace BuildXL.Utilities
                 double? processWorkingSetBytes,
                 double? processThreads,
                 double? processGcHeldBytes,
+                double? processAllocatedBytes,
                 double? machineCpu,
                 double? machineAvailablePhysicalBytes,
                 double? machineTotalPhysicalBytes,
@@ -1460,6 +1474,7 @@ namespace BuildXL.Utilities
                 ProcessWorkingSetMB.RegisterSample(BytesToMB(processWorkingSetBytes));
                 ProcessThreadCount.RegisterSample(processThreads);
                 ProcessHeldMB.RegisterSample(BytesToMB(processGcHeldBytes));
+                ProcessAllocatedMB.RegisterSample(BytesToMB(processAllocatedBytes));
 
                 MachineCpu.RegisterSample(machineCpu);
                 MachineCpuWMI.RegisterSample(machineCpuWMI);

@@ -29,6 +29,9 @@ parameters:
   - name: CloudTestTokenVariable
     type: string
     default: 'CloudTestAccessToken' # Name of the pipeline variable that will store the CloudTest bearer token
+  - name: BuildXLPackageVersion
+    type: string
+    default: '' # This value can be injected as a way to validate release candidates
 
 resources:
   repositories:
@@ -44,8 +47,6 @@ extends:
       name: BuildXL-DevOpsAgents-Selfhost-BuildCache
       image: ubuntu-24.04-PME-GPT
       os: linux
-      vhd: 
-        enabled: false
     sdl:
       sourceAnalysisPool:
         name: Windows-SDL-Agents
@@ -56,7 +57,7 @@ extends:
       displayName: BuildXL-CloudTest
       jobs:
       - job: build
-        displayName: Build JS repo
+        displayName: Build JS repo + Run CloudTest
         templateContext:
           workflow: BuildXL   
           preBuildSteps:
@@ -72,11 +73,6 @@ extends:
               azureSubscription: ${{ parameters.ServiceConnection }}
               resource: ${{ parameters.CloudTestResource }}
               secretVariable: ${{ parameters.CloudTestTokenVariable }}
-          - task: UseDotNet@2
-            inputs:
-              packageType: "sdk"
-              version: "9.x"
-            displayName: "Install .NET 9 SDK"
           - task: NodeTool@0
             inputs:
               versionSpec: '22.18.0'
@@ -91,21 +87,10 @@ extends:
           - script: yarn install
             displayName: 'Yarn Install'
             workingDirectory: $(Build.SourcesDirectory)/Examples/CloudTest
-          # Build BuildXL minimal and deploy to dev so the main build step uses the locally-built engine. We can drop this step
-          # once the required BuildXL changes are checked in
-          - bash: |
-              set -eu
-              bash bxl.sh --internal --minimal --deploy-dev --release
-            displayName: 'Build BXL (minimal + deploy dev)'
-            workingDirectory: $(Build.SourcesDirectory)
-            env:
-              PAT1esSharedAssets: $(${{ parameters.AccessTokenVariable }})
-              PATCloudBuild: $(${{ parameters.AccessTokenVariable }})
-              VSTSPERSONALACCESSTOKEN: $(System.AccessToken)
           buildXL:
-            install: false
-            # Use the just built engine
-            invocationPrefix: /mnt/vss/_work/1/s/Out/Bin/release/linux-x64/AdoBuildRunner
+            ${{ if ne(parameters.BuildXLPackageVersion, '') }}:
+              installerOptions:
+                version: ${{ parameters.BuildXLPackageVersion }}
             arguments: >-
               /c:config.dsc
               /logOutput:FullOutputAlways

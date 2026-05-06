@@ -195,7 +195,7 @@ namespace APIs {
      */
     @@public
     export function updateDynamicJob(args: UpdateDynamicJobArguments): CloudTestResult {
-        return executeWithSessionId(args, "updateDynamicJob", args.sessionId, args.bodyFile);
+        return executeWithSessionId(args, "updateDynamicJob", args.sessionId, args.bodyFile, /* mustRunOnOrchestrator */ false);
     }
 
     /**
@@ -203,7 +203,7 @@ namespace APIs {
      */
     @@public
     export function cancelSession(args: CancelSessionArguments): CloudTestResult {
-        return executeWithSessionId(args, "cancelSession", args.sessionId, undefined);
+        return executeWithSessionId(args, "cancelSession", args.sessionId, undefined, /* mustRunOnOrchestrator */ false);
     }
 
 
@@ -214,7 +214,8 @@ namespace APIs {
      */
     @@public
     export function waitForSessionCompletion(args: WaitForSessionCompletionArguments): CloudTestResult {
-        return executeWithSessionId(args, "waitForSessionCompletion", args.sessionId, undefined);
+        // Force this pip to run on the orchestrator so we don't hold any workers just to poll for the session completion.
+        return executeWithSessionId(args, "waitForSessionCompletion", args.sessionId, undefined, /* mustRunOnOrchestrator */ true);
     }
 
     // ============================================================================
@@ -231,7 +232,7 @@ namespace APIs {
             : [Cmd.option("/sessionId:", sessionId)];
     }
 
-    function executeWithSessionId(args: CloudTestBaseArguments, mode: string, sessionId: SessionId, bodyFile: File): CloudTestResult {
+    function executeWithSessionId(args: CloudTestBaseArguments, mode: string, sessionId: SessionId, bodyFile: File, mustRunOnOrchestrator: boolean): CloudTestResult {
         const outDir = Context.getNewOutputDirectory("cloudtest");
         const consolePath = p`${outDir}/console.out`;
 
@@ -267,6 +268,7 @@ namespace APIs {
             isLight: true,
             // We expect these operations to be uncacheable since they will be operating on a specific session ID. But let's make it explicit.
             disableCacheLookup: true,
+            mustRunOnOrchestrator: mustRunOnOrchestrator,
             unsafe: {
                 passThroughEnvironmentVariables: [args.tokenEnvVar]
             }

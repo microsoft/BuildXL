@@ -126,6 +126,8 @@ stages:
 
       - checkout: DominoReleaseManagement
       - template: /.azdo/common/use-latest-dotnet-sdk.yml
+        parameters:
+          sdkVersion: '10.x'
 
       # Nuget authenticate is required for package restore to work even though the feed is under the same organization as the pipeline
       - task: NuGetAuthenticate@1

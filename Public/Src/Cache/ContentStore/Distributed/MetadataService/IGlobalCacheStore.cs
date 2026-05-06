@@ -86,8 +86,10 @@ namespace BuildXL.Cache.ContentStore.Distributed.MetadataService
         Task<Result<bool>> NotifyContentWasPinnedAsync(OperationContext context, StrongFingerprint strongFingerprint);
 
         /// <summary>
-        /// Notifies the store that content associated to the given strong fingerprint was pinned, but a place operation failed to find it, allowing it to update any internal invariants
+        /// Notifies the store that content associated to the given strong fingerprint was expected to be present,
+        /// but a place operation failed to find it or found it to be corrupt. The store decides how to recover
+        /// (e.g., clearing pin metadata or deleting the entry entirely).
         /// </summary>
-        Task<Result<bool>> NotifyPinnedContentWasNotFoundAsync(OperationContext context, StrongFingerprint strongFingerprint);
+        Task<Result<bool>> NotifyAssociatedContentWasNotFoundAsync(OperationContext context, StrongFingerprint strongFingerprint);
     }
 }

@@ -26,5 +26,12 @@ namespace BuildXL.Cache.Host.Configuration
         /// For testing only. Disables preventing pinning, making <see cref="RetentionPolicy"/> irrelevant.
         /// </summary>
         public bool DisablePreventivePinning = false;
+
+        /// <summary>
+        /// When enabled, if a content place operation fails (blob not found or hash mismatch), the associated
+        /// content hash list entry (fingerprint) will be deleted from the metadata store, giving subsequent
+        /// builds a clean cache miss so the content can be re-produced.
+        /// </summary>
+        public bool EnableContentRecoveryOnPlaceFailure = false;
     }
 }

@@ -193,6 +193,14 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         public bool IsReadOnly { get; set; }
 
         /// <summary>
+        /// When enabled, if a content place operation detects a hash mismatch (corrupt blob), the corrupt blob
+        /// is deleted from storage and the associated fingerprint entry is removed from the metadata store.
+        /// This ensures subsequent builds get a clean cache miss instead of repeatedly hitting the same broken entry.
+        /// </summary>
+        [DefaultValue(false)]
+        public bool EnableContentRecoveryOnPlaceFailure { get; set; }
+
+        /// <summary>
         /// Authenticate by using a file that contains a <see cref="HostedPoolBuildCacheConfigurationFile"/>
         /// </summary>
         /// <remarks>

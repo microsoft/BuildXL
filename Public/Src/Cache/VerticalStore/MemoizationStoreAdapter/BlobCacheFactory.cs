@@ -86,7 +86,8 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                     IsReadOnly: configuration.IsReadOnly)
                 {
                     BuildCacheConfiguration = selectedBuildCacheConfiguration,
-                    ContentHashListReplacementCheckBehavior = configuration.ContentHashListReplacementCheckBehavior
+                    ContentHashListReplacementCheckBehavior = configuration.ContentHashListReplacementCheckBehavior,
+                    EnableContentRecoveryOnPlaceFailure = configuration.EnableContentRecoveryOnPlaceFailure,
                 };
 
                 return AzureBlobStorageCacheFactory.Create(context, factoryConfiguration, new AzureBuildCacheSecretsProvider(selectedBuildCacheConfiguration));
@@ -132,7 +133,8 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                     IsReadOnly: configuration.IsReadOnly)
                 {
                     BuildCacheConfiguration = buildCacheConfiguration,
-                    ContentHashListReplacementCheckBehavior = configuration.ContentHashListReplacementCheckBehavior
+                    ContentHashListReplacementCheckBehavior = configuration.ContentHashListReplacementCheckBehavior,
+                    EnableContentRecoveryOnPlaceFailure = configuration.EnableContentRecoveryOnPlaceFailure,
                 };
 
                 return AzureBlobStorageCacheFactory.Create(context, factoryConfiguration, new AzureBuildCacheSecretsProvider(buildCacheConfiguration));
@@ -149,7 +151,10 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                     Universe: configuration.Universe,
                     Namespace: configuration.Namespace,
                     RetentionPolicyInDays: configuration.RetentionPolicyInDays <= 0 ? null : configuration.RetentionPolicyInDays,
-                    IsReadOnly: configuration.IsReadOnly);
+                    IsReadOnly: configuration.IsReadOnly)
+                {
+                    EnableContentRecoveryOnPlaceFailure = configuration.EnableContentRecoveryOnPlaceFailure,
+                };
 
                 return AzureBlobStorageCacheFactory.Create(context, factoryConfiguration, new StaticBlobCacheSecretsProvider(credentials));
             }

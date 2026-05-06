@@ -375,10 +375,9 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase, IConten
 
         if (observedContentHash != contentHash)
         {
-            // TODO: there should be some way to either notify or delete the file in storage
-            Tracer.Error(context, $"Expected to download file with hash {contentHash} into file {path}, but found {observedContentHash} instead");
+            Tracer.Error(context, $"Hash mismatch: expected {contentHash} but downloaded content hashed to {observedContentHash} from {blobPath}.");
 
-            // The file we downloaded on to disk has the wrong file. Delete it so it can't be used incorrectly.
+            // The file we downloaded on to disk has the wrong content. Delete it so it can't be used incorrectly.
             try
             {
                 _fileSystem.DeleteFile(path);
@@ -386,6 +385,25 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase, IConten
             catch (Exception exception)
             {
                 return new Result<RemoteDownloadResult>(exception, $"Failed to delete {path} containing partial download results for content {contentHash}");
+            }
+
+            if (_configuration.EnableContentRecoveryOnPlaceFailure)
+            {
+                // Delete the corrupt remote blob from storage so future downloads don't keep returning poisoned bytes.
+                // Uploads use IfNoneMatch=*, so blob content cannot be replaced while the blob exists; deleting it
+                // allows a subsequent build to re-upload the correct content.
+                var deleteResult = await _clientAdapter.DeleteIfExistsAsync(context, client);
+                if (deleteResult.Succeeded)
+                {
+                    // Notify the content tracker only after a successful delete. If the delete failed, the blob
+                    // still exists and broadcasting a DeleteEvent would cause peers to skip L3 round-trips and
+                    // fail re-uploads (IfNoneMatch=* would return "already exists"), leaving the poison in place.
+                    await TryNotify(context, new DeleteEvent(blobPath, contentHash));
+                }
+                else
+                {
+                    Tracer.Warning(context, $"Failed to delete corrupt blob {blobPath} for content {contentHash}: {deleteResult}");
+                }
             }
 
             return Result.Success(

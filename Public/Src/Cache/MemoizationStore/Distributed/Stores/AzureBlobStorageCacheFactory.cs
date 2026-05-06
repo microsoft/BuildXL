@@ -81,6 +81,12 @@ public static class AzureBlobStorageCacheFactory
         /// Retry policy for Azure Storage client.
         /// </summary>
         public ShardedBlobCacheTopology.BlobRetryPolicy BlobRetryPolicy { get; init; } = new();
+
+        /// <summary>
+        /// When enabled, if a content place operation detects a hash mismatch (corrupt blob), the corrupt blob
+        /// is deleted from storage and the associated fingerprint entry is removed from the metadata store.
+        /// </summary>
+        public bool EnableContentRecoveryOnPlaceFailure { get; init; } = false;
     }
 
     /// <nodoc />
@@ -198,6 +204,7 @@ public static class AzureBlobStorageCacheFactory
                 StorageInteractionTimeout = configuration.StorageInteractionTimeout,
                 Announcer = announcer,
                 IsReadOnly = configuration.IsReadOnly,
+                EnableContentRecoveryOnPlaceFailure = configuration.EnableContentRecoveryOnPlaceFailure,
             });
     }
 
@@ -215,7 +222,8 @@ public static class AzureBlobStorageCacheFactory
                     StorageInteractionTimeout = configuration.StorageInteractionTimeout,
                     RetryPolicy = BlobFolderStorageConfiguration.DefaultRetryPolicy,
                 },
-                IsReadOnly = configuration.IsReadOnly
+                IsReadOnly = configuration.IsReadOnly,
+                EnableContentRecoveryOnPlaceFailure = configuration.EnableContentRecoveryOnPlaceFailure,
             });
 
         // The memoization database will make sure the associated content for a retrieved content
@@ -226,7 +234,8 @@ public static class AzureBlobStorageCacheFactory
             new MetadataStoreMemoizationDatabaseConfiguration()
             {
                 RetentionPolicy = retentionPolicyTimeSpan,
-                DisablePreventivePinning = retentionPolicyTimeSpan is null
+                DisablePreventivePinning = retentionPolicyTimeSpan is null,
+                EnableContentRecoveryOnPlaceFailure = configuration.EnableContentRecoveryOnPlaceFailure,
             });
 
         bool usesServerGc = retentionPolicyTimeSpan is null;

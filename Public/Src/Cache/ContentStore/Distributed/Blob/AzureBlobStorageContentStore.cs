@@ -89,6 +89,13 @@ public sealed record AzureBlobStorageContentStoreConfiguration
     /// that passed since 12h.
     /// </remarks>
     public TimeSpan ForceHardTouchThreshold { get; set; } = TimeSpan.FromHours(22);
+
+    /// <summary>
+    /// When enabled, content placement failures (hash mismatch or blob not found) will proactively
+    /// delete the corrupt/missing blob from storage and notify the content tracker, giving subsequent
+    /// builds a chance to recover by re-uploading correct content.
+    /// </summary>
+    public bool EnableContentRecoveryOnPlaceFailure { get; set; } = false;
 }
 
 /// <summary>

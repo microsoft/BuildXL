@@ -35,6 +35,16 @@ public class EphemeralCacheConfiguration
     public required AbsolutePath Workspace { get; init; }
 
     public TimeSpan PersistentElisionMaximumStaleness { get; init; } = TimeSpan.FromHours(16);
+
+    /// <summary>
+    /// When enabled, a Delete event from a persistent peer invalidates the elision decision,
+    /// preventing the cache from answering "I have it" when the blob was reported as missing or corrupt.
+    /// </summary>
+    /// <remarks>
+    /// This should be enabled together with <see cref="AzureBlobStorageContentStoreConfiguration.EnableContentRecoveryOnPlaceFailure"/>
+    /// which sends the DeleteEvent that this flag honors.
+    /// </remarks>
+    public bool EnableContentRecoveryOnPlaceFailure { get; init; } = false;
 }
 
 public class EphemeralHost : StartupShutdownComponentBase

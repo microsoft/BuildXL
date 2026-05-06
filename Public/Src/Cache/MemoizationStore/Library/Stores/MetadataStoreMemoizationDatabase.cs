@@ -37,9 +37,10 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         /// </summary>
         public override string StatsProvenance { get; }
 
-        // Stores an association of content hash to the set of strong fingerprints that were involved
-        // in the decision of eliding the content hash.
-        private readonly ConcurrentBigMap<ContentHash, CompactSet<StrongFingerprint>>? _pinElidedContent;
+        // Stores an association of content hash to the set of strong fingerprints.
+        // Populated for pin-elided entries when RetentionPolicy is configured (to notify on content-not-found),
+        // and for all cache hit entries when EnableContentRecoveryOnPlaceFailure is on (to delete the fingerprint entry).
+        private readonly ConcurrentBigMap<ContentHash, CompactSet<StrongFingerprint>>? _contentToFingerprintMap;
 
         /// <nodoc />
         public MetadataStoreMemoizationDatabase(
@@ -56,10 +57,9 @@ namespace BuildXL.Cache.MemoizationStore.Stores
             LinkLifetime(store);
             LinkLifetime(centralStorage);
 
-            // We only need to keep track of elided content if we have a retention policy
-            if (configuration?.RetentionPolicy != null)
+            if (configuration?.RetentionPolicy != null || _configuration.EnableContentRecoveryOnPlaceFailure)
             {
-                _pinElidedContent = new();
+                _contentToFingerprintMap = new();
             }
 
             StatsProvenance = _store.GetType().Name;
@@ -90,6 +90,7 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         {
             if (_configuration.DisablePreventivePinning)
             {
+                TrackContentToFingerprintIfNeeded(strongFingerprint, contentHashListResult, pinWasElided: false);
                 return false;
             }
 
@@ -98,6 +99,11 @@ namespace BuildXL.Cache.MemoizationStore.Stores
             {
                 Tracer.Info(context, $"Strong fingerprint '{strongFingerprint} needs preventive pinning: " +
                     $"{(contentHashListResult.LastContentPinnedTime == null ? "it does not contain a last pinned time." : "a retention policy is not configured")}");
+
+                // Even though pin is needed, when content recovery is enabled we still track the association
+                // so we can delete the fingerprint entry if content turns out to be missing or corrupt.
+                TrackContentToFingerprintIfNeeded(strongFingerprint, contentHashListResult, pinWasElided: false);
+
                 return true;
             }
 
@@ -115,20 +121,30 @@ namespace BuildXL.Cache.MemoizationStore.Stores
 
             var result = contentHashAge >= ageLimit;
 
-            // if we decided the content does not need preventive pinning, let's store the association between the content hash and the strong fingerprint, in case we reach
-            // a faulty state wrt pin eliding, so we can identify the collection of fingerprints that were involved in the decision
+            TrackContentToFingerprintIfNeeded(strongFingerprint, contentHashListResult, pinWasElided: !result);
+            
+            return result;
+        }
+
+        private void TrackContentToFingerprintIfNeeded(StrongFingerprint strongFingerprint, ContentHashListResult contentHashListResult, bool pinWasElided)
+        {
             (var contentHashList, _, _) = contentHashListResult;
-            if (_pinElidedContent != null && !result && contentHashList.ContentHashList != null)
+
+            // When content recovery is enabled, track all cache hits so we can delete the fingerprint on failure.
+            // When only retention policy is configured, track pin-elided entries so we can notify on content-not-found.
+            bool shouldTrack = _contentToFingerprintMap != null
+                && contentHashList.ContentHashList != null
+                && (_configuration.EnableContentRecoveryOnPlaceFailure || (_configuration.RetentionPolicy != null && pinWasElided));
+
+            if (shouldTrack)
             {
-                foreach (var contentHash in contentHashList.ContentHashList.Hashes)
+                foreach (var contentHash in contentHashList.ContentHashList!.Hashes)
                 {
-                    _pinElidedContent.AddOrUpdate(contentHash, strongFingerprint,
+                    _contentToFingerprintMap!.AddOrUpdate(contentHash, strongFingerprint,
                         (contentHash, strongFingerprint) => new CompactSet<StrongFingerprint>().Add(strongFingerprint),
                         (contentHash, strongFingerprint, relatedStrongFingerprints) => relatedStrongFingerprints.Add(strongFingerprint));
                 }
             }
-            
-            return result;
         }
 
         /// <inheritdoc/>
@@ -151,21 +167,18 @@ namespace BuildXL.Cache.MemoizationStore.Stores
                 return;
             }
 
-            // Let's check if there is any associated fingerprint to this content hash for which we decided to elide the pin
-            if (_pinElidedContent != null && _pinElidedContent.TryGet(contentHash) is var result && result.IsFound)
+            if (_contentToFingerprintMap != null && _contentToFingerprintMap.TryGet(contentHash) is var mapResult && mapResult.IsFound)
             {
-                foreach (var strongFingerprint in result.Item.Value)
+                foreach (var strongFingerprint in mapResult.Item.Value)
                 {
-                    var notificationResult = await storeWithPinNotification.NotifyPinnedContentWasNotFoundAsync(context, strongFingerprint);
-
-                    // We don't really care about the result, this notification is a best-effort recovery. Just log it for debugging purposes
+                    var notificationResult = await storeWithPinNotification.NotifyAssociatedContentWasNotFoundAsync(context, strongFingerprint);
                     if (!notificationResult.Succeeded)
                     {
-                        Tracer.Info(context, $"NotifyPinnedContentWasNotFoundAsync failed for strong fingerprint {strongFingerprint}");
+                        Tracer.Warning(context, $"NotifyAssociatedContentWasNotFoundAsync failed for strong fingerprint {strongFingerprint} after content {contentHash} was not found: {notificationResult}");
                     }
                     else
                     {
-                        Tracer.Info(context, $"Notified content not found for elided content {contentHash} with strong fingerprint {strongFingerprint}");
+                        Tracer.Info(context, $"Notified store that content {contentHash} was not found for strong fingerprint {strongFingerprint}.");
                     }
                 }
             }

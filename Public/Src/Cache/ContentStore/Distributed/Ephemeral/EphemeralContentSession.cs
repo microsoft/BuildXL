@@ -583,14 +583,21 @@ public class EphemeralContentSession : ContentSessionBase
         bool shouldElide(ContentEntry contentEntry, DateTime nowUtc, out DateTime? latestPersistentTouchTime)
         {
             latestPersistentTouchTime = null;
+            DateTime? latestPersistentDeleteTime = null;
+
             foreach (var operation in contentEntry.Operations)
             {
-                if (operation.ChangeStamp.Operation != ChangeStampOperation.Add)
+                if (operation.ChangeStamp.Operation != ChangeStampOperation.Add &&
+                    operation.ChangeStamp.Operation != ChangeStampOperation.Delete)
                 {
                     continue;
                 }
 
-                if (operation.Value == _ephemeralHost.ClusterStateManager.ClusterState.PrimaryMachineId)
+                // Self-Adds are skipped: they come from local Put callbacks and say nothing about L3.
+                // Self-Deletes are NOT skipped: they come from RemoteChangeAnnouncer after a BlobNotFound/corrupt
+                // detection, which is a strong signal that L3 does not have valid content.
+                if (operation.Value == _ephemeralHost.ClusterStateManager.ClusterState.PrimaryMachineId
+                    && operation.ChangeStamp.Operation == ChangeStampOperation.Add)
                 {
                     continue;
                 }
@@ -608,22 +615,36 @@ public class EphemeralContentSession : ContentSessionBase
                     continue;
                 }
 
-                if (record.Persistent)
+                if (!record.Persistent)
+                {
+                    continue;
+                }
+
+                if (operation.ChangeStamp.Operation == ChangeStampOperation.Add)
                 {
                     latestPersistentTouchTime = operation.ChangeStamp.TimestampUtc.Max(latestPersistentTouchTime ?? DateTime.MinValue);
-                    continue;
+                }
+                else if (_ephemeralHost.Configuration.EnableContentRecoveryOnPlaceFailure)
+                {
+                    latestPersistentDeleteTime = operation.ChangeStamp.TimestampUtc.Max(latestPersistentDeleteTime ?? DateTime.MinValue);
                 }
             }
 
-            if (latestPersistentTouchTime is not null)
+            if (latestPersistentTouchTime is null)
             {
-                // We allow non-positive values (i.e., nowUtc <= latestPersistentTouchTime) because the clock on the
-                // machine may be behind w.r.t. others, or the requests may race with eachother at different timestamps
-                // even within the same machine.
-                return nowUtc - latestPersistentTouchTime <= _ephemeralHost.Configuration.PersistentElisionMaximumStaleness;
+                return false;
             }
 
-            return false;
+            // If a persistent peer announced a Delete at or after our latest Add, the blob is no longer trustworthy.
+            if (latestPersistentDeleteTime is not null && latestPersistentDeleteTime >= latestPersistentTouchTime)
+            {
+                return false;
+            }
+
+            // We allow non-positive values (i.e., nowUtc <= latestPersistentTouchTime) because the clock on the
+            // machine may be behind w.r.t. others, or the requests may race with eachother at different timestamps
+            // even within the same machine.
+            return nowUtc - latestPersistentTouchTime <= _ephemeralHost.Configuration.PersistentElisionMaximumStaleness;
         }
     }
 

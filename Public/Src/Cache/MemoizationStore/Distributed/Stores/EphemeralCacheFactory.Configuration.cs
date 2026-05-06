@@ -90,6 +90,12 @@ public static partial class EphemeralCacheFactory
         /// Indicates whether to delete local file system content store on shutdown
         /// </summary>
         public bool DeleteLocalOnShutdown { get; set; } = false;
+
+        /// <summary>
+        /// When enabled, if a content place operation detects a hash mismatch (corrupt blob), the corrupt blob
+        /// is deleted from storage and the associated fingerprint entry is removed from the metadata store.
+        /// </summary>
+        public bool EnableContentRecoveryOnPlaceFailure { get; set; } = false;
     }
 
     /// <summary>

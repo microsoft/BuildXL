@@ -584,6 +584,7 @@ public static partial class EphemeralCacheFactory
                     MaxConnectionIdleMs = (int)Math.Ceiling(TimeSpan.FromMinutes(1).TotalMilliseconds),
                 }),
                 Workspace = configuration.RootPath / "workspace",
+                EnableContentRecoveryOnPlaceFailure = configuration.EnableContentRecoveryOnPlaceFailure,
             },
             clock,
             PassThroughFileSystem.Default,

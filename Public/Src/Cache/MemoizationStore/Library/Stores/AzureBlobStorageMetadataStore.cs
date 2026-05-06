@@ -38,6 +38,9 @@ namespace BuildXL.Cache.MemoizationStore.Stores
 
         /// <nodoc/>
         public required bool IsReadOnly { get; init; }
+
+        /// <nodoc/>
+        public bool EnableContentRecoveryOnPlaceFailure { get; init; } = false;
     }
 
     /// <nodoc />
@@ -125,24 +128,34 @@ namespace BuildXL.Cache.MemoizationStore.Stores
         }
 
         /// <summary>
-        /// Content associated to the given fingerprint was pinned, but a place operation failed to find it. It is probably too late
-        /// to recover from this situation for the running build, but remove the metadata (with the last time content was pinned) so that future builds can succeed.
+        /// Content associated to the given fingerprint was expected to be present, but a place operation failed to find it
+        /// or found it to be corrupt. When content recovery is enabled, the fingerprint entry is deleted so subsequent
+        /// builds get a clean cache miss. Otherwise, the pin metadata is cleared so future builds will re-pin.
         /// </summary>
-        public Task<Result<bool>> NotifyPinnedContentWasNotFoundAsync(OperationContext context, StrongFingerprint strongFingerprint)
+        public async Task<Result<bool>> NotifyAssociatedContentWasNotFoundAsync(OperationContext context, StrongFingerprint strongFingerprint)
         {
             var stopwatch = Stopwatch.StartNew();
             _tracer.PinnedContentWasNotFoundStart(context);
 
             try
             {
-                // If the store is readonly, we cannot actually remove the metadata.
                 if (_configuration.IsReadOnly)
                 {
-                    return Task.FromResult(Result.Success(true));
+                    Tracer.Warning(context, $"Cannot update content hash list entry for strong fingerprint {strongFingerprint} because the store is configured read-only.");
+                    return Result.Success(false);
                 }
 
-                // Clear the metadata of the given entry, so the next time it is queried, preventive pinning will happen
-                return UpdateMetadataAsync(context, strongFingerprint, metadata: null);
+                if (_configuration.EnableContentRecoveryOnPlaceFailure)
+                {
+                    // Delete the fingerprint entry entirely so the next build gets a clean cache miss.
+                    var client = await _blobCacheTopology.GetClientAsync(context, strongFingerprint);
+                    return await _storageClientAdapter.DeleteIfExistsAsync(context, client);
+                }
+                else
+                {
+                    // Clear the metadata of the given entry, so the next time it is queried, preventive pinning will happen
+                    return await UpdateMetadataAsync(context, strongFingerprint, metadata: null);
+                }
             }
             finally
             {

@@ -513,19 +513,22 @@ namespace BuildXL.Utilities.Core.Tasks
         /// Waits for the given task to complete within the given timeout, throwing a <see cref="TimeoutException"/> if the timeout expires before the task completes
         /// Very elaborate logic to ensure we log the "right" thing
         /// </summary>
-        public static async Task<T> WithTimeoutAsync<T>(Func<CancellationToken, Task<T>> taskFactory, TimeSpan timeout, CancellationToken token = default)
+        public static Task<T> WithTimeoutAsync<T>(Func<CancellationToken, Task<T>> taskFactory, TimeSpan timeout, CancellationToken token = default)
         {
             if (timeout == Timeout.InfiniteTimeSpan)
             {
-                return await taskFactory(token);
+                return Task.Run(() => taskFactory(token));
             }
 
-            using (var timeoutTokenSource = new CancellationTokenSource(timeout))
-            using (var cts = CancellationTokenSource.CreateLinkedTokenSource(timeoutTokenSource.Token, token))
+            // PERF: Don't start the timeout until after the task begins running on a thread.
+            // Otherwise when the threadpool is busy, this can end up timing out before the task even starts.
+            // Don't use Task.Yield() here since queueing to the global task queue can cause timeouts and subsequent
+            // retries to starve other tasks from running.
+            return Task.Run(async () => 
             {
-#pragma warning disable AsyncFixer04 // A disposable object used in a fire & forget async call
+                using var timeoutTokenSource = new CancellationTokenSource(timeout);
+                using var cts = CancellationTokenSource.CreateLinkedTokenSource(timeoutTokenSource.Token, token);
                 var task = taskFactory(cts.Token);
-#pragma warning restore AsyncFixer04 // A disposable object used in a fire & forget async call
                 Analysis.IgnoreResult(await Task.WhenAny(task, Task.Delay(Timeout.Infinite, cts.Token)));
 
                 if (!task.IsCompleted || (task.IsCanceled && timeoutTokenSource.IsCancellationRequested))
@@ -535,21 +538,21 @@ namespace BuildXL.Utilities.Core.Tasks
                     if (!token.IsCancellationRequested)
                     {
                         // Throw TimeoutException only when the original token is not canceled.
-                        observeTaskAndThrow(task);
+                        observeTaskAndThrow(task, timeout);
                     }
 
                     // Need to wait with timeout again to ensure that cancellation of a non-responding task will time out.
                     Analysis.IgnoreResult(await Task.WhenAny(task, Task.Delay(Timeout.Infinite, timeoutTokenSource.Token)));
                     if (!task.IsCompleted && timeoutTokenSource.IsCancellationRequested)
                     {
-                        observeTaskAndThrow(task);
+                        observeTaskAndThrow(task, timeout);
                     }
                 }
 
                 return await task;
-            }
+            });
 
-            void observeTaskAndThrow(Task task)
+            static void observeTaskAndThrow(Task task, TimeSpan timeout)
             {
                 // Task created by the task factory is unreachable by the client of this method.
                 // So we need to "observe" potential error to prevent a (possible) application crash

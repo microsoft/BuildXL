@@ -44,10 +44,10 @@ public static class ClientAccessorExtensions
         Counter tally)
         where TResult : ResultBase
     {
-        // We yield here to prevent the caller from blocking. This is important because the caller is likely issuing
-        // multiple API requests, and the code below may need to establish a connection that might take some time.
-        await Task.Yield();
-
+        // Don't need to yield here as we can make two assumptions:
+        // 1. Accessing the client is always async, given we control all implementations.
+        // 2. The given callback is always either async or trivial if synchronous, given that we trust network calls
+        // (e.g. gRPC HTTP client) to yield. Otherwise, the caller can queue this to threadpool themselves.
         try
         {
             // TODO: retry?

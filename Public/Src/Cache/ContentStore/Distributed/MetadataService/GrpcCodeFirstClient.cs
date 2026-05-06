@@ -63,8 +63,7 @@ public abstract class GrpcCodeFirstClient<TClient> : StartupShutdownComponentBas
                 return _retryPolicy.ExecuteAsync(
                     async () =>
                     {
-                        await Task.Yield();
-
+                        // PERF: Don't need to yield here since PerformOperationWithTimeoutAsync already queues to the threadpool.
                         attempt++;
 
                         var stopwatch = StopwatchSlim.Start();
@@ -88,8 +87,6 @@ public abstract class GrpcCodeFirstClient<TClient> : StartupShutdownComponentBas
                             r => $"{baselineMessage}Attempt=[{attempt}] ClientCreationTimeMs=[{clientCreationTime.TotalMilliseconds}] {extraEndMessage(r)}",
                             caller: callerAttempt,
                             traceErrorsOnly: true);
-
-                        await Task.Yield();
 
                         // Because we capture exceptions inside the PerformOperation, we need to make sure that they
                         // get propagated for the retry policy to kick in.

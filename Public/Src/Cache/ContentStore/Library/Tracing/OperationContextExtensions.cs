@@ -535,13 +535,10 @@ namespace BuildXL.Cache.ContentStore.Tracing.Internal
 
             try
             {
-                return await TaskUtilities.WithTimeoutAsync(async ct =>
+                return await TaskUtilities.WithTimeoutAsync(ct =>
                 {
-                    // If the operation does any synchronous work before returning the task, our timeout mechanism
-                    // will never kick in. This yield is here to prevent that from happening.
-                    await Task.Yield();
                     var nestedContext = new OperationContext(context.TracingContext, ct);
-                    return await operation(nestedContext);
+                    return operation(nestedContext);
                 },
                     timeout.Value,
                     context.Token);

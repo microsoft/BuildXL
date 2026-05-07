@@ -19,6 +19,9 @@ namespace BuildXL.Pips.Reclassification
     /// The goal of this rule is to reduce the number of accesses BuildXL needs to track. The idea is that when using a content-addressable package store, the directory name containing the package files
     /// univocally determines the package content. E.g. ".store\@babylonjs-core@7.54.3-d93831e7ae9116fa2dd7" should always contain the same files.
     /// Therefore, we can reclassify all accesses under a package directory to a probe on the package directory itself, which reduces the number of tracked accesses significantly.
+    /// Non-DFA causing observation types (absent probes and enumerations) under the package store are ignored. The main goal with this is to reduce cache candidate churn for tools that very liberally enumerate
+    /// packages across the store that in the end are not read. In theory this is not completely safe, but in practice is unlikely for a tool to make decisions solely based on the result of enumerating/absent probing 
+    /// packages without actually reading content from them.
     /// This assumes no writes happen during the build under the package store location, and that the only writer is the package manager itself.
     /// </remarks>
     public class JavaScriptPackageStoreReclassificationRule : IInternalReclassificationRule
@@ -45,7 +48,7 @@ namespace BuildXL.Pips.Reclassification
         /// <summary>
         /// Bump the descriptor when the implementation changes in a breaking way
         /// </summary>
-        public string Descriptor() => "JavaScriptPackageStoreReclassificationRuleV1";
+        public string Descriptor() => "JavaScriptPackageStoreReclassificationRuleV2";
 
         /// <nodoc/>
         public void Serialize(BuildXLWriter writer)
@@ -69,6 +72,16 @@ namespace BuildXL.Pips.Reclassification
             var isRelative = m_packageStoreLocation.TryGetRelative(pathTable, path.Path, out var relativeToPackageStore);
             if (isRelative && !relativeToPackageStore.IsEmpty)
             {
+                // Absent probes and enumerations never cause DFAs. Just ignore them if they happen under the store folder and limit the actual reclassifications to present probes and reads.
+                // Rationale: on one hand we observed there is a lot of churn in cache candidates caused by accesses on the package store, even with this rule on. So just considering reads has a good impact on cache lookup performance
+                // just by reducing the amount of candidates. On the reliability side, this might open a small gap where a tool makes a decision purely based on an enumeration/absent probe. But for the case of the package store this is deemed
+                // safe enough to ignore.
+                if (type == ObservationType.AbsentPathProbe || type == ObservationType.DirectoryEnumeration)
+                {
+                    reclassification = new ReclassificationResult(m_ruleName, null, path.Path);
+                    return true;
+                }
+
                 // The package name is the first segment of the relative path (under a JS package store, each package is stored under its own directory, directly under the package store directory)
                 var relativePackageStoreAtoms = relativeToPackageStore.GetAtoms();
                 var packageName = relativePackageStoreAtoms[0];
@@ -76,55 +89,7 @@ namespace BuildXL.Pips.Reclassification
                 // the same package after that, since the probe serves as a representative for all accesses under that package.
                 if (m_knownPackages.Add(packageName))
                 {
-                    // If the access we get is an absent probe, let's check if the package exists at all (if it is not an absent probe, we know the package exists since the access is a descendant of it)
-                    ObservationType reclassifiedType;
-                    if (type == ObservationType.AbsentPathProbe)
-                    {
-                        Possible<PathExistence, NativeFailure> exists;
-                        // This is just an optimization: if the relative path has only one segment, it means the access is directly on the package name itself, and since the observation type is absent, we can conclude
-                        // that the package does not exist without probing the file system
-                        if (relativePackageStoreAtoms.Length == 1)
-                        {
-                            exists = PathExistence.Nonexistent;
-                        }
-                        // And this is the general case where the observation came on a descendant of the package directory, so we need to probe the package store to see if the package exists at all
-                        else
-                        {
-                            var packagePath = m_packageStoreLocation.Combine(pathTable, packageName).ToString(pathTable);
-                            // The package store is under a shared opaque exclusion, so whether a package exists or not is a permanent state for the duration of the build. If a package is not there, it will never be.
-                            exists = FileUtilities.TryProbePathExistence(packagePath, followSymlink: false);
-                        }
-
-                        if (!exists.Succeeded)
-                        {
-                            // If we cannot determine existence, we cannot reclassify
-                            reclassification = default;
-                            return false;
-                        }
-
-                        // This is the most common case: the package exists, so we reclassify to a directory probe on the package directory
-                        if (exists.Result == PathExistence.ExistsAsDirectory)
-                        {
-                            reclassifiedType = ObservationType.ExistingDirectoryProbe;
-                        }
-                        // A slightly less common case, where there is a file right under the package store (instead of a directory). In this case we map it to a corresponding file probe
-                        // Not that we really expect this case, the package store should always contain directories directly under it, but we handle it just in case
-                        else if (exists.Result == PathExistence.ExistsAsFile)
-                        {
-                            reclassifiedType = ObservationType.ExistingFileProbe;
-                        }
-                        else
-                        {
-                            Contract.Equals(exists.Result, PathExistence.Nonexistent);
-                            reclassifiedType = ObservationType.AbsentPathProbe;
-                        }
-                    }
-                    else 
-                    { 
-                        reclassifiedType = ObservationType.ExistingDirectoryProbe;
-                    }
-
-                    reclassification = new ReclassificationResult(m_ruleName, reclassifiedType, m_packageStoreLocation.Combine(pathTable, packageName));
+                    reclassification = new ReclassificationResult(m_ruleName, ObservationType.ExistingDirectoryProbe, m_packageStoreLocation.Combine(pathTable, packageName));
                 }
                 else
                 {

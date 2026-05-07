@@ -106,14 +106,21 @@ namespace IntegrationTest.BuildXL.Scheduler
             XAssert.AreEqual(ObservedInputType.ExistingDirectoryProbe, reclassification.ReclassifyToType);
             XAssert.AreEqual(testPackageRoot, reclassification.ReclassifyToPath);
 
+            // Absent probes under the store are ignored (reclassified with null type), regardless of package existence
             var packageAccessAbsent = testPackageRoot2.Combine(m_pathTable, "absent-file");
-
-            // A probe to a path that does not exist under the package should be reclassified in the same way
             XAssert.IsTrue(reclassificationRules.TryReclassify(packageAccessAbsent, m_pathTable, ObservedInputType.AbsentPathProbe, out reclassification));
+            XAssert.AreEqual(null, reclassification.ReclassifyToType);
+
+            // Directory enumerations under the store are also ignored
+            XAssert.IsTrue(reclassificationRules.TryReclassify(testPackageContent2, m_pathTable, ObservedInputType.DirectoryEnumeration, out reclassification));
+            XAssert.AreEqual(null, reclassification.ReclassifyToType);
+
+            // A read on the second package should still be reclassified to a probe on the package root (absent probes/enumerations don't consume the first-access slot)
+            XAssert.IsTrue(reclassificationRules.TryReclassify(testPackageContent2, m_pathTable, ObservedInputType.ExistingFileProbe, out reclassification));
             XAssert.AreEqual(ObservedInputType.ExistingDirectoryProbe, reclassification.ReclassifyToType);
             XAssert.AreEqual(testPackageRoot2, reclassification.ReclassifyToPath);
 
-            // Any subsequent access to the same package should be reclassified to ignore the access
+            // Any subsequent read to the same package should be reclassified to ignore the access
             XAssert.IsTrue(reclassificationRules.TryReclassify(testPackageContent, m_pathTable, ObservedInputType.ExistingFileProbe, out reclassification));
             XAssert.AreEqual(null, reclassification.ReclassifyToType);
             XAssert.IsTrue(reclassificationRules.TryReclassify(testPackageContent2, m_pathTable, ObservedInputType.ExistingFileProbe, out reclassification));
@@ -123,13 +130,10 @@ namespace IntegrationTest.BuildXL.Scheduler
             var nonMatchingPath = AbsolutePath.Create(m_pathTable, TemporaryDirectory).Combine(m_pathTable, "out-of-store");
             XAssert.IsFalse(reclassificationRules.TryReclassify(nonMatchingPath, m_pathTable, ObservedInputType.AbsentPathProbe, out _));
 
-            // Accesses to non-existing packages under the store should be reclassified as absent path probes on the directory of the package (and subsequent accesses ignored)
+            // Absent probes to non-existing packages under the store are also ignored
             var nonExistingPackageRoot = storeRoot.Combine(m_pathTable, "non-existing-package@1.0.0");
             var nonExistingPackagePath = nonExistingPackageRoot.Combine(m_pathTable, "some-file.js");
 
-            XAssert.IsTrue(reclassificationRules.TryReclassify(nonExistingPackagePath, m_pathTable, ObservedInputType.AbsentPathProbe, out reclassification));
-            XAssert.AreEqual(ObservedInputType.AbsentPathProbe, reclassification.ReclassifyToType);
-            XAssert.AreEqual(nonExistingPackageRoot, reclassification.ReclassifyToPath);
             XAssert.IsTrue(reclassificationRules.TryReclassify(nonExistingPackagePath, m_pathTable, ObservedInputType.AbsentPathProbe, out reclassification));
             XAssert.AreEqual(null, reclassification.ReclassifyToType);
         }

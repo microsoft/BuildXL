@@ -178,11 +178,21 @@ namespace BuildXL
             {
                 if (currentDirectory.Exists)
                 {
-                    var gitDirectory = currentDirectory.GetDirectories(".git").FirstOrDefault();
+                    string gitPath = Path.Combine(currentDirectory.FullName, ".git");
 
-                    if (gitDirectory != null)
+                    if (Directory.Exists(gitPath))
                     {
-                        return gitDirectory;
+                        return new DirectoryInfo(gitPath);
+                    }
+
+                    // In a git worktree, .git is a file containing a "gitdir:" pointer.
+                    if (File.Exists(gitPath))
+                    {
+                        DirectoryInfo? resolvedGitDir = ResolveWorktreeGitDir(gitPath);
+                        if (resolvedGitDir != null)
+                        {
+                            return resolvedGitDir;
+                        }
                     }
                 }
 
@@ -190,6 +200,51 @@ namespace BuildXL
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// Resolves a .git file (from a worktree) to the main repository's .git directory.
+        /// </summary>
+        /// <remarks>
+        /// In a git worktree, the .git entry is a file containing "gitdir: path/to/.git/worktrees/name".
+        /// The actual git config lives in the common directory specified by the "commondir" file
+        /// within the worktree git dir.
+        /// </remarks>
+        internal static DirectoryInfo? ResolveWorktreeGitDir(string gitFilePath)
+        {
+            try
+            {
+                string content = File.ReadAllText(gitFilePath).Trim();
+                if (!content.StartsWith("gitdir:", StringComparison.OrdinalIgnoreCase))
+                {
+                    return null;
+                }
+
+                string gitDirPath = content.Substring("gitdir:".Length).Trim();
+                gitDirPath = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(gitFilePath)!, gitDirPath));
+
+                if (!Directory.Exists(gitDirPath))
+                {
+                    return null;
+                }
+
+                // The "commondir" file points to the shared .git directory containing the config
+                string commonDirFile = Path.Combine(gitDirPath, "commondir");
+                if (!File.Exists(commonDirFile))
+                {
+                    return null;
+                }
+
+                string commonDirPath = File.ReadAllText(commonDirFile).Trim();
+                commonDirPath = Path.GetFullPath(Path.Combine(gitDirPath, commonDirPath));
+
+                var commonDir = new DirectoryInfo(commonDirPath);
+                return commonDir.Exists ? commonDir : null;
+            }
+            catch (IOException)
+            {
+                return null;
+            }
         }
 
         private static string StripCredential(string remoteUri)

@@ -68,6 +68,86 @@ namespace Test.BuildXL
         }
 
         [Fact]
+        public void TestGetGitInfoFromWorktree()
+        {
+            // Simulate a worktree setup:
+            // MainRepo/.git/config (the actual config with remote URL)
+            // MainRepo/.git/worktrees/my-worktree/ (worktree metadata)
+            // WorktreeDir/.git (a file pointing to MainRepo/.git/worktrees/my-worktree)
+            string mainRepoDir = GetFullPathFromRelative(Path.Combine("MainRepo"));
+            string mainGitDir = Path.Combine(mainRepoDir, ".git");
+            string worktreeMetaDir = Path.Combine(mainGitDir, "worktrees", "my-worktree");
+            Directory.CreateDirectory(worktreeMetaDir);
+
+            // Write the main repo's .git/config
+            File.WriteAllText(Path.Combine(mainGitDir, "config"), CaptureGitInfoTestsProperties.GitConfigWithOnlyOrigin);
+
+            // Write commondir file in the worktree metadata dir (points to ../../ i.e., MainRepo/.git)
+            File.WriteAllText(Path.Combine(worktreeMetaDir, "commondir"), "../..");
+
+            // Create the worktree directory with a .git file
+            string worktreeDir = GetFullPathFromRelative(Path.Combine("WorktreeDir"));
+            Directory.CreateDirectory(worktreeDir);
+            File.WriteAllText(Path.Combine(worktreeDir, ".git"), $"gitdir: {worktreeMetaDir}");
+
+            // Search from the worktree directory
+            var gitInfoManager = GitInfoManager.Create(worktreeDir, TemporaryDirectory);
+            Possible<(string gitRemoteRepoUrl, string gitConfigFileName)> gitRemoteRepoInfo = gitInfoManager.GetRemoteRepoUrl();
+            XAssert.IsTrue(gitRemoteRepoInfo.Succeeded, gitRemoteRepoInfo.Succeeded ? "" : gitRemoteRepoInfo.Failure.Describe());
+            XAssert.AreEqual(CaptureGitInfoTestsProperties.ExpectedGitRepoUrlWithOrigin, gitRemoteRepoInfo.Result.gitRemoteRepoUrl);
+
+            // Search from a subdirectory of the worktree
+            string subDir = Path.Combine(worktreeDir, "src", "deep");
+            Directory.CreateDirectory(subDir);
+            gitInfoManager = GitInfoManager.Create(subDir, TemporaryDirectory);
+            gitRemoteRepoInfo = gitInfoManager.GetRemoteRepoUrl();
+            XAssert.IsTrue(gitRemoteRepoInfo.Succeeded, gitRemoteRepoInfo.Succeeded ? "" : gitRemoteRepoInfo.Failure.Describe());
+            XAssert.AreEqual(CaptureGitInfoTestsProperties.ExpectedGitRepoUrlWithOrigin, gitRemoteRepoInfo.Result.gitRemoteRepoUrl);
+        }
+
+        [Fact]
+        public void TestGetGitInfoFromWorktreeWithRelativePath()
+        {
+            // Simulate worktree with relative gitdir path in .git file
+            string mainRepoDir = GetFullPathFromRelative(Path.Combine("RelRepo"));
+            string mainGitDir = Path.Combine(mainRepoDir, ".git");
+            string worktreeMetaDir = Path.Combine(mainGitDir, "worktrees", "rel-worktree");
+            Directory.CreateDirectory(worktreeMetaDir);
+
+            // Write the main repo's .git/config
+            File.WriteAllText(Path.Combine(mainGitDir, "config"), CaptureGitInfoTestsProperties.GitConfigWithUpstreamAndOrigin);
+
+            // Write commondir file
+            File.WriteAllText(Path.Combine(worktreeMetaDir, "commondir"), "../..");
+
+            // Create a worktree directory adjacent to main repo, using a relative gitdir path
+            string worktreeDir = GetFullPathFromRelative(Path.Combine("RelWorktree"));
+            Directory.CreateDirectory(worktreeDir);
+            // Relative path from worktree to the worktree meta dir
+            string relativePath = Path.GetRelativePath(worktreeDir, worktreeMetaDir);
+            File.WriteAllText(Path.Combine(worktreeDir, ".git"), $"gitdir: {relativePath}");
+
+            var gitInfoManager = GitInfoManager.Create(worktreeDir, TemporaryDirectory);
+            Possible<(string gitRemoteRepoUrl, string gitConfigFileName)> gitRemoteRepoInfo = gitInfoManager.GetRemoteRepoUrl();
+            XAssert.IsTrue(gitRemoteRepoInfo.Succeeded, gitRemoteRepoInfo.Succeeded ? "" : gitRemoteRepoInfo.Failure.Describe());
+            XAssert.AreEqual(CaptureGitInfoTestsProperties.ExpectedGitRepoUrlWithUpstream, gitRemoteRepoInfo.Result.gitRemoteRepoUrl);
+        }
+
+        [Fact]
+        public void TestGetGitInfoFromWorktreeWithInvalidGitFile()
+        {
+            // .git file with invalid content should not crash, just fail gracefully
+            string worktreeDir = GetFullPathFromRelative(Path.Combine("InvalidWorktree"));
+            Directory.CreateDirectory(worktreeDir);
+            File.WriteAllText(Path.Combine(worktreeDir, ".git"), "not a valid gitdir reference");
+
+            var gitInfoManager = GitInfoManager.Create(worktreeDir, TemporaryDirectory);
+            Possible<(string gitRemoteRepoUrl, string gitConfigFileName)> gitRemoteRepoInfo = gitInfoManager.GetRemoteRepoUrl();
+            XAssert.IsFalse(gitRemoteRepoInfo.Succeeded);
+            XAssert.IsTrue(gitRemoteRepoInfo.Failure.Describe().Contains(".git folder is not found after searching from"));
+        }
+
+        [Fact]
         public void TestGetGitInfoWithMalformedContent()
         {
             // Create A/B/C/.git/config

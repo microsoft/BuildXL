@@ -29,9 +29,10 @@ parameters:
   - name: CloudTestTokenVariable
     type: string
     default: 'CloudTestAccessToken' # Name of the pipeline variable that will store the CloudTest bearer token
+
+variables:
   - name: BuildXLPackageVersion
-    type: string
-    default: '' # This value can be injected as a way to validate release candidates
+    value: '0.1.0-20260506.3' # This value can be injected as a way to validate release candidates
 
 resources:
   repositories:
@@ -88,9 +89,8 @@ extends:
             displayName: 'Yarn Install'
             workingDirectory: $(Build.SourcesDirectory)/Examples/CloudTest
           buildXL:
-            ${{ if ne(parameters.BuildXLPackageVersion, '') }}:
-              installerOptions:
-                version: ${{ parameters.BuildXLPackageVersion }}
+            installerOptions:
+              version: $(BuildXLPackageVersion)
             arguments: >-
               /c:config.dsc
               /logOutput:FullOutputAlways

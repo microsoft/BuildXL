@@ -80,8 +80,6 @@ namespace BuildXL.Processes.Internal
         private readonly int m_numRetriesPipeReadOnCancel;
         private readonly Action<string> m_debugReporter;
         private int m_killedCallFlag;
-        private readonly long m_pipSemiStableHash;
-        private readonly int m_injectorPipeStopTimeoutMs;
 
         /// Gather information for diagnosing flaky tests
         private readonly bool m_diagnosticsEnabled = false;
@@ -215,10 +213,8 @@ namespace BuildXL.Processes.Internal
             {
                 return;
             }
-            // Notify the injector that the process is being killed; this also forces the injector pipe
-            // to EOF so an in-flight StopAsync doesn't have to wait out its drain timeout.
+            // Notify the injected that the process is being killed
             m_processInjector?.OnKilled();
-
             LogDiagnostics($"Process will be killed with exit code {exitCode}");
             var processHandle = m_processHandle;
             if (processHandle != null && !processHandle.IsInvalid && !processHandle.IsClosed)
@@ -358,9 +354,7 @@ namespace BuildXL.Processes.Internal
             bool diagnosticsEnabled,
             int numRetriesPipeReadOnCancel,
             Action<string> debugReporter,
-            JobObject externallyProvidedJobObject,
-            long pipSemiStableHash,
-            int injectorPipeStopTimeoutMs)
+            JobObject externallyProvidedJobObject)
         {
             Contract.Requires(bufferSize >= 128);
             Contract.Requires(!string.IsNullOrEmpty(commandLine));
@@ -368,7 +362,6 @@ namespace BuildXL.Processes.Internal
             Contract.Requires(standardErrorEncoding != null);
             Contract.Requires(standardOutputEncoding != null);
             Contract.Requires(!timeout.HasValue || timeout.Value >= TimeSpan.Zero);
-            Contract.Requires(injectorPipeStopTimeoutMs > 0);
 
             m_bufferSize = bufferSize;
             m_commandLine = commandLine;
@@ -396,8 +389,6 @@ namespace BuildXL.Processes.Internal
             m_debugReporter = debugReporter;
             m_job = externallyProvidedJobObject;
             m_jobObjectCreatedExternally = (externallyProvidedJobObject != null);
-            m_pipSemiStableHash = pipSemiStableHash;
-            m_injectorPipeStopTimeoutMs = injectorPipeStopTimeoutMs;
 
             if (diagnosticsEnabled)
             {
@@ -557,8 +548,6 @@ namespace BuildXL.Processes.Internal
                             m_numRetriesPipeReadOnCancel,
                             m_debugReporter,
                             m_loggingContext,
-                            m_pipSemiStableHash,
-                            m_injectorPipeStopTimeoutMs,
                             onBrokeredInjectionFailure: () => Kill(ExitCodes.Killed));
 
                         if (!m_jobObjectCreatedExternally)

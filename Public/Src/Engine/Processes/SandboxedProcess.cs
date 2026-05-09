@@ -163,9 +163,7 @@ namespace BuildXL.Processes
                     info.DiagnosticsEnabled,
                     m_numRetriesPipeReadOnCancel,
                     DebugReport,
-                    info.ExternallyProvidedJobObject,
-                    info.PipSemiStableHash,
-                    info.InjectorPipeStopTimeoutMs);
+                    info.ExternallyProvidedJobObject);
         }
 
         /// <inheritdoc />

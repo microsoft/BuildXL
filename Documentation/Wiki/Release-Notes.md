@@ -2,6 +2,16 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20260501.5 (Release [31438600](https://dev.azure.com/mseng/Domino/_build/results?buildId=31438600&view=results))
+- [Diagnostics] Surface fatal exception details to stderr before FailFast, improving debuggability of crashes
+- [Diagnostics] Slim down scheduler status logging to reduce log noise
+- [Performance] Reduce telemetry payload by emitting Environment/UserName/MachineName only on DominoInvocation events
+- Fix FailFast caused by `SandboxedProcessOutput` invariant violation during spill-to-disk
+- [gRPC] Fix plugin request delays caused by thread pool starvation
+- [Drop] Only admit response files when the daemon is used outside of an IPC call
+- [Drop] Make drop-related pips depend on current OS directories
+- [Performance] Add cache lookup times to critical path pip record table
+
 # 0.1.0-20260424.5 (Release [31400398](https://dev.azure.com/mseng/Domino/_build/results?buildId=31400398&view=results))
 - `Cmd.vsoHash` now supports opaque directories (exclusive and shared), enabling hash computation for directory outputs
 - [Performance] Skip scrubbing on clean machines with no prior BuildXL execution, reducing startup time for first-time builds

@@ -1,7 +1,10 @@
 jobs:
 - job: SetBuildNumber
   displayName: Set build number
-  steps:  
+  pool:
+    name: Windows-SDL-Agents
+    os: windows
+  steps:
   - checkout: none
 
   - task: CmdLine@2

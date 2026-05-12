@@ -107,9 +107,8 @@ extends:
         displayName: Trigger and wait for External Validation
         timeoutInMinutes: 240
         pool:
-          name: BuildXL-DevOpsAgents-Selfhost-BuildCache
+          name: Windows-SDL-Agents
           os: windows
-          image: 1ESPT-Win2022-PME-3
         steps:
         - checkout: none
         - template: /pipelines/common/generate-access-token.yml@DominoReleaseManagement

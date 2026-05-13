@@ -996,7 +996,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.ComponentDetection.Contracts",
-          "Version": "7.1.1"
+          "Version": "7.1.2"
         }
       }
     },

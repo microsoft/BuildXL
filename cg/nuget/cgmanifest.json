@@ -2183,6 +2183,15 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
+          "Name": "Microsoft.VisualStudio.Services.Governance.ComponentDetection",
+          "Version": "2026.5.4.2036"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
           "Name": "Microsoft.VisualStudio.Services.InteractiveClient",
           "Version": "19.254.0-internal202503071"
         }
@@ -2725,6 +2734,15 @@
         "NuGet": {
           "Name": "Polly.RateLimiting",
           "Version": "8.0.0"
+        }
+      }
+    },
+    {
+      "Component": {
+        "Type": "NuGet",
+        "NuGet": {
+          "Name": "Python",
+          "Version": "3.14.3"
         }
       }
     },

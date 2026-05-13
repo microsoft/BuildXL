@@ -212,6 +212,38 @@ namespace BuildXL.Storage.Fingerprints
             return res;
         }
 
+        /// <summary>
+        /// Generates the final hash and XORs it into the destination buffer.
+        /// This is a more efficient equivalent of calling <see cref="GenerateHashBytes"/> followed by
+        /// <c>CombineOrderIndependent</c>: it avoids allocating a temporary
+        /// byte[] for the hash result when using MurmurHashEngine.
+        /// </summary>
+        public void GenerateHashBytesAndXorInto(byte[] destination)
+        {
+            Contract.Requires(destination != null);
+            Contract.Requires(destination.Length >= HashSizeBytes);
+
+            Flush();
+            m_engine.TransformFinalBlock(m_buffer, 0, 0);
+
+            if (m_engine is MurmurHashEngine murmurEngine)
+            {
+                // Fast path: XOR directly from the engine's internal buffer without allocating a byte[].
+                murmurEngine.XorHashInto(destination);
+            }
+            else
+            {
+                // Fallback for other hash algorithms.
+                byte[] hash = m_engine.Hash;
+                for (int i = 0; i < hash.Length; i++)
+                {
+                    destination[i] ^= hash[i];
+                }
+            }
+
+            m_engine.Initialize();
+        }
+
         private void AddInnerInt64(long val)
         {
             unchecked

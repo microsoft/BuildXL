@@ -107,6 +107,23 @@ namespace BuildXL.Storage
             return buffer;
         }
 
+        /// <summary>
+        /// XORs the last computed hash result into the destination buffer.
+        /// Must be called after <see cref="HashAlgorithm.TransformFinalBlock"/> has been called.
+        /// This avoids the allocation that the <see cref="HashAlgorithm.Hash"/> property causes
+        /// (HashAlgorithm.Hash clones the internal buffer into a new byte[] on every access).
+        /// </summary>
+        public void XorHashInto(byte[] destination)
+        {
+            Contract.Requires(destination != null);
+            Contract.Requires(destination.Length >= HashLengthInBytes);
+
+            for (int i = 0; i < HashLengthInBytes; i++)
+            {
+                destination[i] ^= m_buffer[i];
+            }
+        }
+
         private void ProcessBytesRemaining(byte[] bb, ulong remaining, int pos)
         {
             ulong k1 = 0;

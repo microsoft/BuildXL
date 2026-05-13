@@ -223,5 +223,58 @@ namespace Test.BuildXL.Engine.Cache
                 XAssert.AreEqual(expectedText, actualText, "Fingerprint text mismatched.");
             }
         }
+
+        [Fact]
+        public void GenerateHashBytesAndXorIntoIsEquivalentToCombineOrderIndependentForSingleElement()
+        {
+            var pathTable = new PathTable();
+
+            using (var helper1 = new HashingHelper(pathTable, recordFingerprintString: false, hashAlgorithmType: HashAlgorithmType.MurmurHash3))
+            using (var helper2 = new HashingHelper(pathTable, recordFingerprintString: false, hashAlgorithmType: HashAlgorithmType.MurmurHash3))
+            {
+                helper1.Add("key", 42);
+                helper2.Add("key", 42);
+
+                // Old path: GenerateHashBytes + CombineOrderIndependent
+                var result1 = new byte[helper1.HashSizeBytes];
+                var hashBytes = helper1.GenerateHashBytes();
+                result1.CombineOrderIndependent(hashBytes);
+
+                // New path: GenerateHashBytesAndXorInto
+                var result2 = new byte[helper2.HashSizeBytes];
+                helper2.GenerateHashBytesAndXorInto(result2);
+
+                XAssert.ArrayEqual(result1, result2);
+            }
+        }
+
+        [Fact]
+        public void GenerateHashBytesAndXorIntoIsEquivalentToCombineOrderIndependentForMultipleElements()
+        {
+            var pathTable = new PathTable();
+            string[] keys = new[] { "alpha", "beta", "gamma" };
+
+            var result1 = new byte[16];
+            var result2 = new byte[16];
+
+            foreach (var key in keys)
+            {
+                using (var helper1 = new HashingHelper(pathTable, recordFingerprintString: false, hashAlgorithmType: HashAlgorithmType.MurmurHash3))
+                using (var helper2 = new HashingHelper(pathTable, recordFingerprintString: false, hashAlgorithmType: HashAlgorithmType.MurmurHash3))
+                {
+                    helper1.Add("name", key);
+                    helper2.Add("name", key);
+
+                    // Old path
+                    var hashBytes = helper1.GenerateHashBytes();
+                    result1.CombineOrderIndependent(hashBytes);
+
+                    // New path
+                    helper2.GenerateHashBytesAndXorInto(result2);
+                }
+            }
+
+            XAssert.ArrayEqual(result1, result2);
+        }
     }
 }

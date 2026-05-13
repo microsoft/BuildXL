@@ -27,6 +27,19 @@ namespace BuildXL.Storage.Fingerprints
         private readonly PathExpander m_pathExpander;
 
         private readonly bool m_recordFingerprintString;
+
+        /// <summary>
+        /// Lazily-initialized inner helper for order-independent collection hashing.
+        /// Reused across multiple AddOrderIndependentCollection calls to avoid repeated allocations.
+        /// </summary>
+        private HashingHelper m_orderIndependentHelper;
+
+        /// <summary>
+        /// Reusable buffer for order-independent collection XOR results.
+        /// Avoids allocating a new byte[16] per AddOrderIndependentCollection call.
+        /// </summary>
+        private byte[] m_orderIndependentResultBuffer;
+
         /// <summary>
         /// Class constructor.
         /// </summary>
@@ -38,6 +51,18 @@ namespace BuildXL.Storage.Fingerprints
             m_pathTable = pathTable;
             m_recordFingerprintString = recordFingerprintString;
             m_pathExpander = pathExpander ?? PathExpander.Default;
+        }
+
+        /// <inheritdoc />
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                m_orderIndependentHelper?.Dispose();
+                m_orderIndependentHelper = null;
+            }
+
+            base.Dispose(disposing);
         }
 
         /// <summary>
@@ -233,31 +258,54 @@ namespace BuildXL.Storage.Fingerprints
             Contract.Requires(elements != null);
             Contract.Requires(addElement != null);
 
-            using (var helper = new HashingHelper(m_pathTable, recordFingerprintString: m_recordFingerprintString, pathExpander: m_pathExpander, hashAlgorithmType: HashAlgorithmType.MurmurHash3))
+            if (m_recordFingerprintString)
             {
-                int count = 0;
-                Indent();
-                byte[] result = new byte[helper.HashSizeBytes];
-
-                foreach (TValue element in elements)
+                // When recording fingerprint text, use a fresh helper to get clean text per collection.
+                using (var helper = new HashingHelper(m_pathTable, recordFingerprintString: true, pathExpander: m_pathExpander, hashAlgorithmType: HashAlgorithmType.MurmurHash3))
                 {
-                    addElement(helper, element);
-                    var right = helper.GenerateHashBytes();
-                    result.CombineOrderIndependent(right);
-                    count++;
-                }
-
-                if (m_recordFingerprintString)
-                {
+                    AddOrderIndependentCollectionCore(name, elements, addElement, helper, useXorInto: false);
                     AddInnerStringLiteralDebug(helper.FingerprintInputText);
                 }
 
-                Add(result);
-                Unindent();
-
-                // We always include a length for variable-length collections to keep the fingerprint function injective.
-                Add(name, count);
+                return;
             }
+
+            // Reuse an inner helper across multiple calls to avoid allocating a new HashAlgorithm + buffer each time.
+            var reusedHelper = m_orderIndependentHelper ??= new HashingHelper(m_pathTable, recordFingerprintString: false, pathExpander: m_pathExpander, hashAlgorithmType: HashAlgorithmType.MurmurHash3);
+            AddOrderIndependentCollectionCore(name, elements, addElement, reusedHelper, useXorInto: true);
+        }
+
+        private void AddOrderIndependentCollectionCore<TValue, TCollection>(string name, TCollection elements, Action<ICollectionFingerprinter, TValue> addElement, HashingHelper helper, bool useXorInto)
+            where TCollection : IEnumerable<TValue>
+        {
+            int count = 0;
+            Indent();
+
+            var result = m_orderIndependentResultBuffer ??= new byte[helper.HashSizeBytes];
+            Array.Clear(result, 0, result.Length);
+
+            foreach (TValue element in elements)
+            {
+                addElement(helper, element);
+
+                if (useXorInto)
+                {
+                    helper.GenerateHashBytesAndXorInto(result);
+                }
+                else
+                {
+                    var right = helper.GenerateHashBytes();
+                    result.CombineOrderIndependent(right);
+                }
+
+                count++;
+            }
+
+            Add(result);
+            Unindent();
+
+            // We always include a length for variable-length collections to keep the fingerprint function injective.
+            Add(name, count);
         }
 
         /// <summary>

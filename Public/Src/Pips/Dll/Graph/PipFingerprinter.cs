@@ -599,6 +599,16 @@ namespace BuildXL.Pips.Graph
                 hashAlgorithmType: hashAlgorithmType);
         }
 
+        /// <summary>
+        /// Returns the file dependencies for a process, filtering out untracked paths if any.
+        /// Every input file specified as well as untracked paths needs to be removed from the dependencies.
+        /// This ensures that the content of the input file is not part of the weak fingerprint. Also, this is
+        /// aligned with file access manifest interpretation, i.e., all operations on untracked paths are allowed and unreported.
+        ///
+        /// The input files are not filtered out against the set of untracked scopes. Even if the input file is within a scope,
+        /// all accesses to the input file will still be reported because the search for access policy in the file access manifest
+        /// works bottom up. This setting allows us to untrack some scope but track a few files within that scope.
+        /// </summary>
         private IEnumerable<FileArtifact> GetRelevantProcessDependencies(Process process)
         {
             if (!process.UntrackedPaths.IsValid || process.UntrackedPaths.Length == 0)
@@ -606,16 +616,52 @@ namespace BuildXL.Pips.Graph
                 return process.Dependencies;
             }
 
-            var untrackedPaths = new HashSet<AbsolutePath>(process.UntrackedPaths);
-            
-            // Every input files specified as well as untracked paths need to be removed from the dependencies.
-            // This ensures that the content of the input file is not part of weak fingerprint. Also, this is aligned with
-            // file access manifest interpretation, i.e., all operations on untracked paths are allowed and unreported.
-            //
-            // The input files are not filtered out against the set of untracked scopes. Even if the input file is within a scope,
-            // all accesses to the input file will still be reported because the search for access policy in the file access manifest
-            // works bottom up. This setting allows us to untrack some scope but track a few files within that scope.
-            return process.Dependencies.Where(f => !untrackedPaths.Contains(f.Path));
+            return GetFilteredDependencies(process);
+        }
+
+        private List<FileArtifact> GetFilteredDependencies(Process process)
+        {
+            using (var pooledSet = Pools.GetAbsolutePathSet())
+            {
+                var untrackedPaths = pooledSet.Instance;
+                bool useHashSet = process.UntrackedPaths.Length > 5;
+
+                if (useHashSet)
+                {
+                    foreach (var path in process.UntrackedPaths)
+                    {
+                        untrackedPaths.Add(path);
+                    }
+                }
+
+                var result = new List<FileArtifact>(process.Dependencies.Length);
+                foreach (var f in process.Dependencies)
+                {
+                    bool isUntracked = useHashSet
+                        ? untrackedPaths.Contains(f.Path)
+                        : ContainsPath(process.UntrackedPaths, f.Path);
+
+                    if (!isUntracked)
+                    {
+                        result.Add(f);
+                    }
+                }
+
+                return result;
+            }
+        }
+
+        private static bool ContainsPath(ReadOnlyArray<AbsolutePath> paths, AbsolutePath path)
+        {
+            for (int i = 0; i < paths.Length; i++)
+            {
+                if (paths[i] == path)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private string GetHashMarker(Pip pip)

@@ -149,9 +149,12 @@ RunCheckInTests.cmd                 # Full pre-checkin validation (multiple conf
 |---------|-----------|---------|
 | Private instance fields | `m_` + camelCase | `m_processCount` |
 | Private static fields | `s_` + camelCase | `s_defaultTimeout` |
+| ThreadStatic fields | `t_` + camelCase | `t_cachedBuffer` |
 | Constants | PascalCase | `MaxRetryCount` |
 | Public members | PascalCase | `GetProcessInfo()` |
 | Parameters/locals | camelCase | `processId`, `filePath` |
+| Method names | PascalCase, no underscores | `GetProcessInfo()`, not `Get_Process_Info()` |
+| Test method names | PascalCase, no underscores | `ParseReturnsExpectedValue`, not `Parse_Returns_Expected_Value` |
 | Control statements | Always use braces | Even for single-line `if`/`for` |
 
 **File header**: Every `.cs` file must start with:

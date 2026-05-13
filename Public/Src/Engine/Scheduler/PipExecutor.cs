@@ -1386,10 +1386,15 @@ namespace BuildXL.Scheduler
                     {
                         using var sidebandWriter = CreateSidebandWriter(environment, pip);
                         sidebandWriter.EnsureHeaderWritten();
-                        var dynamicWrites = executionResult.SharedDynamicDirectoryWriteAccesses?.SelectMany(kvp => kvp.Value).Select(fa => fa.Path) ?? CollectionUtilities.EmptyArray<AbsolutePath>();
-                        foreach (var dynamicWrite in dynamicWrites)
+                        if (executionResult.SharedDynamicDirectoryWriteAccesses != null)
                         {
-                            sidebandWriter.RecordFileWrite(environment.Context.PathTable, dynamicWrite, flushImmediately: false);
+                            foreach (var kvp in executionResult.SharedDynamicDirectoryWriteAccesses)
+                            {
+                                foreach (var fa in kvp.Value)
+                                {
+                                    sidebandWriter.RecordFileWrite(environment.Context.PathTable, fa.Path, flushImmediately: false);
+                                }
+                            }
                         }
                     }
 
@@ -1413,7 +1418,7 @@ namespace BuildXL.Scheduler
                     }
 
                     // File access violation analysis must be run before reporting the execution result output content.
-                    var exclusiveOpaqueContent = executionResult.DirectoryOutputs.Where(directoryArtifactWithContent => !directoryArtifactWithContent.directoryArtifact.IsSharedOpaque).ToReadOnlyArray();
+                    var exclusiveOpaqueContent = FilterExclusiveOpaqueContent(executionResult.DirectoryOutputs);
 
                     if ((executionResult.SharedDynamicDirectoryWriteAccesses?.Count > 0 || executionResult.AllowedUndeclaredReads?.Count > 0 || executionResult.DynamicObservations.Length > 0 || exclusiveOpaqueContent.Length > 0)
                         && !environment.FileMonitoringViolationAnalyzer.AnalyzeDynamicViolationsOnCacheLookup(
@@ -1731,21 +1736,37 @@ namespace BuildXL.Scheduler
 
                 if (pip.ProcessAbsentPathProbeInUndeclaredOpaquesMode == Process.AbsentPathProbeInUndeclaredOpaquesMode.Relaxed)
                 {
-                    var absentPathProbesUnderNonDependenceOutputDirectories =
-                        observedInputValidationResult.DynamicObservations
-                        .Where(o => o.Kind == DynamicObservationKind.AbsentPathProbeUnderOutputDirectory)
-                        .Select(o => o.Path);
+                    bool hasAbsentProbes = false;
+                    for (int i = 0; i < observedInputValidationResult.DynamicObservations.Length; i++)
+                    {
+                        if (observedInputValidationResult.DynamicObservations[i].Kind == DynamicObservationKind.AbsentPathProbeUnderOutputDirectory)
+                        {
+                            hasAbsentProbes = true;
+                            break;
+                        }
+                    }
 
-                    if (absentPathProbesUnderNonDependenceOutputDirectories.Any())
+                    if (hasAbsentProbes)
                     {
                         start = DateTime.UtcNow;
                         bool isDirty = false;
-                        foreach (var absentPathProbe in absentPathProbesUnderNonDependenceOutputDirectories)
+
+                        var dirDepPaths = new ReadOnlyHashSet<HierarchicalNameId>();
+                        foreach (var dir in pip.DirectoryDependencies)
                         {
-                            if (!absentPathProbe.IsWithin(pathTable, pip.DirectoryDependencies.Select(dir => dir.Path)))
+                            dirDepPaths.Add(dir.Path.Value);
+                        }
+
+                        for (int i = 0; i < observedInputValidationResult.DynamicObservations.Length; i++)
+                        {
+                            var obs = observedInputValidationResult.DynamicObservations[i];
+                            if (obs.Kind == DynamicObservationKind.AbsentPathProbeUnderOutputDirectory)
                             {
-                                isDirty = true;
-                                break;
+                                if (!obs.Path.IsWithin(pathTable, dirDepPaths))
+                                {
+                                    isDirty = true;
+                                    break;
+                                }
                             }
                         }
 
@@ -6095,6 +6116,46 @@ namespace BuildXL.Scheduler
                 }
             }
             return;
+        }
+
+        internal static ReadOnlyArray<(DirectoryArtifact directoryArtifact, ReadOnlyArray<FileArtifactWithAttributes> fileArtifactArray)> FilterExclusiveOpaqueContent(
+            ReadOnlyArray<(DirectoryArtifact directoryArtifact, ReadOnlyArray<FileArtifactWithAttributes> fileArtifactArray)> directoryOutputs)
+        {
+            if (!directoryOutputs.IsValid || directoryOutputs.Length == 0)
+            {
+                return ReadOnlyArray<(DirectoryArtifact directoryArtifact, ReadOnlyArray<FileArtifactWithAttributes> fileArtifactArray)>.Empty;
+            }
+
+            int sharedCount = 0;
+            for (int i = 0; i < directoryOutputs.Length; i++)
+            {
+                if (directoryOutputs[i].directoryArtifact.IsSharedOpaque)
+                {
+                    sharedCount++;
+                }
+            }
+
+            if (sharedCount == 0)
+            {
+                return directoryOutputs;
+            }
+
+            if (sharedCount == directoryOutputs.Length)
+            {
+                return ReadOnlyArray<(DirectoryArtifact directoryArtifact, ReadOnlyArray<FileArtifactWithAttributes> fileArtifactArray)>.Empty;
+            }
+
+            var result = new (DirectoryArtifact directoryArtifact, ReadOnlyArray<FileArtifactWithAttributes> fileArtifactArray)[directoryOutputs.Length - sharedCount];
+            int idx = 0;
+            for (int i = 0; i < directoryOutputs.Length; i++)
+            {
+                if (!directoryOutputs[i].directoryArtifact.IsSharedOpaque)
+                {
+                    result[idx++] = directoryOutputs[i];
+                }
+            }
+
+            return ReadOnlyArray<(DirectoryArtifact directoryArtifact, ReadOnlyArray<FileArtifactWithAttributes> fileArtifactArray)>.FromWithoutCopy(result);
         }
     }
 }

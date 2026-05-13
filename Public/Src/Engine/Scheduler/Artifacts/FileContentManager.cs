@@ -2870,10 +2870,16 @@ namespace BuildXL.Scheduler.Artifacts
                 }
                 else
                 {
+                    var hashes= new List<ContentHash>(filesAndContentHashes.Count);
+                    for (int i = 0; i < filesAndContentHashes.Count; i++)
+                    {
+                        hashes.Add(filesAndContentHashes[i].contentHash);
+                    }
+
                     possibleResults =
                         await
                             ArtifactContentCache.TryLoadAvailableContentAsync(
-                                filesAndContentHashes.Select(pathAndContentHash => pathAndContentHash.contentHash).ToList(), Context.CancellationToken);
+                                hashes, Context.CancellationToken);
                 }
             }
 
@@ -2902,17 +2908,20 @@ namespace BuildXL.Scheduler.Artifacts
                 ReadOnlyArray<ContentAvailabilityResult> results = resultsBatch.Results;
                 Contract.Assert(filesAndContentHashes.Count == results.Length);
 
-                var recoverContents = Enumerable
-                    .Range(0, results.Length)
-                    .Select(i => m_recoverContentActionBlock.ProcessAsync(() => RecoverContentIfNeededAsync(
+                var recoverContents= new Task<bool>[results.Length];
+                for (int i = 0; i < results.Length; i++)
+                {
+                    var idx = i;
+                    recoverContents[i] = m_recoverContentActionBlock.ProcessAsync(() => RecoverContentIfNeededAsync(
                         operationContext,
                         pipInfo,
                         materializingOutputs,
                         onContentUnavailable,
-                        results[i],
-                        filesAndContentHashes[i],
+                        results[idx],
+                        filesAndContentHashes[idx],
                         onlyLogUnavailableContent,
-                        state)));
+                        state));
+                }
 
                 var recoverResults = await TaskUtilities.SafeWhenAll(recoverContents);
                 success = recoverResults.All(r => r);

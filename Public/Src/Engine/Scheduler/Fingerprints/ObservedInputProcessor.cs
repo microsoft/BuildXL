@@ -190,8 +190,13 @@ namespace BuildXL.Scheduler.Fingerprints
                     // existed before the build begun) so we could exclude them from the just-produced outputs we pass to the 
                     // fingerprint enumeration computation, but on the other hand we need to know about them for the creation time
                     // check
-                    sharedOpaqueOutputs.AddRange(unPopulatedSharedOpaqueOutputs.Values.SelectMany(fileArtifacts =>
-                        fileArtifacts.Select(fa => new KeyValuePair<AbsolutePath, bool>(fa.Path, fa.IsUndeclaredFileRewrite))));
+                    foreach (var fileArtifacts in unPopulatedSharedOpaqueOutputs.Values)
+                    {
+                        foreach (var fa in fileArtifacts)
+                        {
+                            sharedOpaqueOutputs[fa.Path] = fa.IsUndeclaredFileRewrite;
+                        }
+                    }
                 }
 
                 using (operationContext.StartOperation(PipExecutorCounter.ObservedInputProcessorPreProcessDuration))
@@ -215,7 +220,10 @@ namespace BuildXL.Scheduler.Fingerprints
                                 Contract.Assume(listDirectoryContents.IsValid, I($"Environment failed to retrieve directory contents for directory:'{directoryDependency.Path.ToString(pathTable)}'. Directory dependency IsSharedOpaque:{directoryDependency.IsSharedOpaque}. PartialSealId:{directoryDependency.PartialSealId} "));
                             }
 
-                            directoryDependencyContentsFilePaths.UnionWith(listDirectoryContents.Select(f => f.Path));
+                            foreach (var f in listDirectoryContents)
+                            {
+                                directoryDependencyContentsFilePaths.Add(f.Path);
+                            }
                             if (environment.IsSourceSealedDirectory(directoryDependency, out var allDirectories, out var patterns))
                             {
                                 if (allDirectories)
@@ -449,7 +457,15 @@ namespace BuildXL.Scheduler.Fingerprints
                                     var maybeOpaqueParent = envAdapter.TryGetParentOutputDirectory(path);
                                     if (maybeOpaqueParent.HasValue && !maybeOpaqueParent.Value.IsItSharedOpaque)
                                     {
-                                        directoryDependenciesLookup ??= new HashSet<AbsolutePath>(pip.DirectoryDependencies.Select(d => d.Path));
+                                        if (directoryDependenciesLookup == null)
+                                        {
+                                            directoryDependenciesLookup= new HashSet<AbsolutePath>(pip.DirectoryDependencies.Length);
+                                            foreach (var dep in pip.DirectoryDependencies)
+                                            {
+                                                directoryDependenciesLookup.Add(dep.Path);
+                                            }
+                                        }
+
                                         cachePathExistence = !directoryDependenciesLookup.Contains(maybeOpaqueParent.Value.Parent);
                                     }
                                 }
@@ -880,7 +896,9 @@ namespace BuildXL.Scheduler.Fingerprints
                             new ObservedInputExpandedPathComparer(pathComparer)),
                         observedAccessedFileNames: observedAccessedFileNames,
                         dynamicObservations: ReadOnlyArray<(AbsolutePath, DynamicObservationKind)>.From(dynamicObservations),
-                        allowedUndeclaredSourceReads: new Dictionary<AbsolutePath, ObservedInputType>(allowedUndeclaredSourceReads));
+                        allowedUndeclaredSourceReads: allowedUndeclaredSourceReads.Count == 0
+                            ? CollectionUtilities.EmptyDictionary<AbsolutePath, ObservedInputType>()
+                            : new Dictionary<AbsolutePath, ObservedInputType>(allowedUndeclaredSourceReads));
                 }
                 else
                 {
@@ -899,7 +917,9 @@ namespace BuildXL.Scheduler.Fingerprints
                         numberOfValidEntries: valid,
                         numberOfInvalidEntries: invalid,
                         dynamicObservations: ReadOnlyArray<(AbsolutePath, DynamicObservationKind)>.From(dynamicObservations),
-                        allowedUndeclaredSourceReads: new Dictionary<AbsolutePath, ObservedInputType>(allowedUndeclaredSourceReads));
+                        allowedUndeclaredSourceReads: allowedUndeclaredSourceReads.Count == 0
+                            ? CollectionUtilities.EmptyDictionary<AbsolutePath, ObservedInputType>()
+                            : new Dictionary<AbsolutePath, ObservedInputType>(allowedUndeclaredSourceReads));
                 }
             }
         }

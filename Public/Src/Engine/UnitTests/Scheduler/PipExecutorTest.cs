@@ -3994,5 +3994,51 @@ EXIT /b 3
 
         private static PublishedEntryRef ToSuccessfulPublishedEntry(StrongContentFingerprint strongFingerprint, ContentHash pathSetHash, CacheEntry entry) => 
             new(pathSetHash, strongFingerprint, entry.OriginatingCache, PublishedEntryRefLocality.Remote);
+
+        #region FilterExclusiveOpaqueContent Tests
+
+        private static (DirectoryArtifact, ReadOnlyArray<FileArtifactWithAttributes>) MakeEntry(int pathId, bool isSharedOpaque)
+        {
+            var dir = new DirectoryArtifact(new AbsolutePath(pathId), partialSealId: 1, isSharedOpaque: isSharedOpaque);
+            return (dir, ReadOnlyArray<FileArtifactWithAttributes>.Empty);
+        }
+
+        [Fact]
+        public void FilterExclusiveOpaqueContentReturnsEmptyForInvalidOrAllSharedInputs()
+        {
+            // Invalid input
+            var invalid = default(ReadOnlyArray<(DirectoryArtifact, ReadOnlyArray<FileArtifactWithAttributes>)>);
+            var result = PipExecutor.FilterExclusiveOpaqueContent(invalid);
+            XAssert.IsTrue(result.IsValid);
+            XAssert.AreEqual(0, result.Length);
+
+            // All shared
+            var allShared = ReadOnlyArray<(DirectoryArtifact, ReadOnlyArray<FileArtifactWithAttributes>)>.FromWithoutCopy(
+                MakeEntry(1, isSharedOpaque: true),
+                MakeEntry(2, isSharedOpaque: true));
+            XAssert.AreEqual(0, PipExecutor.FilterExclusiveOpaqueContent(allShared).Length);
+
+            // All exclusive — returned as-is
+            var allExclusive = ReadOnlyArray<(DirectoryArtifact, ReadOnlyArray<FileArtifactWithAttributes>)>.FromWithoutCopy(
+                MakeEntry(1, isSharedOpaque: false),
+                MakeEntry(2, isSharedOpaque: false));
+            XAssert.AreEqual(2, PipExecutor.FilterExclusiveOpaqueContent(allExclusive).Length);
+        }
+
+        [Fact]
+        public void FilterExclusiveOpaqueContentFiltersSharedFromMixedInput()
+        {
+            var input = ReadOnlyArray<(DirectoryArtifact, ReadOnlyArray<FileArtifactWithAttributes>)>.FromWithoutCopy(
+                MakeEntry(1, isSharedOpaque: false),
+                MakeEntry(2, isSharedOpaque: true),
+                MakeEntry(3, isSharedOpaque: false));
+
+            var result = PipExecutor.FilterExclusiveOpaqueContent(input);
+            XAssert.AreEqual(2, result.Length);
+            XAssert.AreEqual(new AbsolutePath(1), result[0].directoryArtifact.Path);
+            XAssert.AreEqual(new AbsolutePath(3), result[1].directoryArtifact.Path);
+        }
+
+        #endregion
     }
 }

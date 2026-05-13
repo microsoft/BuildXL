@@ -2,6 +2,15 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20260510.1 (Release [31480162](https://dev.azure.com/mseng/Domino/_build/results?buildId=31480162&view=results))
+- [Detours] Reliability improvements for sandboxed process pipe handling — drain pipe readers on kill/cancel paths and make output builder AppendLine/Freeze race-free
+- [Sandbox] Fix `GetUserHomeDirectory` crash when `HOMEDRIVE`/`HOMEPATH` are empty strings
+- [Distribution] Add a knob to force process pips to run on the orchestrator
+- [Perf] Add per-phase allocation telemetry via `PerformanceCollector`
+- [Rush] Make the yarn strict rule ignore enumerations under the store
+- [CloudTest] Optimizations for CloudTest integration
+- [AnyBuild] Remove AnyBuild integration
+
 # 0.1.0-20260501.5 (Release [31438600](https://dev.azure.com/mseng/Domino/_build/results?buildId=31438600&view=results))
 - [Diagnostics] Surface fatal exception details to stderr before FailFast, improving debuggability of crashes
 - [Diagnostics] Slim down scheduler status logging to reduce log noise

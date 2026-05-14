@@ -312,7 +312,8 @@ namespace Test.BuildXL.Processes
                 PipeDirection.In,
                 PipeOptions.Asynchronous,
                 PipeOptions.None,
-                out SafeFileHandle clientHandle);
+                out SafeFileHandle clientHandle,
+                markClientHandleInheritable: true);
             var messages = new List<string>();
             using var reader = new StreamAsyncPipeReader(
                 pipeStream,

@@ -163,7 +163,7 @@ namespace BuildXL.Processes.Internal
                 SetInheritable(writeHandle);
             }
         }
-                        
+
         /// <summary>
         /// Creates an instance of <see cref="NamedPipeServerStream"/> and immediately connects a client to it.
         /// </summary>
@@ -171,12 +171,17 @@ namespace BuildXL.Processes.Internal
         /// <param name="serverOptions">Server options.</param>
         /// <param name="clientOptions">Client options.</param>
         /// <param name="clientHandle">Output client handle.</param>
+        /// <param name="markClientHandleInheritable">
+        /// When <c>true</c>, sets <c>HANDLE_FLAG_INHERIT</c> on the returned client handle so it can be inherited by a
+        /// child process via Win32 handle inheritance.
+        /// </param>
         /// <returns>An instance of <see cref="NamedPipeServerStream"/>.</returns>
         public static NamedPipeServerStream CreateNamedPipeServerStream(
             PipeDirection serverDirection,
             PipeOptions serverOptions,
             PipeOptions clientOptions,
-            out SafeFileHandle clientHandle)
+            out SafeFileHandle clientHandle,
+            bool markClientHandleInheritable)
         {
             string pipeName = @"BuildXL-" + Guid.NewGuid().ToString("N");
             var pipeServerStream = new NamedPipeServerStream(
@@ -217,8 +222,10 @@ namespace BuildXL.Processes.Internal
                 throw openClientHandle.CreateExceptionForError();
             }
 
-            // Client should be made inheritable.
-            SetInheritable(clientHandle);
+            if (markClientHandleInheritable)
+            {
+                SetInheritable(clientHandle);
+            }
 
             pipeServerStream.WaitForConnection();
 

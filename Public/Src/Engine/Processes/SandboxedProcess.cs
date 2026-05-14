@@ -447,18 +447,20 @@ namespace BuildXL.Processes
 
                 try
                 {
+                    // childHandle is transferred to the child via DuplicateHandle; see DetouredProcess.Start remarks.
                     if (useManagedPipeReader)
                     {
                         pipeStream = Pipes.CreateNamedPipeServerStream(
                             PipeDirection.In,
                             PipeOptions.Asynchronous,
                             PipeOptions.None,
-                            out childHandle);
+                            out childHandle,
+                            markClientHandleInheritable: false);
                     }
                     else
                     {
                         Pipes.CreateInheritablePipe(
-                            Pipes.PipeInheritance.InheritWrite,
+                            Pipes.PipeInheritance.None,
                             Pipes.PipeFlags.ReadSideAsync,
                             readHandle: out reportHandle,
                             writeHandle: out childHandle);

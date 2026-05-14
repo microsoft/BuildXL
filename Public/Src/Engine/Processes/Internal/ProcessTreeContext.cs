@@ -86,18 +86,19 @@ namespace BuildXL.Processes
             {
                 SafeFileHandle injectorHandle = null;
 
+                // childHandle is transferred to the child via DuplicateHandle; see DetouredProcess.Start remarks.
                 if (useManagedPipeReader)
                 {
                     serverStream = Pipes.CreateNamedPipeServerStream(
                         PipeDirection.In,
                         PipeOptions.Asynchronous,
                         PipeOptions.None,
-                        out childHandle);
+                        out childHandle,
+                        markClientHandleInheritable: false);
                 }
                 else
                 {
-                    // Create a pipe for the requests
-                    Pipes.CreateInheritablePipe(Pipes.PipeInheritance.InheritWrite, Pipes.PipeFlags.ReadSideAsync, out injectorHandle, out childHandle);
+                    Pipes.CreateInheritablePipe(Pipes.PipeInheritance.None, Pipes.PipeFlags.ReadSideAsync, out injectorHandle, out childHandle);
                 }
 
                 // Create the injector. This will duplicate the handles.

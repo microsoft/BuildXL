@@ -399,12 +399,24 @@ namespace BuildXL.Processes.Internal
 
         /// <summary>
         /// Starts the process. An <paramref name="inheritableReportHandle"/> may be provided, in which case
-        /// that handle will be inherited to the new process.
+        /// that handle will be transferred to the new process.
         /// </summary>
         /// <remarks>
         /// Start may be only called once on an instance, and not after this instance was disposed.
         /// A provided <paramref name="inheritableReportHandle"/> will be closed after process creation
         /// (since it should then be owned by the child process).
+        /// <para>
+        /// Pipe-handle inheritance: the <paramref name="inheritableReportHandle"/> is transferred to the child
+        /// via <c>DuplicateHandle</c> (performed by the native injector), not via Win32 handle inheritance. It
+        /// therefore must not be marked <c>HANDLE_FLAG_INHERIT</c> on the host side — leaving that flag set would
+        /// cause any unrelated concurrent <c>CreateProcess(bInheritHandles=TRUE)</c> in the host to inadvertently
+        /// inherit the report-pipe write end and block <see cref="SandboxedProcess.WaitUntilReportEofAsync"/> until
+        /// that unrelated child exits. The same applies to the injector pipe created by
+        /// <see cref="ProcessTreeContext"/>. In contrast, the stdin/stdout/stderr pipes created below are
+        /// intentionally marked inheritable because they reach the child via the explicit handle list
+        /// (<c>PROC_THREAD_ATTRIBUTE_HANDLE_LIST</c>) configured in the native CreateProcess path, which requires
+        /// <c>HANDLE_FLAG_INHERIT</c> on each listed handle.
+        /// </para>
         /// </remarks>
         /// <exception cref="BuildXLException">Thrown if creating or detouring the process fails.</exception>
         [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope")]
@@ -490,7 +502,8 @@ namespace BuildXL.Processes.Internal
                                     PipeDirection.In,
                                     PipeOptions.Asynchronous,
                                     PipeOptions.None,
-                                    out hStdOutput);
+                                    out hStdOutput,
+                                    markClientHandleInheritable: true);
                             }
                             else
                             {
@@ -515,7 +528,8 @@ namespace BuildXL.Processes.Internal
                                     PipeDirection.In,
                                     PipeOptions.Asynchronous,
                                     PipeOptions.None,
-                                    out hStdError);
+                                    out hStdError,
+                                    markClientHandleInheritable: true);
                             }
                             else
                             {

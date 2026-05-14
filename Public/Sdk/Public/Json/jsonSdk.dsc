@@ -8,6 +8,13 @@ export function write<T extends Object>(destinationFile: Path, data: T, quoteCha
     return _PreludeAmbientHack_Json.write<T>(destinationFile, data, quoteChar, tags, description, additionalOptions);
 }
 
+@@public
+/** Reads a JSON string and returns the parsed object. Throws if the string is not valid JSON. */
+export function read<T>(jsonString: string): T
+{
+    return _PreludeAmbientHack_Json.read<T>(jsonString) as T;
+}
+
 /** Additional options that can be specified for Json output. */
 @@public
 export interface AdditionalJsonOptions

@@ -67,4 +67,27 @@ namespace BuildXL.FrontEnd.Script.Ambients.Exceptions
             errors.ReportJsonUnsuportedDynamicFieldsForSerialization(environment, this, location);
         }
     }
+
+    /// <nodoc />
+    public sealed class JsonDeserializationException : EvaluationExceptionWithErrorContext
+    {
+        /// <nodoc />
+        [SuppressMessage("Microsoft.Naming", "CA2204:LiteralsShouldBeSpelledCorrectly")]
+        public JsonDeserializationException(string message, ErrorContext errorContext)
+            : base(message, errorContext)
+        {
+            DeserializationError = message;
+        }
+
+        /// <summary>
+        /// Gets the deserialization error message.
+        /// </summary>
+        public string DeserializationError { get; }
+
+        /// <inheritdoc />
+        public override void ReportError(EvaluationErrors errors, ModuleLiteral environment, LineInfo location, Expression expression, Context context)
+        {
+            errors.ReportJsonDeserializationError(environment, this, location);
+        }
+    }
 }

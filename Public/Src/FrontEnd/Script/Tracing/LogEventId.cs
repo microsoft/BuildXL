@@ -352,6 +352,8 @@ namespace BuildXL.FrontEnd.Script.Tracing
         SourceResolverModuleFilesDoNotExistVerbose = 9418,
         ModuleProjectFileDoesNotExist = 9419,
 
+        ReportJsonDeserializationError = 9420,
+
         // Obsolete syntax rules (starting from 9500)
 
         // Don't go beyond 9899

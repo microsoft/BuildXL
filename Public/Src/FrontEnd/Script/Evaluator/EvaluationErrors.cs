@@ -681,6 +681,21 @@ namespace BuildXL.FrontEnd.Script.Evaluator
         }
 
         /// <nodoc />
+        public void ReportJsonDeserializationError(ModuleLiteral env, JsonDeserializationException exception, LineInfo lineInfo)
+        {
+            Contract.Requires(env != null);
+            Contract.Requires(exception != null);
+
+            var location = lineInfo.AsUniversalLocation(env, Context);
+            Logger.ReportJsonDeserializationError(
+                LoggingContext,
+                location.AsLoggingLocation(),
+                exception.DeserializationError,
+                exception.ErrorContext.ToErrorString(Context),
+                Context.GetStackTraceAsErrorMessage(location));
+        }
+
+        /// <nodoc />
         public void ReportUnsupportedTypeValueObjectException(ModuleLiteral env, UnsupportedTypeValueObjectException exception, LineInfo lineInfo)
         {
             Contract.Requires(env != null);

@@ -45,6 +45,7 @@ namespace BuildXL.FrontEnd.Script.Ambients
                 new[]
                 {
                     Function("write", Write, WriteSignature),
+                    Function("read", Read, ReadSignature),
                 });
         }
 
@@ -118,6 +119,120 @@ namespace BuildXL.FrontEnd.Script.Ambients
                     return pipDataBuilder.ToPipData(string.Empty, PipDataFragmentEscaping.NoEscaping);
                 }
             }
+        }
+
+        private CallSignature ReadSignature => CreateSignature(
+            required: RequiredParameters(PrimitiveType.StringType),
+            returnType: AmbientTypes.ObjectType);
+
+        private static EvaluationResult Read(Context context, ModuleLiteral env, EvaluationStackFrame args)
+        {
+            var jsonString = Args.AsString(args, 0);
+            var entry = context.TopStack;
+
+            try
+            {
+                using (var stringReader = new StringReader(jsonString))
+                using (var jsonReader = new JsonTextReader(stringReader))
+                {
+                    // Read the first token
+                    if (!jsonReader.Read())
+                    {
+                        throw new JsonDeserializationException("The input string is empty or contains no JSON tokens.", new ErrorContext(pos: 1));
+                    }
+
+                    var result = ReadValue(jsonReader, context.StringTable, entry.InvocationLocation, entry.Path);
+                    return new EvaluationResult(result);
+                }
+            }
+            catch (JsonReaderException e)
+            {
+                throw new JsonDeserializationException(e.Message, new ErrorContext(pos: 1));
+            }
+        }
+
+        private static object ReadValue(JsonTextReader reader, StringTable stringTable, TypeScript.Net.Utilities.LineInfo location, AbsolutePath path)
+        {
+            switch (reader.TokenType)
+            {
+                case JsonToken.StartObject:
+                    return ReadJsonObject(reader, stringTable, location, path);
+                case JsonToken.StartArray:
+                    return ReadJsonArray(reader, stringTable, location, path);
+                case JsonToken.String:
+                    return (string)reader.Value;
+                case JsonToken.Integer:
+                    // DScript uses int; clamp long values
+                    return checked((int)(long)reader.Value);
+                case JsonToken.Float:
+                    // DScript doesn't have a native float type; represent as string to avoid data loss
+                    return reader.Value.ToString();
+                case JsonToken.Boolean:
+                    return (bool)reader.Value;
+                case JsonToken.Null:
+                    return UndefinedValue.Instance;
+                default:
+                    throw new JsonDeserializationException(
+                        $"Unexpected JSON token '{reader.TokenType}' encountered during deserialization.",
+                        new ErrorContext(pos: 1));
+            }
+        }
+
+        private static ObjectLiteral ReadJsonObject(JsonTextReader reader, StringTable stringTable, TypeScript.Net.Utilities.LineInfo location, AbsolutePath path)
+        {
+            Contract.Requires(reader.TokenType == JsonToken.StartObject);
+
+            var bindings = new System.Collections.Generic.List<Binding>();
+
+            while (reader.Read())
+            {
+                if (reader.TokenType == JsonToken.EndObject)
+                {
+                    return ObjectLiteral.Create(bindings, location, path);
+                }
+
+                if (reader.TokenType != JsonToken.PropertyName)
+                {
+                    throw new JsonDeserializationException(
+                        $"Expected property name but got '{reader.TokenType}'.",
+                        new ErrorContext(pos: 1));
+                }
+
+                var propertyName = (string)reader.Value;
+
+                if (!reader.Read())
+                {
+                    throw new JsonDeserializationException(
+                        $"Unexpected end of JSON after property '{propertyName}'.",
+                        new ErrorContext(pos: 1));
+                }
+
+                var value = ReadValue(reader, stringTable, location, path);
+                var nameId = StringId.Create(stringTable, propertyName);
+                bindings.Add(new Binding(nameId, value, location));
+            }
+
+            throw new JsonDeserializationException("Unexpected end of JSON while reading object.", new ErrorContext(pos: 1));
+        }
+
+        private static ArrayLiteral ReadJsonArray(JsonTextReader reader, StringTable stringTable, TypeScript.Net.Utilities.LineInfo location, AbsolutePath path)
+        {
+            Contract.Requires(reader.TokenType == JsonToken.StartArray);
+
+            var elements = new System.Collections.Generic.List<EvaluationResult>();
+
+            while (reader.Read())
+            {
+                if (reader.TokenType == JsonToken.EndArray)
+                {
+                    return ArrayLiteral.CreateWithoutCopy(elements.ToArray(), location, path);
+                }
+
+                var value = ReadValue(reader, stringTable, location, path);
+                elements.Add(new EvaluationResult(value));
+            }
+
+            throw new JsonDeserializationException("Unexpected end of JSON while reading array.", new ErrorContext(pos: 1));
         }
 
         private CallSignature WriteSignature => CreateSignature(

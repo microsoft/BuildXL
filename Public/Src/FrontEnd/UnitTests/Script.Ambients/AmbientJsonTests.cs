@@ -5,6 +5,7 @@ using System;
 using BuildXL.Utilities.Core;
 using BuildXL.FrontEnd.Script.Ambients.Exceptions;
 using BuildXL.FrontEnd.Script.Ambients;
+using BuildXL.FrontEnd.Script.Tracing;
 using BuildXL.FrontEnd.Script.Values;
 using Test.BuildXL.FrontEnd.Core;
 using BuildXL.Pips.Operations;
@@ -399,6 +400,226 @@ const options : Object = {
             var canonicalExpected = expected.Replace("\r\n", "\n").Replace("/", "\\\\");
 
             Assert.Equal(canonicalExpected, canonicalPipData);
+        }
+
+        // ===================== Json.read tests =====================
+
+        [Fact]
+        public void ReadEmptyObject()
+        {
+            var spec = @"
+namespace M {
+    export const result = _PreludeAmbientHack_Json.read('{}');
+}";
+            var result = Build()
+                .AddSpec(spec)
+                .EvaluateExpressionWithNoErrors("M.result") as ObjectLiteral;
+            Assert.NotNull(result);
+            Assert.Equal(0, result.Count);
+        }
+
+        [Fact]
+        public void ReadBasicStringProperty()
+        {
+            var spec = @"
+namespace M {
+    const obj = _PreludeAmbientHack_Json.read('{""key"": ""value""}');
+    export const result = obj['key'];
+}";
+            var result = Build()
+                .AddSpec(spec)
+                .EvaluateExpressionWithNoErrors("M.result");
+            Assert.Equal("value", result);
+        }
+
+        [Fact]
+        public void ReadBasicIntegerProperty()
+        {
+            var spec = @"
+namespace M {
+    const obj = _PreludeAmbientHack_Json.read('{""num"": 42}');
+    export const result = obj['num'];
+}";
+            var result = Build()
+                .AddSpec(spec)
+                .EvaluateExpressionWithNoErrors("M.result");
+            Assert.Equal(42, result);
+        }
+
+        [Fact]
+        public void ReadBasicBooleanProperties()
+        {
+            var spec = @"
+namespace M {
+    const obj = _PreludeAmbientHack_Json.read('{""t"": true, ""f"": false}');
+    export const r1 = obj['t'];
+    export const r2 = obj['f'];
+}";
+            var builder = Build().AddSpec(spec);
+            var r1 = builder.EvaluateExpressionWithNoErrors("M.r1");
+            var r2 = builder.EvaluateExpressionWithNoErrors("M.r2");
+            Assert.Equal(true, r1);
+            Assert.Equal(false, r2);
+        }
+
+        [Fact]
+        public void ReadNullBecomesUndefined()
+        {
+            var spec = @"
+namespace M {
+    const obj = _PreludeAmbientHack_Json.read('{""n"": null}');
+    export const result = obj['n'] === undefined;
+}";
+            var result = Build()
+                .AddSpec(spec)
+                .EvaluateExpressionWithNoErrors("M.result");
+            Assert.Equal(true, result);
+        }
+
+        [Fact]
+        public void ReadNestedObjects()
+        {
+            var spec = @"
+namespace M {
+    const obj = _PreludeAmbientHack_Json.read('{""outer"": {""inner"": {""key"": 42}}}');
+    export const result = obj['outer']['inner']['key'];
+}";
+            var result = Build()
+                .AddSpec(spec)
+                .EvaluateExpressionWithNoErrors("M.result");
+            Assert.Equal(42, result);
+        }
+
+        [Fact]
+        public void ReadArray()
+        {
+            var spec = @"
+namespace M {
+    const obj = _PreludeAmbientHack_Json.read('{""arr"": [1, 2, 3]}');
+    export const r1 = obj['arr'][0];
+    export const r2 = obj['arr'][1];
+    export const r3 = obj['arr'][2];
+}";
+            var builder = Build().AddSpec(spec);
+            Assert.Equal(1, builder.EvaluateExpressionWithNoErrors("M.r1"));
+            Assert.Equal(2, builder.EvaluateExpressionWithNoErrors("M.r2"));
+            Assert.Equal(3, builder.EvaluateExpressionWithNoErrors("M.r3"));
+        }
+
+        [Fact]
+        public void ReadArrayOfObjects()
+        {
+            var spec = @"
+namespace M {
+    const obj = _PreludeAmbientHack_Json.read('{""items"": [{""name"": ""a""}, {""name"": ""b""}]}');
+    export const r1 = obj['items'][0]['name'];
+    export const r2 = obj['items'][1]['name'];
+}";
+            var builder = Build().AddSpec(spec);
+            Assert.Equal("a", builder.EvaluateExpressionWithNoErrors("M.r1"));
+            Assert.Equal("b", builder.EvaluateExpressionWithNoErrors("M.r2"));
+        }
+
+        [Fact]
+        public void ReadMixedArray()
+        {
+            var spec = @"
+namespace M {
+    const obj = _PreludeAmbientHack_Json.read('{""mix"": [1, ""two"", true, null]}');
+    export const r1 = obj['mix'][0];
+    export const r2 = obj['mix'][1];
+    export const r3 = obj['mix'][2];
+    export const r4 = obj['mix'][3] === undefined;
+}";
+            var builder = Build().AddSpec(spec);
+            Assert.Equal(1, builder.EvaluateExpressionWithNoErrors("M.r1"));
+            Assert.Equal("two", builder.EvaluateExpressionWithNoErrors("M.r2"));
+            Assert.Equal(true, builder.EvaluateExpressionWithNoErrors("M.r3"));
+            Assert.Equal(true, builder.EvaluateExpressionWithNoErrors("M.r4"));
+        }
+
+        [Fact]
+        public void ReadMultipleProperties()
+        {
+            var spec = @"
+namespace M {
+    const obj = _PreludeAmbientHack_Json.read('{""s"": ""hello"", ""n"": 99, ""b"": true}');
+    export const r1 = obj['s'];
+    export const r2 = obj['n'];
+    export const r3 = obj['b'];
+}";
+            var builder = Build().AddSpec(spec);
+            Assert.Equal("hello", builder.EvaluateExpressionWithNoErrors("M.r1"));
+            Assert.Equal(99, builder.EvaluateExpressionWithNoErrors("M.r2"));
+            Assert.Equal(true, builder.EvaluateExpressionWithNoErrors("M.r3"));
+        }
+
+        [Fact]
+        public void ReadNegativeInteger()
+        {
+            var spec = @"
+namespace M {
+    const obj = _PreludeAmbientHack_Json.read('{""neg"": -42}');
+    export const result = obj['neg'];
+}";
+            var result = Build()
+                .AddSpec(spec)
+                .EvaluateExpressionWithNoErrors("M.result");
+            Assert.Equal(-42, result);
+        }
+
+        [Fact]
+        public void ReadEmptyArray()
+        {
+            var spec = @"
+namespace M {
+    const obj = _PreludeAmbientHack_Json.read('{""arr"": []}');
+    export const result = (<Array<string>>obj['arr']).length;
+}";
+            var result = Build()
+                .AddSpec(spec)
+                .EvaluateExpressionWithNoErrors("M.result");
+            Assert.Equal(0, result);
+        }
+
+        [Fact]
+        public void ReadDeeplyNested()
+        {
+            var spec = @"
+namespace M {
+    const obj = _PreludeAmbientHack_Json.read('{""a"": {""b"": {""c"": {""d"": ""deep""}}}}');
+    export const result = obj['a']['b']['c']['d'];
+}";
+            var result = Build()
+                .AddSpec(spec)
+                .EvaluateExpressionWithNoErrors("M.result");
+            Assert.Equal("deep", result);
+        }
+
+        [Fact]
+        public void ReadInvalidJsonThrows()
+        {
+            var spec = @"
+namespace M {
+    export const result = _PreludeAmbientHack_Json.read('{invalid}');
+}";
+            var result = Build()
+                .AddSpec(spec)
+                .EvaluateWithFirstError("M.result");
+            Assert.Equal((int)LogEventId.ReportJsonDeserializationError, result.ErrorCode);
+        }
+
+        [Fact]
+        public void ReadEmptyStringThrows()
+        {
+            var spec = @"
+namespace M {
+    export const result = _PreludeAmbientHack_Json.read('');
+}";
+            var result = Build()
+                .AddSpec(spec)
+                .EvaluateWithFirstError("M.result");
+            Assert.Equal((int)LogEventId.ReportJsonDeserializationError, result.ErrorCode);
         }
     }
 }

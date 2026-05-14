@@ -412,6 +412,17 @@ namespace BuildXL.FrontEnd.Script.Tracing
             LoggingContext context, Location location, string encounteredType, string expectedType, string additionalInformation, string stackTrace);
 
         [GeneratedEvent(
+            (ushort)LogEventId.ReportJsonDeserializationError,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Error,
+            EventTask = (ushort)Tasks.Parser,
+            Message =
+                EventConstants.LabeledProvenancePrefix + "Failed to deserialize JSON: {deserializationError}.{additionalInformation}.{stackTrace}",
+            Keywords = (int)(Keywords.UserMessage | Keywords.UserError))]
+        public abstract void ReportJsonDeserializationError(
+            LoggingContext context, Location location, string deserializationError, string additionalInformation, string stackTrace);
+
+        [GeneratedEvent(
             (ushort)LogEventId.ReportXmlUnsuportedTypeForSerialization,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,

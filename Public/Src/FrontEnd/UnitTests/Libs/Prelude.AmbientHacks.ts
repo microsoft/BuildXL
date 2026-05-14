@@ -21,6 +21,8 @@ namespace _PreludeAmbientHack_Json {
     /** Writes an object as Json */
     export declare function write<T extends Object>(destinationFile: Path, data: T): File;
     export declare function write<T extends Object>(destinationFile: Path, data: T, quoteChar?: "'" | "\"", tags?: string[], description?: string, additionalOptions?: Object): File;
+    /** Reads a JSON string and returns the parsed object. Throws if the string is not valid JSON. */
+    export declare function read<T>(jsonString: string): T;
 }
 
 namespace _PreludeAmbientHack_Xml {

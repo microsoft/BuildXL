@@ -7,6 +7,7 @@ using BuildXL.Ipc.Common;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities.Core;
+using BuildXL.Utilities.Collections;
 
 namespace BuildXL.Pips.Graph
 {
@@ -151,11 +152,24 @@ namespace BuildXL.Pips.Graph
         Pip GetPipFromPipId(PipId pipId);
 
         /// <summary>
+        /// Returns the direct dependencies of the given pip as a collection of pip ids.
+        /// </summary>
+        /// <remarks>
+        /// The result is sorted by pip id.
+        /// </remarks>
+        IEnumerable<PipId> GetPipDependenciesSorted(PipId pipId);
+
+        /// <summary>
         /// Asserts that a given output path is going to be present in an opaque directory
         /// </summary>
         /// <remarks>
         /// The existence of the specified output is checked during pip execution
         /// </remarks>
         bool TryAssertOutputExistenceInOpaqueDirectory(DirectoryArtifact outputDirectoryArtifact, AbsolutePath outputInOpaque, out FileArtifact fileArtifact);
+
+        /// <summary>
+        /// Lists the contents of a sealed directory. The artifact may refer to a partial or fully-sealed directory.
+        /// </summary>
+        SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer> ListSealedDirectoryContents(DirectoryArtifact directoryArtifact);
     }
 }

@@ -18,5 +18,11 @@ namespace BuildXL.Pips
             new ObjectPool<HashSet<PipId>>(
                 () => new HashSet<PipId>(EqualityComparer<PipId>.Default),
                 s => s.Clear());
+
+        /// <summary>
+        /// Global pool of queues of <see cref="PipId" />s.
+        /// </summary>
+        public static ObjectPool<Queue<PipId>> PipIdQueuePool { get; } =
+            Pools.CreateQueuePool<PipId>();
     }
 }

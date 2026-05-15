@@ -3624,7 +3624,7 @@ namespace BuildXL.Pips.Graph
             /// <inheritdoc/>
             public Pip GetPipFromPipId(PipId pipId)
             {
-                return m_immutablePipGraph.GetPipFromPipId(pipId);
+                return PipTable.HydratePip(pipId, PipQueryContext.PipGraphGetPipFromUInt32);
             }
 
             #endregion Event Logging

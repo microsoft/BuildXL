@@ -22,11 +22,16 @@ namespace BuildXL.Pips.Builders
 
         /// <nodoc />
         public ProcessOutputs(Dictionary<AbsolutePath, FileArtifactWithAttributes> outputFileMap, Dictionary<AbsolutePath, StaticDirectory> outputDirectoryMap)
+            : this(outputFileMap, outputDirectoryMap, PipId.Invalid)
+        {
+        }
+
+        /// <nodoc />
+        public ProcessOutputs(Dictionary<AbsolutePath, FileArtifactWithAttributes> outputFileMap, Dictionary<AbsolutePath, StaticDirectory> outputDirectoryMap, PipId processPipId)
         {
             m_outputFileMap = outputFileMap;
             m_outputDirectoryMap = outputDirectoryMap;
-
-            ProcessPipId = PipId.Invalid;
+            ProcessPipId = processPipId;
         }
 
         /// <nodoc />

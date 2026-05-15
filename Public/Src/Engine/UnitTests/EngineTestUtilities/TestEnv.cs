@@ -19,6 +19,7 @@ using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Instrumentation.Common;
@@ -402,7 +403,22 @@ namespace Test.BuildXL.TestUtilities
             /// <inheritdoc />
             public bool TryGetSealDirectoryKind(DirectoryArtifact directoryArtifact, out SealDirectoryKind kind)
             {
-                throw new NotImplementedException();
+                var sealDir = m_pips.OfType<SealDirectory>().FirstOrDefault(sd => sd.Directory == directoryArtifact);
+                if (sealDir != null)
+                {
+                    kind = sealDir.Kind;
+                    return true;
+                }
+
+                // Shared opaque directories created via ReserveSharedOpaqueDirectory don't have a SealDirectory pip
+                if (directoryArtifact.IsSharedOpaque)
+                {
+                    kind = SealDirectoryKind.SharedOpaque;
+                    return true;
+                }
+
+                kind = default;
+                return false;
             }
 
             /// <inheritdoc />
@@ -412,7 +428,96 @@ namespace Test.BuildXL.TestUtilities
             }
 
             /// <inheritdoc />
+            public IEnumerable<PipId> GetPipDependenciesSorted(PipId pipId)
+            {
+                var pip = GetPipFromPipId(pipId);
+                if (pip == null)
+                {
+                    return System.Array.Empty<PipId>();
+                }
+
+                // Collect input files and directories for this pip
+                var inputFiles = new HashSet<FileArtifact>();
+                var inputDirs = new HashSet<DirectoryArtifact>();
+
+                switch (pip)
+                {
+                    case Process process:
+                        foreach (var f in process.Dependencies) inputFiles.Add(f);
+                        foreach (var d in process.DirectoryDependencies) inputDirs.Add(d);
+                        break;
+                    case CopyFile copyFile:
+                        inputFiles.Add(copyFile.Source);
+                        break;
+                    case SealDirectory sealDir:
+                        foreach (var f in sealDir.Contents) inputFiles.Add(f);
+                        foreach (var d in sealDir.OutputDirectoryContents) inputDirs.Add(d);
+                        break;
+                    case IpcPip ipcPip:
+                        foreach (var f in ipcPip.FileDependencies) inputFiles.Add(f);
+                        foreach (var d in ipcPip.DirectoryDependencies) inputDirs.Add(d);
+                        break;
+                }
+
+                // Find pips that produce any of these inputs
+                var depIds = new HashSet<PipId>();
+                foreach (var candidate in m_pips)
+                {
+                    if (candidate.PipId == pipId)
+                    {
+                        continue;
+                    }
+
+                    switch (candidate)
+                    {
+                        case Process process:
+                            if (process.FileOutputs.Any(fo => inputFiles.Contains(fo.ToFileArtifact()))
+                                || process.DirectoryOutputs.Any(d => inputDirs.Contains(d)))
+                            {
+                                depIds.Add(candidate.PipId);
+                            }
+                            break;
+                        case CopyFile copyFile:
+                            if (inputFiles.Contains(copyFile.Destination))
+                            {
+                                depIds.Add(candidate.PipId);
+                            }
+                            break;
+                        case WriteFile writeFile:
+                            if (inputFiles.Contains(writeFile.Destination))
+                            {
+                                depIds.Add(candidate.PipId);
+                            }
+                            break;
+                        case SealDirectory sealDir:
+                            if (inputDirs.Contains(sealDir.Directory))
+                            {
+                                depIds.Add(candidate.PipId);
+                            }
+                            break;
+                    }
+                }
+
+                return depIds.OrderBy(id => id.Value);
+            }
+
+            /// <inheritdoc />
             public bool TryAssertOutputExistenceInOpaqueDirectory(DirectoryArtifact outputDirectoryArtifact, AbsolutePath outputInOpaque, out FileArtifact fileArtifact) => throw new NotImplementedException();
+
+            /// <inheritdoc />
+            public SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer> ListSealedDirectoryContents(DirectoryArtifact directoryArtifact)
+            {
+                var sealDir = m_pips.OfType<SealDirectory>().FirstOrDefault(sd => sd.Directory == directoryArtifact);
+                if (sealDir != null)
+                {
+                    var sorted = SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer>.SortUnsafe(
+                        sealDir.Contents.ToArray(),
+                        OrdinalFileArtifactComparer.Instance);
+                    return sorted;
+                }
+
+                return default;
+            }
 
             /// <inheritdoc />
             public IReadOnlyCollection<KeyValuePair<DirectoryArtifact, HashSet<FileArtifact>>> RetrieveOutputsUnderOpaqueExistenceAssertions()

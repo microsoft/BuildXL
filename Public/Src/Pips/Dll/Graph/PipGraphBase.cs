@@ -352,13 +352,11 @@ namespace BuildXL.Pips.Graph
         }
 
         /// <summary>
-        /// Gets pips that are dependencies of this node (incoming edges).
+        /// Gets the unique dependency node IDs (incoming edges) for a given node.
         /// </summary>
-        /// <param name="node">Node's Id</param>
-        /// <returns>List of predecessor pips</returns>
-        private IEnumerable<Pip> GetPipDependenciesOfNode(NodeId node)
+        private HashSet<NodeId> GetDependencyNodeIds(NodeId node)
         {
-            // We use a hash set here since there may be multiple edges (light and heavy)
+            // We use a hash set since there may be multiple edges (light and heavy)
             // between two pips A and B.
             var nodeIds = new HashSet<NodeId>();
 
@@ -367,7 +365,42 @@ namespace BuildXL.Pips.Graph
                 nodeIds.Add(edge.OtherNode);
             }
 
-            return HydratePips(nodeIds, PipQueryContext.PipGraphGetPipDependenciesOfNode);
+            return nodeIds;
+        }
+
+        /// <summary>
+        /// Returns the direct dependencies of the given pip as a collection of pip ids.
+        /// The result is sorted by pip id to guarantee deterministic ordering regardless of
+        /// graph construction order.
+        /// </summary>
+        /// <remarks>
+        /// The result is deterministic for a given build graph, as pips are sorted by their pip id. This is meant to be consumed
+        /// by DScript ambients that must always be deterministic.
+        /// </remarks>
+        public IEnumerable<PipId> GetPipDependenciesSorted(PipId pipId)
+        {
+            var nodeIds = GetDependencyNodeIds(pipId.ToNodeId());
+            var result = new PipId[nodeIds.Count];
+            int i = 0;
+            foreach (var nodeId in nodeIds)
+            {
+                result[i++] = nodeId.ToPipId();
+            }
+
+            // The dataflow graph (used by GetDependencyNodeIds) does not gurantee any determinism in the order
+            // in which pips are returned.
+            Array.Sort(result, (a, b) => a.Value.CompareTo(b.Value));
+            return result;
+        }
+
+        /// <summary>
+        /// Gets pips that are dependencies of this node (incoming edges).
+        /// </summary>
+        /// <param name="node">Node's Id</param>
+        /// <returns>List of predecessor pips</returns>
+        private IEnumerable<Pip> GetPipDependenciesOfNode(NodeId node)
+        {
+            return HydratePips(GetDependencyNodeIds(node), PipQueryContext.PipGraphGetPipDependenciesOfNode);
         }
 
         /// <summary>

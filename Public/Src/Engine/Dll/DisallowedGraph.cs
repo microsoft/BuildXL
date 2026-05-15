@@ -9,6 +9,7 @@ using BuildXL.Pips;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.Graph;
 using BuildXL.Pips.Operations;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Instrumentation.Common;
 
@@ -179,12 +180,21 @@ namespace BuildXL.Engine
 
         /// <inheritdoc />
         public Pip GetPipFromPipId(PipId pipId) => null;
+
+        /// <inheritdoc />
+        public IEnumerable<PipId> GetPipDependenciesSorted(PipId pipId) => System.Array.Empty<PipId>();
         
         /// <inheritdoc/>
         public bool TryAssertOutputExistenceInOpaqueDirectory(DirectoryArtifact outputDirectoryArtifact, AbsolutePath outputInOpaque, out FileArtifact fileArtifact)
         {
             fileArtifact = FileArtifact.Invalid;
             return false;
+        }
+
+        /// <inheritdoc />
+        public SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer> ListSealedDirectoryContents(DirectoryArtifact directoryArtifact)
+        {
+            return default;
         }
 
         /// <inheritdoc />

@@ -462,10 +462,22 @@ namespace BuildXL.Scheduler.Graph
             return m_builder.GetPipFromPipId(pipId);
         }
 
+        /// <inheritdoc />
+        public IEnumerable<PipId> GetPipDependenciesSorted(PipId pipId)
+        {
+            return m_builder.GetPipDependenciesSorted(pipId);
+        }
+
         /// <inheritdoc/>
         public bool TryAssertOutputExistenceInOpaqueDirectory(DirectoryArtifact outputDirectoryArtifact, AbsolutePath outputInOpaque, out FileArtifact fileArtifact) 
         {
             return m_builder.TryAssertOutputExistenceInOpaqueDirectory(outputDirectoryArtifact, outputInOpaque, out fileArtifact);
+        }
+
+        /// <inheritdoc />
+        public SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer> ListSealedDirectoryContents(DirectoryArtifact directoryArtifact)
+        {
+            return m_builder.ListSealedDirectoryContents(directoryArtifact);
         }
     }
 }

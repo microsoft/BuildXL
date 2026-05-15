@@ -311,6 +311,13 @@ namespace BuildXL.Scheduler.Graph
         }
 
         /// <inheritdoc/>
+        public IEnumerable<PipId> GetPipDependenciesSorted(PipId pipId)
+        {
+            // Fragment builder does not track graph edges
+            return System.Array.Empty<PipId>();
+        }
+
+        /// <inheritdoc/>
         public bool TryAssertOutputExistenceInOpaqueDirectory(DirectoryArtifact outputDirectoryArtifact, AbsolutePath outputInOpaque, out FileArtifact fileArtifact)
         {
             Contract.Requires(outputDirectoryArtifact.IsValid);
@@ -339,6 +346,28 @@ namespace BuildXL.Scheduler.Graph
         public IReadOnlyCollection<KeyValuePair<DirectoryArtifact, HashSet<FileArtifact>>> RetrieveOutputsUnderOpaqueExistenceAssertions()
         {
             return m_outputsUnderOpaqueExistenceAssertions;
+        }
+
+        /// <inheritdoc/>
+        public SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer> ListSealedDirectoryContents(DirectoryArtifact directoryArtifact)
+        {
+            if (!SealDirectoryTable.TryGetSealForDirectoryArtifact(directoryArtifact, out var pipId))
+            {
+                return default;
+            }
+
+            if (!m_sealDirectoryPips.TryGet(pipId).IsFound)
+            {
+                return default;
+            }
+
+            var pip = GetPipFromPipId(pipId);
+            if (pip is SealDirectory sealDirectory)
+            {
+                return sealDirectory.Contents;
+            }
+
+            return default;
         }
     }
 }

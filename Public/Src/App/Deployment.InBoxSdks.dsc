@@ -46,6 +46,12 @@ function createSdkDeploymentDefinition(serverDeployment: boolean, minimalDeploym
                         ]
                     },
                     {
+                        subfolder: "Sdk.Graph",
+                        contents: [ 
+                            importFrom("Sdk.Graph").deployment
+                        ]
+                    },
+                    {
                         subfolder: "Sdk.Workflow",
                         contents: [ 
                             importFrom("Sdk.Workflow").deployment

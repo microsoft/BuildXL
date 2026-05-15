@@ -14,6 +14,7 @@ namespace Script.Ambients {
             Core.dll,
             Script.TestBase.dll,
             importFrom("BuildXL.Cache.MemoizationStore").Interfaces.dll,
+            importFrom("BuildXL.Core.UnitTests").EngineTestUtilities.dll,
             importFrom("BuildXL.Engine").Cache.dll,
             importFrom("BuildXL.Pips").dll,
             importFrom("BuildXL.Utilities").dll,

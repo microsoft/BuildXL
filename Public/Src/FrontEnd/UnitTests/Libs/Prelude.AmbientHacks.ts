@@ -77,3 +77,8 @@ namespace _PreludeAmbientHack_Transformer {
 	export interface FragmentHandle {}
     export declare function readPipGraphFragment(file: SourceFile, dependencyFragments: FragmentHandle[], description?: string): FragmentHandle;
 }
+
+namespace _PreludeAmbientHack_Graph {
+    export declare function getDirectDependencies(pip: Object, options?: Object) : Object[];
+    export declare function getDependencyClosure(pip: Object, options?: Object) : Object[];
+}

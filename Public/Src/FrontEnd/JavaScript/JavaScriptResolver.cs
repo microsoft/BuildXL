@@ -57,7 +57,7 @@ namespace BuildXL.FrontEnd.JavaScript
 
         private IReadOnlyCollection<ResolvedJavaScriptExport> Exports => m_javaScriptWorkspaceResolver.ComputedProjectGraph.Result.Exports;
 
-        private readonly ConcurrentDictionary<JavaScriptProject, List<ProcessOutputs>> m_scheduledProcessOutputs = new ConcurrentDictionary<JavaScriptProject, List<ProcessOutputs>>();
+        private readonly ConcurrentDictionary<(JavaScriptProject project, QualifierId qualifierId), ProcessOutputs> m_scheduledProcessOutputs = new ConcurrentDictionary<(JavaScriptProject, QualifierId), ProcessOutputs>();
 
         private readonly SemaphoreSlim m_evaluationSemaphore = new SemaphoreSlim(1, 1);
         private bool? m_evaluationResult = null;
@@ -366,7 +366,7 @@ namespace BuildXL.FrontEnd.JavaScript
                 FrontEndUtilities.AddEvaluationCallbackToFileModule(
                     exportsFileModule,
                     (context, moduleLiteral, evaluationStackFrame) =>
-                        CollectProjectOutputsAsync(module.Definition.Specs, moduleLiteral.Qualifier.QualifierId, export, context.EvaluationScheduler),
+                        CollectProjectOutputsAsync(module.Definition.Specs, moduleLiteral.Qualifier.QualifierId, export, context.EvaluationScheduler, context, moduleLiteral),
                     export.FullSymbol,
                     pos);
 
@@ -384,7 +384,7 @@ namespace BuildXL.FrontEnd.JavaScript
             moduleRegistry.AddUninstantiatedModuleInfo(moduleInfo);
         }
 
-        private async Task<EvaluationResult> CollectProjectOutputsAsync(IReadOnlySet<AbsolutePath> evaluationGoals, QualifierId qualifierId, ResolvedJavaScriptExport export, IEvaluationScheduler scheduler)
+        private async Task<EvaluationResult> CollectProjectOutputsAsync(IReadOnlySet<AbsolutePath> evaluationGoals, QualifierId qualifierId, ResolvedJavaScriptExport export, IEvaluationScheduler scheduler, Script.Evaluator.Context evaluationContext, ModuleLiteral moduleLiteral)
         {
             // Make sure all project files are evaluated before collecting their outputs
             if (!await EvaluateAllFilesOnceAsync(evaluationGoals, qualifierId, scheduler))
@@ -394,21 +394,21 @@ namespace BuildXL.FrontEnd.JavaScript
 
             if (export.IncludeProjectMapping)
             {
-                return CollectProjectOutputsAsMap(export);
+                return CollectProjectOutputsAsMap(export, qualifierId, evaluationContext, moduleLiteral);
             }
 
-            return CollectProjectOutputsAsArray(export);
+            return CollectProjectOutputsAsArray(export, qualifierId);
         }
 
         /// <summary>
-        /// Collects the output directories for each exported project as an array of (project, sealedDirectories) pairs,
+        /// Iterates the exported projects and resolves their <see cref="ProcessOutputs"/> for the given qualifier,
         /// logging an informational message for any project that was not scheduled (e.g. due to filtering).
         /// </summary>
-        private IEnumerable<(JavaScriptProject project, EvaluationResult[] sealedDirectories)> CollectPerProjectOutputDirectories(ResolvedJavaScriptExport export)
+        private IEnumerable<(JavaScriptProject project, ProcessOutputs processOutputs)> GetScheduledExportedProjects(ResolvedJavaScriptExport export, QualifierId qualifierId)
         {
             foreach (var project in export.ExportedProjects)
             {
-                if (!m_scheduledProcessOutputs.TryGetValue(project, out var projectOutputs))
+                if (!m_scheduledProcessOutputs.TryGetValue((project, qualifierId), out var processOutputs))
                 {
                     // The requested project was not scheduled. This can happen when a filter gets applied, so even
                     // though the export points to a valid project (which is already validated), the project is not part
@@ -422,28 +422,28 @@ namespace BuildXL.FrontEnd.JavaScript
                     continue;
                 }
 
-                var sealedDirectories = projectOutputs
-                    .SelectMany(process => process.GetOutputDirectories().Select(staticDirectory => new EvaluationResult(staticDirectory)))
-                    .ToArray();
-
-                yield return (project, sealedDirectories);
+                yield return (project, processOutputs);
             }
         }
 
-        private EvaluationResult CollectProjectOutputsAsArray(ResolvedJavaScriptExport export)
+        private EvaluationResult CollectProjectOutputsAsArray(ResolvedJavaScriptExport export, QualifierId qualifierId)
         {
-            var allDirectories = CollectPerProjectOutputDirectories(export)
-                .SelectMany(entry => entry.sealedDirectories)
+            var allDirectories = GetScheduledExportedProjects(export, qualifierId)
+                .SelectMany(entry => entry.processOutputs.GetOutputDirectories().Select(d => new EvaluationResult(d)))
                 .ToArray();
 
             return new EvaluationResult(new EvaluatedArrayLiteral(allDirectories, default, m_javaScriptWorkspaceResolver.ExportsFile));
         }
 
-        private EvaluationResult CollectProjectOutputsAsMap(ResolvedJavaScriptExport export)
+        private EvaluationResult CollectProjectOutputsAsMap(ResolvedJavaScriptExport export, QualifierId qualifierId, Script.Evaluator.Context evaluationContext, ModuleLiteral moduleLiteral)
         {
             var map = OrderedMap.Empty;
 
-            foreach (var (project, sealedDirectories) in CollectPerProjectOutputDirectories(export))
+            // Get the AmbientTransformerBase instance to create TransformerExecuteResult object literals
+            var moduleRegistry = (ModuleRegistry)evaluationContext.ModuleRegistry;
+            var ambientTransformer = moduleRegistry.PredefinedTypes.AmbientTransformer;
+
+            foreach (var (project, processOutputs) in GetScheduledExportedProjects(export, qualifierId))
             {
                 // Create the key: a JavaScriptProjectIdentifier with packageName and command
                 // CODESYNC: Public\Sdk\Public\Prelude\Prelude.Configuration.Resolvers.dsc (JavaScriptProjectIdentifier)
@@ -453,7 +453,9 @@ namespace BuildXL.FrontEnd.JavaScript
                     new Binding(StringId.Create(Context.StringTable, "command"), new EvaluationResult(project.ScriptCommandName), location: default),
                 }, default, m_javaScriptWorkspaceResolver.ExportsFile));
 
-                var value = new EvaluationResult(new EvaluatedArrayLiteral(sealedDirectories, default, m_javaScriptWorkspaceResolver.ExportsFile));
+                // Build the TransformerExecuteResult from the ProcessOutputs for this project and qualifier
+                var executeResult = ambientTransformer.CreateExecuteResult(evaluationContext, moduleLiteral, processOutputs, m_javaScriptWorkspaceResolver.ExportsFile);
+                var value = new EvaluationResult(executeResult);
 
                 map = map.Add(key, value);
             }
@@ -612,13 +614,11 @@ namespace BuildXL.FrontEnd.JavaScript
                 }
                 else
                 {
-                    // On success, store the association between a JavaScript project and its corresponding
+                    // On success, store the association between a JavaScript project (and its qualifier) and its corresponding
                     // scheduled process outputs
                     foreach (var kvp in scheduleResult.Result.ScheduledProcessOutputs)
                     {
-                        m_scheduledProcessOutputs.AddOrUpdate(kvp.Key,
-                            _ => new List<ProcessOutputs>() { kvp.Value },
-                            (key, processes) => { processes.Add(kvp.Value); return processes; });
+                        m_scheduledProcessOutputs.TryAdd((kvp.Key, qualifierId), kvp.Value);
                     }
                 }
 

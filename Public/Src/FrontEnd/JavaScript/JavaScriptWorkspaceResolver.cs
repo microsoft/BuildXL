@@ -407,7 +407,7 @@ const schedulingFunction : (project: JavaScriptProject, argument: any) => Transf
 
                 // For each exported symbol, add a top-level value with the appropriate type.
                 // When includeProjectMapping is false (the default), the type is SharedOpaqueDirectory[].
-                // When includeProjectMapping is true, the type is Map<JavaScriptProjectIdentifier, SharedOpaqueDirectory[]>.
+                // When includeProjectMapping is true, the type is Map<JavaScriptProjectIdentifier, TransformerExecuteResult>.
                 // The initializer value is defined as 'undefined', but that's not really important
                 // since the evaluation of these symbols is customized in the resolver
                 int pos = 1;
@@ -423,15 +423,19 @@ const schedulingFunction : (project: JavaScriptProject, argument: any) => Transf
                     ITypeNode exportType;
                     if (export.IncludeProjectMapping)
                     {
-                        // Map<JavaScriptProjectIdentifier, SharedOpaqueDirectory[]>
+                        // Map<JavaScriptProjectIdentifier, TransformerExecuteResult>
                         var keyType = new TypeReferenceNode("JavaScriptProjectIdentifier");
                         keyType.TypeName.Pos = pos;
                         keyType.TypeName.End = pos + 1;
 
+                        var valueType = new TypeReferenceNode("TransformerExecuteResult");
+                        valueType.TypeName.Pos = pos;
+                        valueType.TypeName.End = pos + 1;
+
                         var mapType = new TypeReferenceNode("Map");
                         mapType.TypeName.Pos = pos;
                         mapType.TypeName.End = pos + 1;
-                        mapType.TypeArguments = NodeArray.Create<ITypeNode>(keyType, arrayType);
+                        mapType.TypeArguments = NodeArray.Create<ITypeNode>(keyType, valueType);
 
                         exportType = mapType;
                     }

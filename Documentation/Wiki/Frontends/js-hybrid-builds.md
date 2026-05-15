@@ -85,7 +85,7 @@ config({
 });
 ```
 
-When `includeProjectMapping` is `true`, the type of the exported value becomes `Map<JavaScriptProjectIdentifier, StaticDirectory[]>` instead of `StaticDirectory[]`. Each entry in the map corresponds to a single JavaScript project, where the key identifies the project:
+When `includeProjectMapping` is `true`, the type of the exported value becomes `Map<JavaScriptProjectIdentifier, TransformerExecuteResult>` instead of `StaticDirectory[]`. Each entry in the map corresponds to a single JavaScript project, where the key identifies the project:
 
 ```typescript
 interface JavaScriptProjectIdentifier {
@@ -94,16 +94,16 @@ interface JavaScriptProjectIdentifier {
 }
 ```
 
-This allows consumers to iterate the map and process each project's outputs individually:
+This allows consumers to iterate the map and process each project's execute results individually:
 
 ```typescript
 // manifest.dsc
 import {fooAndBar} from "MyJSRepo";
 import * as ManifestGenerator from "SDK.Manifest"
 
-// Iterate over each project's outputs
-const manifests = fooAndBar.forEach((projectId, outputs) => 
-    ManifestGenerator.generate(projectId.packageName, outputs));
+// Iterate over each project's execute result
+const manifests = fooAndBar.forEach((projectId, executeResult) => 
+    ManifestGenerator.generate(projectId.packageName, executeResult.getOutputDirectories()));
 ```
 
 The `includeProjectMapping` option defaults to `false`, so existing configurations are unaffected. The built-in `all` export always remains `StaticDirectory[]` regardless of this setting.

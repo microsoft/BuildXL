@@ -10,6 +10,7 @@ using BuildXL.FrontEnd.Script.Types;
 using BuildXL.FrontEnd.Script.Values;
 using BuildXL.Pips.Builders;
 using BuildXL.Utilities.Core;
+using LineInfo = TypeScript.Net.Utilities.LineInfo;
 
 namespace BuildXL.FrontEnd.Script.Ambients.Transformers
 {
@@ -83,10 +84,16 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             m_getRequiredOutputFilesStatistic = new FunctionStatistic(AmbientName, ExecuteResultGetRequiredOutputFiles, m_getRequiredOutputFilesSignature, stringTable);
         }
 
-        private ObjectLiteral BuildExecuteOutputs(Context context, ModuleLiteral env, ProcessOutputs processOutputs, bool isService)
+        /// <summary>
+        /// Creates a TransformerExecuteResult object literal from a <see cref="ProcessOutputs"/> instance.
+        /// </summary>
+        /// <remarks>
+        /// This is the core implementation for building a TransformerExecuteResult. It can be called from
+        /// Transformer.execute() (via BuildExecuteOutputs) or directly from other contexts like JavaScript
+        /// resolver exports where no call stack entry is available.
+        /// </remarks>
+        public ObjectLiteral CreateExecuteResult(Context context, ModuleLiteral env, ProcessOutputs processOutputs, AbsolutePath path, LineInfo location = default, bool isService = false)
         {
-            var entry = context.TopStack;
-
             using (var empty = EvaluationStackFrame.Empty())
             {
                 var getOutputFile = new Closure(
@@ -114,7 +121,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
                     FunctionLikeExpression.CreateAmbient(ExecuteResultGetRequiredOutputFiles, m_getRequiredOutputFilesSignature, GetRequiredOutputFiles, m_getRequiredOutputFilesStatistic),
                     frame: empty);
 
-                var bindings = new List<Binding>(isService ? 6 : 5)
+                var bindings = new List<Binding>(isService ? 7 : 6)
                     {
                         new Binding(ExecuteResultGetOutputFile, getOutputFile, location: default),
                         new Binding(ExecuteResultGetOutputDirectory, getOutputDirectory, location: default),
@@ -123,12 +130,13 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
                         new Binding(ExecuteResultGetRequiredOutputFiles, getRequiredOutputFiles, location: default),
                         new Binding(ExecuteResultProcessOutputs, new EvaluationResult(processOutputs), location: default),
                     };
+
                 if (isService)
                 {
                     bindings.Add(new Binding(CreateServiceResultServiceId, processOutputs.ProcessPipId, location: default));
                 }
 
-                return ObjectLiteral.Create(bindings, entry.InvocationLocation, entry.Path);
+                return ObjectLiteral.Create(bindings, location, path);
             }
 
             // Local functions
@@ -158,20 +166,26 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             EvaluationResult GetOutputDirectories(Context contextArg, ModuleLiteral envArg, EvaluationStackFrame args)
             {
                 var outputDirectories = processOutputs.GetOutputDirectories().Select(d => EvaluationResult.Create(d)).ToArray();
-                return EvaluationResult.Create(ArrayLiteral.CreateWithoutCopy(outputDirectories, entry.InvocationLocation, entry.Path));
+                return EvaluationResult.Create(ArrayLiteral.CreateWithoutCopy(outputDirectories, location, path));
             }
 
             EvaluationResult GetOutputFiles(Context contextArg, ModuleLiteral envArg, EvaluationStackFrame args)
             {
                 var outputFiles = processOutputs.GetOutputFiles().Select(f => EvaluationResult.Create(f)).ToArray();
-                return EvaluationResult.Create(ArrayLiteral.CreateWithoutCopy(outputFiles, entry.InvocationLocation, entry.Path));
+                return EvaluationResult.Create(ArrayLiteral.CreateWithoutCopy(outputFiles, location, path));
             }
 
             EvaluationResult GetRequiredOutputFiles(Context contextArg, ModuleLiteral envArg, EvaluationStackFrame args)
             {
                 var outputFiles = processOutputs.GetRequiredOutputFiles().Select(f => EvaluationResult.Create(f)).ToArray();
-                return EvaluationResult.Create(ArrayLiteral.CreateWithoutCopy(outputFiles, entry.InvocationLocation, entry.Path));
+                return EvaluationResult.Create(ArrayLiteral.CreateWithoutCopy(outputFiles, location, path));
             }
+        }
+
+        private ObjectLiteral BuildExecuteOutputs(Context context, ModuleLiteral env, ProcessOutputs processOutputs, bool isService)
+        {
+            var entry = context.TopStack;
+            return CreateExecuteResult(context, env, processOutputs, entry.Path, entry.InvocationLocation, isService);
         }
     }
 }

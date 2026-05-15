@@ -797,14 +797,14 @@ interface JavaScriptResolverWithoutExecutionSemantics extends JavaScriptResolver
  * A symbol name must be specified (for now, no namespaces are allowed, just a plain name, e.g. 'outputs').
  * The resolver will expose a 'symbolName' declaration whose value at runtime will be an array of StaticDirectory, with all the output directories 
  * from the projects specified as content.
- * When 'includeProjectMapping' is set to true, the exposed value will be a Map<JavaScriptProjectIdentifier, StaticDirectory[]> instead, where
- * each key identifies the JavaScript project that produced the corresponding output directories.
+ * When 'includeProjectMapping' is set to true, the exposed value will be a Map<JavaScriptProjectIdentifier, TransformerExecuteResult> instead, where
+ * each key identifies the JavaScript project that produced the corresponding execute result.
  */
 interface JavaScriptExport {
     symbolName: string;
     content: JavaScriptProjectOutputSelector[];
     /** 
-     * When true, the export type becomes Map<JavaScriptProjectIdentifier, StaticDirectory[]> instead of StaticDirectory[].
+     * When true, the export type becomes Map<JavaScriptProjectIdentifier, TransformerExecuteResult> instead of StaticDirectory[].
      * Defaults to false. 
      */
     includeProjectMapping?: boolean;

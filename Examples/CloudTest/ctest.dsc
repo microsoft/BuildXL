@@ -1,7 +1,7 @@
 import * as CloudTestClient from "Sdk.CloudTestClient";
 import * as Drop from "Sdk.Drop";
 import {Transformer} from "Sdk.Transformers";
-// This is a Map<JavaScriptProjectIdentifier, OpaqueDirectory[]> with the outputs produced by each project+verb.
+// This is a Map<JavaScriptProjectIdentifier, TransformerExecuteResult> with the execute result produced by each project+verb.
 import { buildContent } from "test-build";
 
 // We create a drop upfront because we want to populate it with some artifacts before creating the session.
@@ -47,7 +47,8 @@ const sessionCreateResult = CloudTestClient.Helpers.generateConfigAndCreateSessi
 // Submit one job per package + verb, with the corresponding build outputs as inputs.
 const jobs = buildContent.toArray().map((kvp) => {
     const project : JavaScriptProjectIdentifier = kvp[0];
-    const staticDirectories : OpaqueDirectory[] = kvp[1];
+    const executeResult : TransformerExecuteResult = kvp[1];
+    const staticDirectories : OpaqueDirectory[] = executeResult.getOutputDirectories();
 
     const submitJobArgs : CloudTestClient.Helpers.SubmitJobArguments = {
         jobName: getTestJobName(project),

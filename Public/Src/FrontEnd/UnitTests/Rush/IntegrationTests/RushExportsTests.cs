@@ -180,7 +180,7 @@ import {{exportSymbol}} from 'rushTest';
         public void ExportedValuesWithProjectMappingCanBeConsumed()
         {
             // Set up a rush resolver side-by-side with a DScript resolver.
-            // With includeProjectMapping: true, the export should produce a Map<JavaScriptProjectIdentifier, SharedOpaqueDirectory[]>
+            // With includeProjectMapping: true, the export should produce a Map<JavaScriptProjectIdentifier, TransformerExecuteResult>
             var config =
                 Build(
                     rushExports: "[{symbolName: 'exportSymbol', content: ['@ms/project-A'], includeProjectMapping: true}]",
@@ -192,17 +192,19 @@ import {{exportSymbol}} from 'rushTest';
                .AddSpec(@"
 import {exportSymbol} from 'rushTest'; 
 
-const typedExport : Map<JavaScriptProjectIdentifier, SharedOpaqueDirectory[]> = exportSymbol;
-const entries : [JavaScriptProjectIdentifier, SharedOpaqueDirectory[]][] = typedExport.toArray();
+const typedExport : Map<JavaScriptProjectIdentifier, TransformerExecuteResult> = exportSymbol;
+const entries : [JavaScriptProjectIdentifier, TransformerExecuteResult][] = typedExport.toArray();
 const assertion1 = Contract.assert(entries.length === 1);
 
 // Each entry is a [key, value] tuple
-const entry : [JavaScriptProjectIdentifier, SharedOpaqueDirectory[]] = entries[0];
+const entry : [JavaScriptProjectIdentifier, TransformerExecuteResult] = entries[0];
 const projectId : JavaScriptProjectIdentifier = entry[0];
-const outputs : SharedOpaqueDirectory[] = entry[1];
+const executeResult : TransformerExecuteResult = entry[1];
 const assertion2 = Contract.assert(projectId.packageName === '@ms/project-A');
 const assertion3 = Contract.assert(projectId.command === 'build');
-const assertion4 = Contract.assert(typeof(outputs[0]) === 'SharedOpaqueDirectory');
+// Validate that the execute result has the expected shape (getOutputDirectories returns an array)
+const outputs : OpaqueDirectory[] = executeResult.getOutputDirectories();
+const assertion4 = Contract.assert(outputs.length > 0);
 const assertion5 = Contract.assert(outputs[0].root.isWithin(d`src/A`));")
                .PersistSpecsAndGetConfiguration();
 
@@ -256,8 +258,8 @@ const assertion1 = Contract.assert(typeof(firstOutput) === 'SharedOpaqueDirector
                .AddSpec(@"
 import {exportSymbol} from 'rushTest'; 
 
-const typedExport : Map<JavaScriptProjectIdentifier, SharedOpaqueDirectory[]> = exportSymbol;
-const entries : [JavaScriptProjectIdentifier, SharedOpaqueDirectory[]][] = typedExport.toArray();
+const typedExport : Map<JavaScriptProjectIdentifier, TransformerExecuteResult> = exportSymbol;
+const entries : [JavaScriptProjectIdentifier, TransformerExecuteResult][] = typedExport.toArray();
 const assertion1 = Contract.assert(entries.length === 2);")
                .PersistSpecsAndGetConfiguration();
 

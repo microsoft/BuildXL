@@ -33,7 +33,7 @@ namespace BuildXL.FrontEnd.JavaScript.ProjectGraph
         public IReadOnlyCollection<JavaScriptProject> ExportedProjects { get; }
 
         /// <summary>
-        /// When true, the export type becomes Map&lt;JavaScriptProjectIdentifier, StaticDirectory[]&gt; instead of StaticDirectory[].
+        /// When true, the export type becomes Map&lt;JavaScriptProjectIdentifier, TransformerExecuteResult&gt; instead of StaticDirectory[].
         /// </summary>
         public bool IncludeProjectMapping { get; }
     }

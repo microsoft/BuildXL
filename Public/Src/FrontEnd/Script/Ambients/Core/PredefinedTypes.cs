@@ -59,6 +59,11 @@ namespace BuildXL.FrontEnd.Script.Ambients
         private readonly AmbientGraph m_ambientGraphHelper;
         private readonly AmbientUnsafe m_ambientUnsafe;
 
+        /// <summary>
+        /// The ambient transformer instance
+        /// </summary>
+        public AmbientTransformerBase AmbientTransformer => m_ambientTransformerOriginal;
+
         /// <summary>Returns all ambient definitions keyed by <see cref="Type"/>.</summary>
         public IReadOnlyDictionary<Type, AmbientDefinitionBase> AllAmbientDefinitions { get; }
 

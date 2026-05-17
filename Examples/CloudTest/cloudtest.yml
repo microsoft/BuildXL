@@ -32,7 +32,7 @@ parameters:
 
 variables:
   - name: BuildXLPackageVersion
-    value: '0.1.0-20260506.3' # This value can be injected as a way to validate release candidates
+    value: '0.1.0-20260516.1' # This value can be injected as a way to validate release candidates
 
 resources:
   repositories:

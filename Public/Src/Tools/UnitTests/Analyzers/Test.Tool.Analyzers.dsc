@@ -32,6 +32,7 @@ namespace Test.Tool.Analyzers {
             importFrom("BuildXL.Core.UnitTests").EngineTestUtilities.dll,
             importFrom("BuildXL.Core.UnitTests").Scheduler.IntegrationTest.dll,
             importFrom("BuildXL.Core.UnitTests").Scheduler.dll,
+            importFrom("BuildXL.Engine.ProcessesTestBase").ProcessesTestBase.dll,
             importFrom("BuildXL.Pips").dll,
             importFrom("BuildXL.Tools").Execution.Analyzer.exe,
             importFrom("BuildXL.Utilities").dll,

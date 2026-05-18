@@ -8,13 +8,17 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using BuildXL.Pips.Builders;
 using BuildXL.Processes;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Core;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using FileUtilities = BuildXL.Native.IO.FileUtilities;
 using Operation = Test.BuildXL.Executables.TestProcess.Operation;
+using PipDataBuilder = global::BuildXL.Pips.Operations.PipDataBuilder;
+using PipData = global::BuildXL.Pips.Operations.PipData;
+using PipDataFragmentEscaping = global::BuildXL.Pips.Operations.PipDataFragmentEscaping;
+using EnvironmentVariable = global::BuildXL.Pips.Operations.EnvironmentVariable;
 using ProcessesLogEventId = BuildXL.Processes.Tracing.LogEventId;
 
 #pragma warning disable AsyncFixer02
@@ -146,14 +150,33 @@ namespace Test.BuildXL.Processes
             // We explicitly turn off ptrace, so the statically linked process we are about to run won't be observed
             fam.EnableLinuxPTraceSandbox = false;
 
-            // Create a pip whose root process is the statically linked one
-            var processBuilder = ProcessBuilder.CreateForTesting(Context.PathTable, FrontEndContext.CredentialScanner, LoggingContext);
-            processBuilder.Executable = staticProcessArtifact;
-            processBuilder.ArgumentsBuilder.Add("0");
-            processBuilder.AddInputFile(staticProcessArtifact);
-            AddUntrackedWindowsDirectories(processBuilder);
-            var ok = processBuilder.TryFinish(PipConstructionHelper, out var process, out _);
-            XAssert.IsTrue(ok, "Could not finish creating process builder");
+            // Create a Process pip whose root process is the statically linked one
+            var process = new global::BuildXL.Pips.Operations.Process(
+                executable: staticProcessArtifact,
+                workingDirectory: workingDirectory.Path,
+                arguments: PipDataBuilder.CreatePipData(Context.StringTable, " ", PipDataFragmentEscaping.CRuntimeArgumentRules, "0"),
+                responseFile: FileArtifact.Invalid,
+                responseFileData: PipData.Invalid,
+                environmentVariables: ReadOnlyArray<EnvironmentVariable>.Empty,
+                standardInput: FileArtifact.Invalid,
+                standardOutput: FileArtifact.Invalid,
+                standardError: FileArtifact.Invalid,
+                standardDirectory: ObjectRootPath,
+                warningTimeout: null,
+                timeout: null,
+                dependencies: ReadOnlyArray<FileArtifact>.From(new[] { staticProcessArtifact }),
+                outputs: ReadOnlyArray<FileArtifactWithAttributes>.Empty,
+                directoryDependencies: ReadOnlyArray<DirectoryArtifact>.Empty,
+                directoryOutputs: ReadOnlyArray<DirectoryArtifact>.Empty,
+                orderDependencies: ReadOnlyArray<global::BuildXL.Pips.PipId>.Empty,
+                untrackedPaths: ReadOnlyArray<AbsolutePath>.Empty,
+                untrackedScopes: ReadOnlyArray<AbsolutePath>.From(TestProcessDependencies),
+                tags: ReadOnlyArray<StringId>.Empty,
+                successExitCodes: ReadOnlyArray<int>.Empty,
+                semaphores: ReadOnlyArray<global::BuildXL.Pips.Operations.ProcessSemaphoreInfo>.Empty,
+                provenance: CreateProvenance(),
+                toolDescription: StringId.Invalid,
+                additionalTempDirectories: ReadOnlyArray<AbsolutePath>.Empty);
 
             var staticProcessInfo = ToProcessInfo(
                 process,

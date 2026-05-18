@@ -317,7 +317,7 @@ namespace Test.BuildXL.Scheduler
 
         public ProcessWithOutputs SchedulePipBuilder(ProcessBuilder builder)
         {
-            AddUntrackedWindowsDirectories(builder);
+            AddDefaultOsUntrackedScopes(builder);
 
             if (!builder.TryFinish(PipConstructionHelper, out var process, out var outputs))
             {

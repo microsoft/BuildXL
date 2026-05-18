@@ -37,24 +37,16 @@ using BuildXL.Scheduler.Fingerprints;
 
 namespace Test.BuildXL.Scheduler
 {
-    public abstract class PipTestBase : TemporaryStorageTestBase
+    /// <summary>
+    /// Base class for Scheduler-level tests. Extends ProcessesTestBase with Scheduler-specific
+    /// infrastructure: PipGraph, PipTable, MountPathExpander, FrontEndContext, PipConstructionHelper,
+    /// and higher-level pip creation/scheduling methods.
+    /// </summary>
+    public abstract class PipTestBase : ProcessesTestBase
     {
-        protected const string SourceRootPrefix = "src";
-        protected const string ObjectRootPrefix = "obj";
-        protected const string RedirectedRootPrefix = "redirected";
         protected const string CacheRootPrefix = ".cache";
 
         private const string WarningRegexDescription = "WARNING";
-
-        /// <summary>
-        /// Test process tool base name
-        /// </summary>
-        protected const string TestProcessToolNameWithoutExtension = "Test.BuildXL.Executables.TestProcess";
-
-        /// <summary>
-        /// Infinite waiter base name
-        /// </summary>
-        protected const string InfiniteWaiterWithoutExtension = "Test.BuildXL.Executables.InfiniteWaiter";
 
         /// <summary>
         /// Value if for created pip.
@@ -77,69 +69,6 @@ namespace Test.BuildXL.Scheduler
         protected const string WriteFileDescription = "WRITE";
 
         /// <summary>
-        /// FileArtifact for cmd.exe
-        /// </summary>
-        protected readonly FileArtifact CmdExecutable;
-
-        /// <summary>
-        /// FileArtifact for generic TestProcess.exe
-        /// </summary>
-        protected FileArtifact TestProcessExecutable { get; set; }
-
-        protected readonly AbsolutePath[] TestProcessDependencies;
-
-        /// <summary>
-        /// Test process tool name
-        /// </summary>
-        protected string TestProcessToolName => OperatingSystemHelper.IsUnixOS
-            ? TestProcessToolNameWithoutExtension
-            : TestProcessToolNameWithoutExtension + ".exe";
-
-        /// <summary>
-        /// Test process tool name with a capability set
-        /// </summary>
-        protected string TestProcessToolNameWithCapabilties => OperatingSystemHelper.IsUnixOS
-            ? $"{TestProcessToolName}WithCapabilities"
-            : $"{TestProcessToolName}WithCapabilities.exe";
-
-        /// <summary>
-        /// Infinite waiter process tool name
-        /// </summary>
-        protected static string InfiniteWaiterToolName => OperatingSystemHelper.IsUnixOS
-            ? InfiniteWaiterWithoutExtension
-            : InfiniteWaiterWithoutExtension + ".exe";
-
-        /// <summary>
-        /// Context
-        /// </summary>
-        protected BuildXLContext Context;
-
-        /// <summary>
-        /// Fresh id for pip.
-        /// </summary>
-        private int m_pipFreshId;
-
-        /// <summary>
-        /// ID used to generate filenames. Incremented for each new name.
-        /// </summary>
-        private int m_uniqueFileId;
-
-        /// <summary>
-        /// Directory containing temporary 'source' files.
-        /// </summary>
-        protected string SourceRoot { get; private set; }
-
-        /// <summary>
-        /// Directory containing temporary 'output' files.
-        /// </summary>
-        protected string ObjectRoot { get; private set; }
-
-        /// <summary>
-        /// Directory containing redirected 'output' files.
-        /// </summary>
-        protected string RedirectedRoot { get; private set; }
-
-        /// <summary>
         /// Directory containing temporary cache.
         /// </summary>
         protected string CacheRoot { get; private set; }
@@ -147,28 +76,12 @@ namespace Test.BuildXL.Scheduler
         protected string ReadonlyRoot;
         protected string NonHashableRoot;
         protected string NonReadableRoot;
-        protected string TestBinRoot;
-
-        /// <summary>
-        /// Absolute path for ObjectRoot.
-        /// </summary>
-        protected AbsolutePath ObjectRootPath { get; set; }
-
-        protected AbsolutePath SourceRootPath { get; set; }
-
-        protected AbsolutePath TestBinRootPath { get; set; }
 
         protected QualifierTable QualifierTable { get; private set; }
 
         protected MountPathExpander Expander { get; set; }
 
         protected PipTable PipTable { get; private set; }
-
-        private static long s_pipIdCounter = 1;
-
-        protected static long GetNextPipId() { return Interlocked.Increment(ref s_pipIdCounter); }
-
-        private static long s_semistableHashCounter = 0;
 
         /// <summary>
         /// The pip graph builder.
@@ -242,7 +155,7 @@ namespace Test.BuildXL.Scheduler
             }
 
             builder.AddInputFile(testProcessExecutable);
-            AddUntrackedWindowsDirectories(builder);
+            AddDefaultOsUntrackedScopes(builder);
 
             // When symlinks are involved, TestProcess.exe can access C:\ProgramData\Microsoft\NetFramework\BreadcrumbStore
             builder.AddUntrackedProgramDataDirectories();
@@ -323,31 +236,6 @@ namespace Test.BuildXL.Scheduler
 
         protected PipTestBase(ITestOutputHelper output) : base(output)
         {
-            Context = BuildXLContext.CreateInstanceForTesting();
-            PathTable.DebugPathTable = Context.PathTable;
-            m_pipFreshId = 0;
-
-            TestBinRoot = Path.GetDirectoryName(AssemblyHelper.GetAssemblyLocation(System.Reflection.Assembly.GetExecutingAssembly()));
-            TestBinRootPath = AbsolutePath.Create(Context.PathTable, TestBinRoot);
-            SourceRoot = Path.Combine(TemporaryDirectory, SourceRootPrefix);
-            SourceRootPath = AbsolutePath.Create(Context.PathTable, SourceRoot);
-
-            CmdExecutable = FileArtifact.CreateSourceFile(AbsolutePath.Create(Context.PathTable, CmdHelper.OsShellExe));
-
-            string testProcessFolder = Path.Combine(TestBinRoot, "TestProcess");
-            string platformDir = Dispatch.CurrentOS().ToString();
-            string exe = Path.Combine(testProcessFolder, platformDir, TestProcessToolName);
-            TestProcessExecutable = FileArtifact.CreateSourceFile(AbsolutePath.Create(Context.PathTable, exe));
-
-            // Test process depends on C://Windows (when running on Windows)
-            TestProcessDependencies = OperatingSystemHelper.IsUnixOS
-                ? new AbsolutePath[0]
-                : new AbsolutePath[] { AbsolutePath.Create(Context.PathTable, Environment.GetFolderPath(Environment.SpecialFolder.Windows)) };
-
-            ObjectRoot = Path.Combine(TemporaryDirectory, ObjectRootPrefix);
-            RedirectedRoot = Path.Combine(TemporaryDirectory, RedirectedRootPrefix);
-            ObjectRootPath = AbsolutePath.Create(Context.PathTable, ObjectRoot);
-
             CacheRoot = Path.Combine(TemporaryDirectory, CacheRootPrefix);
 
             BaseSetup();
@@ -624,93 +512,11 @@ namespace Test.BuildXL.Scheduler
             return CmdExecutable;
         }
 
-        protected AbsolutePath GetWorkingDirectory()
-        {
-            return ObjectRootPath;
-        }
-
-        protected AbsolutePath GetStandardDirectory()
-        {
-            return ObjectRootPath;
-        }
-
-        protected AbsolutePath Combine(AbsolutePath root, params PathAtom[] atoms)
-            => root.Combine(Context.PathTable, atoms);
-
-        protected AbsolutePath Combine(AbsolutePath root, params string[] atoms)
-            => Combine(root, atoms.Select(a => PathAtom.Create(Context.StringTable, a)).ToArray());
-
-        /// <see cref="CreateSourceFileWithPrefix(string, string)"/>
-        protected FileArtifact CreateSourceFile(AbsolutePath root, string prefix = null)
-            => CreateSourceFileWithPrefix(root: root.ToString(Context.PathTable), prefix: prefix);
-
-        /// <see cref="CreateSourceFileWithPrefix(string, string)"/>
-        protected FileArtifact CreateSourceFile(string root = null)
-            => CreateSourceFileWithPrefix(root: root, prefix: SourceRootPrefix);
-
-        /// <summary>
-        /// Creates a source artifact and populates it with <see cref="WriteSourceFile"/>.
-        /// Creating a backing file is necessary since source artifacts must exist at the beginning of a build.
-        ///
-        /// If <paramref name="root"/> is not specified, <see cref="SourceRoot"/> is used as the parent directory.
-        ///
-        /// If <paramref name="prefix"/> is not specified, <see cref="SourceRootPrefix"/> is used as the file name prefix.
-        /// </summary>
-        protected FileArtifact CreateSourceFileWithPrefix(string root = null, string prefix = null)
-        {
-            FileArtifact sourceFile = FileArtifact.CreateSourceFile(CreateUniqueSourcePath(prefix ?? SourceRootPrefix, root));
-            WriteSourceFile(sourceFile);
-            return sourceFile;
-        }
-
-        /// <summary>
-        /// Creates a file for use as source (it can exist before the scheduler starts).
-        /// Intermediate directories are created as needed.
-        /// </summary>
-        protected void WriteSourceFile(FileArtifact artifact, string content = null)
-        {
-            Contract.Requires(artifact.IsValid);
-
-            string fullPath = artifact.Path.ToString(Context.PathTable);
-            Directory.CreateDirectory(Path.GetDirectoryName(fullPath));
-            File.WriteAllText(fullPath, content ?? Guid.NewGuid().ToString());
-        }
-
-        /// <summary>
-        /// Creates a unique directory.
-        /// </summary>
-        protected AbsolutePath CreateUniqueDirectory(AbsolutePath root, string prefix = null) => CreateUniqueDirectory(root.ToString(Context.PathTable), prefix);
-
-        protected AbsolutePath CreateUniqueDirectory(string root = null, string prefix = null)
-        {
-            AbsolutePath path = CreateUniqueSourcePath(prefix ?? SourceRootPrefix, root);
-            Directory.CreateDirectory(path.ToString(Context.PathTable));
-            return path;
-        }
-
         /// <summary>
         /// Creates a unique directory and wraps it in a <see cref="DirectoryArtifact"/>.
         /// </summary>
         protected DirectoryArtifact CreateUniqueDirectoryArtifact(string root = null, string prefix = null)
             => DirectoryArtifact.CreateWithZeroPartialSealId(CreateUniqueDirectory(root, prefix));
-
-        /// <summary>
-        /// Creates a file artifact with the given name under the given root
-        /// </summary>
-        public FileArtifact CreateFileArtifactWithName(string name, string root)
-        {
-            AbsolutePath filePath;
-            AbsolutePath.TryCreate(Context.PathTable, Path.Combine(root, name), out filePath);
-            return new FileArtifact(filePath);
-        }
-
-        /// <summary>
-        /// Creates an output artifact without creating the backing file. Output artifacts may be created by scheduled pips.
-        /// </summary>
-        protected FileArtifact CreateOutputFileArtifact(string root = null, string prefix = null)
-        {
-            return FileArtifact.CreateSourceFile(CreateUniqueObjPath(prefix ?? "obj", root)).CreateNextWrittenVersion();
-        }
 
         /// <summary>
         /// Creates an output without creating the backing file.
@@ -721,33 +527,11 @@ namespace Test.BuildXL.Scheduler
         }
 
         /// <summary>
-        /// Creates an output artifact without creating the backing file. Output artifacts may be created by scheduled pips.
-        /// </summary>
-        protected FileArtifact CreateOutputFileArtifact(AbsolutePath root, string prefix = null)
-        {
-            return CreateOutputFileArtifact(root.ToString(Context.PathTable), prefix);
-        }
-
-        /// <summary>
         /// Creates an output directory artifact without creating the backing directory. Output artifacts may be created by scheduled pips.
         /// </summary>
         protected DirectoryArtifact CreateOutputDirectoryArtifact(string root = null)
         {
             return OutputDirectory.Create(CreateUniqueObjPath("obj", root));
-        }
-
-        protected AbsolutePath CreateUniqueSourcePath(string prefix, string root = null)
-        {
-            Contract.Requires(prefix != null);
-            return CreateUniquePath(prefix, root ?? SourceRoot);
-        }
-
-        protected AbsolutePath CreateUniqueSourcePath() => CreateUniqueSourcePath(SourceRootPrefix);
-
-        protected AbsolutePath CreateUniqueObjPath(string prefix, string root = null)
-        {
-            Contract.Requires(prefix != null);
-            return CreateUniquePath(prefix, root ?? ObjectRoot);
         }
 
         protected string CreateUniqueObjPathAsString(string prefix, string root = null)
@@ -756,22 +540,9 @@ namespace Test.BuildXL.Scheduler
             return CreateUniquePathAsString(prefix, root ?? ObjectRoot);
         }
 
-        protected AbsolutePath CreateUniquePath(string prefix, string root)
+        protected PipProvenance CreateProvenance(AbsolutePath? specPath)
         {
-            return AbsolutePath.Create(Context.PathTable, CreateUniquePathAsString(prefix, root));
-        }
-
-        protected string CreateUniquePathAsString(string prefix, string root)
-        {
-            Contract.Requires(prefix != null);
-            Contract.Requires(root != null);
-
-            return Path.Combine(root, string.Format(CultureInfo.InvariantCulture, "{0}_{1}", prefix, m_uniqueFileId++));
-        }
-
-        protected PipProvenance CreateProvenance(AbsolutePath? specPath = null)
-        {
-            return CreateProvenance(StringId.Invalid, specPath: specPath);
+            return CreateProvenanceWithSpec(StringId.Invalid, specPath: specPath);
         }
 
         protected PipProvenance CreateProvenance(string moduleName)
@@ -785,7 +556,12 @@ namespace Test.BuildXL.Scheduler
                 moduleName: moduleName);
         }
 
-        protected PipProvenance CreateProvenance(StringId usage, AbsolutePath? specPath = null)
+        protected override PipProvenance CreateProvenance(StringId usage = default)
+        {
+            return CreateProvenanceWithSpec(usage, specPath: null);
+        }
+
+        protected PipProvenance CreateProvenanceWithSpec(StringId usage, AbsolutePath? specPath)
         {
             return CreateProvenance(
                 Context,
@@ -841,13 +617,6 @@ namespace Test.BuildXL.Scheduler
             pipGraph.AddModule(modulePip);
             pipGraph.AddSpecFile(new SpecFilePip(new FileArtifact(provenance.Token.Path), locationData, modulePip.Module));
             pipGraph.AddOutputValue(new ValuePip(provenance.OutputValueSymbol, QualifierId.Unqualified, locationData));
-        }
-
-        private ReadOnlyArray<StringId> ConvertToStringIdArray(IEnumerable<string> list)
-        {
-            return list != null
-                ? ReadOnlyArray<StringId>.From(list.Select(tag => StringId.Create(Context.PathTable.StringTable, tag)))
-                : ReadOnlyArray<StringId>.Empty;
         }
 
         protected SealDirectory CreateSealDirectory(AbsolutePath root, SealDirectoryKind sealDirectoryKind, params FileArtifact[] files)
@@ -1072,252 +841,6 @@ namespace Test.BuildXL.Scheduler
             return process;
         }
 
-        /// <summary>
-        /// Creates arguments.
-        /// </summary>
-        protected PipData CreateArguments(
-            IEnumerable<Operation> processOperations,
-            StringTable stringTable)
-        {
-            var pipDataBuilder = new PipDataBuilder(stringTable);
-            CreateArguments(pipDataBuilder, processOperations, stringTable);
-            return pipDataBuilder.ToPipData(" ", PipDataFragmentEscaping.CRuntimeArgumentRules);
-        }
-
-        /// <summary>
-        /// Creates arguments.
-        /// </summary>
-        protected void CreateArguments(
-            PipDataBuilder pipDataBuilder,
-            IEnumerable<Operation> processOperations,
-            StringTable stringTable)
-        {
-            foreach (var op in processOperations)
-            {
-                pipDataBuilder.Add(op.ToCommandLine(Context.PathTable));
-            }
-        }
-
-        /// <summary>
-        /// Creates a process pip.
-        /// </summary>
-        protected Process CreateProcess(
-            IEnumerable<Operation> processOperations,
-            IEnumerable<string> tags = null,
-            IEnumerable<EnvironmentVariable> environmentVariables = null,
-            IEnumerable<DirectoryArtifact> directoryDependencies = null,
-            IEnumerable<DirectoryArtifact> directoryOutputs = null,
-            IEnumerable<PipId> orderDependencies = null,
-            IEnumerable<AbsolutePath> untrackedPaths = null,
-            IEnumerable<AbsolutePath> untrackedScopes = null,
-            FileArtifact? stdOut = null,
-            FileArtifact? stdError = null,
-            PipProvenance provenance = null,
-            IEnumerable<AbsolutePath> additionalTempDirectories = null,
-            AbsolutePath? tempDirectory = null,
-            IEnumerable<FileArtifact> tempFiles = null /* converted to FileArtifactWithAttributes with FileExistence.Temporary, then concatenated to outputs */)
-        {
-            FileArtifact executable = TestProcessExecutable;
-
-            var dao = InferIOFromOperations(processOperations);
-
-            return CreateProcessWithoutInferringAccesses(
-                dependencies: dao.Dependencies,
-                outputs: dao.Outputs,
-                processOperations: processOperations,
-                tags: tags,
-                environmentVariables: environmentVariables,
-                directoryDependencies: directoryDependencies,
-                directoryOutputs: directoryOutputs,
-                orderDependencies: orderDependencies,
-                untrackedPaths: untrackedPaths,
-                untrackedScopes: untrackedScopes,
-                stdOut: stdOut,
-                stdError: stdError,
-                provenance: provenance,
-                additionalTempDirectories: additionalTempDirectories,
-                tempDirectory: tempDirectory,
-                tempFiles: tempFiles);
-        }
-
-        /// <summary>
-        /// Creates a process pip without inferring any accesses from processOperations. This allows the consumer to specify
-        /// all file acceses
-        /// </summary>
-        protected Process CreateProcessWithoutInferringAccesses(
-            IEnumerable<FileArtifact> dependencies,
-            IEnumerable<FileArtifact> outputs,
-            IEnumerable<Operation> processOperations,
-            IEnumerable<string> tags = null,
-            IEnumerable<EnvironmentVariable> environmentVariables = null,
-            IEnumerable<DirectoryArtifact> directoryDependencies = null,
-            IEnumerable<DirectoryArtifact> directoryOutputs = null,
-            IEnumerable<PipId> orderDependencies = null,
-            IEnumerable<AbsolutePath> untrackedPaths = null,
-            IEnumerable<AbsolutePath> untrackedScopes = null,
-            FileArtifact? stdOut = null,
-            FileArtifact? stdError = null,
-            PipProvenance provenance = null,
-            IEnumerable<AbsolutePath> additionalTempDirectories = null,
-            AbsolutePath? tempDirectory = null,
-            IEnumerable<FileArtifact> tempFiles = null /* converted to FileArtifactWithAttributes with FileExistence.Temporary, then concatenated to outputs */)
-        {
-            Contract.Requires(dependencies != null);
-            Contract.Requires(outputs != null);
-
-            FileArtifact executable = TestProcessExecutable;
-
-            untrackedScopes = untrackedScopes ?? new AbsolutePath[0];
-            if (tempDirectory != null)
-
-            // Make temp directories untracked scopes to mimic pips built through PipBuilder
-            {
-                untrackedScopes = untrackedScopes.Concat(new AbsolutePath[] { (AbsolutePath)tempDirectory });
-            }
-            untrackedScopes = untrackedScopes.Concat(additionalTempDirectories ?? new AbsolutePath[0]);
-
-            // Add C://Windows dependency for test executable
-            untrackedScopes = untrackedScopes.Concat(TestProcessDependencies);
-
-            IEnumerable<FileArtifactWithAttributes> outputsWithAttributes = outputs.Select(o => o.WithAttributes());
-            if (tempFiles != null)
-            {
-                outputsWithAttributes = outputsWithAttributes.Concat(tempFiles.Select(tf => FileArtifactWithAttributes.FromFileArtifact(tf, FileExistence.Temporary)));
-            }
-
-            var process =
-                new Process(
-                    executable: executable,
-                    workingDirectory: GetWorkingDirectory(),
-                    arguments: CreateArguments(processOperations, Context.StringTable),
-                    responseFile: FileArtifact.Invalid,
-                    responseFileData: PipData.Invalid,
-                    environmentVariables: environmentVariables != null
-                        ? ReadOnlyArray<EnvironmentVariable>.From(environmentVariables)
-                        : ReadOnlyArray<EnvironmentVariable>.Empty,
-                    standardInput: FileArtifact.Invalid,
-                    standardOutput: stdOut ?? FileArtifact.Invalid,
-                    standardError: stdError ?? FileArtifact.Invalid,
-                    standardDirectory: GetStandardDirectory(),
-                    warningTimeout: null,
-                    timeout: null,
-                    dependencies: ReadOnlyArray<FileArtifact>.From((new[] { executable }).Concat(dependencies ?? CollectionUtilities.EmptyArray<FileArtifact>())),
-                    outputs: ReadOnlyArray<FileArtifactWithAttributes>.From(outputsWithAttributes),
-                    directoryDependencies: ReadOnlyArray<DirectoryArtifact>.From(directoryDependencies ?? new DirectoryArtifact[0]),
-                    directoryOutputs: ReadOnlyArray<DirectoryArtifact>.From(directoryOutputs ?? new DirectoryArtifact[0]),
-                    orderDependencies: orderDependencies != null ? ReadOnlyArray<PipId>.From(orderDependencies) : ReadOnlyArray<PipId>.Empty,
-                    untrackedPaths: ReadOnlyArray<AbsolutePath>.From(untrackedPaths ?? ReadOnlyArray<AbsolutePath>.Empty),
-                    untrackedScopes: ReadOnlyArray<AbsolutePath>.From(untrackedScopes),
-                    tags: ConvertToStringIdArray(tags),
-                    successExitCodes: ReadOnlyArray<int>.Empty,
-                    semaphores: ReadOnlyArray<ProcessSemaphoreInfo>.Empty,
-                    provenance: provenance ?? CreateProvenance(),
-                    toolDescription: StringId.Invalid,
-                    additionalTempDirectories: ReadOnlyArray<AbsolutePath>.From(additionalTempDirectories ?? ReadOnlyArray<AbsolutePath>.Empty),
-                    tempDirectory: tempDirectory ?? default(AbsolutePath)
-                    );
-
-            return process;
-        }
-
-        /// <summary>
-        /// Naively infers the dependencies and outputs of the given <see cref="Operation"/>s in processOperations
-        /// where <see cref="Operation.DoNotInfer"/> is false. Assumes that test processes will not consume their own outputs.
-        /// </summary>
-        /// <returns>Struct containing inferred dependencies and outputs that can be adjusted if incorrect</returns>
-        protected DependenciesAndOutputs InferIOFromOperations(IEnumerable<Operation> processOperations, bool force = false)
-        {
-            DependenciesAndOutputs dao = new DependenciesAndOutputs();
-
-            if (processOperations != null)
-            {
-                foreach (var op in processOperations)
-                {
-                    if (force || !op.DoNotInfer)
-                    {
-                        // Assumes that a test process will not execute any actions dependent
-                        // on its own output within its own output (i.e. WriteFile(a) then ReadFile(a))
-                        switch (op.OpType)
-                        {
-                            case Operation.Type.WriteFile:
-                            case Operation.Type.WriteEnvVariableToFile:
-                            case Operation.Type.WriteFileWithRetries:
-                                dao.Outputs.Add(op.Path.FileArtifact);
-                                break;
-
-                            case Operation.Type.ReadAndWriteFile:
-                                dao.Outputs.Add(op.LinkPath.FileArtifact);
-                                dao.Dependencies.Add(op.Path.FileArtifact);
-                                break;
-
-                            case Operation.Type.CreateHardlink:
-                                dao.Dependencies.Add(op.LinkPath.FileArtifact);
-                                dao.Outputs.Add(op.Path.FileArtifact);
-                                break;
-
-                            case Operation.Type.ReadFile:
-                            case Operation.Type.ReadFileFromOtherFile:
-                            case Operation.Type.ReadFileIfInputEqual:
-                            case Operation.Type.WaitUntilFileExists:
-                                dao.Dependencies.Add(op.Path.FileArtifact);
-                                break;
-
-                            case Operation.Type.CopyFile:
-                                dao.Dependencies.Add(op.Path.FileArtifact);
-                                dao.Outputs.Add(op.LinkPath.FileArtifact);
-                                break;
-
-                            case Operation.Type.Probe:
-                                if (op.Path.IsFile)
-                                {
-                                    dao.Dependencies.Add(op.Path.FileArtifact);
-                                }
-                                break;
-
-                            case Operation.Type.CreateSymlink:
-                                if (op.LinkPath.IsFile)
-                                {
-                                    dao.Outputs.Add(op.LinkPath.FileArtifact);
-                                }
-                                break;
-
-                            case Operation.Type.CreateJunction:
-                                if (op.LinkPath.IsFile)
-                                {
-                                    dao.Outputs.Add(op.LinkPath.FileArtifact);
-                                }
-                                break;
-
-                            case Operation.Type.Spawn:
-                            case Operation.Type.SpawnWithVFork:
-                                if (op.Path.IsValid && op.Path.IsFile)
-                                {
-                                    dao.Outputs.Add(op.Path.FileArtifact);
-                                }
-                                break;
-
-                            default:
-                                break;
-                        }
-                    }
-                }
-            }
-
-            return dao;
-        }
-
-        // Allows inferred dependencies and outputs to be returned and adjusted
-        public class DependenciesAndOutputs
-        {
-            public HashSet<FileArtifact> Dependencies;
-            public HashSet<FileArtifact> Outputs;
-
-            public DependenciesAndOutputs()
-            {
-                Dependencies = new HashSet<FileArtifact>();
-                Outputs = new HashSet<FileArtifact>();
-            }
-        }
 
         /// <summary>
         /// Validates the count of pips that fall into various buckets in the newest status line logged. Note this is
@@ -1349,40 +872,18 @@ namespace Test.BuildXL.Scheduler
             XAssert.IsTrue(performedValidation, "Did not find log line matching pattern to perform validation");
         }
 
-        protected Process ToProcess(params Operation[] operations)
+        protected override Process ToProcess(params Operation[] operations)
         {
             return ToProcess(testProcessExecutable: default, operations);
         }
 
-        protected Process ToProcess(FileArtifact testProcessExecutable, params Operation[] operations)
+        protected override Process ToProcess(FileArtifact testProcessExecutable, params Operation[] operations)
         {
             var processBuilder = CreatePipBuilder(operations, testProcessExecutable: testProcessExecutable);
-            AddUntrackedWindowsDirectories(processBuilder);
+            AddDefaultOsUntrackedScopes(processBuilder);
             var ok = processBuilder.TryFinish(PipConstructionHelper, out var process, out var _);
             XAssert.IsTrue(ok, "Could not finish creating process builder");
             return process;
-        }
-
-        protected void AddUntrackedWindowsDirectories(ProcessBuilder processBuilder)
-        {
-            if (OperatingSystemHelper.IsUnixOS)
-            {
-                processBuilder.EnableTempDirectory();
-            }
-
-            processBuilder.AddCurrentHostOSDirectories();
-            PipGraphBuilder.ApplyCurrentOsDefaultsInternal(processBuilder, untrackInsteadSourceSeal: true);
-
-            // Code coverage runs cause some side effect accesses under the QTest toolchain. Add these by default
-            // so they don't interrupt with test results.
-            // Technically this shouldn't be necessary because we also have configured the coverage.test.runsettings file
-            // to not collect coverage information for child processes. But leaving this here as a catchall and a
-            // breadcrumb in case this issue pops up again.
-            string qbitsPath = Environment.GetEnvironmentVariable("QBITSPATH");
-            if (!string.IsNullOrWhiteSpace(qbitsPath))
-            {
-                processBuilder.AddUntrackedDirectoryScope(Context.PathTable, qbitsPath);
-            }
         }
 
         protected TestPipGraphFragment CreatePipGraphFragment(string moduleName, bool useTopSort = false, string salt = null)
@@ -1391,53 +892,5 @@ namespace Test.BuildXL.Scheduler
             return new TestPipGraphFragment(LoggingContext, SourceRoot, ObjectRoot, RedirectedRoot, moduleName, useTopSort, salt);
         }
 
-        protected FileArtifact CreateTestProcessWithCapabilities()
-        {
-            // Copy the test process and set an arbitrary capability to it
-            var testProcessWithCapabilities = TestProcessExecutable.Path.GetParent(Context.PathTable).Combine(Context.PathTable, TestProcessToolNameWithCapabilties);
-            var testProcessWithCapabilitiesString = testProcessWithCapabilities.ToString(Context.PathTable);
-
-            // This was already created, no need to do it again
-            if (File.Exists(testProcessWithCapabilitiesString))
-            {
-                return FileArtifact.CreateSourceFile(testProcessWithCapabilities);
-            }
-
-            File.Copy(TestProcessExecutable.Path.ToString(Context.PathTable), testProcessWithCapabilitiesString, overwrite: false);
-
-            var processInfo = new System.Diagnostics.ProcessStartInfo
-            {
-                FileName = "sudo",
-                Arguments = $"setcap cap_dac_override=eip \"{testProcessWithCapabilitiesString}\"",
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden,
-                UseShellExecute = false,
-                ErrorDialog = false,
-                StandardOutputEncoding = Encoding.UTF8,
-                StandardErrorEncoding = Encoding.UTF8,
-            };
-
-            using var process = System.Diagnostics.Process.Start(processInfo);
-            Assert.True(process != null, "Cannot start process 'sudo'");
-            process.WaitForExit();
-
-            Assert.Equal(0, process.ExitCode);
-
-            return FileArtifact.CreateSourceFile(testProcessWithCapabilities);
-        }
-
-        #region IO Helpers
-
-        public bool Exists(AbsolutePath path)
-        {
-            return File.Exists(path.ToString(Context.PathTable));
-        }
-
-        public void Delete(AbsolutePath path)
-        {
-            File.Delete(path.ToString(Context.PathTable));
-        }
-        #endregion
     }
 }

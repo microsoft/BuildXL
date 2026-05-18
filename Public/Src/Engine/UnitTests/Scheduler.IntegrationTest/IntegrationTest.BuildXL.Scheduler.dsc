@@ -31,6 +31,7 @@ namespace Scheduler.IntegrationTest {
         references: [
             Scheduler.dll,
             EngineTestUtilities.dll,
+            importFrom("BuildXL.Engine.ProcessesTestBase").ProcessesTestBase.dll,
             importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
             importFrom("BuildXL.Cache.ContentStore").UtilitiesCore.dll,
             importFrom("BuildXL.Cache.ContentStore").Interfaces.dll,

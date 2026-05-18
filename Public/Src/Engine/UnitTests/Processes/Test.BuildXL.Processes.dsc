@@ -9,7 +9,8 @@ const DetoursTest64 = DetoursTest.withQualifier({platform: "x64"});
 
 namespace Processes {
     
-    // BuildXL.Processes is still used as Net472 by MsBuild. So maintain the tests for net472
+    // BuildXL.Processes is consumed by MSBuild (dotnet/msbuild) as a net472 NuGet package for Detours-based
+    // file access reporting (DetouredNodeLauncher.cs). Keep net472 tests until that dependency is migrated.
     export declare const qualifier: BuildXLSdk.DefaultQualifierWithNet472;
     const bxlSdk = importFrom("Sdk.BuildXL");
 
@@ -21,7 +22,7 @@ namespace Processes {
             unsafeTestRunArguments: {
                 runWithUntrackedDependencies: !BuildXLSdk.Flags.IsEBPFSandboxForTestsEnabled,
                 untrackedPaths:[
-                    // CODESYNC: Public/Src/Engine/UnitTests/Scheduler/PipTestBase.cs
+                    // CODESYNC: Public/Src/Engine/UnitTests/Processes/ProcessesTestBase.cs
                     r`TestProcess/Unix/Test.BuildXL.Executables.TestProcessWithCapabilities`
                 ],
             },
@@ -50,14 +51,11 @@ namespace Processes {
             },
         ],
         references: [
-            EngineTestUtilities.dll,
-            Scheduler.dll,
+            importFrom("BuildXL.Engine.ProcessesTestBase").ProcessesTestBase.dll,
             importFrom("BuildXL.Pips").dll,
             importFrom("BuildXL.Engine").ProcessPipExecutor.dll,
             importFrom("BuildXL.Engine").Processes.dll,
             importFrom("BuildXL.Engine").Processes.External.dll,
-            importFrom("BuildXL.Engine").Scheduler.dll,
-            importFrom("BuildXL.FrontEnd").Sdk.dll,
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Configuration.dll,
             importFrom("BuildXL.Utilities").Native.dll,
@@ -65,6 +63,7 @@ namespace Processes {
             importFrom("BuildXL.Utilities").Plugin.dll,
             importFrom("BuildXL.Utilities").Utilities.Core.dll,
             importFrom("BuildXL.Utilities.UnitTests").TestProcess.exe,
+            importFrom("BuildXL.Utilities.UnitTests").TestUtilities.dll,
             ...importFrom("BuildXL.Utilities").Native.securityDlls,
             ...addIf(bxlSdk.isFullFramework,
                 bxlSdk.NetFx.System.IO.Compression.dll,

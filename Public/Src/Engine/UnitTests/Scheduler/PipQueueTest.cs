@@ -43,7 +43,6 @@ using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Instrumentation.Common;
 using BuildXL.Utilities.Core.Tasks;
 using BuildXL.Utilities.Tracing;
-using Test.BuildXL.EngineTestUtilities;
 using Test.BuildXL.Processes;
 using Test.BuildXL.Scheduler.Utils;
 using Test.BuildXL.TestUtilities;
@@ -92,7 +91,9 @@ namespace Test.BuildXL.Scheduler
             var pathTable = context.PathTable;
             using (var tempFiles = new TempFileStorage(canGetFileNames: true))
             {
-                var config = ConfigHelpers.CreateDefault(pathTable, tempFiles.GetUniqueFileName(), tempFiles);
+                var config = ConfigurationHelpers.GetDefaultForTesting(pathTable, AbsolutePath.Create(pathTable, tempFiles.GetUniqueFileName()));
+                config.Layout.ObjectDirectory = AbsolutePath.Create(pathTable, tempFiles.GetUniqueDirectory());
+                config.Layout.CacheDirectory = AbsolutePath.Create(pathTable, tempFiles.GetUniqueDirectory());
 
                 using (var pipTable = new PipTable(
                     context.PathTable,

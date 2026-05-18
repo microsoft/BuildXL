@@ -28,6 +28,8 @@ namespace Utilities.Core {
             "BuildXL.Scheduler",
             "BuildXL.Utilities",
             "Test.BuildXL.Pips",
+            "Test.BuildXL.Processes",
+            "Test.BuildXL.ProcessesTestBase",
             "Test.BuildXL.Scheduler",
             "Test.BuildXL.Utilities",
             "Test.BuildXL.Utilities.Collections",

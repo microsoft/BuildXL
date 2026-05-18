@@ -39,7 +39,6 @@ namespace Processes.Detours {
                 f`OutputFilterTest.cs`,
             ],
             references: [
-                EngineTestUtilities.dll,
                 importFrom("BuildXL.Engine").ProcessPipExecutor.dll,
                 importFrom("BuildXL.Engine").Processes.dll,
                 importFrom("BuildXL.Engine").Processes.External.dll,

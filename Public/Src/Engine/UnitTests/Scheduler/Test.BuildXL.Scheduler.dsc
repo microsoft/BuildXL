@@ -5,10 +5,6 @@ import * as Managed from "Sdk.Managed";
 
 namespace Scheduler {
 
-    // BuildXL.Processes is still used as Net472 by Cloudbuild and the unittest for that relies on this test dll.
-    // Therefore we compile, but don't run the test in net472
-    export declare const qualifier: BuildXLSdk.DefaultQualifierWithNet472;
-
     @@public
     export const categoriesToRunInParallel = [
         "OperationTrackerTests",
@@ -29,7 +25,7 @@ namespace Scheduler {
             },
             parallelGroups: categoriesToRunInParallel,
         },
-        skipTestRun: qualifier.targetFramework === "net472" || !BuildXLSdk.targetFrameworkMatchesCurrentHost,
+        skipTestRun: !BuildXLSdk.targetFrameworkMatchesCurrentHost,
         references: [
             ...addIf(BuildXLSdk.isFullFramework,
                 BuildXLSdk.NetFx.System.Reflection.dll,
@@ -39,6 +35,7 @@ namespace Scheduler {
                 importFrom("System.Text.Json").pkg,
             ]),
             EngineTestUtilities.dll,
+            importFrom("BuildXL.Engine.ProcessesTestBase").ProcessesTestBase.dll,
             importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
             importFrom("BuildXL.Cache.ContentStore").UtilitiesCore.dll,
             importFrom("BuildXL.Cache.ContentStore").Interfaces.dll,

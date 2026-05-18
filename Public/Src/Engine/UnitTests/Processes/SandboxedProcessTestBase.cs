@@ -10,12 +10,12 @@ using BuildXL.Pips.Operations;
 using BuildXL.Processes;
 using BuildXL.Utilities.Core;
 using Test.BuildXL.Executables.TestProcess;
-using Test.BuildXL.Scheduler;
+using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 
 namespace Test.BuildXL.Processes
 {
-    public class SandboxedProcessTestBase : PipTestBase, ISandboxedProcessFileStorage
+    public class SandboxedProcessTestBase : ProcessesTestBase, ISandboxedProcessFileStorage
     {
         protected static readonly HashSet<string> PotentiallyExternallyInjectedChildProcesses = new HashSet<string>(
             new[]

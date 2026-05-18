@@ -32,7 +32,6 @@ namespace LanguageService.Server {
             Protocol.dll,
             IDE.Shared.JsonRpc.dll,
             importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
-            importFrom("BuildXL.Core.UnitTests").EngineTestUtilities.dll,
             importFrom("BuildXL.Engine").Cache.dll,
             importFrom("BuildXL.Engine").Engine.dll,
             importFrom("BuildXL.Engine").Scheduler.dll,

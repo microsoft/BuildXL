@@ -681,7 +681,6 @@ if (!$skipFilter) {
     $PrivateNugetFilter = "spec='Public\src\Deployment\privatePackages.dsc'";
     $IdeFilter = "spec='Public\src\Deployment\ide.dsc'";
     $TestDeploymentFilter = "spec='Public\src\Deployment\tests.dsc'";
-    $PrivateWdgFilter = "dpt(spec='private\Guests\WDG\*')";
 
     if ($Minimal) {
         # filtering by core deployment.
@@ -712,9 +711,8 @@ if (!$skipFilter) {
 
     if (!$All -and !$Minimal -and !$Cache -and !$LongRunningTest) {
         #Request the same output files from minimal above to make sure that deployment is fully specificed
-        #Then request excludes guests\wdg and all downstream projects.
         #The filter does't have spaces because the dominow wrapper doesn't play well with them
-        $AdditionalBuildXLArguments += "/f:~($PrivateWdgFilter)and~($AllCacheProjectsFilter)and~($CacheLongRunningFilter)and~($CacheNugetFilter)and~($PrivateNugetFilter)and~($IdeFilter)and~($TestDeploymentFilter)"
+        $AdditionalBuildXLArguments += "/f:~($AllCacheProjectsFilter)and~($CacheLongRunningFilter)and~($CacheNugetFilter)and~($PrivateNugetFilter)and~($IdeFilter)and~($TestDeploymentFilter)"
     }
 
     if ($SkipTests) {

@@ -9,7 +9,6 @@ config({
     modules: [
         ...globR(d`Public/Src`, "module.config.dsc"),
         ...globR(d`Public/Sdk/UnitTests`, "module.config.dsc"),
-        ...globR(d`Private/Wdg`, "module.config.dsc"),
         ...globR(d`Private/QTest`, "module.config.dsc"),
         ...globR(d`Private/AdoBuildRunner`, "module.config.dsc"),
         ...globR(d`Private/InternalSdk`, "module.config.dsc"),

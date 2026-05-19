@@ -1,0 +1,40 @@
+{
+  "packageList": [
+    {
+      "packageName": "@test/b-package",
+      "commandList": [
+        {
+          "command": "test:e2e",
+          "provenanceVerb": "test:e2e",
+          "innerCommand": "node ./run-e2e.js",
+          "hash": "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0",
+          "owner": "testowner",
+          "testProfile": "linux.d16.json"
+        }
+      ]
+    },
+    {
+      "packageName": "@test/c-package",
+      "commandList": [
+        {
+          "command": "component:shard-1",
+          "provenanceVerb": "test:component",
+          "innerCommand": "midgard-stories-v8 signoff --shard 1/2",
+          "hash": "b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1",
+          "owner": "testowner",
+          "testProfile": "linux.d16.json",
+          "discoveryCommand": "midgard-stories-v8 signoff --list"
+        },
+        {
+          "command": "component:shard-2",
+          "provenanceVerb": "test:component",
+          "innerCommand": "midgard-stories-v8 signoff --shard 2/2",
+          "hash": "c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2",
+          "owner": "testowner",
+          "testProfile": "linux.d16.json",
+          "discoveryCommand": "midgard-stories-v8 signoff --list"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+    "name": "@test/builxl-ctest",
+    "description": "Integration between BuildXL and CloudTest",
+    "license": "MIT",
+    "private": true,
+    "workspaces": [
+        "packages/*"
+    ],
+    "scripts": {
+        "build": "lage build",
+        "lint": "lage lint",
+        "test:e2e": "lage test:e2e",
+        "test:component": "lage test:component"
+    },
+    "dependencies": {
+        "lage": "^2.15.4"
+    }
+}

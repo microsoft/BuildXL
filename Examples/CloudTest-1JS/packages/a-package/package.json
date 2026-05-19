@@ -1,0 +1,15 @@
+{
+    "name": "@test/a-package",
+    "description": "Simple math utility library",
+    "version": "1.0.0",
+    "license": "MIT",
+    "private": true,
+    "main": "dist/math.js",
+    "scripts": {
+        "build": "tsc",
+        "lint": "echo Linting a-package && exit 0"
+    },
+    "devDependencies": {
+        "typescript": "^5.4.0"
+    }
+}

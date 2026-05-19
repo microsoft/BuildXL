@@ -449,7 +449,8 @@ namespace BuildXL.FrontEnd.JavaScript
                 // CODESYNC: Public\Sdk\Public\Prelude\Prelude.Configuration.Resolvers.dsc (JavaScriptProjectIdentifier)
                 var key = new EvaluationResult(ObjectLiteral.Create(new List<Binding>
                 {
-                    new Binding(StringId.Create(Context.StringTable, "packageName"), new EvaluationResult(project.Name), location: default),
+                    // Use the display name, which reflects the package name as defined in the package.json file
+                    new Binding(StringId.Create(Context.StringTable, "packageName"), new EvaluationResult(project.ProjectNameDisplayString), location: default),
                     new Binding(StringId.Create(Context.StringTable, "command"), new EvaluationResult(project.ScriptCommandName), location: default),
                 }, default, m_javaScriptWorkspaceResolver.ExportsFile));
 

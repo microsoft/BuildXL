@@ -1,0 +1,20 @@
+{
+    "name": "@test/c-package",
+    "description": "Formatter that depends on a-package",
+    "version": "1.0.0",
+    "license": "MIT",
+    "private": true,
+    "main": "dist/formatter.js",
+    "scripts": {
+        "build": "tsc",
+        "lint": "echo Linting c-package && exit 0",
+        "test:component": "echo Running component tests for c-package"
+    },
+    "dependencies": {
+        "@test/a-package": "*"
+    },
+    "devDependencies": {
+        "@types/node": "^20.0.0",
+        "typescript": "^5.4.0"
+    }
+}

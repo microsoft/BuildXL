@@ -1,0 +1,98 @@
+# Agent-based CloudTest task example using 1JS-isms:
+# * A scopes.json is produced as a pre-build step representing all the CloudTest jobs that need to run
+# * The points in the build graph that represent when CloudTest jobs can be scheduled are defined by ‘test:e2e’ and ‘test:component’ verbs.
+# * For each pip with the aforementioned verbs, one or more CloudTest jobs are scheduled based on the scopes.json file.
+# * The inputs for each CT job is defined by the transitive closure of the inputs of the corresponding pip.
+# Refer to the customer-agnostic pipeline for general documentation (Examples\CloudTest\cloudtest.yml)
+trigger: none
+
+parameters:
+  - name: connectedServiceName
+    type: string
+    default: 'CloudTest-BuildXL-Prod'
+  - name: cloudTestTenant
+    type: string
+    default: 'cloudtest-sample'
+  - name: sessionTimeout
+    type: number
+    default: 120
+  - name: ServiceConnection
+    type: string
+    default: 'mseng-Domino-BuildXL-Pipelines' # Service connection used by most BuildXL pipelines that need an authentication token
+  - name: Resource
+    type: string
+    default: '499b84ac-1321-427f-aa17-267ca6975798' # Azure DevOps resource UUID
+  - name: AccessTokenVariable
+    type: string
+    default: 'GeneratedAccessToken' # Name of the pipeline variable that will store the generated access token
+  - name: CloudTestResource
+    type: string
+    default: '77c466d9-b133-4a83-a8f5-c94133051e06' # CloudTest API resource ID
+  - name: CloudTestTokenVariable
+    type: string
+    default: 'CloudTestAccessToken' # Name of the pipeline variable that will store the CloudTest bearer token
+
+resources:
+  repositories:
+  - repository: 1esPipelines
+    type: git
+    name: 1ESPipelineTemplates/1ESPipelineTemplates
+    ref: refs/tags/release
+
+extends:
+  template: v1/1ES.Unofficial.PipelineTemplate.yml@1esPipelines
+  parameters:
+    pool: 
+      name: BuildXL-DevOpsAgents-Selfhost-BuildCache
+      image: ubuntu-24.04-PME-GPT
+      os: linux
+    sdl:
+      sourceAnalysisPool:
+        name: Windows-SDL-Agents
+        os: windows
+    stages:
+    - stage: BuildXL
+      dependsOn: []
+      displayName: BuildXL-CloudTest
+      jobs:
+      - job: build
+        displayName: Build JS repo + Run CloudTest
+        templateContext:
+          workflow: BuildXL   
+          preBuildSteps:
+          - task: microsoft-1es-production.entra-authenticate.entra-authenticate.EntraAuthenticate@0
+            displayName: '🪙 Acquire access token for ${{ parameters.ServiceConnection }}'
+            inputs:
+              azureSubscription: ${{ parameters.ServiceConnection }}
+              resource: ${{ parameters.Resource }}
+              secretVariable: ${{ parameters.AccessTokenVariable }}
+          - task: microsoft-1es-production.entra-authenticate.entra-authenticate.EntraAuthenticate@0
+            displayName: '🪙 Acquire CloudTest bearer token'
+            inputs:
+              azureSubscription: ${{ parameters.ServiceConnection }}
+              resource: ${{ parameters.CloudTestResource }}
+              secretVariable: ${{ parameters.CloudTestTokenVariable }}
+          - task: NodeTool@0
+            inputs:
+              versionSpec: '22.18.0'
+            displayName: 'Install Node'
+          - script: |
+              npm config set registry https://cloudbuild.pkgs.visualstudio.com/_packaging/BuildXL.Selfhost/npm/registry/
+              npm config set //cloudbuild.pkgs.visualstudio.com/_packaging/BuildXL.Selfhost/npm/registry/:_authToken=$FEED_TOKEN
+              npm install -g yarn
+            displayName: 'Install Yarn'
+            env:
+              FEED_TOKEN: $(${{ parameters.AccessTokenVariable }})
+          - script: yarn install
+            displayName: 'Yarn Install'
+            workingDirectory: $(Build.SourcesDirectory)/Examples/CloudTest-1JS
+          buildXL:
+            installerOptions:
+              version: $(BuildXLPackageVersion)
+            arguments: >-
+              /c:config.dsc
+              /logOutput:FullOutputAlways
+              /p:CloudTestTokenVariableName=${{ parameters.CloudTestTokenVariable }}
+            workingDirectory: $(Build.SourcesDirectory)/Examples/CloudTest-1JS
+            env:
+              ${{ parameters.CloudTestTokenVariable }}: $(${{ parameters.CloudTestTokenVariable }})

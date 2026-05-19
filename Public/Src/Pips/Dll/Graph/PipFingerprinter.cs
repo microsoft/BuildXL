@@ -316,7 +316,7 @@ namespace BuildXL.Pips.Graph
             AddFileOutput(fingerprinter, nameof(Process.StandardOutput), process.StandardOutput);
             AddFileOutput(fingerprinter, nameof(Process.TraceFile), process.TraceFile);
 
-            fingerprinter.AddOrderIndependentCollection<FileArtifact, IEnumerable<FileArtifact>>(nameof(Process.Dependencies), GetRelevantProcessDependencies(process), (fp, f) => AddFileDependency(fp, f), m_expandedPathFileArtifactComparer);
+            AddRelevantProcessDependencies(fingerprinter, process);
             fingerprinter.AddOrderIndependentCollection<DirectoryArtifact, ReadOnlyArray<DirectoryArtifact>>(nameof(Process.DirectoryDependencies), process.DirectoryDependencies, (fp, d) => AddDirectoryDependency(fp, d), DirectoryComparer);
 
             fingerprinter.AddOrderIndependentCollection<FileArtifactWithAttributes, ReadOnlyArray<FileArtifactWithAttributes>>(nameof(Process.FileOutputs), process.FileOutputs, (fp, f) => AddFileOutput(fp, f), m_expandedPathFileArtifactWithAttributesComparer);
@@ -498,7 +498,10 @@ namespace BuildXL.Pips.Graph
             Contract.Requires(name != null);
             Contract.Requires(fingerprinter != null);
 
-            fingerprinter.Add(name, data.ToString(m_pipFragmentRenderer));
+            using (var wrapper = data.ToPooledStringBuilder(m_pipFragmentRenderer))
+            {
+                fingerprinter.Add(name, wrapper.Instance);
+            }
         }
 
         /// <summary>
@@ -608,20 +611,19 @@ namespace BuildXL.Pips.Graph
         /// The input files are not filtered out against the set of untracked scopes. Even if the input file is within a scope,
         /// all accesses to the input file will still be reported because the search for access policy in the file access manifest
         /// works bottom up. This setting allows us to untrack some scope but track a few files within that scope.
+        /// Uses a pooled list when filtering is needed to avoid per-pip list allocations.
         /// </summary>
-        private IEnumerable<FileArtifact> GetRelevantProcessDependencies(Process process)
+        private void AddRelevantProcessDependencies(IFingerprinter fingerprinter, Process process)
         {
             if (!process.UntrackedPaths.IsValid || process.UntrackedPaths.Length == 0)
             {
-                return process.Dependencies;
+                fingerprinter.AddOrderIndependentCollection<FileArtifact, ReadOnlyArray<FileArtifact>>(
+                    nameof(Process.Dependencies), process.Dependencies, (fp, f) => AddFileDependency(fp, f), m_expandedPathFileArtifactComparer);
+                return;
             }
 
-            return GetFilteredDependencies(process);
-        }
-
-        private List<FileArtifact> GetFilteredDependencies(Process process)
-        {
             using (var pooledSet = Pools.GetAbsolutePathSet())
+            using (var pooledList = Pools.GetFileArtifactList())
             {
                 var untrackedPaths = pooledSet.Instance;
                 bool useHashSet = process.UntrackedPaths.Length > 5;
@@ -634,7 +636,10 @@ namespace BuildXL.Pips.Graph
                     }
                 }
 
-                var result = new List<FileArtifact>(process.Dependencies.Length);
+                var filteredDeps = pooledList.Instance;
+#if NET5_0_OR_GREATER
+                filteredDeps.EnsureCapacity(process.Dependencies.Length);
+#endif
                 foreach (var f in process.Dependencies)
                 {
                     bool isUntracked = useHashSet
@@ -643,11 +648,12 @@ namespace BuildXL.Pips.Graph
 
                     if (!isUntracked)
                     {
-                        result.Add(f);
+                        filteredDeps.Add(f);
                     }
                 }
 
-                return result;
+                fingerprinter.AddOrderIndependentCollection<FileArtifact, List<FileArtifact>>(
+                    nameof(Process.Dependencies), filteredDeps, (fp, f) => AddFileDependency(fp, f), m_expandedPathFileArtifactComparer);
             }
         }
 

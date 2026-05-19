@@ -152,6 +152,17 @@ namespace BuildXL.Storage.Fingerprints
             EndItem();
         }
 
+        /// <inheritdoc />
+        public void Add(string name, StringBuilder text)
+        {
+            Contract.Requires(name != null);
+            Contract.Requires(text != null);
+
+            BeginItem(HashValueType.String, name);
+            AddInnerString(text);
+            EndItem();
+        }
+
         /// <summary>
         /// Adds an int to the fingerprint stream.
         /// </summary>
@@ -470,6 +481,24 @@ namespace BuildXL.Storage.Fingerprints
             AddInnerCharacterDebug(']');
 
             AddInnerStringLiteral(value, forceUppercase);
+        }
+
+        /// <summary>
+        /// Adds a StringBuilder's contents to the fingerprint stream.
+        /// Produces the same result as AddInnerString(value.ToString(), forceUppercase: false).
+        /// </summary>
+        protected void AddInnerString(StringBuilder value)
+        {
+            Contract.Requires(value != null);
+
+            AddInnerCharacterDebug('[');
+            AddInnerInt32(value.Length);
+            AddInnerCharacterDebug(']');
+
+            for (int i = 0; i < value.Length; i++)
+            {
+                AddInnerCharacter(value[i]);
+            }
         }
 
         /// <summary>

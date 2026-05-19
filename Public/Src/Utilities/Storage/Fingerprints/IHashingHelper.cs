@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Text;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 
@@ -25,6 +26,12 @@ namespace BuildXL.Storage.Fingerprints
         /// Add the bytes from the string to the fingerprint stream.
         /// </summary>
         void Add(string name, string text);
+
+        /// <summary>
+        /// Add the bytes from the StringBuilder content to the fingerprint stream.
+        /// Produces the same fingerprint as Add(name, stringBuilder.ToString()) but avoids allocating the intermediate string.
+        /// </summary>
+        void Add(string name, StringBuilder text);
 
         /// <summary>
         /// Adds an int to the fingerprint stream.

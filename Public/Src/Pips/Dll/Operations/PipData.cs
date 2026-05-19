@@ -240,6 +240,19 @@ namespace BuildXL.Pips.Operations
         }
 
         /// <summary>
+        /// Renders PipData into a pooled StringBuilder without allocating the final string.
+        /// The caller receives the pooled wrapper and should use the StringBuilder directly before disposing.
+        /// </summary>
+        public PooledObjectWrapper<StringBuilder> ToPooledStringBuilder(PipFragmentRenderer renderer)
+        {
+            Contract.Requires(renderer != null);
+
+            var wrapper = Pools.GetStringBuilder();
+            AppendPipData(wrapper.Instance, this, renderer);
+            return wrapper;
+        }
+
+        /// <summary>
         /// Gets the length of the pip data formatted to a command line assuming the given maximum path length.
         /// </summary>
         public int GetMaxPossibleLength(StringTable stringTable)

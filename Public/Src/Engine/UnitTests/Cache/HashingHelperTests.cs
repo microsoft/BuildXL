@@ -276,5 +276,28 @@ namespace Test.BuildXL.Engine.Cache
 
             XAssert.ArrayEqual(result1, result2);
         }
+
+        [Fact]
+        public void AddStringBuilderProducesSameHashAsAddString()
+        {
+            var pathTable = new PathTable();
+            string[] testValues = new[] { "", "hello", "a longer test string with various chars: @#$%^&*()" };
+
+            foreach (var value in testValues)
+            {
+                using (var helper1 = new HashingHelper(pathTable, recordFingerprintString: true))
+                using (var helper2 = new HashingHelper(pathTable, recordFingerprintString: true))
+                {
+                    helper1.Add("TestName", value);
+                    helper2.Add("TestName", new StringBuilder(value));
+
+                    var hash1 = FingerprintUtilities.CreateFrom(helper1.GenerateHash().ToByteArray());
+                    var hash2 = FingerprintUtilities.CreateFrom(helper2.GenerateHash().ToByteArray());
+
+                    XAssert.AreEqual(hash1, hash2, $"Hash mismatch for value '{value}'");
+                    XAssert.AreEqual(helper1.FingerprintInputText, helper2.FingerprintInputText, $"Fingerprint text mismatch for value '{value}'");
+                }
+            }
+        }
     }
 }

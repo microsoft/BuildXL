@@ -160,6 +160,12 @@ namespace BuildXL.Engine.Cache
         }
 
         /// <inheritdoc />
+        public void Add(string name, StringBuilder text)
+        {
+            WriteJson(name, text.ToString());
+        }
+
+        /// <inheritdoc />
         public void Add(string name, int value)
         {
             WriteJson(name, value.ToString());

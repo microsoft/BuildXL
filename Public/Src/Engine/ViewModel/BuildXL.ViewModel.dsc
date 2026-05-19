@@ -4,6 +4,8 @@
 import * as Managed from "Sdk.Managed";
 
 namespace ViewModel {
+    export declare const qualifier: BuildXLSdk.DefaultQualifier;
+
     @@public
     export const dll = BuildXLSdk.library({
         assemblyName: "BuildXL.ViewModel",

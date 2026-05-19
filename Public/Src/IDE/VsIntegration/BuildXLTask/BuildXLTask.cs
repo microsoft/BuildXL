@@ -108,8 +108,10 @@ namespace BuildXL.IDE.BuildXLTask
                 try
                 {
                     Stopwatch timer = Stopwatch.StartNew();
-                    using (EventWaitHandle success = new EventWaitHandle(false, EventResetMode.ManualReset, DominoValue.ToUpperInvariant() + Port + Scheduler.Scheduler.IdeSuccessPrefix))
-                    using (EventWaitHandle failure = new EventWaitHandle(false, EventResetMode.ManualReset, DominoValue.ToUpperInvariant() + Port + Scheduler.Scheduler.IdeFailurePrefix))
+                    // CODESYNC: BuildXL.Scheduler.Scheduler.IdeSuccessPrefix / IdeFailurePrefix
+                    // Inlined here to avoid a dependency on Scheduler.dll from this net472 MSBuild task.
+                    using (EventWaitHandle success = new EventWaitHandle(false, EventResetMode.ManualReset, DominoValue.ToUpperInvariant() + Port + "Success"))
+                    using (EventWaitHandle failure = new EventWaitHandle(false, EventResetMode.ManualReset, DominoValue.ToUpperInvariant() + Port + "Failure"))
                     {
                         while (timer.Elapsed < MaxProjectBuildTime)
                         {

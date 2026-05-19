@@ -2,6 +2,9 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 namespace MsBuild.Serialization {
+    // Consumed by Tool.MsBuildGraphBuilder which ships a net472 variant
+    export declare const qualifier: BuildXLSdk.DefaultQualifierWithNet472;
+
     @@public
     export const dll = BuildXLSdk.library({
         assemblyName: "BuildXL.FrontEnd.MsBuild.Serialization",

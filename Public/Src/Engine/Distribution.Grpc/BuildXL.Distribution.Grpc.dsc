@@ -4,6 +4,8 @@
 import * as GrpcSdk from "Sdk.Protocols.Grpc";
 
 namespace Distribution.Grpc {
+    export declare const qualifier: BuildXLSdk.DefaultQualifier;
+
     @@public
     export const dll = BuildXLSdk.library({
         assemblyName: "BuildXL.Distribution.Grpc",

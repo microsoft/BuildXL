@@ -2,6 +2,9 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 namespace Cache.Plugin.Core {
+    // Cache.Plugin.Core is only used by bxl.exe (net8+). No net472 needed.
+    export declare const qualifier: BuildXLSdk.DefaultQualifier;
+
     @@public
     export const dll = BuildXLSdk.library({
         assemblyName: "BuildXL.Engine.Cache.Plugin.Core",

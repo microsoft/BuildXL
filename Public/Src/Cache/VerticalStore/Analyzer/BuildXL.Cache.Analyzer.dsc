@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 namespace Analyzer {
+    export declare const qualifier: BuildXLSdk.DefaultQualifier;
 
     @@public
     export const exe = BuildXLSdk.executable({
@@ -9,9 +10,6 @@ namespace Analyzer {
         appConfig: f`App.config`,
         sources: globR(d`.`, "*.cs"),
         references: [
-            ...addIf(BuildXLSdk.isFullFramework,
-                NetFx.System.IO.dll
-            ),
             Interfaces.dll,
             VerticalAggregator.dll,
             importFrom("BuildXL.Cache.ContentStore").Hashing.dll,

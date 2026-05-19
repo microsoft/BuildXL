@@ -3,7 +3,7 @@
 
 namespace Test.Tool.QTestMock {
 
-    export declare const qualifier : BuildXLSdk.DefaultQualifierWithNet472;
+    export declare const qualifier : BuildXLSdk.DefaultQualifier;
 
     export const dll = BuildXLSdk.test({
         assemblyName: "Test.Tool.QTestMock",

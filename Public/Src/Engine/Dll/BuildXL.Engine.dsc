@@ -5,6 +5,9 @@ import * as Managed from "Sdk.Managed";
 import { Transformer } from "Sdk.Transformers";
 
 namespace Engine {
+    // Engine.dll is only used by bxl.exe (net8+). No net472 needed.
+    export declare const qualifier: BuildXLSdk.DefaultQualifier;
+
     @@public
     export const dll = BuildXLSdk.library({
         assemblyName: "BuildXL.Engine",

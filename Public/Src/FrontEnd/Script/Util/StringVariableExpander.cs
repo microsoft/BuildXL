@@ -28,11 +28,7 @@ namespace BuildXL.FrontEnd.Script.Util
         public static bool TryExpandVariablesInString(Context context, string stringToExpand, FrontEndEngineAbstraction engine, out string expandedString)
         {
             // if the path does not contain an env variable, just return the original path to avoid extra allocations
-#if NETCOREAPP
             if (stringToExpand?.Contains(s_variableSeparator) != true)
-#else
-            if (stringToExpand?.Contains(s_variableSeparator.ToString()) != true)
-#endif
             {
                 expandedString = stringToExpand;
                 return false;

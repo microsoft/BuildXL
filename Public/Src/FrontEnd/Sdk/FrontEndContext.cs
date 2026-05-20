@@ -120,7 +120,7 @@ namespace BuildXL.FrontEnd.Sdk
         /// </summary>
         private IBuildXLCredentialScanner CreateCredScanInstance(IFrontEndConfiguration frontEndConfig, PathTable pathTable, LoggingContext loggingContext)
         {
-#if (MICROSOFT_INTERNAL && NETCOREAPP)
+#if MICROSOFT_INTERNAL
             return (frontEndConfig.EnableCredScan == true) ? new CredentialScanner(pathTable, loggingContext, frontEndConfig.CredScanEnvironmentVariablesAllowList) : new NoOpCredentialScanner();
 #else
             return new NoOpCredentialScanner();

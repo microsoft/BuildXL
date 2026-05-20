@@ -69,37 +69,25 @@ namespace BuildXL.Engine.Distribution.Grpc
         }
 
         /// <inheritdoc/>
-#pragma warning disable 1998 // Disable the warning for "This async method lacks 'await'"
         public override async Task<RpcResponse> StreamExecutionLog(IAsyncStreamReader<ExecutionLogInfo> requestStream, ServerCallContext context)
         {
-#if NETCOREAPP
             await foreach (var message in requestStream.ReadAllAsync())
             {
                 m_orchestratorService.ReceivedExecutionLog(message).Forget();
             }
             
             return GrpcUtils.EmptyResponse;
-#else
-            throw new NotImplementedException();
-#endif
         }
-#pragma warning restore 1998
 
         /// <inheritdoc/>
-#pragma warning disable 1998 // Disable the warning for "This async method lacks 'await'"
         public override async Task<RpcResponse> StreamPipResults(IAsyncStreamReader<PipResultsInfo> requestStream, ServerCallContext context)
         {
-#if NETCOREAPP
             await foreach (var message in requestStream.ReadAllAsync())
             {
                 m_orchestratorService.ReceivedPipResults(message).Forget();
             }
 
             return GrpcUtils.EmptyResponse;
-#else
-            throw new NotImplementedException();
-#endif
         }
-#pragma warning restore 1998
     }
 }

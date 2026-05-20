@@ -42,7 +42,6 @@ namespace Tests.MacOS {
             // The BuildXL dotnet SDK does not properly support arm64 yet, so this test will be disabled.
             // createDef(importFrom("BuildXL.Cache.Core.UnitTests").Analyzer.withQualifier({ targetFramework: defaultTargetFramework }).dll, true),
             createDef(importFrom("BuildXL.Cache.Core.UnitTests").BasicFilesystem.withQualifier({ targetFramework: defaultTargetFramework }).dll, true),
-            createDef(importFrom("BuildXL.Cache.Core.UnitTests").InputListFilter.withQualifier({ targetFramework: defaultTargetFramework }).dll, true),
             createDef(importFrom("BuildXL.Cache.Core.UnitTests").Interfaces.withQualifier({ targetFramework: defaultTargetFramework }).dll, true),
             createDef(importFrom("BuildXL.Cache.Core.UnitTests").MemoizationStoreAdapter.withQualifier({ targetFramework: defaultTargetFramework }).dll, true),
             createDef(importFrom("BuildXL.Cache.Core.UnitTests").VerticalAggregator.withQualifier({ targetFramework: defaultTargetFramework }).dll, true),

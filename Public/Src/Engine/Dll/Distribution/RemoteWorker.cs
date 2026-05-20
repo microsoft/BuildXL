@@ -447,11 +447,7 @@ namespace BuildXL.Engine.Distribution
         {
             try
             {
-#if NET_FRAMEWORK
-                WaitForServiceLocationTask.Wait(m_attachCancellation.Token);
-#else
                 await WaitForServiceLocationTask.WaitAsync(m_attachCancellation.Token);
-#endif
             }
             catch (OperationCanceledException)
             {
@@ -922,13 +918,11 @@ namespace BuildXL.Engine.Distribution
 
                     int numStringPathFiles = 0;
 
-#if NET6_0_OR_GREATER // EnsureCapacity is only available starting from .net6
                     lock (m_hashListLock)
                     {
                         // Making sure the target collection is large enough to avoid excessive allocations when the content is added to it.
                         hashes.EnsureCapacity(hashes.Count + files.Count);
                     }
-#endif
                     foreach (var file in files)
                     {
                         var fileMaterializationInfo = Environment.State.FileContentManager.GetInputContent(file);

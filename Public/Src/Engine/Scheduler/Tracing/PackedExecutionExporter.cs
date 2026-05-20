@@ -15,10 +15,8 @@ using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Fingerprints;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.ParallelAlgorithms;
-#if NETCOREAPP
 using BuildXL.Utilities.PackedExecution;
 using BuildXL.Utilities.PackedTable;
-#endif
 
 namespace BuildXL.Scheduler.Tracing
 {
@@ -29,11 +27,9 @@ namespace BuildXL.Scheduler.Tracing
     using B_PipId = Pips.PipId;
     using B_PipType = Pips.Operations.PipType;
 
-#if NETCOREAPP
     using P_PipId = Utilities.PackedExecution.PipId;
     using P_PipTable = Utilities.PackedExecution.PipTable;
     using P_PipType = Utilities.PackedExecution.PipType;
-#endif
 
     /// <summary>
     /// Statistics for a given export, for cross-checking against analyzer.
@@ -101,7 +97,6 @@ namespace BuildXL.Scheduler.Tracing
     /// </remarks>
     public class PackedExecutionExporter : ExecutionAnalyzerBase
     {
-#if NETCOREAPP
         #region Fields
 
         private readonly string m_outputDirectoryPath;
@@ -173,8 +168,6 @@ namespace BuildXL.Scheduler.Tracing
 
         #endregion
 
-#endif
-
         /// <summary>
         /// Handle the events from workers
         /// </summary>
@@ -186,7 +179,6 @@ namespace BuildXL.Scheduler.Tracing
         public PackedExecutionExporter(PipGraph input, string outputDirectoryPath, bool threadSafe = true)
             : base(input)
         {
-#if NETCOREAPP
             m_outputDirectoryPath = outputDirectoryPath;
 
             m_packedExecution = new PackedExecution();
@@ -200,16 +192,8 @@ namespace BuildXL.Scheduler.Tracing
             {
                 m_lockObject = this;
             }
-#endif
         }
 
-#if !NETCOREAPP
-        /// <inheritdoc />
-        public override int Analyze()
-        {
-            throw new NotSupportedException("Only supported on NET core runtime");
-        }
-#else
         /// <summary>
         /// Log processing is complete; analyze any remaining data.
         /// </summary>
@@ -881,6 +865,5 @@ namespace BuildXL.Scheduler.Tracing
                 }
             }
         }
-#endif
     }
 }

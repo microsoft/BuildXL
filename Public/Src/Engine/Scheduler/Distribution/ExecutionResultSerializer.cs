@@ -79,11 +79,7 @@ namespace BuildXL.Scheduler.Distribution
             using (var pooledReader = m_readerPool.GetInstance())
             {
                 var reader = pooledReader.Instance;
-#if NETCOREAPP
                 reader.BaseStream.Write(blobData);
-#else
-                reader.BaseStream.Write(blobData.ToArray(), 0, blobData.Length);
-#endif
                 reader.BaseStream.Position = 0;
 
                 return Deserialize(reader, workerId);

@@ -155,12 +155,7 @@ namespace BuildXL.Engine.Distribution
 
                     // Write the new execution log event content into buffer starting at beginning of buffer stream
                     m_bufferStream.SetLength(0);
-#if NETCOREAPP
                     m_bufferStream.Write(dataBlob.Memory.Span);
-#else
-                    var blobArray = dataBlob.ToByteArray();
-                    m_bufferStream.Write(blobArray, 0, blobArray.Length);
-#endif
                     m_bufferStream.Position = 0;
 
                     if (m_binaryReader == null)

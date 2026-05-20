@@ -275,6 +275,17 @@ namespace Helpers {
     }
 
     /**
+     * Filter to apply to job inputs when submitting a job. Only files matching the contentFilter will be included in the job inputs passed to CloudTest. 
+     */
+    @@public
+    export interface InputFilter {
+        /** File path regex pattern that specifies which files should be processed.  */
+        contentFilter: string;
+        /** Whether to apply the content filter to the relative path of the files (relative to the root of the directory). Default: false. */
+        applyContentFilterToRelativePath?: boolean;
+    }
+
+    /**
      * Arguments for submitting a job to an existing session.
      */
     @@public
@@ -285,6 +296,8 @@ namespace Helpers {
         jobName: string;
         /** Input artifacts for the job. Only files and opaque directories are supported. */
         jobInputs: (File | OpaqueDirectory)[];
+        /** Filter to apply to the job inputs. */
+        jobInputsFilter?: InputFilter;
         /** Path to executable on the worker VM. */
         jobExecutable: Path | RelativePath;
         /** Test framework: MsTest, Exe, TAEF, NUnit, XUnit, BoostTest. */
@@ -320,7 +333,9 @@ namespace Helpers {
                 const info : Drop.DropDirectoryInfo = {
                     kind: "directory",
                     directory: input,
-                    dropPath: r`${args.jobName}`
+                    dropPath: r`${args.jobName}`,
+                    contentFilter: args.jobInputsFilter && args.jobInputsFilter.contentFilter,
+                    applyContentFilterToRelativePath: args.jobInputsFilter && args.jobInputsFilter.applyContentFilterToRelativePath
                 };
                 return info;
             } else {

@@ -6,8 +6,7 @@ import { buildContent } from "test-build";
 
 // We create a drop upfront because we want to populate it with some artifacts before creating the session.
 const createDropResult = Drop.runner.createDrop(
-    // TODO: once the Drop SDK is in place, replace this with a call to Drop.getDefaultDropConfig
-    Object.merge<Drop.DropOperationArguments>(CloudTestClient.APIs.getDefaultDropConfig(
+    Object.merge<Drop.DropOperationArguments>(Drop.DropDaemonRunner.getDefaultDropConfig(
         `BuildXL/Build/${Environment.getStringValue("BUILD_BUILDID")}/${Environment.getStringValue("SYSTEM_JOBATTEMPT")}/ctest-drop`, 
         "https://mseng.artifacts.visualstudio.com/DefaultCollection"
     ), {retentionDays: 1})

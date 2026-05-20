@@ -137,10 +137,8 @@ namespace APIs {
         }
         else {
             const dropToCreate = <DropToCreate>args.drop;
-            // TODO: once the Drop SDK is in place, replace this with a call to Drop.getDefaultDropConfig and Drop.runner.createDrop
-            //const dropConfig = Object.merge<Drop.DropOperationArguments>(Drop.getDefaultDropConfig(dropToCreate.name, dropToCreate.service),, {retentionDays: 1});
             // Let's use just one day of retention for the drop, since this is used just to communicate artifacts to the CT session.
-            const dropConfig = Object.merge<Drop.DropOperationArguments>(getDefaultDropConfig(dropToCreate.name, dropToCreate.service), {retentionDays: 1});
+            const dropConfig = Object.merge<Drop.DropOperationArguments>(Drop.DropDaemonRunner.getDefaultDropConfig(dropToCreate.name, dropToCreate.service), {retentionDays: 1});
             createDropResult = Drop.runner.createDrop(dropConfig);
         }
 
@@ -282,51 +280,5 @@ namespace APIs {
 
     export function isDropResult(drop: DropToCreate | Drop.DropCreateResult): drop is Drop.DropCreateResult {
         return (<Drop.DropCreateResult>drop).dropConfig !== undefined;
-    }
-
-    // This is temporary until the corresponding function in the Drop SDK reaches the LGK
-    @@public
-    export function getDefaultDropConfig(dropName: string, service: string): Drop.DropOperationArguments {
-        return <Drop.DropCreateArguments>{
-            // DropSettings
-            /** Service URL. */
-            service: service,
-
-            /** Size of batches in which to send 'associate' requests to drop service. */
-            batchSize: 5,
-
-            /** Maximum time in milliseconds before triggering a batch 'associate' request. */
-            nagleTimeMillis: 2000,
-
-            /** Retention period in days for uploaded drops. */
-            retentionDays: 7,
-
-            // DaemonSettings
-            /** Maximum number of clients DropDaemon should process concurrently. */
-            maxConcurrentClients: 5,
-
-            /** Verbose logging. */
-            verbose: true,
-
-            // DropOperationArguments extends CommonArguments
-            /** Number of retries to connect to a running DropDaemon process. */
-            maxConnectRetries: 20,
-
-            /** Delay between retries to connect to a running DropDaemon process. */
-            connectRetryDelayMillis: 3000,
-
-            /** Request name. */
-            name: dropName,
-
-            generateBuildManifest: false,
-
-            signBuildManifest: false,
-
-            // name of the env var that contains a PAT
-            patEnvironmentVariable: "SYSTEM_ACCESSTOKEN",
-
-            // make sure that the var is visible to dropD
-            forwardEnvironmentVars: ["SYSTEM_ACCESSTOKEN"]
-        };
     }
 }

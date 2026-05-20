@@ -124,7 +124,17 @@ export function submitCloudTestJobs(scopeFile: ScopeFile, ctVerbs: Map<JavaScrip
         // The inputs for all the CT jobs scheduled from this pip will have the transitive closure of the pip's inputs as their inputs.
         // (we exclude sources from the inputs because usually we just need the build outputs)
         // Having the full closure may be an overkill in some cases. The current approach is just an easy generalization. Other approaches could involve
-        // more fine-grained selection of inputs based on the specific needs of each test command.
+        // more fine-grained selection of inputs based on the specific needs of each test command:
+        // - Direct dependencies can be used instead of the full closure (via Graph.getDirectDependencies)
+        // - Dependencies can be cherry-picked on a case by case basis
+        // - The inputs provided to the job can be filtered (e.g. to avoid uploading unnecessary files)
+
+        // Let's show an example of the latter (filtering inputs based on a regex after collecting them)
+        const inputFilter : CloudTestClient.Helpers.InputFilter = {
+            // Just illustrative. Only include files with .ts extension from the job inputs.
+            contentFilter: ".*\\.ts$",
+        };
+
         // The cast below is needed because getDependencyClosure can also include static directories that are not outputs (e.g. source seal directories), but by excluding sources we ensure we only 
         // get opaque directories and files. On the other hand, the job submission only accepts files and opaque directories as inputs, since the hash generation logic (for now) only works for those.
         const inputs : (File | OpaqueDirectory)[] = <(File | OpaqueDirectory)[]> Graph.getDependencyClosure(executeResult, {excludeSources: true});
@@ -143,6 +153,7 @@ export function submitCloudTestJobs(scopeFile: ScopeFile, ctVerbs: Map<JavaScrip
                 testExecutionType: "Exe",
                 testParserType: "TAP",
                 jobInputs: inputs,
+                jobInputsFilter: inputFilter,
                 configAndSessionResult: sessionCreateResult,
             };
 

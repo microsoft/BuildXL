@@ -71,7 +71,7 @@ config({
 
                 { id: "Microsoft.NETFramework.ReferenceAssemblies.net472", version: "1.0.0" },
 
-                { id: "System.Diagnostics.DiagnosticSource", version: "9.0.15" },
+                { id: "System.Diagnostics.DiagnosticSource", version: "9.0.16" },
 
                 // Roslyn
                 // The old compiler used by integration tests only.
@@ -133,13 +133,13 @@ config({
                 { id: "Microsoft.WindowsAzure.ConfigurationManager", version: "1.8.0.0" },
                 { id: "Newtonsoft.Json", version: "13.0.4" },
                 { id: "Newtonsoft.Json.Bson", version: "1.0.1" },
-                { id: "System.Reflection.Metadata", version: "9.0.15" },
-                { id: "System.Formats.Nrbf", version: "9.0.15" },
+                { id: "System.Reflection.Metadata", version: "9.0.16" },
+                { id: "System.Formats.Nrbf", version: "9.0.16" },
                 // The VBCS logger is used by QuickBuild and runs in the context of old VS installations, so it cannot use a higher version
                 // Please do not upgrade this dll (or if you do, make sure this happens in coordination with the QuickBuild team)
                 { id: "System.Reflection.Metadata", version: "5.0.0", alias: "System.Reflection.Metadata.ForVBCS" },
 
-                { id: "System.Threading.Tasks.Dataflow", version: "9.0.15" },
+                { id: "System.Threading.Tasks.Dataflow", version: "9.0.16" },
                 // VBCSCompiler is used in CB against older versions of MSBuild that don't have binding redirects for the newer versions of System.Threading.Tasks.Dataflow.
                 { id: "System.Threading.Tasks.Dataflow", alias: "System.Threading.Tasks.Dataflow.ForVBCS", version: "8.0.0" },
 
@@ -199,7 +199,7 @@ config({
                 { id: "Azure.Storage.Blobs", version: "12.26.0" },
                 { id: "Azure.Storage.Common", version: "12.25.0" },
                 { id: "Azure.Storage.Queues", version: "12.24.0" },
-                { id: "System.IO.Hashing", version: "9.0.15" },
+                { id: "System.IO.Hashing", version: "9.0.16" },
                 { id: "Azure.Storage.Blobs.Batch", version: "12.10.0" },
                 { id: "Azure.Storage.Blobs.ChangeFeed", version: "12.0.0-preview.34" },
 
@@ -255,13 +255,13 @@ config({
                 // CloudStore dependencies
                 { id: "Microsoft.Bcl", version: "1.1.10" },
                 { id: "Microsoft.Bcl.Async", version: "1.0.168" },
-                { id: "Microsoft.Bcl.AsyncInterfaces", version: "9.0.15" },
+                { id: "Microsoft.Bcl.AsyncInterfaces", version: "9.0.16" },
                 { id: "Microsoft.Bcl.Build", version: "1.0.14" },
                 { id: "Microsoft.Bcl.HashCode", version: "1.1.1" },
                 
                 { id: "Pipelines.Sockets.Unofficial", version: "2.2.0" },
                 { id: "System.Diagnostics.PerformanceCounter", version: "6.0.0" },
-                { id: "System.Threading.Channels", version: "9.0.15" },
+                { id: "System.Threading.Channels", version: "9.0.16" },
                 { id: "System.Threading.RateLimiting", version: "7.0.0" },
 
                 { id: "System.Linq.Async", version: "4.0.0"},
@@ -294,14 +294,14 @@ config({
                 { id: "Microsoft.ApplicationInsights.WindowsServer.TelemetryChannel", version: "2.22.0" },
                 { id: "Microsoft.Extensions.Caching.Memory", version: "1.0.0" },
                 { id: "Microsoft.Extensions.Caching.Abstractions", version: "1.0.0" },
-                { id: "System.Security.Cryptography.Xml", version: "9.0.15" },
-                { id: "System.Text.Encodings.Web", version: "9.0.15" },
+                { id: "System.Security.Cryptography.Xml", version: "9.0.16" },
+                { id: "System.Text.Encodings.Web", version: "9.0.16" },
                 { id: "System.Security.Permissions", version: "7.0.0" },
                 { id: "System.Windows.Extensions", version: "7.0.0" },
                 { id: "System.Drawing.Common", version: "7.0.0" },
                 { id: "Microsoft.Win32.SystemEvents", version: "7.0.0" },
-                { id: "System.Security.Cryptography.Pkcs", version: "9.0.15" },
-                { id: "Microsoft.Bcl.Cryptography", version: "9.0.15" },
+                { id: "System.Security.Cryptography.Pkcs", version: "9.0.16" },
+                { id: "Microsoft.Bcl.Cryptography", version: "9.0.16" },
 
                 { id: "ILRepack", version: "2.0.16" },
 
@@ -323,22 +323,22 @@ config({
                 { id: "Microsoft.Build.Framework", version: "17.14.28" },
                 { id: "Microsoft.NET.StringTools", version: "17.14.28" },
                 { id: "Microsoft.Build.Locator", version: "1.5.5" },
-                { id: "System.Reflection.MetadataLoadContext", version: "9.0.15"},
+                { id: "System.Reflection.MetadataLoadContext", version: "9.0.16"},
 
-                { id: "System.Resources.Extensions", version: "9.0.15",
+                { id: "System.Resources.Extensions", version: "9.0.16",
                     dependentPackageIdsToSkip: ["System.Memory"]},
 
                 // Buffers and Memory
                 { id: "System.Buffers", version: "4.6.1" }, /* Change Sync: BuildXLSdk.cacheBindingRedirects() */ // A different version, because StackExchange.Redis uses it.
                 { id: "System.Memory", version: "4.6.3" }, /* Change Sync: BuildXLSdk.cacheBindingRedirects() */
                 { id: "System.Runtime.CompilerServices.Unsafe", version: "6.1.2" }, /* Change Sync: BuildXLSdk.cacheBindingRedirects() */
-                { id: "System.IO.Pipelines", version: "9.0.15" },
+                { id: "System.IO.Pipelines", version: "9.0.16" },
                 { id: "System.Numerics.Vectors", version: "4.6.1" }, /* Change Sync: BuildXLSdk.cacheBindingRedirects() */
 
                 // Extra dependencies to make MSBuild work
                 { id: "Microsoft.VisualStudio.Setup.Configuration.Interop", version: "3.2.2146"},
-                { id: "System.CodeDom", version: "9.0.15"},
-                { id: "System.Text.Encoding.CodePages", version: "9.0.15" },
+                { id: "System.CodeDom", version: "9.0.16"},
+                { id: "System.Text.Encoding.CodePages", version: "9.0.16" },
 
                 // Used for MSBuild input/output prediction
                 // The current version of Microsoft.Build that is referenced by the prediction package does not 
@@ -368,7 +368,7 @@ config({
                 { id: "boost", version: "1.71.0.0" },
 
                 // Needed for SBOM Generation
-                { id: "Microsoft.Extensions.Logging.Abstractions", version: "9.0.15" },
+                { id: "Microsoft.Extensions.Logging.Abstractions", version: "9.0.16" },
                 { id: "packageurl-dotnet", version: "2.0.0" },
                 { id: "System.Reactive", version: "6.1.0" },
 

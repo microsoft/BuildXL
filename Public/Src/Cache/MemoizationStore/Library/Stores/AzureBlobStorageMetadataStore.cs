@@ -149,7 +149,13 @@ namespace BuildXL.Cache.MemoizationStore.Stores
                 {
                     // Delete the fingerprint entry entirely so the next build gets a clean cache miss.
                     var client = await _blobCacheTopology.GetClientAsync(context, strongFingerprint);
-                    return await _storageClientAdapter.DeleteIfExistsAsync(context, client);
+                    var deleteResult = await _storageClientAdapter.DeleteIfExistsAsync(context, client);
+                    if (deleteResult.Succeeded)
+                    {
+                        Tracer.Info(context, $"Deleted fingerprint entry for {strongFingerprint}.");
+                    }
+
+                    return deleteResult;
                 }
                 else
                 {

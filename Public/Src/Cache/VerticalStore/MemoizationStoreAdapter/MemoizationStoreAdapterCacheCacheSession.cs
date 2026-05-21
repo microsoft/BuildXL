@@ -44,6 +44,8 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
 
         private volatile bool m_outOfSpace;
 
+        private readonly bool m_enableContentRecoveryOnPlaceFailure;
+
         /// <summary>
         /// .ctor
         /// </summary>
@@ -53,15 +55,18 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         /// <param name="logger">Diagnostic logger</param>
         /// <param name="sessionId">Telemetry ID for the session.</param>
         /// <param name="replaceExistingOnPlaceFile">If true, replace existing file on placing file from cache.</param>
+        /// <param name="enableContentRecoveryOnPlaceFailure">When true, enables deletion of corrupt remote content after placement retries are exhausted.</param>
         public MemoizationStoreAdapterCacheCacheSession(
             BuildXL.Cache.MemoizationStore.Interfaces.Sessions.ICacheSession cacheSession,
             BuildXL.Cache.MemoizationStore.Interfaces.Caches.ICache cache,
             CacheId cacheId,
             ILogger logger,
             string sessionId = null,
-            bool replaceExistingOnPlaceFile = false)
+            bool replaceExistingOnPlaceFile = false,
+            bool enableContentRecoveryOnPlaceFailure = false)
             : base(cacheSession, cache, cacheId, logger, sessionId, replaceExistingOnPlaceFile)
         {
+            m_enableContentRecoveryOnPlaceFailure = enableContentRecoveryOnPlaceFailure;
         }
 
         /// <inheritdoc />
@@ -241,6 +246,51 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             }
 
             return false;
+        }
+
+        /// <inheritdoc />
+        public async Task<Possible<ContentDeleteStatus, Failure>> DeleteContentAsync(CasHash hash, CancellationToken cancellationToken, Guid activityId)
+        {
+            if (!m_enableContentRecoveryOnPlaceFailure)
+            {
+                return ContentDeleteStatus.Disabled;
+            }
+
+            if (Cache is BuildXL.Cache.ContentStore.Interfaces.Stores.IContentStore contentStore)
+            {
+                var context = CreateContext(activityId, Logger);
+                var result = await contentStore.DeleteAsync(
+                    context,
+                    hash.ToMemoization(),
+                    new BuildXL.Cache.ContentStore.Interfaces.Stores.DeleteContentOptions { DeleteLocalOnly = false });
+
+                if (!result.Succeeded)
+                {
+                    return new CacheFailure($"Failed to delete content {hash}: {result.ErrorMessage}");
+                }
+
+                ContentDeleteStatus status;
+                switch (result.Code)
+                {
+                    case BuildXL.Cache.ContentStore.Interfaces.Results.DeleteResult.ResultCode.ContentNotFound:
+                        status = ContentDeleteStatus.ContentNotFound;
+                        break;
+                    case BuildXL.Cache.ContentStore.Interfaces.Results.DeleteResult.ResultCode.Success:
+                        status = ContentDeleteStatus.Deleted;
+                        break;
+                    default:
+                        return new CacheFailure($"Unexpected DeleteResult.ResultCode: {result.Code}");
+                }
+
+                if (status == ContentDeleteStatus.Deleted && CacheSession is IContentDeletionNotifier notifier)
+                {
+                    await notifier.NotifyContentDeletedAsync(context, hash.ToMemoization());
+                }
+
+                return status;
+            }
+
+            return ContentDeleteStatus.Disabled;
         }
     }
 }

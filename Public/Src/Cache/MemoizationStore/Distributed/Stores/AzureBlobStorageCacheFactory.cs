@@ -204,7 +204,6 @@ public static class AzureBlobStorageCacheFactory
                 StorageInteractionTimeout = configuration.StorageInteractionTimeout,
                 Announcer = announcer,
                 IsReadOnly = configuration.IsReadOnly,
-                EnableContentRecoveryOnPlaceFailure = configuration.EnableContentRecoveryOnPlaceFailure,
             });
     }
 

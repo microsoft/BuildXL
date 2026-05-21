@@ -387,6 +387,43 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
                         }),
                     nameof(TryMaterializeAsync));
 
+                // After all retries are exhausted, if the failure is a content hash mismatch,
+                // delete the corrupt remote blob so a future build can re-upload correct content.
+                // The actual deletion is gated on EnableContentRecoveryOnPlaceFailure inside DeleteContentAsync.
+                if (!placeResult.Succeeded && placeResult.Failure is ContentHashMismatchFailure)
+                {
+                    Possible<ICacheSession, Failure> maybeOpen = m_cache.Get(nameof(TryMaterializeAsync));
+                    if (maybeOpen.Succeeded)
+                    {
+                        var casHash = new CasHash(new global::BuildXL.Cache.Interfaces.Hash(contentHash));
+                        // Best-effort cleanup: delete the corrupt remote blob.
+                        // The pip already failed; we don't fail the operation if the delete also fails.
+                        // Use CancellationToken.None so cleanup proceeds even if the build/pip is being canceled.
+                        var deleteResult = await maybeOpen.Result.DeleteContentAsync(casHash, CancellationToken.None);
+                        if (deleteResult.Succeeded)
+                        {
+                            switch (deleteResult.Result)
+                            {
+                                case ContentDeleteStatus.Deleted:
+                                    m_logger?.Info($"Content recovery: deleted corrupt remote blob for content {contentHash} after persistent hash mismatch. A subsequent build will re-upload correct content.");
+                                    break;
+                                case ContentDeleteStatus.ContentNotFound:
+                                    m_logger?.Info($"Content recovery: corrupt remote blob for content {contentHash} was already absent. A subsequent build will re-upload correct content.");
+                                    break;
+                                case ContentDeleteStatus.Disabled:
+                                    break;
+                                default:
+                                    Contract.Assert(false, $"Unexpected ContentDeleteStatus: {deleteResult.Result}");
+                                    break;
+                            }
+                        }
+                        else
+                        {
+                            m_logger?.Warning($"Content recovery: failed to delete corrupt remote blob for content {contentHash} after hash mismatch. The corrupt blob remains and may cause repeated failures. Error: {deleteResult.Failure.Describe()}");
+                        }
+                    }
+                }
+
                 return placeResult;
             }
             catch(NullReferenceException ex)

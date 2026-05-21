@@ -80,7 +80,8 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                     statsFile: new AbsolutePath(logPath.Path + ".stats"),
                     isReadOnly: configuration.IsReadOnly,
                     implicitPin: ImplicitPin.None,
-                    precedingStateDegradationFailures: failures);
+                    precedingStateDegradationFailures: failures,
+                    enableContentRecoveryOnPlaceFailure: configuration.EnableContentRecoveryOnPlaceFailure);
 
                 var startupResult = await cache.StartupAsync();
                 if (!startupResult.Succeeded)

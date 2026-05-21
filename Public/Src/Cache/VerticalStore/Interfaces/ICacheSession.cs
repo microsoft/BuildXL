@@ -5,12 +5,34 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Utilities.Core;
 
 namespace BuildXL.Cache.Interfaces
 {
+    /// <summary>
+    /// Describes the outcome of a <see cref="ICacheSession.DeleteContentAsync"/> call.
+    /// </summary>
+    public enum ContentDeleteStatus
+    {
+        /// <summary>
+        /// The content existed and was successfully deleted.
+        /// </summary>
+        Deleted,
+
+        /// <summary>
+        /// The content did not exist in the remote cache (nothing to delete).
+        /// </summary>
+        ContentNotFound,
+
+        /// <summary>
+        /// The deletion feature is not enabled; the call was a no-op.
+        /// </summary>
+        Disabled,
+    }
+
     /// <summary>
     /// A ICacheSession instance represents a single build session within the cache.
     /// </summary>
@@ -137,5 +159,14 @@ namespace BuildXL.Cache.Interfaces
         /// for anonymous sessions.
         /// </remarks>
         IEnumerable<Task<StrongFingerprint>> EnumerateSessionFingerprints(Guid activityId = default(Guid));
+
+        /// <summary>
+        /// Attempts to delete the specified content from the remote cache.
+        /// </summary>
+        /// <param name="hash">The content hash to delete</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <param name="activityId">Guid that identifies the parent of this call for tracing.</param>
+        /// <returns>A <see cref="ContentDeleteStatus"/> indicating what happened, or a failure.</returns>
+        Task<Possible<ContentDeleteStatus, Failure>> DeleteContentAsync(CasHash hash, CancellationToken cancellationToken = default, Guid activityId = default(Guid));
     }
 }

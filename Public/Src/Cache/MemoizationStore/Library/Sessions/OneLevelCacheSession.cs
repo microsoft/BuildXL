@@ -26,7 +26,7 @@ using BuildXL.Cache.MemoizationStore.Sessions;
 namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
 {
     /// <nodoc />
-    public class OneLevelCacheSession : ICacheSessionWithLevelSelectors, IHibernateCacheSession, ITrustedContentSession, ILocalContentSessionProvider
+    public class OneLevelCacheSession : ICacheSessionWithLevelSelectors, IHibernateCacheSession, ITrustedContentSession, ILocalContentSessionProvider, IContentDeletionNotifier
     {
         /// <summary>
         ///     Auto-pinning behavior configuration.
@@ -513,6 +513,17 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         public IContentSession? TryGetLocalContentSession()
         {
             return (ContentSession as ILocalContentSessionProvider)?.TryGetLocalContentSession();
+        }
+
+        /// <inheritdoc />
+        public Task NotifyContentDeletedAsync(Context context, ContentHash contentHash)
+        {
+            if (MemoizationReadOnlySession is DatabaseMemoizationSession dbSession)
+            {
+                return dbSession.NotifyContentDeletedAsync(context, contentHash);
+            }
+
+            return Task.CompletedTask;
         }
     }
 }

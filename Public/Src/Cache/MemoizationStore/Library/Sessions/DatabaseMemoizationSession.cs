@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
@@ -84,6 +85,15 @@ namespace BuildXL.Cache.MemoizationStore.Sessions
                 contentSessionWithRegistration.AddContentNotFoundOnPlaceListener(
                     (context, contentHash) => MemoizationStore.Database.ContentNotFoundOnPlaceAsync(new ContentStore.Tracing.Internal.OperationContext(context), contentHash));
             }
+        }
+
+        /// <summary>
+        /// Notifies the memoization database that the given content was deleted from the remote cache,
+        /// so that any fingerprint entries referencing it can be invalidated.
+        /// </summary>
+        public Task NotifyContentDeletedAsync(Context context, ContentHash contentHash)
+        {
+            return MemoizationStore.Database.ContentNotFoundOnPlaceAsync(new ContentStore.Tracing.Internal.OperationContext(context), contentHash);
         }
 
         /// <inheritdoc />

@@ -122,5 +122,11 @@ namespace BuildXL.Cache.Interfaces.Test
                 return m_realSession.IncorporateRecordsAsync(strongFingerprints, activityId);
             }
         }
+
+        /// <inheritdoc />
+        public Task<Possible<ContentDeleteStatus, Failure>> DeleteContentAsync(CasHash hash, System.Threading.CancellationToken cancellationToken = default, Guid activityId = default(Guid))
+        {
+            return m_realSession.DeleteContentAsync(hash, cancellationToken, activityId);
+        }
     }
 }

@@ -242,6 +242,22 @@ namespace BuildXL.Cache.MemoizationStore.Test.Sessions
             });
         }
 
+        [Fact]
+        public Task NotifyContentDeletedWithNonDatabaseSessionIsNoOp()
+        {
+            var context = new Context(Logger);
+            var contentHash = ContentHash.Random();
+
+            // The mock memoization session is NOT a DatabaseMemoizationSession,
+            // so NotifyContentDeletedAsync should complete without error (no-op).
+            return RunMockSessionTestAsync(context, async session =>
+            {
+                var notifier = session as ContentStore.Interfaces.Sessions.IContentDeletionNotifier;
+                Assert.NotNull(notifier);
+                await notifier.NotifyContentDeletedAsync(context, contentHash);
+            });
+        }
+
         private Task RunMockSessionTestAsync(Context context, Func<ICacheSession, Task> funcAsync)
         {
             return RunTestAsync(

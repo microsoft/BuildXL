@@ -41,6 +41,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         private readonly AbsolutePath m_statsFile;
         private bool m_isShutdown;
         private readonly bool m_replaceExistingOnPlaceFile;
+        private readonly bool m_enableContentRecoveryOnPlaceFailure;
         private ImplicitPin m_implicitPin;
         private readonly List<Action<Failure>> m_listeners = new List<Action<Failure>>();
         private readonly List<Failure> m_stateDegradationFailuresOnInit;
@@ -57,6 +58,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         /// <param name="precedingStateDegradationFailures">State degradation failures that happened before the creation of this cache, and that should be reported when the proper listener
         /// <see cref="SuscribeForCacheStateDegredationFailures(Action{Failure})"/> is set</param>
         /// <param name="isReadOnly">Whether the cache is read-only</param>
+        /// <param name="enableContentRecoveryOnPlaceFailure">When true, enables deletion of corrupt remote content after placement retries are exhausted</param>
         public MemoizationStoreAdapterCache(
             CacheId cacheId,
             BuildXL.Cache.MemoizationStore.Interfaces.Caches.ICache innerCache,
@@ -65,7 +67,8 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             bool isReadOnly,
             bool replaceExistingOnPlaceFile = false,
             ImplicitPin implicitPin = ImplicitPin.PutAndGet,
-            List<Failure> precedingStateDegradationFailures = null)
+            List<Failure> precedingStateDegradationFailures = null,
+            bool enableContentRecoveryOnPlaceFailure = false)
         {
             Contract.Requires(cacheId != null);
             Contract.Requires(innerCache != null);
@@ -77,6 +80,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             m_statsFile = statsFile;
             m_fileSystem = new PassThroughFileSystem(m_logger);
             m_replaceExistingOnPlaceFile = replaceExistingOnPlaceFile;
+            m_enableContentRecoveryOnPlaceFailure = enableContentRecoveryOnPlaceFailure;
             m_implicitPin = implicitPin;
             m_stateDegradationFailuresOnInit = precedingStateDegradationFailures ?? new List<Failure>();
             IsReadOnly = isReadOnly;
@@ -202,7 +206,7 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                 var startupResult = await innerCacheSession.StartupAsync(context);
                 if (startupResult.Succeeded)
                 {
-                    return new MemoizationStoreAdapterCacheCacheSession(innerCacheSession, m_cache, CacheId, m_logger, sessionId, m_replaceExistingOnPlaceFile);
+                    return new MemoizationStoreAdapterCacheCacheSession(innerCacheSession, m_cache, CacheId, m_logger, sessionId, m_replaceExistingOnPlaceFile, m_enableContentRecoveryOnPlaceFailure);
                 }
                 else
                 {

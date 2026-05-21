@@ -226,6 +226,8 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                     return new FileAlreadyExistsFailure(CacheId, hash, filename);
                 case PlaceFileResult.ResultCode.NotPlacedContentNotFound:
                     return new NoCasEntryFailure(CacheId, hash);
+                case PlaceFileResult.ResultCode.NotPlacedContentHashMismatch:
+                    return new ContentHashMismatchFailure(CacheId, hash);
                 case PlaceFileResult.ResultCode.Error:
                 case PlaceFileResult.ResultCode.Unknown:
                     return new CacheFailure(result.ErrorMessage);

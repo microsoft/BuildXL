@@ -41,7 +41,7 @@ public class EphemeralCacheConfiguration
     /// preventing the cache from answering "I have it" when the blob was reported as missing or corrupt.
     /// </summary>
     /// <remarks>
-    /// This should be enabled together with <see cref="AzureBlobStorageContentStoreConfiguration.EnableContentRecoveryOnPlaceFailure"/>
+    /// This should be enabled together with <c>BlobCacheConfig.EnableContentRecoveryOnPlaceFailure</c>,
     /// which sends the DeleteEvent that this flag honors.
     /// </remarks>
     public bool EnableContentRecoveryOnPlaceFailure { get; init; } = false;

@@ -203,7 +203,8 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase, IConten
             source: PlaceFileResult.Source.BackingStore);
 
         // if the content was not found, let listeners know
-        if (result.Code == PlaceFileResult.ResultCode.NotPlacedContentNotFound && _contentNotFoundListeners.Any())
+        if (result.Code == PlaceFileResult.ResultCode.NotPlacedContentNotFound
+            && _contentNotFoundListeners.Any())
         {
             foreach (var listener in _contentNotFoundListeners)
             {
@@ -387,29 +388,10 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase, IConten
                 return new Result<RemoteDownloadResult>(exception, $"Failed to delete {path} containing partial download results for content {contentHash}");
             }
 
-            if (_configuration.EnableContentRecoveryOnPlaceFailure)
-            {
-                // Delete the corrupt remote blob from storage so future downloads don't keep returning poisoned bytes.
-                // Uploads use IfNoneMatch=*, so blob content cannot be replaced while the blob exists; deleting it
-                // allows a subsequent build to re-upload the correct content.
-                var deleteResult = await _clientAdapter.DeleteIfExistsAsync(context, client);
-                if (deleteResult.Succeeded)
-                {
-                    // Notify the content tracker only after a successful delete. If the delete failed, the blob
-                    // still exists and broadcasting a DeleteEvent would cause peers to skip L3 round-trips and
-                    // fail re-uploads (IfNoneMatch=* would return "already exists"), leaving the poison in place.
-                    await TryNotify(context, new DeleteEvent(blobPath, contentHash));
-                }
-                else
-                {
-                    Tracer.Warning(context, $"Failed to delete corrupt blob {blobPath} for content {contentHash}: {deleteResult}");
-                }
-            }
-
             return Result.Success(
                 new RemoteDownloadResult()
                 {
-                    ResultCode = PlaceFileResult.ResultCode.NotPlacedContentNotFound,
+                    ResultCode = PlaceFileResult.ResultCode.NotPlacedContentHashMismatch,
                     FileSize = fileSize,
                     DownloadResult = statistics,
                 });

@@ -1572,5 +1572,11 @@ namespace BuildXL.Cache.VerticalAggregator
             m_sessionCounters.Export(result, prefix: null);
             return result;
         }
+
+        /// <inheritdoc />
+        public Task<Possible<ContentDeleteStatus, Failure>> DeleteContentAsync(CasHash hash, CancellationToken cancellationToken = default, Guid activityId = default(Guid))
+        {
+            return Task.FromResult(new Possible<ContentDeleteStatus, Failure>(ContentDeleteStatus.Disabled));
+        }
     }
 }

@@ -49,7 +49,12 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Results
             /// <summary>
             ///     Destination file already exists.
             /// </summary>
-            NotPlacedAlreadyExists = 102
+            NotPlacedAlreadyExists = 102,
+
+            /// <summary>
+            ///     Content was downloaded but the hash of the downloaded bytes did not match the expected hash.
+            /// </summary>
+            NotPlacedContentHashMismatch = 103
         }
 
         /// <summary>

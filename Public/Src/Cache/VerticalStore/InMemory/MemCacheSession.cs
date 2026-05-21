@@ -476,6 +476,12 @@ namespace BuildXL.Cache.InMemory
             }
         }
 
+        /// <inheritdoc />
+        public Task<Possible<ContentDeleteStatus, Failure>> DeleteContentAsync(CasHash hash, CancellationToken cancellationToken = default, Guid activityId = default(Guid))
+        {
+            return Task.FromResult(new Possible<ContentDeleteStatus, Failure>(ContentDeleteStatus.Disabled));
+        }
+
         #endregion ICacheSession methods
     }
 }

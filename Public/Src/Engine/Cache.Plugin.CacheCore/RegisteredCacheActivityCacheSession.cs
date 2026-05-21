@@ -121,5 +121,11 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
         {
             return m_cache.ValidateContentAsync(hash, urgencyHint, GetOrNewContextActivityId(activityId));
         }
+
+        /// <inheritdoc />
+        public Task<Possible<ContentDeleteStatus, Failure>> DeleteContentAsync(CasHash hash, CancellationToken cancellationToken = default, Guid activityId = default)
+        {
+            return m_cache.DeleteContentAsync(hash, cancellationToken, GetOrNewContextActivityId(activityId));
+        }
     }
 }

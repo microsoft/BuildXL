@@ -176,10 +176,6 @@ namespace BuildXL.Cache.MemoizationStore.Stores
                     {
                         Tracer.Warning(context, $"NotifyAssociatedContentWasNotFoundAsync failed for strong fingerprint {strongFingerprint} after content {contentHash} was not found: {notificationResult}");
                     }
-                    else
-                    {
-                        Tracer.Info(context, $"Notified store that content {contentHash} was not found for strong fingerprint {strongFingerprint}.");
-                    }
                 }
             }
         }

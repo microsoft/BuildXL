@@ -368,7 +368,7 @@ public class AzureBlobStorageContentSessionTests : ContentSessionTests
                     FileRealizationMode.Any,
                     Token);
 
-                result.Code.Should().Be(PlaceFileResult.ResultCode.NotPlacedContentNotFound);
+                result.Code.Should().Be(PlaceFileResult.ResultCode.NotPlacedContentHashMismatch);
             });
     }
 

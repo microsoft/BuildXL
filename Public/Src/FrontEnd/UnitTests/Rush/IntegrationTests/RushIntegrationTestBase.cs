@@ -128,7 +128,8 @@ namespace Test.BuildXL.FrontEnd.Rush
             string additionalRushParameters = null,
             bool enableProjectGraphVerboseLogging = false,
             bool? usePnpmStoreAwarenessTracking = null,
-            bool? disallowWritesUnderPnpmStore = null)
+            bool? disallowWritesUnderPnpmStore = null,
+            string defaultQualifier = null)
         {
             environment ??= new Dictionary<string, string> { 
                 ["PATH"] = PathToNodeFolder,
@@ -161,7 +162,8 @@ namespace Test.BuildXL.FrontEnd.Rush
                 additionalRushParameters,
                 enableProjectGraphVerboseLogging,
                 usePnpmStoreAwarenessTracking,
-                disallowWritesUnderPnpmStore);
+                disallowWritesUnderPnpmStore,
+                defaultQualifier);
         }
 
         /// <inheritdoc/>
@@ -191,7 +193,8 @@ namespace Test.BuildXL.FrontEnd.Rush
             string additionalRushParameters = null,
             bool enableProjectGraphVerboseLogging = false,
             bool? usePnpmStoreAwarenessTracking = null,
-            bool? disallowWritesUnderPnpmStore = null)
+            bool? disallowWritesUnderPnpmStore = null,
+            string defaultQualifier = null)
         {
             environment ??= new Dictionary<string, DiscriminatingUnion<string, UnitValue>> { 
                 ["PATH"] = new DiscriminatingUnion<string, UnitValue>(PathToNodeFolder),
@@ -240,7 +243,8 @@ namespace Test.BuildXL.FrontEnd.Rush
                     additionalRushParameters,
                     enableProjectGraphVerboseLogging,
                     usePnpmStoreAwarenessTracking,
-                    disallowWritesUnderPnpmStore));
+                    disallowWritesUnderPnpmStore,
+                    defaultQualifier));
         }
 
         protected BuildXLEngineResult RunRushProjects(
@@ -358,7 +362,8 @@ namespace Test.BuildXL.FrontEnd.Rush
             string additionalRushParameters = null,
             bool enableProjectGraphVerboseLogging = false,
             bool? usePnpmStoreAwarenessTracking = null,
-            bool? disallowWritesUnderPnpmStore = null) => $@"
+            bool? disallowWritesUnderPnpmStore = null,
+            string defaultQualifier = null) => $@"
 config({{
     resolvers: [
         {{
@@ -392,7 +397,8 @@ config({{
         {(addDScriptResolver? "{kind: 'DScript', modules: [f`module.config.dsc`, f`${Context.getBuildEngineDirectory()}/Sdk/Sdk.Transformers/package.config.dsc`]}" : string.Empty)}
     ],
     engine: {{unsafeAllowOutOfMountWrites: true}},
-    {(enableFullReparsePointResolving != null ? $"sandbox: {{unsafeSandboxConfiguration: {{enableFullReparsePointResolving: {(enableFullReparsePointResolving.Value ? "true" : "false")}}}}}" : string.Empty)}
+    {(enableFullReparsePointResolving != null ? $"sandbox: {{unsafeSandboxConfiguration: {{enableFullReparsePointResolving: {(enableFullReparsePointResolving.Value ? "true" : "false")}}}}}," : string.Empty)}
+    {(defaultQualifier != null ? $"qualifiers: {{defaultQualifier: {defaultQualifier}}}," : string.Empty)}
 }});";
 
         private static string DictionaryToExpression(string memberName, Dictionary<string, DiscriminatingUnion<string, UnitValue>> dictionary)

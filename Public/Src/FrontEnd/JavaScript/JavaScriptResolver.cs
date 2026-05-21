@@ -57,6 +57,8 @@ namespace BuildXL.FrontEnd.JavaScript
 
         private IReadOnlyCollection<ResolvedJavaScriptExport> Exports => m_javaScriptWorkspaceResolver.ComputedProjectGraph.Result.Exports;
 
+        // We are prepared to collect process outputs for any project and qualifier, but today all JS related values occur in a qualifier-agnostic manner,
+        // so the qualifierId will be in practice the empty qualifier. Still, we keep track of the qualifierId in case we want to introduce qualifier-specific values in the future.
         private readonly ConcurrentDictionary<(JavaScriptProject project, QualifierId qualifierId), ProcessOutputs> m_scheduledProcessOutputs = new ConcurrentDictionary<(JavaScriptProject, QualifierId), ProcessOutputs>();
 
         private readonly SemaphoreSlim m_evaluationSemaphore = new SemaphoreSlim(1, 1);
@@ -499,12 +501,17 @@ namespace BuildXL.FrontEnd.JavaScript
 
             try
             {
+                // Evaluation can be triggered by either a top level evaluation (module related) or by expressions in other modules referencing exports on this module.
+                // Observe that in theory this can be a multi-qualifier process. In practice, JS evaluation only need to happen once, since all JS values are qualifier agnostic.
+                // This means a single semaphore is enough.
                 if (m_evaluationResult.HasValue)
                 {
                     return m_evaluationResult.Value;
                 }
 
-                m_evaluationResult = await EvaluateAllFilesAsync(evaluationGoals, qualifierId, scheduler);
+                // JavaScript values are not qualfier dependent. All specs live in modules with an empty qualifier space. So let's coerce any provided qualifier to the empty one.
+                // If we ever support qualifier-specific values in the future, this is where real coercion should happen
+                m_evaluationResult = await EvaluateAllFilesAsync(evaluationGoals, QualifierId.Unqualified, scheduler);
 
                 return m_evaluationResult.Value;
             }

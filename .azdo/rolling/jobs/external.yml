@@ -116,6 +116,10 @@ jobs:
         /logOutput:FullOutputOnWarningOrError
         /fingerprintSalt:external_build
         /p:[Sdk.BuildXL]microsoftInternal=0
+    env:
+      # The following two variables need to be set explicitly because we are using the ADO build runner outside of the 1ESPT buildxl workflow
+      SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+      ADOBUILDRUNNERINVOCATIONKEY: "External_Rolling_VSCode"
   - template: /.azdo/common/extract-nupkg-packages.yml
     parameters:
       SourceDirectory: $(Build.SourcesDirectory)\Out\Bin\release\public\pkgs
@@ -168,6 +172,10 @@ jobs:
         /p:[Sdk.BuildXL]microsoftInternal=0
         /processRetries:3
         /scrubDirectory:$(Build.SourcesDirectory)\Out\Objects
+    env:
+      # The following two variables need to be set explicitly because we are using the ADO build runner outside of the 1ESPT buildxl workflow
+      SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+      ADOBUILDRUNNERINVOCATIONKEY: "External_Rolling_DeployDev"
   
   # Use a rolling-specific cache so rolling builds don't share cache hits with PR builds.
   # Defensive: add a salt to make sure there are no hits from internal builds
@@ -190,6 +198,10 @@ jobs:
         /processRetries:3
         /p:xunitSemaphoreCount=16
         /scrubDirectory:$(Build.SourcesDirectory)\Out\Objects
+    env:
+      # The following two variables need to be set explicitly because we are using the ADO build runner outside of the 1ESPT buildxl workflow
+      SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+      ADOBUILDRUNNERINVOCATIONKEY: "External_Rolling_UseDev"
 
 - job: Linux_External_eBPF
   displayName: Linux External eBPF Build

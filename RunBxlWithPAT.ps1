@@ -38,8 +38,8 @@ Param(
  [switch]$EnableProcessRemoting = $false,
 
  [Parameter(Mandatory=$false)]
- [ValidateSet("Disable", "Consume", "ConsumeAndPublish")]
- [string]$SharedCacheMode = "Disable",
+ [ValidateSet("Disabled", "ADO", "DevCache")]
+ [string]$SharedCacheMode = "Disabled",
 
  [Parameter(Mandatory=$false)]
  [string]$CacheNamespace,

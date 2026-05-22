@@ -1,0 +1,77 @@
+# This pipeline runs a full BuildXL selfhost build on every commit to main.
+# Its only purpose is to populate the shared dev cache so that developer builds
+# (which consume the cache in read-only DevCache mode) get cache hits.
+# The pipeline succeeds even if the build fails — a failed build still populates
+# the cache for the pips that did complete.
+
+trigger:
+  branches:
+    include:
+    - main
+
+resources:
+  repositories:
+  - repository: 1esPipelines
+    type: git
+    name: 1ESPipelineTemplates/1ESPipelineTemplates
+    ref: refs/tags/release
+
+variables:
+- group: "BuildXL Common variables"
+
+extends:
+  template: v1/1ES.Unofficial.PipelineTemplate.yml@1esPipelines
+  parameters:
+    sdl:
+      sourceAnalysisPool:
+        name: Windows-SDL-Agents
+        os: windows
+      codeql:
+        compiled:
+          enabled: false
+          justificationForDisabling: 'This pipeline only populates the dev cache. CodeQL runs in a dedicated pipeline.'
+
+    pool:
+      name: BuildXLDevCachePublisher
+      os: windows
+
+    stages:
+    - stage: Build
+      displayName: Populate Dev Cache
+      jobs:
+      - job: FullBuild
+        displayName: Full selfhost internal build (dev cache publishing)
+        timeoutInMinutes: 180
+        continueOnError: true
+        templateContext:
+          workflow: BuildXL
+
+          preBuildSteps:
+          - checkout: self
+          - template: /.azdo/common/journaling.yml@self
+          - template: /.azdo/common/set-variable-pats.yml@self
+          - template: /.azdo/common/install-credential-provider.yml@self
+
+          buildXL:
+            arguments: >-
+              /unsafe_GlobalPassthroughEnvVars:NUGET_CREDENTIALPROVIDERS_PATH;VSS_NUGET_EXTERNAL_FEED_ENDPOINTS
+              /unsafe_GlobalUntrackedScopes:$(NugetCredentialProviderPath);C:\ProgramData\Microsoft\NetFramework\BreadcrumbStore
+              /config:config.dsc
+              /p:[Sdk.BuildXL]useQTest=true
+              /p:[Sdk.BuildXL]microsoftInternal=1
+              /environment:SelfHostPrivateBuild
+              /q:DebugNet9
+              /q:ReleaseNet9
+              /runInSubst
+              /server-
+              /p:[Sdk.BuildXL]useManagedSharedCompilation=1
+            env:
+              1ESSHAREDASSETS_BUILDXL_FEED_PAT: $(1ESSHAREDASSETS_BUILDXL_FEED_PAT)
+              CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT: $(CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT)
+              MSENG_GIT_PAT: $(MSENG_GIT_PAT)
+              VSTSPERSONALACCESSTOKEN: $(VSTSPERSONALACCESSTOKEN)
+              ARTIFACT_CREDENTIALPROVIDERS_PATH: $(ARTIFACT_CREDENTIALPROVIDERS_PATH)
+              CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT_B64: $(CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT_B64)
+              VSS_NUGET_EXTERNAL_FEED_ENDPOINTS: $(VSS_NUGET_EXTERNAL_FEED_ENDPOINTS)
+              NUGET_CREDENTIALPROVIDERS_PATH: $(NugetCredentialProviderPath)
+            workingDirectory: $(Build.Repository.LocalPath)          

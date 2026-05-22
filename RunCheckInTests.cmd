@@ -79,10 +79,11 @@ if EXIST %ENLISTMENTROOT%\Out\frontend\Nuget\specs (
     rmdir /S /Q %ENLISTMENTROOT%\Out\frontend\Nuget\specs
 )
 
+REM RunCheckInTest runs without a shared cache. Disable the ado runner (-DisableAdoBuildRunner) across the board, so the 1ESBuild cache will be therefore disabled
 set start=%time%
 set stepName=Building 'release\win-x64' and DistributedBuildRunner using Lkg and deploying to RunCheckinTests
 call :StatusMessage %stepName%
-    call :RunBxl -Use LKG -Deploy RunCheckinTests -DeployConfig Release -DeployRuntime win-x64 /f:output='%ENLISTMENTROOT%\Out\Bin\release\win-x64\*'oroutput='%ENLISTMENTROOT%\Out\Bin\release\tools\DistributedBuildRunner\*' %BUILDXL_ARGS% /enableLazyOutputs- /TraceInfo:RunCheckinTests=LKG /useCustomPipDescriptionOnConsole- /validateCgManifestForNugets:%ENLISTMENTROOT%\cg\nuget\cgmanifest.json -SharedCacheMode disable 
+    call :RunBxl -Use LKG -Deploy RunCheckinTests -DeployConfig Release -DeployRuntime win-x64 /f:output='%ENLISTMENTROOT%\Out\Bin\release\win-x64\*'oroutput='%ENLISTMENTROOT%\Out\Bin\release\tools\DistributedBuildRunner\*' %BUILDXL_ARGS% /enableLazyOutputs- /TraceInfo:RunCheckinTests=LKG /useCustomPipDescriptionOnConsole- /validateCgManifestForNugets:%ENLISTMENTROOT%\cg\nuget\cgmanifest.json -DisableAdoBuildRunner
     if %ERRORLEVEL% NEQ 0 goto BadLKGMessage
 call :RecordStep "%stepName%" %start%
 
@@ -142,7 +143,7 @@ endlocal && exit /b 0
     call :StatusMessage !stepName!
         REM Need to use /trackBuildsInUserFolder+ so that the build invocation is written to the .tsv file in User Settings folder.
         REM The subsequent bxlAnalyzer.exe invocation will read this .tsv file to get information about this build for Codex analysis.
-        call :RunBxl -Use RunCheckinTests %BUILDXL_ARGS% /q:Debug /q:DebugNet472 /f:tag='compile' /TraceInfo:RunCheckinTests=RunCodex /trackBuildsInUserFolder+ /incrementalScheduling- /enableLazyOutputs- -SharedCacheMode disable 
+        call :RunBxl -Use RunCheckinTests %BUILDXL_ARGS% /q:Debug /q:DebugNet472 /f:tag='compile' /TraceInfo:RunCheckinTests=RunCodex /trackBuildsInUserFolder+ /incrementalScheduling- /enableLazyOutputs- -DisableAdoBuildRunner
         if !ERRORLEVEL! NEQ 0 (exit /b 1)
     call :RecordStep "!stepName!" !start!
 
@@ -161,7 +162,7 @@ endlocal && exit /b 0
     set start=!time!
     set stepName=Generating solution
     call :StatusMessage !stepName!
-        call :RunBxl -Use RunCheckinTests %BUILDXL_ARGS% /q:Debug /q:DebugNet472 *.exe *.dll /vs /vsOutputSrc- /solutionName:Domino -SharedCacheMode disable 
+        call :RunBxl -Use RunCheckinTests %BUILDXL_ARGS% /q:Debug /q:DebugNet472 *.exe *.dll /vs /vsOutputSrc- /solutionName:Domino -DisableAdoBuildRunner
     call :RecordStep "!stepName!" !start!
 
     set start=!time!
@@ -194,7 +195,7 @@ endlocal && exit /b 0
     set start=!time!
     set stepName=Performing a /cleanonly build
     call :StatusMessage !stepName!
-        call :RunBxl -Use RunCheckinTests %BUILDXL_ARGS% /cleanonly /f:spec='%ENLISTMENTROOT%\Public\Src\Utilities\Instrumentation\LogGen\BuildXL.LogGen.dsc' /TraceInfo:RunCheckinTests=CleanOnly -SharedCacheMode disable
+        call :RunBxl -Use RunCheckinTests %BUILDXL_ARGS% /cleanonly /f:spec='%ENLISTMENTROOT%\Public\Src\Utilities\Instrumentation\LogGen\BuildXL.LogGen.dsc' /TraceInfo:RunCheckinTests=CleanOnly -DisableAdoBuildRunner
         if !ERRORLEVEL! NEQ 0 (exit /b 1)
     call :RecordStep "!stepName!" !start!
 
@@ -206,7 +207,7 @@ endlocal && exit /b 0
         set COMPARE_FINGERPRINTS_LOGS_DIR=%ENLISTMENTROOT%\Out\Logs\CompareFingerprints\
         REM Neither /cacheGraph- nor /scriptShowSlowest need be used here (and in the next step).
         REM The reason why they are used here is to exercise DScript front end on .NET Core
-        call :RunBxl /cacheGraph- /scriptShowSlowest -Use RunCheckinTests -minimal %BUILDXL_ARGS% /incrementalScheduling- /TraceInfo:RunCheckinTests=CompareFingerprints1 /logsDirectory:!COMPARE_FINGERPRINTS_LOGS_DIR! -SharedCacheMode disable
+        call :RunBxl /cacheGraph- /scriptShowSlowest -Use RunCheckinTests -minimal %BUILDXL_ARGS% /incrementalScheduling- /TraceInfo:RunCheckinTests=CompareFingerprints1 /logsDirectory:!COMPARE_FINGERPRINTS_LOGS_DIR! -DisableAdoBuildRunner
         if !ERRORLEVEL! NEQ 0 (exit /b 1)
 
         REM Produce a fingerprint file of the first run.
@@ -223,7 +224,7 @@ endlocal && exit /b 0
         REM Graph caching is disabled in case there is nondeterminism during graph construction.
         REM We use the same logs directory but with different prefix.
         set SECOND_PREFIX=BuildXL.2
-        call :RunBxl /cacheGraph- /scriptShowSlowest -Use RunCheckinTests -minimal %BUILDXL_ARGS% /incrementalScheduling- /TraceInfo:RunCheckinTests=CompareFingerprints2 /logsDirectory:!COMPARE_FINGERPRINTS_LOGS_DIR! -SharedCacheMode disable /logPrefix:!SECOND_PREFIX!
+        call :RunBxl /cacheGraph- /scriptShowSlowest -Use RunCheckinTests -minimal %BUILDXL_ARGS% /incrementalScheduling- /TraceInfo:RunCheckinTests=CompareFingerprints2 /logsDirectory:!COMPARE_FINGERPRINTS_LOGS_DIR! -DisableAdoBuildRunner /logPrefix:!SECOND_PREFIX!
         if !ERRORLEVEL! NEQ 0 (exit /b 1)
 
         REM Produce a fingerprint file of the second run.
@@ -269,7 +270,7 @@ endlocal && exit /b 0
     set start=!time!
     set stepName=Running SymLink Tests
     call :StatusMessage !stepName!
-        call :RunBxl -Use RunCheckinTests %BUILDXL_ARGS% /c:%ENLISTMENTROOT%\Public\Src\Sandbox\Windows\DetoursTests\SymLink1\config.dsc /TraceInfo:RunCheckinTests=Symlink /logsDirectory:%~dp0out\Logs\SymLinkTest\ -SharedCacheMode disable /nowarn:855
+        call :RunBxl -Use RunCheckinTests %BUILDXL_ARGS% /c:%ENLISTMENTROOT%\Public\Src\Sandbox\Windows\DetoursTests\SymLink1\config.dsc /TraceInfo:RunCheckinTests=Symlink /logsDirectory:%~dp0out\Logs\SymLinkTest\ -DisableAdoBuildRunner /nowarn:855
         rmdir /s /q %ENLISTMENTROOT%\Public\Src\Sandbox\Windows\DetoursTests\SymLink1\Out
         if !ERRORLEVEL! NEQ 0 (exit /b 1)
     call :RecordStep "!stepName!" !start!

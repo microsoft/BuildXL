@@ -53,8 +53,6 @@ extends:
             -minimal
             -deploy Dev
             -deployconfig Release
-            -CacheNamespace BuildXL.Public
-            -SharedCacheMode ConsumeAndPublish
             /p:[Sdk.BuildXL]microsoftInternal=1
             /q:ReleaseNet9
             /p:[BuildXL.Branding]SemanticVersion=$(BuildXL.SemanticVersion)
@@ -73,6 +71,9 @@ extends:
             ARTIFACT_CREDENTIALPROVIDERS_PATH: $(ARTIFACT_CREDENTIALPROVIDERS_PATH)
             CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT_B64: $(CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT_B64)
             VSS_NUGET_EXTERNAL_FEED_ENDPOINTS: $(VSS_NUGET_EXTERNAL_FEED_ENDPOINTS)
+            # The following two variables need to be set explicitly because we are using the ADO build runner outside of the 1ESPT buildxl workflow
+            SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+            ADOBUILDRUNNERINVOCATIONKEY: "ExternalPR_PublicValidation_DeployDev"
         
         - task: 1ES.PublishPipelineArtifact@1
           displayName: Upload -Deploy Dev logs
@@ -90,9 +91,6 @@ extends:
             script: >-
               bxl.cmd
               -Use Dev
-              -UseBlobL3
-              -SharedCacheMode ConsumeAndPublish
-              -CacheNamespace BuildXL.Public.Validation
               /p:[Sdk.BuildXL]microsoftInternal=0
               /q:$(BuildXL.Configuration)Net9
               /logOutput:FullOutputOnWarningOrError
@@ -103,6 +101,10 @@ extends:
               /logsDirectory:$(BuildXL.LogsDirectory)
               /scrubDirectory:Out\objects
               /pipTimeoutMultiplier:2
+          env:
+            # The following two variables need to be set explicitly because we are using the ADO build runner outside of the 1ESPT buildxl workflow
+            SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+            ADOBUILDRUNNERINVOCATIONKEY: "ExternalPR_PublicValidation_UseDev"
 
         # Step 3. Check to see if there are any unstaged files in the build and fail the build.
         #         We avoid checking cg/nuget/cgmanifest.json and .sarif files, which we expect to change in the external build

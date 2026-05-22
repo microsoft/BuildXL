@@ -571,7 +571,10 @@ export function runQTest(args: QTestArguments): Result {
             ...addIfLazy(Context.getCurrentHost().os === "unix", () => [
                 d`${Context.getUserHomeDirectory().path}/.dotnet/corefx/cryptography`]),
             ...addIfLazy(Context.getCurrentHost().os === "win", () => [
-                d`${Context.getUserHomeDirectory().path}/AppData/LocalLow/Microsoft/CryptnetUrlCache`])
+                d`${Context.getUserHomeDirectory().path}/AppData/LocalLow/Microsoft/CryptnetUrlCache`]),
+            // QTest hardcodes D:/Data/Q as a location to write D:\Data\Q\TelemetryConfig when doing telemetry initialization.
+            ...addIfLazy(Context.getCurrentHost().os === "win", () => [
+                d`D:/Data/Q`])
         ],
         requireGlobalDependencies: true,
         passThroughEnvironmentVariables: [

@@ -308,7 +308,10 @@ function runStandaloneV3(args : Managed.TestRunArguments) : File[] {
     const privilege = args.privilegeLevel || "standard";
     // When running as part of parallelGroups, use the limit group name as a suffix to avoid filename collisions
     const groupSuffix = args.limitGroups && args.limitGroups.length > 0 ? `.${args.limitGroups[0]}` : ``;
-    const xunitLogDir = d`${Context.getMount("LogsDirectory").path}/XUnit/${Context.getLastActiveUseModuleName()}/${Context.getLastActiveUseName()}/${qualifierRelative}/${privilege}/${parallelRelative}`;
+    // There is a bug in binskim (autoinjected in some ADO pipelines) that causes it to fail if directories end with .dll. Strip the .dll extension.
+    let lastActiveUsedName = Context.getLastActiveUseName();
+    lastActiveUsedName = lastActiveUsedName.endsWith(".dll") ? lastActiveUsedName.slice(0, lastActiveUsedName.length - 4) : lastActiveUsedName;
+    const xunitLogDir = d`${Context.getMount("LogsDirectory").path}/XUnit/${Context.getLastActiveUseModuleName()}/${lastActiveUsedName}/${qualifierRelative}/${privilege}/${parallelRelative}`;
     result.getOutputFiles().map(f => {
         const destName = groupSuffix !== `` ? f.name.changeExtension(a`${groupSuffix}${f.name.extension}`) : f.name;
         return Transformer.copyFile(f, p`${xunitLogDir}/${destName}`);

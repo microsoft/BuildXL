@@ -26,7 +26,7 @@ call %PRROOT%\Utilities\StatusMessage.cmd %stepName%
     REM Incremental scheduling is disabled so we can deterministically get all pip fingerprints exported.
     REM This build and the next are disconnected from the shared cache to ensure that they don't converge with a remote build happening at the same time.
     set COMPARE_FINGERPRINTS_LOGS_DIR=%ENLISTMENTROOT%\Out\Logs\CompareFingerprints\
-    call %PRROOT%\Utilities\RunBxl.cmd -Use RunCheckinTests -All %BUILDXL_ARGS% /qualifier:Debug /qualifier:Release /p:FeatureUploadSymbolsAndDrops=1 /incrementalscheduling- /TraceInfo:RunCheckinTests=CompareFingerprints1 /logsDirectory:%COMPARE_FINGERPRINTS_LOGS_DIR% -SharedCacheMode disable
+    call %PRROOT%\Utilities\RunBxl.cmd -Use RunCheckinTests -All %BUILDXL_ARGS% /qualifier:Debug /qualifier:Release /p:FeatureUploadSymbolsAndDrops=1 /incrementalscheduling- /TraceInfo:RunCheckinTests=CompareFingerprints1 /logsDirectory:%COMPARE_FINGERPRINTS_LOGS_DIR% -SharedCacheMode disabled
     if %ERRORLEVEL% NEQ 0 (exit /b 1)
 
     REM Produce a fingerprint file of the first run.
@@ -46,7 +46,7 @@ call %PRROOT%\Utilities\StatusMessage.cmd %stepName%
     REM We also explicitly use /enableLazyOutputs- here to make sure that tools needed for the rest of this Scripts
     REM (e.g., DistributedBuildRunner) are materialized on disk
     set SECOND_PREFIX=BuildXL.2
-    call %PRROOT%\Utilities\RunBxl.cmd -Use RunCheckinTests -All %BUILDXL_ARGS% /qualifier:Debug /qualifier:Release /logsDirectory:%COMPARE_FINGERPRINTS_LOGS_DIR% /logPrefix:%SECOND_PREFIX% /IncrementalScheduling- /enableLazyOutputs- /p:FeatureUploadSymbolsAndDrops=1  /f:"~(tag='artifact-services-drop-pip')and~(tag='LongRunningTest')" /TraceInfo:RunCheckinTests=CompareFingerprints2 -SharedCacheMode disable /cachegraph-
+    call %PRROOT%\Utilities\RunBxl.cmd -Use RunCheckinTests -All %BUILDXL_ARGS% /qualifier:Debug /qualifier:Release /logsDirectory:%COMPARE_FINGERPRINTS_LOGS_DIR% /logPrefix:%SECOND_PREFIX% /IncrementalScheduling- /enableLazyOutputs- /p:FeatureUploadSymbolsAndDrops=1  /f:"~(tag='artifact-services-drop-pip')and~(tag='LongRunningTest')" /TraceInfo:RunCheckinTests=CompareFingerprints2 -SharedCacheMode disabled /cachegraph-
     if %ERRORLEVEL% NEQ 0 (exit /b 1)
 
     REM Produce a fingerprint file of the second run.

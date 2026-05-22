@@ -529,7 +529,11 @@ export function cacheTest(args: TestArguments) : TestResult {
             skipGroups: [ "QTestSkip", "Performance", "Simulation", ...(isDotNetCore ? [ "SkipDotNetCore" ] : []) ],
             tags: [ "cacheTest" ],
             timeoutMultiplier: 2,
-        },
+            unsafeTestRunArguments: {
+                untrackedPaths: addIfLazy(
+                    Context.getCurrentHost().os === "win", () => [f`${Environment.getDirectoryValue("CommonProgramFiles")}/SSL/openssl.cnf`])
+            }
+        }
     }, args);
 
     // Adding binding redirects to allow running the tests in the IDE.

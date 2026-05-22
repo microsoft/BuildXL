@@ -99,18 +99,22 @@ jobs:
       internal: false
       packageList: 'packages'
 
+  # Use a rolling-specific cache so rolling builds don't share cache hits with PR builds.
+  # Defensive: add a salt to make sure there are no hits from internal builds
   - task: CmdLine@2
     displayName: Build external packages and VSCode extension
     inputs:
       script: >-
         call
         bxl.cmd
+        -1ESBuildCacheName BuildXLSelfhostNewRolling
         /f:$(PackagesFilter)oroutput='Out\Bin\release\ide\*'
         /q:Release /q:ReleaseLinux
         /p:[BuildXL.Branding]SemanticVersion=$(BuildXL.SemanticVersion)
         /p:[BuildXL.Branding]PrereleaseTag=$(BuildXL.PreReleaseTag)
         /p:[BuildXL.Branding]SourceIdentification=$(Branding_SourceIdentification)
         /logOutput:FullOutputOnWarningOrError
+        /fingerprintSalt:external_build
         /p:[Sdk.BuildXL]microsoftInternal=0
   - template: /.azdo/common/extract-nupkg-packages.yml
     parameters:
@@ -144,12 +148,15 @@ jobs:
   steps:
   - template: ../steps/external_prepare.yml
 
+  # Use a rolling-specific cache so rolling builds don't share cache hits with PR builds.
+  # Defensive: add a salt to make sure there are no hits from internal builds
   - task: CmdLine@2
     displayName: bxl.cmd -deploy dev
     inputs:
       script: >- 
         call
         bxl.cmd
+        -1ESBuildCacheName BuildXLSelfhostNewRolling
         -deploy dev
         -minimal
         -deployconfig $(QualifierToBuild)
@@ -157,17 +164,22 @@ jobs:
         /p:[BuildXL.Branding]PrereleaseTag=$(BuildXL.PreReleaseTag)
         /p:[BuildXL.Branding]SourceIdentification=$(Branding_SourceIdentification)
         /logOutput:FullOutputOnWarningOrError
+        /fingerprintSalt:external_build
         /p:[Sdk.BuildXL]microsoftInternal=0
         /processRetries:3
         /scrubDirectory:$(Build.SourcesDirectory)\Out\Objects
   
+  # Use a rolling-specific cache so rolling builds don't share cache hits with PR builds.
+  # Defensive: add a salt to make sure there are no hits from internal builds
   - task: CmdLine@2
     displayName: bxl.cmd -use dev
     inputs:
       script: >-
         call
         bxl.cmd
+        -1ESBuildCacheName BuildXLSelfhostNewRolling
         -use dev
+        /fingerprintSalt:external_build
         /p:[Sdk.BuildXL]microsoftInternal=0
         /q:$(QualifierToBuild)
         /p:[BuildXL.Branding]SemanticVersion=$(BuildXL.SemanticVersion)
@@ -213,6 +225,7 @@ jobs:
     parameters:
       CacheNamespace: BuildXL.Linux.External  # TODO - this is the extent of isolation with the internal build we're getting right now / work item #2143786
 
+  # Defensive: add a salt to make sure there are no hits from internal builds
   - task: Bash@3
     displayName: Build Linux eBPF Sandbox Binaries
     inputs:
@@ -228,6 +241,7 @@ jobs:
         /logoutput:FullOutputOnError
         /logsDirectory:"Out/Logs/Build"
         /p:[BuildXL.Branding]SourceIdentification=$(Branding_SourceIdentification)
+        /fingerprintSalt:external_build
         /p:[Sdk.BuildXL]microsoftInternal=0
       workingDirectory: /home/subst
 

@@ -10,6 +10,18 @@ or locally-built (Dev) deployment. It adds two parameters for managing BuildXL d
 -Use specifies the deployment to use while building (the LKG deployment is used by default).
 -Deploy (if specified) indicates which deployment to update upon a successful build.
 
+.SHARED CACHE
+
+A shared cache is enabled by default and based on the detected environment.
+ADO -> Use the 1ES Build Cache (available on ADO/1ESHP builds only - assumes a 1ES Build Cache associated to the running pool)
+DevCache -> Use the 1ES Build Cache in dev mode - available outside of ADO but in read-only mode.
+Disabled -> Don't use any shared cache
+Not provided -> Use the default shared cache mode based on the environment
+
+For the case of ADO, a specific build cache can be selected by specifying the -1ESBuildCacheName parameter. Otherwise the default 
+cache associated with the running pool will be used.
+For the case of DevCache a specific cache resource is harcoded, but can be overridden by specifying the -DevCacheResourceId parameter.
+
 .PARAMETER Vanilla
 
 Disables non-default (usually experimental) options. Without this switch, experimental or
@@ -88,18 +100,29 @@ param(
     [Parameter(Mandatory = $false)]
     [string]$TestClass = "",
 
+    # ADO -> Use the 1ES Build Cache (available on ADO/1ESHP builds only - assumes a 1ES Build Cache associated to the running pool)
+    # DevCache -> Use the 1ES Build Cache in dev mode - available outside of ADO but in read-only mode.
+    # Disabled -> Don't use any shared cache
+    # Not provided: Use the default shared cache mode based on the environment (interactive -> DevCache, running on ADO -> ADO, otherwise -> Disabled).
     [Parameter(Mandatory = $false)]
-    [ValidateSet("Disable", "Consume", "ConsumeAndPublish")]
-    [string]$SharedCacheMode = "Disable",
+    [ValidateSet("Disabled", "ADO", "DevCache")]
+    [string]$SharedCacheMode,
 
-    [Parameter(Mandatory = $false)]
-    [switch]$DevCache = $false,
+    # The resource ID of the 1ES Build Cache to use in DevCache mode. 
+    [string]$DevCacheResourceId =  "/subscriptions/6f01c260-7797-42d9-a201-63f54e8c1a1a/resourceGroups/buildxl/providers/Microsoft.CloudTest/buildcaches/BuildXLDevCache",
 
     [Parameter(Mandatory = $false)]
     [string]$DefaultConfig,
 
+    # ADO build runner is used by default in ADO environments. This flag unconditionally disables it.
     [Parameter(Mandatory = $false)]
-    [switch]$UseAdoBuildRunner = $false,
+    [switch]$DisableAdoBuildRunner = $false,
+
+    # The name of the 1ES Build Cache resource to use. Only honored when running in an ADO environment
+    # where the ADO Build Runner is active. Passed as --hostedPoolActiveBuildCacheName to the runner,
+    # overriding the default cache associated with the pool.
+    [Parameter(Mandatory = $false)]
+    [string]${1ESBuildCacheName} = "",
 
     [switch]$Vanilla,
 
@@ -125,18 +148,6 @@ param(
 
     [switch]$DoNotUseDefaultCacheConfigFilePath = $false,
 
-    [Parameter(Mandatory = $false)]
-    [switch]$UseDedupStore = $false,
-
-    [ValidateSet("Disabled", "Build", "Datacenter")]
-    [string]$UseEphemeralCache = "Disabled",
-
-    [Parameter(Mandatory = $false)]
-    [switch]$UseBlobL3 = $false,
-
-    [string]$VsoAccount = "mseng",
-
-    [string]$CacheNamespace = "buildxlselfhost",
 
     [Parameter(Mandatory = $false)]
     [switch]$Vs = $false,
@@ -241,22 +252,6 @@ if ($UseManagedSharedCompilation) {
     [Environment]::SetEnvironmentVariable("[Sdk.BuildXL]useManagedSharedCompilation", "1")
 }
 
-# Dev cache adds 5-10s to TTFP due to cache initialization. Since we want tight inner loop (code-test-debug) 
-# to be crisp, we disable dev cache when TestMethod or TestClass is specified, i.e., when testing
-# a single unit test method or a single unit test class. 
-# This behavior can still be overriden by specifying explicitly the SharedCacheMode.
-if ($TestMethod -ne "" -or $TestClass -ne "") {
-    $DevCache = $false;
-}
-
-if ($DevCache) {
-    if ($SharedCacheMode -eq "Disable") {
-        $SharedCacheMode = "Consume";
-    }
-}
-
-$useSharedCache = (($SharedCacheMode -eq "Consume" -or $SharedCacheMode -eq "ConsumeAndPublish") -and $isMicrosoftInternal);
-$publishToSharedCache = ($SharedCacheMode -eq "ConsumeAndPublish" -and $isMicrosoftInternal);
 
 if ($PatchDev) {
     # PatchDev is the same as deploy dev except no cleaning of deployment
@@ -381,9 +376,9 @@ function New-Deployment {
 }
 
 function Write-CacheConfigJson {
-    param([string]$ConfigPath, [bool]$UseSharedCache, [bool]$PublishToSharedCache, [string]$VsoAccount, [string]$CacheNamespace);
+    param([string]$ConfigPath, [string]$SharedCacheMode, [string]$DevCacheResourceId);
 
-    $configOptions = Get-CacheConfig -UseSharedCache $UseSharedCache -PublishToSharedCache $PublishToSharedCache -VsoAccount $VsoAccount -CacheNamespace $CacheNamespace;
+    $configOptions = Get-CacheConfig -SharedCacheMode $SharedCacheMode -DevCacheResourceId $DevCacheResourceId;
     # Write to a temp file first, then move into place atomically to avoid torn reads
     # when multiple worktrees write CacheCore.json to the same shared cache directory.
     $tempPath = $ConfigPath + "." + [System.IO.Path]::GetRandomFileName();
@@ -392,8 +387,12 @@ function Write-CacheConfigJson {
 }
 
 function Get-CacheConfig {
-    param([bool]$UseSharedCache, [bool]$PublishToSharedCache, [string]$VsoAccount, [string]$CacheNamespace);
+    param([string]$SharedCacheMode, [string]$DevCacheResourceId);
     
+    if ($SharedCacheMode -eq "ADO") {
+        throw "SharedCacheMode 'ADO' should not reach Write-CacheConfigJson. The ADO cache is configured by the ADO Build Runner, not via a cache config file."
+    }
+
     $localCache = @{
         Assembly                   = "BuildXL.Cache.MemoizationStoreAdapter";
         Type                       = "BuildXL.Cache.MemoizationStoreAdapter.MemoizationStoreCacheFactory";
@@ -401,84 +400,30 @@ function Get-CacheConfig {
         MaxCacheSizeInMB           = 40480;
         CacheRootPath              = $cacheDirectory;
         CacheLogPath               = "[BuildXLSelectedLogPath]";
-        UseStreamCAS               = $true;
         UseRocksDbMemoizationStore = $true;
     };
 
-    if (!$UseSharedCache) {
+    if ($SharedCacheMode -eq "Disabled") {
         return $localCache;
     }
 
-    $ephemeralCache = @{
-        Assembly              = "BuildXL.Cache.MemoizationStoreAdapter";
-        CacheLogPath          = "[BuildXLSelectedLogPath]";
-        Type                  = "BuildXL.Cache.MemoizationStoreAdapter.EphemeralCacheFactory";
-        CacheId               = "L3Cache";
-        Universe              = $CacheNamespace;
-        RetentionPolicyInDays = 1;
-        CacheRootPath         = "[BuildXLSelectedRootPath]";
-        LeaderMachineName     = "[BuildXLSelectedLeader]";
-        CacheSizeMb           = 20240;
-        DatacenterWide        = $UseEphemeralCache -eq "Datacenter";
-    };
-    if ($UseEphemeralCache -ne "Disabled") {
-        return $ephemeralCache;
-    }
-
-    if ($UseBlobL3) {
+    if ($SharedCacheMode -eq "DevCache") {
         $remoteCache = @{
-            Assembly              = "BuildXL.Cache.MemoizationStoreAdapter";
-            Type                  = "BuildXL.Cache.MemoizationStoreAdapter.BlobCacheFactory";
-            CacheId               = "L3Cache";
-            CacheLogPath          = "[BuildXLSelectedLogPath].Remote.log";
-            Universe              = $CacheNamespace;
-            RetentionPolicyInDays = 1;
-        };
-    }
-    else {
-        $remoteCache = @{
-            Assembly                        = "BuildXL.Cache.BuildCacheAdapter";
-            Type                            = "BuildXL.Cache.BuildCacheAdapter.BuildCacheFactory";
-            CacheId                         = "L3Cache";
-            CacheLogPath                    = "[BuildXLSelectedLogPath].Remote.log";
-            CacheServiceFingerprintEndpoint = "https://$VsoAccount.artifacts.visualstudio.com";
-            CacheServiceContentEndpoint     = "https://$VsoAccount.vsblob.visualstudio.com";
-            UseBlobContentHashLists         = $true;
-            CacheNamespace                  = $CacheNamespace;
-            DownloadBlobsUsingHttpClient    = $true;
-            RequiredContentKeepUntilHours   = 1;
+            CacheId = "bxlselfhostcacheremote";
+            CacheLogPath = "[BuildXLSelectedLogPath]";
+            IsReadOnly = $true;
+            DeveloperBuildCacheResourceId = $DevCacheResourceId;
         };
 
-        if ($env:BUILDXL_VSTS_REMOTE_FINGERPRINT_ENDPOINT) {
-            $remoteCache.CacheServiceFingerprintEndpoint = $env:BUILDXL_VSTS_REMOTE_FINGERPRINT_ENDPOINT;
-            Write-Host "Using " $remoteCache.CacheServiceFingerprintEndpoint
-        }
-
-        if ($env:BUILDXL_VSTS_REMOTE_CONTENT_ENDPOINT) {
-            $remoteCache.CacheServiceContentEndpoint = $env:BUILDXL_VSTS_REMOTE_CONTENT_ENDPOINT;
-            Write-Host "Using " $remoteCache.CacheServiceContentEndpoint
-        }
-        
-        <# TODO: After unifying flags, remove if statement and hard-code dummy value into remoteCache #>
-        if ($UseDedupStore) {
-            $remoteCache.Add("UseDedupStore", $true);
-        }
+        return @{
+            Assembly = "BuildXL.Cache.MemoizationStoreAdapter";
+            Type = "BuildXL.Cache.MemoizationStoreAdapter.BlobWithLocalCacheFactory";
+            RemoteCache = $remoteCache;
+            LocalCache = $localCache;
+        };
     }
-
-    $resultCache = @{
-        Assembly                              = "BuildXL.Cache.VerticalAggregator";
-        Type                                  = "BuildXL.Cache.VerticalAggregator.VerticalCacheAggregatorFactory";
-        RemoteIsReadOnly                      = !($PublishToSharedCache);
-        RemoteContentIsReadOnly               = !($PublishToSharedCache);
-        WriteThroughCasData                   = $PublishToSharedCache;
-        LocalCache                            = $localCache;
-        RemoteCache                           = $remoteCache;
-        RemoteConstructionTimeoutMilliseconds = 36000;
-        SkipDeterminismRecovery               = $true;
-        FailIfRemoteFails                     = $true;
-    };
-
-    return $resultCache;
+    
+    throw "Unexpected cache mode: $SharedCacheMode";
 }
 
 function Remap-PathToNormalizedDrive {
@@ -618,15 +563,46 @@ $AdditionalBuildXLArguments += "/environment:$($useDeployment.telemetryEnvironme
 $GenerateCgManifestFilePath = "$enlistmentRoot\cg\nuget\cgmanifest.json";
 $AdditionalBuildXLArguments += "/generateCgManifestForNugets:$GenerateCgManifestFilePath";
 
-if (! $UseAdoBuildRunner) # AdoBuildRunner itself enables cache miss with a specific key
+$isInteractive = $false;
+if (-not $DisableInteractive) {
+    # Even if DisableInteractive is not explicitly set, disable interactivity when running
+    # on ADO or when the environment is non-interactive (e.g., redirected stdin).
+    if (-not $isRunningOnADO -and [Environment]::UserInteractive -and -not [Console]::IsInputRedirected) {
+        $isInteractive = $true;
+    }
+}
+
+if ($DisableAdoBuildRunner -and $SharedCacheMode -eq "ADO") {
+    throw "ADO Build Runner is required for ADO shared cache mode. Please remove -DisableAdoBuildRunner or change the shared cache mode."
+}
+
+$useAdoBuildRunner = $isRunningOnADO -and -not $DisableAdoBuildRunner;
+
+# Pick a default shared cache mode if none is specified.
+if ($SharedCacheMode -eq "") {
+    if ($isInteractive) {
+        $SharedCacheMode = "DevCache";
+    }
+    elseif ($useAdoBuildRunner) {
+        $SharedCacheMode = "ADO";
+    }
+    else {
+        $SharedCacheMode = "Disabled";
+    }
+}
+
+Log "Shared cache mode: $SharedCacheMode";
+
+if (! $useAdoBuildRunner) # AdoBuildRunner itself enables cache miss with a specific key
 {
     $AdditionalBuildXLArguments += "/cacheMiss+";
 }
 
-if (! $DoNotUseDefaultCacheConfigFilePath) {
+# If the cache mode is ADO, we don't generate any cache config file and we leave the ADO runner to do that.
+if (-not $DoNotUseDefaultCacheConfigFilePath -and $SharedCacheMode -ne "ADO") {
 
     $cacheConfigPath = (Join-Path $cacheDirectory CacheCore.json);
-    Write-CacheConfigJson -ConfigPath $cacheConfigPath -UseSharedCache $useSharedCache -PublishToSharedCache $publishToSharedCache -VsoAccount $VsoAccount -CacheNamespace $CacheNamespace;
+    Write-CacheConfigJson -ConfigPath $cacheConfigPath -SharedCacheMode $SharedCacheMode -DevCacheResourceId $DevCacheResourceId;
 
     $AdditionalBuildXLArguments += "/cacheConfigFilePath:" + $cacheConfigPath;
 }
@@ -660,7 +636,7 @@ if ($shouldDeploy -and $shouldClean) {
     }
 }
 
-if (-not $DisableInteractive) {
+if ($isInteractive) {
     $AdditionalBuildXLArguments += "/Interactive+"
 }
 
@@ -877,9 +853,13 @@ else {
     $arguments = Get-SubstArguments $DominoArguments
 }
 
-if ($UseAdoBuildRunner) {
-    # Wrap the invocation with the AdoBuildRunner
+if ($useAdoBuildRunner) {
+    # Wrap the invocation with the AdoBuildRunner.
+    # The runner uses '--' to separate its own arguments from those forwarded to BuildXL.
     $arguments = $arguments.Replace("\""", "\\\""")
+    if (${1ESBuildCacheName} -ne "") {
+        $arguments = @("/hostedPoolActiveBuildCacheName:${1ESBuildCacheName}", "--") + $arguments
+    }
     $executable = $useDeployment.adoBuildRunner
 }
 

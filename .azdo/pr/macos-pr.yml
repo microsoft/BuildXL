@@ -20,8 +20,6 @@ jobs:
   - script: >-
       bxl.cmd
       /f:output='$(Build.SourcesDirectory)\Out\Bin\Release\tests\*'
-      -CacheNamespace BuildXL.MacOS
-      -SharedCacheMode ConsumeAndPublish
       /p:[Sdk.BuildXL]microsoftInternal=1
       /q:ReleaseDotNetCoreMac
       /logOutput:FullOutputOnWarningOrError
@@ -36,6 +34,9 @@ jobs:
       ARTIFACT_CREDENTIALPROVIDERS_PATH: $(ARTIFACT_CREDENTIALPROVIDERS_PATH)
       CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT_B64: $(CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT_B64)
       VSS_NUGET_EXTERNAL_FEED_ENDPOINTS: $(VSS_NUGET_EXTERNAL_FEED_ENDPOINTS)
+      # The following two variables need to be set explicitly because we are using the ADO build runner outside of the 1ESPT buildxl workflow
+      SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+      ADOBUILDRUNNERINVOCATIONKEY: "MACOSPR_BuildTests"
 
   - task: PublishBuildArtifacts@1
     displayName: Publish Test Binaries

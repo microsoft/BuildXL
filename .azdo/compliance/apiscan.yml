@@ -35,7 +35,7 @@ jobs:
   - task: CmdLine@2
     displayName: BuildXL (cscDebugType=pdbOnly) 
     inputs:
-      script: 'bxl.cmd -DeployConfig $(BuildXL.Configuration) /p:[Sdk.BuildXL]microsoftInternal=0 /p:[Sdk.BuildXL]cscDebugType=pdbOnly /logsDirectory:$(BuildXL.LogsDirectory) /p:[BuildXL.Branding]SemanticVersion=$(BuildXL.SemanticVersion) /p:[BuildXL.Branding]PrereleaseTag=$(BuildXL.PreReleaseTag) /logOutput:FullOutputOnWarningOrError /processRetries:3 Out\Bin\$(BuildXL.Configuration)\win-x64\*'
+      script: 'bxl.cmd -DeployConfig $(BuildXL.Configuration) -SharedCacheMode Disabled /p:[Sdk.BuildXL]microsoftInternal=0 /p:[Sdk.BuildXL]cscDebugType=pdbOnly /logsDirectory:$(BuildXL.LogsDirectory) /p:[BuildXL.Branding]SemanticVersion=$(BuildXL.SemanticVersion) /p:[BuildXL.Branding]PrereleaseTag=$(BuildXL.PreReleaseTag) /logOutput:FullOutputOnWarningOrError /processRetries:3 Out\Bin\$(BuildXL.Configuration)\win-x64\*'
 
   - task: PublishPipelineArtifact@1
     displayName: Upload logs

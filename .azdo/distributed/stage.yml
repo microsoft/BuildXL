@@ -17,11 +17,7 @@ stages:
 
       preBuildSteps:
       - template: /.azdo/common/set-variable-pats.yml@self
-      - pwsh: |
-          iex "& { $(irm https://aka.ms/install-artifacts-credprovider.ps1) } -AddNetfx"
-          $userProfile = $env:USERPROFILE
-          Write-Host "##vso[task.setvariable variable=NugetCredentialProviderPath]$userProfile\.nuget\plugins\netfx\CredentialProvider.Microsoft\"
-        displayName: Install credential provider
+      - template: /.azdo/common/install-credential-provider.yml@self
 
       buildXL:
         # We don't use the automatic installation for selfhost builds

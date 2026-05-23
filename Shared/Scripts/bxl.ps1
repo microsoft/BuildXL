@@ -18,7 +18,7 @@ DevCache -> Use the 1ES Build Cache in dev mode - available outside of ADO but i
 Disabled -> Don't use any shared cache
 Not provided -> Use the default shared cache mode based on the environment
 
-For the case of ADO, a specific build cache can be selected by specifying the -1ESBuildCacheName parameter. Otherwise the default 
+For the case of ADO, a specific build cache can be selected by specifying the -OneESBuildCacheName parameter. Otherwise the default 
 cache associated with the running pool will be used.
 For the case of DevCache a specific cache resource is harcoded, but can be overridden by specifying the -DevCacheResourceId parameter.
 
@@ -122,7 +122,7 @@ param(
     # where the ADO Build Runner is active. Passed as --hostedPoolActiveBuildCacheName to the runner,
     # overriding the default cache associated with the pool.
     [Parameter(Mandatory = $false)]
-    [string]${1ESBuildCacheName} = "",
+    [string]$OneESBuildCacheName = "",
 
     [switch]$Vanilla,
 
@@ -857,8 +857,8 @@ if ($useAdoBuildRunner) {
     # Wrap the invocation with the AdoBuildRunner.
     # The runner uses '--' to separate its own arguments from those forwarded to BuildXL.
     $arguments = $arguments.Replace("\""", "\\\""")
-    if (${1ESBuildCacheName} -ne "") {
-        $arguments = @("/hostedPoolActiveBuildCacheName:${1ESBuildCacheName}", "--") + $arguments
+    if ($OneESBuildCacheName -ne "") {
+        $arguments = @("/hostedPoolActiveBuildCacheName:$OneESBuildCacheName", "--") + $arguments
     }
     $executable = $useDeployment.adoBuildRunner
 }

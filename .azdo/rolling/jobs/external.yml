@@ -107,7 +107,7 @@ jobs:
       script: >-
         call
         bxl.cmd
-        -1ESBuildCacheName BuildXLSelfhostNewRolling
+        -OneESBuildCacheName BuildXLSelfhostNewRolling
         /f:$(PackagesFilter)oroutput='Out\Bin\release\ide\*'
         /q:Release /q:ReleaseLinux
         /p:[BuildXL.Branding]SemanticVersion=$(BuildXL.SemanticVersion)
@@ -160,7 +160,7 @@ jobs:
       script: >- 
         call
         bxl.cmd
-        -1ESBuildCacheName BuildXLSelfhostNewRolling
+        -OneESBuildCacheName BuildXLSelfhostNewRolling
         -deploy dev
         -minimal
         -deployconfig $(QualifierToBuild)
@@ -185,7 +185,7 @@ jobs:
       script: >-
         call
         bxl.cmd
-        -1ESBuildCacheName BuildXLSelfhostNewRolling
+        -OneESBuildCacheName BuildXLSelfhostNewRolling
         -use dev
         /fingerprintSalt:external_build
         /p:[Sdk.BuildXL]microsoftInternal=0

@@ -175,7 +175,10 @@ jobs:
     env:
       # The following two variables need to be set explicitly because we are using the ADO build runner outside of the 1ESPT buildxl workflow
       SYSTEM_ACCESSTOKEN: $(System.AccessToken)
-      ADOBUILDRUNNERINVOCATIONKEY: "External_Rolling_DeployDev"
+      ADOBUILDRUNNERINVOCATIONKEY: "External_Rolling_DeployDev_$(QualifierToBuild)"
+      # Each matrix leg is an independent single-machine build, not a distributed build.
+      # Explicitly set the role to Orchestrator since JobPositionInPhase > 1 for non-first matrix legs.
+      AdoBuildRunnerWorkerPipelineRole: "Orchestrator"
   
   # Use a rolling-specific cache so rolling builds don't share cache hits with PR builds.
   # Defensive: add a salt to make sure there are no hits from internal builds
@@ -201,7 +204,8 @@ jobs:
     env:
       # The following two variables need to be set explicitly because we are using the ADO build runner outside of the 1ESPT buildxl workflow
       SYSTEM_ACCESSTOKEN: $(System.AccessToken)
-      ADOBUILDRUNNERINVOCATIONKEY: "External_Rolling_UseDev"
+      ADOBUILDRUNNERINVOCATIONKEY: "External_Rolling_UseDev_$(QualifierToBuild)"
+      AdoBuildRunnerWorkerPipelineRole: "Orchestrator"
 
 - job: Linux_External_eBPF
   displayName: Linux External eBPF Build

@@ -36,6 +36,10 @@ jobs:
     displayName: BuildXL (cscDebugType=pdbOnly) 
     inputs:
       script: 'bxl.cmd -DeployConfig $(BuildXL.Configuration) -SharedCacheMode Disabled /p:[Sdk.BuildXL]microsoftInternal=0 /p:[Sdk.BuildXL]cscDebugType=pdbOnly /logsDirectory:$(BuildXL.LogsDirectory) /p:[BuildXL.Branding]SemanticVersion=$(BuildXL.SemanticVersion) /p:[BuildXL.Branding]PrereleaseTag=$(BuildXL.PreReleaseTag) /logOutput:FullOutputOnWarningOrError /processRetries:3 Out\Bin\$(BuildXL.Configuration)\win-x64\*'
+    env:
+      # The following two variables need to be set explicitly because we are using the ADO build runner outside of the 1ESPT buildxl workflow
+      SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+      ADOBUILDRUNNERINVOCATIONKEY: "APIScan"
 
   - task: PublishPipelineArtifact@1
     displayName: Upload logs

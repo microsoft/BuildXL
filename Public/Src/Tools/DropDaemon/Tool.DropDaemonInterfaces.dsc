@@ -147,7 +147,7 @@ export interface DropCreateArguments extends DropSettings, DaemonSettings, DropO
 
     /** Whether to use async drop finalization (HTTP 202 + polling) instead of blocking on a single HTTP request.
      *  This avoids HTTP timeouts for large drops. The drop service server must also have async finalization enabled;
-     *  if not, it silently falls back to synchronous finalization. Default: true. */
+     *  if not, it silently falls back to synchronous finalization. Default: false. */
     enableAsyncFinalize?: boolean;
 
     /** Polling interval in seconds when async drop finalization is enabled. Default: 30s. */

@@ -159,7 +159,7 @@ namespace Tool.DropDaemon
         public static bool DefaultEnableArtifactTracer { get; } = false;
 
         /// <nodoc/>
-        public static bool DefaultEnableAsyncFinalize { get; } = true;
+        public static bool DefaultEnableAsyncFinalize { get; } = false;
 
         /// <nodoc/>
         public static int DefaultAsyncFinalizePollingIntervalSeconds { get; } = 30;

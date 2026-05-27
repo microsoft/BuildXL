@@ -105,13 +105,24 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
 
                 context.TracingContext.Info($"Retrieving configuration for developer build cache {configuration.DeveloperBuildCacheResourceId}", nameof(BlobCacheFactory));
 
-                // Authenticate and retrieve the build cache configuration
-                var token = UserInteractiveAuthenticate(
-                    context,
-                    configuration.Console,
-                    configuration.DeveloperBuildCacheTenantId,
-                    configuration.AllowInteractiveAuth,
-                    context.Token);
+                // Authenticate and retrieve the build cache configuration.
+                // If an Entra token environment variable is configured, attempt to use that token directly
+                // before falling back to interactive authentication.
+                TokenCredential token;
+                if (TryGetEntraTokenFromEnvironment(context.TracingContext, configuration.DeveloperBuildCacheEntraTokenEnvVarName, out var entraTokenCredential))
+                {
+                    token = entraTokenCredential;
+                }
+                else
+                {
+                    token = UserInteractiveAuthenticate(
+                        context,
+                        configuration.Console,
+                        configuration.DeveloperBuildCacheTenantId,
+                        configuration.AllowInteractiveAuth,
+                        context.Token);
+                }
+
                 var maybeBuildCacheConfiguration = await BuildCacheConfigurationProvider.TryGetBuildCacheConfigurationAsync(context.TracingContext, token, configuration.DeveloperBuildCacheResourceId, context.Token);
 
                 if (!maybeBuildCacheConfiguration.Succeeded)
@@ -293,6 +304,41 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                 buildCacheTenantId,
                 console,
                 cancellationToken);
+        }
+
+        /// <summary>
+        /// Attempts to retrieve an Entra token from the environment variable specified by <paramref name="envVarName"/>.
+        /// </summary>
+        /// <returns>True if a non-empty token was found in the specified environment variable; false otherwise.</returns>
+        private static bool TryGetEntraTokenFromEnvironment(Context tracingContext, string envVarName, out TokenCredential tokenCredential)
+        {
+            tokenCredential = null;
+
+            if (string.IsNullOrEmpty(envVarName))
+            {
+                return false;
+            }
+
+            var tokenValue = Environment.GetEnvironmentVariable(envVarName);
+            // Let's account for the fact that a user may mistakenly set as the value of the env var the Entra token itself (as opposed to the name of the env variable containing the token)
+            // So trim the display name to avoid showing the full token in logs. The assumption is that 50 chars is enough to show the end of the env var name, which is the part that is more 
+            // likely to contain identifying information
+            var displayName = envVarName.Length > 50 ? envVarName.Substring(0, 50) + "..." : envVarName;
+            
+            if (string.IsNullOrEmpty(tokenValue))
+            {
+                tracingContext.Info($"Environment variable '{displayName}' for Entra token is configured but is not set or is empty. Falling back to other authentication methods.", nameof(BlobCacheFactory));
+                return false;
+            }
+
+            tracingContext.Info($"Using Entra token from environment variable '{displayName}' for developer build cache authentication. Interactive auth is not required.", nameof(BlobCacheFactory));
+            // The standard expiration for Entra tokens is 1hr. However, observe this is not really critical. This token
+            // will be used right away to retrieve the 1ES Build Cache configuration, and after that it won't be needed anymore.
+            // The cache configuration carries its own SAS tokens which are used for authenticating against the cache.
+            // Here we are assuming that the token was obtained with a 1-hour expiration. If that's not the case, the authentication
+            // will fail and we will fallback to interactive auth.
+            tokenCredential = new StaticAccessTokenCredential(tokenValue, TimeSpan.FromHours(1));
+            return true;
         }
 
         private static bool TryCodespacesAuthentication(Context context, out TokenCredential tokenCredential)

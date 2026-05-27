@@ -111,6 +111,12 @@ param(
     # The resource ID of the 1ES Build Cache to use in DevCache mode. 
     [string]$DevCacheResourceId =  "/subscriptions/6f01c260-7797-42d9-a201-63f54e8c1a1a/resourceGroups/buildxl/providers/Microsoft.CloudTest/buildcaches/BuildXLDevCache",
 
+    # The name of the environment variable that contains the Entra token for the developer build cache.
+    # Only honored when SharedCacheMode is DevCache.
+    # Useful for synthetic lab builds to validate dev cache
+    [Parameter(Mandatory = $false)]
+    [string]$DeveloperBuildCacheEntraTokenEnvVarName = "",
+
     [Parameter(Mandatory = $false)]
     [string]$DefaultConfig,
 
@@ -148,6 +154,7 @@ param(
 
     [switch]$DoNotUseDefaultCacheConfigFilePath = $false,
 
+    [switch]$LogGeneratedCacheConfigFile = $false,
 
     [Parameter(Mandatory = $false)]
     [switch]$Vs = $false,
@@ -376,9 +383,9 @@ function New-Deployment {
 }
 
 function Write-CacheConfigJson {
-    param([string]$ConfigPath, [string]$SharedCacheMode, [string]$DevCacheResourceId);
+    param([string]$ConfigPath, [string]$SharedCacheMode, [string]$DevCacheResourceId, [string]$DeveloperBuildCacheEntraTokenEnvVarName);
 
-    $configOptions = Get-CacheConfig -SharedCacheMode $SharedCacheMode -DevCacheResourceId $DevCacheResourceId;
+    $configOptions = Get-CacheConfig -SharedCacheMode $SharedCacheMode -DevCacheResourceId $DevCacheResourceId -DeveloperBuildCacheEntraTokenEnvVarName $DeveloperBuildCacheEntraTokenEnvVarName;
     # Write to a temp file first, then move into place atomically to avoid torn reads
     # when multiple worktrees write CacheCore.json to the same shared cache directory.
     $tempPath = $ConfigPath + "." + [System.IO.Path]::GetRandomFileName();
@@ -387,7 +394,7 @@ function Write-CacheConfigJson {
 }
 
 function Get-CacheConfig {
-    param([string]$SharedCacheMode, [string]$DevCacheResourceId);
+    param([string]$SharedCacheMode, [string]$DevCacheResourceId, [string]$DeveloperBuildCacheEntraTokenEnvVarName);
     
     if ($SharedCacheMode -eq "ADO") {
         throw "SharedCacheMode 'ADO' should not reach Write-CacheConfigJson. The ADO cache is configured by the ADO Build Runner, not via a cache config file."
@@ -414,6 +421,10 @@ function Get-CacheConfig {
             IsReadOnly = $true;
             DeveloperBuildCacheResourceId = $DevCacheResourceId;
         };
+
+        if ($DeveloperBuildCacheEntraTokenEnvVarName -ne "") {
+            $remoteCache["DeveloperBuildCacheEntraTokenEnvVarName"] = $DeveloperBuildCacheEntraTokenEnvVarName;
+        }
 
         return @{
             Assembly = "BuildXL.Cache.MemoizationStoreAdapter";
@@ -602,7 +613,13 @@ if (! $useAdoBuildRunner) # AdoBuildRunner itself enables cache miss with a spec
 if (-not $DoNotUseDefaultCacheConfigFilePath -and $SharedCacheMode -ne "ADO") {
 
     $cacheConfigPath = (Join-Path $cacheDirectory CacheCore.json);
-    Write-CacheConfigJson -ConfigPath $cacheConfigPath -SharedCacheMode $SharedCacheMode -DevCacheResourceId $DevCacheResourceId;
+    Write-CacheConfigJson -ConfigPath $cacheConfigPath -SharedCacheMode $SharedCacheMode -DevCacheResourceId $DevCacheResourceId -DeveloperBuildCacheEntraTokenEnvVarName $DeveloperBuildCacheEntraTokenEnvVarName;
+
+    if ($LogGeneratedCacheConfigFile) {
+        Write-Host "--- Generated cache config ($cacheConfigPath) ---"
+        Get-Content -Path $cacheConfigPath | Write-Host
+        Write-Host "--- End cache config ---"
+    }
 
     $AdditionalBuildXLArguments += "/cacheConfigFilePath:" + $cacheConfigPath;
 }

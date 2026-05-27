@@ -3,6 +3,7 @@
 # (which consume the cache in read-only DevCache mode) get cache hits.
 # The pipeline succeeds even if the build fails — a failed build still populates
 # the cache for the pips that did complete.
+# A dev build is simulated at the end to verify that we can get cache hits with the published cache.
 
 trigger:
   branches:
@@ -40,11 +41,13 @@ extends:
       displayName: Populate Dev Cache
       jobs:
       - job: FullBuild
-        displayName: Full selfhost internal build (dev cache publishing)
+        displayName: Full selfhost internal build (dev cache publishing + validation)
         timeoutInMinutes: 180
         continueOnError: true
         templateContext:
           workflow: BuildXL
+          cache:
+            logGeneratedConfiguration: true
 
           preBuildSteps:
           - checkout: self
@@ -68,10 +71,139 @@ extends:
             env:
               1ESSHAREDASSETS_BUILDXL_FEED_PAT: $(1ESSHAREDASSETS_BUILDXL_FEED_PAT)
               CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT: $(CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT)
-              MSENG_GIT_PAT: $(MSENG_GIT_PAT)
-              VSTSPERSONALACCESSTOKEN: $(VSTSPERSONALACCESSTOKEN)
               ARTIFACT_CREDENTIALPROVIDERS_PATH: $(ARTIFACT_CREDENTIALPROVIDERS_PATH)
               CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT_B64: $(CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT_B64)
               VSS_NUGET_EXTERNAL_FEED_ENDPOINTS: $(VSS_NUGET_EXTERNAL_FEED_ENDPOINTS)
               NUGET_CREDENTIALPROVIDERS_PATH: $(NugetCredentialProviderPath)
-            workingDirectory: $(Build.Repository.LocalPath)          
+            workingDirectory: $(Build.Repository.LocalPath)
+
+          postBuildSteps:
+          # Clear the local cache from the previous build, so we can simulate a developer build that only gets cache hits from the shared dev cache
+          - task: CmdLine@2
+            displayName: Clear local cache
+            condition: always()
+            inputs:
+              script: |
+                set "CACHE_DIR=$(Build.Repository.LocalPath)\Out\Cache"
+                echo Clearing local cache at: %CACHE_DIR%
+                if exist "%CACHE_DIR%" (
+                  echo Removing contents...
+                  rmdir /s /q "%CACHE_DIR%"
+                  echo Local cache removed.
+                ) else (
+                  echo No local cache directory found, nothing to delete.
+                )
+
+          # We want to simulate a dev build and verify whether we get remote cache hits. 
+          # Let's use the same engine than the feeding build used. There is a pipeline variable ONEES_TOOL_LOCATION_<tool>_<sanitized_version>_<os> set by the tool installer,
+          # but that is not a stable name and is not practical to try to deduce it here. Let's just glob hostedtoolcache\windows\BuildXL*\* to
+          # find the installed engine (there should be just one).
+          # Copy the engine to the Dev directory, and reference it via -Use Dev
+          - task: CmdLine@2
+            displayName: Copy just used engine to Dev directory
+            condition: always()
+            inputs:
+              script: |
+                set "DST_DIR=$(Build.Repository.LocalPath)\Out\Selfhost\Dev"
+                echo Looking for BuildXL engine in hostedtoolcache...
+                set "SRC_DIR="
+                for /d %%d in (C:\hostedtoolcache\windows\BuildXL*) do (
+                  for /d %%v in ("%%d\*") do set "SRC_DIR=%%v"
+                )
+                if not defined SRC_DIR (
+                  echo ERROR: Could not find BuildXL engine in hostedtoolcache
+                  exit /b 1
+                )
+                echo Copying engine from: %SRC_DIR%
+                echo                  to: %DST_DIR%
+                robocopy "%SRC_DIR%" "%DST_DIR%" /E /NP /NFL /NDL /NJH /NJS
+                set RC=%ERRORLEVEL%
+                echo Robocopy exit code: %RC%
+                if %RC% LEQ 7 (exit /b 0) else (exit /b 1)
+
+          - task: microsoft-1es-production.entra-authenticate.entra-authenticate.EntraAuthenticate@0
+            displayName: '🪙 Acquire access token for mseng-Domino-BuildXL-Pipelines'
+            condition: always()
+            inputs:
+              azureSubscription: 'mseng-Domino-BuildXL-Pipelines'
+              resource: 'https://management.azure.com/'
+              secretVariable: 'DevCacheEntraToken'
+
+          # Simulate a dev build (minimal) and verify whether we get remote cache hits.
+          # Explicitly disable using the ADO build runner and turn on DevCache mode.
+          # Pass the acquired Entra token to avoid interactive authentication.
+          # Simulate the cache miss key the ADO runner passes on the above step, so we can get a meaningful cache miss analysis.
+          - task: CmdLine@2
+            displayName: Simulate dev build (DevCache mode)
+            condition: always()
+            inputs:
+              script: >-
+                call
+                bxl.cmd
+                -Use Dev
+                -DisableAdoBuildRunner
+                -SharedCacheMode DevCache
+                -DeveloperBuildCacheEntraTokenEnvVarName DEVCACHE_ENTRA_TOKEN
+                -Minimal
+                -LogGeneratedCacheConfigFile
+                /p:[Sdk.BuildXL]microsoftInternal=1
+                /p:[Sdk.BuildXL]useManagedSharedCompilation=1
+                /cacheMiss:$(System.StageName)_$(System.PhaseName)
+                /logsDirectory:$(Build.Repository.LocalPath)\Out\Logs\DevCacheValidation
+            env:
+              DEVCACHE_ENTRA_TOKEN: $(DevCacheEntraToken)
+              1ESSHAREDASSETS_BUILDXL_FEED_PAT: $(1ESSHAREDASSETS_BUILDXL_FEED_PAT)
+              CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT: $(CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT)
+              ARTIFACT_CREDENTIALPROVIDERS_PATH: $(ARTIFACT_CREDENTIALPROVIDERS_PATH)
+              CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT_B64: $(CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT_B64)
+              VSS_NUGET_EXTERNAL_FEED_ENDPOINTS: $(VSS_NUGET_EXTERNAL_FEED_ENDPOINTS)
+              NUGET_CREDENTIALPROVIDERS_PATH: $(NugetCredentialProviderPath)
+
+          - task: 1ES.PublishPipelineArtifact@1
+            displayName: Upload DevCache validation logs
+            condition: always()
+            continueOnError: true
+            inputs:
+              targetPath: $(Build.Repository.LocalPath)\Out\Logs\DevCacheValidation
+              artifactName: DevCache Validation logs
+
+          # Read the resulting stats file and check whether the cache hit rate is above 70%.
+          # 70% is an arbitrary threshold. The idea is to detect if something fundamental is broken.
+          - task: PowerShell@2
+            displayName: Dev cache hit rate >= 70%
+            condition: always()
+            inputs:
+             targetType: inline
+             script: |
+               $statsFile = "$(Build.Repository.LocalPath)\Out\Logs\DevCacheValidation\BuildXL.stats"
+               if (-not (Test-Path $statsFile)) {
+                   Write-Host "##vso[task.logissue type=warning]Stats file not found at $statsFile. Cannot validate cache hit rate."
+                   Write-Host "##vso[task.complete result=SucceededWithIssues;]"
+                   exit 0
+               }
+
+               $stats = @{}
+               Get-Content $statsFile | ForEach-Object {
+                   if ($_ -match '^(.+?)=(.+)$') {
+                       $stats[$Matches[1]] = [long]$Matches[2]
+                   }
+               }
+
+               $hits = $stats['ProcessPipCacheHits']
+               $total = $stats['TotalProcessPips']
+
+               if ($null -eq $total -or $total -eq 0) {
+                   Write-Host "##vso[task.logissue type=warning]TotalProcessPips is 0 or not found. Cannot compute cache hit rate."
+                   Write-Host "##vso[task.complete result=SucceededWithIssues;]"
+                   exit 0
+               }
+
+               $rate = [math]::Round(($hits / $total) * 100, 2)
+               Write-Host "Cache hit rate: $rate% ($hits hits / $total total process pips)"
+
+               if ($rate -lt 70) {
+                   Write-Host "##vso[task.logissue type=warning]Cache hit rate $rate% is below the 70% threshold. All hits are assumed remote (local cache was cleared)."
+                   Write-Host "##vso[task.complete result=SucceededWithIssues;]"
+               } else {
+                   Write-Host "Cache hit rate $rate% meets the >= 70% threshold."
+               }

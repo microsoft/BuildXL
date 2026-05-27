@@ -237,6 +237,18 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         public string DeveloperBuildCacheResourceId { get; set; }
 
         /// <summary>
+        /// When non-empty, this is the name of an environment variable that stores an Entra token representing an already authenticated user.
+        /// If the environment variable is set and non-empty, the token is used directly to retrieve the developer build cache configuration
+        /// without requiring interactive authentication (i.e., /interactive+ is not required).
+        /// </summary>
+        /// <remarks>
+        /// This is useful in scenarios where a token is obtained externally (e.g., via a CI pipeline or a separate authentication tool)
+        /// and passed to the cache through an environment variable, avoiding the need for interactive browser-based authentication.
+        /// </remarks>
+        [DefaultValue(null)]
+        public string DeveloperBuildCacheEntraTokenEnvVarName { get; set; }
+
+        /// <summary>
         /// This configuration needs the role, activity id and the kusto logging info coming from the engine configuration object
         /// </summary>
         public bool TryPopulateFrom(Guid activityId, IConfiguration configuration, BuildXLContext buildXLContext, out Failure failure)

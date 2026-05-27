@@ -1095,6 +1095,7 @@ namespace BuildXL.Processes
                     CreationDisposition = creationDisposition,
                     FlagsAndAttributes = flagsAndAttributes,
                     OpenedFileOrDirectoryAttributes = openedFileOrDirectoryAttributes,
+                    EnumeratePattern = enumeratePattern,
                     Path = m_manifest.DirectoryTranslator?.Translate(path) ?? path,
                     ProcessArgs = processArgs,
                     IsAnAugmentedFileAccess = isAnAugmentedFileAccess

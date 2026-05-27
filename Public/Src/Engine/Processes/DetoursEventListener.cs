@@ -143,7 +143,12 @@ namespace BuildXL.Processes
             /// Computed attributes for this file access.
             /// </summary>
             public FlagsAndAttributes OpenedFileOrDirectoryAttributes { get; set; }
-            
+
+            /// <summary>
+            /// Pattern used when enumerating a directory, if the access is an enumeration; otherwise null or empty.
+            /// </summary>
+            public string EnumeratePattern { get; set; }
+
             /// <summary>
             /// Path being accessed.
             /// </summary>

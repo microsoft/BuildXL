@@ -526,6 +526,13 @@ export namespace DropDaemonRunner {
                 Cmd.option("--operationTimeoutMinutes ", args.operationTimeoutMinutes),
                 Cmd.option("--maxOperationRetries ", args.maxOperationRetries),
                 Cmd.option("--PersonalAccessTokenEnv ", args.patEnvironmentVariable),
+                // If env var is set, it takes priority (1=enable, 0=disable). Otherwise use the arg value.
+                Cmd.optionalBooleanFlag("--enableAsyncFinalize ",
+                    Environment.hasVariable("BuildXLEnableAsyncDropFinalization")
+                        ? Environment.getFlag("BuildXLEnableAsyncDropFinalization")
+                        : args.enableAsyncFinalize,
+                    "true", "false"),
+                Cmd.option("--asyncFinalizePollingIntervalSeconds ", args.asyncFinalizePollingIntervalSeconds),
             ],
             consoleOutput: outDir.combine(`${nametag}-stdout.txt`),
             dependencies: [

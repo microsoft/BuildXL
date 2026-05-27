@@ -144,6 +144,14 @@ export interface DropCreateArguments extends DropSettings, DaemonSettings, DropO
 
     /** Should the BCDE file (component Detection output file) be uploaded to the drop. */
     uploadBcdeFileToDrop?: boolean;
+
+    /** Whether to use async drop finalization (HTTP 202 + polling) instead of blocking on a single HTTP request.
+     *  This avoids HTTP timeouts for large drops. The drop service server must also have async finalization enabled;
+     *  if not, it silently falls back to synchronous finalization. Default: true. */
+    enableAsyncFinalize?: boolean;
+
+    /** Polling interval in seconds when async drop finalization is enabled. Default: 30s. */
+    asyncFinalizePollingIntervalSeconds?: number;
 }
 
 /**

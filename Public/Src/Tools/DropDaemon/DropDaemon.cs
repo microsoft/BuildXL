@@ -352,6 +352,22 @@ namespace Tool.DropDaemon
             DefaultValue = Environment.GetEnvironmentVariable("Q_SESSION_GUID")
         });
 
+        internal static readonly BoolOption EnableAsyncFinalize = RegisterConfigOption(new BoolOption("enableAsyncFinalize")
+        {
+            ShortName = "eaf",
+            HelpText = "Whether to use async drop finalization (HTTP 202 + polling) to avoid timeouts on large drops.",
+            IsRequired = false,
+            DefaultValue = DropConfig.DefaultEnableAsyncFinalize,
+        });
+
+        internal static readonly IntOption AsyncFinalizePollingIntervalSeconds = RegisterConfigOption(new IntOption("asyncFinalizePollingIntervalSeconds")
+        {
+            ShortName = "afpis",
+            HelpText = "Polling interval in seconds when async drop finalization is enabled.",
+            IsRequired = false,
+            DefaultValue = DropConfig.DefaultAsyncFinalizePollingIntervalSeconds,
+        });
+
         // ==============================================================================
         // 'addfile' and 'addartifacts' parameters
         // ==============================================================================
@@ -1540,7 +1556,9 @@ namespace Tool.DropDaemon
                 reportTelemetry: conf.Get(ReportIndidualDropTelemetry),
                 personalAccessTokenEnv: conf.Get(PersonalAccessTokenEnv),
                 uploadBcdeFileToDrop: conf.Get(UploadBcdeFileToDrop),
-                sessionId: sessionId);
+                sessionId: sessionId,
+                enableAsyncFinalize: conf.Get(EnableAsyncFinalize),
+                asyncFinalizePollingIntervalSeconds: conf.Get(AsyncFinalizePollingIntervalSeconds));
         }
 
         private static T RegisterConfigOption<T>(T option) where T : Option => RegisterOption(ConfigOptions, option);

@@ -222,7 +222,16 @@ namespace Tool.DropDaemon
 
             using (m_counters.StartStopwatch(DropClientCounter.FinalizeTime))
             {
-                await m_dropClient.FinalizeAsync(DropName, token);
+                if (m_config.EnableAsyncFinalize)
+                {
+                    var pollingInterval = TimeSpan.FromSeconds(m_config.AsyncFinalizePollingIntervalSeconds);
+                    m_logger.Info($"Using async drop finalization with {pollingInterval.TotalSeconds}s polling interval.");
+                    await m_dropClient.FinalizeAsync(DropName, enableAsyncFinalize: true, pollingInterval, token);
+                }
+                else
+                {
+                    await m_dropClient.FinalizeAsync(DropName, token);
+                }
             }
 
             m_dropFinalizedAtUtc = DateTime.UtcNow;

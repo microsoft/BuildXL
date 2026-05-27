@@ -106,6 +106,18 @@ namespace Tool.DropDaemon
         ///    Optional guid to use as a session id when communicating to AzDO.
         /// </summary>
         public Guid? SessionId { get; }
+
+        /// <summary>
+        ///     Whether to use async drop finalization (HTTP 202 + polling) instead of blocking on a single HTTP request.
+        ///     This avoids HTTP timeouts for large drops. The drop service server must also have async finalization enabled;
+        ///     if not, it silently falls back to synchronous finalization.
+        /// </summary>
+        public bool EnableAsyncFinalize { get; }
+
+        /// <summary>
+        ///     Polling interval in seconds when async drop finalization is enabled.
+        /// </summary>
+        public int AsyncFinalizePollingIntervalSeconds { get; }
         #endregion
 
         #region Defaults
@@ -145,6 +157,12 @@ namespace Tool.DropDaemon
 
         /// <nodoc/>
         public static bool DefaultEnableArtifactTracer { get; } = false;
+
+        /// <nodoc/>
+        public static bool DefaultEnableAsyncFinalize { get; } = true;
+
+        /// <nodoc/>
+        public static int DefaultAsyncFinalizePollingIntervalSeconds { get; } = 30;
         #endregion
 
         // ==================================================================================================
@@ -170,7 +188,9 @@ namespace Tool.DropDaemon
             bool? reportTelemetry = null,
             string personalAccessTokenEnv = null,
             bool? uploadBcdeFileToDrop = null,
-            Guid? sessionId = null)
+            Guid? sessionId = null,
+            bool? enableAsyncFinalize = null,
+            int? asyncFinalizePollingIntervalSeconds = null)
         {
             Name = dropName;
             Service = serviceEndpoint;
@@ -190,6 +210,8 @@ namespace Tool.DropDaemon
             PersonalAccessTokenEnv = personalAccessTokenEnv;
             UploadBcdeFileToDrop = uploadBcdeFileToDrop ?? DefaultUploadBcdeFileToDrop;
             SessionId = sessionId;
+            EnableAsyncFinalize = enableAsyncFinalize ?? DefaultEnableAsyncFinalize;
+            AsyncFinalizePollingIntervalSeconds = asyncFinalizePollingIntervalSeconds ?? DefaultAsyncFinalizePollingIntervalSeconds;
         }
     }
 }

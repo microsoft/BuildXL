@@ -203,15 +203,68 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                 }
             }
 
-            // Search for a provided managed identity
-            if (credentials is null && configuration.ManagedIdentityId is not null && uri is not null)
+            // Validate mutual exclusion between single endpoint and sharded endpoints
+            if (uri is not null && configuration.StorageAccountEndpoints?.Count > 0)
             {
-                Contract.Requires(!string.IsNullOrEmpty(configuration.ManagedIdentityId));
+                throw new InvalidOperationException(
+                    "StorageAccountEndpoint and StorageAccountEndpoints are mutually exclusive. "
+                    + "Use StorageAccountEndpoint for a single storage account or StorageAccountEndpoints for sharded scenarios.");
+            }
 
-                context.TracingContext.Info("Authenticating with a managed identity", nameof(BlobCacheFactory));
+            // Validate mutual exclusion between managed identity types
+            bool hasManagedIdentity = !string.IsNullOrEmpty(configuration.ManagedIdentityId);
+            bool hasSystemAssigned = configuration.UseSystemAssignedManagedIdentity;
+            if (hasManagedIdentity && hasSystemAssigned)
+            {
+                throw new InvalidOperationException(
+                    "UseSystemAssignedManagedIdentity and ManagedIdentityId are mutually exclusive. "
+                    + "Remove ManagedIdentityId from the cache configuration when using the system-assigned managed identity.");
+            }
+
+            // Search for a provided managed identity (user-assigned or system-assigned) with sharded endpoints
+            if (credentials is null
+                && configuration.StorageAccountEndpoints?.Count > 0
+                && (hasManagedIdentity || hasSystemAssigned))
+            {
+                credentials = new Dictionary<BlobCacheStorageAccountName, IAzureStorageCredentials>();
+
+                foreach (var endpoint in configuration.StorageAccountEndpoints)
+                {
+                    if (!Uri.TryCreate(endpoint, UriKind.Absolute, out var shardUri))
+                    {
+                        throw new InvalidOperationException($"'{endpoint}' in StorageAccountEndpoints does not represent a valid URI.");
+                    }
+
+                    ManagedIdentityAzureStorageCredentials credential = hasSystemAssigned
+                        ? new ManagedIdentityAzureStorageCredentials(shardUri)
+                        : new ManagedIdentityAzureStorageCredentials(configuration.ManagedIdentityId, shardUri);
+
+                    credentials.Add(BlobCacheStorageAccountName.Parse(credential.GetAccountName()), credential);
+                }
+
+                context.TracingContext.Info(
+                    $"Authenticating with {(hasSystemAssigned ? "system-assigned" : "user-assigned")} managed identity against {configuration.StorageAccountEndpoints.Count} sharded storage accounts",
+                    nameof(BlobCacheFactory));
+            }
+
+            // Search for a provided managed identity (user-assigned or system-assigned) with single endpoint
+            if (credentials is null && uri is not null && (hasManagedIdentity || hasSystemAssigned))
+            {
+                ManagedIdentityAzureStorageCredentials credential;
+
+                if (hasSystemAssigned)
+                {
+                    context.TracingContext.Info("Authenticating with system-assigned managed identity", nameof(BlobCacheFactory));
+                    credential = new ManagedIdentityAzureStorageCredentials(uri);
+                }
+                else
+                {
+                    Contract.Requires(!string.IsNullOrEmpty(configuration.ManagedIdentityId));
+                    context.TracingContext.Info("Authenticating with user-assigned managed identity", nameof(BlobCacheFactory));
+                    credential = new ManagedIdentityAzureStorageCredentials(configuration.ManagedIdentityId, uri);
+                }
 
                 credentials = new Dictionary<BlobCacheStorageAccountName, IAzureStorageCredentials>();
-                var credential = new ManagedIdentityAzureStorageCredentials(configuration.ManagedIdentityId, uri);
                 credentials.Add(BlobCacheStorageAccountName.Parse(credential.GetAccountName()), credential);
             }
 

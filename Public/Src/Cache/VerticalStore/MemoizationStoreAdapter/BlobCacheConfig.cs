@@ -58,16 +58,38 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         /// <summary>
         /// URI of the storage account endpoint to be used for this cache when authenticating using managed
         /// identities (e.g: https://mystorageaccount.blob.core.windows.net).
+        /// For a single (non-sharded) cache, set this property. For sharded scenarios with multiple storage
+        /// accounts, use <see cref="StorageAccountEndpoints"/> instead.
         /// </summary>
         [DefaultValue(null)]
         public string StorageAccountEndpoint { get; set; }
 
         /// <summary>
+        /// A list of storage account endpoint URIs for sharded cache scenarios where content is distributed
+        /// across multiple storage accounts (e.g: ["https://shard1.blob.core.windows.net", "https://shard2.blob.core.windows.net"]).
+        /// Each account will be authenticated using the configured managed identity (system-assigned or user-assigned).
+        /// This is mutually exclusive with <see cref="StorageAccountEndpoint"/>. If both are set, an error
+        /// will be raised at cache initialization time.
+        /// </summary>
+        [DefaultValue(null)]
+        public IReadOnlyList<string> StorageAccountEndpoints { get; set; }
+
+        /// <summary>
         /// The client id for the managed identity that will be used to authenticate against the storage account
-        /// specified in <see cref="StorageAccountEndpoint"/>.
+        /// specified in <see cref="StorageAccountEndpoint"/> or <see cref="StorageAccountEndpoints"/>.
         /// </summary>
         [DefaultValue(null)]
         public string ManagedIdentityId { get; set; }
+
+        /// <summary>
+        /// When set to true, BuildXL will use the system-assigned managed identity of the hosting
+        /// environment (Azure VM, Azure Arc-enabled server, etc.) to authenticate against the storage
+        /// account specified in <see cref="StorageAccountEndpoint"/> or <see cref="StorageAccountEndpoints"/>.
+        /// This is mutually exclusive with <see cref="ManagedIdentityId"/>. If both are set, an error
+        /// will be raised at cache initialization time.
+        /// </summary>
+        [DefaultValue(false)]
+        public bool UseSystemAssignedManagedIdentity { get; set; }
 
         /// <summary>
         /// Whether to allow interactive user authentication against the storage account. This should only be

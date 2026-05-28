@@ -101,6 +101,7 @@ namespace NugetPackages {
     const buildXLMemoizationStoreInterfacesIdentity = { id: `${packageNamePrefix}.Cache.MemoizationStore.Interfaces`, version: Branding.Nuget.packageVersion };
     const buildXLContentStoreHashingIdentity = { id: `${packageNamePrefix}.Cache.ContentStore.Hashing`, version: Branding.Nuget.packageVersion };
     const buildXLContentStoreUtilitiesCoreIdentity = { id: `${packageNamePrefix}.Cache.ContentStore.UtilitiesCore`, version: Branding.Nuget.packageVersion };
+    const buildXLVerticalStoreInterfacesIdentity = { id: `${packageNamePrefix}.Cache.VerticalStore.Interfaces`, version: Branding.Nuget.packageVersion };
     const buildXLBlobLifetimeManagerIdentity = { id: `${packageNamePrefix}.Cache.BlobLifetimeManager.Library`, version: Branding.Nuget.packageVersion };
     const buildXLBuildCacheResourceHelperIdentity = { id: `${packageNamePrefix}.Cache.BuildCacheResource.Helper`, version: Branding.Nuget.packageVersion };
 
@@ -336,6 +337,8 @@ namespace NugetPackages {
         deploymentOptions: reducedDeploymentOptions
     };
 
+    // TODO: Engine.Cache is a mondo package currently only consumed by the CloudBuild repo.
+    // The plan is to eliminate it once CloudBuild has migrated to the slim Cache.VerticalStore.Interfaces package.
     const engineCacheSpecification = {
         id: { id: `${packageNamePrefix}.Engine.Cache`, version: Branding.Nuget.packageVersion },
         assemblies: [
@@ -505,10 +508,16 @@ namespace NugetPackages {
         assemblies: [ ...Cache.NugetPackages.blobLifetimeManagerLibrary ],
     };
 
-    // BuildXL.Cache.BlobLifetimeManager.Library
+    // BuildXL.Cache.BuildCacheResource.Helper
     const buildCacheResourceHelperSpecification = {
         id: buildXLBuildCacheResourceHelperIdentity,
         assemblies: [ ...Cache.NugetPackages.buildCacheResourceHelper ],
+    };
+
+    // BuildXL.Cache.VerticalStore.Interfaces
+    const verticalStoreInterfacesSpecification = {
+        id: buildXLVerticalStoreInterfacesIdentity,
+        assemblies: [ ...Cache.NugetPackages.verticalStoreInterfaces ],
     };
 
     /**
@@ -539,7 +548,8 @@ namespace NugetPackages {
         cacheContentStoreHashingSpecification,
         cacheContentStoreUtilitiesCoreSpecification,
         blobLifetimeManagerLibrarySpecification,
-        buildCacheResourceHelperSpecification
+        buildCacheResourceHelperSpecification,
+        verticalStoreInterfacesSpecification
     ];
 
     const packageBranding : Nuget.PackageBranding = {
@@ -586,6 +596,7 @@ namespace NugetPackages {
     const cacheContentStoreUtilitiesCore = !canBuildAllPackagesOnThisHost ? undefined : packAssemblies(cacheContentStoreUtilitiesCoreSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ true);
     const blobLifetimeManagerLibrary = !canBuildAllPackagesOnThisHost ? undefined : packAssemblies(blobLifetimeManagerLibrarySpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ true);
     const buildCacheResourceHelper = !canBuildAllPackagesOnThisHost ? undefined : packAssemblies(buildCacheResourceHelperSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ true);
+    const verticalStoreInterfaces = !canBuildAllPackagesOnThisHost ? undefined : packAssemblies(verticalStoreInterfacesSpecification, packageSpecifications, packageBranding, /* inferInternalDependencies */ false);
 
     const cacheLibrariesPackages = [
         cacheContentStoreDistributed,
@@ -634,6 +645,7 @@ namespace NugetPackages {
                 ...cacheHashingPackages,
                 blobLifetimeManagerLibrary,
                 buildCacheResourceHelper,
+                verticalStoreInterfaces,
                 ariaCommon,
                 utilities,
                 utilitiesCore,

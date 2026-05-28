@@ -187,6 +187,13 @@ namespace Cache.NugetPackages {
         importFrom("BuildXL.Cache.BlobLifetimeManager").Library.withQualifier({ targetFramework: "net8.0", targetRuntime: "win-x64" }).dll,
     ];
 
+    // Cache.VerticalStore.Interfaces (BuildXL.Cache.Interfaces)
+    // No net472 — VerticalStore.Interfaces is not needed for net472 consumers.
+    export const verticalStoreInterfaces : Managed.Assembly[] = [
+        importFrom("BuildXL.Cache.VerticalStore").withQualifier({ targetFramework: "net8.0", targetRuntime: "win-x64" }).Interfaces.dll,
+        importFrom("BuildXL.Cache.VerticalStore").withQualifier({ targetFramework: "net9.0", targetRuntime: "win-x64" }).Interfaces.dll,
+    ];
+
     // BuildCacheResourceHelper
     export const buildCacheResourceHelper : Managed.Assembly[] = [
         importFrom("BuildXL.Cache.BuildCacheResource").Helper.withQualifier({ targetFramework: "net472", targetRuntime: "win-x64" }).dll,

@@ -43,7 +43,19 @@ namespace BuildXL.AdoBuildRunner
             else
             {
                 // Get the build info from the orchestrator build
-                var buildInfo = await AdoBuildRunnerService.WaitForBuildInfo();
+                BuildInfo buildInfo;
+                try
+                {
+                    buildInfo = await AdoBuildRunnerService.WaitForBuildInfo();
+                }
+                catch (OrchestratorTerminatedException ex)
+                {
+                    // The orchestrator's failure is already user-visible; surface this worker's abort as a warning and exit cleanly
+                    Logger.Warning(ex.Message);
+                    skipLogUpload();
+                    return 0;
+                }
+
                 if (!(await CheckOrchestratorPoolMatches(buildInfo)))
                 {
                     // The pools don't match, we can't run the worker

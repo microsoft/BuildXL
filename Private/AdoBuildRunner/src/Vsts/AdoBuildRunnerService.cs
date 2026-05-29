@@ -7,6 +7,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Threading.Tasks;
 using BuildXL.AdoBuildRunner.Utilities.Mocks;
+using Microsoft.TeamFoundation.Build.WebApi;
 using Microsoft.VisualStudio.Services.WebApi;
 
 
@@ -209,7 +210,7 @@ namespace BuildXL.AdoBuildRunner.Vsts
             while (elapsedTime < Config.MaximumWaitForWorkerSeconds)
             {
                 var properties = await m_retryHandler.ExecuteAsync(() => m_adoService.GetBuildPropertiesAsync(triggeringBuildId), nameof(m_adoService.GetBuildPropertiesAsync), m_logger);
-                var maybeInfo = properties.GetValue<string?>(BuildContext.InvocationKey, null);
+                var maybeInfo = properties.GetValue<string?>(BuildContext.InvocationKey, defaultValue: null);
                 if (maybeInfo != null)
                 {
                     m_logger.Info($"Orchestrator information retrieved from build properties.");
@@ -219,6 +220,16 @@ namespace BuildXL.AdoBuildRunner.Vsts
                     // At this point we can perform the sanity checks for the workers against the orchestrator
                     await VerifyWorkerCorrectness(buildInfo, triggeringBuildId);
                     return buildInfo;
+                }
+
+                // If the orchestrator's ADO build has already terminated (failed or canceled) and we
+                // still haven't seen BuildInfo, there is no point in waiting out the rest of the timeout window.
+                var orchestratorBuild = await m_retryHandler.ExecuteAsync(() => m_adoService.GetBuildAsync(triggeringBuildId), nameof(m_adoService.GetBuildAsync), m_logger);
+                if (orchestratorBuild.Status == BuildStatus.Completed
+                    && (orchestratorBuild.Result == BuildResult.Failed || orchestratorBuild.Result == BuildResult.Canceled))
+                {
+                    throw new OrchestratorTerminatedException($"The orchestrator build (id={triggeringBuildId}) terminated with result '{orchestratorBuild.Result}' before publishing connection information for invocation key '{BuildContext.InvocationKey}'. " +
+                        "The worker is aborting early instead of waiting for the full timeout window.");
                 }
 
                 await Task.Delay(TimeSpan.FromSeconds(Constants.PollRetryPeriodInSeconds));
@@ -312,7 +323,7 @@ namespace BuildXL.AdoBuildRunner.Vsts
         public async Task<string?> GetBuildProperty(string propertyName)
         {
             var properties = await m_retryHandler.ExecuteAsync(() => m_adoService.GetBuildPropertiesAsync(AdoEnvironment.BuildId), nameof(GetBuildProperty), m_logger);
-            return properties.GetValue<string?>(GetPropertyKey(propertyName), null);
+            return properties.GetValue<string?>(GetPropertyKey(propertyName), defaultValue: null);
         }
 
         /// <inheritdoc />

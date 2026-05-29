@@ -236,5 +236,77 @@ namespace Test.Tool.AdoBuildRunner
             orchestrator.MockLogger.AssertLogContains("The BuildXL process completed with exit code 1");
             orchestrator.MockLogger.AssertLogContains("##vso[task.complete result=Failed;]");
         }
+
+        /// <summary>
+        /// Verifies that a single worker's BuildXL failure does not cascade: the orchestrator and any
+        /// other workers in the build must still complete normally. The fast-fail path in
+        /// <see cref="AdoBuildRunnerService.WaitForBuildInfo"/> keys off the ORCHESTRATOR's ADO build
+        /// status, so a peer worker's exit code must not affect siblings.
+        /// </summary>
+        [Fact]
+        public async Task WorkerFailureDoesNotAffectOrchestratorOrOtherWorkers()
+        {
+            var orchestrator = CreateOrchestrator();
+            var worker1 = CreateWorker(position: 1, totalWorkers: 2);
+            var worker2 = CreateWorker(position: 2, totalWorkers: 2);
+
+            // Distinguish worker agents
+            worker1.AdoEnvironment.AgentMachineName = "Worker1Agent";
+            worker1.AdoEnvironment.JobId = "Worker1JobId";
+            worker1.AdoEnvironment.AgentName = "Worker1Name";
+            worker2.AdoEnvironment.AgentMachineName = "Worker2Agent";
+            worker2.AdoEnvironment.JobId = "Worker2JobId";
+            worker2.AdoEnvironment.AgentName = "Worker2Name";
+
+            MockApiService.AddBuild(orchestrator.AdoEnvironment.BuildId, CreateTestBuild(orchestrator.AdoEnvironment));
+
+            // Delay the orchestrator so both workers attach before it completes.
+            var orchTcs = new TaskCompletionSource();
+            orchestrator.MockLauncher.CompletionTask = orchTcs.Task;
+
+            // Worker1 fails (non-zero BuildXL exit). With WorkerAlwaysSucceeds the agent task is still
+            // marked successful, but the BuildXL exit code is preserved in the launcher.
+            worker1.MockLauncher.ReturnCode = 1;
+            worker1.Config.WorkerAlwaysSucceeds = true;
+
+            // Worker2 succeeds.
+            worker2.MockLauncher.ReturnCode = 0;
+            worker2.Config.WorkerAlwaysSucceeds = true;
+
+            orchestrator.Initialize();
+            worker1.Initialize();
+            worker2.Initialize();
+
+            var buildArgs = new[] { "/foo", "/bar" };
+            var oManager = new BuildManager(orchestrator.RunnerService, orchestrator.BuildExecutor, buildArgs, orchestrator.MockLogger);
+            var w1Manager = new BuildManager(worker1.RunnerService, worker1.BuildExecutor, buildArgs, worker1.MockLogger);
+            var w2Manager = new BuildManager(worker2.RunnerService, worker2.BuildExecutor, buildArgs, worker2.MockLogger);
+
+            var oTask = oManager.BuildAsync();
+            var w1Task = w1Manager.BuildAsync();
+            var w2Task = w2Manager.BuildAsync();
+
+            var w1Return = await w1Task;
+            var w2Return = await w2Task;
+            orchTcs.SetResult();
+            var oReturn = await oTask;
+
+            // Orchestrator and worker2 are unaffected by worker1's failure.
+            Assert.True(orchestrator.MockLauncher.Launched);
+            Assert.True(worker1.MockLauncher.Launched);
+            Assert.True(worker2.MockLauncher.Launched);
+            Assert.Equal(0, oReturn);
+            Assert.Equal(0, w2Return);
+
+            // Worker1 surfaced its failure but masked it (WorkerAlwaysSucceeds): exit code is 0 to ADO,
+            // and the diagnostic messages confirm the underlying failure was observed.
+            Assert.Equal(0, w1Return);
+            worker1.MockLogger.AssertLogContains("The build finished with errors in this worker");
+            worker1.MockLogger.AssertLogContains("Marking this task as successful");
+
+            // Neither the orchestrator nor the healthy worker saw a fast-fail message.
+            orchestrator.MockLogger.AssertLogNotContains("terminated with result");
+            worker2.MockLogger.AssertLogNotContains("terminated with result");
+        }
     }
 }

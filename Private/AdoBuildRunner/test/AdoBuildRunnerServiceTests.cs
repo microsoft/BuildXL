@@ -370,5 +370,106 @@ namespace Test.Tool.AdoBuildRunner
             var args = harness.BuildExecutor.ConstructArguments(buildInfo, TestDefaultArgs);
             AssertContains(args, expectedArgs);
         }
+
+        /// <summary>
+        /// When the orchestrator's ADO build is already in a Failed state a worker must abort early instead of waiting for the full attach timeout.
+        /// </summary>
+        [Fact]
+        public async Task WaitForBuildInfoFailsFastWhenOrchestratorFailed()
+        {
+            var worker = CreateWorker();
+            worker.Initialize();
+
+            var orchestratorBuild = new Build
+            {
+                Id = TestOrchestratorId,
+                Status = BuildStatus.Completed,
+                Result = BuildResult.Failed,
+            };
+            MockApiService.AddBuild(TestOrchestratorId, orchestratorBuild);
+            MockApiService.AddBuildTriggerProperties(Constants.TriggeringAdoBuildIdParameter, TestOrchestratorId.ToString());
+
+            var ex = await Assert.ThrowsAsync<OrchestratorTerminatedException>(() => worker.RunnerService.WaitForBuildInfo());
+            Assert.Contains("terminated with result 'Failed'", ex.Message);
+            Assert.Contains("aborting early", ex.Message);
+        }
+
+        /// <summary>
+        /// Multi-worker version of <see cref="WaitForBuildInfoFailsFastWhenOrchestratorFailed"/>:
+        /// every worker pointed at the failed orchestrator must fast-fail independently.
+        /// </summary>
+        [Fact]
+        public async Task WaitForBuildInfoFailsFastForMultipleWorkersWhenOrchestratorFailed()
+        {
+            var worker1 = CreateWorker(position: 1, totalWorkers: 2);
+            var worker2 = CreateWorker(position: 2, totalWorkers: 2);
+
+            var orchestratorBuild = new Build
+            {
+                Id = TestOrchestratorId,
+                Status = BuildStatus.Completed,
+                Result = BuildResult.Failed,
+            };
+            MockApiService.AddBuild(TestOrchestratorId, orchestratorBuild);
+            MockApiService.AddBuildTriggerProperties(Constants.TriggeringAdoBuildIdParameter, TestOrchestratorId.ToString());
+
+            var ex1 = await Assert.ThrowsAsync<OrchestratorTerminatedException>(() => worker1.RunnerService.WaitForBuildInfo());
+            var ex2 = await Assert.ThrowsAsync<OrchestratorTerminatedException>(() => worker2.RunnerService.WaitForBuildInfo());
+
+            Assert.Contains("terminated with result 'Failed'", ex1.Message);
+            Assert.Contains("terminated with result 'Failed'", ex2.Message);
+        }
+
+        /// <summary>
+        /// A canceled orchestrator should trigger the fast-fail path. ADO typically cancels sibling jobs at the same time, but in cross-pipeline
+        /// triggering or delayed-cancel scenarios we still want to avoid waiting the full timeout.
+        /// </summary>
+        [Fact]
+        public async Task WaitForBuildInfoFailsFastWhenOrchestratorCanceled()
+        {
+            var worker = CreateWorker();
+            worker.Initialize();
+
+            var orchestratorBuild = new Build
+            {
+                Id = TestOrchestratorId,
+                Status = BuildStatus.Completed,
+                Result = BuildResult.Canceled,
+            };
+            MockApiService.AddBuild(TestOrchestratorId, orchestratorBuild);
+            MockApiService.AddBuildTriggerProperties(Constants.TriggeringAdoBuildIdParameter, TestOrchestratorId.ToString());
+
+            var ex = await Assert.ThrowsAsync<OrchestratorTerminatedException>(() => worker.RunnerService.WaitForBuildInfo());
+            Assert.Contains("terminated with result 'Canceled'", ex.Message);
+            Assert.Contains("aborting early", ex.Message);
+        }
+
+        /// <summary>
+        /// Only an orchestrator FAILURE should short-circuit the wait. If the orchestrator's ADO
+        /// build reports Succeeded (or anything other than Failed or Cancelled), the worker should keep polling
+        /// until its own timeout fires — not abort with the "failed before publishing" message.
+        /// </summary>
+        [Fact]
+        public async Task WaitForBuildInfoDoesNotFailFastWhenOrchestratorSucceeded()
+        {
+            var worker = CreateWorker();
+            // Short timeout so the test doesn't sit on the real 20s poll period for long.
+            // The worker should still hit the regular timeout path, not the fast-fail path.
+            worker.Config.MaximumWaitForWorkerSeconds = 1;
+            worker.Initialize();
+
+            var orchestratorBuild = new Build
+            {
+                Id = TestOrchestratorId,
+                Status = BuildStatus.Completed,
+                Result = BuildResult.Succeeded,
+            };
+            MockApiService.AddBuild(TestOrchestratorId, orchestratorBuild);
+            MockApiService.AddBuildTriggerProperties(Constants.TriggeringAdoBuildIdParameter, TestOrchestratorId.ToString());
+
+            var ex = await Assert.ThrowsAsync<CoordinationException>(() => worker.RunnerService.WaitForBuildInfo());
+            Assert.Contains("Did not receive the orchestrator information", ex.Message);
+            Assert.DoesNotContain("terminated with result", ex.Message);
+        }
     }
 }

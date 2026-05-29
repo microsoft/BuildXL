@@ -29,4 +29,13 @@ namespace BuildXL.AdoBuildRunner
             throw new CoordinationException(message);
         }
     }
+
+    /// <summary>
+    /// Thrown by a worker when the orchestrator's ADO build has terminated (failed or canceled) before publishing connection information. 
+    /// </summary>
+    public class OrchestratorTerminatedException : CoordinationException
+    {
+        /// <inheritdoc />
+        public OrchestratorTerminatedException(string message) : base(message) { }
+    }
 }

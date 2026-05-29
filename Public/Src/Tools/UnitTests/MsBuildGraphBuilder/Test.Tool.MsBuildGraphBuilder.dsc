@@ -27,7 +27,7 @@ namespace Test.Tool.MsBuildGraphBuilder {
                 publicKeyToken: "cc7b13ffcd2ddd51",
                 culture: "neutral",
                 oldVersion: "0.0.0.0-4.99.99.99",
-                newVersion: "4.2.1.0", // Corresponds to: { id: "System.Threading.Tasks.Extensions" },
+                newVersion: "4.2.4.0", // Corresponds to: { id: "System.Threading.Tasks.Extensions" },
             },
             {
                 name: "Microsoft.IO.Redist",

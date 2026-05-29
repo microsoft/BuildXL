@@ -14,7 +14,10 @@ namespace Native {
         // In netCoreApp2.2 accesscontrol is missing enum: System.Security.AccessControl.AccessControlType
         importFrom("System.IO.Pipes.AccessControl").pkg,
 
-        importFrom("System.Threading.AccessControl").pkg,
+        // .NET 10 promoted System.Threading.AccessControl into the BCL, so referencing the
+        // NuGet package here would cause CS0433 ambiguity for types like EventWaitHandleAccessRule.
+        ...addIf(qualifier.targetFramework !== "net10.0",
+            importFrom("System.Threading.AccessControl").pkg),
 
         ...addIf(!BuildXLSdk.isDotNetCore,
             importFrom("System.Security.AccessControl").pkg,

@@ -66,6 +66,7 @@ function getSymstoreX64Libs() : File[] {
     {
         case "net8.0":
         case "net9.0":
+        case "net10.0":
             return importFrom("Microsoft.Windows.Debuggers.SymstoreInterop").Contents.all.getFiles(
                 [
                     "lib/native/x64/dbgcore.dll",

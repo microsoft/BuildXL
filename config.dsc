@@ -71,7 +71,7 @@ config({
 
                 { id: "Microsoft.NETFramework.ReferenceAssemblies.net472", version: "1.0.0" },
 
-                { id: "System.Diagnostics.DiagnosticSource", version: "9.0.16" },
+                { id: "System.Diagnostics.DiagnosticSource", version: "10.0.8" },
 
                 // Roslyn
                 // The old compiler used by integration tests only.
@@ -255,9 +255,9 @@ config({
                 // CloudStore dependencies
                 { id: "Microsoft.Bcl", version: "1.1.10" },
                 { id: "Microsoft.Bcl.Async", version: "1.0.168" },
-                { id: "Microsoft.Bcl.AsyncInterfaces", version: "9.0.16" },
+                { id: "Microsoft.Bcl.AsyncInterfaces", version: "10.0.8" },
                 { id: "Microsoft.Bcl.Build", version: "1.0.14" },
-                { id: "Microsoft.Bcl.HashCode", version: "1.1.1" },
+                { id: "Microsoft.Bcl.HashCode", version: "6.0.0" },
                 
                 { id: "Pipelines.Sockets.Unofficial", version: "2.2.0" },
                 { id: "System.Diagnostics.PerformanceCounter", version: "6.0.0" },
@@ -368,7 +368,7 @@ config({
                 { id: "boost", version: "1.71.0.0" },
 
                 // Needed for SBOM Generation
-                { id: "Microsoft.Extensions.Logging.Abstractions", version: "9.0.16" },
+                { id: "Microsoft.Extensions.Logging.Abstractions", version: "10.0.8" },
                 { id: "packageurl-dotnet", version: "2.0.0" },
                 { id: "System.Reactive", version: "6.1.0" },
 
@@ -422,6 +422,7 @@ config({
         // .NET Runtimes.
         { kind: "SourceResolver", modules: [f`Public\Sdk\SelfHost\Libraries\Dotnet-Runtime-8-External\module.config.dsc`] },
         { kind: "SourceResolver", modules: [f`Public\Sdk\SelfHost\Libraries\Dotnet-Runtime-9-External\module.config.dsc`] },
+        { kind: "SourceResolver", modules: [f`Public\Sdk\SelfHost\Libraries\Dotnet-Runtime-10-External\module.config.dsc`] },
 
         {
             kind: "Download",
@@ -432,6 +433,26 @@ config({
                     moduleName: "Apple.Darwin.Xnu",
                     url: "https://github.com/apple/darwin-xnu/archive/xnu-4903.221.2.tar.gz",
                     hash: "VSO0:D6D26AEECA99240D2D833B6B8B811609B9A6E3516C0EE97A951B64F9AA4F90F400",
+                    archiveType: "tgz",
+                },
+
+                // DotNet Core Runtime 10.0.8
+                {
+                    moduleName: "DotNet-Runtime.win-x64.10.0",
+                    url: "https://builds.dotnet.microsoft.com/dotnet/Runtime/10.0.8/dotnet-runtime-10.0.8-win-x64.zip",
+                    hash: "VSO0:D79C4EE6D4E019ACD0CD7C3628E7FCC9A67FD88863BB8C7689E651FC78E398EE00",
+                    archiveType: "zip",
+                },
+                {
+                    moduleName: "DotNet-Runtime.osx-x64.10.0",
+                    url: "https://builds.dotnet.microsoft.com/dotnet/Runtime/10.0.8/dotnet-runtime-10.0.8-osx-x64.tar.gz",
+                    hash: "VSO0:2EC8F5CE438F0A4E7BA05332DCD929F8300AFBEDC26BEA826FEBE927FBD3A9CC00",
+                    archiveType: "tgz",
+                },
+                {
+                    moduleName: "DotNet-Runtime.linux-x64.10.0",
+                    url: "https://builds.dotnet.microsoft.com/dotnet/Runtime/10.0.8/dotnet-runtime-10.0.8-linux-x64.tar.gz",
+                    hash: "VSO0:CDBFFB2C9E2124ADE54FF86A7CF474BFD02675CFC2E04248A99FE7B5F166638400",
                     archiveType: "tgz",
                 },
 
@@ -556,6 +577,11 @@ config({
                 targetFramework: "net8.0",
                 targetRuntime: "win-x64",
             },
+            DebugNet10: {
+                configuration: "debug",
+                targetFramework: "net10.0",
+                targetRuntime: "win-x64",
+            },
             DebugDotNetCoreMac: {
                 configuration: "debug",
                 targetFramework: "net9.0",
@@ -571,6 +597,11 @@ config({
                 targetFramework: "net8.0",
                 targetRuntime: "osx-x64",
             },
+            DebugDotNetCoreMacNet10: {
+                configuration: "debug",
+                targetFramework: "net10.0",
+                targetRuntime: "osx-x64",
+            },
             DebugLinux: {
                 configuration: "debug",
                 targetFramework: "net9.0",
@@ -584,6 +615,11 @@ config({
             DebugLinuxNet8: {
                 configuration: "debug",
                 targetFramework: "net8.0",
+                targetRuntime: "linux-x64",
+            },
+            DebugLinuxNet10: {
+                configuration: "debug",
+                targetFramework: "net10.0",
                 targetRuntime: "linux-x64",
             },
             // Release
@@ -607,6 +643,11 @@ config({
                 targetFramework: "net8.0",
                 targetRuntime: "win-x64",
             },
+            ReleaseNet10: {
+                configuration: "release",
+                targetFramework: "net10.0",
+                targetRuntime: "win-x64",
+            },
             ReleaseDotNetCoreMac: {
                 configuration: "release",
                 targetFramework: "net9.0",
@@ -622,6 +663,11 @@ config({
                 targetFramework: "net8.0",
                 targetRuntime: "osx-x64",
             },
+            ReleaseDotNetCoreMacNet10: {
+                configuration: "release",
+                targetFramework: "net10.0",
+                targetRuntime: "osx-x64",
+            },
             ReleaseLinux: {
                 configuration: "release",
                 targetFramework: "net9.0",
@@ -635,6 +681,11 @@ config({
             ReleaseLinuxNet8: {
                 configuration: "release",
                 targetFramework: "net8.0",
+                targetRuntime: "linux-x64",
+            },
+            ReleaseLinuxNet10: {
+                configuration: "release",
+                targetFramework: "net10.0",
                 targetRuntime: "linux-x64",
             },
         }

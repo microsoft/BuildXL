@@ -13,7 +13,9 @@ export const systemThreadingChannelsPackages : Managed.ManagedNugetPackage[] =
 @@public
 export const bclAsyncPackages : Managed.ManagedNugetPackage[] = [
         importFrom("System.Threading.Tasks.Extensions").pkg,
-        importFrom("System.Linq.Async").pkg,
+        // .NET 10 added System.Linq.AsyncEnumerable to the BCL, which collides with
+        // System.Linq.Async's AsyncEnumerable type. Skip the NuGet package on net10+.
+        ...(qualifier.targetFramework === "net10.0" ? [] : [importFrom("System.Linq.Async").pkg]),
         importFrom("Microsoft.Bcl.AsyncInterfaces").pkg,
     ];
 

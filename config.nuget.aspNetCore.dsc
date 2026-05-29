@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-const aspVersion = "9.0.16";
+const aspVersion = "10.0.8";
 
 // Versions used by framework reference packages for reference assemblies
 // and runtime assemblies respectively
@@ -10,6 +10,9 @@ const asp8RuntimeVersion = "8.0.27";
 
 const asp9RefVersion = "9.0.16";
 const asp9RuntimeVersion = "9.0.16";
+
+const asp10RefVersion = "10.0.8";
+const asp10RuntimeVersion = "10.0.8";
 
 export const pkgs = [
     // aspnet web api
@@ -46,4 +49,12 @@ export const pkgs = [
         filesToExclude: [r`runtimes/linux-x64/lib/net9.0/Microsoft.Extensions.Logging.Abstractions.dll`, r`runtimes/linux-x64/lib/net9.0/Microsoft.Extensions.Logging.dll`] },
     { id: "Microsoft.AspNetCore.App.Runtime.osx-x64", version: asp9RuntimeVersion, alias: "Microsoft.AspNetCore.App.Runtime.osx-x64.9.0.0", 
         filesToExclude: [r`runtimes/osx-x64/lib/net9.0/Microsoft.Extensions.Logging.Abstractions.dll`, r`runtimes/osx-x64/lib/net9.0/Microsoft.Extensions.Logging.dll`] },
+
+    { id: "Microsoft.AspNetCore.App.Ref", version: asp10RefVersion, alias: "Microsoft.AspNetCore.App.Ref.10.0.0" },
+    { id: "Microsoft.AspNetCore.App.Runtime.win-x64", version: asp10RuntimeVersion, alias: "Microsoft.AspNetCore.App.Runtime.win-x64.10.0.0", 
+        filesToExclude: [r`runtimes/win-x64/lib/net10.0/Microsoft.Extensions.Logging.Abstractions.dll`, r`runtimes/win-x64/lib/net10.0/Microsoft.Extensions.Logging.dll`] },
+    { id: "Microsoft.AspNetCore.App.Runtime.linux-x64", version: asp10RuntimeVersion, alias: "Microsoft.AspNetCore.App.Runtime.linux-x64.10.0.0", 
+        filesToExclude: [r`runtimes/linux-x64/lib/net10.0/Microsoft.Extensions.Logging.Abstractions.dll`, r`runtimes/linux-x64/lib/net10.0/Microsoft.Extensions.Logging.dll`] },
+    { id: "Microsoft.AspNetCore.App.Runtime.osx-x64", version: asp10RuntimeVersion, alias: "Microsoft.AspNetCore.App.Runtime.osx-x64.10.0.0", 
+        filesToExclude: [r`runtimes/osx-x64/lib/net10.0/Microsoft.Extensions.Logging.Abstractions.dll`, r`runtimes/osx-x64/lib/net10.0/Microsoft.Extensions.Logging.dll`] },
 ];

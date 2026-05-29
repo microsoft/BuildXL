@@ -270,11 +270,42 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
             }
 
             var context = new Context(m_logger);
+#if NET10_0_OR_GREATER
+            // System.Linq.Async's .ToEnumerable() extension is unavailable on net10 (the package
+            // is skipped because its System.Linq.AsyncEnumerable type collides with the new BCL
+            // type of the same name). Inline the equivalent sync-over-async iteration.
+            return new Possible<IEnumerable<Task<StrongFingerprint>>, Failure>(
+                Iterate(m_cache, context, CacheId));
+
+            static IEnumerable<Task<StrongFingerprint>> Iterate(
+                BuildXL.Cache.MemoizationStore.Interfaces.Caches.ICache cache,
+                Context context,
+                string cacheId)
+            {
+                var enumerator = cache.EnumerateStrongFingerprints(context).GetAsyncEnumerator();
+                try
+                {
+                    while (enumerator.MoveNextAsync().AsTask().GetAwaiter().GetResult())
+                    {
+                        var result = enumerator.Current;
+                        if (result.Succeeded)
+                        {
+                            yield return Task.FromResult(result.Data.FromMemoization(cacheId));
+                        }
+                    }
+                }
+                finally
+                {
+                    enumerator.DisposeAsync().AsTask().GetAwaiter().GetResult();
+                }
+            }
+#else
             return new Possible<IEnumerable<Task<StrongFingerprint>>, Failure>(
                 m_cache.EnumerateStrongFingerprints(context)
                     .Where(result => result.Succeeded)
                     .Select(result => Task.FromResult(result.Data.FromMemoization(CacheId)))
                     .ToEnumerable());
+#endif
         }
 
         private bool m_disposed;

@@ -5,6 +5,7 @@ const coreVersion = "3.1.0";
 const core50Version = "5.0.0";
 const core80Version = "8.0.27";
 const core90Version = "9.0.16";
+const core100Version = "10.0.8";
 
 // Microsoft.NETCore.Platforms has become out of sync with the rest of the packages.
 // Updaters of this file might want to try to restore the sync: for now we are using the latest version we can
@@ -87,6 +88,30 @@ export const pkgs = [
     // See the comment re the version used.
     { id: "runtime.linux-x64.Microsoft.NETCore.DotNetHostResolver", version: core80Version, alias: "runtime.linux-x64.Microsoft.NETCore.DotNetHostResolver.8.0" },
     { id: "runtime.linux-x64.Microsoft.NETCore.DotNetHostPolicy", version: core80Version, alias: "runtime.linux-x64.Microsoft.NETCore.DotNetHostPolicy.8.0" },
+
+
+    // .NET 10
+    // Note: Microsoft.NETCore.DotNetHostResolver/HostPolicy packages are still only published up to the 8.0.x series
+    // (latest published is 8.0.27), so net10 reuses the existing .8.0 aliases registered above (same approach as net9).
+    // The Microsoft.NETCore.Platforms.9.0 alias already pinned to core80VersionPlatforms is similarly reusable for net10.
+    // CODESYNC: Public\Sdk\Public\Managed\Frameworks\net10\net10.0.dsc
+
+    // .NET Core 10.0 Dependencies
+    { id: "Microsoft.NETCore.App.Ref", version: core100Version, alias: "Microsoft.NETCore.App.Ref100",
+        // This dll has a partial copy of System.Text.Json which causes collisions with real System.Text.Json
+        filesToExclude: [r`analyzers/dotnet/cs/System.Text.Json.SourceGeneration.dll`] },
+
+    // .NET Core win-x64 runtime deps
+    { id: "Microsoft.NETCore.App.Host.win-x64", version: core100Version, osSkip: [ "macOS", "unix" ], alias: "Microsoft.NETCore.App.Host.win-x64.10.0" },
+    { id: "Microsoft.NETCore.App.Runtime.win-x64", version: core100Version, osSkip: [ "macOS", "unix" ], alias: "Microsoft.NETCore.App.Runtime.win-x64.10.0" },
+
+    // .NET Core osx-x64 runtime deps
+    { id: "Microsoft.NETCore.App.Host.osx-x64", version: core100Version, alias: "Microsoft.NETCore.App.Host.osx-x64.10.0" },
+    { id: "Microsoft.NETCore.App.Runtime.osx-x64", version: core100Version, alias: "Microsoft.NETCore.App.Runtime.osx-x64.10.0"},
+
+    // .NET Core linux-x64 runtime deps
+    { id: "Microsoft.NETCore.App.Runtime.linux-x64", version: core100Version, alias: "Microsoft.NETCore.App.Runtime.linux-x64.10.0" },
+    { id: "Microsoft.NETCore.App.Host.linux-x64", version: core100Version, alias: "Microsoft.NETCore.App.Host.linux-x64.10.0" },
 
     { id: "runtime.native.System", version: pkgVersion },
     { id: "runtime.win7-x64.runtime.native.System.Data.SqlClient.sni", version: pkgVersion, osSkip: [ "macOS", "unix" ] },
@@ -219,7 +244,7 @@ export const pkgs = [
     { id: "System.Threading.Thread", version: pkgVersion },
     { id: "System.Threading.ThreadPool", version: pkgVersion },
     { id: "System.Threading.Timer", version: pkgVersion },
-    { id: "System.ValueTuple", version: "4.5.0" },
+    { id: "System.ValueTuple", version: "4.6.2" },
     { id: "System.Xml.ReaderWriter", version: pkgVersion },
     { id: "System.Xml.XDocument", version: pkgVersion },
     { id: "System.Xml.XmlDocument", version: pkgVersion },
@@ -241,10 +266,10 @@ export const pkgs = [
     // Non-standard version ones
     { id: "Microsoft.NETCore.Targets", version: "2.0.0" },
     
-    { id: "System.Threading.Tasks.Extensions", version: "4.6.0" }, // If you change this version, please change cacheBindingRedirects in BuildXLSdk.dsc
+    { id: "System.Threading.Tasks.Extensions", version: "4.6.3" }, // If you change this version, please change cacheBindingRedirects in BuildXLSdk.dsc
 
     { id: "System.Security.Cryptography.OpenSsl", version: "5.0.0" },
-    { id: "System.Collections.Immutable", version: "9.0.16" },
+    { id: "System.Collections.Immutable", version: "10.0.8" },
     // VBCSCompiler is used in CB against older versions of MSBuild that don't have binding redirects for the newer versions of System.Collections.Immutable.
     { id: "System.Collections.Immutable", alias: "System.Collections.Immutable.ForVBCS", version: "8.0.0" },
 ];

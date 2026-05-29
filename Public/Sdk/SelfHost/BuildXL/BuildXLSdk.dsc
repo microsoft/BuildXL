@@ -148,13 +148,13 @@ export interface PolySharpAttributes {
  * Returns true if the current qualifier is targeting .NET Core or .NET Standard
  */
 @@public
-export const isDotNetCoreOrStandard : boolean = qualifier.targetFramework === "netstandard2.0" || qualifier.targetFramework === "net8.0" || qualifier.targetFramework === "net9.0";
+export const isDotNetCoreOrStandard : boolean = qualifier.targetFramework === "netstandard2.0" || qualifier.targetFramework === "net8.0" || qualifier.targetFramework === "net9.0" || qualifier.targetFramework === "net10.0";
 
 /**
  * Returns true if the current qualifier is targeting .NET Core
  */
 @@public
-export const isDotNetCore : boolean = qualifier.targetFramework === "net8.0" || qualifier.targetFramework === "net9.0";
+export const isDotNetCore : boolean = qualifier.targetFramework === "net8.0" || qualifier.targetFramework === "net9.0" || qualifier.targetFramework === "net10.0";
 
 @@public
 export const isFullFramework : boolean = qualifier.targetFramework === "net472";
@@ -185,7 +185,7 @@ export const targetFrameworkMatchesCurrentHost =
 export const restrictTestRunToSomeQualifiers =
     qualifier.configuration !== "debug" ||
     // Running tests for .NET Core App 3.0, .NET 5 and 4.7.2 frameworks only.
-    (qualifier.targetFramework !== "net8.0" && qualifier.targetFramework !== "net9.0" && qualifier.targetFramework !== "net472") ||
+    (qualifier.targetFramework !== "net8.0" && qualifier.targetFramework !== "net9.0" && qualifier.targetFramework !== "net10.0" && qualifier.targetFramework !== "net472") ||
     !targetFrameworkMatchesCurrentHost;
 
 /***
@@ -600,15 +600,15 @@ export function cacheBindingRedirects() : Managed.AssemblyBindingRedirect[] {
                 name: "Microsoft.Bcl.AsyncInterfaces",
                 publicKeyToken: "cc7b13ffcd2ddd51",
                 culture: "neutral",
-                oldVersion: "0.0.0.0-9.0.0.16",
-                newVersion: "9.0.0.16", // Corresponds to: { id: "Microsoft.Bcl.AsyncInterfaces", version: "9.0.16" },
+                oldVersion: "0.0.0.0-10.0.0.8",
+                newVersion: "10.0.0.8", // Corresponds to: { id: "Microsoft.Bcl.AsyncInterfaces", version: "10.0.8" },
             },
             {
                 name: "System.Threading.Tasks.Extensions", // Version=4.2.0.1, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51
                 publicKeyToken: "cc7b13ffcd2ddd51",
                 culture: "neutral",
                 oldVersion: "0.0.0.0-4.99.99.99",
-                newVersion: "4.2.1.0", // Corresponds to: { id: "System.Threading.Tasks.Extensions" },
+                newVersion: "4.2.4.0", // Corresponds to: { id: "System.Threading.Tasks.Extensions" },
             },
             {
                 name: "System.Memory",
@@ -933,7 +933,7 @@ function processArguments(args: Arguments, targetType: Csc.TargetType) : Argumen
     }
 
     // Required members are needed for all target frameworks prior net7.
-    if (qualifier.targetFramework !== "net8.0" && qualifier.targetFramework !== "net9.0" && args.addPolySharpAttributes !== false) {
+    if (qualifier.targetFramework !== "net8.0" && qualifier.targetFramework !== "net9.0" && qualifier.targetFramework !== "net10.0" && args.addPolySharpAttributes !== false) {
         polySharpAttributeFiles = polySharpAttributeFiles.concat([polySharpAttributes.required, polySharpAttributes.setsRequiredMembers, polySharpAttributes.compilerFeatureRequired, polySharpAttributes.stringSyntax]);
     }
 

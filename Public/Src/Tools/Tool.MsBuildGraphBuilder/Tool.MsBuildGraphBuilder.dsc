@@ -25,14 +25,14 @@ namespace MsBuildGraphBuilder {
                 publicKeyToken: "cc7b13ffcd2ddd51",
                 culture: "neutral",
                 oldVersion: "0.0.0.0-4.99.99.99",
-                newVersion: "4.2.1.0", // Corresponds to: { id: "System.Threading.Tasks.Extensions" },
+                newVersion: "4.2.4.0", // Corresponds to: { id: "System.Threading.Tasks.Extensions" },
             },
             {
                 name: "Microsoft.Bcl.AsyncInterfaces",
                 publicKeyToken: "cc7b13ffcd2ddd51",
                 culture: "neutral",
-                oldVersion: "0.0.0.0-9.0.0.16",
-                newVersion: "9.0.0.16", // Corresponds to: { id: "Microsoft.Bcl.AsyncInterfaces", version: "9.0.16" },
+                oldVersion: "0.0.0.0-10.0.0.8",
+                newVersion: "10.0.0.8", // Corresponds to: { id: "Microsoft.Bcl.AsyncInterfaces", version: "10.0.8" },
             },
         ],
         references:[

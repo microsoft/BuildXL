@@ -22,3 +22,4 @@ BuildXL.Cache.MemoizationStore.Interfaces
 BuildXL.Cache.ContentStore.Hashing
 BuildXL.Cache.ContentStore.UtilitiesCore
 BuildXL.Cache.BlobLifetimeManager.Library
+BuildXL.Cache.VerticalStore.Interfaces

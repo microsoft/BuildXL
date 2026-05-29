@@ -65,6 +65,7 @@ namespace Cache.NugetPackages {
     };
 
     // ContentStore.Distributed
+    // net472: transitive dependency of DistributedCacheHost.Service on net472.
     export const contentStoreDistributed : Managed.Assembly[] = [
         net472ContentStore.Distributed.dll,
         netStandardContentStore.Distributed.dll,
@@ -74,6 +75,7 @@ namespace Cache.NugetPackages {
     ];
 
     // ContentStore.Library
+    // net472: consumed by the Artifact codebase.
     export const contentStoreLibrary : Managed.Assembly[] = [
         net472ContentStore.Library.dll,
         netStandardContentStore.Library.dll,
@@ -83,6 +85,7 @@ namespace Cache.NugetPackages {
     ];
 
     // ContentStore.Grpc
+    // net472: transitive dependency of ContentStore.Library and DistributedCacheHost.Configuration on net472.
     export const contentStoreGrpc : Managed.Assembly[] = [
         net472ContentStore.Grpc.dll,
         netStandardContentStore.Grpc.dll,
@@ -92,6 +95,7 @@ namespace Cache.NugetPackages {
     ];
 
     // ContentStore.Vsts
+    // net472: transitive dependency of DistributedCacheHost.Service on net472 (via MemoizationStore.Vsts).
     export const contentStoreVsts : Managed.Assembly[] = [
         net472ContentStore.Vsts.dll,
         netStandardContentStore.Vsts.dll,
@@ -101,6 +105,7 @@ namespace Cache.NugetPackages {
     ];
 
     // ContentStore.VstsInterfaces
+    // net472: consumed by the Artifact codebase.
     export const contentStoreVstsInterfaces : Managed.Assembly[] = [
         net472ContentStore.VstsInterfaces.dll,
         netStandardContentStore.VstsInterfaces.dll,
@@ -110,6 +115,7 @@ namespace Cache.NugetPackages {
     ];
 
     // MemoizationStore.Distributed
+    // net472: transitive dependency of DistributedCacheHost.Service on net472.
     export const memoizationStoreDistributed : Managed.Assembly[] = [
         net472MemoizationStore.Distributed.dll,
         netStandardMemoizationStore.Distributed.dll,
@@ -119,6 +125,7 @@ namespace Cache.NugetPackages {
     ];
 
     // MemoizationStore.Library
+    // net472: transitive dependency of DistributedCacheHost.Service on net472.
     export const memoizationStoreLibrary : Managed.Assembly[] = [
         net472MemoizationStore.Library.dll,
         netStandardMemoizationStore.Library.dll,
@@ -128,6 +135,7 @@ namespace Cache.NugetPackages {
     ];
 
     // MemoizationStore.Vsts
+    // net472: transitive dependency of DistributedCacheHost.Service on net472.
     export const memoizationStoreVsts : Managed.Assembly[] = [
         net472MemoizationStore.Vsts.dll,
         netStandardMemoizationStore.Vsts.dll,
@@ -137,6 +145,7 @@ namespace Cache.NugetPackages {
     ];
 
     // MemoizationStore.VstsInterfaces
+    // net472: consumed by the Artifact codebase.
     export const memoizationStoreVstsInterfaces : Managed.Assembly[] = [
         net472MemoizationStore.VstsInterfaces.dll,
         netStandardMemoizationStore.VstsInterfaces.dll,
@@ -146,6 +155,7 @@ namespace Cache.NugetPackages {
     ];
 
     // BuildXL.Cache.Host.Services
+    // net472: consumed by CloudBuild GenericBuildRunner on net472.
     export const buildxlCacheHostServices : Managed.Assembly[] = [
         net472DistributedCacheHost.Service.dll,
         netStandardDistributedCacheHost.Service.dll,
@@ -155,6 +165,7 @@ namespace Cache.NugetPackages {
     ];
 
     // BuildXL.Cache.Host.Configuration
+    // net472: consumed by the Artifact codebase.
     export const buildxlCacheHostConfiguration : Managed.Assembly[] = [
         net472DistributedCacheHost.Configuration.dll,
         netStandardDistributedCacheHost.Configuration.dll,
@@ -164,6 +175,7 @@ namespace Cache.NugetPackages {
     ];
 
     // BuildXL.Cache.Logging
+    // net472: transitive dependency of DistributedCacheHost.Service on net472.
     export const buildxlCacheLogging : Managed.Assembly[] = [
         net472CacheLogging.dll,
         netStandardCacheLogging.dll,
@@ -173,6 +185,7 @@ namespace Cache.NugetPackages {
     ];
 
     // ContentStore.Interfaces
+    // net472: consumed by the Artifact codebase.
     export const contentStoreInterfaces : Managed.Assembly[] = [
         net472ContentStore.Interfaces.dll,
         netStandardContentStore.Interfaces.dll,
@@ -182,6 +195,7 @@ namespace Cache.NugetPackages {
     ];
 
     // MemoizationStore.Interfaces
+    // net472: consumed by the Artifact codebase.
     export const memoizationStoreInterfaces : Managed.Assembly[] = [
         net472MemoizationStore.Interfaces.dll,
         netStandardMemoizationStore.Interfaces.dll,
@@ -191,6 +205,7 @@ namespace Cache.NugetPackages {
     ];
 
     // ContentStore.Hashing
+    // net472: consumed by the Artifact codebase.
     export const contentStoreHashing : Managed.Assembly[] = [
         net472ContentStore.Hashing.dll,
         netStandardContentStore.Hashing.dll,
@@ -200,6 +215,7 @@ namespace Cache.NugetPackages {
     ];
 
     // ContentStore.UtilitiesCore
+    // net472: consumed by the Artifact codebase.
     export const contentStoreUtilitiesCore : Managed.Assembly[] = [
         net472ContentStore.UtilitiesCore.dll,
         netStandardContentStore.UtilitiesCore.dll,
@@ -221,6 +237,7 @@ namespace Cache.NugetPackages {
     ];
 
     // BuildCacheResourceHelper
+    // net472: transitive dependency of ContentStore.Interfaces on net472.
     export const buildCacheResourceHelper : Managed.Assembly[] = [
         importFrom("BuildXL.Cache.BuildCacheResource").Helper.withQualifier({ targetFramework: "net472", targetRuntime: "win-x64" }).dll,
         importFrom("BuildXL.Cache.BuildCacheResource").Helper.withQualifier({ targetFramework: "netstandard2.0", targetRuntime: "win-x64" }).dll,

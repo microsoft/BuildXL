@@ -165,10 +165,9 @@ namespace NugetPackages {
     });
 
     // BuildXL.AriaCommon
-    const ariaCommonSpecification : Nuget.PackageSpecification = {
+    const ariaCommonSpecification: Nuget.PackageSpecification = {
         id: buildXLAriaCommonIdentity,
         assemblies: [
-            importFrom("BuildXL.Utilities.Instrumentation").AriaCommon.withQualifier(net472packageQualifier).dll,
             importFrom("BuildXL.Utilities.Instrumentation").AriaCommon.withQualifier(net8PackageQualifier).dll,
             importFrom("BuildXL.Utilities.Instrumentation").AriaCommon.withQualifier(net9PackageQualifier).dll,
             importFrom("BuildXL.Utilities.Instrumentation").AriaCommon.withQualifier(net10PackageQualifier).dll,
@@ -176,6 +175,7 @@ namespace NugetPackages {
         ]
     };
 
+    // net472: consumed by the Artifact codebase.
     const utilitiesSpecification : Nuget.PackageSpecification = {
         id: buildXLUtilitiesIdentity,
         assemblies: [
@@ -263,6 +263,7 @@ namespace NugetPackages {
         ]
     };
 
+    // net472: consumed by the Artifact codebase and MSBuild.
     const utilitiesCoreSpecification = {
         id: buildXLUtilitiesCoreIdentity,
         assemblies: [
@@ -276,6 +277,7 @@ namespace NugetPackages {
         deploymentOptions: reducedDeploymentOptions,
     };
 
+    // net472: consumed by the Artifact codebase and MSBuild.
     const nativeSpecification = {
         id: buildXLNativeIdentity,
         assemblies: [
@@ -297,20 +299,17 @@ namespace NugetPackages {
     const pipsSpecification = {
         id: buildXLPipsIdentity,
         assemblies: [
-            // BuildXL.Utilities
-            importFrom("BuildXL.Pips").withQualifier(net472packageQualifier).dll,
+            // BuildXL.Pips
             importFrom("BuildXL.Pips").withQualifier(net8PackageQualifier).dll,
             importFrom("BuildXL.Pips").withQualifier(net9PackageQualifier).dll,
             importFrom("BuildXL.Pips").withQualifier(net10PackageQualifier).dll,
 
             // BuildXL.Ipc
-            importFrom("BuildXL.Utilities").withQualifier(net472packageQualifier).Ipc.dll,
             importFrom("BuildXL.Utilities").withQualifier(net8PackageQualifier).Ipc.dll,
             importFrom("BuildXL.Utilities").withQualifier(net9PackageQualifier).Ipc.dll,
             importFrom("BuildXL.Utilities").withQualifier(net10PackageQualifier).Ipc.dll,
 
             // BuildXL.Storage
-            importFrom("BuildXL.Utilities").withQualifier(net472packageQualifier).Storage.dll,
             importFrom("BuildXL.Utilities").withQualifier(net8PackageQualifier).Storage.dll,
             importFrom("BuildXL.Utilities").withQualifier(net9PackageQualifier).Storage.dll,
             importFrom("BuildXL.Utilities").withQualifier(net10PackageQualifier).Storage.dll,
@@ -329,6 +328,7 @@ namespace NugetPackages {
         deploymentOptions: reducedDeploymentOptions,
     };
 
+    // net472: consumed by MSBuild and QuickBuild (TrackerExecutor).
     const processesSpecification = {
         id: { id: `${packageNamePrefix}.Processes`, version: Branding.Nuget.packageVersion },
         assemblies: [
@@ -368,15 +368,6 @@ namespace NugetPackages {
     const engineCacheSpecification = {
         id: { id: `${packageNamePrefix}.Engine.Cache`, version: Branding.Nuget.packageVersion },
         assemblies: [
-            importFrom("BuildXL.Cache.VerticalStore").withQualifier(net472packageQualifier).InMemory.dll,
-            importFrom("BuildXL.Cache.VerticalStore").withQualifier(net472packageQualifier).Interfaces.dll,
-            importFrom("BuildXL.Cache.VerticalStore").withQualifier(net472packageQualifier).BasicFilesystem.dll,
-            importFrom("BuildXL.Cache.VerticalStore").withQualifier(net472packageQualifier).BuildCacheAdapter.dll,
-            importFrom("BuildXL.Cache.VerticalStore").withQualifier(net472packageQualifier).MemoizationStoreAdapter.dll,
-            importFrom("BuildXL.Cache.VerticalStore").withQualifier(net472packageQualifier).VerticalAggregator.dll,
-            importFrom("BuildXL.Cache.VerticalStore").withQualifier(net472packageQualifier).ImplementationSupport.dll,
-            importFrom("BuildXL.Utilities").withQualifier(net472packageQualifier).Storage.dll,
-
             importFrom("BuildXL.Cache.VerticalStore").withQualifier(net8PackageQualifier).InMemory.dll,
             importFrom("BuildXL.Cache.VerticalStore").withQualifier(net8PackageQualifier).Interfaces.dll,
             importFrom("BuildXL.Cache.VerticalStore").withQualifier(net8PackageQualifier).BasicFilesystem.dll,

@@ -9,6 +9,10 @@
 import * as Json from "Sdk.Json";
 import * as CloudTestClient from "Sdk.CloudTestClient";
 import * as Graph from "Sdk.Graph";
+import {Transformer} from "Sdk.Transformers";
+
+/** Points to the root of the repository. */
+const repoRoot = d`.`;
 
 // Structures modeling scopes.json structure. See Examples\CloudTest-1JS\scopes.json
 
@@ -139,6 +143,15 @@ export function submitCloudTestJobs(scopeFile: ScopeFile, ctVerbs: Map<JavaScrip
         // get opaque directories and files. On the other hand, the job submission only accepts files and opaque directories as inputs, since the hash generation logic (for now) only works for those.
         const inputs : (File | OpaqueDirectory)[] = <(File | OpaqueDirectory)[]> Graph.getDependencyClosure(executeResult, {excludeSources: true});
 
+        // Let's place all files and directories under a relative path that mimics the original output layout structure
+        const inputsWithRelativePaths : CloudTestClient.Helpers.InputWithRelativePath[] = inputs.map(input => {
+            const inputPath : Path = Transformer.isFile(input) ? input.path : input.root.path;
+            return {
+                input: input,
+                relativePath: repoRoot.path.getRelative(inputPath)
+            };
+        });
+
         // Get all the test commands that belong to this package + verb
         const commands = getCommandList(project.packageName, project.command, scopeFile);
 
@@ -152,7 +165,7 @@ export function submitCloudTestJobs(scopeFile: ScopeFile, ctVerbs: Map<JavaScrip
                 jobArguments: `-c "echo '${command.innerCommand}'; { echo 'TAP version 13'; echo '1..1'; echo 'ok 1 - test'; } > $LoggingDirectory/result.tap"`,
                 testExecutionType: "Exe",
                 testParserType: "TAP",
-                jobInputs: inputs,
+                jobInputs: inputsWithRelativePaths,
                 jobInputsFilter: inputFilter,
                 configAndSessionResult: sessionCreateResult,
             };

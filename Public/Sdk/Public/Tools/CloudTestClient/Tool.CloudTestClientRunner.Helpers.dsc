@@ -286,6 +286,17 @@ namespace Helpers {
     }
 
     /**
+     * An input artifact with a relative path, so the location of the file - or the root of the directory- can be specified relative to the job-specific folder.
+     */
+    @@public
+    export interface InputWithRelativePath {
+        /** The input artifact. */
+        input: File | OpaqueDirectory;
+        /** The relative path of the input artifact (relative to the job-specific folder). */
+        relativePath: RelativePath;
+    }
+
+    /**
      * Arguments for submitting a job to an existing session.
      */
     @@public
@@ -294,8 +305,12 @@ namespace Helpers {
         configAndSessionResult: Helpers.ConfigAndSessionResult;
         /** Name of the job. */
         jobName: string;
-        /** Input artifacts for the job. Only files and opaque directories are supported. */
-        jobInputs: (File | OpaqueDirectory)[];
+        /** 
+         * Input artifacts for the job. Only files and opaque directories are supported. 
+         * Each test job has a unique folder where all it inputs should be placed. The relative paths of the inputs (relative to the job folder) can be preserved by using the InputWithRelativePath interface.
+         * When plain files or directories are used, files and directories are placed directly under the job folder.
+         * */
+        jobInputs: (File | OpaqueDirectory | InputWithRelativePath)[];
         /** Filter to apply to the job inputs. */
         jobInputsFilter?: InputFilter;
         /** Path to executable on the worker VM. */
@@ -329,11 +344,26 @@ namespace Helpers {
     export function submitJob(args: SubmitJobArguments): APIs.CloudTestResult {
         
         let artifactInfos = args.jobInputs.map(input => {
-            if (Transformer.isStaticDirectory(input)) {
+            
+            // All inputs should go into a test job specific folder. We use the job name as the folder name.
+            let artifact : File | OpaqueDirectory =  undefined;
+            let relativePath : RelativePath = undefined;
+            // If the input is a static directory or a file, we place the artifact directly under the job folder.
+            if (Transformer.isStaticDirectory(input) || Transformer.isFile(input)) {
+                artifact = input;
+                relativePath = r`${args.jobName}`;
+            }
+            // If the input is an InputWithRelativePath, we honor the specified relative path.
+            else {
+                artifact = input.input;
+                relativePath = r`${args.jobName}/${input.relativePath}`;
+            }
+
+            if (Transformer.isStaticDirectory(artifact)) {
                 const info : Drop.DropDirectoryInfo = {
                     kind: "directory",
-                    directory: input,
-                    dropPath: r`${args.jobName}`,
+                    directory: artifact,
+                    dropPath: relativePath,
                     contentFilter: args.jobInputsFilter && args.jobInputsFilter.contentFilter,
                     applyContentFilterToRelativePath: args.jobInputsFilter && args.jobInputsFilter.applyContentFilterToRelativePath
                 };
@@ -341,8 +371,8 @@ namespace Helpers {
             } else {
                 const info : Drop.DropFileInfo = {
                     kind: "file",
-                    file: input,
-                    dropPath: r`${args.jobName}`
+                    file: artifact,
+                    dropPath: relativePath
                 };
                 return info;
             }
@@ -354,6 +384,11 @@ namespace Helpers {
             {},
             artifactInfos
         );
+
+        let inputArtifacts : (File | OpaqueDirectory)[] = artifactInfos.map(info => 
+            info.kind === "file" 
+                ? (<Drop.DropFileInfo>info).file 
+                : <OpaqueDirectory>(<Drop.DropDirectoryInfo>info).directory);
 
         const dynamicJobConfigArguments : DynamicJobConfigArguments = {
             image: args.configAndSessionResult.configArguments.image,
@@ -369,7 +404,7 @@ namespace Helpers {
             testCaseTimeout: args.testCaseTimeout,
             // We always provide the hashes for the job inputs since CloudTest will try to store the results in the cache regardless of whether
             // cacheEnabled was set to true or false when creating the session (the flag is just honored for cache lookups)
-            testDependencyHashes:  Artifact.vsoHashes(args.jobInputs),
+            testDependencyHashes:  Artifact.vsoHashes(inputArtifacts),
             priority: args.priority,
             tags: args.tags,
             description: args.description,
@@ -380,7 +415,7 @@ namespace Helpers {
         let updateDynamicJob : APIs.UpdateDynamicJobArguments = {
             sessionId: args.configAndSessionResult.sessionResult.sessionIdFile,
             bodyFile: configResult.configFile,
-            dependencies: [...args.jobInputs, configResult.configFile, ...addArtifactsResult.outputs],
+            dependencies: [...inputArtifacts, configResult.configFile, ...addArtifactsResult.outputs],
             tokenEnvVar: args.configAndSessionResult.configArguments.tokenEnvVar,
             timeoutMinutes: args.timeoutMinutes,
             environmentVariables: args.environmentVariables,

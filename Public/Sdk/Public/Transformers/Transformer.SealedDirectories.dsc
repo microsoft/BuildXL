@@ -162,4 +162,12 @@ namespace Transformer {
                 false;
         }
     }
+
+    /**
+     * Returns whether the given item is a file or any of its subclasses
+     */
+    @@public
+    export function isFile(item) : item is File {
+        return typeof item === "File";
+    }
 }

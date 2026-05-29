@@ -43,7 +43,8 @@ config(
           // different 1JS repos (e.g. Midgard and OOUI) can share.
           { moduleName: "cloudtest-1js-sdk", projects:[f`1js-ct-sdk.dsc`] },
           f`${Context.getBuildEngineDirectory()}/Sdk/Sdk.CloudTestClient/module.config.dsc`,
-          f`${Context.getBuildEngineDirectory()}/Sdk/Sdk.Drop/package.config.dsc`
+          f`${Context.getBuildEngineDirectory()}/Sdk/Sdk.Drop/package.config.dsc`,
+          f`${Context.getBuildEngineDirectory()}/Sdk/Sdk.Transformers/package.config.dsc`,
         ]
       },
     ],

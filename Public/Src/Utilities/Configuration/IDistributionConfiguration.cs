@@ -114,5 +114,12 @@ namespace BuildXL.Utilities.Configuration
         /// Verify that source files that are statically declared pip inputs match between an orchestrator and a worker.
         /// </summary>
         bool VerifySourceFilesOnWorkers { get; }
+
+        /// <summary>
+        /// Explicitly enables or disables distributed source file hashing.
+        /// When null, the default behavior is used (enabled in CloudBuild when VerifySourceFilesOnWorkers is false
+        /// and ForceSkipDependencies is disabled).
+        /// </summary>
+        bool? EnableDistributedSourceHashing { get; }
     }
 }

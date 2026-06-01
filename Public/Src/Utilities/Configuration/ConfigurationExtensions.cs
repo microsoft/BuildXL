@@ -27,6 +27,11 @@ namespace BuildXL.Utilities.Configuration
         /// </summary>
         public static bool EnableDistributedSourceHashing(this IConfiguration configuration)
         {
+            if (configuration.Distribution.EnableDistributedSourceHashing.HasValue)
+            {
+                return configuration.Distribution.EnableDistributedSourceHashing.Value;
+            }
+
             return configuration.InCloudBuild()
                 && !configuration.Distribution.VerifySourceFilesOnWorkers
                 && configuration.Schedule.ForceSkipDependencies == ForceSkipDependenciesMode.Disabled;

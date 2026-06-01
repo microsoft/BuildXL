@@ -46,6 +46,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             EarlyWorkerReleaseMultiplier = template.EarlyWorkerReleaseMultiplier;
             MaxRetryLimitOnRemoteWorkers = template.MaxRetryLimitOnRemoteWorkers;
             VerifySourceFilesOnWorkers = template.VerifySourceFilesOnWorkers;
+            EnableDistributedSourceHashing = template.EnableDistributedSourceHashing;
         }
 
         /// <inhertidoc />
@@ -99,5 +100,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool VerifySourceFilesOnWorkers { get; set; }
+
+        /// <inheritdoc />
+        public bool? EnableDistributedSourceHashing { get; set; }
     }
 }

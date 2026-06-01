@@ -342,6 +342,9 @@ namespace BuildXL
                             "enableCredScan",
                             sign => frontEndConfiguration.EnableCredScan = sign),
                         OptionHandlerFactory.CreateBoolOption(
+                            "enableDistributedSourceHashing",
+                            sign => distributionConfiguration.EnableDistributedSourceHashing = sign),
+                        OptionHandlerFactory.CreateBoolOption(
                             "enableEmptyingWorkingSet",
                             sign => schedulingConfiguration.EnableEmptyingWorkingSet = sign),
                         OptionHandlerFactory.CreateBoolOption(

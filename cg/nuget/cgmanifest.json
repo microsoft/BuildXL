@@ -2841,7 +2841,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Python",
-          "Version": "3.14.3"
+          "Version": "3.14.5"
         }
       }
     },

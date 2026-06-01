@@ -2,6 +2,20 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20260522.4 (Release [31544310](https://dev.azure.com/mseng/Domino/_build/results?buildId=31544310&view=results))
+- [JavaScript] Fix qualifier coercion race in top-level JS module evaluation that could cause exports to be unfindable
+- [Cache] Only delete blobs on hash mismatch after retries are exhausted in AzureBlobStorageContentSession, avoiding spurious cache evictions on transient errors
+- [CloudTest] Add drop filtering capabilities to the CloudTest SDK
+- [Performance] Reduce fingerprinting-related allocations in the WeakFP hot path
+
+# 0.1.0-20260516.3 (Release [31513735](https://dev.azure.com/mseng/Domino/_build/results?buildId=31513735&view=results))
+- [Detours] Fix pipe-handle inheritance leak that caused Bothell signing/clone-build wedges in WaitUntilReportEofAsync.
+- [DScript] New Sdk.Graph ambient lets specs introspect the pip graph at evaluation time. 
+- [DScript] Add JSON parsing capabilities to DScript.
+- [JavaScript] Generalize the JS include-project-mapping knob to expose the entire transformer execute result, allowing specs to fully identify the producing pip (and integrate with the new Graph ambient).
+- [Performance] Reduce allocations in pip cache lookup hot paths by removing LINQ patterns in PipExecutor, PipTwoPhaseCache, ObservedInputProcessor, and FileContentManager. 
+- [Performance] Reduce weak fingerprinting allocations by reusing a single inner HashingHelper across AddOrderIndependentCollection calls.
+
 # 0.1.0-20260510.1 (Release [31480162](https://dev.azure.com/mseng/Domino/_build/results?buildId=31480162&view=results))
 - [Detours] Reliability improvements for sandboxed process pipe handling — drain pipe readers on kill/cancel paths and make output builder AppendLine/Freeze race-free
 - [Sandbox] Fix `GetUserHomeDirectory` crash when `HOMEDRIVE`/`HOMEPATH` are empty strings

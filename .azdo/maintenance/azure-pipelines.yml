@@ -90,6 +90,9 @@ stages:
           CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT_B64: $(CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT_B64)
           VSS_NUGET_EXTERNAL_FEED_ENDPOINTS: $(VSS_NUGET_EXTERNAL_FEED_ENDPOINTS)
           BuildXL-Pipeline-AccessToken: $(BuildXL-Pipeline-AccessToken)
+          # The following two variables need to be set explicitly because we are using the ADO build runner outside of the 1ESPT buildxl workflow
+          SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+          ADOBUILDRUNNERINVOCATIONKEY: "UpdatePackages"
 
       # Copy and publish BuildXL log in case it failed during the schedule phase
       - task: CopyFiles@2

@@ -42,34 +42,47 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
         {
             WeakFingerprintHash cacheCoreWeakFingerprint = new WeakFingerprintHash(new Hash(weak.Hash));
 
-            // TODO: We assume that everything up until the first sentinel is local. This is fine for a simple 'vertical' aggregator
-            //       of a local and remote cache, but isn't general.
+            // Default assumption: everything before the first sentinel is local.
             PublishedEntryRefLocality currentLocality = PublishedEntryRefLocality.Local;
 
             foreach (Task<Possible<StrongFingerprint, Failure>> entryPromise in m_cache.EnumerateStrongFingerprints(cacheCoreWeakFingerprint, hints))
             {
-                if (entryPromise.IsCompleted && entryPromise.Result.Succeeded && entryPromise.Result.Result is StrongFingerprintSentinel)
+                // We must resolve each entry synchronously here, before yielding the next one: a sentinel can appear
+                // at any position in the stream and must update currentLocality so that any following entries are
+                // attributed correctly. We can't defer this work into the yielded Task continuation, because the
+                // interface contract (see ITwoPhaseFingerprintStore.ListPublishedEntriesByWeakFingerprint) allows
+                // consumers to await batch-tasks in parallel — sharing a mutable currentLocality across those
+                // continuations would race. The unwrap-then-rewrap-as-Task.FromResult round trip is a consequence of
+                // needing a synchronous inspection point in an IEnumerable<Task<>> shape.
+                //
+                // In practice the synchronous wait here is cheap: the closest implementation we exercise
+                // (MemoizationStoreAdapter) materializes the full GetSelectors result inside its first yielded task
+                // and emits all subsequent entries as already-completed Task.FromResult instances. So only the first
+                // entry actually blocks; for everything after that, the wait is a no-op. Code here does not rely on
+                // that — any implementation is correctly handled — but it explains why this is not a perf concern in
+                // current usage.
+                Possible<StrongFingerprint, Failure> maybeFingerprint =
+                    PerformFingerprintCacheOperationAsync(() => entryPromise, nameof(ListPublishedEntriesByWeakFingerprint)).GetAwaiter().GetResult();
+
+                if (maybeFingerprint.Succeeded && maybeFingerprint.Result is StrongFingerprintSentinel sentinel)
                 {
-                    currentLocality = PublishedEntryRefLocality.Remote;
+                    // The sentinel tells us the locality of entries that follow.
+                    currentLocality = sentinel.FollowingEntriesAreRemote
+                        ? PublishedEntryRefLocality.Remote
+                        : PublishedEntryRefLocality.Local;
+
                     continue;
                 }
 
-                yield return AdaptPublishedEntry(entryPromise, currentLocality);
+                yield return Task.FromResult(ToPublishedEntryRef(maybeFingerprint, currentLocality));
             }
         }
 
-        private static async Task<Possible<PublishedEntryRef, Failure>> AdaptPublishedEntry(Task<Possible<StrongFingerprint, Failure>> cacheCoreEntryPromise, PublishedEntryRefLocality locality)
+        private static Possible<PublishedEntryRef, Failure> ToPublishedEntryRef(Possible<StrongFingerprint, Failure> maybeFingerprint, PublishedEntryRefLocality locality)
         {
-            Possible<StrongFingerprint, Failure> maybeFingerprint = await PerformFingerprintCacheOperationAsync(()=> cacheCoreEntryPromise, nameof(AdaptPublishedEntry));
-
             if (maybeFingerprint.Succeeded)
             {
                 StrongFingerprint fingerprint = maybeFingerprint.Result;
-
-                if (fingerprint is StrongFingerprintSentinel)
-                {
-                    return PublishedEntryRef.Ignore;
-                }
 
                 return new PublishedEntryRef(
                                 pathSetHash: ContentHashingUtilities.CreateFrom(fingerprint.CasElement.ToArray()),

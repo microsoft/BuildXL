@@ -120,15 +120,36 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
              WeakFingerprintHash weak, OperationHints hints, Guid activityId)
         {
             // TODO: Extend IAsyncEnumerable up through EnumerateStrongFingerprints
-            var tcs = TaskSourceSlim.Create<IEnumerable<GetSelectorResult>>();
+            var tcs = TaskSourceSlim.Create<IEnumerable<Possible<StrongFingerprint, Failure>>>();
             yield return Task.Run(
                 async () =>
                 {
                     try
                     {
                         var results = await ReadOnlyCacheSession.GetSelectors(CreateContext(activityId, Logger), weak.ToMemoization(), CancellationToken.None).ToListAsync();
-                        tcs.SetResult(results);
-                        return results.Any() ? results.First().FromMemoization(weak, CacheId) : StrongFingerprintSentinel.Instance;
+
+                        // Translate the GetSelectorResult stream into the legacy strong-fingerprint stream consumed by CacheCoreFingerprintStore.
+                        // A selector tagged with a SelectorSourceCacheLevel triggers a StrongFingerprintSentinel to be inserted whenever the
+                        // locality changes, so the consumer can correctly attribute local vs remote hits. The starting locality matches
+                        // CacheCoreFingerprintStore's default (Local).
+                        var translated = new List<Possible<StrongFingerprint, Failure>>(results.Count);
+                        var currentLevel = SelectorSourceCacheLevel.Local;
+                        foreach (var r in results)
+                        {
+                            if (r.Succeeded && r.SourceCacheLevel is SelectorSourceCacheLevel tagged && tagged != currentLevel)
+                            {
+                                currentLevel = tagged;
+                                var sentinel = tagged == SelectorSourceCacheLevel.Remote
+                                    ? StrongFingerprintSentinel.RemoteFollows
+                                    : StrongFingerprintSentinel.LocalFollows;
+                                translated.Add(new Possible<StrongFingerprint, Failure>(sentinel));
+                            }
+                            translated.Add(r.FromMemoization(weak, CacheId));
+                        }
+
+                        tcs.SetResult(translated);
+
+                        return translated.Count > 0 ? translated[0] : new Possible<StrongFingerprint, Failure>(StrongFingerprintSentinel.Instance);
                     }
                     catch (Exception ex)
                     {
@@ -140,10 +161,10 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
 
             // For now, callers should always await the first task before enumerating the rest
             Contract.Assert(tcs.Task.IsCompleted);
-            IEnumerable<GetSelectorResult> otherResults = tcs.Task.GetAwaiter().GetResult();
+            IEnumerable<Possible<StrongFingerprint, Failure>> otherResults = tcs.Task.GetAwaiter().GetResult();
             foreach (var otherResult in otherResults.Skip(1))
             {
-                yield return Task.FromResult(otherResult.FromMemoization(weak, CacheId));
+                yield return Task.FromResult(otherResult);
             }
         }
 

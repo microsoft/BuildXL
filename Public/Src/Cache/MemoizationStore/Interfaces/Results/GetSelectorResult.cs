@@ -9,16 +9,55 @@ using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 namespace BuildXL.Cache.MemoizationStore.Interfaces.Results
 {
     /// <summary>
+    /// Indicates which cache level a <see cref="GetSelectorResult"/> originated from.
+    /// </summary>
+    public enum SelectorSourceCacheLevel
+    {
+        /// <summary>
+        /// The selector comes from a local cache.
+        /// </summary>
+        Local,
+
+        /// <summary>
+        /// The selector comes from a remote cache.
+        /// </summary>
+        Remote,
+    }
+
+    /// <summary>
     ///     Result of the GetSelector call.
     /// </summary>
     public class GetSelectorResult : BoolResult, IEquatable<GetSelectorResult>
     {
+        /// <summary>
+        /// Optional. When set, indicates the cache level from which this selector originates.
+        /// The convention is that producers only set this on the *first* selector of a
+        /// contiguous run of selectors from the same level (so consumers can detect level
+        /// transitions). Consumers that don't care about cache-level provenance can safely
+        /// ignore this property.
+        /// </summary>
+        /// <remarks>
+        /// Null means "unspecified" — consumers should treat the selector as belonging to
+        /// the previously declared level (defaulting to <see cref="SelectorSourceCacheLevel.Local"/>
+        /// if no level has been declared yet).
+        /// </remarks>
+        public SelectorSourceCacheLevel? SourceCacheLevel { get; }
+
         /// <summary>
         ///     Initializes a new instance of the <see cref="GetSelectorResult"/> class.
         /// </summary>
         public GetSelectorResult(Selector selector)
         {
             Selector = selector;
+        }
+
+        /// <summary>
+        ///     Initializes a new instance of the <see cref="GetSelectorResult"/> class with a cache-level tag.
+        /// </summary>
+        public GetSelectorResult(Selector selector, SelectorSourceCacheLevel sourceCacheLevel)
+        {
+            Selector = selector;
+            SourceCacheLevel = sourceCacheLevel;
         }
 
         /// <summary>
@@ -57,7 +96,7 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Results
         /// <inheritdoc />
         public bool Equals(GetSelectorResult other)
         {
-            return base.Equals(other) && other != null && Selector == other.Selector;
+            return base.Equals(other) && other != null && Selector == other.Selector && SourceCacheLevel == other.SourceCacheLevel;
         }
 
         /// <inheritdoc />
@@ -69,13 +108,18 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Results
         /// <inheritdoc />
         public override int GetHashCode()
         {
-            return base.GetHashCode() ^ Selector.GetHashCode();
+            return base.GetHashCode() ^ Selector.GetHashCode() ^ (SourceCacheLevel?.GetHashCode() ?? 0);
         }
 
         /// <inheritdoc />
         public override string ToString()
         {
-            return Succeeded ? $"{Selector}" : GetErrorString();
+            if (!Succeeded)
+            {
+                return GetErrorString();
+            }
+
+            return SourceCacheLevel.HasValue ? $"{Selector} [{SourceCacheLevel.Value}]" : $"{Selector}";
         }
     }
 }

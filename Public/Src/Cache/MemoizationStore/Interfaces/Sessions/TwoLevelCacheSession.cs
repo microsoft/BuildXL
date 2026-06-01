@@ -215,13 +215,49 @@ namespace BuildXL.Cache.MemoizationStore.Interfaces.Sessions
         {
             if (_config.AlwaysUpdateFromRemote)
             {
-                return _remoteCacheSession.GetSelectors(context, weakFingerprint, cts, urgencyHint)
-                    .Concat(_localCacheSession.GetSelectors(context, weakFingerprint, cts, urgencyHint));
+                // Remote first, then local. Tag the first selector of each level so that
+                // consumers that care about provenance can detect the transition.
+                return TagFirstSelector(
+                        _remoteCacheSession.GetSelectors(context, weakFingerprint, cts, urgencyHint),
+                        SelectorSourceCacheLevel.Remote)
+                    .Concat(TagFirstSelector(
+                        _localCacheSession.GetSelectors(context, weakFingerprint, cts, urgencyHint),
+                        SelectorSourceCacheLevel.Local));
             }
             else
             {
-                return _localCacheSession.GetSelectors(context, weakFingerprint, cts, urgencyHint)
-                    .Concat(_remoteCacheSession.GetSelectors(context, weakFingerprint, cts, urgencyHint));
+                // Local first, then remote. The first local selector doesn't strictly need a tag
+                // (Local is the conventional default), but tagging it makes the intent explicit and
+                // robust against changes to the default.
+                return TagFirstSelector(
+                        _localCacheSession.GetSelectors(context, weakFingerprint, cts, urgencyHint),
+                        SelectorSourceCacheLevel.Local)
+                    .Concat(TagFirstSelector(
+                        _remoteCacheSession.GetSelectors(context, weakFingerprint, cts, urgencyHint),
+                        SelectorSourceCacheLevel.Remote));
+            }
+        }
+
+        /// <summary>
+        /// Wraps the first successful selector in the given stream with a <see cref="SelectorSourceCacheLevel"/> tag.
+        /// All other results are forwarded unchanged.
+        /// </summary>
+        private static async IAsyncEnumerable<GetSelectorResult> TagFirstSelector(
+            IAsyncEnumerable<GetSelectorResult> source,
+            SelectorSourceCacheLevel sourceCacheLevel)
+        {
+            bool tagged = false;
+            await foreach (var item in source)
+            {
+                if (!tagged && item.Succeeded)
+                {
+                    yield return new GetSelectorResult(item.Selector, sourceCacheLevel);
+                    tagged = true;
+                }
+                else
+                {
+                    yield return item;
+                }
             }
         }
 

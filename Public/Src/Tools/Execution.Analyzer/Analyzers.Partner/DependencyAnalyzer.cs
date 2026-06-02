@@ -23,6 +23,8 @@ namespace BuildXL.Execution.Analyzer
     {
         private const string OptIncludeDirs = "includeDirs";
         private const string OptIncludeDirsShort = "d";
+        private const string OptIncludeProjectTag = "includeProjectTag";
+        private const string OptIncludeProjectTagShort = "pt";
         private const string OptOutFile = "outputFile";
         private const string OptOutFileShort = "o";
 
@@ -30,6 +32,7 @@ namespace BuildXL.Execution.Analyzer
         {
             string outputFile = null;
             bool includeDirectories = false;
+            bool includeProjectTag = false;
             var pathMappings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
             foreach (var opt in AnalyzerOptions)
@@ -55,6 +58,11 @@ namespace BuildXL.Execution.Analyzer
                 {
                     includeDirectories = true;
                 }
+                else if (opt.Name.Equals(OptIncludeProjectTag, StringComparison.OrdinalIgnoreCase) ||
+                         opt.Name.Equals(OptIncludeProjectTagShort, StringComparison.OrdinalIgnoreCase))
+                {
+                    includeProjectTag = true;
+                }
                 else
                 {
                     throw Error("Unknown option for DependencyAnalyzer analysis: {0}", opt.Name);
@@ -66,7 +74,7 @@ namespace BuildXL.Execution.Analyzer
                 throw Error("Missing required argument 'outputFile'");
             }
 
-            return new DependencyAnalyzer(GetAnalysisInput(), includeDirectories, outputFile, pathMappings);
+            return new DependencyAnalyzer(GetAnalysisInput(), includeDirectories, includeProjectTag, outputFile, pathMappings);
         }
 
         private static void WriteDependencyAnalyzerHelp(HelpWriter writer)
@@ -78,6 +86,10 @@ namespace BuildXL.Execution.Analyzer
                 OptIncludeDirs,
                 "Whether to include directory dependencies/outputs.  Defaults to false (for backward compatibility reasons)",
                 shortName: OptIncludeDirsShort);
+            writer.WriteOption(
+                OptIncludeProjectTag,
+                "Whether to include the ProjectTag property for each pip (from pip tags). Defaults to false (for backward compatibility)",
+                shortName: OptIncludeProjectTagShort);
         }
     }
 
@@ -85,6 +97,7 @@ namespace BuildXL.Execution.Analyzer
     {
         public PipId PipId;
         public string Description;
+        public string ProjectTag;
         public HashSet<AbsolutePath> InputFiles;
         public HashSet<AbsolutePath> InputDirs;
         public HashSet<AbsolutePath> OutputFiles;
@@ -175,6 +188,10 @@ namespace BuildXL.Execution.Analyzer
             {
                 streamWriter.WriteLine($"ID:{pip.PipId.Value}");
                 streamWriter.WriteLine($"Description:{pip.Description}");
+                if (pip.ProjectTag != null)
+                {
+                    streamWriter.WriteLine($"ProjectTag:{pip.ProjectTag}");
+                }
                 DumpOutNumsList(pip.InputFiles.Select(f => (uint)(f.RawValue)), "InputFiles", streamWriter);
                 if (IncludeDirs)
                 {
@@ -203,9 +220,12 @@ namespace BuildXL.Execution.Analyzer
     internal class DependencyAnalyzer : Analyzer
     {
         private const uint OutputGraphVersion = 1;
+        private const string ProjectTagKey = "project";
+        private const string DefaultProjectValue = "ProjectAgnostic";
 
         // The inputs which control the analyzer
         private readonly bool m_includeDirs;
+        private readonly bool m_includeProjectTag;
         private readonly string m_outputFilePath;
         private readonly Dictionary<string, string> m_pathMappings;
 
@@ -217,11 +237,12 @@ namespace BuildXL.Execution.Analyzer
         private readonly List<DependencyAnalyzerPip> m_allPips = new List<DependencyAnalyzerPip>();
         private readonly ConcurrentBigMap<DirectoryArtifact, IReadOnlyList<FileArtifact>> m_directoryContents = new ConcurrentBigMap<DirectoryArtifact, IReadOnlyList<FileArtifact>>();
 
-        public DependencyAnalyzer(AnalysisInput input, bool includeDirs, string outputFilePath, Dictionary<string, string> pathMappings) : base(input)
+        public DependencyAnalyzer(AnalysisInput input, bool includeDirs, bool includeProjectTag, string outputFilePath, Dictionary<string, string> pathMappings) : base(input)
         {
             m_outputFilePath = outputFilePath;
             m_pathMappings = pathMappings;
             m_includeDirs = includeDirs;
+            m_includeProjectTag = includeProjectTag;
         }
 
         public override int Analyze()
@@ -314,6 +335,28 @@ namespace BuildXL.Execution.Analyzer
         }
 
         /// <summary>
+        /// Extracts the project value from the pip's tags.
+        /// Looks for a tag matching the key "project" (case-insensitive).
+        /// Returns <see cref="DefaultProjectValue"/> if not found.
+        /// </summary>
+        private string GetPipProject(Pip pip)
+        {
+            if (pip.Tags.IsValid)
+            {
+                foreach (var tag in pip.Tags)
+                {
+                    var tagValue = tag.ToString(CachedGraph.Context.StringTable);
+                    if (tagValue.StartsWith(ProjectTagKey + ":", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return tagValue.Substring(ProjectTagKey.Length + 1);
+                    }
+                }
+            }
+
+            return DefaultProjectValue;
+        }
+
+        /// <summary>
         /// Returns the set of downstream pips. Pips will be of one of the following types:
         /// Process, CopyFile, WriteFile
         /// </summary>
@@ -391,6 +434,7 @@ namespace BuildXL.Execution.Analyzer
                 {
                     PipId = pip.PipId,
                     Description = GetPipDescription(pip),
+                    ProjectTag = m_includeProjectTag ? GetPipProject(pip) : null,
                     InputFiles = allInputs,
                     InputDirs = inputDirs,
                     OutputFiles = allOutputs,

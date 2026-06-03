@@ -2,6 +2,15 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20260529.7 (Release [31574182](https://dev.azure.com/mseng/Domino/_build/results?buildId=31574182&view=results))
+- [Packages] Remove net472 target from `AriaCommon`, `Pips`, and `Engine.Cache` packages
+- [Packages] Add new `BuildXL.Cache.VerticalStore.Interfaces` NuGet package and include it in the publish list
+- [Drop] Add async drop finalization support; default for async finalization is off
+- [CTest SDK] Expose a way to control the drop layout
+- [Cache] Add non-interactive flow for dev cache plus validation
+- [Detours] Add `EnumeratePattern` to `IDetoursEventListener.FileAccessData`
+- [AdoBuildRunner] Fast-fail workers when the orchestrator build has failed
+- [macOS] Change native package layout to indicate universal binary
 # 0.1.0-20260522.4 (Release [31544310](https://dev.azure.com/mseng/Domino/_build/results?buildId=31544310&view=results))
 - [JavaScript] Fix qualifier coercion race in top-level JS module evaluation that could cause exports to be unfindable
 - [Cache] Only delete blobs on hash mismatch after retries are exhausted in AzureBlobStorageContentSession, avoiding spurious cache evictions on transient errors

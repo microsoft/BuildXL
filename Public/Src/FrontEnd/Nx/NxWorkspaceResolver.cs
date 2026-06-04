@@ -108,7 +108,9 @@ namespace BuildXL.FrontEnd.Nx
 
             // Disable the Nx daemon for graph construction. This minimizes the chance of Nx having lingering processes that may try to escape from the sandbox.   
             var daemonOff = new KeyValuePair<string, string>(NxFrontEnd.NxDaemonOffEnvVar.key, NxFrontEnd.NxDaemonOffEnvVar.value);
-            return parameters.Override(new[] { daemonOff });
+            // Disable the Nx remote cache for graph construction. This minimizes the chance of Nx having remote cache related issues.
+            var remoteCacheOff = new KeyValuePair<string, string>(NxFrontEnd.NxRemoteCacheEnvVar.key, NxFrontEnd.NxRemoteCacheEnvVar.value);
+            return parameters.Override(new[] { daemonOff, remoteCacheOff });
         }
 
         /// <nodoc/>

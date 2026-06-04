@@ -21,6 +21,11 @@ namespace BuildXL.FrontEnd.Nx
         public static (string key, string value) NxDaemonOffEnvVar { get; } = ("NX_DAEMON", "false");
 
         /// <summary>
+        /// Environment variable to turn off the Nx remote cache
+        /// </summary>
+        public static (string key, string value) NxRemoteCacheEnvVar { get; } = ("NX_SKIP_REMOTE_CACHE", "true");
+
+        /// <summary>
         /// Environment variable to turn off the Nx database
         /// </summary>
         /// <remarks>

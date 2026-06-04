@@ -67,7 +67,7 @@ function createBxlProjectGraph(nxTaskGraph, nxProjectGraph): JavaScriptGraph {
         const tags = nxProjectGraph.nodes[target.project]?.data.tags || [];
 
         let commands : ScriptCommands = {}
-        commands[target.target] = `${nodeLocation} ${nxExe} run ${currentTask} --skipNxCache --skipRemoteCache --excludeTaskDependencies`;
+        commands[target.target] = `${nodeLocation} ${nxExe} run ${currentTask} --skipNxCache --excludeTaskDependencies`;
 
         let bxlConfig : BxlConfig.BuildXLConfiguration = BxlConfig.getBuildXLConfiguration(repoFolder, projectRoot);
 
@@ -103,7 +103,6 @@ async function createNxTaskAndProjectGraph(nxModules) {
     const { nxArgs, overrides } = nxModules.splitArgsIntoNxArgsAndOverrides(
         {
             targets: targetArgs,
-            skipRemoteCache: true,
             skipNxCache: true,
             all: true
         },

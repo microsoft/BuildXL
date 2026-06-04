@@ -52,6 +52,8 @@ namespace BuildXL.FrontEnd.Nx
             env.TryAdd(NxFrontEnd.NxDBOffEnvVar.key, NxFrontEnd.NxDBOffEnvVar.value);
             // Point to a shorter temp folder for the socket dir, to avoid issues with max socket length
             env.TryAdd(NxFrontEnd.NxSocketDirVar, GetSocketDir().ToString(PathTable));
+            // Disable the Nx remote cache. This minimizes the chance of Nx having remote cache related issues.
+            env.TryAdd(NxFrontEnd.NxRemoteCacheEnvVar.key, NxFrontEnd.NxRemoteCacheEnvVar.value);
 
             return env;
         }

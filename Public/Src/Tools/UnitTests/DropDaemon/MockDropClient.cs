@@ -83,6 +83,8 @@ namespace Test.Tool.DropDaemon
 
         public Task<DropItem> CreateAsync() => m_createFunc();
 
+        public Task<DropItem> GetDropAsync() => Task.FromResult(new DropItem());
+
         public Task<AddFileResult> AddFileAsync(IDropItem item)
         {
             Contract.Requires(item != null);

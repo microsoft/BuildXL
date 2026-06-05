@@ -24,7 +24,7 @@ namespace Tool.ServicePipDaemon
     /// Daemons of this type must ensure that 'Create' and 'Finalize' are called from the same instance, lest 'Finalize' fails
     /// (e.g. both SymbolDaemon and DropDaemon set mustRunOnOrchestrator = true for both operations).
     /// </remarks>
-    public abstract class FinalizedByCreatorServicePipDaemon : ServicePipDaemon
+    public abstract class FinalizedByCreatorServicePipDaemon<TConfig> : ServicePipDaemon
     {
         /// <summary>
         /// Positive if finalization was already requested.
@@ -75,23 +75,37 @@ namespace Tool.ServicePipDaemon
         /// <summary>
         /// Implementation of the creation command 
         /// </summary>
-        protected abstract Task<IIpcResult> DoCreateAsync(string name = null);
+        protected abstract Task<IIpcResult> DoCreateAsync(TConfig config = default);
 
         /// <summary>
-        /// Synchronous version of <see cref="CreateAsync"/>
+        /// Implementation of the reference existing command 
         /// </summary>
-        public IIpcResult Create(string name = null)
-        {
-            return CreateAsync(name).GetAwaiter().GetResult();
-        }
+        protected abstract Task<IIpcResult> DoReferenceExistingAsync(TConfig config = default);
 
         /// <summary>
         /// Creates the session
         /// </summary>
-        public Task<IIpcResult> CreateAsync(string name = null)
+        public Task<IIpcResult> CreateAsync(TConfig config = default)
         {
             m_wasCreator = true;
-            return DoCreateAsync(name);
+            return DoCreateAsync(config);
+        }
+
+        /// <summary>
+        /// References an existing session
+        /// </summary>
+        public Task<IIpcResult> ReferenceExistingAsync(TConfig config = default)
+        {
+            m_wasCreator = true;
+            return DoReferenceExistingAsync(config);
+        }
+
+        /// <summary>
+        /// Synchronous version of <see cref="CreateAsync"/>
+        /// </summary>
+        public IIpcResult Create(TConfig config = default)
+        {
+            return CreateAsync(config).GetAwaiter().GetResult();
         }
 
         /// <summary>

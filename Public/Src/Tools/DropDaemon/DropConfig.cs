@@ -118,6 +118,13 @@ namespace Tool.DropDaemon
         ///     Polling interval in seconds when async drop finalization is enabled.
         /// </summary>
         public int AsyncFinalizePollingIntervalSeconds { get; }
+
+        /// <summary>
+        ///    Whether BuildXL should finalize this drop when the build completes.
+        ///    Defaults to true. When referencing an existing drop, this may be set to false
+        ///    if another process is responsible for finalization.
+        /// </summary>
+        public bool FinalizeOnCompletion { get; }
         #endregion
 
         #region Defaults
@@ -190,7 +197,8 @@ namespace Tool.DropDaemon
             bool? uploadBcdeFileToDrop = null,
             Guid? sessionId = null,
             bool? enableAsyncFinalize = null,
-            int? asyncFinalizePollingIntervalSeconds = null)
+            int? asyncFinalizePollingIntervalSeconds = null,
+            bool? finalizeOnCompletion = null)
         {
             Name = dropName;
             Service = serviceEndpoint;
@@ -212,6 +220,7 @@ namespace Tool.DropDaemon
             SessionId = sessionId;
             EnableAsyncFinalize = enableAsyncFinalize ?? DefaultEnableAsyncFinalize;
             AsyncFinalizePollingIntervalSeconds = asyncFinalizePollingIntervalSeconds ?? DefaultAsyncFinalizePollingIntervalSeconds;
+            FinalizeOnCompletion = finalizeOnCompletion ?? true;
         }
     }
 }

@@ -45,8 +45,7 @@ namespace Test.Tool.DropDaemon
             var dropClient = new MockDropClient(createSucceeds: shouldSucceed);
             WithSetup(dropClient, (daemon, etwListener, dropConfig) =>
             {
-                var dropName = GetDropFullName(dropConfig);
-                AssertRpcResult(shouldSucceed, daemon.Create(dropName));
+                AssertRpcResult(shouldSucceed, daemon.Create(dropConfig));
                 AssertDequeueEtwEvent(etwListener, shouldSucceed, EventKind.DropCreation);
             });
         }
@@ -59,8 +58,7 @@ namespace Test.Tool.DropDaemon
             var dropClient = new MockDropClient(finalizeSucceeds: shouldSucceed);
             WithSetup(dropClient, (daemon, etwListener, dropConfig) =>
             {
-                var dropName = GetDropFullName(dropConfig);
-                daemon.Create(dropName);     // We can only finalize if we created
+                daemon.Create(dropConfig);     // We can only finalize if we created
                 AssertDequeueEtwEvent(etwListener, true, EventKind.DropCreation);
 
                 AssertRpcResult(shouldSucceed, daemon.Finalize());
@@ -78,8 +76,7 @@ namespace Test.Tool.DropDaemon
             var dropClient = new MockDropClient(createSucceeds: shouldCreateSucceed, finalizeSucceeds: shouldFinalizeSucceed);
             WithSetup(dropClient, (daemon, etwListener, dropConfig) =>
             {
-                var dropName = GetDropFullName(dropConfig);
-                var rpcResult = daemon.Create(dropName);
+                var rpcResult = daemon.Create(dropConfig);
                 AssertRpcResult(shouldCreateSucceed, rpcResult);
                 rpcResult = daemon.Finalize();
                 AssertRpcResult(shouldFinalizeSucceed, rpcResult);
@@ -123,8 +120,7 @@ namespace Test.Tool.DropDaemon
             var dropClient = new MockDropClient(dropUrl: url, createFunc: createFunc);
             WithSetup(dropClient, (daemon, etwListener, dropConfig) =>
             {
-                var dropName = GetDropFullName(dropConfig);
-                var rpcResult = daemon.Create(dropName);
+                var rpcResult = daemon.Create(dropConfig);
                 AssertRpcResult(shouldSucceed, rpcResult);
                 var dropEvent = AssertDequeueEtwEvent(etwListener, shouldSucceed, EventKind.DropCreation);
                 Assert.Equal(url, dropEvent.DropUrl);
@@ -142,7 +138,7 @@ namespace Test.Tool.DropDaemon
 
                 // create
                 {
-                    var rpcResult = daemon.Create(dropName);
+                    var rpcResult = daemon.Create(dropConfig);
                     AssertRpcResult(shouldSucceed: false, rpcResult: rpcResult);
                     AssertDequeueEtwEvent(etwListener, succeeded: false, kind: EventKind.DropCreation);
                 }
@@ -161,10 +157,9 @@ namespace Test.Tool.DropDaemon
                 finalizeExceptionFactory: () => new DropServiceException("injected drop service failure"));
             WithSetup(dropClient, (daemon, etwListener, dropConfig) =>
             {
-                var dropName = GetDropFullName(dropConfig);
                 // create
                 {
-                    var rpcResult = daemon.Create(dropName);
+                    var rpcResult = daemon.Create(dropConfig);
                     AssertRpcResult(shouldSucceed: true, rpcResult: rpcResult);
                     AssertDequeueEtwEvent(etwListener, succeeded: true, kind: EventKind.DropCreation);
                 }
@@ -188,15 +183,16 @@ namespace Test.Tool.DropDaemon
 
                 // create
                 {
-                    Assert.Throws<Exception>(() => daemon.Create(dropName));
+                    Assert.Throws<Exception>(() => daemon.Create(dropConfig));
 
                     // etw event must nevertheless be received
                     AssertDequeueEtwEvent(etwListener, succeeded: false, kind: EventKind.DropCreation);
                 }
 
-                // add file
+                // add file - after a failed create, no client is registered so AddFileAsync returns a failed result
                 {
-                    Assert.Throws<Exception>(() => daemon.AddFileAsync(new DropItemForFile(dropName, "file.txt")).GetAwaiter().GetResult());
+                    var result = daemon.AddFileAsync(new DropItemForFile(dropName, "file.txt")).GetAwaiter().GetResult();
+                    XAssert.IsFalse(result.Succeeded, "Expected AddFileAsync to fail when drop was not created.");
                 }
 
 
@@ -209,10 +205,9 @@ namespace Test.Tool.DropDaemon
                 finalizeExceptionFactory: () => new Exception(ExceptionMessage));
             WithSetup(dropClient, (daemon, etwListener, dropConfig) =>
             {
-                var dropName = GetDropFullName(dropConfig);
                 // create
                 {
-                    var rpcResult = daemon.Create(dropName);
+                    var rpcResult = daemon.Create(dropConfig);
                     AssertRpcResult(shouldSucceed: true, rpcResult: rpcResult);
                     AssertDequeueEtwEvent(etwListener, succeeded: true, kind: EventKind.DropCreation);
                 }
@@ -236,9 +231,7 @@ namespace Test.Tool.DropDaemon
             var dropClient = new MockDropClient(createSucceeds: true, finalizeSucceeds: true);
             WithSetup(dropClient, (daemon, etwListener, dropConfig) =>
             {
-                var dropName = GetDropFullName(dropConfig);
-
-                daemon.Create(dropName);
+                daemon.Create(dropConfig);
                 AssertDequeueEtwEvent(etwListener, succeeded: true, kind: EventKind.DropCreation);
 
                 AssertRpcResult(true, daemon.Finalize());
@@ -257,9 +250,7 @@ namespace Test.Tool.DropDaemon
             var dropClient = new MockDropClient(createSucceeds: true, finalizeSucceeds: true);
             WithSetup(dropClient, (daemon, etwListener, dropConfig) =>
             {
-                var dropName = GetDropFullName(dropConfig);
-
-                daemon.Create(dropName);
+                daemon.Create(dropConfig);
                 AssertDequeueEtwEvent(etwListener, succeeded: true, kind: EventKind.DropCreation);
 
                 daemon.RequestStop();
@@ -278,9 +269,7 @@ namespace Test.Tool.DropDaemon
             var dropClient = new MockDropClient(createSucceeds: true, finalizeSucceeds: true);
             WithSetup(dropClient, (daemon, etwListener, dropConfig) =>
             {
-                var dropName = GetDropFullName(dropConfig);
-
-                daemon.Create(dropName);
+                daemon.Create(dropConfig);
                 etwListener.DequeueDropEvent(); // Dequeue create
 
                 AssertRpcResult(true, daemon.Finalize());
@@ -300,8 +289,7 @@ namespace Test.Tool.DropDaemon
             var dropClient = new MockDropClient(createSucceeds: true, finalizeSucceeds: false);
             WithSetup(dropClient, (daemon, etwListener, dropConfig) =>
             {
-                var dropName = GetDropFullName(dropConfig);
-                daemon.Create(dropName);
+                daemon.Create(dropConfig);
                 etwListener.DequeueDropEvent(); // Dequeue create
                 daemon.RequestStop();
                 AssertDequeueEtwEvent(etwListener, succeeded: false, kind: EventKind.DropFinalization);
@@ -334,6 +322,7 @@ namespace Test.Tool.DropDaemon
             WithSetup(dropClient, (daemon, etwListener, dropConfig) =>
             {
                 var dropName = GetDropFullName(dropConfig);
+                daemon.Create(dropConfig);
 
                 var provider = IpcFactory.GetProvider();
                 var connStr = provider.CreateNewConnectionString();
@@ -386,6 +375,8 @@ namespace Test.Tool.DropDaemon
             WithSetup(dropClient, (daemon, etwListener, dropConfig) =>
             {
                 var dropName = GetDropFullName(dropConfig);
+                daemon.Create(dropConfig);
+
                 var ipcProvider = IpcFactory.GetProvider();
                 var ipcExecutor = new LambdaIpcOperationExecutor(op =>
                 {
@@ -432,10 +423,11 @@ namespace Test.Tool.DropDaemon
             WithSetup(dropClient, (daemon, etwListener, dropConfig) =>
             {
                 var dropName = GetDropFullName(dropConfig);
+                daemon.Create(dropConfig);
+
                 var ipcProvider = IpcFactory.GetProvider();
                 var ipcExecutor = new LambdaIpcOperationExecutor(op =>
                 {
-                    // this mock BuildXL server materializes a regular file, which we will treat as a symlink in this test
                     var cmd = ReceiveMaterializeFileCmdAndCheckItMatchesFileId(op.Payload, fileId);
                     File.WriteAllText(filePath, TestFileContent);
                     return IpcResult.Success(cmd.RenderResult(true));
@@ -881,6 +873,157 @@ namespace Test.Tool.DropDaemon
             return new SealedDirectoryFile(fileName, new FileArtifact(new AbsolutePath(1), 1), FileContentInfo.CreateWithUnknownLength(ContentHash.Random()));
         }
 
+        #region ExistingDrop tests
+
+        [Fact]
+        public void TestExistingDropRejectsDuplicateCall()
+        {
+            // Scenario: existingDrop() is called successfully, then existingDrop() is called again for the same drop.
+            // The second call should be rejected.
+            var dropClient = new MockDropClient(createSucceeds: true);
+            WithSetup(dropClient, (daemon, etwListener, dropConfig) =>
+            {
+                // First existingDrop call succeeds (mock GetDropAsync returns a non-finalized DropItem)
+                var existingCommand = global::Tool.ServicePipDaemon.ServicePipDaemon.ParseArgsForIPCCall(
+                    $"existing --service {dropConfig.Service} --name {dropConfig.Name} --generateBuildManifest false --signBuildManifest false",
+                    new UnixParser());
+                var firstResult = existingCommand.Command.ServerAction(existingCommand, daemon).GetAwaiter().GetResult();
+                XAssert.IsTrue(firstResult.Succeeded, $"Expected first existingDrop to succeed. Got: {firstResult.Payload}");
+
+                // Second existingDrop call for the same drop should be rejected
+                var secondResult = existingCommand.Command.ServerAction(existingCommand, daemon).GetAwaiter().GetResult();
+                XAssert.IsFalse(secondResult.Succeeded, "Expected second existingDrop to be rejected for an already-registered drop.");
+                XAssert.IsTrue(secondResult.Payload.Contains("already registered"), $"Expected 'already registered' error message. Got: {secondResult.Payload}");
+            });
+        }
+
+        [Fact]
+        public void TestExistingDropRejectsDropAlreadyCreated()
+        {
+            // Scenario: a drop was created via createDrop(), then existingDrop() is called for the same drop.
+            // This should fail - the user should use the createDrop result directly.
+            var dropClient = new MockDropClient(createSucceeds: true);
+            WithSetup(dropClient, (daemon, etwListener, dropConfig) =>
+            {
+                // Create the drop normally (succeeds because the mock client is registered)
+                var createResult = daemon.Create(dropConfig);
+                AssertRpcResult(true, createResult);
+                etwListener.DequeueDropEvent(); // Dequeue create event
+
+                // Now try to reference the same drop via 'existing' - should be rejected
+                var existingCommand = global::Tool.ServicePipDaemon.ServicePipDaemon.ParseArgsForIPCCall(
+                    $"existing --service {dropConfig.Service} --name {dropConfig.Name} --generateBuildManifest false --signBuildManifest false",
+                    new UnixParser());
+                var ipcResult = existingCommand.Command.ServerAction(existingCommand, daemon).GetAwaiter().GetResult();
+                XAssert.IsFalse(ipcResult.Succeeded, "Expected existingDrop to fail when the drop was already created.");
+                XAssert.IsTrue(ipcResult.Payload.Contains("already registered"),
+                    $"Expected 'already registered' error. Got: {ipcResult.Payload}");
+            });
+        }
+
+        [Fact]
+        public void TestFinalizeOnCompletionFalseSkipsAutoFinalize()
+        {
+            var dropClient = new MockDropClient(createSucceeds: true, finalizeSucceeds: true);
+            var dropConfig = new DropConfig("test", new Uri("file://xyz"), finalizeOnCompletion: false, generateBuildManifest: false);
+            WithSetupCustomConfig(dropClient, dropConfig, (daemon, etwListener) =>
+            {
+                // Reference an existing drop with FinalizeOnCompletion=false
+                var existingCommand = global::Tool.ServicePipDaemon.ServicePipDaemon.ParseArgsForIPCCall(
+                    $"existing --service {dropConfig.Service} --name {dropConfig.Name} --generateBuildManifest false --signBuildManifest false --finalizeOnCompletion false",
+                    new UnixParser());
+                var ipcResult = existingCommand.Command.ServerAction(existingCommand, daemon).GetAwaiter().GetResult();
+                XAssert.IsTrue(ipcResult.Succeeded, $"Expected existingDrop to succeed. Got: {ipcResult.Payload}");
+
+                // RequestStop triggers auto-finalization, but since FinalizeOnCompletion=false, it should be skipped
+                daemon.RequestStop();
+
+                // No finalization event should be emitted
+                Assert.True(etwListener.IsEmpty, "Expected no finalization ETW event when FinalizeOnCompletion is false.");
+            });
+        }
+
+        [Fact]
+        public void TestFinalizeOnCompletionFalseExplicitFinalizeStillWorks()
+        {
+            var dropClient = new MockDropClient(createSucceeds: true, finalizeSucceeds: true);
+            var dropConfig = new DropConfig("test", new Uri("file://xyz"), finalizeOnCompletion: false, generateBuildManifest: false);
+            WithSetupCustomConfig(dropClient, dropConfig, (daemon, etwListener) =>
+            {
+                // Reference an existing drop with FinalizeOnCompletion=false
+                var existingCommand = global::Tool.ServicePipDaemon.ServicePipDaemon.ParseArgsForIPCCall(
+                    $"existing --service {dropConfig.Service} --name {dropConfig.Name} --generateBuildManifest false --signBuildManifest false --finalizeOnCompletion false",
+                    new UnixParser());
+                var ipcResult = existingCommand.Command.ServerAction(existingCommand, daemon).GetAwaiter().GetResult();
+                XAssert.IsTrue(ipcResult.Succeeded, $"Expected existingDrop to succeed. Got: {ipcResult.Payload}");
+
+                // Explicit finalizeDrop call should still succeed even with FinalizeOnCompletion=false
+                var finalizeCommand = global::Tool.ServicePipDaemon.ServicePipDaemon.ParseArgsForIPCCall(
+                    $"finalizeDrop --service {dropConfig.Service} --name {dropConfig.Name}",
+                    new UnixParser());
+                var finalizeResult = finalizeCommand.Command.ServerAction(finalizeCommand, daemon).GetAwaiter().GetResult();
+                XAssert.IsTrue(finalizeResult.Succeeded, "Expected explicit finalizeDrop to succeed. Payload: " + finalizeResult.Payload);
+                AssertDequeueEtwEvent(etwListener, succeeded: true, kind: EventKind.DropFinalization);
+            });
+        }
+
+        [Fact]
+        public void TestFinalizeOnCompletionTrueAutoFinalizeOnStop()
+        {
+            // Verify that with FinalizeOnCompletion=true (default), auto-finalization works for existingDrop
+            var dropClient = new MockDropClient(createSucceeds: true, finalizeSucceeds: true);
+            var dropConfig = new DropConfig("test", new Uri("file://xyz"), finalizeOnCompletion: true, generateBuildManifest: false);
+            WithSetupCustomConfig(dropClient, dropConfig, (daemon, etwListener) =>
+            {
+                // Reference an existing drop with FinalizeOnCompletion=true
+                var existingCommand = global::Tool.ServicePipDaemon.ServicePipDaemon.ParseArgsForIPCCall(
+                    $"existing --service {dropConfig.Service} --name {dropConfig.Name} --generateBuildManifest false --signBuildManifest false --finalizeOnCompletion true",
+                    new UnixParser());
+                var ipcResult = existingCommand.Command.ServerAction(existingCommand, daemon).GetAwaiter().GetResult();
+                XAssert.IsTrue(ipcResult.Succeeded, $"Expected existingDrop to succeed. Got: {ipcResult.Payload}");
+
+                daemon.RequestStop();
+
+                // Finalization should happen on stop
+                AssertDequeueEtwEvent(etwListener, succeeded: true, kind: EventKind.DropFinalization);
+            });
+        }
+
+        [Fact]
+        public void ManifestSigningOnExistingDropIsRejected()
+        {
+            // Verify that generating a build manifest is not supported for an existing drop and that we get the expected error message
+            var dropClient = new MockDropClient(createSucceeds: true, finalizeSucceeds: true);
+            var dropConfig = new DropConfig("test", new Uri("file://xyz"), finalizeOnCompletion: true, generateBuildManifest: false);
+            WithSetupCustomConfig(dropClient, dropConfig, (daemon, etwListener) =>
+            {
+                // Reference an existing drop with GenerateBuildManifest=true
+                var existingCommand = global::Tool.ServicePipDaemon.ServicePipDaemon.ParseArgsForIPCCall(
+                    $"existing --service {dropConfig.Service} --name {dropConfig.Name} --generateBuildManifest true --signBuildManifest false --finalizeOnCompletion true",
+                    new UnixParser());
+                var ipcResult = existingCommand.Command.ServerAction(existingCommand, daemon).GetAwaiter().GetResult();
+                XAssert.IsFalse(ipcResult.Succeeded, $"Expected existingDrop to fail. Got: {ipcResult.Payload}");
+                XAssert.IsTrue(ipcResult.Payload.Contains("manifest generation is not supported"),
+                    $"Expected 'manifest generation is not supported' error. Got: {ipcResult.Payload}");
+            });
+        }
+
+        /// <summary>
+        /// Sets up a daemon with a custom DropConfig (allows testing FinalizeOnCompletion behavior).
+        /// </summary>
+        private void WithSetupCustomConfig(IDropClient dropClient, DropConfig dropConfig, Action<global::Tool.DropDaemon.DropDaemon, DropEtwListener> action)
+        {
+            var etwListener = ConfigureEtwLogging();
+            string moniker = ServicePipDaemon.IpcProvider.RenderConnectionString(IpcMoniker.CreateNew());
+            var daemonConfig = new DaemonConfig(VoidLogger.Instance, moniker: moniker, enableCloudBuildIntegration: false);
+            var dropServiceConfig = new DropServiceConfig();
+            var apiClient = new Client(new MockClient(ipcOperation => IpcResult.Success("true")));
+            using var daemon = new TestableDropDaemon(UnixParser.Instance, daemonConfig, dropServiceConfig, mockDropClient: dropClient, client: apiClient);
+            action(daemon, etwListener);
+        }
+
+        #endregion
+
         private static Client CreateDummyBxlApiClient(IIpcProvider ipcProvider, IpcMoniker moniker)
         {
             return new Client(new MockClient(ipcProvider.GetClient(ipcProvider.RenderConnectionString(moniker), new ClientConfig())));
@@ -952,8 +1095,7 @@ namespace Test.Tool.DropDaemon
             {
                 apiClient = new Client(new MockClient(ipcOperation => IpcResult.Success("true")));
             }
-            var daemon = new global::Tool.DropDaemon.DropDaemon(UnixParser.Instance, daemonConfig, dropServiceConfig, client: apiClient);
-            daemon.RegisterDropClientForTesting(dropConfig, dropClient);
+            using var daemon = new TestableDropDaemon(UnixParser.Instance, daemonConfig, dropServiceConfig, mockDropClient: dropClient, client: apiClient);
             action(daemon, etwListener, dropConfig);
         }
 
@@ -1004,6 +1146,25 @@ namespace Test.Tool.DropDaemon
                     }
                 }
                 return Task.FromResult(SendFn(operation));
+            }
+        }
+
+        /// <summary>
+        /// A testable subclass of DropDaemon that overrides client creation to return a mock.
+        /// </summary>
+        internal class TestableDropDaemon : global::Tool.DropDaemon.DropDaemon
+        {
+            private readonly IDropClient m_mockDropClient;
+
+            public TestableDropDaemon(IParser parser, DaemonConfig daemonConfig, DropServiceConfig dropServiceConfig, IDropClient mockDropClient, Client client = null)
+                : base(parser, daemonConfig, dropServiceConfig, client: client)
+            {
+                m_mockDropClient = mockDropClient;
+            }
+
+            protected override Task<IDropClient> CreateVsoClientAsync(IIpcLogger logger, Client apiClient, DaemonConfig daemonConfig, DropConfig dropConfig)
+            {
+                return Task.FromResult(m_mockDropClient);
             }
         }
     }

@@ -21,9 +21,6 @@ namespace Tool.DropDaemon
         [SuppressMessage("Microsoft.Naming", "CA2204:Spelling of DropD")]
         public static int Main(string[] args)
         {
-            // TODO:#1208464- this can be removed once DropDaemon targets .net 4.7 or newer where TLS 1.2 is enabled by default
-            ServicePointManager.SecurityProtocol = ServicePointManager.SecurityProtocol | SecurityProtocolType.Tls12;
-
             try
             {
                 Console.WriteLine(nameof(DropDaemon) + " started at " + DateTime.UtcNow);

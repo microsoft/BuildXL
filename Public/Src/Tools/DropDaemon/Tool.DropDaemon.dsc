@@ -10,7 +10,7 @@ import { NetFx } from "Sdk.BuildXL";
 
 export namespace DropDaemon {
     @@public 
-    export declare const qualifier: BuildXLSdk.Net8Qualifier;
+    export declare const qualifier: BuildXLSdk.DefaultQualifier;
 
     @@public
     export const exe = !BuildXLSdk.isDropToolingEnabled ? undefined : BuildXLSdk.executable({

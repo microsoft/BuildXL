@@ -28,10 +28,10 @@ export interface CommonArguments extends Transformer.RunnerArguments {
 }
 
 /**
- * VSO Drop settings.
+ * VSO Drop connection and operation settings.
+ * These settings influence how the drop service is accessed and how operations on the drop are performed.
  */
-@@public
-export interface DropSettings {
+export interface DropConnectionSettings {
     /** Service URL. */
     service?: string;
     
@@ -43,9 +43,6 @@ export interface DropSettings {
     
     /** Maximum number of uploads to issue to drop service in parallel. */
     maxParallelUploads?: number;
-    
-    /** Retention period in days for uploaded drops. */
-    retentionDays?: number;
     
     /** Enable drop telemetry. */
     enableTelemetry?: boolean;
@@ -62,6 +59,15 @@ export interface DropSettings {
      *  Note: This env variable must also be forwarded by BuildXL to the daemon, i.e., it must be
      *  included in forwardEnvironmentVars. */
      patEnvironmentVariable?: string;
+}
+
+/**
+ * VSO Drop settings.
+ */
+@@public
+export interface DropSettings extends DropConnectionSettings {
+    /** Retention period in days for uploaded drops. */
+    retentionDays?: number;
 }
 
 /**
@@ -132,10 +138,9 @@ export interface DropOperationArguments extends CommonArguments {
 }
 
 /**
- * Arguments for the 'dropd create' operation.
+ * Settings related to build manifest (SBOM) generation for a drop.
  */
-@@public
-export interface DropCreateArguments extends DropSettings, DaemonSettings, DropOperationArguments {
+export interface DropManifestSettings {
     /** Should build manifests (SBOMs) be created for this drop. */
     generateBuildManifest?: boolean;
  
@@ -154,16 +159,68 @@ export interface DropCreateArguments extends DropSettings, DaemonSettings, DropO
     asyncFinalizePollingIntervalSeconds?: number;
 }
 
+
+/**
+ * Common arguments for all drop acquisition operations (create a drop or reference an existing drop).
+ */
+@@public 
+export interface DropAcquisitionArguments extends DropConnectionSettings, DaemonSettings, DropOperationArguments  {
+}
+
+/**
+ * Arguments for the 'dropd create' operation.
+ */
+@@public
+export interface DropCreateArguments extends DropSettings, DropAcquisitionArguments, DropManifestSettings {
+}
+
+/**
+ * Arguments for the 'dropd existing' operation.
+ * References an already-created drop that has not been finalized.
+ * 
+ * Important: The drop referenced by this call must not be the target of another 
+ * existingDrop() or createDrop() call within the same build. Violating this 
+ * constraint will result in an error.
+ */
+@@public
+export interface DropExistingArguments extends DropAcquisitionArguments {
+    /** 
+     * Whether BuildXL should finalize the drop when the build completes.
+     * Defaults to true. Since this references an existing drop, the caller may
+     * choose not to have BuildXL finalize it (e.g., if another process is responsible
+     * for finalization).
+     */
+    finalizeOnCompletion?: boolean;
+}
+
 /**
  * Result for the 'dropd create' operation.
  */
 @@public
-export interface DropCreateResult extends Result {
+export interface DropAcquisitionResult extends Result {
     /** Info about the started service */
     serviceStartInfo: ServiceStartResult;
 
+    /** Arguments used to create or reference a drop */
+    dropConfig: DropAcquisitionArguments;
+}
+
+/**
+ * Result for the 'dropd create' operation.
+ */
+@@public
+export interface DropCreateResult extends DropAcquisitionResult {
     /** Arguments used to create a drop */
     dropConfig: DropCreateArguments;
+}
+
+/**
+ * Result for the 'dropd existing' operation.
+ */
+@@public
+export interface DropExistingResult extends DropAcquisitionResult {
+    /** Arguments used to reference an existing drop */
+    dropConfig: DropExistingArguments;
 }
 
 /**
@@ -314,6 +371,12 @@ export interface DropRunner {
     /** Invokes 'dropc create'. */
     createDrop: (args: DropCreateArguments) => DropCreateResult;
 
+    /** 
+     * References an already-created, non-finalized drop. The referenced drop must not be the target of 
+     * another existingDrop() or createDrop() call within the same build.
+     */
+    existingDrop: (args: DropExistingArguments) => DropExistingResult;
+
     /** Starts a shared service that can be used to process multiple drops. */
     startService: (args: ServiceStartArguments) => ServiceStartResult;
 
@@ -324,24 +387,24 @@ export interface DropRunner {
      * Adds files to drop. 
      * Preferred method is to use addArtifactsToDrop.
      */
-    addFilesToDrop: (createResult: DropCreateResult, args: DropOperationArguments, fileInfos: FileInfo[]) => Result;
+    addFilesToDrop: (createResult: DropAcquisitionResult, args: DropOperationArguments, fileInfos: FileInfo[]) => Result;
     
     /** 
      * Adds directories to drop. 
      * Preferred method is to use addArtifactsToDrop.
      */
-    addDirectoriesToDrop: (createResult: DropCreateResult, args: DropOperationArguments, directories: DirectoryInfo[]) => Result;
+    addDirectoriesToDrop: (createResult: DropAcquisitionResult, args: DropOperationArguments, directories: DirectoryInfo[]) => Result;
 
     /** 
      * Adds artifacts to drop.
      */
-    addArtifactsToDrop: (createResult: DropCreateResult, args: DropOperationArguments, artifacts: DropArtifactInfo[]) => Result;
+    addArtifactsToDrop: (createResult: DropAcquisitionResult, args: DropOperationArguments, artifacts: DropArtifactInfo[]) => Result;
 
     /**
      * Triggers finalization of a drop. Results of all add* operations associated with the drop must be provided.
      * Calling this API is optional. At the end of a build, all drops that have not been finalized, will be automatically finalized.
      */
-    finalizeDrop: (createResult: DropCreateResult, args: DropOperationArguments, addOperationResults: Result[]) => Result;
+    finalizeDrop: (createResult: DropAcquisitionResult, args: DropOperationArguments, addOperationResults: Result[]) => Result;
 
     // ------------------------------- for legacy type conversion --------------------------
 

@@ -13,6 +13,7 @@ export namespace DropDaemonRunner {
     // for internal use
     interface UberArguments extends DropCreateArguments, ServiceStartResult {
         ipcServerMoniker?: IpcMoniker;
+        finalizeOnCompletion?: boolean;
     }
 
     /**
@@ -32,6 +33,15 @@ export namespace DropDaemonRunner {
             const serviceStartArgs = asServiceStartArgs(args);
             const serviceStartResult = startService(serviceStartArgs);
             return createDropUnderService(serviceStartResult, args);
+        },
+
+        existingDrop: (
+            args: DropExistingArguments
+        )
+        => {
+            const serviceStartArgs = asServiceStartArgs(args);
+            const serviceStartResult = startService(serviceStartArgs);
+            return existingDropUnderService(serviceStartResult, args);
         },
         
         addFilesToDrop: addFiles,
@@ -103,6 +113,12 @@ export namespace DropDaemonRunner {
             args: DropOperationArguments
         )
         => runner.createDrop(
+            applyCloudBuildDefaultsAndSetEnvVars(args)
+        ),
+        existingDrop: (
+            args: DropExistingArguments
+        )
+        => runner.existingDrop(
             applyCloudBuildDefaultsAndSetEnvVars(args)
         ),
         addFilesToDrop: runner.addFilesToDrop,
@@ -241,12 +257,6 @@ export namespace DropDaemonRunner {
             "service must be started first and result of that operation must be provided"
         );
 
-        if (args.dropDomainId !== undefined) {
-            Contract.requires(
-                args.dropDomainId >= 0 && args.dropDomainId <= 255,
-                "DropDomainId value must be within [0..255] interval.");
-        }
-
         Contract.requires(args.service !== undefined || args.dropServiceConfigFile !== undefined,
                 "drop endpoint must be defined, or must be specified in drop config file");
         
@@ -267,7 +277,33 @@ export namespace DropDaemonRunner {
         return <DropCreateResult>{serviceStartInfo: serviceStartResult, dropConfig: args, outputs: result.outputs};
     }
 
-    function addFiles(createResult: DropCreateResult, args: DropOperationArguments, fileInfos: FileInfo[]): Result {
+    function existingDropUnderService(serviceStartResult: ServiceStartResult, args: DropExistingArguments): DropExistingResult {
+        Contract.requires(
+            serviceStartResult !== undefined, 
+            "service must be started first and result of that operation must be provided"
+        );
+
+        Contract.requires(args.service !== undefined || args.dropServiceConfigFile !== undefined,
+                "drop endpoint must be defined, or must be specified in drop config file");
+        
+        Contract.requires(args.name !== undefined || args.dropServiceConfigFile !== undefined,
+                "drop name must be defined, or must be inferrable in drop config file");
+
+        const uberArgs = <UberArguments>args.override<UberArguments>({
+            finalizeOnCompletion: args.finalizeOnCompletion !== undefined ? args.finalizeOnCompletion : true,
+        });
+
+        const result = executeDropdCommand(
+            serviceStartResult,
+            "existing",
+            uberArgs,
+            overrideMustRunOnOrchestrator
+        );
+
+        return <DropExistingResult>{serviceStartInfo: serviceStartResult, dropConfig: args, outputs: result.outputs};
+    }
+
+    function addFiles(createResult: DropAcquisitionResult, args: DropOperationArguments, fileInfos: FileInfo[]): Result {
         Contract.requires(
             fileInfos !== undefined, 
             "file to add to drop must be defined"
@@ -283,7 +319,7 @@ export namespace DropDaemonRunner {
             fileInfos.map(fi => <DropFileInfo>{ file: fi.file, dropPath: fi.dropPath, kind: "file" }));
     }
 
-    function addDirectoriesToDrop(createResult: DropCreateResult, args: DropOperationArguments, directoryInfos: DirectoryInfo[]): Result {
+    function addDirectoriesToDrop(createResult: DropAcquisitionResult, args: DropOperationArguments, directoryInfos: DirectoryInfo[]): Result {
         Contract.requires(
             directoryInfos !== undefined,
             "directories to add to drop must be defined"
@@ -299,7 +335,7 @@ export namespace DropDaemonRunner {
             directoryInfos.map(di => directoryInfoToDropDirectoryInfo(di)));
     }
 
-    function addArtifactsToDrop(createResult: DropCreateResult, args: DropOperationArguments, artifactInfos: DropArtifactInfo[]): Result {
+    function addArtifactsToDrop(createResult: DropAcquisitionResult, args: DropOperationArguments, artifactInfos: DropArtifactInfo[]): Result {
         Contract.requires(
             artifactInfos !== undefined,
             "artifacts to add to drop must be defined"
@@ -378,7 +414,7 @@ export namespace DropDaemonRunner {
         );
     }
 
-    function finalizeDrop(createResult: DropCreateResult, args: DropOperationArguments, addOperationResults: Result[]) : Result {
+    function finalizeDrop(createResult: DropAcquisitionResult, args: DropOperationArguments, addOperationResults: Result[]) : Result {
         Contract.requires(
             createResult !== undefined,
             "result of the 'drop create' operation must be provided"
@@ -513,7 +549,7 @@ export namespace DropDaemonRunner {
                 ),
                 Cmd.option("--domainId ", args.dropDomainId),
                 ...addIf(
-                    command === "create",
+                    command === "create" || command === "existing",
                     Cmd.optionalBooleanFlag("--generateBuildManifest ", args.generateBuildManifest, "true", "false"),
                     Cmd.optionalBooleanFlag("--signBuildManifest ", args.signBuildManifest, "true", "false"),
                     Cmd.optionalBooleanFlag("--uploadBcdeFileToDrop ", args.uploadBcdeFileToDrop, "true", "false"),
@@ -522,6 +558,10 @@ export namespace DropDaemonRunner {
                     Cmd.option("--generateBuildManifest ", "false", Environment.getFlag("BuildXLDisableBuildManifestGeneration")),
                     Cmd.option("--signBuildManifest ", "false", Environment.getFlag("BuildXLDisableBuildManifestSigning")),
                     Cmd.option("--uploadBcdeFileToDrop ", "true", Environment.getFlag("BuildXLEnableUploadBcdeFileToDrop"))
+                ),
+                ...addIf(
+                    command === "existing",
+                    Cmd.optionalBooleanFlag("--finalizeOnCompletion ", args.finalizeOnCompletion, "true", "false")
                 ),
                 Cmd.option("--operationTimeoutMinutes ", args.operationTimeoutMinutes),
                 Cmd.option("--maxOperationRetries ", args.maxOperationRetries),

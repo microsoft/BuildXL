@@ -190,6 +190,22 @@ namespace Tool.DropDaemon
         public Task<DropItem> CreateAsync() => CreateAsync(Token);
 
         /// <summary>
+        ///     Retrieves drop metadata via <see cref="IDropServiceClient.GetDropAsync"/>.
+        ///     Returns null if the drop does not exist.
+        /// </summary>
+        public async Task<DropItem> GetDropAsync()
+        {
+            try
+            {
+                return await m_dropClient.GetDropAsync(DropName, Token);
+            }
+            catch (DropNotFoundException)
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
         ///     Calculates the hash for the given file (if not given) and queues it up
         ///     to be batch-processed later (<see cref="ProcessAddFilesAsync"/>).
         /// </summary>

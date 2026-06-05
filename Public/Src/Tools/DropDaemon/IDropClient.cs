@@ -34,6 +34,11 @@ namespace Tool.DropDaemon
         Task<DropItem> CreateAsync();
 
         /// <summary>
+        /// Task for retrieving drop metadata. Returns null if the drop does not exist.
+        /// </summary>
+        Task<DropItem> GetDropAsync();
+
+        /// <summary>
         /// Task for performing 'drop addfile'.
         /// </summary>
         Task<AddFileResult> AddFileAsync([NotNull]IDropItem dropItem);

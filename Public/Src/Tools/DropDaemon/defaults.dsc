@@ -5,7 +5,7 @@ import * as BuildXLSdk from "Sdk.BuildXL";
 import * as Deployment from "Sdk.Deployment";
 import * as Managed from "Sdk.Managed";
 
-export declare const qualifier: BuildXLSdk.Net8Qualifier;
+export declare const qualifier: BuildXLSdk.DefaultQualifier;
 
 @@public
 export const deployment = BuildXLSdk.isDropToolingEnabled ? DropDaemon.deployment : undefined;

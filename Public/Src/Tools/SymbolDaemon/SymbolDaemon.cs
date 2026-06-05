@@ -35,7 +35,7 @@ namespace Tool.SymbolDaemon
     /// <summary>
     /// Daemon responsible for handling symbol-related requests.
     /// </summary>
-    public sealed class SymbolDaemon : ServicePipDaemon.FinalizedByCreatorServicePipDaemon, IDisposable, IIpcOperationExecutor
+    public sealed class SymbolDaemon : ServicePipDaemon.FinalizedByCreatorServicePipDaemon<SymbolConfig>, IDisposable, IIpcOperationExecutor
     {
         private const string LogFileName = "SymbolDaemon";
         private const int s_servicePointParallelism = 200;
@@ -920,7 +920,7 @@ namespace Tool.SymbolDaemon
         /// <summary>
         /// Creates a symbol request.
         /// </summary>
-        protected override async Task<IIpcResult> DoCreateAsync(string name = null)
+        protected override async Task<IIpcResult> DoCreateAsync(SymbolConfig symbolConfig = default)
         {
             var dropCreationEvent = await HandleResultAndSendSymbolEtwEventAsync(InternalCreateAsync());
 
@@ -1193,6 +1193,14 @@ namespace Tool.SymbolDaemon
                 // The value is only used for debugging, so it's not a big deal if we fail to create the string.
                 return $"Failed to serialized Request. Exception: {e}";
             }
+        }
+
+        /// <summary>
+        /// Not implemented. There is no codepath in the symbol daemon that would require referencing an existing symbol request.
+        /// </summary>
+        protected override Task<IIpcResult> DoReferenceExistingAsync(SymbolConfig symbolConfig = default)
+        {
+            throw new NotImplementedException();
         }
     }
 }

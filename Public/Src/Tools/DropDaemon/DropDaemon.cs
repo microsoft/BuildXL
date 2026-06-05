@@ -49,7 +49,7 @@ namespace Tool.DropDaemon
     /// <summary>
     /// Responsible for accepting and handling TCP/IP connections from clients.
     /// </summary>
-    public sealed class DropDaemon : ServicePipDaemon.FinalizedByCreatorServicePipDaemon, IDisposable, IIpcOperationExecutor
+    public class DropDaemon : ServicePipDaemon.FinalizedByCreatorServicePipDaemon<DropConfig>, IDisposable, IIpcOperationExecutor
     {
         private const int ServicePointParallelismForDrop = 200;
 
@@ -343,6 +343,14 @@ namespace Tool.DropDaemon
             DefaultValue = DropConfig.DefaultUploadBcdeFileToDrop,
         });
 
+        internal static readonly BoolOption FinalizeOnCompletion = RegisterConfigOption(new BoolOption("finalizeOnCompletion")
+        {
+            ShortName = "foc",
+            HelpText = "Whether BuildXL should finalize this drop when the build completes",
+            IsRequired = false,
+            DefaultValue = true,
+        });
+
         internal static readonly StrOption SessionId = RegisterConfigOption(new StrOption("sessionId")
         {
             ShortName = "sid",
@@ -492,9 +500,41 @@ namespace Tool.DropDaemon
                    return new IpcResult(IpcResultStatus.InvalidInput, errMessage);
                }
 
-               daemon.EnsureVsoClientIsCreated(dropConfig);
-               IIpcResult result = await daemon.CreateAsync(name);
+               IIpcResult result = await daemon.CreateAsync(dropConfig);
                logger.Info($"[CREATE]: {result}");
+               return result;
+           });
+
+        internal static readonly Command ExistingDropCmd = RegisterCommand(
+           name: "existing",
+           description: "[RPC] References an already-created, non-finalized drop.",
+           options: ConfigOptions,
+           clientAction: SyncRPCSend,
+           serverAction: async (conf, dropDaemon) =>
+           {
+               var dropConfig = CreateDropConfig(conf);
+               var daemon = dropDaemon as DropDaemon;
+               var name = FullyQualifiedDropName(dropConfig);
+               var logger = daemon.GetDropSpecificLogger(dropConfig);
+
+               logger.Info($"[EXISTING]: Referencing existing drop at '{name}'");
+               // DScript does not expose a way to turn this on for the existingDrop() case, but let's be defensive about it
+               if (dropConfig.GenerateBuildManifest)
+               {
+                   logger.Info($"[EXISTING]: Build manifest generation is not supported when referencing an existing drop '{name}'");
+                   return new IpcResult(IpcResultStatus.InvalidInput, "Build manifest generation is not supported when referencing an existing drop");
+               }
+
+               IIpcResult result = await daemon.ReferenceExistingAsync(dropConfig);
+               if (result.Succeeded)
+               {
+                   logger.Info($"[EXISTING]: Successfully referenced existing drop '{name}'.");
+               }
+               else
+               {
+                   logger.Error($"[EXISTING]: Failed to reference drop '{name}'. Details: {result.Payload}");
+               }
+
                return result;
            });
 
@@ -671,34 +711,85 @@ namespace Tool.DropDaemon
         /// In all cases emits an appropriate <see cref="DropCreationEvent"/> indicating the
         /// result of this operation.
         /// </summary>
-        protected override async Task<IIpcResult> DoCreateAsync(string name)
+        protected override async Task<IIpcResult> DoCreateAsync(DropConfig dropConfig = default)
         {
+            var name = FullyQualifiedDropName(dropConfig);
             if (name == null)
             {
                 return new IpcResult(IpcResultStatus.ExecutionError, "Name cannot be null when creating a drop.");
             }
 
-            if (!m_vsoClients.TryGetValue(name, out var configAndClient))
-            {
-                return new IpcResult(IpcResultStatus.ExecutionError, $"Could not find VsoClient for a provided drop name: '{name}'");
-            }
+            var logger = GetDropSpecificLogger(dropConfig);
+            var dropClientTask = CreateVsoClientAsync(logger, ApiClient, Config, dropConfig);
+            var dropClient = await dropClientTask;
 
             DropCreationEvent dropCreationEvent =
                 await SendDropEtwEventAsync(
-                    WrapDropErrorsIntoDropEtwEvent(() => InternalCreateAsync(configAndClient.lazyVsoClientTask.Value)),
-                    configAndClient.lazyVsoClientTask.Value);
+                    WrapDropErrorsIntoDropEtwEvent(() => InternalCreateAsync(dropClientTask)),
+                    dropClientTask);
 
             if (dropCreationEvent.Succeeded)
             {
-                return IpcResult.Success(I($"Drop '{configAndClient.dropConfig.Name}' created."));
+                RegisterVsoClient(dropConfig, new Lazy<Task<IDropClient>>(() => dropClientTask));
+                return IpcResult.Success(I($"Drop '{dropConfig.Name}' created."));
             }
             else
             {
-                // Remove the client so finalization and telemetry upload is skipped for this drop.
-                m_vsoClients.RemoveKey(name);
-                (await configAndClient.lazyVsoClientTask.Value).Dispose();
+                dropClient.Dispose();
                 return new IpcResult(ParseIpcStatus(dropCreationEvent.AdditionalInformation), dropCreationEvent.ErrorMessage);
             }
+        }
+
+        /// <inheritdoc/>
+        protected override async Task<IIpcResult> DoReferenceExistingAsync(DropConfig dropConfig = default)
+        {
+            var name = FullyQualifiedDropName(dropConfig);
+            if (name == null)
+            {
+                return new IpcResult(IpcResultStatus.ExecutionError, "Name cannot be null when referencing an existing drop.");
+            }
+
+            // Reject fast if this drop is already registered (i.e., was already the target of a create or existing call)
+            if (m_vsoClients.ContainsKey(name))
+            {
+                var errMsg = $"Drop '{name}' is already registered. A drop cannot be the target of multiple createDrop() or existingDrop() calls.";
+                return new IpcResult(IpcResultStatus.InvalidInput, errMsg);
+            }
+
+            var logger = GetDropSpecificLogger(dropConfig);
+
+            // Create the client independently for validation — do NOT register in m_vsoClients yet, we
+            // still need to know whether the drop exists/it is not finalized. This is 
+            // to avoid a race where a concurrent create/existing sees a temporarily registered entry.
+            var dropClientTask = CreateVsoClientAsync(logger, ApiClient, Config, dropConfig);
+            var dropClient = await dropClientTask;
+
+            // Verify the drop exists and is not finalized
+            var dropItem = await dropClient.GetDropAsync();
+            if (dropItem == null)
+            {
+                dropClient.Dispose();
+                var errMsg = $"existingDrop() failed: the drop '{name}' does not exist.";
+                return new IpcResult(IpcResultStatus.InvalidInput, errMsg);
+            }
+
+            if (IsDropFinalized(dropItem))
+            {
+                dropClient.Dispose();
+                var errMsg = $"existingDrop() failed: the drop '{name}' exists but is already finalized (status: {GetDropFinalizedStatus(dropItem)}). existingDrop() can only reference non-finalized drops.";
+                return new IpcResult(IpcResultStatus.InvalidInput, errMsg);
+            }
+
+            // Validation passed — atomically register the client.
+            if (!RegisterVsoClient(dropConfig, new Lazy<Task<IDropClient>>(() => dropClientTask)))
+            {
+                // We lost a race and some other call added this name already, dispose the client we created and report an error.
+                dropClient.Dispose();
+                var errMsg = $"Drop '{name}' is already registered. A drop cannot be the target of multiple createDrop() or existingDrop() calls.";
+                return new IpcResult(IpcResultStatus.InvalidInput, errMsg);
+            }
+
+            return IpcResult.Success(I($"Drop '{name}' referenced."));
         }
 
         /// <summary>
@@ -749,6 +840,7 @@ namespace Tool.DropDaemon
             var tasks = m_vsoClients.Values.Select(async client =>
                 {
                     await Task.Yield();
+
                     var dropClient = await client.lazyVsoClientTask.Value;
                     // return early if we have already finalized this drop
                     if (dropClient.AttemptedFinalization)
@@ -1177,6 +1269,12 @@ namespace Tool.DropDaemon
         {
             var finalizationTasks = m_vsoClients.Values.Select(async client =>
                {
+                   // Skip finalization for drops that have FinalizeOnCompletion set to false
+                   if (!client.dropConfig.FinalizeOnCompletion)
+                   {
+                       return IpcResult.Success(I($"Drop '{client.dropConfig.Name}' has FinalizeOnCompletion=false; skipping finalization."));
+                   }
+
                    var dropClient = await client.lazyVsoClientTask.Value;
                    if (dropClient.AttemptedFinalization)
                    {
@@ -1557,6 +1655,7 @@ namespace Tool.DropDaemon
                 personalAccessTokenEnv: conf.Get(PersonalAccessTokenEnv),
                 uploadBcdeFileToDrop: conf.Get(UploadBcdeFileToDrop),
                 sessionId: sessionId,
+                finalizeOnCompletion: conf.Get(FinalizeOnCompletion),
                 enableAsyncFinalize: conf.Get(EnableAsyncFinalize),
                 asyncFinalizePollingIntervalSeconds: conf.Get(AsyncFinalizePollingIntervalSeconds));
         }
@@ -1879,33 +1978,81 @@ namespace Tool.DropDaemon
             }).Item.Value.GetValueAsync();
         }
 
-        internal void RegisterDropClientForTesting(DropConfig config, IDropClient client)
-        {
-            var dropName = FullyQualifiedDropName(config);
-            m_vsoClients.Add(dropName, (config, new Lazy<Task<IDropClient>>(() => Task.FromResult(client))));
-            m_dropSpecificLoggers.Add(dropName, new Lazy<IIpcLogger>(VoidLogger.Instance));
-        }
-
         private void EnsureVsoClientIsCreated(DropConfig dropConfig)
         {
-            var name = FullyQualifiedDropName(dropConfig);
             var logger = GetDropSpecificLogger(dropConfig);
+            var lazyVsoClient = new Lazy<Task<IDropClient>>(() => CreateVsoClientAsync(logger, ApiClient, Config, dropConfig));
+
+            RegisterVsoClient(dropConfig, lazyVsoClient);
+        }
+
+        /// <summary>
+        /// Registers a task that creates an IVsoClient for a given DropConfig.
+        /// </summary>
+        /// <returns>False if the drop client was already registered, true otherwise.</returns>
+        private bool RegisterVsoClient(DropConfig dropConfig, Lazy<Task<IDropClient>> lazyDropClientTask)
+        {
+            var name = FullyQualifiedDropName(dropConfig);
             var getOrAddResult = m_vsoClients.GetOrAdd(
                 name,
-                (logger: logger, apiClient: ApiClient, daemonConfig: Config, dropConfig: dropConfig),
+                (dropConfig: dropConfig, lazyDropClientTask: lazyDropClientTask),
                 static (dropName, data) =>
                 {
-                    var tsk = new Lazy<Task<IDropClient>>(() => Task.Run(() =>
-                    {
-                        return (IDropClient)new VsoClient(data.logger, data.apiClient, data.daemonConfig, data.dropConfig);
-                    }));
-                    return (data.dropConfig, tsk);
+                    return (data.dropConfig, data.lazyDropClientTask);
                 });
 
             // if it's a freshly added VsoClient, start the task
             if (!getOrAddResult.IsFound)
             {
                 getOrAddResult.Item.Value.lazyVsoClientTask.Value.Forget();
+            }
+
+            return !getOrAddResult.IsFound;
+        }
+
+        /// <summary>
+        /// Creates a VSO client asynchronously.
+        /// </summary>
+        /// <remarks>
+        /// This method can be overridden in derived classes to provide custom behavior for creating VSO clients (mostly tests).
+        /// </remarks>
+        protected virtual Task<IDropClient> CreateVsoClientAsync(IIpcLogger logger, Client apiClient, DaemonConfig daemonConfig, DropConfig dropConfig)
+        {
+            return Task.Run(() =>
+            {
+                return (IDropClient)new VsoClient(logger, apiClient, daemonConfig, dropConfig);
+            });
+        }
+
+        /// <summary>
+        /// Checks whether a drop is finalized. A null or unset FinalizedStatus is treated as not finalized (Pending).
+        /// </summary>
+        private static bool IsDropFinalized(DropItem dropItem)
+        {
+            try
+            {
+                return dropItem.FinalizedStatus != DropCommitStatus.Pending;
+            }
+            catch (ArgumentNullException)
+            {
+                // FinalizedStatus getter throws when the backing field is null (not yet set).
+                // This is mostly about guarding for tests that inject a mock drop item with a null FinalizedStatus.
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Safely retrieves the FinalizedStatus string for error messages.
+        /// </summary>
+        private static string GetDropFinalizedStatus(DropItem dropItem)
+        {
+            try
+            {
+                return dropItem.FinalizedStatus.ToString();
+            }
+            catch (ArgumentNullException)
+            {
+                return "Unknown";
             }
         }
 

@@ -557,7 +557,17 @@ export namespace DropDaemonRunner {
                     // Do this last to override previous options (which may come from args or from the config file).
                     Cmd.option("--generateBuildManifest ", "false", Environment.getFlag("BuildXLDisableBuildManifestGeneration")),
                     Cmd.option("--signBuildManifest ", "false", Environment.getFlag("BuildXLDisableBuildManifestSigning")),
-                    Cmd.option("--uploadBcdeFileToDrop ", "true", Environment.getFlag("BuildXLEnableUploadBcdeFileToDrop"))
+                    Cmd.option("--uploadBcdeFileToDrop ", "true", Environment.getFlag("BuildXLEnableUploadBcdeFileToDrop")),
+                    // Async finalize options are only relevant during 'create' — the DropConfig (including
+                    // EnableAsyncFinalize) is captured by the VsoClient at creation time and used during finalization.
+                    // Passing these flags to other commands (e.g., 'finalize') causes a parse error because those
+                    // commands don't register ConfigOptions.
+                    Cmd.optionalBooleanFlag("--enableAsyncFinalize ",
+                        Environment.hasVariable("BuildXLEnableAsyncDropFinalization")
+                            ? Environment.getFlag("BuildXLEnableAsyncDropFinalization")
+                            : args.enableAsyncFinalize,
+                        "true", "false"),
+                    Cmd.option("--asyncFinalizePollingIntervalSeconds ", args.asyncFinalizePollingIntervalSeconds)
                 ),
                 ...addIf(
                     command === "existing",
@@ -566,13 +576,6 @@ export namespace DropDaemonRunner {
                 Cmd.option("--operationTimeoutMinutes ", args.operationTimeoutMinutes),
                 Cmd.option("--maxOperationRetries ", args.maxOperationRetries),
                 Cmd.option("--PersonalAccessTokenEnv ", args.patEnvironmentVariable),
-                // If env var is set, it takes priority (1=enable, 0=disable). Otherwise use the arg value.
-                Cmd.optionalBooleanFlag("--enableAsyncFinalize ",
-                    Environment.hasVariable("BuildXLEnableAsyncDropFinalization")
-                        ? Environment.getFlag("BuildXLEnableAsyncDropFinalization")
-                        : args.enableAsyncFinalize,
-                    "true", "false"),
-                Cmd.option("--asyncFinalizePollingIntervalSeconds ", args.asyncFinalizePollingIntervalSeconds),
             ],
             consoleOutput: outDir.combine(`${nametag}-stdout.txt`),
             dependencies: [

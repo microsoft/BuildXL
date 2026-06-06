@@ -52,6 +52,5 @@ namespace Core {
             ),
         ],
 
-        assemblyBindingRedirects: BuildXLSdk.cacheBindingRedirects()
     });
 }

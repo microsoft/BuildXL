@@ -17,7 +17,6 @@ export namespace DropDaemon {
         assemblyName: "DropDaemon",
         rootNamespace: "Tool.DropDaemon",
         appConfig: f`DropDaemon.exe.config`,
-        assemblyBindingRedirects: dropDaemonBindingRedirects(),
         sources: globR(d`.`, "*.cs"),
         references: [
             importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
@@ -121,34 +120,6 @@ export namespace DropDaemon {
     @@public
     export function selectDeployment(evaluationOnly: boolean) : Deployment.Definition {
         return evaluationOnly? evaluationOnlyDeployment : deployment;
-    }
-
-    @@public
-    export function dropDaemonBindingRedirects() : Managed.AssemblyBindingRedirect[] {
-        return [
-            ...BuildXLSdk.cacheBindingRedirects(),
-            {
-                name: "Newtonsoft.Json",
-                publicKeyToken: "30ad4fe6b2a6aeed",
-                culture: "neutral",
-                oldVersion: "0.0.0.0-13.0.0.0",
-                newVersion: "13.0.0.0", // Corresponds to { id: "Newtonsoft.Json", version: "13.0.1" }
-            },
-            {
-                name: "System.Text.Json",
-                publicKeyToken: "cc7b13ffcd2ddd51",
-                culture: "neutral",
-                oldVersion: "0.0.0.0-8.0.0.0",
-                newVersion: "8.0.0.0"
-            },
-            {
-                name: "System.Text.Encodings.Web",
-                publicKeyToken: "cc7b13ffcd2ddd51",
-                culture: "neutral",
-                oldVersion: "0.0.0.0-8.0.0.0",
-                newVersion: "8.0.0.0"
-            }
-        ];
     }
 
     @@public

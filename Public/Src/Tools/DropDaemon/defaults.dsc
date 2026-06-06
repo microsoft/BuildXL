@@ -22,11 +22,6 @@ export function selectDeployment(evaluationOnly: boolean) : Deployment.Definitio
 } 
 
 @@public
-export function dropDaemonBindingRedirects() : Managed.AssemblyBindingRedirect[] {
-    return BuildXLSdk.isDropToolingEnabled ? DropDaemon.dropDaemonBindingRedirects() : undefined;
-} 
-
-@@public
 export function dropDaemonSbomPackages() : Managed.ManagedNugetPackage[] {
     return BuildXLSdk.isDropToolingEnabled ? DropDaemon.dropDaemonSbomPackages() : undefined;
 } 

@@ -21,6 +21,19 @@ namespace Tool.CloudTestClient
     }
 
     /// <summary>
+    /// CloudTest API environment, determining the base URL for API calls.
+    /// </summary>
+    public enum CloudTestEnvironment
+    {
+        /// <summary>Production: https://api.cloudtest.microsoft.com</summary>
+        Prod,
+        /// <summary>Development: https://api.dev.cloudtest.microsoft.com</summary>
+        Dev,
+        /// <summary>Pre-production: https://api.ppe.cloudtest.microsoft.com</summary>
+        PPE,
+    }
+
+    /// <summary>
     /// Represents a job definition with a name and an optional explicit ID.
     /// When the ID is null, a unique GUID will be auto-generated.
     /// </summary>
@@ -37,6 +50,12 @@ namespace Tool.CloudTestClient
         /// The operational mode.
         /// </summary>
         public CloudTestMode Mode { get; }
+
+        /// <summary>
+        /// CloudTest API environment. Determines the base URL for API calls.
+        /// Default is Prod.
+        /// </summary>
+        public CloudTestEnvironment Environment { get; } = CloudTestEnvironment.Prod;
 
         /// <summary>
         /// Path to the JSON file containing the request body.
@@ -199,6 +218,22 @@ namespace Tool.CloudTestClient
                         if (!int.TryParse(opt.Value, out timeoutMinutes) || timeoutMinutes <= 0)
                         {
                             throw Error($"Invalid timeout value '{opt.Value}'. Must be a positive integer (minutes).");
+                        }
+                        break;
+                    case "ENVIRONMENT":
+                        switch (opt.Value?.ToUpperInvariant())
+                        {
+                            case "PROD":
+                                Environment = CloudTestEnvironment.Prod;
+                                break;
+                            case "DEV":
+                                Environment = CloudTestEnvironment.Dev;
+                                break;
+                            case "PPE":
+                                Environment = CloudTestEnvironment.PPE;
+                                break;
+                            default:
+                                throw Error($"Invalid environment value '{opt.Value}'. Must be one of: prod, dev, ppe.");
                         }
                         break;
                     case "DISPLAYNAME":

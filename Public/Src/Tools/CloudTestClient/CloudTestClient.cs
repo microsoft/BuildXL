@@ -38,9 +38,15 @@ namespace Tool.CloudTestClient
         private static readonly TimeSpan s_completionPollInterval = TimeSpan.FromSeconds(20);
 
         /// <summary>
-        /// CloudTest production API base URL.
+        /// Returns the CloudTest API base URL for the given environment.
         /// </summary>
-        private const string BaseUrl = "https://api.prod.cloudtest.microsoft.com";
+        private static string GetBaseUrl(CloudTestEnvironment environment) => environment switch
+        {
+            CloudTestEnvironment.Prod => "https://api.cloudtest.microsoft.com",
+            CloudTestEnvironment.Dev => "https://api.dev.cloudtest.microsoft.com",
+            CloudTestEnvironment.PPE => "https://api.ppe.cloudtest.microsoft.com",
+            _ => throw new ArgumentOutOfRangeException(nameof(environment), environment, $"Unknown CloudTest environment '{environment}'."),
+        };
 
         private CloudTestClient() : base("CloudTestClient")
         {
@@ -101,6 +107,7 @@ namespace Tool.CloudTestClient
                 }
 
                 Log($"Timeout set to {arguments.Timeout.TotalMinutes} minutes (deadline: {deadline:u})");
+                Log($"Environment: {arguments.Environment} ({GetBaseUrl(arguments.Environment)})");
 
                 using var httpClient = new HttpClient();
                 httpClient.Timeout = arguments.Timeout;
@@ -137,7 +144,8 @@ namespace Tool.CloudTestClient
         {
             // Step 1: Read and submit the session
             string body = await File.ReadAllTextAsync(arguments.BodyFile);
-            string submitUrl = $"{BaseUrl}/api/tenants/{arguments.Tenant}/sessions";
+            string baseUrl = GetBaseUrl(arguments.Environment);
+            string submitUrl = $"{baseUrl}/api/tenants/{arguments.Tenant}/sessions";
 
             Log($"Submitting session to {submitUrl}");
             var submitResponse = await PostAsync(httpClient, submitUrl, body);
@@ -176,7 +184,7 @@ namespace Tool.CloudTestClient
             Log($"Session ID written to {arguments.SessionIdFile}");
 
             // Step 2: Poll for session readiness
-            string readyUrl = $"{BaseUrl}/api/tenants/{arguments.Tenant}/sessions/{sessionId}/Ready";
+            string readyUrl = $"{baseUrl}/api/tenants/{arguments.Tenant}/sessions/{sessionId}/Ready";
             Log($"Polling for session readiness at {readyUrl}");
 
             int readyResult = await PollAsync(
@@ -210,7 +218,8 @@ namespace Tool.CloudTestClient
 
         private Task<int> WaitForSessionCompletionAsync(HttpClient httpClient, CloudTestClientArgs arguments, DateTime deadline)
         {
-            string statusUrl = $"{BaseUrl}/api/tenants/{arguments.Tenant}/sessions/{arguments.SessionId}";
+            string baseUrl = GetBaseUrl(arguments.Environment);
+            string statusUrl = $"{baseUrl}/api/tenants/{arguments.Tenant}/sessions/{arguments.SessionId}";
             Log($"Polling for session completion at {statusUrl}");
 
             return PollAsync(
@@ -250,7 +259,8 @@ namespace Tool.CloudTestClient
         private async Task<int> UpdateDynamicJobAsync(HttpClient httpClient, CloudTestClientArgs arguments)
         {
             string body = await File.ReadAllTextAsync(arguments.BodyFile);
-            string url = $"{BaseUrl}/api/tenants/{arguments.Tenant}/sessions/{arguments.SessionId}/UpdateDynamicJob";
+            string baseUrl = GetBaseUrl(arguments.Environment);
+            string url = $"{baseUrl}/api/tenants/{arguments.Tenant}/sessions/{arguments.SessionId}/UpdateDynamicJob";
 
             Log($"Updating dynamic job at {url}");
             string response = await PostAsync(httpClient, url, body);
@@ -265,7 +275,8 @@ namespace Tool.CloudTestClient
 
         private async Task<int> CancelSessionAsync(HttpClient httpClient, CloudTestClientArgs arguments)
         {
-            string url = $"{BaseUrl}/api/tenants/{arguments.Tenant}/sessions/{arguments.SessionId}/cancel";
+            string baseUrl = GetBaseUrl(arguments.Environment);
+            string url = $"{baseUrl}/api/tenants/{arguments.Tenant}/sessions/{arguments.SessionId}/cancel";
 
             Log($"Cancelling session at {url}");
             var response = await PostAsync(httpClient, url, content: null);
@@ -462,6 +473,11 @@ USAGE: CloudTestClient /mode:<mode> [options]
                      generateUpdateDynamicJobConfig, waitForSessionCompletion.
   /tenant            Required. CloudTest tenant name.
   /timeout           Optional. Overall timeout in minutes (default: 5).
+  /environment       Optional. CloudTest API environment: prod, dev, ppe
+                     (default: prod).
+                       prod -> [https://api.cloudtest.microsoft.com](https://api.cloudtest.microsoft.com)
+                       dev  -> [https://api.dev.cloudtest.microsoft.com](https://api.dev.cloudtest.microsoft.com)
+                       ppe  -> [https://api.ppe.cloudtest.microsoft.com](https://api.ppe.cloudtest.microsoft.com)
 
 -- createSession ------------------------------------------------------------------
   /bodyFile          Required. Path to JSON request body.

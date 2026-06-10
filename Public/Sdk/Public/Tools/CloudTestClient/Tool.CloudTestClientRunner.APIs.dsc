@@ -44,6 +44,8 @@ namespace APIs {
         tokenEnvVar: string;
         /** Overall timeout in minutes. Default: 5. */
         timeoutMinutes?: number;
+        /** CloudTest API environment: "prod" (default), "dev", or "ppe". */
+        environment?: "prod" | "dev" | "ppe";
         /** Additional pip dependencies. */
         dependencies?: Transformer.InputArtifact[];
         /** Additional environment variables to pass. */
@@ -153,6 +155,7 @@ namespace APIs {
             Cmd.option("/bodyFile:", Artifact.input(args.bodyFile)),
             Cmd.option("/sessionIdFile:", Artifact.output(sessionIdFile)),
             Cmd.option("/timeout:", args.timeoutMinutes),
+            Cmd.option("/environment:", args.environment),
         ];
 
         // The pip timeout is a property of the executing tool. Let's make sure it is not below the timeout the user is willing to wait for
@@ -240,6 +243,7 @@ namespace APIs {
             Cmd.option("/tokenEnvVar:", args.tokenEnvVar),
             Cmd.option("/bodyFile:", Artifact.input(bodyFile)),
             Cmd.option("/timeout:", args.timeoutMinutes),
+            Cmd.option("/environment:", args.environment),
             ...sessionIdArgs(sessionId),
         ];
 

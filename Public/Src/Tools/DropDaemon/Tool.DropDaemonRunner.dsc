@@ -143,28 +143,11 @@ export namespace DropDaemonRunner {
             /** Service URL. */
             service: service,
 
-            /** Size of batches in which to send 'associate' requests to drop service. */
-            batchSize: 5,
-
-            /** Maximum time in milliseconds before triggering a batch 'associate' request. */
-            nagleTimeMillis: 2000,
-
             /** Retention period in days for uploaded drops. */
             retentionDays: 7,
 
-            // DaemonSettings
-            /** Maximum number of clients DropDaemon should process concurrently. */
-            maxConcurrentClients: 5,
-
             /** Verbose logging. */
             verbose: true,
-
-            // DropOperationArguments extends CommonArguments
-            /** Number of retries to connect to a running DropDaemon process. */
-            maxConnectRetries: 20,
-
-            /** Delay between retries to connect to a running DropDaemon process. */
-            connectRetryDelayMillis: 3000,
 
             /** Request name. */
             name: dropName,

@@ -344,7 +344,7 @@ namespace BuildXL.Utilities.Core
             }
             else
             {
-                if (buffer2[index1] != Utf16Marker)
+                if (buffer2[index2] != Utf16Marker)
                 {
                     // different marker bytes
                     return false;

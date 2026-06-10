@@ -293,6 +293,62 @@ namespace Test.BuildXL.Utilities
         }
 
         [Fact]
+        public void CaseInsensitiveEqualsAcrossBuffers()
+        {
+            // Regression test for a bug in CaseInsensitiveEquals where the second buffer's
+            // Utf16Marker check used the first string's index. When two distinct StringIds
+            // for case-insensitively-equal UTF-16-stored strings landed in different byte
+            // buffers (different chunks), the marker check would read an unrelated byte in
+            // buffer2 at offset index1; if that byte happened to be non-zero, the method
+            // would incorrectly return false. This manifested as path component dedup
+            // failures for non-ASCII path components (e.g. CJK characters) once a
+            // PathTable's underlying StringTable had grown across multiple chunks, leading
+            // in turn to seal-membership lookup misses and spurious DFAs.
+            var st = new StringTable(0);
+
+            // Pad with enough content to force allocation beyond the initial byte buffer
+            // chunk (StringTable.BytesPerBuffer = 2 MiB). Each pad string is large enough
+            // that we only need a handful of inserts to span multiple chunks.
+            var padStrings = new List<StringId>();
+            int padCharCount = StringTable.BytesPerBuffer / 4;
+            for (int i = 0; i < 12; i++)
+            {
+                // Distinct content per pad string so the table doesn't dedup.
+                var sb = new StringBuilder(padCharCount);
+                sb.Append('p');
+                sb.Append(i.ToString("D4"));
+                sb.Append('x', padCharCount - sb.Length);
+                padStrings.Add(st.AddString(sb.ToString()));
+            }
+
+            // Insert two UTF-16 strings that are case-insensitively equal but
+            // case-sensitively distinct. The padding above guarantees these two ids
+            // do not co-exist in m_byteBuffers[0].
+            var id1 = st.AddString("abc\u4E2D\u6587\u4E2D");  // "abc中文中"
+            // Add more padding between to maximize odds id1 and id2 land in different chunks.
+            for (int i = 12; i < 24; i++)
+            {
+                var sb = new StringBuilder(padCharCount);
+                sb.Append('q');
+                sb.Append(i.ToString("D4"));
+                sb.Append('y', padCharCount - sb.Length);
+                padStrings.Add(st.AddString(sb.ToString()));
+            }
+            var id2 = st.AddString("ABC\u4E2D\u6587\u4E2D");  // "ABC中文中"
+
+            XAssert.AreNotEqual(id1, id2, "case-sensitive distinct strings must produce distinct StringIds");
+            XAssert.IsTrue(st.CaseInsensitiveEquals(id1, id2),
+                "CaseInsensitiveEquals must return true for case-insensitively-equal UTF-16 strings regardless of which buffers they landed in");
+
+            // Symmetric direction must also hold.
+            XAssert.IsTrue(st.CaseInsensitiveEquals(id2, id1));
+
+            // Sanity: distinct UTF-16 content must still compare unequal.
+            var id3 = st.AddString("abc\u4E2D\u6587\u6587");  // "abc中文文"
+            XAssert.IsFalse(st.CaseInsensitiveEquals(id1, id3));
+        }
+
+        [Fact]
         public void Substrings()
         {
             var st = new StringTable(0);

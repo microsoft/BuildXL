@@ -87,7 +87,7 @@ jobs:
       packageParentPath: $(LargePackagesStagingDir)
       package: $(LargePackagesStagingDir)/${{ parameters.packagePrefix }}.win-x64.$(Build.BuildNumber).nupkg
       feed: https://1essharedassets.pkgs.visualstudio.com/_packaging/BuildXL/nuget/v3/index.json
-      entraServiceConnection: mseng-Domino-BuildXL-Pipelines
+      serviceConnection: mseng-Domino-BuildXL-Pipelines
       sbomEnabled: false
 
     - output: nuget
@@ -97,7 +97,7 @@ jobs:
       packageParentPath: $(LargePackagesStagingDir)
       package: $(LargePackagesStagingDir)/${{ parameters.packagePrefix }}.linux-x64.$(Build.BuildNumber).nupkg
       feed: https://1essharedassets.pkgs.visualstudio.com/_packaging/BuildXL/nuget/v3/index.json
-      entraServiceConnection: mseng-Domino-BuildXL-Pipelines
+      serviceConnection: mseng-Domino-BuildXL-Pipelines
       sbomEnabled: false
 
   steps:

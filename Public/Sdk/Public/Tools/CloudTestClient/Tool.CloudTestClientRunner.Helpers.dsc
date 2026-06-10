@@ -422,6 +422,7 @@ namespace Helpers {
             tags: args.tags,
             description: args.description,
             tenant: args.configAndSessionResult.configArguments.tenant,
+            environment: args.configAndSessionResult.configArguments.environment
         };
 
         const updateResult = APIs.updateDynamicJob(updateDynamicJob);
@@ -464,6 +465,7 @@ namespace Helpers {
             tags: args.tags,
             description: args.description,
             dependencies: args.submittedJobs && args.submittedJobs.mapMany(job => job.executeResult.getOutputFiles()) || [],
+            environment: args.configAndSessionResult.configArguments.environment
         };
 
         return APIs.waitForSessionCompletion(waitArgs);

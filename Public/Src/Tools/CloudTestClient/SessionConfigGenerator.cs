@@ -304,7 +304,7 @@ namespace Tool.CloudTestClient
             var concatenated = string.Join("|", sorted);
             var bytes = Encoding.UTF8.GetBytes(concatenated);
             var hashBytes = SHA256.HashData(bytes);
-            return Convert.ToHexString(hashBytes).ToLowerInvariant();
+            return Convert.ToHexStringLower(hashBytes);
         }
 
         #endregion

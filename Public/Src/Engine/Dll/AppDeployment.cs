@@ -227,10 +227,11 @@ namespace BuildXL.Engine
                     using (SHA256 sha256Hash = SHA256.Create())
                     {
                         byte[] data = sha256Hash.ComputeHash(Encoding.UTF8.GetBytes(File.ReadAllText(Path.Combine(BaseDirectory, path))));
-                        foreach (var b in data)
-                        {
-                            sb.Append(b.ToString("x2"));
-                        }
+#if NET9_0_OR_GREATER
+                        sb.Append(Convert.ToHexStringLower(data));
+#else
+                        sb.Append(Convert.ToHexString(data).ToLowerInvariant());
+#endif
                     }
                 }
                 catch (Exception ex)

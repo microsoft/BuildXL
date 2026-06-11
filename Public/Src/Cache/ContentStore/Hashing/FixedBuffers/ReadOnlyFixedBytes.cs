@@ -278,10 +278,18 @@ namespace BuildXL.Cache.ContentStore.Hashing
             Contract.Requires(length >= 0);
             Contract.Requires(length + offset <= MaxLength);
 
+#if NETCOREAPP
+            // Convert.ToHexString is vectorized and produces uppercase hex, matching NybbleToHex.
+            fixed (byte* p = &_bytes.FixedElementField)
+            {
+                return Convert.ToHexString(AsSpan(p + offset, length));
+            }
+#else
             char* buffer = stackalloc char[(2 * length) + 1];
             FillBuffer(buffer, offset, length);
 
             return new string(buffer);
+#endif
         }
 
         private void FillBuffer(char* buffer, int offset, int length)

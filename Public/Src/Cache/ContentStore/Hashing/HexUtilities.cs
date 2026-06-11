@@ -188,6 +188,14 @@ namespace BuildXL.Cache.ContentStore.Interfaces.Utils
                 return NullHex;
             }
 
+#if NETCOREAPP
+            // Faster, vectorized, single-allocation uppercase hex for the common array case.
+            if (bytes is byte[] array)
+            {
+                return Convert.ToHexString(array);
+            }
+#endif
+
             var chars = new char[bytes.Count * 2];
             for (int i = 0; i < bytes.Count; i++)
             {

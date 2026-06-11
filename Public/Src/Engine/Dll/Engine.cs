@@ -478,7 +478,7 @@ namespace BuildXL.Engine
         {
             if (mutableInitialConfig.InCloudBuild())
             {
-                ApplyTemporaryHackWhenRunInCloudBuild(pathTable, mutableInitialConfig);
+                NormalizeCloudBuildEnvironmentPaths(pathTable, mutableInitialConfig);
                 InjectDirectoryTranslationValuesIntoEnvironment(pathTable, mutableInitialConfig);
             }
 
@@ -502,12 +502,15 @@ namespace BuildXL.Engine
         }
 
         /// <summary>
-        /// Temporary hack when BuildXL run in CloudBuild.
+        /// Normalizes environment variable paths that contain a CloudBuild session id so that builds running in
+        /// CloudBuild produce stable, session-independent paths.
         /// </summary>
         /// <remarks>
-        /// Once CloudBuild people fix the issue, then this hack can be removed.
+        /// Environment variables set by CloudBuild can embed a per-session directory (e.g. <c>d:\dbs\sh\enlistment\timestamp\</c>).
+        /// These are rewritten to a canonical, session-independent form so that path-dependent state (such as fingerprints)
+        /// remains stable across builds.
         /// </remarks>
-        private static void ApplyTemporaryHackWhenRunInCloudBuild(PathTable pathTable, CommandLineConfiguration commandLineConfiguration)
+        private static void NormalizeCloudBuildEnvironmentPaths(PathTable pathTable, CommandLineConfiguration commandLineConfiguration)
         {
             Contract.Requires(commandLineConfiguration != null);
             Contract.Requires(commandLineConfiguration.InCloudBuild());

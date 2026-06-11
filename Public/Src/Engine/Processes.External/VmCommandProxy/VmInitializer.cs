@@ -13,10 +13,6 @@ namespace BuildXL.Processes.VmCommandProxy
     /// <summary>
     /// VM initializer.
     /// </summary>
-    /// <remarks>
-    /// Currently, VM initialization requires user name and password, and this initialization is considered
-    /// temporary due to security leak. The CB team is addressing this issue.
-    /// </remarks>
     public class VmInitializer
     {
         /// <summary>

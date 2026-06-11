@@ -21,7 +21,8 @@ namespace BuildXL.Tracing
         private readonly string m_logKind;
         private int m_sequenceNumber = 0;
 
-        // HACK: This is used to allow the Cache.Core cache factories to create logs to ETW logger without needing to pipe through a logging context.
+        // Allows the Cache.Core cache factories to create logs to the ETW logger without needing to pipe a logging context
+        // through the public ICacheFactory interface. This is process-wide state set during BuildXL startup.
         private static LoggingContext? s_globalLoggingContext;
 
         /// <nodoc />

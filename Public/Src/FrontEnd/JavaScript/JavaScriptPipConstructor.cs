@@ -234,11 +234,16 @@ namespace BuildXL.FrontEnd.JavaScript
             string nodeModulesBin = project.ProjectFolder.Combine(PathTable, RelativePath.Create(PathTable.StringTable, "node_modules/.bin")).ToString(PathTable);
             env["PATH"] = nodeModulesBin + (env.ContainsKey("PATH")? $"{Path.PathSeparator}{env["PATH"]}" : string.Empty);
 
-            // Our sandbox currently doesn't support io_uring. At the same time, io_uring is turned on by default in node 20.03 to 21.0, but was turned off again in later
-            // versions due to a security issue. Turning it off here to avoid the security issue (and the lack of sandbox support). TODO: This is a temporary workaround until
-            // we can support sandboxing io_uring calls. See https://github.com/nodejs/node/issues/48444#issuecomment-2123140009 and
+            // io_uring is turned on by default in node 20.03 to 21.0, but was turned off again in later versions due to a security issue.
+            // The interpose/ptrace sandboxes don't support io_uring, so we turn it off here to avoid the security issue (and the lack of
+            // sandbox support). The EBPF sandbox does support io_uring, so we only disable it when the EBPF sandbox is not in use.
+            // TODO: Remove this workaround entirely once the interpose/ptrace sandboxes are retired in favor of EBPF.
+            // See https://github.com/nodejs/node/issues/48444#issuecomment-2123140009 and
             // https://nodejs.org/ja/blog/vulnerability/february-2024-security-releases#setuid-does-not-drop-all-privileges-due-to-io_uring-cve-2024-22017---high
-            env["UV_USE_IO_URING"] = "0";
+            if (!m_frontEndHost.Configuration.Sandbox.EnableEBPFLinuxSandbox)
+            {
+                env["UV_USE_IO_URING"] = "0";
+            }
 
             return env;
         }

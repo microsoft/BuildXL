@@ -320,7 +320,7 @@ namespace BuildXL.Cache.ContentStore.Logging
                 if (!written)
                 {
                     int count = _requests.Reader.CanCount ? _requests.Reader.Count : -1;
-                    // Temporary disable the assert to mitigate occasional crashes until Bug 2189129 is fixed.
+                    // Temporary disable the assert to mitigate occasional crashes until Bug 2188059 is fixed.
                     // Contract.Assert(false, $"Failed adding logging request to the queue. QueueFullMode={QueueFullMode}, Disposed={_disposed}, Count={count}.");
                 }
             }

@@ -42,7 +42,7 @@ namespace Tool.CloudTestClient
         /// </summary>
         private static string GetBaseUrl(CloudTestEnvironment environment) => environment switch
         {
-            CloudTestEnvironment.Prod => "https://api.cloudtest.microsoft.com",
+            CloudTestEnvironment.Prod => "https://api.prod.cloudtest.microsoft.com",
             CloudTestEnvironment.Dev => "https://api.dev.cloudtest.microsoft.com",
             CloudTestEnvironment.PPE => "https://api.ppe.cloudtest.microsoft.com",
             _ => throw new ArgumentOutOfRangeException(nameof(environment), environment, $"Unknown CloudTest environment '{environment}'."),
@@ -475,7 +475,7 @@ USAGE: CloudTestClient /mode:<mode> [options]
   /timeout           Optional. Overall timeout in minutes (default: 5).
   /environment       Optional. CloudTest API environment: prod, dev, ppe
                      (default: prod).
-                       prod -> [https://api.cloudtest.microsoft.com](https://api.cloudtest.microsoft.com)
+                       prod -> [https://api.prod.cloudtest.microsoft.com](https://api.prod.cloudtest.microsoft.com)
                        dev  -> [https://api.dev.cloudtest.microsoft.com](https://api.dev.cloudtest.microsoft.com)
                        ppe  -> [https://api.ppe.cloudtest.microsoft.com](https://api.ppe.cloudtest.microsoft.com)
 

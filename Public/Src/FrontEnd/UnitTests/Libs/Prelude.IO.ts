@@ -83,6 +83,9 @@ namespace PathAtom {
     /** Creates a path atom from a string. */
     export declare function create(value: string): PathAtom;
 
+    /** Creates a path atom from a string, replacing all invalid characters with underscores. */
+    export declare function createSanitized(value: string): PathAtom;
+
     /** Creates a path atom by interpolation. */
     export declare function interpolate(value: PathAtomOrString, ...rest: PathAtomOrString[]);
 }

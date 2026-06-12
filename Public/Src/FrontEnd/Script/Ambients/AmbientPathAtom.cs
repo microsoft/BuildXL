@@ -1,7 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using BuildXL.FrontEnd.Script.Evaluator;
 using BuildXL.FrontEnd.Script.Types;
@@ -15,6 +17,8 @@ namespace BuildXL.FrontEnd.Script.Ambients
     /// </summary>
     public sealed class AmbientPathAtom : AmbientDefinition<PathAtom>
     {
+        private static readonly char[] s_invalidFileNameChars = Path.GetInvalidFileNameChars();
+
         /// <nodoc />
         public AmbientPathAtom(PrimitiveTypes knownTypes)
             : base("PathAtom", knownTypes)
@@ -29,6 +33,7 @@ namespace BuildXL.FrontEnd.Script.Ambients
                 new[]
                 {
                     Function("create", Create, CreatePathAtomSignature),
+                    Function("createSanitized", CreateSanitized, CreateSanitizedPathAtomSignature),
                     Function("interpolate", Interpolate, InterpolateSignature),
                 });
         }
@@ -62,7 +67,54 @@ namespace BuildXL.FrontEnd.Script.Ambients
             return EvaluationResult.Create(result);
         }
 
+        private static EvaluationResult CreateSanitized(Context context, ModuleLiteral env, EvaluationStackFrame args)
+        {
+            var atom = Args.AsString(args, 0);
+
+            var stringTable = context.FrontEndContext.StringTable;
+
+            // Fast path: if no invalid characters are present, use the original string directly
+            string sanitized;
+            if (atom.AsSpan().IndexOfAny(s_invalidFileNameChars) < 0)
+            {
+                sanitized = atom;
+            }
+            else
+            {
+                // For small atoms, we can use a stack-allocated buffer to avoid allocations
+                const int StackAllocThreshold = 256;
+                Span<char> buffer = atom.Length <= StackAllocThreshold
+                    ? stackalloc char[atom.Length]
+                    : new char[atom.Length];
+
+                // Do an in-place replacement of invalid characters
+                atom.AsSpan().CopyTo(buffer);
+                ReadOnlySpan<char> invalid = s_invalidFileNameChars;
+                for (int i = 0; i < buffer.Length; i++)
+                {
+                    if (invalid.IndexOf(buffer[i]) >= 0)
+                    {
+                        buffer[i] = '_';
+                    }
+                }
+
+                sanitized = new string(buffer);
+            }
+
+            // In theory it is possible that the sanitized string is still invalid (e.g. it could be empty or consist of only dots), but we will let the caller deal with such cases if they arise
+            if (!PathAtom.TryCreate(stringTable, sanitized, out PathAtom result))
+            {
+                throw new InvalidPathAtomException(atom, new ErrorContext(pos: 1));
+            }
+
+            return EvaluationResult.Create(result);
+        }
+
         private CallSignature CreatePathAtomSignature => CreateSignature(
+            required: RequiredParameters(AmbientTypes.StringType),
+            returnType: AmbientTypes.PathAtomType);
+
+        private CallSignature CreateSanitizedPathAtomSignature => CreateSignature(
             required: RequiredParameters(AmbientTypes.StringType),
             returnType: AmbientTypes.PathAtomType);
 

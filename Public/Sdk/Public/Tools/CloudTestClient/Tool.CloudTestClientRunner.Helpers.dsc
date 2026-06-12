@@ -205,6 +205,7 @@ namespace Helpers {
             description: args.description,
             bodyFile: configResult.configFile,
             drop: args.drop,
+            environment: args.environment
         };
 
         return {

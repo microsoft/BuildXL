@@ -282,7 +282,12 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                         return new CacheFailure($"Unexpected DeleteResult.ResultCode: {result.Code}");
                 }
 
-                if (status == ContentDeleteStatus.Deleted && CacheSession is IContentDeletionNotifier notifier)
+                // Notify the metadata store whenever the remote blob is gone — either because
+                // we just deleted it (Deleted) or because it was already absent (ContentNotFound).
+                // In the ContentNotFound case the fingerprint metadata is stale and must still be
+                // invalidated so the next build gets a clean cache miss instead of a repeat failure.
+                if ((status == ContentDeleteStatus.Deleted || status == ContentDeleteStatus.ContentNotFound)
+                    && CacheSession is IContentDeletionNotifier notifier)
                 {
                     await notifier.NotifyContentDeletedAsync(context, hash.ToMemoization());
                 }

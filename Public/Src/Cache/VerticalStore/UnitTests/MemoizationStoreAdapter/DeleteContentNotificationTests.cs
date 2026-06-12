@@ -61,8 +61,10 @@ namespace BuildXL.Cache.MemoizationStoreAdapter.Test
         }
 
         [Fact]
-        public async Task DeleteContentDoesNotNotifyOnContentNotFound()
+        public async Task DeleteContentNotifiesOnContentNotFound()
         {
+            // When the remote blob is already absent, the fingerprint metadata is stale and must
+            // still be invalidated so the next build gets a clean cache miss.
             var contentHash = ContentHash.Random();
             var mockCacheSession = new MockCacheSessionWithNotifier();
             var mockCache = new MockCacheWithContentStore(
@@ -80,7 +82,8 @@ namespace BuildXL.Cache.MemoizationStoreAdapter.Test
 
             Assert.True(result.Succeeded);
             Assert.Equal(ContentDeleteStatus.ContentNotFound, result.Result);
-            Assert.Empty(mockCacheSession.NotifiedHashes);
+            Assert.Single(mockCacheSession.NotifiedHashes);
+            Assert.Equal(contentHash, mockCacheSession.NotifiedHashes[0]);
         }
 
         [Fact]

@@ -229,22 +229,22 @@ namespace BuildXL.Cache.ContentStore.Sessions
                 token,
                 operationContext => operationContext.PerformOperationAsync(
                     Tracer,
-                    () =>
+                    async () =>
                     {
                         Contract.Requires(realizationMode != FileRealizationMode.Move, "It is not allowed to move files out of the cache");
                         var fileSystem = PassThroughFileSystem.Default;
 
                         if (replacementMode is FileReplacementMode.SkipIfExists or FileReplacementMode.FailIfExists && fileSystem.FileExists(path))
                         {
-                            return Task.FromResult(new PlaceFileResult(PlaceFileResult.ResultCode.NotPlacedAlreadyExists));
+                            return new PlaceFileResult(PlaceFileResult.ResultCode.NotPlacedAlreadyExists);
                         }
 
                         if (contentHash.IsEmptyHash())
                         {
-                            return PlaceEmptyFileAsync(path, realizationMode, fileSystem);
+                            return await PlaceEmptyFileAsync(path, realizationMode, fileSystem);
                         }
 
-                        return PlaceFileCoreAsync(
+                        var result = await PlaceFileCoreAsync(
                             operationContext,
                             contentHash,
                             path,
@@ -253,6 +253,13 @@ namespace BuildXL.Cache.ContentStore.Sessions
                             realizationMode,
                             urgencyHint,
                             BaseCounters[ContentSessionBaseCounters.PlaceFileRetries]);
+
+                        if (result.Code == PlaceFileResult.ResultCode.NotPlacedContentNotFound && HasContentNotFoundListeners)
+                        {
+                            await OnPlaceFileContentNotFoundAsync(operationContext, contentHash);
+                        }
+
+                        return result;
                     },
                     extraStartMessage: $"({contentHash.ToShortString()},{path},{accessMode},{replacementMode},{realizationMode})",
                     traceOperationStarted: TraceOperationStarted,
@@ -268,6 +275,21 @@ namespace BuildXL.Cache.ContentStore.Sessions
                                      },
                     traceErrorsOnly: TraceErrorsOnlyForPlaceFile(path),
                     counter: BaseCounters[ContentSessionBaseCounters.PlaceFile]));
+        }
+
+        /// <summary>
+        /// Returns true if there are any content-not-found listeners registered.
+        /// Used to avoid unnecessary iteration in the bulk PlaceFile path.
+        /// </summary>
+        protected virtual bool HasContentNotFoundListeners => false;
+
+        /// <summary>
+        /// Called when a PlaceFile operation returns <c>NotPlacedContentNotFound</c>.
+        /// Override in <see cref="RecoverableContentSessionBase"/> to notify content-not-found listeners.
+        /// </summary>
+        protected virtual Task OnPlaceFileContentNotFoundAsync(OperationContext operationContext, ContentHash contentHash)
+        {
+            return Task.CompletedTask;
         }
 
         private static Task<PlaceFileResult> PlaceEmptyFileAsync(AbsolutePath path, FileRealizationMode realizationMode, PassThroughFileSystem fileSystem)
@@ -364,6 +386,19 @@ namespace BuildXL.Cache.ContentStore.Sessions
                 }).ToList(); // It is important to materialize a LINQ query in order to avoid calling 'PlaceFileCoreAsync' on every iteration.
 
             await TaskUtilities.SafeWhenAll(tasks);
+
+            if (HasContentNotFoundListeners)
+            {
+                foreach (var task in tasks)
+                {
+                    var indexedResult = await task;
+                    if (indexedResult.Item.Code == PlaceFileResult.ResultCode.NotPlacedContentNotFound)
+                    {
+                        await OnPlaceFileContentNotFoundAsync(operationContext, hashesWithPaths[indexedResult.Index].Hash);
+                    }
+                }
+            }
+
             return tasks;
 
         }

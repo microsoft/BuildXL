@@ -28,7 +28,7 @@ using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePa
 
 namespace BuildXL.Cache.ContentStore.Distributed.Ephemeral;
 
-public class EphemeralContentSession : ContentSessionBase
+public class EphemeralContentSession : RecoverableContentSessionBase
 {
     protected override Tracer Tracer { get; } = new(nameof(EphemeralContentSession));
 
@@ -645,6 +645,15 @@ public class EphemeralContentSession : ContentSessionBase
             // machine may be behind w.r.t. others, or the requests may race with eachother at different timestamps
             // even within the same machine.
             return nowUtc - latestPersistentTouchTime <= _ephemeralHost.Configuration.PersistentElisionMaximumStaleness;
+        }
+    }
+
+    /// <inheritdoc />
+    public override void AddContentNotFoundOnPlaceListener(Func<Context, ContentHash, Task> listener)
+    {
+        if (_ephemeralHost.Configuration.EnableContentRecoveryOnPlaceFailure)
+        {
+            base.AddContentNotFoundOnPlaceListener(listener);
         }
     }
 

@@ -387,16 +387,18 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
                         }),
                     nameof(TryMaterializeAsync));
 
-                // After all retries are exhausted, if the failure is a content hash mismatch,
-                // delete the corrupt remote blob so a future build can re-upload correct content.
-                // The actual deletion is gated on EnableContentRecoveryOnPlaceFailure inside DeleteContentAsync.
-                if (!placeResult.Succeeded && placeResult.Failure is ContentHashMismatchFailure)
+                // After all retries are exhausted, if the failure is due to corrupt content (hash mismatch)
+                // or missing content (not found in CAS), attempt best-effort cleanup so a future build
+                // can re-upload correct content. The actual deletion is gated on
+                // EnableContentRecoveryOnPlaceFailure inside DeleteContentAsync.
+                if (!placeResult.Succeeded && (placeResult.Failure is ContentHashMismatchFailure || placeResult.Failure is NoCasEntryFailure))
                 {
+                    var failureKind = placeResult.Failure is ContentHashMismatchFailure ? "hash mismatch" : "content not found";
                     Possible<ICacheSession, Failure> maybeOpen = m_cache.Get(nameof(TryMaterializeAsync));
                     if (maybeOpen.Succeeded)
                     {
                         var casHash = new CasHash(new global::BuildXL.Cache.Interfaces.Hash(contentHash));
-                        // Best-effort cleanup: delete the corrupt remote blob.
+                        // Best-effort cleanup: delete the corrupt/missing remote blob and invalidate metadata.
                         // The pip already failed; we don't fail the operation if the delete also fails.
                         // Use CancellationToken.None so cleanup proceeds even if the build/pip is being canceled.
                         var deleteResult = await maybeOpen.Result.DeleteContentAsync(casHash, CancellationToken.None);
@@ -405,10 +407,10 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
                             switch (deleteResult.Result)
                             {
                                 case ContentDeleteStatus.Deleted:
-                                    m_logger?.Info($"Content recovery: deleted corrupt remote blob for content {contentHash} after persistent hash mismatch. A subsequent build will re-upload correct content.");
+                                    m_logger?.Info($"Content recovery: deleted remote blob for content {contentHash} after persistent {failureKind}. A subsequent build will re-upload correct content.");
                                     break;
                                 case ContentDeleteStatus.ContentNotFound:
-                                    m_logger?.Info($"Content recovery: corrupt remote blob for content {contentHash} was already absent. A subsequent build will re-upload correct content.");
+                                    m_logger?.Info($"Content recovery: remote blob for content {contentHash} was already absent ({failureKind}). A subsequent build will re-upload correct content.");
                                     break;
                                 case ContentDeleteStatus.Disabled:
                                     break;
@@ -419,7 +421,7 @@ namespace BuildXL.Engine.Cache.Plugin.CacheCore
                         }
                         else
                         {
-                            m_logger?.Warning($"Content recovery: failed to delete corrupt remote blob for content {contentHash} after hash mismatch. The corrupt blob remains and may cause repeated failures. Error: {deleteResult.Failure.Describe()}");
+                            m_logger?.Warning($"Content recovery: failed to delete remote blob for content {contentHash} after {failureKind}. The stale entry remains and may cause repeated failures. Error: {deleteResult.Failure.Describe()}");
                         }
                     }
                 }

@@ -47,7 +47,7 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blob;
 /// <summary>
 /// A content session implementation backed by Azure Blobs.
 /// </summary>
-public sealed class AzureBlobStorageContentSession : ContentSessionBase, IContentNotFoundRegistration, ITrustedContentSession, IBlobContentSession
+public sealed class AzureBlobStorageContentSession : RecoverableContentSessionBase, ITrustedContentSession, IBlobContentSession
 {
     public record Configuration(
         string Name,
@@ -66,8 +66,6 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase, IConten
     private readonly BlobStorageClientAdapter _clientAdapter;
 
     private readonly IAbsFileSystem _fileSystem = PassThroughFileSystem.Default;
-
-    private readonly List<Func<Context, ContentHash, Task>> _contentNotFoundListeners = new();
 
     private readonly IClock _clock;
 
@@ -202,25 +200,7 @@ public sealed class AzureBlobStorageContentSession : ContentSessionBase, IConten
             fileSize: remoteDownloadResult.FileSize ?? 0,
             source: PlaceFileResult.Source.BackingStore);
 
-        // if the content was not found, let listeners know
-        if (result.Code == PlaceFileResult.ResultCode.NotPlacedContentNotFound
-            && _contentNotFoundListeners.Any())
-        {
-            foreach (var listener in _contentNotFoundListeners)
-            {
-                await listener(context, contentHash);
-            }
-        }
-
         return result;
-    }
-
-    /// <summary>
-    /// Registers a listener that will be called when a content is not found on <see cref="PlaceFileCoreAsync"/>.
-    /// </summary>
-    public void AddContentNotFoundOnPlaceListener(Func<Context, ContentHash, Task> listener)
-    {
-        _contentNotFoundListeners.Add(listener);
     }
 
     private FileStream OpenFileStream(AbsolutePath path)

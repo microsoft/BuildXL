@@ -22,7 +22,7 @@ using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePa
 
 namespace BuildXL.Cache.ContentStore.Sessions
 {
-    public class FileSystemContentSession : ContentSessionBase, ITrustedContentSession, IHibernateContentSession, IContentNotFoundRegistration, ILocalContentSessionProvider
+    public class FileSystemContentSession : RecoverableContentSessionBase, ITrustedContentSession, IHibernateContentSession, ILocalContentSessionProvider
     {
         /// <summary>
         ///     The internal content store backing the session.
@@ -37,8 +37,6 @@ namespace BuildXL.Cache.ContentStore.Sessions
 
         /// <inheritdoc />
         protected override bool TraceErrorsOnly => true; // This type adds nothing in terms of tracing. So configure it to trace errors only.
-
-        private readonly List<Func<Context, ContentHash, Task>> _contentNotFoundListener = new();
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="FileSystemContentSession" /> class.
@@ -112,11 +110,6 @@ namespace BuildXL.Cache.ContentStore.Sessions
                 realizationMode,
                 MakePinRequest(ImplicitPin.Put));
 
-            if (result.Code == PlaceFileResult.ResultCode.NotPlacedContentNotFound && _contentNotFoundListener.Any())
-            {
-                await NotifyContentNotFoundListeners(operationContext, contentHash);
-            }
-
             return result;
         }
 
@@ -150,14 +143,14 @@ namespace BuildXL.Cache.ContentStore.Sessions
                 realizationMode,
                 MakePinRequest(ImplicitPin.Get));
 
-            if (_contentNotFoundListener.Any())
+            if (HasContentNotFoundListeners)
             {
                 foreach (var result in results)
                 {
                     var indexedItem = await result;
                     if (indexedItem.Item.Code == PlaceFileResult.ResultCode.NotPlacedContentNotFound)
                     {
-                        await NotifyContentNotFoundListeners(operationContext, hashesWithPaths[indexedItem.Index].Hash);
+                        await OnPlaceFileContentNotFoundAsync(operationContext, hashesWithPaths[indexedItem.Index].Hash);
                     }
                 }
             }
@@ -268,21 +261,6 @@ namespace BuildXL.Cache.ContentStore.Sessions
         public IContentSession? TryGetLocalContentSession()
         {
             return this;
-        }
-
-        /// <inheritdoc/>
-        public void AddContentNotFoundOnPlaceListener(Func<Context, ContentHash, Task> listener)
-        {
-            _contentNotFoundListener.Add(listener);
-        }
-
-        private async Task NotifyContentNotFoundListeners(OperationContext operationContext, ContentHash contentHash)
-        {
-            // Notify listeners that content was not found
-            foreach (var listener in _contentNotFoundListener!)
-            {
-                await listener(operationContext, contentHash);
-            }
         }
     }
 }

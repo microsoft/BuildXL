@@ -4,6 +4,17 @@ variables:
 # Add CG exclusions
 - template: /.azdo/common/component-detection-exclusions.yml
 
+# [CODESYNC: .azdo/linux/run-on-ubuntu-2204.yml, .azdo/linux/run-on-ubuntu-2404.yml]
+# 1ES Pipeline Templates validation requires 'resources' to be declared in the top-level
+# pipeline YAML, not in an intermediate template. This block must be duplicated in each
+# pipeline that extends pipeline_base.yml.
+resources:
+  repositories:
+  - repository: 1esPipelines
+    type: git
+    name: 1ESPipelineTemplates/1ESPipelineTemplates
+    ref: refs/tags/release
+
 extends:
   template: /.azdo/linux/pipeline_base.yml@self
   parameters:

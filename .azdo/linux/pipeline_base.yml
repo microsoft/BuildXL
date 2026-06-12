@@ -3,18 +3,16 @@ trigger: none
 # Base pipeline for Linux PR validations.
 # Extended by run-on-ubuntu-2204.yml, run-on-ubuntu-2404.yml, and run-on-azure-linux-3.yml,
 # which are the entrypoints to the corresponding pipelines.
+#
+# NOTE: The 'resources' section is intentionally NOT in this template.
+# 1ES Pipeline Templates validation requires 'resources' to be declared in the top-level
+# pipeline YAML, not in an intermediate template. Each consuming pipeline must declare
+# the 1esPipelines repository resource directly.
 parameters:
 - name: image
   type: string
 - name: BxlExtraArgs
   type: string
-
-resources:
-  repositories:
-  - repository: 1esPipelines
-    type: git
-    name: 1ESPipelineTemplates/1ESPipelineTemplates
-    ref: refs/tags/release
 
 extends:
   template: v1/1ES.Unofficial.PipelineTemplate.yml@1esPipelines

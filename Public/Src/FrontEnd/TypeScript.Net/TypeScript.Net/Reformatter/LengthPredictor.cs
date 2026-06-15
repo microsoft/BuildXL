@@ -3,12 +3,26 @@
 
 using TypeScript.Net.Extensions;
 using TypeScript.Net.Types;
+#if NETCOREAPP
+using System;
+using System.Buffers;
+#endif
 
 namespace TypeScript.Net.Reformatter
 {
     /// <nodoc />
     public static class LengthPredictor
     {
+#if NETCOREAPP
+        private static readonly SearchValues<char> s_newLineChars = SearchValues.Create("\n\r");
+
+        private static bool ContainsNewLine(string content) => content.AsSpan().ContainsAny(s_newLineChars);
+#else
+        private static readonly char[] s_newLineChars = { '\n', '\r' };
+
+        private static bool ContainsNewLine(string content) => content.IndexOfAny(s_newLineChars) >= 0;
+#endif
+
         /// <summary>
         /// Computes if the given node still fits on a single line with the given remaining space.
         /// </summary>
@@ -124,7 +138,7 @@ namespace TypeScript.Net.Reformatter
                         return -1;
                     }
 
-                    if (comment.Content.IndexOfAny(new[] { '\n', '\r' }) >= 0)
+                    if (ContainsNewLine(comment.Content))
                     {
                         // if multiline comment has a newline, it won't fit on one line
                         return -1;
@@ -150,7 +164,7 @@ namespace TypeScript.Net.Reformatter
                         seenSingleLineComment = true;
                     }
 
-                    if (comment.Content.IndexOfAny(new[] { '\n', '\r' }) >= 0)
+                    if (ContainsNewLine(comment.Content))
                     {
                         // if multiline comment has a newline, it won't fit on one line
                         return -1;

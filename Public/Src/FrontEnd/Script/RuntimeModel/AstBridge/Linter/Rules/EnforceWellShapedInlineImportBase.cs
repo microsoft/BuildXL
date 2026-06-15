@@ -36,7 +36,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge.Rules
             (_, ILiteralExpression literal, _, _) = argument.As<ITaggedTemplateExpression>();
 
             string text = stringLiteral?.Text ?? literal?.Text;
-            if (text!= null && text.IndexOfAny(ImportPathHelpers.InvalidPathChars) != -1)
+            if (text!= null && ImportPathHelpers.ContainsInvalidPathChar(text))
             {
                 context.Logger.ReportModuleSpecifierContainsInvalidCharacters(
                     context.LoggingContext,

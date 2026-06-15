@@ -54,7 +54,7 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge.Rules
                             argument.LocationForLogging(context.SourceFile),
                             argument.GetFormattedText());
                     }
-                    else if (text.IndexOfAny(ImportPathHelpers.InvalidPackageChars) != -1)
+                    else if (ImportPathHelpers.ContainsInvalidPackageChar(text))
                     {
                         context.Logger.ReportNamedImportInConfigOrPackageLikePath(
                             context.LoggingContext,

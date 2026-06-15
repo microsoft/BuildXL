@@ -2,6 +2,9 @@
 // Licensed under the MIT License.
 
 using System;
+#if NETCOREAPP
+using System.Buffers;
+#endif
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
@@ -350,14 +353,24 @@ namespace BuildXL.Utilities.Core.Qualifier
         /// <nodoc />
         public static bool IsValidQualifierKey(string key)
         {
-            return -1 == key.IndexOfAny(new[] { ';', '=' });
+            return !ContainsKeyValueSeparator(key);
         }
 
         /// <nodoc />
         public static bool IsValidQualifierValue(string key)
         {
-            return -1 == key.IndexOfAny(new[] { ';', '=' });
+            return !ContainsKeyValueSeparator(key);
         }
+
+#if NETCOREAPP
+        private static readonly SearchValues<char> s_keyValueSeparators = SearchValues.Create(";=");
+
+        private static bool ContainsKeyValueSeparator(string value) => value.AsSpan().ContainsAny(s_keyValueSeparators);
+#else
+        private static readonly char[] s_keyValueSeparators = { ';', '=' };
+
+        private static bool ContainsKeyValueSeparator(string value) => value.IndexOfAny(s_keyValueSeparators) != -1;
+#endif
 
         /// <nodoc />
         public static async Task<QualifierTable> DeserializeAsync(BuildXLReader reader, Task<StringTable> stringTableTask)

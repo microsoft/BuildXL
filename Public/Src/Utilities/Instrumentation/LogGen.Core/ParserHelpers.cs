@@ -16,6 +16,20 @@ namespace BuildXL.LogGen.Core
     /// </summary>
     public static class ParserHelpers
     {
+#if NETCOREAPP
+        private static readonly System.Buffers.SearchValues<char> s_curlyBrackets = System.Buffers.SearchValues.Create("{}");
+
+        private static int IndexOfCurlyBracket(string value, int startIndex)
+        {
+            int relativeIndex = value.AsSpan(startIndex).IndexOfAny(s_curlyBrackets);
+            return relativeIndex < 0 ? -1 : relativeIndex + startIndex;
+        }
+#else
+        private static readonly char[] s_curlyBrackets = { '{', '}' };
+
+        private static int IndexOfCurlyBracket(string value, int startIndex) => value.IndexOfAny(s_curlyBrackets, startIndex);
+#endif
+
         /// <summary>
         /// Try generating logging classes for a given set of candidates.
         /// </summary>
@@ -166,7 +180,7 @@ namespace BuildXL.LogGen.Core
             string normalizedMessageFormat = loggingSite.GetNormalizedMessageFormat();
             normalizedMessageFormat = normalizedMessageFormat.Replace("{{", string.Empty).Replace("}}", string.Empty);
             int openBracketPos = -1;
-            int curlyBracketPos = normalizedMessageFormat.IndexOfAny(new char[] { '{', '}' });
+            int curlyBracketPos = IndexOfCurlyBracket(normalizedMessageFormat, 0);
             while (curlyBracketPos >= 0)
             {
                 if (openBracketPos < 0)
@@ -204,7 +218,7 @@ namespace BuildXL.LogGen.Core
                     openBracketPos = -1;
                 }
 
-                curlyBracketPos = normalizedMessageFormat.IndexOfAny(new char[] { '{', '}' }, curlyBracketPos + 1);
+                curlyBracketPos = IndexOfCurlyBracket(normalizedMessageFormat, curlyBracketPos + 1);
             }
 
             if (openBracketPos >= 0)

@@ -3,7 +3,7 @@ import {Transformer} from "Sdk.Transformers";
 
 
 // Partially seal Guardian directory because Guardian may write temp files under the root directory
-const guardianDirectory : Directory = d`${Environment.getPathValue("TOOLPATH_GUARDIAN")}/gdn`;
+const guardianDirectory : Directory = d`${Environment.getPathValue("TOOLPATH_GUARDIAN")}/newgdn`;
 const guardianTool : StaticDirectory = Transformer.sealPartialDirectory(guardianDirectory, globR(guardianDirectory, "*"));
 
 // Guardian arguments will be automatically set by the SDK

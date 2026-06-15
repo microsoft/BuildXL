@@ -22,7 +22,7 @@ export function createRoslynCalls(logRootDirectory: Directory, files: File[], un
     }
 
     const guardianDrop : Directory = Environment.getDirectoryValue("TOOLPATH_GUARDIAN");
-    const guardianDirectory : Directory = d`${guardianDrop.path}/gdn`;
+    const guardianDirectory : Directory = d`${guardianDrop.path}/newgdn`;
     const guardianTool : StaticDirectory = Transformer.sealPartialDirectory(guardianDirectory, globR(guardianDirectory, "*"));
 
     // Package directory must be partially sealed first

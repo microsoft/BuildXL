@@ -67,6 +67,7 @@ extends:
               /q:ReleaseNet9
               /runInSubst
               /server-
+              /enableLazyOutputs:minimal
               /p:[Sdk.BuildXL]useManagedSharedCompilation=1
             env:
               1ESSHAREDASSETS_BUILDXL_FEED_PAT: $(1ESSHAREDASSETS_BUILDXL_FEED_PAT)

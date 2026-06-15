@@ -2,6 +2,12 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20260605.2 (Release [31608990](https://dev.azure.com/mseng/Domino/_build/results?buildId=31608990&view=results))
+- [Drop] Add support for referencing an existing drop
+- [Nx] Avoid `--skipRemoteCache` option to remain compatible with older Nx versions
+- [DependencyAnalyzer] Add `ProjectTag` property to DependencyAnalyzer output
+- Add `EnableDistributedSourceHashing` command-line flag
+- [Cache] Distinguish between remote and local cache hits in dev cache stats
 # 0.1.0-20260529.7 (Release [31574182](https://dev.azure.com/mseng/Domino/_build/results?buildId=31574182&view=results))
 - [Packages] Remove net472 target from `AriaCommon`, `Pips`, and `Engine.Cache` packages
 - [Packages] Add new `BuildXL.Cache.VerticalStore.Interfaces` NuGet package and include it in the publish list

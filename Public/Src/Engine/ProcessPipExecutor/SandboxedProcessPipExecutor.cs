@@ -3700,6 +3700,13 @@ namespace BuildXL.ProcessPipExecutor
         [SuppressMessage("Microsoft.Globalization", "CA1309", Justification = "Already using Comparison.OrdinalIgnoreCase - looks like a bug in FxCop rules.")]
         internal static SpecialProcessKind GetProcessKind(AbsolutePath processOverride, Process pip, PathTable pathTable)
         {
+            // The special tools are all Windows executables (e.g., csc.exe, rc.exe, mt.exe), so the lookup can only
+            // ever match on Windows. Skip it on other operating systems to avoid the wasted ToLowerInvariant() and lookup.
+            if (!OperatingSystemHelper.IsWindowsOS)
+            {
+                return SpecialProcessKind.NotSpecial;
+            }
+
             AbsolutePath processPath = processOverride.IsValid ? processOverride : pip.Executable.Path;
             string toolName = processPath.GetName(pathTable).ToString(pathTable.StringTable);
 

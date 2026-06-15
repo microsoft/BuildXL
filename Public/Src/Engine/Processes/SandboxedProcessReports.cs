@@ -4,6 +4,9 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+#if NET8_0_OR_GREATER
+using System.Collections.Frozen;
+#endif
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
@@ -79,10 +82,18 @@ namespace BuildXL.Processes
         // CODESYNC: Public\Src\Sandbox\Windows\DetoursServices\FileAccessHelpers.h
         public const uint FileAccessNoId = 0;
 
+        // Frozen for faster read-only lookups (queried per report line); net472 keeps a plain Dictionary.
+#if NET8_0_OR_GREATER
+        private static readonly FrozenDictionary<string, ReportType> s_reportTypes = Enum
+            .GetValues(typeof(ReportType))
+            .Cast<ReportType>()
+            .ToFrozenDictionary(reportType => ((int)reportType).ToString(), reportType => reportType);
+#else
         private static readonly Dictionary<string, ReportType> s_reportTypes = Enum
             .GetValues(typeof(ReportType))
             .Cast<ReportType>()
             .ToDictionary(reportType => ((int)reportType).ToString(), reportType => reportType);
+#endif
 
         private readonly PathTable m_pathTable;
         private readonly ConcurrentDictionary<uint, ReportedProcess> m_activeProcesses = new();

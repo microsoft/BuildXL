@@ -3,6 +3,9 @@
 
 using System;
 using System.Collections.Generic;
+#if NET8_0_OR_GREATER
+using System.Collections.Frozen;
+#endif
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.Linq;
@@ -49,7 +52,15 @@ namespace BuildXL.Processes
         /// <summary>
         /// Mapping of "operation name" to <see cref="ReportedFileOperation"/>
         /// </summary>
-        private static readonly Dictionary<string, ReportedFileOperation> s_operations =
+        // Frozen collections (.NET 8+) trade slower one-time construction for faster, read-optimized lookups.
+        // This map is queried for every file access report, so the read speedup matters; net472 keeps a plain Dictionary.
+#if NET8_0_OR_GREATER
+        private static readonly FrozenDictionary<string, ReportedFileOperation> s_operations = CreateOperations().ToFrozenDictionary(StringComparer.Ordinal);
+#else
+        private static readonly Dictionary<string, ReportedFileOperation> s_operations = CreateOperations();
+#endif
+
+        private static Dictionary<string, ReportedFileOperation> CreateOperations() =>
             new Dictionary<string, ReportedFileOperation>(StringComparer.Ordinal)
             {
                 { "CreateFile", ReportedFileOperation.CreateFile },
@@ -106,8 +117,13 @@ namespace BuildXL.Processes
                 { FileOperationLinux.Operations.Probe.ToString(), ReportedFileOperation.Probe }
             };
 
+#if NET8_0_OR_GREATER
+        private static readonly FrozenDictionary<MemoryString, ReportedFileOperation> s_memoryStringBasedOperations =
+            s_operations.ToFrozenDictionary(kvp => new MemoryString(kvp.Key.AsMemory()), kvp => kvp.Value);
+#else
         private static readonly Dictionary<MemoryString, ReportedFileOperation> s_memoryStringBasedOperations = 
             s_operations.ToDictionary(kvp => new MemoryString(kvp.Key.AsMemory()), kvp => kvp.Value);
+#endif
 
         /// <summary>
         /// Tries obtaining <see cref="ReportedFileOperation"/> for a given <paramref name="operationName"/>.

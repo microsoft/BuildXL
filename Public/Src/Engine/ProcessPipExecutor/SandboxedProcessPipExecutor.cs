@@ -3,6 +3,9 @@
 
 using System;
 using System.Collections.Generic;
+#if NET8_0_OR_GREATER
+using System.Collections.Frozen;
+#endif
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Diagnostics.Tracing;
@@ -3652,7 +3655,13 @@ namespace BuildXL.ProcessPipExecutor
             return true;
         }
 
-        private static readonly Dictionary<string, SpecialProcessKind> s_specialTools = new Dictionary<string, SpecialProcessKind>(StringComparer.OrdinalIgnoreCase)
+#if NET8_0_OR_GREATER
+        private static readonly FrozenDictionary<string, SpecialProcessKind> s_specialTools = CreateSpecialTools().ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
+#else
+        private static readonly Dictionary<string, SpecialProcessKind> s_specialTools = CreateSpecialTools();
+#endif
+
+        private static Dictionary<string, SpecialProcessKind> CreateSpecialTools() => new Dictionary<string, SpecialProcessKind>(StringComparer.OrdinalIgnoreCase)
         {
             ["csc"] = SpecialProcessKind.Csc,
             ["csc.exe"] = SpecialProcessKind.Csc,

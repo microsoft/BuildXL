@@ -3,6 +3,9 @@
 
 using System;
 using System.Collections.Generic;
+#if NET8_0_OR_GREATER
+using System.Collections.Frozen;
+#endif
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
@@ -74,10 +77,18 @@ namespace BuildXL.FrontEnd.Script.RuntimeModel.AstBridge
     /// </summary>
     internal sealed class AstConverter : IAstConverter
     {
+        // Frozen for faster read-only operator lookups during AST conversion; net472 keeps plain Dictionaries.
+#if NET8_0_OR_GREATER
+        private static readonly FrozenDictionary<TypeScript.Net.Types.SyntaxKind, UnaryOperator> s_syntaxKindToPrefixUnaryOperatorMapping = CreateUnaryOperatorMapping().ToFrozenDictionary();
+        private static readonly FrozenDictionary<TypeScript.Net.Types.SyntaxKind, BinaryOperator> s_syntaxKindToBinaryOperatorMapping = CreateBinaryOperatorMapping().ToFrozenDictionary();
+        private static readonly FrozenDictionary<TypeScript.Net.Types.SyntaxKind, AssignmentOperator> s_syntaxKindToAssignmentOperatorMapping = CreateAssignmentOperatorMapping().ToFrozenDictionary();
+        private static readonly FrozenDictionary<(IncrementDecrementOperator, TypeScript.Net.Types.SyntaxKind), IncrementDecrementOperator> s_syntaxKindToIncrementDecrementOperator = CreateIncrementDecrementOperatorMapping().ToFrozenDictionary();
+#else
         private static readonly Dictionary<TypeScript.Net.Types.SyntaxKind, UnaryOperator> s_syntaxKindToPrefixUnaryOperatorMapping = CreateUnaryOperatorMapping();
         private static readonly Dictionary<TypeScript.Net.Types.SyntaxKind, BinaryOperator> s_syntaxKindToBinaryOperatorMapping = CreateBinaryOperatorMapping();
         private static readonly Dictionary<TypeScript.Net.Types.SyntaxKind, AssignmentOperator> s_syntaxKindToAssignmentOperatorMapping = CreateAssignmentOperatorMapping();
         private static readonly Dictionary<(IncrementDecrementOperator, TypeScript.Net.Types.SyntaxKind), IncrementDecrementOperator> s_syntaxKindToIncrementDecrementOperator = CreateIncrementDecrementOperatorMapping();
+#endif
 
         private readonly V2QualifiersConverter m_conversionHelper;
         private readonly AstConversionContext m_conversionContext;

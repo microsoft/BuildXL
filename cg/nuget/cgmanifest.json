@@ -1032,7 +1032,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.ComponentDetection.Contracts",
-          "Version": "7.1.2"
+          "Version": "7.1.5"
         }
       }
     },
@@ -2841,7 +2841,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Python",
-          "Version": "3.14.5"
+          "Version": "3.14.6"
         }
       }
     },

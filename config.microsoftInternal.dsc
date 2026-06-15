@@ -77,7 +77,7 @@ export const pkgs = isMicrosoftInternal ? [
     { id: "Microsoft.Sbom.Common", version: "4.1.11" },
     { id: "Microsoft.Sbom.Parsers.Spdx22SbomParser", version: "4.1.11" },
     { id: "Microsoft.Sbom.Adapters", version: "4.1.11" },
-    { id: "Microsoft.ComponentDetection.Contracts", version: "7.1.2", dependentPackageIdsToSkip: ["System.Threading.Tasks.Dataflow"] },
+    { id: "Microsoft.ComponentDetection.Contracts", version: "7.1.5", dependentPackageIdsToSkip: ["System.Threading.Tasks.Dataflow"] },
     { id: "Microsoft.Sbom.Contracts", version: "4.1.11" },
     { id: "Microsoft.Sbom.Extensions", version: "4.1.11" },
 
@@ -97,7 +97,7 @@ export const pkgs = isMicrosoftInternal ? [
     // Component Governance detection tool and Python runtime for pip detection.
     // These are bundled into the BuildXL drop deployed to CloudBuild so GenericBuildRunner can invoke component detection.
     { id: "Microsoft.VisualStudio.Services.Governance.ComponentDetection", version: "2026.5.4.2036", dependentPackageIdsToSkip: ["*"], osSkip: [ "macOS", "unix" ] },
-    { id: "Python", version: "3.14.5", dependentPackageIdsToSkip: ["*"], osSkip: [ "macOS", "unix" ] },
+    { id: "Python", version: "3.14.6", dependentPackageIdsToSkip: ["*"], osSkip: [ "macOS", "unix" ] },
     
 ] : [
 

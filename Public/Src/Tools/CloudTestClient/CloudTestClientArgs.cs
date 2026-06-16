@@ -132,6 +132,15 @@ namespace Tool.CloudTestClient
         /// <summary>Whether job result caching is enabled. Default: false.</summary>
         public bool CacheEnabled { get; }
 
+        /// <summary>Path to a JSON file containing the GroupSetup definition for the dynamic group.</summary>
+        public string DynamicGroupSetupFile { get; }
+
+        /// <summary>Path to a JSON file containing the GroupCleanup definition for the dynamic group.</summary>
+        public string DynamicGroupCleanupFile { get; }
+
+        /// <summary>Path to a JSON file containing the list of file provider definitions for the session.</summary>
+        public string FileProvidersFile { get; }
+
         /// <summary>Azure DevOps project ID (SYSTEM_TEAMPROJECTID). When set, a VstsContext is included in the generated config.</summary>
         public string AdoProjectId { get; }
 
@@ -285,6 +294,15 @@ namespace Tool.CloudTestClient
                     case "CACHEENABLED":
                         CacheEnabled = true;
                         break;
+                    case "DYNAMICGROUPSETUPFILE":
+                        DynamicGroupSetupFile = opt.Value;
+                        break;
+                    case "DYNAMICGROUPCLEANUPFILE":
+                        DynamicGroupCleanupFile = opt.Value;
+                        break;
+                    case "FILEPROVIDERSFILE":
+                        FileProvidersFile = opt.Value;
+                        break;
                     case "ADOPROJECTID":
                         AdoProjectId = opt.Value;
                         break;
@@ -418,8 +436,7 @@ namespace Tool.CloudTestClient
                     throw Error("When specifying ADO context, all of 'adoProjectId', 'adoCollectionUri', 'adoBuildId', and 'adoAccessTokenEnvVar' must be provided.");
                 }
 
-                // Other common args (tokenEnvVar) are not required for generateSessionConfig
-                return;
+                // Note: do not return here. We still want common validations (e.g. path validation) to run.
             }
 
             if (Mode == CloudTestMode.GenerateUpdateDynamicJobConfig)
@@ -497,20 +514,21 @@ namespace Tool.CloudTestClient
                     throw Error("Missing mandatory argument 'testExecutionType' for mode 'generateUpdateDynamicJobConfig'");
                 }
 
-                return;
+                // Note: do not return here. We still want common validations (e.g. path validation) to run.
             }
 
             // Validate common required args (all other modes)
-            if (string.IsNullOrEmpty(TokenEnvVar))
+            if (Mode != CloudTestMode.GenerateSessionConfig && Mode != CloudTestMode.GenerateUpdateDynamicJobConfig)
             {
-                throw Error("Missing mandatory argument 'tokenEnvVar'");
-            }
+                if (string.IsNullOrEmpty(TokenEnvVar))
+                {
+                    throw Error("Missing mandatory argument 'tokenEnvVar'");
+                }
 
-            
-
-            if (string.IsNullOrEmpty(Tenant))
-            {
-                throw Error("Missing mandatory argument 'tenant'");
+                if (string.IsNullOrEmpty(Tenant))
+                {
+                    throw Error("Missing mandatory argument 'tenant'");
+                }
             }
 
             // Validate path arguments are well-formed
@@ -518,6 +536,9 @@ namespace Tool.CloudTestClient
             ValidatePath(SessionIdFile, "sessionIdFile");
             ValidatePath(ConfigOutputFile, "configOutputFile");
             ValidatePath(SessionConfigPath, "sessionConfigPath");
+            ValidatePath(DynamicGroupSetupFile, "dynamicGroupSetupFile");
+            ValidatePath(DynamicGroupCleanupFile, "dynamicGroupCleanupFile");
+            ValidatePath(FileProvidersFile, "fileProvidersFile");
 
                         // Validate mode-specific args
             if (Mode == CloudTestMode.CreateSession || Mode == CloudTestMode.UpdateDynamicJob)
@@ -588,16 +609,9 @@ namespace Tool.CloudTestClient
         /// </summary>
         private static string ResolveJobIdFromSessionConfig(string jobName, string sessionConfigPath)
         {
-            if (!System.IO.File.Exists(sessionConfigPath))
-            {
-                throw new InvalidOperationException($"Session config file '{sessionConfigPath}' does not exist.");
-            }
-
-            string json = System.IO.File.ReadAllText(sessionConfigPath);
-
             try
             {
-                using var doc = System.Text.Json.JsonDocument.Parse(json);
+                using var doc = JsonHelpers.ReadJsonDocument(sessionConfigPath);
 
                 if (doc.RootElement.TryGetProperty("dynamicGroupRequests", out var groups))
                 {

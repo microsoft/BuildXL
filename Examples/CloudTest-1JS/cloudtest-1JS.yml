@@ -31,6 +31,10 @@ parameters:
   - name: CloudTestTokenVariable
     type: string
     default: 'CloudTestAccessToken' # Name of the pipeline variable that will store the CloudTest bearer token
+  - name: useLocalBxl
+    type: boolean
+    default: false
+    displayName: 'Build and use a locally-built BXL instead of the released version'
 
 resources:
   repositories:
@@ -86,9 +90,28 @@ extends:
           - script: yarn install
             displayName: 'Yarn Install'
             workingDirectory: $(Build.SourcesDirectory)/Examples/CloudTest-1JS
+          - ${{ if eq(parameters.useLocalBxl, true) }}:
+            - task: UseDotNet@2
+              displayName: 'Install .NET SDK 9.x'
+              inputs:
+                packageType: sdk
+                version: '9.x'
+            - bash: |
+                set -eu
+                bash bxl.sh --internal --minimal --deploy-dev --release
+              displayName: 'Build BXL (minimal + deploy dev)'
+              workingDirectory: $(Build.SourcesDirectory)
+              env:
+                PAT1esSharedAssets: $(${{ parameters.AccessTokenVariable }})
+                PATCloudBuild: $(${{ parameters.AccessTokenVariable }})
+                VSTSPERSONALACCESSTOKEN: $(System.AccessToken)
           buildXL:
-            installerOptions:
-              version: $(BuildXLPackageVersion)
+            ${{ if eq(parameters.useLocalBxl, true) }}:
+              install: false
+              invocationPrefix: $(Build.SourcesDirectory)/Out/Bin/release/linux-x64/AdoBuildRunner
+            ${{ else }}:
+              installerOptions:
+                version: $(BuildXLPackageVersion)
             arguments: >-
               /c:config.dsc
               /logOutput:FullOutputAlways

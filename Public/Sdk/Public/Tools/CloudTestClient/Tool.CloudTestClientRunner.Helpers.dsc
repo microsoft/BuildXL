@@ -3,6 +3,7 @@
 
 import {Artifact, Cmd, Transformer} from "Sdk.Transformers";
 import * as Drop from "Sdk.Drop";
+import * as Json from "Sdk.Json";
 
 namespace Helpers {
     /** A job definition with an explicit ID and name. */
@@ -12,6 +13,162 @@ namespace Helpers {
         id: string;
         /** Job name. */
         name: string;
+    }
+
+    // ============================================================================
+    // CloudTest DJE schema types for group setup, cleanup, and file providers
+    // ============================================================================
+
+    /**
+     * Well-known CloudTest macro prefixes for path resolution on worker VMs.
+     * These are mapped as [prefix] when resolving paths on the worker VM.
+     * The PathAtom fallback allows custom file provider names (e.g. a`VsoGitRoot`).
+     */
+    @@public
+    export type KnownPrefix = "WorkingDirectory" | "SharedWorkingDirectory" | "LoggingDirectory" | "BuildRoot" | "DataRoot" | "VSODrop" | PathAtom;
+
+    /**
+     * A path on the CloudTest worker VM with an explicit macro prefix.
+     * Resolves to [prefix]/path in the CloudTest configuration.
+     */
+    @@public
+    export interface PrefixedPath {
+        /** CloudTest macro prefix — e.g. a`WorkingDirectory`, a`BuildRoot`, or a custom a`VsoGitRoot`. */
+        prefix: KnownPrefix;
+        /** Relative path within the prefixed directory. */
+        path: RelativePath;
+    }
+
+    /**
+     * A path reference for CloudTest worker VMs.
+     * - Path: an absolute path, passed as-is (e.g. for UNC paths to drops or build outputs).
+     * - RelativePath: relative to [WorkingDirectory] on the worker VM.
+     * - PrefixedPath: relative to the specified CloudTest macro prefix.
+     */
+    @@public
+    export type CloudTestPath = Path | RelativePath | PrefixedPath;
+
+    /**
+     * A copy entry for build/data files. Specifies source and destination for file
+     * copying operations on the worker VM.
+     */
+    @@public
+    export interface CopyEntry {
+        /** Source path on the worker VM. */
+        source: CloudTestPath;
+        /** Destination path on the worker VM. */
+        destination: CloudTestPath;
+        /** Whether to copy recursively. Default: true. */
+        isRecursive?: boolean;
+        /** Whether zero matched files is allowed. Default: true. */
+        isZeroCopiedFilesAllowed?: boolean;
+    }
+
+    /**
+     * A script entry for setup or cleanup phases on the worker VM.
+     */
+    /**
+     * A CloudTest argument: a primitive value, or a compound value (from Cmd.join) with a separator.
+     * Compatible with Transformer's ArgumentValue, so it can be used with Cmd.option directly.
+     */
+    @@public
+    export type CloudTestArgument = PrimitiveValue | CompoundPrimitiveValue;
+
+    /**
+     * A compound value: an array of primitive values joined by a separator (default: space).
+     */
+    @@public
+    export type CompoundPrimitiveValue = {
+        values: CloudTestArgument[];
+        separator?: string;
+    };
+
+    /**
+     * A script to run on the worker VM during group setup or cleanup.
+     */
+    @@public
+    export interface ScriptEntry {
+        /** Path to the script on the worker VM. */
+        path: CloudTestPath;
+        /** Arguments to pass to the script. Primitives are converted to strings; compound values are joined by their separator (default: space). */
+        args?: CloudTestArgument;
+        /** Display name for the script. */
+        scriptName?: string;
+        /** Per-script timeout in minutes. 0 means no per-script timeout. */
+        timeoutMins?: number;
+    }
+
+    /**
+     * A service to deploy on worker VMs during group setup.
+     */
+    @@public
+    export interface ServiceEntry {
+        /** Path to the service on the worker VM. */
+        path: CloudTestPath;
+        /** Whether to skip hashing the input for caching purposes. Default: false. */
+        skipHashInput?: boolean;
+    }
+
+    /**
+     * Configuration for group-level setup operations. Runs before any jobs in the group execute.
+     * Can copy files, deploy services, and run setup scripts on the worker VM.
+     */
+    @@public
+    export interface GroupSetup {
+        /** Files to copy for build setup. */
+        buildFiles?: CopyEntry[];
+        /** Files to copy for data setup. */
+        dataFiles?: CopyEntry[];
+        /** Services to deploy. */
+        services?: ServiceEntry[];
+        /** Scripts to run during setup. */
+        scripts?: ScriptEntry[];
+        /** Timeout for the entire setup phase in minutes. */
+        timeoutMins?: number;
+    }
+
+    /**
+     * Configuration for group-level cleanup operations. Runs after all jobs in the group complete.
+     */
+    @@public
+    export interface GroupCleanup {
+        /** Scripts to run during cleanup. */
+        scripts?: ScriptEntry[];
+        /** Timeout for the entire cleanup phase in minutes. */
+        timeoutMins?: number;
+    }
+
+    /**
+     * A key-value property for a file provider definition.
+     */
+    @@public
+    export interface ProviderProperty {
+        /** Property name (e.g. "CloudTest.ProviderCustomName", "BaseUrl"). */
+        name: string;
+        /** Property value. */
+        value: string;
+    }
+
+    /**
+     * A file provider definition that tells CloudTest how to access external file stores
+     * (e.g., VsoGit, VsoDrop, PipelineArtifacts).
+     */
+    /**
+     * Known CloudTest file provider types.
+     * The string fallback allows custom/future provider types.
+     */
+    @@public
+    export type FileProviderType = "VsoDrop" | "VsoChunkedDrop" | "CloudBuild" | "CloudVault" | "PipelineArtifacts" | "LocalDrop" | "ShareDrop" | "BuildDataDrop" | "DataDrop";
+
+    /**
+     * A file provider definition for a CloudTest DJE session.
+     */
+    @@public
+    export interface FileProvider {
+        /** Provider type. */
+        type: FileProviderType;
+        /** Key-value properties for the provider. */
+        properties: ProviderProperty[];
     }
 
     /** Arguments for generating a DJE session configuration JSON file. */
@@ -35,6 +192,12 @@ namespace Helpers {
         user?: string;
         /** Enable job result caching. Default: false. */
         cacheEnabled?: boolean;
+        /** Group setup configuration. Runs before jobs execute on worker VMs. */
+        dynamicGroupSetup?: GroupSetup;
+        /** Group cleanup configuration. Runs after jobs complete on worker VMs. */
+        dynamicGroupCleanup?: GroupCleanup;
+        /** File provider definitions for external file stores (e.g., VsoGit, VsoDrop). */
+        fileProviders?: FileProvider[];
         /** Tags for the pip. */
         tags?: string[];
         /** Pip description override. */
@@ -78,7 +241,7 @@ namespace Helpers {
         /** Test framework: MsTest, Exe, TAEF, NUnit, XUnit, BoostTest. */
         testExecutionType: TestExecutionType;
         /** Arguments passed to the executable. */
-        jobArguments?: string;
+        jobArguments?: CloudTestArgument;
         /** Result parser: TRX, JUnit, TAEF, NUnitXml, TAP. Default: TRX. */
         testParserType?: TestParserType;
         /** Max job duration. Format: HH:MM:SS. */
@@ -146,6 +309,19 @@ namespace Helpers {
         // Cache is enabled by default
         const cacheEnabled = args.cacheEnabled !== undefined ? args.cacheEnabled : true;
 
+        // Generate JSON files for optional complex structures (passed directly, resolved on C# side)
+        // Encoding this as arguments to the tool is too complicated/awkward.
+        // Json.write defaults to single quotes, but the C# System.Text.Json parser requires double quotes.
+        const setupFile = args.dynamicGroupSetup !== undefined
+            ? Json.write(p`${outDir}/dynamic-group-setup.json`, args.dynamicGroupSetup, "\"")
+            : undefined;
+        const cleanupFile = args.dynamicGroupCleanup !== undefined
+            ? Json.write(p`${outDir}/dynamic-group-cleanup.json`, args.dynamicGroupCleanup, "\"")
+            : undefined;
+        const fileProvidersFile = args.fileProviders !== undefined
+            ? Json.write(p`${outDir}/file-providers.json`, args.fileProviders, "\"")
+            : undefined;
+
         let commandLineArgs: Argument[] = [
             Cmd.option("/mode:", "generateSessionConfig"),
             Cmd.option("/tenant:", args.tenant),
@@ -158,6 +334,9 @@ namespace Helpers {
             Cmd.option("/displayName:", args.displayName),
             Cmd.option("/user:", user),
             Cmd.flag("/cacheEnabled", cacheEnabled),
+            Cmd.option("/dynamicGroupSetupFile:", Artifact.input(setupFile)),
+            Cmd.option("/dynamicGroupCleanupFile:", Artifact.input(cleanupFile)),
+            Cmd.option("/fileProvidersFile:", Artifact.input(fileProvidersFile)),
             ...(isAdo ? [
                 Cmd.option("/adoProjectId:", Environment.getStringValue("SYSTEM_TEAMPROJECTID")),
                 Cmd.option("/adoCollectionUri:", Environment.getStringValue("SYSTEM_COLLECTIONURI")),
@@ -240,7 +419,7 @@ namespace Helpers {
             Cmd.option("/jobExecutable:", args.jobExecutable),
             Cmd.option("/testExecutionType:", args.testExecutionType),
             Cmd.option("/configOutputFile:", Artifact.output(configFile)),
-            Cmd.option("/jobArguments:", args.jobArguments),
+            Cmd.option("/jobArguments:", toArgumentValue(args.jobArguments)),
             Cmd.option("/testParserType:", args.testParserType || "TRX"),
             Cmd.option("/jobTimeout:", args.jobTimeout),
             Cmd.option("/testCaseTimeout:", args.testCaseTimeout),
@@ -319,7 +498,7 @@ namespace Helpers {
         /** Test framework: MsTest, Exe, TAEF, NUnit, XUnit, BoostTest. */
         testExecutionType: TestExecutionType;
         /** Arguments passed to the executable. */
-        jobArguments?: string;
+        jobArguments?: CloudTestArgument;
         /** Result parser: TRX, JUnit, TAEF, NUnitXml, TAP. Default: TRX. */
         testParserType?: TestParserType;
         /** Max job duration. Format: HH:MM:SS. */
@@ -505,6 +684,27 @@ namespace Helpers {
         } else {
             return drop.name;
         }
+    }
+
+    function isCompoundPrimitiveValue(arg: CloudTestArgument): arg is CompoundPrimitiveValue {
+        return typeof(arg) !== "string" && typeof(arg) !== "number" && (<CompoundPrimitiveValue>arg).values !== undefined;
+    }
+
+    /** Converts a CloudTestArgument to an ArgumentValue compatible with Cmd.option. */
+    function toArgumentValue(arg: CloudTestArgument): ArgumentValue {
+        if (arg === undefined) {
+            return undefined;
+        }
+
+        if (!isCompoundPrimitiveValue(arg)) {
+            return arg;
+        }
+
+        const compound = <CompoundPrimitiveValue>arg;
+        return <CompoundArgumentValue>{
+            values: compound.values.map(v => toArgumentValue(v)),
+            separator: compound.separator || " ",
+        };
     }
 
     function getDropService(drop: APIs.DropToCreate | Drop.DropCreateResult) : string {

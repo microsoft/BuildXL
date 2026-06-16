@@ -47,7 +47,19 @@ const sessionArgs : CloudTestClient.Helpers.GenerateSessionConfigAndCreateSessio
     // The jobs are extracted from the pre-computed scopes.json file
     jobs: CT1JSSdk.getJobPlaceHolders(scopeJson),
     displayName: "My Test Session",
-    dependencies: dropPrepResult.outputs
+    dependencies: dropPrepResult.outputs,
+    // Run the uploaded test.sh script during VM prepping (group setup phase),
+    // before any jobs execute. The drop contents are available under [BuildRoot].
+    dynamicGroupSetup: {
+        scripts: [
+            {
+                path: r`setup/test.sh`,
+                scriptName: "hello-cloudtest",
+                timeoutMins: 5,
+            }
+        ],
+        timeoutMins: 10,
+    },
 };
 const sessionCreateResult = CloudTestClient.Helpers.generateConfigAndCreateSession(sessionArgs);
 

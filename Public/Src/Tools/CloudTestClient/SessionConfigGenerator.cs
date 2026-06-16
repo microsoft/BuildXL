@@ -53,6 +53,11 @@ namespace Tool.CloudTestClient
                 JobId: job.Id ?? NewStableGuid(job.Name).ToString(),
                 JobName: job.Name)).ToList();
 
+            // Read optional JSON files for group setup, cleanup, and file providers
+            var groupSetup = JsonHelpers.ReadJsonFile<GroupSetupConfig>(arguments.DynamicGroupSetupFile);
+            var groupCleanup = JsonHelpers.ReadJsonFile<GroupCleanupConfig>(arguments.DynamicGroupCleanupFile);
+            var fileProviders = JsonHelpers.ReadJsonFile<List<FileProviderConfig>>(arguments.FileProvidersFile);
+
             // Build the session config
             var config = new SessionConfig(
                 TestSessionId: testSessionId,
@@ -70,9 +75,12 @@ namespace Tool.CloudTestClient
                         Sku: arguments.Sku,
                         Image: arguments.Image,
                         MaxResources: arguments.MaxResources,
-                        DynamicJobRequests: dynamicJobRequests)
+                        DynamicJobRequests: dynamicJobRequests,
+                        DynamicGroupSetup: groupSetup,
+                        DynamicGroupCleanup: groupCleanup)
                 },
-                VSTSContext: BuildVstsContext(arguments));
+                VSTSContext: BuildVstsContext(arguments),
+                FileProviders: fileProviders);
 
             // Serialize and write
             var options = new JsonSerializerOptions
@@ -233,8 +241,6 @@ namespace Tool.CloudTestClient
             return new Guid(hash.AsSpan(0, 16));
         }
 
-
-
         #region JSON model
 
         private sealed record SessionConfig(
@@ -245,7 +251,8 @@ namespace Tool.CloudTestClient
             string BuildDropLocation,
             bool CacheEnabled,
             List<DynamicGroupRequest> DynamicGroupRequests,
-            [property: JsonPropertyName("VSTSContext")] string VSTSContext);
+            [property: JsonPropertyName("VSTSContext")] string VSTSContext,
+            List<FileProviderConfig> FileProviders);
 
         private sealed record DynamicGroupRequest(
             string SessionId,
@@ -254,9 +261,56 @@ namespace Tool.CloudTestClient
             string Sku,
             string Image,
             int MaxResources,
-            List<DynamicJobRequest> DynamicJobRequests);
+            List<DynamicJobRequest> DynamicJobRequests,
+            GroupSetupConfig DynamicGroupSetup,
+            GroupCleanupConfig DynamicGroupCleanup);
 
         private sealed record DynamicJobRequest(string JobId, string JobName);
+
+        // Group setup/cleanup model — matches CloudTest's GroupSetup/GroupCleanup schema.
+        // Path fields use CloudTestPathConverter to handle both plain strings (Path/RelativePath
+        // from DScript) and {"prefix":"X","path":"Y"} objects (PrefixedPath from DScript).
+        // Resolution: absolute paths pass through, relative paths get [WorkingDirectory]/ prefix,
+        // PrefixedPath objects become [prefix]\path.
+
+        private sealed record CopyEntryConfig(
+            [property: JsonConverter(typeof(JsonHelpers.CloudTestPathConverter))] string Source,
+            [property: JsonConverter(typeof(JsonHelpers.CloudTestPathConverter))] string Destination,
+            bool? IsRecursive,
+            bool? IsZeroCopiedFilesAllowed,
+            bool? Writable,
+            bool? SkipHashInput);
+
+        private sealed record ScriptEntryConfig(
+            [property: JsonConverter(typeof(JsonHelpers.CloudTestPathConverter))] string Path,
+            [property: JsonConverter(typeof(JsonHelpers.ScriptArgsConverter))] string Args,
+            string ScriptName,
+            int? TimeoutMins);
+
+        private sealed record ServiceEntryConfig(
+            [property: JsonConverter(typeof(JsonHelpers.CloudTestPathConverter))] string Path,
+            bool? SkipHashInput);
+
+        private sealed record GroupSetupConfig(
+            List<CopyEntryConfig> BuildFiles,
+            List<CopyEntryConfig> DataFiles,
+            List<ServiceEntryConfig> Services,
+            List<ScriptEntryConfig> Scripts,
+            int? TimeoutMins);
+
+        private sealed record GroupCleanupConfig(
+            List<ScriptEntryConfig> Scripts,
+            int? TimeoutMins);
+
+        // File provider model — matches CloudTest's ProviderDefinition schema
+
+        private sealed record FileProviderPropertyConfig(
+            string Name,
+            string Value);
+
+        private sealed record FileProviderConfig(
+            string Type,
+            List<FileProviderPropertyConfig> Properties);
 
         private sealed record VstsContextPayload(
             string ProjectId,

@@ -509,6 +509,10 @@ USAGE: CloudTestClient /mode:<mode> [options]
   /displayName       Optional. Session display name.
   /user              Optional. Submitting user alias.
   /cacheEnabled      Optional. Enable job result caching (flag, default: false).
+  /maxParallelismForJobs Optional. Max concurrent jobs per VM (default: 1).
+  /stamp             Optional. CloudTest stamp (e.g. wus2-default).
+  /properties        Optional. Semicolon-separated key=value session properties.
+  /featureExceptions Optional. Comma-separated feature flags.
   /adoProjectId      Optional. Azure DevOps project ID (SYSTEM_TEAMPROJECTID).
   /adoCollectionUri  Optional. Azure DevOps collection URI (SYSTEM_COLLECTIONURI).
   /adoBuildId        Optional. Azure DevOps build ID (BUILD_BUILDID).

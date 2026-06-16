@@ -64,8 +64,11 @@ namespace Tool.CloudTestClient
                 DisplayName: arguments.DisplayName ?? $"DJE Session {DateTime.UtcNow:yyyy-MM-dd HH:mm}",
                 TenantId: arguments.Tenant,
                 User: arguments.User ?? "unknown",
+                Stamp: arguments.Stamp,
                 BuildDropLocation: arguments.BuildDropLocation,
                 CacheEnabled: arguments.CacheEnabled,
+                Properties: arguments.Properties,
+                FeatureExceptions: arguments.FeatureExceptions,
                 DynamicGroupRequests: new List<DynamicGroupRequest>
                 {
                     new DynamicGroupRequest(
@@ -75,6 +78,7 @@ namespace Tool.CloudTestClient
                         Sku: arguments.Sku,
                         Image: arguments.Image,
                         MaxResources: arguments.MaxResources,
+                        MaxParallelismForJobs: arguments.MaxParallelismForJobs,
                         DynamicJobRequests: dynamicJobRequests,
                         DynamicGroupSetup: groupSetup,
                         DynamicGroupCleanup: groupCleanup)
@@ -248,8 +252,11 @@ namespace Tool.CloudTestClient
             string DisplayName,
             string TenantId,
             string User,
+            string Stamp,
             string BuildDropLocation,
             bool CacheEnabled,
+            string Properties,
+            string FeatureExceptions,
             List<DynamicGroupRequest> DynamicGroupRequests,
             [property: JsonPropertyName("VSTSContext")] string VSTSContext,
             List<FileProviderConfig> FileProviders);
@@ -261,6 +268,7 @@ namespace Tool.CloudTestClient
             string Sku,
             string Image,
             int MaxResources,
+            int? MaxParallelismForJobs,
             List<DynamicJobRequest> DynamicJobRequests,
             GroupSetupConfig DynamicGroupSetup,
             GroupCleanupConfig DynamicGroupCleanup);

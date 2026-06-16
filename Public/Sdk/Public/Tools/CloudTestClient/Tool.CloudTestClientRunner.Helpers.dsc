@@ -184,12 +184,20 @@ namespace Helpers {
         image: string;
         /** Maximum number of VMs to allocate in parallel. */
         maxResources: number;
+        /** Max concurrent jobs per VM. Default: 1. */
+        maxParallelismForJobs?: number;
         /** Job definitions. Each can be a name (string) for auto-generated ID, or {id, name} to use a specific ID. */
         jobs: (string | JobWithId)[];
         /** Session display name. */
         displayName?: string;
         /** Submitting user alias. */
         user?: string;
+        /** CloudTest stamp (e.g. "wus2-default"). */
+        stamp?: string;
+        /** Session properties as key-value pairs. */
+        properties?: Map<string, string>;
+        /** Feature flags (e.g. ["EnableTCDForDynamicJobs"]). */
+        featureExceptions?: string[];
         /** Enable job result caching. Default: false. */
         cacheEnabled?: boolean;
         /** Group setup configuration. Runs before jobs execute on worker VMs. */
@@ -334,6 +342,14 @@ namespace Helpers {
             Cmd.option("/displayName:", args.displayName),
             Cmd.option("/user:", user),
             Cmd.flag("/cacheEnabled", cacheEnabled),
+            Cmd.option("/maxParallelismForJobs:", args.maxParallelismForJobs),
+            Cmd.option("/stamp:", args.stamp),
+            Cmd.option("/properties:", args.properties !== undefined && args.properties.count() > 0
+                ? args.properties.forEach(kvp => `${kvp[0]}=${kvp[1]}`).join(";")
+                : undefined),
+            Cmd.option("/featureExceptions:", args.featureExceptions !== undefined && args.featureExceptions.length > 0
+                ? args.featureExceptions.join(",")
+                : undefined),
             Cmd.option("/dynamicGroupSetupFile:", Artifact.input(setupFile)),
             Cmd.option("/dynamicGroupCleanupFile:", Artifact.input(cleanupFile)),
             Cmd.option("/fileProvidersFile:", Artifact.input(fileProvidersFile)),

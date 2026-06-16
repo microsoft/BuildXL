@@ -42,6 +42,31 @@ namespace Test.Tool.CloudTestClient
         }
 
         [Fact]
+        public void ParseGenerateSessionConfigArgsWithOptionalFields()
+        {
+            var args = new CloudTestClientArgs(new[]
+            {
+                "/mode:generateSessionConfig",
+                "/tenant:my-tenant",
+                "/buildDropLocation:https://drop.example.com/build/123",
+                "/sku:Standard_D4s_v3",
+                "/image:ubuntu22.04",
+                "/maxResources:3",
+                "/maxParallelismForJobs:5",
+                "/stamp:wus2-default",
+                "/properties:key1=value1;key2=value2",
+                "/featureExceptions:EnableTCDForDynamicJobs,AnotherFlag",
+                "/jobName:TestSuite_A",
+                "/configOutputFile:" + Path.Combine(Path.GetTempPath(), "session-config.json"),
+            });
+
+            Assert.Equal(5, args.MaxParallelismForJobs);
+            Assert.Equal("wus2-default", args.Stamp);
+            Assert.Equal("key1=value1;key2=value2", args.Properties);
+            Assert.Equal("EnableTCDForDynamicJobs,AnotherFlag", args.FeatureExceptions);
+        }
+
+        [Fact]
         public void ParseGenerateUpdateDynamicJobConfigArgs()
         {
             using var temp = new TempDirectory();
@@ -410,6 +435,77 @@ namespace Test.Tool.CloudTestClient
             string jobId = ExtractJobId(File.ReadAllText(configPath));
 
             Assert.Equal(explicitId, jobId);
+        }
+
+        #endregion
+
+        #region NewOptionalSessionConfigFields
+
+        [Fact]
+        public void SessionConfigIncludesOptionalFields()
+        {
+            using var temp = new TempDirectory();
+            string configPath = temp.GetPath("config.json");
+
+            var args = new CloudTestClientArgs(new[]
+            {
+                "/mode:generateSessionConfig",
+                "/tenant:my-tenant",
+                "/buildDropLocation:https://drop.example.com/build/123",
+                "/sku:Standard_D4s_v3",
+                "/image:ubuntu22.04",
+                "/maxResources:3",
+                "/maxParallelismForJobs:5",
+                "/stamp:wus2-default",
+                "/properties:key1=value1;key2=value2",
+                "/featureExceptions:EnableTCDForDynamicJobs",
+                "/jobName:TestSuite_A",
+                "/configOutputFile:" + configPath,
+            });
+
+            ConfigGeneratorHelper.GenerateSessionConfig(args);
+            string json = File.ReadAllText(configPath);
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+
+            Assert.Equal("wus2-default", root.GetProperty("stamp").GetString());
+            Assert.Equal("key1=value1;key2=value2", root.GetProperty("properties").GetString());
+            Assert.Equal("EnableTCDForDynamicJobs", root.GetProperty("featureExceptions").GetString());
+
+            var group = root.GetProperty("dynamicGroupRequests")[0];
+            Assert.Equal(5, group.GetProperty("maxParallelismForJobs").GetInt32());
+        }
+
+        [Fact]
+        public void SessionConfigOmitsNullOptionalFields()
+        {
+            using var temp = new TempDirectory();
+            string configPath = temp.GetPath("config.json");
+
+            var args = new CloudTestClientArgs(new[]
+            {
+                "/mode:generateSessionConfig",
+                "/tenant:my-tenant",
+                "/buildDropLocation:https://drop.example.com/build/123",
+                "/sku:Standard_D4s_v3",
+                "/image:ubuntu22.04",
+                "/maxResources:1",
+                "/jobName:TestSuite_A",
+                "/configOutputFile:" + configPath,
+            });
+
+            ConfigGeneratorHelper.GenerateSessionConfig(args);
+            string json = File.ReadAllText(configPath);
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+
+            // When not specified, these fields should be omitted from the JSON (DefaultIgnoreCondition.WhenWritingNull)
+            Assert.False(root.TryGetProperty("stamp", out _));
+            Assert.False(root.TryGetProperty("properties", out _));
+            Assert.False(root.TryGetProperty("featureExceptions", out _));
+
+            var group = root.GetProperty("dynamicGroupRequests")[0];
+            Assert.False(group.TryGetProperty("maxParallelismForJobs", out _));
         }
 
         #endregion

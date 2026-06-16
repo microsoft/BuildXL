@@ -132,6 +132,18 @@ namespace Tool.CloudTestClient
         /// <summary>Whether job result caching is enabled. Default: false.</summary>
         public bool CacheEnabled { get; }
 
+        /// <summary>Max concurrent jobs per VM. Default: 1.</summary>
+        public int? MaxParallelismForJobs { get; }
+
+        /// <summary>CloudTest stamp (e.g. "wus2-default").</summary>
+        public string Stamp { get; }
+
+        /// <summary>Semicolon-separated key=value session properties.</summary>
+        public string Properties { get; }
+
+        /// <summary>Comma-separated feature flags (e.g. "EnableTCDForDynamicJobs").</summary>
+        public string FeatureExceptions { get; }
+
         /// <summary>Path to a JSON file containing the GroupSetup definition for the dynamic group.</summary>
         public string DynamicGroupSetupFile { get; }
 
@@ -293,6 +305,22 @@ namespace Tool.CloudTestClient
                         break;
                     case "CACHEENABLED":
                         CacheEnabled = true;
+                        break;
+                    case "MAXPARALLELISMFORJOBS":
+                        if (!int.TryParse(opt.Value, out var mpj) || mpj <= 0)
+                        {
+                            throw Error($"Invalid maxParallelismForJobs value '{opt.Value}'. Must be a positive integer.");
+                        }
+                        MaxParallelismForJobs = mpj;
+                        break;
+                    case "STAMP":
+                        Stamp = opt.Value;
+                        break;
+                    case "PROPERTIES":
+                        Properties = opt.Value;
+                        break;
+                    case "FEATUREEXCEPTIONS":
+                        FeatureExceptions = opt.Value;
                         break;
                     case "DYNAMICGROUPSETUPFILE":
                         DynamicGroupSetupFile = opt.Value;

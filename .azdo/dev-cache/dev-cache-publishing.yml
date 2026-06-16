@@ -5,10 +5,17 @@
 # the cache for the pips that did complete.
 # A dev build is simulated at the end to verify that we can get cache hits with the published cache.
 
+
 trigger:
+  batch: true
   branches:
     include:
-    - main
+      - main
+
+  paths:
+    exclude:
+      - Documentation/**
+
 
 resources:
   repositories:

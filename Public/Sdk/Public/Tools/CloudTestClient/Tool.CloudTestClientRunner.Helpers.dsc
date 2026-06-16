@@ -522,6 +522,7 @@ namespace Helpers {
      */
     @@public 
     export function submitJob(args: SubmitJobArguments): APIs.CloudTestResult {
+        const sanitizedJobName = PathAtom.createSanitized(args.jobName);
         
         let artifactInfos = args.jobInputs.map(input => {
             
@@ -531,12 +532,12 @@ namespace Helpers {
             // If the input is a static directory or a file, we place the artifact directly under the job folder.
             if (Transformer.isStaticDirectory(input) || Transformer.isFile(input)) {
                 artifact = input;
-                relativePath = r`${args.jobName}`;
+                relativePath = r`${sanitizedJobName}`;
             }
             // If the input is an InputWithRelativePath, we honor the specified relative path.
             else {
                 artifact = input.input;
-                relativePath = r`${args.jobName}/${input.relativePath}`;
+                relativePath = r`${sanitizedJobName}/${input.relativePath}`;
             }
 
             if (Transformer.isStaticDirectory(artifact)) {
@@ -575,7 +576,7 @@ namespace Helpers {
             sku: args.configAndSessionResult.configArguments.sku,
             sessionId: args.configAndSessionResult.sessionResult.sessionIdFile,
             jobReference: {jobName: args.jobName, sessionConfigFile: args.configAndSessionResult.configResult.configFile}, 
-            testFolder: r`${args.jobName}`,
+            testFolder: r`${sanitizedJobName}`,
             jobExecutable: args.jobExecutable,
             testExecutionType: args.testExecutionType,
             jobArguments: args.jobArguments,

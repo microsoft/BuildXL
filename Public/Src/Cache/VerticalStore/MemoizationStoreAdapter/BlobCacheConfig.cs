@@ -92,6 +92,58 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
         public bool UseSystemAssignedManagedIdentity { get; set; }
 
         /// <summary>
+        /// Optional override for the content container name. When specified along with
+        /// <see cref="MetadataContainerName"/> and <see cref="CheckpointContainerName"/>,
+        /// BuildXL will use these exact container names instead of computing them from the
+        /// sharding scheme, universe, and namespace.
+        /// </summary>
+        /// <remarks>
+        /// IMPORTANT — Resharding behavior difference:
+        ///
+        /// With the default computed naming scheme (when these properties are not set), container names
+        /// include a matrix hash derived from the storage account names and sharding algorithm. When the
+        /// shard topology changes (accounts added or removed), the matrix changes, producing new container
+        /// names automatically. This forces a clean cache miss — no old metadata is reachable, so there is
+        /// no risk of stale lookups. The JumpHash redistribution problem is avoided because the old
+        /// containers (with metadata pointing to content under the old shard distribution) are simply not
+        /// found.
+        ///
+        /// With config-based container names, this safety net does not exist. If the shard topology changes
+        /// (e.g., adding a storage account to <see cref="StorageAccountEndpoints"/>) but the same container
+        /// names are reused, old metadata remains reachable. That metadata may reference content that was
+        /// stored under the old JumpHash distribution — but JumpHash with a different shard count will route
+        /// lookups to different shards. With the default setting of PinCachedOutputs=true, BuildXL detects
+        /// the missing content during the availability check and treats it as a cache miss (the pip
+        /// re-executes normally). This results in degraded performance (wasted metadata lookups and content
+        /// availability round-trips) but not build failures. However, if PinCachedOutputs is disabled,
+        /// the content check is skipped and materialization will fail, causing a build error.
+        ///
+        /// If resharding is needed when using config-based names:
+        /// 1. Create new containers with new names on all storage accounts (old and new).
+        /// 2. Update these config values to the new container names.
+        /// 3. Accept a one-time full cache miss as the new containers are populated.
+        /// 4. Delete the old containers once they are no longer in use.
+        /// </remarks>
+        [DefaultValue(null)]
+        public string ContentContainerName { get; set; }
+
+        /// <summary>
+        /// Optional override for the metadata container name.
+        /// Must be specified together with <see cref="ContentContainerName"/> and <see cref="CheckpointContainerName"/>.
+        /// See remarks on <see cref="ContentContainerName"/> for important resharding considerations.
+        /// </summary>
+        [DefaultValue(null)]
+        public string MetadataContainerName { get; set; }
+
+        /// <summary>
+        /// Optional override for the checkpoint container name.
+        /// Must be specified together with <see cref="ContentContainerName"/> and <see cref="MetadataContainerName"/>.
+        /// See remarks on <see cref="ContentContainerName"/> for important resharding considerations.
+        /// </summary>
+        [DefaultValue(null)]
+        public string CheckpointContainerName { get; set; }
+
+        /// <summary>
         /// Whether to allow interactive user authentication against the storage account. This should only be
         /// turned on for local builds.
         /// </summary>

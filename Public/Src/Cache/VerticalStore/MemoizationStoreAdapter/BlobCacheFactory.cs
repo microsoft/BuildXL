@@ -157,6 +157,17 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
 
                 var credentials = LoadAzureCredentials(configuration, context);
 
+                // Validate container name overrides (all-or-nothing)
+                bool hasContentName = !string.IsNullOrEmpty(configuration.ContentContainerName);
+                bool hasMetadataName = !string.IsNullOrEmpty(configuration.MetadataContainerName);
+                bool hasCheckpointName = !string.IsNullOrEmpty(configuration.CheckpointContainerName);
+                if ((hasContentName || hasMetadataName || hasCheckpointName) && !(hasContentName && hasMetadataName && hasCheckpointName))
+                {
+                    throw new InvalidOperationException(
+                        "When specifying custom container names, all three must be provided: "
+                        + "ContentContainerName, MetadataContainerName, CheckpointContainerName.");
+                }
+
                 var factoryConfiguration = new AzureBlobStorageCacheFactory.Configuration(
                     ShardingScheme: new ShardingScheme(ShardingAlgorithm.JumpHash, credentials.Keys.ToList()),
                     Universe: configuration.Universe,
@@ -165,6 +176,12 @@ namespace BuildXL.Cache.MemoizationStoreAdapter
                     IsReadOnly: configuration.IsReadOnly)
                 {
                     EnableContentRecoveryOnPlaceFailure = configuration.EnableContentRecoveryOnPlaceFailure,
+                    ContainerNameOverrides = hasContentName
+                        ? new ContainerNameOverrideConfig(
+                            configuration.ContentContainerName,
+                            configuration.MetadataContainerName,
+                            configuration.CheckpointContainerName)
+                        : null,
                 };
 
                 return AzureBlobStorageCacheFactory.Create(context, factoryConfiguration, new StaticBlobCacheSecretsProvider(credentials));

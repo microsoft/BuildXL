@@ -13,6 +13,15 @@ using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 namespace BuildXL.Cache.ContentStore.Distributed.Blob;
 
 /// <summary>
+/// Specifies explicit container names to use instead of the computed naming scheme.
+/// All three container names must be provided together.
+/// </summary>
+public record ContainerNameOverrideConfig(
+    string Content,
+    string Metadata,
+    string Checkpoint);
+
+/// <summary>
 /// The naming scheme here captures the concept that the actual container names used is version dependent. This is
 /// useful in the context of different permission levels being granted to the credentials being used to access a
 /// storage account.
@@ -112,6 +121,67 @@ public class BuildCacheContainerNamingScheme : ContainerNamingSchemeBase<BuildCa
                 BlobCacheContainerPurpose.Content => shard.ContentContainer.Name,
                 BlobCacheContainerPurpose.Metadata => shard.MetadataContainer.Name,
                 BlobCacheContainerPurpose.Checkpoint => shard.CheckpointContainer.Name,
+                _ => throw new ArgumentOutOfRangeException(
+                            nameof(purpose),
+                            purpose,
+                            $"Unknown value for {nameof(BlobCacheContainerPurpose)}: {purpose}"),
+            },
+            purpose);
+    }
+}
+
+/// <summary>
+/// A naming scheme that uses explicitly configured container names instead of computing them.
+/// Useful when containers are pre-created and the identity lacks container-create permissions.
+/// </summary>
+/// <remarks>
+/// Unlike <see cref="LegacyContainerNamingScheme"/>, this scheme does not incorporate the shard
+/// topology into the container names. With <see cref="LegacyContainerNamingScheme"/>, the container
+/// names include a matrix hash derived from the account names, so changing shards automatically
+/// produces new container names — forcing a clean cache miss and avoiding stale metadata lookups.
+///
+/// With this scheme, if the shard topology changes (accounts added or removed) but the same container
+/// names are kept, old metadata remains reachable. That metadata references content stored under the
+/// old JumpHash distribution, but JumpHash with a different shard count routes lookups to different
+/// shards. With PinCachedOutputs=true (the default), BuildXL detects the missing content during the
+/// availability check and treats it as a cache miss — the pip re-executes and the build succeeds,
+/// but with degraded performance due to wasted metadata lookups. If PinCachedOutputs is disabled,
+/// the content check is skipped and materialization will fail, causing a build error. When resharding,
+/// callers should create new containers with new names and update the configuration accordingly.
+/// </remarks>
+public class ConfiguredContainerNamingScheme : ContainerNamingSchemeBase<object?>
+{
+    private readonly string _contentContainerName;
+    private readonly string _metadataContainerName;
+    private readonly string _checkpointContainerName;
+    private readonly IReadOnlyDictionary<BlobCacheStorageAccountName, BlobCacheContainerName[]> _mapping;
+
+    public ConfiguredContainerNamingScheme(
+        IReadOnlyList<BlobCacheStorageAccountName> accounts,
+        string contentContainerName,
+        string metadataContainerName,
+        string checkpointContainerName)
+    {
+        _contentContainerName = contentContainerName;
+        _metadataContainerName = metadataContainerName;
+        _checkpointContainerName = checkpointContainerName;
+
+        _mapping = new ReadOnlyDictionary<BlobCacheStorageAccountName, BlobCacheContainerName[]>(
+            accounts.ToDictionary(
+                account => account,
+                account => GetContainers(null)));
+    }
+
+    public override IReadOnlyDictionary<BlobCacheStorageAccountName, BlobCacheContainerName[]> GenerateContainerNameMapping() => _mapping;
+
+    protected override BlobCacheContainerName GetContainerName(object? key, BlobCacheContainerPurpose purpose)
+    {
+        return new FixedCacheBlobContainerName(
+            purpose switch
+            {
+                BlobCacheContainerPurpose.Content => _contentContainerName,
+                BlobCacheContainerPurpose.Metadata => _metadataContainerName,
+                BlobCacheContainerPurpose.Checkpoint => _checkpointContainerName,
                 _ => throw new ArgumentOutOfRangeException(
                             nameof(purpose),
                             purpose,

@@ -56,6 +56,11 @@ public class ShardedBlobCacheTopology : IBlobCacheTopology
         BlobRetryPolicy BlobRetryPolicy,
         TimeSpan? ClientCreationTimeout = null)
     {
+        /// <summary>
+        /// Optional container name overrides. When provided, these exact names are used
+        /// instead of computing them from the sharding scheme.
+        /// </summary>
+        public ContainerNameOverrideConfig? ContainerNameOverrides { get; init; }
     }
 
     private readonly Configuration _configuration;
@@ -100,9 +105,24 @@ public class ShardedBlobCacheTopology : IBlobCacheTopology
         };
         _scheme = _configuration.ShardingScheme.Create();
 
-        ContainerNamingScheme namingScheme = _configuration.BuildCacheConfiguration == null
-           ? new LegacyContainerNamingScheme(_configuration.ShardingScheme, _configuration.Universe, _configuration.Namespace)
-           : new BuildCacheContainerNamingScheme(_configuration.BuildCacheConfiguration);
+        ContainerNamingScheme namingScheme;
+        if (_configuration.ContainerNameOverrides != null)
+        {
+            namingScheme = new ConfiguredContainerNamingScheme(
+                _configuration.ShardingScheme.Accounts,
+                _configuration.ContainerNameOverrides.Content,
+                _configuration.ContainerNameOverrides.Metadata,
+                _configuration.ContainerNameOverrides.Checkpoint);
+        }
+        else if (_configuration.BuildCacheConfiguration != null)
+        {
+            namingScheme = new BuildCacheContainerNamingScheme(_configuration.BuildCacheConfiguration);
+        }
+        else
+        {
+            namingScheme = new LegacyContainerNamingScheme(
+                _configuration.ShardingScheme, _configuration.Universe, _configuration.Namespace);
+        }
 
         _containerMapping = namingScheme.GenerateContainerNameMapping();
     }

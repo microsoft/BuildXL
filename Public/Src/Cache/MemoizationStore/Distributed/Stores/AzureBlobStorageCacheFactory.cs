@@ -87,6 +87,12 @@ public static class AzureBlobStorageCacheFactory
         /// is deleted from storage and the associated fingerprint entry is removed from the metadata store.
         /// </summary>
         public bool EnableContentRecoveryOnPlaceFailure { get; init; } = false;
+
+        /// <summary>
+        /// Optional container name overrides. When provided, these exact names are used
+        /// instead of computing them from the sharding scheme.
+        /// </summary>
+        public ContainerNameOverrideConfig? ContainerNameOverrides { get; init; }
     }
 
     /// <nodoc />
@@ -192,7 +198,10 @@ public static class AzureBlobStorageCacheFactory
                 SecretsProvider: secretsProvider,
                 Universe: configuration.Universe,
                 Namespace: configuration.Namespace,
-                BlobRetryPolicy: configuration.BlobRetryPolicy));
+                BlobRetryPolicy: configuration.BlobRetryPolicy)
+            {
+                ContainerNameOverrides = configuration.ContainerNameOverrides,
+            });
     }
 
     private static AzureBlobStorageContentStore CreateContentStore(Configuration configuration, IBlobCacheTopology topology, IRemoteContentAnnouncer? announcer)

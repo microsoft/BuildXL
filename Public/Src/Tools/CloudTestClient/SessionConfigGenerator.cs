@@ -56,7 +56,7 @@ namespace Tool.CloudTestClient
             // Read optional JSON files for group setup, cleanup, and file providers
             var groupSetup = JsonHelpers.ReadJsonFile<GroupSetupConfig>(arguments.DynamicGroupSetupFile);
             var groupCleanup = JsonHelpers.ReadJsonFile<GroupCleanupConfig>(arguments.DynamicGroupCleanupFile);
-            var fileProviders = JsonHelpers.ReadJsonFile<List<FileProviderConfig>>(arguments.FileProvidersFile);
+            var fileProviders = JsonHelpers.ReadJsonFile<FileProvidersFileConfig>(arguments.FileProvidersFile)?.FileProviders;
 
             // Build the session config
             var config = new SessionConfig(
@@ -319,6 +319,9 @@ namespace Tool.CloudTestClient
         private sealed record FileProviderConfig(
             string Type,
             List<FileProviderPropertyConfig> Properties);
+
+        private sealed record FileProvidersFileConfig(
+            List<FileProviderConfig> FileProviders);
 
         private sealed record VstsContextPayload(
             string ProjectId,

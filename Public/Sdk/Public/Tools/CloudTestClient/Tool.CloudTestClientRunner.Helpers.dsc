@@ -326,8 +326,9 @@ namespace Helpers {
         const cleanupFile = args.dynamicGroupCleanup !== undefined
             ? Json.write(p`${outDir}/dynamic-group-cleanup.json`, args.dynamicGroupCleanup, "\"")
             : undefined;
+        // Json.write does not handle top-level arrays properly, so we wrap them in an object.
         const fileProvidersFile = args.fileProviders !== undefined
-            ? Json.write(p`${outDir}/file-providers.json`, args.fileProviders, "\"")
+            ? Json.write(p`${outDir}/file-providers.json`, { fileProviders: args.fileProviders }, "\"")
             : undefined;
 
         let commandLineArgs: Argument[] = [

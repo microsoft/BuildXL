@@ -755,15 +755,17 @@ namespace Test.Tool.CloudTestClient
             string configPath = temp.GetPath("config.json");
 
             string providersFile = temp.WriteFile("providers.json", """
-            [
-                {
-                    "type": "VsoDrop",
-                    "properties": [
-                        {"name": "DropUrl", "value": "https://drop.example.com/build/123"},
-                        {"name": "BuildRoot", "value": ""}
-                    ]
-                }
-            ]
+            {
+                "fileProviders": [
+                    {
+                        "type": "VsoDrop",
+                        "properties": [
+                            {"name": "DropUrl", "value": "https://drop.example.com/build/123"},
+                            {"name": "BuildRoot", "value": ""}
+                        ]
+                    }
+                ]
+            }
             """);
 
             var args = new CloudTestClientArgs(new[]

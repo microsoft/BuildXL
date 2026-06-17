@@ -2,6 +2,11 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20260612.4 (Release [31645803](https://dev.azure.com/mseng/Domino/_build/results?buildId=31645803&view=results))
+- [Cache] Extended content-recovery-on-place-failure handling to cover PipMaterialize dependencies, improving resilience for cache materialization failures. <!-- 41c3f161 -->
+- [DScript] Added a safer API to create sanitized path atoms from DScript, reducing script-side path hygiene issues. <!-- d359f7db -->
+- Various bug fixes and improvements.
+
 # 0.1.0-20260605.2 (Release [31608990](https://dev.azure.com/mseng/Domino/_build/results?buildId=31608990&view=results))
 - [Drop] Add support for referencing an existing drop
 - [Nx] Avoid `--skipRemoteCache` option to remain compatible with older Nx versions

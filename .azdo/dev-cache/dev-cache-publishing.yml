@@ -60,7 +60,12 @@ extends:
           - checkout: self
           - template: /.azdo/common/journaling.yml@self
           - template: /.azdo/common/set-variable-pats.yml@self
+          - task: UseDotNet@2
+            displayName: Install .NET 9 SDK
+            inputs:
+              version: 9.x
           - template: /.azdo/common/install-credential-provider.yml@self
+          - template: /.azdo/common/install-vcredist.yml@self
 
           buildXL:
             arguments: >-
@@ -71,7 +76,6 @@ extends:
               /p:[Sdk.BuildXL]microsoftInternal=1
               /environment:SelfHostPrivateBuild
               /q:DebugNet9
-              /q:ReleaseNet9
               /runInSubst
               /server-
               /enableLazyOutputs:minimal
@@ -103,9 +107,9 @@ extends:
                 )
 
           # We want to simulate a dev build and verify whether we get remote cache hits. 
-          # Let's use the same engine than the feeding build used. There is a pipeline variable ONEES_TOOL_LOCATION_<tool>_<sanitized_version>_<os> set by the tool installer,
-          # but that is not a stable name and is not practical to try to deduce it here. Let's just glob hostedtoolcache\windows\BuildXL*\* to
-          # find the installed engine (there should be just one).
+          # Let's use the same engine than the feeding build used. Use $(Agent.ToolsDirectory) to find the
+          # tool cache root (varies by agent: C:\ToolCache, C:\hostedtoolcache\windows, etc.) and glob for
+          # the installed BuildXL engine (there should be just one).
           # Copy the engine to the Dev directory, and reference it via -Use Dev
           - task: CmdLine@2
             displayName: Copy just used engine to Dev directory
@@ -113,13 +117,14 @@ extends:
             inputs:
               script: |
                 set "DST_DIR=$(Build.Repository.LocalPath)\Out\Selfhost\Dev"
-                echo Looking for BuildXL engine in hostedtoolcache...
+                set "TOOLS_DIR=$(Agent.ToolsDirectory)"
+                echo Looking for BuildXL engine in %TOOLS_DIR%...
                 set "SRC_DIR="
-                for /d %%d in (C:\hostedtoolcache\windows\BuildXL*) do (
+                for /d %%d in ("%TOOLS_DIR%\BuildXL*") do (
                   for /d %%v in ("%%d\*") do set "SRC_DIR=%%v"
                 )
                 if not defined SRC_DIR (
-                  echo ERROR: Could not find BuildXL engine in hostedtoolcache
+                  echo ERROR: Could not find BuildXL engine in %TOOLS_DIR%
                   exit /b 1
                 )
                 echo Copying engine from: %SRC_DIR%

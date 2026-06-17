@@ -495,10 +495,25 @@ namespace BuildXL.Storage.Fingerprints
             AddInnerInt32(value.Length);
             AddInnerCharacterDebug(']');
 
-            for (int i = 0; i < value.Length; i++)
+            // Note: do not iterate via the StringBuilder indexer (value[i]). StringBuilder stores its
+            // contents as a linked list of chunks, so the indexer is O(chunks) per access, making a
+            // per-character index loop O(n^2) for large, multi-chunk builders (e.g. large weak
+            // fingerprints). Iterating chunks sequentially keeps this O(n).
+#if NETCOREAPP
+            foreach (var chunk in value.GetChunks())
             {
-                AddInnerCharacter(value[i]);
+                var span = chunk.Span;
+                for (int i = 0; i < span.Length; i++)
+                {
+                    AddInnerCharacter(span[i]);
+                }
             }
+#else
+            foreach (char ch in value.ToString())
+            {
+                AddInnerCharacter(ch);
+            }
+#endif
         }
 
         /// <summary>

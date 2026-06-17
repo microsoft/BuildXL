@@ -71,7 +71,7 @@ config({
 
                 { id: "Microsoft.NETFramework.ReferenceAssemblies.net472", version: "1.0.0" },
 
-                { id: "System.Diagnostics.DiagnosticSource", version: "10.0.8" },
+                { id: "System.Diagnostics.DiagnosticSource", version: "10.0.9" },
 
                 // Roslyn
                 // The old compiler used by integration tests only.
@@ -133,13 +133,13 @@ config({
                 { id: "Microsoft.WindowsAzure.ConfigurationManager", version: "1.8.0.0" },
                 { id: "Newtonsoft.Json", version: "13.0.4" },
                 { id: "Newtonsoft.Json.Bson", version: "1.0.1" },
-                { id: "System.Reflection.Metadata", version: "9.0.16" },
-                { id: "System.Formats.Nrbf", version: "9.0.16" },
+                { id: "System.Reflection.Metadata", version: "9.0.17" },
+                { id: "System.Formats.Nrbf", version: "9.0.17" },
                 // The VBCS logger is used by QuickBuild and runs in the context of old VS installations, so it cannot use a higher version
                 // Please do not upgrade this dll (or if you do, make sure this happens in coordination with the QuickBuild team)
                 { id: "System.Reflection.Metadata", version: "5.0.0", alias: "System.Reflection.Metadata.ForVBCS" },
 
-                { id: "System.Threading.Tasks.Dataflow", version: "9.0.16" },
+                { id: "System.Threading.Tasks.Dataflow", version: "9.0.17" },
                 // VBCSCompiler is used in CB against older versions of MSBuild that don't have binding redirects for the newer versions of System.Threading.Tasks.Dataflow.
                 { id: "System.Threading.Tasks.Dataflow", alias: "System.Threading.Tasks.Dataflow.ForVBCS", version: "8.0.0" },
 
@@ -199,7 +199,7 @@ config({
                 { id: "Azure.Storage.Blobs", version: "12.26.0" },
                 { id: "Azure.Storage.Common", version: "12.25.0" },
                 { id: "Azure.Storage.Queues", version: "12.24.0" },
-                { id: "System.IO.Hashing", version: "9.0.16" },
+                { id: "System.IO.Hashing", version: "9.0.17" },
                 { id: "Azure.Storage.Blobs.Batch", version: "12.10.0" },
                 { id: "Azure.Storage.Blobs.ChangeFeed", version: "12.0.0-preview.34" },
 
@@ -255,13 +255,13 @@ config({
                 // CloudStore dependencies
                 { id: "Microsoft.Bcl", version: "1.1.10" },
                 { id: "Microsoft.Bcl.Async", version: "1.0.168" },
-                { id: "Microsoft.Bcl.AsyncInterfaces", version: "10.0.8" },
+                { id: "Microsoft.Bcl.AsyncInterfaces", version: "10.0.9" },
                 { id: "Microsoft.Bcl.Build", version: "1.0.14" },
                 { id: "Microsoft.Bcl.HashCode", version: "6.0.0" },
                 
                 { id: "Pipelines.Sockets.Unofficial", version: "2.2.0" },
                 { id: "System.Diagnostics.PerformanceCounter", version: "6.0.0" },
-                { id: "System.Threading.Channels", version: "9.0.16" },
+                { id: "System.Threading.Channels", version: "9.0.17" },
                 { id: "System.Threading.RateLimiting", version: "7.0.0" },
 
                 { id: "System.Linq.Async", version: "4.0.0"},
@@ -294,14 +294,14 @@ config({
                 { id: "Microsoft.ApplicationInsights.WindowsServer.TelemetryChannel", version: "2.22.0" },
                 { id: "Microsoft.Extensions.Caching.Memory", version: "1.0.0" },
                 { id: "Microsoft.Extensions.Caching.Abstractions", version: "1.0.0" },
-                { id: "System.Security.Cryptography.Xml", version: "9.0.16" },
-                { id: "System.Text.Encodings.Web", version: "9.0.16" },
+                { id: "System.Security.Cryptography.Xml", version: "9.0.17" },
+                { id: "System.Text.Encodings.Web", version: "9.0.17" },
                 { id: "System.Security.Permissions", version: "7.0.0" },
                 { id: "System.Windows.Extensions", version: "7.0.0" },
                 { id: "System.Drawing.Common", version: "7.0.0" },
                 { id: "Microsoft.Win32.SystemEvents", version: "7.0.0" },
-                { id: "System.Security.Cryptography.Pkcs", version: "9.0.16" },
-                { id: "Microsoft.Bcl.Cryptography", version: "9.0.16" },
+                { id: "System.Security.Cryptography.Pkcs", version: "9.0.17" },
+                { id: "Microsoft.Bcl.Cryptography", version: "9.0.17" },
 
                 { id: "ILRepack", version: "2.0.16" },
 
@@ -323,22 +323,22 @@ config({
                 { id: "Microsoft.Build.Framework", version: "17.14.28" },
                 { id: "Microsoft.NET.StringTools", version: "17.14.28" },
                 { id: "Microsoft.Build.Locator", version: "1.5.5" },
-                { id: "System.Reflection.MetadataLoadContext", version: "9.0.16"},
+                { id: "System.Reflection.MetadataLoadContext", version: "9.0.17"},
 
-                { id: "System.Resources.Extensions", version: "9.0.16",
+                { id: "System.Resources.Extensions", version: "9.0.17",
                     dependentPackageIdsToSkip: ["System.Memory"]},
 
                 // Buffers and Memory
                 { id: "System.Buffers", version: "4.6.1" }, /* Change Sync: BuildXLSdk.cacheBindingRedirects() */ // A different version, because StackExchange.Redis uses it.
                 { id: "System.Memory", version: "4.6.3" }, /* Change Sync: BuildXLSdk.cacheBindingRedirects() */
                 { id: "System.Runtime.CompilerServices.Unsafe", version: "6.1.2" }, /* Change Sync: BuildXLSdk.cacheBindingRedirects() */
-                { id: "System.IO.Pipelines", version: "9.0.16" },
+                { id: "System.IO.Pipelines", version: "9.0.17" },
                 { id: "System.Numerics.Vectors", version: "4.6.1" }, /* Change Sync: BuildXLSdk.cacheBindingRedirects() */
 
                 // Extra dependencies to make MSBuild work
                 { id: "Microsoft.VisualStudio.Setup.Configuration.Interop", version: "3.2.2146"},
-                { id: "System.CodeDom", version: "9.0.16"},
-                { id: "System.Text.Encoding.CodePages", version: "9.0.16" },
+                { id: "System.CodeDom", version: "9.0.17"},
+                { id: "System.Text.Encoding.CodePages", version: "9.0.17" },
 
                 // Used for MSBuild input/output prediction
                 // The current version of Microsoft.Build that is referenced by the prediction package does not 
@@ -368,7 +368,7 @@ config({
                 { id: "boost", version: "1.71.0.0" },
 
                 // Needed for SBOM Generation
-                { id: "Microsoft.Extensions.Logging.Abstractions", version: "10.0.8" },
+                { id: "Microsoft.Extensions.Logging.Abstractions", version: "10.0.9" },
                 { id: "packageurl-dotnet", version: "2.0.0" },
                 { id: "System.Reactive", version: "6.1.0" },
 
@@ -436,63 +436,63 @@ config({
                     archiveType: "tgz",
                 },
 
-                // DotNet Core Runtime 10.0.8
+                // DotNet Core Runtime 10.0.9
                 {
                     moduleName: "DotNet-Runtime.win-x64.10.0",
-                    url: "https://builds.dotnet.microsoft.com/dotnet/Runtime/10.0.8/dotnet-runtime-10.0.8-win-x64.zip",
-                    hash: "VSO0:D79C4EE6D4E019ACD0CD7C3628E7FCC9A67FD88863BB8C7689E651FC78E398EE00",
+                    url: "https://builds.dotnet.microsoft.com/dotnet/Runtime/10.0.9/dotnet-runtime-10.0.9-win-x64.zip",
+                    hash: "VSO0:D9A1261D782876D8CEFDEE50379BBE1388ACD98878757233AFE959D2C7CBA40B00",
                     archiveType: "zip",
                 },
                 {
                     moduleName: "DotNet-Runtime.osx-x64.10.0",
-                    url: "https://builds.dotnet.microsoft.com/dotnet/Runtime/10.0.8/dotnet-runtime-10.0.8-osx-x64.tar.gz",
-                    hash: "VSO0:2EC8F5CE438F0A4E7BA05332DCD929F8300AFBEDC26BEA826FEBE927FBD3A9CC00",
+                    url: "https://builds.dotnet.microsoft.com/dotnet/Runtime/10.0.9/dotnet-runtime-10.0.9-osx-x64.tar.gz",
+                    hash: "VSO0:D7D9F5549613A62809070BA5666F38B006C36643C5899DC274F9DBA2B54F977C00",
                     archiveType: "tgz",
                 },
                 {
                     moduleName: "DotNet-Runtime.linux-x64.10.0",
-                    url: "https://builds.dotnet.microsoft.com/dotnet/Runtime/10.0.8/dotnet-runtime-10.0.8-linux-x64.tar.gz",
-                    hash: "VSO0:CDBFFB2C9E2124ADE54FF86A7CF474BFD02675CFC2E04248A99FE7B5F166638400",
+                    url: "https://builds.dotnet.microsoft.com/dotnet/Runtime/10.0.9/dotnet-runtime-10.0.9-linux-x64.tar.gz",
+                    hash: "VSO0:0AC0E9F0C72C547AFE45EF996445755729EBAC255F51F164CD593A2DF638DFD900",
                     archiveType: "tgz",
                 },
 
-                // DotNet Core Runtime 9.0.15
+                // DotNet Core Runtime 9.0.17
                 {
                     moduleName: "DotNet-Runtime.win-x64.9.0", 
-                    url: "https://builds.dotnet.microsoft.com/dotnet/Runtime/9.0.15/dotnet-runtime-9.0.15-win-x64.zip",
-                    hash: "VSO0:C42C9E52DB7D12D8C611D78E376E307AD9740439CCDC80747BEF2687730A68E900",
+                    url: "https://builds.dotnet.microsoft.com/dotnet/Runtime/9.0.17/dotnet-runtime-9.0.17-win-x64.zip",
+                    hash: "VSO0:E7ADD325E0D26E6129521B5D7745D959E1670D332FAA5F00B2D65E4100B422F400",
                     archiveType: "zip",
                 },
                 {
                     moduleName: "DotNet-Runtime.osx-x64.9.0",
-                    url: "https://builds.dotnet.microsoft.com/dotnet/Runtime/9.0.15/dotnet-runtime-9.0.15-osx-x64.tar.gz",
-                    hash: "VSO0:8B0699B0AB393587735F5A849AD9256846A433204BF2498A82BB342F40276ADB00",
+                    url: "https://builds.dotnet.microsoft.com/dotnet/Runtime/9.0.17/dotnet-runtime-9.0.17-osx-x64.tar.gz",
+                    hash: "VSO0:FDD225DD6C69098682BB800855B1A443C5C7CCEE8FA3F66A0E75B57DB526A77100",
                     archiveType: "tgz",
                 },
                 {
                     moduleName: "DotNet-Runtime.linux-x64.9.0",
-                    url: "https://builds.dotnet.microsoft.com/dotnet/Runtime/9.0.15/dotnet-runtime-9.0.15-linux-x64.tar.gz",
-                    hash: "VSO0:0E632CAF93FE49248113A24277EF794AA609FD611A81CBB81ABE78242FCD84DB00",
+                    url: "https://builds.dotnet.microsoft.com/dotnet/Runtime/9.0.17/dotnet-runtime-9.0.17-linux-x64.tar.gz",
+                    hash: "VSO0:169EC1B06ACCBDEB5E693E5614B3A61F894EE4C45B3CBFE6A6F23EBE7C34BDDC00",
                     archiveType: "tgz",
                 },
 
-                // DotNet Core Runtime 8.0.26
+                // DotNet Core Runtime 8.0.28
                 {
                     moduleName: "DotNet-Runtime.win-x64.8.0", 
-                    url: "https://builds.dotnet.microsoft.com/dotnet/Runtime/8.0.26/dotnet-runtime-8.0.26-win-x64.zip",
-                    hash: "VSO0:C72926EABA3192E58DF8661E898FDE6336CDCEDB3B57E681AC49BC91D8015D8900",
+                    url: "https://builds.dotnet.microsoft.com/dotnet/Runtime/8.0.28/dotnet-runtime-8.0.28-win-x64.zip",
+                    hash: "VSO0:61BB930FB9EA13F435FE9EEDC8F90720502311ACBFA4AE5624929F7CAFC7835F00",
                     archiveType: "zip",
                 },
                 {
                     moduleName: "DotNet-Runtime.osx-x64.8.0",
-                    url: "https://builds.dotnet.microsoft.com/dotnet/Runtime/8.0.26/dotnet-runtime-8.0.26-osx-x64.tar.gz",
-                    hash: "VSO0:C7934682A6384BA6E4BB6B5DF1E77C41E4DABF19202DFC6B1FA016A008E781DB00",
+                    url: "https://builds.dotnet.microsoft.com/dotnet/Runtime/8.0.28/dotnet-runtime-8.0.28-osx-x64.tar.gz",
+                    hash: "VSO0:563D14DFA63DE4D052B4B9120408F55114D97C49838AC39B8D00E9515A97B94C00",
                     archiveType: "tgz",
                 },
                 {
                     moduleName: "DotNet-Runtime.linux-x64.8.0",
-                    url: "https://builds.dotnet.microsoft.com/dotnet/Runtime/8.0.26/dotnet-runtime-8.0.26-linux-x64.tar.gz",
-                    hash: "VSO0:0EAA8CB4C875C439DB1A21FC0BCD6335DDCDBD45E614ED27A5D011403256760800",
+                    url: "https://builds.dotnet.microsoft.com/dotnet/Runtime/8.0.28/dotnet-runtime-8.0.28-linux-x64.tar.gz",
+                    hash: "VSO0:B803045A52A8465C27CEDC6ED461323224F8F52FDA603CE78CC1EECE6B12F60C00",
                     archiveType: "tgz",
                 },
 

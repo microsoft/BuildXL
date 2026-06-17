@@ -55,11 +55,20 @@ config({
                     // Note: From a compliance point of view it is important that MicrosoftInternal has a single feed.
                     // If you need to consume packages make sure they are upstreamed in that feed.
                   }
-                : {
-                    "buildxl-selfhost" : "https://pkgs.dev.azure.com/mseng/PipelineTools/_packaging/BuildXL.External.Dependencies/nuget/v3/index.json",
-                    "nuget.org" : "https://api.nuget.org/v3/index.json",
-                    "dotnet-arcade" : "https://pkgs.dev.azure.com/dnceng/public/_packaging/dotnet-eng/nuget/v3/index.json",
-                  },
+                : Environment.getFlag("[Sdk.BuildXL]usePublicDepsOnlyFeed")
+                  ? {
+                      // When the flag is set, use the feed that upstreams only publicly accessible packages.
+                      // This ensures the BuildXL repo keeps building from publicly available sources.
+                      // Like the internal block above, keep this to a single feed and never add additional
+                      // feeds here.
+                      // CODESYNC: .azdo/scripts/SetVariablePats.ps1
+                      "BuildXL.Internal.PublicDepsOnly" : "https://1essharedassets.pkgs.visualstudio.com/1esPkgs/_packaging/BuildXL.Internal.PublicDepsOnly/nuget/v3/index.json",
+                    }
+                  : {
+                      "buildxl-selfhost" : "https://pkgs.dev.azure.com/mseng/PipelineTools/_packaging/BuildXL.External.Dependencies/nuget/v3/index.json",
+                      "nuget.org" : "https://api.nuget.org/v3/index.json",
+                      "dotnet-arcade" : "https://pkgs.dev.azure.com/dnceng/public/_packaging/dotnet-eng/nuget/v3/index.json",
+                    },
 
             packages: [
                 { id: "NLog", version: "4.7.7" },
@@ -520,7 +529,10 @@ config({
                     extractedValueName: "yarnPackage",
                     url: importFile(f`config.microsoftInternal.dsc`).isMicrosoftInternal
                         ? 'https://cloudbuild.pkgs.visualstudio.com/_packaging/BuildXL.Selfhost/npm/registry/yarn/-/yarn-1.22.19.tgz'
-                        : 'https://registry.npmjs.org/yarn/-/yarn-1.22.19.tgz',
+                        : Environment.getFlag("[Sdk.BuildXL]usePublicDepsOnlyFeed")
+                            // CODESYNC: .azdo/scripts/SetVariablePats.ps1
+                            ? 'https://1essharedassets.pkgs.visualstudio.com/1esPkgs/_packaging/BuildXL.Internal.PublicDepsOnly/npm/registry/yarn/-/yarn-1.22.19.tgz'
+                            : 'https://registry.npmjs.org/yarn/-/yarn-1.22.19.tgz',
                     archiveType: "tgz"
                 },
                 {

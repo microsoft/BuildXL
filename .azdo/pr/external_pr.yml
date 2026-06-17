@@ -35,6 +35,9 @@ extends:
       vhd:
         enabled: true     # AutoVhd
 
+    settings:
+      networkIsolationPolicy: Permissive,CFSClean,CFSClean2,CFSClean3
+
     stages:
     - stage: ExternalPR
       jobs:
@@ -92,6 +95,7 @@ extends:
               bxl.cmd
               -Use Dev
               /p:[Sdk.BuildXL]microsoftInternal=0
+              /p:[Sdk.BuildXL]usePublicDepsOnlyFeed=1
               /q:$(BuildXL.Configuration)Net9
               /logOutput:FullOutputOnWarningOrError
               /p:RetryXunitTests=1
@@ -105,6 +109,11 @@ extends:
             # The following two variables need to be set explicitly because we are using the ADO build runner outside of the 1ESPT buildxl workflow
             SYSTEM_ACCESSTOKEN: $(System.AccessToken)
             ADOBUILDRUNNERINVOCATIONKEY: "ExternalPR_PublicValidation_UseDev"
+            # Feed auth for usePublicDepsOnlyFeed; set by /.azdo/common/set-variable-pats.yml earlier in the job.
+            1ESSHAREDASSETS_BUILDXL_FEED_PAT: $(1ESSHAREDASSETS_BUILDXL_FEED_PAT)
+            1ESSHAREDASSETS_BUILDXL_FEED_PAT_B64: $(1ESSHAREDASSETS_BUILDXL_FEED_PAT_B64)
+            VSS_NUGET_EXTERNAL_FEED_ENDPOINTS: $(VSS_NUGET_EXTERNAL_FEED_ENDPOINTS)
+            ARTIFACT_CREDENTIALPROVIDERS_PATH: $(ARTIFACT_CREDENTIALPROVIDERS_PATH)
 
         # Step 3. Check to see if there are any unstaged files in the build and fail the build.
         #         We avoid checking cg/nuget/cgmanifest.json and .sarif files, which we expect to change in the external build

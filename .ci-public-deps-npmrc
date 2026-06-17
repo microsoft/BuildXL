@@ -1,0 +1,15 @@
+; this npmrc is only meant to be used on ADO builds with [Sdk.BuildXL]usePublicDepsOnlyFeed
+; before starting the build, we must set 1ESSHAREDASSETS_BUILDXL_FEED_PAT_B64 to be a base64 encoded vso_packaging PAT for the BuildXL.Internal.PublicDepsOnly feed
+; CODESYNC: .azdo/scripts/SetVariablePats.ps1
+registry=https://1essharedassets.pkgs.visualstudio.com/1esPkgs/_packaging/BuildXL.Internal.PublicDepsOnly/npm/registry/
+always-auth=true
+# Disable postinstall scripts for supply chain security hardening
+ignore-scripts=true
+; begin auth token
+//1essharedassets.pkgs.visualstudio.com/1esPkgs/_packaging/BuildXL.Internal.PublicDepsOnly/npm/registry/:username=1essharedassets
+//1essharedassets.pkgs.visualstudio.com/1esPkgs/_packaging/BuildXL.Internal.PublicDepsOnly/npm/registry/:_password=${1ESSHAREDASSETS_BUILDXL_FEED_PAT_B64}
+//1essharedassets.pkgs.visualstudio.com/1esPkgs/_packaging/BuildXL.Internal.PublicDepsOnly/npm/registry/:email=npm requires email to be set but doesn't use the value
+//1essharedassets.pkgs.visualstudio.com/1esPkgs/_packaging/BuildXL.Internal.PublicDepsOnly/npm/:username=1essharedassets
+//1essharedassets.pkgs.visualstudio.com/1esPkgs/_packaging/BuildXL.Internal.PublicDepsOnly/npm/:_password=${1ESSHAREDASSETS_BUILDXL_FEED_PAT_B64}
+//1essharedassets.pkgs.visualstudio.com/1esPkgs/_packaging/BuildXL.Internal.PublicDepsOnly/npm/:email=npm requires email to be set but doesn't use the value
+; end auth token

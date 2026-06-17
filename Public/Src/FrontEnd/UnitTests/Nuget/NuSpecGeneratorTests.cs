@@ -48,10 +48,23 @@ namespace Test.BuildXL.FrontEnd.Nuget
 
         public static string RetrieveTestPackageFeed()
         {
-            var internalVariable = Environment.GetEnvironmentVariable("[Sdk.BuildXL]microsoftInternal");
-            return internalVariable != null && (internalVariable.Equals("1") || internalVariable.Equals("true", StringComparison.OrdinalIgnoreCase))
-                ? "https://pkgs.dev.azure.com/cloudbuild/_packaging/BuildXL.Selfhost/nuget/v3/index.json"
-                : "https://api.nuget.org/v3/index.json";
+            if (isBuildXLFlagSet("[Sdk.BuildXL]microsoftInternal"))
+            {
+                return "https://pkgs.dev.azure.com/cloudbuild/_packaging/BuildXL.Selfhost/nuget/v3/index.json";
+            }
+
+            if (isBuildXLFlagSet("[Sdk.BuildXL]usePublicDepsOnlyFeed"))
+            {
+                return "https://1essharedassets.pkgs.visualstudio.com/1esPkgs/_packaging/BuildXL.Internal.PublicDepsOnly/nuget/v3/index.json";
+            }
+
+            return "https://api.nuget.org/v3/index.json";
+
+            static bool isBuildXLFlagSet(string name)
+            {
+                var value = Environment.GetEnvironmentVariable(name);
+                return value != null && (value.Equals("1") || value.Equals("true", StringComparison.OrdinalIgnoreCase));
+            }
         }
 
         [Fact]

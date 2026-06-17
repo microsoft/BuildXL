@@ -42,6 +42,14 @@ $b64CloudbuildPat = [Convert]::ToBase64String($cbPatBytes)
 # CODESYNC: Keep this variable name in sync with Public/Src/FrontEnd/UnitTests/Rush/IntegrationTests/RushIntegrationTestBase.cs
 Set-Variable "CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT_B64" $b64CloudbuildPat
 
+# Base64-encoded credential for npm auth against the BuildXL.Internal.PublicDepsOnly feed.
+# Note: despite the "*_PAT" variable naming (kept consistent with the existing variables), the value
+# passed in is typically an access token, not a PAT.
+# CODESYNC: .ci-public-deps-npmrc
+$oneEsPatBytes = [System.Text.Encoding]::UTF8.GetBytes($OneEsPat)
+$b64OneEsPat = [Convert]::ToBase64String($oneEsPatBytes)
+Set-Variable "1ESSHAREDASSETS_BUILDXL_FEED_PAT_B64" $b64OneEsPat
+
 if ($NcPath)
 {
     Set-Variable "NUGET_CREDENTIALPROVIDERS_PATH" $NcPath
@@ -59,6 +67,15 @@ $endpointCredentials = @(
     @{
         endpoint = "https://cloudbuild.pkgs.visualstudio.com/_packaging/BuildXL.Selfhost/npm/registry/yarn/-/yarn-1.22.19.tgz"
         password = $CbPat
+    },
+    # BuildXL.Internal.PublicDepsOnly feed. CODESYNC: config.dsc
+    @{
+        endpoint = "https://1essharedassets.pkgs.visualstudio.com/1esPkgs/_packaging/BuildXL.Internal.PublicDepsOnly/nuget/v3/index.json"
+        password = $OneEsPat
+    },
+    @{
+        endpoint = "https://1essharedassets.pkgs.visualstudio.com/1esPkgs/_packaging/BuildXL.Internal.PublicDepsOnly/npm/registry/yarn/-/yarn-1.22.19.tgz"
+        password = $OneEsPat
     }
 )
 $vssEndpoints = @{ endpointCredentials = $endpointCredentials } | ConvertTo-Json -Compress

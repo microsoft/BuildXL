@@ -214,6 +214,10 @@ namespace Flags {
     @@public
     export const isMicrosoftInternal = Environment.getFlag(envVarNamePrefix + "microsoftInternal");
 
+    // When set, a non-internal build consumes packages from the BuildXL.Internal.PublicDepsOnly feed instead of public sources.
+    @@public
+    export const usePublicDepsOnlyFeed = !isMicrosoftInternal && Environment.getFlag(envVarNamePrefix + "usePublicDepsOnlyFeed");
+
     @@public
     export const isValidatingOsxRuntime = isMicrosoftInternal && Environment.getFlag(envVarNamePrefix + "validateOsxRuntime");
 
@@ -1082,9 +1086,12 @@ function processTestArguments(args: Managed.TestArguments) : Managed.TestArgumen
                 }
             },
             
-            // The microsoftInternal variable is used by tests that pull packages during a test (eg: nuget resolver tests)
-            // to determine whether it should use nuget.org (for external builds) or the internal feed (for internal builds).
-            envVars: Environment.hasVariable("[Sdk.BuildXL]microsoftInternal") ? [ { name: "[Sdk.BuildXL]microsoftInternal", value: Environment.getStringValue("[Sdk.BuildXL]microsoftInternal") } ] : undefined
+            // These variables are used by tests that pull packages during a test (eg: nuget resolver tests)
+            // to determine which feed to use (nuget.org for external builds, or an internal feed otherwise).
+            envVars: [
+                ...(Environment.hasVariable("[Sdk.BuildXL]microsoftInternal") ? [ { name: "[Sdk.BuildXL]microsoftInternal", value: Environment.getStringValue("[Sdk.BuildXL]microsoftInternal") } ] : []),
+                ...(Environment.hasVariable("[Sdk.BuildXL]usePublicDepsOnlyFeed") ? [ { name: "[Sdk.BuildXL]usePublicDepsOnlyFeed", value: Environment.getStringValue("[Sdk.BuildXL]usePublicDepsOnlyFeed") } ] : []),
+            ]
         },
         runtimeContentToSkip: [
             // Don't deploy the branding manifest for unittest so that updating the version number does not affect the unittests.
@@ -1145,22 +1152,35 @@ namespace NpmRc {
     export function getLocalNpmRc() : File {
         return Flags.isMicrosoftInternal
             ? f`${Context.getMount("SourceRoot").path}/.npmrc`
-            : undefined;
+            : Flags.usePublicDepsOnlyFeed
+                ? f`${Context.getMount("SourceRoot").path}/.public-deps-npmrc`
+                : undefined;
     }
 
     @@public
     export function getUserNpmRc() : File {
-        return Flags.isMicrosoftInternal
+        // On ADO, use the checked-in CI npmrc; otherwise, use the user-level npmrc.
+        const ciNpmRc = Flags.isMicrosoftInternal
+            ? f`${Context.getMount("SourceRoot").path}/.ci-npmrc`
+            : Flags.usePublicDepsOnlyFeed
+                ? f`${Context.getMount("SourceRoot").path}/.ci-public-deps-npmrc`
+                : undefined;
+
+        return ciNpmRc !== undefined
             ? Environment.hasVariable("TF_BUILD")
-                ? f`${Context.getMount("SourceRoot").path}/.ci-npmrc`
+                ? ciNpmRc
                 : f`${Environment.getDirectoryValue(Context.getCurrentHost().os === "win" ? "USERPROFILE" : "HOME").path}/.npmrc`
             : undefined;
     }
 
     @@public
     export function getNpmPasswordEnvironmentVariableName() : string {
-        return Flags.isMicrosoftInternal && Environment.hasVariable("TF_BUILD")
-            ? "CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT_B64"
+        return Environment.hasVariable("TF_BUILD")
+            ? Flags.isMicrosoftInternal
+                ? "CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT_B64"
+                : Flags.usePublicDepsOnlyFeed
+                    ? "1ESSHAREDASSETS_BUILDXL_FEED_PAT_B64"
+                    : undefined
             : undefined;
     }
 }

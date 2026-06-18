@@ -510,6 +510,8 @@ namespace Helpers {
         jobInputs: (File | OpaqueDirectory | InputWithRelativePath)[];
         /** Filter to apply to the job inputs. */
         jobInputsFilter?: InputFilter;
+        /** Overrides the per-test unique location where the job inputs will be placed in the drop to use the provided value. */
+        jobInputsDropLocation?: PathAtom;
         /** Path to executable on the worker VM. */
         jobExecutable: Path | RelativePath;
         /** Test framework: MsTest, Exe, TAEF, NUnit, XUnit, BoostTest. */
@@ -539,7 +541,10 @@ namespace Helpers {
      */
     @@public 
     export function submitJob(args: SubmitJobArguments): APIs.CloudTestResult {
-        const sanitizedJobName = PathAtom.createSanitized(args.jobName);
+        
+        const jobInputsLocation = args.jobInputsDropLocation !== undefined 
+            ? args.jobInputsDropLocation 
+            : PathAtom.createSanitized(args.jobName);
         
         let artifactInfos = args.jobInputs.map(input => {
             
@@ -549,12 +554,12 @@ namespace Helpers {
             // If the input is a static directory or a file, we place the artifact directly under the job folder.
             if (Transformer.isStaticDirectory(input) || Transformer.isFile(input)) {
                 artifact = input;
-                relativePath = r`${sanitizedJobName}`;
+                relativePath = r`${jobInputsLocation}`;
             }
             // If the input is an InputWithRelativePath, we honor the specified relative path.
             else {
                 artifact = input.input;
-                relativePath = r`${sanitizedJobName}/${input.relativePath}`;
+                relativePath = r`${jobInputsLocation}/${input.relativePath}`;
             }
 
             if (Transformer.isStaticDirectory(artifact)) {
@@ -593,7 +598,7 @@ namespace Helpers {
             sku: args.configAndSessionResult.configArguments.sku,
             sessionId: args.configAndSessionResult.sessionResult.sessionIdFile,
             jobReference: {jobName: args.jobName, sessionConfigFile: args.configAndSessionResult.configResult.configFile}, 
-            testFolder: r`${sanitizedJobName}`,
+            testFolder: r`${jobInputsLocation}`,
             jobExecutable: args.jobExecutable,
             testExecutionType: args.testExecutionType,
             jobArguments: args.jobArguments,

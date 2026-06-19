@@ -299,5 +299,50 @@ namespace Test.BuildXL.Engine.Cache
                 }
             }
         }
+
+        // This guards the bulk string-copy fast path in CoreHashingHelperBase.AddInnerCharacters.
+        // helper1 (recordFingerprintString: false) takes the bulk MemoryMarshal.AsBytes copy path,
+        // while helper2 (recordFingerprintString: true) takes the per-character path; both must yield
+        // identical hashes. MurmurHashEngine folds in each TransformBlock's trailing bytes immediately,
+        // so its result is sensitive to where the byte stream is split across Flush() calls. The 4095-byte
+        // prefix leaves exactly one byte free in the 4096-byte buffer, so the first appended char would
+        // straddle the buffer boundary unless the fast path flushes at the same point as the per-character
+        // path. A regression here would silently change weak fingerprints and corrupt cache lookups.
+        [Fact]
+        public void BulkStringHashingPreservesMurmurHashAtBufferBoundary()
+        {
+            string value = new string('a', 100);
+            byte[] prefix = new byte[4095];
+
+            using (var helper1 = new TestHashingHelper(recordFingerprintString: false, hashAlgorithmType: HashAlgorithmType.MurmurHash3))
+            using (var helper2 = new TestHashingHelper(recordFingerprintString: true, hashAlgorithmType: HashAlgorithmType.MurmurHash3))
+            {
+                helper1.AddBytes(prefix);
+                helper1.AddString(value);
+
+                helper2.AddBytes(prefix);
+                helper2.AddString(value);
+
+                XAssert.ArrayEqual(helper1.GenerateHashBytes(), helper2.GenerateHashBytes());
+            }
+        }
+
+        private sealed class TestHashingHelper : CoreHashingHelperBase
+        {
+            public TestHashingHelper(bool recordFingerprintString, HashAlgorithmType hashAlgorithmType)
+                : base(recordFingerprintString, hashAlgorithmType)
+            {
+            }
+
+            public void AddBytes(byte[] bytes)
+            {
+                Add(bytes);
+            }
+
+            public void AddString(string value)
+            {
+                AddInnerString(value, forceUppercase: false);
+            }
+        }
     }
 }

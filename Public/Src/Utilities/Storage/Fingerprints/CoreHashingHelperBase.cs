@@ -3,6 +3,7 @@
 
 using System;
 using System.Diagnostics.ContractsLight;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 using BuildXL.Cache.ContentStore.Hashing;
@@ -502,17 +503,10 @@ namespace BuildXL.Storage.Fingerprints
 #if NETCOREAPP
             foreach (var chunk in value.GetChunks())
             {
-                var span = chunk.Span;
-                for (int i = 0; i < span.Length; i++)
-                {
-                    AddInnerCharacter(span[i]);
-                }
+                AddInnerCharacters(chunk.Span);
             }
 #else
-            foreach (char ch in value.ToString())
-            {
-                AddInnerCharacter(ch);
-            }
+            AddInnerCharacters(value.ToString().AsSpan());
 #endif
         }
 
@@ -532,10 +526,55 @@ namespace BuildXL.Storage.Fingerprints
             }
             else
             {
-                foreach (char ch in value)
+                AddInnerCharacters(value.AsSpan());
+            }
+        }
+
+        /// <summary>
+        /// Adds a span of characters to the fingerprint stream.
+        /// </summary>
+        /// <remarks>
+        /// When fingerprint text is not being recorded (the common case), this block-copies the UTF-16
+        /// bytes of the span directly into the buffer instead of writing one character at a time, which
+        /// is significantly faster for large inputs (e.g. large weak fingerprints). The byte layout is
+        /// identical to the per-character path on little-endian architectures; other architectures and
+        /// the text-recording path fall back to writing character-by-character so fingerprints remain
+        /// stable across platforms.
+        /// </remarks>
+        private void AddInnerCharacters(ReadOnlySpan<char> chars)
+        {
+            if (m_builder != null || !BitConverter.IsLittleEndian)
+            {
+                foreach (char ch in chars)
                 {
                     AddInnerCharacter(ch);
                 }
+
+                return;
+            }
+
+            // This fast path must produce the exact same buffer/flush boundaries as the per-character
+            // path above: it only ever copies whole UTF-16 chars and flushes when fewer than one char
+            // fits, mirroring AddInnerCharacterContent's EnsureBufferAvailable(2). This matters because
+            // each Flush() is a hash engine TransformBlock call, and MurmurHashEngine folds in the
+            // trailing bytes of every block immediately, so its result depends on where the byte stream
+            // is split. Computing availability in whole chars also handles an odd m_position (e.g. after
+            // a byte prefix), where only a single byte may remain at the end of the buffer.
+            while (!chars.IsEmpty)
+            {
+                int availableChars = (m_buffer.Length - m_position) / sizeof(char);
+                if (availableChars == 0)
+                {
+                    Flush();
+                    availableChars = m_buffer.Length / sizeof(char);
+                }
+
+                int charsToCopy = Math.Min(chars.Length, availableChars);
+                int bytesToCopy = charsToCopy * sizeof(char);
+
+                MemoryMarshal.AsBytes(chars.Slice(0, charsToCopy)).CopyTo(m_buffer.AsSpan(m_position, bytesToCopy));
+                m_position += bytesToCopy;
+                chars = chars.Slice(charsToCopy);
             }
         }
 

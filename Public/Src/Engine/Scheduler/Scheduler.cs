@@ -5988,10 +5988,11 @@ namespace BuildXL.Scheduler
                 }
 
                 builder.AppendLine(hr);
-                builder.AppendLine(I($"Fine-grained Duration (ms) for Top 5 Pips Sorted by CacheLookup Duration"));
+                builder.AppendLine(I($"Fine-grained Duration (ms) for Top 5 Pips Sorted by CacheLookup Duration (excluding remote queue time)"));
                 var topCacheLookupDurations =
                     (from a in m_runnablePipPerformance
                      let i = a.Value.StepDurations.GetOrDefault(PipExecutionStep.CacheLookup, new TimeSpan()).TotalMilliseconds
+                             - a.Value.RemoteQueueDurations.GetOrDefault(PipExecutionStep.CacheLookup, new TimeSpan()).TotalMilliseconds
                      where i > 0
                      orderby i descending
                      select a).Take(5);

@@ -120,17 +120,25 @@ function createSdkDeploymentDefinition(serverDeployment: boolean, minimalDeploym
                         {
                             subfolder: "Daemon.Bin",
                             contents: [
-                                importFrom("BuildXL.Tools.SymbolDaemon").withQualifier({
-                                    targetFramework: isDotNetCore(qualifier.targetFramework) ? qualifier.targetFramework : "net8.0",
-                                    targetRuntime: "win-x64"
-                                }).exe,
-                                importFrom("BuildXL.Tools.MaterializationDaemon").withQualifier({
-                                    targetFramework: isDotNetCore(qualifier.targetFramework) ? qualifier.targetFramework : "net8.0",
-                                    targetRuntime: "win-x64"
-                                }).exe,
+                                // Symbol and Materialization daemons are Windows-only and unused on Linux, so only ship
+                                // them in the win-x64 package. They share this folder with BlobDaemon to dedup the
+                                // self-contained .NET runtime and keep the package small (see PR 863740).
+                                ...addIf(qualifier.targetRuntime === "win-x64",
+                                    importFrom("BuildXL.Tools.SymbolDaemon").withQualifier({
+                                        targetFramework: isDotNetCore(qualifier.targetFramework) ? qualifier.targetFramework : "net8.0",
+                                        targetRuntime: "win-x64"
+                                    }).exe,
+                                    importFrom("BuildXL.Tools.MaterializationDaemon").withQualifier({
+                                        targetFramework: isDotNetCore(qualifier.targetFramework) ? qualifier.targetFramework : "net8.0",
+                                        targetRuntime: "win-x64"
+                                    }).exe
+                                ),
+                                // BlobDaemon is supported on Linux too. Build it for the package's own target runtime so
+                                // that the matching self-contained runtime (e.g., libhostpolicy.so on Linux) is deployed
+                                // next to the application host.
                                 importFrom("BuildXL.Tools.BlobDaemon").withQualifier({
                                     targetFramework: isDotNetCore(qualifier.targetFramework) ? qualifier.targetFramework : "net8.0",
-                                    targetRuntime: "win-x64"
+                                    targetRuntime: qualifier.targetRuntime
                                 }).exe
                             ]
                         }),

@@ -200,6 +200,7 @@ export interface BlobRunner {
 export const toolTemplate = <Transformer.ToolDefinition>{
     exe: undefined,
     dependsOnWindowsDirectories: true,
+    dependsOnCurrentHostOSDirectories: true,
     dependsOnAppDataDirectory: true,
     prepareTempDirectory: true,
 };

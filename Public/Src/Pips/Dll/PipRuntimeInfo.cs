@@ -59,9 +59,22 @@ namespace BuildXL.Pips
         private int m_priority;
 
         /// <summary>
-        /// The critical path duration in milliseconds
+        /// The (primary) critical path duration in milliseconds: the longest accumulated chain of pip work
+        /// durations ending at this pip, where a pip's work excludes queue time (time spent waiting for an
+        /// available resource). Because queueing is excluded, this approximates the theoretical fastest end-to-end
+        /// build time. Computed in CriticalPathTracker.UpdateCriticalPath; selected independently of
+        /// <see cref="WallClockCriticalPathDurationMs"/>, so it can identify a different chain.
         /// </summary>
         internal int CriticalPathDurationMs { get; set; }
+
+        /// <summary>
+        /// The wall-clock critical path duration in milliseconds: the longest accumulated chain of pip
+        /// wall-clock durations (CompletedTime - ScheduleTime) ending at this pip. Unlike
+        /// <see cref="CriticalPathDurationMs"/>, this includes all queue time, so it reflects what actually
+        /// gated the build and is inflated by resource contention. Computed in CriticalPathTracker.UpdateCriticalPath;
+        /// selected independently of <see cref="CriticalPathDurationMs"/>, so it can identify a different chain.
+        /// </summary>
+        internal int WallClockCriticalPathDurationMs { get; set; }
 
         /// <summary>
         /// The execution time of the external process. This will be lower than the e2e time of the pip itself. It should be 0 for a cache hit

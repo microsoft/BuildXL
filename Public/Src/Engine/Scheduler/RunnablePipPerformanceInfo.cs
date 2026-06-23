@@ -226,6 +226,34 @@ namespace BuildXL.Scheduler
             return pipDuration;
         }
 
+        /// <summary>
+        /// Calculates the pip's "work" duration: the running-time step durations excluding the time spent queued
+        /// on a remote worker. This is the per-pip duration accumulated into
+        /// <see cref="BuildXL.Pips.PipRuntimeInfo.CriticalPathDurationMs"/>.
+        /// </summary>
+        /// <remarks>
+        /// For remotely executed steps, the locally-measured step duration includes the time the request
+        /// spent waiting in the remote worker's queue (see <see cref="RunnablePip.LogExecutionStepPerformance"/>).
+        /// That queue time is a symptom of resource contention rather than the pip's own work, so it is subtracted
+        /// here. (Local dispatcher queue time is never part of <see cref="StepDurations"/>, so it is already
+        /// excluded.)
+        /// </remarks>
+        internal long CalculateWorkBasedPipDurationMs(IPipExecutionEnvironment environment)
+        {
+            long pipDuration = 0;
+            foreach (KeyValuePair<PipExecutionStep, TimeSpan> kv in StepDurations)
+            {
+                if (kv.Key.IncludeInRunningTime(environment))
+                {
+                    long stepMs = (long)kv.Value.TotalMilliseconds;
+                    long remoteQueueMs = (long)RemoteQueueDurations.GetOrDefault(kv.Key, TimeSpan.Zero).TotalMilliseconds;
+                    pipDuration += Math.Max(0, stepMs - remoteQueueMs);
+                }
+            }
+
+            return pipDuration;
+        }
+
         internal long CalculateQueueDurationMs()
         {
             return QueueDurations.Values.Sum(a => (long)a.TotalMilliseconds);

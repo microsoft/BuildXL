@@ -86,23 +86,32 @@ Here is the detailed state machine showing how BuildXL manages memory during bui
 The typical cycle is determining what is the limiting factor of the build, determine whether that is reasonable, and then fix it and iterate. There are many signals and ways to look at performance. This guide aims to explain the most useful ones
 
 ### Critical Path
-Observe "Critical path" time. This can be found at the end of `BuildXL.log`. The longest critical path is described and broken into its constituent components. **Exe Duration** is the time of pip processing where a child process was active. **Pip Duration** includes both the time when the child process was active as well as any other operations BuildXL was performing before or after. This includes things like the cache lookup or storing outputs to the cache. **Queue Duration** is a separate counter for the amount of time the pip was ready to be processed, but it was waiting in a queue for machine capacity to run.
+At the end of `BuildXL.log` BuildXL reports **two** critical paths, each broken into its constituent pips and components:
 
-If the **Total** critical path duration (first line) is near the total end to end time of the build, then optimizing the critical path is the best exercise. A significant gap between Pip Duration and Exe Duration means BuildXL added a lot of overhead for the pip. See [Fine-grained Duration](#fine-grained-duration).
+* **Critical Path** — the longest chain through the build graph when each pip is measured by its *work* duration: the running-time steps (cache lookup, execute, materialize, etc.) **excluding** the time pips spend queued waiting for resources. Because queueing is excluded, this number means the same thing on a single-machine build and on a distributed build, and it approximates the fastest possible end-to-end build time.
+* **Wall-Clock Critical Path** — the longest chain when each pip is measured by its full wall-clock duration (`CompletedTime − ScheduleTime`), i.e. **including** queue time. This is the chain that actually gated the build *as it ran*, and the scheduler timeline breakdown is anchored on it.
 
-A large **Queue Duration** means that BuildXL spent a long time waiting to process various stages of the pip. This may mean that critical path information was not available and BuildXL did not make a good predition of the actual critical path. Or it could simply mean that the machine was overloaded and whatever it chose as the victum in scheduling became the critical path by virtue of not being prioritized. A good way to validate for this latter effect is to observe [performance counters](#performance-counters) to see if the machine was fully utilized for long periods overlapping the queue duration.
+On a fully unconstrained single-machine build (no queueing) the two chains coincide. On a contended or distributed build they can diverge: the Wall-Clock Critical Path highlights what was slow due to contention, while the Critical Path highlights the chain with the most fundamental work. A large gap between a chain's **Total Duration** and **Pip Duration** means resource contention (queueing) dominated, rather than the work itself.
+
+**Column meanings:** **Pip Duration** is the work (queue-excluded). **Exe Duration** is the time a child process was active. **Queue** is the total time the pip was waiting for resources, whether in a local dispatcher queue or queued on a remote worker (distributed builds). **Total Duration** is the pip's end-to-end time including all of the above.
+
+If the **Total** Wall-Clock Critical Path duration (first line) is near the total end to end time of the build, then optimizing the critical path is the best exercise. A significant gap between Pip Duration and Exe Duration means BuildXL added a lot of overhead for the pip. See [Fine-grained Duration](#fine-grained-duration).
+
+A large **Queue** duration means that BuildXL spent a long time waiting to process various stages of the pip. This may mean that critical path information was not available and BuildXL did not make a good predition of the actual critical path. Or it could simply mean that the machine was overloaded and whatever it chose as the victum in scheduling became the critical path by virtue of not being prioritized. A good way to validate for this latter effect is to observe [performance counters](#performance-counters) to see if the machine was fully utilized for long periods overlapping the queue duration.
+
+These two paths are also reported as statistics in `BuildXL.stats` under the `CriticalPath.*` and `WallClockCriticalPath.*` namespaces; see [BuildXL.stats](../How-To-Run-BuildXL/Log-Files/BuildXL.stats.md).
 
 ```
-Critical path:
-Pip Duration         | Exe Duration        | Queue Duration       | Pip Result   | Scheduled Time | Completed Time | Pip
-        58167ms (1m) |       50478ms (0.8m) |        3723ms (0.1m) |              |                |                | *Total
-          232ms (0m) |            80ms (0m) |             0ms (0m) |     Executed |       00:01:25 |       00:01:25 | PipE82B51044F32F2D0, AppHostPatcher.exe, BuildXL.Tools, BxlScriptAnalyzer.exe, {configuration:"debug", targetFramework:"net8.0", targetRuntime:"win-x64"}
-       6046ms (0.1m) |        5889ms (0.1m) |            17ms (0m) |     Executed |       00:01:14 |       00:01:21 | Pip94B8CD3C4720FCDD, dotnet.exe, BuildXL.Engine, Scheduler.dll, {configuration:"debug", targetFramework:"net8.0", targetRuntime:"win-x64"}
-         2402ms (0m) |          2300ms (0m) |            89ms (0m) |     Executed |       00:01:12 |       00:01:14 | Pip07F9285D7AC518F1, dotnet.exe, BuildXL.Engine, ProcessPipExecutor.dll, {configuration:"debug", targetFramework:"net8.0", targetRuntime:"win-x64"}
-       4976ms (0.1m) |        4826ms (0.1m) |             0ms (0m) |     Executed |       00:00:58 |       00:01:03 | Pip31FF3D6BB1C745D9, dotnet.exe, BuildXL.Cache.ContentStore, Library.dll, {configuration:"debug", targetFramework:"net8.0", targetRuntime:"win-x64"}
-         1502ms (0m) |          1147ms (0m) |          2734ms (0m) |     Executed |       00:00:54 |       00:00:58 | Pip2769C72BFC87DD6D, dotnet.exe, BuildXL.Utilities, Native.Extensions.dll, {configuration:"debug", targetFramework:"net8.0", targetRuntime:"win-x64"}
-       3939ms (0.1m) |        3758ms (0.1m) |             1ms (0m) |     Executed |       00:00:50 |       00:00:54 | Pip4293519D6F7CC2D2, dotnet.exe, BuildXL.Utilities, Native.dll, {configuration:"debug", targetFramework:"net8.0", targetRuntime:"win-x64"}
-       6889ms (0.1m) |        5326ms (0.1m) |           353ms (0m) |     Executed |       00:00:23 |       00:00:30 | PipE7B420CC2A087E1B, NugetDownloader.exe (BuildXL NuGet downloader), Microsoft.NETCore.App.Ref80, Contents.all, {} || Downloading NuGet package 'Microsoft.NETCore.App.Ref.8.0.8'
+Critical Path:
+Pip Duration         | Exe Duration         | Queue                | Total Duration       | Pip Result   | Pip
+        15422ms (0.3m) |      13365ms (0.2m) |          694ms (0m) |        16100ms (0.3m) |              | *Total
+        ...
+
+Wall-Clock Critical Path:
+Pip Duration         | Exe Duration         | Queue                | Total Duration       | Pip Result   | Pip
+        58167ms (1m) |       50478ms (0.8m) |        3723ms (0.1m) |        61890ms (1m) |              | *Total
+         232ms (0m) |            80ms (0m) |             0ms (0m) |           232ms (0m) |     Executed | PipE82B51044F32F2D0, AppHostPatcher.exe, BuildXL.Tools, BxlScriptAnalyzer.exe, {configuration:"debug", targetFramework:"net8.0", targetRuntime:"win-x64"}
+         ...
 ```
 
 ### Fine-grained Duration

@@ -2,11 +2,13 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Pips.Operations;
 using BuildXL.Pips;
+using BuildXL.Scheduler.WorkDispatcher;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Serialization;
 
@@ -521,6 +523,32 @@ namespace BuildXL.Scheduler
                     return nameof(PipExecutionStep.DelayedCacheLookup);
                 default:
                     throw new NotImplementedException("Unknown PipExecutionStep type: " + step);
+            }
+        }
+
+        /// <summary>
+        /// Accumulates the per-step durations from <paramref name="durationDictionary"/> into
+        /// <paramref name="durationList"/>, indexed by <see cref="PipExecutionStep"/>.
+        /// </summary>
+        internal static void UpdateDurationList(IList<long> durationList, Dictionary<PipExecutionStep, TimeSpan> durationDictionary)
+        {
+            foreach (KeyValuePair<PipExecutionStep, TimeSpan> kv in durationDictionary)
+            {
+                int step = (int)kv.Key;
+                durationList[step] += (long)kv.Value.TotalMilliseconds;
+            }
+        }
+
+        /// <summary>
+        /// Accumulates the per-dispatcher durations from <paramref name="durationDictionary"/> into
+        /// <paramref name="durationList"/>, indexed by <see cref="DispatcherKind"/>.
+        /// </summary>
+        internal static void UpdateDurationList(IList<long> durationList, Dictionary<DispatcherKind, TimeSpan> durationDictionary)
+        {
+            foreach (KeyValuePair<DispatcherKind, TimeSpan> kv in durationDictionary)
+            {
+                int dispatcher = (int)kv.Key;
+                durationList[dispatcher] += (long)kv.Value.TotalMilliseconds;
             }
         }
     }

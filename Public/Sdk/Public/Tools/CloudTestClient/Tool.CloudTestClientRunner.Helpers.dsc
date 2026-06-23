@@ -610,7 +610,7 @@ namespace Helpers {
             testDependencyHashes:  Artifact.vsoHashes(inputArtifacts),
             priority: args.priority,
             tags: args.tags,
-            description: args.description,
+            description: args.description || `CloudTest: submit job ${args.jobName}`,
         };
 
         const configResult = generateUpdateDynamicJobConfig(dynamicJobConfigArguments);

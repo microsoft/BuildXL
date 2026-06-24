@@ -37,7 +37,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         [MemberData(nameof(TruthTable.GetTable), 1, MemberType = typeof(TruthTable))]
         public void BasicConstructionTests(bool varyCasing)
         {
-            ObservationReclassifier reclassificationRules = new ObservationReclassifier();
+            using ObservationReclassifier reclassificationRules = new ObservationReclassifier();
             reclassificationRules.Initialize([
                 new DScriptInternalReclassificationRule(0, new ReclassificationRule ()
                 {
@@ -81,7 +81,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         [Fact]
         public void YarnStrictRuleBehavior()
         {
-            ObservationReclassifier reclassificationRules = new ObservationReclassifier();
+            using ObservationReclassifier reclassificationRules = new ObservationReclassifier();
             
             var storeRoot = AbsolutePath.Create(m_pathTable, TemporaryDirectory).Combine(m_pathTable, ".store");
             // Create two fake packages in the store
@@ -138,12 +138,53 @@ namespace IntegrationTest.BuildXL.Scheduler
             XAssert.AreEqual(null, reclassification.ReclassifyToType);
         }
 
+        /// <summary>
+        /// The dedup of accesses to the same package (only the first access produces a probe, the rest are ignored) must be scoped to a single pip.
+        /// In production, a single rule instance is shared across pips but each pip gets its own <see cref="ObservationReclassifier"/> (see ObservedInputProcessor).
+        /// This test simulates two pips that share the same observation under the package store and verifies that the dedup state does not leak across pips:
+        /// both pips must reclassify the shared access to a probe on the package directory (otherwise the result would depend on the order in which pips execute).
+        /// </summary>
+        [Fact]
+        public void YarnStrictRuleDoesNotCacheAcrossPips()
+        {
+            var storeRoot = AbsolutePath.Create(m_pathTable, TemporaryDirectory).Combine(m_pathTable, ".store");
+            var testPackageRoot = storeRoot.Combine(m_pathTable, "test-module@1.0.0");
+            var testPackageContent = testPackageRoot.Combine(m_pathTable, "index.js");
+            Directory.CreateDirectory(testPackageRoot.ToString(m_pathTable));
+            File.WriteAllText(testPackageContent.ToString(m_pathTable), "console.log('Hello, world!');");
+
+            // A single rule instance
+            var sharedRule = new JavaScriptPackageStoreReclassificationRule("test-module", storeRoot);
+
+            // Each pip gets its own ObservationReclassifier, but both are initialized with the same shared rule instance
+            using var reclassifierForPipA = new ObservationReclassifier();
+            reclassifierForPipA.Initialize([sharedRule]);
+
+            using var reclassifierForPipB = new ObservationReclassifier();
+            reclassifierForPipB.Initialize([sharedRule]);
+
+            // Pip A reads content under the package: it should be reclassified to a probe on the package directory
+            XAssert.IsTrue(reclassifierForPipA.TryReclassify(testPackageContent, m_pathTable, ObservedInputType.ExistingFileProbe, out var reclassificationA));
+            XAssert.AreEqual(ObservedInputType.ExistingDirectoryProbe, reclassificationA.ReclassifyToType);
+            XAssert.AreEqual(testPackageRoot, reclassificationA.ReclassifyToPath);
+
+            // Pip B reads the exact same content under the same package. Because the dedup state is per-pip (not held in the shared rule),
+            // pip B must also get the access reclassified to a probe on the package directory, not ignored.
+            XAssert.IsTrue(reclassifierForPipB.TryReclassify(testPackageContent, m_pathTable, ObservedInputType.ExistingFileProbe, out var reclassificationB));
+            XAssert.AreEqual(ObservedInputType.ExistingDirectoryProbe, reclassificationB.ReclassifyToType);
+            XAssert.AreEqual(testPackageRoot, reclassificationB.ReclassifyToPath);
+
+            // Sanity check: within a single pip, a subsequent access to the same package is still deduplicated (ignored)
+            XAssert.IsTrue(reclassifierForPipA.TryReclassify(testPackageContent, m_pathTable, ObservedInputType.ExistingFileProbe, out var reclassificationADuplicate));
+            XAssert.AreEqual(null, reclassificationADuplicate.ReclassifyToType);
+        }
+
         [Theory]
         [InlineData(true)]
         [InlineData(false)]
         public void DuplicateNameIsAnError(bool casing)
         {
-            var rules = new ObservationReclassifier();
+            using var rules = new ObservationReclassifier();
             Assert.Throws<BuildXLException>(() => rules.Initialize([
                         new DScriptInternalReclassificationRule(0, new ReclassificationRule()
                         {
@@ -169,7 +210,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         [InlineData(false, ObservationType.FileContentRead, ObservationType.DirectoryEnumeration)]
         public void InvalidTranslationTest(bool expectValid, ObservationType from, ObservationType to)
         {
-            var rules = new ObservationReclassifier();
+            using var rules = new ObservationReclassifier();
             var reclassificationRule = new DScriptInternalReclassificationRule(0, new ReclassificationRule()
             {
                 PathRegex = "DIR",
@@ -191,7 +232,7 @@ namespace IntegrationTest.BuildXL.Scheduler
         [Fact]
         public void Serialization()
         {
-            ObservationReclassifier rules = new ObservationReclassifier();
+            using ObservationReclassifier rules = new ObservationReclassifier();
             rules.Initialize([
                 new DScriptInternalReclassificationRule(0, new ReclassificationRule()
                 {
@@ -215,7 +256,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             ms.Position = 0;
             BuildXLReader reader = new BuildXLReader(true, ms, true);
-            var deserialized = ObservationReclassifier.Deserialize(reader); 
+            using var deserialized = ObservationReclassifier.Deserialize(reader); 
         }
     }
 }

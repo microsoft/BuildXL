@@ -7942,6 +7942,8 @@ namespace BuildXL.Scheduler
 
             m_pipTwoPhaseCache?.CloseAsync().GetAwaiter().GetResult();
 
+            VerboseDispose(m_globalReclassificationRules, "GlobalReclassificationRules");
+
             // The store is disposed if WhenDone method was called and finished successfully.
             // Disposing here just in case if something went wrong in WhenDone or that method was never call.
             // Dispsing the fingerprint store twice is safe.

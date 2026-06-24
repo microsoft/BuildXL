@@ -612,7 +612,7 @@ namespace BuildXL.Scheduler.Fingerprints
                     // Third and final pass
                     // Initialize the observation reclassifier for this pip, which will apply to all observations
                     var reclassificationRules = ((Process)pip.UnderlyingPip).ReclassificationRules; // yuck! but adding a field in the Pip itself (to avoid casting) is just as ugly
-                    var reclassifierForPip = new ObservationReclassifier();
+                    using var reclassifierForPip = new ObservationReclassifier();
                     reclassifierForPip.Initialize(reclassificationRules, environment.Counters);
 
                     for (int i = 0; i < observations.Length; i++)

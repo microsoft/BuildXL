@@ -13,8 +13,13 @@ namespace BuildXL.Pips.Reclassification
     /// <remarks>
     /// Contains information about the rule that was applied, the type it was reclassified to, and the new path.
     /// If the observation type is null, it indicates that the original access needs to be ignored.
+    /// <para>
+    /// <paramref name="CanBeCached"/> lets a rule indicate that the produced reclassification can be deduplicated: the first time a
+    /// given reclassification (identified by its target type and path) is produced for a pip it is emitted as-is, and any subsequent
+    /// duplicate is turned into an 'ignore' (null target type). Defaults to <c>false</c> to preserve behavior.
+    /// </para>
     /// </remarks>
-    public readonly record struct ReclassificationResult(string AppliedRuleName, ObservationType? ReclassifyToType, AbsolutePath ReclassifyToPath);
+    public readonly record struct ReclassificationResult(string AppliedRuleName, ObservationType? ReclassifyToType, AbsolutePath ReclassifyToPath, bool CanBeCached = false);
 
     /// <summary>
     /// An abstraction for rules that can reclassify observed file accesses.

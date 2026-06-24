@@ -18,7 +18,7 @@ namespace BuildXL.Scheduler.Fingerprints
     public readonly record struct FingerprintReclassificationResult(string AppliedRuleName, ObservedInputType? ReclassifyToType, AbsolutePath ReclassifyToPath);
 
     /// <inheritdoc />
-    public class ObservationReclassifier
+    public class ObservationReclassifier : IDisposable
     {
         /// <nodoc />
         public ObservationReclassifier() : this(Array.Empty<IInternalReclassificationRule>()) { }
@@ -31,6 +31,42 @@ namespace BuildXL.Scheduler.Fingerprints
         private CounterCollection<PipExecutorCounter> m_counters;
         private IInternalReclassificationRule[] m_rules;
 
+        // Pool of dedup sets for reclassifications that opt into caching (see ReclassificationResult.CanBeCached).
+        private static readonly ObjectPool<HashSet<(ObservationType? type, AbsolutePath path)>> s_cachedReclassificationsPool =
+            Pools.CreateSetPool<(ObservationType? type, AbsolutePath path)>();
+
+        // Dedup state for reclassifications that opt into caching. The backing set is rented from the pool above on first use
+        // and returned on Dispose. No need for a thread-safe collection here, observations get reclassified serially and each
+        // pip uses its own ObservationReclassifier instance.
+        private PooledObjectWrapper<HashSet<(ObservationType? type, AbsolutePath path)>>? m_cachedReclassificationsWrapper;
+        private HashSet<(ObservationType? type, AbsolutePath path)> m_cachedReclassifications;
+
+        // Lazily rents the dedup set from the pool, so that we only pay the cost for pips that actually produce a cacheable reclassification.
+        private HashSet<(ObservationType? type, AbsolutePath path)> GetCachedReclassifications()
+        {
+            if (m_cachedReclassifications == null)
+            {
+                var wrapper = s_cachedReclassificationsPool.GetInstance();
+                m_cachedReclassificationsWrapper = wrapper;
+                m_cachedReclassifications = wrapper.Instance;
+            }
+
+            return m_cachedReclassifications;
+        }
+
+        /// <summary>
+        /// Returns pooled resources held by this instance back to their pool.
+        /// </summary>
+        public void Dispose()
+        {
+            if (m_cachedReclassificationsWrapper.HasValue)
+            {
+                m_cachedReclassificationsWrapper.Value.Dispose();
+                m_cachedReclassificationsWrapper = null;
+                m_cachedReclassifications = null;
+            }
+        }
+
         /// <summary>
         /// Initializes the rules given a user provided configuration. 
         /// This method throws <see cref="BuildXLException"/> if there is some error while initializing the rules, 
@@ -40,7 +76,7 @@ namespace BuildXL.Scheduler.Fingerprints
         {
             if (!ValidateRules(rules, out var errors))
             {
-                throw new BuildXLException($"Failure inizializing the observation reclassification rules. Errors: {errors}");
+                throw new BuildXLException($"Failure initializing the observation reclassification rules. Errors: {errors}");
             }
 
             m_counters = counters ?? new();
@@ -99,6 +135,15 @@ namespace BuildXL.Scheduler.Fingerprints
                     if (rule.TryReclassify(expandedPath, pathTable, FromObservedInputType(type), out var result))
                     {
                         m_counters.IncrementCounter(PipExecutorCounter.NumReclassifiedObservations);
+
+                        // If the rule marked this reclassification as cacheable and we have already produced the same one
+                        // (same target type and path) for this pip, collapse the duplicate into an 'ignore' (null target type).
+                        if (result.CanBeCached && !GetCachedReclassifications().Add((result.ReclassifyToType, result.ReclassifyToPath)))
+                        {
+                            reclassification = new(result.AppliedRuleName, null, result.ReclassifyToPath);
+                            return true;
+                        }
+
                         reclassification = new(result.AppliedRuleName, FromObservationType(result.ReclassifyToType), result.ReclassifyToPath);
                         return true;
                     }

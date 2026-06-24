@@ -29,7 +29,6 @@ namespace BuildXL.Pips.Reclassification
         private readonly AbsolutePath m_packageStoreLocation;
         private readonly string m_ruleName;
         private readonly string m_moduleName;
-        private readonly HashSet<PathAtom> m_knownPackages = new HashSet<PathAtom>();
         
         /// <inheritdoc/>
         public string Name() => m_ruleName;
@@ -48,7 +47,7 @@ namespace BuildXL.Pips.Reclassification
         /// <summary>
         /// Bump the descriptor when the implementation changes in a breaking way
         /// </summary>
-        public string Descriptor() => "JavaScriptPackageStoreReclassificationRuleV2";
+        public string Descriptor() => "JavaScriptPackageStoreReclassificationRuleV3";
 
         /// <nodoc/>
         public void Serialize(BuildXLWriter writer)
@@ -85,16 +84,11 @@ namespace BuildXL.Pips.Reclassification
                 // The package name is the first segment of the relative path (under a JS package store, each package is stored under its own directory, directly under the package store directory)
                 var relativePackageStoreAtoms = relativeToPackageStore.GetAtoms();
                 var packageName = relativePackageStoreAtoms[0];
-                // We want to reclassify to a probe on the package directory itself, but only the first time we see an access under that package. We can just ignore all other accesses under
-                // the same package after that, since the probe serves as a representative for all accesses under that package.
-                if (m_knownPackages.Add(packageName))
-                {
-                    reclassification = new ReclassificationResult(m_ruleName, ObservationType.ExistingDirectoryProbe, m_packageStoreLocation.Combine(pathTable, packageName));
-                }
-                else
-                {
-                    reclassification = new ReclassificationResult(m_ruleName, null, path.Path);
-                }
+                // We want to reclassify to a probe on the package directory itself, but only the first time we see an access under that package. All other accesses under
+                // the same package can be ignored, since the probe serves as a representative for all accesses under that package.
+                // We mark the result as cacheable so the (per-pip) ObservationReclassifier collapses the duplicate probes (i.e. only the first access to a given package
+                // produces a probe, and the rest are ignored).
+                reclassification = new ReclassificationResult(m_ruleName, ObservationType.ExistingDirectoryProbe, m_packageStoreLocation.Combine(pathTable, packageName), CanBeCached: true);
 
                 return true;
             }

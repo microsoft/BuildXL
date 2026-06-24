@@ -3516,7 +3516,10 @@ EXIT /b 3
                     await VerifyPipResult(PipResultStatus.Failed, env, p);
                     // Logged 6 times due to initial attempt + 5 retries
                     AssertVerboseEventLogged(ProcessesLogEventId.SandboxInternalError, count: 6);
-                    AssertErrorEventLogged(ProcessesLogEventId.PipProcessError, count: 6);
+                    // PipProcessError must NOT be logged for the retry attempts: a sandbox internal error is retried inline,
+                    // and if any of those attempts ended up logging DX0064, a subsequent successful retry would trigger a
+                    // catastrophic build failure (see Engine.ValidateSuccessLoggedNoErrors).
+                    AssertErrorEventLogged(ProcessesLogEventId.PipProcessError, count: 0);
                     // Logged once when the final attempt fails
                     AssertErrorEventLogged(SchedulerLogEventId.PipFailedDueToSandboxInternalError, count: 1);
                 }

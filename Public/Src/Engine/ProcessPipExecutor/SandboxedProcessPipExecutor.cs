@@ -1961,6 +1961,17 @@ namespace BuildXL.ProcessPipExecutor
                 loggingSuccess = false;
             }
 
+            if (OperatingSystemHelper.IsLinuxOS && result.ExitCode == ExitCodes.MessageProcessingFailure)
+            {
+                // On Linux, a MessageProcessingFailure exit code indicates a sandbox internal error (e.g., an infra error reported
+                // by the native sandbox). ValidateSandboxCommunication will turn this into a SandboxInternalErrorFailure result, so
+                // the pip will be retried. We must not log the PipProcessError (DX0064) here: if the retry succeeds, the build would
+                // be considered successful while errors had already been logged, which is a catastrophic build failure
+                // (see Engine.ValidateSuccessLoggedNoErrors). If retries are exhausted, PipFailedDueToSandboxInternalError is logged
+                // instead by the calling method.
+                loggingSuccess = false;
+            }
+
             bool standardOutHasBeenWrittenToLog = false;
             bool errorOrWarnings = !mainProcessSuccess || m_numWarnings > 0;
 

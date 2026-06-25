@@ -94,6 +94,8 @@ jobs:
 
   - template: ../steps/external_prepare.yml
 
+  - template: /.azdo/common/set-variable-pats.yml
+
   - template: ../../packages/generate-output-package-filter.yml
     parameters:
       internal: false
@@ -116,10 +118,16 @@ jobs:
         /logOutput:FullOutputOnWarningOrError
         /fingerprintSalt:external_build
         /p:[Sdk.BuildXL]microsoftInternal=0
+        /p:[Sdk.BuildXL]usePublicDepsOnlyFeed=1
     env:
       # The following two variables need to be set explicitly because we are using the ADO build runner outside of the 1ESPT buildxl workflow
       SYSTEM_ACCESSTOKEN: $(System.AccessToken)
       ADOBUILDRUNNERINVOCATIONKEY: "External_Rolling_VSCode"
+      # Feed auth for usePublicDepsOnlyFeed; set by /.azdo/common/set-variable-pats.yml earlier in the job.
+      1ESSHAREDASSETS_BUILDXL_FEED_PAT: $(1ESSHAREDASSETS_BUILDXL_FEED_PAT)
+      1ESSHAREDASSETS_BUILDXL_FEED_PAT_B64: $(1ESSHAREDASSETS_BUILDXL_FEED_PAT_B64)
+      VSS_NUGET_EXTERNAL_FEED_ENDPOINTS: $(VSS_NUGET_EXTERNAL_FEED_ENDPOINTS)
+      ARTIFACT_CREDENTIALPROVIDERS_PATH: $(ARTIFACT_CREDENTIALPROVIDERS_PATH)
   - template: /.azdo/common/extract-nupkg-packages.yml
     parameters:
       SourceDirectory: $(Build.SourcesDirectory)\Out\Bin\release\public\pkgs
@@ -152,6 +160,8 @@ jobs:
   steps:
   - template: ../steps/external_prepare.yml
 
+  - template: /.azdo/common/set-variable-pats.yml
+
   # Use a rolling-specific cache so rolling builds don't share cache hits with PR builds.
   # Defensive: add a salt to make sure there are no hits from internal builds
   - task: CmdLine@2
@@ -170,6 +180,7 @@ jobs:
         /logOutput:FullOutputOnWarningOrError
         /fingerprintSalt:external_build
         /p:[Sdk.BuildXL]microsoftInternal=0
+        /p:[Sdk.BuildXL]usePublicDepsOnlyFeed=1
         /processRetries:3
         /scrubDirectory:$(Build.SourcesDirectory)\Out\Objects
     env:
@@ -179,6 +190,11 @@ jobs:
       # Each matrix leg is an independent single-machine build, not a distributed build.
       # Explicitly set the role to Orchestrator since JobPositionInPhase > 1 for non-first matrix legs.
       AdoBuildRunnerWorkerPipelineRole: "Orchestrator"
+      # Feed auth for usePublicDepsOnlyFeed; set by /.azdo/common/set-variable-pats.yml earlier in the job.
+      1ESSHAREDASSETS_BUILDXL_FEED_PAT: $(1ESSHAREDASSETS_BUILDXL_FEED_PAT)
+      1ESSHAREDASSETS_BUILDXL_FEED_PAT_B64: $(1ESSHAREDASSETS_BUILDXL_FEED_PAT_B64)
+      VSS_NUGET_EXTERNAL_FEED_ENDPOINTS: $(VSS_NUGET_EXTERNAL_FEED_ENDPOINTS)
+      ARTIFACT_CREDENTIALPROVIDERS_PATH: $(ARTIFACT_CREDENTIALPROVIDERS_PATH)
   
   # Use a rolling-specific cache so rolling builds don't share cache hits with PR builds.
   # Defensive: add a salt to make sure there are no hits from internal builds
@@ -192,6 +208,7 @@ jobs:
         -use dev
         /fingerprintSalt:external_build
         /p:[Sdk.BuildXL]microsoftInternal=0
+        /p:[Sdk.BuildXL]usePublicDepsOnlyFeed=1
         /q:$(QualifierToBuild)
         /p:[BuildXL.Branding]SemanticVersion=$(BuildXL.SemanticVersion)
         /p:[BuildXL.Branding]PrereleaseTag=$(BuildXL.PreReleaseTag)
@@ -206,6 +223,11 @@ jobs:
       SYSTEM_ACCESSTOKEN: $(System.AccessToken)
       ADOBUILDRUNNERINVOCATIONKEY: "External_Rolling_UseDev_$(QualifierToBuild)"
       AdoBuildRunnerWorkerPipelineRole: "Orchestrator"
+      # Feed auth for usePublicDepsOnlyFeed; set by /.azdo/common/set-variable-pats.yml earlier in the job.
+      1ESSHAREDASSETS_BUILDXL_FEED_PAT: $(1ESSHAREDASSETS_BUILDXL_FEED_PAT)
+      1ESSHAREDASSETS_BUILDXL_FEED_PAT_B64: $(1ESSHAREDASSETS_BUILDXL_FEED_PAT_B64)
+      VSS_NUGET_EXTERNAL_FEED_ENDPOINTS: $(VSS_NUGET_EXTERNAL_FEED_ENDPOINTS)
+      ARTIFACT_CREDENTIALPROVIDERS_PATH: $(ARTIFACT_CREDENTIALPROVIDERS_PATH)
 
 - job: Linux_External_eBPF
   displayName: Linux External eBPF Build
@@ -241,6 +263,8 @@ jobs:
     parameters:
       CacheNamespace: BuildXL.Linux.External  # TODO - this is the extent of isolation with the internal build we're getting right now / work item #2143786
 
+  - template: /.azdo/common/set-variable-pats.yml
+
   # Defensive: add a salt to make sure there are no hits from internal builds
   - task: Bash@3
     displayName: Build Linux eBPF Sandbox Binaries
@@ -250,6 +274,7 @@ jobs:
         set -eu
 
         bash bxl.sh --shared-comp
+        --use-public-deps-only-feed
         "/f:output='*/linux-x64/bxl-ebpf-runner'"
         /q:ReleaseLinux
         /q:DebugLinux
@@ -260,6 +285,11 @@ jobs:
         /fingerprintSalt:external_build
         /p:[Sdk.BuildXL]microsoftInternal=0
       workingDirectory: /home/subst
+    env:
+      # Feed auth for usePublicDepsOnlyFeed; set by /.azdo/common/set-variable-pats.yml earlier in the job.
+      1ESSHAREDASSETS_BUILDXL_FEED_PAT: $(1ESSHAREDASSETS_BUILDXL_FEED_PAT)
+      1ESSHAREDASSETS_BUILDXL_FEED_PAT_B64: $(1ESSHAREDASSETS_BUILDXL_FEED_PAT_B64)
+      VSS_NUGET_EXTERNAL_FEED_ENDPOINTS: $(VSS_NUGET_EXTERNAL_FEED_ENDPOINTS)
 
 - job: Linux_External
   displayName: Linux External Build
@@ -312,6 +342,8 @@ jobs:
     parameters:
       CacheNamespace: BuildXL.Linux.External  # TODO - this is the extent of isolation with the internal build we're getting right now / work item #2143786
 
+  - template: /.azdo/common/set-variable-pats.yml
+
   - task: DownloadPipelineArtifact@2
     displayName: 'Download eBPF Sandbox binaries'
     inputs:
@@ -326,11 +358,17 @@ jobs:
         set -eu
 
         bash bxl.sh --shared-comp --minimal --deploy-dev --release
+        --use-public-deps-only-feed
         /p:BuildXLEbpfSandboxDeploymentOverridePath=$(Build.StagingDirectory)/Linux.eBPF
         /cacheMiss:Bxl.Selfhost.Linux.External
         /logoutput:FullOutputOnError
         /logsDirectory:"Out/Logs/Build"
       workingDirectory: /home/subst
+    env:
+      # Feed auth for usePublicDepsOnlyFeed; set by /.azdo/common/set-variable-pats.yml earlier in the job.
+      1ESSHAREDASSETS_BUILDXL_FEED_PAT: $(1ESSHAREDASSETS_BUILDXL_FEED_PAT)
+      1ESSHAREDASSETS_BUILDXL_FEED_PAT_B64: $(1ESSHAREDASSETS_BUILDXL_FEED_PAT_B64)
+      VSS_NUGET_EXTERNAL_FEED_ENDPOINTS: $(VSS_NUGET_EXTERNAL_FEED_ENDPOINTS)
 
   - task: Bash@3
     displayName: Build Packages with LKG
@@ -340,6 +378,7 @@ jobs:
         set -eu
 
         bash bxl.sh --use-dev --shared-comp
+        --use-public-deps-only-feed
         /p:BuildXLEbpfSandboxDeploymentOverridePath=$(Build.StagingDirectory)/Linux.eBPF
         /cacheMiss:Bxl.Linux.External.Rolling
         /logoutput:FullOutputOnError
@@ -349,3 +388,8 @@ jobs:
         /q:ReleaseLinux
         "/f:output='/home/subst/Out/Bin/release/public/pkgs/*'oroutput='/home/subst/Out/Bin/release/ide/*'"
       workingDirectory: /home/subst
+    env:
+      # Feed auth for usePublicDepsOnlyFeed; set by /.azdo/common/set-variable-pats.yml earlier in the job.
+      1ESSHAREDASSETS_BUILDXL_FEED_PAT: $(1ESSHAREDASSETS_BUILDXL_FEED_PAT)
+      1ESSHAREDASSETS_BUILDXL_FEED_PAT_B64: $(1ESSHAREDASSETS_BUILDXL_FEED_PAT_B64)
+      VSS_NUGET_EXTERNAL_FEED_ENDPOINTS: $(VSS_NUGET_EXTERNAL_FEED_ENDPOINTS)

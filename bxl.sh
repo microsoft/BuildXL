@@ -24,6 +24,8 @@ declare credProviderPath=""
 declare arg_CacheConfigFile=""
 declare arg_Runner=()
 declare arg_useAdoBuildRunner=""
+declare arg_UsePublicDepsOnlyFeed=""
+declare needsFeedAuth=""
 
 declare g_bxlCmdArgs=()
 declare g_adoBuildRunnerCmdArgs=()
@@ -37,7 +39,7 @@ else
 fi
 
 function printHelp() {
-    echo "${BASH_SOURCE[0]} [--deploy-dev] [--use-dev] [--minimal] [--internal] [--release] [--shared-comp] [--vs] [--use-adobuildrunner] [--runner-arg <arg-to-buildrunner>] [--test-method <full-test-method-name>] [--test-class <full-test-class-name>] <other-arguments>"
+    echo "${BASH_SOURCE[0]} [--deploy-dev] [--use-dev] [--minimal] [--internal] [--use-public-deps-only-feed] [--release] [--shared-comp] [--vs] [--use-adobuildrunner] [--runner-arg <arg-to-buildrunner>] [--test-method <full-test-method-name>] [--test-class <full-test-class-name>] <other-arguments>"
 }
 
 function parseArgs() {
@@ -69,6 +71,13 @@ function parseArgs() {
             ;;
         --internal)
             arg_Internal="1"
+            shift
+            ;;
+        --use-public-deps-only-feed)
+            # External build that consumes the BuildXL.Internal.PublicDepsOnly feed (which upstreams only
+            # publicly available packages) instead of public registries. CODESYNC: config.dsc
+            arg_UsePublicDepsOnlyFeed="1"
+            arg_Positional+=("/p:[Sdk.BuildXL]usePublicDepsOnlyFeed=1")
             shift
             ;;
         --test-class)
@@ -312,8 +321,9 @@ function compileWithBxl() {
         /unsafe_GlobalUntrackedScopes:$HOME/.vscode-server-insiders
     )
 
-    # Only pass through feed credentials for internal builds
-    if [[ -n "$arg_Internal" ]]; then
+    # Pass through feed credentials for builds that authenticate against an internal Azure DevOps feed:
+    # internal builds, and external builds consuming the BuildXL.Internal.PublicDepsOnly feed (--use-public-deps-only-feed).
+    if [[ -n "$needsFeedAuth" ]]; then
         args+=("/unsafe_GlobalPassthroughEnvVars:NUGET_CREDENTIALPROVIDERS_PATH;VSS_NUGET_EXTERNAL_FEED_ENDPOINTS")
         # Credential provider mutex for non-Windows concurrency control
         args+=("/unsafe_GlobalUntrackedScopes:/tmp/.dotnet/shm")
@@ -456,7 +466,13 @@ parseArgs "$@"
 
 outputConfiguration=`printf '%s' "$configuration" | awk '{ print tolower($0) }'`
 
-if [[ -n "$arg_Internal" && -n "$TF_BUILD" ]]; then
+if [[ -n "$arg_Internal" || -n "$arg_UsePublicDepsOnlyFeed" ]]; then
+    # Both internal builds and external builds that consume the BuildXL.Internal.PublicDepsOnly feed
+    # restore packages from authenticated Azure DevOps feeds, so they need the NuGet credential provider.
+    needsFeedAuth="1"
+fi
+
+if [[ -n "$needsFeedAuth" && -n "$TF_BUILD" ]]; then
     readonly ADOBuild="1"
 fi
 
@@ -468,9 +484,10 @@ if [[ -n "$arg_Internal" ]]; then
     setInternal $@
 fi
 
-# if the nuget credential provider is not configured (and the build is an internal one, which is where it is needed)
-# download and install the artifacts credential provider
-if [[ -n "$arg_Internal" ]] && [[ ! -d "${NUGET_CREDENTIALPROVIDERS_PATH:-}" ]]; then
+# If the nuget credential provider is not configured, download and install the artifacts credential provider.
+# This is needed for builds that authenticate against an internal feed: internal builds, and external builds
+# that consume the BuildXL.Internal.PublicDepsOnly feed (--use-public-deps-only-feed).
+if [[ -n "$needsFeedAuth" ]] && [[ ! -d "${NUGET_CREDENTIALPROVIDERS_PATH:-}" ]]; then
     installCredProvider
 fi
 

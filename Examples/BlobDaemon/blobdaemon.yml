@@ -1,0 +1,107 @@
+# BlobDaemon release validation (Linux). Builds Examples/BlobDaemon, which produces a file and uploads it to
+# Azure Blob Storage via BlobDaemon. Validates the released $(BuildXLPackageVersion) by default; set useLocalBxl
+# to build & validate BuildXL from this branch instead.
+trigger: none
+
+parameters:
+  - name: useLocalBxl
+    type: boolean
+    default: false
+    displayName: 'Build & use a locally-built BuildXL from this branch instead of installing the released $(BuildXLPackageVersion). Use for testing an unreleased change.'
+  - name: storageAccountUrl
+    type: string
+    default: 'https://buildxlblobvalidation.blob.core.windows.net'
+    displayName: 'Azure Storage account URL'
+  - name: containerName
+    type: string
+    default: 'blobdaemon-validation'
+    displayName: 'Target blob container'
+  - name: ServiceConnection
+    type: string
+    default: 'mseng-Domino-BuildXL-Pipelines' # Service connection used by most BuildXL pipelines that need an authentication token
+  - name: StorageServiceConnection
+    type: string
+    default: 'mseng-Domino-BuildXL-BlobDaemonValidation' # WIF connection to the PME Entra app that has Storage Blob Data Contributor on the validation storage account
+  - name: AdoResource
+    type: string
+    default: '499b84ac-1321-427f-aa17-267ca6975798' # Azure DevOps resource UUID (used to authenticate to internal NuGet feeds)
+  - name: AdoTokenVariable
+    type: string
+    default: 'GeneratedAccessToken' # Pipeline variable that will store the generated Azure DevOps access token
+  - name: StorageResource
+    type: string
+    default: 'https://storage.azure.com/' # Microsoft Entra resource for Azure Storage
+  - name: StorageTokenVariable
+    type: string
+    default: 'BLOB_AUTH_TOKEN' # Pipeline variable that will store the storage bearer token (must match authEnvVar in blobupload.dsc)
+
+resources:
+  repositories:
+  - repository: 1esPipelines
+    type: git
+    name: 1ESPipelineTemplates/1ESPipelineTemplates
+    ref: refs/tags/release
+
+extends:
+  template: v1/1ES.Unofficial.PipelineTemplate.yml@1esPipelines
+  parameters:
+    pool:
+      name: BuildXL-DevOpsAgents-Selfhost-BuildCache
+      image: ubuntu-24.04-PME-GPT
+      os: linux
+    sdl:
+      sourceAnalysisPool:
+        name: Windows-SDL-Agents
+        os: windows
+    stages:
+    - stage: BlobDaemon
+      dependsOn: []
+      displayName: BlobDaemon-Validation
+      jobs:
+      - job: build
+        displayName: Upload a file via BlobDaemon
+        templateContext:
+          workflow: BuildXL
+          preBuildSteps:
+          - task: microsoft-1es-production.entra-authenticate.entra-authenticate.EntraAuthenticate@0
+            displayName: '🪙 Acquire Azure DevOps access token (NuGet feeds)'
+            inputs:
+              azureSubscription: ${{ parameters.ServiceConnection }}
+              resource: ${{ parameters.AdoResource }}
+              secretVariable: ${{ parameters.AdoTokenVariable }}
+          - task: microsoft-1es-production.entra-authenticate.entra-authenticate.EntraAuthenticate@0
+            displayName: '🪙 Acquire Azure Storage token (blob upload)'
+            inputs:
+              azureSubscription: ${{ parameters.StorageServiceConnection }}
+              resource: ${{ parameters.StorageResource }}
+              secretVariable: ${{ parameters.StorageTokenVariable }}
+          - ${{ if eq(parameters.useLocalBxl, true) }}:
+            - task: UseDotNet@2
+              displayName: 'Install .NET SDK 9.x'
+              inputs:
+                packageType: sdk
+                version: '9.x'
+            - bash: |
+                set -eu
+                bash bxl.sh --internal --minimal --deploy-dev --release
+              displayName: 'Build BXL (minimal + deploy dev)'
+              workingDirectory: $(Build.SourcesDirectory)
+              env:
+                PAT1esSharedAssets: $(${{ parameters.AdoTokenVariable }})
+                PATCloudBuild: $(${{ parameters.AdoTokenVariable }})
+                VSTSPERSONALACCESSTOKEN: $(System.AccessToken)
+          buildXL:
+            ${{ if eq(parameters.useLocalBxl, true) }}:
+              install: false
+              invocationPrefix: $(Build.SourcesDirectory)/Out/Bin/release/linux-x64/AdoBuildRunner
+            ${{ else }}:
+              installerOptions:
+                version: $(BuildXLPackageVersion)
+            arguments: >-
+              /c:config.dsc
+              /logOutput:FullOutputAlways
+            workingDirectory: $(Build.SourcesDirectory)/Examples/BlobDaemon
+            env:
+              BLOB_AUTH_TOKEN: $(${{ parameters.StorageTokenVariable }})
+              BLOB_ACCOUNT_URL: ${{ parameters.storageAccountUrl }}
+              BLOB_CONTAINER: ${{ parameters.containerName }}

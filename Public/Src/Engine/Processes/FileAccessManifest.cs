@@ -233,9 +233,11 @@ namespace BuildXL.Processes
         }
 
         /// <summary>
-        /// Monitor files opened for read by NtCreateFile
-        /// TODO: This should be a temporary hack until we fix all places broken by the NtCreateFile monitoring
+        /// Monitor files opened for read by NtCreateFile.
         /// </summary>
+        /// <remarks>
+        /// Monitoring is always enabled by default. This knob remains but is not exposed through BuildXL command line config.
+        /// </remarks>
         public bool MonitorNtCreateFile
         {
             get => GetFlag(FileAccessManifestFlag.MonitorNtCreateFile);

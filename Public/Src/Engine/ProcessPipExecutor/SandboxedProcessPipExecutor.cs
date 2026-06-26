@@ -3104,9 +3104,10 @@ namespace BuildXL.ProcessPipExecutor
             {
                 try
                 {
-                    // Many things get angry if temp directories don't exist so ensure they're created regardless of
-                    // what they're set to.
-                    // TODO:Bug 75124 - should validate these paths
+                    // Many things get angry if temp directories don't exist, so ensure they're created.
+                    // These variables are always set by BuildXL to the pip's temp directory (see PipEnvironment)
+                    // and cannot be overridden by users, so the values are controlled, valid paths. Any failure
+                    // here is surfaced as PipTempDirectorySetupFailure below.
                     foreach (var tmpEnvVar in DisallowedTempVariables)
                     {
                         path = environmentVariables[tmpEnvVar];

@@ -1541,13 +1541,6 @@ namespace BuildXL.Pips.Graph
                     return false;
                 }
 
-                /*/* TODO:410334 - Current builds have lots of source files being incorrectly registered under output mounts.
-                if (semanticPathInfo.IsValid && semanticPathInfo.IsScrubbable && input.IsSourceFile)
-                {
-                    LogEventWithPipProvenance(Events.Log.ScheduleFailAddPipInvalidSourceInputUnderScrubbableRoot, pip, input, semanticPathInfo.Root);
-                    return false;
-                }*/
-
                 FileArtifact latestExistingArtifact = TryGetLatestFileArtifactForPath(input.Path);
                 bool hasBeenUsed = latestExistingArtifact.IsValid;
 

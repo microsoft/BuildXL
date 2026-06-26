@@ -1,8 +1,10 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using BuildXL.AdoBuildRunner.Vsts;
 using Microsoft.TeamFoundation.Build.WebApi;
 using Microsoft.VisualStudio.Services.WebApi;
 
@@ -24,6 +26,17 @@ namespace BuildXL.AdoBuildRunner
         /// Gets a build for a specified buildId.
         /// </summary>
         Task<Build> GetBuildAsync(int buildId);
+
+        /// <summary>
+        /// Returns the terminal state of the orchestrator's ADO job within the given build's timeline.
+        /// Returns <see cref="OrchestratorState.Running"/> while the job is still in progress, when its
+        /// record is not yet in the timeline, or when it completed successfully.
+        /// </summary>
+        /// <remarks>
+        /// Watches the orchestrator's JOB record in the build timeline (not the overall build's
+        /// status/result). CODESYNC: <see cref="BuildInfo.OrchestratorJobId"/>.
+        /// </remarks>
+        Task<OrchestratorState> GetOrchestratorStateAsync(int buildId, Guid orchestratorJobId);
 
         /// <summary>
         /// Updates the build properties for a specified buildId.

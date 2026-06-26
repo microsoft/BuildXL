@@ -26,19 +26,34 @@ namespace BuildXL.AdoBuildRunner
         /// </summary>
         public required string OrchestratorPool { get; init; }
 
+        /// <summary>
+        /// The ADO timeline JobId of the orchestrator's job (matches the orch's
+        /// <c>SYSTEM_JOBID</c> environment variable). The worker uses this to locate the
+        /// orchestrator's record in the orch build's timeline and observe ORCHESTRATOR JOB
+        /// state, rather than build-level metadata. Empty string when not published (treated
+        /// as "monitor disabled" by the worker).
+        /// </summary>
+        public string OrchestratorJobId { get; init; } = string.Empty;
+
         /// <nodoc />
-        public string Serialize() => $"{RelatedSessionId};{OrchestratorLocation};{OrchestratorPool}";
+        public string Serialize() => $"{RelatedSessionId};{OrchestratorLocation};{OrchestratorPool};{OrchestratorJobId}";
 
         /// <nodoc />
         public static BuildInfo Deserialize(string serialized)
         {
             var splits = serialized.Split(';');
-            if (splits.Length != 3)
+            if (splits.Length != 3 && splits.Length != 4)
             {
                 throw new ArgumentException("The provided string does not represent a valid BuildInfo");
             }
 
-            return new BuildInfo { RelatedSessionId = splits[0], OrchestratorLocation = splits[1], OrchestratorPool = splits[2] };
+            return new BuildInfo
+            {
+                RelatedSessionId = splits[0],
+                OrchestratorLocation = splits[1],
+                OrchestratorPool = splits[2],
+                OrchestratorJobId = splits.Length == 4 ? splits[3] : string.Empty,
+            };
         }
     }
 }

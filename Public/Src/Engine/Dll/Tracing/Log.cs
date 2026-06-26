@@ -1014,6 +1014,15 @@ namespace BuildXL.Engine.Tracing
         public abstract void DistributionWorkerUnexpectedFailureAfterOrchestratorExits(LoggingContext context);
 
         [GeneratedEvent(
+            (ushort)LogEventId.DistributionWorkerExternalTerminationSignalReceived,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Informational,
+            Keywords = (int)(Keywords.UserMessage | Keywords.Progress),
+            EventTask = (ushort)Tasks.Distribution,
+            Message = "Received external orchestrator-termination signal via pipe (reason: '{reason}'). Initiating worker exit.")]
+        public abstract void DistributionWorkerExternalTerminationSignalReceived(LoggingContext context, string reason);
+
+        [GeneratedEvent(
             (ushort)LogEventId.DistributionWorkerOrphanMessage,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,

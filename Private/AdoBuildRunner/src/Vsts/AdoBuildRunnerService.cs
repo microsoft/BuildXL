@@ -14,6 +14,23 @@ using Microsoft.VisualStudio.Services.WebApi;
 namespace BuildXL.AdoBuildRunner.Vsts
 {
     /// <summary>
+    /// Terminal state of the orchestrator's ADO build, as observed by a worker's status monitor.
+    /// Mirrors the conditions used by <see cref="OrchestratorTerminatedException"/>: only Failed and
+    /// Canceled are considered terminal for the purposes of abandoning a worker pre-attach.
+    /// </summary>
+    public enum OrchestratorState
+    {
+        /// <summary>The orchestrator build is still in progress (or completed successfully).</summary>
+        Running,
+
+        /// <summary>The orchestrator build completed with result Failed.</summary>
+        Failed,
+
+        /// <summary>The orchestrator build completed with result Canceled.</summary>
+        Canceled,
+    }
+
+    /// <summary>
     /// Concrete implementation of the VSTS API interface for build coordination purposes
     /// </summary>
     public class AdoBuildRunnerService
@@ -26,6 +43,13 @@ namespace BuildXL.AdoBuildRunner.Vsts
 
         /// <inheritdoc />
         public BuildContext BuildContext { get; }
+
+        /// <summary>
+        /// The ADO build id of the orchestrator for this build. Populated by <see cref="WaitForBuildInfo"/>
+        /// once the orchestrator's triggering build id is known. Null on the orchestrator itself, and
+        /// null on a worker until <see cref="WaitForBuildInfo"/> has resolved the triggering build.
+        /// </summary>
+        public int? OrchestratorBuildId { get; private set; }
 
         private readonly ILogger m_logger;
 
@@ -204,6 +228,10 @@ namespace BuildXL.AdoBuildRunner.Vsts
                 m_logger.Info($"Orchestrator build: {GetBuildLinkFromId(triggeringBuildId)}");
             }
 
+            // Make the resolved orchestrator build id available to other components on this worker
+            // (e.g. the pre-attach orchestrator status monitor).
+            OrchestratorBuildId = triggeringBuildId;
+
             var elapsedTime = 0;
 
             m_logger.Info($"Polling the build properties for the orchestrator's information (this operation will timeout in {Config.MaximumWaitForWorkerSeconds} seconds)...");
@@ -324,6 +352,27 @@ namespace BuildXL.AdoBuildRunner.Vsts
         {
             var properties = await m_retryHandler.ExecuteAsync(() => m_adoService.GetBuildPropertiesAsync(AdoEnvironment.BuildId), nameof(GetBuildProperty), m_logger);
             return properties.GetValue<string?>(GetPropertyKey(propertyName), defaultValue: null);
+        }
+
+        /// <summary>
+        /// Returns the terminal state of the orchestrator's ADO job. Used by the worker's pre-attach
+        /// status monitor: only Failed and Canceled are treated as terminal here, matching
+        /// <see cref="OrchestratorTerminatedException"/>. Succeeded / PartiallySucceeded is reported as
+        /// <see cref="OrchestratorState.Running"/>; a successful orchestrator is communicated to the
+        /// worker through the <see cref="Constants.AdoBuildRunnerOrchestratorExitCode"/> property.
+        /// </summary>
+        /// <remarks>
+        /// Watches the orchestrator's JOB record in the build timeline rather than the overall build
+        /// status/result. Build-level state can be changed independently of the orchestrator process
+        /// (e.g. external PATCH to the build), so the job record is the reliable signal that the
+        /// orchestrator process itself is no longer running. CODESYNC: <see cref="BuildInfo.OrchestratorJobId"/>.
+        /// </remarks>
+        public Task<OrchestratorState> GetOrchestratorStateAsync(int orchestratorBuildId, Guid orchestratorJobId)
+        {
+            return m_retryHandler.ExecuteAsync(
+                () => m_adoService.GetOrchestratorStateAsync(orchestratorBuildId, orchestratorJobId),
+                nameof(m_adoService.GetOrchestratorStateAsync),
+                m_logger);
         }
 
         /// <inheritdoc />

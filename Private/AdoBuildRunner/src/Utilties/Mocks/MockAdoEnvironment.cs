@@ -85,7 +85,9 @@ namespace BuildXL.AdoBuildRunner.Utilties.Mocks
             AgentMachineName = "MockAgentMachineName";
             SourcesDirectory = "MockSourcesDirectory";
             TimelineId = "MockTimelineId";
-            JobId = "234";
+            // Guid-shaped to match real ADO's SYSTEM_JOBID (the OrchestratorStatusMonitor parses
+            // BuildInfo.OrchestratorJobId as a Guid to look up the orch's record in the timeline).
+            JobId = "00000000-0000-0000-0000-000000000234";
             PlanId = "MockPlanId";
             RepositoryUrl = "MockRepositoryUrl";
             RepositoryName = "MockRepositoryName";

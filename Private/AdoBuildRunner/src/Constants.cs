@@ -187,5 +187,21 @@ namespace BuildXL.AdoBuildRunner
         /// Key for orchestrator runner to communicate that the build is done (to avoid launching late workers)
         /// </summary>
         public const string AdoBuildRunnerOrchestratorExitCode = "AdoBuildRunnerOrchestratorExitCode";
+
+        /// <summary>
+        /// Poll interval (seconds) for the pre-attach orchestrator-status monitor on the worker.
+        /// </summary>
+        public const int OrchestratorStatusPollSeconds = 60;
+
+        /// <summary>
+        /// Name of the environment variable used to pass the inheritable anonymous-pipe client handle from
+        /// the AdoBuildRunner worker process to the BuildXL child process. BuildXL opens an
+        /// <see cref="System.IO.Pipes.AnonymousPipeClientStream"/> on this handle and waits on it for the
+        /// worker's lifetime. The runner writes a signal byte (or closes the pipe) when the orchestrator's
+        /// ADO job reaches a terminal Failed/Cancelled state.
+        /// CODESYNC: Public/Src/Engine/Dll/Distribution/WorkerService.cs (StartOrchestratorTerminationWatcher).
+        /// The string literal is duplicated there because the engine assembly does not reference AdoBuildRunner.
+        /// </summary>
+        public const string OrchestratorTerminationPipeEnvVar = "BUILDXL_ORCH_TERMINATION_PIPE_HANDLE";
     }
 }

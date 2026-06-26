@@ -526,16 +526,17 @@ namespace BuildXL.Engine.Distribution.Grpc
                 m_isShutdownInitiated = true;
                 ReadyForExit();
 
+                // Cancel m_exitTokenSource BEFORE joining the heartbeat thread: the same token is
+                // passed to the in-flight Heartbeat gRPC call and to MonitorConnectionAsync's
+                // WaitForStateChangedAsync. Without this, both would block for the full call timeout
+                // (~5 min) when the peer is unreachable.
                 m_heartbeatAction.Cancel();
+                await m_exitTokenSource.CancelTokenAsyncIfSupported();
                 m_heartbeatAction.Join();
 
 #if NET6_0_OR_GREATER
                 Channel.Dispose();
 #endif
-
-                // WaitForStateChangedAsync hangs when you dispose/shutdown the channel when it is 'idle'.
-                // That's why, we pass a cancellation token to WaitForStateChangedAsync and cancel 
-                await m_exitTokenSource.CancelTokenAsyncIfSupported();
             }
 
             if (m_monitorConnectionTask != null)

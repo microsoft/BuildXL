@@ -5,6 +5,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
+using System.IO.Pipes;
 using System.Linq;
 using System.Net;
 using System.Threading;
@@ -117,6 +118,17 @@ namespace BuildXL.Engine.Distribution
         /// </summary>
         private volatile bool m_isOrchestratorExited;
 
+        // Set once by the termination watcher when the runner signals that the orchestrator is gone
+        // (terminal Failed/Cancelled/Abandoned state, or runner death -- EOF is treated the same).
+        // The worker-side teardown reads this to skip best-effort gRPC sends/flushes/closes that would
+        // otherwise wait out the retry budget against a dead peer.
+        private int m_orchestratorAbandoned;
+
+        /// <summary>True once the termination watcher observes the orchestrator is gone.</summary>
+        internal bool OrchestratorAbandoned => Volatile.Read(ref m_orchestratorAbandoned) != 0;
+
+        private void SetOrchestratorAbandoned() => Interlocked.Exchange(ref m_orchestratorAbandoned, 1);
+
         private LoggingContext m_appLoggingContext;
         private bool m_orchestratorInitialized;
         private readonly IWorkerNotificationManager m_notificationManager;
@@ -147,6 +159,10 @@ namespace BuildXL.Engine.Distribution
             m_notificationManager = new WorkerNotificationManager(this, m_pipExecutionService, appLoggingContext);
             m_orchestratorClient = new Grpc.GrpcOrchestratorClient(m_appLoggingContext, InvocationId, Counters);
             m_workerServer = new Grpc.GrpcWorkerServer(appLoggingContext, this, invocationId);
+
+            // Start only after all collaborators are assigned: a queued signal byte can fire ExitRequested
+            // immediately, and Exit() dereferences these fields (e.g. m_workerServer.ShutdownAsync()).
+            StartOrchestratorTerminationWatcher();
         }
 
         internal static WorkerService CreateForTesting(
@@ -159,7 +175,9 @@ namespace BuildXL.Engine.Distribution
             IWorkerNotificationManager notificationManager,
             IOrchestratorClient orchestratorClient)
         {
-            return new WorkerService(appLoggingContext, config, invocationId, executionService, server, orchestratorClient, notificationManager);
+            var workerService = new WorkerService(appLoggingContext, config, invocationId, executionService, server, orchestratorClient, notificationManager);
+            workerService.StartOrchestratorTerminationWatcher();
+            return workerService;
         }
 
         private WorkerService(LoggingContext appLoggingContext, 
@@ -180,6 +198,114 @@ namespace BuildXL.Engine.Distribution
             m_pipExecutionService = executionService;
             m_notificationManager = notificationManager;
             m_orchestratorClient = orchestratorClient;
+
+        }
+
+        /// <summary>
+        /// Environment variable carrying the inheritable anonymous-pipe client handle the external
+        /// launcher (e.g. AdoBuildRunner) uses to signal this worker that the orchestrator is gone.
+        /// CODESYNC: Private/AdoBuildRunner/src/Constants.cs (OrchestratorTerminationPipeEnvVar).
+        /// Duplicated here because the engine assembly does not reference AdoBuildRunner.
+        /// </summary>
+        private const string OrchestratorTerminationPipeEnvVar = "BUILDXL_ORCH_TERMINATION_PIPE_HANDLE";
+
+        /// <summary>
+        /// If <see cref="OrchestratorTerminationPipeEnvVar"/> is set, opens the inherited pipe and starts a
+        /// background task that waits for a signal byte. Only an explicit byte -- written by the runner when
+        /// its monitor observes the orchestrator job Failed/Canceled -- sets <see cref="OrchestratorAbandoned"/>
+        /// and exits gracefully through the same path used when the orchestrator sends an exit RPC:
+        ///  - Pre-attach: <see cref="WaitForOrchestratorAttach"/> returns <see cref="AttachResult.Released"/>
+        ///    and the engine completes with <c>SuccessNotRun</c> (exit code 0).
+        ///  - Post-attach: behaves like a clean orchestrator-driven exit; <see cref="Exit"/> is idempotent.
+        ///
+        /// EOF (the runner closed the pipe or died) is intentionally NOT treated as a termination signal:
+        /// it does not reveal the orchestrator outcome (which may be success), so the worker takes no action
+        /// and relies on the normal gRPC heartbeat / attach-timeout paths instead.
+        ///
+        /// Cancelled via <see cref="m_cancellationOnExit"/> when the build finishes naturally.
+        ///
+        /// CODESYNC: Private/AdoBuildRunner/src/Build/WorkerBuildExecutor.cs (pipe creator).
+        /// </summary>
+        private void StartOrchestratorTerminationWatcher()
+        {
+            var pipeHandle = Environment.GetEnvironmentVariable(OrchestratorTerminationPipeEnvVar);
+            if (string.IsNullOrEmpty(pipeHandle))
+            {
+                return;
+            }
+
+            AnonymousPipeClientStream pipe;
+            try
+            {
+                pipe = new AnonymousPipeClientStream(PipeDirection.In, pipeHandle);
+            }
+#pragma warning disable ERP022 // Unobserved exception in a generic exception handler
+            catch (Exception ex)
+            {
+                Logger.Log.DistributionDebugMessage(
+                    m_appLoggingContext,
+                    $"Could not open orchestrator-termination pipe (handle '{pipeHandle}'): {ex}. The worker will not be notified externally of orchestrator termination.");
+                return;
+            }
+#pragma warning restore ERP022
+
+            // Fire-and-forget: best-effort background channel; failures inside it never affect the build.
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    using (pipe)
+                    {
+                        var buffer = new byte[1];
+                        int read;
+                        try
+                        {
+                            // Returns > 0 on a signal byte, 0 on EOF (runner closed the pipe or died).
+                            read = await pipe.ReadAsync(buffer.AsMemory(0, 1), m_cancellationOnExit.Token);
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            return;
+                        }
+
+                        if (read == 0)
+                        {
+                            // EOF means the runner closed the pipe / died, but it does NOT tell us why.
+                            // The orchestrator may still be running -- or may even have SUCCEEDED. Tearing
+                            // down the worker on this ambiguous signal could abandon a perfectly healthy
+                            // build, so we deliberately take NO action and let the normal gRPC heartbeat /
+                            // attach-timeout paths decide. Only the explicit signal byte -- written solely
+                            // when the runner's monitor observes the orchestrator job Failed/Canceled --
+                            // triggers a worker exit.
+                            Logger.Log.DistributionDebugMessage(
+                                m_appLoggingContext,
+                                "Orchestrator-termination pipe reached EOF without a signal byte (runner closed the pipe); taking no action because the orchestrator outcome is unknown.");
+                            return;
+                        }
+
+                        // Explicit signal byte: the runner confirmed the orchestrator is Failed/Canceled.
+                        // Set the flag BEFORE ExitRequested so every blocking site inside Exit() sees it.
+                        SetOrchestratorAbandoned();
+
+                        Logger.Log.DistributionWorkerExternalTerminationSignalReceived(m_appLoggingContext, "byte-signal from runner");
+                        ((IWorkerService)this).ExitRequested(
+                            "External termination signal received via orchestrator-termination pipe (byte-signal from runner).",
+                            Optional<string>.Empty);
+                    }
+                }
+#pragma warning disable ERP022 // Unobserved exception in a generic exception handler
+                catch (Exception ex)
+                {
+                    try
+                    {
+                        Logger.Log.DistributionDebugMessage(
+                            m_appLoggingContext,
+                            $"Orchestrator-termination pipe watcher failed: {ex}");
+                    }
+                    catch { }
+                }
+#pragma warning restore ERP022
+            });
         }
 
         internal void Start(EngineSchedule schedule, ExecutionResultSerializer resultSerializer)
@@ -341,11 +467,22 @@ namespace BuildXL.Engine.Distribution
             m_cancellationOnExit.Cancel();
             var reportSuccess = !failure.HasValue;
 
-            m_notificationManager.Exit(isClean: reportSuccess && !isUnexpected);
-            m_orchestratorClient.CloseAsync().GetAwaiter().GetResult();
+            m_notificationManager?.Exit(isClean: reportSuccess && !isUnexpected);
+
+            if (OrchestratorAbandoned)
+            {
+                // CloseAsync has a synchronous prefix (heartbeat join, channel dispose) that can block for
+                // minutes against a dead peer. Push it to the threadpool so Exit returns promptly.
+                _ = Task.Run(() => m_orchestratorClient?.CloseAsync());
+            }
+            else
+            {
+                // Orchestrator healthy or status unknown: wait so any final teardown RPC is delivered.
+                m_orchestratorClient?.CloseAsync().GetAwaiter().GetResult();
+            }
 
             m_attachCallCompletion.TrySetResult(AttachResult.Failed);
-            
+
             if (!reportSuccess)
             {
                 m_hasFailures = true;
@@ -407,6 +544,14 @@ namespace BuildXL.Engine.Distribution
             var helloResult = await m_orchestratorClient.SayHelloAsync(helloRequest, m_cancellationOnExit.Token);
             if (!helloResult.Succeeded)
             {
+                // If the runner already signaled the orchestrator is gone, the gRPC failure is expected:
+                // the watcher has called Exit() and the engine should take the early-released
+                // (SuccessNotRun) path. Return true so attach proceeds to AttachResult.Released.
+                if (OrchestratorAbandoned)
+                {
+                    return true;
+                }
+
                 // If we can't say hello there is no hope for attachment
                 Exit(failure: $"SayHello call failed. Details: {helloResult.Failure.Describe()}", isUnexpected: true);
                 return false;
@@ -502,6 +647,15 @@ namespace BuildXL.Engine.Distribution
             if (Interlocked.Increment(ref m_connectionClosedFlag) != 1)
             {
                 // Only go through the failure logic once
+                return;
+            }
+
+            if (OrchestratorAbandoned)
+            {
+                // The runner already signaled the orchestrator is gone and the watcher has driven a clean
+                // shutdown via Exit(). The gRPC failure is the expected consequence and is not a worker
+                // failure. Logging an error here would set HasFailures on the TrackingEventListener and
+                // force exit code 1, defeating the SuccessNotRun (early-release) path.
                 return;
             }
 

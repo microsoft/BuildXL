@@ -18,6 +18,10 @@ namespace Test.Tool.AdoBuildRunner
         protected static readonly string TestOrchestratorLocation = "testLocation";
         protected static readonly string TestOrchestratorPool = "testPool";
 
+        // Guid-shaped to match real ADO's SYSTEM_JOBID and MockAdoEnvironment.JobId default; the
+        // OrchestratorStatusMonitor parses BuildInfo.OrchestratorJobId as a Guid.
+        protected static readonly string TestOrchestratorJobId = "00000000-0000-0000-0000-000000000234";
+
         protected static readonly int TestOrchestratorId = 12345;
 
         protected static readonly int TestWorkerId = 789;
@@ -62,6 +66,12 @@ namespace Test.Tool.AdoBuildRunner
             /// <nodoc />
             public MockLauncher MockLauncher { get; private set; } = new();
 
+            /// <summary>
+            /// Test hook: tightens the pre-attach orchestrator-status monitor poll cadence on
+            /// the worker executor. Production uses the default 60-second cadence.
+            /// </summary>
+            public TimeSpan? MonitorPollInterval { get; set; }
+
             internal AgentHarness(IAdoService service, bool isWorker)
             {
                 m_adoService = service;
@@ -75,7 +85,9 @@ namespace Test.Tool.AdoBuildRunner
             internal void Initialize()
             {
                 m_runnerService = new AdoBuildRunnerService(MockLogger, AdoEnvironment, m_adoService, Config);
-                m_buildExecutor = m_isWorker ? new WorkerBuildExecutor(MockLauncher, m_runnerService, MockLogger) : new OrchestratorBuildExecutor(MockLauncher, m_runnerService, MockLogger);
+                m_buildExecutor = m_isWorker
+                    ? new WorkerBuildExecutor(MockLauncher, m_runnerService, MockLogger, MonitorPollInterval)
+                    : new OrchestratorBuildExecutor(MockLauncher, m_runnerService, MockLogger);
                 m_isInitialized = true;
             }
         }
@@ -122,6 +134,7 @@ namespace Test.Tool.AdoBuildRunner
                 RelatedSessionId = TestRelatedSessionId,
                 OrchestratorLocation = TestOrchestratorLocation,
                 OrchestratorPool = TestOrchestratorPool,
+                OrchestratorJobId = TestOrchestratorJobId,
             };
 
             return buildInfo;

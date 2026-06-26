@@ -25,7 +25,15 @@ namespace BuildXL.AdoBuildRunner
         {
             // The orchestrator creates the build info and publishes it to the build properties
             var buildContext = AdoBuildRunnerService.BuildContext;
-            var buildInfo = new BuildInfo { RelatedSessionId = Guid.NewGuid().ToString("D"), OrchestratorLocation = buildContext.AgentHostName, OrchestratorPool = buildContext.AgentPool };
+            var buildInfo = new BuildInfo
+            {
+                RelatedSessionId = Guid.NewGuid().ToString("D"),
+                OrchestratorLocation = buildContext.AgentHostName,
+                OrchestratorPool = buildContext.AgentPool,
+                // CODESYNC: AdoBuildRunner.Vsts.AdoBuildRunnerService.GetOrchestratorStateAsync
+                // The worker uses this jobId to look up the orchestrator's record in the orch build's timeline.
+                OrchestratorJobId = AdoBuildRunnerService.AdoEnvironment.JobId,
+            };
             await AdoBuildRunnerService.PublishBuildInfo(buildInfo);
             Logger.Info($@"Launching distributed build as orchestrator");
             var returnCode = await ExecuteBuild(

@@ -28,11 +28,11 @@ namespace BuildXL.AdoBuildRunner
         }
 
         /// <nodoc />
-        protected Task<int> ExecuteBuild(IEnumerable<string> fullArguments)
+        protected Task<int> ExecuteBuild(IEnumerable<string> fullArguments, IReadOnlyDictionary<string, string>? extraEnvironment = null)
         {
             var arguments = ExtractAndEscapeCommandLineArguments(fullArguments);
             Logger.Info($"Launching BuildXL with Arguments: {arguments}");
-            return m_bxlLauncher.LaunchAsync(arguments, Logger.Info, Logger.Warning);
+            return m_bxlLauncher.LaunchAsync(arguments, Logger.Info, Logger.Warning, extraEnvironment);
         }
 
         /// <nodoc />

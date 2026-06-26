@@ -131,6 +131,10 @@ namespace BuildXL.Engine.Distribution
 
         public void Exit(bool isClean)
         {
+            // When the orchestrator is known gone, skip best-effort gRPC sends/flushes that would wait
+            // out the retry budget against a dead peer. Otherwise keep existing waiting/retry behavior.
+            bool orchAbandoned = (DistributionService as WorkerService)?.OrchestratorAbandoned ?? false;
+
             if (!isClean)
             {
                 m_uncleanExit = true;
@@ -149,21 +153,46 @@ namespace BuildXL.Engine.Distribution
             m_executionLogTarget?.StopObservingEvents();
             m_manifestExecutionLog?.StopObservingEvents();
 
+            if (orchAbandoned)
+            {
+                // Cancel BEFORE Join so an in-flight ReportPipResultsAsync returns immediately.
+                m_sendCancellationSource.Cancel();
+            }
+
             if (m_sendThread.IsAlive)
             {
                 // Wait for the queues to drain
                 m_sendThread.Join();
             }
 
-            m_executionLogTarget?.FlushAsync().Wait();
-            m_executionLogTarget?.Dispose();
-            m_manifestExecutionLog?.Dispose();
+            if (!orchAbandoned)
+            {
+                // FlushAsync drives a final batch send; blocks against a dead peer.
+                m_executionLogTarget?.FlushAsync().Wait();
+                m_executionLogTarget?.Dispose();
+                m_manifestExecutionLog?.Dispose();
+            }
+            else
+            {
+                // DeactivateAndCancel() is the non-blocking equivalent to Dispose(): it stops event observation 
+                // and tears down locally without sending. Dispose() chains into a final send of residual events 
+                // and joins the BinaryLogger writer thread, both of which hang against a dead peer (blocking gRPC).
+                m_executionLogTarget?.DeactivateAndCancel();
+                m_manifestExecutionLog?.DeactivateAndCancel();
+            }
+
+            // The forwarding event listener only unregisters from the local event source (no gRPC), so dispose
+            // it in both paths -- it was already Cancel()ed above, this releases the listener registration.
             m_forwardingEventListener?.Dispose();
             m_sendCancellationSource.Cancel();
 
-            if (!m_orchestratorClient.TryFinalizeStreaming())
+            if (!orchAbandoned)
             {
-                Tracing.Logger.Log.DistributionStreamingNetworkFailure(m_loggingContext, "localhost");
+                // TryFinalizeStreaming awaits a streaming-RPC half-close; can hang against a dead peer.
+                if (!m_orchestratorClient.TryFinalizeStreaming())
+                {
+                    Tracing.Logger.Log.DistributionStreamingNetworkFailure(m_loggingContext, "localhost");
+                }
             }
         }
 

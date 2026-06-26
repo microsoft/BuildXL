@@ -1,9 +1,11 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.AdoBuildRunner;
+using Microsoft.TeamFoundation.Build.WebApi;
 using Xunit;
 
 namespace Test.Tool.AdoBuildRunner
@@ -307,6 +309,248 @@ namespace Test.Tool.AdoBuildRunner
             // Neither the orchestrator nor the healthy worker saw a fast-fail message.
             orchestrator.MockLogger.AssertLogNotContains("terminated with result");
             worker2.MockLogger.AssertLogNotContains("terminated with result");
+        }
+
+        /// <summary>
+        /// Orchestrator-status monitor scenario: the worker has received BuildInfo and BuildXL is
+        /// running. The orchestrator's ADO build transitions to Failed. The runner must signal
+        /// BuildXL via the cross-process orchestrator-termination pipe (it does NOT kill BuildXL),
+        /// and the mock BuildXL — wired to react to that signal — must exit cleanly with code 0.
+        /// This is the same contract whether or not BuildXL has attached: the watcher in BuildXL
+        /// routes both cases through the orchestrator-exit-RPC path.
+        /// </summary>
+        [Fact]
+        public async Task OrchestratorMonitorSignalsWorkerWhenOrchestratorFails()
+        {
+            var (orchestrator, worker) = CreateOrchestratorWorkerPairBuild();
+
+            // BuildXL on the worker never finishes on its own — only the pipe signal can end this.
+            var workerBxlNeverCompletes = new TaskCompletionSource();
+            worker.MockLauncher.CompletionTask = workerBxlNeverCompletes.Task;
+            // Simulate BuildXL's in-process watcher reacting to the runner's pipe write.
+            worker.MockLauncher.ReactToOrchestratorTerminationPipe = true;
+
+            // Delay the orchestrator so it has a chance to publish BuildInfo before "dying".
+            var orchTcs = new TaskCompletionSource();
+            orchestrator.MockLauncher.CompletionTask = orchTcs.Task;
+
+            // Tighten the monitor poll cadence so this test runs in milliseconds, not minutes.
+            worker.MonitorPollInterval = TimeSpan.FromMilliseconds(50);
+
+            orchestrator.Initialize();
+            worker.Initialize();
+
+            var buildArgs = new[] { "/foo", "/bar" };
+            var oManager = new BuildManager(orchestrator.RunnerService, orchestrator.BuildExecutor, buildArgs, orchestrator.MockLogger);
+            var wManager = new BuildManager(worker.RunnerService, worker.BuildExecutor, buildArgs, worker.MockLogger);
+
+            var oBuildTask = oManager.BuildAsync();
+            var wBuildTask = wManager.BuildAsync();
+
+            // Wait until the worker has launched BuildXL — that means it's past WaitForBuildInfo and
+            // the monitor is active.
+            await TestHelpers.WaitUntilAsync(() => worker.MockLauncher.Launched);
+
+            // Now transition the orchestrator's job in the build timeline to Completed/Failed. The
+            // monitor poll will notice on its next tick, the runner will signal BuildXL through the
+            // orchestrator-termination pipe, and the mock BuildXL will react and exit.
+            MockApiService.SetOrchestratorJobState(
+                orchestrator.AdoEnvironment.BuildId,
+                Guid.Parse(orchestrator.AdoEnvironment.JobId),
+                TimelineRecordState.Completed,
+                TaskResult.Failed);
+
+            var workerReturn = await wBuildTask;
+
+            // Worker exited cleanly with code 0. The runner signaled BuildXL via the pipe (not via kill).
+            Assert.Equal(0, workerReturn);
+            Assert.True(worker.MockLauncher.PipeSignaled, "Runner should have written to the orchestrator-termination pipe.");
+            worker.MockLogger.AssertLogContains("reached terminal state 'Failed'");
+            worker.MockLogger.AssertLogContains("Signaling BuildXL to exit cleanly via orchestrator-termination pipe");
+
+            // Let the orchestrator finish to clean up.
+            orchTcs.SetResult();
+            await oBuildTask;
+        }
+
+        /// <summary>
+        /// Orchestrator-status monitor scenario: same as the Failed case, but the orchestrator's
+        /// ADO build transitions to Canceled. The monitor must treat Canceled identically to Failed
+        /// — signal BuildXL via the orchestrator-termination pipe and let BuildXL exit cleanly —
+        /// and the log message must reflect the Canceled state. Guards the <see cref="BuildResult.Canceled"/>
+        /// mapping in <c>AdoBuildRunnerService.GetOrchestratorStateAsync</c>.
+        /// </summary>
+        [Fact]
+        public async Task OrchestratorMonitorSignalsWorkerWhenOrchestratorCanceled()
+        {
+            var (orchestrator, worker) = CreateOrchestratorWorkerPairBuild();
+
+            var workerBxlNeverCompletes = new TaskCompletionSource();
+            worker.MockLauncher.CompletionTask = workerBxlNeverCompletes.Task;
+            worker.MockLauncher.ReactToOrchestratorTerminationPipe = true;
+
+            var orchTcs = new TaskCompletionSource();
+            orchestrator.MockLauncher.CompletionTask = orchTcs.Task;
+
+            worker.MonitorPollInterval = TimeSpan.FromMilliseconds(50);
+
+            orchestrator.Initialize();
+            worker.Initialize();
+
+            var buildArgs = new[] { "/foo", "/bar" };
+            var oManager = new BuildManager(orchestrator.RunnerService, orchestrator.BuildExecutor, buildArgs, orchestrator.MockLogger);
+            var wManager = new BuildManager(worker.RunnerService, worker.BuildExecutor, buildArgs, worker.MockLogger);
+
+            var oBuildTask = oManager.BuildAsync();
+            var wBuildTask = wManager.BuildAsync();
+
+            await TestHelpers.WaitUntilAsync(() => worker.MockLauncher.Launched);
+
+            // Transition the orchestrator's job in the build timeline to Completed/Canceled. The
+            // monitor poll must map TaskResult.Canceled to OrchestratorState.Canceled and signal
+            // the worker via the orchestrator-termination pipe.
+            MockApiService.SetOrchestratorJobState(
+                orchestrator.AdoEnvironment.BuildId,
+                Guid.Parse(orchestrator.AdoEnvironment.JobId),
+                TimelineRecordState.Completed,
+                TaskResult.Canceled);
+
+            var workerReturn = await wBuildTask;
+
+            Assert.Equal(0, workerReturn);
+            Assert.True(worker.MockLauncher.PipeSignaled, "Runner should have written to the orchestrator-termination pipe.");
+            worker.MockLogger.AssertLogContains("reached terminal state 'Canceled'");
+
+            orchTcs.SetResult();
+            await oBuildTask;
+        }
+
+        /// <summary>
+        /// Inverted-design property: when BuildXL ignores the signal (e.g. its watcher is wedged,
+        /// disabled, or never opened the pipe), the runner must not interfere — it neither kills
+        /// BuildXL nor lets the rewrite-to-zero on orchestrator-termination depend on BuildXL having
+        /// reacted. The mock here does NOT react to the pipe, simulating a BuildXL that is unable
+        /// or unwilling to act on the signal. BuildXL's natural exit must drive the runner's wait, and
+        /// the runner's rewrite to 0 must still apply (the orchestrator failure is already user-visible).
+        /// </summary>
+        [Fact]
+        public async Task RunnerDoesNotKillBuildXLAndPreservesExitCodeWhenSignalIsIgnored()
+        {
+            var (orchestrator, worker) = CreateOrchestratorWorkerPairBuild();
+
+            // BuildXL on the worker is gated by a TCS so the test controls when it "finishes".
+            // Crucially, the mock does NOT react to the pipe — it simulates a BuildXL that
+            // is unable or unwilling to act on the signal.
+            var workerBxlTcs = new TaskCompletionSource();
+            worker.MockLauncher.CompletionTask = workerBxlTcs.Task;
+            worker.MockLauncher.ReturnCode = 42; // distinguish a natural exit from the previous default (0)
+            worker.MockLauncher.ReactToOrchestratorTerminationPipe = false;
+
+            var orchTcs = new TaskCompletionSource();
+            orchestrator.MockLauncher.CompletionTask = orchTcs.Task;
+
+            worker.MonitorPollInterval = TimeSpan.FromMilliseconds(50);
+
+            // We assert on the *raw* BuildXL exit code; the WorkerAlwaysSucceeds rewrite would mask it.
+            worker.Config.WorkerAlwaysSucceeds = false;
+
+            orchestrator.Initialize();
+            worker.Initialize();
+
+            var buildArgs = new[] { "/foo", "/bar" };
+            var oManager = new BuildManager(orchestrator.RunnerService, orchestrator.BuildExecutor, buildArgs, orchestrator.MockLogger);
+            var wManager = new BuildManager(worker.RunnerService, worker.BuildExecutor, buildArgs, worker.MockLogger);
+
+            var oBuildTask = oManager.BuildAsync();
+            var wBuildTask = wManager.BuildAsync();
+
+            await TestHelpers.WaitUntilAsync(() => worker.MockLauncher.Launched);
+
+            // Transition the orchestrator to Failed. The runner will write to the pipe, but the
+            // mock BuildXL ignores it (simulating a wedged or absent watcher).
+            MockApiService.SetOrchestratorJobState(
+                orchestrator.AdoEnvironment.BuildId,
+                Guid.Parse(orchestrator.AdoEnvironment.JobId),
+                TimelineRecordState.Completed,
+                TaskResult.Failed);
+
+            // Give the runner a few cycles to (correctly) NOT kill BuildXL.
+            await Task.Delay(300);
+            Assert.False(worker.MockLauncher.Exited, "BuildXL should still be running because it ignored the signal.");
+
+            // BuildXL finishes naturally with its own exit code. The runner preserves it — bxl is the
+            // authority on this worker's outcome. (WorkerAlwaysSucceeds is disabled in this test so the
+            // raw exit code surfaces.)
+            workerBxlTcs.SetResult();
+            var workerReturn = await wBuildTask;
+            Assert.Equal(42, workerReturn);
+
+            // Orchestrator clean-up.
+            orchTcs.SetResult();
+            await oBuildTask;
+        }
+
+        /// <summary>
+        /// Orchestrator-status monitor scenario: BuildXL on the worker exits on its own (e.g. fast
+        /// build, or an internal BuildXL error) before the orchestrator dies. The monitor must shut
+        /// down cleanly and the worker must return BuildXL's exit code unchanged.
+        /// </summary>
+        [Fact]
+        public async Task OrchestratorMonitorPreservesBxlExitCodeWhenBxlFinishesFirst()
+        {
+            var (orchestrator, worker) = CreateOrchestratorWorkerPairBuild();
+
+            // Orchestrator stays running so the worker's WaitForBuildInfo can complete normally.
+            var orchTcs = new TaskCompletionSource();
+            orchestrator.MockLauncher.CompletionTask = orchTcs.Task;
+
+            // Worker's BuildXL just exits with a specific code immediately.
+            worker.MockLauncher.CompletionTask = Task.CompletedTask;
+            worker.MockLauncher.ReturnCode = 7; // arbitrary non-zero (after the launcher's exit==7→0 rewrite this would be 0,
+                                                 // but the rewrite happens inside the concrete BuildXLLauncher, not in MockLauncher)
+            worker.Config.WorkerAlwaysSucceeds = false;
+            worker.MonitorPollInterval = TimeSpan.FromMilliseconds(50);
+
+            orchestrator.Initialize();
+            worker.Initialize();
+
+            var buildArgs = new[] { "/foo", "/bar" };
+            var oManager = new BuildManager(orchestrator.RunnerService, orchestrator.BuildExecutor, buildArgs, orchestrator.MockLogger);
+            var wManager = new BuildManager(worker.RunnerService, worker.BuildExecutor, buildArgs, worker.MockLogger);
+
+            var oBuildTask = oManager.BuildAsync();
+            var workerReturn = await wManager.BuildAsync();
+
+            Assert.Equal(7, workerReturn);
+            worker.MockLogger.AssertLogNotContains("terminated with state");
+
+            orchTcs.SetResult();
+            await oBuildTask;
+        }
+    }
+
+    /// <summary>
+    /// Small test utility helpers.
+    /// </summary>
+    internal static class TestHelpers
+    {
+        /// <summary>
+        /// Polls <paramref name="condition"/> every <paramref name="pollMs"/> ms until it returns true
+        /// or <paramref name="timeoutMs"/> ms elapse. Throws on timeout so failing tests have a clear
+        /// signal instead of hanging.
+        /// </summary>
+        public static async Task WaitUntilAsync(Func<bool> condition, int timeoutMs = 5_000, int pollMs = 25)
+        {
+            var deadline = Environment.TickCount + timeoutMs;
+            while (Environment.TickCount < deadline)
+            {
+                if (condition())
+                {
+                    return;
+                }
+                await Task.Delay(pollMs);
+            }
+            throw new TimeoutException($"Condition did not become true within {timeoutMs}ms.");
         }
     }
 }

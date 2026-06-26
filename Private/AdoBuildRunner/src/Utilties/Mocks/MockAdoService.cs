@@ -3,7 +3,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.TeamFoundation.Build.WebApi;
 using Microsoft.VisualStudio.Services.WebApi;
 
 namespace BuildXL.AdoBuildRunner.Utilities.Mocks
@@ -21,6 +23,8 @@ namespace BuildXL.AdoBuildRunner.Utilities.Mocks
         public Func<string>? GetPoolName { get; set; } = null;
 
         private readonly Dictionary<int, Microsoft.TeamFoundation.Build.WebApi.Build> m_adoBuilds = new Dictionary<int, Microsoft.TeamFoundation.Build.WebApi.Build>();
+
+        private readonly Dictionary<int, List<TimelineRecord>> m_adoTimelines = new Dictionary<int, List<TimelineRecord>>();
 
         private readonly Dictionary<string, string> m_buildTriggerProperties = new Dictionary<string, string>();
 
@@ -86,6 +90,38 @@ namespace BuildXL.AdoBuildRunner.Utilities.Mocks
         }
 
         /// <summary>
+        /// Returns the orchestrator's job state by looking up its record in the timeline registered
+        /// for the specified buildId (via <see cref="AddBuildTimeline"/> or
+        /// <see cref="SetOrchestratorJobState"/>). Mirrors the logic of <see cref="AdoService"/>.
+        /// </summary>
+        Task<BuildXL.AdoBuildRunner.Vsts.OrchestratorState> IAdoService.GetOrchestratorStateAsync(int buildId, Guid orchestratorJobId)
+        {
+            if (m_mockApiException)
+            {
+                throw new Exception("Failed to extract timeline information");
+            }
+
+            if (!m_adoTimelines.TryGetValue(buildId, out var records))
+            {
+                return Task.FromResult(BuildXL.AdoBuildRunner.Vsts.OrchestratorState.Running);
+            }
+
+            var orchRecord = records.FirstOrDefault(r => r.Id == orchestratorJobId);
+            if (orchRecord == null || orchRecord.State != TimelineRecordState.Completed)
+            {
+                return Task.FromResult(BuildXL.AdoBuildRunner.Vsts.OrchestratorState.Running);
+            }
+
+            return Task.FromResult(orchRecord.Result switch
+            {
+                TaskResult.Failed => BuildXL.AdoBuildRunner.Vsts.OrchestratorState.Failed,
+                TaskResult.Canceled => BuildXL.AdoBuildRunner.Vsts.OrchestratorState.Canceled,
+                TaskResult.Abandoned => BuildXL.AdoBuildRunner.Vsts.OrchestratorState.Canceled,
+                _ => BuildXL.AdoBuildRunner.Vsts.OrchestratorState.Running,
+            });
+        }
+
+        /// <summary>
         /// Updates the build properties for the specified buildId and throws an exception if the buildId does not exist.
         /// </summary>
         Task IAdoService.UpdateBuildPropertiesAsync(PropertiesCollection properties, int buildId)
@@ -144,6 +180,32 @@ namespace BuildXL.AdoBuildRunner.Utilities.Mocks
         {
             m_adoBuilds[buildId] = build;
             AddBuildProperties(buildId, []); // Any known build has properties, even if empty
+        }
+
+        /// <summary>
+        /// Adds or replaces the timeline records registered for the specified buildId.
+        /// </summary>
+        public void AddBuildTimeline(int buildId, IEnumerable<TimelineRecord> records)
+        {
+            m_adoTimelines[buildId] = new List<TimelineRecord>(records);
+        }
+
+        /// <summary>
+        /// Convenience helper: registers a timeline containing a single Job record with the given
+        /// JobId, State, and Result. Used by the OrchestratorStatusMonitor tests.
+        /// </summary>
+        public void SetOrchestratorJobState(int buildId, Guid jobId, TimelineRecordState state, TaskResult? result)
+        {
+            m_adoTimelines[buildId] = new List<TimelineRecord>
+            {
+                new TimelineRecord
+                {
+                    Id = jobId,
+                    RecordType = "Job",
+                    State = state,
+                    Result = result,
+                }
+            };
         }
 
         /// <summary>

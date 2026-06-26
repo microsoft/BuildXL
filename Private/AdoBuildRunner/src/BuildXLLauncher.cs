@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
@@ -16,10 +17,22 @@ namespace BuildXL.AdoBuildRunner
     public interface IBuildXLLauncher
     {
         /// <summary>
-        /// Run BuildXL with the specified arguments and redirecting output and error stream lines to the specified delegates
+        /// Run BuildXL with the specified arguments and redirecting output and error stream lines to the specified delegates.
         /// </summary>
+        /// <param name="args">Command-line arguments passed to BuildXL.</param>
+        /// <param name="outputDataReceived">Callback for each stdout line.</param>
+        /// <param name="errorDataReceived">Callback for each stderr line.</param>
+        /// <param name="extraEnvironment">
+        /// Optional environment variables to inject into the launched process. Used to pass inheritable
+        /// resources (e.g. anonymous-pipe client handles) from the runner to BuildXL without exposing
+        /// them on the command line. Keys are environment variable names, values are their values.
+        /// </param>
         /// <returns>The exit code of the engine invocation</returns>
-        public Task<int> LaunchAsync(string args, Action<string> outputDataReceived, Action<string> errorDataRecieved);
+        public Task<int> LaunchAsync(
+            string args,
+            Action<string> outputDataReceived,
+            Action<string> errorDataReceived,
+            IReadOnlyDictionary<string, string>? extraEnvironment = null);
     }
 
     /// <summary>
@@ -40,7 +53,11 @@ namespace BuildXL.AdoBuildRunner
         }
 
         /// <inheritdoc />
-        public async Task<int> LaunchAsync(string commandLine, Action<string> outputDataReceived, Action<string> errorDataRecieved)
+        public async Task<int> LaunchAsync(
+            string commandLine,
+            Action<string> outputDataReceived,
+            Action<string> errorDataReceived,
+            IReadOnlyDictionary<string, string>? extraEnvironment = null)
         {
             using var process = new Process()
             {
@@ -52,6 +69,14 @@ namespace BuildXL.AdoBuildRunner
                     RedirectStandardError = true
                 },
             };
+
+            if (extraEnvironment != null)
+            {
+                foreach (var kv in extraEnvironment)
+                {
+                    process.StartInfo.Environment[kv.Key] = kv.Value;
+                }
+            }
 
             process.OutputDataReceived += (sender, e) =>
             {
@@ -65,7 +90,7 @@ namespace BuildXL.AdoBuildRunner
             {
                 if (!string.IsNullOrEmpty(e.Data))
                 {
-                    errorDataRecieved?.Invoke(e.Data);
+                    errorDataReceived?.Invoke(e.Data);
                 }
             };
 
@@ -82,7 +107,7 @@ namespace BuildXL.AdoBuildRunner
             if (exitCode == 7)
             {
                 // We don't know what caused buildxl to hang, but we'll modify the exit value for now to avoid failing the pipeline.
-                errorDataRecieved("BuildXL successfully completed with an abnormal exit code.");
+                errorDataReceived("BuildXL successfully completed with an abnormal exit code.");
                 exitCode = 0;
             }
 

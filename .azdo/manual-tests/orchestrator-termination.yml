@@ -1,0 +1,286 @@
+# =====================================================================
+# Parameter-driven validation pipeline for AdoBuildRunner's
+# OrchestratorStatusMonitor.
+#
+# Design under test (current -- anonymous-pipe-based signal):
+#   1. Runner creates an inheritable AnonymousPipeServerStream BEFORE
+#      launching bxl, and passes the child handle via the env var
+#      BUILDXL_ORCH_TERMINATION_PIPE_HANDLE (consumed by
+#      WorkerService.StartOrchestratorTerminationWatcher).
+#   2. bxl's WorkerService.StartOrchestratorTerminationWatcher opens the
+#      pipe at construction time and races a 1-byte ReadAsync against
+#      m_cancellationOnExit for the ENTIRE lifetime of the worker (not
+#      just pre-attach). A successful read OR EOF (runner died) both
+#      count as 'orchestrator gone -> exit cleanly'.
+#   3. OrchestratorStatusMonitor polls the orch's ADO JOB state for the
+#      entire lifetime of the worker. When it sees Failed/Canceled, the
+#      runner writes a byte to the pipe and awaits bxl's natural exit.
+#      The runner NEVER kills bxl.
+#   4. bxl's watcher routes the signal through IWorkerService.ExitRequested(...).
+#      Exit() is idempotent: pre-attach it drives a clean Released exit (engine
+#      returns SuccessNotRun, exit 0); post-attach it either drives the exit
+#      (if gRPC teardown hasn't started) or is a no-op (if it has).
+#
+# How to use
+# ----------
+# Re-queue this pipeline once per scenario, passing
+#   --parameters scenario=<name>
+# Each run executes BuildRunner (build the runner from this branch) and
+# then ONE Scenario stage configured by the chosen parameter.
+#
+# Test matrix
+# -----------
+#   scenario                  | Phase           | Termination mechanism
+#   --------------------------+-----------------+--------------------------------
+#   healthy                   | n/a             | normal succeed (no kill). Sanity baseline:
+#                             |                 | the watcher must NOT fire and must shut down
+#                             |                 | cleanly via m_cancellationOnExit.
+#   orch-bxl-fails            | n/a             | orch bxl exits non-zero NATURALLY (no kill / no PATCH):
+#                             |                 | the orch is invoked with a tag filter that matches
+#                             |                 | no pip; bxl exits with "no pips matched filter".
+#                             |                 | The orch JOB record transitions to Completed/Failed
+#                             |                 | via the agent. Tests the inverted-design end to end:
+#                             |                 | monitor sees orch job Failed -> writes pipe byte
+#                             |                 | -> bxl's watcher fires ExitRequested -> worker
+#                             |                 | exits clean with code 0.
+#   orch-job-fail-preattach   | post-publish,   | a detached powershell on the ORCH agent (gated by
+#                             |  pre-attach     | SYSTEM_STAGEDISPLAYNAME not starting with "Distributed")
+#                             |                 | waits for bxl.exe to appear, then T+$(orchFailAfterBxlStartSeconds)
+#                             |                 | seconds later Stop-Processes bxl & AdoBuildRunner.
+#                             |                 | The kill targets ONLY the orch agent's processes, so
+#                             |                 | the orch JOB transitions to Failed while the worker
+#                             |                 | JOB stays alive. Tests the pre-attach path: monitor
+#                             |                 | observes orch job death and the worker's watcher
+#                             |                 | drives a clean Released exit via ExitRequested.
+#   orch-job-fail-postattach  | worker attached | same mechanism as orch-job-fail-preattach but with a
+#                             |                 | longer delay so the worker has attached first. Tests
+#                             |                 | the post-attach Failed path: monitor signals the
+#                             |                 | watcher mid-build; the watcher calls ExitRequested
+#                             |                 | which races with the existing gRPC heartbeat-timeout /
+#                             |                 | teardown path. Either race winner is acceptable
+#                             |                 | (Exit() is idempotent). Key regression check: post-attach
+#                             |                 | teardown must not break.
+#
+# What to verify in the logs
+# --------------------------
+# Worker bxl log (look for the watcher's own debug messages):
+#   "Received external orchestrator-termination signal via pipe (reason: 'byte-signal from runner').
+#    Initiating worker exit."
+#     (proves the watcher fired ExitRequested in non-healthy scenarios)
+# Runner log (the worker's AdoBuildRunner.log):
+#   "Signaling BuildXL to exit cleanly via orchestrator-termination pipe."
+#     (proves the runner wrote to the pipe in non-healthy scenarios)
+#   The runner must NEVER log "killing bxl" / "killing the build" -- kill is gone.
+# =====================================================================
+
+parameters:
+  - name: scenario
+    displayName: Scenario
+    type: string
+    default: healthy
+    values:
+      - healthy
+      - orch-bxl-fails             # orch bxl exits non-zero AFTER BuildInfo published -> monitor signals worker (Failed path)
+      - orch-job-fail-preattach    # orch JOB process-killed pre-attach -> monitor signals worker (Failed path)
+      - orch-job-fail-postattach   # orch JOB process-killed post-attach -> monitor signals worker (Failed path)
+
+trigger: none      # never auto-run
+pr: none
+
+variables:
+  - group: "BuildXL Common variables"
+  - name: Codeql.Enabled
+    value: false
+  # Per-scenario knobs for in-agent self-driving termination scenarios.
+  # The scheduled action (process kill / build PATCH) fires in a detached
+  # powershell scheduled by preBuildSteps and gated to the orch stage only.
+  # The value is "seconds after bxl.exe FIRST APPEARS on the orch agent"
+  # — not wall-clock from the scheduler task's start — because the orch's
+  # bxl can only run for ~3-4 min on cache hits and any wall-clock value
+  # large enough to wait through SDL+install gates would fire AFTER bxl
+  # already finished (silent miss).
+  - ${{ if eq(parameters.scenario, 'orch-job-fail-preattach') }}:
+    - name: orchFailAfterBxlStartSeconds
+      value: 5
+  - ${{ if eq(parameters.scenario, 'orch-job-fail-postattach') }}:
+    # Wait long enough for the worker to have attached AND started executing
+    # some pips before killing. Paired with cache-bust below to keep orch bxl
+    # alive long enough.
+    - name: orchFailAfterBxlStartSeconds
+      value: 120
+  # Filter + cache-bust per scenario.
+  # /fingerprintsalt:* generates a fresh GUID per build, busting the
+  # remote BuildCache pool's hits. We need this for post-attach kills
+  # because the shared cache makes orch bxl finish in ~10s on cache hits
+  # — the killer fires AFTER bxl already exited and we observe nothing.
+  # Cache-bust is enabled for any scenario that needs the orch's bxl
+  # process to live long enough for the test mechanism to land.
+  - ${{ if eq(parameters.scenario, 'healthy') }}:
+    - name: orchFilter
+      value: "/f:spec='Private/AdoBuildRunner/src/BuildXL.AdoBuildRunner.dsc'"
+  - ${{ if eq(parameters.scenario, 'orch-bxl-fails') }}:
+    - name: orchFilter
+      value: "\"/f:tag='__nomatch_xyz_orch_fails__'\""
+  - ${{ if or(eq(parameters.scenario, 'orch-job-fail-preattach'), eq(parameters.scenario, 'orch-job-fail-postattach')) }}:
+    - name: orchFilter
+      # /fingerprintsalt:* invalidates fingerprints per build so pips re-execute
+      # instead of getting cache hits. /incremental- disables engine incremental
+      # scheduling so the engine actually schedules every pip in the filter
+      # (rather than skipping unchanged pips). Together they keep orch bxl alive
+      # long enough for the test mechanism (job kill) to land on the
+      # worker. Empirically without /incremental- orch bxl finishes in ~90s on
+      # the bxl.exe output filter, which is too short for orch-job-fail-postattach
+      # (killer waits 120s).
+      value: "\"/f:output='*\\Out\\Bin\\release\\win-x64\\bxl.exe'\" /incremental- /fingerprintsalt:*"
+
+resources:
+  repositories:
+    - repository: 1esPipelines
+      type: git
+      name: Domino/1ESPipelines       # the fork in mseng/Domino, not the public 1ESPT repo
+      ref: refs/heads/main
+
+extends:
+  template: v1/1ES.Unofficial.PipelineTemplate.yml@1esPipelines
+  parameters:
+    pool:
+      name: BuildXL-DevOpsAgents-Selfhost-BuildCache
+      os: windows
+      image: 1ESPT-Win2022-PME-3
+
+    sdl:
+      sourceAnalysisPool:
+        name: Windows-SDL-Agents
+        os: windows
+      codeql:
+        compiled:
+          enabled: false
+          justificationForDisabling: 'Manual-only validation pipeline; the code under test is covered by CodeQL in the main PR validation pipelines.'
+
+    settings:
+      networkIsolationPolicy: Permissive,CFSClean,CFSClean2,CFSClean3
+
+    stages:
+      # -----------------------------------------------------------------
+      # Stage 1: build the AdoBuildRunner from THIS branch and publish it
+      # so the Scenario stage can use it via templateContext.buildXL
+      # invocationPrefix instead of the published-by-1ESPT runner.
+      # -----------------------------------------------------------------
+      - stage: BuildRunner
+        dependsOn: []
+        displayName: Build AdoBuildRunner from branch
+        jobs:
+          - job: Build
+            templateContext:
+              outputs:
+                - output: pipelineArtifact
+                  artifactName: AdoBuildRunner
+                  targetPath: $(Build.SourcesDirectory)/Out/Bin/release/win-x64
+                  displayName: Publish AdoBuildRunner artifact
+            steps:
+              - template: /.azdo/common/set-variable-pats.yml@self
+              - template: /.azdo/common/install-credential-provider.yml@self
+              - template: /.azdo/common/journaling.yml@self
+              - script: |
+                  call bxl.cmd /q:ReleaseNet9 /p:[Sdk.BuildXL]microsoftInternal=1 /server- "/f:output='*\Out\Bin\release\win-x64\*'"
+                displayName: Build AdoBuildRunner (ReleaseNet9)
+                env:
+                  SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+                  AdoBuildRunnerInvocationKey: BuildRunner
+                  1ESSHAREDASSETS_BUILDXL_FEED_PAT: $(1ESSHAREDASSETS_BUILDXL_FEED_PAT)
+                  CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT: $(CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT)
+                  MSENG_GIT_PAT: $(MSENG_GIT_PAT)
+                  VSTSPERSONALACCESSTOKEN: $(VSTSPERSONALACCESSTOKEN)
+                  ARTIFACT_CREDENTIALPROVIDERS_PATH: $(ARTIFACT_CREDENTIALPROVIDERS_PATH)
+                  VSS_NUGET_EXTERNAL_FEED_ENDPOINTS: $(VSS_NUGET_EXTERNAL_FEED_ENDPOINTS)
+                  NUGET_CREDENTIALPROVIDERS_PATH: $(NugetCredentialProviderPath)
+
+      # -----------------------------------------------------------------
+      # Stage 2: the parameterized scenario.
+      #
+      # Single job: BuildXL workflow distributed orchestrator (1 worker)
+      # with the per-scenario filter. The orch is terminated by one of
+      # two mechanisms (see the test-matrix comment block at top of
+      # file): a natural bxl exit triggered by a no-match filter, or an
+      # in-agent process kill targeting only the orch agent. For the
+      # 'healthy' scenario no termination fires and the build runs to
+      # natural completion.
+      #
+      # Inverted-design contract under test:
+      #   Runner OrchestratorStatusMonitor observes the orch JOB
+      #   transition -> Releases the named semaphore -> bxl's
+      #   WorkerService.StartOrchestratorTerminationWatcher routes the
+      #   signal through IWorkerService.ExitRequested. The runner does
+      #   NOT kill bxl; bxl decides when to exit.
+      # -----------------------------------------------------------------
+      - stage: Scenario
+        dependsOn: BuildRunner
+        displayName: "Scenario: ${{ parameters.scenario }}"
+        condition: succeeded()
+        # All scenarios are self-driving: termination is triggered either by
+        # bxl exiting naturally (orch-bxl-fails) or by a detached powershell
+        # scheduled in preBuildSteps that runs on the orch agent. No external
+        # buddy / PAT-based polling is required.
+        jobs:
+          - job: Orch
+            displayName: "Orch: ${{ parameters.scenario }}"
+            templateContext:
+              workflow: BuildXL
+              distribution:
+                enabled: true
+                workerCount: 1
+              preBuildSteps:
+                - download: current
+                  artifact: AdoBuildRunner
+                - template: /.azdo/common/set-variable-pats.yml@self
+                - template: /.azdo/common/install-credential-provider.yml@self
+                - ${{ if or(eq(parameters.scenario, 'orch-job-fail-preattach'), eq(parameters.scenario, 'orch-job-fail-postattach')) }}:
+                  - powershell: |
+                      # Gate: the orch JOB and the 1ESPT worker-companion JOB
+                      # share the same job-display-name + the same
+                      # SYSTEM_JOBPOSITIONINPHASE (=1) because they live in
+                      # different stages, so we must discriminate by stage.
+                      # The orch stage is "Scenario: <scenario>"; the worker
+                      # companion stage is "Distributed workers for Scenario: <scenario>".
+                      Write-Host "DEBUG STAGE='$env:SYSTEM_STAGEDISPLAYNAME' PHASE='$env:SYSTEM_PHASEDISPLAYNAME' JOB='$env:AGENT_JOBNAME' POS='$env:SYSTEM_JOBPOSITIONINPHASE'"
+                      if ($env:SYSTEM_STAGEDISPLAYNAME -like 'Distributed workers*') {
+                        Write-Host "Worker-companion job. Skipping kill scheduler."
+                        exit 0
+                      }
+                      $waitAfterBxl = [int]'$(orchFailAfterBxlStartSeconds)'
+                      Write-Host "Scheduling killer: wait for bxl.exe on this (orch) agent, then T+${waitAfterBxl}s, then kill bxl + AdoBuildRunner."
+                      # The killer polls for bxl.exe (max 30 min). When bxl
+                      # appears, it sleeps $waitAfterBxl seconds, then hard-
+                      # kills both bxl and AdoBuildRunner on this agent.
+                      # Spawned via Win32_Process.Create so the killer is
+                      # parent-less and survives the script step's cleanup.
+                      # NOTE: the killer script is one line so YAML's block
+                      # scalar (indented at the parent's level) is not
+                      # terminated by a column-0 PowerShell here-string.
+                      $killScript = '$d=(Get-Date).AddMinutes(30); while((Get-Date) -lt $d){ if(Get-Process -Name bxl -ErrorAction SilentlyContinue){break}; Start-Sleep -Seconds 2 }; Start-Sleep -Seconds ' + $waitAfterBxl + '; Get-Process -Name bxl,AdoBuildRunner -ErrorAction SilentlyContinue | Where-Object { $_.Id -ne $PID } | Stop-Process -Force'
+                      $b64 = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($killScript))
+                      $killCmd = "powershell.exe -NoProfile -WindowStyle Hidden -EncodedCommand $b64"
+                      $r = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{ CommandLine = $killCmd }
+                      Write-Host "Spawned killer PID=$($r.ProcessId) ReturnValue=$($r.ReturnValue) (0 = success)"
+                    displayName: 'Schedule bxl killer (T+$(orchFailAfterBxlStartSeconds)s after bxl starts)'
+              buildXL:
+                install: false
+                invocationPrefix: $(Pipeline.Workspace)\AdoBuildRunner\AdoBuildRunner.exe
+                arguments: >-
+                  /unsafe_GlobalPassthroughEnvVars:NUGET_CREDENTIALPROVIDERS_PATH;VSS_NUGET_EXTERNAL_FEED_ENDPOINTS
+                  /unsafe_GlobalUntrackedScopes:$(NugetCredentialProviderPath);C:\ProgramData\Microsoft\NetFramework\BreadcrumbStore
+                  /c:config.dsc
+                  /q:ReleaseNet9
+                  /p:[Sdk.BuildXL]microsoftInternal=1
+                  $(orchFilter)
+                  /logsDirectory:$(Build.ArtifactStagingDirectory)/.buildXL/Logs/Orch
+                env:
+                  AdoBuildRunnerInvocationKey: ${{ parameters.scenario }}
+                  1ESSHAREDASSETS_BUILDXL_FEED_PAT: $(1ESSHAREDASSETS_BUILDXL_FEED_PAT)
+                  CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT: $(CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT)
+                  MSENG_GIT_PAT: $(MSENG_GIT_PAT)
+                  VSTSPERSONALACCESSTOKEN: $(VSTSPERSONALACCESSTOKEN)
+                  ARTIFACT_CREDENTIALPROVIDERS_PATH: $(ARTIFACT_CREDENTIALPROVIDERS_PATH)
+                  VSS_NUGET_EXTERNAL_FEED_ENDPOINTS: $(VSS_NUGET_EXTERNAL_FEED_ENDPOINTS)
+                  NUGET_CREDENTIALPROVIDERS_PATH: $(NugetCredentialProviderPath)
+                workingDirectory: $(Build.Repository.LocalPath)

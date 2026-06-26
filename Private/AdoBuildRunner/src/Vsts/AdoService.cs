@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.AdoBuildRunner.Vsts;
 using Microsoft.TeamFoundation.Build.WebApi;
@@ -48,6 +49,27 @@ namespace BuildXL.AdoBuildRunner
         public Task<Build> GetBuildAsync(int buildId)
         {
             return m_buildClient.GetBuildAsync(m_projectId, buildId);
+        }
+
+        /// <inheritdoc />
+        public async Task<OrchestratorState> GetOrchestratorStateAsync(int buildId, Guid orchestratorJobId)
+        {
+            var timeline = await m_buildClient.GetBuildTimelineAsync(m_projectId, buildId);
+
+            // The orch's job record may not be in the timeline yet on early polls.
+            var orchRecord = timeline?.Records?.FirstOrDefault(r => r.Id == orchestratorJobId);
+            if (orchRecord == null || orchRecord.State != TimelineRecordState.Completed)
+            {
+                return OrchestratorState.Running;
+            }
+
+            return orchRecord.Result switch
+            {
+                TaskResult.Failed => OrchestratorState.Failed,
+                TaskResult.Canceled => OrchestratorState.Canceled,
+                TaskResult.Abandoned => OrchestratorState.Canceled,
+                _ => OrchestratorState.Running,
+            };
         }
 
         /// <inheritdoc />

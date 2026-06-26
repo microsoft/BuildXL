@@ -13,6 +13,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Models;
 using BuildXL.Ipc.Common;
 using BuildXL.Ipc.ExternalApi;
 using BuildXL.Ipc.Interfaces;
@@ -44,6 +45,9 @@ namespace Tool.BlobDaemon
 #else
         private static readonly object s_lock = new();
 #endif
+
+        // Upper bound for a single server-side copy; on timeout we cancel and fall back to local upload.
+        private static readonly TimeSpan s_serverSideCopyTimeout = TimeSpan.FromMinutes(15);
 
         private readonly BlobDaemonConfig m_config;
         private readonly ActionQueue m_actionQueue;
@@ -401,21 +405,58 @@ namespace Tool.BlobDaemon
                 var possibleSourceUri = await ApiClient.GetContentLocationInBlobStorage(file.FileContentInfo.Hash);
                 if (possibleSourceUri.Succeeded && possibleSourceUri.Result != null)
                 {
+                    using var cts = new CancellationTokenSource(s_serverSideCopyTimeout);
+                    string copyId = null;
                     try
                     {
-                        var status = await blobClient.StartCopyFromUriAsync(possibleSourceUri.Result);
-                        await status.WaitForCompletionAsync(CancellationToken.None);
+                        var copyOperation = await blobClient.StartCopyFromUriAsync(possibleSourceUri.Result, cancellationToken: cts.Token);
+                        copyId = copyOperation.Id;
+                        await copyOperation.WaitForCompletionAsync(cts.Token);
+                        // The copy reached a terminal state, so there is no pending copy to abort in the catch block.
+                        copyId = null;
 
-                        // we did not get any exceptions - success!
-                        m_counters.IncrementCounter(BlobDaemonCounter.ServerSideCopyCount);
-                        return;
+                        // The copy's outcome is read from the destination blob's CopyStatus (not from the operation
+                        // object): a blob can be the target of at most one pending copy at a time, so once we have
+                        // awaited our copy above, the blob's properties reflect it. We check CopyStatus explicitly
+                        // because WaitForCompletionAsync does NOT throw on CopyStatus.Failed/Aborted, and its result
+                        // (bytes copied) is unreliable - 0 for both empty blobs and failed copies.
+                        var properties = (await blobClient.GetPropertiesAsync(cancellationToken: cts.Token)).Value;
+                        if (properties.CopyStatus == CopyStatus.Success)
+                        {
+                            m_counters.IncrementCounter(BlobDaemonCounter.ServerSideCopyCount);
+                            return;
+                        }
+
+                        // Non-success terminal state: fall through to the materialize + local-upload fallback.
+                        m_counters.IncrementCounter(BlobDaemonCounter.ServerSideCopyFailedCount);
+                        m_logger.Warning($"[file:{file.FileId}] Server-side copy of '{file.FilePath}' did not succeed (copy status: '{properties.CopyStatus}', description: '{properties.CopyStatusDescription}'). Falling back to local upload.");
                     }
-                    catch
-#pragma warning disable ERP022 // Unobserved exception in a generic exception handler
+                    catch (Exception e)
                     {
-                        // no-op: we failed the copy between accounts. Fall-back to uploading from local machine.
+                        m_counters.IncrementCounter(BlobDaemonCounter.ServerSideCopyFailedCount);
+
+                        // If the copy did not reach a terminal state on the client (e.g., it timed out), the server-side
+                        // copy may still be pending. Writing to a blob that has a pending copy fails with 409, so we
+                        // best-effort abort the copy (via its copy id) before falling back to the local-upload path.
+                        if (copyId != null)
+                        {
+                            try
+                            {
+                                await blobClient.AbortCopyFromUriAsync(copyId, cancellationToken: CancellationToken.None);
+                            }
+                            catch (Exception abortException)
+                            {
+                                // Best-effort: an abort failure (e.g., the copy already completed, or a transient
+                                // error) should not stop us - log it and still attempt the local-upload fallback.
+                                m_logger.Warning($"[file:{file.FileId}] Failed to abort the pending server-side copy (copy id '{copyId}') of '{file.FilePath}': {abortException.ToStringDemystified()}");
+                            }
+                        }
+
+                        var reason = e is OperationCanceledException && cts.IsCancellationRequested
+                            ? $"timed out after {s_serverSideCopyTimeout}"
+                            : $"failed: {e.ToStringDemystified()}";
+                        m_logger.Warning($"[file:{file.FileId}] Server-side copy of '{file.FilePath}' {reason}. Falling back to local upload.");
                     }
-#pragma warning restore ERP022 // Unobserved exception in a generic exception handler
                 }
             }
 
@@ -629,6 +670,8 @@ namespace Tool.BlobDaemon
             UploadArtifactsRequestCount,
 
             ServerSideCopyCount,
+
+            ServerSideCopyFailedCount,
 
             LocalUploadCount,
         }

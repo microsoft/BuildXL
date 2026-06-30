@@ -16,18 +16,11 @@ const createDropResult = Drop.runner.createDrop(
     ), {retentionDays: 1})
 );
 
-// This is just used to illustrate how a drop can be created upfront and populated with artifacts before creating a session.
+// This is just used to illustrate how a drop can be populated with artifacts before creating a session.
 const testScript = Transformer.writeFile(p`${Context.getNewOutputDirectory("cloudtest")}/test.sh`, 
 `#!/bin/bash
 echo "Hello CloudTest!"
 `);
-
-const dropPrepResult = Drop.runner.addArtifactsToDrop(
-    createDropResult,
-    // Just use the defaults
-    {},
-    [ {kind: "file", file: testScript, dropPath: r`setup/test.sh`}]
-);
 
 // Read the scope JSON file produced as a pre-build step.
 // This example assumes the scope file is already generated at this location.
@@ -37,29 +30,36 @@ const scopeJson : CT1JSSdk.ScopeFile = CT1JSSdk.readScopeFile(f`scopes.json`);
 // The session can also be created outside of BuildXL. Doing it inside abstracts some of the details away.
 const sessionArgs : CloudTestClient.Helpers.GenerateSessionConfigAndCreateSessionArguments = {
     drop: createDropResult,
-    tenant: "cloudtest-sample",
-    sku: "test-sku",
-    image: "ubuntu22.04",
+    tenant: "cloudtest",
     // Passed to BuildXL from the outside.
     tokenEnvVar: Environment.getStringValue("CloudTestTokenVariableName"),
     timeoutMinutes: 1,
-    maxResources: 1,
-    // The jobs are extracted from the pre-computed scopes.json file
-    jobs: CT1JSSdk.getJobPlaceHolders(scopeJson),
+    environment: "ppe",
+    // A session is made up of one or more groups. Here we use two groups to illustrate partitioning jobs across
+    // groups (e.g. by package): each group has its own image/sku, optional name, jobs, and setup/cleanup.
+    // Job names are unique across groups, so submission resolves each job's group by name automatically.
+    groups: [
+        {
+            name: "b-package-group",
+            sku: "DefaultCloudTestSku",
+            image: "CTLinuxUbuntu2204",
+            maxResources: 1,
+            // The jobs for @test/b-package, extracted from the pre-computed scopes.json file.
+            jobs: CT1JSSdk.getJobPlaceHolders(scopeJson, pkg => pkg === "@test/b-package"),
+        },
+        {
+            name: "c-package-group",
+            sku: "DefaultCloudTestSku",
+            image: "CTLinuxUbuntu2404",
+            maxResources: 1,
+            // The jobs for @test/c-package. This group has no setup, showing groups can be configured independently.
+            jobs: CT1JSSdk.getJobPlaceHolders(scopeJson, pkg => pkg === "@test/c-package"),
+        }
+    ],
     displayName: "My Test Session",
-    dependencies: dropPrepResult.outputs,
-    // Run the uploaded test.sh script during VM prepping (group setup phase),
-    // before any jobs execute. The drop contents are available under [BuildRoot].
-    dynamicGroupSetup: {
-        scripts: [
-            {
-                path: r`setup/test.sh`,
-                scriptName: "hello-cloudtest",
-                timeoutMins: 5,
-            }
-        ],
-        timeoutMins: 10,
-    },
+    // The test.sh script is consumed by the b-package-group's dynamicGroupSetup. Uploading it through dropArtifacts
+    // (instead of a manual addArtifactsToDrop) ensures it participates in the CloudTest caching fingerprint.
+    dropArtifacts: [ {kind: "file", file: testScript, dropPath: r`setup/test.sh`} ],
 };
 const sessionCreateResult = CloudTestClient.Helpers.generateConfigAndCreateSession(sessionArgs);
 

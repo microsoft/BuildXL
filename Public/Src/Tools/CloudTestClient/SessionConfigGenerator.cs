@@ -36,65 +36,7 @@ namespace Tool.CloudTestClient
         /// </summary>
         public static string GenerateSessionConfig(CloudTestClientArgs arguments)
         {
-            var jobs = arguments.Jobs;
-
-            if (jobs.Count == 0)
-            {
-                throw new InvalidOperationException("No job definitions provided.");
-            }
-
-            // Auto-generate IDs
-            var testSessionId = Guid.NewGuid().ToString();
-            var groupId = ComputeGroupId(arguments.Image, arguments.Sku);
-
-            // Build job placeholders — honor explicit IDs when provided, otherwise auto-generate
-            var dynamicJobRequests = jobs.Select(job => new DynamicJobRequest(
-                // If the job definition includes an explicit ID, use it; otherwise, generate a stable GUID based on the BuildXL namespace and job name
-                JobId: job.Id ?? NewStableGuid(job.Name).ToString(),
-                JobName: job.Name)).ToList();
-
-            // Read optional JSON files for group setup, cleanup, and file providers
-            var groupSetup = JsonHelpers.ReadJsonFile<GroupSetupConfig>(arguments.DynamicGroupSetupFile);
-            var groupCleanup = JsonHelpers.ReadJsonFile<GroupCleanupConfig>(arguments.DynamicGroupCleanupFile);
-            var fileProviders = JsonHelpers.ReadJsonFile<FileProvidersFileConfig>(arguments.FileProvidersFile)?.FileProviders;
-
-            // Build the session config
-            var config = new SessionConfig(
-                TestSessionId: testSessionId,
-                DisplayName: arguments.DisplayName ?? $"DJE Session {DateTime.UtcNow:yyyy-MM-dd HH:mm}",
-                TenantId: arguments.Tenant,
-                User: arguments.User ?? "unknown",
-                Stamp: arguments.Stamp,
-                BuildDropLocation: arguments.BuildDropLocation,
-                CacheEnabled: arguments.CacheEnabled,
-                Properties: arguments.Properties,
-                FeatureExceptions: arguments.FeatureExceptions,
-                DynamicGroupRequests: new List<DynamicGroupRequest>
-                {
-                    new DynamicGroupRequest(
-                        SessionId: testSessionId,
-                        GroupName: $"{arguments.Image} {arguments.Sku}",
-                        GroupId: groupId,
-                        Sku: arguments.Sku,
-                        Image: arguments.Image,
-                        MaxResources: arguments.MaxResources,
-                        MaxParallelismForJobs: arguments.MaxParallelismForJobs,
-                        DynamicJobRequests: dynamicJobRequests,
-                        DynamicGroupSetup: groupSetup,
-                        DynamicGroupCleanup: groupCleanup)
-                },
-                VSTSContext: BuildVstsContext(arguments),
-                FileProviders: fileProviders);
-
-            // Serialize and write
-            var options = new JsonSerializerOptions
-            {
-                WriteIndented = true,
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-            };
-
-            string json = JsonSerializer.Serialize(config, options);
+            string json = GenerateSessionConfigJson(arguments);
 
             string directory = Path.GetDirectoryName(arguments.ConfigOutputFile);
             if (!string.IsNullOrEmpty(directory))
@@ -107,12 +49,127 @@ namespace Tool.CloudTestClient
         }
 
         /// <summary>
+        /// Builds the session config and returns it as a JSON string without writing to disk. Useful for tests that
+        /// only need to inspect the generated config (avoiding a write-then-read-back round trip).
+        /// </summary>
+        public static string GenerateSessionConfigJson(CloudTestClientArgs arguments)
+        {
+            if (string.IsNullOrEmpty(arguments.SessionInputFile))
+            {
+                throw new InvalidOperationException("No session input file provided.");
+            }
+
+            // Read the entire session definition from a single input file.
+            var input = JsonHelpers.ReadJsonFile<SessionInputConfig>(arguments.SessionInputFile)
+                ?? throw new InvalidOperationException($"Failed to read session input from '{arguments.SessionInputFile}'.");
+
+            if (string.IsNullOrEmpty(input.Tenant))
+            {
+                throw new InvalidOperationException($"Session input '{arguments.SessionInputFile}' is missing the required 'tenant' field.");
+            }
+
+            if (string.IsNullOrEmpty(input.BuildDropLocation))
+            {
+                throw new InvalidOperationException($"Session input '{arguments.SessionInputFile}' is missing the required 'buildDropLocation' field.");
+            }
+
+            if (input.Groups == null || input.Groups.Count == 0)
+            {
+                throw new InvalidOperationException($"Session input '{arguments.SessionInputFile}' does not contain any groups.");
+            }
+
+            // Auto-generate the session ID
+            var testSessionId = Guid.NewGuid().ToString();
+
+            // Build one dynamic group request per group. Each group carries its own image, sku,
+            // resources, jobs, and optional setup/cleanup.
+            var dynamicGroupRequests = new List<DynamicGroupRequest>(input.Groups.Count);
+            var seenGroupNames = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var group in input.Groups)
+            {
+                if (group.Jobs == null || group.Jobs.Count == 0)
+                {
+                    throw new InvalidOperationException($"Group '{group.Name ?? $"{group.Image} {group.Sku}"}' does not contain any jobs.");
+                }
+
+                var groupId = ComputeGroupId(group.Image, group.Sku);
+                var groupName = !string.IsNullOrEmpty(group.Name) ? group.Name : $"{group.Image} {group.Sku}";
+
+                // Reject duplicate group names within the session. Group names are used to disambiguate jobs at
+                // submission time, so two groups sharing a name would make name-based lookup ambiguous.
+                if (!seenGroupNames.Add(groupName))
+                {
+                    throw new InvalidOperationException(
+                        $"Duplicate group name '{groupName}' found in the session. Group names must be unique; provide an explicit 'name' to disambiguate groups that share the same image and sku.");
+                }
+
+                // Reject duplicate jobs (same name) within the group when the job is referenced by name (no explicit ID).
+                // Such jobs would resolve to the same auto-generated ID and make name-based lookup ambiguous.
+                var seenJobNames = new HashSet<string>(StringComparer.Ordinal);
+                foreach (var job in group.Jobs)
+                {
+                    if (string.IsNullOrEmpty(job.Id) && !seenJobNames.Add(job.Name))
+                    {
+                        throw new InvalidOperationException(
+                            $"Duplicate job name '{job.Name}' found in group '{groupName}'. Job names must be unique within a group when no explicit job ID is provided.");
+                    }
+                }
+
+                // Build job placeholders — honor explicit IDs when provided, otherwise auto-generate a stable GUID based on the job name
+                var dynamicJobRequests = group.Jobs.Select(job => new DynamicJobRequest(
+                    JobId: !string.IsNullOrEmpty(job.Id) ? job.Id : NewStableGuid(job.Name).ToString(),
+                    JobName: job.Name)).ToList();
+
+                dynamicGroupRequests.Add(new DynamicGroupRequest(
+                    SessionId: testSessionId,
+                    GroupName: groupName,
+                    GroupId: groupId,
+                    Sku: group.Sku,
+                    Image: group.Image,
+                    MaxResources: group.MaxResources,
+                    MaxParallelismForJobs: group.MaxParallelismForJobs,
+                    DynamicJobRequests: dynamicJobRequests,
+                    DynamicGroupSetup: group.DynamicGroupSetup,
+                    DynamicGroupCleanup: group.DynamicGroupCleanup));
+            }
+
+            // Build the session config
+            var config = new SessionConfig(
+                TestSessionId: testSessionId,
+                DisplayName: !string.IsNullOrEmpty(input.DisplayName) ? input.DisplayName : $"DJE Session {DateTime.UtcNow:yyyy-MM-dd HH:mm}",
+                TenantId: input.Tenant,
+                User: !string.IsNullOrEmpty(input.User) ? input.User : "unknown",
+                Stamp: input.Stamp,
+                BuildDropLocation: input.BuildDropLocation,
+                CacheEnabled: input.CacheEnabled ?? false,
+                Properties: FormatProperties(input.Properties),
+                FeatureExceptions: FormatFeatureExceptions(input.FeatureExceptions),
+                DynamicGroupRequests: dynamicGroupRequests,
+                VSTSContext: BuildVstsContext(input.Ado),
+                FileProviders: input.FileProviders);
+
+            // Serialize and return
+            var options = new JsonSerializerOptions
+            {
+                WriteIndented = true,
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+            };
+
+            return JsonSerializer.Serialize(config, options);
+        }
+
+        /// <summary>
         /// Generates the UpdateDynamicJob configuration and writes it to the specified output file.
         /// Returns the path to the generated file.
         /// </summary>
         public static string GenerateUpdateDynamicJobConfig(CloudTestClientArgs arguments)
         {
-            var groupId = ComputeGroupId(arguments.Image, arguments.Sku);
+            // Prefer the groupId resolved from the session config (when the job was referenced by name);
+            // otherwise compute it from the image and sku.
+            var groupId = !string.IsNullOrEmpty(arguments.GroupId)
+                ? arguments.GroupId
+                : ComputeGroupId(arguments.Image, arguments.Sku);
 
             var config = new UpdateDynamicJobConfig(
                 SessionId: arguments.SessionId,
@@ -125,7 +182,7 @@ namespace Tool.CloudTestClient
                 TestParserType: arguments.TestParserType,
                 JobTimeout: arguments.JobTimeout,
                 TestCaseTimeout: arguments.TestCaseTimeout,
-                TestDependencyHash: AggregateHashes(arguments.TestDependencyHashes),
+                TestDependencyHash: BuildAggregateTestDependencyHash(arguments),
                 Priority: arguments.Priority);
 
             var options = new JsonSerializerOptions
@@ -203,28 +260,28 @@ namespace Tool.CloudTestClient
         }
 
         /// <summary>
-        /// Builds the VstsContext JSON string when ADO context arguments are provided.
+        /// Builds the VstsContext JSON string when ADO context is provided in the session input.
         /// Returns null if no ADO context is configured.
         /// </summary>
-        private static string BuildVstsContext(CloudTestClientArgs arguments)
+        private static string BuildVstsContext(AdoContextConfig ado)
         {
-            if (string.IsNullOrEmpty(arguments.AdoProjectId))
+            if (ado == null || string.IsNullOrEmpty(ado.ProjectId))
             {
                 return null;
             }
 
-            string authToken = Environment.GetEnvironmentVariable(arguments.AdoAccessTokenEnvVar);
+            string authToken = Environment.GetEnvironmentVariable(ado.AccessTokenEnvVar);
             if (string.IsNullOrEmpty(authToken))
             {
                 throw new InvalidOperationException(
-                    $"ADO context was requested but environment variable '{arguments.AdoAccessTokenEnvVar}' is not set or empty.");
+                    $"ADO context was requested but environment variable '{ado.AccessTokenEnvVar}' is not set or empty.");
             }
 
             var vstsContext = new VstsContextPayload(
-                ProjectId: arguments.AdoProjectId,
+                ProjectId: ado.ProjectId,
                 AuthToken: authToken,
-                VSTSUrl: arguments.AdoCollectionUri,
-                BuildProperties: new VstsBuildProperties(BuildId: arguments.AdoBuildId),
+                VSTSUrl: ado.CollectionUri,
+                BuildProperties: new VstsBuildProperties(BuildId: ado.BuildId),
                 CloudTestVSTSRequest: new VstsUploadRequest(UploadResultsToVSTS: "true"));
 
             var options = new JsonSerializerOptions
@@ -233,6 +290,33 @@ namespace Tool.CloudTestClient
             };
 
             return JsonSerializer.Serialize(vstsContext, options);
+        }
+
+        /// <summary>
+        /// Renders the session properties (key/value pairs from the input) as the semicolon-separated
+        /// "key=value" string CloudTest expects. Returns null when there are no properties.
+        /// </summary>
+        private static string FormatProperties(List<PropertyEntry> properties)
+        {
+            if (properties == null || properties.Count == 0)
+            {
+                return null;
+            }
+
+            return string.Join(";", properties.Select(p => $"{p.Key}={p.Value}"));
+        }
+
+        /// <summary>
+        /// Renders the feature exceptions as the comma-separated string CloudTest expects. Returns null when empty.
+        /// </summary>
+        private static string FormatFeatureExceptions(List<string> featureExceptions)
+        {
+            if (featureExceptions == null || featureExceptions.Count == 0)
+            {
+                return null;
+            }
+
+            return string.Join(",", featureExceptions);
         }
 
         /// <summary>
@@ -274,6 +358,45 @@ namespace Tool.CloudTestClient
             GroupCleanupConfig DynamicGroupCleanup);
 
         private sealed record DynamicJobRequest(string JobId, string JobName);
+
+        // The entire session definition, deserialized from the single session-input JSON file.
+        private sealed record SessionInputConfig(
+            string Tenant,
+            string BuildDropLocation,
+            string DisplayName,
+            string User,
+            bool? CacheEnabled,
+            string Stamp,
+            List<PropertyEntry> Properties,
+            List<string> FeatureExceptions,
+            AdoContextConfig Ado,
+            List<GroupFileConfig> Groups,
+            List<FileProviderConfig> FileProviders);
+
+        // A single session property. DScript serializes a Map<string,string> as an array of {key,value} objects.
+        private sealed record PropertyEntry(string Key, string Value);
+
+        // Azure DevOps context used to build the session's VstsContext. AccessTokenEnvVar names the environment
+        // variable (e.g. SYSTEM_ACCESSTOKEN) from which the tool reads the OAuth token at runtime.
+        private sealed record AdoContextConfig(
+            string ProjectId,
+            string CollectionUri,
+            string BuildId,
+            string AccessTokenEnvVar);
+
+        // Per-group definition deserialized from the session input's "groups" array. Mirrors the DScript Group
+        // interface: image/sku/resources, the group's jobs, and optional setup/cleanup.
+        private sealed record GroupFileConfig(
+            string Name,
+            string Sku,
+            string Image,
+            int MaxResources,
+            int? MaxParallelismForJobs,
+            List<JobConfig> Jobs,
+            GroupSetupConfig DynamicGroupSetup,
+            GroupCleanupConfig DynamicGroupCleanup);
+
+        private sealed record JobConfig(string Name, string Id);
 
         // Group setup/cleanup model — matches CloudTest's GroupSetup/GroupCleanup schema.
         // Path fields use CloudTestPathConverter to handle both plain strings (Path/RelativePath
@@ -320,9 +443,6 @@ namespace Tool.CloudTestClient
             string Type,
             List<FileProviderPropertyConfig> Properties);
 
-        private sealed record FileProvidersFileConfig(
-            List<FileProviderConfig> FileProviders);
-
         private sealed record VstsContextPayload(
             string ProjectId,
             string AuthToken,
@@ -349,27 +469,71 @@ namespace Tool.CloudTestClient
             int? Priority);
 
         /// <summary>
-        /// Aggregates multiple hash strings into a single deterministic hash.
-        /// Sorts the input hashes, concatenates them, and computes a SHA256 hash.
-        /// Returns null if the input list is null or empty.
+        /// Builds the aggregated test dependency hash for a job from all of its caching-fingerprint inputs:
+        /// the content VsoHashes of the job inputs and session-creation drop artifacts, the drop-relative paths of
+        /// those artifacts, the resolved group's dynamic setup/cleanup, and the session's file providers.
+        ///
+        /// Each content hash is paired with the drop-relative path of the same artifact by position -- the SDK emits
+        /// <c>/testDependencyHash</c> and <c>/testDependencyPath</c> in matching order -- and the pairs are aggregated
+        /// in order (not sorted). Preserving the pairing and the order is what makes the fingerprint sensitive to a
+        /// path swap: relocating identical content from one drop path to another (or swapping the drop paths of two
+        /// artifacts with identical content) changes the aggregate even though the multiset of hashes is unchanged.
         /// </summary>
-        private static string AggregateHashes(List<string> hashes)
+        private static string BuildAggregateTestDependencyHash(CloudTestClientArgs arguments)
         {
-            if (hashes == null || hashes.Count == 0)
+            var hashes = arguments.TestDependencyHashes;
+            var paths = arguments.TestDependencyPaths;
+
+            // The SDK emits exactly one drop-relative path per content hash, in matching order, so the two lists are
+            // always parallel (both empty when the job has no inputs). A size mismatch indicates a real wiring bug.
+            if (paths.Count != hashes.Count)
+            {
+                throw new InvalidOperationException(
+                    $"Expected an equal number of test dependency hashes ({hashes.Count}) and paths ({paths.Count}).");
+            }
+
+            var builder = new StringBuilder();
+
+            // Note: AppendLine() uses Environment.NewLine (\r\n on Windows, \n on Linux), so this fingerprint is
+            // platform-dependent. That is acceptable here: test jobs are themselves platform-specific and CloudTest
+            // does not share/mix cached results across platforms, so a Windows-vs-Linux hash difference never collides.
+            for (int i = 0; i < hashes.Count; i++)
+            {
+                builder.Append(paths[i]).Append('=').AppendLine(hashes[i]);
+            }
+
+            // The resolved group's setup/cleanup config (group-level inputs deployed to the worker VMs) and the
+            // session's file providers (a session-level input shared by every job) have no drop path; fold their
+            // content hashes in at fixed trailing positions.
+            if (!string.IsNullOrEmpty(arguments.GroupSetupCleanupJson))
+            {
+                builder.Append("groupSetupCleanup=").AppendLine(Sha256Hex(arguments.GroupSetupCleanupJson));
+            }
+
+            if (!string.IsNullOrEmpty(arguments.FileProvidersJson))
+            {
+                builder.Append("fileProviders=").AppendLine(Sha256Hex(arguments.FileProvidersJson));
+            }
+
+            if (builder.Length == 0)
             {
                 return null;
             }
 
-            if (hashes.Count == 1)
-            {
-                return hashes[0];
-            }
+            return Sha256Hex(builder.ToString());
+        }
 
-            var sorted = hashes.OrderBy(h => h, StringComparer.Ordinal).ToList();
-            var concatenated = string.Join("|", sorted);
-            var bytes = Encoding.UTF8.GetBytes(concatenated);
-            var hashBytes = SHA256.HashData(bytes);
-            return Convert.ToHexStringLower(hashBytes);
+        /// <summary>
+        /// Computes the SHA-256 hash of a string as a lowercase hex string. Used to fold inline (non-artifact)
+        /// content -- the resolved group's setup/cleanup and the session's file providers -- and the final
+        /// aggregate into the job's caching fingerprint. The artifact hashes that flow in via
+        /// <c>/testDependencyHash</c> are embedded verbatim, so the resulting fingerprint is an opaque,
+        /// deterministic token.
+        /// </summary>
+        private static string Sha256Hex(string content)
+        {
+            byte[] hash = SHA256.HashData(Encoding.UTF8.GetBytes(content));
+            return Convert.ToHexString(hash).ToLowerInvariant();
         }
 
         #endregion

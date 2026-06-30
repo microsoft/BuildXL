@@ -171,6 +171,33 @@ namespace Helpers {
         properties: ProviderProperty[];
     }
 
+    /**
+     * A dynamic group within a CloudTest session. Each group targets a specific VM image/sku, runs its
+     * own optional setup/cleanup, and contains the set of jobs that execute on that group's VMs.
+     */
+    @@public
+    export interface Group {
+        /** 
+         * Optional friendly name for the group. Used to disambiguate jobs at submission time when a job name is not unique across groups
+         * Defaults to "image sku" when not provided. 
+         */
+        name?: string;
+        /** VM SKU (e.g. Standard_D4s_v3). */
+        sku: string;
+        /** VM image (e.g. ubuntu22.04). */
+        image: string;
+        /** Maximum number of VMs to allocate in parallel for this group. */
+        maxResources: number;
+        /** Max concurrent jobs per VM. Default: 1. */
+        maxParallelismForJobs?: number;
+        /** Job definitions for this group. Each can be a name (string) for auto-generated ID, or {id, name} to use a specific ID. */
+        jobs: (string | JobWithId)[];
+        /** Group setup configuration. Runs before jobs execute on this group's worker VMs. */
+        dynamicGroupSetup?: GroupSetup;
+        /** Group cleanup configuration. Runs after this group's jobs complete on worker VMs. */
+        dynamicGroupCleanup?: GroupCleanup;
+    }
+
     /** Arguments for generating a DJE session configuration JSON file. */
     @@public
     export interface GenerateSessionConfigArguments {
@@ -178,16 +205,8 @@ namespace Helpers {
         tenant: string;
         /**  Build drop name (e.g. 'my-drop') and service (e.g. 'https://my-drop-service.azure.com') if a new drop should be created, or a DropCreateResult if using an existing drop.  */
         drop: APIs.DropToCreate | Drop.DropCreateResult; 
-        /** VM SKU (e.g. Standard_D4s_v3). */
-        sku: string;
-        /** VM image (e.g. ubuntu22.04). */
-        image: string;
-        /** Maximum number of VMs to allocate in parallel. */
-        maxResources: number;
-        /** Max concurrent jobs per VM. Default: 1. */
-        maxParallelismForJobs?: number;
-        /** Job definitions. Each can be a name (string) for auto-generated ID, or {id, name} to use a specific ID. */
-        jobs: (string | JobWithId)[];
+        /** The dynamic groups that make up the session. At least one group must be provided. Job names must be unique across all groups in the session. */
+        groups: Group[];
         /** Session display name. */
         displayName?: string;
         /** Submitting user alias. */
@@ -200,10 +219,6 @@ namespace Helpers {
         featureExceptions?: string[];
         /** Enable job result caching. Default: false. */
         cacheEnabled?: boolean;
-        /** Group setup configuration. Runs before jobs execute on worker VMs. */
-        dynamicGroupSetup?: GroupSetup;
-        /** Group cleanup configuration. Runs after jobs complete on worker VMs. */
-        dynamicGroupCleanup?: GroupCleanup;
         /** File provider definitions for external file stores (e.g., VsoGit, VsoDrop). */
         fileProviders?: FileProvider[];
         /** Tags for the pip. */
@@ -225,22 +240,31 @@ namespace Helpers {
         jobName: string;
         /** Session config file containing the job name to ID mapping. */
         sessionConfigFile: File;
+        /** Optional group name to disambiguate the lookup when the job name is not unique across groups. Matches the group's name (defaults to "image sku") in the session config. */
+        groupName?: string;
     }
 
-    /** A job can be referenced by direct ID (string) or by name + config file. */
+    /** Reference to a job by its direct ID. The image and sku are required to compute the job's groupId. */
     @@public
-    export type JobReference = string | JobNameReference;
+    export interface JobIdReference {
+        /** Direct job ID. */
+        jobId: string;
+        /** VM image (e.g. ubuntu22.04). Used to compute the groupId. */
+        image: string;
+        /** VM SKU (e.g. Standard_D4s_v3). Used to compute the groupId. */
+        sku: string;
+    }
+
+    /** A job can be referenced either by direct ID (plus image/sku) or by name (resolved from a session config file). */
+    @@public
+    export type JobReference = JobIdReference | JobNameReference;
 
     /** Arguments for generating an UpdateDynamicJob configuration JSON file. */
     @@public
     export interface DynamicJobConfigArguments {
-        /** VM image (e.g. ubuntu22.04). Used to compute groupId. */
-        image: string;
-        /** VM SKU (e.g. Standard_D4s_v3). Used to compute groupId. */
-        sku: string;
         /** Session ID: a File (produced by createSession) or a string GUID (from a pre-build step). */
         sessionId: APIs.SessionId;
-        /** Job reference: either a direct job ID string, or a {jobName, sessionConfigFile} pair for name-based lookup. */
+        /** Job reference: either a {jobId, image, sku} for a direct ID, or a {jobName, sessionConfigFile} pair for name-based lookup. */
         jobReference: JobReference;
         /** Relative path within the drop containing this job's test files. */
         testFolder: RelativePath;
@@ -258,6 +282,12 @@ namespace Helpers {
         testCaseTimeout?: string;
         /** VsoHash artifacts for job inputs, used for caching. The tool aggregates them into a single hash. */
         testDependencyHashes?: Artifact[];
+        /**
+         * Drop-relative paths of the artifacts contributing to the caching fingerprint (e.g. job inputs and
+         * session-creation drop artifacts). Folded into the aggregated hash alongside the content VsoHashes so that
+         * relocating identical content within the drop is reflected in the fingerprint.
+         */
+        testDependencyPaths?: RelativePath[];
         /** Job priority (lower = higher priority). Default: 0. */
         priority?: number;
         /** Tags for the pip. */
@@ -271,6 +301,15 @@ namespace Helpers {
      */
     @@public
     export interface GenerateSessionConfigAndCreateSessionArguments extends GenerateSessionConfigArguments, APIs.CloudTestBaseArguments {
+        /**
+         * Optional artifacts to upload to the drop before the session is created. The session-creation pip depends on the upload completing.
+         *
+         * IMPORTANT: Any artifact that must be uploaded to the drop for group-setup-related activity (e.g. setup/cleanup scripts,
+         * service payloads, or any other content placed in the drop) and is later consumed by test jobs MUST be uploaded through
+         * this parameter. Artifacts uploaded to the drop by other means are not accounted for in the CloudTest caching fingerprint,
+         * which can result in under-builds (stale cached results being reused when these inputs change).
+         */
+        dropArtifacts?: Drop.DropArtifactInfo[];
     }
 
     /**
@@ -317,49 +356,57 @@ namespace Helpers {
         // Cache is enabled by default
         const cacheEnabled = args.cacheEnabled !== undefined ? args.cacheEnabled : true;
 
-        // Generate JSON files for optional complex structures (passed directly, resolved on C# side)
-        // Encoding this as arguments to the tool is too complicated/awkward.
-        // Json.write defaults to single quotes, but the C# System.Text.Json parser requires double quotes.
-        const setupFile = args.dynamicGroupSetup !== undefined
-            ? Json.write(p`${outDir}/dynamic-group-setup.json`, args.dynamicGroupSetup, "\"")
-            : undefined;
-        const cleanupFile = args.dynamicGroupCleanup !== undefined
-            ? Json.write(p`${outDir}/dynamic-group-cleanup.json`, args.dynamicGroupCleanup, "\"")
-            : undefined;
-        // Json.write does not handle top-level arrays properly, so we wrap them in an object.
-        const fileProvidersFile = args.fileProviders !== undefined
-            ? Json.write(p`${outDir}/file-providers.json`, { fileProviders: args.fileProviders }, "\"")
-            : undefined;
+        if (args.groups.length === 0) {
+            Contract.fail("At least one group must be provided to generateSessionConfig.");
+        }
+
+        // Consolidate the entire session definition into a single JSON input file. The C# side reads this one file
+        // (tenant, drop location, properties, feature flags, ADO context, groups, and file providers) and produces
+        // the session config. Json.write defaults to single quotes, but the C# System.Text.Json parser requires
+        // double quotes; properties whose value is undefined are omitted.
+        const normalizedGroups = args.groups.map(group => {
+            // Normalize jobs to a uniform {name, id?} shape so the C# side can deserialize a homogeneous array.
+            const normalizedJobs = group.jobs.map(job => isJobWithId(job) ? job : {name: job});
+            return {
+                name: group.name,
+                sku: group.sku,
+                image: group.image,
+                maxResources: group.maxResources,
+                maxParallelismForJobs: group.maxParallelismForJobs,
+                jobs: normalizedJobs,
+                dynamicGroupSetup: group.dynamicGroupSetup,
+                dynamicGroupCleanup: group.dynamicGroupCleanup,
+            };
+        });
+
+        const sessionInput = {
+            tenant: args.tenant,
+            buildDropLocation: `${dropService}/_apis/drop/drops/${dropName}`,
+            displayName: args.displayName,
+            user: user,
+            cacheEnabled: cacheEnabled,
+            stamp: args.stamp,
+            // A Map<string,string> is serialized by Json.write as an array of {key,value} objects, which the C# side
+            // renders back to CloudTest's semicolon-separated "key=value" string.
+            properties: args.properties,
+            featureExceptions: args.featureExceptions,
+            // Only emit ADO context when running on Azure DevOps. The access token itself is not embedded; the tool
+            // reads it at runtime from the named environment variable (passed through below).
+            ado: isAdo ? {
+                projectId: Environment.getStringValue("SYSTEM_TEAMPROJECTID"),
+                collectionUri: Environment.getStringValue("SYSTEM_COLLECTIONURI"),
+                buildId: Environment.getStringValue("BUILD_BUILDID"),
+                accessTokenEnvVar: "SYSTEM_ACCESSTOKEN",
+            } : undefined,
+            groups: normalizedGroups,
+            fileProviders: args.fileProviders,
+        };
+        const sessionInputFile = Json.write(p`${outDir}/session-input.json`, sessionInput, "\"");
 
         let commandLineArgs: Argument[] = [
             Cmd.option("/mode:", "generateSessionConfig"),
-            Cmd.option("/tenant:", args.tenant),
-            Cmd.option("/buildDropLocation:", `${dropService}/_apis/drop/drops/${dropName}`),
-            Cmd.option("/sku:", args.sku),
-            Cmd.option("/image:", args.image),
-            Cmd.option("/maxResources:", args.maxResources),
+            Cmd.option("/sessionInputFile:", Artifact.input(sessionInputFile)),
             Cmd.option("/configOutputFile:", Artifact.output(configFile)),
-            ...args.jobs.map(job => jobToArgument(job)),
-            Cmd.option("/displayName:", args.displayName),
-            Cmd.option("/user:", user),
-            Cmd.flag("/cacheEnabled", cacheEnabled),
-            Cmd.option("/maxParallelismForJobs:", args.maxParallelismForJobs),
-            Cmd.option("/stamp:", args.stamp),
-            Cmd.option("/properties:", args.properties !== undefined && args.properties.count() > 0
-                ? args.properties.forEach(kvp => `${kvp[0]}=${kvp[1]}`).join(";")
-                : undefined),
-            Cmd.option("/featureExceptions:", args.featureExceptions !== undefined && args.featureExceptions.length > 0
-                ? args.featureExceptions.join(",")
-                : undefined),
-            Cmd.option("/dynamicGroupSetupFile:", Artifact.input(setupFile)),
-            Cmd.option("/dynamicGroupCleanupFile:", Artifact.input(cleanupFile)),
-            Cmd.option("/fileProvidersFile:", Artifact.input(fileProvidersFile)),
-            ...(isAdo ? [
-                Cmd.option("/adoProjectId:", Environment.getStringValue("SYSTEM_TEAMPROJECTID")),
-                Cmd.option("/adoCollectionUri:", Environment.getStringValue("SYSTEM_COLLECTIONURI")),
-                Cmd.option("/adoBuildId:", Environment.getStringValue("BUILD_BUILDID")),
-                Cmd.option("/adoAccessTokenEnvVar:", "SYSTEM_ACCESSTOKEN"),
-            ] : []),
         ];
 
         let result = Transformer.execute({
@@ -401,6 +448,7 @@ namespace Helpers {
             description: args.description,
             bodyFile: configResult.configFile,
             drop: args.drop,
+            dropArtifacts: args.dropArtifacts,
             environment: args.environment
         };
 
@@ -413,7 +461,8 @@ namespace Helpers {
 
     /**
      * Generates an UpdateDynamicJob configuration JSON file.
-     * Computes groupId from image+sku. The generated file can be passed as bodyFile to updateDynamicJob.
+     * The groupId is resolved from the session config when the job is referenced by name; otherwise it is
+     * computed from image+sku. The generated file can be passed as bodyFile to updateDynamicJob.
      */
     @@public
     export function generateUpdateDynamicJobConfig(args: DynamicJobConfigArguments): GenerateSessionConfigResult {
@@ -423,15 +472,18 @@ namespace Helpers {
 
         let commandLineArgs: Argument[] = [
             Cmd.option("/mode:", "generateUpdateDynamicJobConfig"),
-            Cmd.option("/image:", args.image),
-            Cmd.option("/sku:", args.sku),
             ...APIs.sessionIdArgs(args.sessionId),
             ...(isJobNameReference(args.jobReference)
                 ? [
                     Cmd.option("/jobName:", (<JobNameReference>args.jobReference).jobName),
+                    Cmd.option("/groupName:", (<JobNameReference>args.jobReference).groupName),
                     Cmd.option("/sessionConfigPath:", Artifact.input((<JobNameReference>args.jobReference).sessionConfigFile)),
                   ]
-                : [Cmd.option("/jobId:", <string>args.jobReference)]),
+                : [
+                    Cmd.option("/jobId:", (<JobIdReference>args.jobReference).jobId),
+                    Cmd.option("/image:", (<JobIdReference>args.jobReference).image),
+                    Cmd.option("/sku:", (<JobIdReference>args.jobReference).sku),
+                  ]),
             Cmd.option("/testFolder:", args.testFolder),
             Cmd.option("/jobExecutable:", args.jobExecutable),
             Cmd.option("/testExecutionType:", args.testExecutionType),
@@ -441,6 +493,7 @@ namespace Helpers {
             Cmd.option("/jobTimeout:", args.jobTimeout),
             Cmd.option("/testCaseTimeout:", args.testCaseTimeout),
             Cmd.options("/testDependencyHash:", args.testDependencyHashes || []),
+            Cmd.options("/testDependencyPath:", args.testDependencyPaths || []),
             Cmd.option("/priority:", args.priority),
         ];
 
@@ -502,6 +555,8 @@ namespace Helpers {
         configAndSessionResult: Helpers.ConfigAndSessionResult;
         /** Name of the job. */
         jobName: string;
+        /** Optional group name to disambiguate the job when its name is not unique across groups in the session. Matches the group's name (defaults to "image sku"). */
+        groupName?: string;
         /** 
          * Input artifacts for the job. Only files and opaque directories are supported. 
          * Each test job has a unique folder where all it inputs should be placed. The relative paths of the inputs (relative to the job folder) can be preserved by using the InputWithRelativePath interface.
@@ -593,11 +648,30 @@ namespace Helpers {
                 ? (<Drop.DropFileInfo>info).file 
                 : <OpaqueDirectory>(<Drop.DropDirectoryInfo>info).directory);
 
+        // Inputs that must participate in this job's caching fingerprint beyond the job's own input contents:
+        //   - The VsoHash of any artifact uploaded to the drop at session creation time (tests may consume those).
+        //   - The drop-relative path of every artifact (both the job inputs and the session-creation drop artifacts),
+        //     since the same content placed at a different drop location changes what tests observe.
+        // The group's setup/cleanup config and the session's file providers are folded in by the tool itself, which
+        // already reads them from the session config when resolving the job.
+        // NOTE: Observe that any artifact uploaded to the drop outside of the session creation process will not be included in the caching fingerprint. This also
+        // applies for a drop created outside of the build. The true solution is to move the hash computation to the CloudTest service. Observe as well that the 
+        // lack of sandboxing on CloudTest side also means that it is very easy to have overbuilds, as the true inputs of a test job are unknown.
+        const sessionArguments = args.configAndSessionResult.configArguments;
+
+        const dropArtifactInfos = sessionArguments.dropArtifacts || [];
+        const dropArtifactInputs : (File | OpaqueDirectory)[] = dropArtifactInfos.map(info =>
+            info.kind === "file"
+                ? (<Drop.DropFileInfo>info).file
+                : <OpaqueDirectory>(<Drop.DropDirectoryInfo>info).directory);
+
+        // Drop-relative paths of the job inputs and the session-creation drop artifacts.
+        const dropArtifactPaths : RelativePath[] = dropArtifactInfos.map(info => info.dropPath);
+        const jobInputPaths : RelativePath[] = artifactInfos.map(info => info.dropPath);
+
         const dynamicJobConfigArguments : DynamicJobConfigArguments = {
-            image: args.configAndSessionResult.configArguments.image,
-            sku: args.configAndSessionResult.configArguments.sku,
             sessionId: args.configAndSessionResult.sessionResult.sessionIdFile,
-            jobReference: {jobName: args.jobName, sessionConfigFile: args.configAndSessionResult.configResult.configFile}, 
+            jobReference: {jobName: args.jobName, sessionConfigFile: args.configAndSessionResult.configResult.configFile, groupName: args.groupName}, 
             testFolder: r`${jobInputsLocation}`,
             jobExecutable: args.jobExecutable,
             testExecutionType: args.testExecutionType,
@@ -606,8 +680,10 @@ namespace Helpers {
             jobTimeout: args.jobTimeout,
             testCaseTimeout: args.testCaseTimeout,
             // We always provide the hashes for the job inputs since CloudTest will try to store the results in the cache regardless of whether
-            // cacheEnabled was set to true or false when creating the session (the flag is just honored for cache lookups)
-            testDependencyHashes:  Artifact.vsoHashes(inputArtifacts),
+            // cacheEnabled was set to true or false when creating the session (the flag is just honored for cache lookups). On top of the job's own
+            // inputs, we fold in the session-creation drop artifacts so all consumed content is fingerprinted.
+            testDependencyHashes:  Artifact.vsoHashes([...inputArtifacts, ...dropArtifactInputs]),
+            testDependencyPaths: [...jobInputPaths, ...dropArtifactPaths],
             priority: args.priority,
             tags: args.tags,
             description: args.description || `CloudTest: submit job ${args.jobName}`,
@@ -679,17 +755,11 @@ namespace Helpers {
     // ============================================================================
 
     function isJobNameReference(ref: JobReference): ref is JobNameReference {
-        return typeof(ref) !== "string";
+        return (<JobNameReference>ref).jobName !== undefined;
     }
 
     function isJobWithId(job: string | JobWithId): job is JobWithId {
         return typeof(job) !== "string";
-    }
-
-    function jobToArgument(job: string | JobWithId): Argument {
-        return isJobWithId(job)
-            ? Cmd.option("/jobIdAndName:", `${job.id}#${job.name}`)
-            : Cmd.option("/jobName:", job);
     }
 
     /**

@@ -471,7 +471,8 @@ USAGE: CloudTestClient /mode:<mode> [options]
   /mode              Required. One of: createSession, updateDynamicJob,
                      cancelSession, generateSessionConfig,
                      generateUpdateDynamicJobConfig, waitForSessionCompletion.
-  /tenant            Required. CloudTest tenant name.
+  /tenant            Required for all modes except generateUpdateDynamicJobConfig.
+                     CloudTest tenant name.
   /timeout           Optional. Overall timeout in minutes (default: 5).
   /environment       Optional. CloudTest API environment: prod, dev, ppe
                      (default: prod).
@@ -498,38 +499,32 @@ USAGE: CloudTestClient /mode:<mode> [options]
   NOTE: Provide exactly one of /sessionIdFile or /sessionId.
 
 -- generateSessionConfig ----------------------------------------------------------
-  /configOutputFile  Required. Path to write the generated JSON.
-  /buildDropLocation Required. Drop URL for the session.
-  /tenant            Required. CloudTest tenant name.
-  /sku               Required. VM SKU (e.g. Standard_D4s_v3).
-  /image             Required. VM image (e.g. ubuntu22.04).
-  /maxResources      Required. Number of parallel VMs.
-  /jobName           Required (repeatable). Job name for a placeholder.
-  /jobIdAndName      Optional (repeatable). Format: <jobId>#<jobName>.
-  /displayName       Optional. Session display name.
-  /user              Optional. Submitting user alias.
-  /cacheEnabled      Optional. Enable job result caching (flag, default: false).
-  /maxParallelismForJobs Optional. Max concurrent jobs per VM (default: 1).
-  /stamp             Optional. CloudTest stamp (e.g. wus2-default).
-  /properties        Optional. Semicolon-separated key=value session properties.
-  /featureExceptions Optional. Comma-separated feature flags.
-  /adoProjectId      Optional. Azure DevOps project ID (SYSTEM_TEAMPROJECTID).
-  /adoCollectionUri  Optional. Azure DevOps collection URI (SYSTEM_COLLECTIONURI).
-  /adoBuildId        Optional. Azure DevOps build ID (BUILD_BUILDID).
-  /adoAccessTokenEnvVar Optional. Env var for ADO OAuth token.
-  NOTE: If any ADO field is provided, all four must be provided.
+  /configOutputFile  Required. Path to write the generated session config JSON.
+  /sessionInputFile  Required. Path to a single JSON file describing the entire
+                     session. Top-level fields: tenant, buildDropLocation,
+                     displayName, user, cacheEnabled, stamp, properties
+                     ([{key,value}] pairs), featureExceptions (string array),
+                     ado ({projectId, collectionUri, buildId, accessTokenEnvVar}),
+                     groups (array; each with sku, image, maxResources, optional
+                     maxParallelismForJobs, optional name, jobs, and optional
+                     dynamic setup/cleanup), and fileProviders. tenant,
+                     buildDropLocation, and at least one group are required.
 
 -- generateUpdateDynamicJobConfig -------------------------------------------------
   /configOutputFile  Required. Path to write the generated JSON.
-  /image             Required. VM image (e.g. ubuntu22.04).
-  /sku               Required. VM SKU (e.g. Standard_D4s_v3).
   /sessionId         Session ID GUID.
   /sessionIdFile     Session ID from a file.
   NOTE: Provide exactly one of /sessionIdFile or /sessionId.
   /jobId             Job ID GUID (must match a declared placeholder).
   /jobName           Job name to look up in the session config file.
   /sessionConfigPath Path to session config JSON (for job name resolution).
+  /groupName         Optional. Group name to disambiguate the /jobName lookup
+                     when the job name is not unique across groups.
   NOTE: Provide either /jobId alone, or both /jobName and /sessionConfigPath.
+  /image             Required only with /jobId. VM image (e.g. ubuntu22.04);
+                     used to compute the groupId when referencing a job by ID.
+  /sku               Required only with /jobId. VM SKU (e.g. Standard_D4s_v3);
+                     used to compute the groupId when referencing a job by ID.
   /testFolder        Required. Relative path within the drop for test files.
   /jobExecutable     Required. Path to executable on the worker VM.
   /testExecutionType Required. One of: MsTest, Exe, TAEF, NUnit, XUnit, BoostTest.
@@ -537,7 +532,11 @@ USAGE: CloudTestClient /mode:<mode> [options]
   /testParserType    Optional. One of: TRX, JUnit, TAEF, NUnitXml, TAP.
   /jobTimeout        Optional. Max job duration (HH:MM:SS).
   /testCaseTimeout   Optional. Per-test-case timeout (HH:MM:SS).
-  /testDependencyHash Optional (repeatable). Hash of job inputs for caching.
+  /testDependencyHash Optional (repeatable). VsoHash of a job input or session
+                     drop artifact, folded into the caching fingerprint.
+  /testDependencyPath Optional (repeatable). Drop-relative path paired with the
+                     /testDependencyHash at the same position. Provide one path
+                     per hash, in matching order.
   /priority          Optional. Job priority, lower = higher (default: 0).
 
 -- waitForSessionCompletion -------------------------------------------------------

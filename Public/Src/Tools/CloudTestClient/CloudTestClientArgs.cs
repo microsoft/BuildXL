@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using BuildXL.ToolSupport;
 
 namespace Tool.CloudTestClient
@@ -34,10 +35,9 @@ namespace Tool.CloudTestClient
     }
 
     /// <summary>
-    /// Represents a job definition with a name and an optional explicit ID.
-    /// When the ID is null, a unique GUID will be auto-generated.
+    /// Represents a job definition referenced by name on the command line (via /jobName).
     /// </summary>
-    public record JobDefinition(string Name, string Id = null);
+    public record JobDefinition(string Name);
 
     /// <summary>
     /// Parsed command-line arguments for the CloudTest client.
@@ -69,10 +69,6 @@ namespace Tool.CloudTestClient
         public string TokenEnvVar { get; }
 
         /// <summary>
-        /// Path to the output file for logs and errors.
-        /// </summary>
-
-        /// <summary>
         /// CloudTest tenant name.
         /// </summary>
         public string Tenant { get; }
@@ -102,68 +98,23 @@ namespace Tool.CloudTestClient
         #region GenerateSessionConfig arguments
 
 
-        /// <summary>Display name for the session.</summary>
-        public string DisplayName { get; }
+        /// <summary>Path to the single JSON file describing the entire session (tenant, drop, groups, file providers, etc.).</summary>
+        public string SessionInputFile { get; }
 
-        /// <summary>User alias submitting the session.</summary>
-        public string User { get; }
-
-        /// <summary>Build drop location URL.</summary>
-        public string BuildDropLocation { get; }
-
-        /// <summary>VM SKU (e.g. Standard_D4s_v3).</summary>
+        /// <summary>VM SKU (e.g. Standard_D4s_v3). Used by generateUpdateDynamicJobConfig to compute the groupId when a job is referenced directly by ID.</summary>
         public string Sku { get; }
 
-        /// <summary>VM image (e.g. ubuntu22.04).</summary>
+        /// <summary>VM image (e.g. ubuntu22.04). Used by generateUpdateDynamicJobConfig to compute the groupId when a job is referenced directly by ID.</summary>
         public string Image { get; }
 
-        /// <summary>Maximum number of VMs to allocate in parallel.</summary>
-        public int MaxResources { get; }
-
         /// <summary>
-        /// List of job definitions. Each entry has a name and an optional explicit ID.
-        /// Jobs added via /jobName have an auto-generated ID; jobs added via /jobIdAndName use the specified ID.
+        /// List of job definitions. For mode 'generateUpdateDynamicJobConfig' this holds the single job name to resolve
+        /// to a job ID via the session config file.
         /// </summary>
         public List<JobDefinition> Jobs { get; } = new List<JobDefinition>();
 
         /// <summary>Path to write the generated session configuration JSON.</summary>
         public string ConfigOutputFile { get; }
-
-        /// <summary>Whether job result caching is enabled. Default: false.</summary>
-        public bool CacheEnabled { get; }
-
-        /// <summary>Max concurrent jobs per VM. Default: 1.</summary>
-        public int? MaxParallelismForJobs { get; }
-
-        /// <summary>CloudTest stamp (e.g. "wus2-default").</summary>
-        public string Stamp { get; }
-
-        /// <summary>Semicolon-separated key=value session properties.</summary>
-        public string Properties { get; }
-
-        /// <summary>Comma-separated feature flags (e.g. "EnableTCDForDynamicJobs").</summary>
-        public string FeatureExceptions { get; }
-
-        /// <summary>Path to a JSON file containing the GroupSetup definition for the dynamic group.</summary>
-        public string DynamicGroupSetupFile { get; }
-
-        /// <summary>Path to a JSON file containing the GroupCleanup definition for the dynamic group.</summary>
-        public string DynamicGroupCleanupFile { get; }
-
-        /// <summary>Path to a JSON file containing the list of file provider definitions for the session.</summary>
-        public string FileProvidersFile { get; }
-
-        /// <summary>Azure DevOps project ID (SYSTEM_TEAMPROJECTID). When set, a VstsContext is included in the generated config.</summary>
-        public string AdoProjectId { get; }
-
-        /// <summary>Azure DevOps collection URI, e.g. https://dev.azure.com/myorg/ (SYSTEM_COLLECTIONURI).</summary>
-        public string AdoCollectionUri { get; }
-
-        /// <summary>Azure DevOps build ID (BUILD_BUILDID).</summary>
-        public string AdoBuildId { get; }
-
-        /// <summary>Name of the environment variable holding the ADO OAuth token (e.g. SYSTEM_ACCESSTOKEN).</summary>
-        public string AdoAccessTokenEnvVar { get; }
 
 
         #endregion
@@ -174,8 +125,20 @@ namespace Tool.CloudTestClient
         /// <summary>Specific job ID for the dynamic job update.</summary>
         public string JobId { get; private set; }
 
+        /// <summary>
+        /// Group ID for the dynamic job update. Resolved from the session config file when a job is referenced by name;
+        /// otherwise computed from <see cref="Image"/> and <see cref="Sku"/>.
+        /// </summary>
+        public string GroupId { get; private set; }
+
         /// <summary>Path to the session config file for resolving a job name to a job ID.</summary>
         public string SessionConfigPath { get; }
+
+        /// <summary>
+        /// Optional group name used to disambiguate a job-name lookup when the job name is not unique across groups.
+        /// Matches the group's name (defaults to "image sku") in the session config.
+        /// </summary>
+        public string GroupName { get; private set; }
 
         /// <summary>Relative path within the drop containing this job's test files.</summary>
         public string TestFolder { get; }
@@ -200,6 +163,24 @@ namespace Tool.CloudTestClient
 
         /// <summary>Hashes of test inputs for caching. Aggregated into a single hash by the tool.</summary>
         public List<string> TestDependencyHashes { get; } = new List<string>();
+
+        /// <summary>
+        /// Drop-relative paths of artifacts contributing to the caching fingerprint (job inputs and
+        /// session-creation drop artifacts). Aggregated into the fingerprint alongside the content hashes.
+        /// </summary>
+        public List<string> TestDependencyPaths { get; } = new List<string>();
+
+        /// <summary>
+        /// Raw JSON of the resolved group's dynamic setup and cleanup, captured from the session config when a job is
+        /// referenced by name. Contributes to the job's caching fingerprint. Null when unavailable (e.g. direct ID).
+        /// </summary>
+        public string GroupSetupCleanupJson { get; private set; }
+
+        /// <summary>
+        /// Raw JSON of the session's file providers, captured from the session config when a job is referenced by
+        /// name. Contributes to the job's caching fingerprint. Null when no file providers are configured.
+        /// </summary>
+        public string FileProvidersJson { get; private set; }
 
         /// <summary>Job priority (lower = higher priority).</summary>
         public int? Priority { get; }
@@ -257,27 +238,11 @@ namespace Tool.CloudTestClient
                                 throw Error($"Invalid environment value '{opt.Value}'. Must be one of: prod, dev, ppe.");
                         }
                         break;
-                    case "DISPLAYNAME":
-                        DisplayName = opt.Value;
-                        break;
-                    case "USER":
-                        User = opt.Value;
-                        break;
-                    case "BUILDDROPLOCATION":
-                        BuildDropLocation = opt.Value;
-                        break;
                     case "SKU":
                         Sku = opt.Value;
                         break;
                     case "IMAGE":
                         Image = opt.Value;
-                        break;
-                    case "MAXRESOURCES":
-                        if (!int.TryParse(opt.Value, out var mr) || mr <= 0)
-                        {
-                            throw Error($"Invalid maxResources value '{opt.Value}'. Must be a positive integer.");
-                        }
-                        MaxResources = mr;
                         break;
                     case "JOBNAME":
                         if (string.IsNullOrWhiteSpace(opt.Value))
@@ -286,68 +251,24 @@ namespace Tool.CloudTestClient
                         }
                         Jobs.Add(new JobDefinition(opt.Value));
                         break;
-                    case "JOBIDANDNAME":
+                    case "SESSIONINPUTFILE":
                         if (string.IsNullOrWhiteSpace(opt.Value))
                         {
-                            throw Error("Empty value for 'jobIdAndName' argument.");
+                            throw Error("Empty value for 'sessionInputFile' argument.");
                         }
-                        int separatorIndex = opt.Value.IndexOf('#');
-                        if (separatorIndex <= 0 || separatorIndex == opt.Value.Length - 1)
-                        {
-                            throw Error($"Invalid 'jobIdAndName' format '{opt.Value}'. Expected '<jobId>#<jobName>'.");
-                        }
-                        string jobId = opt.Value.Substring(0, separatorIndex);
-                        string jobName = opt.Value.Substring(separatorIndex + 1);
-                        Jobs.Add(new JobDefinition(jobName, jobId));
+                        SessionInputFile = opt.Value;
                         break;
                     case "CONFIGOUTPUTFILE":
                         ConfigOutputFile = opt.Value;
-                        break;
-                    case "CACHEENABLED":
-                        CacheEnabled = true;
-                        break;
-                    case "MAXPARALLELISMFORJOBS":
-                        if (!int.TryParse(opt.Value, out var mpj) || mpj <= 0)
-                        {
-                            throw Error($"Invalid maxParallelismForJobs value '{opt.Value}'. Must be a positive integer.");
-                        }
-                        MaxParallelismForJobs = mpj;
-                        break;
-                    case "STAMP":
-                        Stamp = opt.Value;
-                        break;
-                    case "PROPERTIES":
-                        Properties = opt.Value;
-                        break;
-                    case "FEATUREEXCEPTIONS":
-                        FeatureExceptions = opt.Value;
-                        break;
-                    case "DYNAMICGROUPSETUPFILE":
-                        DynamicGroupSetupFile = opt.Value;
-                        break;
-                    case "DYNAMICGROUPCLEANUPFILE":
-                        DynamicGroupCleanupFile = opt.Value;
-                        break;
-                    case "FILEPROVIDERSFILE":
-                        FileProvidersFile = opt.Value;
-                        break;
-                    case "ADOPROJECTID":
-                        AdoProjectId = opt.Value;
-                        break;
-                    case "ADOCOLLECTIONURI":
-                        AdoCollectionUri = opt.Value;
-                        break;
-                    case "ADOBUILDID":
-                        AdoBuildId = opt.Value;
-                        break;
-                    case "ADOACCESSTOKENENVVAR":
-                        AdoAccessTokenEnvVar = opt.Value;
                         break;
                     case "JOBID":
                         JobId = opt.Value;
                         break;
                     case "SESSIONCONFIGPATH":
                         SessionConfigPath = opt.Value;
+                        break;
+                    case "GROUPNAME":
+                        GroupName = opt.Value;
                         break;
                     case "TESTFOLDER":
                         TestFolder = opt.Value;
@@ -372,6 +293,9 @@ namespace Tool.CloudTestClient
                         break;
                     case "TESTDEPENDENCYHASH":
                         TestDependencyHashes.Add(opt.Value);
+                        break;
+                    case "TESTDEPENDENCYPATH":
+                        TestDependencyPaths.Add(opt.Value);
                         break;
                     case "PRIORITY":
                         if (!int.TryParse(opt.Value, out var p) || p < 0)
@@ -425,43 +349,9 @@ namespace Tool.CloudTestClient
                     throw Error("Missing mandatory argument 'configOutputFile' for mode 'generateSessionConfig'");
                 }
 
-                if (string.IsNullOrEmpty(BuildDropLocation))
+                if (string.IsNullOrEmpty(SessionInputFile))
                 {
-                    throw Error("Missing mandatory argument 'buildDropLocation' for mode 'generateSessionConfig'");
-                }
-
-                if (string.IsNullOrEmpty(Sku))
-                {
-                    throw Error("Missing mandatory argument 'sku' for mode 'generateSessionConfig'");
-                }
-
-                if (string.IsNullOrEmpty(Image))
-                {
-                    throw Error("Missing mandatory argument 'image' for mode 'generateSessionConfig'");
-                }
-
-                if (MaxResources <= 0)
-                {
-                    throw Error("Missing or invalid 'maxResources' for mode 'generateSessionConfig'");
-                }
-
-                if (Jobs.Count == 0)
-                {
-                    throw Error("At least one '/jobName' or '/jobIdAndName' argument is required for mode 'generateSessionConfig'");
-                }
-
-                if (string.IsNullOrEmpty(Tenant))
-                {
-                    throw Error("Missing mandatory argument 'tenant' for mode 'generateSessionConfig'");
-                }
-
-                // Validate ADO VstsContext args: if any is provided, all must be provided
-                var adoFields = new[] { AdoProjectId, AdoCollectionUri, AdoBuildId, AdoAccessTokenEnvVar };
-                bool anyAdo = Array.Exists(adoFields, f => !string.IsNullOrEmpty(f));
-                bool allAdo = Array.TrueForAll(adoFields, f => !string.IsNullOrEmpty(f));
-                if (anyAdo && !allAdo)
-                {
-                    throw Error("When specifying ADO context, all of 'adoProjectId', 'adoCollectionUri', 'adoBuildId', and 'adoAccessTokenEnvVar' must be provided.");
+                    throw Error("Missing mandatory argument 'sessionInputFile' for mode 'generateSessionConfig'");
                 }
 
                 // Note: do not return here. We still want common validations (e.g. path validation) to run.
@@ -472,16 +362,6 @@ namespace Tool.CloudTestClient
                 if (string.IsNullOrEmpty(ConfigOutputFile))
                 {
                     throw Error("Missing mandatory argument 'configOutputFile' for mode 'generateUpdateDynamicJobConfig'");
-                }
-
-                if (string.IsNullOrEmpty(Image))
-                {
-                    throw Error("Missing mandatory argument 'image' for mode 'generateUpdateDynamicJobConfig'");
-                }
-
-                if (string.IsNullOrEmpty(Sku))
-                {
-                    throw Error("Missing mandatory argument 'sku' for mode 'generateUpdateDynamicJobConfig'");
                 }
 
                 // Resolve session ID
@@ -516,7 +396,7 @@ namespace Tool.CloudTestClient
                     throw Error("Cannot specify 'jobId' together with 'jobName'/'sessionConfigPath'. Use one approach or the other.");
                 }
 
-                // Resolve job ID from session config file when using name-based lookup
+                // Resolve job ID and group ID from session config file when using name-based lookup
                 if (string.IsNullOrEmpty(JobId) && Jobs.Count > 0)
                 {
                     if (Jobs.Count > 1)
@@ -524,7 +404,25 @@ namespace Tool.CloudTestClient
                         throw Error("Only one 'jobName' can be specified for mode 'generateUpdateDynamicJobConfig'");
                     }
 
-                    JobId = ResolveJobIdFromSessionConfig(Jobs[0].Name, SessionConfigPath);
+                    (JobId, GroupId, GroupSetupCleanupJson) = ResolveJobFromSessionConfig(Jobs[0].Name, GroupName, SessionConfigPath);
+
+                    // The session's file providers are a session-level fingerprint input shared by every job.
+                    FileProvidersJson = ReadFileProvidersJson(SessionConfigPath);
+                }
+
+                // When the group ID could not be resolved from the session config (i.e. a job referenced
+                // directly by ID), it is computed from the image and sku, which then become mandatory.
+                if (string.IsNullOrEmpty(GroupId))
+                {
+                    if (string.IsNullOrEmpty(Image))
+                    {
+                        throw Error("Missing mandatory argument 'image' for mode 'generateUpdateDynamicJobConfig' (required to compute the groupId when a job is referenced directly by ID)");
+                    }
+
+                    if (string.IsNullOrEmpty(Sku))
+                    {
+                        throw Error("Missing mandatory argument 'sku' for mode 'generateUpdateDynamicJobConfig' (required to compute the groupId when a job is referenced directly by ID)");
+                    }
                 }
 
                 if (string.IsNullOrEmpty(TestFolder))
@@ -564,9 +462,7 @@ namespace Tool.CloudTestClient
             ValidatePath(SessionIdFile, "sessionIdFile");
             ValidatePath(ConfigOutputFile, "configOutputFile");
             ValidatePath(SessionConfigPath, "sessionConfigPath");
-            ValidatePath(DynamicGroupSetupFile, "dynamicGroupSetupFile");
-            ValidatePath(DynamicGroupCleanupFile, "dynamicGroupCleanupFile");
-            ValidatePath(FileProvidersFile, "fileProvidersFile");
+            ValidatePath(SessionInputFile, "sessionInputFile");
 
                         // Validate mode-specific args
             if (Mode == CloudTestMode.CreateSession || Mode == CloudTestMode.UpdateDynamicJob)
@@ -633,10 +529,16 @@ namespace Tool.CloudTestClient
         }
 
         /// <summary>
-        /// Reads a session config JSON file and finds the job ID for the given job name.
+        /// Reads a session config JSON file and finds the job ID and the containing group's ID for the given job name.
+        /// Also captures the resolved group's dynamic setup/cleanup JSON so it can contribute to the job's caching
+        /// fingerprint. When <paramref name="groupName"/> is provided, the lookup is restricted to the group with that
+        /// name. When it is not provided and the job name matches jobs in more than one group, the lookup is ambiguous
+        /// and fails.
         /// </summary>
-        private static string ResolveJobIdFromSessionConfig(string jobName, string sessionConfigPath)
+        private static (string JobId, string GroupId, string GroupSetupCleanupJson) ResolveJobFromSessionConfig(string jobName, string groupName, string sessionConfigPath)
         {
+            var matches = new List<(string JobId, string GroupId, string GroupName, string GroupSetupCleanupJson)>();
+
             try
             {
                 using var doc = JsonHelpers.ReadJsonDocument(sessionConfigPath);
@@ -645,6 +547,16 @@ namespace Tool.CloudTestClient
                 {
                     foreach (var group in groups.EnumerateArray())
                     {
+                        string currentGroupName = group.TryGetProperty("groupName", out var groupNameElement)
+                            ? groupNameElement.GetString()
+                            : null;
+
+                        // When a group name filter is provided, only consider the matching group.
+                        if (!string.IsNullOrEmpty(groupName) && !string.Equals(currentGroupName, groupName, StringComparison.Ordinal))
+                        {
+                            continue;
+                        }
+
                         if (group.TryGetProperty("dynamicJobRequests", out var jobs))
                         {
                             foreach (var job in jobs.EnumerateArray())
@@ -657,7 +569,20 @@ namespace Tool.CloudTestClient
                                         string id = idElement.GetString();
                                         if (!string.IsNullOrEmpty(id))
                                         {
-                                            return id;
+                                            // The session config generator always emits a groupId for every
+                                            // group (SessionConfigGenerator.ComputeGroupId), so a found group
+                                            // without one indicates a malformed or incompatible config. Fail
+                                            // fast here rather than returning a null groupId that would later be
+                                            // silently recomputed from the caller-supplied image/sku.
+                                            string groupId = group.TryGetProperty("groupId", out var groupIdElement)
+                                                ? groupIdElement.GetString()
+                                                : null;
+                                            if (string.IsNullOrEmpty(groupId))
+                                            {
+                                                throw new InvalidOperationException(
+                                                    $"Group '{currentGroupName}' in session config file '{sessionConfigPath}' is missing a 'groupId'.");
+                                            }
+                                            matches.Add((id, groupId, currentGroupName, ExtractGroupSetupCleanupJson(group)));
                                         }
                                     }
                                 }
@@ -671,7 +596,58 @@ namespace Tool.CloudTestClient
                 throw new InvalidOperationException($"Failed to parse session config file '{sessionConfigPath}': {ex.Message}");
             }
 
-            throw new InvalidOperationException($"Job name '{jobName}' not found in session config file '{sessionConfigPath}'");
+            if (matches.Count == 0)
+            {
+                string scope = string.IsNullOrEmpty(groupName)
+                    ? $"session config file '{sessionConfigPath}'"
+                    : $"group '{groupName}' of session config file '{sessionConfigPath}'";
+                throw new InvalidOperationException($"Job name '{jobName}' not found in {scope}");
+            }
+
+            if (matches.Count > 1)
+            {
+                string groupNames = string.Join(", ", matches.Select(m => $"'{m.GroupName}'"));
+                throw new InvalidOperationException(
+                    $"Job name '{jobName}' is ambiguous: it matches jobs in multiple groups ({groupNames}) in session config file '{sessionConfigPath}'. Specify a 'groupName' to disambiguate.");
+            }
+
+            return (matches[0].JobId, matches[0].GroupId, matches[0].GroupSetupCleanupJson);
+        }
+
+        /// <summary>
+        /// Builds a stable JSON string capturing a group's dynamic setup and cleanup (the fingerprint-relevant
+        /// group-level inputs). Always returns a non-null wrapper; an absent setup or cleanup is encoded as JSON null,
+        /// so a group with neither still contributes a constant (and a group that later gains setup/cleanup changes it).
+        /// </summary>
+        private static string ExtractGroupSetupCleanupJson(System.Text.Json.JsonElement group)
+        {
+            string setup = group.TryGetProperty("dynamicGroupSetup", out var setupElement) ? setupElement.GetRawText() : null;
+            string cleanup = group.TryGetProperty("dynamicGroupCleanup", out var cleanupElement) ? cleanupElement.GetRawText() : null;
+
+            return $"{{\"dynamicGroupSetup\":{setup ?? "null"},\"dynamicGroupCleanup\":{cleanup ?? "null"}}}";
+        }
+
+        /// <summary>
+        /// Reads the session-level file providers from a session config file and returns their raw JSON, or null when
+        /// none are configured.
+        /// </summary>
+        private static string ReadFileProvidersJson(string sessionConfigPath)
+        {
+            try
+            {
+                using var doc = JsonHelpers.ReadJsonDocument(sessionConfigPath);
+                if (doc.RootElement.TryGetProperty("fileProviders", out var fileProviders)
+                    && fileProviders.ValueKind != System.Text.Json.JsonValueKind.Null)
+                {
+                    return fileProviders.GetRawText();
+                }
+            }
+            catch (System.Text.Json.JsonException ex)
+            {
+                throw new InvalidOperationException($"Failed to parse session config file '{sessionConfigPath}': {ex.Message}");
+            }
+
+            return null;
         }
 
     }

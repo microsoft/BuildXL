@@ -74,6 +74,15 @@ namespace APIs {
         drop: DropToCreate | Drop.DropCreateResult; 
         /** Path to the JSON file containing the session request body. */
         bodyFile: File;
+        /**
+         * Optional artifacts to upload to the drop before the session is created.
+         *
+         * IMPORTANT: Any artifact that must be uploaded to the drop for group-setup-related activity (e.g. setup/cleanup scripts,
+         * service payloads, or any other content placed in the drop) and is later consumed by test jobs MUST be uploaded through
+         * this parameter. Artifacts uploaded to the drop by other means are not accounted for in the CloudTest caching fingerprint,
+         * which can result in under-builds (stale cached results being reused when these inputs change).
+         */
+        dropArtifacts?: Drop.DropArtifactInfo[];
     }
 
     /** Arguments for updating a dynamic job in an existing session. */
@@ -144,6 +153,13 @@ namespace APIs {
             createDropResult = Drop.runner.createDrop(dropConfig);
         }
 
+        // Optionally upload artifacts to the drop before creating the session. The session-creation pip takes a
+        // dependency on the upload outputs so the artifacts are guaranteed to be in the drop before submission.
+        // (These artifacts are also expected to participate in the session hash computation in the future.)
+        const addArtifactsResultOutputs = (args.dropArtifacts !== undefined && args.dropArtifacts.length > 0)
+            ? Drop.runner.addArtifactsToDrop(createDropResult, {}, args.dropArtifacts).outputs
+            : [];
+
         const outDir = Context.getNewOutputDirectory("cloudtest");
         const sessionIdFile = p`${outDir}/session-id.txt`;
         const consolePath = p`${outDir}/console.out`;
@@ -172,7 +188,10 @@ namespace APIs {
             arguments: commandLineArgs,
             consoleOutput: consolePath,
             workingDirectory: outDir,
-            dependencies: [...(args.dependencies || []), ...(createDropResult ? createDropResult.outputs : [])],
+            dependencies: [
+                ...(args.dependencies || []), 
+                ...(createDropResult ? createDropResult.outputs : []), 
+                ...addArtifactsResultOutputs],
             environmentVariables: args.environmentVariables || [],
             tags: [...(args.tags || []), "cloudtest"],
             description: args.description || "CloudTest: Create Session",

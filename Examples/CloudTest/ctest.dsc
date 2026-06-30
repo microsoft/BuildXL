@@ -12,33 +12,34 @@ const createDropResult = Drop.runner.createDrop(
     ), {retentionDays: 1})
 );
 
-// This is just used to illustrate how a drop can be created upfront and populated with artifacts before creating a session.
+// This is just used to illustrate how a drop can be populated with artifacts before creating a session.
 const testScript = Transformer.writeFile(p`${Context.getNewOutputDirectory("cloudtest")}/test.sh`, 
 `#!/bin/bash
 echo "Hello CloudTest!"
 `);
 
-const dropPrepResult = Drop.runner.addArtifactsToDrop(
-    createDropResult,
-    // Just use the defaults
-    {},
-    [ {kind: "file", file: testScript, dropPath: r`setup/test.sh`}]
-);
-
 // Create the session. Pass the created drop.
 const sessionArgs : CloudTestClient.Helpers.GenerateSessionConfigAndCreateSessionArguments = {
     drop: createDropResult,
     tenant: "cloudtest-sample",
-    sku: "test-sku",
-    image: "ubuntu22.04",
     // Passed to BuildXL from the outside.
     tokenEnvVar: Environment.getStringValue("CloudTestTokenVariableName"),
     timeoutMinutes: 1,
-    maxResources: 1,
-    // We build one job per package + verb.
-    jobs: buildContent.keys().map(project => getTestJobName(project)),
+    // A session is made up of one or more groups. Here we use a single group; image/sku/maxResources and the
+    // group's jobs are now group-level properties.
+    groups: [
+        {
+            sku: "test-sku",
+            image: "ubuntu22.04",
+            maxResources: 1,
+            // We build one job per package + verb.
+            jobs: buildContent.keys().map(project => getTestJobName(project)),
+        }
+    ],
     displayName: "My Test Session",
-    dependencies: dropPrepResult.outputs
+    // Any artifact that is uploaded to the drop at session creation time (e.g. consumed later by test jobs) must be
+    // provided through dropArtifacts so it participates in the CloudTest caching fingerprint.
+    dropArtifacts: [ {kind: "file", file: testScript, dropPath: r`setup/test.sh`} ],
 };
 
 const sessionCreateResult = CloudTestClient.Helpers.generateConfigAndCreateSession(sessionArgs);

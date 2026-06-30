@@ -79,12 +79,17 @@ export function readScopeFile(scopeFile: SourceFile) : ScopeFile {
 
 /**
  * Given a ScopeFile, returns a list of placeholders in the format "packageName_command" that represent the test commands to be scheduled as CloudTest jobs. These placeholders can be used to correlate the commands in the scopes file with the corresponding pips in the build graph (e.g., by matching them with exported verb patterns from the Lage resolver).
+ * An optional packageFilter can be provided to only include placeholders for packages matching the predicate (useful for partitioning jobs across multiple groups).
  */
 @@public
-export function getJobPlaceHolders(scopeFile: ScopeFile) : string[] {
+export function getJobPlaceHolders(scopeFile: ScopeFile, packageFilter?: (packageName: string) => boolean) : string[] {
     let placeholders: MutableSet<string> = MutableSet.empty<string>();
     
     for (const packageScope of scopeFile.packageList) {
+        if (packageFilter !== undefined && !packageFilter(packageScope.packageName)) {
+            continue;
+        }
+
         for (const testCommand of packageScope.commandList) {
             placeholders.add(getTestJobName(packageScope.packageName, testCommand.command));
         }

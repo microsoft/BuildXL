@@ -6,13 +6,15 @@
 # Refer to the customer-agnostic pipeline for general documentation (Examples\CloudTest\cloudtest.yml)
 trigger: none
 
+# This pipeline explicitly uses PPE and the CloudTest INT environment to be able to catch regressions early.
+
 parameters:
   - name: connectedServiceName
     type: string
-    default: 'CloudTest-BuildXL-Prod'
+    default: 'CloudTest-INT'
   - name: cloudTestTenant
     type: string
-    default: 'cloudtest-sample'
+    default: 'cloudtest'
   - name: sessionTimeout
     type: number
     default: 120
@@ -27,7 +29,7 @@ parameters:
     default: 'GeneratedAccessToken' # Name of the pipeline variable that will store the generated access token
   - name: CloudTestResource
     type: string
-    default: '77c466d9-b133-4a83-a8f5-c94133051e06' # CloudTest API resource ID
+    default: '7f37d4dd-3b7a-4344-b1ea-7e0c025e6924' # CloudTest API PPE resource ID
   - name: CloudTestTokenVariable
     type: string
     default: 'CloudTestAccessToken' # Name of the pipeline variable that will store the CloudTest bearer token
@@ -108,7 +110,7 @@ extends:
           buildXL:
             ${{ if eq(parameters.useLocalBxl, true) }}:
               install: false
-              invocationPrefix: $(Build.SourcesDirectory)/Out/Bin/release/linux-x64/AdoBuildRunner
+              invocationPrefix: $(Build.SourcesDirectory)/Out/Selfhost/Dev/AdoBuildRunner
             ${{ else }}:
               installerOptions:
                 version: $(BuildXLPackageVersion)

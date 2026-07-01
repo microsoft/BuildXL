@@ -325,6 +325,8 @@ namespace BuildXL.Scheduler.Fingerprints
                     }
                 }
 
+                HashSet<AbsolutePath> directoryDependenciesLookup = null;
+
                 ObservedInputType[] observationTypes = new ObservedInputType[observations.Length];
 
                 // Observations which fail access checks are suppressed (i.e. they do not contribute to
@@ -346,7 +348,6 @@ namespace BuildXL.Scheduler.Fingerprints
                         FileArtifact fakeArtifact = FileArtifact.CreateSourceFile(path);
                         FileMaterializationInfo? fileMaterializationInfo;
                         FileContentInfo? pathContentInfo;
-                        HashSet<AbsolutePath> directoryDependenciesLookup = null;
                         var debugTrace = debugTraces[i];
 
                         debugTrace.AppendLine($"Starting second pass for {path.ToString(pathTable)}. ObservationFlags = {observationFlags}");
@@ -459,7 +460,7 @@ namespace BuildXL.Scheduler.Fingerprints
                                     {
                                         if (directoryDependenciesLookup == null)
                                         {
-                                            directoryDependenciesLookup= new HashSet<AbsolutePath>(pip.DirectoryDependencies.Length);
+                                            directoryDependenciesLookup = new HashSet<AbsolutePath>(pip.DirectoryDependencies.Length);
                                             foreach (var dep in pip.DirectoryDependencies)
                                             {
                                                 directoryDependenciesLookup.Add(dep.Path);

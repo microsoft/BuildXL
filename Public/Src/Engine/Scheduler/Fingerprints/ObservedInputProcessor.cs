@@ -2123,44 +2123,24 @@ namespace BuildXL.Scheduler.Fingerprints
                     Counters.IncrementCounter(PipExecutorCounter.UniqueDirectoriesUnionFilter);
                 }
 
-                HashSet<AbsolutePath> relevantUntrackedPaths = [];
-                if (process.UnderlyingPip.PipType == PipType.Process 
+                HashSet<AbsolutePath> relevantUntrackedPaths = null;
+                if (process.UnderlyingPip.PipType == PipType.Process
                     && enumerationMode != DirectoryEnumerationMode.MinimalGraph)
                 {
-                    // The only paths that affect enumerations are the ones that direct members of the directory being enumerated (not nested members)
-                    // Therefore we can exclude any paths where the parent of that path is not the directory being enumerated
-                    foreach (var path in (process.UnderlyingPip as Process).UntrackedScopes)
-                    {
-                        if (path.GetParent(Context.PathTable) == directoryPath)
-                        {
-                            relevantUntrackedPaths.Add(path);
-                        }
-                    }
-
-                    foreach (var path in (process.UnderlyingPip as Process).UntrackedPaths)
-                    {
-                        if (path.GetParent(Context.PathTable) == directoryPath)
-                        {
-                            relevantUntrackedPaths.Add(path);
-                        }
-                    }
-
-                    foreach (var path in m_env.TranslatedGlobalUnsafeUntrackedScopes)
-                    {
-                        if (path.GetParent(Context.PathTable) == directoryPath)
-                        {
-                            relevantUntrackedPaths.Add(path);
-                        }
-                    }
+                    // The only paths that affect enumerations are the ones that are direct members of the directory being enumerated (not nested members).
+                    // The per-pip grouping is cached on the PipScopeState so it survives across all pathset processing calls for this pip within one
+                    // cache lookup, turning what would be a scan over UntrackedScopes + UntrackedPaths + TranslatedGlobalUnsafeUntrackedScopes on every
+                    // enumeration into an O(1) dictionary lookup.
+                    m_state.GetOrBuildUntrackedPathsByParent(m_env).TryGetValue(directoryPath, out relevantUntrackedPaths);
                 }
 
                 DirectoryFingerprint? result;
-                // net472 requires a copy of the list to be made for it to be a read-only set
+                // net472 requires a copy of the set to be made for it to be a read-only set
                 IReadOnlySet<AbsolutePath> readonlyRelevantUntrackedPaths =
 #if !NET5_0_OR_GREATER
-                relevantUntrackedPaths.ToReadOnlySet();
+                relevantUntrackedPaths?.ToReadOnlySet() ?? CollectionUtilities.EmptySet<AbsolutePath>();
 #else
-                relevantUntrackedPaths;
+                relevantUntrackedPaths ?? (IReadOnlySet<AbsolutePath>)CollectionUtilities.EmptySet<AbsolutePath>();
 #endif
                 switch (enumerationMode)
                 {

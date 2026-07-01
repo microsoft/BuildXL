@@ -68,6 +68,12 @@ namespace BuildXL.Scheduler
             private CacheableProcess m_cacheablePip;
 
             /// <summary>
+            /// Cache of "relevant untracked paths, grouped by parent directory" for the pip owned by this scope state.
+            /// See <see cref="GetOrBuildUntrackedPathsByParent"/>.
+            /// </summary>
+            private Dictionary<AbsolutePath, HashSet<AbsolutePath>> m_untrackedPathsByParent;
+
+            /// <summary>
             /// Class constructor. Do not call from outside parent class.
             /// </summary>
             /// <param name="parent">the parent execution state containing the global information from which module specific instances can be retrieved</param>
@@ -102,6 +108,56 @@ namespace BuildXL.Scheduler
             {
                 m_cacheablePip = m_cacheablePip ?? new CacheableProcess(process, environment);
                 return m_cacheablePip;
+            }
+
+            /// <summary>
+            /// Returns a map from a directory to the set of "relevant untracked paths" that are direct children
+            /// of that directory. The three source collections (<see cref="Process.UntrackedScopes"/>,
+            /// <see cref="Process.UntrackedPaths"/>, and <see cref="IPipExecutionEnvironment.TranslatedGlobalUnsafeUntrackedScopes"/>)
+            /// are invariant for a pip's cache lookup, but <see cref="ObservedInputProcessor"/> queries the fingerprint
+            /// of the same directory tens of thousands of times per pip. Grouping once by parent directory turns the
+            /// per-call scan into an O(1) dictionary lookup. Cached on this scope state so that the grouping is reused
+            /// across all pathset processing calls for the same pip within one cache lookup.
+            /// </summary>
+            public Dictionary<AbsolutePath, HashSet<AbsolutePath>> GetOrBuildUntrackedPathsByParent(IPipExecutionEnvironment environment)
+            {
+                Contract.Requires(m_cacheablePip != null, "GetCacheableProcess must be called before GetOrBuildUntrackedPathsByParent");
+
+                if (m_untrackedPathsByParent != null)
+                {
+                    return m_untrackedPathsByParent;
+                }
+
+                var process = m_cacheablePip.Process;
+                var pathTable = environment.Context.PathTable;
+                var byParent = new Dictionary<AbsolutePath, HashSet<AbsolutePath>>();
+
+                addPathsGroupedByParent(process.UntrackedScopes);
+                addPathsGroupedByParent(process.UntrackedPaths);
+                addPathsGroupedByParent(environment.TranslatedGlobalUnsafeUntrackedScopes);
+
+                m_untrackedPathsByParent = byParent;
+                return byParent;
+
+                void addPathsGroupedByParent(IEnumerable<AbsolutePath> paths)
+                {
+                    foreach (var path in paths)
+                    {
+                        var parent = path.GetParent(pathTable);
+                        if (!parent.IsValid)
+                        {
+                            continue;
+                        }
+
+                        if (!byParent.TryGetValue(parent, out var group))
+                        {
+                            group = new HashSet<AbsolutePath>();
+                            byParent[parent] = group;
+                        }
+
+                        group.Add(path);
+                    }
+                }
             }
         }
     }

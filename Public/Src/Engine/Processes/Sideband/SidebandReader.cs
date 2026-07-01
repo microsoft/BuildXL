@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft Corporation.
+// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
 using System;
@@ -37,7 +37,8 @@ namespace BuildXL.Processes.Sideband
             m_bxlReader = new BuildXLReader(
                 stream: new FileStream(sidebandFile, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete),
                 debug: false,
-                leaveOpen: false);
+                leaveOpen: false,
+                bufferSize: BuildXLReader.RecommendedBufferBytesForFileStream);
         }
 
         /// <summary>

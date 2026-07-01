@@ -254,7 +254,8 @@ namespace BuildXL.Engine
                             var isCompressed = fileStream.ReadByte() == 1;
 
                             using (Stream readStream = isCompressed ? new TrackedStream(new BufferedStream(new DecompressionStream(fileStream), 64 << 10)) : fileStream)
-                            using (BuildXLReader reader = new BuildXLReader(m_debug, readStream, leaveOpen: false))
+                            // When the stream is compressed, we don't need to buffer again in the BuildXLReader
+                            using (BuildXLReader reader = new BuildXLReader(m_debug, readStream, leaveOpen: false, bufferSize: isCompressed ? 0 : BuildXLReader.RecommendedBufferBytesForFileStream))
                             {
                                 result = await deserializer(reader);
                             }

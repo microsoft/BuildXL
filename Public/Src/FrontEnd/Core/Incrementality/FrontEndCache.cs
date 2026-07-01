@@ -73,8 +73,8 @@ namespace BuildXL.FrontEnd.Core.Incrementality
 
                 var sw = Stopwatch.StartNew();
                 using (var file = FileUtilities.CreateFileStream(m_cacheFileName, FileMode.Open, FileAccess.ReadWrite, FileShare.Delete))
+                using (var reader = new BuildXLReader(debug: false, stream: file, leaveOpen: true, bufferSize: BuildXLReader.RecommendedBufferBytesForFileStream))
                 {
-                    var reader = new BuildXLReader(debug: false, stream: file, leaveOpen: true);
                     var version = reader.ReadInt32Compact();
                     if (version != Version)
                     {

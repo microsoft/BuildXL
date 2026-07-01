@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft Corporation.
+// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
 using System;
@@ -1801,7 +1801,7 @@ namespace BuildXL.Scheduler.IncrementalScheduling
                     Analysis.IgnoreResult(s_fileEnvelope.ReadHeader(stream));
                     try
                     {
-                        using (var reader = new BuildXLReader(debug: false, stream: stream, leaveOpen: true))
+                        using (var reader = new BuildXLReader(debug: false, stream: stream, leaveOpen: true, bufferSize: BuildXLReader.RecommendedBufferBytesForFileStream))
                         {
                             load(reader);
                         }

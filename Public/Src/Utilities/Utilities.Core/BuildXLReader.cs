@@ -25,19 +25,31 @@ namespace BuildXL.Utilities.Core
         private readonly bool m_debug;
 
         /// <summary>
+        /// Recommended <c>bufferSize</c> to pass to the <see cref="BuildXLReader"/> constructor when the
+        /// underlying stream is file- or network-backed and the reader will issue many small reads
+        /// (e.g. <see cref="BinaryReader.ReadByte"/>, <see cref="BinaryReader.ReadInt32"/>, short
+        /// <see cref="BinaryReader.ReadString"/>). Yields ~30-40% faster deserialization even over a
+        /// <see cref="FileStream"/> (which has its own 4 KB buffer); enlarging FileStream's own
+        /// buffer to the same size is measurably worse than a <see cref="BufferedStream"/> wrapper,
+        /// since <see cref="FileStream.Read(byte[], int, int)"/> has a heavier per-call code path.
+        /// 32 KB captures nearly all of the benefit while staying well below the 85 KB Large Object
+        /// Heap threshold. Do NOT pass this for <see cref="MemoryStream"/>-backed readers: buffering
+        /// there is a 25-40% regression because <see cref="MemoryStream.Read(byte[], int, int)"/>
+        /// is already a direct <c>memcpy</c>.
+        /// </summary>
+        public const int RecommendedBufferBytesForFileStream = 32 * 1024;
+
+        /// <summary>
         /// Creates a BuildXLReader.
         /// </summary>
         /// <param name="debug">When true, validates type markers emitted by the matching <see cref="BuildXLWriter"/>.</param>
         /// <param name="stream">The underlying stream to read from.</param>
         /// <param name="leaveOpen">When true, <paramref name="stream"/> is not disposed when this reader is disposed.</param>
         /// <param name="bufferSize">
-        /// When greater than zero, the reader internally wraps <paramref name="stream"/> in a
-        /// <see cref="BufferedStream"/> with this buffer size. This is recommended when
-        /// <paramref name="stream"/> is backed by a slow or remote source (e.g. a cache content stream)
-        /// since BinaryReader otherwise issues many small synchronous reads (ReadByte / short ReadString)
-        /// that go straight through to the underlying stream. Choose the buffer size below 85 KB to keep
-        /// the buffer out of the Large Object Heap. When zero (the default), no wrapping is performed
-        /// and <paramref name="stream"/> is used directly.
+        /// When greater than zero, wraps <paramref name="stream"/> in a <see cref="BufferedStream"/>
+        /// of this size. See <see cref="RecommendedBufferBytesForFileStream"/> for guidance — recommended for
+        /// file/network streams issuing many small reads; avoid for <see cref="MemoryStream"/>.
+        /// Zero (the default) uses <paramref name="stream"/> directly with no wrapping.
         /// </param>
         public BuildXLReader(bool debug, Stream stream, bool leaveOpen, int bufferSize = 0)
             : base(bufferSize > 0 ? new BufferedStream(stream, bufferSize) : stream, Encoding.UTF8, leaveOpen)

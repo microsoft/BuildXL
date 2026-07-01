@@ -415,7 +415,7 @@ namespace BuildXL.Storage.ChangeTracking
                             return ExceptionUtilities.HandleRecoverableIOException(
                                 () =>
                                 {
-                                    using (var reader = new BuildXLReader(debug: false, stream: stream, leaveOpen: true))
+                                    using (var reader = new BuildXLReader(debug: false, stream: stream, leaveOpen: true, bufferSize: BuildXLReader.RecommendedBufferBytesForFileStream))
                                     {
                                         bool wasTrackerDisabled = reader.ReadBoolean();
 

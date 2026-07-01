@@ -271,15 +271,9 @@ namespace BuildXL.Scheduler.Cache
                 return maybePathSetStream.Failure;
             }
 
-            // Use BuildXLReader's built-in buffering so that its many small synchronous reads
-            // (ReadByte / ReadInt32Compact / short ReadString) coalesce into a small number of large
-            // reads against the underlying cache stream. 64KB is intentionally below the LOH threshold
-            // to avoid Large Object Heap pressure under parallel cache lookups.
-            const int PathSetReadBufferSize = 64 * 1024;
-
             using (StreamWithLength owned = maybePathSetStream.Result)
             using (operationContext.StartOperation(PipExecutorCounter.TryLoadPathSetFromContentCacheDeserializeDuration))
-            using (var pathSetReader = new BuildXLReader(debug: false, stream: owned.Stream, leaveOpen: false, bufferSize: PathSetReadBufferSize))
+            using (var pathSetReader = new BuildXLReader(debug: false, stream: owned.Stream, leaveOpen: false, bufferSize: BuildXLReader.RecommendedBufferBytesForFileStream))
             {
                 var maybeDeserialized = ObservedPathSet.TryDeserialize(PathTable, pathSetReader, m_pathExpander);
                 if (!maybeDeserialized.Succeeded)

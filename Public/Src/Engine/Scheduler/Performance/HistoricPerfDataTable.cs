@@ -97,7 +97,7 @@ namespace BuildXL.Scheduler
                 () =>
                 {
                     Analysis.IgnoreResult(FileEnvelope.ReadHeader(stream));
-                    using (BuildXLReader reader = new BuildXLReader(debug: false, stream: stream, leaveOpen: true))
+                    using (BuildXLReader reader = new BuildXLReader(debug: false, stream: stream, leaveOpen: true, bufferSize: BuildXLReader.RecommendedBufferBytesForFileStream))
                     {
                         int size = reader.ReadInt32();
                         var table = new HistoricPerfDataTable(loggingContext, initialCapacity: size);

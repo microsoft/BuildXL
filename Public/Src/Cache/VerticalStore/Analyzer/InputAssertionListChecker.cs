@@ -173,7 +173,7 @@ namespace BuildXL.Cache.Analyzer
                 {
                     using (var hashingStream = hasher.CreateReadHashingStream(possibleStream.Result))
                     {
-                        using (var reader = new BuildXLReader(false, hashingStream, false))
+                        using (var reader = new BuildXLReader(false, hashingStream, false, bufferSize: BuildXLReader.RecommendedBufferBytesForFileStream))
                         {
                             var maybePathSet = ObservedPathSet.TryDeserialize(s_pathTable, reader);
 

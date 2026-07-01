@@ -265,25 +265,29 @@ namespace BuildXL.Scheduler.Cache
             ContentHash pathSetHash,
             bool avoidRemoteLookups = false)
         {
-            using (operationContext.StartOperation(PipExecutorCounter.TryLoadPathSetFromContentCacheDuration))
+            Possible<StreamWithLength> maybePathSetStream = await TryLoadAndOpenPathSetStreamAsync(pathSetHash, avoidRemoteLookups);
+            if (!maybePathSetStream.Succeeded)
             {
-                Possible<StreamWithLength> maybePathSetStream = await TryLoadAndOpenPathSetStreamAsync(pathSetHash, avoidRemoteLookups);
-                if (!maybePathSetStream.Succeeded)
+                return maybePathSetStream.Failure;
+            }
+
+            // Use BuildXLReader's built-in buffering so that its many small synchronous reads
+            // (ReadByte / ReadInt32Compact / short ReadString) coalesce into a small number of large
+            // reads against the underlying cache stream. 64KB is intentionally below the LOH threshold
+            // to avoid Large Object Heap pressure under parallel cache lookups.
+            const int PathSetReadBufferSize = 64 * 1024;
+
+            using (StreamWithLength owned = maybePathSetStream.Result)
+            using (operationContext.StartOperation(PipExecutorCounter.TryLoadPathSetFromContentCacheDeserializeDuration))
+            using (var pathSetReader = new BuildXLReader(debug: false, stream: owned.Stream, leaveOpen: false, bufferSize: PathSetReadBufferSize))
+            {
+                var maybeDeserialized = ObservedPathSet.TryDeserialize(PathTable, pathSetReader, m_pathExpander);
+                if (!maybeDeserialized.Succeeded)
                 {
-                    return maybePathSetStream.Failure;
+                    return maybeDeserialized.Failure;
                 }
 
-                using (operationContext.StartOperation(PipExecutorCounter.TryLoadPathSetFromContentCacheDeserializeDuration))
-                using (var pathSetReader = new BuildXLReader(debug: false, stream: maybePathSetStream.Result, leaveOpen: false))
-                {
-                    var maybeDeserialized = ObservedPathSet.TryDeserialize(PathTable, pathSetReader, m_pathExpander);
-                    if (!maybeDeserialized.Succeeded)
-                    {
-                        return maybeDeserialized.Failure;
-                    }
-
-                    return maybeDeserialized.Result;
-                }
+                return maybeDeserialized.Result;
             }
         }
 

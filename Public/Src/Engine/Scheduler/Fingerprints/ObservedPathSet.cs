@@ -249,6 +249,101 @@ namespace BuildXL.Scheduler.Fingerprints
             }
         }
 
+        /// <summary>
+        /// Fast incremental constructor for an <see cref="AbsolutePath"/> when the caller has a
+        /// previously-built <paramref name="reference"/> expanded path, and a new path whose first
+        /// <paramref name="sharedPrefixLength"/> characters are - by construction - byte-identical
+        /// to the first <paramref name="sharedPrefixLength"/> characters of
+        /// <see cref="ExpandedAbsolutePath.ExpandedPath"/>.
+        ///
+        /// Avoids re-parsing the full string and re-inserting every shared component into the
+        /// <see cref="PathTable"/> (which would each take a writer lock on its striped hash set).
+        /// On any failure (no usable common ancestor, ascend past root, invalid PathAtom) returns
+        /// false and the caller must fall back to <see cref="AbsolutePath.TryCreate(PathTable, string, out AbsolutePath)"/>.
+        ///
+        /// Private to <see cref="ObservedPathSet"/> because the contract that <paramref name="reference"/>'s
+        /// expanded path faithfully matches its <see cref="AbsolutePath"/> and that
+        /// <paramref name="sharedPrefixLength"/> is a correct shared-prefix length holds only by the
+        /// construction of <see cref="TryDeserialize"/>.
+        /// </summary>
+        private static bool TryFastConstructAbsolutePath(
+            PathTable pathTable,
+            ExpandedAbsolutePath reference,
+            string newExpandedPath,
+            int sharedPrefixLength,
+            out AbsolutePath result)
+        {
+            result = AbsolutePath.Invalid;
+            string referenceExpandedPath = reference.ExpandedPath;
+            char separator = Path.DirectorySeparatorChar;
+
+            // Scan backward within the shared prefix to find the last separator. Everything before that
+            // separator forms a clean common-ancestor boundary between the two paths.
+            // Backward scan terminates after roughly one leaf-component-length of characters, which is
+            // typically far less than sharedPrefixLength.
+            int lastSeparatorIndex = -1;
+            for (int k = sharedPrefixLength - 1; k >= 0; k--)
+            {
+                if (referenceExpandedPath[k] == separator)
+                {
+                    lastSeparatorIndex = k;
+                    break;
+                }
+            }
+
+            if (lastSeparatorIndex < 0)
+            {
+                // Shared prefix contains no separator - no usable common ancestor.
+                return false;
+            }
+
+            // Count components in referencePath strictly past the ancestor at lastSeparatorIndex. That's
+            // the number of separators in referenceExpandedPath strictly after lastSeparatorIndex, plus 1
+            // for the leaf component (assuming referenceExpandedPath does not end in a separator).
+            // The backward scan above proved [lastSeparatorIndex + 1 .. sharedPrefixLength - 1] has no
+            // separators, so we can skip that range and start the forward walk at sharedPrefixLength.
+            int ascendBy = 1;
+            for (int k = sharedPrefixLength; k < referenceExpandedPath.Length; k++)
+            {
+                if (referenceExpandedPath[k] == separator)
+                {
+                    ascendBy++;
+                }
+            }
+
+            AbsolutePath ancestor = reference.Path;
+            for (int k = 0; k < ascendBy; k++)
+            {
+                ancestor = ancestor.GetParent(pathTable);
+                if (!ancestor.IsValid)
+                {
+                    // Walked past the root.
+                    return false;
+                }
+            }
+
+            // Build a RelativePath from newExpandedPath[lastSeparatorIndex + 1 .. end] and combine it
+            // with the ancestor.
+            int suffixStart = lastSeparatorIndex + 1;
+            int suffixLength = newExpandedPath.Length - suffixStart;
+            if (suffixLength == 0)
+            {
+                // newExpandedPath ends in a separator - no leaf component to combine. Bail to the slow
+                // path which will surface the malformed-path error consistently with the non-fast-path
+                // behavior.
+                return false;
+            }
+
+            var suffixSegment = new StringSegment(newExpandedPath, suffixStart, suffixLength);
+            if (!RelativePath.TryCreate(pathTable.StringTable, suffixSegment, out RelativePath suffixRelativePath))
+            {
+                return false;
+            }
+
+            result = ancestor.Combine(pathTable, suffixRelativePath);
+            return true;
+        }
+
         /// <nodoc />
         public static Possible<ObservedPathSet, DeserializeFailure> TryDeserialize(
     PathTable pathTable,
@@ -265,6 +360,12 @@ namespace BuildXL.Scheduler.Fingerprints
                 ObservedPathEntry[] paths = new ObservedPathEntry[pathCount];
 
                 string lastStr = null;
+                // Tracks the AbsolutePath built for the previous entry together with its expanded
+                // string form, so we can build the next path incrementally via PathTable.GetParent/Combine
+                // instead of re-parsing the full string. Invalid means the previous entry was produced
+                // via PathExpander.TryCreatePath (tokenized form) or is otherwise unsafe for string-prefix-
+                // based ancestor inference.
+                ExpandedAbsolutePath lastReference = ExpandedAbsolutePath.Invalid;
                 for (int i = 0; i < pathCount; i++)
                 {
                     var flags = (ObservedPathEntryFlags)reader.ReadByte();
@@ -278,7 +379,7 @@ namespace BuildXL.Scheduler.Fingerprints
                         enumeratePatternRegex = RegexDirectoryMembershipFilter.AllowAllRegex;
                     }
 
-                    AbsolutePath newPath;
+                    AbsolutePath newPath = AbsolutePath.Invalid;
                     string full = null;
 
                     if (pathReader != null)
@@ -288,6 +389,7 @@ namespace BuildXL.Scheduler.Fingerprints
                     else
                     {
                         int reuseCount = reader.ReadInt32Compact();
+                        bool fastConstructionApplied = false;
 
                         if (reuseCount == 0)
                         {
@@ -301,17 +403,50 @@ namespace BuildXL.Scheduler.Fingerprints
                                 return new DeserializeFailure($"Invalid reuseCount: {reuseCount}; last: '{lastStr}', last string length: {lastStr?.Length}");
                             }
 
-                            string partial = reader.ReadString();
-                            full = lastStr.Substring(0, reuseCount) + partial;
+                            full = lastStr.Substring(0, reuseCount) + reader.ReadString();
+
+                            // Fast path: try to build the new AbsolutePath incrementally from lastReference by
+                            // ascending to the closest common ancestor (an existing AbsolutePath whose expanded
+                            // form is a prefix of both lastStr and the new path) and then combining the trailing
+                            // path components. This avoids re-tokenizing the full path string and re-inserting
+                            // every shared component into the PathTable.
+                            //
+                            // Correct by construction: lastReference.ExpandedPath is the expansion of
+                            // lastReference.Path (when the previous entry came from this same loop and was not
+                            // produced via PathExpander), and full[0..reuseCount] == lastStr[0..reuseCount] (it
+                            // was just copied via Substring). So the divergence point is exactly reuseCount.
+                            if (lastReference.IsValid
+                                && TryFastConstructAbsolutePath(
+                                    pathTable,
+                                    reference: lastReference,
+                                    newExpandedPath: full,
+                                    sharedPrefixLength: reuseCount,
+                                    out newPath))
+                            {
+                                fastConstructionApplied = true;
+                            }
                         }
 
-                        if (!AbsolutePath.TryCreate(pathTable, full, out newPath))
+                        if (fastConstructionApplied)
+                        {
+                            // Fast path produced an AbsolutePath whose expanded form is 'full' by construction.
+                            lastReference = ExpandedAbsolutePath.CreateUnsafe(newPath, full);
+                        }
+                        else if (!AbsolutePath.TryCreate(pathTable, full, out newPath))
                         {
                             // It might be failed due to the tokenized path.
                             if (pathExpander == null || !pathExpander.TryCreatePath(pathTable, full, out newPath))
                             {
                                 return new DeserializeFailure($"Invalid path: '{full}'");
                             }
+
+                            // newPath came from the expander - its expansion may not match the literal
+                            // 'full' string, so the next entry cannot use string-based ancestor inference.
+                            lastReference = ExpandedAbsolutePath.Invalid;
+                        }
+                        else
+                        {
+                            lastReference = ExpandedAbsolutePath.CreateUnsafe(newPath, full);
                         }
                     }
 

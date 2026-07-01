@@ -25,10 +25,22 @@ namespace BuildXL.Utilities.Core
         private readonly bool m_debug;
 
         /// <summary>
-        /// Creates a BuildXLReader
+        /// Creates a BuildXLReader.
         /// </summary>
-        public BuildXLReader(bool debug, Stream stream, bool leaveOpen)
-            : base(stream, Encoding.UTF8, leaveOpen)
+        /// <param name="debug">When true, validates type markers emitted by the matching <see cref="BuildXLWriter"/>.</param>
+        /// <param name="stream">The underlying stream to read from.</param>
+        /// <param name="leaveOpen">When true, <paramref name="stream"/> is not disposed when this reader is disposed.</param>
+        /// <param name="bufferSize">
+        /// When greater than zero, the reader internally wraps <paramref name="stream"/> in a
+        /// <see cref="BufferedStream"/> with this buffer size. This is recommended when
+        /// <paramref name="stream"/> is backed by a slow or remote source (e.g. a cache content stream)
+        /// since BinaryReader otherwise issues many small synchronous reads (ReadByte / short ReadString)
+        /// that go straight through to the underlying stream. Choose the buffer size below 85 KB to keep
+        /// the buffer out of the Large Object Heap. When zero (the default), no wrapping is performed
+        /// and <paramref name="stream"/> is used directly.
+        /// </param>
+        public BuildXLReader(bool debug, Stream stream, bool leaveOpen, int bufferSize = 0)
+            : base(bufferSize > 0 ? new BufferedStream(stream, bufferSize) : stream, Encoding.UTF8, leaveOpen)
         {
             m_debug = debug;
         }
@@ -36,10 +48,13 @@ namespace BuildXL.Utilities.Core
         /// <summary>
         /// Creates a non-debug version of a reader.
         /// </summary>
-        public static BuildXLReader Create(Stream stream, bool leaveOpen = false)
+        /// <param name="stream">The underlying stream to read from.</param>
+        /// <param name="leaveOpen">When true, <paramref name="stream"/> is not disposed when this reader is disposed.</param>
+        /// <param name="bufferSize">See <see cref="BuildXLReader(bool, Stream, bool, int)"/>.</param>
+        public static BuildXLReader Create(Stream stream, bool leaveOpen = false, int bufferSize = 0)
         {
             Contract.RequiresNotNull(stream);
-            return new BuildXLReader(debug: false, stream: stream, leaveOpen: leaveOpen);
+            return new BuildXLReader(debug: false, stream: stream, leaveOpen: leaveOpen, bufferSize: bufferSize);
         }
 
         /// <summary>

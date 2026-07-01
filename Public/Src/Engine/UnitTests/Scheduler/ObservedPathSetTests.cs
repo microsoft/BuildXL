@@ -270,6 +270,119 @@ namespace Test.BuildXL.Scheduler
             AssertTrue(pathSetHashA == pathSetHashB);
         }
 
+        #region Fast-path AbsolutePath construction tests
+
+        // ObservedPathSet.TryDeserialize includes a fast path that constructs each AbsolutePath by
+        // ascending the previous path to a common ancestor and combining new PathAtoms, rather than
+        // re-parsing the full string into the PathTable. These tests cover scenarios where the
+        // string-prefix reuse-count falls in tricky places (mid-component, at component boundary,
+        // very short shared prefix, etc.) and verify that the deserialized paths are bit-identical to
+        // what AbsolutePath.TryCreate would have produced. We force the fast path's correctness by
+        // deserializing into a fresh PathTable so any wrong AbsolutePath construction would surface
+        // as a string mismatch.
+
+        [Theory]
+        // Sibling leaves whose common prefix falls mid-component. Original 1JS regression case
+        // (.BROWSERSLISTRC -> .YARNRC): shared "/X/." is part of a single leaf, not a directory separator.
+        [InlineData("/X/.BROWSERSLISTRC", "/X/.YARNRC")]
+        // Sibling leaves in the same directory. reuseCount lands exactly at the last separator.
+        [InlineData("/X/a/b/file1.txt", "/X/a/b/file2.txt")]
+        // New file in a sibling directory. Ascend one level, then combine two new components.
+        [InlineData("/X/a/b/file1", "/X/a/c/file2")]
+        // Multi-level ascent then descent. Ascend three levels then combine three new components.
+        [InlineData("/X/a/b/c/d/leaf1", "/X/a/e/f/g/leaf2")]
+        // Descent extends previous path. reuseCount equals the previous path's full length.
+        [InlineData("/X/a/b", "/X/a/b/c")]
+        // Growing path chain - walks deeper at each step; common case for directory-tree enumerations.
+        [InlineData("/X", "/X/a", "/X/a/b", "/X/a/b/c", "/X/a/b/c/d/e")]
+        // Short shared prefix has no separator inside it. Fast path should bail; slow path must still
+        // produce correct paths.
+        [InlineData("/X/abc", "/X/def")]
+        // Alternating deep and shallow paths. Stresses lastPath/lastStr book-keeping.
+        [InlineData("/X/aaaaa/bbbbb/ccccc/ddddd/file",
+            "/X/aaaaa/bbbbb/ccccc/different",
+            "/X/aaaaa/zzzzz/yyyyy/wwwww/another",
+            "/X/aaaaa/zzzzz/yyyyy/wwwww/another",
+            "/Y/totally/unrelated/path")]
+        // Repeated identical paths. Duplicates are de-duplicated by the serializer; ensure the fast
+        // path still produces a correct AbsolutePath when the first non-dup entry equals its predecessor.
+        [InlineData("/X/a/b/c", "/X/a/b/c", "/X/a/b/d")]
+        // Siblings at the filesystem root. Common-ancestor is the root itself.
+        [InlineData("/X/aaa", "/X/bbb")]
+        // Mid-component shared prefix on the leaf, then a longer suffix.
+        [InlineData("/X/a/prefix-something", "/X/a/prefix-other")]
+        public void FastPath_RoundTrip(params string[] paths)
+        {
+            AssertFreshTableRoundTrip(paths.Select(p => X(p)).ToArray());
+        }
+
+        [Fact]
+        public void FastPath_TokenizedPathsAreHandled()
+        {
+            // Tokenized paths produced by MountPathExpander serialize as "%TOKEN%\...". The fast path
+            // bails on entries beginning with '%' and the slow path must produce correct AbsolutePaths.
+            var pathTable = new PathTable();
+            var expander = new MountPathExpander(pathTable);
+            AddMount(expander, pathTable, AbsolutePath.Create(pathTable, X("/x/users/AUser")), "UserProfile", isSystem: true);
+            AddMount(expander, pathTable, AbsolutePath.Create(pathTable, X("/x/windows")), "Windows", isSystem: true);
+
+            var pathSet = ObservedPathSetTestUtilities.CreatePathSet(
+                pathTable,
+                X("/x/users/AUser/a"),
+                X("/x/users/AUser/b/c"),
+                X("/x/windows/system32/d"),
+                X("/x/users/AUser/b/d/e"));
+
+            AssertFreshTableRoundTripCore(pathTable, pathSet, expander);
+        }
+
+        /// <summary>
+        /// Serializes the given paths and deserializes them into a FRESH PathTable, then asserts that
+        /// every expanded path string matches the original. Using a fresh PathTable on the deserialize
+        /// side forces the fast path to actually construct each AbsolutePath from scratch (via the
+        /// PathTable-mutating GetParent/Combine path), so any incorrect component splitting in the
+        /// fast path manifests as a string mismatch.
+        /// </summary>
+        private static void AssertFreshTableRoundTrip(params string[] paths)
+        {
+            var sourceTable = new PathTable();
+            var pathSet = ObservedPathSetTestUtilities.CreatePathSet(sourceTable, paths);
+            AssertFreshTableRoundTripCore(sourceTable, pathSet, pathExpander: null);
+        }
+
+        private static void AssertFreshTableRoundTripCore(PathTable sourceTable, ObservedPathSet pathSet, PathExpander pathExpander)
+        {
+            byte[] blob;
+            using (var mem = new MemoryStream())
+            using (var writer = new BuildXLWriter(stream: mem, debug: false, leaveOpen: true, logStats: false))
+            {
+                pathSet.Serialize(sourceTable, writer, preserveCasing: true, pathExpander);
+                blob = mem.ToArray();
+            }
+
+            var freshTable = new PathTable();
+            ObservedPathSet roundtrip;
+            using (var mem = new MemoryStream(blob, writable: false))
+            using (var reader = new BuildXLReader(stream: mem, debug: false, leaveOpen: false))
+            {
+                var maybeRoundtrip = ObservedPathSet.TryDeserialize(freshTable, reader, pathExpander);
+                XAssert.IsTrue(maybeRoundtrip.Succeeded, "Failed to deserialize: " + (maybeRoundtrip.Succeeded ? "" : maybeRoundtrip.Failure.Describe()));
+                roundtrip = maybeRoundtrip.Result;
+            }
+
+            // The serializer de-duplicates, so compare against the de-duplicated source path list.
+            var expectedPaths = ObservedPathSetTestUtilities.RemoveDuplicates(pathSet.Paths);
+            XAssert.AreEqual(expectedPaths.Count, roundtrip.Paths.Length, "Path count mismatch after round-trip");
+            for (int i = 0; i < expectedPaths.Count; i++)
+            {
+                string expected = expectedPaths[i].ToString(sourceTable);
+                string actual = roundtrip.Paths[i].Path.ToString(freshTable);
+                XAssert.AreEqual(expected, actual, $"Path at index {i} differs after fresh-table round-trip");
+            }
+        }
+
+        #endregion Fast-path AbsolutePath construction tests
+
         private static void AddMount(MountPathExpander tokenizer, PathTable pathTable, AbsolutePath path, string name, bool isSystem = false)
         {
             tokenizer.Add(

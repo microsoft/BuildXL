@@ -115,9 +115,11 @@ namespace Tool.CloudTestClient
                     }
                 }
 
-                // Build job placeholders — honor explicit IDs when provided, otherwise auto-generate a stable GUID based on the job name
+                // Build job placeholders — honor explicit IDs when provided, otherwise auto-generate a stable GUID based on
+                // the group name and job name (the group name is included so two jobs sharing a name in different groups
+                // do not collide on the same auto-generated ID)
                 var dynamicJobRequests = group.Jobs.Select(job => new DynamicJobRequest(
-                    JobId: !string.IsNullOrEmpty(job.Id) ? job.Id : NewStableGuid(job.Name).ToString(),
+                    JobId: !string.IsNullOrEmpty(job.Id) ? job.Id : NewStableGuid(groupName, job.Name).ToString(),
                     JobName: job.Name)).ToList();
 
                 dynamicGroupRequests.Add(new DynamicGroupRequest(
@@ -323,9 +325,9 @@ namespace Tool.CloudTestClient
         /// Generates a deterministic GUID from a string value using SHA-256.
         /// The same input always produces the same GUID.
         /// </summary>
-        private static Guid NewStableGuid(string value)
+        private static Guid NewStableGuid(string groupName, string jobName)
         {
-            byte[] hash = SHA256.HashData(Encoding.UTF8.GetBytes(value));
+            byte[] hash = SHA256.HashData(Encoding.UTF8.GetBytes($"{groupName}\0{jobName}"));
             return new Guid(hash.AsSpan(0, 16));
         }
 

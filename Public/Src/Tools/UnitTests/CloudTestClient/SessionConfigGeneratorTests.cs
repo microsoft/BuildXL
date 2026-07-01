@@ -47,6 +47,24 @@ namespace Test.Tool.CloudTestClient
         }
 
         [Fact]
+        public void SameJobNameInDifferentGroupsProducesDifferentIds()
+        {
+            using var temp = new TempDirectory();
+            // Two groups with distinct names, each containing a name-based job that shares the same name.
+            // The auto-generated job IDs must differ because the group name is part of the ID computation.
+            string group1 = GroupFileTestHelper.BuildGroupJson(name: "GroupOne", jobsJson: """[{"name":"SharedJob"}]""");
+            string group2 = GroupFileTestHelper.BuildGroupJson(name: "GroupTwo", jobsJson: """[{"name":"SharedJob"}]""");
+            string groupsFile = GroupFileTestHelper.WriteGroupsFile(temp, "groups.json", group1, group2);
+
+            using var doc = JsonDocument.Parse(GroupFileTestHelper.GenerateSessionConfigJson(temp, groupsFile));
+            var groups = doc.RootElement.GetProperty("dynamicGroupRequests");
+            string jobId1 = groups[0].GetProperty("dynamicJobRequests")[0].GetProperty("jobId").GetString();
+            string jobId2 = groups[1].GetProperty("dynamicJobRequests")[0].GetProperty("jobId").GetString();
+
+            Assert.NotEqual(jobId1, jobId2);
+        }
+
+        [Fact]
         public void ExplicitJobIdIsPreserved()
         {
             using var temp = new TempDirectory();

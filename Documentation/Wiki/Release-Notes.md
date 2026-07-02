@@ -2,6 +2,12 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20260626.3 (Release [31706468](https://dev.azure.com/mseng/Domino/_build/results?buildId=31706468&view=results))
+- [Critical Path] Default critical path now excludes queue time; a secondary critical path including queue time was added.
+- [BlobDaemon] Fix over-reporting of failed server-side copies as successful.
+- [Distribution] Add orchestrator-termination signal for distributed workers.
+- Various bug fixes and improvements.
+
 # 0.1.0-20260620.1 (Release [31676114](https://dev.azure.com/mseng/Domino/_build/results?buildId=31676114&view=results))
 - Fixed performance regression when computing very large weak fingerprints.
 - [Performance] Reduced allocations and improved throughput in the fingerprinting hot path (bulk character-span copies, `FrozenDictionary` lookup tables, and `SearchValues`-based multi-char scanning).

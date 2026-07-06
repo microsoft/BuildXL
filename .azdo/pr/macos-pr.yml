@@ -57,6 +57,7 @@ jobs:
   parameters:
     platform: x64
 
-- template: /.azdo/pr/macos-build-native-and-run-tests.yml
-  parameters:
-    platform: arm64
+# Temporarily disabled: the ADO Apple Silicon (macos-*-arm64) hosted-image preview was paused.
+# - template: /.azdo/pr/macos-build-native-and-run-tests.yml
+#   parameters:
+#     platform: arm64

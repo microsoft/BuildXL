@@ -5,6 +5,19 @@ set -e
 MY_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "$MY_DIR/Public/Src/App/Bxl/Unix/env.sh"
 
+# Log the final exit code of this script whenever it exits. This helps diagnose cases where the
+# surrounding shell/pipeline reports a non-zero exit code (e.g. 139 == 128 + SIGSEGV) that does
+# not originate from bxl itself: bxl's own exit code is logged separately in compileWithBxl, so
+# comparing the two makes it clear whether the failure came from bxl or from some other process
+# (bash itself, a post-build step, etc.). If this message is missing from the logs entirely, the
+# shell process was most likely terminated by a signal before it could run this trap.
+function logScriptExitCode {
+    local scriptExitCode=$?
+    print_info "${tputBold}bxl.sh exiting with code: ${scriptExitCode}${tputReset}"
+    exit $scriptExitCode
+}
+trap logScriptExitCode EXIT
+
 # Capture the distribution release number (e.g. 24.04)
 DISTRIB_RELEASE=$(cat /etc/*-release | sed -n -e 's/^DISTRIB_RELEASE=//p')
 
@@ -335,18 +348,36 @@ function compileWithBxl() {
 
     setExecutablePermissions
 
+    local bxlProcessName
+    local bxlExitCode
+
     if [[ -n "$arg_useAdoBuildRunner" ]]; then
         local adoBuildRunnerExe="$BUILDXL_BIN/AdoBuildRunner"
         chmod u=rx "$adoBuildRunnerExe" || true
+        bxlProcessName="AdoBuildRunner"
         print_info "${tputBold}Running AdoBuildRunner:${tputReset} '$adoBuildRunnerExe' ${g_adoBuildRunnerCmdArgs[@]} -- ${g_bxlCmdArgs[@]}"
+        # Temporarily disable 'set -e' around the invocation so we can capture and log the exact
+        # exit code (including termination-by-signal codes like 139 == 128 + SIGSEGV) instead of
+        # letting the script abort before we get a chance to report it.
+        set +e
         "$adoBuildRunnerExe" "${g_adoBuildRunnerCmdArgs[@]}" "--" "${g_bxlCmdArgs[@]}"
+        bxlExitCode=$?
+        set -e
     else
+        bxlProcessName="bxl"
         print_info "${tputBold}Running bxl:${tputReset} '$BUILDXL_BIN/bxl' ${g_bxlCmdArgs[@]}"
 
+        set +e
         "$BUILDXL_BIN/bxl" "${g_bxlCmdArgs[@]}"
+        bxlExitCode=$?
+        set -e
     fi
 
-    local bxlExitCode=$?
+    # Explicitly log the exit code of the process we invoked. This makes it possible to determine,
+    # when the surrounding shell/pipeline reports a failure (e.g. exit code 139), whether the
+    # non-zero code originated from bxl (or the AdoBuildRunner) or from some other process such as
+    # bash itself or a post-build step.
+    print_info "${tputBold}${bxlProcessName} process exited with code: ${bxlExitCode}${tputReset}"
 
     if [[ $bxlExitCode == 0 ]]; then
         echo "${tputBold}${tputGreen}BuildXL Succeeded${tputReset}"

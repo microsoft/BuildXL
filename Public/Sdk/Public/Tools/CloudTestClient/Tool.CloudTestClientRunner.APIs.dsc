@@ -54,6 +54,8 @@ namespace APIs {
         tags?: string[];
         /** Pip description override. */
         description?: string;
+        /** When true, the CloudTest client logs the JSON payloads of all REST submissions it performs against the CloudTest endpoint to the console. Default: false. */
+        debug?: boolean;
     }
 
     /**
@@ -172,6 +174,7 @@ namespace APIs {
             Cmd.option("/sessionIdFile:", Artifact.output(sessionIdFile)),
             Cmd.option("/timeout:", args.timeoutMinutes),
             Cmd.option("/environment:", args.environment),
+            Cmd.flag("/debug", args.debug),
         ];
 
         // The pip timeout is a property of the executing tool. Let's make sure it is not below the timeout the user is willing to wait for
@@ -263,6 +266,7 @@ namespace APIs {
             Cmd.option("/bodyFile:", Artifact.input(bodyFile)),
             Cmd.option("/timeout:", args.timeoutMinutes),
             Cmd.option("/environment:", args.environment),
+            Cmd.flag("/debug", args.debug),
             ...sessionIdArgs(sessionId),
         ];
 

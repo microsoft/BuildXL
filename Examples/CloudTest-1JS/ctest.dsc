@@ -39,6 +39,8 @@ const sessionArgs : CloudTestClient.Helpers.GenerateSessionConfigAndCreateSessio
     tokenEnvVar: Environment.getStringValue("CloudTestTokenVariableName"),
     timeoutMinutes: 1,
     environment: "ppe",
+    // Send all JSON payloads to the console
+    debug: true,
     // Turn on the shared download cache on CT side. This will eventually become the default
     properties: Map.empty<string, string>()
         .add("UseSharedDownloadContentCache", "true"),

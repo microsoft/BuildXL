@@ -449,7 +449,8 @@ namespace Helpers {
             bodyFile: configResult.configFile,
             drop: args.drop,
             dropArtifacts: args.dropArtifacts,
-            environment: args.environment
+            environment: args.environment,
+            debug: args.debug
         };
 
         return {
@@ -701,7 +702,8 @@ namespace Helpers {
             tags: args.tags,
             description: args.description,
             tenant: args.configAndSessionResult.configArguments.tenant,
-            environment: args.configAndSessionResult.configArguments.environment
+            environment: args.configAndSessionResult.configArguments.environment,
+            debug: args.configAndSessionResult.configArguments.debug
         };
 
         const updateResult = APIs.updateDynamicJob(updateDynamicJob);
@@ -744,7 +746,8 @@ namespace Helpers {
             tags: args.tags,
             description: args.description,
             dependencies: args.submittedJobs && args.submittedJobs.mapMany(job => job.executeResult.getOutputFiles()) || [],
-            environment: args.configAndSessionResult.configArguments.environment
+            environment: args.configAndSessionResult.configArguments.environment,
+            debug: args.configAndSessionResult.configArguments.debug
         };
 
         return APIs.waitForSessionCompletion(waitArgs);

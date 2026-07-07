@@ -25,6 +25,8 @@ const sessionArgs : CloudTestClient.Helpers.GenerateSessionConfigAndCreateSessio
     // Passed to BuildXL from the outside.
     tokenEnvVar: Environment.getStringValue("CloudTestTokenVariableName"),
     timeoutMinutes: 1,
+    // Send all JSON payloads to the console
+    debug: true,
     // A session is made up of one or more groups. Here we use a single group; image/sku/maxResources and the
     // group's jobs are now group-level properties.
     groups: [

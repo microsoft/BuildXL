@@ -92,6 +92,11 @@ namespace Tool.CloudTestClient
         /// </summary>
         public TimeSpan Timeout { get; }
 
+        /// <summary>
+        /// When true, the JSON payloads of all REST submissions performed against the CloudTest endpoint are logged to the console.
+        /// </summary>
+        public bool Debug { get; }
+
 
         #endregion
 
@@ -303,6 +308,10 @@ namespace Tool.CloudTestClient
                             throw Error($"Invalid priority value '{opt.Value}'. Must be a non-negative integer.");
                         }
                         Priority = p;
+                        break;
+                    case "DEBUG":
+                        // Bare flag (/debug), or /debug+ / /debug- to explicitly enable/disable.
+                        Debug = ParseBooleanOption(opt);
                         break;
                     default:
                         throw Error($"Unsupported option: {opt.Name}");

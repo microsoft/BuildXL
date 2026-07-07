@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Net.Http;
@@ -25,6 +26,15 @@ namespace Tool.CloudTestClient
     /// </remarks>
     internal sealed class CloudTestClient : ToolProgram<CloudTestClientArgs>
     {
+        /// <summary>
+        /// Property names known to carry secrets (e.g. the VSTSContext holds the ADO auth token). Their values are
+        /// replaced with "[REDACTED]" before a payload is written to the console.
+        /// </summary>
+        private static readonly HashSet<string> s_secretPayloadProperties = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "VSTSContext",
+        };
+        
         private enum ReturnCode : int
         {
             Success = 0,
@@ -148,7 +158,7 @@ namespace Tool.CloudTestClient
             string submitUrl = $"{baseUrl}/api/tenants/{arguments.Tenant}/sessions";
 
             Log($"Submitting session to {submitUrl}");
-            var submitResponse = await PostAsync(httpClient, submitUrl, body);
+            var submitResponse = await PostAsync(httpClient, submitUrl, body, arguments.Debug);
             if (submitResponse == null)
             {
                 return (int)ReturnCode.HttpError;
@@ -263,7 +273,7 @@ namespace Tool.CloudTestClient
             string url = $"{baseUrl}/api/tenants/{arguments.Tenant}/sessions/{arguments.SessionId}/UpdateDynamicJob";
 
             Log($"Updating dynamic job at {url}");
-            string response = await PostAsync(httpClient, url, body);
+            string response = await PostAsync(httpClient, url, body, arguments.Debug);
             if (response == null)
             {
                 return (int)ReturnCode.HttpError;
@@ -279,7 +289,7 @@ namespace Tool.CloudTestClient
             string url = $"{baseUrl}/api/tenants/{arguments.Tenant}/sessions/{arguments.SessionId}/cancel";
 
             Log($"Cancelling session at {url}");
-            var response = await PostAsync(httpClient, url, content: null);
+            var response = await PostAsync(httpClient, url, content: null, arguments.Debug);
             if (response == null)
             {
                 return (int)ReturnCode.HttpError;
@@ -369,7 +379,7 @@ namespace Tool.CloudTestClient
 
         #region HTTP helpers
 
-        private static async Task<string> PostAsync(HttpClient httpClient, string url, string content)
+        private static async Task<string> PostAsync(HttpClient httpClient, string url, string content, bool debug)
         {
             try
             {
@@ -379,6 +389,13 @@ namespace Tool.CloudTestClient
 
                 var response = await httpClient.PostAsync(url, httpContent);
                 string responseBody = await response.Content.ReadAsStringAsync();
+
+                // Log the submitted payload only after the request has been sent, so a serialization/redaction
+                // problem can never prevent the actual submission.
+                if (debug)
+                {
+                    LogRequest("POST", url, content);
+                }
 
                 if (!response.IsSuccessStatusCode)
                 {
@@ -458,6 +475,93 @@ namespace Tool.CloudTestClient
             Console.WriteLine(timestamped);
         }
 
+        /// <summary>
+        /// Logs the details of an outgoing REST submission (HTTP method, URL, and JSON payload) to the console.
+        /// Used when the /debug flag is enabled.
+        /// </summary>
+        private static void LogRequest(string method, string url, string content)
+        {
+            Log($"[DEBUG] {method} {url}");
+            if (string.IsNullOrEmpty(content))
+            {
+                Log("[DEBUG] Request payload: <none>");
+                return;
+            }
+
+            string formatted = FormatJson(content);
+            if (formatted == null)
+            {
+                // The payload could not be parsed as JSON, so secrets could not be redacted from it. Skip printing it
+                // entirely rather than risk leaking a secret.
+                Log("[DEBUG] Request payload: <not valid JSON, omitted>");
+                return;
+            }
+
+            Log($"[DEBUG] Request payload:{System.Environment.NewLine}{formatted}");
+        }
+
+        /// <summary>
+        /// Pretty-prints a JSON string for readable debug logging, replacing the value of any property that carries a
+        /// secret (see <see cref="s_secretPayloadProperties"/>) with "[REDACTED]". Returns null when the input is not
+        /// valid JSON, in which case the payload must not be printed since secrets could not be redacted from it.
+        /// </summary>
+        private static string FormatJson(string json)
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(json);
+                using var stream = new MemoryStream();
+                using (var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true }))
+                {
+                    WriteRedacted(doc.RootElement, writer);
+                }
+
+                return Encoding.UTF8.GetString(stream.ToArray());
+            }
+            catch (JsonException)
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Recursively copies a JSON element to the writer, replacing the value of any object property whose name is
+        /// in <see cref="s_secretPayloadProperties"/> with the string "[REDACTED]".
+        /// </summary>
+        private static void WriteRedacted(JsonElement element, Utf8JsonWriter writer)
+        {
+            switch (element.ValueKind)
+            {
+                case JsonValueKind.Object:
+                    writer.WriteStartObject();
+                    foreach (var property in element.EnumerateObject())
+                    {
+                        writer.WritePropertyName(property.Name);
+                        if (s_secretPayloadProperties.Contains(property.Name))
+                        {
+                            writer.WriteStringValue("[REDACTED]");
+                        }
+                        else
+                        {
+                            WriteRedacted(property.Value, writer);
+                        }
+                    }
+                    writer.WriteEndObject();
+                    break;
+                case JsonValueKind.Array:
+                    writer.WriteStartArray();
+                    foreach (var item in element.EnumerateArray())
+                    {
+                        WriteRedacted(item, writer);
+                    }
+                    writer.WriteEndArray();
+                    break;
+                default:
+                    element.WriteTo(writer);
+                    break;
+            }
+        }
+
         #endregion
 
         private static void PrintUsage()
@@ -474,6 +578,9 @@ USAGE: CloudTestClient /mode:<mode> [options]
   /tenant            Required for all modes except generateUpdateDynamicJobConfig.
                      CloudTest tenant name.
   /timeout           Optional. Overall timeout in minutes (default: 5).
+  /debug             Optional. When present, logs the JSON payloads of all REST
+                     submissions performed against the CloudTest endpoint to the
+                     console.
   /environment       Optional. CloudTest API environment: prod, dev, ppe
                      (default: prod).
                        prod -> [https://api.prod.cloudtest.microsoft.com](https://api.prod.cloudtest.microsoft.com)

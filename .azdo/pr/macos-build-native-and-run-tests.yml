@@ -12,9 +12,9 @@ jobs:
   displayName: Run Unit Tests with XUnit on MacOS ${{ parameters.platform }}
   pool:
     ${{ if eq(parameters['platform'], 'x64') }}:
-      vmImage: macos-latest
+      vmImage: macos-15
     ${{ else }}:
-      vmImage: macos-14-arm64
+      vmImage: macos-15-arm64
   steps:
   - checkout: self
   

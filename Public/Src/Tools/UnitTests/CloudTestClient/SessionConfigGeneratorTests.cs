@@ -189,7 +189,9 @@ namespace Test.Tool.CloudTestClient
         public void SessionConfigIncludesOptionalFields()
         {
             using var temp = new TempDirectory();
-            string group = GroupFileTestHelper.BuildGroupJson(maxParallelismForJobs: 5);
+            string group = GroupFileTestHelper.BuildGroupJson(
+                maxParallelismForJobs: 5,
+                legacyModuleIdConfigPathJson: """{"prefix":"BuildRoot","path":"src/tests/group.config"}""");
             string sessionInput = GroupFileTestHelper.WriteSessionInputFile(
                 temp,
                 "session-input.json",
@@ -208,6 +210,8 @@ namespace Test.Tool.CloudTestClient
 
             var group0 = root.GetProperty("dynamicGroupRequests")[0];
             Assert.Equal(5, group0.GetProperty("maxParallelismForJobs").GetInt32());
+            // A PrefixedPath legacyModuleIdConfigPath resolves to the "[prefix]\path" synthetic identifier form.
+            Assert.Equal(@"[BuildRoot]\src/tests/group.config", group0.GetProperty("legacyModuleIdConfigPath").GetString());
         }
 
         [Fact]
@@ -227,6 +231,25 @@ namespace Test.Tool.CloudTestClient
 
             var group = root.GetProperty("dynamicGroupRequests")[0];
             Assert.False(group.TryGetProperty("maxParallelismForJobs", out _));
+            Assert.False(group.TryGetProperty("legacyModuleIdConfigPath", out _));
+        }
+
+        [Fact]
+        public void SessionConfigHandlesExplicitNullLegacyModuleIdConfigPath()
+        {
+            using var temp = new TempDirectory();
+
+            // A path field carries a custom JsonConverter whose Read() throws on any non-string/non-object token.
+            // Verify an explicit JSON null does not reach the converter (System.Text.Json handles null directly when
+            // JsonConverter<string>.HandleNull is false) and is simply omitted from the generated config.
+            string group = GroupFileTestHelper.BuildGroupJson(legacyModuleIdConfigPathJson: "null");
+            string groupFile = GroupFileTestHelper.WriteSessionInputFile(temp, "group.json", new[] { group });
+
+            string json = GroupFileTestHelper.GenerateSessionConfigJson(temp, groupFile);
+            using var doc = JsonDocument.Parse(json);
+
+            var group0 = doc.RootElement.GetProperty("dynamicGroupRequests")[0];
+            Assert.False(group0.TryGetProperty("legacyModuleIdConfigPath", out _));
         }
 
         #endregion

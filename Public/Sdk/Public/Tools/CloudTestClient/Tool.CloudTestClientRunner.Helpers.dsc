@@ -196,6 +196,14 @@ namespace Helpers {
         dynamicGroupSetup?: GroupSetup;
         /** Group cleanup configuration. Runs after this group's jobs complete on worker VMs. */
         dynamicGroupCleanup?: GroupCleanup;
+        /**
+         * Optional. Used only to reproduce the module id that an equivalent non-DJE group would produce, so that a
+         * dynamic (DJE) session can reuse flaky-test data recorded by that non-DJE flow. This is a synthetic identifier
+         * for back-compat matching — no file needs to exist at this path. The prefix is a file provider name (e.g.
+         * a`BuildRoot`) and the path is the relative group config path (e.g. r`src/tests/group.config`), which resolves
+         * to "[BuildRoot]\src\tests\group.config". When omitted, the module id defaults to the group name and job name.
+         */
+        legacyModuleIdConfigPath?: PrefixedPath;
     }
 
     /** Arguments for generating a DJE session configuration JSON file. */
@@ -376,6 +384,7 @@ namespace Helpers {
                 jobs: normalizedJobs,
                 dynamicGroupSetup: group.dynamicGroupSetup,
                 dynamicGroupCleanup: group.dynamicGroupCleanup,
+                legacyModuleIdConfigPath: group.legacyModuleIdConfigPath,
             };
         });
 

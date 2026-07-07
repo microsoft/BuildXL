@@ -30,7 +30,8 @@ namespace Test.Tool.CloudTestClient
             string jobsJson = """[{"name":"TestSuite_A"}]""",
             string setupJson = null,
             string cleanupJson = null,
-            string name = null)
+            string name = null,
+            string legacyModuleIdConfigPathJson = null)
         {
             var buffer = new ArrayBufferWriter<byte>();
             using (var writer = new Utf8JsonWriter(buffer))
@@ -56,6 +57,11 @@ namespace Test.Tool.CloudTestClient
                 {
                     writer.WritePropertyName("dynamicGroupCleanup");
                     writer.WriteRawValue(cleanupJson);
+                }
+                if (legacyModuleIdConfigPathJson != null)
+                {
+                    writer.WritePropertyName("legacyModuleIdConfigPath");
+                    writer.WriteRawValue(legacyModuleIdConfigPathJson);
                 }
                 writer.WritePropertyName("jobs");
                 writer.WriteRawValue(jobsJson);

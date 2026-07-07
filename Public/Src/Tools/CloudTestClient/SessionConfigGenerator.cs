@@ -132,7 +132,8 @@ namespace Tool.CloudTestClient
                     MaxParallelismForJobs: group.MaxParallelismForJobs,
                     DynamicJobRequests: dynamicJobRequests,
                     DynamicGroupSetup: group.DynamicGroupSetup,
-                    DynamicGroupCleanup: group.DynamicGroupCleanup));
+                    DynamicGroupCleanup: group.DynamicGroupCleanup,
+                    LegacyModuleIdConfigPath: group.LegacyModuleIdConfigPath));
             }
 
             // Build the session config
@@ -357,7 +358,8 @@ namespace Tool.CloudTestClient
             int? MaxParallelismForJobs,
             List<DynamicJobRequest> DynamicJobRequests,
             GroupSetupConfig DynamicGroupSetup,
-            GroupCleanupConfig DynamicGroupCleanup);
+            GroupCleanupConfig DynamicGroupCleanup,
+            string LegacyModuleIdConfigPath);
 
         private sealed record DynamicJobRequest(string JobId, string JobName);
 
@@ -396,7 +398,8 @@ namespace Tool.CloudTestClient
             int? MaxParallelismForJobs,
             List<JobConfig> Jobs,
             GroupSetupConfig DynamicGroupSetup,
-            GroupCleanupConfig DynamicGroupCleanup);
+            GroupCleanupConfig DynamicGroupCleanup,
+            [property: JsonConverter(typeof(JsonHelpers.CloudTestPathConverter))] string LegacyModuleIdConfigPath);
 
         private sealed record JobConfig(string Name, string Id);
 

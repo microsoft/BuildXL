@@ -613,8 +613,9 @@ USAGE: CloudTestClient /mode:<mode> [options]
                      ([{key,value}] pairs), featureExceptions (string array),
                      ado ({projectId, collectionUri, buildId, accessTokenEnvVar}),
                      groups (array; each with sku, image, maxResources, optional
-                     maxParallelismForJobs, optional name, jobs, and optional
-                     dynamic setup/cleanup), and fileProviders. tenant,
+                     maxParallelismForJobs, optional name, jobs, optional
+                     dynamic setup/cleanup, and optional legacyModuleIdConfigPath),
+                     and fileProviders. tenant,
                      buildDropLocation, and at least one group are required.
 
 -- generateUpdateDynamicJobConfig -------------------------------------------------

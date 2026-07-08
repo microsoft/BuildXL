@@ -156,8 +156,11 @@ namespace BuildXL.Utilities
 
             m_drives = drives.Values.ToArray();
 
-            // Initialize network telemetry objects
-            InitializeNetworkMonitor();
+            // NetworkMonitor initialization enumerates all network interfaces and takes ~25-35ms on typical
+            // Windows machines. It is initialized on a background thread so it does not block callers on the
+            // AppHostInit critical path. The field is null-checked in CollectOnce, so a not-yet-initialized
+            // monitor simply causes network stats to be omitted for the first sample.
+            Task.Run(InitializeNetworkMonitor).Forget();
 
             if (!OperatingSystemHelper.IsUnixOS)
             {
@@ -648,10 +651,12 @@ namespace BuildXL.Utilities
         {
             try
             {
-                // initialize NetworkMonitor and start measurement
-                m_networkMonitor = new NetworkMonitor();
+                // Initialize NetworkMonitor and start measurement on a local so callers of CollectOnce
+                // don't observe a not-yet-started monitor if this runs concurrently with the timer.
+                var monitor = new NetworkMonitor();
+                monitor.StartMeasurement();
                 m_networkTimeLastCollectedAt = DateTime.UtcNow;
-                m_networkMonitor.StartMeasurement();
+                m_networkMonitor = monitor;
             }
 #pragma warning disable ERP022
             catch

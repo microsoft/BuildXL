@@ -7,8 +7,8 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.IO;
+using System.IO.Hashing;
 using System.Linq;
-using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
@@ -75,6 +75,9 @@ namespace BuildXL.Engine
 
         private Fingerprint? m_computedContentHashBasedFingerprint;
 
+        private static readonly HashSet<string> s_relevantExtensionsWithPdb = BuildRelevantExtensions(includePdb: true);
+        private static readonly HashSet<string> s_relevantExtensionsWithoutPdb = BuildRelevantExtensions(includePdb: false);
+
         private AppDeployment(string deploymentBaseDir, List<string> fileNamesInDeployment, bool skipManifestCheckTestHook)
         {
             BaseDirectory = deploymentBaseDir;
@@ -135,24 +138,16 @@ namespace BuildXL.Engine
         /// </summary>
         public IEnumerable<string> GetRelevantRelativePaths(bool forServerDeployment)
         {
+            // For the server deployment we want to copy .pdb files in order to get symbols when crashes happen.
+            // But it's wasteful to hash them for sake of the engine version. So exclude them in that context.
+            var relevantExtensions = forServerDeployment ? s_relevantExtensionsWithPdb : s_relevantExtensionsWithoutPdb;
             List<string> result = new List<string>(m_filesNames.Count);
             foreach (var fileName in m_filesNames)
             {
                 string extension = Path.GetExtension(fileName);
-                if (!string.IsNullOrEmpty(extension) &&
-                    (extension.Equals(".dll", StringComparison.OrdinalIgnoreCase) ||
-                     extension.Equals(".exe", StringComparison.OrdinalIgnoreCase) ||
-                     // For the server deployment we want to copy .pdb files in order to get symbols when crashes happen.
-                     // But it's wasteful to hash them for sake of the engine version. So exclude them in that context.
-                     (forServerDeployment ? extension.Equals(".pdb", StringComparison.OrdinalIgnoreCase) : false) ||
-                     extension.Equals(".config", StringComparison.OrdinalIgnoreCase) ||
-                     ExtensionUtilities.IsScriptExtension(extension) ||
-                     extension.Equals(".ts", StringComparison.OrdinalIgnoreCase) ||
-                     extension.Equals(".json", StringComparison.OrdinalIgnoreCase)) ||
-                     string.Equals(BuildXLBrandingManifestFileName, fileName, StringComparison.OrdinalIgnoreCase)
-                    )
+                if ((!string.IsNullOrEmpty(extension) && relevantExtensions.Contains(extension))
+                    || string.Equals(BuildXLBrandingManifestFileName, fileName, StringComparison.OrdinalIgnoreCase))
                 {
-                    // E.g. BuildXLEngine.DefaultCacheConfigFileName, EnlistmentLibrary configs
                     result.Add(fileName);
                 }
             }
@@ -164,6 +159,25 @@ namespace BuildXL.Engine
             return OperatingSystemHelper.IsUnixOS ? result.Select(entry => NormalizePath(entry)) : result;
         }
 
+        private static HashSet<string> BuildRelevantExtensions(bool includePdb)
+        {
+            var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ".dll", ".exe", ".config", ".ts", ".json",
+            };
+            if (includePdb)
+            {
+                set.Add(".pdb");
+            }
+
+            foreach (var scriptExt in ExtensionUtilities.ScriptExtensions)
+            {
+                set.Add(scriptExt);
+            }
+
+            return set;
+        }
+
         private Tuple<Fingerprint, string> ComputeTimestampBasedHashInternal(bool skipManifestCheckTestHook)
         {
             Stopwatch sw = Stopwatch.StartNew();
@@ -173,23 +187,43 @@ namespace BuildXL.Engine
             {
                 StringBuilder sb = wrapper.Instance;
 
-                foreach (var file in GetRelevantRelativePaths(forServerDeployment: true))
+                // Materialize into an array so the parallel stat pass below can index by position.
+                string[] relevantPaths = GetRelevantRelativePaths(forServerDeployment: true).ToArray();
+                int n = relevantPaths.Length;
+                var lastWriteBinaries = new long[n];
+                var names = new string[n];
+
+                // File.GetLastWriteTimeUtc returns 1601-01-01 for missing files, which shows up as a stable
+                // sentinel in the fingerprint (and causes hashes on client and server to legitimately differ
+                // for a deployment whose files have gone missing). Other I/O errors are treated the same way
+                // to match the previous per-file skip behavior — a single bad path must not tank the hash.
+                var parallelOptions = new ParallelOptions
                 {
+                    MaxDegreeOfParallelism = Math.Max(2, Environment.ProcessorCount * 2),
+                };
+                Parallel.For(0, n, parallelOptions, i =>
+                {
+                    string file = relevantPaths[i];
+                    names[i] = Path.GetFileName(file);
                     try
                     {
-                        FileInfo fi = new FileInfo(Path.Combine(BaseDirectory, file));
-
-                        sb.Append(fi.Name);
-                        sb.Append(':');
-                        sb.Append(fi.LastWriteTimeUtc.ToBinary());
-                        sb.AppendLine();
+                        lastWriteBinaries[i] = File.GetLastWriteTimeUtc(Path.Combine(BaseDirectory, file)).ToBinary();
                     }
 #pragma warning disable ERP022 // TODO: This should really handle specific errors
                     catch
                     {
-                        // noop for files that cannot be found. The manifest will include exteraneous files
+                        // noop for files that cannot be found. The manifest will include extraneous files
+                        lastWriteBinaries[i] = 0;
                     }
 #pragma warning restore ERP022 // Unobserved exception in generic exception handler
+                });
+
+                for (int i = 0; i < n; i++)
+                {
+                    sb.Append(names[i]);
+                    sb.Append(':');
+                    sb.Append(lastWriteBinaries[i]);
+                    sb.AppendLine();
                 }
 
                 if (!skipManifestCheckTestHook)
@@ -203,7 +237,12 @@ namespace BuildXL.Engine
                 }
 
                 string text = sb.ToString();
-                Fingerprint fingerprint = FingerprintUtilities.Hash(text);
+
+                byte[] utf8 = Encoding.UTF8.GetBytes(text);
+                byte[] hashBytes = new byte[FingerprintUtilities.FingerprintLength];
+                XxHash128.Hash(utf8, hashBytes.AsSpan(0, 16));
+                Fingerprint fingerprint = FingerprintUtilities.CreateFrom(hashBytes);
+
                 ComputeTimestampBasedHashTime = sw.Elapsed;
                 return new Tuple<Fingerprint, string>(fingerprint, text);
             }
@@ -224,15 +263,12 @@ namespace BuildXL.Engine
 
                 try
                 {
-                    using (SHA256 sha256Hash = SHA256.Create())
-                    {
-                        byte[] data = sha256Hash.ComputeHash(Encoding.UTF8.GetBytes(File.ReadAllText(Path.Combine(BaseDirectory, path))));
+                    byte[] data = XxHash128.Hash(File.ReadAllBytes(Path.Combine(BaseDirectory, path)));
 #if NET9_0_OR_GREATER
-                        sb.Append(Convert.ToHexStringLower(data));
+                    sb.Append(Convert.ToHexStringLower(data));
 #else
-                        sb.Append(Convert.ToHexString(data).ToLowerInvariant());
+                    sb.Append(Convert.ToHexString(data).ToLowerInvariant());
 #endif
-                    }
                 }
                 catch (Exception ex)
                 {

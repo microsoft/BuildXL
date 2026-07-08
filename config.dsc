@@ -67,7 +67,6 @@ config({
                   : {
                       "buildxl-selfhost" : "https://pkgs.dev.azure.com/mseng/PipelineTools/_packaging/BuildXL.External.Dependencies/nuget/v3/index.json",
                       "nuget.org" : "https://api.nuget.org/v3/index.json",
-                      "dotnet-arcade" : "https://pkgs.dev.azure.com/dnceng/public/_packaging/dotnet-eng/nuget/v3/index.json",
                     },
 
             packages: [
@@ -100,6 +99,7 @@ config({
                 },
                 { id: "Microsoft.CodeAnalysis.CSharp.Workspaces", version: "3.8.0" },
 
+                // Transitive dependency of Microsoft.CodeAnalysis.CSharp.Workspaces
                 { id: "Humanizer.Core", version: "2.2.0" },
 
                 // Old code analysis libraries, for tests only
@@ -109,20 +109,16 @@ config({
 
                 // Roslyn Analyzers
                 { id: "Microsoft.CodeAnalysis.Analyzers", version: "3.3.1" },
-                { id: "Microsoft.CodeAnalysis.FxCopAnalyzers", version: "2.6.3" },
-                { id: "Microsoft.CodeQuality.Analyzers", version: "2.6.3" },
-                { id: "Microsoft.NetFramework.Analyzers", version: "2.6.3" },
-                { id: "Microsoft.NetCore.Analyzers", version: "2.6.3" },
                 { id: "Microsoft.CodeAnalysis.NetAnalyzers", version: "5.0.3"},
 
                 { id: "AsyncFixer", version: "1.6.0" },
                 { id: "ErrorProne.NET.CoreAnalyzers", version: "0.6.1-beta.1" },
                 { id: "protobuf-net.BuildTools", version: "3.0.101" },
                 { id: "Microsoft.VisualStudio.Threading.Analyzers", version: "17.6.40"},
-                { id: "Text.Analyzers", version: "2.6.3" },
                 { id: "Microsoft.CodeAnalysis.PublicApiAnalyzers", version: "3.3.4" },
 
                 // MEF
+                // Transitive dependency of Microsoft.VisualStudio.Composition
                 { id: "Microsoft.Composition", version: "1.0.30" },
                 { id: "System.Composition.AttributedModel", version: "1.0.31" },
                 { id: "System.Composition.Convention", version: "1.0.31" },
@@ -130,17 +126,19 @@ config({
                 { id: "System.Composition.Runtime", version: "1.0.31" },
                 { id: "System.Composition.TypedParts", version: "1.0.31" },
 
-                { id: "Microsoft.Diagnostics.Tracing.EventSource.Redist", version: "1.1.28" },
                 { id: "Microsoft.Diagnostics.Tracing.TraceEvent", version: "3.0.7" },
-                { id: "Microsoft.Extensions.Globalization.CultureInfoCache", version: "1.0.0-rc1-final" },
-                { id: "Microsoft.Extensions.MemoryPool", version: "1.0.0-rc1-final" },
-                { id: "Microsoft.Extensions.PlatformAbstractions", version: "1.1.0" },
                 { id: "Microsoft.Extensions.Http", version: "7.0.0" },
 
+                // Transitive dependency of Microsoft.VisualStudio.Telemetry
+                { id: "Microsoft.Diagnostics.Tracing.EventSource.Redist", version: "1.1.28" },
+                // Transitive dependency of NLog
+                { id: "Microsoft.Extensions.PlatformAbstractions", version: "1.1.0" },
+                // Transitive dependency of Microsoft.VisualStudio.Composition
                 { id: "Microsoft.Tpl.Dataflow", version: "4.5.24" },
+
                 { id: "Microsoft.TypeScript.Compiler", version: "1.8" },
-                { id: "Microsoft.WindowsAzure.ConfigurationManager", version: "1.8.0.0" },
                 { id: "Newtonsoft.Json", version: "13.0.4" },
+                // Transitive dependency of Microsoft.AspNet.WebApi.Client
                 { id: "Newtonsoft.Json.Bson", version: "1.0.1" },
                 { id: "System.Reflection.Metadata", version: "9.0.17" },
                 { id: "System.Formats.Nrbf", version: "9.0.17" },
@@ -174,6 +172,7 @@ config({
                 { id: "Microsoft.Azure.Amqp", version: "2.6.1" },
                 { id: "Azure.Core.Amqp", version: "1.3.0"},
                 { id: "Azure.Messaging.EventHubs", version: "5.9.0" },
+                // Transitive dependency of Microsoft.Azure.Storage.Common
                 { id: "Microsoft.Azure.KeyVault.Core", version: "2.0.4" },
                 { id: "Microsoft.IdentityModel.Logging", version: "8.14.0" },
                 { id: "Microsoft.IdentityModel.Tokens", version: "8.14.0" },
@@ -259,15 +258,18 @@ config({
                 { id: "Microsoft.NET.Test.Sdk", version: "15.9.0" },
                 { id: "Microsoft.CodeCoverage", version: "15.9.0" },
 
+                // Transitive dependency of Microsoft.Sbom.Common
                 { id: "System.Private.Uri", version: "4.3.2" },
 
                 // CloudStore dependencies
+                // Transitive dependencies of Microsoft.Net.Http
                 { id: "Microsoft.Bcl", version: "1.1.10" },
-                { id: "Microsoft.Bcl.Async", version: "1.0.168" },
                 { id: "Microsoft.Bcl.AsyncInterfaces", version: "10.0.9" },
+
                 { id: "Microsoft.Bcl.Build", version: "1.0.14" },
+                // Transitive dependency of System.Formats.Nrbf
                 { id: "Microsoft.Bcl.HashCode", version: "6.0.0" },
-                
+
                 { id: "Pipelines.Sockets.Unofficial", version: "2.2.0" },
                 { id: "System.Diagnostics.PerformanceCounter", version: "6.0.0" },
                 { id: "System.Threading.Channels", version: "9.0.17" },
@@ -314,10 +316,6 @@ config({
 
                 { id: "ILRepack", version: "2.0.16" },
 
-                // VS language service
-                { id: "System.Runtime.Analyzers", version: "1.0.1" },
-                { id: "System.Runtime.InteropServices.Analyzers", version: "1.0.1" },
-                { id: "System.Security.Cryptography.Hashing.Algorithms.Analyzers", version: "1.1.0" },
                 { id: "Validation", version: "2.5.42"},
 
                 // VSTS managed API
@@ -362,13 +360,6 @@ config({
                 // Ninja JSON graph generation helper
                 { id: "BuildXL.Tools.Ninjson", version: "1.11.6", osSkip: [ "macOS" ] },
                 { id: "BuildXL.Tools.AppHostPatcher", version: "2.0.0" },
-
-                // Azure Communication
-                { id: "Microsoft.Rest.ClientRuntime", version: "2.3.24",
-                    dependentPackageIdsToSkip: ["Microsoft.NETCore.Runtime"],
-                    dependentPackageIdsToIgnore: ["Microsoft.NETCore.Runtime"],
-                },
-                { id: "Microsoft.Rest.ClientRuntime.Azure", version: "3.3.19" },
 
                 // ANTLR
                 { id: "Antlr4.Runtime.Standard", version: "4.7.2" },

@@ -770,15 +770,6 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "Microsoft.Bcl.Async",
-          "Version": "1.0.168"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
           "Name": "Microsoft.Bcl.AsyncInterfaces",
           "Version": "10.0.9"
         }
@@ -959,15 +950,6 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "Microsoft.CodeAnalysis.FxCopAnalyzers",
-          "Version": "2.6.3"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
           "Name": "Microsoft.CodeAnalysis.NetAnalyzers",
           "Version": "5.0.3"
         }
@@ -1015,15 +997,6 @@
         "NuGet": {
           "Name": "Microsoft.CodeCoverage",
           "Version": "15.9.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.CodeQuality.Analyzers",
-          "Version": "2.6.3"
         }
       }
     },
@@ -1238,15 +1211,6 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "Microsoft.Extensions.Globalization.CultureInfoCache",
-          "Version": "1.0.0-rc1-final"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
           "Name": "Microsoft.Extensions.Hosting.Abstractions",
           "Version": "8.0.0"
         }
@@ -1312,15 +1276,6 @@
         "NuGet": {
           "Name": "Microsoft.Extensions.Logging.Configuration",
           "Version": "8.0.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.Extensions.MemoryPool",
-          "Version": "1.0.0-rc1-final"
         }
       }
     },
@@ -1834,42 +1789,6 @@
         "NuGet": {
           "Name": "Microsoft.Net.Http",
           "Version": "2.2.29"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.NetCore.Analyzers",
-          "Version": "2.6.3"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.NetFramework.Analyzers",
-          "Version": "2.6.3"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.Rest.ClientRuntime",
-          "Version": "2.3.24"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.Rest.ClientRuntime.Azure",
-          "Version": "3.3.19"
         }
       }
     },
@@ -2644,15 +2563,6 @@
         "NuGet": {
           "Name": "Microsoft.Windows.SDK.cpp",
           "Version": "10.0.22621.755"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Microsoft.WindowsAzure.ConfigurationManager",
-          "Version": "1.8.0.0"
         }
       }
     },
@@ -3875,15 +3785,6 @@
       "Component": {
         "Type": "NuGet",
         "NuGet": {
-          "Name": "System.Runtime.Analyzers",
-          "Version": "1.0.1"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
           "Name": "System.Runtime.Caching",
           "Version": "9.0.3"
         }
@@ -3931,15 +3832,6 @@
         "NuGet": {
           "Name": "System.Runtime.InteropServices",
           "Version": "4.3.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "System.Runtime.InteropServices.Analyzers",
-          "Version": "1.0.1"
         }
       }
     },
@@ -4075,15 +3967,6 @@
         "NuGet": {
           "Name": "System.Security.Cryptography.Encoding",
           "Version": "4.3.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "System.Security.Cryptography.Hashing.Algorithms.Analyzers",
-          "Version": "1.1.0"
         }
       }
     },
@@ -4453,15 +4336,6 @@
         "NuGet": {
           "Name": "System.Xml.XmlSerializer",
           "Version": "4.3.0"
-        }
-      }
-    },
-    {
-      "Component": {
-        "Type": "NuGet",
-        "NuGet": {
-          "Name": "Text.Analyzers",
-          "Version": "2.6.3"
         }
       }
     },

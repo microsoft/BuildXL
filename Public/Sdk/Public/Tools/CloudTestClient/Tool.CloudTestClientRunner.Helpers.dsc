@@ -225,7 +225,7 @@ namespace Helpers {
         properties?: Map<string, string>;
         /** Feature flags (e.g. ["EnableTCDForDynamicJobs"]). */
         featureExceptions?: string[];
-        /** Enable job result caching. Default: false. */
+        /** Enable job result caching. Default: true. */
         cacheEnabled?: boolean;
         /** File provider definitions for external file stores (e.g., VsoGit, VsoDrop). */
         fileProviders?: FileProvider[];

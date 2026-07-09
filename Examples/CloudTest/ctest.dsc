@@ -27,6 +27,9 @@ const sessionArgs : CloudTestClient.Helpers.GenerateSessionConfigAndCreateSessio
     timeoutMinutes: 1,
     // Send all JSON payloads to the console
     debug: true,
+    // Force CT jobs to run. This pipeline is used as a release validation as well, so without this we will
+    // hit the cache for the most part, since the inputs are not really churning organically.
+    cacheEnabled: false,
     // A session is made up of one or more groups. Here we use a single group; image/sku/maxResources and the
     // group's jobs are now group-level properties.
     groups: [

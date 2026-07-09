@@ -288,6 +288,12 @@ namespace BuildXL.Engine.Distribution
                         SetOrchestratorAbandoned();
 
                         Logger.Log.DistributionWorkerExternalTerminationSignalReceived(m_appLoggingContext, "byte-signal from runner");
+
+                        // Emit a categorized statistic so this event is directly countable in the finalstatistics
+                        // Kusto table (keyed by SessionId). Enables per-build measurement of the pipe path
+                        // introduced by the orchestrator-termination fix.
+                        BuildXL.Tracing.LoggingHelpers.LogCategorizedStatistic(m_appLoggingContext, "OrchestratorTermination", "PipeSignaled", 1);
+
                         ((IWorkerService)this).ExitRequested(
                             "External termination signal received via orchestrator-termination pipe (byte-signal from runner).",
                             Optional<string>.Empty);
@@ -421,6 +427,20 @@ namespace BuildXL.Engine.Distribution
                     // This is a corner case, as the orchestrator waits for the attachment to complete before doing this.
                     // We treat this as an early-release
                     Logger.Log.DistributionOrchestratorExitBeforeAttachment(m_appLoggingContext, (int)sw.Elapsed.TotalMilliseconds);
+
+                    // Split the pre-attach early-release count by triggering mechanism so we can measure
+                    // the fix's impact directly. OrchestratorAbandoned is set only by the pipe watcher; if
+                    // it's set here, the pipe short-circuited the attach wait. Otherwise the orch's own
+                    // Exit RPC arrived pre-attach (pre-existing mechanism).
+                    if (OrchestratorAbandoned)
+                    {
+                        BuildXL.Tracing.LoggingHelpers.LogCategorizedStatistic(m_appLoggingContext, "OrchestratorTermination", "ExitBeforeAttachment_ViaPipe", 1);
+                    }
+                    else
+                    {
+                        BuildXL.Tracing.LoggingHelpers.LogCategorizedStatistic(m_appLoggingContext, "OrchestratorTermination", "ExitBeforeAttachment_ViaRpc", 1);
+                    }
+
                     return AttachResult.Released;
                 }
                 else

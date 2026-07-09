@@ -600,7 +600,7 @@ namespace BuildXL.Engine.Tracing
 
         [GeneratedEvent(
         (ushort)LogEventId.DistributionOrchestratorExitBeforeAttachment,
-        EventGenerators = EventGenerators.LocalOnly,
+        EventGenerators = EventGenerators.LocalAndTelemetry,
         EventLevel = Level.Verbose,
         Keywords = (int)(Keywords.UserMessage),
         EventTask = (ushort)Tasks.Distribution,
@@ -1015,7 +1015,7 @@ namespace BuildXL.Engine.Tracing
 
         [GeneratedEvent(
             (ushort)LogEventId.DistributionWorkerExternalTerminationSignalReceived,
-            EventGenerators = EventGenerators.LocalOnly,
+            EventGenerators = EventGenerators.LocalAndTelemetry,
             EventLevel = Level.Informational,
             Keywords = (int)(Keywords.UserMessage | Keywords.Progress),
             EventTask = (ushort)Tasks.Distribution,

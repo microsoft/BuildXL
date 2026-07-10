@@ -41,8 +41,10 @@ const sessionArgs : CloudTestClient.Helpers.GenerateSessionConfigAndCreateSessio
     environment: "ppe",
     // Send all JSON payloads to the console
     debug: true,
-    // Turn on the shared download cache on CT side. This will eventually become the default
     properties: Map.empty<string, string>()
+        // We always want to see the logs
+        .add("VstsTestResultAttachmentUploadBehavior", "Always")
+        // Turn on the shared download cache on CT side. This will eventually become the default
         .add("UseSharedDownloadContentCache", "true"),
         //.add("SharedDownloadContentCacheRealization", "Copy") // Hardlink mode is the default, but it can be changed to Copy if content cannot be left as read-only.
         //.add("SharedDownloadContentCacheSizeMegabytes", "10000") // 50GB is the default max quota, but that can be adjusted as needed.

@@ -71,7 +71,12 @@ namespace Test.BuildXL.Processes
             }
             else
             {
-                AssertLogContains(GetAccessReportRegex(ReportedFileOperation.ProcessExec, TestProcessExe), 1);
+                // glibc's fexecve is normally a single execveat(fd, "", AT_EMPTY_PATH) call, but
+                // under some conditions it falls back to execve("/proc/self/fd/N", ...),
+                // which produces an extra ProcessExec report. So just assert we have at least one event
+                // rather than a specific count.
+                // Similar to issue seen in CallTestexecle()
+                AssertLogContains(GetAccessReportRegex(ReportedFileOperation.ProcessExec, TestProcessExe));
             }
         }
 

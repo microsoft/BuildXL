@@ -23,14 +23,14 @@ namespace BuildXL.Cache.ContentStore.Sessions
     /// <summary>
     ///     An <see cref="IContentSession"/> implemented over two <see cref="FileSystemContentSession"/>'s, one for putting paths and the other for putting streams.
     /// </summary>
-    public sealed class StreamPathContentSession : IContentSession, IHibernateContentSession
+    public class StreamPathContentSession : IContentSession, IHibernateContentSession
     {
         private const string SessionForPathText = "Path content session";
         private const string SessionForStreamText = "Stream content session";
 
         private readonly ContentSessionTracer _tracer = new ContentSessionTracer(nameof(StreamPathContentSession));
-        private readonly IContentSession _sessionForPath;
-        private readonly IContentSession _sessionForStream;
+        protected readonly IContentSession SessionForPath;
+        protected readonly IContentSession SessionForStream;
         private bool _disposed;
 
         /// <summary>
@@ -42,8 +42,8 @@ namespace BuildXL.Cache.ContentStore.Sessions
             IContentSession sessionForPath)
         {
             Name = name;
-            _sessionForStream = sessionForStream;
-            _sessionForPath = sessionForPath;
+            SessionForStream = sessionForStream;
+            SessionForPath = sessionForPath;
         }
 
         /// <inheritdoc />
@@ -70,7 +70,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
             {
                 var startupResults =
                     await
-                        Task.WhenAll(_sessionForStream.StartupAsync(context), _sessionForPath.StartupAsync(context));
+                        Task.WhenAll(SessionForStream.StartupAsync(context), SessionForPath.StartupAsync(context));
                 Contract.Assert(startupResults.Length == 2);
 
                 var startupResultForStream = startupResults[0];
@@ -93,7 +93,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
 
                     if (startupResultForStream.Succeeded)
                     {
-                        var shutdownResult = await _sessionForStream.ShutdownAsync(context);
+                        var shutdownResult = await SessionForStream.ShutdownAsync(context);
                         if (!shutdownResult.Succeeded)
                         {
                             sb.Concat($"{SessionForStreamText} shutdown failed, error=[{shutdownResult}]", "; ");
@@ -102,7 +102,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
 
                     if (startupResultForPath.Succeeded)
                     {
-                        var shutdownResult = await _sessionForPath.ShutdownAsync(context);
+                        var shutdownResult = await SessionForPath.ShutdownAsync(context);
                         if (!shutdownResult.Succeeded)
                         {
                             sb.Concat($"{SessionForPathText} shutdown failed, error=[{shutdownResult}]", "; ");
@@ -127,7 +127,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
             {
                 var shutdownResults =
                     await
-                        Task.WhenAll(_sessionForStream.ShutdownAsync(context), _sessionForPath.ShutdownAsync(context));
+                        Task.WhenAll(SessionForStream.ShutdownAsync(context), SessionForPath.ShutdownAsync(context));
                 Contract.Assert(shutdownResults.Length == 2);
 
                 var shutdownResultForStream = shutdownResults[0];
@@ -173,11 +173,11 @@ namespace BuildXL.Cache.ContentStore.Sessions
             CancellationToken cts,
             UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
-            var pinResult = await _sessionForStream.PinAsync(context, contentHash, cts, urgencyHint);
+            var pinResult = await SessionForStream.PinAsync(context, contentHash, cts, urgencyHint);
 
             if (pinResult.Code == PinResult.ResultCode.ContentNotFound)
             {
-                pinResult = await _sessionForPath.PinAsync(context, contentHash, cts, urgencyHint);
+                pinResult = await SessionForPath.PinAsync(context, contentHash, cts, urgencyHint);
             }
 
             return pinResult;
@@ -190,11 +190,11 @@ namespace BuildXL.Cache.ContentStore.Sessions
             CancellationToken cts,
             UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
-            var openStreamResult = await _sessionForStream.OpenStreamAsync(context, contentHash, cts, urgencyHint);
+            var openStreamResult = await SessionForStream.OpenStreamAsync(context, contentHash, cts, urgencyHint);
 
             if (openStreamResult.Code == OpenStreamResult.ResultCode.ContentNotFound)
             {
-                openStreamResult = await _sessionForPath.OpenStreamAsync(context, contentHash, cts, urgencyHint);
+                openStreamResult = await SessionForPath.OpenStreamAsync(context, contentHash, cts, urgencyHint);
             }
 
             return openStreamResult;
@@ -211,7 +211,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
             CancellationToken cts,
             UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
-            var placeFileResult = await _sessionForPath.PlaceFileAsync(
+            var placeFileResult = await SessionForPath.PlaceFileAsync(
                         context,
                         contentHash,
                         path,
@@ -223,7 +223,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
 
             if (placeFileResult.Code == PlaceFileResult.ResultCode.NotPlacedContentNotFound)
             {
-                placeFileResult = await _sessionForStream.PlaceFileAsync(
+                placeFileResult = await SessionForStream.PlaceFileAsync(
                         context,
                         contentHash,
                         path,
@@ -246,8 +246,8 @@ namespace BuildXL.Cache.ContentStore.Sessions
         {
             return Workflows.RunWithFallback(
                 contentHashes,
-                inputContentHashes => _sessionForStream.PinAsync(context, inputContentHashes, cts, urgencyHint),
-                inputContentHashes => _sessionForPath.PinAsync(context, inputContentHashes, cts, urgencyHint),
+                inputContentHashes => SessionForStream.PinAsync(context, inputContentHashes, cts, urgencyHint),
+                inputContentHashes => SessionForPath.PinAsync(context, inputContentHashes, cts, urgencyHint),
                 result => result.Succeeded);
         }
 
@@ -270,9 +270,9 @@ namespace BuildXL.Cache.ContentStore.Sessions
             return Workflows.RunWithFallback(
                 hashesWithPaths,
                 inputHashesWithPaths =>
-                    _sessionForPath.PlaceFileAsync(context, inputHashesWithPaths, accessMode, replacementMode, realizationMode, cts, urgencyHint),
+                    SessionForPath.PlaceFileAsync(context, inputHashesWithPaths, accessMode, replacementMode, realizationMode, cts, urgencyHint),
                 inputHashesWithPaths =>
-                    _sessionForStream.PlaceFileAsync(context, inputHashesWithPaths, accessMode, replacementMode, realizationMode, cts, urgencyHint),
+                    SessionForStream.PlaceFileAsync(context, inputHashesWithPaths, accessMode, replacementMode, realizationMode, cts, urgencyHint),
                 result => result.Code != PlaceFileResult.ResultCode.NotPlacedContentNotFound);
         }
 
@@ -285,7 +285,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
             CancellationToken cts,
             UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
-            return _sessionForPath.PutFileAsync(context, hashType, path, realizationMode, cts, urgencyHint);
+            return SessionForPath.PutFileAsync(context, hashType, path, realizationMode, cts, urgencyHint);
         }
 
         /// <inheritdoc />
@@ -297,7 +297,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
             CancellationToken cts,
             UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
-            return _sessionForPath.PutFileAsync(context, contentHash, path, realizationMode, cts, urgencyHint);
+            return SessionForPath.PutFileAsync(context, contentHash, path, realizationMode, cts, urgencyHint);
         }
 
         /// <inheritdoc />
@@ -308,7 +308,7 @@ namespace BuildXL.Cache.ContentStore.Sessions
             CancellationToken cts,
             UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
-            return _sessionForStream.PutStreamAsync(context, hashType, stream, cts, urgencyHint);
+            return SessionForStream.PutStreamAsync(context, hashType, stream, cts, urgencyHint);
         }
 
         /// <inheritdoc />
@@ -319,14 +319,14 @@ namespace BuildXL.Cache.ContentStore.Sessions
             CancellationToken cts,
             UrgencyHint urgencyHint = UrgencyHint.Nominal)
         {
-            return _sessionForStream.PutStreamAsync(context, contentHash, stream, cts, urgencyHint);
+            return SessionForStream.PutStreamAsync(context, contentHash, stream, cts, urgencyHint);
         }
 
         /// <inheritdoc />
         public IEnumerable<ContentHash> EnumeratePinnedContentHashes()
         {
-            var sessionForStream = _sessionForStream as IHibernateContentSession;
-            var sessionForPath = _sessionForPath as IHibernateContentSession;
+            var sessionForStream = SessionForStream as IHibernateContentSession;
+            var sessionForPath = SessionForPath as IHibernateContentSession;
 
             var pinnedHashes = sessionForStream != null
                 ? sessionForStream.EnumeratePinnedContentHashes()
@@ -341,8 +341,8 @@ namespace BuildXL.Cache.ContentStore.Sessions
             var contentHashList = contentHashes.ToList();
             var results = await Workflows.RunWithFallback(
                 contentHashList,
-                inputContentHashes => _sessionForStream.PinAsync(context, inputContentHashes, CancellationToken.None),
-                inputContentHashes => _sessionForPath.PinAsync(context, inputContentHashes, CancellationToken.None),
+                inputContentHashes => SessionForStream.PinAsync(context, inputContentHashes, CancellationToken.None),
+                inputContentHashes => SessionForPath.PinAsync(context, inputContentHashes, CancellationToken.None),
                 result => result.Succeeded);
 
             foreach (var result in results)
@@ -358,8 +358,8 @@ namespace BuildXL.Cache.ContentStore.Sessions
         /// <inheritdoc />
         public async Task<BoolResult> ShutdownEvictionAsync(Context context)
         {
-            var sessionForStream = _sessionForStream as IHibernateContentSession;
-            var sessionForPath = _sessionForPath as IHibernateContentSession;
+            var sessionForStream = SessionForStream as IHibernateContentSession;
+            var sessionForPath = SessionForPath as IHibernateContentSession;
 
             var result = sessionForStream != null
                 ? await sessionForStream.ShutdownEvictionAsync(context)
@@ -380,8 +380,8 @@ namespace BuildXL.Cache.ContentStore.Sessions
 
             if (disposing)
             {
-                _sessionForStream.Dispose();
-                _sessionForPath.Dispose();
+                SessionForStream.Dispose();
+                SessionForPath.Dispose();
             }
 
             _disposed = true;

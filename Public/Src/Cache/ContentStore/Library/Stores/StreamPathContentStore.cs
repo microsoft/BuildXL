@@ -8,6 +8,7 @@ using BuildXL.Cache.ContentStore.Interfaces.Sessions;
 using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
 using BuildXL.Cache.ContentStore.Sessions;
+using BuildXL.Cache.ContentStore.Sessions.Internal;
 using BuildXL.Cache.ContentStore.Tracing;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 
@@ -71,10 +72,10 @@ namespace BuildXL.Cache.ContentStore.Stores
                     return new CreateSessionResult<IContentSession>(sessionForPath, "creation of path content session failed");
                 }
 
-                var session = new StreamPathContentSession(
-                    name,
-                    sessionForStream.Session,
-                    sessionForPath.Session);
+                // If the session for path is trusted, then we can return a trusted session.
+                var session = sessionForPath.Session is ITrustedContentSession trustedSessionForPath
+                    ? new TrustedStreamPathContentSession(name, sessionForStream.Session, trustedSessionForPath)
+                    : new StreamPathContentSession(name, sessionForStream.Session, sessionForPath.Session);
 
                 return new CreateSessionResult<IContentSession>(session);
             });

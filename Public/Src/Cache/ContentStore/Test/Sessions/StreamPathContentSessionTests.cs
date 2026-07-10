@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Threading.Tasks;
+using BuildXL.Cache.ContentStore;
 using BuildXL.Cache.ContentStore.FileSystem;
 using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.FileSystem;
@@ -12,6 +13,8 @@ using BuildXL.Cache.ContentStore.Interfaces.Stores;
 using BuildXL.Cache.ContentStore.Interfaces.Time;
 using BuildXL.Cache.ContentStore.InterfacesTest.Results;
 using BuildXL.Cache.ContentStore.InterfacesTest.Sessions;
+using BuildXL.Cache.ContentStore.Sessions.Internal;
+using BuildXL.Cache.ContentStore.UtilitiesCore;
 using ContentStoreTest.Test;
 using Xunit;
 
@@ -241,6 +244,52 @@ namespace ContentStoreTest.Sessions
                                 break;
                         }
                     }
+                });
+            }
+        }
+
+        [Fact]
+        public Task TryGetWorkingDirectoryDoesNotThrow()
+        {
+            return RunTestAsync(ImplicitPin.None, null, (context, session) =>
+            {
+                var trustedSession = Assert.IsAssignableFrom<ITrustedContentSession>(session);
+                var workingDirectory = trustedSession.TryGetWorkingDirectory(null);
+                Assert.NotNull(workingDirectory);
+                return Task.CompletedTask;
+            });
+        }
+
+        [Fact]
+        public async Task PutTrustedFileGoesToPathSession()
+        {
+            using (var contentDirectory = new DisposableDirectory(FileSystem))
+            {
+                await RunTestAsync(ImplicitPin.None, null, async (context, session) =>
+                {
+                    var trustedSession = Assert.IsAssignableFrom<ITrustedContentSession>(session);
+
+                    var bytes = ThreadSafeRandom.GetBytes(ContentByteCount);
+                    var contentHash = bytes.CalculateHash(ContentHashType);
+                    var pathToContent = contentDirectory.Path / "trustedContent.dat";
+                    FileSystem.WriteAllBytes(pathToContent, bytes);
+
+                    var putResult = await trustedSession.PutTrustedFileAsync(
+                        context,
+                        new ContentHashWithSize(contentHash, bytes.Length),
+                        pathToContent,
+                        FileRealizationMode.Any,
+                        Token,
+                        UrgencyHint.Nominal);
+                    putResult.ShouldBeSuccess();
+                    Assert.Equal(contentHash, putResult.ContentHash);
+
+                    // The trusted put targets the path session, so the content must be resolvable through it.
+                    var openStreamResult = await session.OpenStreamAsync(context, contentHash, Token);
+                    openStreamResult.ShouldBeSuccess();
+                    Assert.NotNull(openStreamResult.Stream);
+                    Assert.Equal(ContentByteCount, openStreamResult.Stream.Length);
+                    openStreamResult.Stream.Dispose();
                 });
             }
         }

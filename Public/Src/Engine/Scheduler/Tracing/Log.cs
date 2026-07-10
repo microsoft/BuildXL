@@ -3799,7 +3799,9 @@ namespace BuildXL.Scheduler.Tracing
                 "DefaultWorkingSetMb: {defaultWorkingSetMb}, " +
                 "ExpectedPeakWorkingSetMb: {expectedPeakWorkingSetMb}, PeakWorkingSetMb: {peakWorkingSetMb}, " +
                 "ExpectedAverageWorkingSetMb: {expectedAverageWorkingSetMb}, AverageWorkingSetMb: {averageWorkingSetMb}, " +
-                "ExpectedDiskIOInMB: {expectedDiskIOInMB}, ActualDiskIOInMB: {actualDiskIOInMB}.")]
+                "ExpectedDiskIOInMB: {expectedDiskIOInMB}, ActualDiskIOInMB: {actualDiskIOInMB}, " +
+                "NumFileDependencies: {numFileDependencies}, NumDirectoryDependencies: {numDirectoryDependencies}, " +
+                "NumFileOutputs: {numFileOutputs}, NumDirectoryOutputs: {numDirectoryOutputs}.")]
         internal abstract void ProcessPipExecutionInfo(
             LoggingContext loggingContext,
             string pipDescription,
@@ -3815,7 +3817,11 @@ namespace BuildXL.Scheduler.Tracing
             int averageWorkingSetMb,
             int expectedDiskIOInMB,
             int actualDiskIOInMB,
-            double maxExpectedDurationSec);
+            double maxExpectedDurationSec,
+            int numFileDependencies,
+            int numDirectoryDependencies,
+            int numFileOutputs,
+            int numDirectoryOutputs);
 
         [GeneratedEvent(
             (ushort)LogEventId.ProcessPipExecutionInfoOverflowFailure,

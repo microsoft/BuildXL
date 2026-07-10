@@ -5273,6 +5273,14 @@ namespace BuildXL.Scheduler
                             int peakWorkingSetMb = executionResult.PerformanceInformation?.MemoryCounters.PeakWorkingSetMb ?? 0;
                             int averageWorkingSetMb = executionResult.PerformanceInformation?.MemoryCounters.AverageWorkingSetMb ?? 0;
 
+                            // Static graph-shape features for the pip (available pre-run, emitted here alongside the
+                            // post-run metrics so the trainer can join them per pip). Counts are O(1) array lengths.
+                            Process pipForGraphShape = processRunnable.Process;
+                            int numFileDependencies = pipForGraphShape.Dependencies.Length;
+                            int numDirectoryDependencies = pipForGraphShape.DirectoryDependencies.Length;
+                            int numFileOutputs = pipForGraphShape.FileOutputs.Length;
+                            int numDirectoryOutputs = pipForGraphShape.DirectoryOutputs.Length;
+
                             try
                             {
                                 Logger.Log.ProcessPipExecutionInfo(
@@ -5290,7 +5298,11 @@ namespace BuildXL.Scheduler
                                     averageWorkingSetMb,
                                     (int)(processRunnable.HistoricPerfData?.DiskIOInMB ?? 0),
                                     (int)ByteSizeFormatter.BytesToMegabytes(executionResult.PerformanceInformation?.IO.GetAggregateIO().TransferCount ?? 0),
-                                    (processRunnable.HistoricPerfData?.MaxExeDurationInMs ?? 0) / 1000.0);
+                                    (processRunnable.HistoricPerfData?.MaxExeDurationInMs ?? 0) / 1000.0,
+                                    numFileDependencies,
+                                    numDirectoryDependencies,
+                                    numFileOutputs,
+                                    numDirectoryOutputs);
 
                                 if (expectedMemoryCounters.AverageWorkingSetMb > 0)
                                 {

@@ -2,6 +2,13 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20260701.4 (Release [31726132](https://dev.azure.com/mseng/Domino/_build/results?buildId=31726132&view=results))
+- [Perf] Speed up `ObservedInputProcessor.TryProbeForExistence` to reduce observed-input processing overhead.
+- [Perf] Improve `TryQueryDirectoryFingerprint` performance for faster directory fingerprint computation.
+- [Perf] Optimize `ObservedPathSet.TryDeserialize` for faster path-set deserialization during cache lookups.
+- [CloudTest SDK] Add support for multi-group sessions.
+- [CloudTest Client] Consider group name when computing stable IDs.
+- [Docs] Improve the 1JS-oriented example.
 # 0.1.0-20260626.3 (Release [31706468](https://dev.azure.com/mseng/Domino/_build/results?buildId=31706468&view=results))
 - [Critical Path] Default critical path now excludes queue time; a secondary critical path including queue time was added.
 - [BlobDaemon] Fix over-reporting of failed server-side copies as successful.

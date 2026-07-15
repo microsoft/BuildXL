@@ -2,6 +2,13 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20260710.4 (Release [31777990](https://dev.azure.com/mseng/Domino/_build/results?buildId=31777990&view=results))
+- [Perf] Improve startup time in dev builds.
+- [Perf] Apply a `BufferedStream` to `BuildXLReader` when reading in files to improve performance across the board.
+- [Distribution] Emit telemetry for orchestrator-termination pipe events.
+- [CloudTest SDK] Expose `legacyModuleIdConfigPath` to support flaky test management under Dynamic Job Execution mode.
+- [CloudTest SDK] Add a debug option to print all JSON payloads to the console; always upload logs in samples.
+- Various bug fixes and improvements.
 # 0.1.0-20260701.4 (Release [31726132](https://dev.azure.com/mseng/Domino/_build/results?buildId=31726132&view=results))
 - [Perf] Speed up `ObservedInputProcessor.TryProbeForExistence` to reduce observed-input processing overhead.
 - [Perf] Improve `TryQueryDirectoryFingerprint` performance for faster directory fingerprint computation.

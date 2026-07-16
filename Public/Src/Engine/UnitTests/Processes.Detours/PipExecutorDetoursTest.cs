@@ -8241,10 +8241,11 @@ namespace Test.BuildXL.Processes.Detours
             VerifyNormalSuccess(context, result);
 
             XAssert.IsTrue(File.Exists(destFilePath.ToString(pathTable)));
-            XAssert.IsTrue(result.AllReportedFileAccesses.Where(a => a.ManifestPath.ToString(pathTable) == sourceFilePath.ToString(pathTable) && a.Operation == ReportedFileOperation.NtCreateFile && a.RequestedAccess == RequestedAccess.Read).Any(),
-                string.Join(Environment.NewLine, result.AllReportedFileAccesses.Select(a => a.Describe())));
+            // In some Windows versions CopyFile2 is implemented as a call to NtCreateFile, so we need to check for both operations.
+            XAssert.IsTrue(result.AllReportedFileAccesses.Where(a => a.ManifestPath.ToString(pathTable) == sourceFilePath.ToString(pathTable) && (a.Operation == ReportedFileOperation.NtCreateFile || a.Operation == ReportedFileOperation.CreateFile) && a.RequestedAccess == RequestedAccess.Read).Any(),
+                $"Could not find expected file access for {sourceFilePath.ToString(pathTable)} in " + string.Join(Environment.NewLine, result.AllReportedFileAccesses.Select(a => a.Describe())));
             XAssert.IsTrue(result.AllReportedFileAccesses.Where(a => a.ManifestPath.ToString(pathTable) == destFilePath.ToString(pathTable) && a.Operation == ReportedFileOperation.NtCreateFile && a.RequestedAccess == RequestedAccess.ReadWrite).Any(),
-                string.Join(Environment.NewLine, result.AllReportedFileAccesses.Select(a => a.Describe())));
+                $"Could not find expected file access for {destFilePath.ToString(pathTable)} in " + string.Join(Environment.NewLine, result.AllReportedFileAccesses.Select(a => a.Describe())));
         }
 
         [Fact]

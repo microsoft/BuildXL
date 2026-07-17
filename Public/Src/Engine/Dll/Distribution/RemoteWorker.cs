@@ -49,6 +49,12 @@ namespace BuildXL.Engine.Distribution
         private readonly List<SinglePipBuildRequest> m_buildRequestList = new List<SinglePipBuildRequest>();
         private readonly List<FileArtifactKeyedHash> m_hashList = new List<FileArtifactKeyedHash>();
 
+        // Tag sizes of the repeated fields in PipBuildRequest (see Interfaces.proto): Pips = 1, Hashes = 2.
+        // Used to compute the exact serialized size of a PipBuildRequest so that oversized messages can be
+        // detected before sending them. See EngineEnvironmentSettings.MaxBuildRequestSizeBytes for details.
+        private static readonly int s_pipBuildRequestPipsTagSize = CodedOutputStream.ComputeTagSize(1);
+        private static readonly int s_pipBuildRequestHashesTagSize = CodedOutputStream.ComputeTagSize(2);
+
         private readonly ConcurrentDictionary<PipId, PipCompletionTask> m_pipCompletionTasks = new ConcurrentDictionary<PipId, PipCompletionTask>();
         private readonly LoggingContext m_appLoggingContext;
         private readonly OrchestratorService m_orchestratorService;
@@ -235,13 +241,36 @@ namespace BuildXL.Engine.Distribution
 
                     using (m_orchestratorService.Counters.StartStopwatch(DistributionCounter.RemoteWorker_ExtractHashesDuration))
                     {
-                        Parallel.ForEach(m_pipCompletionTaskList, (task) =>
+                        Parallel.For(0, m_pipCompletionTaskList.Count, (i) =>
                         {
-                            ExtractHashes(task.RunnablePip, m_hashList);
+                            var task = m_pipCompletionTaskList[i];
+
+                            long hashesByteSize = ExtractHashes(task.RunnablePip, m_hashList);
+
+                            // Record the full serialized size this pip contributes to the PipBuildRequest: its hashes plus
+                            // its own SinglePipBuildRequest entry (payload + repeated-field tag).
+                            task.BuildRequestByteSize = hashesByteSize
+                                + CodedOutputStream.ComputeMessageSize(m_buildRequestList[i])
+                                + s_pipBuildRequestPipsTagSize;
                         });
                     }
 
                     m_currentBatchSize = m_pipCompletionTaskList.Count;
+
+                    // Before sending, verify the serialized message fits within EngineEnvironmentSettings.MaxBuildRequestSizeBytes
+                    // (see that setting for why oversized messages are unsafe). If it does not fit, force the oversized pip(s) to
+                    // run on the orchestrator and reschedule the rest of the batch.
+                    long totalBuildRequestByteSize = 0;
+                    foreach (var task in m_pipCompletionTaskList)
+                    {
+                        totalBuildRequestByteSize += task.BuildRequestByteSize;
+                    }
+
+                    if (totalBuildRequestByteSize > EngineEnvironmentSettings.MaxBuildRequestSizeBytes.Value)
+                    {
+                        handleOversizedBuildRequest();
+                        continue;
+                    }
 
                     var dateTimeBeforeSend = DateTime.UtcNow;
                     TimeSpan sendDuration;
@@ -290,6 +319,33 @@ namespace BuildXL.Engine.Distribution
                 ResetAvailableHashes(m_pipGraph);
 
                 m_orchestratorService.Counters.IncrementCounter(DistributionCounter.BuildRequestBatchesFailedSentToWorkers);
+            }
+
+            void handleOversizedBuildRequest()
+            {
+                int maxBuildRequestSize = EngineEnvironmentSettings.MaxBuildRequestSizeBytes.Value;
+
+                foreach (var task in m_pipCompletionTaskList)
+                {
+                    if (task.BuildRequestByteSize > maxBuildRequestSize)
+                    {
+                        // This pip on its own produces a message that is too large to ever send to a remote worker,
+                        // so force it to run on the orchestrator instead of retrying remotely.
+                        ForcePipToRunOnOrchestrator(task, maxBuildRequestSize);
+                    }
+                    else
+                    {
+                        // This pip is not individually too large; it is only failing because it was batched together with
+                        // an oversized pip. Reschedule it so it can be re-batched (without the oversized pip) and sent.
+                        FailRemotePip(task, "The build request batch exceeded the maximum message size and could not be sent to the worker.");
+                    }
+                }
+
+                // We did not send the hashes that were marked as available during extraction, so reset the available-hash
+                // tracking to keep it consistent (mirrors the behavior of failRemotePips).
+                ResetAvailableHashes(m_pipGraph);
+
+                m_orchestratorService.Counters.IncrementCounter(DistributionCounter.BuildRequestBatchesExceededSizeLimit);
             }
 
             string getExecuteDescription()
@@ -857,7 +913,7 @@ namespace BuildXL.Engine.Distribution
             }
         }
 
-        private void ExtractHashes(RunnablePip runnable, List<FileArtifactKeyedHash> hashes)
+        private long ExtractHashes(RunnablePip runnable, List<FileArtifactKeyedHash> hashes)
         {
             var step = runnable.Step;
 
@@ -876,8 +932,13 @@ namespace BuildXL.Engine.Distribution
 
             if (!requiresHashes)
             {
-                return;
+                return 0;
             }
+
+            // The serialized size (in bytes) that the hashes collected below contribute to the PipBuildRequest.
+            // Tracked in long arithmetic so it does not overflow the way Google.Protobuf's int-based size calculation
+            // would for very large messages.
+            long serializedHashesByteSize = 0;
 
             // The block below collects process input file artifacts and hashes
             // Currently there is no logic to keep from sending the same hashes twice
@@ -968,6 +1029,10 @@ namespace BuildXL.Engine.Distribution
                             numStringPathFiles++;
                         }
 
+                        // Account for the serialized size this hash adds to the PipBuildRequest (payload + repeated-field tag)
+                        // so the caller can decide whether the resulting message would exceed the maximum gRPC message size.
+                        serializedHashesByteSize += CodedOutputStream.ComputeMessageSize(keyedHash) + s_pipBuildRequestHashesTagSize;
+
                         lock (m_hashListLock)
                         {
                             hashes.Add(keyedHash);
@@ -977,6 +1042,8 @@ namespace BuildXL.Engine.Distribution
                     m_orchestratorService.Counters.AddToCounter(DistributionCounter.HashesForStringPathsSentToWorkers, numStringPathFiles);
                 }
             }
+
+            return serializedHashesByteSize;
         }
 
         /// <summary>
@@ -1040,6 +1107,50 @@ namespace BuildXL.Engine.Distribution
             result = ExecutionResult.GetRetryableNotRunResult(operationContext, RetryInfo.GetDefault(RetryReason.DistributionFailure));
 
             pipCompletionTask.TrySet(result);
+        }
+
+        /// <summary>
+        /// Forces a pip to run on the orchestrator because its build request message is too large to be sent to a remote worker
+        /// (see <see cref="EngineEnvironmentSettings.MaxBuildRequestSizeBytes"/> for why oversized messages are unsafe). The pip is
+        /// rescheduled via <see cref="RetryReason.DistributionFailure"/> so the scheduler runs it on the orchestrator next time.
+        /// </summary>
+        private void ForcePipToRunOnOrchestrator(PipCompletionTask pipCompletionTask, int maxBuildRequestSize)
+        {
+            if (pipCompletionTask.Completion.Task.IsCompleted)
+            {
+                // If we already set the result for the given completionTask, do nothing.
+                return;
+            }
+
+            var runnablePip = pipCompletionTask.RunnablePip;
+            var operationContext = runnablePip.OperationContext;
+
+            if (pipCompletionTask.Step == PipExecutionStep.MaterializeOutputs)
+            {
+                // MaterializeOutputs is fire-and-forget and cannot be meaningfully redirected to the orchestrator.
+                // Treat it as a non-fatal materialization failure, consistent with other send failures.
+                m_infraFailure = "Some materialize output requests could not be sent because the build request message size exceeded the limit.";
+
+                var materializeResult = new ExecutionResult();
+                materializeResult.SetResult(operationContext, PipResultStatus.NotMaterialized);
+                materializeResult.Seal();
+                pipCompletionTask.TrySet(materializeResult);
+                return;
+            }
+
+            Logger.Log.DistributionExecutePipForcedLocalDueToLargeBuildRequest(
+                operationContext,
+                runnablePip.Description,
+                Name,
+                pipCompletionTask.BuildRequestByteSize,
+                maxBuildRequestSize,
+                pipCompletionTask.Step.AsString());
+
+            // Return 'DistributionFailure' so the scheduler reschedules the pip to run on the orchestrator next time.
+            var result = ExecutionResult.GetRetryableNotRunResult(operationContext, RetryInfo.GetDefault(RetryReason.DistributionFailure));
+            pipCompletionTask.TrySet(result);
+
+            m_orchestratorService.Counters.IncrementCounter(DistributionCounter.PipsForcedToRunOnOrchestratorDueToBuildRequestSize);
         }
 
         public async Task<ExecutionResult> AwaitRemoteResult(OperationContext operationContext, RunnablePip runnable)
@@ -1446,6 +1557,12 @@ namespace BuildXL.Engine.Distribution
             public long? ExecuteStepTicks { get; private set; }
 
             public long? QueueTicks { get; private set; }
+
+            /// <summary>
+            /// The serialized size, in bytes, that this pip (its input hashes plus its <see cref="SinglePipBuildRequest"/>)
+            /// contributes to the PipBuildRequest gRPC message. Used to detect messages that would exceed the protobuf size limit.
+            /// </summary>
+            public long BuildRequestByteSize { get; set; }
 
             public PipCompletionTask(OperationContext operationContext, RunnablePip pip)
             {

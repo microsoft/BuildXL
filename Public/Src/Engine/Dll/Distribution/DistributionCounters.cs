@@ -159,6 +159,12 @@ namespace BuildXL.Engine.Distribution
         BuildRequestBatchesFailedSentToWorkers,
 
         /// <nodoc/>
+        BuildRequestBatchesExceededSizeLimit,
+
+        /// <nodoc/>
+        PipsForcedToRunOnOrchestratorDueToBuildRequestSize,
+
+        /// <nodoc/>
         HashesSentToWorkers,
 
         /// <nodoc/>

@@ -44,6 +44,17 @@ namespace BuildXL.Utilities.Configuration
         public static readonly Setting<int> MaxMessagesPerBatch = CreateSetting("MaxMessagesPerBatch", value => ParseInt32(value) ?? 1000);
 
         /// <summary>
+        /// The maximum serialized size, in bytes, of a single PipBuildRequest gRPC message sent to a remote worker.
+        /// </summary>
+        /// <remarks>
+        /// Google.Protobuf serializes message sizes as signed 32-bit integers, so a message whose serialized form exceeds
+        /// ~2GB overflows during serialization and causes the gRPC call to hang indefinitely. When the input hashes for a pip
+        /// would produce a message larger than this limit, the pip is forced to run on the orchestrator instead of a remote
+        /// worker. Defaults to 2,000,000,000 bytes (~1.86 GiB), leaving margin below the 2^31 protobuf limit.
+        /// </remarks>
+        public static readonly Setting<int> MaxBuildRequestSizeBytes = CreateSetting("MaxBuildRequestSizeBytes", value => ParseInt32(value) ?? 2_000_000_000);
+
+        /// <summary>
         /// Multiplier to modify the maximum number of RPC messages per batch when only MaterializeOutput pips are remaining
         /// </summary>
         public static readonly Setting<double> MaterializeOutputsBatchMultiplier = CreateSetting("MaterializeOutputsBatchMultiplier", value => ParseDouble(value) ?? 1);

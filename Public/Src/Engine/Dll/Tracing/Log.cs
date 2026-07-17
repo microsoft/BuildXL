@@ -671,6 +671,15 @@ namespace BuildXL.Engine.Tracing
         public abstract void DistributionExecutePipFailedNetworkFailureWarning(LoggingContext context, string pipDescription, string workerName, string errorMessage, string step, string callerName);
 
         [GeneratedEvent(
+            (ushort)LogEventId.DistributionExecutePipForcedLocalDueToLargeBuildRequestWarning,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage | (int)Keywords.InfrastructureIssue,
+            EventTask = (ushort)Tasks.PipExecutor,
+            Message = "[{pipDescription}] Forcing pip step {step} to run on the orchestrator instead of worker {workerName} because its build request message ({messageSizeBytes} bytes) exceeds the maximum allowed size ({maxMessageSizeBytes} bytes).")]
+        public abstract void DistributionExecutePipForcedLocalDueToLargeBuildRequest(LoggingContext context, string pipDescription, string workerName, long messageSizeBytes, int maxMessageSizeBytes, string step);
+
+        [GeneratedEvent(
             (ushort)LogEventId.DistributionAttachReceived,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Informational,

@@ -441,6 +441,7 @@ namespace BuildXL.Engine.Tracing
 
         ScrubbingSkippedCleanMachine = 7156,
         FailedToWriteBuildSentinel = 7157,
+        DistributionExecutePipForcedLocalDueToLargeBuildRequestWarning = 7158,
         // max 7200
     }
 }

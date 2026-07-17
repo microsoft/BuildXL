@@ -517,7 +517,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// The total estimated slots for all pending (non-completed) process pips, based on historic CPU usage.
         /// Initialized in PrioritizeAndSchedule for all process pips and decremented on pip completion.
-        /// Used by the early worker release algorithm when UseHistoricalCpuUsageInfoForEarlyWorkerRelease is enabled.
+        /// Used by the early worker release algorithm when historical CPU usage information is enabled.
         /// </summary>
         private long m_pendingProcessPipExpectedSlots;
 
@@ -3135,7 +3135,7 @@ namespace BuildXL.Scheduler
             // instead of assuming 1 pip = 1 slot. This accounts for pips that consume multiple slots.
             // m_pendingProcessPipExpectedSlots tracks the sum of estimated weights for all non-completed process pips.
             long estimatedSlotsForWaitingPips;
-            if (EngineEnvironmentSettings.UseHistoricalCpuUsageInfoForEarlyWorkerRelease)
+            if (m_scheduleConfiguration.UseHistoricalCpuUsageInfo())
             {
                 estimatedSlotsForWaitingPips = Volatile.Read(ref m_pendingProcessPipExpectedSlots) - Workers.Sum(a => a.AcquiredProcessSlots);
             }

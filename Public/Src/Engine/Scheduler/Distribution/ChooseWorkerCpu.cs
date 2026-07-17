@@ -48,13 +48,13 @@ namespace BuildXL.Scheduler.Distribution
         /// If `DeprioritizeOnSemaphoreConstraints` is enabled, we set `MaxLoadFactor` to 1. This is because we do not want to lower the priority of pips when they are throttled by memory constraints.
         /// When oversubscribing is allowed (i.e., `MaxLoadFactor` > 1), the limiting resource becomes memory or other semaphores rather than the available worker slots.
         /// 
-        /// **Note:** If module affinity is enabled, `MaxLoadFactor` can be set to a custom value defined in `ModuleAffinityLoadFactor`. Otherwise, it defaults to 2.
+        /// **Note:** If module affinity is enabled, `MaxLoadFactor` can be set to a custom value defined in `ModuleAffinityLoadFactor`. Otherwise, it is controlled by the BuildXLMaxLoadFactor environment variable, which defaults to 1.
         /// In the builds where module affinity is enabled, the materialization cost is high, so oversubscribing the workers helps the scheduler utilize the workers more efficiently.
         /// </summary>
         private double MaxLoadFactor =>
             m_scheduleConfig.UseHistoricalCpuThrottling ? 10 :
             (m_scheduleConfig.DeprioritizeOnSemaphoreConstraints || !IsOrchestrator ? 1 :
-            (m_moduleAffinityEnabled ? m_scheduleConfig.ModuleAffinityLoadFactor.Value : 2));
+            (m_moduleAffinityEnabled ? m_scheduleConfig.ModuleAffinityLoadFactor.Value : EngineEnvironmentSettings.MaxLoadFactor.Value));
 
         private readonly FileContentManager m_fileContentManager;
         private readonly PipTable m_pipTable;

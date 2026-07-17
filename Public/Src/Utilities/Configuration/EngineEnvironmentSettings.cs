@@ -187,6 +187,11 @@ namespace BuildXL.Utilities.Configuration
         public static readonly Setting<bool> DoNotPauseChooseWorkerThreads = CreateSetting("BuildXLDoNotPauseChooseWorkerThreads", value => value == "1");
 
         /// <summary>
+        /// Maximum worker load factor when module affinity is disabled. Defaults to 1.
+        /// </summary>
+        public static readonly Setting<double> MaxLoadFactor = CreateSetting("BuildXLMaxLoadFactor", value => ParseDouble(value) ?? 1);
+
+        /// <summary>
         /// Disable delayed cache lookup.
         /// </summary>
         public static readonly Setting<bool> DisableDelayedCacheLookup = CreateSetting("BuildXLDisableDelayedCacheLookup", value => value == "1");

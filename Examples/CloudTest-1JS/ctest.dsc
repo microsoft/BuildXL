@@ -100,6 +100,7 @@ const sessionArgs : CloudTestClient.Helpers.GenerateSessionConfigAndCreateSessio
     // The test.sh script is consumed by the b-package-group's dynamicGroupSetup. Uploading it through dropArtifacts
     // (instead of a manual addArtifactsToDrop) ensures it participates in the CloudTest caching fingerprint.
     dropArtifacts: [ {kind: "file", file: testScript, dropPath: r`test.sh`} ],
+    historicRuntimes: { serviceConnectionId: Environment.getStringValue("ServiceConnectionId") },
 };
 const sessionCreateResult = CloudTestClient.Helpers.generateConfigAndCreateSession(sessionArgs);
 

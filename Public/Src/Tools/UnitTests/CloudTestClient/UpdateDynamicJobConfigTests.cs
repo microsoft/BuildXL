@@ -50,6 +50,8 @@ namespace Test.Tool.CloudTestClient
                 "/mode:generateUpdateDynamicJobConfig",
                 "/sessionIdFile:" + sessionIdFile,
                 "/jobName:ResolveMe",
+                // The group has no explicit name, so its group name defaults to "image sku".
+                "/groupName:ubuntu22.04 Standard_D4s_v3",
                 "/sessionConfigPath:" + sessionConfigPath,
                 "/testFolder:ResolveMe",
                 "/jobExecutable:" + temp.GetPath("run.sh"),
@@ -68,12 +70,13 @@ namespace Test.Tool.CloudTestClient
         }
 
         [Fact]
-        public void AmbiguousJobNameAcrossGroupsThrowsWithoutGroupName()
+        public void NameBasedLookupRequiresGroupName()
         {
             using var temp = new TempDirectory();
             string sessionConfigPath = temp.GetPath("session-config.json");
 
-            // Two groups (different image/sku) both contain a job with the same name.
+            // Two groups (different image/sku) both contain a job with the same name — the group name is what
+            // identifies which one to use, so it is mandatory for a name-based lookup.
             string group1 = GroupFileTestHelper.BuildGroupJson(
                 image: "ubuntu22.04", sku: "Standard_D4s_v3", jobsJson: """[{"name":"SharedJob"}]""");
             string group2 = GroupFileTestHelper.BuildGroupJson(
@@ -91,8 +94,8 @@ namespace Test.Tool.CloudTestClient
             string sessionIdFile = temp.WriteFile("session-id.txt", "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
             string updateConfigPath = temp.GetPath("update-config.json");
 
-            // Referencing the job by name only is ambiguous (it exists in both groups).
-            var ex = Assert.Throws<InvalidOperationException>(() => new CloudTestClientArgs(new[]
+            // Referencing the job by name without a group name is rejected up front.
+            var ex = Assert.ThrowsAny<Exception>(() => new CloudTestClientArgs(new[]
             {
                 "/mode:generateUpdateDynamicJobConfig",
                 "/sessionIdFile:" + sessionIdFile,
@@ -104,11 +107,11 @@ namespace Test.Tool.CloudTestClient
                 "/configOutputFile:" + updateConfigPath,
             }));
 
-            Assert.Contains("ambiguous", ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("groupName", ex.Message, StringComparison.OrdinalIgnoreCase);
         }
 
         [Fact]
-        public void GroupNameDisambiguatesJobNameAcrossGroups()
+        public void GroupNameResolvesJobNameToItsGroup()
         {
             using var temp = new TempDirectory();
             string sessionConfigPath = temp.GetPath("session-config.json");
@@ -137,7 +140,7 @@ namespace Test.Tool.CloudTestClient
             string sessionIdFile = temp.WriteFile("session-id.txt", "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
             string updateConfigPath = temp.GetPath("update-config.json");
 
-            // Providing the group name disambiguates the lookup.
+            // The group name scopes the lookup to the intended group.
             var updateArgs = new CloudTestClientArgs(new[]
             {
                 "/mode:generateUpdateDynamicJobConfig",
@@ -191,52 +194,6 @@ namespace Test.Tool.CloudTestClient
 
             Assert.Contains("not found", ex.Message, StringComparison.OrdinalIgnoreCase);
             Assert.Contains("does-not-exist", ex.Message);
-        }
-
-        [Fact]
-        public void UniqueJobNameAcrossGroupsResolvesWithoutGroupName()
-        {
-            using var temp = new TempDirectory();
-            string sessionConfigPath = temp.GetPath("session-config.json");
-
-            // Two groups with distinct job names. A name-based lookup is unambiguous without a group name,
-            // and must resolve to the correct (second) group's id.
-            string group1 = GroupFileTestHelper.BuildGroupJson(
-                image: "ubuntu22.04", sku: "Standard_D4s_v3", jobsJson: """[{"name":"JobA"}]""");
-            string group2 = GroupFileTestHelper.BuildGroupJson(
-                image: "windows2022", sku: "Standard_D8s_v3", jobsJson: """[{"name":"JobB"}]""");
-            string groupsFile = GroupFileTestHelper.WriteGroupsFile(temp, "groups.json", group1, group2);
-
-            var sessionArgs = new CloudTestClientArgs(new[]
-            {
-                "/mode:generateSessionConfig",
-                "/sessionInputFile:" + groupsFile,
-                "/configOutputFile:" + sessionConfigPath,
-            });
-            ConfigGeneratorHelper.GenerateSessionConfig(sessionArgs);
-
-            using var sessionDoc = JsonDocument.Parse(File.ReadAllText(sessionConfigPath));
-            var secondGroup = sessionDoc.RootElement.GetProperty("dynamicGroupRequests")[1];
-            string expectedGroupId = secondGroup.GetProperty("groupId").GetString();
-            string expectedJobId = secondGroup.GetProperty("dynamicJobRequests")[0].GetProperty("jobId").GetString();
-
-            string sessionIdFile = temp.WriteFile("session-id.txt", "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
-            string updateConfigPath = temp.GetPath("update-config.json");
-
-            var updateArgs = new CloudTestClientArgs(new[]
-            {
-                "/mode:generateUpdateDynamicJobConfig",
-                "/sessionIdFile:" + sessionIdFile,
-                "/jobName:JobB",
-                "/sessionConfigPath:" + sessionConfigPath,
-                "/testFolder:JobB",
-                "/jobExecutable:" + temp.GetPath("run.sh"),
-                "/testExecutionType:Exe",
-                "/configOutputFile:" + updateConfigPath,
-            });
-
-            Assert.Equal(expectedJobId, updateArgs.JobId);
-            Assert.Equal(expectedGroupId, updateArgs.GroupId);
         }
 
         [Fact]

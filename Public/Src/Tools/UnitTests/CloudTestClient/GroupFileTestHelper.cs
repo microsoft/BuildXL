@@ -37,10 +37,7 @@ namespace Test.Tool.CloudTestClient
             using (var writer = new Utf8JsonWriter(buffer))
             {
                 writer.WriteStartObject();
-                if (name != null)
-                {
-                    writer.WriteString("name", name);
-                }
+                writer.WriteString("name", name ?? $"{image} {sku}");
                 writer.WriteString("image", image);
                 writer.WriteString("sku", sku);
                 writer.WriteNumber("maxResources", maxResources);
@@ -209,6 +206,9 @@ namespace Test.Tool.CloudTestClient
                 "/mode:generateUpdateDynamicJobConfig",
                 "/sessionIdFile:" + sessionIdFile,
                 "/jobName:" + jobName,
+                // The test groups use the default image/sku with no explicit name, so their group name defaults to
+                // "image sku". A name-based lookup requires the group name to be supplied.
+                "/groupName:ubuntu22.04 Standard_D4s_v3",
                 "/sessionConfigPath:" + sessionConfigPath,
                 "/testFolder:" + jobName,
                 "/jobExecutable:" + temp.GetPath("run.sh"),

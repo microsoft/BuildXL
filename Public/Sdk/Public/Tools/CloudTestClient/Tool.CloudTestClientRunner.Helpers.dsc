@@ -246,10 +246,10 @@ namespace Helpers {
     export interface JobNameReference {
         /** Job name to look up in the session config. */
         jobName: string;
+        /** Group name identifying which group the job-name lookup is scoped to. Matches the group's name in the session config. */
+        groupName: string;
         /** Session config file containing the job name to ID mapping. */
         sessionConfigFile: File;
-        /** Optional group name to disambiguate the lookup when the job name is not unique across groups. Matches the group's name (defaults to "image sku") in the session config. */
-        groupName?: string;
     }
 
     /** Reference to a job by its direct ID. The image and sku are required to compute the job's groupId. */
@@ -318,6 +318,10 @@ namespace Helpers {
          * which can result in under-builds (stale cached results being reused when these inputs change).
          */
         dropArtifacts?: Drop.DropArtifactInfo[];
+        /** When provided, enables retrieval of historic job runtimes from the CloudTest database using the given identity.
+         * When omitted, historic runtime retrieval is disabled. 
+         */
+        historicRuntimes?: APIs.HistoricRuntimesArguments;
     }
 
     /**
@@ -376,7 +380,9 @@ namespace Helpers {
             // Normalize jobs to a uniform {name, id?} shape so the C# side can deserialize a homogeneous array.
             const normalizedJobs = group.jobs.map(job => isJobWithId(job) ? job : {name: job});
             return {
-                name: group.name,
+                // Default the group name to "image sku" here so the session config always carries an explicit group
+                // name decided by DScript.
+                name: groupDisplayName(group),
                 sku: group.sku,
                 image: group.image,
                 maxResources: group.maxResources,
@@ -423,6 +429,7 @@ namespace Helpers {
             arguments: commandLineArgs,
             consoleOutput: consolePath,
             workingDirectory: outDir,
+            warningRegex: APIs.warningRegex,
             tags: [...(args.tags || []), "cloudtest"],
             description: args.description || "CloudTest: Generate Session Config",
             // We always want to generate a new config file, so a new CT session ID is generated. We are leaving the
@@ -458,8 +465,9 @@ namespace Helpers {
             bodyFile: configResult.configFile,
             drop: args.drop,
             dropArtifacts: args.dropArtifacts,
-            environment: args.environment,
-            debug: args.debug
+            debug: args.debug,
+            historicRuntimes: args.historicRuntimes,
+            environment: args.environment
         };
 
         return {
@@ -520,6 +528,7 @@ namespace Helpers {
             arguments: commandLineArgs,
             consoleOutput: consolePath,
             workingDirectory: outDir,
+            warningRegex: APIs.warningRegex,
             dependencies: dependencies,
             // A job submission will naturally be uncacheable since it will have a unique session ID. But we let's make it explicit.
             disableCacheLookup: true,
@@ -606,10 +615,11 @@ namespace Helpers {
      */
     @@public 
     export function submitJob(args: SubmitJobArguments): APIs.CloudTestResult {
-        
+        const sanitizedJobNameAtom = PathAtom.createSanitized(args.jobName);
+
         const jobInputsLocation = args.jobInputsDropLocation !== undefined 
             ? args.jobInputsDropLocation 
-            : PathAtom.createSanitized(args.jobName);
+            : sanitizedJobNameAtom;
         
         let artifactInfos = args.jobInputs.map(input => {
             
@@ -679,9 +689,13 @@ namespace Helpers {
         const dropArtifactPaths : RelativePath[] = dropArtifactInfos.map(info => info.dropPath);
         const jobInputPaths : RelativePath[] = artifactInfos.map(info => info.dropPath);
 
+        // Resolve the group this job belongs to once, and use the same value both to build the historic runtime file
+        // name and to tell the C# config generator which group to look the job up in.
+        const resolvedGroupName = resolveGroupName(sessionArguments.groups, args.jobName, args.groupName);
+
         const dynamicJobConfigArguments : DynamicJobConfigArguments = {
             sessionId: args.configAndSessionResult.sessionResult.sessionIdFile,
-            jobReference: {jobName: args.jobName, sessionConfigFile: args.configAndSessionResult.configResult.configFile, groupName: args.groupName}, 
+            jobReference: {jobName: args.jobName, sessionConfigFile: args.configAndSessionResult.configResult.configFile, groupName: resolvedGroupName}, 
             testFolder: r`${jobInputsLocation}`,
             jobExecutable: args.jobExecutable,
             testExecutionType: args.testExecutionType,
@@ -701,6 +715,16 @@ namespace Helpers {
 
         const configResult = generateUpdateDynamicJobConfig(dynamicJobConfigArguments);
 
+        // Resolve the historic runtime file for this job from the shared opaque directory produced at session creation.
+        // The directory is only present when historic runtime retrieval was enabled, so its presence is sufficient.
+        const historicRuntimesDir = args.configAndSessionResult.sessionResult.historicRuntimesDir;
+        // When historic runtimes are enabled, the tool produces one JSON file per job named "<group>_<job>.json"
+        // (both parts sanitized). The group name is included because a job name can repeat across groups. This naming
+        // must match the tool's write side (HistoricRuntimeHelper.GetHistoricRuntimeFileName).
+        const historicRuntimeFile = historicRuntimesDir !== undefined
+            ? historicRuntimesDir.assertExistence(historicRuntimeFileName(resolvedGroupName, args.jobName))
+            : undefined;
+
         let updateDynamicJob : APIs.UpdateDynamicJobArguments = {
             sessionId: args.configAndSessionResult.sessionResult.sessionIdFile,
             bodyFile: configResult.configFile,
@@ -712,7 +736,8 @@ namespace Helpers {
             description: args.description,
             tenant: args.configAndSessionResult.configArguments.tenant,
             environment: args.configAndSessionResult.configArguments.environment,
-            debug: args.configAndSessionResult.configArguments.debug
+            debug: args.configAndSessionResult.configArguments.debug,
+            historicRuntimeFile: historicRuntimeFile
         };
 
         const updateResult = APIs.updateDynamicJob(updateDynamicJob);
@@ -772,6 +797,45 @@ namespace Helpers {
 
     function isJobWithId(job: string | JobWithId): job is JobWithId {
         return typeof(job) !== "string";
+    }
+
+    /**
+     * Resolves the (display) name of the group a job belongs to. The job is located by name across the session's
+     * groups; when an explicit group name is supplied on the submit call the search is restricted to that group (needed
+     * because the same job name can appear in more than one group). Fails if the job does not resolve to exactly one
+     * group. The returned value is the group's display name (see groupDisplayName), which is what the session config
+     * carries and what the historic runtime file name is built from.
+     */
+    function resolveGroupName(groups: Group[], jobName: string, explicitGroupName?: string): string {
+        const matchingGroups = groups.filter(group =>
+            (explicitGroupName === undefined || groupDisplayName(group) === explicitGroupName)
+            && group.jobs.some(job => (isJobWithId(job) ? job.name : job) === jobName));
+
+        if (matchingGroups.length === 0) {
+            Contract.fail(`Job '${jobName}' was not found in any group of the session. Cannot resolve its historic runtime file.`);
+        }
+
+        if (matchingGroups.length > 1) {
+            Contract.fail(`Job '${jobName}' is ambiguous: it appears in multiple groups of the session. Specify a 'groupName' on the submit call to disambiguate.`);
+        }
+
+        return groupDisplayName(matchingGroups[0]);
+    }
+
+    /**
+     * The display name of a group: its explicit name, or "image sku" when no name was provided.
+     */
+    function groupDisplayName(group: Group): string {
+        return group.name || `${group.image} ${group.sku}`;
+    }
+
+    /**
+     * Builds the per-job historic runtime file name as "<sanitizedGroup>_<sanitizedJob>.json", matching the tool's
+     * write side (HistoricRuntimeHelper.GetHistoricRuntimeFileName).
+     */
+    function historicRuntimeFileName(groupName: string, jobName: string): RelativePath {
+        const fileName = a`${PathAtom.createSanitized(groupName)}_${PathAtom.createSanitized(jobName)}.json`;
+        return r`${fileName}`;
     }
 
     /**

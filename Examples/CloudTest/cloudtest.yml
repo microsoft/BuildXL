@@ -87,10 +87,12 @@ extends:
           buildXL:
             installerOptions:
               version: $(BuildXLPackageVersion)
+            # 861f8f3b-77a2-497a-a955-fbd921dc48de is the service connection ID for mseng-Domino-BuildXL-Pipelines
             arguments: >-
               /c:config.dsc
               /logOutput:FullOutputAlways
               /p:CloudTestTokenVariableName=${{ parameters.CloudTestTokenVariable }}
+              /p:ServiceConnectionId=861f8f3b-77a2-497a-a955-fbd921dc48de
             workingDirectory: $(Build.SourcesDirectory)/Examples/CloudTest
             env:
               ${{ parameters.CloudTestTokenVariable }}: $(${{ parameters.CloudTestTokenVariable }})

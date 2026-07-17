@@ -48,6 +48,7 @@ const sessionArgs : CloudTestClient.Helpers.GenerateSessionConfigAndCreateSessio
     // Any artifact that is uploaded to the drop at session creation time (e.g. consumed later by test jobs) must be
     // provided through dropArtifacts so it participates in the CloudTest caching fingerprint.
     dropArtifacts: [ {kind: "file", file: testScript, dropPath: r`setup/test.sh`} ],
+    historicRuntimes: { serviceConnectionId: Environment.getStringValue("ServiceConnectionId") },
 };
 
 const sessionCreateResult = CloudTestClient.Helpers.generateConfigAndCreateSession(sessionArgs);

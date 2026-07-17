@@ -87,13 +87,19 @@ namespace Tool.CloudTestClient
             var seenGroupNames = new HashSet<string>(StringComparer.Ordinal);
             foreach (var group in input.Groups)
             {
+                if (string.IsNullOrEmpty(group.Name))
+                {
+                    throw new InvalidOperationException(
+                        $"Group with image '{group.Image}' and sku '{group.Sku}' in session input '{arguments.SessionInputFile}' is missing the required 'name'. The group name must be resolved by the caller (the DScript SDK does this automatically).");
+                }
+
                 if (group.Jobs == null || group.Jobs.Count == 0)
                 {
-                    throw new InvalidOperationException($"Group '{group.Name ?? $"{group.Image} {group.Sku}"}' does not contain any jobs.");
+                    throw new InvalidOperationException($"Group '{group.Name}' does not contain any jobs.");
                 }
 
                 var groupId = ComputeGroupId(group.Image, group.Sku);
-                var groupName = !string.IsNullOrEmpty(group.Name) ? group.Name : $"{group.Image} {group.Sku}";
+                var groupName = group.Name;
 
                 // Reject duplicate group names within the session. Group names are used to disambiguate jobs at
                 // submission time, so two groups sharing a name would make name-based lookup ambiguous.

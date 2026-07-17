@@ -14,6 +14,8 @@ namespace Test.Tool.CloudTestClient {
             importFrom("BuildXL.Tools").CloudTestClient.tool,
             importFrom("BuildXL.Utilities").ToolSupport.dll,
             importFrom("BuildXL.Utilities").Utilities.Core.dll,
+            importFrom("BuildXL.Utilities.UnitTests").TestUtilities.dll,
+            importFrom("BuildXL.Utilities.UnitTests").TestUtilities.XUnitV3.dll,
         ],
     });
 }

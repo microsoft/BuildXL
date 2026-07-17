@@ -14,9 +14,15 @@ namespace CloudTestClient {
         skipDocumentationGeneration: true,
         skipDefaultReferences: true,
         sources: globR(d`.`, "*.cs"),
+        internalsVisibleTo: ["Test.Tool.CloudTestClient"],
         references: [
             importFrom("BuildXL.Utilities").ToolSupport.dll,
             importFrom("BuildXL.Utilities").Utilities.Core.dll,
+            importFrom("Azure.Core").pkg,
+            importFrom("Azure.Identity").pkg,
+            importFrom("Microsoft.Azure.Kusto.Data").pkg,
+            importFrom("System.IdentityModel.Tokens.Jwt").pkg,
+            importFrom("Microsoft.IdentityModel.Tokens").pkg,
         ],
     });
 }

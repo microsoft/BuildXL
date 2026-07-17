@@ -105,7 +105,7 @@ namespace Test.Tool.CloudTestClient
             // Each group gets its own (distinct) groupId derived from image+sku
             Assert.NotEqual(groups[0].GetProperty("groupId").GetString(), groups[1].GetProperty("groupId").GetString());
 
-            // When no explicit name is provided, the group name defaults to "image sku"
+            // When no explicit name is provided, the group name defaults to "image sku" (resolved by the caller)
             Assert.Equal("ubuntu22.04 Standard_D4s_v3", groups[0].GetProperty("groupName").GetString());
             Assert.Equal("windows2022 Standard_D8s_v3", groups[1].GetProperty("groupName").GetString());
         }
@@ -120,6 +120,18 @@ namespace Test.Tool.CloudTestClient
             using var doc = JsonDocument.Parse(GroupFileTestHelper.GenerateSessionConfigJson(temp, groupFile));
             var group = doc.RootElement.GetProperty("dynamicGroupRequests")[0];
             Assert.Equal("my-friendly-group", group.GetProperty("groupName").GetString());
+        }
+
+        [Fact]
+        public void MissingGroupNameThrows()
+        {
+            using var temp = new TempDirectory();
+            // A group with no 'name' is malformed: the caller (DScript SDK) is responsible for resolving it.
+            string group = """{"image":"ubuntu22.04","sku":"Standard_D4s_v3","maxResources":1,"jobs":[{"name":"JobA"}]}""";
+            string groupsFile = GroupFileTestHelper.WriteGroupsFile(temp, "groups.json", group);
+
+            var ex = Assert.Throws<InvalidOperationException>(() => GroupFileTestHelper.GenerateSessionConfigJson(temp, groupsFile));
+            Assert.Contains("name", ex.Message, StringComparison.OrdinalIgnoreCase);
         }
 
         [Fact]

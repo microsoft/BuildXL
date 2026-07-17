@@ -3,7 +3,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.IdentityModel.Tokens.Jwt;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -92,7 +94,7 @@ namespace Tool.CloudTestClient
             return RunAsync(arguments).GetAwaiter().GetResult();
         }
 
-        private async Task<int> RunAsync(CloudTestClientArgs arguments)
+        private static async Task<int> RunAsync(CloudTestClientArgs arguments)
         {
             // GenerateSessionConfig and GenerateUpdateDynamicJobConfig are local-only operations — no HTTP or token needed
             if (arguments.Mode == CloudTestMode.GenerateSessionConfig)
@@ -119,7 +121,21 @@ namespace Tool.CloudTestClient
                 Log($"Timeout set to {arguments.Timeout.TotalMinutes} minutes (deadline: {deadline:u})");
                 Log($"Environment: {arguments.Environment} ({GetBaseUrl(arguments.Environment)})");
 
-                using var httpClient = new HttpClient();
+                if (arguments.Debug)
+                {
+                    // Log the bearer token's non-sensitive claims (never the token itself) so audience/scope/expiry
+                    // mismatches can be diagnosed. A request rejected with a 302 to sign-in despite a present token is
+                    // typically caused by a wrong 'aud'/'scp' or an already-elapsed 'exp'.
+                    LogTokenClaims(token);
+                }
+
+                // Do NOT follow redirects automatically. Protected CloudTest endpoints respond to an
+                // unauthenticated/expired-token request with a 302 to the AAD sign-in page. If we followed it,
+                // the final response would be a 200 carrying the sign-in HTML, which masks the auth failure and
+                // gets mis-parsed as a session status. Keeping redirects off lets the 3xx surface through the
+                // IsSuccessStatusCode checks so we log the status code and bail out early.
+                using var httpClientHandler = new HttpClientHandler { AllowAutoRedirect = false };
+                using var httpClient = new HttpClient(httpClientHandler);
                 httpClient.Timeout = arguments.Timeout;
                 httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
                 httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
@@ -150,7 +166,7 @@ namespace Tool.CloudTestClient
             }
         }
 
-        private async Task<int> CreateSessionAsync(HttpClient httpClient, CloudTestClientArgs arguments, DateTime deadline)
+        private static async Task<int> CreateSessionAsync(HttpClient httpClient, CloudTestClientArgs arguments, DateTime deadline)
         {
             // Step 1: Read and submit the session
             string body = await File.ReadAllTextAsync(arguments.BodyFile);
@@ -193,7 +209,23 @@ namespace Tool.CloudTestClient
             await File.WriteAllTextAsync(arguments.SessionIdFile, sessionId);
             Log($"Session ID written to {arguments.SessionIdFile}");
 
-            // Step 2: Poll for session readiness
+            // Step 2: Kick off historic runtime retrieval concurrently with session readiness polling.
+            // The Kusto query only needs job IDs (available from the body file), so it can run
+            // in parallel with CloudTest provisioning the session.
+            //
+            // The retrieval is capped by the overall session-creation deadline: a slow (or hung) Kusto query
+            // must never make us blow past the caller-provided timeout. We cancel at the deadline; on cancellation
+            // the retrieval writes empty runtime files so downstream jobs can still proceed without historic data.
+            using var historicRuntimesCts = new CancellationTokenSource();
+            Task historicRuntimesTask = Task.CompletedTask;
+            if (arguments.HistoricRuntimesEnabled)
+            {
+                TimeSpan remaining = deadline - DateTime.UtcNow;
+                historicRuntimesCts.CancelAfter(remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero);
+                historicRuntimesTask = RetrieveHistoricRuntimesAsync(arguments, historicRuntimesCts.Token);
+            }
+
+            // Step 3: Poll for session readiness
             string readyUrl = $"{baseUrl}/api/tenants/{arguments.Tenant}/sessions/{sessionId}/Ready";
             Log($"Polling for session readiness at {readyUrl}");
 
@@ -216,17 +248,19 @@ namespace Tool.CloudTestClient
                     return null;
                 });
 
+            // Ensure historic runtime retrieval completes before returning
+            await historicRuntimesTask;
+
             if (readyResult != (int)ReturnCode.Success)
             {
                 return readyResult;
             }
 
-
             return (int)ReturnCode.Success;
         }
 
 
-        private Task<int> WaitForSessionCompletionAsync(HttpClient httpClient, CloudTestClientArgs arguments, DateTime deadline)
+        private static Task<int> WaitForSessionCompletionAsync(HttpClient httpClient, CloudTestClientArgs arguments, DateTime deadline)
         {
             string baseUrl = GetBaseUrl(arguments.Environment);
             string statusUrl = $"{baseUrl}/api/tenants/{arguments.Tenant}/sessions/{arguments.SessionId}";
@@ -266,8 +300,39 @@ namespace Tool.CloudTestClient
                 });
         }
 
-        private async Task<int> UpdateDynamicJobAsync(HttpClient httpClient, CloudTestClientArgs arguments)
+        private static async Task<int> UpdateDynamicJobAsync(HttpClient httpClient, CloudTestClientArgs arguments)
         {
+            // Read and emit historic runtime info when a runtime file was provided for this job.
+            if (!string.IsNullOrEmpty(arguments.HistoricRuntimeFile))
+            {
+                if (!File.Exists(arguments.HistoricRuntimeFile))
+                {
+                    Log($"ERROR: Historic runtime file '{arguments.HistoricRuntimeFile}' does not exist.");
+                    return (int)ReturnCode.InvalidInput;
+                }
+
+                long? avgDurationMs = HistoricRuntimeHelper.ReadRuntimeFromFile(arguments.HistoricRuntimeFile);
+                if (avgDurationMs.HasValue)
+                {
+                    Log($"Historic average runtime: {avgDurationMs.Value}ms");
+
+                    if (avgDurationMs.Value >= 0)
+                    {
+                        // TODO: The exact way of sharing this with BuildXL is TBD, but the idea is to use a VSO-like approach
+                        // where BuildXL will scan for ##buildxl lines in the standard output.
+                        Console.WriteLine($"##buildxl[runtime]{avgDurationMs.Value}");
+                    }
+                    else
+                    {
+                        Log($"Historic average runtime is negative: {avgDurationMs.Value}ms. This is an indication there is no valid historic data.");
+                    }
+                }
+                else
+                {
+                    Log($"WARNING: Historic runtime file is empty or does not contain 'avgDurationMs'. Proceeding without historic data.");
+                }
+            }
+
             string body = await File.ReadAllTextAsync(arguments.BodyFile);
             string baseUrl = GetBaseUrl(arguments.Environment);
             string url = $"{baseUrl}/api/tenants/{arguments.Tenant}/sessions/{arguments.SessionId}/UpdateDynamicJob";
@@ -283,7 +348,7 @@ namespace Tool.CloudTestClient
             return (int)ReturnCode.Success;
         }
 
-        private async Task<int> CancelSessionAsync(HttpClient httpClient, CloudTestClientArgs arguments)
+        private static async Task<int> CancelSessionAsync(HttpClient httpClient, CloudTestClientArgs arguments)
         {
             string baseUrl = GetBaseUrl(arguments.Environment);
             string url = $"{baseUrl}/api/tenants/{arguments.Tenant}/sessions/{arguments.SessionId}/cancel";
@@ -299,7 +364,7 @@ namespace Tool.CloudTestClient
             return (int)ReturnCode.Success;
         }
 
-        private int RunGenerateSessionConfig(CloudTestClientArgs arguments)
+        private static int RunGenerateSessionConfig(CloudTestClientArgs arguments)
         {
             try
             {
@@ -314,7 +379,7 @@ namespace Tool.CloudTestClient
             }
         }
 
-        private int RunGenerateUpdateDynamicJobConfig(CloudTestClientArgs arguments)
+        private static int RunGenerateUpdateDynamicJobConfig(CloudTestClientArgs arguments)
         {
             try
             {
@@ -329,6 +394,140 @@ namespace Tool.CloudTestClient
             }
         }
 
+        /// <summary>
+        /// Queries for historical average job runtimes and writes per-job runtime files.
+        /// This is a best-effort operation: failures are logged but do not cause session creation to fail.
+        /// Two authentication paths are supported:
+        /// <list type="bullet">
+        /// <item>Non-ADO: a pre-acquired Entra token is read from the environment variable named by
+        /// <see cref="CloudTestClientArgs.HistoricRuntimeEntraTokenEnvVar"/>.</item>
+        /// <item>ADO: workload identity federation — the client ID and tenant ID are extracted from the bearer
+        /// token JWT, and a <see cref="KustoHistoricRuntimeHelper"/> is created using the service connection ID
+        /// and the ADO system access token.</item>
+        /// </list>
+        /// </summary>
+        private static async Task RetrieveHistoricRuntimesAsync(CloudTestClientArgs arguments, CancellationToken cancellationToken)
+        {
+            // The tool contract is that, once historic runtime retrieval is enabled, we must always
+            // produce one file per job — even when retrieval fails. On any failure we write empty files, which the
+            // reading side (UpdateDynamicJobAsync) treats as "no historic data".
+            Dictionary<string, (string GroupName, string JobName)> jobIdToName;
+            try
+            {
+                jobIdToName = HistoricRuntimeHelper.ExtractJobsFromSessionConfig(arguments.BodyFile);
+            }
+            catch (Exception ex)
+            {
+                Log($"WARNING: Failed to read jobs from session config for historic runtime retrieval: {ex}");
+                return;
+            }
+
+            if (jobIdToName.Count == 0)
+            {
+                Log("WARNING: No jobs found in session config. No historic runtime files to write.");
+                return;
+            }
+
+            try
+            {
+                KustoHistoricRuntimeHelper helper = CreateHistoricRuntimeHelper(arguments);
+                await helper.RetrieveAndWriteRuntimesAsync(arguments.BodyFile, arguments.HistoricRuntimesOutputDir, arguments.Debug, Log, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                string reason = ex is OperationCanceledException
+                    ? "the session-creation deadline was reached before the query completed"
+                    : ex.ToString();
+                Log($"WARNING: Failed to retrieve historic runtimes: {reason}. Writing empty runtime files so downstream jobs can proceed without historic data.");
+                HistoricRuntimeHelper.WriteEmptyHistoricRuntimeFiles(arguments.HistoricRuntimesOutputDir, jobIdToName, Log);
+            }
+        }
+
+        /// <summary>
+        /// Creates a <see cref="KustoHistoricRuntimeHelper"/> configured for the current authentication mode.
+        /// Throws when a required prerequisite (token, claim, or access token) is missing, so callers can write
+        /// empty runtime files as a fallback.
+        /// </summary>
+        private static KustoHistoricRuntimeHelper CreateHistoricRuntimeHelper(CloudTestClientArgs arguments)
+        {
+            if (!string.IsNullOrEmpty(arguments.HistoricRuntimeEntraTokenEnvVar))
+            {
+                // Non-ADO case: use a pre-acquired Entra token from the specified environment variable.
+                string entraToken = Environment.GetEnvironmentVariable(arguments.HistoricRuntimeEntraTokenEnvVar);
+                if (string.IsNullOrEmpty(entraToken))
+                {
+                    throw new InvalidOperationException($"Environment variable '{arguments.HistoricRuntimeEntraTokenEnvVar}' is not set or empty.");
+                }
+
+                return new KustoHistoricRuntimeHelper(entraToken, arguments.Environment, arguments.Debug, Log);
+            }
+
+            // ADO case: use workload identity federation. The client ID and tenant ID are extracted from the
+            // bearer token JWT, and authentication uses the service connection ID plus the ADO system access token.
+            string token = Environment.GetEnvironmentVariable(arguments.TokenEnvVar);
+            if (string.IsNullOrEmpty(token))
+            {
+                throw new InvalidOperationException($"Environment variable '{arguments.TokenEnvVar}' is not set or empty.");
+            }
+
+            if (!TryExtractJwtClaims(token, out string clientId, out string tenantId))
+            {
+                throw new InvalidOperationException("Failed to extract 'appid' and 'tid' claims from the bearer token.");
+            }
+
+            Log($"Extracted identity from token — tenantId: {tenantId}, clientId: {clientId}");
+
+            string systemAccessToken = Environment.GetEnvironmentVariable("SYSTEM_ACCESSTOKEN");
+            if (string.IsNullOrEmpty(systemAccessToken))
+            {
+                throw new InvalidOperationException("SYSTEM_ACCESSTOKEN environment variable is not set.");
+            }
+
+            return new KustoHistoricRuntimeHelper(tenantId, clientId, arguments.HistoricRuntimeServiceConnectionId, systemAccessToken, arguments.Environment, arguments.Debug, Log);
+        }
+
+        /// <summary>
+        /// Extracts the 'appid' (client ID) and 'tid' (tenant ID) claims from a JWT bearer token.
+        /// </summary>
+        private static bool TryExtractJwtClaims(string token, out string clientId, out string tenantId)
+        {
+            clientId = null;
+            tenantId = null;
+
+            var handler = new JwtSecurityTokenHandler();
+            var jwt = handler.ReadJwtToken(token);
+
+            clientId = jwt.Claims.FirstOrDefault(c => c.Type == "appid")?.Value;
+            tenantId = jwt.Claims.FirstOrDefault(c => c.Type == "tid")?.Value;
+
+            return !string.IsNullOrEmpty(clientId) && !string.IsNullOrEmpty(tenantId);
+        }
+
+        /// <summary>
+        /// Logs the non-sensitive claims of the bearer token (never the token itself) to help diagnose
+        /// authentication failures such as an audience/scope mismatch or an already-expired token.
+        /// </summary>
+        private static void LogTokenClaims(string token)
+        {
+            try
+            {
+                var jwt = new JwtSecurityTokenHandler().ReadJwtToken(token);
+
+                string audience = string.Join(", ", jwt.Audiences);
+                string appId = jwt.Claims.FirstOrDefault(c => c.Type == "appid")?.Value;
+                string tenantId = jwt.Claims.FirstOrDefault(c => c.Type == "tid")?.Value;
+                string scopes = jwt.Claims.FirstOrDefault(c => c.Type == "scp")?.Value;
+                string roles = string.Join(" ", jwt.Claims.Where(c => c.Type == "roles").Select(c => c.Value));
+
+                Log($"Bearer token claims — aud: [{audience}], appid: {appId}, tid: {tenantId}, " +
+                    $"scp: [{scopes}], roles: [{roles}], iat: {jwt.ValidFrom:u}, exp: {jwt.ValidTo:u} " +
+                    $"(now: {DateTime.UtcNow:u}, {(jwt.ValidTo <= DateTime.UtcNow ? "EXPIRED" : "valid")}).");
+            }
+            catch (Exception ex)
+            {
+                Log($"WARNING: Could not decode bearer token to log claims: {ex}");
+            }
+        }
 
         /// <summary>
         /// Polls a URL until a terminal condition is met or the deadline expires.
@@ -399,7 +598,16 @@ namespace Tool.CloudTestClient
 
                 if (!response.IsSuccessStatusCode)
                 {
-                    Log($"ERROR: POST {url} returned {(int)response.StatusCode} {response.StatusCode}: {responseBody}");
+                    if (IsRedirect(response.StatusCode))
+                    {
+                        Log($"ERROR: POST {url} was redirected ({(int)response.StatusCode} {response.StatusCode}) to '{response.Headers.Location}'. " +
+                            "This usually indicates the bearer token is missing, invalid, or expired.");
+                    }
+                    else
+                    {
+                        Log($"ERROR: POST {url} returned {(int)response.StatusCode} {response.StatusCode}: {responseBody}");
+                    }
+
                     return null;
                 }
 
@@ -426,7 +634,16 @@ namespace Tool.CloudTestClient
 
                 if (!response.IsSuccessStatusCode)
                 {
-                    Log($"ERROR: GET {url} returned {(int)response.StatusCode} {response.StatusCode}: {responseBody}");
+                    if (IsRedirect(response.StatusCode))
+                    {
+                        Log($"ERROR: GET {url} was redirected ({(int)response.StatusCode} {response.StatusCode}) to '{response.Headers.Location}'. " +
+                            "This usually indicates the bearer token is missing, invalid, or expired.");
+                    }
+                    else
+                    {
+                        Log($"ERROR: GET {url} returned {(int)response.StatusCode} {response.StatusCode}: {responseBody}");
+                    }
+
                     return null;
                 }
 
@@ -447,6 +664,8 @@ namespace Tool.CloudTestClient
         #endregion
 
         #region Utility
+
+        private static bool IsRedirect(HttpStatusCode statusCode) => (int)statusCode >= 300 && (int)statusCode < 400;
 
         private static string ExtractJsonField(string json, string fieldName)
         {
@@ -591,6 +810,17 @@ USAGE: CloudTestClient /mode:<mode> [options]
   /bodyFile          Required. Path to JSON request body.
   /tokenEnvVar       Required. Env var holding the bearer token.
   /sessionIdFile     Required. Output path to write the created session ID.
+  Historic runtime retrieval (optional; enabled by providing an identity able
+  to read CloudTest telemetry):
+  /historicRuntimeServiceConnectionId Azure DevOps service connection ID for
+                     workload identity federation (ADO). Mutually exclusive with
+                     /historicRuntimeEntraTokenEnvVar.
+  /historicRuntimeEntraTokenEnvVar Env var holding an Entra token authorized to
+                     read the CloudTest database (non-ADO). Mutually exclusive
+                     with /historicRuntimeServiceConnectionId.
+  /historicRuntimesOutputDir Directory to write per-job historic runtime JSON
+                     files (one file per job ID). Required when an identity is
+                     provided.
 
 -- updateDynamicJob ---------------------------------------------------------------
   /bodyFile          Required. Path to JSON request body.
@@ -598,6 +828,8 @@ USAGE: CloudTestClient /mode:<mode> [options]
   /sessionIdFile     Session ID from a file (e.g. produced by createSession).
   /sessionId         Explicit session ID GUID.
   NOTE: Provide exactly one of /sessionIdFile or /sessionId.
+  /historicRuntimeFile Optional. Path to a JSON file with historic runtime
+                     data for this job. When present, emits ##buildxl[runtime].
 
 -- cancelSession ------------------------------------------------------------------
   /tokenEnvVar       Required. Env var holding the bearer token.
@@ -626,8 +858,8 @@ USAGE: CloudTestClient /mode:<mode> [options]
   /jobId             Job ID GUID (must match a declared placeholder).
   /jobName           Job name to look up in the session config file.
   /sessionConfigPath Path to session config JSON (for job name resolution).
-  /groupName         Optional. Group name to disambiguate the /jobName lookup
-                     when the job name is not unique across groups.
+  /groupName         Group name identifying which group to scope the /jobName
+                     lookup to. Required with /jobName.
   NOTE: Provide either /jobId alone, or both /jobName and /sessionConfigPath.
   /image             Required only with /jobId. VM image (e.g. ubuntu22.04);
                      used to compute the groupId when referencing a job by ID.

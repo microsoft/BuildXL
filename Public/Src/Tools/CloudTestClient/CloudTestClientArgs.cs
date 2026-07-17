@@ -3,7 +3,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using BuildXL.ToolSupport;
 
 namespace Tool.CloudTestClient
@@ -97,7 +96,6 @@ namespace Tool.CloudTestClient
         /// </summary>
         public bool Debug { get; }
 
-
         #endregion
 
         #region GenerateSessionConfig arguments
@@ -140,8 +138,8 @@ namespace Tool.CloudTestClient
         public string SessionConfigPath { get; }
 
         /// <summary>
-        /// Optional group name used to disambiguate a job-name lookup when the job name is not unique across groups.
-        /// Matches the group's name (defaults to "image sku") in the session config.
+        /// Group name identifying which group the job-name lookup is scoped to. Required for name-based job resolution;
+        /// matches the group's name in the session config.
         /// </summary>
         public string GroupName { get; private set; }
 
@@ -189,6 +187,28 @@ namespace Tool.CloudTestClient
 
         /// <summary>Job priority (lower = higher priority).</summary>
         public int? Priority { get; }
+
+        /// <summary>Optional path to a JSON file containing historic runtime data for this job.</summary>
+        public string HistoricRuntimeFile { get; }
+
+        #endregion
+
+        #region CreateSession arguments
+
+        /// <summary>Directory where per-job historic runtime JSON files are written.</summary>
+        public string HistoricRuntimesOutputDir { get; }
+
+        /// <summary>Azure DevOps service connection ID for workload identity federation authentication (ADO case) used to read historic runtimes. Mutually exclusive with <see cref="HistoricRuntimeEntraTokenEnvVar"/>.</summary>
+        public string HistoricRuntimeServiceConnectionId { get; }
+
+        /// <summary>Name of an environment variable holding an Entra token authorized to read the CloudTest database (non-ADO case). Mutually exclusive with <see cref="HistoricRuntimeServiceConnectionId"/>.</summary>
+        public string HistoricRuntimeEntraTokenEnvVar { get; }
+
+        /// <summary>
+        /// True when an identity authorized to read the CloudTest database has been provided (either a service
+        /// connection ID or an Entra token env var). Historic runtime retrieval is enabled if and only if this is true.
+        /// </summary>
+        public bool HistoricRuntimesEnabled => !string.IsNullOrEmpty(HistoricRuntimeServiceConnectionId) || !string.IsNullOrEmpty(HistoricRuntimeEntraTokenEnvVar);
 
         #endregion
 
@@ -313,6 +333,18 @@ namespace Tool.CloudTestClient
                         // Bare flag (/debug), or /debug+ / /debug- to explicitly enable/disable.
                         Debug = ParseBooleanOption(opt);
                         break;
+                    case "HISTORICRUNTIMEFILE":
+                        HistoricRuntimeFile = opt.Value;
+                        break;
+                    case "HISTORICRUNTIMESOUTPUTDIR":
+                        HistoricRuntimesOutputDir = opt.Value;
+                        break;
+                    case "HISTORICRUNTIMESERVICECONNECTIONID":
+                        HistoricRuntimeServiceConnectionId = opt.Value;
+                        break;
+                    case "HISTORICRUNTIMEENTRATOKENENVVAR":
+                        HistoricRuntimeEntraTokenEnvVar = opt.Value;
+                        break;
                     default:
                         throw Error($"Unsupported option: {opt.Name}");
                 }
@@ -413,6 +445,11 @@ namespace Tool.CloudTestClient
                         throw Error("Only one 'jobName' can be specified for mode 'generateUpdateDynamicJobConfig'");
                     }
 
+                    if (string.IsNullOrEmpty(GroupName))
+                    {
+                        throw Error("Missing mandatory argument 'groupName' for name-based job lookup in mode 'generateUpdateDynamicJobConfig'");
+                    }
+
                     (JobId, GroupId, GroupSetupCleanupJson) = ResolveJobFromSessionConfig(Jobs[0].Name, GroupName, SessionConfigPath);
 
                     // The session's file providers are a session-level fingerprint input shared by every job.
@@ -472,6 +509,8 @@ namespace Tool.CloudTestClient
             ValidatePath(ConfigOutputFile, "configOutputFile");
             ValidatePath(SessionConfigPath, "sessionConfigPath");
             ValidatePath(SessionInputFile, "sessionInputFile");
+            ValidatePath(HistoricRuntimesOutputDir, "historicRuntimesOutputDir");
+            ValidatePath(HistoricRuntimeFile, "historicRuntimeFile");
 
                         // Validate mode-specific args
             if (Mode == CloudTestMode.CreateSession || Mode == CloudTestMode.UpdateDynamicJob)
@@ -513,6 +552,28 @@ namespace Tool.CloudTestClient
                 {
                     throw Error($"Missing mandatory argument 'sessionIdFile' for mode '{mode}'");
                 }
+
+                // Historic runtime retrieval is enabled by providing an identity authorized to read the CloudTest
+                // database. Exactly one of historicRuntimeServiceConnectionId (ADO) or historicRuntimeEntraTokenEnvVar (non-ADO) may be provided.
+                if (!string.IsNullOrEmpty(HistoricRuntimeServiceConnectionId) && !string.IsNullOrEmpty(HistoricRuntimeEntraTokenEnvVar))
+                {
+                    throw Error("Cannot specify both 'historicRuntimeServiceConnectionId' and 'historicRuntimeEntraTokenEnvVar'. " +
+                                "Provide exactly one identity to enable historic runtime retrieval.");
+                }
+
+                // When an identity is provided, an output directory for the per-job runtime files is required.
+                if (HistoricRuntimesEnabled && string.IsNullOrEmpty(HistoricRuntimesOutputDir))
+                {
+                    throw Error("Missing mandatory argument 'historicRuntimesOutputDir' for mode 'createSession' " +
+                                "when historic runtime retrieval is enabled.");
+                }
+
+                // Conversely, an output directory without an identity is a misconfiguration.
+                if (!HistoricRuntimesEnabled && !string.IsNullOrEmpty(HistoricRuntimesOutputDir))
+                {
+                    throw Error("'historicRuntimesOutputDir' was provided but no identity to read the CloudTest database was given. " +
+                                "Provide either 'historicRuntimeServiceConnectionId' or 'historicRuntimeEntraTokenEnvVar' to enable historic runtime retrieval.");
+                }
             }
         }
 
@@ -538,16 +599,12 @@ namespace Tool.CloudTestClient
         }
 
         /// <summary>
-        /// Reads a session config JSON file and finds the job ID and the containing group's ID for the given job name.
-        /// Also captures the resolved group's dynamic setup/cleanup JSON so it can contribute to the job's caching
-        /// fingerprint. When <paramref name="groupName"/> is provided, the lookup is restricted to the group with that
-        /// name. When it is not provided and the job name matches jobs in more than one group, the lookup is ambiguous
-        /// and fails.
+        /// Reads a session config JSON file and finds the job ID and the containing group's ID for the given job name,
+        /// scoped to the group named <paramref name="groupName"/>. Also captures the resolved group's dynamic
+        /// setup/cleanup JSON so it can contribute to the job's caching fingerprint.
         /// </summary>
         private static (string JobId, string GroupId, string GroupSetupCleanupJson) ResolveJobFromSessionConfig(string jobName, string groupName, string sessionConfigPath)
         {
-            var matches = new List<(string JobId, string GroupId, string GroupName, string GroupSetupCleanupJson)>();
-
             try
             {
                 using var doc = JsonHelpers.ReadJsonDocument(sessionConfigPath);
@@ -560,8 +617,8 @@ namespace Tool.CloudTestClient
                             ? groupNameElement.GetString()
                             : null;
 
-                        // When a group name filter is provided, only consider the matching group.
-                        if (!string.IsNullOrEmpty(groupName) && !string.Equals(currentGroupName, groupName, StringComparison.Ordinal))
+                        // Group names are unique within a session, so only the group with the requested name is relevant.
+                        if (!string.Equals(currentGroupName, groupName, StringComparison.Ordinal))
                         {
                             continue;
                         }
@@ -571,32 +628,34 @@ namespace Tool.CloudTestClient
                             foreach (var job in jobs.EnumerateArray())
                             {
                                 if (job.TryGetProperty("jobName", out var nameElement)
-                                    && string.Equals(nameElement.GetString(), jobName, StringComparison.Ordinal))
+                                    && string.Equals(nameElement.GetString(), jobName, StringComparison.Ordinal)
+                                    && job.TryGetProperty("jobId", out var idElement))
                                 {
-                                    if (job.TryGetProperty("jobId", out var idElement))
+                                    string id = idElement.GetString();
+                                    if (!string.IsNullOrEmpty(id))
                                     {
-                                        string id = idElement.GetString();
-                                        if (!string.IsNullOrEmpty(id))
+                                        // The session config generator always emits a groupId for every group
+                                        // (SessionConfigGenerator.ComputeGroupId), so a found group without one indicates
+                                        // a malformed or incompatible config. Fail fast here rather than returning a null
+                                        // groupId that would later be silently recomputed from the caller-supplied image/sku.
+                                        string groupId = group.TryGetProperty("groupId", out var groupIdElement)
+                                            ? groupIdElement.GetString()
+                                            : null;
+                                        if (string.IsNullOrEmpty(groupId))
                                         {
-                                            // The session config generator always emits a groupId for every
-                                            // group (SessionConfigGenerator.ComputeGroupId), so a found group
-                                            // without one indicates a malformed or incompatible config. Fail
-                                            // fast here rather than returning a null groupId that would later be
-                                            // silently recomputed from the caller-supplied image/sku.
-                                            string groupId = group.TryGetProperty("groupId", out var groupIdElement)
-                                                ? groupIdElement.GetString()
-                                                : null;
-                                            if (string.IsNullOrEmpty(groupId))
-                                            {
-                                                throw new InvalidOperationException(
-                                                    $"Group '{currentGroupName}' in session config file '{sessionConfigPath}' is missing a 'groupId'.");
-                                            }
-                                            matches.Add((id, groupId, currentGroupName, ExtractGroupSetupCleanupJson(group)));
+                                            throw new InvalidOperationException(
+                                                $"Group '{currentGroupName}' in session config file '{sessionConfigPath}' is missing a 'groupId'.");
                                         }
+
+                                        return (id, groupId, ExtractGroupSetupCleanupJson(group));
                                     }
                                 }
                             }
                         }
+
+                        // The requested group was found but does not contain the job.
+                        throw new InvalidOperationException(
+                            $"Job name '{jobName}' not found in group '{groupName}' of session config file '{sessionConfigPath}'");
                     }
                 }
             }
@@ -605,22 +664,9 @@ namespace Tool.CloudTestClient
                 throw new InvalidOperationException($"Failed to parse session config file '{sessionConfigPath}': {ex.Message}");
             }
 
-            if (matches.Count == 0)
-            {
-                string scope = string.IsNullOrEmpty(groupName)
-                    ? $"session config file '{sessionConfigPath}'"
-                    : $"group '{groupName}' of session config file '{sessionConfigPath}'";
-                throw new InvalidOperationException($"Job name '{jobName}' not found in {scope}");
-            }
-
-            if (matches.Count > 1)
-            {
-                string groupNames = string.Join(", ", matches.Select(m => $"'{m.GroupName}'"));
-                throw new InvalidOperationException(
-                    $"Job name '{jobName}' is ambiguous: it matches jobs in multiple groups ({groupNames}) in session config file '{sessionConfigPath}'. Specify a 'groupName' to disambiguate.");
-            }
-
-            return (matches[0].JobId, matches[0].GroupId, matches[0].GroupSetupCleanupJson);
+            // No group with the requested name exists in the session config.
+            throw new InvalidOperationException(
+                $"Group '{groupName}' not found in session config file '{sessionConfigPath}'");
         }
 
         /// <summary>

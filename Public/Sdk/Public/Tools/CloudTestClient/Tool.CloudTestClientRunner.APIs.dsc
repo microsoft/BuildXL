@@ -31,6 +31,12 @@ namespace APIs {
         ]
     };
 
+    /**
+     * Warning regex applied to the CloudTestClient tool output.
+     */
+    @@public
+    export const warningRegex: string = "(?i).*WARNING:.*";
+
     /** A session ID can be either a file containing the ID (e.g. from createSession) or a string GUID (e.g. from a pre-build step). */
     @@public
     export type SessionId = File | string;
@@ -69,6 +75,19 @@ namespace APIs {
         service: string;
     }
 
+    /**
+     * Identifies an entity authorized to read the CloudTest database, used to retrieve historic job runtimes.
+     * Exactly one of `serviceConnectionId` (ADO) or `entraTokenEnvVarName` (non-ADO) must be provided.
+     * The mere presence of this object is what enables historic runtime retrieval.
+     */
+    @@public
+    export interface HistoricRuntimesArguments {
+        /** Azure DevOps service connection ID for workload identity federation (ADO case). Mutually exclusive with entraTokenEnvVarName. */
+        serviceConnectionId?: string;
+        /** Name of an environment variable holding an Entra token authorized to read the CloudTest database (non-ADO case). Mutually exclusive with serviceConnectionId. */
+        entraTokenEnvVarName?: string;
+    }
+
     /** Arguments for creating a CloudTest DJE session. */
     @@public
     export interface CreateSessionArguments extends CloudTestBaseArguments {
@@ -85,6 +104,8 @@ namespace APIs {
          * which can result in under-builds (stale cached results being reused when these inputs change).
          */
         dropArtifacts?: Drop.DropArtifactInfo[];
+        /** When provided, enables retrieval of historic job runtimes from the CloudTest database using the given identity. When omitted, historic runtime retrieval is disabled. */
+        historicRuntimes?: HistoricRuntimesArguments;
     }
 
     /** Arguments for updating a dynamic job in an existing session. */
@@ -94,6 +115,8 @@ namespace APIs {
         bodyFile: File;
         /** Session ID: a File (produced by createSession) or a string GUID (from a pre-build step). */
         sessionId: SessionId;
+        /** Optional file containing historic runtime data for this job. When provided, the tool reads the avg duration and emits it via ##buildxl[runtime]. */
+        historicRuntimeFile?: File;
     }
 
     /** Arguments for cancelling an existing session. */
@@ -123,6 +146,8 @@ namespace APIs {
         executeResult: Transformer.ExecuteResult;
         /** The result of creating a drop, if a drop was created by BuildXL. Undefined otherwise. */
         createDropResult?: Drop.DropCreateResult;
+        /** Directory containing per-job historic runtime JSON files. Undefined if historic runtime retrieval was not enabled. */
+        historicRuntimesDir?: OpaqueDirectory;
     }
 
     /**
@@ -142,6 +167,18 @@ namespace APIs {
      */
     @@public
     export function createSession(args: CreateSessionArguments): CreateSessionResult {
+
+        // Historic runtime retrieval is enabled by providing an identity authorized to read the CloudTest database.
+        // When provided, exactly one of serviceConnectionId (ADO) or entraTokenEnvVarName (non-ADO) must be set.
+        const historicRuntimesEnabled = args.historicRuntimes !== undefined;
+        if (historicRuntimesEnabled) {
+            const hasServiceConnectionId = args.historicRuntimes.serviceConnectionId !== undefined;
+            const hasEntraTokenEnvVar = args.historicRuntimes.entraTokenEnvVarName !== undefined;
+            Contract.requires(
+                (hasServiceConnectionId || hasEntraTokenEnvVar) && !(hasServiceConnectionId && hasEntraTokenEnvVar),
+                "historicRuntimes requires exactly one of 'serviceConnectionId' or 'entraTokenEnvVarName' to be provided."
+            );
+        }
 
         let createDropResult: Drop.DropCreateResult = undefined;
         // If a Drop.DropCreateResult is provided, use it directly. Otherwise, create a new drop.
@@ -165,6 +202,14 @@ namespace APIs {
         const outDir = Context.getNewOutputDirectory("cloudtest");
         const sessionIdFile = p`${outDir}/session-id.txt`;
         const consolePath = p`${outDir}/console.out`;
+        const historicRuntimesDir = historicRuntimesEnabled ? d`${outDir}/historic-runtimes` : undefined;
+
+        // Environment variables the tool needs to authenticate against the CloudTest database, depending on the chosen identity.
+        const historicRuntimesEnvVars = historicRuntimesEnabled
+            ? (args.historicRuntimes.entraTokenEnvVarName !== undefined
+                ? [args.historicRuntimes.entraTokenEnvVarName]
+                : ["SYSTEM_OIDCREQUESTURI"])
+            : [];
 
         let commandLineArgs: Argument[] = [
             Cmd.option("/mode:", "createSession"),
@@ -173,6 +218,11 @@ namespace APIs {
             Cmd.option("/bodyFile:", Artifact.input(args.bodyFile)),
             Cmd.option("/sessionIdFile:", Artifact.output(sessionIdFile)),
             Cmd.option("/timeout:", args.timeoutMinutes),
+            ...(historicRuntimesEnabled ? [
+                Cmd.option("/historicRuntimesOutputDir:", Artifact.output(historicRuntimesDir)),
+                Cmd.option("/historicRuntimeServiceConnectionId:", args.historicRuntimes.serviceConnectionId),
+                Cmd.option("/historicRuntimeEntraTokenEnvVar:", args.historicRuntimes.entraTokenEnvVarName),
+            ] : []),
             Cmd.option("/environment:", args.environment),
             Cmd.flag("/debug", args.debug),
         ];
@@ -191,6 +241,7 @@ namespace APIs {
             arguments: commandLineArgs,
             consoleOutput: consolePath,
             workingDirectory: outDir,
+            warningRegex: warningRegex,
             dependencies: [
                 ...(args.dependencies || []), 
                 ...(createDropResult ? createDropResult.outputs : []), 
@@ -201,7 +252,7 @@ namespace APIs {
             // We expect the create session operation to be uncacheable since it will produce a unique session ID file. But let's make it explicit.
             disableCacheLookup: true,
             unsafe: {
-                passThroughEnvironmentVariables: [args.tokenEnvVar, "USER"]
+                passThroughEnvironmentVariables: [args.tokenEnvVar, "USER", "SYSTEM_ACCESSTOKEN", ...historicRuntimesEnvVars]
             }
         });
 
@@ -209,7 +260,8 @@ namespace APIs {
             console: result.getOutputFile(consolePath),
             sessionIdFile: result.getOutputFile(sessionIdFile),
             executeResult: result,
-            createDropResult: createDropResult
+            createDropResult: createDropResult,
+            historicRuntimesDir: historicRuntimesDir !== undefined ? result.getOutputDirectory(historicRuntimesDir) : undefined,
         };
     }
 
@@ -218,7 +270,7 @@ namespace APIs {
      */
     @@public
     export function updateDynamicJob(args: UpdateDynamicJobArguments): CloudTestResult {
-        return executeWithSessionId(args, "updateDynamicJob", args.sessionId, args.bodyFile, /* mustRunOnOrchestrator */ false);
+        return executeWithSessionId(args, "updateDynamicJob", args.sessionId, args.bodyFile, /* mustRunOnOrchestrator */ false, args.historicRuntimeFile);
     }
 
     /**
@@ -255,7 +307,7 @@ namespace APIs {
             : [Cmd.option("/sessionId:", sessionId)];
     }
 
-    function executeWithSessionId(args: CloudTestBaseArguments, mode: string, sessionId: SessionId, bodyFile: File, mustRunOnOrchestrator: boolean): CloudTestResult {
+    function executeWithSessionId(args: CloudTestBaseArguments, mode: string, sessionId: SessionId, bodyFile: File, mustRunOnOrchestrator: boolean, historicRuntimeFile?: File): CloudTestResult {
         const outDir = Context.getNewOutputDirectory("cloudtest");
         const consolePath = p`${outDir}/console.out`;
 
@@ -268,6 +320,7 @@ namespace APIs {
             Cmd.option("/environment:", args.environment),
             Cmd.flag("/debug", args.debug),
             ...sessionIdArgs(sessionId),
+            Cmd.option("/historicRuntimeFile:", Artifact.input(historicRuntimeFile)),
         ];
 
         // The pip timeout is a property of the executing tool. Let's make sure it is not below the timeout the user is willing to wait for
@@ -284,6 +337,7 @@ namespace APIs {
             arguments: commandLineArgs,
             consoleOutput: consolePath,
             workingDirectory: outDir,
+            warningRegex: warningRegex,
             dependencies: args.dependencies || [],
             environmentVariables: args.environmentVariables || [],
             tags: [...(args.tags || []), "cloudtest"],

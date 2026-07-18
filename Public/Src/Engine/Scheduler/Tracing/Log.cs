@@ -3795,19 +3795,21 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (ushort)Tasks.PipExecutor,
-            Message = "[{pipDescription}] NumProcesses: {numProcesses}, ExpectedDurationSec: {expectedDurationSec}, ActualDurationSec: {actualDurationSec}, MaxExpectedDurationSec: {maxExpectedDurationSec}, ProcessorUseInPercents: {processorUseInPercents}, Weight: {weight}, " +
+            Message = "[{pipDescription}] NumProcesses: {numProcesses}, ExpectedDurationSec: {expectedDurationSec}, ActualDurationSec: {actualDurationSec}, MaxExpectedDurationSec: {maxExpectedDurationSec}, ExpectedProcessorUseInPercents: {expectedProcessorUseInPercents}, ProcessorUseInPercents: {processorUseInPercents}, Weight: {weight}, " +
                 "DefaultWorkingSetMb: {defaultWorkingSetMb}, " +
                 "ExpectedPeakWorkingSetMb: {expectedPeakWorkingSetMb}, PeakWorkingSetMb: {peakWorkingSetMb}, " +
                 "ExpectedAverageWorkingSetMb: {expectedAverageWorkingSetMb}, AverageWorkingSetMb: {averageWorkingSetMb}, " +
                 "ExpectedDiskIOInMB: {expectedDiskIOInMB}, ActualDiskIOInMB: {actualDiskIOInMB}, " +
                 "NumFileDependencies: {numFileDependencies}, NumDirectoryDependencies: {numDirectoryDependencies}, " +
-                "NumFileOutputs: {numFileOutputs}, NumDirectoryOutputs: {numDirectoryOutputs}.")]
+                "NumFileOutputs: {numFileOutputs}, NumDirectoryOutputs: {numDirectoryOutputs}, Machine: {machine}.")]
         internal abstract void ProcessPipExecutionInfo(
             LoggingContext loggingContext,
             string pipDescription,
             uint numProcesses,
             double expectedDurationSec,
             double actualDurationSec,
+            double maxExpectedDurationSec,
+            int expectedProcessorUseInPercents,
             int processorUseInPercents,
             int weight,
             int defaultWorkingSetMb,
@@ -3817,11 +3819,11 @@ namespace BuildXL.Scheduler.Tracing
             int averageWorkingSetMb,
             int expectedDiskIOInMB,
             int actualDiskIOInMB,
-            double maxExpectedDurationSec,
             int numFileDependencies,
             int numDirectoryDependencies,
             int numFileOutputs,
-            int numDirectoryOutputs);
+            int numDirectoryOutputs,
+            string machine);
 
         [GeneratedEvent(
             (ushort)LogEventId.ProcessPipExecutionInfoOverflowFailure,

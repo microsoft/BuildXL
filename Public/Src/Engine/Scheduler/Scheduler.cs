@@ -5289,6 +5289,10 @@ namespace BuildXL.Scheduler
                                     executionResult.PerformanceInformation?.NumberOfProcesses ?? 0,
                                     (processRunnable.HistoricPerfData?.ExeDurationInMs ?? 0) / 1000.0,
                                     executionResult.PerformanceInformation?.ProcessExecutionTime.TotalSeconds ?? 0,
+                                    (processRunnable.HistoricPerfData?.MaxExeDurationInMs ?? 0) / 1000.0,
+                                    // ExpectedProcessorUseInPercents: BuildXL's historic-perf CPU prior for this pip (O(1) struct read),
+                                    // the pre-run companion to the actual ProcessorUseInPercents. 0 when there is no history.
+                                    processRunnable.HistoricPerfData?.ProcessorsInPercents ?? 0,
                                     executionResult.PerformanceInformation?.ProcessorsInPercents ?? 0,
                                     processRunnable.Weight,
                                     worker.DefaultWorkingSetMbPerProcess,
@@ -5298,11 +5302,12 @@ namespace BuildXL.Scheduler
                                     averageWorkingSetMb,
                                     (int)(processRunnable.HistoricPerfData?.DiskIOInMB ?? 0),
                                     (int)ByteSizeFormatter.BytesToMegabytes(executionResult.PerformanceInformation?.IO.GetAggregateIO().TransferCount ?? 0),
-                                    (processRunnable.HistoricPerfData?.MaxExeDurationInMs ?? 0) / 1000.0,
                                     numFileDependencies,
                                     numDirectoryDependencies,
                                     numFileOutputs,
-                                    numDirectoryOutputs);
+                                    numDirectoryOutputs,
+                                    // Machine: the worker that executed the pip (IP when available, else name).
+                                    worker.WorkerIpAddress ?? worker.Name);
 
                                 if (expectedMemoryCounters.AverageWorkingSetMb > 0)
                                 {

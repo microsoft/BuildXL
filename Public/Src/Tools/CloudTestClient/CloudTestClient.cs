@@ -46,8 +46,51 @@ namespace Tool.CloudTestClient
             InvalidInput = 4,
         }
 
-        private static readonly TimeSpan s_readyPollInterval = TimeSpan.FromSeconds(30);
+        private static readonly TimeSpan s_readyPollInterval = TimeSpan.FromSeconds(10);
         private static readonly TimeSpan s_completionPollInterval = TimeSpan.FromSeconds(20);
+
+        /// <summary>
+        /// Maximum number of consecutive transient failures (e.g. an intermittent 502 from Azure Front Door,
+        /// or a 429 while being throttled) tolerated while polling before giving up. A single success resets the counter.
+        /// </summary>
+        private const int MaxConsecutiveTransientPollFailures = 5;
+
+        /// <summary>
+        /// Upper bound on the exponential backoff delay applied after a transient poll failure (e.g. a 429/503).
+        /// This backoff is added on top of the regular poll interval and doubles with each consecutive transient
+        /// failure, so we ease off on a struggling or throttling service instead of hammering it at the normal cadence.
+        /// </summary>
+        internal static readonly TimeSpan MaxTransientBackoff = TimeSpan.FromMinutes(2);
+
+        /// <summary>
+        /// Outcome of a single HTTP GET attempt, used to decide whether polling should stop, retry, or proceed.
+        /// </summary>
+        private enum HttpGetOutcome
+        {
+            /// <summary>The request succeeded; the body is available.</summary>
+            Success,
+
+            /// <summary>The request failed with a transient error (network hiccup, 5xx, throttling). Safe to retry.</summary>
+            Transient,
+
+            /// <summary>The request failed with a non-retryable error (e.g. auth redirect, 4xx). Polling should stop.</summary>
+            Terminal,
+        }
+
+        /// <summary>
+        /// HTTP status codes that indicate a transient, retryable condition. These are typically raised by
+        /// intermediaries (e.g. Azure Front Door returning 502/503/504) or by server-side throttling, and
+        /// usually clear on a subsequent attempt.
+        /// </summary>
+        private static readonly HashSet<HttpStatusCode> s_transientStatusCodes = new()
+        {
+            HttpStatusCode.RequestTimeout,        // 408
+            HttpStatusCode.TooManyRequests,       // 429
+            HttpStatusCode.InternalServerError,   // 500
+            HttpStatusCode.BadGateway,            // 502
+            HttpStatusCode.ServiceUnavailable,    // 503
+            HttpStatusCode.GatewayTimeout,        // 504
+        };
 
         /// <summary>
         /// Returns the CloudTest API base URL for the given environment.
@@ -550,17 +593,40 @@ namespace Tool.CloudTestClient
 
             using var cts = new CancellationTokenSource(remaining);
 
+            int consecutiveTransientFailures = 0;
+
             try
             {
                 while (true)
                 {
                     await Task.Delay(pollInterval, cts.Token);
 
-                    string response = await GetAsync(httpClient, url, cts.Token);
-                    if (response == null)
+                    (HttpGetOutcome outcome, string response) = await GetAsync(httpClient, url, cts.Token);
+
+                    if (outcome == HttpGetOutcome.Transient)
+                    {
+                        consecutiveTransientFailures++;
+                        if (consecutiveTransientFailures > MaxConsecutiveTransientPollFailures)
+                        {
+                            Log($"ERROR: GET {url} failed with {consecutiveTransientFailures} consecutive transient errors. Giving up.");
+                            return (int)ReturnCode.HttpError;
+                        }
+
+                        // Back off exponentially (on top of the regular poll interval) so we don't keep hammering a
+                        // service that is throttling us (429) or temporarily unavailable (502/503/504).
+                        TimeSpan backoff = ComputeTransientBackoff(pollInterval, consecutiveTransientFailures);
+                        Log($"Transient failure while polling {url} ({consecutiveTransientFailures}/{MaxConsecutiveTransientPollFailures}); backing off {backoff.TotalSeconds:F0}s before retrying.");
+                        await Task.Delay(backoff, cts.Token);
+                        continue;
+                    }
+
+                    if (outcome == HttpGetOutcome.Terminal)
                     {
                         return (int)ReturnCode.HttpError;
                     }
+
+                    // A successful response resets the transient failure streak.
+                    consecutiveTransientFailures = 0;
 
                     int? result = evaluateResponse(response);
                     if (result.HasValue)
@@ -574,6 +640,24 @@ namespace Tool.CloudTestClient
                 Log($"ERROR: {timeoutMessage}");
                 return (int)ReturnCode.Timeout;
             }
+        }
+
+        /// <summary>
+        /// Computes an exponential backoff delay for a transient poll failure. The delay doubles with each
+        /// consecutive failure — <paramref name="pollInterval"/> × 2^(consecutiveFailures-1) — and is capped at
+        /// <see cref="MaxTransientBackoff"/>. It is applied in addition to the regular poll interval.
+        /// </summary>
+        internal static TimeSpan ComputeTransientBackoff(TimeSpan pollInterval, int consecutiveFailures)
+        {
+            // consecutiveFailures is always >= 1 here. Use double arithmetic to avoid ticks overflow on large exponents.
+            double multiplier = Math.Pow(2, consecutiveFailures - 1);
+            double backoffTicks = pollInterval.Ticks * multiplier;
+            if (backoffTicks >= MaxTransientBackoff.Ticks)
+            {
+                return MaxTransientBackoff;
+            }
+
+            return TimeSpan.FromTicks((long)backoffTicks);
         }
 
         #region HTTP helpers
@@ -625,7 +709,7 @@ namespace Tool.CloudTestClient
             }
         }
 
-        private static async Task<string> GetAsync(HttpClient httpClient, string url, CancellationToken cancellationToken)
+        private static async Task<(HttpGetOutcome Outcome, string Body)> GetAsync(HttpClient httpClient, string url, CancellationToken cancellationToken)
         {
             try
             {
@@ -638,26 +722,37 @@ namespace Tool.CloudTestClient
                     {
                         Log($"ERROR: GET {url} was redirected ({(int)response.StatusCode} {response.StatusCode}) to '{response.Headers.Location}'. " +
                             "This usually indicates the bearer token is missing, invalid, or expired.");
-                    }
-                    else
-                    {
-                        Log($"ERROR: GET {url} returned {(int)response.StatusCode} {response.StatusCode}: {responseBody}");
+                        return (HttpGetOutcome.Terminal, null);
                     }
 
-                    return null;
+                    if (s_transientStatusCodes.Contains(response.StatusCode))
+                    {
+                        Log($"WARNING: GET {url} returned transient error {(int)response.StatusCode} {response.StatusCode}.");
+                        return (HttpGetOutcome.Transient, null);
+                    }
+
+                    Log($"ERROR: GET {url} returned {(int)response.StatusCode} {response.StatusCode}: {responseBody}");
+                    return (HttpGetOutcome.Terminal, null);
                 }
 
-                return responseBody;
+                return (HttpGetOutcome.Success, responseBody);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                // The overall polling deadline was reached. Surface the cancellation so the caller reports a timeout.
+                throw;
             }
             catch (HttpRequestException ex)
             {
-                Log($"ERROR: GET {url} failed: {ex.Message}");
-                return null;
+                // Network-level failures (connection reset, DNS, TLS, etc.) are typically transient.
+                Log($"WARNING: GET {url} failed with a network error: {ex.Message}.");
+                return (HttpGetOutcome.Transient, null);
             }
-            catch (TaskCanceledException)
+            catch (TaskCanceledException ex)
             {
-                Log($"ERROR: GET {url} timed out.");
-                return null;
+                // Not the overall deadline (handled above): this is a per-request timeout, which is transient.
+                Log($"WARNING: GET {url} timed out: {ex.Message}.");
+                return (HttpGetOutcome.Transient, null);
             }
         }
 

@@ -273,7 +273,7 @@ namespace BuildXL.Scheduler.Cache
 
             using (StreamWithLength owned = maybePathSetStream.Result)
             using (operationContext.StartOperation(PipExecutorCounter.TryLoadPathSetFromContentCacheDeserializeDuration))
-            using (var pathSetReader = new BuildXLReader(debug: false, stream: owned.Stream, leaveOpen: false, bufferSize: BuildXLReader.RecommendedBufferBytesForFileStream))
+            using (var pathSetReader = new BuildXLReader(debug: false, stream: owned.Stream, leaveOpen: false))
             {
                 var maybeDeserialized = ObservedPathSet.TryDeserialize(PathTable, pathSetReader, m_pathExpander);
                 if (!maybeDeserialized.Succeeded)

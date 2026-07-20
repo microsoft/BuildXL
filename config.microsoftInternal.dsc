@@ -96,7 +96,7 @@ export const pkgs = isMicrosoftInternal ? [
 
     // Component Governance detection tool and Python runtime for pip detection.
     // These are bundled into the BuildXL drop deployed to CloudBuild so GenericBuildRunner can invoke component detection.
-    { id: "Microsoft.VisualStudio.Services.Governance.ComponentDetection", version: "2026.5.4.2036", dependentPackageIdsToSkip: ["*"], osSkip: [ "macOS", "unix" ] },
+    { id: "Microsoft.VisualStudio.Services.Governance.ComponentDetection", version: "2026.7.15.1720", dependentPackageIdsToSkip: ["*"], osSkip: [ "macOS", "unix" ] },
     { id: "Python", version: "3.14.6", dependentPackageIdsToSkip: ["*"], osSkip: [ "macOS", "unix" ] },
     
 ] : [

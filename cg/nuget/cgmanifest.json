@@ -2202,7 +2202,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.VisualStudio.Services.Governance.ComponentDetection",
-          "Version": "2026.5.4.2036"
+          "Version": "2026.7.15.1720"
         }
       }
     },

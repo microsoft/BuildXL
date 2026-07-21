@@ -3,7 +3,7 @@ BuildXL supports a wide variety of build languages and packaging systems. The en
 * [DScript](DScript/Introduction.md)
 * [JavaScript](Frontends/js-onboarding.md)
 * The [Ninja frontend](Frontends/Ninja.md), which can be used to [build CMake projects](Frontends/cmake-builds-with-ninja.md) (experimental)
-* MsBuild (in development)
+* [MsBuild](Frontends/MSBuild/Main.md)
 * [Download](Frontends/Download.md)
 * NuGet
 

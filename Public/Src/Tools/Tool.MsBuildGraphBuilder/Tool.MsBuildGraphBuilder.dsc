@@ -31,8 +31,8 @@ namespace MsBuildGraphBuilder {
                 name: "Microsoft.Bcl.AsyncInterfaces",
                 publicKeyToken: "cc7b13ffcd2ddd51",
                 culture: "neutral",
-                oldVersion: "0.0.0.0-10.0.0.9",
-                newVersion: "10.0.0.9", // Corresponds to: { id: "Microsoft.Bcl.AsyncInterfaces", version: "10.0.9" },
+                oldVersion: "0.0.0.0-10.0.0.10",
+                newVersion: "10.0.0.10", // Corresponds to: { id: "Microsoft.Bcl.AsyncInterfaces", version: "10.0.10" },
             },
         ],
         references:[

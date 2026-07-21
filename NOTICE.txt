@@ -8632,7 +8632,7 @@ SOFTWARE.
 
 ---------------------------------------------------------
 
-brace-expansion 5.0.6 - MIT
+brace-expansion 5.0.7 - MIT
 https://github.com/juliangruber/brace-expansion#readme
 
 Copyright Isaac Z. Schlueter <i@izs.me>

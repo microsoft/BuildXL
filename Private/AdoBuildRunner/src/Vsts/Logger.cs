@@ -97,6 +97,9 @@ namespace BuildXL.AdoBuildRunner.Vsts
         /// <nodoc />
         public void TaskCompleteAsFailed(string message)
         {
+            // The ##vso[task.complete] control command below is silently consumed by the ADO agent.
+            // Also emit the message as a plain Info line so it is visible in the raw pipeline log.
+            Info(message);
             string completeFailedCommand = string.Format(TaskCompleteFailedFormat, WithTimeStamp(message));
             Output(completeFailedCommand);
         }

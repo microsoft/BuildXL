@@ -10,7 +10,7 @@ parameters:
     displayName: 'Build & use a locally-built BuildXL from this branch instead of installing the released $(BuildXLPackageVersion). Use for testing an unreleased change.'
   - name: storageAccountUrl
     type: string
-    default: 'https://buildxlblobvalidation.blob.core.windows.net'
+    default: 'https://bxlblobdaemonval.blob.core.windows.net'
     displayName: 'Azure Storage account URL'
   - name: containerName
     type: string
@@ -21,7 +21,7 @@ parameters:
     default: 'mseng-Domino-BuildXL-Pipelines' # Service connection used by most BuildXL pipelines that need an authentication token
   - name: StorageServiceConnection
     type: string
-    default: 'mseng-Domino-BuildXL-BlobDaemonValidation' # WIF connection to the PME Entra app that has Storage Blob Data Contributor on the validation storage account
+    default: 'mseng-Domino-BuildXL-BlobDaemonValidation-Corp' # WIF connection to a user-assigned managed identity in the corp tenant that has Storage Blob Data Contributor on the validation storage account.
   - name: AdoResource
     type: string
     default: '499b84ac-1321-427f-aa17-267ca6975798' # Azure DevOps resource UUID (used to authenticate to internal NuGet feeds)

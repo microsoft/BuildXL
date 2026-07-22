@@ -45,7 +45,9 @@ parameters:
 
 - name: cacheType
   type: string
-  default: EphemeralDatacenterWide
+  # TEMPORARY: switched from EphemeralDatacenterWide to Blob to work around exit-139
+  # (SIGSEGV in deprecated Grpc.Core during ephemeral cache shutdown). See bug 2446208.
+  default: Blob
 
 - name: pool
   type: object

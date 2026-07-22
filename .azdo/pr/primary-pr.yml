@@ -78,6 +78,8 @@ extends:
               /q:DebugNet472
               /q:DebugNet9
               /q:ReleaseNet9
+              /q:DebugNet10
+              /q:ReleaseNet10
               /p:[Sdk.BuildXL]microsoftInternal=1
               /enableEvaluationThrottling
               /validateCgManifestForNugets:cg\nuget\cgmanifest.json

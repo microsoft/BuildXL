@@ -1284,7 +1284,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.Extensions.ObjectPool",
-          "Version": "9.0.0"
+          "Version": "10.0.9"
         }
       }
     },

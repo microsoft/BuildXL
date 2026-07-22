@@ -80,7 +80,7 @@ namespace BuildXL {
     @@public
     export const deployed = BuildXLSdk.DeploymentHelpers.deploy({
         definition: cloudBuildDeployment,
-        targetLocation: (qualifier.targetFramework === Managed.TargetFrameworks.DefaultTargetFramework) // If targetFramework is not a default one (net9.0), then we put it in a separate directory.
+        targetLocation: (qualifier.targetFramework === Managed.TargetFrameworks.DefaultTargetFramework) // If targetFramework is not a default one (net10.0), then we put it in a separate directory.
         ? r`${qualifier.configuration}/${qualifier.targetRuntime}`
         : r`${qualifier.configuration}/${qualifier.targetFramework}/${qualifier.targetRuntime}`,
     });

@@ -554,7 +554,7 @@ config({
     qualifiers: {
         defaultQualifier: {
             configuration: "debug",
-            targetFramework: "net9.0",
+            targetFramework: "net10.0",
             targetRuntime:
                 Context.getCurrentHost().os === "win" ? "win-x64" :
                 Context.getCurrentHost().os === "macOS" ? "osx-x64" : "linux-x64",
@@ -562,7 +562,7 @@ config({
         namedQualifiers: {
             Debug: {
                 configuration: "debug",
-                targetFramework: "net9.0",
+                targetFramework: "net10.0",
                 targetRuntime: "win-x64",
             },
             DebugNet472: {
@@ -587,7 +587,7 @@ config({
             },
             DebugDotNetCoreMac: {
                 configuration: "debug",
-                targetFramework: "net9.0",
+                targetFramework: "net10.0",
                 targetRuntime: "osx-x64",
             },
             DebugDotNetCoreMacNet9: {
@@ -607,7 +607,7 @@ config({
             },
             DebugLinux: {
                 configuration: "debug",
-                targetFramework: "net9.0",
+                targetFramework: "net10.0",
                 targetRuntime: "linux-x64",
             },
             DebugLinuxNet9: {
@@ -628,7 +628,7 @@ config({
             // Release
             Release: {
                 configuration: "release",
-                targetFramework: "net9.0",
+                targetFramework: "net10.0",
                 targetRuntime: "win-x64",
             },
             ReleaseNet472: {
@@ -653,7 +653,7 @@ config({
             },
             ReleaseDotNetCoreMac: {
                 configuration: "release",
-                targetFramework: "net9.0",
+                targetFramework: "net10.0",
                 targetRuntime: "osx-x64",
             },
             ReleaseDotNetCoreMacNet9: {
@@ -673,7 +673,7 @@ config({
             },
             ReleaseLinux: {
                 configuration: "release",
-                targetFramework: "net9.0",
+                targetFramework: "net10.0",
                 targetRuntime: "linux-x64",
             },
             ReleaseLinuxNet9: {

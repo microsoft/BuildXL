@@ -2,7 +2,6 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 import * as Managed from "Sdk.Managed";
-import {isDotNetCore} from "Sdk.Managed.Shared";
 
 const sdkRoot = Context.getMount("SdkRoot").path;
 
@@ -92,7 +91,7 @@ function createSdkDeploymentDefinition(serverDeployment: boolean, minimalDeploym
                                 subfolder: "Sdk.Symbols",
                                 contents: [
                                     importFrom("BuildXL.Tools.SymbolDaemon").withQualifier({
-                                        targetFramework: isDotNetCore(qualifier.targetFramework) ? qualifier.targetFramework : "net8.0",
+                                        targetFramework: "net9.0",
                                         targetRuntime: "win-x64"
                                     }).selectDeployment(true)
                                 ]
@@ -101,7 +100,7 @@ function createSdkDeploymentDefinition(serverDeployment: boolean, minimalDeploym
                                 subfolder: "Sdk.Materialization",
                                 contents: [
                                     importFrom("BuildXL.Tools.MaterializationDaemon").withQualifier({
-                                        targetFramework: isDotNetCore(qualifier.targetFramework) ? qualifier.targetFramework : "net8.0",
+                                        targetFramework: "net9.0",
                                         targetRuntime: "win-x64"
                                     }).selectDeployment(true)
                                 ]
@@ -110,7 +109,7 @@ function createSdkDeploymentDefinition(serverDeployment: boolean, minimalDeploym
                                 subfolder: "Sdk.BlobDaemon",
                                 contents: [
                                     importFrom("BuildXL.Tools.BlobDaemon").withQualifier({
-                                        targetFramework: isDotNetCore(qualifier.targetFramework) ? qualifier.targetFramework : "net8.0",
+                                        targetFramework: "net9.0",
                                         targetRuntime: "win-x64"
                                     }).selectDeployment(true)
                                 ]
@@ -125,11 +124,11 @@ function createSdkDeploymentDefinition(serverDeployment: boolean, minimalDeploym
                                 // self-contained .NET runtime and keep the package small (see PR 863740).
                                 ...addIf(qualifier.targetRuntime === "win-x64",
                                     importFrom("BuildXL.Tools.SymbolDaemon").withQualifier({
-                                        targetFramework: isDotNetCore(qualifier.targetFramework) ? qualifier.targetFramework : "net8.0",
+                                        targetFramework: "net9.0",
                                         targetRuntime: "win-x64"
                                     }).exe,
                                     importFrom("BuildXL.Tools.MaterializationDaemon").withQualifier({
-                                        targetFramework: isDotNetCore(qualifier.targetFramework) ? qualifier.targetFramework : "net8.0",
+                                        targetFramework: "net9.0",
                                         targetRuntime: "win-x64"
                                     }).exe
                                 ),
@@ -137,7 +136,7 @@ function createSdkDeploymentDefinition(serverDeployment: boolean, minimalDeploym
                                 // that the matching self-contained runtime (e.g., libhostpolicy.so on Linux) is deployed
                                 // next to the application host.
                                 importFrom("BuildXL.Tools.BlobDaemon").withQualifier({
-                                    targetFramework: isDotNetCore(qualifier.targetFramework) ? qualifier.targetFramework : "net8.0",
+                                    targetFramework: "net9.0",
                                     targetRuntime: qualifier.targetRuntime
                                 }).exe
                             ]

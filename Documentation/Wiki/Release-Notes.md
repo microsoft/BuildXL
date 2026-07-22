@@ -2,6 +2,9 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20260716.2 (Release [31785580](https://dev.azure.com/mseng/Domino/_build/results?buildId=31785580&view=results))
+- [Detours] Compatibility fix for CopyFile2 source-read behavior change (CreateFile vs NtCreateFile). <!-- f76bfe6c653720cfbfe2e4d642fdb2a132305516 -->
+
 # 0.1.0-20260710.4 (Release [31777990](https://dev.azure.com/mseng/Domino/_build/results?buildId=31777990&view=results))
 - [Perf] Improve startup time in dev builds.
 - [Perf] Apply a `BufferedStream` to `BuildXLReader` when reading in files to improve performance across the board.

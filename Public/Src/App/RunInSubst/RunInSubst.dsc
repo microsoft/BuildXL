@@ -59,11 +59,12 @@ namespace RunInSubst {
 
     // Used to deploy the x86 of RunInsubst next to BuildXL.
     // x86 should be fine since it is runnable on x64 machine too.
+    // The PDB is intentionally omitted to reduce deployment size (RunInSubst is a tiny
+    // native helper that rarely needs on-box debugging).
     @@public
     export const deployment: Deployment.Definition = {
         contents: [
-            exe.binaryFile, 
-            exe.debugFile
+            exe.binaryFile
         ]
     };
 }

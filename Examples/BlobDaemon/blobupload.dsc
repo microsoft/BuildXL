@@ -71,8 +71,17 @@ function produceFile() : File {
 const fileToUpload = produceFile();
 
 // Start the BlobDaemon service. The auth-token env var is forwarded so the daemon can read it at runtime.
+//
+// contentTypeMappings (optional) sets a Content-Type on uploaded blobs based on the source file extension; it
+// applies to every upload in this session. Files are matched by the longest extension suffix (so '.tar.gz' wins
+// over '.gz'); unmatched files are uploaded without a Content-Type. Here 'hello.txt' is uploaded as 'text/plain'.
 const service = BlobDaemon.runner.startDaemon({
     forwardEnvironmentVars: [ authEnvVar ],
+    contentTypeMappings: [
+        { extension: ".txt", contentType: "text/plain; charset=utf-8" },
+        { extension: ".json", contentType: "application/json" },
+        { extension: ".tar.gz", contentType: "application/x-tar" },
+    ],
 });
 
 // Upload the produced file to '<container>/blobdaemon-validation/hello.txt'. uploadArtifacts schedules an IPC pip

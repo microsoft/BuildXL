@@ -185,6 +185,11 @@ function getExecuteArguments(command: string, args: CombinedArguments): Transfor
         "tool not specified"
     );
 
+    Contract.assert(
+        (args.contentTypeMappings || []).all(m => m.extension.startsWith(".")),
+        "All Content-Type mapping extensions must start with '.' (e.g. '.txt')."
+    );
+
     return <Transformer.ExecuteArguments>{
         tool: overrideToolArguments(selectedTool, args),
         workingDirectory: outDir,
@@ -201,6 +206,8 @@ function getExecuteArguments(command: string, args: CombinedArguments): Transfor
             Cmd.option("--maxConnectRetries ", args.maxConnectRetries),
             Cmd.option("--connectRetryDelayMillis ", args.connectRetryDelayMillis),
             Cmd.option("--logDir ", blobDaemonLogDirectory.path),
+            // CODESYNC: Public/Src/Tools/BlobDaemon/BlobDaemon.cs (CreateContentTypeResolver parses this format).
+            Cmd.options("--contentTypeMapping ", (args.contentTypeMappings || []).map(m => `${m.extension}#${m.contentType}`)),
         ],
         consoleOutput: outDir.combine(`${nametag}-stdout.txt`),
         dependencies: [
@@ -269,7 +276,8 @@ function serializeRelativePathReplace(replacementArgs: RelativePathReplacementAr
     return `${delim}${delim}`;
 }
 
-function serializeUploadLocation(uploadLocation: UploadLocation): string {
+function serializeUploadLocation(uploadLocation: UploadLocation): CompoundArgumentValue {
+    // Format (codesync: Public\Src\Tools\BlobDaemon\UploadLocation.cs, UploadLocation.TryParse)
     // we need to use a char that cannot appear in url/uri
     const delim = '#';
 
@@ -283,12 +291,15 @@ function serializeUploadLocation(uploadLocation: UploadLocation): string {
         "uploadLocation must be of type UploadLocationUri or UploadLocationContainer"
     );
 
+    // The values are joined by BuildXL (keeping each one strongly typed - importantly, uploadPath stays a
+    // RelativePath instead of being interpolated into its 'r`...`' literal). The separator is placed only
+    // between values, so the empty strings on both ends produce the leading and trailing delimiters.
     if (uploadLocation.kind === "uri") {
         const uri = uploadLocation as UploadLocationUri;
-        return `${delim}${uri.kind}${delim}${uri.uri}${delim}`;
+        return Cmd.join(delim, ["", uri.kind, uri.uri, ""]);
     } else if (uploadLocation.kind === "container") {
         const container = uploadLocation as UploadLocationContainer;
-        return `${delim}${container.kind}${delim}${container.accountName}${delim}${container.containerName}${delim}${container.uploadPath}${delim}`;
+        return Cmd.join(delim, ["", container.kind, container.accountName, container.containerName, container.uploadPath, ""]);
     }
 
     // should never happen

@@ -25,6 +25,7 @@ namespace Test.Tool.BlobDaemon {
             importFrom("BuildXL.Utilities").Storage.dll,
             importFrom("BuildXL.Utilities").Utilities.Core.dll,
             importFrom("BuildXL.Tools").ServicePipDaemon.dll,
+            Test.Tool.ServicePipDaemonTestUtilities.dll,
 
             importFrom("BuildXL.Tools.BlobDaemon").exe,
         ],

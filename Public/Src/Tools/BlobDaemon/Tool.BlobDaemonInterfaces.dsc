@@ -37,6 +37,24 @@ export interface ServiceStartArguments extends ConnectionArguments {
 
     /** Environment variables to forward to the daemon */
     forwardEnvironmentVars?: string[];
+
+    /**
+     * Optional map from file extension to the Content-Type to set on matching uploaded blobs.
+     * Applies to the whole daemon session. A file is matched by the longest extension suffix of its
+     * name (so '.tar.gz' wins over '.gz'); if no entry matches, no Content-Type is set.
+     * Content-Type values are set verbatim (not validated).
+     */
+    contentTypeMappings?: ContentTypeMapping[];
+}
+
+/** Associates a file extension with a Content-Type. */
+@@public
+export interface ContentTypeMapping {
+    /** File extension, including the leading dot, e.g. '.txt' or '.tar.gz'. */
+    extension: string;
+
+    /** Content-Type set on blobs whose source file matches the extension (set verbatim). */
+    contentType: string;
 }
 
 /** 
@@ -71,7 +89,7 @@ export interface UploadLocationContainer {
     /** Upload location kind */
     kind: "container";
 
-    /** Name of the storage account */
+    /** URL of the storage account (e.g. 'https://<account>.blob.core.windows.net'). */
     accountName: string;
 
     /** Name of the container */
@@ -94,8 +112,12 @@ interface BlobArtifactInfoBase {
      *  Note: This env variable must also be forwarded by BuildXL to the daemon, i.e., it must be
      *  included in forwardEnvironmentVars.
      * 
-     * Auth variable is declared on each artifact. This is intentional - this way one daemon can
-     * upload artifact to different locations that might require different authentication.
+     * The auth variable is declared per artifact. Its effective granularity depends on the kind of
+     * upload location: for container-based locations, the daemon caches and reuses a single credential
+     * per (account, container), so all artifacts targeting the same account+container should use the
+     * same auth variable (the token is RBAC-scoped at the container level or above, so one credential
+     * already covers every blob in that container). For URI-based locations, the daemon creates a
+     * fresh client (and credential) per artifact.
      */
     authEnvironmentVariable: string;
 }

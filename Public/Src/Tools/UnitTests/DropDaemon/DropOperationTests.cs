@@ -22,6 +22,7 @@ using BuildXL.Utilities.CLI;
 using Microsoft.VisualStudio.Services.Common;
 using Microsoft.VisualStudio.Services.Drop.WebApi;
 using Test.BuildXL.TestUtilities.Xunit;
+using Test.Tool.ServicePipDaemonTestUtilities;
 using Tool.DropDaemon;
 using Tool.ServicePipDaemon;
 using Xunit;
@@ -535,7 +536,7 @@ namespace Test.Tool.DropDaemon
                 new ServerConfig(),
                 (moniker, mockServer) =>
                 {
-                    var bxlApiClient = CreateDummyBxlApiClient(ipcProvider, moniker);
+                    var bxlApiClient = MockClient.CreateDummyApiClient(ipcProvider, moniker);
                     WithSetup(
                         dropClient,
                         (daemon, etwListener, dropConfig) =>
@@ -603,7 +604,7 @@ namespace Test.Tool.DropDaemon
                 new ServerConfig(),
                 (moniker, mockServer) =>
                 {
-                    var bxlApiClient = CreateDummyBxlApiClient(ipcProvider, moniker);
+                    var bxlApiClient = MockClient.CreateDummyApiClient(ipcProvider, moniker);
                     WithSetup(
                         dropClient,
                         (daemon, etwListener, dropConfig) =>
@@ -635,7 +636,7 @@ namespace Test.Tool.DropDaemon
             });
 
             var ipcProvider = IpcFactory.GetProvider();
-            var bxlApiClient = CreateDummyBxlApiClient(ipcProvider);
+            var bxlApiClient = MockClient.CreateDummyApiClient(ipcProvider);
 
             WithSetup(
                 dropClient,
@@ -698,7 +699,7 @@ namespace Test.Tool.DropDaemon
                 new ServerConfig(),
                 (moniker, mockServer) =>
                 {
-                    var bxlApiClient = CreateDummyBxlApiClient(ipcProvider, moniker);
+                    var bxlApiClient = MockClient.CreateDummyApiClient(ipcProvider, moniker);
                     WithSetup(
                         dropClient,
                         (daemon, etwListener, dropConfig) =>
@@ -840,7 +841,7 @@ namespace Test.Tool.DropDaemon
                 new ServerConfig(),
                 (moniker, mockServer) =>
                 {
-                    var bxlApiClient = CreateDummyBxlApiClient(ipcProvider, moniker);
+                    var bxlApiClient = MockClient.CreateDummyApiClient(ipcProvider, moniker);
                     WithSetup(
                         dropClient,
                         (daemon, etwListener, dropConfig) =>
@@ -1024,16 +1025,6 @@ namespace Test.Tool.DropDaemon
 
         #endregion
 
-        private static Client CreateDummyBxlApiClient(IIpcProvider ipcProvider, IpcMoniker moniker)
-        {
-            return new Client(new MockClient(ipcProvider.GetClient(ipcProvider.RenderConnectionString(moniker), new ClientConfig())));
-        }
-
-        private static Client CreateDummyBxlApiClient(IIpcProvider ipcProvider)
-        {
-            return new Client(new MockClient(ipcProvider.GetClient(ipcProvider.CreateNewConnectionString(), new ClientConfig())));
-        }
-
         private MaterializeFileCommand ReceiveMaterializeFileCmdAndCheckItMatchesFileId(string operationPayload, string expectedFileId)
         {
             var cmd = global::BuildXL.Ipc.ExternalApi.Commands.Command.Deserialize(operationPayload);
@@ -1104,49 +1095,6 @@ namespace Test.Tool.DropDaemon
         private DropEtwListener ConfigureEtwLogging()
         {
             return new DropEtwListener();
-        }
-
-        internal class MockClient : IClient
-        {
-            public IClient InternalClient { get; set; }
-            public Task Completion => Task.CompletedTask;
-
-            public IClientConfig Config { get; set; } = new ClientConfig();
-            public Func<IIpcOperation, IIpcResult> SendFn { get; set; }
-
-            public void Dispose() { }
-
-            public void RequestStop() { }
-
-            public MockClient(IClient client)
-            {
-                InternalClient = client;
-                SendFn = ipcOperation => IpcResult.Success("true");
-            }
-
-            public MockClient(Func<IIpcOperation, IIpcResult> sendFn)
-            {
-                InternalClient = null;
-                SendFn = sendFn;
-            }
-
-            Task<IIpcResult> IClient.Send(IIpcOperation operation)
-            {
-                Contract.Requires(operation != null);
-                if (InternalClient != null)
-                {
-                    if (global::BuildXL.Ipc.ExternalApi.Commands.Command.Deserialize(operation.Payload) is RegisterFilesForBuildManifestCommand)
-                    {
-                        // Override for RegisterFileForBuildManifestCommand (Always true)
-                        return Task.FromResult(SendFn(operation));
-                    }
-                    else
-                    {
-                        return InternalClient.Send(operation);
-                    }
-                }
-                return Task.FromResult(SendFn(operation));
-            }
         }
 
         /// <summary>

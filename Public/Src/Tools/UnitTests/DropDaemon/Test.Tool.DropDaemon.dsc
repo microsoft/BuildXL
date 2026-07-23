@@ -17,6 +17,7 @@ namespace Test.Tool.DropDaemon {
             importFrom("BuildXL.Engine").Scheduler.dll,
             importFrom("BuildXL.Tools.DropDaemon").exe,
             importFrom("BuildXL.Tools").ServicePipDaemon.dll,
+            Test.Tool.ServicePipDaemonTestUtilities.dll,
             importFrom("BuildXL.Utilities").dll,
             importFrom("BuildXL.Utilities").Ipc.dll,
             importFrom("BuildXL.Utilities").Ipc.Providers.dll,

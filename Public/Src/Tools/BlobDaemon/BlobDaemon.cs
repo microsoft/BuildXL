@@ -34,7 +34,7 @@ namespace Tool.BlobDaemon
     /// If possible, the daemon tries to minimize materialization by copying 
     /// files from the cache blob storage into the target blob storage.
     /// </summary>
-    public sealed partial class BlobDaemon : ServicePipDaemon.ServicePipDaemon, IIpcOperationExecutor
+    public partial class BlobDaemon : ServicePipDaemon.ServicePipDaemon, IIpcOperationExecutor
     {
         /// <nodoc/>
         public const string BlobDaemonLogPrefix = "(BD) ";
@@ -50,6 +50,7 @@ namespace Tool.BlobDaemon
         private static readonly TimeSpan s_serverSideCopyTimeout = TimeSpan.FromMinutes(15);
 
         private readonly BlobDaemonConfig m_config;
+        private readonly ContentTypeResolver m_contentTypeResolver;
         private readonly ActionQueue m_actionQueue;
         private readonly CounterCollection<BlobDaemonCounter> m_counters;
         private readonly ConcurrentDictionary<string, BlobContainerClient> m_containerClients = new();
@@ -115,11 +116,39 @@ namespace Tool.BlobDaemon
             IsMultiValue = true,
         };
 
+        internal static readonly StrOption ContentTypeMapping = new StrOption("contentTypeMapping")
+        {
+            ShortName = "ctm",
+            HelpText = "File extension to Content-Type mapping, serialized as '<extension>#<contentType>'.",
+            DefaultValue = null,
+            IsRequired = false,
+            IsMultiValue = true,
+        };
+
         internal static BlobDaemonConfig CreateBlobDaemonConfig(ConfiguredCommand conf)
         {
             return new BlobDaemonConfig(
                 maxDegreeOfParallelism: conf.Get(MaxDegreeOfParallelism),
                 logDir: conf.Get(LogDir));
+        }
+
+        internal static ContentTypeResolver CreateContentTypeResolver(ConfiguredCommand conf)
+        {
+            var contentTypeByExtension = new Dictionary<string, string>();
+            foreach (var entry in ContentTypeMapping.GetValues(conf.Config))
+            {
+                // Serialized as '<extension>#<contentType>'; split on the first '#' so a '#' in the content-type is preserved.
+                // CODESYNC: Public/Src/Tools/BlobDaemon/Tool.BlobDaemonRunner.dsc (getExecuteArguments builds this format).
+                var separatorIndex = entry.IndexOf('#');
+                if (separatorIndex <= 0 || separatorIndex == entry.Length - 1)
+                {
+                    throw new ArgumentException(I($"Invalid content-type mapping '{entry}'. Expected '<extension>#<contentType>' with non-empty parts."));
+                }
+
+                contentTypeByExtension[entry.Substring(0, separatorIndex)] = entry.Substring(separatorIndex + 1);
+            }
+
+            return new ContentTypeResolver(contentTypeByExtension);
         }
 
         private static Client CreateClient(string serverMoniker, IClientConfig config)
@@ -132,12 +161,13 @@ namespace Tool.BlobDaemon
         internal static readonly Command StartCmd = RegisterCommand(
             name: "start",
             description: "Starts the server process.",
-            options: new Option[] { IpcServerMonikerOptional, MaxDegreeOfParallelism },
+            options: new Option[] { IpcServerMonikerOptional, MaxDegreeOfParallelism, ContentTypeMapping },
             needsIpcClient: false,
             clientAction: (conf, _) =>
             {
                 var blobDaemonConfig = CreateBlobDaemonConfig(conf);
                 var daemonConf = CreateDaemonConfig(conf);
+                var contentTypeResolver = CreateContentTypeResolver(conf);
 
                 if (daemonConf.MaxConcurrentClients <= 1)
                 {
@@ -150,6 +180,7 @@ namespace Tool.BlobDaemon
                     parser: conf.Config.Parser,
                     daemonConfig: daemonConf,
                     blobDaemonConfig: blobDaemonConfig,
+                    contentTypeResolver: contentTypeResolver,
                     bxlClient: bxlApiClient))
                 {
                     daemon.Start();
@@ -199,6 +230,7 @@ namespace Tool.BlobDaemon
             IParser parser,
             DaemonConfig daemonConfig,
             BlobDaemonConfig blobDaemonConfig,
+            ContentTypeResolver contentTypeResolver = null,
             IIpcProvider rpcProvider = null,
             Client bxlClient = null)
                 : base(parser,
@@ -208,11 +240,15 @@ namespace Tool.BlobDaemon
                       bxlClient)
         {
             m_config = blobDaemonConfig;
+            m_contentTypeResolver = contentTypeResolver ?? new ContentTypeResolver(new Dictionary<string, string>());
             m_actionQueue = new ActionQueue(m_config.MaxDegreeOfParallelism);
             m_counters = new();
 
-            var json = JsonSerializer.Serialize(m_config, new JsonSerializerOptions { WriteIndented = true });
-            m_logger.Info($"BlobDaemon config: {JsonSerializer.Serialize(m_config, new JsonSerializerOptions { WriteIndented = true })}");
+            var configJson = JsonSerializer.Serialize(m_config, new JsonSerializerOptions { WriteIndented = true });
+            m_logger.Info($"BlobDaemon config: {configJson}");
+
+            var contentTypeMappingsJson = JsonSerializer.Serialize(m_contentTypeResolver.Mappings, new JsonSerializerOptions { WriteIndented = true });
+            m_logger.Info($"Content-Type mappings: {contentTypeMappingsJson}");
         }
 
         /// <nodoc/>
@@ -275,6 +311,20 @@ namespace Tool.BlobDaemon
                     I($"Directory counts don't match: #directories = {directoryPaths.Length}, #directoryIds = {directoryIds.Length}, #uploadLocations = {directoryUploadLocations.Length}, #directoryFilters = {directoryFilters.Length}, #directoryApplyFilterToRelativePath = {directoryFilterUseRelativePath.Length}, #directoryRelativePathReplace = {directoryRelativePathsReplaceSerialized.Length}, #authEnvVars = {directoryAuthEnvVars.Length}"));
             }
 
+            // Surface a misconfigured or unforwarded auth secret as a clear input error instead of an opaque failure later.
+            foreach (var authVar in fileAuthEnvVars.Concat(directoryAuthEnvVars).Distinct())
+            {
+                if (string.IsNullOrEmpty(authVar))
+                {
+                    return new IpcResult(IpcResultStatus.InvalidInput, "An auth environment variable name was not specified for one of the upload targets.");
+                }
+
+                if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable(authVar)))
+                {
+                    return new IpcResult(IpcResultStatus.InvalidInput, I($"The environment variable '{authVar}' that should contain the storage auth token is not set or is empty."));
+                }
+            }
+
             FileContentInfo[] parsedContentInfos = new FileContentInfo[files.Length];
 
             using (var pooledSb = Pools.GetStringBuilder())
@@ -283,14 +333,14 @@ namespace Tool.BlobDaemon
                 sb.AppendLine($"[command:{commandId}] Payload:");
                 for (int i = 0; i < files.Length; i++)
                 {
-                    sb.AppendFormat("{0}|{1}|{2}|{3}{4}", files[i], fileIds[i], hashes[i], fileUploadLocations[i], Environment.NewLine);
+                    sb.AppendFormat("{0}|{1}|{2}|{3}{4}", files[i], fileIds[i], hashes[i], UploadLocation.RedactQueryForLogging(fileUploadLocations[i]), Environment.NewLine);
                     parsedContentInfos[i] = FileContentInfo.Parse(hashes[i]);
                 }
 
                 for (int i = 0; i < directoryPaths.Length; i++)
                 {
                     sb.AppendFormat("{0}|{1}|{2}|{3}|{4}|{5}{6}",
-                        directoryPaths[i], directoryIds[i], directoryUploadLocations[i], directoryFilters[i], directoryFilterUseRelativePath[i], directoryRelativePathsReplaceSerialized[i], Environment.NewLine);
+                        directoryPaths[i], directoryIds[i], UploadLocation.RedactQueryForLogging(directoryUploadLocations[i]), directoryFilters[i], directoryFilterUseRelativePath[i], directoryRelativePathsReplaceSerialized[i], Environment.NewLine);
                 }
 
                 m_logger.Verbose(sb);
@@ -397,7 +447,8 @@ namespace Tool.BlobDaemon
 
         private async Task UploadFileAsync(FileToUpload file)
         {
-            var blobClient = GetBlobClient(file.UploadLocation, file.AuthVar);
+            var contentType = m_contentTypeResolver.Resolve(file.FilePath);
+            var uploadClient = CreateBlobUploadClient(GetBlobClient(file.UploadLocation, file.AuthVar), $"[file:{file.FileId}] '{file.FilePath}'", contentType);
 
             // If it's an output artifact, we first try to copy it from the cache storage.
             if (file.FileArtifact.IsOutputFile)
@@ -405,62 +456,25 @@ namespace Tool.BlobDaemon
                 var possibleSourceUri = await ApiClient.GetContentLocationInBlobStorage(file.FileContentInfo.Hash);
                 if (possibleSourceUri.Succeeded && possibleSourceUri.Result != null)
                 {
-                    using var cts = new CancellationTokenSource(s_serverSideCopyTimeout);
-                    string copyId = null;
-                    try
+                    bool copied;
+                    using (m_counters.StartStopwatch(BlobDaemonCounter.ServerSideCopyDuration))
                     {
-                        var copyOperation = await blobClient.StartCopyFromUriAsync(possibleSourceUri.Result, cancellationToken: cts.Token);
-                        copyId = copyOperation.Id;
-                        await copyOperation.WaitForCompletionAsync(cts.Token);
-                        // The copy reached a terminal state, so there is no pending copy to abort in the catch block.
-                        copyId = null;
-
-                        // The copy's outcome is read from the destination blob's CopyStatus (not from the operation
-                        // object): a blob can be the target of at most one pending copy at a time, so once we have
-                        // awaited our copy above, the blob's properties reflect it. We check CopyStatus explicitly
-                        // because WaitForCompletionAsync does NOT throw on CopyStatus.Failed/Aborted, and its result
-                        // (bytes copied) is unreliable - 0 for both empty blobs and failed copies.
-                        var properties = (await blobClient.GetPropertiesAsync(cancellationToken: cts.Token)).Value;
-                        if (properties.CopyStatus == CopyStatus.Success)
-                        {
-                            m_counters.IncrementCounter(BlobDaemonCounter.ServerSideCopyCount);
-                            return;
-                        }
-
-                        // Non-success terminal state: fall through to the materialize + local-upload fallback.
-                        m_counters.IncrementCounter(BlobDaemonCounter.ServerSideCopyFailedCount);
-                        m_logger.Warning($"[file:{file.FileId}] Server-side copy of '{file.FilePath}' did not succeed (copy status: '{properties.CopyStatus}', description: '{properties.CopyStatusDescription}'). Falling back to local upload.");
+                        copied = await uploadClient.TryServerSideCopyAsync(possibleSourceUri.Result, s_serverSideCopyTimeout);
                     }
-                    catch (Exception e)
+
+                    if (copied)
                     {
-                        m_counters.IncrementCounter(BlobDaemonCounter.ServerSideCopyFailedCount);
-
-                        // If the copy did not reach a terminal state on the client (e.g., it timed out), the server-side
-                        // copy may still be pending. Writing to a blob that has a pending copy fails with 409, so we
-                        // best-effort abort the copy (via its copy id) before falling back to the local-upload path.
-                        if (copyId != null)
-                        {
-                            try
-                            {
-                                await blobClient.AbortCopyFromUriAsync(copyId, cancellationToken: CancellationToken.None);
-                            }
-                            catch (Exception abortException)
-                            {
-                                // Best-effort: an abort failure (e.g., the copy already completed, or a transient
-                                // error) should not stop us - log it and still attempt the local-upload fallback.
-                                m_logger.Warning($"[file:{file.FileId}] Failed to abort the pending server-side copy (copy id '{copyId}') of '{file.FilePath}': {abortException.ToStringDemystified()}");
-                            }
-                        }
-
-                        var reason = e is OperationCanceledException && cts.IsCancellationRequested
-                            ? $"timed out after {s_serverSideCopyTimeout}"
-                            : $"failed: {e.ToStringDemystified()}";
-                        m_logger.Warning($"[file:{file.FileId}] Server-side copy of '{file.FilePath}' {reason}. Falling back to local upload.");
+                        m_counters.IncrementCounter(BlobDaemonCounter.ServerSideCopyCount);
+                        m_counters.AddToCounter(BlobDaemonCounter.ServerSideCopyBytes, file.FileContentInfo.Length);
+                        return;
                     }
+
+                    // The copy did not succeed - fall through to the materialize + local-upload fallback.
+                    m_counters.IncrementCounter(BlobDaemonCounter.ServerSideCopyFailedCount);
                 }
             }
 
-            // We either failed to copy the file from the cache storage, and it's not an output artifact (i.e., it won't be in the cache storage).
+            // We either failed to copy the file from the cache storage, or it's not an output artifact (i.e., it won't be in the cache storage).
             // First we need to ensure that the file is on disk.
             var possibleMaterialization = await ApiClient.MaterializeFile(file.FileArtifact, file.FilePath);
             if (!possibleMaterialization.Succeeded)
@@ -468,9 +482,21 @@ namespace Tool.BlobDaemon
                 throw new InvalidOperationException($"Failed to materialize file '{file.FilePath}' ({file.FileId}): {possibleMaterialization.Failure.Describe()}");
             }
 
-            await blobClient.UploadAsync(file.FilePath, overwrite: true);
+            using (m_counters.StartStopwatch(BlobDaemonCounter.LocalUploadDuration))
+            {
+                await uploadClient.UploadAsync(file.FilePath);
+            }
+
             m_counters.IncrementCounter(BlobDaemonCounter.LocalUploadCount);
+            m_counters.AddToCounter(BlobDaemonCounter.LocalUploadBytes, file.FileContentInfo.Length);
         }
+
+        /// <summary>
+        /// Creates the <see cref="IBlobUploadClient"/> used to upload a single file. Overridable in tests.
+        /// <paramref name="contentType"/> is the Content-Type to set on the blob, or null to leave it unset.
+        /// </summary>
+        protected virtual IBlobUploadClient CreateBlobUploadClient(BlobClient blobClient, string logContext, string contentType)
+            => new AzureBlobUploadClient(blobClient, m_logger, logContext, contentType);
 
         private BlobClient GetBlobClient(UploadLocation uploadLocation, string accessTokenVar)
         {
@@ -482,11 +508,16 @@ namespace Tool.BlobDaemon
             }
             else if (uploadLocation.LocationKind == UploadLocationKind.ContainerBased)
             {
+                // Blob names use '/' as the (virtual) directory separator, but the relative path can contain
+                // OS directory separators ('\' on Windows). Normalize so the blob layout is correct and
+                // consistent across platforms (the URI-based path above is already normalized by System.Uri).
+                var blobName = uploadLocation.RelativePath.Replace('\\', '/');
+
                 var key = $"{uploadLocation.Account}/{uploadLocation.Container}";
                 if (m_containerClients.TryGetValue(key, out var containerClient))
                 {
                     // If we already have a client for this account/container, use it.
-                    return containerClient.GetBlobClient(uploadLocation.RelativePath);
+                    return containerClient.GetBlobClient(blobName);
                 }
 
                 lock (s_lock)
@@ -494,7 +525,7 @@ namespace Tool.BlobDaemon
                     if (m_containerClients.TryGetValue(key, out var innerContainerClient))
                     {
                         // If we already have a client for this account/container, use it.
-                        return innerContainerClient.GetBlobClient(uploadLocation.RelativePath);
+                        return innerContainerClient.GetBlobClient(blobName);
                     }
 
                     var credential = new StaticTokenCredential(Environment.GetEnvironmentVariable(accessTokenVar));
@@ -502,12 +533,11 @@ namespace Tool.BlobDaemon
                     innerContainerClient = serviceClient.GetBlobContainerClient(uploadLocation.Container);
                     m_containerClients.TryAdd(key, innerContainerClient);
 
-                    return innerContainerClient.GetBlobClient(uploadLocation.RelativePath);
+                    return innerContainerClient.GetBlobClient(blobName);
                 }
             }
 
-            // should never reach here
-            return null;
+            throw new InvalidOperationException($"Unexpected upload location kind: '{uploadLocation.LocationKind}'.");
         }
 
         private static Possible<UploadLocation[]> ParseUploadLocations(string[] uploadLocations)
@@ -518,7 +548,7 @@ namespace Tool.BlobDaemon
                 var possibleLocation = UploadLocation.TryParse(uploadLocations[i]);
                 if (!possibleLocation.Succeeded)
                 {
-                    return new Failure<string>($"Invalid upload location '{uploadLocations[i]}'");
+                    return possibleLocation.Failure;
                 }
 
                 result[i] = possibleLocation.Result;
@@ -588,7 +618,12 @@ namespace Tool.BlobDaemon
 
             DirectoryArtifact directoryArtifact = BuildXL.Ipc.ExternalApi.DirectoryId.Parse(directoryId);
 
-            var maybeResult = await daemon.ApiClient.GetSealedDirectoryContent(directoryArtifact, directoryPath);
+            Possible<List<SealedDirectoryFile>> maybeResult;
+            using (daemon.m_counters.StartStopwatch(BlobDaemonCounter.GetSealedDirectoryContentDuration))
+            {
+                maybeResult = await daemon.ApiClient.GetSealedDirectoryContent(directoryArtifact, directoryPath);
+            }
+
             if (!maybeResult.Succeeded)
             {
                 return new Failure<string>("Could not get the directory content from BuildXL server: " + maybeResult.Failure.Describe());
@@ -674,6 +709,16 @@ namespace Tool.BlobDaemon
             ServerSideCopyFailedCount,
 
             LocalUploadCount,
+
+            [CounterType(CounterType.Stopwatch)]
+            ServerSideCopyDuration,
+
+            [CounterType(CounterType.Stopwatch)]
+            LocalUploadDuration,
+
+            ServerSideCopyBytes,
+
+            LocalUploadBytes,
         }
     }
 }

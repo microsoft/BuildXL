@@ -56,9 +56,16 @@ namespace Tool.BlobDaemon
             if (parts.Length == 2 && parts[0] == "uri" && !string.IsNullOrWhiteSpace(parts[1])) // uri target
             {
                 // Check that the string is a valid URI.
-                if (!System.Uri.TryCreate(parts[1], UriKind.Absolute, out var _))
+                if (!System.Uri.TryCreate(parts[1], UriKind.Absolute, out var uri))
                 {
-                    return new Failure<string>($"Invalid URI '{parts[1]}' in upload location '{uploadLocation}'");
+                    return new Failure<string>($"Invalid URI '{RedactQueryForLogging(parts[1])}' in upload location");
+                }
+
+                // URI-based targets are bearer-token authenticated and must be query-free: for directory uploads a relative
+                // path is appended to this URI, which would land inside (and corrupt) a query string such as a SAS token.
+                if (!string.IsNullOrEmpty(uri.Query))
+                {
+                    return new Failure<string>($"URI '{RedactQueryForLogging(parts[1])}' in a URI-based upload location must not contain a query string");
                 }
 
                 return CreateUriBased(parts[1]);
@@ -70,8 +77,15 @@ namespace Tool.BlobDaemon
             }
             else
             {
-                return new Failure<string>($"Invalid upload location '{uploadLocation}'");
+                return new Failure<string>($"Invalid upload location '{RedactQueryForLogging(uploadLocation)}'");
             }
+        }
+
+        // Strips a URI's query string (which may carry a SAS token) so the location can be safely logged.
+        internal static string RedactQueryForLogging(string value)
+        {
+            var queryIndex = value.IndexOf('?');
+            return queryIndex >= 0 ? value.Substring(0, queryIndex) + "?<redacted>" : value;
         }
     }
 

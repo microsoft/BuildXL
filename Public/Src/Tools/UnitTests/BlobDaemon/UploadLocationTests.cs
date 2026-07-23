@@ -52,11 +52,23 @@ namespace Test.Tool.BlobDaemon
         [InlineData("#invalid#format#test#")]
         [InlineData("#uri#https://example.com#extra#")]
         [InlineData("#container#account#container#path#extra#")]
+        [InlineData("#uri#https://example.com/upload?sig=abc#")]
+        [InlineData("#uri#https://example.com/path?a=1&b=2#")]
         public void TryParseInvalidInputsShouldFail(string input)
         {
             var result = UploadLocation.TryParse(input);
 
             XAssert.IsFalse(result.Succeeded);
+        }
+
+        [Fact]
+        public void TryParseUriWithQueryDoesNotLeakSecretInErrorMessage()
+        {
+            const string secret = "supersecretsastoken";
+            var result = UploadLocation.TryParse($"#uri#https://example.com/upload?sig={secret}#");
+
+            XAssert.IsFalse(result.Succeeded);
+            XAssert.IsFalse(result.Failure.Describe().Contains(secret), "The error message must not contain the URI query string (which may be a SAS token).");
         }
 
         [Fact]

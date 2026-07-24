@@ -126,7 +126,7 @@ export function getCommandList(package: string, verb: string, scopeFile: ScopeFi
 @@public
 export function submitCloudTestJobs(scopeFile: ScopeFile, ctVerbs: Map<JavaScriptProjectIdentifier, TransformerExecuteResult>, sessionCreateResult : CloudTestClient.Helpers.ConfigAndSessionResult) {
     
-    const jobs = ctVerbs.toArray().map((kvp) => {
+    const allJobs = ctVerbs.toArray().mapMany((kvp) => {
         const project : JavaScriptProjectIdentifier = kvp[0];
         const executeResult : TransformerExecuteResult = kvp[1];
 
@@ -160,8 +160,9 @@ export function submitCloudTestJobs(scopeFile: ScopeFile, ctVerbs: Map<JavaScrip
         // Get all the test commands that belong to this package + verb
         const commands = getCommandList(project.packageName, project.command, scopeFile);
 
-        // Schedule a CT job for each test command.
-        const jobs = commands.map(command => {
+        // Schedule a CT job for each test command. mapMany (above) flattens these per-verb job
+        // lists into a single flat list of every job submitted for the whole session.
+        return commands.map(command => {
             const submitJobArgs : CloudTestClient.Helpers.SubmitJobArguments = {
                 jobName: getTestJobName(project.packageName, command.command),
                 // This is just a mock job that produces a TAP file with one successful test.
@@ -177,19 +178,19 @@ export function submitCloudTestJobs(scopeFile: ScopeFile, ctVerbs: Map<JavaScrip
 
             return CloudTestClient.Helpers.submitJob(submitJobArgs);
         });
-
-        // Wait for the cloudtest session to complete. For now we wait for this as part of the build.
-        // In the future we will have an agent-less task that just waits for the session completion and reports the result, so we don't have to use an agent for this if the CT session is the last
-        // thing that happens on a pipeline
-        const sessionResult = CloudTestClient.Helpers.waitForCompletion({
-            configAndSessionResult: sessionCreateResult,
-            // This is optional, but by passing them, the pip that polls for the session completion will only start after all the provided jobs are submitted.
-            submittedJobs: jobs,
-            timeoutMinutes: 10
-        });
-
-        return jobs;
     });
+
+    // Wait for the cloudtest session to complete. For now we wait for this as part of the build.
+    // In the future we will have an agent-less task that just waits for the session completion and reports the result, so we don't have to use an agent for this if the CT session is the last
+    // thing that happens on a pipeline.
+    const sessionResult = CloudTestClient.Helpers.waitForCompletion({
+        configAndSessionResult: sessionCreateResult,
+        // By passing the submitted jobs, the completion-poll pip only starts after every job is submitted.
+        submittedJobs: allJobs,
+        timeoutMinutes: 10
+    });
+
+    return allJobs;
 }
 
 // We need to give a name to each test job. Use the package name + verb for that

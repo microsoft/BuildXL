@@ -10,12 +10,12 @@ namespace BuildXL.AdoBuildRunner
 {
     /// <summary>
     /// Polls the orchestrator's ADO build state on a fixed cadence. Completes <see cref="OrchestratorTerminated"/>
-    /// the first time the orchestrator reports a terminal state (Failed or Canceled). Stops when its
-    /// <see cref="CancellationToken"/> fires (used when the worker has attached and no longer needs the
-    /// monitor).
+    /// the first time the orchestrator reports a terminal state (Failed, Canceled, or Succeeded). Stops
+    /// when its <see cref="CancellationToken"/> fires (used when the build finishes naturally and the
+    /// monitor is no longer needed).
     /// </summary>
     /// <remarks>
-    /// This is best-effort: transient ADO errors are logged at Info level (so they surface on the
+    /// Best-effort: transient ADO errors are logged at Info level (so they surface on the
     /// worker's agent console by default) and the poll is retried on the next tick. Only a successful
     /// poll that reports a terminal state will complete <see cref="OrchestratorTerminated"/>.
     /// </remarks>

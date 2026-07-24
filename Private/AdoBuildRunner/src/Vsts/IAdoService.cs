@@ -29,8 +29,9 @@ namespace BuildXL.AdoBuildRunner
 
         /// <summary>
         /// Returns the terminal state of the orchestrator's ADO job within the given build's timeline.
-        /// Returns <see cref="OrchestratorState.Running"/> while the job is still in progress, when its
-        /// record is not yet in the timeline, or when it completed successfully.
+        /// Returns <see cref="OrchestratorState.Running"/> while the job is still in progress or when its
+        /// record is not yet in the timeline. Any completed outcome (success, failure, cancellation, or
+        /// abandonment) maps to a non-Running terminal state.
         /// </summary>
         /// <remarks>
         /// Watches the orchestrator's JOB record in the build timeline (not the overall build's

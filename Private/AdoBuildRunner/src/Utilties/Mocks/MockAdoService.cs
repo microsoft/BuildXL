@@ -117,6 +117,8 @@ namespace BuildXL.AdoBuildRunner.Utilities.Mocks
                 TaskResult.Failed => BuildXL.AdoBuildRunner.Vsts.OrchestratorState.Failed,
                 TaskResult.Canceled => BuildXL.AdoBuildRunner.Vsts.OrchestratorState.Canceled,
                 TaskResult.Abandoned => BuildXL.AdoBuildRunner.Vsts.OrchestratorState.Canceled,
+                TaskResult.Succeeded => BuildXL.AdoBuildRunner.Vsts.OrchestratorState.Succeeded,
+                TaskResult.SucceededWithIssues => BuildXL.AdoBuildRunner.Vsts.OrchestratorState.Succeeded,
                 _ => BuildXL.AdoBuildRunner.Vsts.OrchestratorState.Running,
             });
         }

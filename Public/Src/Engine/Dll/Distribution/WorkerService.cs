@@ -213,8 +213,9 @@ namespace BuildXL.Engine.Distribution
         /// <summary>
         /// If <see cref="OrchestratorTerminationPipeEnvVar"/> is set, opens the inherited pipe and starts a
         /// background task that waits for a signal byte. Only an explicit byte -- written by the runner when
-        /// its monitor observes the orchestrator job Failed/Canceled -- sets <see cref="OrchestratorAbandoned"/>
-        /// and exits gracefully through the same path used when the orchestrator sends an exit RPC:
+        /// its monitor observes the orchestrator job in any terminal state (Succeeded/Failed/Canceled) -- sets
+        /// <see cref="OrchestratorAbandoned"/> and exits gracefully through the same path used when the
+        /// orchestrator sends an exit RPC:
         ///  - Pre-attach: <see cref="WaitForOrchestratorAttach"/> returns <see cref="AttachResult.Released"/>
         ///    and the engine completes with <c>SuccessNotRun</c> (exit code 0).
         ///  - Post-attach: behaves like a clean orchestrator-driven exit; <see cref="Exit"/> is idempotent.
@@ -284,8 +285,9 @@ namespace BuildXL.Engine.Distribution
                             return;
                         }
 
-                        // Explicit signal byte: the runner confirmed the orchestrator is Failed/Canceled.
-                        // Set the flag BEFORE ExitRequested so every blocking site inside Exit() sees it.
+                        // Explicit signal byte: the runner confirmed the orchestrator has reached a terminal
+                        // state (Succeeded, Failed, or Canceled). Set the flag BEFORE ExitRequested so every
+                        // blocking site inside Exit() sees it.
                         SetOrchestratorAbandoned();
 
                         Logger.Log.DistributionWorkerExternalTerminationSignalReceived(m_appLoggingContext, "byte-signal from runner");

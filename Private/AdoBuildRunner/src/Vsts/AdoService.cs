@@ -68,6 +68,8 @@ namespace BuildXL.AdoBuildRunner
                 TaskResult.Failed => OrchestratorState.Failed,
                 TaskResult.Canceled => OrchestratorState.Canceled,
                 TaskResult.Abandoned => OrchestratorState.Canceled,
+                TaskResult.Succeeded => OrchestratorState.Succeeded,
+                TaskResult.SucceededWithIssues => OrchestratorState.Succeeded,
                 _ => OrchestratorState.Running,
             };
         }

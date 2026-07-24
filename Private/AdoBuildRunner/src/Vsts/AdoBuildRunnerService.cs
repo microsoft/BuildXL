@@ -14,20 +14,24 @@ using Microsoft.VisualStudio.Services.WebApi;
 namespace BuildXL.AdoBuildRunner.Vsts
 {
     /// <summary>
-    /// Terminal state of the orchestrator's ADO build, as observed by a worker's status monitor.
-    /// Mirrors the conditions used by <see cref="OrchestratorTerminatedException"/>: only Failed and
-    /// Canceled are considered terminal for the purposes of abandoning a worker pre-attach.
+    /// Terminal state of the orchestrator's ADO job, as observed by a worker's status monitor.
+    /// All non-<see cref="Running"/> values are treated as terminal by the monitor: they all trigger
+    /// the same orchestrator-termination pipe signal so the worker can exit promptly instead of
+    /// blocking on gRPC calls to a peer that is already gone.
     /// </summary>
     public enum OrchestratorState
     {
-        /// <summary>The orchestrator build is still in progress (or completed successfully).</summary>
+        /// <summary>The orchestrator job is still in progress.</summary>
         Running,
 
-        /// <summary>The orchestrator build completed with result Failed.</summary>
+        /// <summary>The orchestrator job completed with result Failed.</summary>
         Failed,
 
-        /// <summary>The orchestrator build completed with result Canceled.</summary>
+        /// <summary>The orchestrator job completed with result Canceled.</summary>
         Canceled,
+
+        /// <summary>The orchestrator job completed with result Succeeded or SucceededWithIssues.</summary>
+        Succeeded,
     }
 
     /// <summary>
@@ -355,11 +359,9 @@ namespace BuildXL.AdoBuildRunner.Vsts
         }
 
         /// <summary>
-        /// Returns the terminal state of the orchestrator's ADO job. Used by the worker's pre-attach
-        /// status monitor: only Failed and Canceled are treated as terminal here, matching
-        /// <see cref="OrchestratorTerminatedException"/>. Succeeded / PartiallySucceeded is reported as
-        /// <see cref="OrchestratorState.Running"/>; a successful orchestrator is communicated to the
-        /// worker through the <see cref="Constants.AdoBuildRunnerOrchestratorExitCode"/> property.
+        /// Returns the terminal state of the orchestrator's ADO job. Used by the worker's status
+        /// monitor: any non-<see cref="OrchestratorState.Running"/> value triggers a pipe signal so
+        /// the worker exits promptly.
         /// </summary>
         /// <remarks>
         /// Watches the orchestrator's JOB record in the build timeline rather than the overall build

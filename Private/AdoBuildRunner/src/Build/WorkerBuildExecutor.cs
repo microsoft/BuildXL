@@ -102,8 +102,8 @@ namespace BuildXL.AdoBuildRunner
 
         /// <summary>
         /// Launches BuildXL alongside a monitor that polls the orchestrator's ADO job state. If the
-        /// orchestrator reaches a terminal state (Failed/Canceled) the runner signals BuildXL via an
-        /// inheritable anonymous pipe (handle passed in <see cref="Constants.OrchestratorTerminationPipeEnvVar"/>);
+        /// orchestrator reaches ANY terminal state (Succeeded/Failed/Canceled) the runner signals BuildXL
+        /// via an inheritable anonymous pipe (handle passed in <see cref="Constants.OrchestratorTerminationPipeEnvVar"/>);
         /// BuildXL then exits cleanly on its own.
         ///
         /// The signal is sticky: if the orchestrator already terminated by the time BuildXL opens the

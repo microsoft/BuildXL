@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.AdoBuildRunner;
@@ -420,6 +421,125 @@ namespace Test.Tool.AdoBuildRunner
             Assert.Equal(0, workerReturn);
             Assert.True(worker.MockLauncher.PipeSignaled, "Runner should have written to the orchestrator-termination pipe.");
             worker.MockLogger.AssertLogContains("reached terminal state 'Canceled'");
+
+            orchTcs.SetResult();
+            await oBuildTask;
+        }
+
+        /// <summary>
+        /// Orchestrator-status monitor scenario: the orchestrator's ADO job transitions to Succeeded
+        /// while a worker's BuildXL is still running (typical shape: the orchestrator has already sent
+        /// Exit RPCs, but the worker is blocked inside gRPC <c>CloseAsync</c> waiting for a peer that
+        /// has terminated). The runner must treat Succeeded as a terminal state and signal BuildXL
+        /// through the orchestrator-termination pipe so the worker stops waiting and exits cleanly with
+        /// code 0. Guards the <see cref="TaskResult.Succeeded"/> and <see cref="TaskResult.SucceededWithIssues"/>
+        /// mappings in <c>AdoService.GetOrchestratorStateAsync</c> and its mock.
+        /// </summary>
+        [Theory]
+        [InlineData(TaskResult.Succeeded)]
+        [InlineData(TaskResult.SucceededWithIssues)]
+        public async Task OrchestratorMonitorSignalsWorkerWhenOrchestratorSucceeded(TaskResult orchResult)
+        {
+            var (orchestrator, worker) = CreateOrchestratorWorkerPairBuild();
+
+            // BuildXL on the worker never finishes on its own — only the pipe signal can end this.
+            // This mirrors the real-world case where the worker is blocked inside CloseAsync
+            // against an already-terminated orchestrator peer.
+            var workerBxlNeverCompletes = new TaskCompletionSource();
+            worker.MockLauncher.CompletionTask = workerBxlNeverCompletes.Task;
+            worker.MockLauncher.ReactToOrchestratorTerminationPipe = true;
+
+            var orchTcs = new TaskCompletionSource();
+            orchestrator.MockLauncher.CompletionTask = orchTcs.Task;
+
+            worker.MonitorPollInterval = TimeSpan.FromMilliseconds(50);
+
+            orchestrator.Initialize();
+            worker.Initialize();
+
+            var buildArgs = new[] { "/foo", "/bar" };
+            var oManager = new BuildManager(orchestrator.RunnerService, orchestrator.BuildExecutor, buildArgs, orchestrator.MockLogger);
+            var wManager = new BuildManager(worker.RunnerService, worker.BuildExecutor, buildArgs, worker.MockLogger);
+
+            var oBuildTask = oManager.BuildAsync();
+            var wBuildTask = wManager.BuildAsync();
+
+            await TestHelpers.WaitUntilAsync(() => worker.MockLauncher.Launched);
+
+            // Transition the orchestrator's job to Completed/Succeeded (or SucceededWithIssues). The
+            // monitor must map either to OrchestratorState.Succeeded and signal the worker via the
+            // orchestrator-termination pipe -- Succeeded is terminal too, because a "successful"
+            // orchestrator that has already exited can still leave workers blocked in CloseAsync.
+            MockApiService.SetOrchestratorJobState(
+                orchestrator.AdoEnvironment.BuildId,
+                Guid.Parse(orchestrator.AdoEnvironment.JobId),
+                TimelineRecordState.Completed,
+                orchResult);
+
+            var workerReturn = await wBuildTask;
+
+            Assert.Equal(0, workerReturn);
+            Assert.True(worker.MockLauncher.PipeSignaled, "Runner should have written to the orchestrator-termination pipe.");
+            worker.MockLogger.AssertLogContains("reached terminal state 'Succeeded'");
+            worker.MockLogger.AssertLogContains("Signaling BuildXL to exit cleanly via orchestrator-termination pipe");
+
+            orchTcs.SetResult();
+            await oBuildTask;
+        }
+
+        /// <summary>
+        /// Regression guard for the performance value of the Succeeded case: the worker's BuildXL WOULD
+        /// eventually complete naturally with success (e.g. after CloseAsync eventually gives up), but
+        /// the pipe signal must short-circuit that wait. This catches a regression where the runner stops
+        /// writing to the pipe on Succeeded on the assumption that "the worker will exit on its own anyway"
+        /// -- which was the whole reason for treating Succeeded as terminal (see PR: shorten the
+        /// tail-of-block-time on healthy builds).
+        /// </summary>
+        [Fact]
+        public async Task OrchestratorSuccessSignalShortcircuitsWorkerNaturalCompletion()
+        {
+            var (orchestrator, worker) = CreateOrchestratorWorkerPairBuild();
+
+            // Worker BuildXL WOULD naturally complete with success after this long delay -- modeling a
+            // worker that is going to finish on its own (e.g., inside gRPC CloseAsync, which does not
+            // block forever) but is much slower than the pipe signal. The pipe must win the race.
+            var naturalCompletionDelay = TimeSpan.FromSeconds(30);
+            worker.MockLauncher.CompletionTask = Task.Delay(naturalCompletionDelay);
+            worker.MockLauncher.ReactToOrchestratorTerminationPipe = true;
+
+            var orchTcs = new TaskCompletionSource();
+            orchestrator.MockLauncher.CompletionTask = orchTcs.Task;
+
+            worker.MonitorPollInterval = TimeSpan.FromMilliseconds(50);
+
+            orchestrator.Initialize();
+            worker.Initialize();
+
+            var buildArgs = new[] { "/foo", "/bar" };
+            var oManager = new BuildManager(orchestrator.RunnerService, orchestrator.BuildExecutor, buildArgs, orchestrator.MockLogger);
+            var wManager = new BuildManager(worker.RunnerService, worker.BuildExecutor, buildArgs, worker.MockLogger);
+
+            var oBuildTask = oManager.BuildAsync();
+            var wBuildTask = wManager.BuildAsync();
+
+            await TestHelpers.WaitUntilAsync(() => worker.MockLauncher.Launched);
+
+            var sw = Stopwatch.StartNew();
+            MockApiService.SetOrchestratorJobState(
+                orchestrator.AdoEnvironment.BuildId,
+                Guid.Parse(orchestrator.AdoEnvironment.JobId),
+                TimelineRecordState.Completed,
+                TaskResult.Succeeded);
+
+            var workerReturn = await wBuildTask;
+            sw.Stop();
+
+            Assert.Equal(0, workerReturn);
+            Assert.True(worker.MockLauncher.PipeSignaled, "Pipe should have won the race against natural completion.");
+            // Very generous upper bound (well below the 30 s natural completion) to keep the test stable
+            // on slow CI machines while still failing hard if the pipe stops firing on Succeeded.
+            Assert.True(sw.Elapsed < TimeSpan.FromSeconds(10),
+                $"Worker took {sw.Elapsed} to exit after orchestrator reached Succeeded; expected the pipe signal to short-circuit the {naturalCompletionDelay} natural wait.");
 
             orchTcs.SetResult();
             await oBuildTask;

@@ -30,46 +30,53 @@
 #
 # Test matrix
 # -----------
-#   scenario                  | Phase           | Termination mechanism
-#   --------------------------+-----------------+--------------------------------
-#   healthy                   | n/a             | normal succeed (no kill). Sanity baseline:
-#                             |                 | the watcher must NOT fire and must shut down
-#                             |                 | cleanly via m_cancellationOnExit.
-#   orch-bxl-fails            | n/a             | orch bxl exits non-zero NATURALLY (no kill / no PATCH):
-#                             |                 | the orch is invoked with a tag filter that matches
-#                             |                 | no pip; bxl exits with "no pips matched filter".
-#                             |                 | The orch JOB record transitions to Completed/Failed
-#                             |                 | via the agent. Tests the inverted-design end to end:
-#                             |                 | monitor sees orch job Failed -> writes pipe byte
-#                             |                 | -> bxl's watcher fires ExitRequested -> worker
-#                             |                 | exits clean with code 0.
-#   orch-job-fail-preattach   | post-publish,   | a detached powershell on the ORCH agent (gated by
-#                             |  pre-attach     | SYSTEM_STAGEDISPLAYNAME not starting with "Distributed")
-#                             |                 | waits for bxl.exe to appear, then T+$(orchFailAfterBxlStartSeconds)
-#                             |                 | seconds later Stop-Processes bxl & AdoBuildRunner.
-#                             |                 | The kill targets ONLY the orch agent's processes, so
-#                             |                 | the orch JOB transitions to Failed while the worker
-#                             |                 | JOB stays alive. Tests the pre-attach path: monitor
-#                             |                 | observes orch job death and the worker's watcher
-#                             |                 | drives a clean Released exit via ExitRequested.
-#   orch-job-fail-postattach  | worker attached | same mechanism as orch-job-fail-preattach but with a
-#                             |                 | longer delay so the worker has attached first. Tests
-#                             |                 | the post-attach Failed path: monitor signals the
-#                             |                 | watcher mid-build; the watcher calls ExitRequested
-#                             |                 | which races with the existing gRPC heartbeat-timeout /
-#                             |                 | teardown path. Either race winner is acceptable
-#                             |                 | (Exit() is idempotent). Key regression check: post-attach
-#                             |                 | teardown must not break.
+#   scenario                    | Phase           | Termination mechanism
+#   ----------------------------+-----------------+--------------------------------
+#   healthy                     | n/a             | normal succeed (no kill). Sanity baseline: worker
+#                               |                 | exits cleanly; pipe MAY also fire if a monitor tick
+#                               |                 | catches orch Succeeded first. Both outcomes valid.
+#   orch-bxl-fails              | n/a             | orch bxl exits non-zero NATURALLY (no kill / no PATCH):
+#                               |                 | the orch is invoked with a tag filter that matches
+#                               |                 | no pip; bxl exits with "no pips matched filter".
+#                               |                 | The orch JOB record transitions to Completed/Failed
+#                               |                 | via the agent. Tests the inverted-design end to end:
+#                               |                 | monitor sees orch job Failed -> writes pipe byte
+#                               |                 | -> bxl's watcher fires ExitRequested -> worker
+#                               |                 | exits clean with code 0.
+#   orch-job-fail-preattach     | post-publish,   | a detached powershell on the ORCH agent (gated by
+#                               |  pre-attach     | SYSTEM_STAGEDISPLAYNAME not starting with "Distributed")
+#                               |                 | waits for bxl.exe to appear, then T+$(orchFailAfterBxlStartSeconds)
+#                               |                 | seconds later Stop-Processes bxl & AdoBuildRunner.
+#                               |                 | The kill targets ONLY the orch agent's processes, so
+#                               |                 | the orch JOB transitions to Failed while the worker
+#                               |                 | JOB stays alive. Tests the pre-attach path: monitor
+#                               |                 | observes orch job death and the worker's watcher
+#                               |                 | drives a clean Released exit via ExitRequested.
+#   orch-job-fail-postattach    | worker attached | same mechanism as orch-job-fail-preattach but with a
+#                               |                 | longer delay so the worker has attached first. Tests
+#                               |                 | the post-attach Failed path: monitor signals the
+#                               |                 | watcher mid-build; the watcher calls ExitRequested
+#                               |                 | which races with the existing gRPC heartbeat-timeout /
+#                               |                 | teardown path. Either race winner is acceptable
+#                               |                 | (Exit() is idempotent). Key regression check: post-attach
+#                               |                 | teardown must not break.
+#   orch-succeeds-worker-lingers| worker attached | orch bxl succeeds and its JOB transitions to
+#                               |                 | Succeeded while the worker's bxl is still tearing
+#                               |                 | down. Tests the Succeeded path: monitor signals
+#                               |                 | pipe -> watcher fires ExitRequested -> clean exit.
+#                               |                 | Uses cache-bust to widen the race window.
 #
 # What to verify in the logs
 # --------------------------
 # Worker bxl log (look for the watcher's own debug messages):
 #   "Received external orchestrator-termination signal via pipe (reason: 'byte-signal from runner').
 #    Initiating worker exit."
-#     (proves the watcher fired ExitRequested in non-healthy scenarios)
+#     (proves the watcher fired ExitRequested when the pipe was signaled)
 # Runner log (the worker's AdoBuildRunner.log):
+#   "reached terminal state '<Failed|Canceled|Succeeded>'"
+#     (state string must match the scenario)
 #   "Signaling BuildXL to exit cleanly via orchestrator-termination pipe."
-#     (proves the runner wrote to the pipe in non-healthy scenarios)
+#     (proves the runner wrote to the pipe)
 #   The runner must NEVER log "killing bxl" / "killing the build" -- kill is gone.
 # =====================================================================
 
@@ -80,9 +87,10 @@ parameters:
     default: healthy
     values:
       - healthy
-      - orch-bxl-fails             # orch bxl exits non-zero AFTER BuildInfo published -> monitor signals worker (Failed path)
-      - orch-job-fail-preattach    # orch JOB process-killed pre-attach -> monitor signals worker (Failed path)
-      - orch-job-fail-postattach   # orch JOB process-killed post-attach -> monitor signals worker (Failed path)
+      - orch-bxl-fails                 # orch bxl exits non-zero AFTER BuildInfo published -> monitor signals worker (Failed path)
+      - orch-job-fail-preattach        # orch JOB process-killed pre-attach -> monitor signals worker (Failed path)
+      - orch-job-fail-postattach       # orch JOB process-killed post-attach -> monitor signals worker (Failed path)
+      - orch-succeeds-worker-lingers   # orch JOB reaches Succeeded while worker bxl still tearing down -> monitor signals worker (Succeeded path)
 
 trigger: none      # never auto-run
 pr: none
@@ -131,6 +139,12 @@ variables:
       # worker. Empirically without /incremental- orch bxl finishes in ~90s on
       # the bxl.exe output filter, which is too short for orch-job-fail-postattach
       # (killer waits 120s).
+      value: "\"/f:output='*\\Out\\Bin\\release\\win-x64\\bxl.exe'\" /incremental- /fingerprintsalt:*"
+  - ${{ if eq(parameters.scenario, 'orch-succeeds-worker-lingers') }}:
+    - name: orchFilter
+      # Same cache-bust as the postattach scenario so worker teardown is long
+      # enough for the monitor tick to catch orch Succeeded before the worker
+      # exits on its own.
       value: "\"/f:output='*\\Out\\Bin\\release\\win-x64\\bxl.exe'\" /incremental- /fingerprintsalt:*"
 
 resources:
@@ -182,8 +196,8 @@ extends:
               - template: /.azdo/common/install-credential-provider.yml@self
               - template: /.azdo/common/journaling.yml@self
               - script: |
-                  call bxl.cmd /q:ReleaseNet9 /p:[Sdk.BuildXL]microsoftInternal=1 /server- "/f:output='*\Out\Bin\release\win-x64\*'"
-                displayName: Build AdoBuildRunner (ReleaseNet9)
+                  call bxl.cmd /q:ReleaseNet10 /p:[Sdk.BuildXL]microsoftInternal=1 /server- "/f:output='*\Out\Bin\release\win-x64\*'"
+                displayName: Build AdoBuildRunner (ReleaseNet10)
                 env:
                   SYSTEM_ACCESSTOKEN: $(System.AccessToken)
                   AdoBuildRunnerInvocationKey: BuildRunner
@@ -270,7 +284,7 @@ extends:
                   /unsafe_GlobalPassthroughEnvVars:NUGET_CREDENTIALPROVIDERS_PATH;VSS_NUGET_EXTERNAL_FEED_ENDPOINTS
                   /unsafe_GlobalUntrackedScopes:$(NugetCredentialProviderPath);C:\ProgramData\Microsoft\NetFramework\BreadcrumbStore
                   /c:config.dsc
-                  /q:ReleaseNet9
+                  /q:ReleaseNet10
                   /p:[Sdk.BuildXL]microsoftInternal=1
                   $(orchFilter)
                   /logsDirectory:$(Build.ArtifactStagingDirectory)/.buildXL/Logs/Orch

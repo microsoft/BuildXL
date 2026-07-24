@@ -77,6 +77,18 @@ namespace BuildXL.Pips
         internal int WallClockCriticalPathDurationMs { get; set; }
 
         /// <summary>
+        /// The local duration contribution used while assigning scheduler priority.
+        /// This is either the historic run duration or the graph-based no-history fallback.
+        /// </summary>
+        internal uint SchedulerPriorityDurationEstimateMs { get; set; }
+
+        /// <summary>
+        /// The scheduled incoming-edge count used by the no-history scheduler-priority fallback.
+        /// This is zero when the scheduler used a historic duration.
+        /// </summary>
+        internal uint ColdPipIncomingEdgeCount { get; set; }
+
+        /// <summary>
         /// The execution time of the external process. This will be lower than the e2e time of the pip itself. It should be 0 for a cache hit
         /// </summary>
         internal int ProcessExecuteTimeMs { get; set; }

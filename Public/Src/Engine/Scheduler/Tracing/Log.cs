@@ -3801,7 +3801,10 @@ namespace BuildXL.Scheduler.Tracing
                 "ExpectedAverageWorkingSetMb: {expectedAverageWorkingSetMb}, AverageWorkingSetMb: {averageWorkingSetMb}, " +
                 "ExpectedDiskIOInMB: {expectedDiskIOInMB}, ActualDiskIOInMB: {actualDiskIOInMB}, " +
                 "NumFileDependencies: {numFileDependencies}, NumDirectoryDependencies: {numDirectoryDependencies}, " +
-                "NumFileOutputs: {numFileOutputs}, NumDirectoryOutputs: {numDirectoryOutputs}, Machine: {machine}.")]
+                "NumFileOutputs: {numFileOutputs}, NumDirectoryOutputs: {numDirectoryOutputs}, Machine: {machine}, " +
+                "HasHistoricPerfData: {hasHistoricPerfData}, " +
+                "EwrExpectedProcessSlots: {ewrExpectedProcessSlots}, SchedulerPriorityDurationEstimateMs: {schedulerPriorityDurationEstimateMs}, " +
+                "ColdPipIncomingEdgeCount: {coldPipIncomingEdgeCount}.")]
         internal abstract void ProcessPipExecutionInfo(
             LoggingContext loggingContext,
             string pipDescription,
@@ -3823,7 +3826,11 @@ namespace BuildXL.Scheduler.Tracing
             int numDirectoryDependencies,
             int numFileOutputs,
             int numDirectoryOutputs,
-            string machine);
+            string machine,
+            bool hasHistoricPerfData,
+            int ewrExpectedProcessSlots,
+            uint schedulerPriorityDurationEstimateMs,
+            uint coldPipIncomingEdgeCount);
 
         [GeneratedEvent(
             (ushort)LogEventId.ProcessPipExecutionInfoOverflowFailure,

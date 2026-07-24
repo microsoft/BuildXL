@@ -5269,6 +5269,8 @@ namespace BuildXL.Scheduler
                         if (!IsDistributedWorker)
                         {
                             var expectedMemoryCounters = processRunnable.ExpectedMemoryCounters.Value;
+                            bool hasHistoricPerfData = processRunnable.HistoricPerfData.HasValue &&
+                                processRunnable.HistoricPerfData.Value != ProcessPipHistoricPerfData.Empty;
 
                             int peakWorkingSetMb = executionResult.PerformanceInformation?.MemoryCounters.PeakWorkingSetMb ?? 0;
                             int averageWorkingSetMb = executionResult.PerformanceInformation?.MemoryCounters.AverageWorkingSetMb ?? 0;
@@ -5280,6 +5282,7 @@ namespace BuildXL.Scheduler
                             int numDirectoryDependencies = pipForGraphShape.DirectoryDependencies.Length;
                             int numFileOutputs = pipForGraphShape.FileOutputs.Length;
                             int numDirectoryOutputs = pipForGraphShape.DirectoryOutputs.Length;
+                            var processPipRuntimeInfo = GetPipRuntimeInfo(processRunnable.PipId);
 
                             try
                             {
@@ -5307,7 +5310,11 @@ namespace BuildXL.Scheduler
                                     numFileOutputs,
                                     numDirectoryOutputs,
                                     // Machine: the worker that executed the pip (IP when available, else name).
-                                    worker.WorkerIpAddress ?? worker.Name);
+                                    worker.MachineIdentifier,
+                                    hasHistoricPerfData,
+                                    processRunnable.HistoricCpuWeight,
+                                    processPipRuntimeInfo.SchedulerPriorityDurationEstimateMs,
+                                    processPipRuntimeInfo.ColdPipIncomingEdgeCount);
 
                                 if (expectedMemoryCounters.AverageWorkingSetMb > 0)
                                 {
@@ -6492,10 +6499,12 @@ namespace BuildXL.Scheduler
                                     historicalMilliseconds = historicPerfData.RunDurationInMs;
                                 }
 
+                                uint schedulerPriorityDurationEstimateMs;
                                 if (historicalMilliseconds != 0)
                                 {
                                     Interlocked.Increment(ref m_criticalPathStats.NumHits);
                                     criticalPath += historicalMilliseconds;
+                                    schedulerPriorityDurationEstimateMs = historicalMilliseconds;
                                 }
                                 else
                                 {
@@ -6504,7 +6513,8 @@ namespace BuildXL.Scheduler
                                     // They are based on no hard data.
                                     Interlocked.Increment(ref m_criticalPathStats.NumWildGuesses);
 
-                                    uint estimatedMilliseconds = (uint)graph.GetIncomingEdgesCount(node);
+                                    uint incomingEdgeCount = (uint)graph.GetIncomingEdgesCount(node);
+                                    uint estimatedMilliseconds = incomingEdgeCount;
                                     switch (pipType)
                                     {
                                         case PipType.Process:
@@ -6522,7 +6532,11 @@ namespace BuildXL.Scheduler
                                     }
 
                                     criticalPath += estimatedMilliseconds;
+                                    schedulerPriorityDurationEstimateMs = estimatedMilliseconds;
+                                    pipRuntimeInfo.ColdPipIncomingEdgeCount = incomingEdgeCount;
                                 }
+
+                                pipRuntimeInfo.SchedulerPriorityDurationEstimateMs = schedulerPriorityDurationEstimateMs;
 
                                 // Track the estimated slots for all pending process pips (used by early worker release).
                                 if (pipType == PipType.Process)

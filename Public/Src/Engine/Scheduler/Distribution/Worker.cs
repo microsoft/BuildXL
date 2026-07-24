@@ -261,6 +261,11 @@ namespace BuildXL.Scheduler.Distribution
         public string WorkerIpAddress { get; protected set; }
 
         /// <summary>
+        /// Gets the worker IP address when available; otherwise, its display name.
+        /// </summary>
+        public string MachineIdentifier => WorkerIpAddress ?? Name;
+
+        /// <summary>
         /// Which counters are being logged for tracer
         /// </summary>
         public readonly ConcurrentDictionary<string, byte> InitializedTracerCounters = new ConcurrentDictionary<string, byte>();

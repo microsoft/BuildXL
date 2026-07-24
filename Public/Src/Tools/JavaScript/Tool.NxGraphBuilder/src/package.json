@@ -7,10 +7,12 @@
   "homepage": "https://github.com/Microsoft/BuildXL",
   "main": "out/main.js",
   "dependencies": {
-    "typescript": "5.9.3",
     "semver": "7.7.2",
     "path": "0.12.7",
-    "fs": "0.0.2", 
+    "fs": "0.0.2"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3",
     "@types/node": "24.6.1"
   }
 }

@@ -243,7 +243,8 @@ namespace Node {
     @@public 
     export function runNpmInstall(
         targetFolder: Directory, 
-        dependencies: (File | StaticDirectory)[]) : SharedOpaqueDirectory {
+        dependencies: (File | StaticDirectory)[],
+        omitDevDependencies?: boolean) : SharedOpaqueDirectory {
 
         const userNpmRcLocation : NpmrcLocation = BuildXLSdk.NpmRc.getUserNpmRc();
         return Npm.runNpmInstall({
@@ -255,7 +256,8 @@ namespace Node {
             noBinLinks: true,
             userNpmrcLocation: userNpmRcLocation === undefined ? "local" : userNpmRcLocation,
             globalNpmrcLocation: "local",
-            npmRcPasswordVariableName: BuildXLSdk.NpmRc.getNpmPasswordEnvironmentVariableName()
+            npmRcPasswordVariableName: BuildXLSdk.NpmRc.getNpmPasswordEnvironmentVariableName(),
+            omitDevDependencies: omitDevDependencies,
             });
     }
 
@@ -348,6 +350,14 @@ namespace Node {
 
         /** Dependencies needed for compiling TypeScript sources */
         dependencies?: Transformer.InputArtifact[];
+
+        /**
+         * When set, tscBuild performs a SECOND npm install using this package.json with --omit=dev, and uses
+         * the resulting node_modules in the deployed output instead of the (dev-included) install used for
+         * compilation. Callers should mark build-time-only packages (typescript, @types/*, etc.) as
+         * devDependencies in this package.json so they are omitted from the deployed layout.
+         */
+        productionPackageJson?: File;
     }
 
     /**
@@ -393,8 +403,29 @@ namespace Node {
             outputDir, 
             [compileOutDir]);
 
-        const nodeModules = Deployment.createDeployableOpaqueSubDirectory(npmInstall, r`node_modules`);
         const out = Deployment.createDeployableOpaqueSubDirectory(outDir, r`out`);
+
+        // If a production package.json is provided, run a SECOND npm install (with --omit=dev) into a
+        // separate directory and use its node_modules for the deployment. This lets build-time-only
+        // packages (the TypeScript compiler and @types/*) stay out of the deployed output while still
+        // being available for the compile step above.
+        let nodeModulesSource : SharedOpaqueDirectory = npmInstall;
+        if (args.productionPackageJson !== undefined) {
+            const prodInstallDir = Context.getNewOutputDirectory(a`node-prod-install-${displayName}`);
+            const prodPackageJsonCopy = Transformer.copyFile(
+                args.productionPackageJson,
+                p`${prodInstallDir.path}/package.json`,
+                /* tags */ [],
+                "Copy package.json for production npm install");
+            const prodNpmRcCopy = localNpmRc !== undefined
+                ? Transformer.copyFile(localNpmRc, p`${prodInstallDir.path}/.npmrc`, /* tags */ [], "Copy .npmrc for production npm install")
+                : undefined;
+            nodeModulesSource = runNpmInstall(
+                prodInstallDir,
+                [prodPackageJsonCopy, prodNpmRcCopy, ...(args.npmDependencies || [])],
+                /*omitDevDependencies*/ true);
+        }
+        const nodeModules = Deployment.createDeployableOpaqueSubDirectory(nodeModulesSource, r`node_modules`);
 
         // The deployment also needs all node_modules folder that npm installed
         // This is the final layout the tool needs

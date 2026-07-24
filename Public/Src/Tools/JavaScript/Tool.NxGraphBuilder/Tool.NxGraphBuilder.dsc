@@ -9,7 +9,10 @@ namespace JavaScript.NxGraphBuilder {
     export declare const qualifier: {};
 
     const sources = Transformer.sealDirectory(d`src`, globR(d`src`));
-    const output = Node.tscBuild({sources: [sources, Common.commonSources]});
+    const output = Node.tscBuild({
+        sources: [sources, Common.commonSources],
+        productionPackageJson: f`src/package.json`,
+    });
 
     @@public export const deployment : Deployment.Definition = {
         contents: [{

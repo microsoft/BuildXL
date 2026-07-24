@@ -18,6 +18,8 @@ namespace Npm {
         globalNpmrcLocation?: NpmrcLocation,
         npmRcPasswordVariableName?: string,
         additionalArguments?: Argument[],
+        /** If true, adds --omit=dev so devDependencies are not installed. Useful when the resulting node_modules is deployed and dev-only packages (e.g. the TypeScript compiler) should not ship. */
+        omitDevDependencies?: boolean,
     }
 
     /**
@@ -78,6 +80,7 @@ namespace Npm {
             Cmd.option("--globalconfig ", Artifact.none(globalNpmrc)),
             Cmd.argument("--no-save"), // Prevents writing json files
             Cmd.flag("--no-bin-links", args.noBinLinks), // Prevents symlinks
+            Cmd.flag("--omit=dev", args.omitDevDependencies), // Skips devDependencies (used for deployment-only installs)
             Cmd.option("--cache ", Artifact.none(npmCachePath)), // Forces the npm cache to use this output folder for this object so that it doesn't write to user folder
         ];
 

@@ -9,7 +9,10 @@ namespace JavaScript.RushGraphBuilder {
     export declare const qualifier: {};
 
     const rushToolSrc = Transformer.sealDirectory(d`src`, globR(d`src`));
-    const output = Node.tscBuild({sources: [rushToolSrc, Common.commonSources]});
+    const output = Node.tscBuild({
+        sources: [rushToolSrc, Common.commonSources],
+        productionPackageJson: f`src/package.json`,
+    });
 
     @@public export const deployment : Deployment.Definition = {
         contents: [{

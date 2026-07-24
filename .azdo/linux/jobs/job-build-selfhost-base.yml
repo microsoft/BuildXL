@@ -45,9 +45,7 @@ parameters:
 
 - name: cacheType
   type: string
-  # TEMPORARY: switched from EphemeralDatacenterWide to Blob to work around exit-139
-  # (SIGSEGV in deprecated Grpc.Core during ephemeral cache shutdown). See bug 2446208.
-  default: Blob
+  default: EphemeralDatacenterWide
 
 - name: pool
   type: object
@@ -104,8 +102,11 @@ jobs:
       ${{ else }}:
         arguments: ${{ parameters.buildXLArguments }}
       displayName: ${{ parameters.validationName }}
-      ${{ if eq(parameters.internal, true) }}:
-        env:
+      env:
+        # TEMPORARY: opts the ephemeral cache into the new Grpc.Net server host for
+        # validation. Remove once it becomes the Linux default.
+        BuildXLEphemeralCacheGrpcDotNetServerEnabled: 1
+        ${{ if eq(parameters.internal, true) }}:
           PAT1esSharedAssets: $(BuildXL-Pipeline-AccessToken)
           PATCloudBuild: $(BuildXL-Pipeline-AccessToken)
 

@@ -62,7 +62,9 @@ namespace Distributed {
             Grpc.dll,
 
             ...getGrpcPackages(true),
+            ...getGrpcAspNetCorePackages(),
             ...getProtobufNetPackages(true),
+            ...addIfLazy(BuildXLSdk.isDotNetCore, () => [importFrom("protobuf-net.Grpc.AspNetCore").pkg]),
             ...BuildXLSdk.getSystemMemoryPackages(true),
             ...getSystemTextJson(true),
             importFrom("System.ServiceModel.Http").pkg,

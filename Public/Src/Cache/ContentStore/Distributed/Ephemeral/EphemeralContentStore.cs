@@ -32,6 +32,17 @@ public class EphemeralCacheConfiguration
 {
     public required GrpcCoreServerHostConfiguration GrpcConfiguration { get; init; }
 
+    /// <summary>
+    /// When true, the ephemeral cache server uses Grpc.Net instead of Grpc.Core.
+    /// Requires <see cref="GrpcDotNetConfiguration"/> to be set.
+    /// </summary>
+    public bool UseGrpcDotNet { get; init; } = false;
+
+    /// <summary>
+    /// Configuration for the Grpc.Net server host. Only consulted when <see cref="UseGrpcDotNet"/> is true.
+    /// </summary>
+    public EphemeralGrpcDotNetHostConfiguration? GrpcDotNetConfiguration { get; init; }
+
     public required AbsolutePath Workspace { get; init; }
 
     public TimeSpan PersistentElisionMaximumStaleness { get; init; } = TimeSpan.FromHours(16);
@@ -77,7 +88,8 @@ public class EphemeralHost : StartupShutdownComponentBase
 
     public RemoteChangeAnnouncer RemoteChangeAnnouncer { get; }
 
-    private readonly GrpcCoreServerHost _initializer = new();
+    private readonly Func<OperationContext, IEnumerable<IGrpcServiceEndpoint>, Task<BoolResult>> _startGrpc;
+    private readonly Func<OperationContext, Task<BoolResult>> _stopGrpc;
 
     internal readonly LockSet<ContentHash> RemoteFetchLocks = new();
 
@@ -109,6 +121,22 @@ public class EphemeralHost : StartupShutdownComponentBase
         ContentResolver = contentResolver;
         RemoteChangeAnnouncer = remoteChangeAnnouncer;
         Clock = clock;
+
+        if (configuration.UseGrpcDotNet)
+        {
+            Contract.RequiresNotNull(configuration.GrpcDotNetConfiguration, "GrpcDotNetConfiguration must be provided when UseGrpcDotNet is true");
+            var dotNetHost = new EphemeralGrpcDotNetHost();
+            var dotNetConfig = configuration.GrpcDotNetConfiguration!;
+            _startGrpc = (ctx, endpoints) => dotNetHost.StartAsync(ctx, dotNetConfig, endpoints);
+            _stopGrpc = ctx => dotNetHost.StopAsync(ctx, dotNetConfig);
+        }
+        else
+        {
+            var coreHost = new GrpcCoreServerHost();
+            var coreConfig = configuration.GrpcConfiguration;
+            _startGrpc = (ctx, endpoints) => coreHost.StartAsync(ctx, coreConfig, endpoints);
+            _stopGrpc = ctx => coreHost.StopAsync(ctx, coreConfig);
+        }
 
         LinkLifetime(MasterElectionMechanism);
 
@@ -150,10 +178,7 @@ public class EphemeralHost : StartupShutdownComponentBase
             endpoints.Add(GrpcClusterStateEndpoint);
         }
 
-        await _initializer.StartAsync(
-            context,
-            Configuration.GrpcConfiguration,
-            endpoints).ThrowIfFailureAsync();
+        await _startGrpc(context, endpoints).ThrowIfFailureAsync();
         return BoolResult.Success;
     }
 
@@ -165,7 +190,7 @@ public class EphemeralHost : StartupShutdownComponentBase
         // we're screwed, so don't throw!
         result &= await ClusterStateManager.HeartbeatAsync(context, MachineState.DeadUnavailable);
 
-        result &= await _initializer.StopAsync(context, Configuration.GrpcConfiguration);
+        result &= await _stopGrpc(context);
 
         return result;
     }

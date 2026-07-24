@@ -583,6 +583,10 @@ public static partial class EphemeralCacheFactory
                     MaxConcurrentStreams = int.MaxValue,
                     MaxConnectionIdleMs = (int)Math.Ceiling(TimeSpan.FromMinutes(1).TotalMilliseconds),
                 }),
+                UseGrpcDotNet = configuration.UseGrpcDotNet,
+                GrpcDotNetConfiguration = configuration.UseGrpcDotNet
+                    ? new EphemeralGrpcDotNetHostConfiguration(GrpcPort: grpcPort, EncryptedGrpcPort: encryptedGrpcPort, GrpcOptions: GrpcDotNetServerOptions.Default)
+                    : null,
                 Workspace = configuration.RootPath / "workspace",
                 EnableContentRecoveryOnPlaceFailure = configuration.EnableContentRecoveryOnPlaceFailure,
             },

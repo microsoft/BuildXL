@@ -314,6 +314,14 @@ namespace BuildXL.Utilities.Configuration
         public static readonly Setting<bool> GrpcKestrelServerEnabled = CreateSetting("BuildXLGrpcKestrelServerEnabled", value => string.IsNullOrWhiteSpace(value) || value == "1");
 
         /// <summary>
+        /// Whether the ephemeral cache uses the Grpc.Net server host instead of the default Grpc.Core one.
+        /// </summary>
+        /// <remarks>
+        /// Default disabled. Temporary opt-in used to validate a Grpc.Net-based ephemeral cache server before flipping the default.
+        /// </remarks>
+        public static readonly Setting<bool> EphemeralCacheGrpcDotNetServerEnabled = CreateSetting("BuildXLEphemeralCacheGrpcDotNetServerEnabled", value => value == "1");
+
+        /// <summary>
         /// Whether logging verbosity is enabled for grpc service.
         /// </summary>
         /// <remarks>

@@ -15,6 +15,7 @@ using BuildXL.Cache.ContentStore.Stores;
 using BuildXL.Cache.ContentStore.Tracing.Internal;
 using BuildXL.Cache.Interfaces;
 using BuildXL.Cache.MemoizationStore.Sessions;
+using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Core;
 using AbsolutePath = BuildXL.Cache.ContentStore.Interfaces.FileSystem.AbsolutePath;
 
@@ -51,6 +52,9 @@ public class EphemeralCacheFactory : BlobCacheFactoryBase<EphemeralCacheConfig>,
 
         ContentStore.Distributed.Ephemeral.EphemeralCacheFactory.Configuration factoryConfiguration;
 
+        // Opt-in switch that selects the Grpc.Net server host instead of Grpc.Core for the ephemeral cache.
+        var useGrpcDotNet = EngineEnvironmentSettings.EphemeralCacheGrpcDotNetServerEnabled.Value;
+
         // The encrypted port makes the ephemeral cache use encrypted gRPC communication (see MachineLocation.HasEncryptedPort).
         // Encryption is governed by the /grpcEncryptionEnabled and /grpcCertificateSubjectName command-line arguments
         // (falling back to the BuildXLGrpcEncryptionEnabled and GrpcCertificateSubjectName/CB_BUILDUSERCERTIFICATE_NAME
@@ -63,7 +67,7 @@ public class EphemeralCacheFactory : BlobCacheFactoryBase<EphemeralCacheConfig>,
         var leaderLocation = MachineLocation.Create(configuration.LeaderMachineName, ephemeralGrpcPort);
 
         var rootPath = new AbsolutePath(configuration.CacheRootPath);
-        context.TracingContext.Info($"Creating ephemeral cache. DatacenterWide=[{configuration.DatacenterWide}] Root=[{rootPath}] Machine=[{machineLocation}] Leader=[{leaderLocation}] Encrypted=[{encrypted}] Universe=[{configuration.Universe}] Namespace=[{configuration.Namespace}] RetentionPolicyInDays=[{configuration.RetentionPolicyInDays}] UseContentServer=[{configuration.UseContentServer}] ContentServerPort=[{configuration.GrpcPort}]", nameof(EphemeralCacheFactory));
+        context.TracingContext.Info($"Creating ephemeral cache. DatacenterWide=[{configuration.DatacenterWide}] Root=[{rootPath}] Machine=[{machineLocation}] Leader=[{leaderLocation}] Encrypted=[{encrypted}] Universe=[{configuration.Universe}] Namespace=[{configuration.Namespace}] RetentionPolicyInDays=[{configuration.RetentionPolicyInDays}] UseContentServer=[{configuration.UseContentServer}] ContentServerPort=[{configuration.GrpcPort}] UseGrpcDotNet=[{useGrpcDotNet}]", nameof(EphemeralCacheFactory));
 
         var persistentCache = await BlobCacheFactory.CreateCacheAsync(logger, configuration);
 
@@ -90,6 +94,7 @@ public class EphemeralCacheFactory : BlobCacheFactoryBase<EphemeralCacheConfig>,
         }
 
         factoryConfiguration.DeleteLocalOnShutdown = configuration.DeleteOnClose;
+        factoryConfiguration.UseGrpcDotNet = useGrpcDotNet;
 
         var backingContentStore = configuration.UseContentServer
             ? CreateGrpcContentStore(configuration, logger)

@@ -96,6 +96,11 @@ public static partial class EphemeralCacheFactory
         /// is deleted from storage and the associated fingerprint entry is removed from the metadata store.
         /// </summary>
         public bool EnableContentRecoveryOnPlaceFailure { get; set; } = false;
+
+        /// <summary>
+        /// When true, the ephemeral cache server uses Grpc.Net instead of Grpc.Core.
+        /// </summary>
+        public bool UseGrpcDotNet { get; set; } = false;
     }
 
     /// <summary>

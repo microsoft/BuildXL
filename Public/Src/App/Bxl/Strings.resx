@@ -426,6 +426,12 @@
   <data name="HelpText_DisplayHelp_DistributedBuildServicePort" xml:space="preserve">
     <value>Specifies the TCP port of a locally running distributed build service (orchestrator or worker) which peers can connect to during a distributed build. This argument is required for executing a distributed build.  (short form: /dbsp)</value>
   </data>
+  <data name="HelpText_DisplayHelp_GrpcCertificateSubjectName" xml:space="preserve">
+    <value>Specifies the certificate subject name used to encrypt gRPC communication between distributed build engines. Takes precedence over the GrpcCertificateSubjectName / CB_BUILDUSERCERTIFICATE_NAME environment variables.</value>
+  </data>
+  <data name="HelpText_DisplayHelp_GrpcEncryptionEnabled" xml:space="preserve">
+    <value>Enables or disables gRPC encryption between distributed build engines. Takes precedence over the BuildXLGrpcEncryptionEnabled environment variable. Encryption additionally requires a certificate subject name to be available.</value>
+  </data>
   <data name="Args_DistributedBuildRole_UnsupportedValue" xml:space="preserve">
     <value>Unsupported value for distributed build role {0}, should be None, Orchestrator, or Worker.</value>
   </data>

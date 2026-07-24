@@ -103,7 +103,7 @@ namespace Test.BuildXL.Distribution
             /// <returns>The port the server is bound</returns>
             public int StartServer()
             {
-                Server = new GrpcWorkerServer(LoggingContext, this, InvocationId);
+                Server = new GrpcWorkerServer(LoggingContext, this, InvocationId, default);
                 Server.Start(PickUnused);
                 var port = Server.Port;
                 Assert.True(port.HasValue);
@@ -112,7 +112,7 @@ namespace Test.BuildXL.Distribution
 
             public void StartClient(int port)
             {
-                Client = new GrpcOrchestratorClient(LoggingContext, InvocationId, new CounterCollection<DistributionCounter>());
+                Client = new GrpcOrchestratorClient(LoggingContext, InvocationId, new CounterCollection<DistributionCounter>(), default);
                 Client.Initialize("localhost", port, OnConnectionFailureAsync);
             }
 
@@ -200,7 +200,7 @@ namespace Test.BuildXL.Distribution
             /// <returns>The port the server is bound</returns>
             public int StartServer()
             {
-                Server = new GrpcOrchestratorServer(LoggingContext, this, InvocationId);
+                Server = new GrpcOrchestratorServer(LoggingContext, this, InvocationId, default);
                 Server.Start(PickUnused);
                 var port = Server.Port;
                 Assert.True(port.HasValue);
@@ -290,7 +290,8 @@ namespace Test.BuildXL.Distribution
                 WorkerClient = new GrpcWorkerClient(LoggingContext,
                     InvocationId,
                     OnConnectionFailureAsync,
-                    new CounterCollection<DistributionCounter>());
+                    new CounterCollection<DistributionCounter>(),
+                    default);
                 WorkerClient.SetWorkerLocation(new ServiceLocation() { IpAddress = "localhost", Port = port });
             }
 

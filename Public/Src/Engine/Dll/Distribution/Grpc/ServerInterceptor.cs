@@ -23,11 +23,11 @@ namespace BuildXL.Engine.Distribution
         private readonly string m_token;
         private readonly bool m_authenticationEnabled;
 
-        public ServerInterceptor(LoggingContext loggingContext, DistributedInvocationId invocationId)
+        public ServerInterceptor(LoggingContext loggingContext, DistributedInvocationId invocationId, bool authenticationEnabled)
         {
             m_loggingContext = loggingContext;
             m_invocationId = invocationId;
-            m_authenticationEnabled = GrpcSettings.AuthenticationEnabled;
+            m_authenticationEnabled = authenticationEnabled;
             if (m_authenticationEnabled)
             {
                 m_token = GrpcEncryptionUtils.TryGetAuthorizationToken(EngineEnvironmentSettings.CBBuildIdentityTokenPath);

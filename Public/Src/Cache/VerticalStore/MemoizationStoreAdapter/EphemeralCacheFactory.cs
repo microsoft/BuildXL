@@ -51,11 +51,19 @@ public class EphemeralCacheFactory : BlobCacheFactoryBase<EphemeralCacheConfig>,
 
         ContentStore.Distributed.Ephemeral.EphemeralCacheFactory.Configuration factoryConfiguration;
 
-        var machineLocation = MachineLocation.Create(Environment.MachineName, GrpcConstants.DefaultEphemeralEncryptedGrpcPort);
-        var leaderLocation = MachineLocation.Create(configuration.LeaderMachineName, GrpcConstants.DefaultEphemeralEncryptedGrpcPort);
+        // The encrypted port makes the ephemeral cache use encrypted gRPC communication (see MachineLocation.HasEncryptedPort).
+        // Encryption is governed by the /grpcEncryptionEnabled and /grpcCertificateSubjectName command-line arguments
+        // (falling back to the BuildXLGrpcEncryptionEnabled and GrpcCertificateSubjectName/CB_BUILDUSERCERTIFICATE_NAME
+        // environment variables), the same settings the engine uses for distribution. The cache layer reads them via the
+        // process-wide override properties on GrpcEncryptionUtils (populated by the engine from the command line); the engine plumbs them through its configuration.
+        // Fall back to the unencrypted port when encryption is disabled or no certificate is available.
+        var encrypted = GrpcEncryptionUtils.IsEncryptionEnabled();
+        var ephemeralGrpcPort = encrypted ? GrpcConstants.DefaultEphemeralEncryptedGrpcPort : GrpcConstants.DefaultEphemeralGrpcPort;
+        var machineLocation = MachineLocation.Create(Environment.MachineName, ephemeralGrpcPort);
+        var leaderLocation = MachineLocation.Create(configuration.LeaderMachineName, ephemeralGrpcPort);
 
         var rootPath = new AbsolutePath(configuration.CacheRootPath);
-        context.TracingContext.Info($"Creating ephemeral cache. DatacenterWide=[{configuration.DatacenterWide}] Root=[{rootPath}] Machine=[{machineLocation}] Leader=[{leaderLocation}] Universe=[{configuration.Universe}] Namespace=[{configuration.Namespace}] RetentionPolicyInDays=[{configuration.RetentionPolicyInDays}] UseContentServer=[{configuration.UseContentServer}] ContentServerPort=[{configuration.GrpcPort}]", nameof(EphemeralCacheFactory));
+        context.TracingContext.Info($"Creating ephemeral cache. DatacenterWide=[{configuration.DatacenterWide}] Root=[{rootPath}] Machine=[{machineLocation}] Leader=[{leaderLocation}] Encrypted=[{encrypted}] Universe=[{configuration.Universe}] Namespace=[{configuration.Namespace}] RetentionPolicyInDays=[{configuration.RetentionPolicyInDays}] UseContentServer=[{configuration.UseContentServer}] ContentServerPort=[{configuration.GrpcPort}]", nameof(EphemeralCacheFactory));
 
         var persistentCache = await BlobCacheFactory.CreateCacheAsync(logger, configuration);
 

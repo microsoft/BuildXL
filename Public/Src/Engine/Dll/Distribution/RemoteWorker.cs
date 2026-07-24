@@ -165,7 +165,8 @@ namespace BuildXL.Engine.Distribution
                 m_appLoggingContext,
                 orchestratorService.InvocationId,
                 OnConnectionFailureAsync,
-                m_orchestratorService.Counters);
+                m_orchestratorService.Counters,
+                Grpc.GrpcEncryptionSettings.Create(config));
 
             m_runningInfra = config.Infra;
             if (serviceLocation != null)

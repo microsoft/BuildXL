@@ -85,6 +85,8 @@ This page lists flags that can be used to configure BuildXL.
 | ForceAddExecutionPermission | When set to true, it enables the execution permission for the root process of process pips in Linux builds. Defaults to true. |
 | ForwardWorkerLog | Configure additional verbose event IDs that workers will forward to the orchestrator, in addition to warnings and errors (which are always forwarded).  |
 | GenerateCgManifest | Generates a cgmanifest.json file at the specified path. This file contains the names and versions for all Nuget packages used within BuildXL, and is used for Component Governance during CloudBuild. |
+| GrpcCertificateSubjectName | Specifies the certificate subject name used to encrypt gRPC communication between distributed build engines. Takes precedence over the GrpcCertificateSubjectName / CB_BUILDUSERCERTIFICATE_NAME environment variables. |
+| GrpcEncryptionEnabled | Enables or disables gRPC encryption between distributed build engines. Takes precedence over the BuildXLGrpcEncryptionEnabled environment variable. Encryption additionally requires a certificate subject name to be available. |
 | HardExitOnErrorInDetours | When enabled, detours will exit the process on Detours error with a special exit code. Defaults to on. |
 | Help | Display this usage message (Short form: /?). See verbose help with /help:verbose. See DX code specific help with /help:1234. |
 | HonorDirectoryCasingOnDisk | When true, casing of directories for dynamic outputs will match the ones found on disk when a pip is done executing (as opposed to using the casing of the first time the path is mentioned in the build). Useful on Windows when tools are case sensitive. Defaults to false. |

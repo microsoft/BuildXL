@@ -31,13 +31,15 @@ namespace BuildXL.Engine.Distribution.Grpc
         private AsyncClientStreamingCall<PipResultsInfo, RpcResponse> m_pipResultsStream;
         private PerformanceCollector.Aggregator m_performanceAggregator;
         private readonly CounterCollection<DistributionCounter> m_counters;
+        private readonly GrpcEncryptionSettings m_encryptionSettings;
         private uint m_workerId;
 
-        public GrpcOrchestratorClient(LoggingContext loggingContext, DistributedInvocationId invocationId, CounterCollection<DistributionCounter> counters)
+        public GrpcOrchestratorClient(LoggingContext loggingContext, DistributedInvocationId invocationId, CounterCollection<DistributionCounter> counters, GrpcEncryptionSettings encryptionSettings)
         {
             m_invocationId = invocationId;
             m_loggingContext = loggingContext;
             m_counters = counters;
+            m_encryptionSettings = encryptionSettings;
         }
 
         public async Task<Possible<HelloResponseType>> SayHelloAsync(HelloRequest helloRequest, CancellationToken cancellationToken = default)
@@ -84,7 +86,8 @@ namespace BuildXL.Engine.Distribution.Grpc
                 port, 
                 m_invocationId, 
                 m_counters, 
-                HeartbeatCall);
+                HeartbeatCall,
+                m_encryptionSettings);
             m_connectionManager.OnConnectionFailureAsync += onConnectionFailureAsync;
 #if NET6_0_OR_GREATER
             m_client = new Orchestrator.OrchestratorClient(m_connectionManager.Channel);

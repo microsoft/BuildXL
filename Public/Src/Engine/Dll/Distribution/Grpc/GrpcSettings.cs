@@ -3,6 +3,7 @@
 
 using System;
 using System.Security.Cryptography.X509Certificates;
+using BuildXL.Cache.ContentStore.Grpc;
 using BuildXL.Utilities.Configuration;
 using Grpc.Core;
 
@@ -80,25 +81,6 @@ namespace BuildXL.Engine.Distribution.Grpc
         /// Default: 5 minutes
         /// </remarks>
         public static TimeSpan CallTimeout => EngineEnvironmentSettings.DistributionConnectTimeout;
-
-        /// <summary>
-        /// Whether we should use encryption in the grpc calls.
-        /// </summary>
-        public static bool EncryptionEnabled => EngineEnvironmentSettings.GrpcEncryptionEnabled &&
-                CertificateSubjectName != null;
-
-        /// <summary>
-        /// Certificate subject name
-        /// </summary>
-        public static string CertificateSubjectName => EngineEnvironmentSettings.GrpcCertificateSubjectName.Value ?? EngineEnvironmentSettings.CBBuildUserCertificateName.Value;
-
-        /// <summary>
-        /// Whether we should use authentication in the grpc calls.
-        /// </summary>
-        /// <remarks>
-        /// Authentication feature requires the encryption.
-        /// </remarks>
-        public static bool AuthenticationEnabled => EncryptionEnabled && EngineEnvironmentSettings.CBBuildIdentityTokenPath.Value != null;
 
         /// <summary>
         /// Whether we should enable heartbeat messages.

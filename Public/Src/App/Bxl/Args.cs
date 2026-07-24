@@ -518,6 +518,12 @@ namespace BuildXL
                             "generateCgManifestForNugets",
                             opt => frontEndConfiguration.GenerateCgManifestForNugets = CommandLineUtilities.ParsePathOption(opt, pathTable)),
                         OptionHandlerFactory.CreateOption(
+                            "grpcCertificateSubjectName",
+                            opt => distributionConfiguration.GrpcCertificateSubjectName = opt.Value),
+                        OptionHandlerFactory.CreateBoolOption(
+                            "grpcEncryptionEnabled",
+                            sign => distributionConfiguration.GrpcEncryptionEnabled = sign),
+                        OptionHandlerFactory.CreateOption(
                             "EngineDumpTrigger",
                             opt =>
                             {

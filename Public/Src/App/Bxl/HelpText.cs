@@ -999,6 +999,16 @@ namespace BuildXL
                 HelpLevel.Verbose);
 
             hw.WriteOption(
+                "/grpcCertificateSubjectName:<certificate subject name>",
+                Strings.HelpText_DisplayHelp_GrpcCertificateSubjectName,
+                HelpLevel.Verbose);
+
+            hw.WriteOption(
+                "/grpcEncryptionEnabled[+|-]",
+                Strings.HelpText_DisplayHelp_GrpcEncryptionEnabled,
+                HelpLevel.Verbose);
+
+            hw.WriteOption(
                 "/machineHostName:<host name>",
                 Strings.HelpText_DisplayHelp_MachineHostName,
                 HelpLevel.Verbose);

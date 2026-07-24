@@ -897,6 +897,14 @@ namespace BuildXL.Engine
             }
 
             // Distribution overrides
+
+            // Route the command-line gRPC encryption distribution settings into the process-wide overrides consulted by
+            // the cache layer's GrpcEncryptionUtils (the engine distribution layer plumbs these values through its
+            // configuration instead). These are assigned raw (null when not specified on the command line); the fallback
+            // to the corresponding environment variables is resolved solely inside GrpcEncryptionUtils.
+            GrpcEncryptionUtils.CertificateSubjectNameOverride = mutableConfig.Distribution.GrpcCertificateSubjectName;
+            GrpcEncryptionUtils.EncryptionEnabledOverride = mutableConfig.Distribution.GrpcEncryptionEnabled;
+
             if (mutableConfig.Distribution.BuildRole.IsOrchestrator())
             {
                 if (mutableConfig.Distribution.RemoteWorkerCount == 0)

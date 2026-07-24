@@ -18,8 +18,8 @@ namespace BuildXL.Engine.Distribution.Grpc
         private readonly GrpcWorker m_grpcWorker;
 
         /// <nodoc/>
-        internal GrpcWorkerServer(LoggingContext loggingContext, IWorkerService workerService, DistributedInvocationId invocationId)
-            : base(loggingContext, invocationId)
+        internal GrpcWorkerServer(LoggingContext loggingContext, IWorkerService workerService, DistributedInvocationId invocationId, GrpcEncryptionSettings encryptionSettings)
+            : base(loggingContext, invocationId, encryptionSettings)
         {
             m_grpcWorker = new GrpcWorker(workerService);
         }

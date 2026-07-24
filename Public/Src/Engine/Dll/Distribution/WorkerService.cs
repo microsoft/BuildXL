@@ -157,8 +157,9 @@ namespace BuildXL.Engine.Distribution
         {
             m_pipExecutionService = new WorkerPipExecutionService(this);
             m_notificationManager = new WorkerNotificationManager(this, m_pipExecutionService, appLoggingContext);
-            m_orchestratorClient = new Grpc.GrpcOrchestratorClient(m_appLoggingContext, InvocationId, Counters);
-            m_workerServer = new Grpc.GrpcWorkerServer(appLoggingContext, this, invocationId);
+            var encryptionSettings = Grpc.GrpcEncryptionSettings.Create(config);
+            m_orchestratorClient = new Grpc.GrpcOrchestratorClient(m_appLoggingContext, InvocationId, Counters, encryptionSettings);
+            m_workerServer = new Grpc.GrpcWorkerServer(appLoggingContext, this, invocationId, encryptionSettings);
 
             // Start only after all collaborators are assigned: a queued signal byte can fire ExitRequested
             // immediately, and Exit() dereferences these fields (e.g. m_workerServer.ShutdownAsync()).

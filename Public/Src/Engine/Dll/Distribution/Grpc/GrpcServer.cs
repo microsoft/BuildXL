@@ -37,6 +37,7 @@ namespace BuildXL.Engine.Distribution.Grpc
     {
         private readonly LoggingContext m_loggingContext;
         private readonly DistributedInvocationId m_invocationId;
+        private readonly GrpcEncryptionSettings m_encryptionSettings;
 
         private Server m_server;
 
@@ -75,10 +76,11 @@ namespace BuildXL.Engine.Distribution.Grpc
         /// <summary>
         /// Class constructor
         /// </summary>
-        internal GrpcServer(LoggingContext loggingContext, DistributedInvocationId invocationId)
+        internal GrpcServer(LoggingContext loggingContext, DistributedInvocationId invocationId, GrpcEncryptionSettings encryptionSettings)
         {
             m_loggingContext = loggingContext;
             m_invocationId = invocationId;
+            m_encryptionSettings = encryptionSettings;
         }
 
         /// <nodoc/>
@@ -87,13 +89,13 @@ namespace BuildXL.Engine.Distribution.Grpc
         /// <nodoc/>
         internal void Start(int port, ServerServiceDefinition serverService)
         {
-            var interceptor = new ServerInterceptor(m_loggingContext, m_invocationId);
+            var interceptor = new ServerInterceptor(m_loggingContext, m_invocationId, m_encryptionSettings.AuthenticationEnabled);
 
             ServerCredentials serverCreds = null;
 
-            if (GrpcSettings.EncryptionEnabled)
+            if (m_encryptionSettings.EncryptionEnabled)
             {
-                string certSubjectName = GrpcSettings.CertificateSubjectName;
+                string certSubjectName = m_encryptionSettings.CertificateSubjectName;
                 if (GrpcEncryptionUtils.TryGetPublicAndPrivateKeys(certSubjectName, out string publicCertificate, out string privateKey, out var _, out string errorMessage) &&
                     publicCertificate != null &&
                     privateKey != null)
@@ -126,7 +128,7 @@ namespace BuildXL.Engine.Distribution.Grpc
         /// </summary>
         public Task StartKestrel(int port, Action<IServiceCollection> configureGrpcServices, Action<IEndpointRouteBuilder> configureEndpointRouteBuilder)
         {
-            Logger.Log.GrpcServerTrace(m_loggingContext, $"Starting Kestrel server on port {port} with encryption enabled: {GrpcSettings.EncryptionEnabled}");
+            Logger.Log.GrpcServerTrace(m_loggingContext, $"Starting Kestrel server on port {port} with encryption enabled: {m_encryptionSettings.EncryptionEnabled}");
             var hostBuilder = Host.CreateDefaultBuilder()
                 .ConfigureAppConfiguration((context, config) =>
                 {
@@ -156,9 +158,9 @@ namespace BuildXL.Engine.Distribution.Grpc
                             listenOptions.Protocols = HttpProtocols.Http2;
                             
                             // Configure HTTPS with proper certificate handling
-                            if (GrpcSettings.EncryptionEnabled)
+                            if (m_encryptionSettings.EncryptionEnabled)
                             {
-                                string certSubjectName = GrpcSettings.CertificateSubjectName;
+                                string certSubjectName = m_encryptionSettings.CertificateSubjectName;
                                 if (GrpcEncryptionUtils.TryGetPublicAndPrivateKeys(certSubjectName, 
                                     out string publicCertificate, 
                                     out string privateKey, 
@@ -214,7 +216,7 @@ namespace BuildXL.Engine.Distribution.Grpc
                     webBuilder.ConfigureServices(services =>
                     {
                         // Register the interceptor so we get the same logging/tracing behavior as the legacy Grpc.Core path (serverService.Intercept(interceptor))
-                        services.AddSingleton(new ServerInterceptor(m_loggingContext, m_invocationId));
+                        services.AddSingleton(new ServerInterceptor(m_loggingContext, m_invocationId, m_encryptionSettings.AuthenticationEnabled));
 
                         // Configure gRPC with unlimited message sizes to match legacy server and add interceptor
                         services.AddGrpc(options =>

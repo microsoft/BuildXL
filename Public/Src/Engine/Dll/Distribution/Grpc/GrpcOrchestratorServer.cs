@@ -19,8 +19,8 @@ namespace BuildXL.Engine.Distribution.Grpc
         private readonly GrpcOrchestrator m_grpcOrchestrator;
 
         /// <nodoc/>
-        internal GrpcOrchestratorServer(LoggingContext loggingContext, IOrchestratorService orchestratorService, DistributedInvocationId invocationId) 
-            : base(loggingContext, invocationId)
+        internal GrpcOrchestratorServer(LoggingContext loggingContext, IOrchestratorService orchestratorService, DistributedInvocationId invocationId, GrpcEncryptionSettings encryptionSettings) 
+            : base(loggingContext, invocationId, encryptionSettings)
         {
             m_grpcOrchestrator = new GrpcOrchestrator(loggingContext, orchestratorService);
         }

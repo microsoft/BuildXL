@@ -121,5 +121,24 @@ namespace BuildXL.Utilities.Configuration
         /// and ForceSkipDependencies is disabled).
         /// </summary>
         bool? EnableDistributedSourceHashing { get; }
+
+        /// <summary>
+        /// The certificate subject name used to encrypt gRPC communication between distributed build engines.
+        /// </summary>
+        /// <remarks>
+        /// When set, this takes precedence over the <c>GrpcCertificateSubjectName</c> / <c>CB_BUILDUSERCERTIFICATE_NAME</c>
+        /// environment variables. When null, the environment variables are used as a fallback.
+        /// </remarks>
+        string GrpcCertificateSubjectName { get; }
+
+        /// <summary>
+        /// Explicitly enables or disables gRPC encryption between distributed build engines.
+        /// </summary>
+        /// <remarks>
+        /// When set, this takes precedence over the <c>BuildXLGrpcEncryptionEnabled</c> environment variable.
+        /// When null, the environment variable (default enabled) is used as a fallback. Encryption additionally
+        /// requires a certificate subject name to be available.
+        /// </remarks>
+        bool? GrpcEncryptionEnabled { get; }
     }
 }

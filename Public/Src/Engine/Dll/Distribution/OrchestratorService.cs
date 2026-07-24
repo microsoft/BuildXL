@@ -108,7 +108,7 @@ namespace BuildXL.Engine.Distribution
                 m_remoteWorkers[i] = new RemoteWorker(loggingContext, (uint)workerId, this, serviceLocation, context, config);
             }
 
-            m_orchestratorServer = new Grpc.GrpcOrchestratorServer(loggingContext, this, invocationId);
+            m_orchestratorServer = new Grpc.GrpcOrchestratorServer(loggingContext, this, invocationId, Grpc.GrpcEncryptionSettings.Create(config));
         }
 
         /// <summary>

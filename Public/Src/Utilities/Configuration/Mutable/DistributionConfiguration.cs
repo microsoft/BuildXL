@@ -47,6 +47,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
             MaxRetryLimitOnRemoteWorkers = template.MaxRetryLimitOnRemoteWorkers;
             VerifySourceFilesOnWorkers = template.VerifySourceFilesOnWorkers;
             EnableDistributedSourceHashing = template.EnableDistributedSourceHashing;
+            GrpcCertificateSubjectName = template.GrpcCertificateSubjectName;
+            GrpcEncryptionEnabled = template.GrpcEncryptionEnabled;
         }
 
         /// <inhertidoc />
@@ -103,5 +105,11 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool? EnableDistributedSourceHashing { get; set; }
+
+        /// <inheritdoc />
+        public string GrpcCertificateSubjectName { get; set; }
+
+        /// <inheritdoc />
+        public bool? GrpcEncryptionEnabled { get; set; }
     }
 }

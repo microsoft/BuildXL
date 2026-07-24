@@ -27,17 +27,78 @@ namespace BuildXL.Cache.ContentStore.Grpc
     public static class GrpcEncryptionUtils
     {
         /// <summary>
+        /// Process-wide override for the certificate subject name used to encrypt gRPC communication, or null when not set.
+        /// </summary>
+        /// <remarks>
+        /// Populated by the engine from the command line so that the value can take precedence over the environment
+        /// variables without threading the configuration through the many in-proc cache/gRPC layers. The engine
+        /// distribution layer does not read this; it plumbs its configuration value explicitly. A null value defers to
+        /// the environment variables.
+        /// </remarks>
+        public static string? CertificateSubjectNameOverride { get; set; }
+
+        /// <summary>
+        /// Process-wide override for whether gRPC encryption is enabled, or null when not set.
+        /// </summary>
+        /// <remarks>
+        /// Populated by the engine from the command line. A null value defers to the environment variable.
+        /// </remarks>
+        public static bool? EncryptionEnabledOverride { get; set; }
+
+        /// <summary>
+        /// Resolves the certificate subject name used to encrypt gRPC communication, or null when none is configured.
+        /// </summary>
+        /// <remarks>
+        /// This is the single place where the fallback to the environment variables is resolved: the explicit
+        /// <paramref name="certificateSubjectNameOverride"/> (from the command line) takes precedence, then the
+        /// environment variables. The engine distribution layer passes its plumbed configuration value here directly;
+        /// the parameterless overload passes the process-wide <see cref="CertificateSubjectNameOverride"/> (cache layer).
+        /// </remarks>
+        public static string? TryGetCertificateSubjectName(string? certificateSubjectNameOverride) =>
+            certificateSubjectNameOverride
+            ?? EngineEnvironmentSettings.GrpcCertificateSubjectName.Value
+            ?? EngineEnvironmentSettings.CBBuildUserCertificateName.Value;
+
+        /// <summary>
+        /// Resolves the certificate subject name using the process-wide <see cref="CertificateSubjectNameOverride"/> as
+        /// the override. Intended for the cache layer, which cannot plumb the configuration through its many layers.
+        /// </summary>
+        public static string? TryGetCertificateSubjectName() =>
+            TryGetCertificateSubjectName(CertificateSubjectNameOverride);
+
+        /// <summary>
+        /// Whether gRPC encryption is enabled and a certificate subject name is available to implement it.
+        /// </summary>
+        /// <remarks>
+        /// The explicit <paramref name="encryptionEnabledOverride"/> (from the command line) takes precedence over the
+        /// environment variable; when null the environment variable (default enabled) is used. This is the single place
+        /// where the fallback to the environment variable is resolved. The engine distribution layer passes its plumbed
+        /// configuration values here directly; the parameterless overload passes the process-wide override properties
+        /// (cache layer).
+        /// </remarks>
+        public static bool IsEncryptionEnabled(bool? encryptionEnabledOverride, string? certificateSubjectNameOverride) =>
+            (encryptionEnabledOverride ?? EngineEnvironmentSettings.GrpcEncryptionEnabled)
+            && TryGetCertificateSubjectName(certificateSubjectNameOverride) != null;
+
+        /// <summary>
+        /// Whether gRPC encryption is enabled, using the process-wide override properties. Intended for the cache layer,
+        /// which cannot plumb the configuration through its many layers.
+        /// </summary>
+        public static bool IsEncryptionEnabled() =>
+            IsEncryptionEnabled(EncryptionEnabledOverride, CertificateSubjectNameOverride);
+
+        /// <summary>
         /// Gets channel encryption options used by gRPC.NET implementation.
         /// </summary>
         public static ChannelEncryptionOptions GetChannelEncryptionOptions()
         {
             // TODO(seokur): After the service changes are rolled-out, we will only read GrpcCertificateSubjectName and GrpcAuthorizationTokenFile.
-            var encryptionCertificateName = EngineEnvironmentSettings.GrpcCertificateSubjectName.Value ?? EngineEnvironmentSettings.CBBuildUserCertificateName.Value;
+            var encryptionCertificateName = TryGetCertificateSubjectName();
             var authorizationTokenFile = EngineEnvironmentSettings.GrpcAuthorizationTokenFile.Value ?? EngineEnvironmentSettings.CBBuildIdentityTokenPath.Value;
 
             if (encryptionCertificateName is null)
             {
-                throw new InvalidOperationException($"EncryptionCertificateName is null. The environment variable '{EngineEnvironmentSettings.GrpcCertificateSubjectName.Name}' is not set.");
+                throw new InvalidOperationException($"EncryptionCertificateName is null. Set it via the '/grpcCertificateSubjectName' command-line argument or the '{EngineEnvironmentSettings.GrpcCertificateSubjectName.Name}' environment variable.");
             }
 
             return new ChannelEncryptionOptions(encryptionCertificateName, authorizationTokenFile);

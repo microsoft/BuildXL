@@ -90,6 +90,7 @@ namespace BuildXL.Engine.Distribution.Grpc
         private volatile bool m_attached;
         private readonly string m_ipAddress;
         private readonly CounterCollection<DistributionCounter> m_counters;
+        private readonly GrpcEncryptionSettings m_encryptionSettings;
         private readonly CancellableTimedAction m_heartbeatAction;
         private readonly Func<CallOptions, Task> m_heartbeatCall;
         private int m_numConsecutiveHeartbeatFails;
@@ -112,12 +113,13 @@ namespace BuildXL.Engine.Distribution.Grpc
             return $"{status}{tryText} {traceId} {description}";
         }
 
-        public ClientConnectionManager(LoggingContext loggingContext, string ipAddress, int port, DistributedInvocationId invocationId, CounterCollection<DistributionCounter> counters, Func<CallOptions, Task> heartbeatCall)
+        public ClientConnectionManager(LoggingContext loggingContext, string ipAddress, int port, DistributedInvocationId invocationId, CounterCollection<DistributionCounter> counters, Func<CallOptions, Task> heartbeatCall, GrpcEncryptionSettings encryptionSettings)
         {
             m_invocationId = invocationId;
             m_loggingContext = loggingContext;
             m_ipAddress = ipAddress;
             m_counters = counters;
+            m_encryptionSettings = encryptionSettings;
 
 #if NET6_0_OR_GREATER
             Channel = SetupGrpcNetClient(ipAddress, port);
@@ -222,7 +224,7 @@ namespace BuildXL.Engine.Distribution.Grpc
 
             string address;
 
-            if (GrpcSettings.EncryptionEnabled)
+            if (m_encryptionSettings.EncryptionEnabled)
             {
                 SetupChannelOptionsForEncryption(handler);
                 address = $"https://{ipAddress}:{port}";
@@ -234,7 +236,7 @@ namespace BuildXL.Engine.Distribution.Grpc
                 address = $"http://{ipAddress}:{port}";
             }
 
-            if (GrpcSettings.AuthenticationEnabled)
+            if (m_encryptionSettings.AuthenticationEnabled)
             {
                 var credentials = GetCallCredentialsWithToken();
                 channelOptions.Credentials = ChannelCredentials.Create(new SslCredentials(), credentials);
@@ -245,7 +247,7 @@ namespace BuildXL.Engine.Distribution.Grpc
 
         private void SetupChannelOptionsForEncryption(SocketsHttpHandler httpHandler)
         {
-            string certSubjectName = GrpcSettings.CertificateSubjectName;
+            string certSubjectName = m_encryptionSettings.CertificateSubjectName;
 
             X509Certificate2 certificate = null;
 

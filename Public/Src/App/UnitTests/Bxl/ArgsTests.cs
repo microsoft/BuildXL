@@ -93,6 +93,28 @@ namespace Test.BuildXL
         }
 
         [Fact]
+        public void GrpcEncryptionOptions()
+        {
+            ICommandLineConfiguration config;
+            PathTable pt = new PathTable();
+            var argsParser = new Args();
+
+            // Defaults: not set on the command line (fall back to environment variables).
+            XAssert.IsTrue(argsParser.TryParse(new[] { @"/c:" + m_specFilePath }, pt, out config));
+            XAssert.AreEqual(null, config.Distribution.GrpcCertificateSubjectName);
+            XAssert.AreEqual(null, config.Distribution.GrpcEncryptionEnabled);
+
+            XAssert.IsTrue(argsParser.TryParse(new[] { @"/c:" + m_specFilePath, "/grpcCertificateSubjectName:CN=example.contoso.com" }, pt, out config));
+            XAssert.AreEqual("CN=example.contoso.com", config.Distribution.GrpcCertificateSubjectName);
+
+            XAssert.IsTrue(argsParser.TryParse(new[] { @"/c:" + m_specFilePath, "/grpcEncryptionEnabled-" }, pt, out config));
+            XAssert.AreEqual(false, config.Distribution.GrpcEncryptionEnabled);
+
+            XAssert.IsTrue(argsParser.TryParse(new[] { @"/c:" + m_specFilePath, "/grpcEncryptionEnabled+" }, pt, out config));
+            XAssert.AreEqual(true, config.Distribution.GrpcEncryptionEnabled);
+        }
+
+        [Fact]
         public void BoolEnumOption()
         {
             ICommandLineConfiguration config;

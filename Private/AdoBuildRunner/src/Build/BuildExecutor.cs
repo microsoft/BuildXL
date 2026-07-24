@@ -75,7 +75,7 @@ namespace BuildXL.AdoBuildRunner
             // Enable gRPC encryption
             if (!AdoBuildRunnerService.Config.DisableEncryption)
             {
-                defaultArguments.Add("/p:GrpcCertificateSubjectName=CN=1es-hostedpools.default.microsoft.com");
+                defaultArguments.Add("/grpcCertificateSubjectName:CN=1es-hostedpools.default.microsoft.com");
             }
 
             // By default, enable cache miss analysis and pass the invocation key as a prefix

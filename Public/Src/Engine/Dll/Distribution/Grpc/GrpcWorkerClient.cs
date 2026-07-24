@@ -25,13 +25,15 @@ namespace BuildXL.Engine.Distribution.Grpc
         private Worker.WorkerClient m_client;
         private AsyncClientStreamingCall<PipBuildRequest, RpcResponse> m_pipBuildRequestStream;
         private readonly CounterCollection<DistributionCounter> m_counters;
+        private readonly GrpcEncryptionSettings m_encryptionSettings;
 
-        public GrpcWorkerClient(LoggingContext loggingContext, DistributedInvocationId invocationId, EventHandler<ConnectionFailureEventArgs> onConnectionFailureAsync, CounterCollection<DistributionCounter> counters)
+        public GrpcWorkerClient(LoggingContext loggingContext, DistributedInvocationId invocationId, EventHandler<ConnectionFailureEventArgs> onConnectionFailureAsync, CounterCollection<DistributionCounter> counters, GrpcEncryptionSettings encryptionSettings)
         {
             m_loggingContext = loggingContext;
             m_onConnectionFailureAsync = onConnectionFailureAsync;
             m_invocationId = invocationId;
             m_counters = counters;
+            m_encryptionSettings = encryptionSettings;
         }
         
         /// <summary>
@@ -48,7 +50,8 @@ namespace BuildXL.Engine.Distribution.Grpc
                 serviceLocation.Port, 
                 m_invocationId, 
                 m_counters, 
-                async (callOptions) => await m_client.HeartbeatAsync(GrpcUtils.EmptyResponse, callOptions));
+                async (callOptions) => await m_client.HeartbeatAsync(GrpcUtils.EmptyResponse, callOptions),
+                m_encryptionSettings);
             m_connectionManager.OnConnectionFailureAsync += m_onConnectionFailureAsync;
 #if NET6_0_OR_GREATER
             m_client = new Worker.WorkerClient(m_connectionManager.Channel);

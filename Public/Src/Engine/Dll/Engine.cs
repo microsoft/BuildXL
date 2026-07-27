@@ -3502,15 +3502,19 @@ namespace BuildXL.Engine
                     // is not stored to the content cache, the file is not materialized on disk. In the next build, BuildXL is unable
                     // to perform fast graph reuse check through the engine cache because that check relies on the previous inputs file.
                     // Thus, in that next build, BuildXL has to use the slow N-chain graph caching algorithm.
-                    var previousInputsTask = serializer.SerializeToFileAsync(
-                        GraphCacheFile.PreviousInputs,
-                        writer => inputTracker.WriteToFile(
-                            writer,
-                            Context.PathTable,
-                            envVarsImpactingBuild,
-                            mountsImpactingBuild,
-                            serializer.PreviousInputsJournalCheckpoint),
-                        overrideName: EngineSerializer.PreviousInputsIntermediateFile);
+                    Task<EngineSerializer.SerializationResult> previousInputsTask = null;
+                    if (!inputTracker.HasUncapturedInputs)
+                    {
+                        previousInputsTask = serializer.SerializeToFileAsync(
+                            GraphCacheFile.PreviousInputs,
+                            writer => inputTracker.WriteToFile(
+                                writer,
+                                Context.PathTable,
+                                envVarsImpactingBuild,
+                                mountsImpactingBuild,
+                                serializer.PreviousInputsJournalCheckpoint),
+                            overrideName: EngineSerializer.PreviousInputsIntermediateFile);
+                    }
 
                     // We do not want to concurrently execute the serialization tasks and pips because pips can add new stuff to the PathTable, SymbolTable, and StringTable.
                     var success = engineSchedule.SaveToDiskAsync(serializer, Context).GetAwaiter().GetResult();
@@ -3552,8 +3556,9 @@ namespace BuildXL.Engine
                             }
                         }
 
-                        // Move the previous inputs file to its final location if graph serialization was successful
-                        if ((await previousInputsTask).Success)
+                        // Move the previous inputs file to its final location if graph serialization was successful.
+                        // previousInputsTask is null when the write was intentionally skipped (see above).
+                        if (previousInputsTask != null && (await previousInputsTask).Success)
                         {
                             success &= serializer.FinalizePreviousInputsFile();
                             m_previousInputFilesCopy = TryCreateHardlinksToPreviousInputFilesInSessionFolder(loggingContext, serializer);

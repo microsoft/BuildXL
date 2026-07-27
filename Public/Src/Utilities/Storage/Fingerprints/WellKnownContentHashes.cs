@@ -39,5 +39,15 @@ namespace BuildXL.Storage.Fingerprints
         /// This hash is arbitrary (like git's null ref)
         /// </remarks>
         public static readonly ContentHash ExistentFileProbe = ContentHashingUtilities.CreateSpecialValue(2);
+
+        /// <summary>
+        /// A file that was was accessed, but the content hash could not be computed
+        /// </summary>
+        /// <remarks>
+        /// This hash is used in situations when future lookups should hash the actual content of the file
+        /// and use that as an input (if the file exists). The hash is arbitrary and is used primarily as an
+        /// indicator to support debugging.
+        /// </remarks>
+        public static readonly ContentHash UnknownContent = ContentHashingUtilities.CreateSpecialValue(3);
     }
 }

@@ -200,6 +200,15 @@ namespace BuildXL.Engine.Tracing
         public abstract void InputTrackerUnableToDetectChangeInEnumeratedDirectory(LoggingContext context, string directory, string reason);
 
         [GeneratedEvent(
+            (ushort)LogEventId.InputTrackerUnableToHashFrontEndFile,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            EventTask = (ushort)Tasks.Engine,
+            Keywords = (int)Keywords.UserMessage,
+            Message = "Input tracker could not hash accessed file '{path}' because it no longer existed. Subsequent builds will not be able to get a graph cache hit against this build graph. Reason: {reason}")]
+        public abstract void InputTrackerUnableToHashFrontEndFile(LoggingContext context, string path, string reason);
+
+        [GeneratedEvent(
             (ushort)LogEventId.StartVisitingSpecFiles,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,

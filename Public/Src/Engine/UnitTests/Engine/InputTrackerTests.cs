@@ -4,8 +4,10 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Engine;
 using BuildXL.Storage;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
 using BuildXL.Utilities.Core;
@@ -21,6 +23,33 @@ namespace Test.BuildXL.Engine
         public InputTrackerTests(ITestOutputHelper output)
             : base(output)
         {
+        }
+
+        [Fact]
+        public void RegisterFileAccessOnMissingPathRecordsUnknownContent()
+        {
+            // A front-end reported a file as accessed, but by the time the input tracker tries to
+            // open and hash it, the file cannot be opened (FileNotFound / DirectoryNotFound).
+            var loggingContext = new LoggingContext("Test");
+            FileContentTable fileContentTable = FileContentTable.CreateStub(loggingContext);
+            var graphFingerprint = new GraphFingerprint(CompositeGraphFingerprint.Zero, CompositeGraphFingerprint.Zero);
+
+            InputTracker inputTracker = InputTracker.Create(
+                loggingContext,
+                fileContentTable,
+                JournalState.DisabledJournal,
+                graphFingerprint.ExactFingerprint);
+
+            string missingPath = Path.Combine(TemporaryDirectory, "does_not_exist", "also_does_not_exist");
+
+            // Should not throw.
+            inputTracker.RegisterFileAccess(missingPath);
+
+            XAssert.IsTrue(
+                inputTracker.TryGetHashForKnownInputFile(missingPath, out ContentHash recordedHash),
+                "Expected the missing path to be recorded in the input tracker.");
+            XAssert.AreEqual(WellKnownContentHashes.UnknownContent, recordedHash);
+            XAssert.IsTrue(inputTracker.HasUncapturedInputs, "Expected HasUncapturedInputs to be set so PreviousInputs is not persisted.");
         }
 
         [Fact]

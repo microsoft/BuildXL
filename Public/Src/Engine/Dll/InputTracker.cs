@@ -69,6 +69,12 @@ namespace BuildXL.Engine
         internal bool IsEnabled { get; }
 
         /// <summary>
+        /// True if we failed to capture the state of at least one input during graph construction
+        /// When set, the PreviousInputs file must not be written so this pip graph is not eligible for caching.
+        /// </summary>
+        public bool HasUncapturedInputs { get; private set; }
+
+        /// <summary>
         /// The FileChangeTracker in use
         /// </summary>
         public FileChangeTracker FileChangeTracker { get; }
@@ -244,16 +250,35 @@ namespace BuildXL.Engine
         {
             if (IsEnabled)
             {
-                using (
-                    FileStream fs = FileUtilities.CreateFileStream(
-                        path,
-                        FileMode.Open,
-                        FileAccess.Read,
-                        FileShare.Delete | FileShare.Read))
+                try
                 {
-                    FileContentTableExtensions.VersionedFileIdentityAndContentInfoWithOrigin identityAndContentInfoWithOrigin =
-                        m_fileContentTable.GetAndRecordContentHashAsync(fs).GetAwaiter().GetResult();
-                    RegisterFileAccess(fs.SafeFileHandle, path, identityAndContentInfoWithOrigin.VersionedFileIdentityAndContentInfo);
+                    using (
+                        FileStream fs = FileUtilities.CreateFileStream(
+                            path,
+                            FileMode.Open,
+                            FileAccess.Read,
+                            FileShare.Delete | FileShare.Read))
+                    {
+                        FileContentTableExtensions.VersionedFileIdentityAndContentInfoWithOrigin identityAndContentInfoWithOrigin =
+                            m_fileContentTable.GetAndRecordContentHashAsync(fs).GetAwaiter().GetResult();
+                        RegisterFileAccess(fs.SafeFileHandle, path, identityAndContentInfoWithOrigin.VersionedFileIdentityAndContentInfo);
+                    }
+                }
+                catch (BuildXLException ex) when (
+                    ex.InnerException is FileNotFoundException
+                    || ex.InnerException is DirectoryNotFoundException)
+                {
+                    // The file could not be opened for hashing (FileNotFound / DirectoryNotFound), even though an
+                    // upstream caller previously indicated it was an input. Record the path with
+                    // WellKnownContentHashes.UnknownContent so uploaded PipGraphInputDescriptors safely miss on other
+                    // machines (the marker will never match a real re-hashed content), and set HasUncapturedInputs so
+                    // this build's PreviousInputs file is not persisted locally.
+                    Tracing.Logger.Log.InputTrackerUnableToHashFrontEndFile(
+                        m_loggingContext,
+                        path,
+                        ex.LogEventMessage);
+                    m_inputHashes[path] = WellKnownContentHashes.UnknownContent;
+                    HasUncapturedInputs = true;
                 }
             }
         }
@@ -500,11 +525,18 @@ namespace BuildXL.Engine
                 // - An ExistentFileProbe can turn into a real content hash, in the case the path is first probed and then read (and in that case the real hash is kept for that moment on)
                 // - An ExistentFileProbe cannot turn into an AbsentFile, and vice-versa.
                 // - A path with a real content hash can later be registered as an existent probe (but the real content hash should be kept)
+                // - UnknownContent is written directly into m_inputHashes (bypassing this factory) by RegisterFileAccess's catch block when a probed-as-existing file could not be hashed. It can be replaced here by any subsequently-registered hash (real, probe, or absent), so a later successful read/probe from another code path in the same build wins.
                 m_inputHashes.AddOrUpdate(
                     path,
                     hash,
                     (existingPath, existingHash) =>
                     {
+                        // UnknownContent represents "we could not capture the state here"; any subsequent registration should win.
+                        if (existingHash == WellKnownContentHashes.UnknownContent)
+                        {
+                            return hash;
+                        }
+
                         if (existingHash == WellKnownContentHashes.ExistentFileProbe)
                         {
                             // The path cannot be registered first as present and later as absent
@@ -566,6 +598,7 @@ namespace BuildXL.Engine
         {
             Contract.Requires(writer != null);
             Contract.Requires(changeTrackingStatePath != null);
+            Contract.Requires(!HasUncapturedInputs, "PreviousInputs must not be written when HasUncapturedInputs is set; the captured input state is known-incomplete and persisting it would allow a subsequent build to incorrectly reuse this graph.");
 
             if (!IsEnabled)
             {

@@ -53,6 +53,17 @@ namespace BuildXL.Scheduler
 
         internal TimeSpan ExeDuration { get; set; }
 
+        /// <summary>
+        /// When <see cref="ExeDuration"/> was injected via a <c>##bxl[runtimeSecs]</c> hint, holds the original locally-measured execution
+        /// time; <c>null</c> when the value was measured. See <see cref="IsInjectedExeDuration"/>.
+        /// </summary>
+        internal TimeSpan? OriginalExeDuration { get; set; }
+
+        /// <summary>
+        /// Indicates that <see cref="ExeDuration"/> was injected via a <c>##bxl[runtimeSecs]</c> hint rather than measured.
+        /// </summary>
+        internal bool IsInjectedExeDuration => OriginalExeDuration.HasValue;
+
         internal TimeSpan QueueWaitDurationForMaterializeOutputsInBackground { get; private set; }
 
         internal bool IsExecuted { get; private set; }
@@ -219,11 +230,28 @@ namespace BuildXL.Scheduler
             {
                 if (kv.Key.IncludeInRunningTime(environment))
                 {
-                    pipDuration += (long)kv.Value.TotalMilliseconds;
+                    pipDuration += DurationForStepMs(kv.Key, kv.Value);
                 }
             }
 
             return pipDuration;
+        }
+
+        /// <summary>
+        /// The running-time contribution of a single step. For the <see cref="PipExecutionStep.ExecuteProcess"/> step, when the process
+        /// execution time was injected via a <c>##bxl[runtimeSecs]</c> hint (see <see cref="OriginalExeDuration"/>), the injected
+        /// <see cref="ExeDuration"/> is substituted for the locally-measured step duration so that the pip's running time reflects the
+        /// true duration of the (externally executed) work while still accounting for every other step. All other steps use their
+        /// measured duration.
+        /// </summary>
+        private long DurationForStepMs(PipExecutionStep step, TimeSpan measuredStepDuration)
+        {
+            if (IsInjectedExeDuration && step == PipExecutionStep.ExecuteProcess)
+            {
+                return (long)ExeDuration.TotalMilliseconds;
+            }
+
+            return (long)measuredStepDuration.TotalMilliseconds;
         }
 
         /// <summary>
@@ -245,7 +273,7 @@ namespace BuildXL.Scheduler
             {
                 if (kv.Key.IncludeInRunningTime(environment))
                 {
-                    long stepMs = (long)kv.Value.TotalMilliseconds;
+                    long stepMs = DurationForStepMs(kv.Key, kv.Value);
                     long remoteQueueMs = (long)RemoteQueueDurations.GetOrDefault(kv.Key, TimeSpan.Zero).TotalMilliseconds;
                     pipDuration += Math.Max(0, stepMs - remoteQueueMs);
                 }

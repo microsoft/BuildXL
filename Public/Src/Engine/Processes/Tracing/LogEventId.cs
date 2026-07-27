@@ -73,6 +73,9 @@ namespace BuildXL.Processes.Tracing
 
         PipProcessStallDetected = 95,
 
+        PipProcessBuildXLHintUnrecognized = 96,
+        PipProcessBuildXLHintDuplicateRuntime = 97,
+
         PipProcessDisallowedFileAccessAllowlistedCacheable = 264,
         PipProcessDisallowedFileAccessAllowlistedNonCacheable = 269,
         FileAccessAllowlistFailedToParsePath = 274,

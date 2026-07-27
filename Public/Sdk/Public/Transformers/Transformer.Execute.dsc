@@ -152,6 +152,16 @@ namespace Transformer {
         /** Whether to mark this process as "light". */
         isLight?: boolean;
 
+        /**
+         * Whether BuildXL should scan the standard output/error of this process for lines that start with the
+         * '##bxl' marker.
+         *
+         * Today the only supported hint is '##bxl[runtimeSecs]=<value>' (a whole number of seconds), which overrides
+         * the running time recorded for the pip so the scheduler honors that value.
+         * The marker mechanism is kept generic so additional hints can be added in the future.
+         */
+        scanForBuildXLHints?: boolean;
+
         /** Set outputs to remain writable */
         keepOutputsWritable?: boolean;
 

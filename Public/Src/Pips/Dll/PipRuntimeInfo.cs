@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft Corporation.
+// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
 using System;
@@ -92,6 +92,17 @@ namespace BuildXL.Pips
         /// The execution time of the external process. This will be lower than the e2e time of the pip itself. It should be 0 for a cache hit
         /// </summary>
         internal int ProcessExecuteTimeMs { get; set; }
+
+        /// <summary>
+        /// When <see cref="ProcessExecuteTimeMs"/> was injected via a <c>##bxl[runtimeSecs]</c> hint, holds the original locally-measured
+        /// execution time in milliseconds; <c>null</c> when the value was measured. See <see cref="IsInjectedProcessExecuteTime"/>.
+        /// </summary>
+        internal int? OriginalProcessExecuteTimeMs { get; set; }
+
+        /// <summary>
+        /// Indicates that <see cref="ProcessExecuteTimeMs"/> was injected via a <c>##bxl[runtimeSecs]</c> hint rather than measured.
+        /// </summary>
+        internal bool IsInjectedProcessExecuteTime => OriginalProcessExecuteTimeMs.HasValue;
 
         /// <summary>
         /// The pip result

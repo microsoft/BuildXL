@@ -5126,6 +5126,19 @@ namespace BuildXL.Scheduler
                         {
                             var perfInfo = executionResult.PerformanceInformation;
 
+                            // OriginalExecuteProcessDuration is only recorded when the execution time was injected via a
+                            // '##bxl[runtimeSecs]' hint (so ExecuteProcessDuration above may contain injected time); otherwise it is
+                            // left absent for consistency with the injected-only telemetry elsewhere.
+                            // No real consumer of this telemetry exists, but adding both original and non-original durations makes it explicit
+                            // that ExecuteProcessDuration may be injected and OriginalExecuteProcessDuration is the actual measured time.
+                            var durationCounters = perfInfo.OriginalProcessExecutionTime.HasValue
+                                ? new[]
+                                    {
+                                        (PipCountersByGroup.ExecuteProcessDuration, perfInfo.ProcessExecutionTime),
+                                        (PipCountersByGroup.OriginalExecuteProcessDuration, perfInfo.OriginalProcessExecutionTime.Value)
+                                    }
+                                : new[] { (PipCountersByGroup.ExecuteProcessDuration, perfInfo.ProcessExecutionTime) };
+
                             try
                             {
                                 m_groupedPipCounters.AddToCounters(processRunnable.Process,
@@ -5134,7 +5147,7 @@ namespace BuildXL.Scheduler
                                         (PipCountersByGroup.IOReadBytes,  (long) perfInfo.IO.ReadCounters.TransferCount),
                                         (PipCountersByGroup.IOWriteBytes, (long) perfInfo.IO.WriteCounters.TransferCount)
                                     },
-                                    new[] { (PipCountersByGroup.ExecuteProcessDuration, perfInfo.ProcessExecutionTime) }
+                                    durationCounters
                                 );
                             }
                             catch (OverflowException ex)
@@ -5143,7 +5156,7 @@ namespace BuildXL.Scheduler
 
                                 m_groupedPipCounters.AddToCounters(processRunnable.Process,
                                     new[] { (PipCountersByGroup.IOReadBytes, 0L), (PipCountersByGroup.IOWriteBytes, 0L) },
-                                    new[] { (PipCountersByGroup.ExecuteProcessDuration, perfInfo.ProcessExecutionTime) }
+                                    durationCounters
                                 );
                             }
                         }
@@ -5248,7 +5261,8 @@ namespace BuildXL.Scheduler
                                 (int)perfInfo.ProcessExecutionTime.TotalMilliseconds,
                                 perfInfo.MemoryCounters.PeakWorkingSetMb,
                                 (int)Math.Ceiling(perfInfo.IO.ReadCounters.TransferCount / BytesInMb),
-                                (int)Math.Ceiling(perfInfo.IO.WriteCounters.TransferCount / BytesInMb)));
+                                (int)Math.Ceiling(perfInfo.IO.WriteCounters.TransferCount / BytesInMb),
+                                (int?)perfInfo.OriginalProcessExecutionTime?.TotalMilliseconds));
                         }
 
                         // Make sure all shared outputs are flagged as such.
@@ -5881,10 +5895,17 @@ namespace BuildXL.Scheduler
                 performance.ExecutionLevel == PipExecutionLevel.Executed &&
                 processPerf != null)
             {
+                // Publish the (possibly injected) execution time and, when injected, the original measured time before computing the pip
+                // duration: CalculatePipDurationMs substitutes the injected ExeDuration for the measured ExecuteProcess step (see
+                // RunnablePipPerformanceInfo.DurationForStepMs), so the resulting run duration - and the persisted historic data derived
+                // from it, which primes the next build's critical-path priority - reflects the true running time of the external work
+                // while still accounting for every other pip step.
+                processRunnablePip.Performance.ExeDuration = processPerf.ProcessExecutionTime;
+                processRunnablePip.Performance.OriginalExeDuration = processPerf.OriginalProcessExecutionTime;
+
                 long pipDurationMs = runnablePip.Performance.CalculatePipDurationMs(this);
 
                 HistoricPerfDataTable[processRunnablePip] = new ProcessPipHistoricPerfData(processPerf, pipDurationMs);
-                processRunnablePip.Performance.ExeDuration = processPerf.ProcessExecutionTime;
             }
 
             if (ExecutionLog != null && performance != null)

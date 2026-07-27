@@ -932,12 +932,41 @@ namespace BuildXL.Scheduler
                         m_fileAccessViolationsNotAllowlisted = m_unsealedState.FileAccessViolationsNotAllowlisted.Value;
                         m_allowlistedFileAccessViolations = m_unsealedState.AllowlistedFileAccessViolations.Value;
 
+                        // If a ##bxl[runtimeSecs] hint was scanned from the process output (see Process.EnableBuildXLHintScanning),
+                        // override the measured running time with the injected value so that all downstream consumers
+                        // (historic runtime data, critical path, choose-worker, logs) feel the true running time of the external work.
+                        // Keep ExecutionStart real and synthesize a matching ExecutionStop so timestamps and duration stay in sync.
+                        //
+                        // Note that we deliberately inject the running time here, into the derived ProcessExecutionTime of the
+                        // ProcessPipExecutionPerformance, rather than into processResult.PrimaryProcessTimes. PrimaryProcessTimes is the
+                        // raw, OS-measured timing of the primary process and must remain the ground truth.
+                        // Only ProcessExecutionTime feeds scheduling pressure and the persisted historic runtime, so it is the single value
+                        // we override. This does introduce a benign, intentional divergence between the synthesized ExecutionStop (which may
+                        // point into the future) and PrimaryProcessTimes.ExitTimeUtc (real). The original measured time is preserved in
+                        // ProcessPipExecutionPerformance.OriginalProcessExecutionTime so consumers that need to distinguish or surface both
+                        // values (and derive that the running time was injected) can do so.
+                        DateTime executionStart = m_unsealedState.ExecutionStart;
+                        DateTime executionStop = m_unsealedState.ExecutionStop;
+                        TimeSpan processExecutionTime = wallClockTime;
+                        TimeSpan? originalProcessExecutionTime = null;
+                        if (processResult.InjectedProcessRuntimeMs.HasValue && processResult.InjectedProcessRuntimeMs.Value >= 0)
+                        {
+                            // Preserve the original measured time so downstream consumers can surface both values (and derive that the
+                            // running time was injected), then override the effective ProcessExecutionTime with the injected value.
+                            originalProcessExecutionTime = wallClockTime;
+                            // Just honor what was provided. Observe that in theory this can be a value that is less than the measured wall clock time. In that case we could 
+                            // choose to keep the measured time instead, but that would be a silent override of the user-provided value and in some (allegedly rare) cases the
+                            // user may have a good reason to do so (e.g. as a hint to the scheduler that is ok to delay the execution of this pip).
+                            processExecutionTime = TimeSpan.FromMilliseconds(processResult.InjectedProcessRuntimeMs.Value);
+                            executionStop = executionStart + processExecutionTime;
+                        }
+
                         m_performanceInformation = new ProcessPipExecutionPerformance(
                             m_result.ToExecutionLevel(),
-                            m_unsealedState.ExecutionStart,
-                            m_unsealedState.ExecutionStop,
+                            executionStart,
+                            executionStop,
                             fingerprint: m_weakFingerprint?.Hash ?? FingerprintUtilities.ZeroFingerprint,
-                            processExecutionTime: wallClockTime,
+                            processExecutionTime: processExecutionTime,
                             fileMonitoringViolations: ConvertFileMonitoringViolationCounters(m_unsealedState.UnexpectedFileAccessCounters.Value),
                             ioCounters: jobAccounting.IO,
                             userTime: jobAccounting.UserTime,
@@ -946,7 +975,8 @@ namespace BuildXL.Scheduler
                             numberOfProcesses: jobAccounting.NumberOfProcesses,
                             workerId: 0,
                             suspendedDurationMs: processResult.SuspendedDurationMs,
-                            pushOutputsToCacheDurationMs: m_unsealedState.PushOutputsToCacheDurationMs);
+                            pushOutputsToCacheDurationMs: m_unsealedState.PushOutputsToCacheDurationMs,
+                            originalProcessExecutionTime: originalProcessExecutionTime);
                     }
                     m_standardOutput = m_unsealedState.StandardOutput;
                     m_standardError = m_unsealedState.StandardError;

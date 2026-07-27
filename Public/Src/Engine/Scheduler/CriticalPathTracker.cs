@@ -130,6 +130,7 @@ namespace BuildXL.Scheduler
             if (processPerformance != null)
             {
                 pipRuntimeInfo.ProcessExecuteTimeMs = (int)processPerformance.ProcessExecutionTime.TotalMilliseconds;
+                pipRuntimeInfo.OriginalProcessExecuteTimeMs = (int?) processPerformance.OriginalProcessExecutionTime?.TotalMilliseconds;
             }
 
             var pipIdValue = unchecked((int)pip.PipId.Value);
@@ -400,7 +401,11 @@ namespace BuildXL.Scheduler
                 long totalDurationMs = (long)performance.TotalDuration.TotalMilliseconds;
                 long cacheLookupDurationMs = (long)performance.StepDurations.GetOrDefault(PipExecutionStep.CacheLookup).TotalMilliseconds;
 
-                exeDurationCriticalPathMs += runtimeInfo.ProcessExecuteTimeMs;
+                // Summarization values must reflect only the originally measured runtimes so they stay consistent with the
+                // total build time (an injected runtime can point far into the future, which would otherwise make the
+                // aggregate exe duration exceed the wall-clock build time). The pip's per-row display still surfaces the
+                // injected value; only the accumulated total uses the measured one.
+                exeDurationCriticalPathMs += runtimeInfo.OriginalProcessExecuteTimeMs ?? runtimeInfo.ProcessExecuteTimeMs;
 
                 if (kind == CriticalPathKind.Primary)
                 {
@@ -409,6 +414,9 @@ namespace BuildXL.Scheduler
                         pipDescription: pip.GetDescription(context.Context),
                         pipDurationMs: pipDurationMs,
                         exeDurationMs: runtimeInfo.ProcessExecuteTimeMs,
+                        // When the exe time was injected via a '##bxl[runtimeSecs]' hint, exeDurationMs above is the injected value and
+                        // this carries the originally measured one; -1 indicates no injection (exeDurationMs is already the measured value).
+                        originalExeDurationMs: runtimeInfo.OriginalProcessExecuteTimeMs ?? -1,
                         queueDurationMs: pipQueueDurationMs,
                         cacheLookupDurationMs: cacheLookupDurationMs,
                         indexFromBeginning: criticalPath.Count - index - 1,
@@ -428,7 +436,9 @@ namespace BuildXL.Scheduler
                 }
 
                 long queueDurationMs = remoteQueueMs + pipQueueDurationMs;
-                summaryTable.AppendLine(I($"{addMin(pipDurationMs),20} | {addMin(runtimeInfo.ProcessExecuteTimeMs),20} | {addMin(queueDurationMs),20} | {addMin(totalDurationMs),20} | {runtimeInfo.Result,12} | {pip.GetDescription(context.Context)}"));
+                string exeDuration = $"{(runtimeInfo.IsInjectedProcessExecuteTime? "[injected]" : string.Empty)}{addMin(runtimeInfo.ProcessExecuteTimeMs)}";
+
+                summaryTable.AppendLine(I($"{addMin(pipDurationMs),20} | {exeDuration,20} | {addMin(queueDurationMs),20} | {addMin(totalDurationMs),20} | {runtimeInfo.Result,12} | {pip.GetDescription(context.Context)}"));
 
                 if (summaryToPopulate != null)
                 {
@@ -437,6 +447,7 @@ namespace BuildXL.Scheduler
                         {
                             PipDuration = TimeSpan.FromMilliseconds(pipDurationMs),
                             ProcessExecuteTime = TimeSpan.FromMilliseconds(runtimeInfo.ProcessExecuteTimeMs),
+                            OriginalProcessExecuteTime = runtimeInfo.OriginalProcessExecuteTimeMs.HasValue ? TimeSpan.FromMilliseconds(runtimeInfo.OriginalProcessExecuteTimeMs.Value) : (TimeSpan?)null,
                             PipQueueDuration = TimeSpan.FromMilliseconds(pipQueueDurationMs),
                             Result = runtimeInfo.Result.ToString(),
                             ScheduleTime = scheduledTimeTs,
@@ -700,7 +711,10 @@ namespace BuildXL.Scheduler
 
                     if (performanceInfo.ExeDuration.TotalMilliseconds != 0)
                     {
-                        stringBuilder.AppendLine(I($"\t\t  {"ExeDurationMs",-88}: {(long)performanceInfo.ExeDuration.TotalMilliseconds,10}"));
+                        string exeDurationValue = performanceInfo.IsInjectedExeDuration
+                            ? $"[injected] {(long)performanceInfo.ExeDuration.TotalMilliseconds} (measured {(long)performanceInfo.OriginalExeDuration.Value.TotalMilliseconds})"
+                            : $"{(long)performanceInfo.ExeDuration.TotalMilliseconds}";
+                        stringBuilder.AppendLine($"\t\t  {"ExeDurationMs",-88}: {exeDurationValue,10}");
                     }
                 }
 

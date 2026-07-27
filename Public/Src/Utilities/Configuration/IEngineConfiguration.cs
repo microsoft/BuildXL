@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using BuildXL.Utilities.Core;
@@ -159,6 +160,21 @@ namespace BuildXL.Utilities.Configuration
         /// This gives the engine the chance to properly shutdown before a hard termination arrives
         /// </remarks>
         int? BuildTimeoutMins { get; }
+
+        /// <summary>
+        /// The minimum build execution time required before post-execution optimization data structures (e.g. the
+        /// historic perf data) are serialized. This avoids the overhead of serializing them for
+        /// very short builds.
+        /// </summary>
+        /// <remarks>
+        /// This is the single source of truth for the threshold at scheduling time. It is populated early during
+        /// configuration validation (in <c>BuildXLEngine.PopulateAndValidateConfiguration</c>) from the
+        /// <c>PostExecOptimizeThresholdSec</c> environment variable (advertised via
+        /// <see cref="BuildXL.Utilities.Configuration.EngineEnvironmentSettings.PostExecOptimizeThreshold"/>), defaulting
+        /// to 3 minutes. Tests may set it directly (e.g. to <see cref="TimeSpan.Zero"/>) to force serialization even for
+        /// very short builds.
+        /// </remarks>
+        TimeSpan? PostExecOptimizeThreshold { get; }
 
         /// <summary>
         /// Whether this build is explicitly requesting convergence with remote caches. This will disable features that

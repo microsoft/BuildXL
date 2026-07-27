@@ -226,6 +226,21 @@ namespace BuildXL.Pips
         /// </summary>
         public long PushOutputsToCacheDurationMs { get; }
 
+        /// <summary>
+        /// When a <c>##bxl[runtimeSecs]=value</c> hint line was scanned from the process output, <see cref="ProcessExecutionTime"/> is
+        /// overridden with the injected value and this holds the original, locally-measured execution time. It is <c>null</c> when no hint was
+        /// injected. Consumers that only need the effective running time keep reading <see cref="ProcessExecutionTime"/>; consumers that need
+        /// to distinguish or surface both values use this together with the derived <see cref="IsInjectedProcessExecuteTime"/>.
+        /// </summary>
+        public TimeSpan? OriginalProcessExecutionTime { get; }
+
+        /// <summary>
+        /// Indicates that <see cref="ProcessExecutionTime"/> was injected via a <c>##bxl[runtimeSecs]=value</c> hint line rather than
+        /// measured from the local process (equivalently, <see cref="OriginalProcessExecutionTime"/> has a value). Used for diagnostics and
+        /// to guard invariants that assume measured durations.
+        /// </summary>
+        public bool IsInjectedProcessExecuteTime => OriginalProcessExecutionTime.HasValue;
+
         /// <nodoc />
         public ProcessPipExecutionPerformance(
             PipExecutionLevel level,
@@ -241,7 +256,8 @@ namespace BuildXL.Pips
             uint numberOfProcesses,
             uint workerId,
             long suspendedDurationMs,
-            long pushOutputsToCacheDurationMs)
+            long pushOutputsToCacheDurationMs,
+            TimeSpan? originalProcessExecutionTime = null)
             : base(level, executionStart, executionStop, workerId)
         {
             Contract.Requires(executionStart.Kind == DateTimeKind.Utc);
@@ -258,9 +274,16 @@ namespace BuildXL.Pips
             KernelTime = kernelTime;
             MemoryCounters = memoryCounters;
             NumberOfProcesses = numberOfProcesses;
-            ProcessorsInPercents = CalculateProcessorsInPercents(userTime, kernelTime, ProcessExecutionTime);
+
+            // ProcessorsInPercents is a CPU-utilization rate (measured CPU time over the local wall-clock running window), so it must
+            // always be computed from the originally measured execution time, never from a '##bxl[runtimeSecs]'-injected ProcessExecutionTime.
+            // The CPU numerator (userTime/kernelTime) is always the measured local CPU; dividing it by an injected (possibly external, much
+            // larger) duration would artificially deflate the rate and break historic CPU throttling/weighting. When no injection occurred,
+            // originalProcessExecutionTime is null and this falls back to ProcessExecutionTime (which is itself the measured value).
+            ProcessorsInPercents = CalculateProcessorsInPercents(userTime, kernelTime, originalProcessExecutionTime ?? ProcessExecutionTime);
             SuspendedDurationMs = suspendedDurationMs;
             PushOutputsToCacheDurationMs = pushOutputsToCacheDurationMs;
+            OriginalProcessExecutionTime = originalProcessExecutionTime;
         }
 
         /// <nodoc/>
@@ -308,6 +331,11 @@ namespace BuildXL.Pips
             writer.WriteCompact(NumberOfProcesses);
             writer.WriteCompact(SuspendedDurationMs);
             writer.WriteCompact(PushOutputsToCacheDurationMs);
+            writer.Write(OriginalProcessExecutionTime.HasValue);
+            if (OriginalProcessExecutionTime.HasValue)
+            {
+                writer.Write(OriginalProcessExecutionTime.Value);
+            }
         }
 
         internal static ProcessPipExecutionPerformance Deserialize(BuildXLReader reader, PipExecutionLevel level, DateTime executionStart, DateTime executionStop, uint workerId)
@@ -324,6 +352,7 @@ namespace BuildXL.Pips
             uint numberOfProcesses = reader.ReadUInt32Compact();
             long suspendedDurationMs = reader.ReadInt64Compact();
             long pushOutputsToCacheMs = reader.ReadInt64Compact();
+            TimeSpan? originalProcessExecutionTime = reader.ReadBoolean() ? reader.ReadTimeSpan() : (TimeSpan?)null;
 
             return new ProcessPipExecutionPerformance(
                 fingerprint: fingerprint,
@@ -339,7 +368,8 @@ namespace BuildXL.Pips
                 numberOfProcesses: numberOfProcesses,
                 workerId: workerId,
                 suspendedDurationMs: suspendedDurationMs,
-                pushOutputsToCacheDurationMs: pushOutputsToCacheMs);
+                pushOutputsToCacheDurationMs: pushOutputsToCacheMs,
+                originalProcessExecutionTime: originalProcessExecutionTime);
         }
 
         private static FileMonitoringViolationCounters ReadFileMonitoringViolationCounters(BuildXLReader reader)

@@ -1677,6 +1677,11 @@ namespace BuildXL.Scheduler
             if (!pip.IsStartOrShutdownKind)
             {
                 counters.AddToCounter(PipExecutorCounter.ExecuteProcessDuration, executionResult.PrimaryProcessTimes.TotalWallClockTime);
+                // Track separately the running time injected via a '##bxl[runtimeSecs]' hint. 
+                counters.AddToCounter(PipExecutorCounter.InjectedProcessDuration, 
+                    executionResult.InjectedProcessRuntimeMs.HasValue && executionResult.InjectedProcessRuntimeMs.Value >= 0
+                        ? TimeSpan.FromMilliseconds(executionResult.InjectedProcessRuntimeMs.Value)
+                        : TimeSpan.Zero);
             }
 
             // Skip the post-processing if the pip was run outside of the sandbox

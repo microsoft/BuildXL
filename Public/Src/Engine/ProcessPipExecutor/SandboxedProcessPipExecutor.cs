@@ -140,6 +140,8 @@ namespace BuildXL.ProcessPipExecutor
 
         private readonly Task<Regex> m_errorRegexTask;
 
+        private readonly BuildXLHintProcessor m_buildXLHintProcessor;
+
         private readonly Func<FileArtifact, Task<bool>> m_makeInputPrivate;
 
         private readonly Func<string, Task<bool>> m_makeOutputPrivate;
@@ -395,6 +397,8 @@ namespace BuildXL.ProcessPipExecutor
                 var expandedDescriptor = new ExpandedRegexDescriptor(pip.ErrorRegex.Pattern.ToString(context.StringTable), pip.ErrorRegex.Options);
                 m_errorRegexTask = RegexFactory.GetRegexAsync(expandedDescriptor);
             }
+
+            m_buildXLHintProcessor = new BuildXLHintProcessor(pip.EnableBuildXLHintScanning, loggingContext, pip.SemiStableHash, m_pipDescription);
 
             m_excludeReportAccessMask = ~FileAccessPolicy.ReportAccess;
             if (!m_sandboxConfig.MaskUntrackedAccesses)
@@ -1013,6 +1017,10 @@ namespace BuildXL.ProcessPipExecutor
 
             info.StandardOutputObserver = observer;
             info.StandardErrorObserver = observer;
+
+            // When ##bxl hint scanning is enabled, augment the observers so a single streaming pass over each stream also
+            // feeds the hint scanner.
+            await m_buildXLHintProcessor.UpdateObserversWithHintScanning(info);
 
             if (info.GetCommandLine().Length > SandboxedProcessInfo.MaxCommandLineLength)
             {
@@ -1772,6 +1780,10 @@ namespace BuildXL.ProcessPipExecutor
 
             Dictionary<string, int> pipProperties = null;
 
+            // When BuildXL hint scanning is enabled for this pip, the standard output/error is scanned for lines that
+            // start with the "##bxl" marker.
+            long? injectedProcessRuntimeMs = null;
+
             bool allOutputsPresent = false;
             bool loggingSuccess = true;
 
@@ -2018,6 +2030,11 @@ namespace BuildXL.ProcessPipExecutor
                 }
             }
 
+            // Surface the running time gathered by the ##bxl hint scanner while the process was streaming output. This is
+            // independent of pip success: the hint carries scheduling information (e.g. an injected running time) that we
+            // want to honor regardless of exit code.
+            injectedProcessRuntimeMs = m_buildXLHintProcessor.GetInjectedProcessRuntime(canceled);
+
             // The full output may be requested based on the result of the pip. If the pip failed, the output may have been reported
             // in TryLogErrorAsync above. Only replicate the output if the error was truncated due to an error regex
             if ((!standardOutHasBeenWrittenToLog || errorWasTruncated) && loggingSuccess && !canceled)
@@ -2175,6 +2192,7 @@ namespace BuildXL.ProcessPipExecutor
                 detouringStatuses: result.DetouringStatuses,
                 maxDetoursHeapSize: maxDetoursHeapSize,
                 pipProperties: pipProperties,
+                injectedProcessRuntimeMs: injectedProcessRuntimeMs,
                 timedOut: result.TimedOut,
                 hasAzureWatsonDeadProcess: azWatsonDeadProcess != null,
                 retryInfo: retryInfo,

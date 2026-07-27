@@ -99,10 +99,12 @@ namespace BuildXL.Engine
         private TimeSpan? m_schedulerStartTime;
 
         /// <summary>
-        /// The minimum amount of time the build must run before the optimization data structures are serialized. This avoid overhead
-        /// of serializing these data structures for extremely short builds.
+        /// The default minimum amount of time the build must run before the optimization data structures are serialized.
+        /// This avoids overhead of serializing these data structures for extremely short builds. This is only used as a
+        /// defensive fallback: the effective threshold is carried by <see cref="IEngineConfiguration.PostExecOptimizeThreshold"/>,
+        /// which is populated (from the environment / default) in <see cref="BuildXLEngine.PopulateAndValidateConfiguration"/>.
         /// </summary>
-        private static TimeSpan MinExecutionTimeForSerializingOptimizationDataStructures => EngineEnvironmentSettings.PostExecOptimizeThreshold;
+        private static readonly TimeSpan s_defaultPostExecOptimizeThreshold = TimeSpan.FromMinutes(3);
 
         internal const int PipTableInitialBufferSize = 16384;
 
@@ -483,11 +485,13 @@ namespace BuildXL.Engine
             return new PipTwoPhaseCache(loggingContext, cache, context, pathExpander);
         }
 
-        private bool ShouldSerializeOptimizationDataStructurePostExecution()
+        private bool ShouldSerializeOptimizationDataStructurePostExecution(TimeSpan? postExecOptimizeThreshold)
         {
             // Check if the build has run for required time in order to make serializing the optimizing data structures worthwhile.
+            // The threshold is carried by the engine configuration (populated from the environment / default during configuration
+            // validation); fall back to the default only defensively in case it was not populated.
             return m_schedulerStartTime != null &&
-                (TimestampUtilities.Timestamp - m_schedulerStartTime.Value) > MinExecutionTimeForSerializingOptimizationDataStructures;
+                (TimestampUtilities.Timestamp - m_schedulerStartTime.Value) > (postExecOptimizeThreshold ?? s_defaultPostExecOptimizeThreshold);
         }
 
         private static async Task TryLoadHistoricMetadataCache(
@@ -550,7 +554,7 @@ namespace BuildXL.Engine
             {
                 var historicMetadataCache = Scheduler?.State?.Cache as PipTwoPhaseCacheWithHashLookup;
                 
-                if (!ShouldSerializeOptimizationDataStructurePostExecution() || historicMetadataCache == null)
+                if (!ShouldSerializeOptimizationDataStructurePostExecution(configuration.Engine.PostExecOptimizeThreshold) || historicMetadataCache == null)
                 {
                     return true;
                 }
@@ -1365,7 +1369,7 @@ namespace BuildXL.Engine
         {
             if (configuration.Schedule.UseHistoricalPerformanceInfo)
             {
-                if (!ShouldSerializeOptimizationDataStructurePostExecution())
+                if (!ShouldSerializeOptimizationDataStructurePostExecution(configuration.Engine.PostExecOptimizeThreshold))
                 {
                     return true;
                 }

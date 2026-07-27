@@ -332,6 +332,11 @@ namespace APIs {
                 { timeoutInMilliseconds: args.timeoutMinutes * 60 * 1000 });
         }
 
+        // When a historic runtime file is provided (the updateDynamicJob path), the tool emits a ##bxl[runtimeSecs] hint
+        // carrying the historic runtime of the external CloudTest job. Enable hint scanning so BuildXL injects that value
+        // as the pip's running time.
+        const scanForBuildXLHints = historicRuntimeFile !== undefined;
+
         let result = Transformer.execute({
             tool: executeTool,
             arguments: commandLineArgs,
@@ -342,9 +347,11 @@ namespace APIs {
             environmentVariables: args.environmentVariables || [],
             tags: [...(args.tags || []), "cloudtest"],
             description: args.description || `CloudTest: ${mode}`,
-            // These operations are all fire-and-forget REST calls. Even if the involve polling for completion, they are not expecting to be CPU comsuming operations, 
-            // so we can mark the pip as light and avoid unnecessary resource contention with other CPU-intensive pips.
-            isLight: true,
+            // Only the wait-for-completion path is a long-running poll that would otherwise hold a worker slot just to
+            // block on the external session; mark it light so it doesn't contend with CPU-intensive pips. The other
+            // operations (e.g. updateDynamicJob, cancelSession) are quick REST calls and run as regular pips.
+            isLight: mode === "waitForSessionCompletion",
+            scanForBuildXLHints: scanForBuildXLHints,
             // We expect these operations to be uncacheable since they will be operating on a specific session ID. But let's make it explicit.
             disableCacheLookup: true,
             mustRunOnOrchestrator: mustRunOnOrchestrator,

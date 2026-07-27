@@ -62,6 +62,7 @@ This is the primary documentation for BuildXL (Microsoft Build Accelerator). If 
 * [Pip Weight](Wiki/Advanced-Features/Pip-Weight.md)
 * [Preserve Outputs](Wiki/Advanced-Features/Preserving-outputs.md)
 * [Process Timeouts](Wiki/Advanced-Features/Process-Timeouts.md)
+* [Runtime Hints (##bxl)](Wiki/Advanced-Features/Runtime-Hints.md)
 * [Sandboxing](Specs/Sandboxing.md)
 * [Scheduler Prioritization](Wiki/Advanced-Features/Scheduler-Prioritization.md)
 * [Sealed Directories](Wiki/Advanced-Features/Sealed-Directories.md)

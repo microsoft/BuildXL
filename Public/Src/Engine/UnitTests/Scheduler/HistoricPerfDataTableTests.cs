@@ -94,6 +94,56 @@ namespace Test.BuildXL.Scheduler
         }
 
         [Fact]
+        public void IsInjectedRoundTrips()
+        {
+            const int ExecTime = 1234;
+            const int MeasuredTime = 7;
+
+            foreach (bool isInjected in new[] { true, false })
+            {
+                var performance = new ProcessPipExecutionPerformance(
+                    PipExecutionLevel.Executed,
+                    DateTime.UtcNow,
+                    DateTime.UtcNow.AddMilliseconds(ExecTime),
+                    FingerprintUtilities.ZeroFingerprint,
+                    TimeSpan.FromMilliseconds(ExecTime),
+                    default(FileMonitoringViolationCounters),
+                    default(IOCounters),
+                    TimeSpan.FromMilliseconds(ExecTime),
+                    TimeSpan.FromMilliseconds(ExecTime / 2),
+                    ProcessMemoryCounters.CreateFromMb(1024, 1024),
+                    1,
+                    workerId: 0,
+                    suspendedDurationMs: 0,
+                    pushOutputsToCacheDurationMs: 0,
+                    originalProcessExecutionTime: isInjected ? TimeSpan.FromMilliseconds(MeasuredTime) : (TimeSpan?)null);
+
+                XAssert.AreEqual(isInjected, performance.IsInjectedProcessExecuteTime);
+
+                // The injected provenance (the original measured time) round-trips through the process performance serialization.
+                var stream = new MemoryStream();
+                using (var writer = new BuildXLWriter(debug: false, stream, leaveOpen: true, logStats: false))
+                {
+                    performance.Serialize(writer);
+                }
+
+                stream.Position = 0;
+                using (var reader = new BuildXLReader(debug: false, stream, leaveOpen: true))
+                {
+                    var deserialized = ProcessPipExecutionPerformance.Deserialize(reader);
+                    XAssert.AreEqual(isInjected, deserialized.IsInjectedProcessExecuteTime);
+                    XAssert.AreEqual(performance.OriginalProcessExecutionTime, deserialized.OriginalProcessExecutionTime);
+                    XAssert.AreEqual(performance.ProcessExecutionTime, deserialized.ProcessExecutionTime);
+                }
+
+                // The historic perf data derives its durations from the (possibly injected) ProcessExecutionTime and does not
+                // separately track injected-ness.
+                var data = new ProcessPipHistoricPerfData(performance, ExecTime);
+                XAssert.AreEqual((uint)ExecTime, data.ExeDurationInMs);
+            }
+        }
+
+        [Fact]
         public void EverythingAsync()
         {
             const int MaxExecTime = 24 * 3600 * 1000;

@@ -905,6 +905,17 @@ namespace BuildXL.Pips.Operations
         public bool MustRunOnOrchestrator => (ProcessOptions & Options.MustRunOnOrchestrator) != 0;
 
         /// <summary>
+        /// Whether BuildXL should scan the standard output/error of this process for <c>##bxl</c> hint lines and inject
+        /// the values they carry into the scheduler (e.g. <c>##bxl[runtimeSecs]=value</c> overrides the pip's running time).
+        /// </summary>
+        /// <remarks>
+        /// For now this is a scheduling-only hint and is intentionally excluded from the fingerprint. If these hints ever become involved in
+        /// the pip's fingerprint, this property should be revised.
+        /// </remarks>
+        [PipCaching(FingerprintingRole = FingerprintingRole.None)]
+        public bool EnableBuildXLHintScanning => (ProcessOptions & Options.EnableBuildXLHintScanning) != 0;
+
+        /// <summary>
         /// What policy to apply when merging redirected outputs back
         /// </summary>
         [PipCaching(FingerprintingRole = FingerprintingRole.Semantic)]

@@ -3422,6 +3422,7 @@ namespace BuildXL.Scheduler.Tracing
             string pipDescription,
             long pipDurationMs,
             long exeDurationMs,
+            long originalExeDurationMs,
             long queueDurationMs,
             long cacheLookupDurationMs,
             int indexFromBeginning,

@@ -884,6 +884,33 @@ namespace BuildXL.Processes.Tracing
             string pipDescription);
 
         [GeneratedEvent(
+            (int)LogEventId.PipProcessBuildXLHintUnrecognized,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "The process emitted a '##bxl' hint line that is not recognized and will be ignored: '{hintLine}'.")]
+        public abstract void PipProcessBuildXLHintUnrecognized(
+            LoggingContext context,
+            long pipSemiStableHash,
+            string pipDescription,
+            string hintLine);
+
+        [GeneratedEvent(
+            (int)LogEventId.PipProcessBuildXLHintDuplicateRuntime,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Warning,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.PipExecutor,
+            Message = EventConstants.PipPrefix + "The process emitted more than one '##bxl[runtimeSecs]=<value>' hint line. Only the first value ({acceptedValueMs}ms) is used; the duplicate value ({duplicateValueMs}ms) is ignored.")]
+        public abstract void PipProcessBuildXLHintDuplicateRuntime(
+            LoggingContext context,
+            long pipSemiStableHash,
+            string pipDescription,
+            long acceptedValueMs,
+            long duplicateValueMs);
+
+        [GeneratedEvent(
             (int)LogEventId.PipProcessResponseFileCreationFailed,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Error,

@@ -622,7 +622,8 @@ namespace BuildXL.Scheduler
                         numberOfProcesses: performanceInformation.NumberOfProcesses,
                         workerId: performanceInformation.WorkerId,
                         suspendedDurationMs: performanceInformation.SuspendedDurationMs,
-                        pushOutputsToCacheDurationMs: performanceInformation.PushOutputsToCacheDurationMs);
+                        pushOutputsToCacheDurationMs: performanceInformation.PushOutputsToCacheDurationMs,
+                        originalProcessExecutionTime: performanceInformation.OriginalProcessExecutionTime);
                 }
                 else
                 {

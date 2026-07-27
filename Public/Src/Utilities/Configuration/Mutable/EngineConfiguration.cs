@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
@@ -91,6 +92,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
                                                p => new PipSpecificPropertyAndValue(p.PropertyName, p.PipSemiStableHash, p.PropertyValue)).ToList();
             VerifyJunctionsDoNotConflictWithDirectoryTranslations = template.VerifyJunctionsDoNotConflictWithDirectoryTranslations;
             BuildTimeoutMins = template.BuildTimeoutMins;
+            PostExecOptimizeThreshold = template.PostExecOptimizeThreshold;
         }
 
         /// <inheritdoc />
@@ -210,5 +212,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc/>
         public int? BuildTimeoutMins { get; set; }
+
+        /// <inheritdoc/>
+        public TimeSpan? PostExecOptimizeThreshold { get; set; }
     }
 }

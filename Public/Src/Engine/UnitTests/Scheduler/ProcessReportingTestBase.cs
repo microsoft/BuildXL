@@ -181,7 +181,8 @@ namespace Test.BuildXL.Scheduler
                     33,
                     7,
                     0,
-                    42),
+                    42,
+                    originalProcessExecutionTime: TimeSpan.FromMinutes(1)),
                 fingerprint: new WeakContentFingerprint(fingerprint),
                 fileAccessViolationsNotAllowlisted: new[]
                 {

@@ -101,6 +101,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         private SymbolAtom m_executeTempDirectory;
         private SymbolAtom m_executeUnsafe;
         private SymbolAtom m_executeIsLight;
+        private SymbolAtom m_scanForBuildXLHints;
         private SymbolAtom m_executeDoubleWritePolicy;
         private SymbolAtom m_executeSourceRewritePolicy;
         private SymbolAtom m_executeAllowUndeclaredSourceReads;
@@ -253,6 +254,7 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             m_executeTempDirectory = Symbol("tempDirectory");
             m_executeUnsafe = Symbol("unsafe");
             m_executeIsLight = Symbol("isLight");
+            m_scanForBuildXLHints = Symbol("scanForBuildXLHints");
             m_executeDoubleWritePolicy = Symbol("doubleWritePolicy");
             m_executeSourceRewritePolicy = Symbol("sourceRewritePolicy");
             m_executeAllowUndeclaredSourceReads = Symbol("allowUndeclaredSourceReads");
@@ -661,6 +663,14 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             if (Converter.ExtractOptionalBoolean(obj, m_executeIsLight) == true)
             {
                 processBuilder.Options |= Process.Options.IsLight;
+            }
+
+            // Scan for ##bxl hint lines flag. Note we intentionally allow this to be combined with 'isLight': the marker
+            // mechanism is generic and future hints may be unrelated to light pips. Any incompatibility (e.g. a runtime
+            // hint emitted by a light pip) is handled at scan time by warning and ignoring the hint, not rejected here.
+            if (Converter.ExtractOptionalBoolean(obj, m_scanForBuildXLHints) == true)
+            {
+                processBuilder.Options |= Process.Options.EnableBuildXLHintScanning;
             }
 
             // Double write policy

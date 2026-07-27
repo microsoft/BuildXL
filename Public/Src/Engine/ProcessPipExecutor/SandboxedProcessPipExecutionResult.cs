@@ -149,7 +149,8 @@ namespace BuildXL.ProcessPipExecutor
                 timedOut: result.TimedOut,
                 hasAzureWatsonDeadProcess: result.HasAzureWatsonDeadProcess,
                 createdDirectories: result.CreatedDirectories,
-                fileAccessesBeforeFirstUndeclaredReWrite: result.FileAccessesBeforeFirstUndeclaredReWrite);
+                fileAccessesBeforeFirstUndeclaredReWrite: result.FileAccessesBeforeFirstUndeclaredReWrite,
+                injectedProcessRuntimeMs: result.InjectedProcessRuntimeMs);
         }
 
         internal static SandboxedProcessPipExecutionResult RetryProcessDueToUserSpecifiedExitCode(
@@ -223,7 +224,8 @@ namespace BuildXL.ProcessPipExecutor
                    result.HasAzureWatsonDeadProcess,
                    result.CreatedDirectories,
                    result.FileAccessesBeforeFirstUndeclaredReWrite,
-                   retryInfo: RetryInfo.GetDefault(reason));
+                   retryInfo: RetryInfo.GetDefault(reason),
+                   result.InjectedProcessRuntimeMs);
 
         /// <summary>
         /// Indicates if the pip succeeded.
@@ -303,6 +305,12 @@ namespace BuildXL.ProcessPipExecutor
         public Dictionary<string, int> PipProperties { get; set; }
 
         /// <summary>
+        /// Running time injected via a <c>##bxl[runtimeSecs]=value</c> hint line in the process output,
+        /// when <see cref="BuildXL.Pips.Operations.Process.EnableBuildXLHintScanning"/> is enabled. Null when no valid hint was found.
+        /// </summary>
+        public long? InjectedProcessRuntimeMs { get; set; }
+
+        /// <summary>
         /// A flag to denote if the process was retried based on a User set retry code
         /// </summary>
         public bool HadUserRetries { get; set; }
@@ -372,7 +380,8 @@ namespace BuildXL.ProcessPipExecutor
             bool hasAzureWatsonDeadProcess,
             IReadOnlySet<AbsolutePath> createdDirectories,
             IReadOnlyDictionary<AbsolutePath, RequestedAccess> fileAccessesBeforeFirstUndeclaredReWrite,
-            RetryInfo retryInfo = null)
+            RetryInfo retryInfo = null,
+            long? injectedProcessRuntimeMs = null)
         {
             Contract.Requires(!ProcessCompletedExecution(status) || observedFileAccesses.IsValid);
             Contract.Requires(!ProcessCompletedExecution(status) || unexpectedFileAccesses != null);
@@ -405,6 +414,7 @@ namespace BuildXL.ProcessPipExecutor
             MaxDetoursHeapSizeInBytes = maxDetoursHeapSize;
             SharedDynamicDirectoryWriteAccesses = sharedDynamicDirectoryWriteAccesses;
             PipProperties = pipProperties;
+            InjectedProcessRuntimeMs = injectedProcessRuntimeMs;
             TimedOut = timedOut;
             HasAzureWatsonDeadProcess = hasAzureWatsonDeadProcess;
             RetryInfo = retryInfo;

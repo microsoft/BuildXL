@@ -34,17 +34,21 @@ namespace BuildXL.Scheduler
         public readonly ushort ProcessorsInPercents;
 
         /// <summary>
-        /// The average exe duration
+        /// The average exe duration.
+        /// May reflect a running time injected via a '##bxl[runtimeSecs]' hint (rather than the locally measured time), since the
+        /// injected value is intentionally persisted so future builds schedule the pip honoring the external work's running time.
         /// </summary>
         public readonly uint ExeDurationInMs;
 
         /// <summary>
-        /// The max exe duration observed
+        /// The max exe duration observed.
+        /// As with <see cref="ExeDurationInMs"/>, this may reflect an injected '##bxl[runtimeSecs]' running time.
         /// </summary>
         public readonly uint MaxExeDurationInMs;
 
         /// <summary>
-        /// The average pip run duration (execute, materializeinput, cachelookup, postprocess, start)
+        /// The average pip run duration (execute, materializeinput, cachelookup, postprocess, start).
+        /// The execute portion may reflect an injected '##bxl[runtimeSecs]' running time (see <see cref="ExeDurationInMs"/>).
         /// </summary>
         public readonly uint RunDurationInMs;
 

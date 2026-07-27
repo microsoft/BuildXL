@@ -187,6 +187,12 @@ namespace BuildXL.Pips.Operations
             /// Whether this process must execute on the orchestrator node in a distributed build.
             /// </summary>
             MustRunOnOrchestrator = 1 << 22,
+
+            /// <summary>
+            /// When set, BuildXL scans the standard output/error of this process for lines that start with the
+            /// <c>##bxl</c> marker.
+            /// </summary>
+            EnableBuildXLHintScanning = 1 << 23,
         }
     }
 }

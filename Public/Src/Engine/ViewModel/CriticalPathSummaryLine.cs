@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft Corporation.
+// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
 using System;
@@ -15,6 +15,12 @@ namespace BuildXL.ViewModel
 
         /// <nodoc />
         public TimeSpan ProcessExecuteTime { get; set; }
+
+        /// <summary>
+        /// When <see cref="ProcessExecuteTime"/> was injected via a <c>##bxl[runtimeSecs]</c> hint, holds the originally measured
+        /// execution time; <c>null</c> when the value was measured (i.e. no injection occurred).
+        /// </summary>
+        public TimeSpan? OriginalProcessExecuteTime { get; set; }
 
         /// <nodoc />
         public TimeSpan PipQueueDuration { get; set; }

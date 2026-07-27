@@ -134,7 +134,7 @@ namespace BuildXL.Scheduler
         /// </summary>
         public static string SerializePipPerfInfo(PerProcessPipPerformanceInformation perPipInfo)
         {
-            return JsonConvert.SerializeObject(new Dictionary<string, object>
+            var payload = new Dictionary<string, object>
             {
                 ["PipDescription"] = perPipInfo.PipDescription,
                 ["TelemetryTags"] = perPipInfo.TelemetryTags,
@@ -142,7 +142,16 @@ namespace BuildXL.Scheduler
                 ["PeakWorkingMemoryMb"] = perPipInfo.PeakWorkingMemoryMb,
                 ["IOReadMb"] = perPipInfo.IOReadMb,
                 ["IOWriteMb"] = perPipInfo.IOWriteMb
-            });
+            };
+
+            // Only emitted when the execution time was injected via a '##bxl[runtimeSecs]' hint, so PipExecutionMs above reflects
+            // the injected value while this carries the originally measured one. Kept conditional to avoid bloating every message.
+            if (perPipInfo.OriginalPipExecutionMs.HasValue)
+            {
+                payload["OriginalPipExecutionMs"] = perPipInfo.OriginalPipExecutionMs.Value;
+            }
+
+            return JsonConvert.SerializeObject(payload);
         }
 
         /// <summary>
@@ -185,6 +194,12 @@ namespace BuildXL.Scheduler
         public int PipExecutionMs { get; }
 
         /// <summary>
+        /// The originally measured execution time in ms when <see cref="PipExecutionMs"/> was injected via a '##bxl[runtimeSecs]' hint;
+        /// <c>null</c> when no injection occurred (in which case <see cref="PipExecutionMs"/> is already the measured value).
+        /// </summary>
+        public int? OriginalPipExecutionMs { get; }
+
+        /// <summary>
         /// Peak Working Set utilization by Pip in Mb
         /// </summary>
         public int PeakWorkingMemoryMb { get; }
@@ -205,10 +220,12 @@ namespace BuildXL.Scheduler
             int pipExecutionMs,
             int peakWorkingMemoryMb,
             int ioReadMb,
-            int ioWriteMb)
+            int ioWriteMb,
+            int? originalPipExecutionMs = null)
         {
             RunnablePip = runnablePip;
             PipExecutionMs = pipExecutionMs;
+            OriginalPipExecutionMs = originalPipExecutionMs;
             PeakWorkingMemoryMb = peakWorkingMemoryMb;
             IOReadMb = ioReadMb;
             IOWriteMb = ioWriteMb;
@@ -226,6 +243,7 @@ namespace BuildXL.Scheduler
             return  (PipDescription == pipInfo.PipDescription) &&
                     TelemetryTags.SequenceEqual(pipInfo.TelemetryTags) &&
                     (PipExecutionMs == pipInfo.PipExecutionMs) &&
+                    (OriginalPipExecutionMs == pipInfo.OriginalPipExecutionMs) &&
                     (PeakWorkingMemoryMb == pipInfo.PeakWorkingMemoryMb) &&
                     (IOReadMb == pipInfo.IOReadMb) &&
                     (IOWriteMb == pipInfo.IOWriteMb);
@@ -237,6 +255,7 @@ namespace BuildXL.Scheduler
             return  PipDescription.GetHashCode() ^
                     TelemetryTags.GetHashCode() ^
                     PipExecutionMs.GetHashCode() ^
+                    OriginalPipExecutionMs.GetHashCode() ^
                     PeakWorkingMemoryMb.GetHashCode() ^
                     IOReadMb.GetHashCode() ^
                     IOWriteMb.GetHashCode();

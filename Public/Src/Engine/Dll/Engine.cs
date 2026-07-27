@@ -889,6 +889,11 @@ namespace BuildXL.Engine
             // the string size, some of the large strings that used to go to the string table can go to the large string buffer.
             StringTable.OverrideStringTableDefaults(EngineEnvironmentSettings.LargeStringBufferThresholdBytes);
 
+            // Make the configuration object the single source of truth for the post-execution optimization threshold.
+            // The threshold is still advertised as an environment variable via EngineEnvironmentSettings; honor it here
+            // (including any /p: override applied above) unless the configuration already carries an explicit value.
+            mutableConfig.Engine.PostExecOptimizeThreshold ??= EngineEnvironmentSettings.PostExecOptimizeThreshold.Value;
+
             // The /cleanonly option should override the phase to only schedule and not perform execution
             if (mutableConfig.Engine.CleanOnly)
             {

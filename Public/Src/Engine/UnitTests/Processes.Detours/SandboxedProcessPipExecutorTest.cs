@@ -2122,6 +2122,132 @@ namespace Test.BuildXL.Processes.Detours
             }
         }
 
+        [Fact]
+        public async Task InjectRuntimeFromBuildXLHint()
+        {
+            var context = BuildXLContext.CreateInstanceForTesting();
+
+            SandboxedProcessPipExecutionResult result = await RunBuildXLHintPipAsync(context, "echo ##bxl[runtimeSecs]=1234", enableScanning: true);
+
+            VerifyExecutionStatus(context, result, SandboxedProcessPipExecutionStatus.Succeeded);
+            XAssert.AreEqual(1234000L, result.InjectedProcessRuntimeMs);
+        }
+
+        /// <summary>
+        /// Covers the ##bxl hint scanning cases where no runtime is injected and no warning is emitted: scanning is
+        /// disabled, or the runtime value is the emitter's negative "no data" sentinel.
+        /// </summary>
+        [Theory]
+        // Scanning disabled: the ##bxl hint must be ignored even though the value is valid.
+        [InlineData("echo ##bxl[runtimeSecs]=1234", false)]
+        // A negative value is the emitter's "no data" sentinel: it must not be injected and must not warn.
+        [InlineData("echo ##bxl[runtimeSecs]=-1", true)]
+        public async Task BuildXLHintIgnoredWithoutWarning(string echoPayload, bool enableScanning)
+        {
+            var context = BuildXLContext.CreateInstanceForTesting();
+
+            SandboxedProcessPipExecutionResult result = await RunBuildXLHintPipAsync(context, echoPayload, enableScanning: enableScanning);
+
+            VerifyExecutionStatus(context, result, SandboxedProcessPipExecutionStatus.Succeeded);
+            XAssert.IsNull(result.InjectedProcessRuntimeMs);
+        }
+
+        /// <summary>
+        /// Verifies that a ##bxl runtime hint is injected the same way regardless of whether the pip is a light pip:
+        /// hint scanning and runtime injection are independent of the light-pip flag.
+        /// </summary>
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public async Task BuildXLHintInjectedForLightAndRegularPips(bool isLight)
+        {
+            var context = BuildXLContext.CreateInstanceForTesting();
+
+            SandboxedProcessPipExecutionResult result = await RunBuildXLHintPipAsync(context, "echo ##bxl[runtimeSecs]=1234", enableScanning: true, isLight: isLight);
+
+            VerifyExecutionStatus(context, result, SandboxedProcessPipExecutionStatus.Succeeded);
+            XAssert.AreEqual(1234000L, result.InjectedProcessRuntimeMs);
+        }
+
+        /// <summary>
+        /// Covers the ##bxl hint scanning cases that emit a warning: an unrecognized hint line and a duplicate runtime
+        /// hint (first value wins). Each case asserts the expected injected runtime (if any) and the expected warning event.
+        /// </summary>
+        [Theory]
+        // Unrecognized hint line: warns and injects nothing.
+        [InlineData("echo ##bxl[unknownHint]=42", false, null, ProcessesLogEventId.PipProcessBuildXLHintUnrecognized)]
+        // Duplicate runtime hint: the first value wins and a warning is logged for the extra one.
+        [InlineData("echo ##bxl[runtimeSecs]=1234 & echo ##bxl[runtimeSecs]=5678", false, 1234000L, ProcessesLogEventId.PipProcessBuildXLHintDuplicateRuntime)]
+        public async Task BuildXLHintWarnsAndSkipsInjection(string echoPayload, bool isLight, long? expectedInjectedRuntimeMs, ProcessesLogEventId expectedWarningEventId)
+        {
+            var context = BuildXLContext.CreateInstanceForTesting();
+
+            SandboxedProcessPipExecutionResult result = await RunBuildXLHintPipAsync(context, echoPayload, enableScanning: true, isLight: isLight);
+
+            VerifyExecutionStatus(context, result, SandboxedProcessPipExecutionStatus.Succeeded);
+            XAssert.AreEqual(expectedInjectedRuntimeMs, result.InjectedProcessRuntimeMs);
+            AssertWarningEventLogged(expectedWarningEventId);
+        }
+
+        /// <summary>
+        /// Builds and runs a process pip that echoes the given payload, optionally enabling ##bxl hint scanning, and
+        /// returns the execution result. Used by the BuildXL hint parsing tests.
+        /// </summary>
+        private async Task<SandboxedProcessPipExecutionResult> RunBuildXLHintPipAsync(BuildXLContext context, string echoPayload, bool enableScanning, bool isLight = false)
+        {
+            using (var tempFiles = new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory))
+            {
+                string executable = CmdHelper.CmdX64;
+                FileArtifact executableFileArtifact = FileArtifact.CreateSourceFile(AbsolutePath.Create(context.PathTable, executable));
+
+                string workingDirectory = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+                AbsolutePath workingDirectoryAbsolutePath = AbsolutePath.Create(context.PathTable, workingDirectory);
+
+                var arguments = new PipDataBuilder(context.PathTable.StringTable);
+                arguments.Add("/d");
+                arguments.Add("/c");
+                arguments.Add(echoPayload);
+
+                var pip = new Process(
+                    executableFileArtifact,
+                    workingDirectoryAbsolutePath,
+                    arguments.ToPipData(" ", PipDataFragmentEscaping.NoEscaping),
+                    FileArtifact.Invalid,
+                    PipData.Invalid,
+                    ReadOnlyArray<EnvironmentVariable>.Empty,
+                    FileArtifact.Invalid,
+                    FileArtifact.Invalid,
+                    FileArtifact.Invalid,
+                    tempFiles.GetUniqueDirectory(context.PathTable),
+                    null,
+                    null,
+                    ReadOnlyArray<FileArtifact>.FromWithoutCopy(executableFileArtifact),
+                    ReadOnlyArray<FileArtifactWithAttributes>.Empty,
+                    ReadOnlyArray<DirectoryArtifact>.Empty,
+                    ReadOnlyArray<DirectoryArtifact>.Empty,
+                    ReadOnlyArray<PipId>.Empty,
+                    ReadOnlyArray<AbsolutePath>.From(CmdHelper.GetCmdDependencies(context.PathTable)),
+                    ReadOnlyArray<AbsolutePath>.From(CmdHelper.GetCmdDependencyScopes(context.PathTable)),
+                    ReadOnlyArray<StringId>.Empty,
+                    ReadOnlyArray<int>.Empty,
+                    semaphores: ReadOnlyArray<ProcessSemaphoreInfo>.Empty,
+                    provenance: PipProvenance.CreateDummy(context),
+                    toolDescription: StringId.Invalid,
+                    additionalTempDirectories: ReadOnlyArray<AbsolutePath>.Empty,
+                    options: (enableScanning ? Process.Options.EnableBuildXLHintScanning : Process.Options.None)
+                             | (isLight ? Process.Options.IsLight : Process.Options.None));
+
+                return await RunProcess(
+                    context,
+                    new SandboxConfiguration { FileAccessIgnoreCodeCoverage = true },
+                    pip,
+                    null,
+                    new Dictionary<string, string>(),
+                    SemanticPathExpander.Default,
+                    null);
+            }
+        }
+
         [FactIfSupported(requiresSymlinkPermission: true, requiresWindowsBasedOperatingSystem: true)]
         public async Task DirSymlinksAreProperlyResolvedAsync()
         {

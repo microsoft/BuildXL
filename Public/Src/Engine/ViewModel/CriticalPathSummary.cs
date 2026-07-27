@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft Corporation.
+// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
 using System;
@@ -56,9 +56,15 @@ namespace BuildXL.ViewModel
                 "-");
             foreach (var line in Lines)
             {
+                // Surface injected running times (see '##bxl[runtimeSecs]' hints): when injected, show the injected value and the
+                // originally measured one, consistent with the detailed critical path log.
+                string exeDurationCell = line.OriginalProcessExecuteTime.HasValue
+                    ? $"[injected] {line.ProcessExecuteTime.MakeFriendly()} (measured {line.OriginalProcessExecuteTime.Value.MakeFriendly()})"
+                    : line.ProcessExecuteTime.MakeFriendly();
+
                 writer.WriteTableRow(
                     line.PipDuration.MakeFriendly(),
-                    line.ProcessExecuteTime.MakeFriendly(),
+                    exeDurationCell,
                     line.PipQueueDuration.MakeFriendly(),
                     line.Result,
                     line.ScheduleTime.MakeFriendly(),

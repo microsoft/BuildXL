@@ -56,6 +56,13 @@ namespace BuildXL.Scheduler
         ExecuteProcessDuration,
 
         /// <summary>
+        /// The aggregate running time injected into process pips via <c>##bxl[runtimeSecs]</c> hints (see
+        /// <see cref="BuildXL.Pips.Operations.Process.EnableBuildXLHintScanning"/>).
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        InjectedProcessDuration,
+
+        /// <summary>
         /// The time spent storing the process results to the cache
         /// </summary>
         [CounterType(CounterType.Stopwatch)]
@@ -1412,10 +1419,19 @@ namespace BuildXL.Scheduler
 
         /// <summary>
         /// The amount of time it took to execute all process pips. This only includes the time spent executing the process.
-        /// It does not include any pre or post processing
+        /// It does not include any pre or post processing.
+        /// Note this value may contain runtimes injected via a '##bxl[runtimeSecs]' hint (see <see cref="OriginalExecuteProcessDuration"/>
+        /// for the corresponding measured-only value).
         /// </summary>
         [CounterType(CounterType.Stopwatch)]
         ExecuteProcessDuration,
+
+        /// <summary>
+        /// The amount of time it took to execute all process pips, using the originally measured execution time (i.e. ignoring any
+        /// runtime injected via a '##bxl[runtimeSecs]' hint). When no injection occurs this matches <see cref="ExecuteProcessDuration"/>.
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        OriginalExecuteProcessDuration,
 
         /// <summary>
         /// The number of bytes read by pips in the group.

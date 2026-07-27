@@ -63,6 +63,7 @@ namespace Test.BuildXL.Scheduler
                 r => r.PerformanceInformation.ExecutionStop,
                 r => r.PerformanceInformation.ExecutionStart,
                 r => r.PerformanceInformation.ProcessExecutionTime,
+                r => r.PerformanceInformation.OriginalProcessExecutionTime,
                 r => r.PerformanceInformation.FileMonitoringViolations.NumFileAccessViolationsNotAllowlisted,
                 r => r.PerformanceInformation.FileMonitoringViolations.NumFileAccessesAllowlistedAndCacheable,
                 r => r.PerformanceInformation.FileMonitoringViolations.NumFileAccessesAllowlistedButNotCacheable,

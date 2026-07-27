@@ -361,9 +361,12 @@ namespace Tool.CloudTestClient
 
                     if (avgDurationMs.Value >= 0)
                     {
-                        // TODO: The exact way of sharing this with BuildXL is TBD, but the idea is to use a VSO-like approach
-                        // where BuildXL will scan for ##buildxl lines in the standard output.
-                        Console.WriteLine($"##buildxl[runtime]{avgDurationMs.Value}");
+                        // BuildXL scans process output for lines beginning with the "##bxl" marker when the pip enables
+                        // hint scanning (see Process.EnableBuildXLHintScanning). The "runtimeSecs" hint injects the value
+                        // below (a whole number of seconds) as the pip's running time so the scheduler honors the runtime
+                        // of the external CloudTest job.
+                        long avgDurationSecs = (long)Math.Round(avgDurationMs.Value / 1000.0);
+                        Console.WriteLine($"##bxl[runtimeSecs]={avgDurationSecs}");
                     }
                     else
                     {
@@ -924,7 +927,7 @@ USAGE: CloudTestClient /mode:<mode> [options]
   /sessionId         Explicit session ID GUID.
   NOTE: Provide exactly one of /sessionIdFile or /sessionId.
   /historicRuntimeFile Optional. Path to a JSON file with historic runtime
-                     data for this job. When present, emits ##buildxl[runtime].
+                     data for this job. When present, emits ##bxl[runtimeSecs]=<value>.
 
 -- cancelSession ------------------------------------------------------------------
   /tokenEnvVar       Required. Env var holding the bearer token.

@@ -80,10 +80,10 @@ echo.
 where wt >nul 2>nul
 if %errorlevel%==0 (
     echo Launching Copilot CLI in a new Windows Terminal tab...
-    wt -w 0 nt -d "%WORKTREE_PATH%" -- cmd /k "agency copilot"
+    wt -w 0 nt -d "%WORKTREE_PATH%" -- cmd /k "agency copilot --hub"
 ) else (
     echo Windows Terminal not found. Opening in a new window...
-    start "Copilot - %FEATURE%" cmd /k "cd /d \"%WORKTREE_PATH%\" && agency copilot"
+    start "Copilot - %FEATURE%" cmd /k "cd /d \"%WORKTREE_PATH%\" && agency copilot --hub"
 )
 
 echo.

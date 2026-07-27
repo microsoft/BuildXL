@@ -57,6 +57,15 @@ namespace BuildXL.Scheduler
         private IReadonlyDirectedGraph ScheduledGraph => m_getScheduledGraph();
 
         /// <summary>
+        /// A critical path produced by <see cref="BuildCriticalPath"/>: the ordered list of pips (from end to
+        /// beginning) plus whether any pip on it had its execution time injected via a <c>##bxl</c> hint. The latter
+        /// widens the Exe Duration column when the path is rendered so the <c>[injected]</c> marker stays aligned.
+        /// </summary>
+        private sealed record CriticalPath(
+            List<(PipRuntimeInfo pipRunTimeInfo, PipId pipId)> Pips,
+            bool HasAnyPipInjectedRuntime);
+
+        /// <summary>
         /// Creates a tracker. The supplied dependencies are those needed on the per-pip hot path; they remain valid for
         /// the lifetime of the owning scheduler.
         /// </summary>
@@ -352,10 +361,10 @@ namespace BuildXL.Scheduler
             StringBuilder builder,
             Func<long, string> addMin,
             CriticalPathKind kind,
-            List<(PipRuntimeInfo pipRunTimeInfo, PipId pipId)> criticalPath,
+            CriticalPath criticalPath,
             CriticalPathReportContext context)
         {
-            if (criticalPath.Count == 0)
+            if (criticalPath.Pips.Count == 0)
             {
                 return null;
             }
@@ -381,8 +390,13 @@ namespace BuildXL.Scheduler
 
             long exeDurationCriticalPathMs = 0;
 
+            // When a pip on this critical path had its execution time injected via a '##bxl' hint, its Exe Duration cell
+            // carries an extra '[injected]' marker (10 chars). If any row is injected, widen the Exe Duration column for
+            // every row - including the header and the total row - so the column stays aligned.
+            int exeDurationColumnWidth = criticalPath.HasAnyPipInjectedRuntime ? 30 : 20;
+
             int index = 0;
-            foreach (var node in criticalPath)
+            foreach (var node in criticalPath.Pips)
             {
                 if (!context.RunnablePipPerformance.ContainsKey(node.pipId))
                 {
@@ -419,7 +433,7 @@ namespace BuildXL.Scheduler
                         originalExeDurationMs: runtimeInfo.OriginalProcessExecuteTimeMs ?? -1,
                         queueDurationMs: pipQueueDurationMs,
                         cacheLookupDurationMs: cacheLookupDurationMs,
-                        indexFromBeginning: criticalPath.Count - index - 1,
+                        indexFromBeginning: criticalPath.Pips.Count - index - 1,
                         isExplicitlyScheduled: (context.ExplicitlyScheduledProcessNodes == null ? false : context.ExplicitlyScheduledProcessNodes.Contains(node.pipId.ToNodeId())),
                         executionLevel: runtimeInfo.Result.ToString(),
                         numCacheEntriesVisited: performance.CacheLookupPerfInfo.NumCacheEntriesVisited,
@@ -438,7 +452,7 @@ namespace BuildXL.Scheduler
                 long queueDurationMs = remoteQueueMs + pipQueueDurationMs;
                 string exeDuration = $"{(runtimeInfo.IsInjectedProcessExecuteTime? "[injected]" : string.Empty)}{addMin(runtimeInfo.ProcessExecuteTimeMs)}";
 
-                summaryTable.AppendLine(I($"{addMin(pipDurationMs),20} | {exeDuration,20} | {addMin(queueDurationMs),20} | {addMin(totalDurationMs),20} | {runtimeInfo.Result,12} | {pip.GetDescription(context.Context)}"));
+                summaryTable.AppendLine(I($"{addMin(pipDurationMs),20} | {exeDuration.PadLeft(exeDurationColumnWidth)} | {addMin(queueDurationMs),20} | {addMin(totalDurationMs),20} | {runtimeInfo.Result,12} | {pip.GetDescription(context.Context)}"));
 
                 if (summaryToPopulate != null)
                 {
@@ -489,8 +503,8 @@ namespace BuildXL.Scheduler
             long totalQueueTime = totalRemoteQueueTime + totalOrchestratorQueueTime;
 
             builder.AppendLine(header);
-            builder.AppendLine(I($"{"Pip Duration",-20} | {"Exe Duration",-20} | {"Queue",-20} | {"Total Duration",-20} | {"Pip Result",-12} | Pip"));
-            builder.AppendLine(I($"{addMin(workPipDurationMs),20} | {addMin(exeDurationCriticalPathMs),20} | {addMin(totalQueueTime),20} | {addMin(totalCriticalPathLength),20} | {string.Empty,12} | *Total"));
+            builder.AppendLine(I($"{"Pip Duration",-20} | {"Exe Duration".PadRight(exeDurationColumnWidth)} | {"Queue",-20} | {"Total Duration",-20} | {"Pip Result",-12} | Pip"));
+            builder.AppendLine(I($"{addMin(workPipDurationMs),20} | {addMin(exeDurationCriticalPathMs).PadLeft(exeDurationColumnWidth)} | {addMin(totalQueueTime),20} | {addMin(totalCriticalPathLength),20} | {string.Empty,12} | *Total"));
             builder.AppendLine(summaryTable.ToString());
             builder.AppendLine(detailedLog.ToString());
 
@@ -574,17 +588,21 @@ namespace BuildXL.Scheduler
         /// Walks back from a critical path tail, following the dependency with the largest accumulated duration
         /// (as selected by <paramref name="chainDurationSelector"/>), and returns the path from tail to root.
         /// </summary>
-        private List<(PipRuntimeInfo pipRunTimeInfo, PipId pipId)> BuildCriticalPath(int tailPipIdValue, Func<PipRuntimeInfo, int> chainDurationSelector)
+        private CriticalPath BuildCriticalPath(int tailPipIdValue, Func<PipRuntimeInfo, int> chainDurationSelector)
         {
-            var path = new List<(PipRuntimeInfo, PipId)>();
+            var path = new List<(PipRuntimeInfo pipRunTimeInfo, PipId pipId)>();
 
             if (tailPipIdValue == 0)
             {
-                return path;
+                return new CriticalPath(path, HasAnyPipInjectedRuntime: false);
             }
 
+            bool hasAnyPipInjectedRuntime = false;
+            
             PipId pipId = ToPipId(tailPipIdValue);
-            path.Add((GetPipRuntimeInfo(pipId), pipId));
+            var runtimeInfo = GetPipRuntimeInfo(pipId);
+            path.Add((runtimeInfo, pipId));
+            hasAnyPipInjectedRuntime |= runtimeInfo.IsInjectedProcessExecuteTime;
 
             while (true)
             {
@@ -604,6 +622,7 @@ namespace BuildXL.Scheduler
                 if (nextRuntimeInfo != null)
                 {
                     path.Add((nextRuntimeInfo, nextPipId));
+                    hasAnyPipInjectedRuntime |= nextRuntimeInfo.IsInjectedProcessExecuteTime;
                     pipId = nextPipId;
                 }
                 else
@@ -612,7 +631,7 @@ namespace BuildXL.Scheduler
                 }
             }
 
-            return path;
+            return new CriticalPath(path, hasAnyPipInjectedRuntime);
         }
 
         private void LogPipPerformanceInfo(StringBuilder stringBuilder, PipId pipId, RunnablePipPerformanceInfo performanceInfo, CriticalPathReportContext context)

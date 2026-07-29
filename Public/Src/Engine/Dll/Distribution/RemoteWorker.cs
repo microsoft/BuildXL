@@ -1328,6 +1328,14 @@ namespace BuildXL.Engine.Distribution
                 availableRamMb = Environment.LocalWorker.AvailableRamMb;
             }
 
+            // Honor the worker's own /ramSemaphoreMultiplier when sizing this worker's RAM semaphore limit, so a worker
+            // launched with a different multiplier than the orchestrator is respected per machine. A value of 0 means the
+            // worker did not report one (e.g. an older worker), so we keep the orchestrator's configured multiplier.
+            if (attachCompletionInfo.RamSemaphoreMultiplier > 0)
+            {
+                RamSemaphoreMultiplier = attachCompletionInfo.RamSemaphoreMultiplier;
+            }
+
             // When the remote worker is first attached, we just need to know the ram counters, so we can set up the ram semaphores.
             // The cpu usage information will be sent as a part of the heartbeat messages.
             UpdatePerfInfo(m_appLoggingContext,

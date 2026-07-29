@@ -154,6 +154,16 @@ namespace BuildXL.Scheduler.Distribution
         /// Ram semaphore limit in MB
         /// </summary>
         public int RamSemaphoreLimitMb { get; private set; }
+
+        /// <summary>
+        /// The RAM semaphore multiplier used to size this worker's <see cref="RamSemaphoreLimitMb"/>.
+        /// </summary>
+        /// <remarks>
+        /// Defaults to the orchestrator's <see cref="IScheduleConfiguration.RamSemaphoreMultiplier"/>. For a remote
+        /// worker it is overridden with the value the worker reports at attach time (its own /ramSemaphoreMultiplier),
+        /// so a worker launched with a different multiplier than the orchestrator is honored per machine.
+        /// </remarks>
+        public double RamSemaphoreMultiplier { get; internal set; }
         
         /// <nodoc/>
         public int? InitialAvailableRamMb { get; private set; }
@@ -300,6 +310,10 @@ namespace BuildXL.Scheduler.Distribution
 
             m_ramSemaphoreNameId = context.StringTable.AddString(RamSemaphoreName);
             m_scheduleConfig = scheduleConfig;
+
+            // Default to the orchestrator's configured multiplier. A remote worker overrides this at attach time
+            // with the multiplier it was launched with (see RemoteWorker.AttachCompleted).
+            RamSemaphoreMultiplier = scheduleConfig.RamSemaphoreMultiplier;
 
             m_cpuSemaphoreNameId = context.StringTable.AddString(CpuSemaphoreName);
 
@@ -911,7 +925,7 @@ namespace BuildXL.Scheduler.Distribution
                 // because we will use the process ram usage as a semaphore.
                 InitialAvailableRamMb = machineAvailableRamMb + (engineRamMb ?? 0);
 
-                RamSemaphoreLimitMb = (int)Math.Round((double)InitialAvailableRamMb * m_scheduleConfig.RamSemaphoreMultiplier);
+                RamSemaphoreLimitMb = (int)Math.Round((double)InitialAvailableRamMb * RamSemaphoreMultiplier);
                 m_ramSemaphoreIndex = m_workerSemaphores.CreateOrUpdateSemaphore(m_ramSemaphoreNameId, RamSemaphoreLimitMb);
             }
 

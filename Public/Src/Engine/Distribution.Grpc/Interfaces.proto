@@ -102,6 +102,12 @@ message AttachCompletionInfo
 
     // BuildXL engine RAM usage in MB
     int32 EngineRamMb = 8;
+
+    // The RAM semaphore multiplier configured on the worker (/ramSemaphoreMultiplier). The orchestrator uses
+    // this to size THIS worker's RAM semaphore limit, so a worker can override the orchestrator's value on a
+    // heterogeneous fleet. A value of 0 means "not reported" (e.g. an older worker), in which case the
+    // orchestrator falls back to its own /ramSemaphoreMultiplier.
+    double RamSemaphoreMultiplier = 9;
 }
 
 // Defines information about a completed pip and its outputs

@@ -456,6 +456,7 @@ namespace BuildXL.Processes.Internal
                 SafeFileHandle standardInputWritePipeHandle = null;
                 SafeFileHandle standardOutputReadPipeHandle = null;
                 SafeFileHandle standardErrorReadPipeHandle = null;
+                NamedPipeServerStream standardInputPipeStream = null;
                 NamedPipeServerStream standardOutputPipeStream = null;
                 NamedPipeServerStream standardErrorPipeStream = null;
 
@@ -482,11 +483,33 @@ namespace BuildXL.Processes.Internal
 
                         if (redirectStreams)
                         {
-                            Pipes.CreateInheritablePipe(
-                                Pipes.PipeInheritance.InheritRead,
-                                Pipes.PipeFlags.WriteSideAsync,
-                                readHandle: out hStdInput,
-                                writeHandle: out standardInputWritePipeHandle);
+                            if (useManagedPipeReader)
+                            {
+                                // Our side of the stdin pipe is a NamedPipeServerStream rather than a FileStream over a raw
+                                // write handle. Pipes.CreateInheritablePipe hands back a write handle created with
+                                // PIPE_ACCESS_OUTBOUND, i.e. write-only, and starting with .NET 11 the FileStream constructor
+                                // probes the handle (CanSeek -> Type -> GetFileTypeCore -> GetPipeOrSocketType), which requires
+                                // read access and therefore fails with UnauthorizedAccessException on such a handle.
+                                // See https://github.com/dotnet/runtime/issues/131503.
+                                // This matters even though BuildXL itself does not target .NET 11: the BuildXL.Processes
+                                // net10.0 asset gets loaded into .NET 11 host processes, and the probe is a runtime behavior.
+                                // Using a NamedPipeServerStream, as we already do for stdout/stderr below, avoids the probe
+                                // entirely and keeps the child's end a synchronous, inheritable, read-only handle just as before.
+                                standardInputPipeStream = Pipes.CreateNamedPipeServerStream(
+                                    PipeDirection.Out,
+                                    PipeOptions.Asynchronous,
+                                    PipeOptions.None,
+                                    out hStdInput,
+                                    markClientHandleInheritable: true);
+                            }
+                            else
+                            {
+                                Pipes.CreateInheritablePipe(
+                                    Pipes.PipeInheritance.InheritRead,
+                                    Pipes.PipeFlags.WriteSideAsync,
+                                    readHandle: out hStdInput,
+                                    writeHandle: out standardInputWritePipeHandle);
+                            }
                         }
                         else
                         {
@@ -671,17 +694,21 @@ namespace BuildXL.Processes.Internal
                         }
                     }
 
-                    if (standardInputWritePipeHandle != null)
+                    if (standardInputWritePipeHandle != null || standardInputPipeStream != null)
                     {
-                        var standardInputStream = new FileStream(standardInputWritePipeHandle, FileAccess.Write, m_bufferSize, isAsync: true);
-
                         // Do not set auto flush to true because, if it is set to true, StreamWriter would immediately do a write operation to the pipe (although the data is empty).
                         // When the pipe is closed (or is being closed), the write operation would fail and throw an exception. This can happen if the detoured process does not need
                         // any standard input, and the process terminates quickly before this pipe setup is completed.
-                        // It was not an issue before .NET 8 because when writing to a FileStream that represented a closed or disconnected pipe, the underlying operating system
-                        // error was ignored and the write was reported as successful. However, nothing was written to the pipe. Starting in .NET 8, when writing to a FileStream whose
+                        // It was not an issue before .NET 8 because when writing to a stream over a closed or disconnected pipe, the underlying operating system
+                        // error was ignored and the write was reported as successful. However, nothing was written to the pipe. Starting in .NET 8, when writing to a stream whose
                         // underlying pipe is closed or disconnected, the write fails and an IOException is thrown.
                         // See breaking changes in .NET 8: https://learn.microsoft.com/en-us/dotnet/core/compatibility/core-libraries/8.0/filestream-disposed-pipe
+                        Stream standardInputStream = standardInputPipeStream;
+                        if (standardInputStream == null)
+                        {
+                            standardInputStream = new FileStream(standardInputWritePipeHandle, FileAccess.Write, m_bufferSize, isAsync: true);
+                        }
+
                         m_standardInputWriter = new StreamWriter(standardInputStream, m_standardInputEncoding, m_bufferSize) { AutoFlush = false };
                     }
 
@@ -755,20 +782,23 @@ namespace BuildXL.Processes.Internal
                         Logger.Log.DetouredProcessAccessViolationException(m_loggingContext, creationFlags + " - " + m_commandLine);
                     }
 
-                    // Dispose pipe handles in case they are not assigned to streams.
+                    // Dispose pipe handles and streams in case they are not assigned to readers/writers.
                     if (m_standardInputWriter == null)
                     {
                         standardInputWritePipeHandle?.Dispose();
+                        standardInputPipeStream?.Dispose();
                     }
 
                     if (m_outputReader == null)
                     {
                         standardOutputReadPipeHandle?.Dispose();
+                        standardOutputPipeStream?.Dispose();
                     }
 
                     if (m_errorReader == null)
                     {
                         standardErrorReadPipeHandle?.Dispose();
+                        standardErrorPipeStream?.Dispose();
                     }
 
                     throw;

@@ -105,6 +105,14 @@ namespace BuildXL.Scheduler
         // Maps of paths that are dynamically read or written to the corresponding pip. 
         // The tuple indicates whether it is a reader of the path or a writer, together with the actual pip and materialization info when available (absent file otherwise)
         private readonly ConcurrentBigMap<AbsolutePath, (DynamicFileAccessType accessType, PipId processPip, FileMaterializationInfo fileMaterializationInfo)> m_dynamicReadersAndWriters = new ConcurrentBigMap<AbsolutePath, (DynamicFileAccessType, PipId, FileMaterializationInfo)>();
+
+        // Dynamically written paths whose first dynamic access was *not* the write itself, mapped to their producer.
+        // m_dynamicReadersAndWriters only keeps the first access on a path (that is what classifies the next one), so when a reader or a prober
+        // gets there first the producer is lost and later violations end up attributed to a pip that never wrote the path. This map preserves it.
+        // Kept separate rather than packed into the entry above because updating an entry there takes a reads-blocking exclusive lock
+        // (see ConcurrentBigSet.GetAddOrUpdateItem) while GetOrAdd has a read-lock fast path, and because it keeps those entries immutable once published.
+        // Use TryGetDynamicProducer to query the producer of a path rather than reading either map directly.
+        private readonly ConcurrentBigMap<AbsolutePath, PipId> m_dynamicWriters = new ConcurrentBigMap<AbsolutePath, PipId>();
         
         // Maps of path of temp files under shared opaques to their producers.
         // Under certain conditions the same file can be produced by multiple pips.
@@ -1077,6 +1085,34 @@ namespace BuildXL.Scheduler
         }
 
         /// <summary>
+        /// Returns the pip that dynamically produced <paramref name="path"/>, if any.
+        /// </summary>
+        /// <remarks>
+        /// The producer is normally the pip registered in <see cref="m_dynamicReadersAndWriters"/>, but when a reader or an absent path prober
+        /// accessed the path before the producer ran, that entry holds the non-producer and <see cref="m_dynamicWriters"/> holds the producer.
+        /// Callers must use this method instead of reading either map directly, otherwise violations get attributed to a pip that never wrote the path.
+        /// The two maps are mutually exclusive by construction (a path is only added to the latter when the former holds a non-write access, and
+        /// accesses there are never overwritten), so the lookup order only affects performance. The common case is the producer having registered
+        /// the path itself, so that map is checked first and <see cref="m_dynamicWriters"/> - typically empty - is only consulted on a miss.
+        /// </remarks>
+        private bool TryGetDynamicProducer(AbsolutePath path, out PipId producer)
+        {
+            if (m_dynamicReadersAndWriters.TryGetValue(path, out var access) && access.accessType == DynamicFileAccessType.Write)
+            {
+                producer = access.processPip;
+                return true;
+            }
+
+            if (m_dynamicWriters.Count != 0 && m_dynamicWriters.TryGetValue(path, out producer))
+            {
+                return true;
+            }
+
+            producer = PipId.Invalid;
+            return false;
+        }
+
+        /// <summary>
         /// Register a write in <paramref name="access"/> by <paramref name="pip"/>. And in the case the write access generates a violation,
         /// populate <paramref name="reportedViolations"/>
         /// </summary>
@@ -1095,6 +1131,14 @@ namespace BuildXL.Scheduler
                 path,
                 pip,
                 (accessKey, producer) => (DynamicFileAccessType.Write, producer.PipId, outputMaterializationInfo));
+
+            // Always register the dynamic producer, even if the path was already registered above by a reader or an absent path prober.
+            // Otherwise the real producer of the path is lost and subsequent violations end up being attributed to a non-producer pip.
+            // Observe this is only needed when some other access got to the entry first: otherwise the entry above already holds the producer.
+            if (result.IsFound && result.Item.Value.accessType != DynamicFileAccessType.Write)
+            {
+                m_dynamicWriters.GetOrAdd(path, pip.PipId);
+            }
 
             if (access.IsTemporaryOutputFile)
             {
@@ -1764,11 +1808,10 @@ namespace BuildXL.Scheduler
                             // that means that undeclared source read mode detected a previous write (and not a write in a source file)
                             // so in that case the issue is handled in ReportDynamicViolations
                             violation.Method != FileAccessStatusMethod.FileExistenceBased &&
-                            m_dynamicReadersAndWriters.TryGetValue(violation.Path, out var kvp) && 
-                            kvp.accessType == DynamicFileAccessType.Write)
+                            TryGetDynamicProducer(violation.Path, out var dynamicWriterPipId))
                         {
                             dynamicProducer= true;
-                            maybeProducer = m_graph.HydratePip(kvp.processPip, PipQueryContext.FileMonitoringViolationAnalyzerClassifyAndReportAggregateViolations);
+                            maybeProducer = m_graph.HydratePip(dynamicWriterPipId, PipQueryContext.FileMonitoringViolationAnalyzerClassifyAndReportAggregateViolations);
                         }
 
                         if (maybeProducer != null)
@@ -1942,9 +1985,9 @@ namespace BuildXL.Scheduler
                         }
 
                         // No statically declared producers. Check for a dynamically observed produced file
-                        if (m_dynamicReadersAndWriters.TryGetValue(violation.Path, out var producer))
+                        if (TryGetDynamicProducer(violation.Path, out var dynamicProducerPipId))
                         {
-                            maybeProducer = m_graph.HydratePip(producer.processPip, PipQueryContext.FileMonitoringViolationAnalyzerClassifyAndReportAggregateViolations);
+                            maybeProducer = m_graph.HydratePip(dynamicProducerPipId, PipQueryContext.FileMonitoringViolationAnalyzerClassifyAndReportAggregateViolations);
 
                             reportedViolations.Add(
                                 HandleDependencyViolation(

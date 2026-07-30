@@ -1126,6 +1126,90 @@ namespace Test.BuildXL.Scheduler
             analyzer.AssertNoExtraViolationsCollected();
         }
 
+        /// <summary>
+        /// When a pip probes an absent path under an output directory and a later pip dynamically writes that same path,
+        /// any subsequent read race on that path must be attributed to the actual writer, not to the absent path prober.
+        /// </summary>
+        [Fact]
+        public void ReadRaceIsAttributedToDynamicWriterAndNotToAbsentPathProber()
+        {
+            var context = BuildXLContext.CreateInstanceForTesting();
+            var graph = new QueryablePipDependencyGraph(context);
+            var analyzer = new TestFileMonitoringViolationAnalyzer(LoggingContext, context, graph);
+
+            var sod = X("/x/out/sod");
+            var sodPath = CreateAbsolutePath(context, sod);
+            var dynamicPath = CreateAbsolutePath(context, X($"{sod}/file.txt"));
+
+            // 1. The prober probes the (absent) path first, so it is the first pip to register the path.
+            Process prober = graph.AddProcess(CreateAbsolutePath(context, X("/x/out/prober-out.txt")));
+            analyzer.AnalyzePipViolations(
+                prober,
+                violations: null,
+                allowlistedAccesses: null,
+                exclusiveOpaqueDirectoryContent: null,
+                sharedOpaqueDirectoryWriteAccesses: null,
+                allowedUndeclaredReads: null,
+                dynamicObservations: new ReadOnlyHashSet<(AbsolutePath, DynamicObservationKind)>(new[] { (dynamicPath, DynamicObservationKind.AbsentPathProbeUnderOutputDirectory) }),
+                outputsContent: ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
+                CollectionUtilities.EmptyDictionary<AbsolutePath, RequestedAccess>(),
+                out _);
+
+            // 2. The producer dynamically writes the path.
+            Process producer = graph.AddProcess(CreateAbsolutePath(context, X("/x/out/producer-out.txt")));
+            var sodWrites = new Dictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>>
+            {
+                [sodPath] = new[] { FileArtifactWithAttributes.Create(FileArtifact.CreateOutputFile(dynamicPath), FileExistence.Required) }
+            };
+
+            analyzer.AnalyzePipViolations(
+                producer,
+                violations: null,
+                allowlistedAccesses: null,
+                exclusiveOpaqueDirectoryContent: null,
+                sharedOpaqueDirectoryWriteAccesses: sodWrites,
+                allowedUndeclaredReads: null,
+                dynamicObservations: null,
+                outputsContent: ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
+                CollectionUtilities.EmptyDictionary<AbsolutePath, RequestedAccess>(),
+                out _);
+
+            // 3. A third pip reads the dynamically produced path without declaring a dependency on the producer.
+            Process reader = graph.AddProcess(CreateAbsolutePath(context, X("/x/out/reader-out.txt")));
+            analyzer.AnalyzePipViolations(
+                reader,
+                new[] { CreateViolation(RequestedAccess.Read, dynamicPath) },
+                new ReportedFileAccess[0],
+                exclusiveOpaqueDirectoryContent: null,
+                sharedOpaqueDirectoryWriteAccesses: null,
+                allowedUndeclaredReads: null,
+                dynamicObservations: null,
+                ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
+                CollectionUtilities.EmptyDictionary<AbsolutePath, RequestedAccess>(),
+                out _);
+
+            analyzer.AssertContainsViolation(
+                new DependencyViolation(
+                    DependencyViolationType.WriteOnAbsentPathProbe,
+                    AccessLevel.Write,
+                    dynamicPath,
+                    violator: producer,
+                    related: prober),
+                "The producer wrote a path that was probed while absent by the prober.");
+
+            analyzer.AssertContainsViolation(
+                new DependencyViolation(
+                    DependencyViolationType.ReadRace,
+                    AccessLevel.Read,
+                    dynamicPath,
+                    violator: reader,
+                    related: producer),
+                "The read race must be attributed to the pip that actually produced the file, not to the pip that probed it while absent.");
+
+            analyzer.AssertNoExtraViolationsCollected();
+            AssertErrorEventLogged(LogEventId.FileMonitoringError, 2);
+        }
+
         private static AbsolutePath CreateAbsolutePath(BuildXLContext context, string path)
         {
             return AbsolutePath.Create(context.PathTable, path);

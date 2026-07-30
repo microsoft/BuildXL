@@ -1210,6 +1210,143 @@ namespace Test.BuildXL.Scheduler
             AssertErrorEventLogged(LogEventId.FileMonitoringError, 2);
         }
 
+        /// <summary>
+        /// Two pips with no dependency between them write the same temp file under a shared opaque.
+        /// </summary>
+        [Fact]
+        public void TempFileProducedByIndependentPipsIsReported()
+        {
+            BuildXLContext context = BuildXLContext.CreateInstanceForTesting();
+            var graph = new QueryablePipDependencyGraph(context);
+            var analyzer = new TestFileMonitoringViolationAnalyzer(LoggingContext, context, graph);
+
+            AbsolutePath tempFile = CreateAbsolutePath(context, X("/X/out/sod/temp.txt"));
+            var tempWrites = CreateTemporaryFileWriteAccesses(context, tempFile);
+
+            Process producer = graph.AddProcess(CreateAbsolutePath(context, X("/X/out/static1")));
+            Process violator = graph.AddProcess(CreateAbsolutePath(context, X("/X/out/static2")));
+
+            AnalyzeSharedOpaqueWrites(analyzer, producer, tempWrites);
+            AnalyzeSharedOpaqueWrites(analyzer, violator, tempWrites);
+
+            analyzer.AssertContainsViolation(
+                new DependencyViolation(
+                    DependencyViolationType.TempFileProducedByIndependentPips,
+                    AccessLevel.Write,
+                    tempFile,
+                    violator,
+                    producer),
+                "Two independent pips produced the same temp file, but it wasn't reported.");
+
+            analyzer.AssertNoExtraViolationsCollected();
+            AssertErrorEventLogged(LogEventId.FileMonitoringError);
+        }
+
+        /// <summary>
+        /// A pip that is ordered after every other producer of a temp file is allowed to write it.
+        /// </summary>
+        [Fact]
+        public void TempFileProducedByOrderedPipsIsNotReported()
+        {
+            BuildXLContext context = BuildXLContext.CreateInstanceForTesting();
+            var graph = new QueryablePipDependencyGraph(context);
+            var analyzer = new TestFileMonitoringViolationAnalyzer(LoggingContext, context, graph);
+
+            AbsolutePath tempFile = CreateAbsolutePath(context, X("/X/out/sod/temp.txt"));
+            var tempWrites = CreateTemporaryFileWriteAccesses(context, tempFile);
+
+            Process producer = graph.AddProcess(CreateAbsolutePath(context, X("/X/out/static1")));
+            Process consumer = graph.AddProcess(CreateAbsolutePath(context, X("/X/out/static2")));
+
+            // The consumer is ordered after the producer, so writing the same temp file is fine
+            graph.AddDataflowDependency(producer.PipId, consumer.PipId);
+
+            AnalyzeSharedOpaqueWrites(analyzer, producer, tempWrites);
+            AnalyzeSharedOpaqueWrites(analyzer, consumer, tempWrites);
+
+            analyzer.AssertNoExtraViolationsCollected();
+        }
+
+        /// <summary>
+        /// When a temp file has more than two producers, the violation must name the producer the violator is
+        /// actually unordered against, even when that producer is not the first one recorded for the path. This
+        /// exercises the case where the set of producers tracked for a single path holds more than one entry.
+        /// </summary>
+        [Fact]
+        public void TempFileProducedByIndependentPipsReportsUnorderedProducerBeyondTheFirst()
+        {
+            BuildXLContext context = BuildXLContext.CreateInstanceForTesting();
+            var graph = new QueryablePipDependencyGraph(context);
+            var analyzer = new TestFileMonitoringViolationAnalyzer(LoggingContext, context, graph);
+
+            AbsolutePath tempFile = CreateAbsolutePath(context, X("/X/out/sod/temp.txt"));
+            var tempWrites = CreateTemporaryFileWriteAccesses(context, tempFile);
+
+            Process firstProducer = graph.AddProcess(CreateAbsolutePath(context, X("/X/out/static1")));
+            Process secondProducer = graph.AddProcess(CreateAbsolutePath(context, X("/X/out/static2")));
+            Process violator = graph.AddProcess(CreateAbsolutePath(context, X("/X/out/static3")));
+
+            // The violator is ordered after the first producer, but not after the second one
+            graph.AddDataflowDependency(firstProducer.PipId, violator.PipId);
+
+            AnalyzeSharedOpaqueWrites(analyzer, firstProducer, tempWrites);
+            AnalyzeSharedOpaqueWrites(analyzer, secondProducer, tempWrites);
+            AnalyzeSharedOpaqueWrites(analyzer, violator, tempWrites);
+
+            // The second producer is itself unordered against the first one
+            analyzer.AssertContainsViolation(
+                new DependencyViolation(
+                    DependencyViolationType.TempFileProducedByIndependentPips,
+                    AccessLevel.Write,
+                    tempFile,
+                    secondProducer,
+                    firstProducer),
+                "The second producer is independent of the first one, but it wasn't reported.");
+
+            // And the violator is ordered after the first producer, so the reported related pip has to be the
+            // second producer. Getting the first producer here would mean the producers beyond the first one were lost.
+            analyzer.AssertContainsViolation(
+                new DependencyViolation(
+                    DependencyViolationType.TempFileProducedByIndependentPips,
+                    AccessLevel.Write,
+                    tempFile,
+                    violator,
+                    secondProducer),
+                "The violator is only unordered against the second producer, but that wasn't the reported related pip.");
+
+            analyzer.AssertNoExtraViolationsCollected();
+            AssertErrorEventLogged(LogEventId.FileMonitoringError, count: 2);
+        }
+
+        private static Dictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> CreateTemporaryFileWriteAccesses(BuildXLContext context, AbsolutePath tempFile)
+        {
+            return new Dictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>>
+            {
+                [tempFile.GetParent(context.PathTable)] = new[]
+                {
+                    FileArtifactWithAttributes.Create(FileArtifact.CreateOutputFile(tempFile), FileExistence.Temporary)
+                }
+            };
+        }
+
+        private static void AnalyzeSharedOpaqueWrites(
+            TestFileMonitoringViolationAnalyzer analyzer,
+            Process pip,
+            IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> sharedOpaqueDirectoryWriteAccesses)
+        {
+            analyzer.AnalyzePipViolations(
+                pip,
+                violations: null,
+                allowlistedAccesses: null,
+                exclusiveOpaqueDirectoryContent: null,
+                sharedOpaqueDirectoryWriteAccesses: sharedOpaqueDirectoryWriteAccesses,
+                allowedUndeclaredReads: null,
+                dynamicObservations: null,
+                outputsContent: ReadOnlyArray<(FileArtifact, FileMaterializationInfo, PipOutputOrigin)>.Empty,
+                CollectionUtilities.EmptyDictionary<AbsolutePath, RequestedAccess>(),
+                out _);
+        }
+
         private static AbsolutePath CreateAbsolutePath(BuildXLContext context, string path)
         {
             return AbsolutePath.Create(context.PathTable, path);

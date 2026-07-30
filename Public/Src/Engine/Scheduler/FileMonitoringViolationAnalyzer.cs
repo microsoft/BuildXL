@@ -115,8 +115,14 @@ namespace BuildXL.Scheduler
         private readonly ConcurrentBigMap<AbsolutePath, PipId> m_dynamicWriters = new ConcurrentBigMap<AbsolutePath, PipId>();
         
         // Maps of path of temp files under shared opaques to their producers.
-        // Under certain conditions the same file can be produced by multiple pips.
-        private readonly ConcurrentBigMap<AbsolutePath, ConcurrentQueue<PipId>> m_dynamicTemporaryFileProducers = new ConcurrentBigMap<AbsolutePath, ConcurrentQueue<PipId>>();
+        // Under certain conditions the same file can be produced by multiple pips, but a single producer is by far the
+        // common case, and additional producers that are not ordered against each other are reported as violations. The
+        // value is therefore a copy-on-write array rather than a concurrent collection: this map can hold tens of millions
+        // of entries on large builds, and a concurrent collection costs an order of magnitude more memory per entry.
+        // Mutation happens under ConcurrentBigMap's per-bucket write lock, which also excludes readers, so replacing the
+        // array wholesale needs no additional synchronization. Note the array must never be mutated in place, since
+        // readers keep iterating it after the lock is released.
+        private readonly ConcurrentBigMap<AbsolutePath, PipId[]> m_dynamicTemporaryFileProducers = new ConcurrentBigMap<AbsolutePath, PipId[]>();
 
 
         // Maps of paths that represent undeclared reads to all its known readers. Only kept for same content rewrites, since we need to track whether there is at least one reader ordered before the rewrite 
@@ -1145,16 +1151,18 @@ namespace BuildXL.Scheduler
                 m_dynamicTemporaryFileProducers.AddOrUpdate(
                     key: path,
                     data: pip.PipId,
-                    addValueFactory: (p, pipId) =>
-                    {
-                        var queue = new ConcurrentQueue<PipId>();
-                        queue.Enqueue(pipId);
-                        return queue;
-                    },
+                    addValueFactory: (p, pipId) => new[] { pipId },
                     updateValueFactory: (p, pipId, oldValue) =>
                     {
-                        oldValue.Enqueue(pipId);
-                        return oldValue;
+                        // Copy into a new array rather than appending to a growable collection in place: the value
+                        // escapes the map's per-bucket lock, so readers may still be iterating the previous array. Copying
+                        // keeps every published array immutable, which is what makes those reads safe without locking.
+                        // The quadratic cost of repeated copies is not a concern because additional producers that are not
+                        // ordered against each other are reported as violations, which bounds how many can accumulate.
+                        var newValue = new PipId[oldValue.Length + 1];
+                        oldValue.CopyTo(newValue, 0);
+                        newValue[oldValue.Length] = pipId;
+                        return newValue;
                     });
             }
 

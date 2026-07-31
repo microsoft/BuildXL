@@ -3,7 +3,7 @@
 enabled: true
 onPullRequestCreate:            # List of automated actions to take on a pull request create.
 - prompt: 'copilot: review'     # Perform code review on create of a pull request. 
-  autoResolve: true             # Auto resolve code review feedback comment.
+  autoResolve: false            # Leave code review feedback comments active (not auto-resolved).
   detailed: false               # Should the generated review feedback be detailed.
 # Pull Request Assistant generated summaries are disabled
 #- prompt: 'copilot: summary'    # Append pull request summary with an AI-Generated description.

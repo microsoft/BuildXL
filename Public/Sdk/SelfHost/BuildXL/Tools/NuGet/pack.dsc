@@ -93,8 +93,20 @@ export interface PackageMetadata {
     /** Dependencies to be specified in metadata. */
     dependencies?: Dependency[];
 
+    /** Shared frameworks the package needs, to be specified in metadata. */
+    frameworkReferences?: FrameworkReference[];
+
     /** ContentFile patterns */
     contentFiles?: ContentFile[];
+}
+
+@@public
+export interface FrameworkReference {
+    /** Name of the shared framework, e.g. Microsoft.AspNetCore.App. */
+    name: string;
+
+    /** Target framework */
+    targetFramework: string;
 }
 
 @@public
@@ -235,6 +247,9 @@ function getDependencies(args: PackageSpecification,
             .references
             .filter(ref => Managed.isManagedPackage(ref))
             .map(ref => <Managed.ManagedNugetPackage>ref)
+            // A shared-framework package is emitted as a <frameworkReference>, not a <dependency>: it has package
+            // type 'DotnetPlatform', which NuGet refuses to resolve as a dependency. See getFrameworkReferences.
+            .filter(ref => ref.sharedFrameworkName === undefined)
             .map(ref => { return {id: ref.name, version: ref.version, targetFramework: asm.targetFramework}; })
             .concat( (args.dependencies || []).map(dep => { return {id: dep.id, version: dep.version, targetFramework: asm.targetFramework }; }) )
         );
@@ -286,6 +301,46 @@ function getDependencies(args: PackageSpecification,
 }
 
 /**
+ * Gets the shared frameworks the assemblies in this package are built against, e.g. Microsoft.AspNetCore.App.
+ *
+ * These mirror what the standard MSBuild pack targets emit for a project carrying a FrameworkReference item: the
+ * targeting pack itself never appears as a <dependency>, and the shared framework it carries is declared as a
+ * <frameworkReference> so that consumers resolve it from the shared framework rather than from a package.
+ */
+function getFrameworkReferences(args: PackageSpecification) : FrameworkReference[] {
+    return args
+        .assemblies
+        .filter(asm => asm !== undefined)
+        .mapMany(asm => asm
+            .references
+            .filter(ref => Managed.isManagedPackage(ref))
+            .map(ref => <Managed.ManagedNugetPackage>ref)
+            .filter(ref => ref.sharedFrameworkName !== undefined)
+            .map(ref => { return {name: ref.sharedFrameworkName, targetFramework: asm.targetFramework}; }));
+}
+
+/**
+ * Fails the build if a .NET shared-framework package ended up in a package's dependency list. Called from 'pack',
+ * which every generated nuspec passes through, so it covers dependencies however they were built: inferred from an
+ * assembly's references, assembled by a caller, or supplied as a metadata literal.
+ */
+function assertNoFrameworkPackageDependencies(metaData: PackageMetadata) : void {
+    // Shared-framework packages are named after the framework they carry. The targeting pack
+    // (Microsoft.AspNetCore.App.Ref), the runtime packs and the host packs are all 'DotnetPlatform'.
+    const frameworkPackageFamilies = [
+        "Microsoft.NETCore.App.",
+        "Microsoft.AspNetCore.App.",
+        "Microsoft.WindowsDesktop.App.",
+    ];
+
+    const frameworkPackages = (metaData.dependencies || []).filter(dep => frameworkPackageFamilies.some(family => dep.id.startsWith(family)));
+
+    if (frameworkPackages.length > 0) {
+        Contract.fail(`Nuget package '${metaData.id}.${metaData.version}' declares the following .NET shared-framework packages as dependencies: ${Environment.newLine()}${frameworkPackages.map(dep => `name: '${dep.id}', version: '${dep.version}', targetFramework: '${dep.targetFramework}'`).join(Environment.newLine())}${Environment.newLine()}A shared-framework package has package type 'DotnetPlatform' and cannot be resolved as a package dependency, so this would break every consumer's restore with NU1213. It must be declared as a <frameworkReference> instead, which nuspec generation does for packages produced by 'Managed.Factory.createFrameworkPackage'.`);
+    }
+}
+
+/**
  * Builds a nupkg given a package specification and its dependencies.
  */
 function buildNupkg(args: PackageSpecification, dependencies : Dependency[], packageBranding : PackageBranding) : File {
@@ -316,6 +371,7 @@ function buildNupkg(args: PackageSpecification, dependencies : Dependency[], pac
         metadata:  createMetaData({
             id: args.id.id, 
             dependencies: dependencies, 
+            frameworkReferences: getFrameworkReferences(args),
             copyContentFiles: contentFiles.length > 0,
             packageBranding: packageBranding,
         }),
@@ -353,6 +409,7 @@ function assertAssemblyPrefix(args : PackageSpecification) : void {
 export function createMetaData(args: {
     id: string,
     dependencies: Dependency[],
+    frameworkReferences?: FrameworkReference[],
     copyContentFiles?: boolean,
     packageBranding : PackageBranding,
 }) : PackageMetadata
@@ -366,6 +423,7 @@ export function createMetaData(args: {
         tags: `${args.packageBranding.company} ${args.packageBranding.shortProductName} MSBuild Build`,
         description: `${args.packageBranding.shortProductName} is a build engine that comes with a new build automation language. ${args.packageBranding.shortProductName} performs fast parallel incremental builds enabled by fine-grained dataflow dependency information. All build artifacts are cached locally, and eventually shared between different machines. The engine can run on a single machine, and it will perform distributed builds on many machines in a lab or in the cloud.`,
         dependencies: args.dependencies,
+        frameworkReferences: args.frameworkReferences,
         contentFiles: args.copyContentFiles
             ? [{
                 include: "**",
@@ -378,6 +436,8 @@ export function createMetaData(args: {
 
 @@public
 export function pack(args: Arguments): PackResult {
+
+    assertNoFrameworkPackageDependencies(args.metadata);
 
     const outDir = Context.getNewOutputDirectory("nuget-pack");
     const packName = `${args.metadata.id}.${args.metadata.version}`;
@@ -511,6 +571,21 @@ function createNuSpecFile(
         );
     }
 
+    const groupedFrameworkReferences = (metaData.frameworkReferences || [])
+        .groupBy(frameworkReference => frameworkReference.targetFramework);
+
+    const packageFrameworkReferences : Xml.Element[] = groupedFrameworkReferences.map(group =>
+        Xml.elem("group",
+            Xml.attr("targetFramework", group.key),
+            // Several references of an assembly can resolve to the same shared framework.
+            ...group.values.map(frameworkReference => frameworkReference.name).unique().map(name =>
+                Xml.elem("frameworkReference",
+                    Xml.attr("name", name)
+                )
+            )
+        )
+    );
+
     const nuSpecDoc = Xml.doc(
         Xml.elem({ local: "package", namespace: "http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd" },
             Xml.elem("metadata",
@@ -527,6 +602,9 @@ function createNuSpecFile(
                 optionalElement("tags", metaData.tags),
                 optionalElement("requireLicenseAcceptance", metaData.requireLicenseAcceptance ? "true": "false"),
                 Xml.elem("dependencies", ...packageDependencies),
+                packageFrameworkReferences.length > 0
+                    ? Xml.elem("frameworkReferences", ...packageFrameworkReferences)
+                    : undefined,
                 metaData.contentFiles 
                     ? Xml.elem("contentFiles",
                         ...metaData.contentFiles.map(c =>

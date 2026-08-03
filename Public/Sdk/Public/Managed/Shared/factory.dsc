@@ -68,11 +68,11 @@ namespace Factory {
     }
 
     @@public
-    export function createFrameworkPackage(refPackage: ManagedNugetPackage, runtimePackage: NugetPackage, runtimeName: PathAtom, frameworkName:PathAtom) : ManagedNugetPackage
+    export function createFrameworkPackage(refPackage: ManagedNugetPackage, runtimePackage: NugetPackage, runtimeName: PathAtom, frameworkName:PathAtom, sharedFrameworkName?: string) : ManagedNugetPackage
     {
-        // TODO: This method may need to be changed if Nuget spec generation becomes aware of framework NuGet packages
         let result = refPackage.override<ManagedNugetPackage>({
             contents: runtimePackage.contents,
+            sharedFrameworkName: sharedFrameworkName || getSharedFrameworkName(refPackage.name),
         });
 
         // Add native binaries
@@ -80,6 +80,20 @@ namespace Factory {
         result = addRuntimeSpecificBinariesFromRootDir(result, r`runtimes/${runtimeName}/lib/${frameworkName}`);
 
         return result;
+    }
+
+    /**
+     * Targeting packs are named '<shared framework>.Ref', e.g. Microsoft.AspNetCore.App.Ref carries
+     * Microsoft.AspNetCore.App. Returns undefined for a package not following that convention, in which case the
+     * caller of createFrameworkPackage should pass the name explicitly; otherwise the package is treated as an
+     * ordinary one and nuspec generation rejects it as a dependency.
+     */
+    function getSharedFrameworkName(refPackageName: string) : string {
+        const refSuffix = ".Ref";
+
+        return refPackageName.endsWith(refSuffix)
+            ? refPackageName.slice(0, refPackageName.length - refSuffix.length)
+            : undefined;
     }
 
     @@public

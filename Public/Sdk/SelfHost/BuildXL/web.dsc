@@ -14,7 +14,8 @@ namespace WebFramework {
                 () => importFrom("Microsoft.AspNetCore.App.Ref.10.0.0").pkg),
             getRuntimePackage(),
             a`${qualifier.targetRuntime}`,
-            a`${qualifier.targetFramework}`
+            a`${qualifier.targetFramework}`,
+            "Microsoft.AspNetCore.App"
         );
     }
 

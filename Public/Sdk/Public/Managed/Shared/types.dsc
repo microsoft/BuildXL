@@ -124,6 +124,15 @@ export interface ManagedNugetPackage extends NugetPackage, Deployment.Deployable
      * Extra content/files to be deployed with the assembly when running. i.e. native dlls that are PIvoked, config files etc.
      */
     runtimeContent?: Deployment.Definition;
+
+    /**
+     * The shared framework this package carries, e.g. Microsoft.AspNetCore.App.
+     *
+     * Set only on packages produced by Managed.Factory.createFrameworkPackage. Such packages are published with
+     * package type 'DotnetPlatform', which NuGet refuses to resolve as a dependency (NU1213), so they must never be
+     * emitted as a <dependency> in a generated nuspec; they become a <frameworkReference> instead.
+     */
+    sharedFrameworkName?: string;
 }
 
 @@public

@@ -13,6 +13,9 @@ namespace BuildXL.AdoBuildRunner
     /// </summary>
     public class BuildManager
     {
+        // CODESYNC: Public/Src/Utilities/Configuration/ExitCode.cs
+        private const int BuildXLUserErrorExitCode = 1;
+
         private readonly AdoBuildRunnerService m_adoBuildRunnerService;
 
         private readonly IBuildExecutor m_executor;
@@ -45,6 +48,18 @@ namespace BuildXL.AdoBuildRunner
             // Possibly extend context with additional info that can influence the build environment as needed
             m_executor.PrepareBuildEnvironment();
             var returnCode = await m_executor.ExecuteDistributedBuild(m_buildArguments);
+
+            if (m_adoBuildRunnerService.Config.AgentRole == AgentRole.Worker
+                && returnCode == BuildXLUserErrorExitCode)
+            {
+                // Note that this behavior will prevent the worker job from participating in a user initiated retry,
+                // since the job will appear as a success from ADO's perspective. But that's mostly already the case since
+                // bxl does not currently coordinate worker exit codes to make all workers fail if the orchestrator fails.
+                // Masking the worker error here makes for a nicer user experience as we want to rely on the orchestrator's
+                // error reporting to avoid presenting redundant errors.
+                m_logger.Info($"The BuildXL process completed with user errors on this worker (exit code {returnCode}). Returning success because the orchestrator reports the build failure.");
+                return 0;
+            }
 
             LogExitCode(returnCode);
             

@@ -24,7 +24,7 @@ namespace Test.Tool.AdoBuildRunner
             orchestrator.MockLauncher.CompletionTask = orchTcs.Task;    // We'll delay the orchestrator so the worker has a chance to 'attach' while the build is running
 
             worker.Config.WorkerAlwaysSucceeds = false;
-            worker.MockLauncher.ReturnCode = 12; // Worker exits with some non-zero return code
+            worker.MockLauncher.ReturnCode = 3; // Infrastructure errors must remain failures on workers.
 
             orchestrator.Initialize();
             worker.Initialize();
@@ -311,6 +311,35 @@ namespace Test.Tool.AdoBuildRunner
             // Neither the orchestrator nor the healthy worker saw a fast-fail message.
             orchestrator.MockLogger.AssertLogNotContains("terminated with result");
             worker2.MockLogger.AssertLogNotContains("terminated with result");
+        }
+
+        [Fact]
+        public async Task WorkerUserErrorReturnsSuccessWithoutErrorLogging()
+        {
+            var (orchestrator, worker) = CreateOrchestratorWorkerPairBuild();
+
+            var orchTcs = new TaskCompletionSource();
+            orchestrator.MockLauncher.CompletionTask = orchTcs.Task;
+            worker.MockLauncher.ReturnCode = 1;
+            worker.Config.WorkerAlwaysSucceeds = false;
+
+            orchestrator.Initialize();
+            worker.Initialize();
+
+            var buildArgs = new[] { "/foo", "/bar" };
+            var oManager = new BuildManager(orchestrator.RunnerService, orchestrator.BuildExecutor, buildArgs, orchestrator.MockLogger);
+            var wManager = new BuildManager(worker.RunnerService, worker.BuildExecutor, buildArgs, worker.MockLogger);
+
+            var oTask = oManager.BuildAsync();
+            var workerReturn = await wManager.BuildAsync();
+            orchTcs.SetResult();
+            await oTask;
+
+            Assert.Equal(0, workerReturn);
+            worker.MockLogger.AssertLogContains("The BuildXL process completed with user errors on this worker (exit code 1).");
+            worker.MockLogger.AssertLogNotContains("The BuildXL process completed with exit code 0");
+            worker.MockLogger.AssertLogNotContains("task.logissue type=error;");
+            worker.MockLogger.AssertLogNotContains("##vso[task.complete result=Failed;]");
         }
 
         /// <summary>

@@ -81,6 +81,7 @@ namespace Test.Tool.AdoBuildRunner
 
             // TraceInfo has some telemetry
             Assert.Contains($"/traceInfo:InvocationKey={invocationKey}", orchestrator.MockLauncher.Arguments);
+            Assert.Contains($"/traceInfo:label={invocationKey}", orchestrator.MockLauncher.Arguments);
             Assert.Contains($"/traceInfo:AgentPool={poolName}", orchestrator.MockLauncher.Arguments);
         }
 

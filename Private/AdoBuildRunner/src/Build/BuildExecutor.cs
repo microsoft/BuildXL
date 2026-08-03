@@ -106,6 +106,7 @@ namespace BuildXL.AdoBuildRunner
         private void AddTraceInfoForTelemetry(BuildContext buildContext, List<string> arguments)
         {
             addTraceInfo("InvocationKey", buildContext.InvocationKey);
+            addTraceInfo("label",         buildContext.InvocationKey);
             addTraceInfo("AgentPool",     buildContext.AgentPool);
 
             void addTraceInfo(string key, string value)

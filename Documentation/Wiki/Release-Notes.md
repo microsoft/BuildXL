@@ -2,6 +2,17 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20260724.3 (Release [31821324](https://mseng.visualstudio.com/Domino/_build/results?buildId=31821324&view=results))
+- [Security] Fix CVE-2026-13149 (`brace-expansion`) and CVE-2026-50651 (.NET win-x64 runtime).
+- [gRPC] Promote gRPC encryption settings to command-line args.
+- [Cache] Add an opt-in `Grpc.Net` server host for the ephemeral cache.
+- [Distribution] Handle oversized build requests in distributed execution.
+- [BlobDaemon] Add Content-Type support, fix relative-path handling, and general hardening.
+- [Perf] Remove `BufferedStream` from pathset deserialization.
+- [CloudTest] Add transient network-failure retry logic and retrieve historic runtimes for scheduled jobs.
+- Widen the BuildXL VS extension to install on VS2026 (VS18).
+- Various bug fixes and improvements.
+
 # 0.1.0-20260716.2 (Release [31785580](https://dev.azure.com/mseng/Domino/_build/results?buildId=31785580&view=results))
 - [Detours] Compatibility fix for CopyFile2 source-read behavior change (CreateFile vs NtCreateFile). <!-- f76bfe6c653720cfbfe2e4d642fdb2a132305516 -->
 

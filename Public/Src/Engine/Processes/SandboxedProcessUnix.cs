@@ -764,6 +764,7 @@ namespace BuildXL.Processes
                     return;
                 }
                 case ReportType.FileAccess:
+                case ReportType.AugmentedFileAccess:
                 {
                     LogDebug($"Access report received: {AccessReportToString(report)}");
 
@@ -774,7 +775,11 @@ namespace BuildXL.Processes
                         // TODO: check if the tests are over specified because in practice BuildXL doesn't really rely much on the outcome of this check
                         var reportPath = report.Data;
 
-                        if (m_reports.GetMessageCountSemaphore() != null && ShouldCountReportType(report.FileOperation))
+                        // Augmented (trusted tool) accesses are not counted against the message-counting semaphore
+                        // (the reporter does not post it), matching the Windows behavior. See ReportTypeExtensions.ShouldCountReportType.
+                        if (m_reports.GetMessageCountSemaphore() != null
+                            && ShouldCountReportType(report.FileOperation)
+                            && report.ReportType != ReportType.AugmentedFileAccess)
                         {
                             try
                             {
@@ -862,7 +867,7 @@ namespace BuildXL.Processes
                 return;
             }
 
-            m_reports.ReportFileAccess(ref report, ReportProvider);
+            m_reports.ReportFileAccess(ref report, ReportProvider, report.ReportType == ReportType.AugmentedFileAccess);
         }
 
         /// <summary>
@@ -998,8 +1003,9 @@ namespace BuildXL.Processes
             var commandLine = operation == ReportedFileOperation.ProcessExec
                 ? $"|{report.CommandLineArguments}"
                 : "";
+            var augmentedAnnotation = report.ReportType == ReportType.AugmentedFileAccess ? "[Augmented]" : string.Empty;
 
-            return I($"{operation}:{pid}:{ppid}|{requestedAccess}|{status}|{explicitLogging}|{error}|{isDirectory}|{path}{commandLine}"); 
+            return I($"{augmentedAnnotation}{operation}:{pid}:{ppid}|{requestedAccess}|{status}|{explicitLogging}|{error}|{isDirectory}|{path}{commandLine}"); 
         }
 
         private void StartPTraceRunner(int pid, string path, bool forceAddExecutionPermission)

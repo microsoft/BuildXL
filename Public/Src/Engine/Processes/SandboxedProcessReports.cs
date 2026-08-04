@@ -357,9 +357,9 @@ namespace BuildXL.Processes
         /// <summary>
         /// An alternative to <see cref="ReportLineReceived(string)"/> for reporting file accesses
         /// </summary>
-        public bool ReportFileAccess<T>(ref T accessReport, FileAccessReportProvider<T> parser)
+        public bool ReportFileAccess<T>(ref T accessReport, FileAccessReportProvider<T> parser, bool isAnAugmentedFileAccess = false)
         {
-            var result = FileAccessReportLineReceived(ref accessReport, parser, isAnAugmentedFileAccess: false, out var errorMessage);
+            var result = FileAccessReportLineReceived(ref accessReport, parser, isAnAugmentedFileAccess, out var errorMessage);
             if (!result)
             {
                 MessageProcessingFailure = CreateMessageProcessingFailure(errorMessage);

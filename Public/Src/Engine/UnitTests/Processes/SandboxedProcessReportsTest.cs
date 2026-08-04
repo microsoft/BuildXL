@@ -239,9 +239,15 @@ namespace Test.BuildXL.Processes
 
             Task writeTask = Task.Run(() =>
             {
-                AugmentedManifestReporter reporter = AugmentedManifestReporter.Create(clientHandle);
-                reportAction(reporter);
-                clientHandle.Dispose();
+                try
+                {
+                    AugmentedManifestReporter reporter = AugmentedManifestReporter.Create(clientHandle);
+                    reportAction(reporter);
+                }
+                finally
+                {
+                    clientHandle.Dispose();
+                }
             });
 
             await Task.WhenAll(readTask, writeTask);

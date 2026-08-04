@@ -142,7 +142,7 @@ namespace BuildXL.FrontEnd.MsBuild.Tracing
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
             EventTask = (ushort)Tasks.Parser,
-            Message = EventConstants.LabeledProvenancePrefix + "Graph construction tool finished and found MsBuild.exe under '{pathToMsBuildExe}'. It built a graph using the following MsBuild assemblies:\n{usedMsBuildAssemblies}",
+            Message = EventConstants.LabeledProvenancePrefix + "Graph construction tool finished and found MsBuild under '{pathToMsBuildExe}'. It built a graph using the following MsBuild assemblies:\n{usedMsBuildAssemblies}",
             Keywords = (int)(Keywords.UserMessage | Keywords.Diagnostics))]
         public abstract void GraphConstructionToolCompleted(LoggingContext context, Location location, string usedMsBuildAssemblies, string pathToMsBuildExe);
 

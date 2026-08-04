@@ -152,8 +152,9 @@ namespace BuildXL.Utilities.Configuration
         /// </summary>
         /// <remarks>
         /// Keep in sync with Public\Sdk\Public\Prelude\Prelude.Configuration.Resolvers.dsc
-        /// If not specified, the default is full framework, so this function returns false in that case.
+        /// On Windows, if not specified, the default is full framework. On non-Windows operating systems the .NET Core version is always used,
+        /// since the full framework version of MSBuild is not available there.
         /// </remarks>
-        public static bool ShouldRunDotNetCoreMSBuild(this IMsBuildResolverSettings msBuildResolverSettings) => msBuildResolverSettings.MsBuildRuntime == "DotNetCore";
+        public static bool ShouldRunDotNetCoreMSBuild(this IMsBuildResolverSettings msBuildResolverSettings) => msBuildResolverSettings.MsBuildRuntime == "DotNetCore" || !OperatingSystemHelper.IsWindowsOS;
     }
 }

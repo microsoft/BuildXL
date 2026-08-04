@@ -579,6 +579,7 @@ namespace BuildXL.Processes
                     switch (reportType)
                     {
                         case ReportType.FileAccess:
+                        case ReportType.AugmentedFileAccess:
                         {
                             /*
                              * File Access Report Format: %d|%s|%d|%d|%d|%d|%d|%d|%d|%d|%s\n

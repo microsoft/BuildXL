@@ -613,20 +613,39 @@ namespace BuildXL.FrontEnd.MsBuild
             //
             // All child processes: Don't wait to kill the processes.
             // CODESYNC: CloudBuild repo TrackerExecutor.cs "info.NestedProcessTerminationTimeout = TimeSpan.Zero"
-            var allowedSurvivingChildProcessNames = new List<PathAtom>() {
-                PathAtom.Create(m_context.StringTable, "mspdbsrv.exe"),
-                PathAtom.Create(m_context.StringTable, "vctip.exe"),
-                PathAtom.Create(m_context.StringTable, "conhost.exe")};
+            var allowedSurvivingChildProcessNames = new List<PathAtom>();
+            
+            // All these processes are Windows-specific, so we only add them to the list of allowed surviving child processes if we are on Windows
+            if (OperatingSystemHelper.IsWindowsOS)
+            {
+                allowedSurvivingChildProcessNames.AddRange(new[]
+                    {
+                        PathAtom.Create(m_context.StringTable, "mspdbsrv.exe"),
+                        PathAtom.Create(m_context.StringTable, "vctip.exe"),
+                        PathAtom.Create(m_context.StringTable, "conhost.exe")
+                    });
+            }
 
-            // If the sandbox supports process breakaway and shared compilation is configured to run, we configure VBCSCompiler as such
-            // Otherwise, we add it as a process that is safe to kill when it survives
-            var vbcsCompiler = PathAtom.Create(m_context.StringTable, "VBCSCompiler.exe");
+            // If the sandbox supports process breakaway and shared compilation is configured to run, we configure the compiler server to break away.
+            // Otherwise, we add it as a process that is safe to kill when it survives.
             if (UseSharedCompilation)
             {
-                processBuilder.ChildProcessesToBreakawayFromSandbox = ReadOnlyArray<IBreakawayChildProcess>.FromWithoutCopy(new BreakawayChildProcess() { ProcessName = vbcsCompiler });
+                // On Windows the shared compilation server is VBCSCompiler.exe. On other platforms MSBuild runs on .NET Core and the server
+                // is launched as 'dotnet <path>/VBCSCompiler.dll', so the process image is 'dotnet'. We match on the command line arguments so
+                // the main MSBuild process (also 'dotnet') is not broken away.
+                IBreakawayChildProcess breakawayChildProcess = OperatingSystemHelper.IsWindowsOS
+                    ? new BreakawayChildProcess() { ProcessName = PathAtom.Create(m_context.StringTable, "VBCSCompiler.exe") }
+                    : new BreakawayChildProcess() { ProcessName = PathAtom.Create(m_context.StringTable, "dotnet"), RequiredArguments = "VBCSCompiler.dll" };
+                processBuilder.ChildProcessesToBreakawayFromSandbox = ReadOnlyArray<IBreakawayChildProcess>.FromWithoutCopy(breakawayChildProcess);
             }
             else
             {
+                // On Windows the compiler server image is VBCSCompiler.exe. On other platforms it runs as 'dotnet <path>/VBCSCompiler.dll',
+                // so the image name is 'dotnet'. Surviving child processes are matched by image name only (arguments are not considered),
+                // so we have to use the generic 'dotnet' here.
+                // TODO: this is not ideal, since it will allow any 'dotnet' process to survive, even if it is not the compiler server. We should consider
+                // adding a way to match on arguments as well under surviving processes.
+                var vbcsCompiler = PathAtom.Create(m_context.StringTable, OperatingSystemHelper.IsWindowsOS ? "VBCSCompiler.exe" : "dotnet");
                 allowedSurvivingChildProcessNames.Add(vbcsCompiler);
             }
 
@@ -831,6 +850,15 @@ namespace BuildXL.FrontEnd.MsBuild
             if (OperatingSystemHelper.IsWindowsOS)
             {
                 processBuilder.AddUntrackedDirectoryScope(DirectoryArtifact.CreateWithZeroPartialSealId(PathTable, SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.UserProfile)));
+            }
+
+            // On Linux the .NET runtime uses a global shared-memory directory under /tmp for cross-process
+            // synchronization primitives (named mutexes/semaphores). Any dotnet process spawned by the build
+            // writes there (e.g. the managed shared compilation server), so untrack it to avoid spurious
+            // disallowed file accesses. This mirrors what the Download resolver does.
+            if (!OperatingSystemHelper.IsWindowsOS)
+            {
+                processBuilder.AddUntrackedDirectoryScope(DirectoryArtifact.CreateWithZeroPartialSealId(AbsolutePath.Create(PathTable, "/tmp/.dotnet/shm")));
             }
 
             if (Engine.TryGetBuildParameter("PUBLIC", m_frontEndName, out string publicDir))

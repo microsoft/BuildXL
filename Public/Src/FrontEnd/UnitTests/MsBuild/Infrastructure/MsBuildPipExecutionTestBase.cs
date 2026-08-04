@@ -25,7 +25,6 @@ namespace Test.BuildXL.FrontEnd.MsBuild
     /// <summary>
     /// Provides facilities to run the engine adding MSBuild specific artifacts.
     /// </summary>
-    [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)]
     public abstract class MsBuildPipExecutionTestBase : DsTestWithCacheBase
     {
         /// <summary>
@@ -231,9 +230,7 @@ $@"<?xml version='1.0' encoding='utf-8'?>
         {reference}
     </ItemGroup>
     <Target Name='Build'>
-        <WriteFile
-            Path='$(OutDir)/{outputFilename}'
-            Content='Test'/>
+        {GetWriteFileTaskInvocation(outputFilename)}
     </Target>
 </Project>";
         }
@@ -244,6 +241,16 @@ $@"<?xml version='1.0' encoding='utf-8'?>
         /// <returns></returns>
         private string GetWriteFileTask()
         {
+            // On Windows the tests use the full framework MSBuild, whose CodeTaskFactory can load the net472 tasks assembly.
+            // On non-Windows only dotnet core MSBuild is available, where CodeTaskFactory is not supported. There the built-in
+            // WriteLinesToFile task is used instead (see GetWriteFileTaskInvocation), so no custom task declaration is needed.
+            if (!OperatingSystemHelper.IsWindowsOS)
+            {
+                // The minimal dotnet core MSBuild deployment doesn't register the default (built-in) tasks, so explicitly
+                // register the real WriteLinesToFile task from the dotnet core tasks assembly.
+                return $"<UsingTask TaskName='WriteLinesToFile' AssemblyFile='{TestDeploymentDir}/{RelativePathToDotnetCoreMSBuild}/Microsoft.Build.Tasks.Core.dll'/>";
+            }
+
             return
 $@"<UsingTask TaskName='WriteFile' TaskFactory='CodeTaskFactory' AssemblyFile='{TestDeploymentDir}\{RelativePathToFullframeworkMSBuild}\Microsoft.Build.Tasks.Core.dll'>
     <ParameterGroup>
@@ -260,6 +267,23 @@ $@"<UsingTask TaskName='WriteFile' TaskFactory='CodeTaskFactory' AssemblyFile='{
         </Code>
     </Task >
 </UsingTask>";
+        }
+
+        /// <summary>
+        /// Returns the invocation that writes a file with content 'Test' to <paramref name="outputFilename"/>. On Windows it uses
+        /// the custom CodeTaskFactory-based WriteFile task; on non-Windows it uses MSBuild's built-in WriteLinesToFile task, since
+        /// CodeTaskFactory is not available on dotnet core MSBuild.
+        /// </summary>
+        private string GetWriteFileTaskInvocation(string outputFilename)
+        {
+            return OperatingSystemHelper.IsWindowsOS
+                ? $@"<WriteFile
+            Path='$(OutDir)/{outputFilename}'
+            Content='Test'/>"
+                : $@"<WriteLinesToFile
+            File='$(OutDir)/{outputFilename}'
+            Lines='Test'
+            Overwrite='true'/>";
         }
 
         /// <summary>
@@ -303,7 +327,7 @@ config({{
         {{
             kind: 'MsBuild',
             moduleName: 'Test',
-            msBuildSearchLocations: [d`{TestDeploymentDir}/{(msBuildRuntime == "DotNetCore" ? RelativePathToDotnetCoreMSBuild : RelativePathToFullframeworkMSBuild)}`],
+            msBuildSearchLocations: [d`{TestDeploymentDir}/{((msBuildRuntime == "DotNetCore" || !OperatingSystemHelper.IsWindowsOS) ? RelativePathToDotnetCoreMSBuild : RelativePathToFullframeworkMSBuild)}`],
             root: d`.`,
             allowProjectsToNotSpecifyTargetProtocol: {(allowProjectsToNotSpecifyTargetProtocol ? "true" : "false")},
             {DictionaryToExpression("environment", environment)}
@@ -313,12 +337,22 @@ config({{
             {(logVerbosity != null ? $"logVerbosity: {logVerbosity}," : string.Empty)}
             {(filenameEntryPoint != null ? $"fileNameEntryPoints: [r`{filenameEntryPoint}`]," : string.Empty)}
             {(msBuildRuntime != null ? $"msBuildRuntime: \"{msBuildRuntime}\"," : string.Empty)}
-            {(dotnetSearchLocations != null ? $"dotNetSearchLocations: {dotnetSearchLocations}," : string.Empty)}
+            {(dotnetSearchLocations != null ? $"dotNetSearchLocations: {dotnetSearchLocations}," : (!OperatingSystemHelper.IsWindowsOS ? $"dotNetSearchLocations: [d`{TestDeploymentDir}/{RelativePathToDotnetExe}`]," : string.Empty))}
             useManagedSharedCompilation: {(useSharedCompilation ? "true" : "false")},
         }},
         {(siblingResolver != null ? siblingResolver + "," : string.Empty)}  
     ],
     engine: {{unsafeAllowOutOfMountWrites: true}},
+    mounts: [
+        {{
+            name: a`working-dir`,
+            path: d`{TestOutputDirectory}`,
+            trackSourceFileChanges: true,
+            isWritable: true,
+            isReadable: true,
+            isScrubbable: false,
+        }}
+    ]
 }});";
 
         private string DefaultMsBuildPrelude(
@@ -330,15 +364,26 @@ config({{
         {{
             kind: 'MsBuild',
             moduleName: 'Test',
-            msBuildSearchLocations: [d`{TestDeploymentDir}/{RelativePathToFullframeworkMSBuild}`],
+            msBuildSearchLocations: [d`{TestDeploymentDir}/{(OperatingSystemHelper.IsWindowsOS ? RelativePathToFullframeworkMSBuild : RelativePathToDotnetCoreMSBuild)}`],
             root: d`.`,
             allowProjectsToNotSpecifyTargetProtocol: true,
             useManagedSharedCompilation: false,
+            {(OperatingSystemHelper.IsWindowsOS ? string.Empty : $"msBuildRuntime: \"DotNetCore\", dotNetSearchLocations: [d`{TestDeploymentDir}/{RelativePathToDotnetExe}`],")}
             {(environment != null? $"environment: {environment}," : DictionaryToExpression("environment", new Dictionary<string, string>()))}
             {extraArguments ?? string.Empty}
         }},
     ],
     engine: {{unsafeAllowOutOfMountWrites: true}},
+    mounts: [
+        {{
+            name: a`working-dir`,
+            path: d`{TestOutputDirectory}`,
+            trackSourceFileChanges: true,
+            isWritable: true,
+            isReadable: true,
+            isScrubbable: false,
+        }}
+    ]
 }});";
 
         private static string DictionaryToExpression(string memberName, Dictionary<string, string> dictionary)

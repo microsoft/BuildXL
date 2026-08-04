@@ -35,23 +35,29 @@ namespace Test.BuildXL.FrontEnd.MsBuild
         /// </summary>
         protected override EnginePhases Phase => EnginePhases.Schedule;
 
+        // A() yields a platform-independent absolute path (e.g. "Z:\\foo" on Windows, "/z/foo" on Unix).
+        private static readonly string s_expectedOutputPath = A("z", "foo");
+
+        // The value is embedded in a single-quoted DScript string, so backslashes must be escaped.
+        private static readonly string s_outputPathPropertyValue = s_expectedOutputPath.Replace(@"\", @"\\");
+
         [Fact]
         public void EnvironmentIsUsedDuringConstruction()
         {
             // We expect the resulting process to contain an output directory matching the content of OutputPath
-            var process = CreateDummyProjectWithEnvironment(new Dictionary<string, string> { ["OutputPath"] = @"Z:\\foo" });
-            Assert.True(process.DirectoryOutputs.Any(dir => dir.Path == AbsolutePath.Create(PathTable, @"Z:\foo")));
+            var process = CreateDummyProjectWithEnvironment(new Dictionary<string, string> { ["OutputPath"] = s_outputPathPropertyValue });
+            Assert.True(process.DirectoryOutputs.Any(dir => dir.Path == AbsolutePath.Create(PathTable, s_expectedOutputPath)));
         }
 
         [Fact]
         public void PassthroughEnvironmentIsUsedDuringConstruction()
         {
             // We expect the resulting process to contain an output directory matching the content of OutputPath
-            Environment.SetEnvironmentVariable("OutputPath", @"Z:\\foo");
+            Environment.SetEnvironmentVariable("OutputPath", s_outputPathPropertyValue);
             var env = new Dictionary<string, DiscriminatingUnion<string, UnitValue>> { ["OutputPath"] = new DiscriminatingUnion<string, UnitValue>(UnitValue.Unit)};
 
             var process = CreateDummyProjectWithEnvironment(env);
-            Assert.True(process.DirectoryOutputs.Any(dir => dir.Path == AbsolutePath.Create(PathTable, @"Z:\foo")));
+            Assert.True(process.DirectoryOutputs.Any(dir => dir.Path == AbsolutePath.Create(PathTable, s_expectedOutputPath)));
         }
 
         [Fact]
@@ -59,32 +65,32 @@ namespace Test.BuildXL.FrontEnd.MsBuild
         {
             // Even though the output path is set in the environment, since we are passing an empty dictionary for the environment, it
             // shouldn't reach the predictor
-            Environment.SetEnvironmentVariable("OutputPath", @"Z:\\foo");
+            Environment.SetEnvironmentVariable("OutputPath", s_outputPathPropertyValue);
 
             var process = CreateDummyProjectWithEnvironment(new Dictionary<string, string>());
-            Assert.False(process.DirectoryOutputs.Any(dir => dir.Path == AbsolutePath.Create(PathTable, @"Z:\foo")));
+            Assert.False(process.DirectoryOutputs.Any(dir => dir.Path == AbsolutePath.Create(PathTable, s_expectedOutputPath)));
         }
 
         [Fact]
         public void AbsenceOfEnvironmentExposesTheProcess()
         {
             // Null environment should expose the environment
-            Environment.SetEnvironmentVariable("OutputPath", @"Z:\\foo");
+            Environment.SetEnvironmentVariable("OutputPath", s_outputPathPropertyValue);
 
             var process = CreateDummyProjectWithEnvironment(environment: (Dictionary<string, string>) null);
-            Assert.True(process.DirectoryOutputs.Any(dir => dir.Path == AbsolutePath.Create(PathTable, @"Z:\foo")));
+            Assert.True(process.DirectoryOutputs.Any(dir => dir.Path == AbsolutePath.Create(PathTable, s_expectedOutputPath)));
         }
 
         [Fact]
         public void GlobalPropertiesAreUsedDuringConstruction()
         {
-            var config = Build(globalProperties: new Dictionary<string, string> { ["OutputPath"] = @"Z:\\foo" })
+            var config = Build(globalProperties: new Dictionary<string, string> { ["OutputPath"] = s_outputPathPropertyValue })
                 .AddSpec(R("TestProject.proj"), CreateHelloWorldProject())
                 .PersistSpecsAndGetConfiguration();
 
             var process = RunEngineAndRetrieveProcess(config);
 
-            Assert.True(process.DirectoryOutputs.Any(dir => dir.Path == AbsolutePath.Create(PathTable, @"Z:\foo")));
+            Assert.True(process.DirectoryOutputs.Any(dir => dir.Path == AbsolutePath.Create(PathTable, s_expectedOutputPath)));
         }
 
         [Theory]

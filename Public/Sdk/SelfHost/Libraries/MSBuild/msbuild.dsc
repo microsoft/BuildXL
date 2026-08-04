@@ -60,6 +60,15 @@ export const deployment : Deployment.NestedDefinition[] = [
                     ...msbuildRuntimeContent,
                     ...msbuildReferences,
                 ],
+                // On .NET (Core), System.Collections.Immutable must NOT be deployed next to MSBuild. A real .NET SDK
+                // does not ship it adjacent to MSBuild.dll either; it is resolved from the shared framework. MSBuild
+                // loads plugins (like the VBCSCompilerLogger) in an isolated MSBuildLoadContext that hard-loads any
+                // adjacent assembly file by path. The old Roslyn used by the logger to parse compiler command lines
+                // references System.Collections.Immutable 5.0.0.0; hard-loading the adjacent (much newer) copy fails
+                // with a manifest-mismatch FileLoadException. Omitting it here lets the shared-framework roll-forward
+                // satisfy that reference, matching the production MSBuild environment. Full framework still needs it
+                // deployed (with the msbuild.exe.config binding redirects), so only skip it on dotnetcore.
+                contentToSkip: BuildXLSdk.isDotNetCoreOrStandard ? [importFrom("System.Collections.Immutable").pkg] : [],
             }
         ]
     },

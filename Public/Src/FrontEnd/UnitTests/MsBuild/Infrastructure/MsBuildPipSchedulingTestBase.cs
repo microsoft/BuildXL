@@ -27,7 +27,7 @@ namespace Test.BuildXL.FrontEnd.MsBuild.Infrastructure
     /// Meant to be used in conjunction with <see cref="MsBuildProjectBuilder"/>
     /// No pips are run by this class, the engine phase is set to <see cref="EnginePhases.Schedule"/>
     /// </remarks>
-    [TestClassIfSupported(requiresWindowsBasedOperatingSystem: true)]
+    [TestClassIfSupported]
     public abstract class MsBuildPipSchedulingTestBase : PipSchedulingTestBase<ProjectWithPredictions, MsBuildResolverSettings>
     {
         // Keep the paths below in sync with Public\Src\FrontEnd\UnitTests\MsBuild\Test.BuildXL.FrontEnd.MsBuild.dsc

@@ -1507,6 +1507,21 @@ int Start(sandbox_bpf *skel, char **argv) {
         setenv("TMPDIR", getenv("TMP"), 1);
     }
 
+    // If there are configured processes that will break away from the sandbox, expose
+    // an environment variable with the path to the reporter.
+    // This is the way the AugmentedManifestReporter (the API to directly talk to the sandbox
+    // internal tools can use) can actually interact with the manifest
+    // Keep in sync with C# side
+    if (!(g_bxl->GetFileAccessManifest()->GetBreakawayChildProcesses().empty()))
+    {
+        int l;
+        // CODESYNC: Keep variable name in sync with the C# side
+        setenv(
+            "BUILDXL_AUGMENTED_MANIFEST_PATH",
+            g_bxl->GetFileAccessManifest()->GetReportsPath(&l), 
+            /* replace */ 1);
+    }
+
     // Start root process
     int res = RunRootProcess(argv[1], &argv[1], environ);
     if (res != 0) {

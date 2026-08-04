@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Diagnostics.ContractsLight;
 using System.Globalization;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -43,9 +44,23 @@ namespace BuildXL.Processes
     public sealed class AugmentedManifestReporter
     {
         /// <summary>
-        /// We shouldn't try to close this handle. Detours takes care of that.
+        /// This is a handle the sandbox opened for us. We shouldn't try to close it, since we don't own it.
         /// </summary>
+        /// <remarks>
+        /// When this handle is invalid and <see cref="m_fifoName"/> is empty, reporting is unavailable.
+        /// The report handle and the fifo name are mutually exclusive.
+        /// </remarks>
         private readonly SafeFileHandle m_detoursReportHandle;
+
+        /// <summary>
+        /// This is a path to a FIFO to report accesses.
+        /// </summary>
+        /// <remarks>
+        /// When this path is empty and <see cref="m_detoursReportHandle"/> is invalid, reporting is unavailable.
+        /// The report handle and the fifo name are mutually exclusive.
+        /// </remarks>
+        private readonly string? m_fifoName;
+
         private readonly UnicodeEncoding m_encoding;
 
         /// <nodoc/>
@@ -55,6 +70,16 @@ namespace BuildXL.Processes
         {
             m_encoding = encoding ?? new UnicodeEncoding(bigEndian: false, byteOrderMark: false);
             m_detoursReportHandle = detoursReportHandle;
+            m_fifoName = null;
+        }
+
+        private AugmentedManifestReporter(string fifoName, UnicodeEncoding? encoding)
+        {
+            Contract.Requires(!string.IsNullOrEmpty(fifoName), "fifoName cannot be null or empty");
+
+            m_encoding = encoding ?? new UnicodeEncoding(bigEndian: false, byteOrderMark: false);
+            m_detoursReportHandle = new SafeFileHandle(new IntPtr(-1), true); // Invalid handle
+            m_fifoName = fifoName;
         }
 
         /// <summary>
@@ -74,17 +99,37 @@ namespace BuildXL.Processes
         {
             var encoding = new UnicodeEncoding(bigEndian: false, byteOrderMark: false);
 
-            // CODESYNC: Keep variable name in sync with DetoursServices on the C++ side
-            string handleAsString = Environment.GetEnvironmentVariable("BUILDXL_AUGMENTED_MANIFEST_HANDLE") ?? string.Empty;
+            // On Windows there is write handle permanently open to the Detours report pipe, and the handle itself is shared
+            // from the BuildXL process to the child process via an environment variable.
+            // On Linux, every report opens a file descriptor to the FIFO, so we don't need to share a handle. Instead, we share the path
+            // to the FIFO via an environment variable.
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                // CODESYNC: Keep variable name in sync with DetoursServices on the C++ side
+                string handleAsString = Environment.GetEnvironmentVariable("BUILDXL_AUGMENTED_MANIFEST_HANDLE") ?? string.Empty;
 
-            // If the expected environment variable with the handle pointer is not set, just return. We'll check this
-            // when reporting an access
-            SafeFileHandle detoursReportHandle = string.IsNullOrEmpty(handleAsString)
-                || !int.TryParse(handleAsString, NumberStyles.Integer, CultureInfo.InvariantCulture, out int handlePtr)
-                ? new SafeFileHandle(new IntPtr(-1), true) // Invalid handle
-                : new SafeFileHandle(new IntPtr(handlePtr), ownsHandle: false);
+                // If the expected environment variable with the handle pointer is not set, just return. We'll check this
+                // when reporting an access
+                SafeFileHandle detoursReportHandle = string.IsNullOrEmpty(handleAsString)
+                    || !int.TryParse(handleAsString, NumberStyles.Integer, CultureInfo.InvariantCulture, out int handlePtr)
+                    ? new SafeFileHandle(new IntPtr(-1), true) // Invalid handle
+                    : new SafeFileHandle(new IntPtr(handlePtr), ownsHandle: false);
 
-            return new AugmentedManifestReporter(detoursReportHandle, encoding);
+                return new AugmentedManifestReporter(detoursReportHandle, encoding);
+            }
+            else
+            {
+                // CODESYNC: Keep variable name in sync with Public/Src/Sandbox/Linux/ebpf/sandbox.cpp
+                string? manifestPath = Environment.GetEnvironmentVariable("BUILDXL_AUGMENTED_MANIFEST_PATH");
+                
+                if (!string.IsNullOrEmpty(manifestPath))
+                {
+                    return new AugmentedManifestReporter(manifestPath, encoding);                    
+                }
+
+                // Invalid handle
+                return new AugmentedManifestReporter(new SafeFileHandle(new IntPtr(-1), true), encoding);
+            }
         }
 
         /// <summary>
@@ -92,7 +137,7 @@ namespace BuildXL.Processes
         /// </summary>
         public bool TryReportFileCreations(IEnumerable<string> paths)
         {
-            if (m_detoursReportHandle.IsInvalid)
+            if (m_detoursReportHandle.IsInvalid && string.IsNullOrEmpty(m_fifoName))
             {
                 return false;
             }
@@ -121,7 +166,7 @@ namespace BuildXL.Processes
         /// </summary>
         public bool TryReportFileReads(IEnumerable<string> paths)
         {
-            if (m_detoursReportHandle.IsInvalid)
+            if (m_detoursReportHandle.IsInvalid && string.IsNullOrEmpty(m_fifoName))
             {
                 return false;
             }
@@ -185,24 +230,61 @@ namespace BuildXL.Processes
 #pragma warning restore ERP022 // Unobserved exception in a generic exception handler
             }
 
-            string access = GetReportLineForAugmentedFileAccess(
-                reportedFileOperation,
-                (uint)process.Id,
-                requestedAccess,
-                fileAccessStatus,
-                errorCode,
-                usn,
-                desiredAccess,
-                shareMode,
-                creationDisposition,
-                flagsAndAttributes,
-                openedFileOrDirectoryAttributes,
-                fullPath);
+            string access;
+            byte[] reportBytes;
 
-            if (!TryWriteFileSync(m_detoursReportHandle, m_encoding.GetBytes(access), out int nativeErrorCode))
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                // Something didn't go as expected. We cannot let the process continue if we failed at reporting an access
-                throw new Win32Exception(nativeErrorCode, $"Writing augmented file access report failed. Line: {access}");
+                // On Windows the Detours report pipe consumes UTF-16 report lines directly.
+                access = GetReportLineForAugmentedFileAccess(
+                    reportedFileOperation,
+                    (uint)process.Id,
+                    requestedAccess,
+                    fileAccessStatus,
+                    errorCode,
+                    usn,
+                    desiredAccess,
+                    shareMode,
+                    creationDisposition,
+                    flagsAndAttributes,
+                    openedFileOrDirectoryAttributes,
+                    fullPath);
+
+                reportBytes = m_encoding.GetBytes(access);
+            }
+            else
+            {
+                // On Linux the report is sent through a FIFO whose wire protocol is a 4-byte little-endian
+                // length prefix followed by a UTF-8, pipe-delimited, newline-terminated body.
+                // CODESYNC: Public/Src/Engine/Processes/SandboxConnectionLinuxEBPF.cs (ProcessBytes)
+                //           Public/Src/Sandbox/Linux/ReportBuilder.cpp (SandboxEventReportString)
+                access = GetLinuxReportLineForAugmentedFileAccess(
+                    reportedFileOperation,
+                    (uint)process.Id,
+                    requestedAccess,
+                    fileAccessStatus,
+                    errorCode,
+                    fullPath);
+
+                reportBytes = CreateLinuxFramedReport(access);
+            }
+
+            Contract.Assert(!m_detoursReportHandle.IsInvalid || !string.IsNullOrEmpty(m_fifoName), "Either the detours report handle or the FIFO name must be set");
+            Contract.Assert(m_detoursReportHandle.IsInvalid || string.IsNullOrEmpty(m_fifoName), "Both the detours report handle and the FIFO name cannot be set at the same time");
+
+            // We either write to the Detours report pipe or to the FIFO. The write is expected to be atomic, so we don't need to synchronize access to the handle.
+            if (!m_detoursReportHandle.IsInvalid)
+            {
+                if (!TryWriteFileSync(m_detoursReportHandle, reportBytes, out int nativeErrorCode))
+                {
+                    // Something didn't go as expected. We cannot let the process continue if we failed at reporting an access
+                    throw new Win32Exception(nativeErrorCode, $"Writing augmented file access report failed. Line: {access}");
+                }
+            }
+            else
+            {
+                using var fifoStream = new FileStream(m_fifoName!, FileMode.Append, FileAccess.Write, FileShare.ReadWrite, bufferSize: reportBytes.Length);
+                fifoStream.Write(reportBytes, 0, reportBytes.Length);
             }
         }
 
@@ -221,14 +303,68 @@ namespace BuildXL.Processes
             string absolutePath) =>
             $"{(int)ReportType.AugmentedFileAccess},{reportedFileOperation}:{processId:x}|{0:x}|{0:x}|{(byte)requestedAccess:x}|{(byte)fileAccessStatus:x}|1|{errorCode:x}|{errorCode:x}|{usn.Value:x}|{(uint)desiredAccess:x}|{(uint)shareMode:x}|{(uint)creationDisposition:x}|{(uint)flagsAndAttributes:x}|{(uint)openedFileOrDirectoryAttributes:x}|{0:x}|{absolutePath}\r\n";
 
-        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+        /// <summary>
+        /// Builds a report line matching the Linux sandbox FIFO format for an augmented (trusted tool) file access.
+        /// </summary>
+        /// <remarks>
+        /// The body is pipe-delimited and newline-terminated:
+        /// ReportType|SystemCall|FileOperation|ProcessId|ParentProcessId|Error|RequestedAccess|FileAccessStatus|ExplicitlyReport|IsDirectory|IsPathTruncated|Path
+        /// All numeric fields are decimal (the managed reader parses them with uint.TryParse).
+        /// CODESYNC: Public/Src/Engine/Processes/SandboxConnectionLinuxEBPF.cs (ProcessBytes)
+        ///           Public/Src/Engine/Processes/FileOperation.Linux.cs (FileOperationLinux.Operations)
+        /// </remarks>
+        private static string GetLinuxReportLineForAugmentedFileAccess(
+            ReportedFileOperation reportedFileOperation,
+            uint processId,
+            RequestedAccess requestedAccess,
+            FileAccessStatus fileAccessStatus,
+            uint errorCode,
+            string absolutePath)
+        {
+            // CODESYNC: Public/Src/Engine/Processes/FileOperation.Linux.cs (FileOperationLinux.Operations.CreateFile)
+            // The augmented reporter only ever reports CreateFile operations; the read/write distinction is
+            // carried by the requested access. This maps to FileOperationLinux.Operations.CreateFile.
+            const int LinuxCreateFileOperation = 6;
+
+            // ExplicitlyReport = 1 so the access is always observed; IsDirectory and IsPathTruncated are 0.
+            return $"{(int)ReportType.AugmentedFileAccess}|augmented|{LinuxCreateFileOperation}|{processId}|0|{errorCode}|{(byte)requestedAccess}|{(byte)fileAccessStatus}|1|0|0|{absolutePath}\n";
+        }
+
+        /// <summary>
+        /// Prefixes a Linux sandbox report body with its 4-byte little-endian length, as expected by the FIFO reader.
+        /// </summary>
+        /// <remarks>
+        /// CODESYNC: Public/Src/Sandbox/Linux/ReportBuilder.cpp (SandboxEventReportString)
+        /// The whole framed message is written with a single write() call so it stays atomic (must be &lt;= PIPE_BUF).
+        /// </remarks>
+        private static byte[] CreateLinuxFramedReport(string reportLine)
+        {
+            byte[] body = Encoding.UTF8.GetBytes(reportLine);
+            byte[] framed = new byte[sizeof(int) + body.Length];
+
+            framed[0] = (byte)(body.Length & 0xFF);
+            framed[1] = (byte)((body.Length >> 8) & 0xFF);
+            framed[2] = (byte)((body.Length >> 16) & 0xFF);
+            framed[3] = (byte)((body.Length >> 24) & 0xFF);
+
+            Buffer.BlockCopy(body, 0, framed, sizeof(int), body.Length);
+            return framed;
+        }
+
+        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode, EntryPoint = "WriteFile")]
         [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern unsafe bool WriteFile(
+        private static extern unsafe bool WriteFileWindows(
             SafeFileHandle handle,
             byte[] buffer,
             int numBytesToWrite,
             out int numBytesWritten,
             NativeOverlapped* lpOverlapped);
+
+        [DllImport("libc", EntryPoint = "write", SetLastError = true)]
+        private static extern unsafe IntPtr WriteFileLinux(
+            SafeFileHandle fd,
+            byte[] buf, 
+            IntPtr count);
 
         private static bool TryWriteFileSync(SafeFileHandle handle, byte[] content, out int nativeErrorCode)
         {
@@ -238,7 +374,13 @@ namespace BuildXL.Processes
             {
                 // TODO: Instead of using unsafe code, we could use FileStream, but this needs further investigation
                 //       because FileStream assumes that it has exclusive control over the handle.
-                result = WriteFile(handle, content, content.Length, out _, lpOverlapped: null);
+#if PLATFORM_WIN
+
+                result = WriteFileWindows(handle, content, content.Length, out _, lpOverlapped: null);
+#else
+                IntPtr bytesWritten = WriteFileLinux(handle, content, (IntPtr)content.Length);
+                result = bytesWritten.ToInt64() == content.Length;
+#endif
             }
 
             nativeErrorCode = Marshal.GetLastWin32Error();

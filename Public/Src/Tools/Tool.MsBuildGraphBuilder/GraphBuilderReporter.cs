@@ -122,7 +122,7 @@ namespace MsBuildGraphBuilderTool
                     options: PipeOptions.Asynchronous);
                 return true;
             }
-            catch (IOException ex)
+            catch (Exception ex) when (ex is IOException || ex is ArgumentException)
             {
                 // Write the exception to the standard error, but not make the whole construction process
                 // fail because of this. This will be propagated to the BuildXL log.

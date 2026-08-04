@@ -23,6 +23,18 @@ namespace Test.BuildXL.FrontEnd.MsBuild
         {
         }
 
+        // On Linux MSBuild is always the dotnet-core binary (MSBuild.dll); on Windows it is MSBuild.exe.
+        private static readonly string s_msBuildBinaryName = OperatingSystemHelper.IsWindowsOS ? "MSBuild.exe" : "MSBuild.dll";
+
+        // On Linux the scheduled process runs "dotnet MSBuild.dll", so both the dotnet host and MSBuild.dll
+        // appear as runtime source inputs. On Windows only MSBuild.exe does.
+        private bool IsMsBuildRuntimeInput(FileArtifact file)
+        {
+            var name = file.Path.GetName(PathTable);
+            return name == PathAtom.Create(StringTable, s_msBuildBinaryName)
+                || (!OperatingSystemHelper.IsWindowsOS && name == PathAtom.Create(StringTable, "dotnet"));
+        }
+
         [Fact]
         public void NoInputOutputFileIsProperlyScheduled()
         {
@@ -105,7 +117,7 @@ namespace Test.BuildXL.FrontEnd.MsBuild
             // We create 4 predicted inputs. 3 of them under predicted output directories. So only the last one should be added as a true input, the rest are assumed to be intermediates
             var dependent = CreateProjectWithPredictions(
                 outputs: CreatePath("AnotherOutput"),
-                inputs: CreatePath(@"AnotherOutput\input.txt", @"OutDir\input1.txt", @"OutDir\nested\input2.txt", "input3.txt"), 
+                inputs: CreatePath(@"AnotherOutput/input.txt", @"OutDir/input1.txt", @"OutDir/nested/input2.txt", "input3.txt"), 
                 references: new[] { dependency });
 
             var processInputs = Start()
@@ -116,7 +128,7 @@ namespace Test.BuildXL.FrontEnd.MsBuild
                 .Dependencies;
 
             // The only source file (besides MSBuild.exe itself) should be input3
-            var input = processInputs.Single(i => (i.IsSourceFile && i.Path.GetName(PathTable) != PathAtom.Create(StringTable, "MSBuild.exe")));
+            var input = processInputs.Single(i => (i.IsSourceFile && !IsMsBuildRuntimeInput(i)));
             XAssert.AreEqual("input3.txt", input.Path.GetName(PathTable).ToString(PathTable.StringTable));
         }
 
@@ -125,13 +137,13 @@ namespace Test.BuildXL.FrontEnd.MsBuild
         [InlineData(false)]
         public void PredictedInputsUnderUntrackedDirectoriesAreSkipped(bool pathRelativeToProject)
         {
-            var project = CreateProjectWithPredictions(inputs: CreatePath(@"untracked\input.txt", "input2.txt"));
+            var project = CreateProjectWithPredictions(inputs: CreatePath(@"untracked/input.txt", "input2.txt"));
 
             var processInputs = Start(new MsBuildResolverSettings
                 {
                     UntrackedDirectories = CreatePath("untracked").Select(path =>
                         pathRelativeToProject ? 
-                            new DiscriminatingUnion<DirectoryArtifact, RelativePath>(RelativePath.Create(StringTable, @"untracked\input.txt")) :
+                            new DiscriminatingUnion<DirectoryArtifact, RelativePath>(RelativePath.Create(StringTable, @"untracked/input.txt")) :
                             new DiscriminatingUnion<DirectoryArtifact, RelativePath>(DirectoryArtifact.CreateWithZeroPartialSealId(path)))
                     .ToList()
                 })
@@ -141,14 +153,14 @@ namespace Test.BuildXL.FrontEnd.MsBuild
                 .Dependencies;
 
             // The only source file (besides MSBuild.exe itself) should be input2
-            var input = processInputs.Single(i => (i.IsSourceFile && i.Path.GetName(PathTable) != PathAtom.Create(StringTable, "MSBuild.exe")));
+            var input = processInputs.Single(i => (i.IsSourceFile && !IsMsBuildRuntimeInput(i)));
             XAssert.AreEqual("input2.txt", input.Path.GetName(PathTable).ToString(PathTable.StringTable));
         }
 
         [Fact]
         public void GeneratedNugetFilesAreUntracked()
         {
-            var project = CreateProjectWithPredictions(inputs: CreatePath(@"aProject\.pkgrefgen\aFile", @"anotherProject\.pkrefgen\anotherFile"));
+            var project = CreateProjectWithPredictions(inputs: CreatePath(@"aProject/.pkgrefgen/aFile", @"anotherProject/.pkrefgen/anotherFile"));
 
             var processInputs = Start()
                 .Add(project)
@@ -157,7 +169,7 @@ namespace Test.BuildXL.FrontEnd.MsBuild
                 .Dependencies;
 
             // The only source file should be MSBuild.exe
-            processInputs.Single(i => (i.IsSourceFile && i.Path.GetName(PathTable) == PathAtom.Create(StringTable, "MSBuild.exe")));
+            processInputs.Single(i => (i.IsSourceFile && IsMsBuildRuntimeInput(i)));
         }
 
         private IReadOnlyCollection<AbsolutePath> CreatePath(params string[] paths)

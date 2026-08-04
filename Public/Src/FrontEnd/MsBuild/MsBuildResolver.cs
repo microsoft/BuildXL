@@ -94,6 +94,12 @@ namespace BuildXL.FrontEnd.MsBuild
                 return false;
             }
 
+            if (!OperatingSystemHelper.IsWindowsOS && msBuildResolverSettings.MsBuildRuntime == "FullFramework")
+            {
+                Tracing.Logger.Log.InvalidResolverSettings(m_context.LoggingContext, Location.FromFile(pathToFile), "The full framework version of MSBuild ('FullFramework') is not available on non-Windows operating systems. Use the .NET Core version instead by setting 'msBuildRuntime' to 'DotNetCore', or leave it unspecified (the .NET Core version is the default on non-Windows operating systems).");
+                return false;
+            }
+
             // Global property keys for MSBuild are case insensitive, but unfortunately we don't have maps with explicit comparers in DScript. 
             // So we need to validate that there are no two property keys that differ only in casing.
             if (msBuildResolverSettings.GlobalProperties != null)

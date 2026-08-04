@@ -234,16 +234,16 @@ namespace Test.BuildXL.FrontEnd.MsBuild
                 Contents = new[] { 
                     new EnvironmentData(1), 
                     new EnvironmentData("2"), 
-                    new EnvironmentData(AbsolutePath.Create(PathTable, "C:\\foo\\bar")),
+                    new EnvironmentData(AbsolutePath.Create(PathTable, OperatingSystemHelper.IsWindowsOS ? "C:\\foo\\bar" : "/foo/bar")),
                     new EnvironmentData(new CompoundEnvironmentData() 
                     { 
                         Separator = " ",
                         Contents = new [] {
                             new EnvironmentData(PathAtom.Create(StringTable, "atom")),
-                            new EnvironmentData(RelativePath.Create(StringTable, "relative\\path"))
+                            new EnvironmentData(RelativePath.Create(StringTable, "relative/path"))
                         }
                     }),
-                    new EnvironmentData(DirectoryArtifact.CreateWithZeroPartialSealId(AbsolutePath.Create(PathTable, "C:\\foo\\baaz")))
+                    new EnvironmentData(DirectoryArtifact.CreateWithZeroPartialSealId(AbsolutePath.Create(PathTable, OperatingSystemHelper.IsWindowsOS ? "C:\\foo\\baaz" : "/foo/baaz")))
                 }
             });
 
@@ -255,7 +255,7 @@ namespace Test.BuildXL.FrontEnd.MsBuild
                 .RetrieveSuccessfulProcess(project);
 
             var testEnvironmentVariable = testProj.EnvironmentVariables.First(e => e.Name.ToString(PathTable.StringTable).Equals("Test"));
-            Assert.Equal("1|2|C:\\foo\\bar|atom relative\\path|C:\\foo\\baaz", testEnvironmentVariable.Value.ToString(PathTable));
+            Assert.Equal(OperatingSystemHelper.IsWindowsOS ? "1|2|C:\\foo\\bar|atom relative\\path|C:\\foo\\baaz" : "1|2|/foo/bar|atom relative/path|/foo/baaz", testEnvironmentVariable.Value.ToString(PathTable));
         }
 
         [Fact]
@@ -391,7 +391,18 @@ namespace Test.BuildXL.FrontEnd.MsBuild
             // - let VBCSCompiler escape the sandbox
             // - attach the VBCSCompiler logger to compensate for missing accesses
             Assert.DoesNotContain("/p:UseSharedCompilation=false", arguments);
-            Assert.Equal(PathAtom.Create(StringTable, "VBCSCompiler.exe"), testProj.ChildProcessesToBreakawayFromSandbox.Single().ProcessName);
+            var breakawayProcess = testProj.ChildProcessesToBreakawayFromSandbox.Single();
+            if (OperatingSystemHelper.IsWindowsOS)
+            {
+                Assert.Equal(PathAtom.Create(StringTable, "VBCSCompiler.exe"), breakawayProcess.ProcessName);
+            }
+            else
+            {
+                // On .NET Core the compiler server is launched as 'dotnet .../VBCSCompiler.dll', so we break away on the
+                // 'dotnet' process whose command line includes VBCSCompiler.dll.
+                Assert.Equal(PathAtom.Create(StringTable, "dotnet"), breakawayProcess.ProcessName);
+                Assert.Equal("VBCSCompiler.dll", breakawayProcess.RequiredArguments);
+            }
             Assert.Contains(PipConstructor.VBCSCompilerLogger, arguments);
         }
     }

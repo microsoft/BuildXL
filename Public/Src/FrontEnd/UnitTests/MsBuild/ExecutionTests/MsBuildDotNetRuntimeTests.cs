@@ -9,6 +9,7 @@ using BuildXL.Engine.Tracing;
 using BuildXL.Pips.Operations;
 using BuildXL.Scheduler.Graph;
 using Test.BuildXL.EngineTestUtilities;
+using Test.BuildXL.TestUtilities.XUnit;
 using Xunit;
 using System;
 using BuildXL.Utilities.Core;
@@ -31,7 +32,7 @@ namespace Test.BuildXL.FrontEnd.MsBuild
 
         [Theory]
         [InlineData("DotNetCore")]
-        [InlineData("FullFramework")]
+        [InlineDataIfSupported(requiresWindowsBasedOperatingSystem: true, data: new object[] { "FullFramework" })]
         public void RuntimeSelectionIsEffective(string msBuildRuntime)
         {
             const string TestProj1 = "test1.csproj";

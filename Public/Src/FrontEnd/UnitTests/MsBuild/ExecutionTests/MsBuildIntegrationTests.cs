@@ -319,10 +319,16 @@ namespace Test.BuildXL.FrontEnd.MsBuild
             // Observe there might be some differences under the temp directory, since MSBuild generates there some files with random names, so they are different on each execution. We exclude those.
             var diff = nonSharedAccessCollector.GetFileAccessPaths()
                 .Except(sharedAccessCollector.GetFileAccessPaths())
-                .Where(path => !path.IsWithin(PathTable, tempDirectory) && !path.IsWithin(PathTable, appDataDirectory));
+                .Where(path => !path.IsWithin(PathTable, tempDirectory) && !path.IsWithin(PathTable, appDataDirectory))
+                // On Linux, MSBuild command-line switches (e.g. /p:UseSharedCompilation=false) start with '/', so the sandbox
+                // probes them as if they were absolute paths, and that switch differs by design between the two runs. BuildXL
+                // also drops a randomly-named case-sensitivity probe file under a nested temp on each run. Exclude both as
+                // benign, non-deterministic differences (these predicates never match anything on Windows).
+                .Where(path => path.ToString(PathTable).IndexOf("UseSharedCompilation", StringComparison.OrdinalIgnoreCase) < 0
+                            && path.ToString(PathTable).IndexOf("casesensitivetest", StringComparison.OrdinalIgnoreCase) < 0);
 
             // There shouldn't be non shared accesses that were not predicted
-            XAssert.IsEmpty(diff);
+            XAssert.IsEmpty(diff, "Unexpected non-shared-only accesses: {0}", string.Join("; ", diff.Select(p => p.ToString(PathTable))));
         }
 
         [Fact]
@@ -349,14 +355,31 @@ namespace Test.BuildXL.FrontEnd.MsBuild
             out AbsolutePath usedTempDirectory, 
             string additionalArgs = null)
         {
+            // Shared compilation relies on the sandbox exposing the augmented manifest reporting FIFO (via the
+            // BUILDXL_AUGMENTED_MANIFEST_PATH environment variable) so the injected VBCSCompilerLogger can report the
+            // compiler's file accesses. On Linux only the EBPF sandbox sets that variable; the interpose sandbox does
+            // not, so shared compilation is unsupported there. Skip shared-compilation scenarios when not running under EBPF.
+            // TODO: this can be removed when we retire interpose.
+            if (useSharedCompilation && OperatingSystemHelper.IsLinuxOS && !UsingEBPFSandbox)
+            {
+                Assert.Skip("Shared compilation on Linux is only supported under the EBPF sandbox.");
+            }
+
             // We pass the executing assembly to the compiler call just as a way to pass an arbitrary valid assembly (and not because there are any required dependencies on it)
             absolutePathToReference = Assembly.GetExecutingAssembly().Location;
             // We just use the assembly name, but add the assembly directory to the collection of additional paths
+            // On .NET Core, csc does not implicitly reference a core library the way net472 csc.exe does
+            // with NoStandardLib=false, so hello world fails with CS0518. Explicitly reference the core runtime
+            // assemblies (deployed next to the executing assembly, already on AdditionalLibPaths) on non-Windows.
+            var references = OperatingSystemHelper.IsWindowsOS
+                ? Path.GetFileName(absolutePathToReference)
+                : $"{Path.GetFileName(absolutePathToReference)};System.Private.CoreLib.dll;System.Runtime.dll;System.Console.dll;netstandard.dll";
+
             var managedProject = GetCscProject(
                 "Program.cs", 
                 "exe", 
                 "Out.exe", 
-                $@"References='{Path.GetFileName(absolutePathToReference)}'
+                $@"References='{references}'
                    AdditionalLibPaths='{Path.GetDirectoryName(absolutePathToReference)}'
                    NoStandardLib='false'
                    NoConfig='false' 
@@ -389,7 +412,7 @@ namespace Test.BuildXL.FrontEnd.MsBuild
             // we use the real Csc task implementation, but through a custom (incomplete) Csc task that we define here
             return $@"<Project DefaultTargets='Build'>
     <UsingTask TaskName='Csc'
-        AssemblyFile = '{PathToCscTaskDll(shouldRunDotNetCoreMSBuild: false)}'/>
+        AssemblyFile = '{PathToCscTaskDll(shouldRunDotNetCoreMSBuild: !OperatingSystemHelper.IsWindowsOS)}'/>
 
   <Target Name='Build'>
     <Csc

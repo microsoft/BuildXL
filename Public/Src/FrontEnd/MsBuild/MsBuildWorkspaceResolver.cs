@@ -45,7 +45,9 @@ namespace BuildXL.FrontEnd.MsBuild
         private RelativePath RelativePathToGraphConstructionTool =>
             RelativePath.Create(Context.StringTable, ResolverSettings.ShouldRunDotNetCoreMSBuild()
                 ? @"tools\MsBuildGraphBuilder\dotnetcore\ProjectGraphBuilder.dll"
-                : @"tools\MsBuildGraphBuilder\net472\ProjectGraphBuilder.exe");
+                : OperatingSystemHelper.IsWindowsOS
+                    ? @"tools\MsBuildGraphBuilder\net472\ProjectGraphBuilder.exe"
+                    : @"tools\MsBuildGraphBuilder\net472\ProjectGraphBuilder");
 
         /// <inheritdoc/>
         public MsBuildWorkspaceResolver() => Name = MsBuildResolverName;
@@ -379,9 +381,11 @@ namespace BuildXL.FrontEnd.MsBuild
             dotnetExeLocation = AbsolutePath.Invalid;
             failure = string.Empty;
 
+            string dotnet = OperatingSystemHelper.IsWindowsOS ? "dotnet.exe" : "dotnet";
+
             foreach (AbsolutePath location in dotnetSearchLocations)
             {
-                AbsolutePath dotnetExeCandidate = location.Combine(Context.PathTable, "dotnet.exe");
+                AbsolutePath dotnetExeCandidate = location.Combine(Context.PathTable, dotnet);
                 if (Host.Engine.FileExists(dotnetExeCandidate))
                 {
                     dotnetExeLocation = dotnetExeCandidate;
@@ -390,7 +394,7 @@ namespace BuildXL.FrontEnd.MsBuild
             }
 
             string searchLocationsStr = string.Join(", ", dotnetSearchLocations.Select(location => location.ToString(Context.PathTable)));
-            failure = $"Cannot find dotnet.exe. This is required because the dotnet core version of MSBuild was specified to run. Searched locations: [{searchLocationsStr}]";
+            failure = $"Cannot find {dotnet}. This is required because the dotnet core version of MSBuild was specified to run. Searched locations: [{searchLocationsStr}]";
             return false;
         }
 
@@ -507,9 +511,9 @@ namespace BuildXL.FrontEnd.MsBuild
                             {
                                 Tracing.Logger.Log.CannotGetProgressFromGraphConstructionDueToTimeout(Context.LoggingContext);
                             }
-                            catch (IOException ioException)
+                            catch (Exception ex) when (ex is IOException || ex is ArgumentException)
                             {
-                                Tracing.Logger.Log.CannotGetProgressFromGraphConstructionDueToUnexpectedException(Context.LoggingContext, ioException.Message);
+                                Tracing.Logger.Log.CannotGetProgressFromGraphConstructionDueToUnexpectedException(Context.LoggingContext, ex.Message);
                             }
                         }
                     )
@@ -530,21 +534,24 @@ namespace BuildXL.FrontEnd.MsBuild
                 MonitorChildProcesses = true,
             };
 
-            fileAccessManifest.AddScope(
-                AbsolutePath.Create(Context.PathTable, SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.Windows)),
-                FileAccessPolicy.MaskAll,
-                FileAccessPolicy.AllowAllButSymlinkCreation);
+            // The following folders only exist on Windows.
+            if (OperatingSystemHelper.IsWindowsOS) {
+                fileAccessManifest.AddScope(
+                    AbsolutePath.Create(Context.PathTable, SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.Windows)),
+                    FileAccessPolicy.MaskAll,
+                    FileAccessPolicy.AllowAllButSymlinkCreation);
+            
+                fileAccessManifest.AddScope(
+                    AbsolutePath.Create(Context.PathTable, SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.InternetCache)),
+                    FileAccessPolicy.MaskAll,
+                    FileAccessPolicy.AllowAllButSymlinkCreation);
 
-            fileAccessManifest.AddScope(
-                AbsolutePath.Create(Context.PathTable, SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.InternetCache)),
-                FileAccessPolicy.MaskAll,
-                FileAccessPolicy.AllowAllButSymlinkCreation);
-
-            fileAccessManifest.AddScope(
-                AbsolutePath.Create(Context.PathTable, SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.History)),
-                FileAccessPolicy.MaskAll,
-                FileAccessPolicy.AllowAllButSymlinkCreation);
-
+                fileAccessManifest.AddScope(
+                    AbsolutePath.Create(Context.PathTable, SpecialFolderUtilities.GetFolderPath(Environment.SpecialFolder.History)),
+                    FileAccessPolicy.MaskAll,
+                    FileAccessPolicy.AllowAllButSymlinkCreation);
+            }
+            
             fileAccessManifest.AddScope(toolDirectory, FileAccessPolicy.MaskAll, FileAccessPolicy.AllowReadAlways);
             fileAccessManifest.AddPath(outputFile, FileAccessPolicy.MaskAll, FileAccessPolicy.AllowWrite);
 

@@ -31,9 +31,7 @@ namespace Factory {
             Lage.dll,
             Ninja.dll,
             Nx.dll,
-            ...addIfLazy(qualifier.targetRuntime === "win-x64", () => [            
-                MsBuild.dll,               
-            ]),
+            MsBuild.dll,               
         ],
         internalsVisibleTo: [
             "IntegrationTest.BuildXL.Scheduler",

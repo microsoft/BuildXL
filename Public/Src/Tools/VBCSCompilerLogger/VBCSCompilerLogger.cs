@@ -8,6 +8,7 @@ using System.Collections.Immutable;
 using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using Microsoft.Build.Framework;
 using Microsoft.Build.Utilities;
 using Microsoft.CodeAnalysis;
@@ -30,6 +31,14 @@ namespace VBCSCompilerLogger
         private const string VbcTaskName = "Vbc";
 
         private readonly ConcurrentDictionary<Diagnostic, bool> m_badSwitchErrors = new();
+
+        private readonly AugmentedManifestReporter m_reporter;
+
+        /// <nodoc/>
+        public VBCSCompilerLogger()
+        {
+            m_reporter = AugmentedManifestReporter.Instance;
+        }
 
         /// <inheritdoc/>
         public override void Initialize(IEventSource eventSource)
@@ -122,7 +131,7 @@ namespace VBCSCompilerLogger
                         parsedCommandLine.BaseDirectory);
                 }
 
-                RegisterAccesses(new ParseResult(parsedCommandLine, embeddedResourceFilePaths));
+                RegisterAccesses(m_reporter, new ParseResult(parsedCommandLine, embeddedResourceFilePaths));
             }
         }
 
@@ -154,23 +163,58 @@ namespace VBCSCompilerLogger
         {
             int taskIndex = commandLine.IndexOf(task, StringComparison.OrdinalIgnoreCase);
             const int ExtensionLength = 4;
-            int indexFollowingTool = taskIndex + task.Length + ExtensionLength;
-            if (taskIndex == -1 || indexFollowingTool >= commandLine.Length
-                || !hasExeOrDllExtension(commandLine, taskIndex + task.Length, out bool hasExeExtension)
-                // A space follows csc.exe and vbc.exe, whereas a double quote and a space follow csc.dll and vbc.dll.
-                || indexFollowingTool + 1 + (hasExeExtension ? 0 : 1) >= commandLine.Length)
-            {
-                arguments = null;
-                error = $"Unexpected tool name in command line. Expected csc.exe, csc.dll, vbc.exe, or vbc.dll, but got: {commandLine}";
-                return false;
+
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) {
+                int indexFollowingTool = taskIndex + task.Length + ExtensionLength;
+                if (taskIndex == -1 || indexFollowingTool >= commandLine.Length
+                    || !hasExeOrDllExtension(commandLine, taskIndex + task.Length, out bool hasExeExtension)
+                    // A space follows csc.exe and vbc.exe, whereas a double quote and a space follow csc.dll and vbc.dll.
+                    || indexFollowingTool + 1 + (hasExeExtension ? 0 : 1) >= commandLine.Length)
+                {
+                    arguments = null;
+                    error = $"Unexpected tool name in command line. Expected csc.exe, csc.dll, vbc.exe, or vbc.dll, but got: {commandLine}";
+                    return false;
+                }
+
+                // Obtain the arguments supplied to the task. Ignore the space following csc.exe and vbc.exe and double quote
+                // and space following csc.dll and vbc.dll.
+                arguments = commandLine.Substring(indexFollowingTool + 1 + (hasExeExtension ? 0 : 1));
+                error = string.Empty;
+
+                return true;
             }
+            else
+            {
+                // Determine where the compiler tool name ends in the command line (it may or may not carry an extension).
+                if (taskIndex == -1)
+                {
+                    arguments = null;
+                    error = $"Unexpected tool name in command line. Expected csc or vbc, but got: {commandLine}";
+                    return false;
+                }
+                
+                // The compiler may be invoked as a native apphost ('csc'/'vbc', no extension) or, when MSBuild runs on
+                // .NET Core and launches the managed compiler, as 'dotnet .../csc.dll'. Skip past the tool name and its
+                // optional extension (and an optional surrounding quote) before the separating space.
+                int indexFollowingToolName = taskIndex + task.Length;
+                if (indexFollowingToolName + ExtensionLength <= commandLine.Length
+                    && (commandLine.Substring(indexFollowingToolName, ExtensionLength).Equals(".dll", StringComparison.OrdinalIgnoreCase)
+                        || commandLine.Substring(indexFollowingToolName, ExtensionLength).Equals(".exe", StringComparison.OrdinalIgnoreCase)))
+                {
+                    indexFollowingToolName += ExtensionLength;
+                }
 
-            // Obtain the arguments supplied to the task. Ignore the space following csc.exe and vbc.exe and double quote
-            // and space following csc.dll and vbc.dll.
-            arguments = commandLine.Substring(indexFollowingTool + 1 + (hasExeExtension ? 0 : 1));
-            error = string.Empty;
+                // Skip an optional closing quote around the tool path.
+                if (indexFollowingToolName < commandLine.Length && commandLine[indexFollowingToolName] == '"')
+                {
+                    indexFollowingToolName++;
+                }
 
-            return true;
+                arguments = commandLine.Substring(indexFollowingToolName + 1); // Ignore the space following the tool name
+                error = string.Empty;
+
+                return true;
+            }
 
             static bool hasExeOrDllExtension(string commandLineRemainder, int index, out bool hasExeExtension)
             {
@@ -185,14 +229,14 @@ namespace VBCSCompilerLogger
             }
         }
 
-        private static void RegisterAccesses(ParseResult results)
+        private static void RegisterAccesses(AugmentedManifestReporter reporter, ParseResult results)
         {
             // Even though CommandLineArguments class claims to always report back absolute paths, that's not the case.
             // Use the base directory to resolve relative paths if needed
             // The base directory is what CommandLineArgument claims to be resolving all paths against anyway
             CommandLineArguments commandLineArguments = results.ParsedArguments;
             string? baseDirectory = commandLineArguments.BaseDirectory!;
-            var accessRegistrar = new AccessRegistrar(baseDirectory);
+            var accessRegistrar = new AccessRegistrar(reporter, baseDirectory);
 
             // All *inputs* for compiler options that are guaranteed to exist for the Microsoft.CodeAnalysis
             // library versions we support.
@@ -372,18 +416,23 @@ namespace VBCSCompilerLogger
         /// </summary>
         private sealed class AccessRegistrar
         {
+            private readonly AugmentedManifestReporter m_reporter;
             private readonly string m_basePath;
 
-            public AccessRegistrar(string basePath) => m_basePath = basePath;
+            public AccessRegistrar(AugmentedManifestReporter reporter, string basePath)
+            {
+                m_reporter = reporter;
+                m_basePath = basePath;
+            }
 
-            public void RegisterOutput(string? filePath) => RegisterAccess(filePath, AugmentedManifestReporter.Instance.TryReportFileCreations);
+            public void RegisterOutput(string? filePath) => RegisterAccess(filePath, m_reporter.TryReportFileCreations);
 
-            public void RegisterInput(string? filePath) => RegisterAccess(filePath, AugmentedManifestReporter.Instance.TryReportFileReads);
+            public void RegisterInput(string? filePath) => RegisterAccess(filePath, m_reporter.TryReportFileReads);
 
             public void RegisterInputs(IEnumerable<string?> filePaths)
             {
                 IEnumerable<string> finalPaths = filePaths.Where(path => !string.IsNullOrEmpty(path)).Select((path) => MakeAbsoluteIfNeeded(path!));
-                if (!AugmentedManifestReporter.Instance.TryReportFileReads(finalPaths))
+                if (!m_reporter.TryReportFileReads(finalPaths))
                 {
                     throw new InvalidOperationException($"Failed at reporting augmented file accesses for the following files: [{string.Join(", ", filePaths)}]");
                 }

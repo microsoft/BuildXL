@@ -3332,7 +3332,8 @@ namespace BuildXL.Engine
                 poolName,
                 pool.ObjectsInPool,
                 pool.UseCount,
-                pool.FactoryCalls);
+                pool.FactoryCalls,
+                pool.OversizedObjectCount);
         }
 
         private static void LogObjectPoolStats<T>(LoggingContext loggingContext, string poolName, ArrayPool<T> pool)
@@ -3342,7 +3343,8 @@ namespace BuildXL.Engine
                 poolName,
                 pool.ObjectsInPool,
                 pool.UseCount,
-                pool.FactoryCalls);
+                pool.FactoryCalls,
+                pool.OversizedObjectCount);
         }
 
         private void LogStats(LoggingContext loggingContext, EngineSchedule schedule, CacheInitializationTask cacheInitializationTask, ConstructScheduleResult constructScheduleResult)
@@ -3355,18 +3357,26 @@ namespace BuildXL.Engine
             Logger.Log.StatsBanner(loggingContext);
             Logger.Log.GCStats(loggingContext, GC.CollectionCount(0), GC.CollectionCount(1), GC.CollectionCount(2));
 
+            LogObjectPoolStats(loggingContext, "MemoryStream", Pools.MemoryStreamPool);
             LogObjectPoolStats(loggingContext, "StringBuilder", Pools.StringBuilderPool);
             LogObjectPoolStats(loggingContext, "List<string>", Pools.StringListPool);
+            LogObjectPoolStats(loggingContext, "List<StringId>", Pools.StringIdListPool);
             LogObjectPoolStats(loggingContext, "List<FileArtifact>", Pools.FileArtifactListPool);
             LogObjectPoolStats(loggingContext, "List<FileArtifactWithAttributes>", Pools.FileArtifactWithAttributesListPool);
             LogObjectPoolStats(loggingContext, "List<DirectoryArtifact>", Pools.DirectoryArtifactListPool);
             LogObjectPoolStats(loggingContext, "List<AbsolutePath>", Pools.AbsolutePathListPool);
             LogObjectPoolStats(loggingContext, "List<PathAtom>", Pools.PathAtomListPool);
             LogObjectPoolStats(loggingContext, "List<IdentifierAtom>", Pools.IdentifierAtomListPool);
+            LogObjectPoolStats(loggingContext, "HashSet<PathAtom>", Pools.PathAtomSetPool);
+            LogObjectPoolStats(loggingContext, "HashSet<string>", Pools.StringSetPool);
             LogObjectPoolStats(loggingContext, "HashSet<FileArtifact>", Pools.FileArtifactSetPool);
             LogObjectPoolStats(loggingContext, "HashSet<FileArtifactWithAttributes>", Pools.FileArtifactWithAttributesSetPool);
             LogObjectPoolStats(loggingContext, "HashSet<DirectoryArtifact>", Pools.DirectoryArtifactSetPool);
             LogObjectPoolStats(loggingContext, "HashSet<AbsolutePath>", Pools.AbsolutePathSetPool);
+            LogObjectPoolStats(loggingContext, "HashSet<HierarchicalNameId>", Pools.HierarchicalNameIdSetPool);
+            LogObjectPoolStats(loggingContext, "HashSet<RelativePath>", Pools.RelativePathSetPool);
+            LogObjectPoolStats(loggingContext, "HashSet<(AbsolutePath, string)>", Pools.DirectoryMemberEntrySetPool);
+            LogObjectPoolStats(loggingContext, "HashSet<StringId>", Pools.StringIdSetPool);
             LogObjectPoolStats(loggingContext, "char[]", Pools.CharArrayPool);
             LogObjectPoolStats(loggingContext, "byte[]", Pools.ByteArrayPool);
             LogObjectPoolStats(loggingContext, "PipDataBuilder", Context.PipDataBuilderPool);

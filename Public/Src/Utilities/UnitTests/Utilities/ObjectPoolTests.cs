@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -33,6 +34,95 @@ namespace Test.BuildXL.Utilities
                 using var wrapper = Pools.MemoryStreamPool.GetInstance();
                 wrapper.Instance.WriteByte(42);
             }
+        }
+
+        [Fact]
+        public void RetainedSizePolicyCleansNormalObjectsAndDiscardsOversizedObjects()
+        {
+            int cleanupCount = 0;
+            var pool = new ObjectPool<StringBuilder>(
+                creator: () => new StringBuilder(),
+                cleanup: builder => { cleanupCount++; builder.Clear(); },
+                sizeProvider: builder => builder.Length,
+                maximumRetainedSize: 4);
+            StringBuilder retainedBuilder;
+
+            using (var wrapper = pool.GetInstance())
+            {
+                retainedBuilder = wrapper.Instance;
+                retainedBuilder.Append("1234");
+            }
+
+            using (var wrapper = pool.GetInstance())
+            {
+                Assert.Same(retainedBuilder, wrapper.Instance);
+                Assert.Equal(0, wrapper.Instance.Length);
+                wrapper.Instance.Append("12345");
+            }
+
+            Assert.Equal(1, cleanupCount);
+            Assert.Equal(1, pool.OversizedObjectCount);
+            Assert.Equal(0, pool.ObjectsInPool);
+
+            using var replacementWrapper = pool.GetInstance();
+            Assert.NotSame(retainedBuilder, replacementWrapper.Instance);
+        }
+
+        [Fact]
+        public void MemoryStreamPoolDoesNotRetainOversizedStreams()
+        {
+            long priorOversizedObjectCount = Pools.MemoryStreamPool.OversizedObjectCount;
+            MemoryStream oversizedStream;
+
+            using (var wrapper = Pools.MemoryStreamPool.GetInstance())
+            {
+                oversizedStream = wrapper.Instance;
+                oversizedStream.Capacity = Pools.MaximumMemoryStreamCapacityToRetain + 1;
+            }
+
+            Assert.Equal(priorOversizedObjectCount + 1, Pools.MemoryStreamPool.OversizedObjectCount);
+
+            using var replacementWrapper = Pools.MemoryStreamPool.GetInstance();
+            Assert.NotSame(oversizedStream, replacementWrapper.Instance);
+        }
+
+        [Fact]
+        public void BoundedListPoolDoesNotRetainOversizedLists()
+        {
+            var pool = Pools.CreateListPool<int>(maximumCapacityToRetain: 4);
+            List<int> oversizedList;
+
+            using (var wrapper = pool.GetInstance())
+            {
+                oversizedList = wrapper.Instance;
+                oversizedList.Capacity = 5;
+            }
+
+            Assert.Equal(1, pool.OversizedObjectCount);
+            Assert.Equal(0, pool.ObjectsInPool);
+
+            using var cleanedWrapper = pool.GetInstance();
+            Assert.NotSame(oversizedList, cleanedWrapper.Instance);
+            Assert.Equal(0, cleanedWrapper.Instance.Capacity);
+        }
+
+        [Fact]
+        public void BoundedSetPoolDoesNotRetainOversizedSetsAndPreservesComparer()
+        {
+            var pool = Pools.CreateSetPool<string>(maximumSetSizeToRetain: 4, comparer: StringComparer.OrdinalIgnoreCase);
+            HashSet<string> oversizedSet;
+
+            using (var wrapper = pool.GetInstance())
+            {
+                oversizedSet = wrapper.Instance;
+                oversizedSet.UnionWith(new[] { "one", "two", "three", "four", "five" });
+            }
+
+            using var cleanedWrapper = pool.GetInstance();
+            Assert.NotSame(oversizedSet, cleanedWrapper.Instance);
+            Assert.Equal(1, pool.OversizedObjectCount);
+            Assert.True(cleanedWrapper.Instance.Add("value"));
+            Assert.False(cleanedWrapper.Instance.Add("VALUE"));
         }
         
         [Fact]

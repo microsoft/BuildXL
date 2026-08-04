@@ -2469,8 +2469,8 @@ If you can't update and need this feature after July 2018 please reach out to th
             EventLevel = Level.Verbose,
             Keywords = (int)Keywords.UserMessage,
             EventTask = (int)Tasks.Engine,
-            Message = "  {0} object pool: {1} entries, {2} uses, {3} factory invocations")]
-        public abstract void ObjectPoolStats(LoggingContext context, string pool, int entryCount, long useCount, long factoryInvocations);
+            Message = "  {0} object pool: {1} entries, {2} uses, {3} factory invocations, {4} oversized objects discarded")]
+        public abstract void ObjectPoolStats(LoggingContext context, string pool, int entryCount, long useCount, long factoryInvocations, long oversizedObjectCount);
 
         [GeneratedEvent(
             (int)LogEventId.PipWriterStats,

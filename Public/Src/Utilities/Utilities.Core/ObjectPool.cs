@@ -35,7 +35,12 @@ namespace BuildXL.Utilities.Core
         // Number of times an instance was obtained from the pool (the counter is incremented when regardless whether the was created or not).
         private long m_useCount;
 
+        // Number of returned objects that exceeded the configured maximum retained size.
+        private long m_oversizedObjectCount;
+
         private readonly int m_size;
+        private readonly Func<T, int> m_sizeProvider;
+        private readonly int m_maximumRetainedSize;
 
         // Storage for the pool objects. The first item is stored in a dedicated field because we
         // expect to be able to satisfy most requests from it.
@@ -85,6 +90,20 @@ namespace BuildXL.Utilities.Core
         { }
 
         /// <summary>
+        /// Creates a new object pool that discards returned objects exceeding a configured size.
+        /// </summary>
+        /// <param name="creator">A method to invoke in order to create object instances to insert into the pool.</param>
+        /// <param name="cleanup">An optional method to invoke whenever an object is returned into the pool.</param>
+        /// <param name="sizeProvider">A method that returns the size of an object before cleanup.</param>
+        /// <param name="maximumRetainedSize">The maximum object size retained by the pool.</param>
+        public ObjectPool(Func<T> creator, Action<T> cleanup, Func<T, int> sizeProvider, int maximumRetainedSize)
+            : this(creator, FromActionToFunc(cleanup), Environment.ProcessorCount * 4, sizeProvider, maximumRetainedSize)
+        {
+            Contract.Requires(sizeProvider != null);
+            Contract.Requires(maximumRetainedSize >= 0);
+        }
+
+        /// <summary>
         /// Creates a new object pool for a specific type of object.
         /// </summary>
         /// <param name="creator">A method to invoke in order to create object instances to insert into the pool.</param>
@@ -110,14 +129,21 @@ namespace BuildXL.Utilities.Core
         /// an object's state to make it look new for subsequent uses.
         /// </remarks>
         public ObjectPool(Func<T> creator, Func<T, T> cleanup, int size)
+            : this(creator, cleanup, size, sizeProvider: null, maximumRetainedSize: 0)
+        { }
+
+        private ObjectPool(Func<T> creator, Func<T, T> cleanup, int size, Func<T, int> sizeProvider, int maximumRetainedSize)
         {
             Contract.Requires(creator != null);
             Contract.Requires(size >= 1);
+            Contract.Requires(sizeProvider == null || maximumRetainedSize >= 0);
 
             m_creator = creator;
             m_cleanup = cleanup;
             m_items = new ConcurrentStack<T>();
             m_size = size;
+            m_sizeProvider = sizeProvider;
+            m_maximumRetainedSize = maximumRetainedSize;
         }
 
         private T CreateInstance()
@@ -177,6 +203,11 @@ namespace BuildXL.Utilities.Core
         /// </summary>
         public long FactoryCalls => m_factoryCall;
 
+        /// <summary>
+        /// Gets the number of returned objects that exceeded the configured maximum retained size.
+        /// </summary>
+        public long OversizedObjectCount => m_oversizedObjectCount;
+
         private T AllocateSlow()
         {
             if (m_items.TryPop(out T inst))
@@ -203,6 +234,12 @@ namespace BuildXL.Utilities.Core
         /// </summary>
         public void PutInstance(T obj)
         {
+            if (m_sizeProvider != null && m_sizeProvider(obj) > m_maximumRetainedSize)
+            {
+                Interlocked.Increment(ref m_oversizedObjectCount);
+                return;
+            }
+
             obj = m_cleanup?.Invoke(obj) ?? obj;
 
             var item = m_firstItem;

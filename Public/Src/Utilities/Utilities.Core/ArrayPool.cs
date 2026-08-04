@@ -93,5 +93,10 @@ namespace BuildXL.Utilities.Core
         /// Gets the number of times a factory method was called.
         /// </summary>
         public long FactoryCalls => m_pool.FactoryCalls;
+
+        /// <summary>
+        /// Gets the number of returned arrays that exceeded the configured maximum retained size.
+        /// </summary>
+        public long OversizedObjectCount => m_pool.OversizedObjectCount;
     }
 }

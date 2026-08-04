@@ -4305,6 +4305,8 @@ namespace BuildXL.Scheduler.Artifacts
         /// </summary>
         private sealed class PipArtifactsState : IDisposable
         {
+            private const int MaximumRetainedCollectionCapacity = 64 * 1024;
+
             private readonly FileContentManager m_manager;
 
             public PipArtifactsState(FileContentManager manager) => m_manager = manager;
@@ -4352,7 +4354,7 @@ namespace BuildXL.Scheduler.Artifacts
             /// <summary>
             /// The materialized paths (files and directories) in all materialized directories. The boolean represents isDirectory info.
             /// </summary>
-            public readonly Dictionary<AbsolutePath, bool> MaterializedDirectoryContents = new();
+            public Dictionary<AbsolutePath, bool> MaterializedDirectoryContents = new();
 
             /// <summary>
             /// All the artifacts to process
@@ -4442,24 +4444,67 @@ namespace BuildXL.Scheduler.Artifacts
                 Virtualize = false;
 
                 OverallOutputOrigin = PipOutputOrigin.NotMaterialized;
-                MaterializedDirectoryContents.Clear();
-                PipArtifacts.Clear();
-                DirectoryDeletionCompletions.Clear();
-                PendingDirectoryDeletions.Clear();
-                MaterializationFiles.Clear();
-                HydrationFiles.Clear();
-
-                m_filesAndContentHashes.Clear();
-
-                HashTasks.Clear();
-                PendingPlacementTasks.Clear();
-                PlacementTasks.Clear();
-                FailedFiles.Clear();
-                m_failedDirectories.Clear();
+                MaterializedDirectoryContents = ClearAndTrimIfOversized(MaterializedDirectoryContents);
+                ClearAndTrimIfOversized(PipArtifacts);
+                ClearAndTrimIfOversized(DirectoryDeletionCompletions);
+                ClearAndTrimIfOversized(PendingDirectoryDeletions);
+                ClearAndTrimIfOversized(MaterializationFiles);
+                ClearAndTrimIfOversized(HydrationFiles);
+                ClearAndTrimIfOversized(m_filesAndContentHashes);
+                ClearAndTrimIfOversized(HashTasks);
+                ClearAndTrimIfOversized(PendingPlacementTasks);
+                ClearAndTrimIfOversized(PlacementTasks);
+                ClearAndTrimIfOversized(FailedFiles);
+                ClearAndTrimIfOversized(m_failedDirectories);
 
                 InnerFailure = null;
 
                 m_manager.m_statePool.Enqueue(this);
+            }
+
+            private static void ClearAndTrimIfOversized<T>(List<T> list)
+            {
+                list.Clear();
+                if (list.Capacity > MaximumRetainedCollectionCapacity)
+                {
+                    list.Capacity = 0;
+                }
+            }
+
+            private static Dictionary<TKey, TValue> ClearAndTrimIfOversized<TKey, TValue>(Dictionary<TKey, TValue> dictionary)
+            {
+#if NETCOREAPP
+                bool trim = dictionary.EnsureCapacity(0) > MaximumRetainedCollectionCapacity;
+                dictionary.Clear();
+                if (trim)
+                {
+                    dictionary.TrimExcess();
+                }
+
+                return dictionary;
+#else
+                if (dictionary.Count > MaximumRetainedCollectionCapacity)
+                {
+                    return new Dictionary<TKey, TValue>(dictionary.Comparer);
+                }
+
+                dictionary.Clear();
+                return dictionary;
+#endif
+            }
+
+            private static void ClearAndTrimIfOversized<T>(HashSet<T> set)
+            {
+#if NETCOREAPP
+                bool trim = set.EnsureCapacity(0) > MaximumRetainedCollectionCapacity;
+#else
+                bool trim = set.Count > MaximumRetainedCollectionCapacity;
+#endif
+                set.Clear();
+                if (trim)
+                {
+                    set.TrimExcess();
+                }
             }
 
             /// <summary>

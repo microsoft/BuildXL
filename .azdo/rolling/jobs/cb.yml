@@ -37,8 +37,6 @@ jobs:
         /q:DebugNet472
         /q:DebugNet8
         /q:ReleaseNet8
-        /q:DebugNet9
-        /q:ReleaseNet9
         /q:DebugNet10
         /q:ReleaseNet10
         /p:Build.BuildId=$(Build.BuildNumber)

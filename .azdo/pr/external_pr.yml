@@ -57,7 +57,6 @@ extends:
             -deploy Dev
             -deployconfig Release
             /p:[Sdk.BuildXL]microsoftInternal=1
-            /q:ReleaseNet9
             /p:[BuildXL.Branding]SemanticVersion=$(BuildXL.SemanticVersion)
             /p:[BuildXL.Branding]PrereleaseTag=$(BuildXL.PreReleaseTag)
             /logOutput:FullOutputOnWarningOrError
@@ -96,7 +95,7 @@ extends:
               -Use Dev
               /p:[Sdk.BuildXL]microsoftInternal=0
               /p:[Sdk.BuildXL]usePublicDepsOnlyFeed=1
-              /q:$(BuildXL.Configuration)Net9
+              /q:$(BuildXL.Configuration)Net10
               /logOutput:FullOutputOnWarningOrError
               /p:RetryXunitTests=1
               /processRetries:3

@@ -149,8 +149,8 @@ jobs:
         /logsDirectory:"Out/Logs/Build"
         /p:Build.BuildId=$(Build.BuildNumber)
         /p:[BuildXL.Branding]SourceIdentification=$(Branding_SourceIdentification)
-        /q:DebugLinuxNet9
-        /q:ReleaseLinuxNet9
+        /q:DebugLinuxNet10
+        /q:ReleaseLinuxNet10
         "/f:output='/home/subst/Out/Bin/*'ortag='test'"
         ${{ parameters.experimentalFlag }}
         /p:[Sdk.BuildXL]useQTest=false
@@ -175,6 +175,7 @@ jobs:
         rm -rf Out/Bin/Demos
         rm -rf Out/Bin/net8.0
         rm -rf Out/Bin/net9.0
+        rm -rf Out/Bin/net10.0
         rm -rf Out/Bin/release/cache
         rm -rf Out/Bin/release/ide
         rm -rf Out/Bin/release/linux-x64

@@ -51,7 +51,7 @@ extends:
               /p:[Sdk.BuildXL]microsoftInternal=1
               /validateCgManifestForNugets:cg\nuget\cgmanifest.json
               /cacheMiss+
-              /q:ReleaseNet9
+              /q:Release
             sendEmail: false
             genericRunnerOptions: '{ "IsDropEnabled": "true", "DropName": "$(BuildXLDropName)", "ContentWriteMode": "WriteThrough" }'
             minBuilders: 2
@@ -76,8 +76,6 @@ extends:
               /q:ReleaseDotNetCoreMac
               /q:ReleaseNet472
               /q:DebugNet472
-              /q:DebugNet9
-              /q:ReleaseNet9
               /q:DebugNet10
               /q:ReleaseNet10
               /p:[Sdk.BuildXL]microsoftInternal=1

@@ -17,6 +17,11 @@ parameters:
 - name: RollingBuildId
   type: string
   default: '$(Build.BuildId)'
+- name: ExternalBuildArguments
+  type: string
+  default: >-
+    /fingerprintSalt:external_build
+    /p:[Sdk.BuildXL]microsoftInternal=0
 
 jobs:
 - job: External_Lkg
@@ -116,8 +121,7 @@ jobs:
         /p:[BuildXL.Branding]PrereleaseTag=$(BuildXL.PreReleaseTag)
         /p:[BuildXL.Branding]SourceIdentification=$(Branding_SourceIdentification)
         /logOutput:FullOutputOnWarningOrError
-        /fingerprintSalt:external_build
-        /p:[Sdk.BuildXL]microsoftInternal=0
+        ${{ parameters.ExternalBuildArguments }}
         /p:[Sdk.BuildXL]usePublicDepsOnlyFeed=1
     env:
       # The following two variables need to be set explicitly because we are using the ADO build runner outside of the 1ESPT buildxl workflow
@@ -178,8 +182,7 @@ jobs:
         /p:[BuildXL.Branding]PrereleaseTag=$(BuildXL.PreReleaseTag)
         /p:[BuildXL.Branding]SourceIdentification=$(Branding_SourceIdentification)
         /logOutput:FullOutputOnWarningOrError
-        /fingerprintSalt:external_build
-        /p:[Sdk.BuildXL]microsoftInternal=0
+        ${{ parameters.ExternalBuildArguments }}
         /p:[Sdk.BuildXL]usePublicDepsOnlyFeed=1
         /processRetries:3
         /scrubDirectory:$(Build.SourcesDirectory)\Out\Objects
@@ -206,8 +209,7 @@ jobs:
         bxl.cmd
         -OneESBuildCacheName BuildXLSelfhostNewRolling
         -use dev
-        /fingerprintSalt:external_build
-        /p:[Sdk.BuildXL]microsoftInternal=0
+        ${{ parameters.ExternalBuildArguments }}
         /p:[Sdk.BuildXL]usePublicDepsOnlyFeed=1
         /q:$(QualifierToBuild)
         /p:[BuildXL.Branding]SemanticVersion=$(BuildXL.SemanticVersion)
@@ -260,8 +262,6 @@ jobs:
 
   steps:
   - template: ../steps/linux_prepare.yml
-    parameters:
-      CacheNamespace: BuildXL.Linux.External  # TODO - this is the extent of isolation with the internal build we're getting right now / work item #2143786
 
   - template: /.azdo/common/set-variable-pats.yml
 
@@ -273,7 +273,8 @@ jobs:
       script: >-
         set -eu
 
-        bash bxl.sh --shared-comp
+        bash bxl.sh --shared-comp --use-adobuildrunner
+        --runner-arg /hostedPoolActiveBuildCacheName:BuildXLSelfhostNewRolling
         --use-public-deps-only-feed
         "/f:output='*/linux-x64/bxl-ebpf-runner'"
         /q:ReleaseLinux
@@ -282,10 +283,11 @@ jobs:
         /logoutput:FullOutputOnError
         /logsDirectory:"Out/Logs/Build"
         /p:[BuildXL.Branding]SourceIdentification=$(Branding_SourceIdentification)
-        /fingerprintSalt:external_build
-        /p:[Sdk.BuildXL]microsoftInternal=0
+        ${{ parameters.ExternalBuildArguments }}
       workingDirectory: /home/subst
     env:
+      AdoBuildRunnerInvocationKey: RollingLinuxExternalEbpf
+      SYSTEM_ACCESSTOKEN: $(System.AccessToken)
       # Feed auth for usePublicDepsOnlyFeed; set by /.azdo/common/set-variable-pats.yml earlier in the job.
       1ESSHAREDASSETS_BUILDXL_FEED_PAT: $(1ESSHAREDASSETS_BUILDXL_FEED_PAT)
       1ESSHAREDASSETS_BUILDXL_FEED_PAT_B64: $(1ESSHAREDASSETS_BUILDXL_FEED_PAT_B64)
@@ -339,8 +341,6 @@ jobs:
     
   steps:
   - template: ../steps/linux_prepare.yml
-    parameters:
-      CacheNamespace: BuildXL.Linux.External  # TODO - this is the extent of isolation with the internal build we're getting right now / work item #2143786
 
   - template: /.azdo/common/set-variable-pats.yml
 
@@ -357,14 +357,18 @@ jobs:
       script: >-
         set -eu
 
-        bash bxl.sh --shared-comp --minimal --deploy-dev --release
+        bash bxl.sh --shared-comp --minimal --deploy-dev --release --use-adobuildrunner
+        --runner-arg /hostedPoolActiveBuildCacheName:BuildXLSelfhostNewRolling
         --use-public-deps-only-feed
+        ${{ parameters.ExternalBuildArguments }}
         /p:BuildXLEbpfSandboxDeploymentOverridePath=$(Build.StagingDirectory)/Linux.eBPF
         /cacheMiss:Bxl.Selfhost.Linux.External
         /logoutput:FullOutputOnError
         /logsDirectory:"Out/Logs/Build"
       workingDirectory: /home/subst
     env:
+      AdoBuildRunnerInvocationKey: RollingLinuxExternalBootstrap
+      SYSTEM_ACCESSTOKEN: $(System.AccessToken)
       # Feed auth for usePublicDepsOnlyFeed; set by /.azdo/common/set-variable-pats.yml earlier in the job.
       1ESSHAREDASSETS_BUILDXL_FEED_PAT: $(1ESSHAREDASSETS_BUILDXL_FEED_PAT)
       1ESSHAREDASSETS_BUILDXL_FEED_PAT_B64: $(1ESSHAREDASSETS_BUILDXL_FEED_PAT_B64)
@@ -377,8 +381,10 @@ jobs:
       script: >-
         set -eu
 
-        bash bxl.sh --use-dev --shared-comp
+        bash bxl.sh --use-dev --shared-comp --use-adobuildrunner
+        --runner-arg /hostedPoolActiveBuildCacheName:BuildXLSelfhostNewRolling
         --use-public-deps-only-feed
+        ${{ parameters.ExternalBuildArguments }}
         /p:BuildXLEbpfSandboxDeploymentOverridePath=$(Build.StagingDirectory)/Linux.eBPF
         /cacheMiss:Bxl.Linux.External.Rolling
         /logoutput:FullOutputOnError
@@ -389,6 +395,8 @@ jobs:
         "/f:output='/home/subst/Out/Bin/release/public/pkgs/*'oroutput='/home/subst/Out/Bin/release/ide/*'"
       workingDirectory: /home/subst
     env:
+      AdoBuildRunnerInvocationKey: RollingLinuxExternalBuild
+      SYSTEM_ACCESSTOKEN: $(System.AccessToken)
       # Feed auth for usePublicDepsOnlyFeed; set by /.azdo/common/set-variable-pats.yml earlier in the job.
       1ESSHAREDASSETS_BUILDXL_FEED_PAT: $(1ESSHAREDASSETS_BUILDXL_FEED_PAT)
       1ESSHAREDASSETS_BUILDXL_FEED_PAT_B64: $(1ESSHAREDASSETS_BUILDXL_FEED_PAT_B64)

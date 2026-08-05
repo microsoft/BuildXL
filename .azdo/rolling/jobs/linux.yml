@@ -40,8 +40,6 @@ jobs:
 
   steps:
   - template: ../steps/linux_prepare.yml
-    parameters:
-      CacheNamespace: BuildXLSelfhost.Linux
 
   - task: Bash@3
     displayName: Build Linux eBPF Sandbox Binaries
@@ -50,19 +48,20 @@ jobs:
       script: >
         set -eu
 
-        bash bxl.sh --internal --shared-comp
+        bash bxl.sh --internal --shared-comp --use-adobuildrunner
+        --runner-arg /hostedPoolActiveBuildCacheName:BuildXLSelfhostNewRolling
         "/f:output='*/linux-x64/bxl-ebpf-runner'"
         /cacheMiss:Bxl.Selfhost.Linux.eBPF
-        /cacheConfigFilePath:Out/CacheConfig.json
         /logoutput:FullOutputOnError
         /logsDirectory:"Out/Logs/Build"
         /q:ReleaseLinux
         /q:DebugLinux
       workingDirectory: /home/subst
     env:
+      AdoBuildRunnerInvocationKey: RollingLinuxInternalEbpf
+      SYSTEM_ACCESSTOKEN: $(System.AccessToken)
       PAT1esSharedAssets: $(BuildXL-Pipeline-AccessToken)
       PATCloudBuild: $(BuildXL-Pipeline-AccessToken)
-      VSTSPERSONALACCESSTOKEN: $(System.AccessToken)
 
 # This part of the build will pick up the eBPF Sandbox binaries built in the previous step.
 # This step may be built with an older kernel version if needed.
@@ -98,8 +97,6 @@ jobs:
 
   steps:
   - template: ../steps/linux_prepare.yml
-    parameters:
-      CacheNamespace: BuildXLSelfhost.Linux
 
   - task: ms-vscs-artifact.build-tasks.artifactDropDownloadTask-1.artifactDropDownloadTask@1
     displayName: '📥 Download eBPF Artifacts'
@@ -117,16 +114,17 @@ jobs:
       script: >
         set -eu
 
-        bash bxl.sh --internal --minimal --deploy-dev --release --shared-comp
+        bash bxl.sh --internal --minimal --deploy-dev --release --shared-comp --use-adobuildrunner
+        --runner-arg /hostedPoolActiveBuildCacheName:BuildXLSelfhostNewRolling
         /cacheMiss:Bxl.Selfhost.Linux
-        /cacheConfigFilePath:Out/CacheConfig.json
         /logoutput:FullOutputOnError
         /logsDirectory:"Out/Logs/Build"
       workingDirectory: /home/subst
     env:
+      AdoBuildRunnerInvocationKey: RollingLinuxInternalBootstrap
+      SYSTEM_ACCESSTOKEN: $(System.AccessToken)
       PAT1esSharedAssets: $(BuildXL-Pipeline-AccessToken)
       PATCloudBuild: $(BuildXL-Pipeline-AccessToken)
-      VSTSPERSONALACCESSTOKEN: $(System.AccessToken)
       # CODESYNC: Public/Src/Sandbox/Linux/ebpf/deployment.dsc
       BuildXLEbpfSandboxDeploymentOverridePath: $(Build.StagingDirectory)/Linux.eBPF
 
@@ -142,9 +140,9 @@ jobs:
       script: >-
         set -eu
 
-        bash bxl.sh --use-dev --shared-comp --internal
+        bash bxl.sh --use-dev --shared-comp --internal --use-adobuildrunner
+        --runner-arg /hostedPoolActiveBuildCacheName:BuildXLSelfhostNewRolling
         /cacheMiss:Bxl.Selfhost.Linux
-        /cacheConfigFilePath:Out/CacheConfig.json
         /logoutput:FullOutputOnError
         /logsDirectory:"Out/Logs/Build"
         /p:Build.BuildId=$(Build.BuildNumber)
@@ -156,9 +154,10 @@ jobs:
         /p:[Sdk.BuildXL]useQTest=false
       workingDirectory: /home/subst
     env:
+      AdoBuildRunnerInvocationKey: RollingLinuxInternalBuild
+      SYSTEM_ACCESSTOKEN: $(System.AccessToken)
       PAT1esSharedAssets: $(BuildXL-Pipeline-AccessToken)
       PATCloudBuild: $(BuildXL-Pipeline-AccessToken)
-      VSTSPERSONALACCESSTOKEN: $(System.AccessToken)
       # CODESYNC: Public/Src/Sandbox/Linux/ebpf/deployment.dsc
       BuildXLEbpfSandboxDeploymentOverridePath: $(Build.StagingDirectory)/Linux.eBPF
 

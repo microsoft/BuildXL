@@ -41,6 +41,55 @@ namespace Test.BuildXL.Utilities
             TestOperationsHelper(parallel: true);
         }
 
+        [Fact]
+        public void AssociatedOperationsRetainTopUniqueOperations()
+        {
+            var tracker = new OperationTracker(new LoggingContext("test"));
+            OperationKind kind = PipExecutorCounter.ExecutePipStepDuration;
+            var aggregateCounter = new OperationTracker.Counter(kind);
+            var counter = new OperationTracker.StackCounter(kind, parent: null, aggregateCounter);
+            var operations = Enumerable.Range(0, OperationTracker.MaxTopOperations + 2)
+                .Select(_ => new OperationTracker.RootOperation(tracker))
+                .ToArray();
+
+            Assert.Equal(0, counter.AssociatedOperations.Capacity);
+
+            for (int i = 0; i < operations.Length; i++)
+            {
+                counter.AddAssociatedOperation(CreateCapturedOperation(operations[i], i + 1));
+            }
+
+            var retainedOperation = operations[OperationTracker.MaxTopOperations + 1];
+            counter.AddAssociatedOperation(CreateCapturedOperation(retainedOperation, 1));
+            Assert.Equal(
+                OperationTracker.MaxTopOperations + 2L,
+                counter.AssociatedOperations.Single(operation => ReferenceEquals(operation.Operation, retainedOperation)).Duration.Ticks);
+
+            counter.AddAssociatedOperation(
+                CreateCapturedOperation(retainedOperation, OperationTracker.MaxTopOperations + 5));
+            Assert.Equal(
+                OperationTracker.MaxTopOperations + 5L,
+                counter.AssociatedOperations.Single(operation => ReferenceEquals(operation.Operation, retainedOperation)).Duration.Ticks);
+
+            // An operation that was previously evicted can re-enter the retained top operations.
+            counter.AddAssociatedOperation(CreateCapturedOperation(operations[0], OperationTracker.MaxTopOperations + 6));
+            counter.SortAssociatedOperations();
+
+            var expectedDurations = Enumerable.Range(0, OperationTracker.MaxTopOperations)
+                .Select(index => index == 0
+                    ? OperationTracker.MaxTopOperations + 6L
+                    : index == 1
+                        ? OperationTracker.MaxTopOperations + 5L
+                        : OperationTracker.MaxTopOperations + 3L - index);
+
+            Assert.Equal(OperationTracker.MaxTopOperations, counter.AssociatedOperations.Count);
+            Assert.Equal(OperationTracker.MaxTopOperations, counter.AssociatedOperations.Capacity);
+            Assert.Equal(expectedDurations, counter.AssociatedOperations.Select(operation => operation.Duration.Ticks));
+            Assert.Equal(
+                OperationTracker.MaxTopOperations,
+                counter.AssociatedOperations.Select(operation => operation.Operation).Distinct().Count());
+        }
+
         public void TestOperationsHelper(bool parallel)
         {
             LoggingContext log = new LoggingContext("op");
@@ -147,5 +196,15 @@ namespace Test.BuildXL.Utilities
                 }
             }
         }
+
+        private static OperationTracker.CapturedOperationInfo CreateCapturedOperation(OperationTracker.Operation operation, long durationTicks)
+        {
+            return new OperationTracker.CapturedOperationInfo
+            {
+                Duration = TimeSpan.FromTicks(durationTicks),
+                Operation = operation,
+            };
+        }
+
     }
 }

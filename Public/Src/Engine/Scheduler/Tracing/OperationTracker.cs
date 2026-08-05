@@ -42,7 +42,10 @@ namespace BuildXL.Scheduler.Tracing
     /// </summary>
     public sealed class OperationTracker : IOperationTracker
     {
-        private const int MaxTopOperations = 5;
+        /// <summary>
+        /// Maximum number of associated operations retained for reporting.
+        /// </summary>
+        internal const int MaxTopOperations = 5;
 
         /// <summary>
         /// Enables tracing of operations
@@ -340,7 +343,7 @@ namespace BuildXL.Scheduler.Tracing
 
                                 if (info.Value.Artifact.IsValid || info.Value.PipId.IsValid)
                                 {
-                                    outstandingCounter?.AssociatedOperations.Add(info.Value);
+                                    outstandingCounter?.AddAssociatedOperation(info.Value);
 
                                     if (outstandingCounter != null)
                                     {
@@ -349,7 +352,7 @@ namespace BuildXL.Scheduler.Tracing
 
                                     if (info.Value.Duration > s_maxOpsThreshold)
                                     {
-                                        operation.Counter?.AssociatedOperations.Add(info.Value);
+                                        operation.Counter?.AddAssociatedOperation(info.Value);
                                         if (operation.Counter != null)
                                         {
                                             m_countersWithAssociatedOperations.Add(operation.Counter);
@@ -1212,6 +1215,51 @@ namespace BuildXL.Scheduler.Tracing
             public void SortAssociatedOperations()
             {
                 AssociatedOperations.Sort((o1, o2) => -o1.Duration.CompareTo(o2.Duration));
+            }
+
+            /// <summary>
+            /// Retains only the longest unique operations as they are captured. Associated operations are ultimately
+            /// sorted and truncated to <see cref="MaxTopOperations"/> for reporting, so bounding the collection while
+            /// building it preserves the reported result without allowing its backing storage to grow unbounded.
+            /// </summary>
+            public void AddAssociatedOperation(CapturedOperationInfo operation)
+            {
+                int shortestOperationIndex = -1;
+                TimeSpan shortestDuration = TimeSpan.MaxValue;
+
+                for (int i = 0; i < AssociatedOperations.Count; i++)
+                {
+                    var existingOperation = AssociatedOperations[i];
+                    if (ReferenceEquals(existingOperation.Operation, operation.Operation))
+                    {
+                        if (operation.Duration > existingOperation.Duration)
+                        {
+                            AssociatedOperations[i] = operation;
+                        }
+
+                        return;
+                    }
+
+                    if (existingOperation.Duration < shortestDuration)
+                    {
+                        shortestDuration = existingOperation.Duration;
+                        shortestOperationIndex = i;
+                    }
+                }
+
+                if (AssociatedOperations.Count < MaxTopOperations)
+                {
+                    if (AssociatedOperations.Capacity < MaxTopOperations)
+                    {
+                        AssociatedOperations.Capacity = MaxTopOperations;
+                    }
+
+                    AssociatedOperations.Add(operation);
+                }
+                else if (operation.Duration > shortestDuration)
+                {
+                    AssociatedOperations[shortestOperationIndex] = operation;
+                }
             }
 
             public override void Reset()

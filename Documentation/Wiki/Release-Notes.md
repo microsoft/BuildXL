@@ -2,6 +2,15 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20260731.2 (Release [31855582](https://dev.azure.com/mseng/Domino/_build/results?buildId=31855582&view=results))
+- [Detours] Fix builds producing no output and never completing when `BuildXL.Processes` is loaded into a .NET 11 host.
+- [Distribution] Honor each worker's own `/ramSemaphoreMultiplier` on heterogeneous fleets, instead of sizing every worker with the orchestrator's value.
+- Add `##bxl` build hints so pips can report the cost of external work to the scheduler via `##bxl[runtimeMS]=<value>`.
+- [Diagnostics] Attribute dynamic file access violations to the pip that actually wrote the file rather than the first pip to touch the path.
+- Fix a crash when a front-end input file vanishes during graph construction.
+- [Perf] Cut scheduler memory for temp-file producer tracking in large builds.
+- Various bug fixes and improvements.
+
 # 0.1.0-20260724.3 (Release [31821324](https://mseng.visualstudio.com/Domino/_build/results?buildId=31821324&view=results))
 - [Security] Fix CVE-2026-13149 (`brace-expansion`) and CVE-2026-50651 (.NET win-x64 runtime).
 - [gRPC] Promote gRPC encryption settings to command-line args.

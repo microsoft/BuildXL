@@ -69,6 +69,27 @@ namespace Test.BuildXL.Utilities
         }
 
         [Fact]
+        public void RetainedSizePolicyUsesDefaultMaximum()
+        {
+            var pool = new ObjectPool<StringBuilder>(
+                creator: () => new StringBuilder(),
+                cleanup: builder => builder.Clear(),
+                sizeProvider: builder => builder.Capacity);
+            StringBuilder oversizedBuilder;
+
+            using (var wrapper = pool.GetInstance())
+            {
+                oversizedBuilder = wrapper.Instance;
+                oversizedBuilder.EnsureCapacity(ObjectPool<StringBuilder>.DefaultMaximumRetainedSize + 1);
+            }
+
+            Assert.Equal(1, pool.OversizedObjectCount);
+
+            using var replacementWrapper = pool.GetInstance();
+            Assert.NotSame(oversizedBuilder, replacementWrapper.Instance);
+        }
+
+        [Fact]
         public void MemoryStreamPoolDoesNotRetainOversizedStreams()
         {
             long priorOversizedObjectCount = Pools.MemoryStreamPool.OversizedObjectCount;
@@ -188,6 +209,36 @@ namespace Test.BuildXL.Utilities
             }
 
             XAssert.AreSame(firstInstanceFromRegularPool, secondInstanceFromRegularPool, "Regular pool should return each object every time.");
+        }
+
+        [Fact]
+        public void ClearResetsPoolSizeAccounting()
+        {
+            var pool = new ObjectPool<StringBuilder>(
+                creator: () => new StringBuilder(),
+                cleanup: builder => builder.Clear());
+            var wrappers = Enumerable.Range(0, Environment.ProcessorCount * 4 + 1)
+                .Select(_ => pool.GetInstance())
+                .ToArray();
+
+            foreach (var wrapper in wrappers)
+            {
+                wrapper.Dispose();
+            }
+
+            pool.Clear();
+            Assert.Equal(0, pool.ObjectsInPool);
+
+            wrappers = Enumerable.Range(0, Environment.ProcessorCount * 4 + 1)
+                .Select(_ => pool.GetInstance())
+                .ToArray();
+
+            foreach (var wrapper in wrappers)
+            {
+                wrapper.Dispose();
+            }
+
+            Assert.Equal(Environment.ProcessorCount * 4 + 1, pool.ObjectsInPool);
         }
 
         [Fact]

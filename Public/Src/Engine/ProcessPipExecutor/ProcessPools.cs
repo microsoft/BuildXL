@@ -19,21 +19,24 @@ namespace BuildXL.ProcessPipExecutor
         /// </summary>
         public static ObjectPool<Dictionary<AbsolutePath, ReportedFileAccessesAndFlagsMutable>> ObservedFileAccessesAndFlagsByPathPool { get; } = new ObjectPool<Dictionary<AbsolutePath, ReportedFileAccessesAndFlagsMutable>>(
              () => new Dictionary<AbsolutePath, ReportedFileAccessesAndFlagsMutable>(),
-             s => s.Clear());
+             s => s.Clear(),
+             sizeProvider: Pools.GetDictionaryCapacity);
 
         /// <summary>
         /// Global pool of dictionaries for grouping reported writes accesses in dynamic directories
         /// </summary>
         public static ObjectPool<Dictionary<AbsolutePath, HashSet<AbsolutePath>>> DynamicWriteAccesses { get; } = new ObjectPool<Dictionary<AbsolutePath, HashSet<AbsolutePath>>>(
             () => new Dictionary<AbsolutePath, HashSet<AbsolutePath>>(),
-            s => s.Clear());
+            s => s.Clear(),
+            sizeProvider: Pools.GetDictionaryCapacity);
 
         /// <summary>
         /// Global pool of lists for collecting reported file accesses
         /// </summary>
         public static ObjectPool<List<ReportedFileAccess>> ReportedFileAccessList { get; } = new ObjectPool<List<ReportedFileAccess>>(
             () => new List<ReportedFileAccess>(),
-            s => s.Clear());
+            s => s.Clear(),
+            sizeProvider: s => s.Capacity);
 
         private static readonly ConcurrentDictionary<PathTable.ExpandedAbsolutePathComparer, ObjectPool<SortedDictionary<AbsolutePath, ReportedFileAccessesAndFlagsMutable>>> s_sortedObservationsByPathPools = 
             new ConcurrentDictionary<PathTable.ExpandedAbsolutePathComparer, ObjectPool<SortedDictionary<AbsolutePath, ReportedFileAccessesAndFlagsMutable>>>();
@@ -46,7 +49,8 @@ namespace BuildXL.ProcessPipExecutor
             return s_sortedObservationsByPathPools.GetOrAdd(expandedAbsolutePathComparer,
                 _ => new ObjectPool<SortedDictionary<AbsolutePath, ReportedFileAccessesAndFlagsMutable>>(
                     () => new SortedDictionary<AbsolutePath, ReportedFileAccessesAndFlagsMutable>(expandedAbsolutePathComparer),
-                    s => s.Clear()));
+                    s => s.Clear(),
+                    sizeProvider: s => s.Count));
         }
     }
 }

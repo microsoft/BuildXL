@@ -29,6 +29,15 @@ namespace BuildXL.Utilities.Core
     /// </remarks>
     public sealed class ObjectPool<T> where T : class
     {
+        /// <summary>
+        /// Default maximum value of the caller-defined retention metric for an object retained by a pool.
+        /// </summary>
+        /// <remarks>
+        /// The metric is not necessarily measured in bytes. Its meaning and unit are defined by the pool's
+        /// size provider; common examples are collection capacity, element count, or stream capacity in bytes.
+        /// </remarks>
+        public const int DefaultMaximumRetainedSize = 64 * 1024;
+
         // Number of times a creator was invoked.
         private long m_factoryCall;
 
@@ -39,6 +48,8 @@ namespace BuildXL.Utilities.Core
         private long m_oversizedObjectCount;
 
         private readonly int m_size;
+        // The provider defines the retention metric and its unit for this pool. The maximum is interpreted
+        // in that same unit and is not necessarily a number of bytes.
         private readonly Func<T, int> m_sizeProvider;
         private readonly int m_maximumRetainedSize;
 
@@ -94,9 +105,21 @@ namespace BuildXL.Utilities.Core
         /// </summary>
         /// <param name="creator">A method to invoke in order to create object instances to insert into the pool.</param>
         /// <param name="cleanup">An optional method to invoke whenever an object is returned into the pool.</param>
-        /// <param name="sizeProvider">A method that returns the size of an object before cleanup.</param>
-        /// <param name="maximumRetainedSize">The maximum object size retained by the pool.</param>
-        public ObjectPool(Func<T> creator, Action<T> cleanup, Func<T, int> sizeProvider, int maximumRetainedSize)
+        /// <param name="sizeProvider">
+        /// A method that returns a caller-defined retention metric before cleanup. The metric may represent
+        /// collection capacity, element count, bytes, or another value appropriate for the pooled type.
+        /// When specified, objects whose metric exceeds <see cref="DefaultMaximumRetainedSize"/> are not
+        /// returned to the pool unless <paramref name="maximumRetainedSize"/> is explicitly overridden.
+        /// </param>
+        /// <param name="maximumRetainedSize">
+        /// The maximum retention metric accepted by the pool, expressed in the same unit returned by
+        /// <paramref name="sizeProvider"/>.
+        /// </param>
+        public ObjectPool(
+            Func<T> creator,
+            Action<T> cleanup,
+            Func<T, int> sizeProvider,
+            int maximumRetainedSize = DefaultMaximumRetainedSize)
             : this(creator, FromActionToFunc(cleanup), Environment.ProcessorCount * 4, sizeProvider, maximumRetainedSize)
         {
             Contract.Requires(sizeProvider != null);
@@ -186,6 +209,7 @@ namespace BuildXL.Utilities.Core
         {
             m_firstItem = default(T);
             m_items.Clear();
+            Interlocked.Exchange(ref m_stackLength, 0);
         }
 
         /// <summary>

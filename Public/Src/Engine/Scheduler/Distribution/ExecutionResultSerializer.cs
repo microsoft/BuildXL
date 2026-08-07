@@ -35,7 +35,10 @@ namespace BuildXL.Scheduler.Distribution
 
         #region Reader Pool
 
-        private readonly ObjectPool<BuildXLReader> m_readerPool = new ObjectPool<BuildXLReader>(CreateReader, (Action<BuildXLReader>)CleanupReader);
+        private readonly ObjectPool<BuildXLReader> m_readerPool = Pools.CreateMemoryStreamBackedPool(
+            CreateReader,
+            CleanupReader,
+            reader => (MemoryStream)reader.BaseStream);
 
         private static void CleanupReader(BuildXLReader reader)
         {
@@ -55,7 +58,8 @@ namespace BuildXL.Scheduler.Distribution
 
         private static readonly ObjectPool<Dictionary<ReportedProcess, int>> s_reportedProcessMapPool = new ObjectPool<Dictionary<ReportedProcess, int>>(
             creator: () => new Dictionary<ReportedProcess, int>(),
-            cleanup: d => d.Clear());
+            cleanup: d => d.Clear(),
+            sizeProvider: Pools.GetDictionaryCapacity);
 
         /// <summary>
         /// Constructor

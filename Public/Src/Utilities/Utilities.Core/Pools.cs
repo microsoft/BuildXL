@@ -19,28 +19,49 @@ namespace BuildXL.Utilities.Core
         // this limit bounds the nominal retained buffer capacity of this pool to about 1 GB.
         internal const int MaximumMemoryStreamCapacityToRetain = 4 * 1024 * 1024;
 
-        // List capacity was previously unbounded. On a 64-core machine, this limits each named list pool to a
-        // nominal maximum of about 16.8 million retained element slots while leaving independently created pools unlimited.
-        internal const int MaximumListCapacityToRetain = 64 * 1024;
-
-        // HashSet capacity is not exposed on all supported frameworks, so the count when returned is used as its size proxy.
-        // Set size was previously unbounded. On a 64-core machine, this limits each named set pool to a nominal maximum
-        // of about 16.8 million returned elements, although removals can make retained backing capacity higher than the count.
-        internal const int MaximumSetSizeToRetain = 64 * 1024;
-
         /// <summary>
         /// Global pool for memory streams.
         /// </summary>
         public static readonly ObjectPool<MemoryStream> MemoryStreamPool = new ObjectPool<MemoryStream>(
             () => new MemoryStream(),
             stream => stream.SetLength(0),
-            stream => stream.Capacity,
-            MaximumMemoryStreamCapacityToRetain);
+            sizeProvider: stream => stream.Capacity,
+            maximumRetainedSize: MaximumMemoryStreamCapacityToRetain);
+
+        /// <summary>
+        /// Creates a pool for objects backed by a memory stream.
+        /// </summary>
+        public static ObjectPool<T> CreateMemoryStreamBackedPool<T>(
+            Func<T> creator,
+            Action<T> cleanup,
+            Func<T, MemoryStream> streamProvider)
+            where T : class
+        {
+            return new ObjectPool<T>(
+                creator,
+                cleanup,
+                sizeProvider: instance => streamProvider(instance).Capacity,
+                maximumRetainedSize: MaximumMemoryStreamCapacityToRetain);
+        }
+
+        /// <summary>
+        /// Gets the number of entries allocated in a dictionary's backing storage when supported by the target framework.
+        /// </summary>
+        public static int GetDictionaryCapacity<TKey, TValue>(Dictionary<TKey, TValue> dictionary)
+        {
+#if NET9_0_OR_GREATER
+            return dictionary.Capacity;
+#elif NETCOREAPP
+            return dictionary.EnsureCapacity(0);
+#else
+            return dictionary.Count;
+#endif
+        }
 
         /// <summary>
         /// Global pool of HashSet&lt;PathAtom&gt; instances.
         /// </summary>
-        public static readonly ObjectPool<HashSet<PathAtom>> PathAtomSetPool = CreateSetPool<PathAtom>(MaximumSetSizeToRetain);
+        public static readonly ObjectPool<HashSet<PathAtom>> PathAtomSetPool = CreateSetPool<PathAtom>();
 
         /// <summary>
         /// Creates a list pool for the specified type
@@ -49,8 +70,8 @@ namespace BuildXL.Utilities.Core
         {
             return new ObjectPool<List<T>>(
                 () => new List<T>(),
-                // Use Func instead of Action to avoid redundant delegate reconstruction.
-                list => { list.Clear(); return list; });
+                list => list.Clear(),
+                sizeProvider: list => list.Capacity);
         }
 
         /// <summary>
@@ -61,8 +82,8 @@ namespace BuildXL.Utilities.Core
             return new ObjectPool<List<T>>(
                 () => new List<T>(),
                 list => list.Clear(),
-                list => list.Capacity,
-                maximumCapacityToRetain);
+                sizeProvider: list => list.Capacity,
+                maximumRetainedSize: maximumCapacityToRetain);
         }
 
         /// <summary>
@@ -72,8 +93,7 @@ namespace BuildXL.Utilities.Core
         {
             return new ObjectPool<Queue<T>>(
                 () => new Queue<T>(),
-                // Use Func instead of Action to avoid redundant delegate reconstruction.
-                queue => { queue.Clear(); return queue; });
+                queue => queue.Clear());
         }
 
         /// <summary>
@@ -84,8 +104,8 @@ namespace BuildXL.Utilities.Core
             comparer = comparer ?? EqualityComparer<T>.Default;
             return new ObjectPool<HashSet<T>>(
                 () => new HashSet<T>(comparer),
-                // Use Func instead of Action to avoid redundant delegate reconstruction.
-                set => { set.Clear(); return set; });
+                set => set.Clear(),
+                sizeProvider: set => set.Count);
         }
 
         /// <summary>
@@ -97,8 +117,8 @@ namespace BuildXL.Utilities.Core
             return new ObjectPool<HashSet<T>>(
                 () => new HashSet<T>(comparer),
                 set => set.Clear(),
-                set => set.Count,
-                maximumSetSizeToRetain);
+                sizeProvider: set => set.Count,
+                maximumRetainedSize: maximumSetSizeToRetain);
         }
 
         /// <summary>
@@ -107,7 +127,8 @@ namespace BuildXL.Utilities.Core
         public static ObjectPool<Dictionary<FileArtifact, DirectoryArtifact>> FileDirectoryMapPool { get; } =
             new ObjectPool<Dictionary<FileArtifact, DirectoryArtifact>>(
                 () => new Dictionary<FileArtifact, DirectoryArtifact>(),
-                map => { map.Clear(); return map; });
+                map => map.Clear(),
+                sizeProvider: GetDictionaryCapacity);
 
         /// <summary>
         /// Global pool of maps from <see cref="BuildXL.Utilities.Core.FileArtifact"/> to many <see cref="BuildXL.Utilities.Core.DirectoryArtifact"/>.
@@ -115,7 +136,8 @@ namespace BuildXL.Utilities.Core
         public static ObjectPool<MultiValueDictionary<FileArtifact, DirectoryArtifact>> FileMultiDirectoryMapPool { get; } =
             new ObjectPool<MultiValueDictionary<FileArtifact, DirectoryArtifact>>(
                 () => new MultiValueDictionary<FileArtifact, DirectoryArtifact>(),
-                map => { map.Clear(); return map; });
+                map => map.Clear(),
+                sizeProvider: map => map.Count);
 
         /// <summary>
         /// Global pool of maps from <see cref="BuildXL.Utilities.Core.AbsolutePath"/> to <see cref="BuildXL.Utilities.Core.FileArtifactWithAttributes"/>.
@@ -123,7 +145,8 @@ namespace BuildXL.Utilities.Core
         public static ObjectPool<Dictionary<AbsolutePath, FileArtifactWithAttributes>> AbsolutePathFileArtifactWithAttributesMap { get; } =
             new ObjectPool<Dictionary<AbsolutePath, FileArtifactWithAttributes>>(
                 () => new Dictionary<AbsolutePath, FileArtifactWithAttributes>(),
-                map => { map.Clear(); return map;});
+                map => map.Clear(),
+                sizeProvider: GetDictionaryCapacity);
 
         /// <summary>
         /// Global pool of maps from string to <see cref="BuildXL.Utilities.Core.FileArtifactWithAttributes"/>.
@@ -131,53 +154,53 @@ namespace BuildXL.Utilities.Core
         public static ObjectPool<Dictionary<string, FileArtifactWithAttributes>> StringFileArtifactWithAttributesMap { get; } =
             new ObjectPool<Dictionary<string, FileArtifactWithAttributes>>(
                 () => new Dictionary<string, FileArtifactWithAttributes>(),
-                map => { map.Clear(); return map; });
+                map => map.Clear(),
+                sizeProvider: GetDictionaryCapacity);
 
         /// <summary>
         /// Global pool of StringBuilder instances.
         /// </summary>
         public static ObjectPool<StringBuilder> StringBuilderPool { get; } = new ObjectPool<StringBuilder>(
             () => new StringBuilder(),
-            // Use Func instead of Action to avoid redundant delegate reconstruction.
-            sb => { sb.Clear(); return sb; });
+            sb => sb.Clear(),
+            sizeProvider: sb => sb.Capacity);
 
         /// <summary>
         /// Global pool of AbsolutePathAncestorChecker instances.
         /// </summary>
         public static ObjectPool<AbsolutePathAncestorChecker> AbsolutePathAncestorCheckerPool { get; } = new ObjectPool<AbsolutePathAncestorChecker>(
             () => new AbsolutePathAncestorChecker(),
-            // Use Func instead of Action to avoid redundant delegate reconstruction.
-            checker => { checker.Clear(); return checker; });
+            checker => checker.Clear());
 
         /// <summary>
         /// Global pool of List&lt;string&gt; instances.
         /// </summary>
-        public static ObjectPool<List<string>> StringListPool { get; } = CreateListPool<string>(MaximumListCapacityToRetain);
+        public static ObjectPool<List<string>> StringListPool { get; } = CreateListPool<string>();
 
         /// <summary>
         /// Global pool of HashSet&lt;string&gt; instances.
         /// </summary>
-        public static ObjectPool<HashSet<string>> StringSetPool { get; } = CreateSetPool<string>(MaximumSetSizeToRetain, StringComparer.OrdinalIgnoreCase);
+        public static ObjectPool<HashSet<string>> StringSetPool { get; } = CreateSetPool<string>(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>
         /// Global pool of List&lt;StringId&gt; instances.
         /// </summary>
-        public static ObjectPool<List<StringId>> StringIdListPool { get; } = CreateListPool<StringId>(MaximumListCapacityToRetain);
+        public static ObjectPool<List<StringId>> StringIdListPool { get; } = CreateListPool<StringId>();
 
         /// <summary>
         /// Global pool of List&lt;FileArtifact&gt; instances.
         /// </summary>
-        public static ObjectPool<List<FileArtifact>> FileArtifactListPool { get; } = CreateListPool<FileArtifact>(MaximumListCapacityToRetain);
+        public static ObjectPool<List<FileArtifact>> FileArtifactListPool { get; } = CreateListPool<FileArtifact>();
 
         /// <summary>
         /// Global pool of List&lt;FileArtifactWithAttributes&gt; instances.
         /// </summary>
-        public static ObjectPool<List<FileArtifactWithAttributes>> FileArtifactWithAttributesListPool { get; } = CreateListPool<FileArtifactWithAttributes>(MaximumListCapacityToRetain);
+        public static ObjectPool<List<FileArtifactWithAttributes>> FileArtifactWithAttributesListPool { get; } = CreateListPool<FileArtifactWithAttributes>();
 
         /// <summary>
         /// Global pool of List&lt;DirectoryArtifact&gt; instances.
         /// </summary>
-        public static ObjectPool<List<DirectoryArtifact>> DirectoryArtifactListPool { get; } = CreateListPool<DirectoryArtifact>(MaximumListCapacityToRetain);
+        public static ObjectPool<List<DirectoryArtifact>> DirectoryArtifactListPool { get; } = CreateListPool<DirectoryArtifact>();
 
         /// <summary>
         /// Global pool of Queue&lt;DirectoryArtifact&gt; instances.
@@ -187,52 +210,52 @@ namespace BuildXL.Utilities.Core
         /// <summary>
         /// Global pool of List&lt;AbsolutePath&gt; instances.
         /// </summary>
-        public static ObjectPool<List<AbsolutePath>> AbsolutePathListPool { get; } = CreateListPool<AbsolutePath>(MaximumListCapacityToRetain);
+        public static ObjectPool<List<AbsolutePath>> AbsolutePathListPool { get; } = CreateListPool<AbsolutePath>();
 
         /// <summary>
         /// Global pool of List&lt;PathAtom&gt; instances.
         /// </summary>
-        public static ObjectPool<List<PathAtom>> PathAtomListPool { get; } = CreateListPool<PathAtom>(MaximumListCapacityToRetain);
+        public static ObjectPool<List<PathAtom>> PathAtomListPool { get; } = CreateListPool<PathAtom>();
 
         /// <summary>
         /// Global pool of List&lt;IdentifierAtom&gt; instances.
         /// </summary>
-        public static ObjectPool<List<SymbolAtom>> IdentifierAtomListPool { get; } = CreateListPool<SymbolAtom>(MaximumListCapacityToRetain);
+        public static ObjectPool<List<SymbolAtom>> IdentifierAtomListPool { get; } = CreateListPool<SymbolAtom>();
 
         /// <summary>
         /// Global pool of HashSet&lt;FileArtifact&gt; instances.
         /// </summary>
-        public static ObjectPool<HashSet<FileArtifact>> FileArtifactSetPool { get; } = CreateSetPool<FileArtifact>(MaximumSetSizeToRetain);
+        public static ObjectPool<HashSet<FileArtifact>> FileArtifactSetPool { get; } = CreateSetPool<FileArtifact>();
 
         /// <summary>
         /// Global pool of HashSet&lt;FileArtifactWithAttributes&gt; instances.
         /// </summary>
-        public static ObjectPool<HashSet<FileArtifactWithAttributes>> FileArtifactWithAttributesSetPool { get; } = CreateSetPool<FileArtifactWithAttributes>(MaximumSetSizeToRetain);
+        public static ObjectPool<HashSet<FileArtifactWithAttributes>> FileArtifactWithAttributesSetPool { get; } = CreateSetPool<FileArtifactWithAttributes>();
 
         /// <summary>
         /// Global pool of HashSet&lt;DirectoryArtifact&gt; instances.
         /// </summary>
-        public static ObjectPool<HashSet<DirectoryArtifact>> DirectoryArtifactSetPool { get; } = CreateSetPool<DirectoryArtifact>(MaximumSetSizeToRetain);
+        public static ObjectPool<HashSet<DirectoryArtifact>> DirectoryArtifactSetPool { get; } = CreateSetPool<DirectoryArtifact>();
 
         /// <summary>
         /// Global pool of HashSet&lt;AbsolutePath&gt; instances.
         /// </summary>
-        public static ObjectPool<HashSet<AbsolutePath>> AbsolutePathSetPool { get; } = CreateSetPool<AbsolutePath>(MaximumSetSizeToRetain);
+        public static ObjectPool<HashSet<AbsolutePath>> AbsolutePathSetPool { get; } = CreateSetPool<AbsolutePath>();
 
         /// <summary>
         /// Global pool of HashSet&lt;HierarchicalNameId&gt; instances.
         /// </summary>
-        public static ObjectPool<HashSet<HierarchicalNameId>> HierarchicalNameIdSetPool { get; } = CreateSetPool<HierarchicalNameId>(MaximumSetSizeToRetain);
+        public static ObjectPool<HashSet<HierarchicalNameId>> HierarchicalNameIdSetPool { get; } = CreateSetPool<HierarchicalNameId>();
 
         /// <summary>
         /// Global pool of HashSet&lt;RelativePath&gt; instances.
         /// </summary>
-        public static ObjectPool<HashSet<RelativePath>> RelativePathSetPool { get; } = CreateSetPool<RelativePath>(MaximumSetSizeToRetain);
+        public static ObjectPool<HashSet<RelativePath>> RelativePathSetPool { get; } = CreateSetPool<RelativePath>();
 
         /// <summary>
         /// Global pool of HashSet&lt;(AbsolutePath, string)&gt; instances.
         /// </summary>
-        public static ObjectPool<HashSet<(AbsolutePath, string)>> DirectoryMemberEntrySetPool { get; } = CreateSetPool<(AbsolutePath, string)>(MaximumSetSizeToRetain);
+        public static ObjectPool<HashSet<(AbsolutePath, string)>> DirectoryMemberEntrySetPool { get; } = CreateSetPool<(AbsolutePath, string)>();
 
         /// <summary>
         /// Global pool of char[] instances.
@@ -252,7 +275,7 @@ namespace BuildXL.Utilities.Core
         /// <summary>
         /// Global pool of HashSet&lt;StringId&gt; instances.
         /// </summary>
-        public static ObjectPool<HashSet<StringId>> StringIdSetPool { get; } = CreateSetPool<StringId>(MaximumSetSizeToRetain);
+        public static ObjectPool<HashSet<StringId>> StringIdSetPool { get; } = CreateSetPool<StringId>();
 
         /// <summary>
         /// Gets a StringBuilder instance from a common object pool.

@@ -24,7 +24,10 @@ namespace BuildXL.Engine.Distribution
     {
         #region Writer Pool
 
-        private readonly ObjectPool<BuildXLWriter> m_writerPool = new(CreateWriter, CleanupWriter);
+        private readonly ObjectPool<BuildXLWriter> m_writerPool = Pools.CreateMemoryStreamBackedPool(
+            CreateWriter,
+            CleanupWriter,
+            writer => (MemoryStream)writer.BaseStream);
 
         private static void CleanupWriter(BuildXLWriter writer)
         {

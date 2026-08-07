@@ -15,6 +15,8 @@ namespace Test.Tool.VBCSCompilerLogger {
         references:[
             importFrom("BuildXL.Core.UnitTests").EngineTestUtilities.dll,
             importFrom("Microsoft.Build.Utilities.Core").pkg,
+            importFrom("Microsoft.CodeAnalysis.Common").pkg,
+            importFrom("Microsoft.CodeAnalysis.CSharp").pkg,
             importFrom("BuildXL.Tools").VBCSCompilerLogger.dll,
         ],
         runtimeContentToSkip: [

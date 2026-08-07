@@ -8,7 +8,10 @@ using System.Reflection;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using System.Collections.Generic;
+using System.Linq;
 using Microsoft.Build.Utilities;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 
 // Necessary to not collide with this file's namespace.
 using Logger = VBCSCompilerLogger.VBCSCompilerLogger;
@@ -95,6 +98,102 @@ namespace Test.VBCSCompilerLogger
             // The reason should be because an unexpected task attribute (MSB4064), but not because of a logger failure
             XAssert.ContainsNot(standardOutput, "InvalidOperationException");
             XAssert.Contains(standardOutput, "MSB4064");
+        }
+
+        /// <summary>
+        /// <c>/sdkpath:</c> (added in dotnet/roslyn#79911) is accepted by newer csc/vbc, so an older
+        /// Microsoft.CodeAnalysis emitting CS2007 for it must be treated as non-blocking.
+        /// </summary>
+        [Theory]
+        [InlineData(@"/sdkpath:C:\Windows\Microsoft.NET\Framework64\v4.0.30319\", false)]
+        [InlineData(@"-sdkpath:C:\Windows\Microsoft.NET\Framework64\v4.0.30319\", false)]
+        [InlineData(@"/SDKPATH:C:\some\dir", false)] // case-insensitive
+        [InlineData(@"/sdkpath:""C:\path with space""", false)] // quoted value
+        [InlineData(@"/sdkpath:", false)] // empty value (still recognized as /sdkpath form)
+        [InlineData(@"/somethingelse:foo", true)] // unrelated unknown switch must still fail
+        [InlineData(@"/sdkpathish:foo", true)] // partial-name match must not be allowlisted
+        [InlineData(@"/analyzerconfig:foo", true)] // existing real-switch case still fails
+        public void IsBlockingBadSwitchRecognizesSdkPath(string unknownArg, bool expectedBlocking)
+        {
+            var descriptor = new DiagnosticDescriptor(
+                id: "CS2007",
+                title: "Unrecognized option",
+                messageFormat: "Unrecognized option: '{0}'",
+                category: "Compiler",
+                defaultSeverity: DiagnosticSeverity.Error,
+                isEnabledByDefault: true);
+            Diagnostic diagnostic = Diagnostic.Create(descriptor, location: null, messageArgs: unknownArg);
+
+            XAssert.AreEqual(expectedBlocking, Logger.IsBlockingBadSwitch(diagnostic));
+        }
+
+        /// <summary>
+        /// A non-CS2007/BC2007 diagnostic is never blocking, even if its message mentions <c>/sdkpath:</c>.
+        /// </summary>
+        [Fact]
+        public void IsBlockingBadSwitchIgnoresNon2007Diagnostics()
+        {
+            var descriptor = new DiagnosticDescriptor(
+                id: "CS5001",
+                title: "Some other error",
+                messageFormat: "Unrecognized option: '{0}'",
+                category: "Compiler",
+                defaultSeverity: DiagnosticSeverity.Error,
+                isEnabledByDefault: true);
+            Diagnostic diagnostic = Diagnostic.Create(descriptor, location: null, messageArgs: "/sdkpath:C:\\some\\dir");
+
+            XAssert.IsFalse(Logger.IsBlockingBadSwitch(diagnostic));
+        }
+
+        /// <summary>
+        /// Pins the CS2007 message format the filter relies on against a live Roslyn invocation.
+        /// </summary>
+        [Fact]
+        public void CS2007MessageFormatIsAsExpected()
+        {
+            const string Unknown = "/definitely-not-a-real-csc-switch:foo";
+            var args = new[] { Unknown, "/out:Out.exe", "Program.cs" };
+            CommandLineArguments parsed = CSharpCommandLineParser.Default.Parse(
+                args,
+                baseDirectory: System.IO.Path.GetTempPath(),
+                sdkDirectory: System.IO.Path.GetTempPath());
+
+            Diagnostic cs2007 = parsed.Errors.FirstOrDefault(d => d.Id == "CS2007");
+            XAssert.IsNotNull(cs2007);
+
+            // The filter relies on the unknown arg appearing single-quoted in the message.
+            XAssert.Contains(cs2007.GetMessage(), "'" + Unknown + "'");
+        }
+
+        /// <summary>
+        /// End-to-end repro: the bundled Microsoft.CodeAnalysis (older than dotnet/roslyn#79911) emits
+        /// CS2007 for a real <c>/sdkpath:</c> argument, and the filter must classify it as non-blocking.
+        /// </summary>
+        [Fact]
+        public void SdkPathSwitchDoesNotFailLogger()
+        {
+            string tempDir = GetFullPath("sdkpath-end-to-end");
+            Directory.CreateDirectory(tempDir);
+            string project = Path.Combine(tempDir, "p.csproj");
+            File.WriteAllText(project, "<Project/>");
+
+            string arguments = $"/sdkpath:\"{tempDir}\" /out:Out.dll /target:library Program.cs";
+
+            CommandLineArguments parsed = global::VBCSCompilerLogger.CompilerUtilities.GetParsedCommandLineArguments(
+                LanguageNames.CSharp, arguments, project, out _);
+
+            Diagnostic[] cs2007Errors = parsed.Errors.Where(d => d.Id == "CS2007").ToArray();
+
+            // Guard against a vacuous pass: if a package bump teaches the parser /sdkpath, this fires
+            // so the test is revisited rather than silently no longer reproducing the bug.
+            XAssert.IsTrue(cs2007Errors.Length > 0, "Expected bundled Microsoft.CodeAnalysis to emit CS2007 for /sdkpath.");
+
+            foreach (Diagnostic cs2007 in cs2007Errors)
+            {
+                XAssert.IsFalse(
+                    Logger.IsBlockingBadSwitch(cs2007),
+                    $"Expected CS2007 for /sdkpath to be non-blocking, but the filter rejected: {cs2007.GetMessage()}");
+            }
         }
 
         #region Helpers

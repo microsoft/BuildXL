@@ -6,6 +6,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics.ContractsLight;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -99,12 +100,12 @@ namespace VBCSCompilerLogger
 
                 CommandLineArguments parsedCommandLine = CompilerUtilities.GetParsedCommandLineArguments(language, extractedArguments!, commandLine.ProjectFile, out string[] args);
 
-                // In general we don't care about errors in the command line, since any error there will eventually fail the compiler call.
-                // However, we do care about new switches that may represent file accesses that are introduced to the compiler and this logger 
-                // is not aware of.
-                // This means that if the command line comes back with a bad switch error, but the compiler doesn't fail, we need to fail the call. 
-                // Error 2007 represents a bad switch. Unfortunately there doesn't seem to be any public enumeration that defines it properly.
-                IEnumerable<Diagnostic> badSwitchErrors = parsedCommandLine.Errors.Where(diagnostic => diagnostic.Id.Contains("2007")).ToList();
+                // We don't care about most command-line errors — they'll fail the compiler anyway. But a
+                // bad-switch error on a build that otherwise succeeds means the compiler understood a switch
+                // our parser didn't, which may imply file accesses this logger failed to track.
+                IEnumerable<Diagnostic> badSwitchErrors = parsedCommandLine.Errors
+                    .Where(IsBlockingBadSwitch)
+                    .ToList();
                 foreach (Diagnostic badSwitch in badSwitchErrors)
                 {
                     // If we find a bad switch error, delay making a decision until we know if the compiler failed or not.
@@ -156,6 +157,50 @@ namespace VBCSCompilerLogger
                 // Do nothing, no reason to fail for this.
             }
 #pragma warning restore ERP022 // Unobserved exception in a generic exception handler
+        }
+
+        /// <summary>
+        /// Returns true when <paramref name="diagnostic"/> is a CS2007/BC2007 "unrecognized option" for a
+        /// switch not in the safe-to-ignore allowlist. Other parse errors fail the compiler itself, so
+        /// they are not blocking here.
+        /// </summary>
+        // internal for unit testing.
+        internal static bool IsBlockingBadSwitch(Diagnostic diagnostic)
+        {
+            // Only CS2007/BC2007 "unrecognized option" diagnostics are bad switches. Guard on the cheap
+            // Id before materializing the message.
+            if (!diagnostic.Id.Contains("2007"))
+            {
+                return false;
+            }
+
+            // Invariant culture pins the en-US message ("Unrecognized option: '<arg>'") regardless of host UI culture.
+            string message = diagnostic.GetMessage(CultureInfo.InvariantCulture);
+
+            // /sdkpath: (dotnet/roslyn#79911) only overrides the default reference-assembly directory, which we don't enumerate, so it's safe to ignore.
+            // Interim until the Microsoft.CodeAnalysis packages referenced here are new enough to parse it.
+            return !ContainsUnrecognizedOption(message, "sdkpath:");
+
+            static bool ContainsUnrecognizedOption(string message, string switchName)
+            {
+                // Match "'/<switchName>" or "'-<switchName>" (case-insensitive).
+                int idx = 0;
+                while ((idx = message.IndexOf('\'', idx)) >= 0 && idx + 1 < message.Length)
+                {
+                    char prefix = message[idx + 1];
+                    if (prefix == '/' || prefix == '-')
+                    {
+                        int nameStart = idx + 2;
+                        if (nameStart + switchName.Length <= message.Length
+                            && string.Compare(message, nameStart, switchName, 0, switchName.Length, StringComparison.OrdinalIgnoreCase) == 0)
+                        {
+                            return true;
+                        }
+                    }
+                    idx++;
+                }
+                return false;
+            }
         }
 
         // internal for unit testing.

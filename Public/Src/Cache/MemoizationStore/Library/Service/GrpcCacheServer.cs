@@ -245,9 +245,8 @@ public sealed class GrpcCacheServer : GrpcContentServer
         PublishingCacheConfiguration parsedConfig;
         try
         {
-            var (obj, type) = DynamicJson.Deserialize(request.SerializedConfig);
-
-            if (obj is not PublishingCacheConfiguration)
+            var (config, type) = DynamicJson.Deserialize<PublishingCacheConfiguration>(request.SerializedConfig);
+            if (config is null)
             {
                 return new CreateSessionResponse()
                 {
@@ -255,13 +254,13 @@ public sealed class GrpcCacheServer : GrpcContentServer
                 };
             }
 
-            parsedConfig = (PublishingCacheConfiguration)obj;
+            parsedConfig = config;
         }
         catch (Exception e)
         {
             return new CreateSessionResponse()
             {
-                ErrorMessage = $"Something went wrong while deserializing the session configuration. Exception=[{e}] Configuration=[{request.SerializedConfig}]",
+                ErrorMessage = $"Something went wrong while deserializing the session configuration. Exception=[{e}]",
             };
         }
 

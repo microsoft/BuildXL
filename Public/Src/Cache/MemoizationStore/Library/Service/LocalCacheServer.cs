@@ -135,10 +135,11 @@ namespace BuildXL.Cache.MemoizationStore.Service
             {
                 if (infoDictionary.TryGetValue(contentData.Id, out var cacheData) && cacheData.SerializedSessionConfiguration is not null)
                 {
-                    var (obj, type) = DynamicJson.Deserialize(cacheData.SerializedSessionConfiguration);
-                    if (obj is not PublishingCacheConfiguration config)
+                    var (config, type) = DynamicJson.Deserialize<PublishingCacheConfiguration>(cacheData.SerializedSessionConfiguration);
+                    if (config is null)
                     {
-                        throw new Exception($"Deserialized configuration is not an {nameof(PublishingCacheConfiguration)}. Actual type: {type}");
+                        throw new InvalidOperationException(
+                            $"Deserialized configuration is not a {nameof(PublishingCacheConfiguration)}. Actual type: {type.AssemblyQualifiedName}");
                     }
 
                     return new HibernatedSessionInfo(

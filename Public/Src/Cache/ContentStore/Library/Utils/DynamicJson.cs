@@ -37,11 +37,32 @@ namespace BuildXL.Cache.ContentStore.Utils
         }
 
         /// <nodoc />
-        public static (object?, Type) Deserialize(string serialized)
+        public static (T? Object, Type Type) Deserialize<T>(string serialized)
+            where T : class
         {
+            using var document = JsonDocument.Parse(serialized);
+            var root = document.RootElement;
+            if (root.ValueKind != JsonValueKind.Object ||
+                !root.TryGetProperty(nameof(DynamicJsonWrapper.Type), out var typeElement) ||
+                !root.TryGetProperty(nameof(DynamicJsonWrapper.Object), out _))
+            {
+                throw new JsonException("The serialized value is not a valid dynamic JSON wrapper.");
+            }
+
+            var typeName = typeElement.GetString();
+            var reflectedType = typeName is null ? null : Type.GetType(typeName);
+            if (reflectedType is null)
+            {
+                throw new JsonException($"Could not resolve serialized type '{typeName}'.");
+            }
+
+            if (!typeof(T).IsAssignableFrom(reflectedType))
+            {
+                throw new JsonException($"Serialized type '{reflectedType.AssemblyQualifiedName}' is not assignable to '{typeof(T).AssemblyQualifiedName}'.");
+            }
+
             var wrapper = JsonSerializer.Deserialize<DynamicJsonWrapper>(serialized);
-            var type = Type.GetType(wrapper!.Type);
-            return (wrapper.Object, type!);
+            return ((T?)wrapper!.Object, reflectedType);
         }
 
         [JsonConverter(typeof(Converter))]

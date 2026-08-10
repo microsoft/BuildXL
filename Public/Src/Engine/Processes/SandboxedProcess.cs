@@ -46,8 +46,6 @@ namespace BuildXL.Processes
 
         private readonly int m_bufferSize;
 
-        private readonly PooledObjectWrapper<MemoryStream> m_fileAccessManifestStreamWrapper;
-        private MemoryStream FileAccessManifestStream => m_fileAccessManifestStreamWrapper.Instance;
         private readonly FileAccessManifest m_fileAccessManifest;
 
         private readonly TaskSourceSlim<SandboxedProcessResult> m_resultTaskCompletionSource =
@@ -90,7 +88,6 @@ namespace BuildXL.Processes
             s_binaryPaths ??= new BinaryPaths(); // this can take a while; performs I/O
 
             m_fileAccessManifest = info.FileAccessManifest;
-            m_fileAccessManifestStreamWrapper = Pools.MemoryStreamPool.GetInstance();
             m_bufferSize = SandboxedProcessInfo.BufferSize;
             m_allowedSurvivingChildProcessNames = info.AllowedSurvivingChildProcessNames;
             m_nestedProcessTerminationTimeout = info.NestedProcessTerminationTimeout;
@@ -395,8 +392,6 @@ namespace BuildXL.Processes
 
             m_output.Dispose();
             m_error.Dispose();
-
-            m_fileAccessManifestStreamWrapper.Dispose();
         }
 
         /// <summary>
@@ -474,20 +469,27 @@ namespace BuildXL.Processes
                     };
 
                     bool debugFlagsMatch = true;
-                    var manifestBytes = new ArraySegment<byte>();
-                    manifestBytes = m_fileAccessManifest.GetPayloadBytes(m_loggingContext, setup, FileAccessManifestStream, Defaults.ProcessInjectionTimeoutInMinutes, ref debugFlagsMatch);
-                    if (!debugFlagsMatch)
+                    using (var manifestStreamWrapper = Pools.MemoryStreamPool.GetInstance())
                     {
-                        throw new BuildXLException("Mismatching build type for BuildXL and DetoursServices.dll.");
-                    }
+                        var manifestBytes = m_fileAccessManifest.GetPayloadBytes(
+                            m_loggingContext,
+                            setup,
+                            manifestStreamWrapper.Instance,
+                            Defaults.ProcessInjectionTimeoutInMinutes,
+                            ref debugFlagsMatch);
+                        if (!debugFlagsMatch)
+                        {
+                            throw new BuildXLException("Mismatching build type for BuildXL and DetoursServices.dll.");
+                        }
 
-                    m_standardInputTcs = TaskSourceSlim.Create<bool>();
-                    detouredProcess.Start(
-                        s_payloadGuid,
-                        manifestBytes,
-                        childHandle,
-                        s_binaryPaths!.DllNameX64,
-                        s_binaryPaths!.DllNameX86);
+                        m_standardInputTcs = TaskSourceSlim.Create<bool>();
+                        detouredProcess.Start(
+                            s_payloadGuid,
+                            manifestBytes,
+                            childHandle,
+                            s_binaryPaths!.DllNameX64,
+                            s_binaryPaths!.DllNameX86);
+                    }
 
                     // At this point, we believe calling 'kill' will result in an eventual callback for job teardown.
                     // This knowledge is significant for ensuring correct cleanup if we did vs. did not start a process;

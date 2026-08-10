@@ -786,7 +786,10 @@ namespace Tool.CloudTestClient
             return null;
         }
 
-        private static void Log(string message)
+        /// <summary>
+        /// Logs a message to the console with a UTC timestamp prefix.
+        /// </summary>
+        internal static void Log(string message)
         {
             string timestamped = $"[{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss.fff}] {message}";
             Console.WriteLine(timestamped);

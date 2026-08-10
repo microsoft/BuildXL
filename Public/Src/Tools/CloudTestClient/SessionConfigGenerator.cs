@@ -526,12 +526,24 @@ namespace Tool.CloudTestClient
                 builder.Append("fileProviders=").AppendLine(Sha256Hex(arguments.FileProvidersJson));
             }
 
+            if (arguments.Debug)
+            {
+                CloudTestClient.Log($"[Debug] Computed aggregate test dependency hash:\n{builder}");
+            }
+
             if (builder.Length == 0)
             {
                 return null;
             }
 
-            return Sha256Hex(builder.ToString());
+            var hash = Sha256Hex(builder.ToString());
+
+            if (arguments.Debug)
+            {
+                CloudTestClient.Log($"[Debug] Computed SHA256 of aggregate test dependency hash: {hash}");
+            }
+            
+            return hash;
         }
 
         /// <summary>

@@ -297,7 +297,12 @@ namespace Test.BuildXL.Processes.Detours
         {
             // In CloudBuild, it is possible that the transaction support is not (or no longer) active because the machine's resource manager
             // is not started or was shut down due to some unknown error.
-            XAssert.AreEqual(SandboxedProcessPipExecutionStatus.ExecutionFailed, result.Status);
+            XAssert.AreEqual(
+                SandboxedProcessPipExecutionStatus.ExecutionFailed,
+                result.Status,
+                "A transacted API failure caused by an inactive resource manager should have an ExecutionFailed status. "
+                + "Exit code: {0} (0x{0:X8}).",
+                result.ExitCode);
             XAssert.AreEqual(6801 /* ERROR_RM_NOT_ACTIVE */, result.ExitCode);
         }
 

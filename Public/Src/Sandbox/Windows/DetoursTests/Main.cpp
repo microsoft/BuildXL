@@ -1397,17 +1397,25 @@ int CallCreateFileTransactedW()
         NULL                            // lpExtendedParameter
     );
 
-    const DWORD error = GetLastError();
-
-    if (hFile != INVALID_HANDLE_VALUE)
+    if (hFile == INVALID_HANDLE_VALUE)
     {
-        CloseHandle(hFile);
+        const DWORD error = GetLastError();
+        RollbackTransaction(hTransaction);
+        CloseHandle(hTransaction);
+        return static_cast<int>(error);
     }
 
-    CommitTransaction(hTransaction);
+    CloseHandle(hFile);
+
+    if (!CommitTransaction(hTransaction))
+    {
+        const DWORD error = GetLastError();
+        CloseHandle(hTransaction);
+        return static_cast<int>(error);
+    }
+
     CloseHandle(hTransaction);
-    
-    return static_cast<int>(error);
+    return 0;
 }
 
 int CallDeleteFile2W()
@@ -1443,23 +1451,23 @@ int CallDeleteFileTransactedW()
 
     if (hTransaction == INVALID_HANDLE_VALUE)
     {
-        return 1;
+        return static_cast<int>(GetLastError());
     }
 
-    const BOOL result = DeleteFileTransactedW(
+    if (!DeleteFileTransactedW(
         fullPath.c_str(),   // lpFileName
         hTransaction        // hTransaction
-    );
-
-    const DWORD error = GetLastError();
-
-    if (result)
+    ))
     {
-        CommitTransaction(hTransaction);
-    }
-    else
-    {
+        const DWORD error = GetLastError();
         RollbackTransaction(hTransaction);
+        CloseHandle(hTransaction);
+        return static_cast<int>(error);
+    }
+
+    if (!CommitTransaction(hTransaction))
+    {
+        const DWORD error = GetLastError();
         CloseHandle(hTransaction);
         return static_cast<int>(error);
     }
@@ -1515,16 +1523,25 @@ int CallFindFirstFileTransacted()
         hTransaction                    // hTransaction
     );
 
-    const DWORD error = GetLastError();
-
-    if (hFind != INVALID_HANDLE_VALUE)
+    if (hFind == INVALID_HANDLE_VALUE)
     {
-        FindClose(hFind);
+        const DWORD error = GetLastError();
+        RollbackTransaction(hTransaction);
+        CloseHandle(hTransaction);
+        return static_cast<int>(error);
     }
 
-    CommitTransaction(hTransaction);
+    FindClose(hFind);
+
+    if (!CommitTransaction(hTransaction))
+    {
+        const DWORD error = GetLastError();
+        CloseHandle(hTransaction);
+        return static_cast<int>(error);
+    }
+
     CloseHandle(hTransaction);
-    return static_cast<int>(error);
+    return 0;
 }
 
 int CallGetFileAttributesTransacted()
@@ -1550,12 +1567,23 @@ int CallGetFileAttributesTransacted()
         hTransaction                    // hTransaction
     );
 
-    const DWORD error = GetLastError();
+    if (!result)
+    {
+        const DWORD error = GetLastError();
+        RollbackTransaction(hTransaction);
+        CloseHandle(hTransaction);
+        return static_cast<int>(error);
+    }
 
-    CommitTransaction(hTransaction);
+    if (!CommitTransaction(hTransaction))
+    {
+        const DWORD error = GetLastError();
+        CloseHandle(hTransaction);
+        return static_cast<int>(error);
+    }
+
     CloseHandle(hTransaction);
-    
-    return result == 0 ? (int)error : 0;
+    return 0;
 }
 
 // ----------------------------------------------------------------------------

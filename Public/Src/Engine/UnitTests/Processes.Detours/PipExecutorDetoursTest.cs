@@ -8102,6 +8102,13 @@ namespace Test.BuildXL.Processes.Detours
                 pip: pip,
                 errorString: out _);
 
+            if (apiName == "CreateFileTransactedW" && result.Status != SandboxedProcessPipExecutionStatus.Succeeded)
+            {
+                VerifyTransactionIsNotActive(result);
+                SetExpectedFailures(1, 0);
+                return;
+            }
+
             var expectedOutputFile = pip.WorkingDirectory.Combine(pathTable, PathAtom.Create(context.StringTable, "input"), PathAtom.Create(context.StringTable, $"{apiName}.txt"));
             var expectedFileOperation = apiName == "CreateFileTransactedW"
                 ? ReportedFileOperation.CreateFile
@@ -8173,6 +8180,13 @@ namespace Test.BuildXL.Processes.Detours
                 context: context,
                 pip: pip,
                 errorString: out _);
+
+            if (apiName == "DeleteFileTransactedW" && result.Status != SandboxedProcessPipExecutionStatus.Succeeded)
+            {
+                VerifyTransactionIsNotActive(result);
+                SetExpectedFailures(1, 0);
+                return;
+            }
 
             if (expectedExitCode == 0)
             {
@@ -8333,6 +8347,13 @@ namespace Test.BuildXL.Processes.Detours
                 pip: pip,
                 errorString: out _);
 
+            if (result.Status != SandboxedProcessPipExecutionStatus.Succeeded)
+            {
+                VerifyTransactionIsNotActive(result);
+                SetExpectedFailures(1, 0);
+                return;
+            }
+
             VerifyNormalSuccess(context, result);
 
             XAssert.IsTrue(
@@ -8379,6 +8400,13 @@ namespace Test.BuildXL.Processes.Detours
                 context: context,
                 pip: pip,
                 errorString: out _);
+
+            if (result.Status != SandboxedProcessPipExecutionStatus.Succeeded)
+            {
+                VerifyTransactionIsNotActive(result);
+                SetExpectedFailures(1, 0);
+                return;
+            }
 
             VerifyNormalSuccess(context, result);
 

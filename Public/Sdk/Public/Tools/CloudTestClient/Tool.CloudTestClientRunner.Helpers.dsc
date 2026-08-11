@@ -302,6 +302,8 @@ namespace Helpers {
         tags?: string[];
         /** Pip description override. */
         description?: string;
+        /** When true, extra debugging information is sent to the console. Defaults to false. */
+        debug?: boolean;
     }
 
     /**
@@ -513,6 +515,7 @@ namespace Helpers {
             Cmd.options("/testDependencyHash:", args.testDependencyHashes || []),
             Cmd.options("/testDependencyPath:", args.testDependencyPaths || []),
             Cmd.option("/priority:", args.priority),
+            Cmd.flag("/debug:", args.debug),
         ];
 
         let dependencies: Transformer.InputArtifact[] = [];
@@ -711,6 +714,7 @@ namespace Helpers {
             priority: args.priority,
             tags: args.tags,
             description: args.description || `CloudTest: submit job ${args.jobName}`,
+            debug: args.configAndSessionResult.configArguments.debug,
         };
 
         const configResult = generateUpdateDynamicJobConfig(dynamicJobConfigArguments);

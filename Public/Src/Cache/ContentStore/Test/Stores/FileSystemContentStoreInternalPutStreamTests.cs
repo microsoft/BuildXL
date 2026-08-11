@@ -96,6 +96,26 @@ namespace ContentStoreTest.Stores
         }
 
         [Fact]
+        public Task PutStreamWithMismatchedHashDoesNotStoreContent()
+        {
+            return TestStore(Context, Clock, async store =>
+            {
+                byte[] expectedContent = ThreadSafeRandom.GetBytes(ValueSize);
+                byte[] actualContent = ThreadSafeRandom.GetBytes(ValueSize);
+                ContentHash expectedHash = expectedContent.CalculateHash(ContentHashType);
+                ContentHash actualHash = actualContent.CalculateHash(ContentHashType);
+
+                using var stream = new MemoryStream(actualContent);
+                var result = await store.PutStreamAsync(Context, stream, expectedHash, pinRequest: null);
+
+                result.ShouldBeError();
+                result.ToString().Should().NotContain(actualHash.ToString());
+                FileSystem.FileExists(store.GetPrimaryPathFor(expectedHash)).Should().BeFalse();
+                FileSystem.FileExists(store.GetPrimaryPathFor(actualHash)).Should().BeFalse();
+            });
+        }
+
+        [Fact]
         public Task PutStreamIsCancelledIfCalledIfCalledAfterShutdown()
         {
             return TestStore(Context, Clock, async store =>

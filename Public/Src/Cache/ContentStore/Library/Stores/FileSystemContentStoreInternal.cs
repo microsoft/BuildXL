@@ -1236,11 +1236,7 @@ namespace BuildXL.Cache.ContentStore.Stores
                     }
                 }
 
-                var r = await PutStreamImplAsync(context, stream, contentHash.HashType, pinRequest);
-
-                return r.ContentHash != contentHash && r.Succeeded
-                    ? new PutResult(contentHash, $"Calculated hash={r.ContentHash} does not match caller's hash={contentHash}")
-                    : r;
+                return await PutStreamImplAsync(context, stream, contentHash.HashType, pinRequest, expectedHash: contentHash);
             });
         }
 
@@ -1263,10 +1259,15 @@ namespace BuildXL.Cache.ContentStore.Stores
             return _tracer.PutStreamAsync(
                 OperationContext(context),
                 hashType,
-                () => PutStreamImplAsync(context, stream, hashType, pinRequest));
+                () => PutStreamImplAsync(context, stream, hashType, pinRequest, expectedHash: null));
         }
 
-        private async Task<PutResult> PutStreamImplAsync(Context context, Stream stream, HashType hashType, PinRequest? pinRequest)
+        private async Task<PutResult> PutStreamImplAsync(
+            Context context,
+            Stream stream,
+            HashType hashType,
+            PinRequest? pinRequest,
+            ContentHash? expectedHash)
         {
             ContentHash contentHash = new ContentHash(hashType);
             AbsolutePath? pathToTempContent = null;
@@ -1286,6 +1287,11 @@ namespace BuildXL.Cache.ContentStore.Stores
 
                     // This our temp file and it is responsibility of this method to delete it.
                     shouldDelete = true;
+                }
+
+                if (expectedHash.HasValue && contentHash != expectedHash.Value)
+                {
+                    return new PutResult(expectedHash.Value, "Content does not match the caller-provided hash.");
                 }
 
                 var putResult = await TryPutStreamFastAsync(context, contentHash, pinRequest);

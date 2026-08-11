@@ -100,6 +100,65 @@ namespace Test.BuildXL.Processes
             XAssert.AreEqual(copySourcePath2, matchingOp.Path);
         }
 
+        [Fact]
+        public void TestSpillingProducesIdenticalTrace()
+        {
+            // A builder that spills operations to disk after every few operations must produce
+            // byte-for-byte the same trace as one that keeps everything in memory.
+            const int operationCount = 25;
+            var spilling = new SandboxedProcessTraceBuilder(m_fileStorage, m_pathTable, maxBufferedOperationsBeforeSpill: 4);
+            var inMemory = new SandboxedProcessTraceBuilder(m_fileStorage, m_pathTable, maxBufferedOperationsBeforeSpill: int.MaxValue);
+
+            for (int i = 0; i < operationCount; i++)
+            {
+                var path = GetPath(X($"/c/foo/bar/file{i}.txt"));
+                var pattern = (i % 5 == 0) ? $"*.{i}" : null;
+                spilling.ReportFileAccess((uint)(i % 3), ReportedFileOperation.CreateFile, RequestedAccess.Read, path, (uint)i, i % 2 == 0, pattern, (uint)(100 + i), (uint)i, FlagsAndAttributes.FILE_ATTRIBUTE_NORMAL, FlagsAndAttributes.FILE_ATTRIBUTE_TEMPORARY);
+                inMemory.ReportFileAccess((uint)(i % 3), ReportedFileOperation.CreateFile, RequestedAccess.Read, path, (uint)i, i % 2 == 0, pattern, (uint)(100 + i), (uint)i, FlagsAndAttributes.FILE_ATTRIBUTE_NORMAL, FlagsAndAttributes.FILE_ATTRIBUTE_TEMPORARY);
+            }
+
+            // Share one process instance so both traces serialize identical timestamps
+            // (ReportedProcess stamps CreationTime/ExitTime at construction).
+            var process = new ReportedProcess(0, X("/c/cmd.exe"), "/c foo") { ExitCode = 0 };
+            spilling.ReportProcess(process);
+            inMemory.ReportProcess(process);
+
+            XAssert.AreEqual(operationCount, spilling.OperationCount);
+
+            string spilledTrace = WriteToString(spilling);
+            string inMemoryTrace = WriteToString(inMemory);
+            XAssert.AreEqual(inMemoryTrace, spilledTrace);
+
+            // The spilled output must also round-trip, preserving operation identity and order.
+            var (version, operations, reportedProcesses) = DeserializeString(spilledTrace);
+            XAssert.AreEqual(3, version);
+            XAssert.AreEqual(operationCount, operations.Count);
+            XAssert.AreEqual(1, reportedProcesses.Count);
+            for (int i = 0; i < operationCount; i++)
+            {
+                XAssert.AreEqual((uint)i, operations[i].Id);
+                XAssert.AreEqual((uint)(100 + i), operations[i].ReportedFileAccessId);
+            }
+        }
+
+        private string WriteToString(SandboxedProcessTraceBuilder builder)
+        {
+            using var stream = new MemoryStream();
+
+            using (var writer = new StreamWriter(stream, encoding: System.Text.Encoding.UTF8, bufferSize: 4096, leaveOpen: true))
+            {
+                builder.WriteToStream(writer);
+            }
+
+            return System.Text.Encoding.UTF8.GetString(stream.ToArray());
+        }
+
+        private (byte version, List<SandboxedProcessTraceBuilder.Operation>, List<ReportedProcess>) DeserializeString(string trace)
+        {
+            using var reader = new StreamReader(new MemoryStream(System.Text.Encoding.UTF8.GetBytes(trace)), System.Text.Encoding.UTF8);
+            return SandboxedProcessTraceBuilder.ReadFromStream(reader, m_pathTable);
+        }
+
         private SandboxedProcessTraceBuilder CreateBuilder() => new(m_fileStorage, m_pathTable);
         private AbsolutePath GetPath(string path) => AbsolutePath.Create(m_pathTable, path);
 

@@ -495,6 +495,10 @@ namespace BuildXL.Processes
 
             m_pathCache.Clear();
 
+            // The trace builder owns temporary spill files; dispose it here so they are released
+            // deterministically even if the trace was never frozen (e.g., the process was killed).
+            m_traceBuilder?.Dispose();
+
             base.Dispose();
         }
 

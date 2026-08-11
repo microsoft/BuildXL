@@ -21,7 +21,8 @@ namespace BuildXL.Cache.Host.Service
         /// <nodoc />
         public static DeploymentLauncherHost Instance { get; } = new DeploymentLauncherHost();
 
-        private readonly IDeploymentServiceClient _client = new DeploymentServiceClient();
+        private readonly IDeploymentServiceClient _client = new DeploymentServiceClient(allowAutoRedirect: true);
+        private readonly IDeploymentServiceClient _contentCacheClient = new DeploymentServiceClient(allowAutoRedirect: false);
 
         /// <inheritdoc />
         public ILauncherProcess CreateProcess(ProcessStartInfo info)
@@ -35,11 +36,24 @@ namespace BuildXL.Cache.Host.Service
             return _client;
         }
 
+        /// <summary>
+        /// Creates a client for content cache downloads. Redirects are disabled so a validated URL cannot redirect to an unapproved origin.
+        /// </summary>
+        public IDeploymentServiceClient CreateContentCacheServiceClient()
+        {
+            return _contentCacheClient;
+        }
+
         private class DeploymentServiceClient : IDeploymentServiceClient
         {
-            private readonly HttpClient _client = new HttpClient();
+            private readonly HttpClient _client;
 
             private LauncherManifest _lastManifest;
+
+            public DeploymentServiceClient(bool allowAutoRedirect)
+            {
+                _client = new HttpClient(new HttpClientHandler() { AllowAutoRedirect = allowAutoRedirect });
+            }
 
             public async Task<LauncherManifest> GetLaunchManifestAsync(OperationContext context, LauncherSettings settings)
             {

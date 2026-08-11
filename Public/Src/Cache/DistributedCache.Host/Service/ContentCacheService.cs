@@ -56,7 +56,7 @@ namespace BuildXL.Launcher.Server
             StreamStore = streamStore;
             PushFileHandler = pushFileHandler;
             ContentCacheRequests = new VolatileMap<string, AsyncLazy<BoolResult>>(Clock);
-            Client = client ?? DeploymentLauncherHost.Instance.CreateServiceClient();
+            Client = client ?? DeploymentLauncherHost.Instance.CreateContentCacheServiceClient();
 
             DownloadQueue = new ActionQueue(configuration.DownloadConcurrency ?? Environment.ProcessorCount);
         }

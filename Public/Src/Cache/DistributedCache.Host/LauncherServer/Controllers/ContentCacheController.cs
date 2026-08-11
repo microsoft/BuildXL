@@ -48,9 +48,8 @@ namespace BuildXL.Launcher.Server.Controllers
             }
             else
             {
-                return StatusCode(StatusCodes.Status500InternalServerError, result.ToString());
+                return StatusCode(StatusCodes.Status500InternalServerError, "The content request failed.");
             }
-
         }
     }
 }

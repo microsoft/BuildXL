@@ -54,6 +54,23 @@ namespace Test.BuildXL.FrontEnd.Rush
             AssertErrorEventLogged(global::BuildXL.FrontEnd.Core.Tracing.LogEventId.CannotBuildWorkspace);
         }
 
+        [Theory]
+        [InlineData("'non-existent'")]
+        [InlineData("{packageName:'@ms/project-A', commands: ['non-existent']}")]
+        public void MissingPackageInExportsCanBeAllowed(string exportContent)
+        {
+            var config = Build(rushExports: $"[{{symbolName: 'test', content: [{exportContent}], allowEmpty: true}}]")
+               .AddJavaScriptProject("@ms/project-A", "src/A")
+               .PersistSpecsAndGetConfiguration();
+
+            var result = RunRushProjects(config, new[] {
+                ("src/A", "@ms/project-A")
+            });
+
+            Assert.True(result.IsSuccess);
+            AssertErrorEventLogged(LogEventId.SpecifiedPackageForExportDoesNotExist, 0);
+        }
+
         [Fact]
         public void InvalidExportSymbolIsFlagged()
         {

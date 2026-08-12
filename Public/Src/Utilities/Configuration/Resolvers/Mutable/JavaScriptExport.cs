@@ -20,6 +20,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             SymbolName = template.SymbolName;
             Content = template.Content;
             IncludeProjectMapping = template.IncludeProjectMapping;
+            AllowEmpty = template.AllowEmpty;
         }
 
         /// <inheritdoc/>
@@ -30,5 +31,8 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc/>
         public bool? IncludeProjectMapping { get; set; }
+
+        /// <inheritdoc/>
+        public bool? AllowEmpty { get; set; }
     }
 }

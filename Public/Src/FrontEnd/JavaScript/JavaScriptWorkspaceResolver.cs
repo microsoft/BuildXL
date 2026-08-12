@@ -244,7 +244,8 @@ namespace BuildXL.FrontEnd.JavaScript
                         return false;
                     }
 
-                    if (!selectedProjects.Any())
+                    // AllowsEmpty should default to false. Skip flagging an empty selection as an error if the selector explicitly allows it.
+                    if (export.AllowEmpty != true && selectedProjects.Count == 0)
                     {
                         Tracing.Logger.Log.SpecifiedPackageForExportDoesNotExist(
                             Context.LoggingContext,

@@ -31,5 +31,13 @@ namespace BuildXL.Utilities.Configuration
         /// Defaults to false.
         /// </summary>
         bool? IncludeProjectMapping { get; }
+
+        /// <summary>
+        /// When true, the output selectors under <see cref="Content"/> are allowed to not match any project. When false, a selector that doesn't match any project will cause a failure.
+        /// </summary>
+        /// <remarks>
+        /// Defaults to false
+        /// </remarks>
+        bool? AllowEmpty { get; }
     }
 }

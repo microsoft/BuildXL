@@ -808,6 +808,11 @@ interface JavaScriptExport {
      * Defaults to false. 
      */
     includeProjectMapping?: boolean;
+    /**
+     * When true, the output selectors under 'content' are allowed to not match any project. When false, a selector that doesn't match any project will cause a failure.
+     * Defaults to false.
+     */
+    allowEmpty?: boolean;
 }
 
 /**

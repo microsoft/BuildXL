@@ -1163,7 +1163,7 @@ namespace Test.BuildXL.Processes.Detours
                     {
                         FileAccessIgnoreCodeCoverage = true,
                         FailUnexpectedFileAccesses = false,
-                        UnsafeSandboxConfiguration = new UnsafeSandboxConfiguration { IgnoreUndeclaredAccessesUnderSharedOpaques = false },
+                        UnsafeSandboxConfiguration = new UnsafeSandboxConfiguration(),
                         LogObservedFileAccesses = true
                     },
                     pip,

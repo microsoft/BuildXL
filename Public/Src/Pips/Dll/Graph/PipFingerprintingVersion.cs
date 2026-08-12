@@ -83,7 +83,8 @@ namespace BuildXL.Pips.Graph
         /// 106: Add IgnoreUntrackedPathsInFullReparsePointResolving
         /// 107: Detours transacted file operations
         /// NOTE: When adding version 108, please also include UnsafeSandboxConfiguration.MonitorCreateProcessAsUser. Also change UnsafeSandboxConfigurationExtensions Serialize/Deserialize 
-        /// to use IUnsafeSandboxConfigurationWithSafeOrSafer.
+        /// to use IUnsafeSandboxConfigurationWithSafeOrSafer. Remove <see cref="Utilities.Configuration.UnsafeSandboxConfigurationExtensions.RetiredIgnoreUndeclaredAccessesUnderSharedOpaques"/>,
+        /// its compatibility slot in UnsafeSandboxConfigurationExtensions.Serialize/Deserialize, and its retained entry in UnsafeOptions.ComputeFingerprint.
         /// </remarks>
         TwoPhaseV2 = 107,
     }

@@ -34,7 +34,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
             IgnoreDeviceIoControlGetReparsePoint = true;
             MonitorZwCreateOpenQueryFile = true;
             IgnoreDynamicWritesOnAbsentProbes = DynamicWriteOnAbsentProbePolicy.IgnoreDirectoryProbes; // TODO: eventually change this to IgnoreNothing
-            IgnoreUndeclaredAccessesUnderSharedOpaques = false;
             DoNotApplyAllowListToDynamicOutputs = false;
 
             IgnoreUntrackedPathsInFullReparsePointResolving = false;
@@ -94,7 +93,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
             IgnoreDeviceIoControlGetReparsePoint = template.IgnoreDeviceIoControlGetReparsePoint;
             IgnoreDynamicWritesOnAbsentProbes = template.IgnoreDynamicWritesOnAbsentProbes;
             DoubleWritePolicy = template.DoubleWritePolicy;
-            IgnoreUndeclaredAccessesUnderSharedOpaques = template.IgnoreUndeclaredAccessesUnderSharedOpaques;
             IgnoreCreateProcessReport = template.IgnoreCreateProcessReport;
             ProbeDirectorySymlinkAsDirectory = template.ProbeDirectorySymlinkAsDirectory;
             SkipFlaggingSharedOpaqueOutputs = template.SkipFlaggingSharedOpaqueOutputs;
@@ -164,9 +162,6 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool TreatStatAsProbe { get; set; }
-
-        /// <inheritdoc />
-        public bool IgnoreUndeclaredAccessesUnderSharedOpaques { get; set; }
 
         /// <inheritdoc />
         public bool IgnoreCreateProcessReport { get; set; }

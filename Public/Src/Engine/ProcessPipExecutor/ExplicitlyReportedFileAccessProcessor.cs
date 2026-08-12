@@ -45,7 +45,6 @@ namespace BuildXL.ProcessPipExecutor
         private readonly IReadOnlyDictionary<AbsolutePath, DirectoryArtifact> m_sharedOpaqueDirectoryRoots;
         private readonly ISet<AbsolutePath> m_directorySymlinksAsDirectories;
         private readonly FileAccessReportingContext m_fileaccessReportingContext;
-        private readonly HashSet<AbsolutePath> m_allInputPathsUnderSharedOpaques;
         private readonly IPipGraphFileSystemView m_pipGraphFileSystemView;
 
         // Mutable state
@@ -73,7 +72,6 @@ namespace BuildXL.ProcessPipExecutor
             SemanticPathExpander semanticPathExpander,
             ISet<AbsolutePath> directorySymlinksAsDirectories,
             FileAccessReportingContext fileAccessReportingContext,
-            HashSet<AbsolutePath> allInputPathsUnderSharedOpaques,
             IPipGraphFileSystemView pipGraphFileSystemView,
             ISandboxFileSystemView sandboxFileSystemView = null)
         {
@@ -88,7 +86,6 @@ namespace BuildXL.ProcessPipExecutor
             m_fileAccessManifest = fileAccessManifest;
             m_directorySymlinksAsDirectories = directorySymlinksAsDirectories;
             m_fileaccessReportingContext = fileAccessReportingContext;
-            m_allInputPathsUnderSharedOpaques = allInputPathsUnderSharedOpaques;
             m_pipGraphFileSystemView = pipGraphFileSystemView;
             m_result = new ExplicitlyReportedFileAccessProcessorResult(m_pathTable);
             
@@ -296,23 +293,6 @@ namespace BuildXL.ProcessPipExecutor
             else if (isPathCandidateToBeOwnedByASharedOpaque)
             {
                 m_result.FileExistenceDenials.Remove(absolutePath);
-            }
-
-            // The following two lines need to be removed in order to report file accesses for
-            // undeclared files and sealed directories. But since this is a breaking change, we do
-            // it under an unsafe flag.
-            if (m_sandboxConfig.UnsafeSandboxConfiguration.IgnoreUndeclaredAccessesUnderSharedOpaques)
-            {
-                // If the access occurred under any of the pip shared opaque outputs, and the access is not happening on any known input paths (neither dynamic nor static)
-                // then we just skip reporting the access. Together with the above step, this means that no accesses under shared opaques that represent outputs are actually
-                // reported as observed accesses. This matches the same behavior that occurs on static outputs.
-                if (!m_allInputPathsUnderSharedOpaques.Contains(absolutePath)
-                    && (reportedFileAccessesAndFlags.IsSharedOpaqueOutput || IsAccessUnderASharedOpaque(access, dynamicWriteAccesses, out _)))
-                {
-                    // Observe we don't need to update m_sortedObservations. This decision is being made solely based on the path, not the access, so we should reach the same conclusion for
-                    // every access on the same path, and therefore we should never have added the path to m_sortedObservations in the first place.
-                    return;
-                }
             }
 
             // At this point the access will be counted and its flags ready to be updated

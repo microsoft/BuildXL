@@ -826,134 +826,117 @@ namespace BuildXL.ProcessPipExecutor
                     return SandboxedProcessPipExecutionResult.PreparationFailure();
                 }
 
-                using (var allInputPathsUnderSharedOpaquesWrapper = Pools.GetAbsolutePathSet())
+                if (MonitorFileAccesses && !TryPrepareFileAccessMonitoring())
                 {
-                    // Here we collect all the paths representing inputs under shared opaques dependencies
-                    // These paths need to be flagged appropriately so timestamp faking happen for them. It is also used to identify accesses
-                    // that belong to inputs vs accesses that belong to outputs under shared opaques
-                    // Both dynamic inputs (the content of shared opaque dependencies) and static inputs are accumulated here.
-                    // These paths represent not only the file artifacts, but also the directories that contain those artifacts, up
-                    // to the root of the outmost shared opaque that contain them. This makes sure that if timestamps are retrieved
-                    // on directories containing inputs, those are faked as well.
-                    // The set is kept for two reasons 1) so we avoid duplicate work: as soon as a path is found to be already in this set, we can
-                    // shortcut the upward traversal on a given path when doing timestamp faking setup and 2) so GetObservedFileAccesses
-                    // doesn't need to recompute this and it can distinguish between accesses that only pertain to outputs vs inputs
-                    // in the scope of a shared opaque
-                    HashSet<AbsolutePath> allInputPathsUnderSharedOpaques = allInputPathsUnderSharedOpaquesWrapper.Instance;
+                    return SandboxedProcessPipExecutionResult.PreparationFailure();
+                }
 
-                    if (MonitorFileAccesses && !TryPrepareFileAccessMonitoring(allInputPathsUnderSharedOpaques))
+                using (Counters.StartStopwatch(SandboxedProcessCounters.PrepareOutputsDuration))
+                {
+                    if (!await PrepareOutputsAsync())
                     {
                         return SandboxedProcessPipExecutionResult.PreparationFailure();
                     }
-
-                    using (Counters.StartStopwatch(SandboxedProcessCounters.PrepareOutputsDuration))
-                    {
-                        if (!await PrepareOutputsAsync())
-                        {
-                            return SandboxedProcessPipExecutionResult.PreparationFailure();
-                        }
-                    }
-
-                    string executable = m_pip.Executable.Path.ToString(m_pathTable);
-                    string arguments = m_pip.Arguments.ToString(m_pipDataRenderer);
-                    m_timeout = GetEffectiveTimeout(m_pip.Timeout, m_sandboxConfig.DefaultTimeout, m_sandboxConfig.TimeoutMultiplier);
-
-                    var fileAccessReportingContext = new FileAccessReportingContext(
-                        m_loggingContext,
-                        m_context,
-                        m_sandboxConfig,
-                        m_pip,
-                        m_validateDistribution,
-                        m_fileAccessAllowlist);
-
-                    var explicitlyReportedFileAccessProcessor = new ExplicitlyReportedFileAccessProcessor(
-                        m_configuration,
-                        m_shouldPreserveOutputs,
-                        m_fileAccessManifest,
-                        m_semanticPathExpander,
-                        m_directorySymlinksAsDirectories,
-                        fileAccessReportingContext,
-                        allInputPathsUnderSharedOpaques,
-                        m_pipGraphFileSystemView,
-                        m_fileSystemView);
-
-                    var info = new SandboxedProcessInfo(
-                        m_pathTable,
-                        this,
-                        executable,
-                        m_fileAccessManifest,
-                        m_disableConHostSharing,
-                        m_loggingContext,
-                        m_pip.TestRetries,
-                        sandboxConnection: sandboxConnection,
-                        sidebandWriter: sidebandWriter,
-                        detoursEventListener: m_detoursListener,
-                        fileSystemView: fileSystemView,
-                        forceAddExecutionPermission: m_sandboxConfig.ForceAddExecutionPermission,
-                        // We always want to use gentle kill for EBPF to give the ebpf runner a chance to do proper tear down
-                        useGentleKill: sandboxConnection?.Kind == SandboxKind.LinuxEBPF,
-                        allowUndeclaredSourceReads: m_pip.AllowUndeclaredSourceReads,
-                        ringBufferSizeMultiplier: m_sandboxConfig.EBPFRingBufferSizeMultiplier,
-                        explicitlyReportedAccesses: explicitlyReportedFileAccessProcessor)
-                    {
-                        Arguments = arguments,
-                        WorkingDirectory = m_workingDirectory,
-                        RootMappings = m_rootMappings,
-                        EnvironmentVariables = environmentVariables,
-                        Timeout = m_timeout,
-                        PipSemiStableHash = m_pip.SemiStableHash,
-                        PipDescription = m_pipDescription,
-                        TimeoutDumpDirectory = PreparePipTimeoutDumpDirectory(m_sandboxConfig, m_pip, m_pathTable),
-                        SurvivingPipProcessChildrenDumpDirectory = m_sandboxConfig.SurvivingPipProcessChildrenDumpDirectory.ToString(m_pathTable),
-                        StringTableExhaustionDumpDirectory = m_loggingConfiguration?.LogsDirectory.IsValid == true
-                            ? m_loggingConfiguration.LogsDirectory.ToString(m_pathTable)
-                            : null,
-                        SandboxKind = m_pip.DisableSandboxing ? SandboxKind.None : m_sandboxConfig.UnsafeSandboxConfiguration.SandboxKind,
-                        AllowedSurvivingChildProcessNames = m_pip.AllowedSurvivingChildProcessNames.Select(n => n.ToString(m_pathTable.StringTable)).ToArray(),
-                        NestedProcessTerminationTimeout = m_pip.NestedProcessTerminationTimeout ?? SandboxedProcessInfo.DefaultNestedProcessTerminationTimeout,
-                        DetoursFailureFile = m_detoursFailuresFile,
-                        MonitoringConfig = new SandboxedProcessResourceMonitoringConfig(enabled: m_sandboxConfig.MeasureProcessCpuTimes, refreshInterval: TimeSpan.FromSeconds(2)),
-                        NumRetriesPipeReadOnCancel = EngineEnvironmentSettings.SandboxNumRetriesPipeReadOnCancel.Value
-                            ?? SandboxedProcessInfo.DefaultPipeReadRetryOnCancellationCount,
-                        CreateSandboxTraceFile = m_pip.TraceFile.IsValid,
-                        ReportActivityTimeout = m_sandboxConfig.ReportActivityTimeout.HasValue
-                            ? TimeSpan.FromMilliseconds(m_sandboxConfig.ReportActivityTimeout.Value)
-                            : null,
-                        FirstReportActivityTimeout = m_sandboxConfig.FirstReportActivityTimeout.HasValue
-                            ? TimeSpan.FromMilliseconds(m_sandboxConfig.FirstReportActivityTimeout.Value)
-                            : null,
-                    };
-
-                    if (m_pluginEP != null)
-                    {
-                        m_pluginEP.ProcessInfo = info;
-                    }
-
-                    if (m_sandboxConfig.AdminRequiredProcessExecutionMode.ExecuteExternalVm() || VmSpecialEnvironmentVariables.IsRunningInVm)
-                    {
-                        // When need to execute in VM, or is already in VM (e.g., executing integration tests in VM), we need the host shared unc drive translation.
-                        TranslateHostSharedUncDrive(info);
-                    }
-
-                    var result = SandboxedProcessNeedsExecuteExternal
-                        ? await RunExternalAsync(info, allInputPathsUnderSharedOpaques, sandboxPrepTime, fileAccessReportingContext, explicitlyReportedFileAccessProcessor, cancellationToken)
-                        : await RunInternalAsync(info, allInputPathsUnderSharedOpaques, sandboxPrepTime, fileAccessReportingContext, explicitlyReportedFileAccessProcessor, cancellationToken);
-                    if (result.Status == SandboxedProcessPipExecutionStatus.PreparationFailed)
-                    {
-                        m_processIdListener?.Invoke(0);
-                    }
-
-                    // If sideband writer is used and we are executing internally, make sure here that it is flushed to disk.
-                    // Without doing this explicitly, if no writes into its SODs were recorded for the pip,
-                    // the sideband file will not be automatically saved to disk.  When running externally, the external
-                    // executor process will do this and if we do it here again we'll end up overwriting the sideband file.
-                    if (!SandboxedProcessNeedsExecuteExternal)
-                    {
-                        info.SidebandWriter?.EnsureHeaderWritten();
-                    }
-
-                    return result;
                 }
+
+                string executable = m_pip.Executable.Path.ToString(m_pathTable);
+                string arguments = m_pip.Arguments.ToString(m_pipDataRenderer);
+                m_timeout = GetEffectiveTimeout(m_pip.Timeout, m_sandboxConfig.DefaultTimeout, m_sandboxConfig.TimeoutMultiplier);
+
+                var fileAccessReportingContext = new FileAccessReportingContext(
+                    m_loggingContext,
+                    m_context,
+                    m_sandboxConfig,
+                    m_pip,
+                    m_validateDistribution,
+                    m_fileAccessAllowlist);
+
+                var explicitlyReportedFileAccessProcessor = new ExplicitlyReportedFileAccessProcessor(
+                    m_configuration,
+                    m_shouldPreserveOutputs,
+                    m_fileAccessManifest,
+                    m_semanticPathExpander,
+                    m_directorySymlinksAsDirectories,
+                    fileAccessReportingContext,
+                    m_pipGraphFileSystemView,
+                    m_fileSystemView);
+
+                var info = new SandboxedProcessInfo(
+                    m_pathTable,
+                    this,
+                    executable,
+                    m_fileAccessManifest,
+                    m_disableConHostSharing,
+                    m_loggingContext,
+                    m_pip.TestRetries,
+                    sandboxConnection: sandboxConnection,
+                    sidebandWriter: sidebandWriter,
+                    detoursEventListener: m_detoursListener,
+                    fileSystemView: fileSystemView,
+                    forceAddExecutionPermission: m_sandboxConfig.ForceAddExecutionPermission,
+                    // We always want to use gentle kill for EBPF to give the ebpf runner a chance to do proper tear down
+                    useGentleKill: sandboxConnection?.Kind == SandboxKind.LinuxEBPF,
+                    allowUndeclaredSourceReads: m_pip.AllowUndeclaredSourceReads,
+                    ringBufferSizeMultiplier: m_sandboxConfig.EBPFRingBufferSizeMultiplier,
+                    explicitlyReportedAccesses: explicitlyReportedFileAccessProcessor)
+                {
+                    Arguments = arguments,
+                    WorkingDirectory = m_workingDirectory,
+                    RootMappings = m_rootMappings,
+                    EnvironmentVariables = environmentVariables,
+                    Timeout = m_timeout,
+                    PipSemiStableHash = m_pip.SemiStableHash,
+                    PipDescription = m_pipDescription,
+                    TimeoutDumpDirectory = PreparePipTimeoutDumpDirectory(m_sandboxConfig, m_pip, m_pathTable),
+                    SurvivingPipProcessChildrenDumpDirectory = m_sandboxConfig.SurvivingPipProcessChildrenDumpDirectory.ToString(m_pathTable),
+                    StringTableExhaustionDumpDirectory = m_loggingConfiguration?.LogsDirectory.IsValid == true
+                        ? m_loggingConfiguration.LogsDirectory.ToString(m_pathTable)
+                        : null,
+                    SandboxKind = m_pip.DisableSandboxing ? SandboxKind.None : m_sandboxConfig.UnsafeSandboxConfiguration.SandboxKind,
+                    AllowedSurvivingChildProcessNames = m_pip.AllowedSurvivingChildProcessNames.Select(n => n.ToString(m_pathTable.StringTable)).ToArray(),
+                    NestedProcessTerminationTimeout = m_pip.NestedProcessTerminationTimeout ?? SandboxedProcessInfo.DefaultNestedProcessTerminationTimeout,
+                    DetoursFailureFile = m_detoursFailuresFile,
+                    MonitoringConfig = new SandboxedProcessResourceMonitoringConfig(enabled: m_sandboxConfig.MeasureProcessCpuTimes, refreshInterval: TimeSpan.FromSeconds(2)),
+                    NumRetriesPipeReadOnCancel = EngineEnvironmentSettings.SandboxNumRetriesPipeReadOnCancel.Value
+                        ?? SandboxedProcessInfo.DefaultPipeReadRetryOnCancellationCount,
+                    CreateSandboxTraceFile = m_pip.TraceFile.IsValid,
+                    ReportActivityTimeout = m_sandboxConfig.ReportActivityTimeout.HasValue
+                        ? TimeSpan.FromMilliseconds(m_sandboxConfig.ReportActivityTimeout.Value)
+                        : null,
+                    FirstReportActivityTimeout = m_sandboxConfig.FirstReportActivityTimeout.HasValue
+                        ? TimeSpan.FromMilliseconds(m_sandboxConfig.FirstReportActivityTimeout.Value)
+                        : null,
+                };
+
+                if (m_pluginEP != null)
+                {
+                    m_pluginEP.ProcessInfo = info;
+                }
+
+                if (m_sandboxConfig.AdminRequiredProcessExecutionMode.ExecuteExternalVm() || VmSpecialEnvironmentVariables.IsRunningInVm)
+                {
+                    // When need to execute in VM, or is already in VM (e.g., executing integration tests in VM), we need the host shared unc drive translation.
+                    TranslateHostSharedUncDrive(info);
+                }
+
+                var result = SandboxedProcessNeedsExecuteExternal
+                    ? await RunExternalAsync(info, sandboxPrepTime, fileAccessReportingContext, explicitlyReportedFileAccessProcessor, cancellationToken)
+                    : await RunInternalAsync(info, sandboxPrepTime, fileAccessReportingContext, explicitlyReportedFileAccessProcessor, cancellationToken);
+                if (result.Status == SandboxedProcessPipExecutionStatus.PreparationFailed)
+                {
+                    m_processIdListener?.Invoke(0);
+                }
+
+                // If sideband writer is used and we are executing internally, make sure here that it is flushed to disk.
+                // Without doing this explicitly, if no writes into its SODs were recorded for the pip,
+                // the sideband file will not be automatically saved to disk.  When running externally, the external
+                // executor process will do this and if we do it here again we'll end up overwriting the sideband file.
+                if (!SandboxedProcessNeedsExecuteExternal)
+                {
+                    info.SidebandWriter?.EnsureHeaderWritten();
+                }
+
+                return result;
             }
             finally
             {
@@ -983,7 +966,6 @@ namespace BuildXL.ProcessPipExecutor
 
         private async Task<SandboxedProcessPipExecutionResult> RunInternalAsync(
             SandboxedProcessInfo info,
-            HashSet<AbsolutePath> allInputPathsUnderSharedOpaques,
             System.Diagnostics.Stopwatch sandboxPrepTime,
             FileAccessReportingContext fileAccessReportingContext,
             ExplicitlyReportedFileAccessProcessor explicitlyReportedFileAccessProcessor,
@@ -1112,12 +1094,11 @@ namespace BuildXL.ProcessPipExecutor
                 }
             }
 
-            return await GetAndProcessResultAsync(process, allInputPathsUnderSharedOpaques, sandboxPrepTime, fileAccessReportingContext, explicitlyReportedFileAccessProcessor, cancellationToken);
+            return await GetAndProcessResultAsync(process, sandboxPrepTime, fileAccessReportingContext, explicitlyReportedFileAccessProcessor, cancellationToken);
         }
 
         private async Task<SandboxedProcessPipExecutionResult> RunExternalAsync(
             SandboxedProcessInfo info,
-            HashSet<AbsolutePath> allInputPathsUnderSharedOpaques,
             System.Diagnostics.Stopwatch sandboxPrepTime,
             FileAccessReportingContext fileAccessReportingContext,
             ExplicitlyReportedFileAccessProcessor explicitlyReportedFileAccessProcessor,
@@ -1229,7 +1210,7 @@ namespace BuildXL.ProcessPipExecutor
                     RetryInfo.GetDefault(RetryReason.ProcessStartFailure));
             }
 
-            return await GetAndProcessResultAsync(process, allInputPathsUnderSharedOpaques, sandboxPrepTime, fileAccessReportingContext, explicitlyReportedFileAccessProcessor, cancellationToken);
+            return await GetAndProcessResultAsync(process, sandboxPrepTime, fileAccessReportingContext, explicitlyReportedFileAccessProcessor, cancellationToken);
         }
 
         private void PopulateRemoteSandboxedProcessData(SandboxedProcessInfo info)
@@ -1289,7 +1270,6 @@ namespace BuildXL.ProcessPipExecutor
 
         private async Task<SandboxedProcessPipExecutionResult> GetAndProcessResultAsync(
             ISandboxedProcess process,
-            HashSet<AbsolutePath> allInputPathsUnderSharedOpaques,
             System.Diagnostics.Stopwatch sandboxPrepTime,
             FileAccessReportingContext fileAccessReportingContext,
             ExplicitlyReportedFileAccessProcessor explicitlyReportedFileAccessProcessor,
@@ -1403,7 +1383,6 @@ namespace BuildXL.ProcessPipExecutor
                         result,
                         sandboxPrepTime.ElapsedMilliseconds,
                         cancellationTokenSource.Token,
-                        allInputPathsUnderSharedOpaques,
                         process,
                         fileAccessReportingContext,
                         explicitlyReportedFileAccessProcessor);
@@ -1757,7 +1736,6 @@ namespace BuildXL.ProcessPipExecutor
             SandboxedProcessResult result,
             long sandboxPrepMs,
             CancellationToken cancellationToken,
-            HashSet<AbsolutePath> allInputPathsUnderSharedOpaques,
             ISandboxedProcess process,
             FileAccessReportingContext fileAccessReportingContext,
             ExplicitlyReportedFileAccessProcessor explicitlyReportedFileAccessProcessor)
@@ -1797,7 +1775,6 @@ namespace BuildXL.ProcessPipExecutor
                 fileAccessReportingContext,
                 result,
                 explicitlyReportedFileAccessProcessor,
-                allInputPathsUnderSharedOpaques,
                 out var unobservedOutputs,
                 out var sharedDynamicDirectoryWriteAccesses,
                 out SortedReadOnlyArray<ObservedFileAccess, ObservedFileAccessExpandedPathComparer> observed,
@@ -2240,14 +2217,14 @@ namespace BuildXL.ProcessPipExecutor
             return Tuple.Create(AbsolutePath.Create(m_pathTable, output.FileName), output.Encoding);
         }
 
-        private bool TryPrepareFileAccessMonitoring(HashSet<AbsolutePath> allInputPathsUnderSharedOpaques)
+        private bool TryPrepareFileAccessMonitoring()
         {
             if (!PrepareFileAccessMonitoringCommon())
             {
                 return false;
             }
 
-            TryPrepareFileAccessMonitoringForPip(m_pip, allInputPathsUnderSharedOpaques);
+            TryPrepareFileAccessMonitoringForPip(m_pip);
 
             return true;
         }
@@ -2493,8 +2470,12 @@ namespace BuildXL.ProcessPipExecutor
             }
         }
 
-        private void TryPrepareFileAccessMonitoringForPip(Process pip, HashSet<AbsolutePath> allInputPathsUnderSharedOpaques)
+        private void TryPrepareFileAccessMonitoringForPip(Process pip)
         {
+            // This set deduplicates ancestor traversal while constructing the manifest. It is not needed after preparation.
+            using var allInputPathsUnderSharedOpaquesWrapper = Pools.GetAbsolutePathSet();
+            HashSet<AbsolutePath> allInputPathsUnderSharedOpaques = allInputPathsUnderSharedOpaquesWrapper.Instance;
+
             // While we always define the %TMP% and %TEMP% variables to point to some legal directory
             // (many tools fail if those variables are not defined),
             // we don't allow any access to the default temp directory.
@@ -3816,7 +3797,6 @@ namespace BuildXL.ProcessPipExecutor
             FileAccessReportingContext fileAccessReportingContext,
             SandboxedProcessResult result,
             ExplicitlyReportedFileAccessProcessor explicitlyReportedFileAccessProcessor,
-            HashSet<AbsolutePath> allInputPathsUnderSharedOpaques,
             out List<AbsolutePath> unobservedOutputs,
             out IReadOnlyDictionary<AbsolutePath, IReadOnlyCollection<FileArtifactWithAttributes>> sharedDynamicDirectoryWriteAccesses,
             out SortedReadOnlyArray<ObservedFileAccess, ObservedFileAccessExpandedPathComparer> observedAccesses,

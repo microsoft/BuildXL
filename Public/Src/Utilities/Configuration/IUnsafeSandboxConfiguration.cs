@@ -222,15 +222,6 @@ namespace BuildXL.Utilities.Configuration
         RewritePolicy? DoubleWritePolicy { get; }
 
         /// <summary>
-        /// Deprecated: Still in code for cache fingerprint stability.
-        /// Undeclared accesses under a shared opaque are not reported.
-        /// </summary>
-        /// <remarks>
-        /// Temporary flag due to a bug in the sandboxed process pip executor to allow customers to snap to the fixed behavior
-        /// </remarks>
-        bool IgnoreUndeclaredAccessesUnderSharedOpaques { get; }
-
-        /// <summary>
         /// Ignores CreateProcess report.
         /// </summary>
         bool IgnoreCreateProcessReport { get; }
@@ -284,6 +275,12 @@ namespace BuildXL.Utilities.Configuration
     public static class UnsafeSandboxConfigurationExtensions
     {
         /// <summary>
+        /// Retired configuration value retained for serialization and fingerprint compatibility.
+        /// Remove this constant and its serialization slot the next time this serialization format changes.
+        /// </summary>
+        public const bool RetiredIgnoreUndeclaredAccessesUnderSharedOpaques = false;
+
+        /// <summary>
         /// Defaults that are consider "safe".
         /// </summary>
         public static readonly IUnsafeSandboxConfiguration SafeDefaults = Mutable.UnsafeSandboxConfiguration.SafeOptions;
@@ -325,7 +322,7 @@ namespace BuildXL.Utilities.Configuration
             {
                 writer.Write((byte)@this.DoubleWritePolicy.Value);
             }
-            writer.Write(@this.IgnoreUndeclaredAccessesUnderSharedOpaques);
+            writer.Write(RetiredIgnoreUndeclaredAccessesUnderSharedOpaques);
             writer.Write(@this.IgnoreCreateProcessReport);
             writer.Write(@this.ProbeDirectorySymlinkAsDirectory);
             writer.Write(@this.IgnoreFullReparsePointResolving);
@@ -375,8 +372,7 @@ namespace BuildXL.Utilities.Configuration
                 IgnorePreloadedDlls = reader.ReadBoolean(),
                 IgnoreDynamicWritesOnAbsentProbes = (DynamicWriteOnAbsentProbePolicy)reader.ReadInt32Compact(),
                 DoubleWritePolicy = reader.ReadBoolean() ? (RewritePolicy?)reader.ReadByte() : null,
-                IgnoreUndeclaredAccessesUnderSharedOpaques = reader.ReadBoolean(),
-                IgnoreCreateProcessReport = reader.ReadBoolean(),
+                IgnoreCreateProcessReport = ReadIgnoreCreateProcessReport(reader),
                 ProbeDirectorySymlinkAsDirectory = reader.ReadBoolean(),
                 IgnoreFullReparsePointResolving = reader.ReadBoolean(),
                 SkipFlaggingSharedOpaqueOutputs = reader.ReadBoolean() ? (bool?)reader.ReadBoolean() : null,
@@ -409,7 +405,6 @@ namespace BuildXL.Utilities.Configuration
                 && IsAsSafeOrSafer(lhs.IgnorePreloadedDlls, rhs.IgnorePreloadedDlls, SafeDefaults.IgnorePreloadedDlls)
                 && IsAsSafeOrSafer(lhs.IgnoreDynamicWritesOnAbsentProbes, rhs.IgnoreDynamicWritesOnAbsentProbes, SafeDefaults.IgnoreDynamicWritesOnAbsentProbes)
                 && IsAsSafeOrSafer(lhs.DoubleWritePolicy(), rhs.DoubleWritePolicy(), SafeDefaults.DoubleWritePolicy())
-                && IsAsSafeOrSafer(lhs.IgnoreUndeclaredAccessesUnderSharedOpaques, rhs.IgnoreUndeclaredAccessesUnderSharedOpaques, SafeDefaults.IgnoreUndeclaredAccessesUnderSharedOpaques)
                 && IsAsSafeOrSafer(lhs.IgnoreCreateProcessReport, rhs.IgnoreCreateProcessReport, SafeDefaults.IgnoreCreateProcessReport)
                 && IsAsSafeOrSafer(lhs.ProbeDirectorySymlinkAsDirectory, rhs.ProbeDirectorySymlinkAsDirectory, SafeDefaults.ProbeDirectorySymlinkAsDirectory)
                 && IsAsSafeOrSafer(lhs.SkipFlaggingSharedOpaqueOutputs(), rhs.SkipFlaggingSharedOpaqueOutputs(), SafeDefaults.SkipFlaggingSharedOpaqueOutputs())
@@ -417,6 +412,15 @@ namespace BuildXL.Utilities.Configuration
                 && IsAsSafeOrSafer(lhs.DoNotApplyAllowListToDynamicOutputs(), rhs.DoNotApplyAllowListToDynamicOutputs(), SafeDefaults.DoNotApplyAllowListToDynamicOutputs())
                 && IsAsSafeOrSafer(lhs.IgnoreUntrackedPathsInFullReparsePointResolving, rhs.IgnoreUntrackedPathsInFullReparsePointResolving, SafeDefaults.IgnoreUntrackedPathsInFullReparsePointResolving)
                 && IsAsSafeOrSafer(lhs.MonitorCreateProcessAsUser, rhs.MonitorCreateProcessAsUser, SafeDefaults.MonitorCreateProcessAsUser);
+        }
+
+        /// <summary>
+        /// Consumes the serialized slot written from <see cref="RetiredIgnoreUndeclaredAccessesUnderSharedOpaques"/> before reading IgnoreCreateProcessReport.
+        /// </summary>
+        private static bool ReadIgnoreCreateProcessReport(BuildXLReader reader)
+        {
+            _ = reader.ReadBoolean();
+            return reader.ReadBoolean();
         }
 
         /// <nodoc />

@@ -2,6 +2,14 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20260807.3 (Release [31884650](https://mseng.visualstudio.com/Domino/_build/results?buildId=31884650&view=results))
+- [Linux] Enable the MSBuild resolver and shared compilation on Linux.
+- Allow the VBCS compiler logger to accept the `csc /sdkpath:` switch.
+- [Distribution] Suppress user-error exit code 1 on workers while preserving infrastructure and internal failures.
+- [AdoBuildRunner] Label summaries with the invocation key to distinguish multiple BuildXL invocations.
+- [Perf] Bound retained pooled collections and operation associations to reduce distributed worker memory.
+- Various bug fixes and improvements.
+
 # 0.1.0-20260731.2 (Release [31855582](https://dev.azure.com/mseng/Domino/_build/results?buildId=31855582&view=results))
 - [Detours] Fix builds producing no output and never completing when `BuildXL.Processes` is loaded into a .NET 11 host.
 - [Distribution] Honor each worker's own `/ramSemaphoreMultiplier` on heterogeneous fleets, instead of sizing every worker with the orchestrator's value.

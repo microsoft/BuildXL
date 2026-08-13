@@ -45,6 +45,8 @@ namespace BuildXL.Launcher.Server
 
         private ContentCacheConfiguration Configuration { get; }
 
+        private DownloadUrlPolicy DownloadUrlPolicy { get; }
+
         /// <nodoc />
         public ContentCacheService(
             ContentCacheConfiguration configuration,
@@ -57,6 +59,7 @@ namespace BuildXL.Launcher.Server
             PushFileHandler = pushFileHandler;
             ContentCacheRequests = new VolatileMap<string, AsyncLazy<BoolResult>>(Clock);
             Client = client ?? DeploymentLauncherHost.Instance.CreateContentCacheServiceClient();
+            DownloadUrlPolicy = new DownloadUrlPolicy(configuration.AllowedDownloadOrigins);
 
             DownloadQueue = new ActionQueue(configuration.DownloadConcurrency ?? Environment.ProcessorCount);
         }
@@ -71,6 +74,11 @@ namespace BuildXL.Launcher.Server
                     var openResult = await StreamStore.OpenStreamAsync(context, contentHash);
                     if (openResult.Code == OpenStreamResult.ResultCode.ContentNotFound && downloadUrl != null)
                     {
+                        if (!DownloadUrlPolicy.IsAllowed(downloadUrl))
+                        {
+                            return new OpenStreamResult("The content download URL is not allowed by policy. Configure allowed origins via ContentCacheConfiguration.AllowedDownloadOrigins.");
+                        }
+
                         await EnsureContentLocalAsync(context, hash, downloadUrl);
                         openResult = await StreamStore.OpenStreamAsync(context, contentHash);
                     }
@@ -101,13 +109,13 @@ namespace BuildXL.Launcher.Server
                             async innerContext =>
                             {
                                 var contentHash = new ContentHash(hash);
-                                var stream = await Client.GetStreamAsync(innerContext, downloadUrl);
+                                using var downloadStream = await Client.GetStreamAsync(innerContext, downloadUrl);
 
                                 // Cache the content in local store and return stream from local store
                                 return await PushFileHandler.HandlePushFileAsync(
                                     innerContext,
                                     contentHash,
-                                    new FileSource(stream),
+                                    new FileSource(downloadStream),
                                     innerContext.Token).ThrowIfFailure();
                             },
                             extraStartMessage: $"Hash={hash}",

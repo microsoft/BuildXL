@@ -5,7 +5,7 @@ import {Transformer} from "Sdk.Transformers";
 import * as Deployment from "Sdk.Deployment";
 import * as BuildXLSdk from "Sdk.BuildXL";
 
-export declare const qualifier: BuildXLSdk.Net9Qualifier;
+export declare const qualifier: BuildXLSdk.DefaultQualifier;
 
 const specs = [
     f`Tool.CloudTestClientRunner.APIs.dsc`,

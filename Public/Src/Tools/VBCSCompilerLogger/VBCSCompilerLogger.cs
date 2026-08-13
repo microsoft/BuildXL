@@ -255,6 +255,20 @@ namespace VBCSCompilerLogger
                     indexFollowingToolName++;
                 }
 
+                if (indexFollowingToolName < commandLine.Length && commandLine[indexFollowingToolName] != ' ')
+                {
+                    arguments = null;
+                    error = $"Expected a space after the tool name, but got: {commandLine}";
+                    return false;
+                }
+
+                if (indexFollowingToolName + 1 >= commandLine.Length)
+                {
+                    arguments = null;
+                    error = $"Expected to find arguments after the tool name, but got: {commandLine}";
+                    return false;
+                }
+
                 arguments = commandLine.Substring(indexFollowingToolName + 1); // Ignore the space following the tool name
                 error = string.Empty;
 

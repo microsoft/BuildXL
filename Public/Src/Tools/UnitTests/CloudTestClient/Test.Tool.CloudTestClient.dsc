@@ -4,7 +4,7 @@
 import * as BuildXLSdk from "Sdk.BuildXL";
 
 namespace Test.Tool.CloudTestClient {
-    export declare const qualifier: BuildXLSdk.Net9Qualifier;
+    export declare const qualifier: BuildXLSdk.DefaultQualifier;
 
     @@public
     export const dll = BuildXLSdk.test({

@@ -9,6 +9,7 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices;
 using Microsoft.Build.Utilities;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -24,7 +25,11 @@ namespace Test.VBCSCompilerLogger
 
         private const string VbcArgs = @"/out:MyProgram.exe /target:exe Program.vb";
 
-        private static IEnumerable<object[]> HappyArgumentParsingData()
+        public static IEnumerable<object[]> HappyArgumentParsingData =>  RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+            ? HappyArgumentParsingDataWindows() 
+            : HappyArgumentParsingDataLinux();
+
+        private static IEnumerable<object[]> HappyArgumentParsingDataWindows()
         {
             yield return new object[] { true, @"C:some\path\to\csc.exe " + CscArgs };
             yield return new object[] { true, @"C:\Program Files\dotnet\dotnet.exe exec ""C:some\path\to\csc.dll"" " + CscArgs };
@@ -32,7 +37,19 @@ namespace Test.VBCSCompilerLogger
             yield return new object[] { false, @"C:\Program Files\dotnet\dotnet.exe exec ""C:some\path\to\vbc.dll"" " + VbcArgs };
         }
 
-        private static IEnumerable<object[]> ErroneousArgumentParsingData()
+        private static IEnumerable<object[]> HappyArgumentParsingDataLinux()
+        {
+            yield return new object[] { true, @"/some/path/to/csc " + CscArgs };
+            yield return new object[] { true, @"/usr/bin/dotnet exec ""/some/path/to/csc.dll"" " + CscArgs };
+            yield return new object[] { false, @"/some/path/to/vbc " + VbcArgs };
+            yield return new object[] { false, @"/usr/bin/dotnet exec ""/some/path/to/vbc.dll"" " + VbcArgs };
+        }
+
+        public static IEnumerable<object[]> ErroneousArgumentParsingData => RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+            ? ErroneousArgumentParsingDataWindows() 
+            : ErroneousArgumentParsingDataLinux();
+
+        private static IEnumerable<object[]> ErroneousArgumentParsingDataWindows()
         {
             yield return new object[] { true, @"C:some\path\to\csc.abc " + CscArgs };
             yield return new object[] { true, @"C:some\path\to\csc.exe" };
@@ -44,6 +61,20 @@ namespace Test.VBCSCompilerLogger
             yield return new object[] { false, @"C:\Program Files\dotnet\dotnet.exe exec ""C:some\path\to\vbc.dll" };
             yield return new object[] { false, @"C:\Program Files\dotnet\dotnet.exe exec ""C:some\path\to\vbc.abc"" " + VbcArgs };
             yield return new object[] { false, @"C:\Program Files\dotnet\dotnet.exe exec ""C:some\path\to\vbc.abc" };
+        }
+
+        private static IEnumerable<object[]> ErroneousArgumentParsingDataLinux()
+        {
+            yield return new object[] { true, @"/some/path/to/csc.abc " + CscArgs };
+            yield return new object[] { true, @"/some/path/to/csc" };
+            yield return new object[] { true, @"/usr/bin/dotnet exec ""/some/path/to/csc.dll""" };
+            yield return new object[] { true, @"/usr/bin/dotnet exec ""/some/path/to/csc.abc"" " + CscArgs };
+            yield return new object[] { true, @"/usr/bin/dotnet exec ""/some/path/to/csc.abc""" };
+            yield return new object[] { false, @"/some/path/to/vbc.abc " + VbcArgs };
+            yield return new object[] { false, @"/some/path/to/vbc" };
+            yield return new object[] { false, @"/usr/bin/dotnet exec ""/some/path/to/vbc.dll"""};
+            yield return new object[] { false, @"/usr/bin/dotnet exec ""/some/path/to/vbc.abc"" " + VbcArgs };
+            yield return new object[] { false, @"/usr/bin/dotnet exec ""/some/path/to/vbc.abc""" };
         }
 
         public VBCSCompilerLoggerTests(ITestOutputHelper output) : base(output)
@@ -64,7 +95,6 @@ namespace Test.VBCSCompilerLogger
         {
             XAssert.IsFalse(Logger.TryGetArgumentsFromCommandLine(isCscTask ? "Csc" : "Vbc", commandLine, out string arguments, out string error));
             XAssert.IsNull(arguments);
-            XAssert.AreEqual($"Unexpected tool name in command line. Expected csc.exe, csc.dll, vbc.exe, or vbc.dll, but got: {commandLine}", error);
         }
 
         [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]

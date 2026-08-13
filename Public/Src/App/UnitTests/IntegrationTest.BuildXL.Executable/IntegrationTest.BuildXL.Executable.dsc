@@ -4,16 +4,13 @@
 import * as DetoursServices from "BuildXL.Sandbox.Windows";
 import * as Managed from "Sdk.Managed";
 import * as Deployment from "Sdk.Deployment";
+import * as BuildXLSdk from "Sdk.BuildXL";
 
 // Tests are skipped because they call BuildXL executable directly and expect server mode to launch.
 // Using BuildXL to execute another BuildXL executable with server mode will not work because the outer BuildXL will disallow any child process breakaway.
 namespace IntegrationTest.BuildXL.Executable {
 
-    export declare const qualifier : {
-        configuration: "debug" | "release",
-        targetFramework: "net9.0",
-        targetRuntime: "win-x64"
-    };
+    export declare const qualifier : BuildXLSdk.Net10Qualifier;
 
     const exampleMountPath = Context.getMount("Example").path;
     @@public

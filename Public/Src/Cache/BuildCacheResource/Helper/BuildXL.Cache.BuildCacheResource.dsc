@@ -15,7 +15,8 @@ namespace Helper {
             importFrom("System.Threading.Tasks.Extensions").pkg,
             ...addIfLazy(!BuildXLSdk.isDotNetCore, () => [
                 importFrom("System.Text.Json").pkg,
-                importFrom("System.Memory").pkg,])
+                importFrom("System.Memory").pkg,
+                importFrom("System.IO.Pipelines").pkg,])
         ],
         nullable: true,
     });

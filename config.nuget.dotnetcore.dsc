@@ -238,7 +238,7 @@ export const pkgs = [
     { id: "System.Threading", version: pkgVersion },
     { id: "System.Threading.Overlapped", version: pkgVersion },
     { id: "System.Threading.Tasks", version: pkgVersion },
-    { id: "System.Formats.Asn1", version: "9.0.19"},
+    { id: "System.Formats.Asn1", version: "10.0.10"},
     
     { id: "System.Threading.Tasks.Parallel", version: pkgVersion },
     { id: "System.Threading.Thread", version: pkgVersion },
@@ -260,7 +260,7 @@ export const pkgs = [
     // NOTE: this package is explicitly on version 5.0.0.0 because 6.0.0.0 was delisted from nuget.
     { id: "System.Security.Principal.Windows", version: pkgVersion5 },
     
-    { id: "System.Text.Json", version: "9.0.19" },
+    { id: "System.Text.Json", version: "10.0.8" },
     { id: "System.Threading.AccessControl", version: pkgVersion5 },
 
     // Non-standard version ones

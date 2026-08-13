@@ -50,15 +50,12 @@ namespace MsBuild {
                 // CODESYNC: qualifier in Public\Src\Tools\VBCSCompilerLogger\VBCSCompilerLogger.dsc
                 // TODO: Remove qualifier override once Net8QualifierWithNet472 is dealt with.
                 contents: [importFrom("BuildXL.Tools").VBCSCompilerLogger
-                    .withQualifier({ targetFramework: "net9.0" }).dll]
+                    .withQualifier({ targetFramework: "net10.0" }).dll]
             },
             {
                 subfolder: r`tools`,
-                // For the dotnet case, we are only deploying the tool for net9
-                // TODO: Remove condition when we stop building for other .net versions
-                contents: [qualifier.targetFramework === "net8.0" || qualifier.targetFramework === "net10.0"
-                    ? importFrom("BuildXL.Tools").MsBuildGraphBuilder.withQualifier({targetFramework: "net9.0"}).deployment
-                    : importFrom("BuildXL.Tools").MsBuildGraphBuilder.deployment],
+                // For the dotnet case, we are only deploying the tool for net10
+                contents: [importFrom("BuildXL.Tools").MsBuildGraphBuilder.withQualifier({targetFramework: "net10.0"}).deployment],
             }
         ]
     });

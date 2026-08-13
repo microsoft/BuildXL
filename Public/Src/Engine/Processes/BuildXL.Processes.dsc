@@ -38,7 +38,7 @@ namespace Processes {
             ),
             // .NET 10 promoted System.IO.Pipelines into the BCL, so referencing the NuGet package
             // here would cause CS0433 ambiguity for types like PipeReader.
-            ...addIf(BuildXLSdk.isDotNetCoreOrStandard && qualifier.targetFramework !== "net10.0",
+            ...addIf(BuildXLSdk.isDotNetCoreOrStandard && qualifier.targetFramework === "net8.0",
                 importFrom("System.IO.Pipelines").pkg
             ),
             importFrom("BuildXL.Utilities").Native.dll,

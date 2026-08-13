@@ -5,7 +5,7 @@ import * as Managed from "Sdk.Managed";
 import * as BuildXLSdk from "Sdk.BuildXL";
 import * as Deployment from "Sdk.Deployment";
 
-export declare const qualifier: BuildXLSdk.Net9QualifierWithNet472;
+export declare const qualifier: BuildXLSdk.Net10QualifierWithNet472;
 
 @@public
 export const msbuildReferences: Managed.ManagedNugetPackage[] = [
@@ -19,7 +19,7 @@ export const msbuildReferences: Managed.ManagedNugetPackage[] = [
 
 /** 
  * Runtime content for tests 
- * Observe that we use a net9-specific version of msbuild.
+ * Observe that we use a net10-specific version of msbuild.
  **/
 @@public
 export const msbuildRuntimeContent = [
@@ -34,8 +34,8 @@ export const msbuildRuntimeContent = [
     ...BuildXLSdk.isDotNetCoreOrStandard ? [
         importFrom("System.Text.Encoding.CodePages").pkg,
         importFrom("Microsoft.Build.Tasks.Core").pkg,
-        importFrom("Microsoft.Build.Runtime").Contents.all.getFile(r`contentFiles/any/net9.0/MSBuild.dll`),
-        importFrom("Microsoft.Build.Runtime").Contents.all.getFile(r`contentFiles/any/net9.0/MSBuild.runtimeconfig.json`),
+        importFrom("Microsoft.Build.Runtime").Contents.all.getFile(r`contentFiles/any/net10.0/MSBuild.dll`),
+        importFrom("Microsoft.Build.Runtime").Contents.all.getFile(r`contentFiles/any/net10.0/MSBuild.runtimeconfig.json`),
         importFrom("Microsoft.NET.StringTools").pkg
     ]
     : [

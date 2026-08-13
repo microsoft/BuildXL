@@ -81,7 +81,7 @@ function createSdkDeploymentDefinition(serverDeployment: boolean, minimalDeploym
                             subfolder: "Sdk.CloudTestClient",
                             contents: [ 
                                 importFrom("BuildXL.Tools.CloudTestClient").withQualifier({
-                                    targetFramework: "net9.0",
+                                    targetFramework: "net10.0",
                                 }).selectDeployment(evaluationOnly)
                             ]
                         },

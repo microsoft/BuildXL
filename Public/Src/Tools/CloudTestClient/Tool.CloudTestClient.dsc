@@ -6,7 +6,7 @@ import * as Deployment from "Sdk.Deployment";
 
 namespace CloudTestClient {
 
-    export declare const qualifier: BuildXLSdk.Net9Qualifier;
+    export declare const qualifier: BuildXLSdk.DefaultQualifier;
 
     @@public
     export const tool = BuildXLSdk.executable({

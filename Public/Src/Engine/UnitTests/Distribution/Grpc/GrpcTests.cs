@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Reflection;
 using System.Threading.Tasks;
 using BuildXL.Engine.Distribution;
 using BuildXL.Engine.Distribution.Grpc;
@@ -134,6 +135,43 @@ namespace Test.BuildXL.Distribution
 
             await StopServicesAsync(orchestratorHarness, workerHarness);
         }
+
+#if NET6_0_OR_GREATER
+        [Fact]
+        public async Task SuccessfulCallResetsReconnectAttempts()
+        {
+            // Disable heartbeats so only the application call below can reset the reconnect attempts
+            EngineEnvironmentSettings.GrpcHeartbeatEnabled.Value = false;
+
+            var orchestratorHarness = new OrchestratorHarness(LoggingContext, s_defaultDistributedInvocationId);
+            var workerHarness = new WorkerHarness(LoggingContext, s_defaultDistributedInvocationId);
+            var workerServicePort = workerHarness.StartServer();
+
+            var remoteWorker = orchestratorHarness.AddWorker();
+            remoteWorker.StartClient(workerServicePort);
+
+            // Attach
+            var attachResult = await remoteWorker.AttachAsync();
+            Assert.True(attachResult.Succeeded);
+
+            var connectionManagerField = typeof(GrpcWorkerClient).GetField("m_connectionManager", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.NotNull(connectionManagerField);
+
+            var connectionManager = (ClientConnectionManager)connectionManagerField.GetValue(remoteWorker.WorkerClient);
+            var reconnectAttemptsField = typeof(ClientConnectionManager).GetField("m_numReconnectAttempts", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.NotNull(reconnectAttemptsField);
+
+            // Simulate a worker that previously recovered from four connection interruptions
+            reconnectAttemptsField.SetValue(connectionManager, 4);
+
+            // A successful call should clear the historical attempts so a future interruption receives the full reconnect budget
+            var callResult = await remoteWorker.SendBuildRequestAsync();
+            Assert.True(callResult.Succeeded);
+            Assert.Equal(0, reconnectAttemptsField.GetValue(connectionManager));
+
+            await StopServicesAsync(orchestratorHarness, workerHarness);
+        }
+#endif
 
         [Theory]
         [InlineData(true)]

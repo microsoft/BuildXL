@@ -657,6 +657,11 @@ namespace BuildXL.Engine.Distribution.Grpc
 
             if (state == RpcCallResultState.Succeeded)
             {
+#if NET6_0_OR_GREATER
+                // Reconnection attempts are consecutive failures. Successful application traffic confirms
+                // that the connection recovered, so previous recoveries must not count against a later outage.
+                Interlocked.Exchange(ref m_numReconnectAttempts, 0);
+#endif
                 return new RpcCallResult<T>(result, attempts: numTry, duration: totalCallDuration, waitForConnectionDuration: waitForConnectionDuration);
             }
             else if (m_attached && timeouts == GrpcSettings.MaxAttempts)

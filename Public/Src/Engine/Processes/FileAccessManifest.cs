@@ -26,6 +26,8 @@ namespace BuildXL.Processes
     {
         private readonly Dictionary<StringId, NormalizedPathString> m_normalizedFragments = new();
 
+        private readonly IEqualityComparer<StringId> m_childComparer;
+
         /// <summary>
         /// Represents the invalid scope.
         /// </summary>
@@ -65,6 +67,7 @@ namespace BuildXL.Processes
             IReadOnlyCollection<BreakawayChildProcess>? childProcessesToBreakawayFromSandbox = null)
         {
             PathTable = pathTable;
+            m_childComparer = new NormalizedStringIdEqualityComparer(this);
             m_rootNode = Node.CreateRootNode();
             DirectoryTranslator = translateDirectories;
             ChildProcessesToBreakawayFromSandbox = childProcessesToBreakawayFromSandbox;
@@ -1141,7 +1144,7 @@ namespace BuildXL.Processes
             }
             else
             {
-                m_rootNode.InternalSerialize(default(NormalizedPathString), writer);
+                m_rootNode.InternalSerialize(this, default(NormalizedPathString), writer);
             }
         }
 
@@ -1185,7 +1188,7 @@ namespace BuildXL.Processes
         /// </summary>
         internal void Release()
         {
-            m_normalizedFragments?.Clear();
+            m_normalizedFragments.Clear();
             var workList = new Stack<Node>();
             workList.Push(m_rootNode);
             while (workList.Count > 0)
@@ -1302,7 +1305,7 @@ namespace BuildXL.Processes
             // stream will be disposed by the BinaryWriter when it goes out of scope
             using var stream = new MemoryStream(4096);
             using var writer = new BinaryWriter(stream, Encoding.Unicode, true);
-            m_rootNode.Serialize(writer);
+            m_rootNode.Serialize(this, writer);
             var bytes = stream.ToArray();
             return bytes;
         }
@@ -1313,7 +1316,18 @@ namespace BuildXL.Processes
         /// <returns>The line-by-line string representation of the manifest (formatted as a pre-order tree).</returns>
         public IEnumerable<string> Describe()
         {
-            return m_rootNode.Describe();
+            return m_rootNode.Describe(this);
+        }
+
+        private NormalizedPathString GetNormalizedFragment(StringId fragment)
+        {
+            if (!m_normalizedFragments.TryGetValue(fragment, out var normalizedFragment))
+            {
+                normalizedFragment = new NormalizedPathString(PathTable.StringTable.GetString(fragment));
+                m_normalizedFragments.Add(fragment, normalizedFragment);
+            }
+
+            return normalizedFragment;
         }
 
         // CODESYNC: DataTypes.h
@@ -1514,14 +1528,38 @@ namespace BuildXL.Processes
         }
 
         /// <summary>
+        /// Uses the manifest's normalized-fragment cache to preserve the original child lookup semantics while
+        /// storing compact <see cref="StringId"/> keys in each node.
+        /// </summary>
+        private sealed class NormalizedStringIdEqualityComparer : IEqualityComparer<StringId>
+        {
+            private readonly FileAccessManifest m_owner;
+
+            public NormalizedStringIdEqualityComparer(FileAccessManifest owner)
+            {
+                m_owner = owner;
+            }
+
+            public bool Equals(StringId x, StringId y) =>
+                x == y || m_owner.GetNormalizedFragment(x).Equals(m_owner.GetNormalizedFragment(y));
+
+            public int GetHashCode(StringId obj) => m_owner.GetNormalizedFragment(obj).HashCode;
+        }
+
+        /// <summary>
         /// A node for a partial path and associated policy.
         /// </summary>
         private sealed class Node
         {
+            // These child representations are mutually exclusive. Live manifests use m_children, while hydrated
+            // deserialized manifests use m_deserializedChildren because their serialized fragments have no StringIds.
+
             /// <summary>
             /// Holds the children of this Node.
             /// </summary>
-            private Dictionary<NormalizedPathString, Node>? m_children;
+            private Dictionary<StringId, Node>? m_children;
+
+            private Dictionary<NormalizedPathString, Node>? m_deserializedChildren;
 
             /// <summary>
             /// Policy for the cone defined by this node
@@ -1552,14 +1590,15 @@ namespace BuildXL.Processes
             /// <summary>
             /// Returns children nodes.
             /// </summary>
-            internal IEnumerable<Node>? Children => m_children?.Values;
+            internal IEnumerable<Node>? Children => m_children is not null ? m_children.Values : m_deserializedChildren?.Values;
 
             /// <summary>
             /// Releases all children nodes, allowing all that memory to be reclaimed by the garbage collector.
             /// </summary>
             internal void ReleaseChildren()
             {
-                m_children?.Clear();
+                m_children = null;
+                m_deserializedChildren = null;
             }
 
             /// <summary>
@@ -1677,7 +1716,7 @@ namespace BuildXL.Processes
                     FindNodeFor(owner, container) : 
                     this;
 
-                if (node.TryGetChild(owner, pathToLookUp, out var result, out _))
+                if (node.TryGetChild(owner, pathToLookUp, out var result))
                 {
                     return result;
                 }
@@ -1687,42 +1726,37 @@ namespace BuildXL.Processes
 
             private Node GetOrCreateChild(FileAccessManifest owner, AbsolutePath path)
             {
-                if (TryGetChild(owner, path, out Node? child, out NormalizedPathString normalizedFragment))
+                if (TryGetChild(owner, path, out Node? child))
                 {
                     return child;
                 }
 
-                m_children ??= new Dictionary<NormalizedPathString, Node>();
+                m_children ??= new Dictionary<StringId, Node>(owner.m_childComparer);
 
+                StringId fragment = path.GetName(owner.PathTable).StringId;
                 child = new Node(path);
-                m_children.Add(normalizedFragment, child);
+                m_children.Add(fragment, child);
 
                 return child;
             }
 
-            private bool TryGetChild(FileAccessManifest owner, AbsolutePath path, [NotNullWhen(true)] out Node? node, out NormalizedPathString normalizedFragment)
+            private bool TryGetChild(FileAccessManifest owner, AbsolutePath path, [NotNullWhen(true)] out Node? node)
             {
                 Contract.Requires(path.IsValid);
 
                 StringId fragment = path.GetName(owner.PathTable).StringId;
 
-                // We cache normalized fragments to avoid excessive memory allocations;
-                // in particular, we can avoid the allocation associated with creating a new NormalizedPathString
-                // for all fragments recurring in nested path prefixes.
-                if (!owner.m_normalizedFragments.TryGetValue(fragment, out normalizedFragment))
-                {
-                    owner.m_normalizedFragments.Add(
-                        fragment,
-                        normalizedFragment = new NormalizedPathString(owner.PathTable.StringTable.GetString(fragment)));
-                }
-
                 node = null;
-                if (m_children?.TryGetValue(normalizedFragment, out node) == true)
+                if (m_children?.TryGetValue(fragment, out node) == true)
                 {
                     return true;
                 }
 
-                return false;
+                NormalizedPathString normalizedFragment = owner.GetNormalizedFragment(fragment);
+
+                // A deserialized manifest has no StringIds that correspond to its serialized fragments. This path
+                // is uncommon, but preserves managed lookups after hydration without changing the wire format.
+                return m_deserializedChildren?.TryGetValue(normalizedFragment, out node) == true;
             }
 
             // CODESYNC: DataTypes.h
@@ -1791,6 +1825,13 @@ namespace BuildXL.Processes
                         child.Value.FinalizePolicies(ConePolicy);
                     }
                 }
+                else if (m_deserializedChildren is not null)
+                {
+                    foreach (var child in m_deserializedChildren)
+                    {
+                        child.Value.FinalizePolicies(ConePolicy);
+                    }
+                }
             }
 
             private void ApplyConeFileAccess(FileAccessScope apply)
@@ -1843,21 +1884,26 @@ namespace BuildXL.Processes
 
                     if (childrenCount > 0)
                     {
-                        node.m_children = new Dictionary<NormalizedPathString, Node>(childrenCount);
+                        node.m_deserializedChildren = new Dictionary<NormalizedPathString, Node>(childrenCount);
                     }
 
                     for (int i = 0; i < childrenCount; i++)
                     {
                         (Node child, NormalizedPathString childNormalizedPathString) = InternalDeserialize(reader);
-                        node.m_children![childNormalizedPathString] = child;
+                        node.m_deserializedChildren![childNormalizedPathString] = child;
                     }
 
                     return (node, normalizedPathString);
                 }
             }
 
-            public void InternalSerialize(NormalizedPathString normalizedFragment, BinaryWriter writer)
+            public void InternalSerialize(FileAccessManifest owner, NormalizedPathString normalizedFragment, BinaryWriter writer)
             {
+                // Deserialized manifests replay their original serialized tree.
+                // Hydrated children support managed lookups only and must not reach this path.
+                Contract.Assert(!owner.IsManifestTreeBlockSealed);
+                Contract.Assert(m_deserializedChildren is null);
+
                 // always finalize when serializing -- note that this prevents adding additional scopes as before
                 if (!IsPolicyFinalized)
                 {
@@ -1876,7 +1922,7 @@ namespace BuildXL.Processes
                     writer.Write((uint)PathId.Value.Value);
                     writer.Write((ulong)ExpectedUsn.Value);
 
-                    var childCount = (uint)(m_children is null ? 0 : m_children.Count);
+                    var childCount = (uint)(m_children?.Count ?? 0);
 
                     // The children will be added to a hash-table.
                     // As it is known that hash-table performance starts to degrade with load factors > 0.7,
@@ -1912,7 +1958,8 @@ namespace BuildXL.Processes
                         uint[] offsets = new uint[bucketCount];
                         foreach (var child in m_children)
                         {
-                            var hash = unchecked((uint)child.Key.HashCode);
+                            var childNormalizedFragment = owner.GetNormalizedFragment(child.Key);
+                            var hash = unchecked((uint)childNormalizedFragment.HashCode);
                             var index = hash % bucketCount;
 
                             // collision?
@@ -1932,7 +1979,7 @@ namespace BuildXL.Processes
                             var offset = checked((uint)(writer.BaseStream.Position - start));
                             Contract.Assume((offset & (uint)FileAccessBucketOffsetFlag.ChainMask) == 0);
                             offsets[index] = offset;
-                            child.Value.InternalSerialize(child.Key, writer);
+                            child.Value.InternalSerialize(owner, childNormalizedFragment, writer);
                         }
 
                         long endPosition = writer.BaseStream.Position;
@@ -1947,7 +1994,7 @@ namespace BuildXL.Processes
                 }
             }
 
-            public void Serialize(BinaryWriter writer)
+            public void Serialize(FileAccessManifest owner, BinaryWriter writer)
             {
                 // always finalize when serializing -- note that this prevents adding additional scopes as before
                 if (!IsPolicyFinalized)
@@ -1955,7 +2002,7 @@ namespace BuildXL.Processes
                     FinalizePolicies();
                 }
 
-                InternalSerialize(default(NormalizedPathString), writer);
+                InternalSerialize(owner, default(NormalizedPathString), writer);
             }
 
             private static string ReadUnicodeString(BinaryReader reader, List<byte> buffer)
@@ -1990,15 +2037,18 @@ namespace BuildXL.Processes
             /// as that faithfully represents the information that is actually used by the monitored process.
             /// </remarks>
             [SuppressMessage("Microsoft.Usage", "CA2202:Do not dispose objects multiple times")]
-            public IEnumerable<string> Describe()
+            public IEnumerable<string> Describe(FileAccessManifest owner)
             {
-                // start with 4 KB of memory (one page), which will expand as necessary
-                // stream will be disposed by the BinaryWriter when it goes out of scope
-                using (var stream = new MemoryStream(4096))
+                using (var stream = owner.m_sealedManifestTreeBlock is not null
+                    ? new MemoryStream(owner.m_sealedManifestTreeBlock, writable: false)
+                    : new MemoryStream(4096))
                 {
-                    using (var writer = new BinaryWriter(stream, Encoding.Unicode, true))
+                    if (!owner.IsManifestTreeBlockSealed)
                     {
-                        Serialize(writer);
+                        using (var writer = new BinaryWriter(stream, Encoding.Unicode, true))
+                        {
+                            Serialize(owner, writer);
+                        }
                     }
 
                     using (var reader = new BinaryReader(stream, Encoding.Unicode, true))

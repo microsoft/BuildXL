@@ -27,17 +27,7 @@ namespace Processes.Detours {
             // Unfortunately, Robocopy does not know how to copy directory symlinks or junctions.
             testFramework: XUnitV3.framework,
             assemblyName: assemblyName,
-            sources: [
-                f`PipExecutorDetoursTest.cs`,
-                f`SandboxedProcessPipExecutorTest.cs`,
-                f`SandboxedProcessPipExecutorWindowsCallTest.cs`,
-                f`SandboxedProcessPipExecutorCorrelationCallTest.cs`,
-                f`ValidationDataCreator.cs`,
-                f`FileAccessManifestTreeTest.cs`,
-                f`SandboxedProcessInfoTest.cs`,
-                f`SubstituteProcessExecutionTests.cs`,
-                f`OutputFilterTest.cs`,
-            ],
+            sources: globR(d`.`, "*.cs"),
             references: [
                 importFrom("BuildXL.Engine").ProcessPipExecutor.dll,
                 importFrom("BuildXL.Engine").Processes.dll,

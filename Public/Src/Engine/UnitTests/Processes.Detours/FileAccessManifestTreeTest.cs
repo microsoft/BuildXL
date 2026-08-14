@@ -104,6 +104,52 @@ namespace Test.BuildXL.Processes.Detours
             XAssert.AreEqual(ReportedFileAccess.NoUsn, expectedUsn);
         }
 
+        [Fact]
+        public void TryFindManifestPathForUsesCaseInsensitiveFragments()
+        {
+            var pathTable = new PathTable();
+            var manifest = new FileAccessManifest(pathTable);
+            var scope = AbsolutePath.Create(pathTable, @"C:\repo\source");
+            var path = AbsolutePath.Create(pathTable, @"C:\repo\source\hotFile.cs");
+
+            manifest.AddScope(scope, FileAccessPolicy.Deny, FileAccessPolicy.AllowRead);
+            manifest.AddPath(path, FileAccessPolicy.MaskNothing, FileAccessPolicy.AllowWrite);
+
+            // Finalize the tree as it is before reports call TryFindManifestPathFor.
+            _ = manifest.GetManifestTreeBytes();
+
+            AbsolutePath caseVariant = AbsolutePath.Create(pathTable, @"c:\REPO\SOURCE\HOTFILE.CS");
+            XAssert.IsTrue(manifest.TryFindManifestPathFor(caseVariant, out AbsolutePath manifestPath, out FileAccessPolicy policy));
+            XAssert.AreEqual(path, manifestPath);
+            XAssert.AreEqual(FileAccessPolicy.AllowRead | FileAccessPolicy.AllowWrite, policy);
+
+            AbsolutePath missUnderScope = AbsolutePath.Create(pathTable, @"C:\repo\source\missing.cs");
+            XAssert.IsTrue(manifest.TryFindManifestPathFor(missUnderScope, out manifestPath, out policy));
+            XAssert.AreEqual(scope, manifestPath);
+            XAssert.AreEqual(FileAccessPolicy.AllowRead, policy);
+
+            AbsolutePath missOutsideScope = AbsolutePath.Create(pathTable, @"E:\other\missing.cs");
+            XAssert.IsFalse(manifest.TryFindManifestPathFor(missOutsideScope, out manifestPath, out policy));
+            XAssert.AreEqual(AbsolutePath.Invalid, manifestPath);
+            XAssert.AreEqual(FileAccessPolicy.Deny, policy);
+
+            byte[] originalTreeBytes = manifest.GetManifestTreeBytes();
+            string[] originalDescription = manifest.Describe().ToArray();
+            using var stream = new MemoryStream();
+            manifest.Serialize(stream);
+            stream.Position = 0;
+            var deserializedManifest = FileAccessManifest.Deserialize(stream);
+
+            XAssert.IsTrue(originalTreeBytes.SequenceEqual(deserializedManifest.GetManifestTreeBytes()));
+            XAssert.IsTrue(originalDescription.SequenceEqual(deserializedManifest.Describe()));
+        }
+
+        [Fact(Skip = "This is a benchmark.")]
+        public void BenchmarkFileAccessManifestChildren()
+        {
+            FileAccessManifestChildrenBenchmark.Run();
+        }
+
         /// <summary>
         /// This test exercises the ability of the manifest to tolerate trailing
         /// backslashes for directory leaves.

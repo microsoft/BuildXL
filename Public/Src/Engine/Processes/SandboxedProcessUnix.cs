@@ -373,8 +373,8 @@ namespace BuildXL.Processes
 
                 LogDebug("KillAsyncInternal: KillAllChildProcesses()");
                 KillAllChildProcesses();
-                LogDebug("KillAsyncInternal: SandboxConnection.NotifyRootProcessExited()");
-                SandboxConnection.NotifyRootProcessExited(PipId, this);
+                LogDebug("KillAsyncInternal: SandboxConnection.NotifyPipProcessTerminated()");
+                SandboxConnection.NotifyPipProcessTerminated(PipId, ProcessId);
                 LogDebug("KillAsyncInternal: Waiting m_pendingReports.Completion");
                 await m_pendingReports.Completion;
                 LogDebug("KillAsyncInternal: Completed m_pendingReports.Completion");

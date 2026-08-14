@@ -227,6 +227,18 @@ namespace BuildXL.Processes
             /// <nodoc />
             internal void JoinReceivingThread() => m_workerThread.Join();
 
+            /// <summary>
+            /// Stops receiving reports after the process tree has been forcefully terminated.
+            /// </summary>
+            /// <remarks>
+            /// Forced termination can race with process-start and process-exit reports, leaving a stale PID in the active
+            /// process set. Waiting for the normal no-active-process handshake could therefore block cancellation forever.
+            /// Writing the end sentinel wakes a blocked FIFO reader and deliberately discards reports that arrive after
+            /// termination; reports already posted to the process are drained before the completion acknowledgement.
+            /// </remarks>
+            internal void CompleteReportProcessingAfterTermination() =>
+                WriteSentinel(m_lazyWriteHandle, s_endOfReportsSentinelAsBytes);
+
             private static int Read(SafeFileHandle handle, byte[] buffer, int offset, int length)
             {
                 Contract.Requires(buffer.Length >= offset + length);
@@ -877,6 +889,13 @@ namespace BuildXL.Processes
             {
                 info.Process.LogDebug($"NotifyPipProcessTerminated. Removing pid {processId}");
                 info.RemovePid(processId);
+
+                // Child notifications only keep active-process tracking accurate. The root notification is sent once all
+                // known children have been terminated and is the point at which cancellation can stop accepting reports.
+                if (processId == info.Process.ProcessId)
+                {
+                    info.CompleteReportProcessingAfterTermination();
+                }
             }
         }
 

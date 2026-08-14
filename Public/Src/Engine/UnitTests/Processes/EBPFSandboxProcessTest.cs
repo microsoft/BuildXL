@@ -11,8 +11,10 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using BuildXL.Processes.Tracing;
 using BuildXL.Utilities;
+using BuildXL.Utilities.Core.Tasks;
 using System.Diagnostics;
 using System.Linq;
+using System.Threading.Tasks;
 using BuildXL.Native.IO;
 
 #nullable enable
@@ -25,6 +27,66 @@ namespace Test.BuildXL.Processes
         public EBPFSandboxProcessTest(ITestOutputHelper output) : base(output)
         {
             RegisterEventSource(global::BuildXL.Processes.ETWLogger.Log);
+        }
+
+        [Fact]
+        public async Task CancellationWithActiveChildrenCompletes()
+        {
+            string scriptPath = Path.Combine(TemporaryDirectory, "spawn-children.sh");
+            string childStartedPath = Path.Combine(TemporaryDirectory, "child-started");
+            File.WriteAllLines(
+                scriptPath,
+                [
+                    "#!/bin/bash",
+                    "sleep 30 &",
+                    "touch child-started",
+                    "while true; do",
+                    "  sleep 30 &",
+                    "  sleep 0.01",
+                    "done",
+                ]);
+
+            var fileAccessManifest = new FileAccessManifest(Context.PathTable)
+            {
+                FailUnexpectedFileAccesses = false,
+                ReportFileAccesses = true,
+                MonitorChildProcesses = true,
+                PipId = 1,
+            };
+
+            var info =
+                new SandboxedProcessInfo(
+                    Context.PathTable,
+                    new TempFileStorage(canGetFileNames: true, rootPath: TemporaryDirectory),
+                    "/bin/bash",
+                    fileAccessManifest,
+                    disableConHostSharing: false,
+                    loggingContext: LoggingContext,
+                    useGentleKill: true)
+                {
+                    Arguments = scriptPath,
+                    WorkingDirectory = TemporaryDirectory,
+                    PipSemiStableHash = fileAccessManifest.PipId,
+                    PipDescription = "EBPF cancellation with active children test",
+                    SandboxConnection = new SandboxConnectionLinuxEBPF(isInTestMode: true),
+                    NestedProcessTerminationTimeout = TimeSpan.FromSeconds(2),
+                };
+
+            using var process = await SandboxedProcessFactory.StartAsync(info, forceSandboxing: true);
+            await WaitForChildStartAsync().WithTimeoutAsync(TimeSpan.FromSeconds(10));
+
+            await process.KillAsync().WithTimeoutAsync(TimeSpan.FromSeconds(10));
+            var result = await process.GetResultAsync().WithTimeoutAsync(TimeSpan.FromSeconds(10));
+
+            XAssert.IsTrue(result.Killed);
+
+            async Task WaitForChildStartAsync()
+            {
+                while (!File.Exists(childStartedPath))
+                {
+                    await Task.Delay(10);
+                }
+            }
         }
 
         [Fact]

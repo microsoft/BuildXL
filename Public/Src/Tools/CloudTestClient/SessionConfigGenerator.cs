@@ -290,7 +290,10 @@ namespace Tool.CloudTestClient
                 ProjectId: ado.ProjectId,
                 AuthToken: authToken,
                 VSTSUrl: ado.CollectionUri,
-                BuildProperties: new VstsBuildProperties(BuildId: ado.BuildId),
+                BuildProperties: new VstsBuildProperties(
+                    BuildId: ado.BuildId,
+                    StageName: ado.StageName,
+                    JobName: ado.JobName),
                 CloudTestVSTSRequest: new VstsUploadRequest(UploadResultsToVSTS: "true"));
 
             var options = new JsonSerializerOptions
@@ -392,6 +395,8 @@ namespace Tool.CloudTestClient
             string ProjectId,
             string CollectionUri,
             string BuildId,
+            string StageName,
+            string JobName,
             string AccessTokenEnvVar);
 
         // Per-group definition deserialized from the session input's "groups" array. Mirrors the DScript Group
@@ -461,7 +466,7 @@ namespace Tool.CloudTestClient
             VstsBuildProperties BuildProperties,
             [property: JsonPropertyName("CloudTestVSTSRequest")] VstsUploadRequest CloudTestVSTSRequest);
 
-        private sealed record VstsBuildProperties(string BuildId);
+        private sealed record VstsBuildProperties(string BuildId, string StageName, string JobName);
 
         private sealed record VstsUploadRequest(string UploadResultsToVSTS);
 

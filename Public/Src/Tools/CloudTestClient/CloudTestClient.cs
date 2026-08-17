@@ -944,7 +944,8 @@ USAGE: CloudTestClient /mode:<mode> [options]
                      session. Top-level fields: tenant, buildDropLocation,
                      displayName, user, cacheEnabled, stamp, properties
                      ([{key,value}] pairs), featureExceptions (string array),
-                     ado ({projectId, collectionUri, buildId, accessTokenEnvVar}),
+                     ado ({projectId, collectionUri, buildId, stageName, jobName,
+                     accessTokenEnvVar}),
                      groups (array; each with sku, image, maxResources, optional
                      maxParallelismForJobs, optional name, jobs, optional
                      dynamic setup/cleanup, and optional legacyModuleIdConfigPath),

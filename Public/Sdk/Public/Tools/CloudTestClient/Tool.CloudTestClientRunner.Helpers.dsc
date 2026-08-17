@@ -413,6 +413,8 @@ namespace Helpers {
                 projectId: Environment.getStringValue("SYSTEM_TEAMPROJECTID"),
                 collectionUri: Environment.getStringValue("SYSTEM_COLLECTIONURI"),
                 buildId: Environment.getStringValue("BUILD_BUILDID"),
+                stageName: Environment.getStringValue("SYSTEM_STAGENAME"),
+                jobName: Environment.getStringValue("SYSTEM_JOBNAME"),
                 accessTokenEnvVar: "SYSTEM_ACCESSTOKEN",
             } : undefined,
             groups: normalizedGroups,
@@ -888,5 +890,4 @@ namespace Helpers {
         }
     }
 }
-
 

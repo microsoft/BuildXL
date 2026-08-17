@@ -41,25 +41,30 @@ namespace Test.Tool.CloudTestClient
                 writer.WriteString("image", image);
                 writer.WriteString("sku", sku);
                 writer.WriteNumber("maxResources", maxResources);
+
                 if (maxParallelismForJobs.HasValue)
                 {
                     writer.WriteNumber("maxParallelismForJobs", maxParallelismForJobs.Value);
                 }
+
                 if (setupJson != null)
                 {
                     writer.WritePropertyName("dynamicGroupSetup");
                     writer.WriteRawValue(setupJson);
                 }
+
                 if (cleanupJson != null)
                 {
                     writer.WritePropertyName("dynamicGroupCleanup");
                     writer.WriteRawValue(cleanupJson);
                 }
+
                 if (legacyModuleIdConfigPathJson != null)
                 {
                     writer.WritePropertyName("legacyModuleIdConfigPath");
                     writer.WriteRawValue(legacyModuleIdConfigPathJson);
                 }
+
                 writer.WritePropertyName("jobs");
                 writer.WriteRawValue(jobsJson);
                 writer.WriteEndObject();
@@ -82,7 +87,8 @@ namespace Test.Tool.CloudTestClient
             string stamp = null,
             string propertiesJson = null,
             string featureExceptionsJson = null,
-            string fileProvidersJson = null)
+            string fileProvidersJson = null,
+            string adoJson = null)
         {
             var buffer = new ArrayBufferWriter<byte>();
             using (var writer = new Utf8JsonWriter(buffer))
@@ -90,31 +96,44 @@ namespace Test.Tool.CloudTestClient
                 writer.WriteStartObject();
                 writer.WriteString("tenant", tenant);
                 writer.WriteString("buildDropLocation", buildDropLocation);
+
                 if (stamp != null)
                 {
                     writer.WriteString("stamp", stamp);
                 }
+
                 if (propertiesJson != null)
                 {
                     writer.WritePropertyName("properties");
                     writer.WriteRawValue(propertiesJson);
                 }
+
                 if (featureExceptionsJson != null)
                 {
                     writer.WritePropertyName("featureExceptions");
                     writer.WriteRawValue(featureExceptionsJson);
                 }
+
                 if (fileProvidersJson != null)
                 {
                     writer.WritePropertyName("fileProviders");
                     writer.WriteRawValue(fileProvidersJson);
                 }
+
+                if (adoJson != null)
+                {
+                    writer.WritePropertyName("ado");
+                    writer.WriteRawValue(adoJson);
+                }
+
                 writer.WritePropertyName("groups");
                 writer.WriteStartArray();
+                
                 foreach (var groupJson in groupJsonObjects)
                 {
                     writer.WriteRawValue(groupJson);
                 }
+
                 writer.WriteEndArray();
                 writer.WriteEndObject();
             }
@@ -215,6 +234,7 @@ namespace Test.Tool.CloudTestClient
                 "/testExecutionType:Exe",
                 "/configOutputFile:" + updateConfigPath,
             };
+            
             argList.AddRange(extraArgs);
 
             ConfigGeneratorHelper.GenerateUpdateDynamicJobConfig(new CloudTestClientArgs(argList.ToArray()));

@@ -264,6 +264,47 @@ namespace Test.Tool.CloudTestClient
             Assert.False(group0.TryGetProperty("legacyModuleIdConfigPath", out _));
         }
 
+        [Fact]
+        public void SessionConfigIncludesStageAndJobInVstsContext()
+        {
+            using var temp = new TempDirectory();
+            string tokenEnvironmentVariable = $"CLOUDTESTCLIENT_TEST_ADO_TOKEN_{Guid.NewGuid():N}";
+
+            try
+            {
+                Environment.SetEnvironmentVariable(tokenEnvironmentVariable, "test-token");
+                string group = GroupFileTestHelper.BuildGroupJson();
+                string adoJson = $$"""
+                    {
+                      "projectId": "9ed2c125-1cd5-4a17-886b-9d267f3a5fab",
+                      "collectionUri": "https://dev.azure.com/mseng/",
+                      "buildId": "31922607",
+                      "stageName": "BuildXL",
+                      "jobName": "build",
+                      "accessTokenEnvVar": "{{tokenEnvironmentVariable}}"
+                    }
+                    """;
+                string sessionInput = GroupFileTestHelper.WriteSessionInputFile(
+                    temp,
+                    "session-input.json",
+                    new[] { group },
+                    adoJson: adoJson);
+
+                string json = GroupFileTestHelper.GenerateSessionConfigJson(temp, sessionInput);
+                using var sessionConfig = JsonDocument.Parse(json);
+                using var vstsContext = JsonDocument.Parse(sessionConfig.RootElement.GetProperty("VSTSContext").GetString());
+                var buildProperties = vstsContext.RootElement.GetProperty("buildProperties");
+
+                Assert.Equal("31922607", buildProperties.GetProperty("buildId").GetString());
+                Assert.Equal("BuildXL", buildProperties.GetProperty("stageName").GetString());
+                Assert.Equal("build", buildProperties.GetProperty("jobName").GetString());
+            }
+            finally
+            {
+                Environment.SetEnvironmentVariable(tokenEnvironmentVariable, null);
+            }
+        }
+
         #endregion
     }
 }

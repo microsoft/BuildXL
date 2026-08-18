@@ -57,6 +57,7 @@ stages:
           CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT_B64: $(CLOUDBUILD_BUILDXL_SELFHOST_FEED_PAT_B64)
           VSS_NUGET_EXTERNAL_FEED_ENDPOINTS: $(VSS_NUGET_EXTERNAL_FEED_ENDPOINTS)
           NUGET_CREDENTIALPROVIDERS_PATH: $(NugetCredentialProviderPath)
+          BuildXLDoNotUseGrpcHttpProxy: 1
         workingDirectory: $(Build.Repository.LocalPath)
 
       postBuildSteps:

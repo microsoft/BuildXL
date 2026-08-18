@@ -178,6 +178,12 @@ namespace BuildXL.Engine.Distribution.Grpc
                 handler.KeepAlivePingPolicy = HttpKeepAlivePingPolicy.Always;
             }
 
+            if (EngineEnvironmentSettings.DoNotUseGrpcHttpProxy)
+            {
+                Logger.Log.GrpcTrace(m_loggingContext, ipAddress, "Disabling gRPC HTTP proxy");
+                handler.UseProxy = false;
+            }
+
             var channelOptions = new GrpcChannelOptions
             {
                 MaxSendMessageSize = int.MaxValue,

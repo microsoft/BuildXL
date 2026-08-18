@@ -55,9 +55,18 @@ namespace BuildXL.Scheduler.Tracing
         /// </summary>
         public static void WriteContentHash(BuildXLWriter writer, ContentHash hash)
         {
+            WriteContentHash(writer, hash, MaxContentHashInternCount);
+        }
+
+        /// <summary>
+        /// Writes a content hash using the specified interning limit.
+        /// </summary>
+        internal static void WriteContentHash(BuildXLWriter writer, ContentHash hash, int maxContentHashInternCount)
+        {
             Contract.Assert(
                 hash.HashType == ContentHashingUtilities.HashInfo.HashType,
                 $"Content hash interning assumes a single hash algorithm per build, but got {hash.HashType} instead of {ContentHashingUtilities.HashInfo.HashType}");
+            Contract.Requires(maxContentHashInternCount >= 0);
 
             if (!(writer is BinaryLogger.EventWriter eventWriter) || eventWriter.SuppressContentHashInterning)
             {
@@ -70,7 +79,7 @@ namespace BuildXL.Scheduler.Tracing
             hash.SerializeHashBytes(buffer);
 
             var key = new BinaryLogger.ContentHashKey(buffer, 0, byteLength);
-            bool underCap = eventWriter.ContentHashInternCount < MaxContentHashInternCount;
+            bool underCap = eventWriter.ContentHashInternCount < maxContentHashInternCount;
 
             if (underCap)
             {
@@ -93,15 +102,16 @@ namespace BuildXL.Scheduler.Tracing
             {
                 // Over cap — check if the hash was previously interned
                 var result = eventWriter.TryGetContentHash(key);
-                if (result.IsFound)
+                if (result.IsFound && result.Item.Value)
                 {
-                    // Previously interned — write encoded index (low bit 0)
+                    // Previously interned and its registration event has been queued — write encoded index (low bit 0)
                     eventWriter.WriteCompact(result.Index << 1);
                     eventWriter.IncrementContentHashEntries();
                 }
                 else
                 {
-                    // Not interned — write inline (low bit 1) followed by raw bytes
+                    // Not interned, or another thread added it but has not queued its registration event yet.
+                    // Write inline so this event does not depend on the registration event being processed first.
                     eventWriter.WriteCompact((byteLength << 1) | 1);
                     eventWriter.Write(buffer, 0, byteLength);
                     eventWriter.IncrementContentHashOverflow();

@@ -91,6 +91,54 @@ namespace Test.BuildXL.Scheduler
             }
         }
 
+        [Fact]
+        public void PendingInternedHashIsWrittenInlineAfterLimitIsReached()
+        {
+            var context = BuildXLContext.CreateInstanceForTesting();
+            var registeredHash = ContentHashingUtilities.CreateRandom();
+            var pendingHash = ContentHashingUtilities.CreateRandom();
+            var results = new ContentHash[2];
+            int readIndex = 0;
+
+            using (var stream = new MemoryStream())
+            {
+                using (var logger = new BinaryLogger(stream, context, Guid.NewGuid(), closeStreamOnDispose: false))
+                {
+                    using (var scope = logger.StartEvent(1, workerId: 0))
+                    {
+                        ContentHashSerializer.WriteContentHash(scope.Writer, registeredHash);
+                    }
+
+                    using (var scope = logger.StartEvent(1, workerId: 0))
+                    {
+                        byte[] pendingHashBytes = new byte[pendingHash.ByteLength];
+                        pendingHash.SerializeHashBytes(pendingHashBytes);
+                        var key = new BinaryLogger.ContentHashKey(pendingHashBytes, 0, pendingHashBytes.Length);
+                        var result = scope.Writer.GetOrAddContentHash(key);
+
+                        XAssert.IsFalse(result.Item.Value);
+                        ContentHashSerializer.WriteContentHash(scope.Writer, pendingHash, maxContentHashInternCount: 0);
+                    }
+                }
+
+                stream.Position = 0;
+
+                using (var reader = new BinaryLogReader(stream, context))
+                {
+                    reader.RegisterHandler(1, (eventId, workerId, timestamp, eventReader) =>
+                    {
+                        results[readIndex++] = ContentHashSerializer.ReadContentHash(eventReader);
+                    });
+
+                    while (reader.ReadEvent() == BinaryLogReader.EventReadResult.Success) { }
+                }
+            }
+
+            XAssert.AreEqual(2, readIndex);
+            XAssert.AreEqual(registeredHash, results[0]);
+            XAssert.AreEqual(pendingHash, results[1]);
+        }
+
         /// <summary>
         /// Writes multiple hashes (one per event) through BinaryLogger, then reads them
         /// back via BinaryLogReader and returns the deserialized hashes.

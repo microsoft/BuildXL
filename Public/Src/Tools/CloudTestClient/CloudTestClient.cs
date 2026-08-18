@@ -945,6 +945,7 @@ USAGE: CloudTestClient /mode:<mode> [options]
                      displayName, user, cacheEnabled, stamp, properties
                      ([{key,value}] pairs), featureExceptions (string array),
                      ado ({projectId, collectionUri, buildId, stageName, jobName,
+                     sourceBranch, sourceVersion, repositoryName,
                      accessTokenEnvVar}),
                      groups (array; each with sku, image, maxResources, optional
                      maxParallelismForJobs, optional name, jobs, optional

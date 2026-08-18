@@ -265,7 +265,7 @@ namespace Test.Tool.CloudTestClient
         }
 
         [Fact]
-        public void SessionConfigIncludesStageAndJobInVstsContext()
+        public void SessionConfigIncludesAdoBuildProperties()
         {
             using var temp = new TempDirectory();
             string tokenEnvironmentVariable = $"CLOUDTESTCLIENT_TEST_ADO_TOKEN_{Guid.NewGuid():N}";
@@ -281,6 +281,9 @@ namespace Test.Tool.CloudTestClient
                       "buildId": "31922607",
                       "stageName": "BuildXL",
                       "jobName": "build",
+                      "sourceBranch": "refs/pull/123/merge",
+                      "sourceVersion": "0123456789abcdef",
+                      "repositoryName": "BuildXL",
                       "accessTokenEnvVar": "{{tokenEnvironmentVariable}}"
                     }
                     """;
@@ -298,6 +301,9 @@ namespace Test.Tool.CloudTestClient
                 Assert.Equal("31922607", buildProperties.GetProperty("buildId").GetString());
                 Assert.Equal("BuildXL", buildProperties.GetProperty("stageName").GetString());
                 Assert.Equal("build", buildProperties.GetProperty("jobName").GetString());
+                Assert.Equal("refs/pull/123/merge", buildProperties.GetProperty("sourceBranch").GetString());
+                Assert.Equal("0123456789abcdef", buildProperties.GetProperty("sourceVersion").GetString());
+                Assert.Equal("BuildXL", buildProperties.GetProperty("repositoryName").GetString());
             }
             finally
             {

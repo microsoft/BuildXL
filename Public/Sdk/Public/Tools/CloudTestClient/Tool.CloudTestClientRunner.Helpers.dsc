@@ -415,6 +415,9 @@ namespace Helpers {
                 buildId: Environment.getStringValue("BUILD_BUILDID"),
                 stageName: Environment.getStringValue("SYSTEM_STAGENAME"),
                 jobName: Environment.getStringValue("SYSTEM_JOBNAME"),
+                sourceBranch: Environment.getStringValue("BUILD_SOURCEBRANCH"),
+                sourceVersion: Environment.getStringValue("BUILD_SOURCEVERSION"),
+                repositoryName: Environment.getStringValue("BUILD_REPOSITORY_NAME"),
                 accessTokenEnvVar: "SYSTEM_ACCESSTOKEN",
             } : undefined,
             groups: normalizedGroups,
@@ -890,4 +893,3 @@ namespace Helpers {
         }
     }
 }
-

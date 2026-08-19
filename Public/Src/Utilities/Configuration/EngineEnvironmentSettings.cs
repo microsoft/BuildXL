@@ -526,14 +526,6 @@ namespace BuildXL.Utilities.Configuration
         public static readonly Setting<bool> DumpOpenFilesOnDescriptorSpike = CreateSetting("BuildXLDumpOpenFilesOnDescriptorSpike", value => value == "1");
 
         /// <summary>
-        /// Grpc libraries configure an http proxy by default. This setting disables that behavior.
-        /// </summary>
-        /// <remarks>
-        /// Servicing option to be able to roll out this change in a controlled manner. This setting should be removed after the change is rolled out to all customers.
-        /// </remarks>
-        public static readonly Setting<bool> DoNotUseGrpcHttpProxy = CreateSetting("BuildXLDoNotUseGrpcHttpProxy", value => value == "1");
-
-        /// <summary>
         /// List of env variables if present are used to override the BUILDXL_USERNAME.
         /// </summary>
         /// <remarks>

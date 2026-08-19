@@ -168,7 +168,9 @@ namespace BuildXL.Engine.Distribution.Grpc
                 ConnectTimeout = EngineEnvironmentSettings.WorkerAttachTimeout,
                 Expect100ContinueTimeout = TimeSpan.Zero,
                 PooledConnectionIdleTimeout = Timeout.InfiniteTimeSpan,
-                EnableMultipleHttp2Connections = true
+                EnableMultipleHttp2Connections = true,
+                // Grpc.Net.Client turns on the HTTP proxy by default. This does not play well with load balancing. E.g. see issue https://github.com/grpc/grpc-dotnet/issues/2116
+                UseProxy = false
             };
 
             if (EngineEnvironmentSettings.GrpcKeepAliveEnabled)
@@ -176,12 +178,6 @@ namespace BuildXL.Engine.Distribution.Grpc
                 handler.KeepAlivePingDelay = TimeSpan.FromSeconds(300); // 5m-frequent pings
                 handler.KeepAlivePingTimeout = TimeSpan.FromSeconds(60); // wait for 1m to receive ack for the ping before closing connection.
                 handler.KeepAlivePingPolicy = HttpKeepAlivePingPolicy.Always;
-            }
-
-            if (EngineEnvironmentSettings.DoNotUseGrpcHttpProxy)
-            {
-                Logger.Log.GrpcTrace(m_loggingContext, ipAddress, "Disabling gRPC HTTP proxy");
-                handler.UseProxy = false;
             }
 
             var channelOptions = new GrpcChannelOptions

@@ -395,7 +395,7 @@ namespace BuildXL.Engine.Distribution
                 completionData.SerializedData.ExecuteStepTicks = runnablePip.StepDuration.Ticks;
                 completionData.SerializedData.ThreadId = runnablePip.ThreadId;
                 completionData.SerializedData.StartTimeTicks = runnablePip.StepStartTime.Ticks;
-                completionData.SerializedData.QueueTicks = runnablePip.Performance.QueueDurations.Values.FirstOrDefault().Ticks;
+                completionData.SerializedData.QueueTicks = runnablePip.Performance.GetQueueDuration(runnablePip.DispatcherKind).Ticks;
 
                 switch (runnablePip.Step)
                 {

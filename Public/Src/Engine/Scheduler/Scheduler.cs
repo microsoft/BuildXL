@@ -2428,19 +2428,19 @@ namespace BuildXL.Scheduler
                 });
             }
 
-            var totalQueueDurations = new long[(int)DispatcherKind.Materialize + 1];
-            var totalStepDurations = new long[(int)PipExecutionStep.Done + 1];
-            var totalRemoteStepDurations = new long[(int)PipExecutionStep.Done + 1];
-            var totalQueueRequestDurations = new long[(int)PipExecutionStep.Done + 1];
-            var totalSendRequestDurations = new long[(int)PipExecutionStep.Done + 1];
+            var totalQueueDurations = new long[RunnablePipPerformanceInfo.DispatcherKindCount];
+            var totalStepDurations = new long[RunnablePipPerformanceInfo.PipExecutionStepCount];
+            var totalRemoteStepDurations = new long[RunnablePipPerformanceInfo.PipExecutionStepCount];
+            var totalQueueRequestDurations = new long[RunnablePipPerformanceInfo.PipExecutionStepCount];
+            var totalSendRequestDurations = new long[RunnablePipPerformanceInfo.PipExecutionStepCount];
 
             foreach (var perfData in m_runnablePipPerformance)
             {
-                PipExecutionUtils.UpdateDurationList(totalQueueDurations, perfData.Value.QueueDurations);
-                PipExecutionUtils.UpdateDurationList(totalStepDurations, perfData.Value.StepDurations);
-                PipExecutionUtils.UpdateDurationList(totalRemoteStepDurations, perfData.Value.RemoteStepDurations);
-                PipExecutionUtils.UpdateDurationList(totalQueueRequestDurations, perfData.Value.PipBuildRequestQueueDurations);
-                PipExecutionUtils.UpdateDurationList(totalSendRequestDurations, perfData.Value.PipBuildRequestGrpcDurations);
+                perfData.Value.AddQueueDurationsTo(totalQueueDurations);
+                perfData.Value.AddStepDurationsTo(totalStepDurations);
+                perfData.Value.AddRemoteStepDurationsTo(totalRemoteStepDurations);
+                perfData.Value.AddPipBuildRequestQueueDurationsTo(totalQueueRequestDurations);
+                perfData.Value.AddPipBuildRequestGrpcDurationsTo(totalSendRequestDurations);
             }
 
             var perfStatsName = "PipPerfStats.{0}_{1}";
@@ -5812,7 +5812,7 @@ namespace BuildXL.Scheduler
             if (m_runnablePipPerformance.TryGetValue(producer.PipId, out var perfInfo))
             {
                 step = perfInfo.IsExecuted ? PipExecutionStep.ExecuteProcess : step;
-                workerId = perfInfo.Workers.GetOrDefault(step, (uint)0);
+                workerId = perfInfo.GetWorkerId(step);
             }
 
             var worker = m_workers[(int)workerId];

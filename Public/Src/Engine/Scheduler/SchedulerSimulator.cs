@@ -241,7 +241,7 @@ namespace BuildXL.Scheduler
                     {
                         RunnablePipPerformanceInfo perfInfo = m_runnablePipPerformance[pipId];
 
-                        var isCacheHit = perfInfo.CacheLookupPerfInfo.CacheMissType == PipCacheMissType.Hit;
+                        var isCacheHit = perfInfo.CacheLookupPerfInfo?.CacheMissType == PipCacheMissType.Hit;
                         var memoryUsageMb = perfInfo.ActualAverageWorkingSetMb;
 
                         var cacheLookupDurationMs = getStepDuration(perfInfo, PipExecutionStep.CacheLookup);
@@ -381,10 +381,9 @@ namespace BuildXL.Scheduler
             int getStepDuration(RunnablePipPerformanceInfo perfInfo, PipExecutionStep step)
             {
                 // To get the actual duration of the step, we first check the RemoteStepDurations to avoid including the queue duration for remote pips.
-                var duration = perfInfo.RemoteStepDurations.GetOrDefault(step, TimeSpan.Zero);
-               
-                // If remoteStep duration is zero, it means that the step was not executed remotely, so we check the StepDurations.
-                return (int)(duration == TimeSpan.Zero ? perfInfo.StepDurations.GetOrDefault(step, TimeSpan.Zero) : duration).TotalMilliseconds;
+                return (int)(perfInfo.WasExecutedRemotely(step)
+                    ? perfInfo.GetRemoteStepDurationMs(step)
+                    : perfInfo.GetStepDurationMs(step));
             }
         }
 

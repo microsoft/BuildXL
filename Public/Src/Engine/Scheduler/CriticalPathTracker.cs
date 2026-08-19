@@ -210,8 +210,8 @@ namespace BuildXL.Scheduler
             builder.AppendLine(hr);
             builder.AppendLine(I($"Fine-grained Duration (ms) for Top 5 Pips Sorted by CacheLookup Duration (excluding remote queue time)"));
             foreach (var kvp in (from a in context.RunnablePipPerformance
-                                 let i = a.Value.StepDurations.GetOrDefault(PipExecutionStep.CacheLookup, new TimeSpan()).TotalMilliseconds
-                                         - a.Value.RemoteQueueDurations.GetOrDefault(PipExecutionStep.CacheLookup, new TimeSpan()).TotalMilliseconds
+                                 let i = a.Value.GetStepDurationMs(PipExecutionStep.CacheLookup)
+                                         - a.Value.GetRemoteQueueDurationMs(PipExecutionStep.CacheLookup)
                                  where i > 0
                                  orderby i descending
                                  select a).Take(5))
@@ -222,7 +222,7 @@ namespace BuildXL.Scheduler
             builder.AppendLine(hr);
             builder.AppendLine(I($"Fine-grained Duration (ms) for Top 5 Pips Sorted by ExecuteProcess Duration"));
             foreach (var kvp in (from a in context.RunnablePipPerformance
-                                 let i = a.Value.StepDurations.GetOrDefault(PipExecutionStep.ExecuteProcess, new TimeSpan()).TotalMilliseconds
+                                 let i = a.Value.GetStepDurationMs(PipExecutionStep.ExecuteProcess)
                                  where i > 0
                                  orderby i descending
                                  select a).Take(5))
@@ -374,13 +374,13 @@ namespace BuildXL.Scheduler
             BuildSummary summaryToPopulate = kind == CriticalPathKind.Primary ? context.BuildSummary : null;
             string header = kind == CriticalPathKind.WallClockCriticalPath ? "Wall-Clock Critical Path:" : "Critical Path:";
 
-            IList<long> totalOrchestratorQueueDurations = new long[(int)DispatcherKind.Materialize + 1];
-            IList<long> totalRemoteQueueDurations = new long[(int)PipExecutionStep.Done + 1];
-            IList<long> totalStepDurations = new long[(int)PipExecutionStep.Done + 1];
-            IList<long> totalPipBuildRequestQueueDurations = new long[(int)PipExecutionStep.Done + 1];
-            IList<long> totalPipBuildRequestGrpcDurations = new long[(int)PipExecutionStep.Done + 1];
-            IList<long> totalBeforeExecutionCacheStepDurations = new long[OperationKind.TrackedCacheLookupCounterCount];
-            IList<long> totalAfterExecutionCacheStepDurations = new long[OperationKind.TrackedCacheLookupCounterCount];
+            IList<long> totalOrchestratorQueueDurations = new long[RunnablePipPerformanceInfo.DispatcherKindCount];
+            IList<long> totalRemoteQueueDurations = new long[RunnablePipPerformanceInfo.PipExecutionStepCount];
+            IList<long> totalStepDurations = new long[RunnablePipPerformanceInfo.PipExecutionStepCount];
+            IList<long> totalPipBuildRequestQueueDurations = new long[RunnablePipPerformanceInfo.PipExecutionStepCount];
+            IList<long> totalPipBuildRequestGrpcDurations = new long[RunnablePipPerformanceInfo.PipExecutionStepCount];
+            long[] totalBeforeExecutionCacheStepDurations = new long[OperationKind.TrackedCacheLookupCounterCount];
+            long[] totalAfterExecutionCacheStepDurations = new long[OperationKind.TrackedCacheLookupCounterCount];
 
             long totalCacheMissAnalysisDuration = 0, totalSuspendedDuration = 0, totalRetryCount = 0, totalPushOutputsToCacheDuration = 0, totalRetryDuration = 0;
 
@@ -411,9 +411,9 @@ namespace BuildXL.Scheduler
 
                 long pipDurationMs = performance.CalculateWorkBasedPipDurationMs(m_environment);
                 long pipQueueDurationMs = performance.CalculateQueueDurationMs();
-                long remoteQueueMs = performance.RemoteQueueDurations.Values.Sum(v => (long)v.TotalMilliseconds);
+                long remoteQueueMs = performance.CalculateRemoteQueueDurationMs();
                 long totalDurationMs = (long)performance.TotalDuration.TotalMilliseconds;
-                long cacheLookupDurationMs = (long)performance.StepDurations.GetOrDefault(PipExecutionStep.CacheLookup).TotalMilliseconds;
+                long cacheLookupDurationMs = performance.GetStepDurationMs(PipExecutionStep.CacheLookup);
 
                 // Summarization values must reflect only the originally measured runtimes so they stay consistent with the
                 // total build time (an injected runtime can point far into the future, which would otherwise make the
@@ -436,8 +436,8 @@ namespace BuildXL.Scheduler
                         indexFromBeginning: criticalPath.Pips.Count - index - 1,
                         isExplicitlyScheduled: (context.ExplicitlyScheduledProcessNodes == null ? false : context.ExplicitlyScheduledProcessNodes.Contains(node.pipId.ToNodeId())),
                         executionLevel: runtimeInfo.Result.ToString(),
-                        numCacheEntriesVisited: performance.CacheLookupPerfInfo.NumCacheEntriesVisited,
-                        numPathSetsDownloaded: performance.CacheLookupPerfInfo.NumPathSetsDownloaded);
+                        numCacheEntriesVisited: performance.CacheLookupPerfInfo?.NumCacheEntriesVisited ?? 0,
+                        numPathSetsDownloaded: performance.CacheLookupPerfInfo?.NumPathSetsDownloaded ?? 0);
                 }
 
                 TimeSpan scheduledTimeTs = TimeSpan.Zero;
@@ -470,16 +470,14 @@ namespace BuildXL.Scheduler
                         });
                 }
 
-                PipExecutionUtils.UpdateDurationList(totalStepDurations, performance.StepDurations);
-                PipExecutionUtils.UpdateDurationList(totalRemoteQueueDurations, performance.RemoteQueueDurations);
-                PipExecutionUtils.UpdateDurationList(totalPipBuildRequestGrpcDurations, performance.PipBuildRequestGrpcDurations);
-                PipExecutionUtils.UpdateDurationList(totalPipBuildRequestQueueDurations, performance.PipBuildRequestQueueDurations);
-                PipExecutionUtils.UpdateDurationList(totalOrchestratorQueueDurations, performance.QueueDurations);
+                performance.AddStepDurationsTo(totalStepDurations);
+                performance.AddRemoteQueueDurationsTo(totalRemoteQueueDurations);
+                performance.AddPipBuildRequestGrpcDurationsTo(totalPipBuildRequestGrpcDurations);
+                performance.AddPipBuildRequestQueueDurationsTo(totalPipBuildRequestQueueDurations);
+                performance.AddQueueDurationsTo(totalOrchestratorQueueDurations);
 
-                totalBeforeExecutionCacheStepDurations = totalBeforeExecutionCacheStepDurations
-                    .Zip(performance.CacheLookupPerfInfo.BeforeExecutionCacheStepCounters, (x, y) => (x + (long)(new TimeSpan(y.durationTicks).TotalMilliseconds))).ToList();
-                totalAfterExecutionCacheStepDurations = totalAfterExecutionCacheStepDurations
-                    .Zip(performance.CacheLookupPerfInfo.AfterExecutionCacheStepCounters, (x, y) => (x + (long)(new TimeSpan(y.durationTicks).TotalMilliseconds))).ToList();
+                performance.CacheLookupPerfInfo?.AddBeforeExecutionDurationsTo(totalBeforeExecutionCacheStepDurations);
+                performance.CacheLookupPerfInfo?.AddAfterExecutionDurationsTo(totalAfterExecutionCacheStepDurations);
 
                 totalCacheMissAnalysisDuration += (long)performance.CacheMissAnalysisDuration.TotalMilliseconds;
                 totalSuspendedDuration += performance.SuspendedDurationMs;
@@ -540,13 +538,13 @@ namespace BuildXL.Scheduler
                 }
             }
 
-            for (int i = 0; i < totalBeforeExecutionCacheStepDurations.Count; i++)
+            for (int i = 0; i < totalBeforeExecutionCacheStepDurations.Length; i++)
             {
                 var name = OperationKind.GetTrackedCacheOperationKind(i).ToString();
                 statistics.Add(I($"{statPrefix}.BeforeExecution_{name}DurationMs"), totalBeforeExecutionCacheStepDurations[i]);
             }
 
-            for (int i = 0; i < totalAfterExecutionCacheStepDurations.Count; i++)
+            for (int i = 0; i < totalAfterExecutionCacheStepDurations.Length; i++)
             {
                 var name = OperationKind.GetTrackedCacheOperationKind(i).ToString();
                 statistics.Add(I($"{statPrefix}.AfterExecution_{name}DurationMs"), totalAfterExecutionCacheStepDurations[i]);
@@ -646,60 +644,65 @@ namespace BuildXL.Scheduler
                 stringBuilder.AppendLine(I($"\t\t{"Explicitly Scheduled",-90}: {isExplicitlyScheduled,10}"));
             }
 
-            foreach (KeyValuePair<DispatcherKind, TimeSpan> kv in performanceInfo.QueueDurations)
+            for (int i = 0; i < RunnablePipPerformanceInfo.DispatcherKindCount; i++)
             {
-                var duration = (long)kv.Value.TotalMilliseconds;
+                var dispatcherKind = (DispatcherKind)i;
+                long duration = performanceInfo.GetQueueDurationMs(dispatcherKind);
                 if (duration != 0)
                 {
-                    stringBuilder.AppendLine(I($"\t\tQueue - {kv.Key,-82}: {duration,10}"));
+                    stringBuilder.AppendLine(I($"\t\tQueue - {dispatcherKind,-82}: {duration,10}"));
                 }
             }
 
-            for (int i = 0; i < (int)PipExecutionStep.Done + 1; i++)
+            for (int i = 0; i < RunnablePipPerformanceInfo.PipExecutionStepCount; i++)
             {
                 var step = (PipExecutionStep)i;
-                var stepDuration = (long)performanceInfo.StepDurations.GetOrDefault(step, new TimeSpan()).TotalMilliseconds;
+                long stepDuration = performanceInfo.GetStepDurationMs(step);
                 if (stepDuration != 0)
                 {
                     stringBuilder.AppendLine(I($"\t\tStep  - {step,-82}: {stepDuration,10}"));
                 }
 
                 long remoteStepDuration = 0;
-                uint workerId = performanceInfo.Workers.GetOrDefault(step, (uint)0);
+                uint workerId = performanceInfo.GetWorkerId(step);
                 if (workerId != 0)
                 {
                     string workerName = $"{$"W{workerId}",10}:{context.Workers[(int)workerId].Name}";
                     stringBuilder.AppendLine(I($"\t\t  {"WorkerName",-88}: {workerName}"));
 
-                    var queueRequest = (long)performanceInfo.PipBuildRequestQueueDurations.GetOrDefault(step, new TimeSpan()).TotalMilliseconds;
+                    long queueRequest = performanceInfo.GetPipBuildRequestQueueDurationMs(step);
                     stringBuilder.AppendLine(I($"\t\t  {"OrchestratorQueueRequest",-88}: {queueRequest,10}"));
 
-                    var grpcDuration = (long)performanceInfo.PipBuildRequestGrpcDurations.GetOrDefault(step, new TimeSpan()).TotalMilliseconds;
+                    long grpcDuration = performanceInfo.GetPipBuildRequestGrpcDurationMs(step);
                     stringBuilder.AppendLine(I($"\t\t  {"Grpc",-88}: {grpcDuration,10}"));
 
-                    var remoteQueueDuration = (long)performanceInfo.RemoteQueueDurations.GetOrDefault(step, new TimeSpan()).TotalMilliseconds;
+                    long remoteQueueDuration = performanceInfo.GetRemoteQueueDurationMs(step);
                     stringBuilder.AppendLine(I($"\t\t  {"RemoteQueue",-88}: {remoteQueueDuration,10}"));
 
-                    remoteStepDuration = (long)performanceInfo.RemoteStepDurations.GetOrDefault(step, new TimeSpan()).TotalMilliseconds;
+                    remoteStepDuration = performanceInfo.GetRemoteStepDurationMs(step);
                     stringBuilder.AppendLine(I($"\t\t  {"RemoteStep",-88}: {remoteStepDuration,10}"));
 
                 }
 
                 if (stepDuration != 0 && step == PipExecutionStep.CacheLookup)
                 {
-                    stringBuilder.AppendLine(I($"\t\t  {"NumCacheEntriesVisited",-88}: {performanceInfo.CacheLookupPerfInfo.NumCacheEntriesVisited,10}"));
-                    stringBuilder.AppendLine(I($"\t\t  {"NumPathSetsDownloaded",-88}: {performanceInfo.CacheLookupPerfInfo.NumPathSetsDownloaded,10}"));
-                    stringBuilder.AppendLine(I($"\t\t  {"NumCacheEntriesAbsent",-88}: {performanceInfo.CacheLookupPerfInfo.NumCacheEntriesAbsent,10}"));
-
-                    for (int j = 0; j < performanceInfo.CacheLookupPerfInfo.BeforeExecutionCacheStepCounters.Length; j++)
+                    PipCachePerfInfo cacheLookupPerfInfo = performanceInfo.CacheLookupPerfInfo;
+                    if (cacheLookupPerfInfo != null)
                     {
-                        var name = OperationKind.GetTrackedCacheOperationKind(j).ToString();
-                        var tuple = performanceInfo.CacheLookupPerfInfo.BeforeExecutionCacheStepCounters[j];
-                        long duration = (long)(new TimeSpan(tuple.durationTicks)).TotalMilliseconds;
+                        stringBuilder.AppendLine(I($"\t\t  {"NumCacheEntriesVisited",-88}: {cacheLookupPerfInfo.NumCacheEntriesVisited,10}"));
+                        stringBuilder.AppendLine(I($"\t\t  {"NumPathSetsDownloaded",-88}: {cacheLookupPerfInfo.NumPathSetsDownloaded,10}"));
+                        stringBuilder.AppendLine(I($"\t\t  {"NumCacheEntriesAbsent",-88}: {cacheLookupPerfInfo.NumCacheEntriesAbsent,10}"));
 
-                        if (duration != 0)
+                        for (int j = 0; j < OperationKind.TrackedCacheLookupCounterCount; j++)
                         {
-                            stringBuilder.AppendLine(I($"\t\t  {name,-88}: {duration,10} - occurred {tuple.occurrences,10} times"));
+                            OperationKind operationKind = OperationKind.GetTrackedCacheOperationKind(j);
+                            var counter = cacheLookupPerfInfo.GetBeforeExecutionCounter(operationKind);
+                            long duration = counter.DurationTicks / TimeSpan.TicksPerMillisecond;
+
+                            if (duration != 0)
+                            {
+                                stringBuilder.AppendLine(I($"\t\t  {operationKind,-88}: {duration,10} - occurred {counter.Occurrences,10} times"));
+                            }
                         }
                     }
                 }

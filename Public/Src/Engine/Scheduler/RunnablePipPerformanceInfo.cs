@@ -4,21 +4,24 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
-using System.Linq;
+using System.Threading;
 using BuildXL.ProcessPipExecutor;
 using BuildXL.Scheduler.WorkDispatcher;
-using BuildXL.Utilities.Collections;
+using BuildXL.Utilities.Core;
 
 namespace BuildXL.Scheduler
 {
     /// <summary>
     /// Performance information for runnable pips
     /// </summary>
-    /// <remarks>
-    /// TODO: Re-evaluate this class as this might eat a lot of memory.
-    /// </remarks>
     public class RunnablePipPerformanceInfo
     {
+        internal static readonly int PipExecutionStepCount = (int)EnumTraits<PipExecutionStep>.MaxValue + 1;
+        internal static readonly int DispatcherKindCount = (int)EnumTraits<DispatcherKind>.MaxValue + 1;
+
+        // Remote pips normally report only a few distinct steps, so start small and grow on demand.
+        private const int InitialRemoteStepCapacity = 3;
+
         internal DateTime ScheduleTime { get; }
 
         internal DateTime CompletedTime { get; private set; }
@@ -29,23 +32,14 @@ namespace BuildXL.Scheduler
 
         private DateTime m_queueEnterTime;
 
-        internal Dictionary<PipExecutionStep, TimeSpan> StepDurations { get; }
+        // Step durations are followed by dispatcher queue durations in the same dense array.
+        private readonly uint[] m_durationsMs = new uint[PipExecutionStepCount + DispatcherKindCount];
 
-        // The rest is needed only for pips that are executed remotely, so they are lazily created.
+        private RemoteStepPerformance[] m_remoteSteps;
 
-        internal Dictionary<PipExecutionStep, TimeSpan> RemoteStepDurations { get; }
+        private ushort m_remoteStepCount;
 
-        internal Dictionary<PipExecutionStep, TimeSpan> RemoteQueueDurations { get; }
-
-        internal Dictionary<PipExecutionStep, TimeSpan> PipBuildRequestQueueDurations { get; }
-
-        internal Dictionary<PipExecutionStep, TimeSpan> PipBuildRequestGrpcDurations { get; }
-
-        internal Dictionary<DispatcherKind, TimeSpan> QueueDurations { get; }
-
-        internal Dictionary<PipExecutionStep, uint> Workers { get; }
-
-        internal PipCachePerfInfo CacheLookupPerfInfo => m_cacheLookupPerfInfo ?? (m_cacheLookupPerfInfo = new PipCachePerfInfo());
+        internal PipCachePerfInfo CacheLookupPerfInfo => m_cacheLookupPerfInfo;
 
         private PipCachePerfInfo m_cacheLookupPerfInfo;
 
@@ -99,23 +93,21 @@ namespace BuildXL.Scheduler
         /// </summary>
         internal long RetryDurationMs { get; private set; }
 
-        /// <remarks>
-        /// MaterializeOutput is executed per each worker
-        /// so the single index of the array might be concurrently mutated.
-        /// </remarks>
-        private readonly object m_lock = new object();
-
         internal RunnablePipPerformanceInfo(DateTime scheduleTime)
         {
             ScheduleTime = scheduleTime;
-            StepDurations = new Dictionary<PipExecutionStep, TimeSpan>();
+        }
 
-            RemoteStepDurations = new Dictionary<PipExecutionStep, TimeSpan>();
-            RemoteQueueDurations = new Dictionary<PipExecutionStep, TimeSpan>();
-            PipBuildRequestQueueDurations = new Dictionary<PipExecutionStep, TimeSpan>();
-            PipBuildRequestGrpcDurations = new Dictionary<PipExecutionStep, TimeSpan>();
-            QueueDurations = new Dictionary<DispatcherKind, TimeSpan>();
-            Workers = new Dictionary<PipExecutionStep, uint>();
+        internal PipCachePerfInfo GetOrCreateCacheLookupPerfInfo()
+        {
+            var result = Volatile.Read(ref m_cacheLookupPerfInfo);
+            if (result != null)
+            {
+                return result;
+            }
+
+            var newInfo = new PipCachePerfInfo();
+            return Interlocked.CompareExchange(ref m_cacheLookupPerfInfo, newInfo, null) ?? newInfo;
         }
 
         internal void Retried(RetryInfo pipRetryInfo, TimeSpan? duration)
@@ -166,7 +158,8 @@ namespace BuildXL.Scheduler
                 }
                 else
                 {
-                    QueueDurations[m_currentQueue] = QueueDurations.GetOrDefault(m_currentQueue, new TimeSpan()) + duration;
+                    int index = PipExecutionStepCount + (int)m_currentQueue;
+                    AddDuration(ref m_durationsMs[index], duration);
                 }
 
                 m_currentQueue = DispatcherKind.None;
@@ -175,9 +168,11 @@ namespace BuildXL.Scheduler
 
         internal void Executed(PipExecutionStep step, TimeSpan duration)
         {
-            lock (m_lock)
+            // MaterializeOutputs can be executed concurrently for multiple workers.
+            lock (m_durationsMs)
             {
-                StepDurations[step] = StepDurations.GetOrDefault(step, new TimeSpan()) + duration;
+                int index = (int)step;
+                AddDuration(ref m_durationsMs[index], duration);
             }
 
             if (step == PipExecutionStep.ExecuteProcess)
@@ -204,14 +199,88 @@ namespace BuildXL.Scheduler
             TimeSpan queueRequestDuration,
             TimeSpan grpcDuration)
         {
-            lock (m_lock)
+            lock (m_durationsMs)
             {
-                Workers[step] = workerId;
+                int index = GetOrAddRemoteStepIndex(step);
+                ref var remoteStep = ref m_remoteSteps[index];
+                remoteStep.WorkerId = workerId;
+                AddDuration(ref remoteStep.StepDurationMs, remoteStepDuration);
+                AddDuration(ref remoteStep.QueueDurationMs, remoteQueueDuration);
+                AddDuration(ref remoteStep.RequestDurationMs, queueRequestDuration);
+                AddDuration(ref remoteStep.GrpcDurationMs, grpcDuration);
+            }
+        }
 
-                RemoteStepDurations[step] = RemoteStepDurations.GetOrDefault(step, new TimeSpan()) + remoteStepDuration;
-                RemoteQueueDurations[step] = RemoteQueueDurations.GetOrDefault(step, new TimeSpan()) + remoteQueueDuration;
-                PipBuildRequestQueueDurations[step] = PipBuildRequestQueueDurations.GetOrDefault(step, new TimeSpan()) + queueRequestDuration;
-                PipBuildRequestGrpcDurations[step] = PipBuildRequestGrpcDurations.GetOrDefault(step, new TimeSpan()) + grpcDuration;
+        internal long GetStepDurationMs(PipExecutionStep step)
+        {
+            return m_durationsMs[(int)step];
+        }
+
+        internal TimeSpan GetStepDuration(PipExecutionStep step)
+        {
+            return TimeSpan.FromMilliseconds(GetStepDurationMs(step));
+        }
+
+        internal long GetQueueDurationMs(DispatcherKind kind)
+        {
+            return m_durationsMs[PipExecutionStepCount + (int)kind];
+        }
+
+        internal TimeSpan GetQueueDuration(DispatcherKind kind)
+        {
+            return TimeSpan.FromMilliseconds(GetQueueDurationMs(kind));
+        }
+
+        internal uint GetWorkerId(PipExecutionStep step)
+        {
+            lock (m_durationsMs)
+            {
+                int index = FindRemoteStepIndex(step);
+                return index >= 0 ? m_remoteSteps[index].WorkerId : 0U;
+            }
+        }
+
+        internal bool WasExecutedRemotely(PipExecutionStep step)
+        {
+            lock (m_durationsMs)
+            {
+                return FindRemoteStepIndex(step) >= 0;
+            }
+        }
+
+        internal long GetRemoteStepDurationMs(PipExecutionStep step)
+        {
+            lock (m_durationsMs)
+            {
+                int index = FindRemoteStepIndex(step);
+                return index >= 0 ? m_remoteSteps[index].StepDurationMs : 0;
+            }
+        }
+
+        internal long GetRemoteQueueDurationMs(PipExecutionStep step)
+        {
+            lock (m_durationsMs)
+            {
+                int index = FindRemoteStepIndex(step);
+                return index >= 0 ? m_remoteSteps[index].QueueDurationMs : 0;
+            }
+        }
+
+        internal long GetPipBuildRequestQueueDurationMs(PipExecutionStep step)
+        {
+            lock (m_durationsMs)
+            {
+                int index = FindRemoteStepIndex(step);
+                return index >= 0 ? m_remoteSteps[index].RequestDurationMs : 0;
+            }
+        }
+
+        internal long GetPipBuildRequestGrpcDurationMs(PipExecutionStep step)
+        {
+            lock (m_durationsMs)
+            {
+                int index = FindRemoteStepIndex(step);
+                return index >= 0 ? m_remoteSteps[index].GrpcDurationMs : 0;
             }
         }
 
@@ -226,11 +295,12 @@ namespace BuildXL.Scheduler
         internal long CalculatePipDurationMs(IPipExecutionEnvironment environment)
         {
             long pipDuration = 0;
-            foreach (KeyValuePair<PipExecutionStep, TimeSpan> kv in StepDurations)
+            for (int i = 0; i < PipExecutionStepCount; i++)
             {
-                if (kv.Key.IncludeInRunningTime(environment))
+                var step = (PipExecutionStep)i;
+                if (step.IncludeInRunningTime(environment))
                 {
-                    pipDuration += DurationForStepMs(kv.Key, kv.Value);
+                    pipDuration += DurationForStepMs(step, m_durationsMs[i]);
                 }
             }
 
@@ -244,14 +314,14 @@ namespace BuildXL.Scheduler
         /// true duration of the (externally executed) work while still accounting for every other step. All other steps use their
         /// measured duration.
         /// </summary>
-        private long DurationForStepMs(PipExecutionStep step, TimeSpan measuredStepDuration)
+        private long DurationForStepMs(PipExecutionStep step, long measuredStepDurationMs)
         {
             if (IsInjectedExeDuration && step == PipExecutionStep.ExecuteProcess)
             {
                 return (long)ExeDuration.TotalMilliseconds;
             }
 
-            return (long)measuredStepDuration.TotalMilliseconds;
+            return measuredStepDurationMs;
         }
 
         /// <summary>
@@ -263,18 +333,19 @@ namespace BuildXL.Scheduler
         /// For remotely executed steps, the locally-measured step duration includes the time the request
         /// spent waiting in the remote worker's queue (see <see cref="RunnablePip.LogExecutionStepPerformance"/>).
         /// That queue time is a symptom of resource contention rather than the pip's own work, so it is subtracted
-        /// here. (Local dispatcher queue time is never part of <see cref="StepDurations"/>, so it is already
+        /// here. (Local dispatcher queue time is never part of the recorded step durations, so it is already
         /// excluded.)
         /// </remarks>
         internal long CalculateWorkBasedPipDurationMs(IPipExecutionEnvironment environment)
         {
             long pipDuration = 0;
-            foreach (KeyValuePair<PipExecutionStep, TimeSpan> kv in StepDurations)
+            for (int i = 0; i < PipExecutionStepCount; i++)
             {
-                if (kv.Key.IncludeInRunningTime(environment))
+                var step = (PipExecutionStep)i;
+                if (step.IncludeInRunningTime(environment))
                 {
-                    long stepMs = DurationForStepMs(kv.Key, kv.Value);
-                    long remoteQueueMs = (long)RemoteQueueDurations.GetOrDefault(kv.Key, TimeSpan.Zero).TotalMilliseconds;
+                    long stepMs = DurationForStepMs(step, m_durationsMs[i]);
+                    long remoteQueueMs = GetRemoteQueueDurationMs(step);
                     pipDuration += Math.Max(0, stepMs - remoteQueueMs);
                 }
             }
@@ -284,7 +355,152 @@ namespace BuildXL.Scheduler
 
         internal long CalculateQueueDurationMs()
         {
-            return QueueDurations.Values.Sum(a => (long)a.TotalMilliseconds);
+            long durationMs = 0;
+            for (int i = 0; i < DispatcherKindCount; i++)
+            {
+                durationMs += m_durationsMs[PipExecutionStepCount + i];
+            }
+
+            return durationMs;
         }
+
+        internal long CalculateRemoteQueueDurationMs()
+        {
+            lock (m_durationsMs)
+            {
+                long durationMs = 0;
+                for (int i = 0; i < m_remoteStepCount; i++)
+                {
+                    durationMs += m_remoteSteps[i].QueueDurationMs;
+                }
+
+                return durationMs;
+            }
+        }
+
+        private int GetOrAddRemoteStepIndex(PipExecutionStep step)
+        {
+            int index = FindRemoteStepIndex(step);
+            if (index >= 0)
+            {
+                return index;
+            }
+
+            if (m_remoteSteps == null)
+            {
+                m_remoteSteps = new RemoteStepPerformance[InitialRemoteStepCapacity];
+            }
+            else if (m_remoteStepCount == m_remoteSteps.Length)
+            {
+                Array.Resize(ref m_remoteSteps, Math.Min(PipExecutionStepCount, m_remoteSteps.Length * 2));
+            }
+
+            index = m_remoteStepCount++;
+            m_remoteSteps[index].Step = checked((byte)step);
+            return index;
+        }
+
+        private int FindRemoteStepIndex(PipExecutionStep step)
+        {
+            byte stepValue = checked((byte)step);
+            for (int i = 0; i < m_remoteStepCount; i++)
+            {
+                if (m_remoteSteps[i].Step == stepValue)
+                {
+                    return i;
+                }
+            }
+
+            return -1;
+        }
+
+        private static void AddDuration(ref uint currentDurationMs, TimeSpan duration)
+        {
+            double durationMs = duration.TotalMilliseconds;
+            if (durationMs <= 0)
+            {
+                return;
+            }
+
+            ulong addedDurationMs = durationMs >= uint.MaxValue ? uint.MaxValue : (uint)durationMs;
+            ulong totalDurationMs = currentDurationMs + addedDurationMs;
+            currentDurationMs = totalDurationMs >= uint.MaxValue ? uint.MaxValue : (uint)totalDurationMs;
+        }
+
+        private struct RemoteStepPerformance
+        {
+            public uint StepDurationMs;
+            public uint QueueDurationMs;
+            public uint RequestDurationMs;
+            public uint GrpcDurationMs;
+            public uint WorkerId;
+            public byte Step;
+        }
+
+        #region Duration aggregation
+
+        // These methods accumulate compact per-pip values into caller-owned totals without exposing the backing storage or allocating snapshots.
+
+        internal void AddStepDurationsTo(IList<long> durations)
+        {
+            for (int i = 0; i < PipExecutionStepCount; i++)
+            {
+                durations[i] += m_durationsMs[i];
+            }
+        }
+
+        internal void AddQueueDurationsTo(IList<long> durations)
+        {
+            for (int i = 0; i < DispatcherKindCount; i++)
+            {
+                durations[i] += m_durationsMs[PipExecutionStepCount + i];
+            }
+        }
+
+        internal void AddRemoteStepDurationsTo(IList<long> durations)
+        {
+            lock (m_durationsMs)
+            {
+                for (int i = 0; i < m_remoteStepCount; i++)
+                {
+                    durations[m_remoteSteps[i].Step] += m_remoteSteps[i].StepDurationMs;
+                }
+            }
+        }
+
+        internal void AddRemoteQueueDurationsTo(IList<long> durations)
+        {
+            lock (m_durationsMs)
+            {
+                for (int i = 0; i < m_remoteStepCount; i++)
+                {
+                    durations[m_remoteSteps[i].Step] += m_remoteSteps[i].QueueDurationMs;
+                }
+            }
+        }
+
+        internal void AddPipBuildRequestQueueDurationsTo(IList<long> durations)
+        {
+            lock (m_durationsMs)
+            {
+                for (int i = 0; i < m_remoteStepCount; i++)
+                {
+                    durations[m_remoteSteps[i].Step] += m_remoteSteps[i].RequestDurationMs;
+                }
+            }
+        }
+
+        internal void AddPipBuildRequestGrpcDurationsTo(IList<long> durations)
+        {
+            lock (m_durationsMs)
+            {
+                for (int i = 0; i < m_remoteStepCount; i++)
+                {
+                    durations[m_remoteSteps[i].Step] += m_remoteSteps[i].GrpcDurationMs;
+                }
+            }
+        }
+
+        #endregion
     }
 }

@@ -2,6 +2,13 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20260814.1 (Release [31915642](https://dev.azure.com/mseng/Domino/_build/results?buildId=31915642&view=results))
+- Fix eBPF cancellation report hang.
+- Move selected net9 components to net10 and update .NET runtime dependencies.
+- Harden content cache downloads and reject mismatched content before cache commit.
+- Improve memory handling for shared opaque input sets and sandboxed process traces.
+- Add CloudTest client diagnostics and reliability improvements.
+
 # 0.1.0-20260807.3 (Release [31884650](https://mseng.visualstudio.com/Domino/_build/results?buildId=31884650&view=results))
 - [Linux] Enable the MSBuild resolver and shared compilation on Linux.
 - Allow the VBCS compiler logger to accept the `csc /sdkpath:` switch.

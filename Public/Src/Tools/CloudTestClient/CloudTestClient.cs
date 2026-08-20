@@ -979,7 +979,9 @@ USAGE: CloudTestClient /mode:<mode> [options]
                      drop artifact, folded into the caching fingerprint.
   /testDependencyPath Optional (repeatable). Drop-relative path paired with the
                      /testDependencyHash at the same position. Provide one path
-                     per hash, in matching order.
+                     per hash, in matching order. The resulting fingerprint also
+                     includes testFolder, jobExecutable, testExecutionType,
+                     jobArguments, and testParserType. Timeouts are excluded.
   /priority          Optional. Job priority, lower = higher (default: 0).
 
 -- waitForSessionCompletion -------------------------------------------------------

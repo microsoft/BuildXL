@@ -179,19 +179,20 @@ namespace Tool.CloudTestClient
             var groupId = !string.IsNullOrEmpty(arguments.GroupId)
                 ? arguments.GroupId
                 : ComputeGroupId(arguments.Image, arguments.Sku);
+            var normalizedJobExecutable = NormalizeJobExecutable(arguments.JobExecutable);
 
             var config = new UpdateDynamicJobConfig(
                 SessionId: arguments.SessionId,
                 GroupId: groupId,
                 JobId: arguments.JobId,
                 TestFolder: arguments.TestFolder,
-                JobExecutable: NormalizeJobExecutable(arguments.JobExecutable),
+                JobExecutable: normalizedJobExecutable,
                 TestExecutionType: arguments.TestExecutionType,
                 JobArguments: arguments.JobArguments,
                 TestParserType: arguments.TestParserType,
                 JobTimeout: arguments.JobTimeout,
                 TestCaseTimeout: arguments.TestCaseTimeout,
-                TestDependencyHash: BuildAggregateTestDependencyHash(arguments),
+                TestDependencyHash: BuildAggregateTestDependencyHash(arguments, normalizedJobExecutable),
                 Priority: arguments.Priority);
 
             var options = new JsonSerializerOptions
@@ -497,17 +498,21 @@ namespace Tool.CloudTestClient
             int? Priority);
 
         /// <summary>
-        /// Builds the aggregated test dependency hash for a job from all of its caching-fingerprint inputs:
-        /// the content VsoHashes of the job inputs and session-creation drop artifacts, the drop-relative paths of
-        /// those artifacts, the resolved group's dynamic setup/cleanup, and the session's file providers.
-        ///
+        /// Builds the aggregated test dependency hash for a job from all of its job level caching-fingerprint inputs:
+        /// the content VsoHashes and drop-relative paths of the job inputs, plus the output-affecting fields from the
+        /// dynamic job request.
+        /// </summary>
+        /// <remarks>
         /// Each content hash is paired with the drop-relative path of the same artifact by position -- the SDK emits
         /// <c>/testDependencyHash</c> and <c>/testDependencyPath</c> in matching order -- and the pairs are aggregated
         /// in order (not sorted). Preserving the pairing and the order is what makes the fingerprint sensitive to a
         /// path swap: relocating identical content from one drop path to another (or swapping the drop paths of two
         /// artifacts with identical content) changes the aggregate even though the multiset of hashes is unchanged.
-        /// </summary>
-        private static string BuildAggregateTestDependencyHash(CloudTestClientArgs arguments)
+        /// 
+        /// CloudTest expects a dependency hash representing the entire job. But it takes care of computing the final job
+        /// fingerprint by combining the dependency hash with group/session level affecting fields.
+        /// </remarks>
+        private static string BuildAggregateTestDependencyHash(CloudTestClientArgs arguments, string normalizedJobExecutable)
         {
             var hashes = arguments.TestDependencyHashes;
             var paths = arguments.TestDependencyPaths;
@@ -522,35 +527,21 @@ namespace Tool.CloudTestClient
 
             var builder = new StringBuilder();
 
-            // Note: AppendLine() uses Environment.NewLine (\r\n on Windows, \n on Linux), so this fingerprint is
-            // platform-dependent. That is acceptable here: test jobs are themselves platform-specific and CloudTest
-            // does not share/mix cached results across platforms, so a Windows-vs-Linux hash difference never collides.
             for (int i = 0; i < hashes.Count; i++)
             {
-                builder.Append(paths[i]).Append('=').AppendLine(hashes[i]);
+                AppendFingerprintValue(builder, "testDependencyPath", paths[i]);
+                AppendFingerprintValue(builder, "testDependencyHash", hashes[i]);
             }
 
-            // The resolved group's setup/cleanup config (group-level inputs deployed to the worker VMs) and the
-            // session's file providers (a session-level input shared by every job) have no drop path; fold their
-            // content hashes in at fixed trailing positions.
-            if (!string.IsNullOrEmpty(arguments.GroupSetupCleanupJson))
-            {
-                builder.Append("groupSetupCleanup=").AppendLine(Sha256Hex(arguments.GroupSetupCleanupJson));
-            }
-
-            if (!string.IsNullOrEmpty(arguments.FileProvidersJson))
-            {
-                builder.Append("fileProviders=").AppendLine(Sha256Hex(arguments.FileProvidersJson));
-            }
+            AppendFingerprintValue(builder, "testFolder", arguments.TestFolder);
+            AppendFingerprintValue(builder, "jobExecutable", normalizedJobExecutable);
+            AppendFingerprintValue(builder, "testExecutionType", arguments.TestExecutionType);
+            AppendFingerprintValue(builder, "jobArguments", arguments.JobArguments);
+            AppendFingerprintValue(builder, "testParserType", arguments.TestParserType);
 
             if (arguments.Debug)
             {
                 CloudTestClient.Log($"[Debug] Computed aggregate test dependency hash:\n{builder}");
-            }
-
-            if (builder.Length == 0)
-            {
-                return null;
             }
 
             var hash = Sha256Hex(builder.ToString());
@@ -559,16 +550,25 @@ namespace Tool.CloudTestClient
             {
                 CloudTestClient.Log($"[Debug] Computed SHA256 of aggregate test dependency hash: {hash}");
             }
-            
+
             return hash;
         }
 
+        private static void AppendFingerprintValue(StringBuilder builder, string name, string value)
+        {
+            builder.Append(name.Length).Append(':').Append(name);
+            if (value == null)
+            {
+                builder.Append("-1:");
+            }
+            else
+            {
+                builder.Append(value.Length).Append(':').Append(value);
+            }
+        }
+
         /// <summary>
-        /// Computes the SHA-256 hash of a string as a lowercase hex string. Used to fold inline (non-artifact)
-        /// content -- the resolved group's setup/cleanup and the session's file providers -- and the final
-        /// aggregate into the job's caching fingerprint. The artifact hashes that flow in via
-        /// <c>/testDependencyHash</c> are embedded verbatim, so the resulting fingerprint is an opaque,
-        /// deterministic token.
+        /// Computes the SHA-256 hash of a string as a lowercase hex string.
         /// </summary>
         private static string Sha256Hex(string content)
         {

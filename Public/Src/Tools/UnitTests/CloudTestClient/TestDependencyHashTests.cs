@@ -100,16 +100,15 @@ namespace Test.Tool.CloudTestClient
         }
 
         [Fact]
-        public void NoDependenciesProducesNoHash()
+        public void JobConfigurationWithoutDependenciesProducesHash()
         {
             using var temp = new TempDirectory();
             string sessionIdFile = temp.WriteFile("session-id.txt", "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
 
-            // A job referenced by ID with no inputs, no drop artifacts, and no group setup/cleanup or file providers
-            // must omit the fingerprint entirely (null), rather than emit a constant hash shared by all input-less jobs.
+            // Job-level execution fields are fingerprint inputs even when the job has no file dependencies.
             string hash = AggregateHashFor(temp, sessionIdFile, "no-deps.json");
 
-            Assert.Null(hash);
+            Assert.NotNull(hash);
         }
 
         private static string AggregateHashFor(TempDirectory temp, string sessionIdFile, string outputFileName, params string[] extraArgs)
@@ -155,7 +154,7 @@ namespace Test.Tool.CloudTestClient
         }
 
         [Fact]
-        public void GroupSetupCleanupContributesToHash()
+        public void GroupSetupCleanupDoesNotContributeToHash()
         {
             using var temp = new TempDirectory();
 
@@ -175,11 +174,11 @@ namespace Test.Tool.CloudTestClient
 
             Assert.NotNull(hashNoSetup);
             Assert.NotNull(hashWithSetup);
-            Assert.NotEqual(hashNoSetup, hashWithSetup);
+            Assert.Equal(hashNoSetup, hashWithSetup);
         }
 
         [Fact]
-        public void FileProvidersContributeToHash()
+        public void FileProvidersDoNotContributeToHash()
         {
             using var temp = new TempDirectory();
             string group = GroupFileTestHelper.BuildGroupJson(jobsJson: """[{"name":"TestJob"}]""");
@@ -206,7 +205,41 @@ namespace Test.Tool.CloudTestClient
 
             Assert.NotNull(hashNoProviders);
             Assert.NotNull(hashWithProviders);
-            Assert.NotEqual(hashNoProviders, hashWithProviders);
+            Assert.Equal(hashNoProviders, hashWithProviders);
+        }
+
+        [Theory]
+        [InlineData("/testFolder:TestSuite_B")]
+        [InlineData("/jobExecutable:other.exe")]
+        [InlineData("/testExecutionType:TAEF")]
+        [InlineData("/jobArguments:--different")]
+        [InlineData("/testParserType:TRX")]
+        public void JobExecutionFieldsContributeToHash(string changedArgument)
+        {
+            using var temp = new TempDirectory();
+            string sessionIdFile = temp.WriteFile("session-id.txt", "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
+
+            string original = AggregateHashFor(temp, sessionIdFile, "job-original.json");
+            string changed = AggregateHashFor(temp, sessionIdFile, "job-changed.json", changedArgument);
+
+            Assert.NotEqual(original, changed);
+        }
+
+        [Fact]
+        public void TimeoutFieldsDoNotContributeToHash()
+        {
+            using var temp = new TempDirectory();
+            string sessionIdFile = temp.WriteFile("session-id.txt", "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
+
+            string original = AggregateHashFor(temp, sessionIdFile, "timeout-original.json");
+            string changed = AggregateHashFor(
+                temp,
+                sessionIdFile,
+                "timeout-changed.json",
+                "/jobTimeout:00:30:00",
+                "/testCaseTimeout:00:05:00");
+
+            Assert.Equal(original, changed);
         }
 
         #endregion

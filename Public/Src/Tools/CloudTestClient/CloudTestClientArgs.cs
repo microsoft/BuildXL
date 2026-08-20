@@ -173,18 +173,6 @@ namespace Tool.CloudTestClient
         /// </summary>
         public List<string> TestDependencyPaths { get; } = new List<string>();
 
-        /// <summary>
-        /// Raw JSON of the resolved group's dynamic setup and cleanup, captured from the session config when a job is
-        /// referenced by name. Contributes to the job's caching fingerprint. Null when unavailable (e.g. direct ID).
-        /// </summary>
-        public string GroupSetupCleanupJson { get; private set; }
-
-        /// <summary>
-        /// Raw JSON of the session's file providers, captured from the session config when a job is referenced by
-        /// name. Contributes to the job's caching fingerprint. Null when no file providers are configured.
-        /// </summary>
-        public string FileProvidersJson { get; private set; }
-
         /// <summary>Job priority (lower = higher priority).</summary>
         public int? Priority { get; }
 
@@ -450,10 +438,7 @@ namespace Tool.CloudTestClient
                         throw Error("Missing mandatory argument 'groupName' for name-based job lookup in mode 'generateUpdateDynamicJobConfig'");
                     }
 
-                    (JobId, GroupId, GroupSetupCleanupJson) = ResolveJobFromSessionConfig(Jobs[0].Name, GroupName, SessionConfigPath);
-
-                    // The session's file providers are a session-level fingerprint input shared by every job.
-                    FileProvidersJson = ReadFileProvidersJson(SessionConfigPath);
+                    (JobId, GroupId) = ResolveJobFromSessionConfig(Jobs[0].Name, GroupName, SessionConfigPath);
                 }
 
                 // When the group ID could not be resolved from the session config (i.e. a job referenced
@@ -600,10 +585,9 @@ namespace Tool.CloudTestClient
 
         /// <summary>
         /// Reads a session config JSON file and finds the job ID and the containing group's ID for the given job name,
-        /// scoped to the group named <paramref name="groupName"/>. Also captures the resolved group's dynamic
-        /// setup/cleanup JSON so it can contribute to the job's caching fingerprint.
+        /// scoped to the group named <paramref name="groupName"/>.
         /// </summary>
-        private static (string JobId, string GroupId, string GroupSetupCleanupJson) ResolveJobFromSessionConfig(string jobName, string groupName, string sessionConfigPath)
+        private static (string JobId, string GroupId) ResolveJobFromSessionConfig(string jobName, string groupName, string sessionConfigPath)
         {
             try
             {
@@ -647,7 +631,7 @@ namespace Tool.CloudTestClient
                                                 $"Group '{currentGroupName}' in session config file '{sessionConfigPath}' is missing a 'groupId'.");
                                         }
 
-                                        return (id, groupId, ExtractGroupSetupCleanupJson(group));
+                                        return (id, groupId);
                                     }
                                 }
                             }
@@ -667,42 +651,6 @@ namespace Tool.CloudTestClient
             // No group with the requested name exists in the session config.
             throw new InvalidOperationException(
                 $"Group '{groupName}' not found in session config file '{sessionConfigPath}'");
-        }
-
-        /// <summary>
-        /// Builds a stable JSON string capturing a group's dynamic setup and cleanup (the fingerprint-relevant
-        /// group-level inputs). Always returns a non-null wrapper; an absent setup or cleanup is encoded as JSON null,
-        /// so a group with neither still contributes a constant (and a group that later gains setup/cleanup changes it).
-        /// </summary>
-        private static string ExtractGroupSetupCleanupJson(System.Text.Json.JsonElement group)
-        {
-            string setup = group.TryGetProperty("dynamicGroupSetup", out var setupElement) ? setupElement.GetRawText() : null;
-            string cleanup = group.TryGetProperty("dynamicGroupCleanup", out var cleanupElement) ? cleanupElement.GetRawText() : null;
-
-            return $"{{\"dynamicGroupSetup\":{setup ?? "null"},\"dynamicGroupCleanup\":{cleanup ?? "null"}}}";
-        }
-
-        /// <summary>
-        /// Reads the session-level file providers from a session config file and returns their raw JSON, or null when
-        /// none are configured.
-        /// </summary>
-        private static string ReadFileProvidersJson(string sessionConfigPath)
-        {
-            try
-            {
-                using var doc = JsonHelpers.ReadJsonDocument(sessionConfigPath);
-                if (doc.RootElement.TryGetProperty("fileProviders", out var fileProviders)
-                    && fileProviders.ValueKind != System.Text.Json.JsonValueKind.Null)
-                {
-                    return fileProviders.GetRawText();
-                }
-            }
-            catch (System.Text.Json.JsonException ex)
-            {
-                throw new InvalidOperationException($"Failed to parse session config file '{sessionConfigPath}': {ex.Message}");
-            }
-
-            return null;
         }
 
     }

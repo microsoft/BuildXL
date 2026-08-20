@@ -139,7 +139,7 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
                 DisposeHttpClient = false,
             };
 
-            var target = channelOptions.Location.ToGrpcHost();
+            var target = GetGrpcDotNetTarget(channelOptions.Location);
             if (target.Encrypted)
             {
                 InterceptHttpsValidation(context, SocketsHttpHandler);
@@ -150,6 +150,25 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
             }
 
             return GrpcChannel.ForAddress(target.ToGrpcUri(), options);
+        }
+
+        internal static MachineLocation.HostInfo GetGrpcDotNetTarget(MachineLocation location)
+        {
+            return GetGrpcDotNetTarget(location, Environment.MachineName);
+        }
+
+        internal static MachineLocation.HostInfo GetGrpcDotNetTarget(MachineLocation location, string currentMachineName)
+        {
+            var target = location.ToGrpcHost();
+
+            // Self-hostname resolution can take seconds, repeatedly exceeding the metadata connection's
+            // 20 ms startup timeout. Loopback bypasses the lookup.
+            if (string.Equals(target.Host, currentMachineName, StringComparison.OrdinalIgnoreCase))
+            {
+                return target with { Host = IPAddress.Loopback.ToString() };
+            }
+
+            return target;
         }
 
 #else

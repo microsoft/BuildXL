@@ -33,5 +33,15 @@ namespace BuildXL.FrontEnd.JavaScript
         public static ObjectPool<HashSet<FileOrDirectoryArtifact>> FileOrDirectorySet { get; } = new ObjectPool<HashSet<FileOrDirectoryArtifact>>(
             () => new HashSet<FileOrDirectoryArtifact>(),
             s => s.Clear());
+
+        /// <summary>
+        /// Clears objects retained by the pools after frontend evaluation.
+        /// </summary>
+        public static void Clear()
+        {
+            JavaScriptProjectSet.Clear();
+            LazyEvalSet.Clear();
+            FileOrDirectorySet.Clear();
+        }
     }
 }

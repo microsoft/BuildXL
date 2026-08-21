@@ -18,7 +18,8 @@ namespace TypeScript.Net
             new ThreadLocal<ThreadLocalObjectPool<List<NodeWalker.NodeOrNodeArray>>>(
                 () => new ThreadLocalObjectPool<List<NodeWalker.NodeOrNodeArray>>(
                     () => new List<NodeWalker.NodeOrNodeArray>(),
-                    lst => lst.Clear()));
+                    lst => lst.Clear()),
+                trackAllValues: true);
 
         public static ThreadLocalObjectPool<List<NodeWalker.NodeOrNodeArray>> NodeListPool => s_nodeListPool.Value;
 
@@ -35,5 +36,18 @@ namespace TypeScript.Net
             v => { v.State = ModuleInstanceState.NonInstantiated; return v; });
 
         public static readonly ObjectPool<List<IType>> TypeResolutionPool = Pools.CreateListPool<IType>();
+
+        internal static void Clear()
+        {
+            foreach (var nodeListPool in s_nodeListPool.Values)
+            {
+                nodeListPool.Clear();
+            }
+
+            ExpressionListPool.Clear();
+            StringBuilderPool.Clear();
+            ModuleInstanceStateContextPool.Clear();
+            TypeResolutionPool.Clear();
+        }
     }
 }

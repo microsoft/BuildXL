@@ -102,6 +102,15 @@ namespace TypeScript.Net
             return new ThreadLocalPooledObjectWrapper<T>(this, inst);
         }
 
+        /// <summary>
+        /// Clears the pool.
+        /// </summary>
+        public void Clear()
+        {
+            m_firstItem = null;
+            System.Array.Clear(m_items, 0, m_items.Length);
+        }
+
         private T AllocateSlow()
         {
             var items = m_items;

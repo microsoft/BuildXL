@@ -40,6 +40,22 @@ namespace Test.BuildXL.FrontEnd.Core
         public FrontEndHostControllerTests(ITestOutputHelper output) : base(output) { }
 
         [Fact]
+        public void DisposeClearsFrontEndContextPool()
+        {
+            var host = CreateHost();
+
+            using (host.FrontEndContext.GetPipDataBuilder())
+            {
+            }
+
+            Assert.NotEqual(0, host.FrontEndContext.PipDataBuilderPool.ObjectsInPool);
+
+            host.Dispose();
+
+            Assert.Equal(0, host.FrontEndContext.PipDataBuilderPool.ObjectsInPool);
+        }
+
+        [Fact]
         public void DownloadFileTestWithHash()
         {
             var host = CreateHost();

@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using TypeScript.Net.Scanning;
+using TypeScript.Net.TypeChecking;
 
 namespace TypeScript.Net.Utilities
 {
@@ -33,9 +34,10 @@ namespace TypeScript.Net.Utilities
             TextBuilderPool.Clear();
             ScannerPool.Clear();
             LineMapPool.Clear();
-
             StringCache.Clear();
-        }
 
+            ObjectPools.Clear();
+            Checker.ClearPools();
+        }
     }
 }

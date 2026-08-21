@@ -1723,6 +1723,9 @@ namespace BuildXL.FrontEnd.Core
             m_nugetCache?.GetAwaiter().GetResult();
             FrontEndArtifactManager?.Dispose();
             CycleDetector?.Dispose();
+
+            FrontEndContext?.PipDataBuilderPool.Clear();
+            TypeScript.Net.Utilities.Pools.Clear();
         }
     }
 

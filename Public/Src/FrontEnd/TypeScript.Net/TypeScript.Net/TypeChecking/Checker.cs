@@ -10094,11 +10094,23 @@ namespace TypeScript.Net.TypeChecking
             () => new NarrowedTypeOfSymbolClosure(),
             closure => { closure.Clear(); return closure; });
 
+        internal static void ClearPools()
+        {
+            s_closurePool.Clear();
+            s_narrowedTypeOfSymbolClosurePool.Clear();
+            NarrowedTypeOfSymbolClosure.ClearPools();
+        }
+
         private sealed class NarrowedTypeOfSymbolClosure
         {
             private static readonly ObjectPool<Stack<NodeAndChild>> s_stackPool = new ObjectPool<Stack<NodeAndChild>>(
                 () => new Stack<NodeAndChild>(),
                 c => { c.Clear(); return c; });
+
+            internal static void ClearPools()
+            {
+                s_stackPool.Clear();
+            }
 
             private Checker m_checker;
             private ISymbol m_symbol;

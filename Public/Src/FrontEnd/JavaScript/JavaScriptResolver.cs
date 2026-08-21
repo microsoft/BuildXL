@@ -484,6 +484,7 @@ namespace BuildXL.FrontEnd.JavaScript
         {
             m_evaluationSemaphore.Dispose();
             m_javaScriptWorkspaceResolver?.NotifyEvaluationFinished();
+            JavaScriptPools.Clear();
         }
 
         private async Task<bool> EvaluateAllFilesOnceAsync(IReadOnlySet<AbsolutePath> evaluationGoals, QualifierId qualifierId, IEvaluationScheduler scheduler)

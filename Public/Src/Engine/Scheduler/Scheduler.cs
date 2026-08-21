@@ -1331,6 +1331,11 @@ namespace BuildXL.Scheduler
 
             PipQueue = pipQueue;
             Context = context;
+            if (m_scheduleConfiguration.EnableMemoryConservation)
+            {
+                Context.EnableMemoryConservation();
+            }
+
             PipSpecificPropertiesConfig = pipSpecificPropertiesConfig;
 
             m_pipContentFingerprinter = new PipContentFingerprinter(
@@ -2391,6 +2396,8 @@ namespace BuildXL.Scheduler
 
             m_apiServer?.LogStats();
 
+            Context.MemoryConservation?.SnapshotCounters();
+            Context.MemoryConservation?.Counters.LogAsStatistics("MemoryConservation", loggingContext);
             State?.Cache.Counters.LogAsStatistics("PipCaching", loggingContext);
             State?.FileSystemView?.Counters.LogAsStatistics("FileSystemView", loggingContext);
             m_localDiskContentStore?.LogStats();
@@ -3321,6 +3328,18 @@ namespace BuildXL.Scheduler
                 if (exceededMaxCommitUtilizationPercentage)
                 {
                     memoryResource |= MemoryResource.LowCommit;
+                }
+            }
+
+            if (Context.MemoryConservation != null)
+            {
+                if (memoryResource == MemoryResource.Available)
+                {
+                    Context.MemoryConservation.Exit();
+                }
+                else if (Context.MemoryConservation.Enter())
+                {
+                    Logger.Log.MemoryConservationActivated(m_executePhaseLoggingContext);
                 }
             }
 
@@ -7977,6 +7996,8 @@ namespace BuildXL.Scheduler
             {
                 return;
             }
+
+            Context.MemoryConservation?.Exit(force: true);
             
             m_cancellationTokenRegistration.Dispose();
 

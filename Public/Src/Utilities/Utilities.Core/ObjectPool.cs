@@ -27,7 +27,7 @@ namespace BuildXL.Utilities.Core
     /// the cache.
     ///     </para>
     /// </remarks>
-    public sealed class ObjectPool<T> where T : class
+    public sealed class ObjectPool<T> : IMemoryConservationTarget where T : class
     {
         /// <summary>
         /// Default maximum value of the caller-defined retention metric for an object retained by a pool.
@@ -62,6 +62,7 @@ namespace BuildXL.Utilities.Core
         // ConcurrentStack will result in enumerating the stack. This is used to keep a rough target size
         // of the backing set. Accuracy is not important.
         private int m_stackLength;
+        private int m_memoryConservationCount;
 
         // creator is stored for the lifetime of the pool. We will call this only when pool needs to
         // expand. compared to "new T()", Func gives more flexibility to implementers and faster
@@ -207,9 +208,13 @@ namespace BuildXL.Utilities.Core
         /// </summary>
         public void Clear()
         {
-            m_firstItem = default(T);
-            m_items.Clear();
-            Interlocked.Exchange(ref m_stackLength, 0);
+            Interlocked.Exchange(ref m_firstItem, null);
+
+            // Remove items individually so m_stackLength stays consistent with concurrent pushes and pops.
+            while (m_items.TryPop(out _))
+            {
+                Interlocked.Decrement(ref m_stackLength);
+            }
         }
 
         /// <summary>
@@ -264,6 +269,11 @@ namespace BuildXL.Utilities.Core
                 return;
             }
 
+            if (IsMemoryConservationActive)
+            {
+                return;
+            }
+
             obj = m_cleanup?.Invoke(obj) ?? obj;
 
             var item = m_firstItem;
@@ -272,18 +282,11 @@ namespace BuildXL.Utilities.Core
             {
                 FreeSlow(obj);
             }
-        }
 
-        /// <summary>
-        /// Removes <paramref name="obj"/> from the pool without cleaning up the instance.
-        /// </summary>
-        public void DetachInstance(T obj)
-        {
-            var item = m_firstItem;
-
-            if (item != null || Interlocked.CompareExchange(ref m_firstItem, obj, null) != null)
+            // Conservation may have started and completed its entry sweep after the earlier check but before storage.
+            if (IsMemoryConservationActive)
             {
-                FreeSlow(obj);
+                Clear();
             }
         }
 
@@ -295,6 +298,26 @@ namespace BuildXL.Utilities.Core
                 // Using "m_size" is just a best effort.
                 m_items.Push(obj);
                 Interlocked.Increment(ref m_stackLength);
+
+                if (IsMemoryConservationActive)
+                {
+                    Clear();
+                }
+            }
+        }
+
+        private bool IsMemoryConservationActive => Volatile.Read(ref m_memoryConservationCount) != 0;
+
+        void IMemoryConservationTarget.OnMemoryConservationStateChanged(bool isActive)
+        {
+            if (isActive)
+            {
+                Interlocked.Increment(ref m_memoryConservationCount);
+                Clear();
+            }
+            else
+            {
+                Interlocked.Decrement(ref m_memoryConservationCount);
             }
         }
 

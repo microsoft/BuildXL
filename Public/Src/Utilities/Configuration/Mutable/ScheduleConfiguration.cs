@@ -33,6 +33,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             MaximumRamUtilizationPercentage = 90;
             MaximumCommitUtilizationPercentage = 95;
             CriticalCommitUtilizationPercentage = 98;
+            EnableMemoryConservation = true;
             MaximumAllowedMemoryPressureLevel = Memory.PressureLevel.Normal;
 
             AllowCopySymlink = true;
@@ -188,6 +189,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             EnableSetupCostWhenChoosingWorker = template.EnableSetupCostWhenChoosingWorker;
             MaximumCommitUtilizationPercentage = template.MaximumCommitUtilizationPercentage;
             CriticalCommitUtilizationPercentage = template.CriticalCommitUtilizationPercentage;
+            EnableMemoryConservation = template.EnableMemoryConservation;
             DelayedCacheLookupMinMultiplier = template.DelayedCacheLookupMinMultiplier;
             DelayedCacheLookupMaxMultiplier = template.DelayedCacheLookupMaxMultiplier;
             MaxRetriesDueToLowMemory = template.MaxRetriesDueToLowMemory;
@@ -423,6 +425,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public int CriticalCommitUtilizationPercentage { get; set; }
+
+        /// <inheritdoc />
+        public bool EnableMemoryConservation { get; set; }
 
         /// <inheritdoc />
         public double? DelayedCacheLookupMinMultiplier { get; set; }

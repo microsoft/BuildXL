@@ -9,6 +9,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using BuildXL.Native.IO;
 using BuildXL.Native.Processes;
 using BuildXL.Utilities.Core;
@@ -22,9 +23,11 @@ namespace BuildXL.Processes
     /// Describes the set of files that a process may access, and the kind of operations that are permitted
     /// for each file.
     /// </summary>
-    public sealed class FileAccessManifest
+    public sealed class FileAccessManifest : IMemoryConservationTarget
     {
-        private readonly Dictionary<StringId, NormalizedPathString> m_normalizedFragments = new();
+        private Dictionary<StringId, NormalizedPathString>? m_normalizedFragments = new();
+        private readonly MemoryConservation? m_memoryConservation;
+        private int m_memoryConservationRegistered;
 
         private readonly IEqualityComparer<StringId> m_childComparer;
 
@@ -64,11 +67,13 @@ namespace BuildXL.Processes
         public FileAccessManifest(
             PathTable pathTable,
             DirectoryTranslator? translateDirectories = null,
-            IReadOnlyCollection<BreakawayChildProcess>? childProcessesToBreakawayFromSandbox = null)
+            IReadOnlyCollection<BreakawayChildProcess>? childProcessesToBreakawayFromSandbox = null,
+            MemoryConservation? memoryConservation = null)
         {
             PathTable = pathTable;
             m_childComparer = new NormalizedStringIdEqualityComparer(this);
             m_rootNode = Node.CreateRootNode();
+            m_memoryConservation = memoryConservation;
             DirectoryTranslator = translateDirectories;
             ChildProcessesToBreakawayFromSandbox = childProcessesToBreakawayFromSandbox;
 
@@ -1188,7 +1193,7 @@ namespace BuildXL.Processes
         /// </summary>
         internal void Release()
         {
-            m_normalizedFragments.Clear();
+            ReleaseNormalizedFragments();
             var workList = new Stack<Node>();
             workList.Push(m_rootNode);
             while (workList.Count > 0)
@@ -1230,6 +1235,12 @@ namespace BuildXL.Processes
 
             // The manifest tree block has to be serialized the last.
             WriteManifestTreeBlock(writer);
+
+            if (m_memoryConservation is not null && Interlocked.Exchange(ref m_memoryConservationRegistered, 1) == 0)
+            {
+                // Register only after serialization so memory conservation does not impact serialization performance.
+                m_memoryConservation.Register(this);
+            }
         }
 
         /// <summary>
@@ -1321,13 +1332,37 @@ namespace BuildXL.Processes
 
         private NormalizedPathString GetNormalizedFragment(StringId fragment)
         {
-            if (!m_normalizedFragments.TryGetValue(fragment, out var normalizedFragment))
+            var normalizedFragments = Volatile.Read(ref m_normalizedFragments);
+            if (normalizedFragments is null)
+            {
+                var newNormalizedFragments = new Dictionary<StringId, NormalizedPathString>();
+                normalizedFragments = Interlocked.CompareExchange(ref m_normalizedFragments, newNormalizedFragments, null) ?? newNormalizedFragments;
+            }
+
+            if (!normalizedFragments.TryGetValue(fragment, out var normalizedFragment))
             {
                 normalizedFragment = new NormalizedPathString(PathTable.StringTable.GetString(fragment));
-                m_normalizedFragments.Add(fragment, normalizedFragment);
+                normalizedFragments.Add(fragment, normalizedFragment);
             }
 
             return normalizedFragment;
+        }
+
+        private void ReleaseNormalizedFragments()
+        {
+            Interlocked.Exchange(ref m_normalizedFragments, null);
+        }
+
+        internal int NormalizedFragmentCount => Volatile.Read(ref m_normalizedFragments)?.Count ?? 0;
+
+        internal bool IsNormalizedFragmentCacheAllocated => Volatile.Read(ref m_normalizedFragments) is not null;
+
+        void IMemoryConservationTarget.OnMemoryConservationStateChanged(bool isActive)
+        {
+            if (isActive)
+            {
+                ReleaseNormalizedFragments();
+            }
         }
 
         // CODESYNC: DataTypes.h

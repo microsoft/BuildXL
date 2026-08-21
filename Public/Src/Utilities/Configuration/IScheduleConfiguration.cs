@@ -18,6 +18,11 @@ namespace BuildXL.Utilities.Configuration
         int MaximumRamUtilizationPercentage { get; }
 
         /// <summary>
+        /// Whether the scheduler should release expendable caches when machine memory is constrained.
+        /// </summary>
+        bool EnableMemoryConservation { get; }
+
+        /// <summary>
         /// Indicates that processes should not be cancelled and retried when machine RAM is low as specified by
         /// <see cref="MaximumRamUtilizationPercentage"/>.
         /// </summary>

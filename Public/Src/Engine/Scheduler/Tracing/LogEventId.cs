@@ -279,6 +279,7 @@ namespace BuildXL.Scheduler.Tracing
         HistoricMetadataCacheLoadFailed = 3664,
 
         UnableToGetMemoryPressureLevel = 3665,
+        MemoryConservationActivated = 3666,
 
         PipCacheMetadataBelongToAnotherPip = 3700,
 

@@ -16,6 +16,7 @@ namespace BuildXL.Utilities.Core
         private readonly PathTable m_pathTable;
         private readonly SymbolTable m_symbolTable;
         private readonly QualifierTable m_qualifierTable;
+        private MemoryConservation m_memoryConservation;
 
         /// <summary>
         /// A token to cancel the execution
@@ -72,6 +73,11 @@ namespace BuildXL.Utilities.Core
         public TestHooks TestHooks { get; set; }
 
         /// <summary>
+        /// Coordinates memory conservation for this invocation when enabled.
+        /// </summary>
+        public MemoryConservation MemoryConservation => Volatile.Read(ref m_memoryConservation);
+
+        /// <summary>
         /// Protected constructor
         /// </summary>
         protected PipExecutionContext(PipExecutionContext context)
@@ -80,7 +86,8 @@ namespace BuildXL.Utilities.Core
                 context.StringTable,
                 context.PathTable,
                 context.SymbolTable,
-                context.QualifierTable)
+                context.QualifierTable,
+                context.MemoryConservation)
         {
             Contract.RequiresNotNull(context);
         }
@@ -93,7 +100,8 @@ namespace BuildXL.Utilities.Core
             StringTable stringTable,
             PathTable pathTable,
             SymbolTable symbolTable,
-            QualifierTable qualifierTable)
+            QualifierTable qualifierTable,
+            MemoryConservation memoryConservation = null)
         {
             Contract.RequiresNotNull(stringTable);
             Contract.RequiresNotNull(pathTable);
@@ -108,6 +116,29 @@ namespace BuildXL.Utilities.Core
             m_pathTable = pathTable;
             m_symbolTable = symbolTable;
             m_qualifierTable = qualifierTable;
+            m_memoryConservation = memoryConservation;
+        }
+
+        /// <summary>
+        /// Enables memory conservation for this context.
+        /// </summary>
+        public MemoryConservation EnableMemoryConservation()
+        {
+            var memoryConservation = MemoryConservation;
+            if (memoryConservation != null)
+            {
+                return memoryConservation;
+            }
+
+            var newMemoryConservation = new MemoryConservation();
+            Pools.RegisterMemoryConservationTargets(newMemoryConservation);
+            memoryConservation = Interlocked.CompareExchange(ref m_memoryConservation, newMemoryConservation, null);
+            if (memoryConservation == null)
+            {
+                return newMemoryConservation;
+            }
+
+            return memoryConservation;
         }
     }
 }

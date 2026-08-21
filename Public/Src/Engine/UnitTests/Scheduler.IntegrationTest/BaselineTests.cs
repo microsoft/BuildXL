@@ -125,10 +125,13 @@ namespace IntegrationTest.BuildXL.Scheduler
             AssertErrorEventLogged(ProcessesLogEventId.PipProcessError);
         }
 
-        [Fact]
-        public void StopSchedulerDueToLowPhysicalMemory()
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void StopSchedulerDueToLowPhysicalMemory(bool enableMemoryConservation)
         {
             Configuration.Schedule.MaximumRamUtilizationPercentage = 95;
+            Configuration.Schedule.EnableMemoryConservation = enableMemoryConservation;
 
             var output = CreateOutputFileArtifact();
 
@@ -140,13 +143,16 @@ namespace IntegrationTest.BuildXL.Scheduler
             var builder = CreatePipBuilder(operations);
             SchedulePipBuilder(builder);
 
-            RunScheduler(testHooks: new SchedulerTestHooks()
-            {
-                GenerateSyntheticMachinePerfInfo = (lc, s) => s_highMemoryPressurePerf
-            });
+            RunScheduler(
+                testHooks: new SchedulerTestHooks()
+                {
+                    GenerateSyntheticMachinePerfInfo = (lc, s) => s_highMemoryPressurePerf
+                },
+                verifySchedulerPostRun: scheduler => Assert.Equal(enableMemoryConservation, scheduler.Context.MemoryConservation != null));
 
             AssertVerboseEventLogged(LogEventId.LowRamMemory);
             AssertVerboseEventLogged(LogEventId.StoppingProcessExecutionDueToMemory);
+            AssertVerboseEventLogged(LogEventId.MemoryConservationActivated, enableMemoryConservation ? 1 : 0, allowMore: false);
         }
 
         [Fact]
@@ -182,6 +188,7 @@ namespace IntegrationTest.BuildXL.Scheduler
 
             AssertVerboseEventLogged(LogEventId.LowCommitMemory);
             AssertVerboseEventLogged(LogEventId.StoppingProcessExecutionDueToMemory);
+            AssertVerboseEventLogged(LogEventId.MemoryConservationActivated);
         }
 
         [Theory]

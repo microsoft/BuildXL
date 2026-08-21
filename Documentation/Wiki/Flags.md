@@ -138,6 +138,7 @@ This page lists flags that can be used to configure BuildXL.
 | MaxRamUtilizationPercentage | Specifies the maximum machine wide RAM utilization allowed before the scheduler will stop scheduling more work to allow resources to be freed. Defaults to 90%. |
 | MaxRelativeOutputDirectoryLength | Directories under the object directory root will get shortened to avoid too long path names. Defaults to 64 characters for relative output directories. |
 | MaxTypeCheckingConcurrency | Specifies the maximum concurrency level type checking phase. Defaults to /maxFrontEndConcurrency - 25% more than the total number of processors in the current machine. |
+| MemoryConservation | Release expendable caches and request an optimized background garbage collection when machine memory is constrained. Enabled by default. |
 | MinAvailableRamMb | This flag is deprecated. |
 | MinimumDiskSpaceForPipsGb | Specify the required minimum available disk space in Gigabytes. Default value set to 0GB (disabled). Pips will fail if the specified amount of disk space in unavailable. |
 | MsBuild_EnableBinLogTracing | Controls whether MSBuild binlog tracing should be enabled for the build. The binlog is placed in the logs directory for each MSBuild project as 'msbuild.binlog'. WARNING: This option increases build I/O and should only be used temporarily to avoid increased build times. |

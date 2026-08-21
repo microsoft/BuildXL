@@ -748,6 +748,9 @@ namespace BuildXL
                         OptionHandlerFactory.CreateOption(
                             "maxWorkersPerModule",
                             opt => schedulingConfiguration.MaxWorkersPerModule = CommandLineUtilities.ParseInt32Option(opt, 0, int.MaxValue)),
+                        OptionHandlerFactory.CreateBoolOption(
+                            "memoryConservation",
+                            sign => schedulingConfiguration.EnableMemoryConservation = sign),
                         OptionHandlerFactory.CreateOption(
                             "minAvailableRamMb",
                             opt => { /* DO NOTHING - Flag is deprecated */ }),

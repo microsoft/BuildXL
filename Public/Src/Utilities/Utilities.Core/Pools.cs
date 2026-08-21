@@ -277,6 +277,41 @@ namespace BuildXL.Utilities.Core
         /// </summary>
         public static ObjectPool<HashSet<StringId>> StringIdSetPool { get; } = CreateSetPool<StringId>();
 
+        // Make sure to add new process-wide pools to RegisterMemoryConservationTargets() below
+
+        /// <summary>
+        /// Registers the process-wide pools with an invocation's memory conservation coordinator.
+        /// </summary>
+        internal static void RegisterMemoryConservationTargets(MemoryConservation memoryConservation)
+        {
+            memoryConservation.Register(MemoryStreamPool);
+            memoryConservation.Register(PathAtomSetPool);
+            memoryConservation.Register(FileDirectoryMapPool);
+            memoryConservation.Register(FileMultiDirectoryMapPool);
+            memoryConservation.Register(AbsolutePathFileArtifactWithAttributesMap);
+            memoryConservation.Register(StringFileArtifactWithAttributesMap);
+            memoryConservation.Register(StringBuilderPool);
+            memoryConservation.Register(AbsolutePathAncestorCheckerPool);
+            memoryConservation.Register(StringListPool);
+            memoryConservation.Register(StringSetPool);
+            memoryConservation.Register(StringIdListPool);
+            memoryConservation.Register(FileArtifactListPool);
+            memoryConservation.Register(FileArtifactWithAttributesListPool);
+            memoryConservation.Register(DirectoryArtifactListPool);
+            memoryConservation.Register(DirectoryArtifactQueuePool);
+            memoryConservation.Register(AbsolutePathListPool);
+            memoryConservation.Register(PathAtomListPool);
+            memoryConservation.Register(IdentifierAtomListPool);
+            memoryConservation.Register(FileArtifactSetPool);
+            memoryConservation.Register(FileArtifactWithAttributesSetPool);
+            memoryConservation.Register(DirectoryArtifactSetPool);
+            memoryConservation.Register(AbsolutePathSetPool);
+            memoryConservation.Register(HierarchicalNameIdSetPool);
+            memoryConservation.Register(RelativePathSetPool);
+            memoryConservation.Register(DirectoryMemberEntrySetPool);
+            memoryConservation.Register(StringIdSetPool);
+        }
+
         /// <summary>
         /// Gets a StringBuilder instance from a common object pool.
         /// </summary>

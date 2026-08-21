@@ -8,7 +8,6 @@ using System.Diagnostics.ContractsLight;
 using System.Threading;
 using BuildXL.FrontEnd.Sdk;
 using BuildXL.FrontEnd.Sdk.FileSystem;
-using BuildXL.Pips.Operations;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Core;
@@ -28,11 +27,6 @@ namespace BuildXL.Engine
         /// Envelope for serialization
         /// </summary>
         public static readonly FileEnvelope HistoricTableSizesFileEnvelope = new FileEnvelope(name: "HistoricTableSizes", version: 1);
-
-        /// <summary>
-        /// Pool of PipDataBuilder instances.
-        /// </summary>
-        public ObjectPool<PipDataBuilder> PipDataBuilderPool { get; private set; }
 
         ///<nodoc/>
         public IFileSystem FileSystem { get; }
@@ -82,7 +76,6 @@ namespace BuildXL.Engine
             Contract.Requires(pathTable.StringTable == symbolTable.StringTable);
             Contract.Requires(pathTable.StringTable == qualifierTable.StringTable);
 
-            PipDataBuilderPool = new ObjectPool<PipDataBuilder>(() => new PipDataBuilder(StringTable), builder => builder.Clear());
             EngineCounters = engineCounters ?? new CounterCollection<EngineCounter>();
             FileSystem = fileSystem;
 
@@ -112,13 +105,6 @@ namespace BuildXL.Engine
         public FrontEndContext ToFrontEndContext(LoggingContext loggingContext, IFrontEndConfiguration frontEndConfig)
         {
             return new FrontEndContext(this, loggingContext, FileSystem, frontEndConfig);
-        }
-
-        /// <inheritdoc/>
-        public override void Invalidate()
-        {
-            base.Invalidate();
-            PipDataBuilderPool = null;
         }
 
         /// <summary>

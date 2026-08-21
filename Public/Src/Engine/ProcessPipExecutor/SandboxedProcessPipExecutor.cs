@@ -319,7 +319,8 @@ namespace BuildXL.ProcessPipExecutor
                             process.ProcessName.ToString(context.StringTable), 
                             process.RequiredArguments, 
                             process.RequiredArgumentsIgnoreCase))
-                        .ToReadOnlyArray())
+                        .ToReadOnlyArray(),
+                    memoryConservation: context.MemoryConservation)
                 {
                     MonitorNtCreateFile = m_sandboxConfig.UnsafeSandboxConfiguration.MonitorNtCreateFile,
                     MonitorZwCreateOpenQueryFile = m_sandboxConfig.UnsafeSandboxConfiguration.MonitorZwCreateOpenQueryFile,

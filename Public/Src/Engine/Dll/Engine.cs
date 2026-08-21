@@ -3379,8 +3379,6 @@ namespace BuildXL.Engine
             LogObjectPoolStats(loggingContext, "HashSet<StringId>", Pools.StringIdSetPool);
             LogObjectPoolStats(loggingContext, "char[]", Pools.CharArrayPool);
             LogObjectPoolStats(loggingContext, "byte[]", Pools.ByteArrayPool);
-            LogObjectPoolStats(loggingContext, "PipDataBuilder", Context.PipDataBuilderPool);
-
             if (schedule != null
                 && constructScheduleResult != ConstructScheduleResult.Failure
                 && constructScheduleResult != ConstructScheduleResult.None)

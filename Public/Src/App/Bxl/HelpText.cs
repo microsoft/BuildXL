@@ -695,6 +695,11 @@ namespace BuildXL
                 HelpLevel.Verbose);
 
             hw.WriteOption(
+                "/memoryConservation[+|-]",
+                Strings.HelpText_DisplayHelp_MemoryConservation,
+                HelpLevel.Verbose);
+
+            hw.WriteOption(
                 "/minAvailableRamMb:<number>",
                 Strings.HelpText_DisplayHelp_MinAvailableRamMb,
                 HelpLevel.Verbose);

@@ -1371,6 +1371,15 @@ namespace BuildXL.Scheduler.Tracing
             long maximumCommitUtilization);
 
         [GeneratedEvent(
+            (ushort)LogEventId.MemoryConservationActivated,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (ushort)Tasks.Scheduler,
+            Message = "Memory conservation mode activated. BuildXL will release expendable caches and reduce memory retention until memory pressure subsides.")]
+        internal abstract void MemoryConservationActivated(LoggingContext loggingContext);
+
+        [GeneratedEvent(
             (ushort)LogEventId.CancellingProcessPipExecutionDueToResourceExhaustion,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,

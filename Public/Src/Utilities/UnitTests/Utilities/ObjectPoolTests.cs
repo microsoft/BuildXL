@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading;
 using BuildXL.Utilities.Core;
@@ -17,6 +18,28 @@ namespace Test.BuildXL.Utilities
     {
         public ObjectPoolTests(ITestOutputHelper output)
             : base(output) { }
+
+        [Fact]
+        public void AllPublicPoolsAreRegisteredForMemoryConservation()
+        {
+            var publicPools = typeof(Pools)
+                .GetMembers(BindingFlags.Public | BindingFlags.Static)
+                .Select(member => (member.Name, Pool: GetObjectPool(member)))
+                .Where(entry => entry.Pool != null)
+                .ToList();
+
+            Assert.NotEmpty(publicPools);
+
+            var memoryConservation = new MemoryConservation();
+            Pools.RegisterMemoryConservationTargets(memoryConservation);
+
+            foreach (var (name, pool) in publicPools)
+            {
+                Assert.True(
+                    memoryConservation.IsRegisteredForTesting((IMemoryConservationTarget)pool),
+                    $"Pools.{name} is not registered by {nameof(Pools.RegisterMemoryConservationTargets)}.");
+            }
+        }
 
         [Fact]
         public void MemoryStreamPoolTests()
@@ -34,6 +57,31 @@ namespace Test.BuildXL.Utilities
                 using var wrapper = Pools.MemoryStreamPool.GetInstance();
                 wrapper.Instance.WriteByte(42);
             }
+        }
+
+        private static object GetObjectPool(MemberInfo member)
+        {
+            Type memberType;
+            object value;
+
+            if (member is FieldInfo field)
+            {
+                memberType = field.FieldType;
+                value = field.GetValue(null);
+            }
+            else if (member is PropertyInfo property && property.GetIndexParameters().Length == 0)
+            {
+                memberType = property.PropertyType;
+                value = property.GetValue(null);
+            }
+            else
+            {
+                return null;
+            }
+
+            return memberType.IsGenericType && memberType.GetGenericTypeDefinition() == typeof(ObjectPool<>)
+                ? value
+                : null;
         }
 
         [Fact]
@@ -239,6 +287,34 @@ namespace Test.BuildXL.Utilities
             }
 
             Assert.Equal(Environment.ProcessorCount * 4 + 1, pool.ObjectsInPool);
+        }
+
+        [Fact]
+        public void PoolDoesNotRetainObjectsDuringMemoryConservation()
+        {
+            var memoryConservation = new MemoryConservation();
+            var pool = new ObjectPool<StringBuilder>(
+                creator: () => new StringBuilder(),
+                cleanup: builder => builder.Clear());
+            memoryConservation.Register(pool);
+
+            var wrapper = pool.GetInstance();
+            wrapper.Instance.Append("retained content");
+            wrapper.Dispose();
+            Assert.Equal(1, pool.ObjectsInPool);
+
+            wrapper = pool.GetInstance();
+            memoryConservation.Enter();
+
+            Assert.Equal(0, pool.ObjectsInPool);
+
+            wrapper.Dispose();
+            Assert.Equal(0, pool.ObjectsInPool);
+
+            memoryConservation.Exit(force: true);
+            wrapper = pool.GetInstance();
+            wrapper.Dispose();
+            Assert.Equal(1, pool.ObjectsInPool);
         }
 
         [Fact]

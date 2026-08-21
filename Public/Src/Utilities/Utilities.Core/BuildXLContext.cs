@@ -22,13 +22,14 @@ namespace BuildXL.Utilities.Core
         /// </summary>
         protected BuildXLContext(BuildXLContext context)
             : this(
-            context.CancellationToken,
-            context.StringTable,
-            context.PathTable,
-            context.SymbolTable,
-            context.QualifierTable,
-            context.TokenTextTable,
-            context.Console)
+                context.CancellationToken,
+                context.StringTable,
+                context.PathTable,
+                context.SymbolTable,
+                context.QualifierTable,
+                context.TokenTextTable,
+                context.Console,
+                context.MemoryConservation)
         {
             Contract.RequiresNotNull(context);
         }
@@ -43,13 +44,15 @@ namespace BuildXL.Utilities.Core
             SymbolTable symbolTable,
             QualifierTable qualifierTable,
             TokenTextTable tokenTextTable,
-            IConsole console)
+            IConsole console,
+            MemoryConservation memoryConservation = null)
             : base(
                 cancellationToken,
                 stringTable,
                 pathTable,
                 symbolTable,
-                qualifierTable)
+                qualifierTable,
+                memoryConservation)
         {
             Contract.RequiresNotNull(tokenTextTable);
 
@@ -81,7 +84,17 @@ namespace BuildXL.Utilities.Core
             Justification = "BuildXLContext takes ownership for disposal.")]
         public static BuildXLContext CreateInstanceForTestingWithCancellationToken(BuildXLContext context, CancellationToken cancellationToken)
         {
-            return new BuildXLTestContext(context.StringTable, context.PathTable, context.SymbolTable, context.QualifierTable, context.TokenTextTable, cancellationToken) { TestHooks = context.TestHooks };
+            return new BuildXLTestContext(
+                context.StringTable,
+                context.PathTable,
+                context.SymbolTable,
+                context.QualifierTable,
+                context.TokenTextTable,
+                cancellationToken,
+                context.MemoryConservation)
+            {
+                TestHooks = context.TestHooks,
+            };
         }
 
         /// <summary>
@@ -128,7 +141,8 @@ namespace BuildXL.Utilities.Core
                 SymbolTable symbolTable,
                 QualifierTable qualifierTable,
                 TokenTextTable tokenTextTable,
-                CancellationToken cancellationToken)
+                CancellationToken cancellationToken,
+                MemoryConservation memoryConservation = null)
                 : base(
                     cancellationToken,
                     stringTable,
@@ -136,7 +150,8 @@ namespace BuildXL.Utilities.Core
                     symbolTable,
                     qualifierTable,
                     tokenTextTable,
-                    console: null)
+                    console: null,
+                    memoryConservation: memoryConservation)
             {
             }
         }

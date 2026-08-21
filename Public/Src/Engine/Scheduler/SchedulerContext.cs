@@ -39,12 +39,7 @@ namespace BuildXL.Scheduler
         /// Context used during schedule execution
         /// </summary>
         public SchedulerContext(BuildXLContext context)
-            : this(
-                context.CancellationToken,
-                context.StringTable,
-                context.PathTable,
-                context.SymbolTable,
-                context.QualifierTable)
+            : base(context)
         {
             Contract.Requires(context != null);
         }

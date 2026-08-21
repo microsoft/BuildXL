@@ -144,6 +144,42 @@ namespace Test.BuildXL.Processes.Detours
             XAssert.IsTrue(originalDescription.SequenceEqual(deserializedManifest.Describe()));
         }
 
+        [Fact]
+        public void NormalizedFragmentsAreReleasedDuringMemoryConservation()
+        {
+            var memoryConservation = new MemoryConservation();
+            var pathTable = new PathTable();
+            var manifest = new FileAccessManifest(pathTable, memoryConservation: memoryConservation);
+            var scope = AbsolutePath.Create(pathTable, @"C:\repo\source");
+            var path = AbsolutePath.Create(pathTable, @"C:\repo\source\hotFile.cs");
+
+            manifest.AddScope(scope, FileAccessPolicy.Deny, FileAccessPolicy.AllowRead);
+            manifest.AddPath(path, FileAccessPolicy.MaskNothing, FileAccessPolicy.AllowWrite);
+            byte[] originalTreeBytes = manifest.GetManifestTreeBytes();
+
+            XAssert.IsTrue(manifest.NormalizedFragmentCount > 0);
+
+            memoryConservation.Enter();
+            XAssert.IsTrue(manifest.IsNormalizedFragmentCacheAllocated);
+
+            using (var stream = new MemoryStream())
+            {
+                manifest.Serialize(stream);
+            }
+
+            XAssert.IsFalse(manifest.IsNormalizedFragmentCacheAllocated);
+            AbsolutePath caseVariant = AbsolutePath.Create(pathTable, @"c:\REPO\SOURCE\HOTFILE.CS");
+            XAssert.IsTrue(manifest.TryFindManifestPathFor(caseVariant, out AbsolutePath manifestPath, out FileAccessPolicy policy));
+            XAssert.AreEqual(path, manifestPath);
+            XAssert.AreEqual(FileAccessPolicy.AllowRead | FileAccessPolicy.AllowWrite, policy);
+            XAssert.IsTrue(originalTreeBytes.SequenceEqual(manifest.GetManifestTreeBytes()));
+            XAssert.IsTrue(manifest.IsNormalizedFragmentCacheAllocated);
+
+            memoryConservation.Exit(force: true);
+            memoryConservation.Enter();
+            XAssert.IsFalse(manifest.IsNormalizedFragmentCacheAllocated);
+        }
+
         [Fact(Skip = "This is a benchmark.")]
         public void BenchmarkFileAccessManifestChildren()
         {

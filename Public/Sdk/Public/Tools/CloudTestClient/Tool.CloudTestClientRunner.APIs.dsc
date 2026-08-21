@@ -10,7 +10,8 @@ import * as Drop from "Sdk.Drop";
  * used directly from build scripts.
  */
 namespace APIs {
-    const root = d`.`;
+    // The CloudTestClient is deployed as part of the main BuildXL deployment
+    const root = Context.getBuildEngineDirectory();
     const isWindows: boolean = Context.isWindowsOS();
 
     /**
@@ -18,9 +19,8 @@ namespace APIs {
      */
     @@public
     export const tool: Transformer.ToolDefinition = {
-        exe: isWindows ? f`${root}/bin/CloudTestClient.exe` : f`${root}/bin/CloudTestClient`,
+        exe: isWindows ? f`${root}/CloudTestClient.exe` : f`${root}/CloudTestClient`,
         description: "CloudTest DJE Client",
-        runtimeDependencies: globR(d`${root}/bin`, "*"),
         dependsOnCurrentHostOSDirectories: true,
         prepareTempDirectory: true,
         untrackedFiles: [

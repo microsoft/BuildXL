@@ -22,6 +22,12 @@ export const evaluationOnlySdks = createSdkDeploymentDefinition(false, false, tr
 function createSdkDeploymentDefinition(serverDeployment: boolean, minimalDeployment: boolean, evaluationOnly: boolean) : Deployment.Definition {
     return {
         contents: [
+            // Deploy the CloudTest SDK as part of the main deployment. Only do this for the latest .NET version (net10) since that should be the version used by the main bxl deployment as well.
+            ...addIfLazy(!serverDeployment && (qualifier.targetRuntime === "win-x64" || qualifier.targetRuntime === "linux-x64") && qualifier.targetFramework === "net10.0", () => [
+                importFrom("BuildXL.Tools.CloudTestClient").withQualifier({
+                    targetFramework: "net10.0",
+                }).selectDeployment(evaluationOnly)
+            ]),
             {
                 // CODESYNC: Public\Src\FrontEnd\Core\FrontEndHostController.cs (TryCreateInBoxSDKResolver)
                 subfolder: "Sdk",
@@ -75,14 +81,6 @@ function createSdkDeploymentDefinition(serverDeployment: boolean, minimalDeploym
                             subfolder: "Sdk.QTest",
                             contents: [ 
                                 importFrom("BuildXL.Tools.QTest").selectDeployment(evaluationOnly)
-                            ]
-                        },
-                        {
-                            subfolder: "Sdk.CloudTestClient",
-                            contents: [ 
-                                importFrom("BuildXL.Tools.CloudTestClient").withQualifier({
-                                    targetFramework: "net10.0",
-                                }).selectDeployment(evaluationOnly)
                             ]
                         },
                         // Daemon tools are not included in the minimal deployment

@@ -16,8 +16,10 @@ const specs = [
 @@public
 export const deployment: Deployment.Definition = {
     contents: [
-        ...specs,
-        {subfolder: "bin", contents: [importFrom("BuildXL.Tools").CloudTestClient.tool]},
+        // The CloudTestClient tool is deployed as part of the main BuildXL deployment. Its SDK
+        // should be in the usual SDK folder location.
+        importFrom("BuildXL.Tools").CloudTestClient.tool,
+        {subfolder: r`Sdk/Sdk.CloudTestClient`, contents: specs},
     ],
 };
 

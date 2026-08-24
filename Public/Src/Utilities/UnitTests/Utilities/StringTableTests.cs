@@ -361,6 +361,26 @@ namespace Test.BuildXL.Utilities
             XAssert.AreEqual("1234", str);
         }
 
+#if NETCOREAPP
+        [Theory]
+        [InlineData("BuildXL", true)]
+        [InlineData("BuildXL\u4E2D\u6587", false)]
+        public void CopyStringToSpanDecodesBinaryStringSegment(string expected, bool isAscii)
+        {
+            byte[] encoded = isAscii
+                ? Encoding.ASCII.GetBytes(expected)
+                : Encoding.BigEndianUnicode.GetBytes(expected);
+            var buffer = new byte[encoded.Length + 2];
+            encoded.CopyTo(buffer, 1);
+            var source = new BinaryStringSegment(buffer, 1, encoded.Length, isAscii);
+            var destination = new char[expected.Length];
+
+            StringTable.CopyString(source, destination);
+
+            XAssert.AreEqual(expected, new string(destination));
+        }
+#endif
+
         [Fact]
         public Task BigStrings()
         {

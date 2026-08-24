@@ -858,6 +858,27 @@ namespace BuildXL.Utilities.Core
             }
         }
 
+#if NETCOREAPP
+        internal static void CopyString(BinaryStringSegment source, Span<char> destination)
+        {
+            ReadOnlySpan<byte> bytes = source.AsSpan();
+            if (source.OnlyContains8BitChars)
+            {
+                for (int i = 0; i < bytes.Length; i++)
+                {
+                    destination[i] = (char)bytes[i];
+                }
+            }
+            else
+            {
+                for (int sourceIndex = 0, destinationIndex = 0; sourceIndex < bytes.Length; destinationIndex++)
+                {
+                    destination[destinationIndex] = (char)((bytes[sourceIndex++] << 8) | bytes[sourceIndex++]);
+                }
+            }
+        }
+#endif
+
         private void GetBytesCore(StringId id, out byte[] buffer, out int index, out int length)
         {
             index = id.Value & BytesPerBufferMask;
@@ -903,14 +924,22 @@ namespace BuildXL.Utilities.Core
 
             if (!m_expansionCache.TryGetValue(id, out string result))
             {
+#if NETCOREAPP
+                BinaryStringSegment source = GetBinaryString(id);
+                result = string.Create(
+                    source.Length,
+                    source,
+                    static (destination, state) => CopyString(state, destination));
+#else
                 int len = GetLength(id);
                 using (var wrapper = Pools.GetCharArray(len))
                 {
                     char[] buffer = wrapper.Instance;
                     CopyString(id, buffer, 0);
                     result = new string(buffer, 0, len);
-                    m_expansionCache.AddItem(id, result);
                 }
+#endif
+                m_expansionCache.AddItem(id, result);
             }
 
             return result;

@@ -126,8 +126,11 @@ namespace Tool.ServicePipDaemon
                 m_logger.Log(LogLevel.Info, $"{LogPrefix}Issuing the 'Finalize' command before shutting down: this means the command wasn't explicitly issued before.");
                 try
                 {
+                    // This runs outside of the command execution path, so there is no ConfiguredCommand to take a start
+                    // timestamp from; take one here so that the logged result reports a real duration.
+                    var startTimestamp = System.Diagnostics.Stopwatch.GetTimestamp();
                     var result = DoFinalizeAsync(isFinalizeOnStop: true).GetAwaiter().GetResult();
-                    m_logger.Log(LogLevel.Info, $"{LogPrefix}[FINALIZE] result: {result}");
+                    LogIpcResult(m_logger, LogLevel.Info, $"{LogPrefix}[FINALIZE] result: ", result, startTimestamp);
                 }
                 catch (Exception e)
                 {

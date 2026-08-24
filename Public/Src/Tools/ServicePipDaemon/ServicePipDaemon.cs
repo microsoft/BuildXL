@@ -745,15 +745,35 @@ namespace Tool.ServicePipDaemon
         /// Logs IpcResult by wrapping it into a StringBuilder and passing to a provided logger. 
         /// This method wraps IpcResult into a pooled StringBuilder to reduce the number of string allocations that might happen 
         /// </summary>
+        /// <param name="logger">Logger to write the result to.</param>
+        /// <param name="level">Level to log at.</param>
+        /// <param name="prefix">Text to prepend to the rendered result.</param>
+        /// <param name="result">The result to log.</param>
+        /// <param name="startTimestamp">
+        /// A <see cref="System.Diagnostics.Stopwatch"/> timestamp taken when the work that produced
+        /// <paramref name="result"/> began; the result is stamped with the time elapsed since then.
+        /// For a command, pass <see cref="ConfiguredCommand.StartTimestamp"/>.
+        /// </param>
         /// <remarks>
         /// IpcResult is essentially a string, so at first, it might seem counter-intuitive to put it inside of a StringBuilder.
         /// However, the Payload of IpcResult can be very big (i.e., big enough to be located on the Large object heap), so all the
         /// prefixing / timestamping that loggers might be doing will result in more 'copies' of that string added to LOH.
         /// StringBuilder will still be on the LOH if the Payload string is too big, but we won't be creating any additional copies
         /// while it goes through the logger.
+        ///
+        /// The duration has to be supplied by the caller because a server action logs its result before returning it, i.e. before
+        /// <see cref="ParseAndExecuteCommandAsync"/> gets a chance to time it; without stamping here every logged result would
+        /// report a duration of zero. Note this is assigned unconditionally: results produced by
+        /// <see cref="IpcResult.Merge(IIpcResult, IIpcResult)"/> carry the sum of their parts' durations, which is not a
+        /// meaningful elapsed time for work done in parallel.
+        ///
+        /// Always log a result through this method rather than rendering it directly (<see cref="IpcResult.ToString()"/> prints
+        /// ActionDuration, so an interpolated result would report zero).
         /// </remarks>
-        protected static void LogIpcResult(IIpcLogger logger, LogLevel level, string prefix, IIpcResult result)
+        protected static void LogIpcResult(IIpcLogger logger, LogLevel level, string prefix, IIpcResult result, long startTimestamp)
         {
+            result.ActionDuration = CounterCollection.StopwatchTicksToTimeSpan(System.Diagnostics.Stopwatch.GetTimestamp() - startTimestamp);
+
             using var pooledBuilder = Pools.GetStringBuilder();
             var sb = pooledBuilder.Instance;
             sb.Append(prefix);

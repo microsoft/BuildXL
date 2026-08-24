@@ -501,7 +501,7 @@ namespace Tool.DropDaemon
                }
 
                IIpcResult result = await daemon.CreateAsync(dropConfig);
-               logger.Info($"[CREATE]: {result}");
+               LogIpcResult(logger, LogLevel.Info, "[CREATE]: ", result, conf.StartTimestamp);
                return result;
            });
 
@@ -571,7 +571,7 @@ namespace Tool.DropDaemon
                 }
 
                 IIpcResult result = await daemon.FinalizeAsync();
-                LogIpcResult(daemon.Logger, LogLevel.Info, "[FINALIZE] ", result);
+                LogIpcResult(daemon.Logger, LogLevel.Info, "[FINALIZE] ", result, conf.StartTimestamp);
                 return result;
             });
 
@@ -595,7 +595,7 @@ namespace Tool.DropDaemon
                }
 
                IIpcResult result = await daemon.FinalizeSingleDropAsync(dropConfig);
-               LogIpcResult(logger, LogLevel.Info, "[FINALIZE] ", result);
+               LogIpcResult(logger, LogLevel.Info, "[FINALIZE] ", result, conf.StartTimestamp);
                return result;
            });
 
@@ -623,7 +623,7 @@ namespace Tool.DropDaemon
                 IIpcResult result = System.IO.File.Exists(filePath)
                     ? await daemon.AddFileAsync(dropItem)
                     : new IpcResult(IpcResultStatus.InvalidInput, "file '" + filePath + "' does not exist");
-                LogIpcResult(logger, LogLevel.Info, "[ADDFILE] ", result);
+                LogIpcResult(logger, LogLevel.Info, "[ADDFILE] ", result, conf.StartTimestamp);
                 return result;
             });
 
@@ -643,7 +643,7 @@ namespace Tool.DropDaemon
 
                 var result = await AddArtifactsToDropInternalAsync(conf, daemon, logger, commandId);
 
-                LogIpcResult(logger, LogLevel.Info, $"[command:{commandId}] [ADDARTIFACTS]: ", result);
+                LogIpcResult(logger, LogLevel.Info, $"[command:{commandId}] [ADDARTIFACTS]: ", result, conf.StartTimestamp);
                 // Trim the payload before sending the result.
                 return SuccessOrFirstError(result);
             });

@@ -168,7 +168,7 @@ namespace Tool.MaterializationDaemon
                var materializationDaemon = daemon as MaterializationDaemon;
                materializationDaemon.Logger.Verbose("[REGISTERMANIFEST] Started");
                var result = await materializationDaemon.RegisterManifestInternalAsync(conf);
-               LogIpcResult(materializationDaemon.Logger, LogLevel.Verbose, "[REGISTERMANIFEST] ", result);
+               LogIpcResult(materializationDaemon.Logger, LogLevel.Verbose, "[REGISTERMANIFEST] ", result, conf.StartTimestamp);
                // Trim the payload before sending the result.
                return SuccessOrFirstError(result);
            });
@@ -196,7 +196,7 @@ namespace Tool.MaterializationDaemon
                 var materializationDaemon = daemon as MaterializationDaemon;
                 materializationDaemon.Logger.Verbose("[MATERIALIZEDIRECTORIES] Started");
                 var result = await materializationDaemon.MaterializeDirectoriesAsync(conf);
-                LogIpcResult(materializationDaemon.Logger, LogLevel.Verbose, "[MATERIALIZEDIRECTORIES] ", result);
+                LogIpcResult(materializationDaemon.Logger, LogLevel.Verbose, "[MATERIALIZEDIRECTORIES] ", result, conf.StartTimestamp);
                 // Trim the payload before sending the result.
                 return SuccessOrFirstError(result);
             });

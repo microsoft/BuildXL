@@ -213,7 +213,7 @@ namespace Tool.BlobDaemon
                 var commandId = Guid.NewGuid();
                 blobDaemon.Logger.Verbose($"[command:{commandId}] [UPLOADARTIFACTS] Started");
                 var result = await blobDaemon.UploadArtifactsInternalAsync(conf, commandId);
-                LogIpcResult(blobDaemon.Logger, LogLevel.Verbose, $"[command:{commandId}] [UPLOADARTIFACTS] ", result);
+                LogIpcResult(blobDaemon.Logger, LogLevel.Verbose, $"[command:{commandId}] [UPLOADARTIFACTS] ", result, conf.StartTimestamp);
                 // Trim the payload before sending the result.
                 return SuccessOrFirstError(result);
             });

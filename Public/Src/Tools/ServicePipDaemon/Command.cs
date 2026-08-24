@@ -133,12 +133,28 @@ namespace Tool.ServicePipDaemon
         /// <nodoc/>
         public IIpcLogger Logger { get; }
 
+        /// <summary>
+        /// Timestamp (in <see cref="System.Diagnostics.Stopwatch"/> ticks) taken when this command was prepared for execution.
+        /// </summary>
+        /// <remarks>
+        /// Used to report how long an operation took when its result is logged. A command's result is logged from inside
+        /// its server action, i.e. before the action returns to the code that would otherwise time it, so the elapsed
+        /// time has to be derivable from something the action already holds.
+        ///
+        /// This relies on a command being executed immediately after it is constructed (see
+        /// <see cref="ServicePipDaemon.ParseAndExecuteCommandAsync"/>, where parsing is directly followed by invoking the
+        /// server action). Requests wait in a queue *before* reaching that method - and therefore before this object
+        /// exists - so queueing time is not included here; it is tracked separately by the QueueDurationMs counter.
+        /// </remarks>
+        public long StartTimestamp { get; }
+
         /// <nodoc/>
         public ConfiguredCommand(Command command, Config config, IIpcLogger logger)
         {
             Command = command;
             Config = config;
             Logger = logger;
+            StartTimestamp = System.Diagnostics.Stopwatch.GetTimestamp();
         }
 
         /// <summary>

@@ -319,7 +319,7 @@ namespace Tool.SymbolDaemon
                var symbolDaemon = daemon as SymbolDaemon;
                symbolDaemon.Logger.Info("[CREATE]: Started at " + symbolDaemon.SymbolConfig.Service + "/" + symbolDaemon.SymbolConfig.Name);
                IIpcResult result = await symbolDaemon.CreateAsync();
-               daemon.Logger.Info("[CREATE]: " + result);
+               LogIpcResult(daemon.Logger, LogLevel.Info, "[CREATE]: ", result, conf.StartTimestamp);
                return result;
            });
 
@@ -332,7 +332,7 @@ namespace Tool.SymbolDaemon
                 var symbolDaemon = daemon as SymbolDaemon;
                 symbolDaemon.Logger.Info("[FINALIZE] Started at " + symbolDaemon.SymbolConfig.Service + "/" + symbolDaemon.SymbolConfig.Name);
                 IIpcResult result = await symbolDaemon.FinalizeAsync();
-                daemon.Logger.Info("[FINALIZE] " + result);
+                LogIpcResult(daemon.Logger, LogLevel.Info, "[FINALIZE] ", result, conf.StartTimestamp);
                 return result;
             });
 
@@ -359,7 +359,7 @@ namespace Tool.SymbolDaemon
                 var customClientKeyPrefixEnvVariable = CustomClientKeyPrefixEnvVariable.GetValue(conf.Config);
 
                 var result = await AddSymbolFilesInternalAsync(files, fileIds, hashes, symbolMetadataFile, customClientKeyPrefixEnvVariable, symbolDaemon);
-                LogIpcResult(symbolDaemon.Logger, LogLevel.Verbose, "[ADDSYMBOLS] ", result);
+                LogIpcResult(symbolDaemon.Logger, LogLevel.Verbose, "[ADDSYMBOLS] ", result, conf.StartTimestamp);
                 // Trim the payload before sending the result.
                 return SuccessOrFirstError(result);
             });
@@ -394,7 +394,7 @@ namespace Tool.SymbolDaemon
                 var symbolDaemon = daemon as SymbolDaemon;
                 symbolDaemon.Logger.Verbose("[GetDirectoriesContentAsync] Started");
                 var result = await GetDirectoriesContentAsync(conf, symbolDaemon);
-                LogIpcResult(symbolDaemon.Logger, LogLevel.Verbose, "[GetDirectoriesContentAsync] ", result);
+                LogIpcResult(symbolDaemon.Logger, LogLevel.Verbose, "[GetDirectoriesContentAsync] ", result, conf.StartTimestamp);
                 // Do not change this result (it contains a list of files under a dir artifact). The result will
                 // become a real build artifact when this pip completes. The "symbol indexer" pip consumes this
                 // artifact (it's a part of its fingerprint) and uses it to learn which files under a root are
@@ -472,7 +472,7 @@ namespace Tool.SymbolDaemon
                 var symbolDaemon = daemon as SymbolDaemon;
                 symbolDaemon.Logger.Verbose("[ADDSYMBOLSFROMDIRECTORIES] Started");
                 var result = await AddDirectoriesInternalAsync(conf, symbolDaemon);
-                LogIpcResult(symbolDaemon.Logger, LogLevel.Verbose, "[ADDSYMBOLSFROMDIRECTORIES] ", result);
+                LogIpcResult(symbolDaemon.Logger, LogLevel.Verbose, "[ADDSYMBOLSFROMDIRECTORIES] ", result, conf.StartTimestamp);
                 // Trim the payload before sending the result.
                 return SuccessOrFirstError(result);
             });

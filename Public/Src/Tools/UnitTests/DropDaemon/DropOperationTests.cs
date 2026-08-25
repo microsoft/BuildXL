@@ -7,6 +7,7 @@ using System.Diagnostics.ContractsLight;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
 using BuildXL.Ipc;
@@ -472,6 +473,76 @@ namespace Test.Tool.DropDaemon
                 Assert.False(ipcResult.Succeeded, "adding symlink to drop succeeded while it was expected to fail");
                 Assert.True(ipcResult.Payload.Contains(global::Tool.DropDaemon.DropDaemon.SymlinkAddErrorMessagePrefix));
             });
+        }
+
+        [Theory]
+        [InlineData(".*d\\.txt$", 0)]  // matches no files  -> nothing to upload -> no drop client is needed
+        [InlineData(".*a\\.txt$", 1)]  // matches one file  -> a drop client is needed
+        [InlineData(".*", 1)]          // matches all files -> a drop client is needed
+        public void TestDropClientIsCreatedOnlyWhenThereIsSomethingToUpload(string filter, int expectedDropClientCreations)
+        {
+            // A drop client authenticates lazily, on its first drop-service call. Registering one for an
+            // 'addartifacts' request that turns out to have nothing to upload therefore leaves behind a client
+            // that never contacts the drop service, and that client still reports an all-zero telemetry record
+            // when the daemon shuts down. No client should be created at all.
+
+            // TestOutputDirectory
+            // |- foo <directory>  <- 'uploading' this directory
+            //    |- a.txt
+            //    |- b.txt
+            //    |- bar <directory>
+            //       |- c.txt
+
+            string remoteDirectoryPath = "remoteDirectory";
+            string fakeDirectoryId = "123:1:12345";
+            var directoryPath = Path.Combine(TestOutputDirectory, "foo");
+
+            var files = new List<string>
+            {
+                Path.Combine(directoryPath, "a.txt"),
+                Path.Combine(directoryPath, "b.txt"),
+                Path.Combine(directoryPath, "bar", "c.txt"),
+            };
+
+            if (!Directory.Exists(directoryPath))
+            {
+                Directory.CreateDirectory(directoryPath);
+            }
+
+            var dropClient = new MockDropClient(addFileFunc: (item) => Task.FromResult(AddFileResult.UploadedAndAssociated));
+
+            var ipcProvider = IpcFactory.GetProvider();
+
+            // this lambda mocks BuildXL server receiving 'GetSealedDirectoryContent' API call and returning a response
+            var ipcExecutor = new LambdaIpcOperationExecutor(op =>
+            {
+                var cmd = ReceiveGetSealedDirectoryContentCommandAndCheckItMatchesDirectoryId(op.Payload, fakeDirectoryId);
+                var result = files.Select(CreateFakeSealedDirectoryFile).ToList();
+                return IpcResult.Success(cmd.RenderResult(result));
+            });
+
+            WithIpcServer(
+                ipcProvider,
+                ipcExecutor,
+                new ServerConfig(),
+                (moniker, mockServer) =>
+                {
+                    var bxlApiClient = MockClient.CreateDummyApiClient(ipcProvider, moniker);
+                    WithSetup(
+                        dropClient,
+                        (daemon, etwListener, dropConfig) =>
+                        {
+                            var addArtifactsCommand = global::Tool.ServicePipDaemon.ServicePipDaemon.ParseArgsForIPCCall(
+                                $"addartifacts --ipcServerMoniker {moniker.Id} --service {dropConfig.Service} --name {dropConfig.Name} --directory {directoryPath} --directoryId {fakeDirectoryId} --directoryDropPath {remoteDirectoryPath} --directoryFilter {filter} --directoryRelativePathReplace ## --directoryFilterUseRelativePath false",
+                                new UnixParser());
+                            var ipcResult = addArtifactsCommand.Command.ServerAction(addArtifactsCommand, daemon).GetAwaiter().GetResult();
+
+                            XAssert.IsTrue(ipcResult.Succeeded, ipcResult.Payload);
+                            XAssert.AreEqual(expectedDropClientCreations, ((TestableDropDaemon)daemon).VsoClientCreationCount);
+                        },
+                        bxlApiClient);
+                    return Task.CompletedTask;
+                }).GetAwaiter().GetResult();
         }
 
         [Theory]
@@ -1103,6 +1174,13 @@ namespace Test.Tool.DropDaemon
         internal class TestableDropDaemon : global::Tool.DropDaemon.DropDaemon
         {
             private readonly IDropClient m_mockDropClient;
+            private int m_vsoClientCreationCount;
+
+            /// <summary>
+            /// Number of times a drop client was actually created. Because the daemon starts the client-creation
+            /// task as soon as a client is registered, this doubles as the number of registered drop clients.
+            /// </summary>
+            public int VsoClientCreationCount => Volatile.Read(ref m_vsoClientCreationCount);
 
             public TestableDropDaemon(IParser parser, DaemonConfig daemonConfig, DropServiceConfig dropServiceConfig, IDropClient mockDropClient, Client client = null)
                 : base(parser, daemonConfig, dropServiceConfig, client: client)
@@ -1112,6 +1190,7 @@ namespace Test.Tool.DropDaemon
 
             protected override Task<IDropClient> CreateVsoClientAsync(IIpcLogger logger, Client apiClient, DaemonConfig daemonConfig, DropConfig dropConfig)
             {
+                Interlocked.Increment(ref m_vsoClientCreationCount);
                 return Task.FromResult(m_mockDropClient);
             }
         }

@@ -639,9 +639,8 @@ namespace Tool.DropDaemon
                 var logger = daemon.GetDropSpecificLogger(dropConfig);
                 var commandId = Guid.NewGuid();
                 logger.Info($"[command:{commandId}] [ADDARTIFACTS] Started");
-                daemon.EnsureVsoClientIsCreated(dropConfig);
 
-                var result = await AddArtifactsToDropInternalAsync(conf, daemon, logger, commandId);
+                var result = await AddArtifactsToDropInternalAsync(conf, daemon, dropConfig, logger, commandId);
 
                 LogIpcResult(logger, LogLevel.Info, $"[command:{commandId}] [ADDARTIFACTS]: ", result, conf.StartTimestamp);
                 // Trim the payload before sending the result.
@@ -1669,11 +1668,9 @@ namespace Tool.DropDaemon
                 : null;
         }
 
-        private static async Task<IIpcResult> AddArtifactsToDropInternalAsync(ConfiguredCommand conf, DropDaemon daemon, IIpcLogger logger, Guid commandId)
+        private static async Task<IIpcResult> AddArtifactsToDropInternalAsync(ConfiguredCommand conf, DropDaemon daemon, DropConfig dropConfig, IIpcLogger logger, Guid commandId)
         {
-            var dropName = conf.Get(DropNameOption);
-            var serviceEndpoint = conf.Get(DropEndpoint);
-            var fullDropName = FullyQualifiedDropName(serviceEndpoint, dropName);
+            var fullDropName = FullyQualifiedDropName(dropConfig);
 
             var files = File.GetValues(conf.Config).ToArray();
             var fileIds = FileId.GetValues(conf.Config).ToArray();
@@ -1802,7 +1799,7 @@ namespace Tool.DropDaemon
                 return new IpcResult(IpcResultStatus.Success, string.Empty);
             }
 
-            return await AddDropItemsAsync(daemon, dropFileItemsKeyedByIsAbsent[false].Concat(groupedDirectoriesContent[false]));
+            return await AddDropItemsAsync(daemon, dropConfig, dropFileItemsKeyedByIsAbsent[false].Concat(groupedDirectoriesContent[false]));
         }
 
 
@@ -1942,7 +1939,7 @@ namespace Tool.DropDaemon
             return dropItemsByDropPaths.Select(kvp => kvp.Value).ToArray();
         }
 
-        private static async Task<IIpcResult> AddDropItemsAsync(DropDaemon daemon, IEnumerable<DropItemForBuildXLFile> dropItems)
+        private static async Task<IIpcResult> AddDropItemsAsync(DropDaemon daemon, DropConfig dropConfig, IEnumerable<DropItemForBuildXLFile> dropItems)
         {
             var possibleItems = DedupeDropItems(dropItems);
 
@@ -1950,6 +1947,12 @@ namespace Tool.DropDaemon
             {
                 return new IpcResult(IpcResultStatus.InvalidInput, possibleItems.Failure.Describe());
             }
+
+            // Create the drop client as late as possible, i.e., only once we know files are actually going to be
+            // added. The underlying drop service client is constructed lazily, on the first drop operation, so a
+            // client that is registered but never used never authenticates and records no counters. It would still
+            // report an all-zero telemetry record at daemon shutdown.
+            daemon.EnsureVsoClientIsCreated(dropConfig);
 
             var ipcResultTasks = possibleItems.Result.Select(daemon.AddFileAsync).ToArray();
 

@@ -581,6 +581,14 @@ namespace Tool.DropDaemon
             }
 #endif
 
+            if (blobsForUpload.Length == 0)
+            {
+                // Every file in this batch was associated, so there is nothing to upload. Calling the drop client
+                // here would be a no-op, however, it's not a free operation on the drop side.
+                m_logger.Verbose($"[batch:{logGuid}] UploadAndAssociateAsync: Nothing to upload; skipping the call.");
+                return;
+            }
+
             using (m_counters.StartStopwatch(DropClientCounter.TotalUploadTime))
             {
                 await m_dropClient.UploadAndAssociateAsync(

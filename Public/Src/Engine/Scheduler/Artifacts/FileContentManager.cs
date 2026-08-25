@@ -2956,7 +2956,7 @@ namespace BuildXL.Scheduler.Artifacts
             var isExecutable = filesAndContentHashesEntry.isExecutable;
 
             Contract.Assume(contentHash == result.Hash);
-            var outerContext = operationContext.StartAsyncOperation(OperationCounter.FileContentManagerHandleContentAvailabilityOuter, fileArtifact);
+            using (var outerContext = operationContext.StartAsyncOperation(OperationCounter.FileContentManagerHandleContentAvailabilityOuter, fileArtifact))
             using (outerContext.StartOperation(OperationCounter.FileContentManagerHandleContentAvailability, fileArtifact))
             {
                 bool isAvailable = result.IsAvailable;

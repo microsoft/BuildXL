@@ -48,6 +48,12 @@ namespace BuildXL.Scheduler.Tracing
         internal const int MaxTopOperations = 5;
 
         /// <summary>
+        /// Maximum number of completed operations of each type retained by a root operation for reuse.
+        /// </summary>
+        /// <remarks>Internal for unit testing.</remarks>
+        internal const int MaxPooledOperationsPerType = 32;
+
+        /// <summary>
         /// Enables tracing of operations
         /// </summary>
         private static bool s_enableDebugTracing = Environment.GetEnvironmentVariable("BuildXLTraceOperation") == "1";
@@ -330,34 +336,31 @@ namespace BuildXL.Scheduler.Tracing
                 if (!rootOperation.IsComplete)
                 {
                     rootOperation.Counter?.OutstandingCounter?.Add(rootOperation.Duration);
+                }
 
-                    foreach (var operation in rootOperation.CreatedOperations)
+                foreach (var operation in rootOperation.GetActiveChildOperationsSnapshot())
+                {
+                    var info = operation.Capture();
+                    if (info.HasValue)
                     {
-                        if (!operation.IsComplete)
+                        var outstandingCounter = operation.Counter?.OutstandingCounter;
+                        outstandingCounter?.Add(info.Value.Duration);
+
+                        if (info.Value.Artifact.IsValid || info.Value.PipId.IsValid)
                         {
-                            var info = operation.Capture();
-                            if (info.HasValue)
+                            outstandingCounter?.AddAssociatedOperation(info.Value);
+
+                            if (outstandingCounter != null)
                             {
-                                var outstandingCounter = operation.Counter?.OutstandingCounter;
-                                outstandingCounter?.Add(info.Value.Duration);
+                                m_countersWithAssociatedOperations.Add(outstandingCounter);
+                            }
 
-                                if (info.Value.Artifact.IsValid || info.Value.PipId.IsValid)
+                            if (info.Value.Duration > s_maxOpsThreshold)
+                            {
+                                operation.Counter?.AddAssociatedOperation(info.Value);
+                                if (operation.Counter != null)
                                 {
-                                    outstandingCounter?.AddAssociatedOperation(info.Value);
-
-                                    if (outstandingCounter != null)
-                                    {
-                                        m_countersWithAssociatedOperations.Add(outstandingCounter);
-                                    }
-
-                                    if (info.Value.Duration > s_maxOpsThreshold)
-                                    {
-                                        operation.Counter?.AddAssociatedOperation(info.Value);
-                                        if (operation.Counter != null)
-                                        {
-                                            m_countersWithAssociatedOperations.Add(operation.Counter);
-                                        }
-                                    }
+                                    m_countersWithAssociatedOperations.Add(operation.Counter);
                                 }
                             }
                         }
@@ -588,6 +591,11 @@ namespace BuildXL.Scheduler.Tracing
             private int m_version;
 
             /// <summary>
+            /// Index in the root operation's active-operation list, or -1 when inactive.
+            /// </summary>
+            internal int ActiveOperationIndex { get; set; } = -1;
+
+            /// <summary>
             /// Computes the duration of the operation
             /// </summary>
             public TimeSpan Duration => Root.Tracker.m_stopwatch.Elapsed - Start;
@@ -680,6 +688,18 @@ namespace BuildXL.Scheduler.Tracing
                 }
 
                 InitializeCore(kind, artifact, details);
+            }
+
+            /// <summary>
+            /// Removes references to other operations before this operation is pooled or discarded.
+            /// </summary>
+            internal void DetachFromOperationGraph()
+            {
+                Parent = null;
+                if (!IsThread)
+                {
+                    Thread = null;
+                }
             }
 
             /// <summary>
@@ -798,7 +818,7 @@ namespace BuildXL.Scheduler.Tracing
             {
                 TraceDebugData(this);
 
-                Root.ReturnOperation(this);
+                Root.ReturnNestedOperation(this);
             }
         }
 
@@ -830,7 +850,7 @@ namespace BuildXL.Scheduler.Tracing
             {
                 TraceDebugData(this);
                 kind = SpecializeKind(kind);
-                OperationThread? thread = Root.CreateUnitializedOperation(newThread: true).Thread;
+                OperationThread? thread = Root.CreateUninitializedOperation(newThread: true).Thread;
                 
                 Contract.Assert(thread is not null);
 
@@ -846,7 +866,7 @@ namespace BuildXL.Scheduler.Tracing
             {
                 TraceDebugData(this);
                 kind = SpecializeKind(kind);
-                Operation result = Root.CreateUnitializedOperation(newThread: false);
+                Operation result = Root.CreateUninitializedOperation(newThread: false);
                 result.SetThread(this);
                 result.Initialize(ActiveOperation, kind, artifact, details);
                 ActiveOperation = result;
@@ -901,16 +921,22 @@ namespace BuildXL.Scheduler.Tracing
             private readonly Stack<OperationThread> m_operationThreadPool = new Stack<OperationThread>();
 
             // Nested operation pool
-            private readonly Stack<NestedOperation> m_operationPool = new Stack<NestedOperation>();
+            private readonly Stack<NestedOperation> m_nestedOperationPool = new Stack<NestedOperation>();
 
-            // All the created operations (this is used for debugging purposes only)
-            public readonly ConcurrentQueue<Operation> CreatedOperations = new ConcurrentQueue<Operation>();
+            // Operations that are currently active. This is used for outstanding-operation diagnostics.
+            private readonly List<Operation> m_activeChildOperations = new List<Operation>();
+
+            // Whether the root completed while operations were still returning.
+            private bool m_rootPoolReturnPending;
+
+            // Operations removed from active diagnostics but not yet returned to their pool.
+            private int m_childOperationsReturning;
 
             // Factory for operation threads
-            private static readonly Func<RootOperation, OperationThread> s_threadFactory = root => new OperationThread(root);
+            private static readonly Func<RootOperation, OperationThread> s_operationThreadFactory = root => new OperationThread(root);
 
             // Factory for nested operations
-            private static readonly Func<RootOperation, NestedOperation> s_nestedFactory = root => new NestedOperation(root);
+            private static readonly Func<RootOperation, NestedOperation> s_nestedOperationFactory = root => new NestedOperation(root);
 
             /// <summary>
             /// Creates a new root operation
@@ -942,38 +968,43 @@ namespace BuildXL.Scheduler.Tracing
             /// <summary>
             /// Creates a new uninitialized operation
             /// </summary>
-            public Operation CreateUnitializedOperation(bool newThread = false)
+            public Operation CreateUninitializedOperation(bool newThread = false)
             {
                 if (newThread)
                 {
-                    return CreateUnitializedOperation(m_operationThreadPool, s_threadFactory);
+                    return CreateUninitializedOperation(m_operationThreadPool, s_operationThreadFactory);
                 }
                 else
                 {
-                    return CreateUnitializedOperation(m_operationPool, s_nestedFactory);
+                    return CreateUninitializedOperation(m_nestedOperationPool, s_nestedOperationFactory);
                 }
             }
 
-            private T CreateUnitializedOperation<T>(
+            private T CreateUninitializedOperation<T>(
                 Stack<T> pool,
                 Func<RootOperation, T> factory)
                 where T : Operation
             {
-                lock (pool)
+                lock (m_activeChildOperations)
                 {
-                    if (pool.Count == 0)
+                    T operation;
+                    lock (pool)
                     {
-                        var operation = factory(this);
-                        TraceDebugData(operation);
-
-                        CreatedOperations.Enqueue(operation);
-
-                        return operation;
+                        if (pool.Count == 0)
+                        {
+                            operation = factory(this);
+                            TraceDebugData(operation);
+                        }
+                        else
+                        {
+                            operation = pool.Pop();
+                        }
                     }
-                    else
-                    {
-                        return pool.Pop();
-                    }
+
+                    Assert(operation, operation.ActiveOperationIndex == -1, "Operation is already active");
+                    operation.ActiveOperationIndex = m_activeChildOperations.Count;
+                    m_activeChildOperations.Add(operation);
+                    return operation;
                 }
             }
 
@@ -981,15 +1012,13 @@ namespace BuildXL.Scheduler.Tracing
             public override void Return()
             {
                 TraceDebugData(this);
-
-                Tracker.m_activePipOperations.Remove(this);
-                Tracker.m_rootOperationPool.Enqueue(this);
+                RequestRootPoolReturn();
             }
 
             /// <summary>
             /// Returns a nested operation to the pool of nested operations
             /// </summary>
-            public void ReturnOperation(NestedOperation operation)
+            public void ReturnNestedOperation(NestedOperation operation)
             {
                 TraceDebugData(this);
 
@@ -997,11 +1026,34 @@ namespace BuildXL.Scheduler.Tracing
 
                 Assert(operation, Thread.ActiveOperation != operation, "Returned operations must not remain active");
 
-                OnOperationCompleted?.Invoke(operation.Kind, operation.Duration);
-
-                lock (m_operationPool)
+                bool returnToNestedOperationPool = false;
+                try
                 {
-                    m_operationPool.Push(operation);
+                    OnOperationCompleted?.Invoke(operation.Kind, operation.Duration);
+                    returnToNestedOperationPool = true;
+                }
+                finally
+                {
+                    BeginChildOperationReturn(operation);
+                    try
+                    {
+                        operation.DetachFromOperationGraph();
+
+                        if (returnToNestedOperationPool)
+                        {
+                            lock (m_nestedOperationPool)
+                            {
+                                if (m_nestedOperationPool.Count < MaxPooledOperationsPerType)
+                                {
+                                    m_nestedOperationPool.Push(operation);
+                                }
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        CompleteChildOperationReturn();
+                    }
                 }
             }
 
@@ -1015,20 +1067,161 @@ namespace BuildXL.Scheduler.Tracing
                 Contract.Assert(Thread is not null);
 
                 Assert(thread, Thread.ActiveOperation != thread, "Returned operations must not remain active");
-
-                lock (m_operationThreadPool)
+                BeginChildOperationReturn(thread);
+                try
                 {
-                    m_operationThreadPool.Push(thread);
+                    thread.DetachFromOperationGraph();
+
+                    lock (m_operationThreadPool)
+                    {
+                        if (m_operationThreadPool.Count < MaxPooledOperationsPerType)
+                        {
+                            m_operationThreadPool.Push(thread);
+                        }
+                    }
+                }
+                finally
+                {
+                    CompleteChildOperationReturn();
+                }
+            }
+
+            /// <summary>
+            /// Gets a snapshot for computing outstanding-operation diagnostics.
+            /// </summary>
+            internal Operation[] GetActiveChildOperationsSnapshot()
+            {
+                lock (m_activeChildOperations)
+                {
+                    return m_activeChildOperations.ToArray();
                 }
             }
 
             internal string GetChildOperationName(Operation operation)
             {
-                foreach (var child in CreatedOperations)
+                return GetChildOperationName(operation, GetActiveChildOperationsSnapshot());
+            }
+
+            /// <summary>
+            /// Gets operation counts for unit testing.
+            /// </summary>
+            internal (int Active, int Returning, int PooledThreads, int PooledNested, bool RootPoolReturnPending) GetChildOperationCountsForTesting()
+            {
+                int active;
+                int returning;
+                bool returnToPoolPending;
+                lock (m_activeChildOperations)
+                {
+                    active = m_activeChildOperations.Count;
+                    returning = m_childOperationsReturning;
+                    returnToPoolPending = m_rootPoolReturnPending;
+                }
+
+                int pooledThreads;
+                lock (m_operationThreadPool)
+                {
+                    pooledThreads = m_operationThreadPool.Count;
+                }
+
+                int pooledNested;
+                lock (m_nestedOperationPool)
+                {
+                    pooledNested = m_nestedOperationPool.Count;
+                }
+
+                return (active, returning, pooledThreads, pooledNested, returnToPoolPending);
+            }
+
+            private void BeginChildOperationReturn(Operation operation)
+            {
+                lock (m_activeChildOperations)
+                {
+                    int operationIndex = operation.ActiveOperationIndex;
+                    Assert(operation, operationIndex >= 0, "Operation is not active");
+
+                    int lastIndex = m_activeChildOperations.Count - 1;
+                    if (operationIndex != lastIndex)
+                    {
+                        var lastOperation = m_activeChildOperations[lastIndex];
+                        m_activeChildOperations[operationIndex] = lastOperation;
+                        lastOperation.ActiveOperationIndex = operationIndex;
+                    }
+
+                    m_activeChildOperations.RemoveAt(lastIndex);
+                    operation.ActiveOperationIndex = -1;
+                    m_childOperationsReturning++;
+                }
+            }
+
+            private void CompleteChildOperationReturn()
+            {
+                bool returnToPool;
+                lock (m_activeChildOperations)
+                {
+                    m_childOperationsReturning--;
+                    Contract.Assert(m_childOperationsReturning >= 0);
+
+                    returnToPool = m_activeChildOperations.Count == 0
+                        && m_childOperationsReturning == 0
+                        && m_rootPoolReturnPending;
+                    if (returnToPool)
+                    {
+                        m_rootPoolReturnPending = false;
+                        m_activeChildOperations.Capacity = 0;
+                    }
+                }
+
+                if (returnToPool)
+                {
+                    ReturnRootToPool();
+                }
+            }
+
+            /// <summary>
+            /// Requests that this root be returned to the pool.
+            /// </summary>
+            /// <remarks>
+            /// If operations are still active or completing their own return, this records that the root return is
+            /// pending. Otherwise, it releases the active-list storage and returns the root immediately.
+            /// </remarks>
+            private void RequestRootPoolReturn()
+            {
+                bool returnToPool;
+                lock (m_activeChildOperations)
+                {
+                    returnToPool = m_activeChildOperations.Count == 0 && m_childOperationsReturning == 0;
+                    if (!returnToPool)
+                    {
+                        m_rootPoolReturnPending = true;
+                    }
+                    else
+                    {
+                        m_activeChildOperations.Capacity = 0;
+                    }
+                }
+
+                if (returnToPool)
+                {
+                    ReturnRootToPool();
+                }
+            }
+
+            /// <summary>
+            /// Returns this root to the tracker pool.
+            /// </summary>
+            private void ReturnRootToPool()
+            {
+                Tracker.m_activePipOperations.Remove(this);
+                Tracker.m_rootOperationPool.Enqueue(this);
+            }
+
+            private static string GetChildOperationName(Operation operation, Operation[] activeOperations)
+            {
+                foreach (var child in activeOperations)
                 {
                     if (child.Parent == operation)
                     {
-                        return I($"{child.Kind.Name} -> {GetChildOperationName(child)}");
+                        return I($"{child.Kind.Name} -> {GetChildOperationName(child, activeOperations)}");
                     }
                 }
 

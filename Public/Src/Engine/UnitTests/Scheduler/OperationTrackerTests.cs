@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Interfaces.Tracing;
@@ -88,6 +89,76 @@ namespace Test.BuildXL.Utilities
             Assert.Equal(
                 OperationTracker.MaxTopOperations,
                 counter.AssociatedOperations.Select(operation => operation.Operation).Distinct().Count());
+        }
+
+        [Fact]
+        public void RetainsOnlyActiveOperationsAndCapsPools()
+        {
+            var tracker = new OperationTracker(new LoggingContext("test"));
+            var root = new OperationTracker.RootOperation(tracker);
+            root.Initialize(
+                PipId.Invalid,
+                PipType.Process,
+                PipExecutorCounter.PipRunningStateDuration,
+                onOperationCompleted: null);
+
+            int operationCount = OperationTracker.MaxPooledOperationsPerType + 2;
+            var threads = Enumerable.Range(0, operationCount)
+                .Select(_ => root.StartThread(PipExecutorCounter.ExecutePipStepDuration, default, details: null))
+                .ToArray();
+
+            Assert.Equal(operationCount, root.GetChildOperationCountsForTesting().Active);
+
+            foreach (var thread in threads)
+            {
+                thread.Complete();
+            }
+
+            var counts = root.GetChildOperationCountsForTesting();
+            Assert.Equal(0, counts.Active);
+            Assert.Equal(OperationTracker.MaxPooledOperationsPerType, counts.PooledThreads);
+
+            var nestedOperations = new List<OperationTracker.Operation>();
+            for (int i = 0; i < operationCount; i++)
+            {
+                nestedOperations.Add(root.StartNestedOperation(PipExecutorCounter.ExecutePipStepDuration, default, details: null));
+            }
+
+            Assert.Equal(operationCount, root.GetChildOperationCountsForTesting().Active);
+
+            for (int i = nestedOperations.Count - 1; i >= 0; i--)
+            {
+                nestedOperations[i].Complete();
+            }
+
+            counts = root.GetChildOperationCountsForTesting();
+            Assert.Equal(0, counts.Active);
+            Assert.Equal(OperationTracker.MaxPooledOperationsPerType, counts.PooledNested);
+        }
+
+        [Fact]
+        public void DefersRootPoolingUntilAsyncOperationsReturn()
+        {
+            var tracker = new OperationTracker(new LoggingContext("test"));
+
+            for (int i = 0; i < 1000; i++)
+            {
+                var root = new OperationTracker.RootOperation(tracker);
+                root.Initialize(
+                    PipId.Invalid,
+                    PipType.Process,
+                    PipExecutorCounter.PipRunningStateDuration,
+                    onOperationCompleted: null);
+
+                var thread = root.StartThread(PipExecutorCounter.ExecutePipStepDuration, default, details: null);
+                Parallel.Invoke(root.Complete, thread.Complete);
+
+                var counts = root.GetChildOperationCountsForTesting();
+                Assert.Equal(0, counts.Active);
+                Assert.Equal(0, counts.Returning);
+                Assert.False(counts.RootPoolReturnPending);
+                Assert.Equal(1, counts.PooledThreads);
+            }
         }
 
         public void TestOperationsHelper(bool parallel)

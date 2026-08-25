@@ -2803,6 +2803,11 @@ namespace BuildXL.ProcessPipExecutor
             AbsolutePathAncestorChecker untrackedScopeChecker)
         {
             var content = m_directoryArtifactContext.ListSealDirectoryContents(directory, out var temporaryFiles);
+            using var inputFilesWrapper = Pools.GetAbsolutePathList();
+            using var inputDirectoriesWrapper = Pools.GetAbsolutePathList();
+            var inputFiles = inputFilesWrapper.Instance;
+            var inputDirectories = inputDirectoriesWrapper.Instance;
+            inputFiles.Capacity = Math.Max(inputFiles.Capacity, content.Length);
 
             foreach (var fileArtifact in content)
             {
@@ -2814,34 +2819,42 @@ namespace BuildXL.ProcessPipExecutor
                     && !untrackedPaths.Contains(fileArtifact.Path)
                     && !untrackedScopeChecker.HasKnownAncestor(m_pathTable, fileArtifact.Path))
                 {
-                    AddDynamicInputFileAndAncestorsToManifest(fileArtifact, allInputPathsUnderSharedOpaques, directory.Path);
+                    inputFiles.Add(fileArtifact.Path);
+                    allInputPathsUnderSharedOpaques.Add(fileArtifact.Path);
+
+                    // The containing directories up to the shared opaque root need timestamp faking as well.
+                    CollectDirectoryAncestorsForManifest(
+                        fileArtifact.Path,
+                        allInputPathsUnderSharedOpaques,
+                        directory.Path,
+                        inputDirectories);
                 }
             }
-        }
 
-        private void AddDynamicInputFileAndAncestorsToManifest(FileArtifact file, HashSet<AbsolutePath> allInputPathsUnderSharedOpaques, AbsolutePath sharedOpaqueRoot)
-        {
-            // Allow reads, but fake times, since this is an input to the pip
-            // We want to report these accesses since they are dynamic and need to be cross checked
-            var path = file.Path;
-            m_fileAccessManifest.AddPath(
-                path,
+            if (inputFiles.Count == 0)
+            {
+                return;
+            }
+
+            // Allow reads, but fake times, since these are inputs to the pip. Report accesses because these dependencies
+            // are dynamic and need to be cross checked. Explicitly block the write access inherited from the shared opaque
+            // unless double writes are allowed, in which case the write must be observed to enforce the double-write policy.
+            m_fileAccessManifest.AddPaths(
+                inputFiles,
                 values: FileAccessPolicy.AllowRead | FileAccessPolicy.AllowReadIfNonexistent | FileAccessPolicy.ReportAccess,
-                // The file dependency may be under the cone of a shared opaque, which will give write access
-                // to it. Explicitly block this (no need to check if this is under a shared opaque, since otherwise
-                // it didn't have write access to begin with). Observe we already know this is not a rewrite since dynamic rewrites
-                // are not allowed by construction under shared opaques.
-                // Observe that if double writes are allowed, then we can't just block writes: we need to allow them to happen and then
-                // observe the result to figure out if they conform to the double write policy
                 mask: DefaultMask & (m_pip.RewritePolicy.ImpliesDoubleWriteAllowed() ? FileAccessPolicy.MaskNothing : ~FileAccessPolicy.AllowWrite));
 
-            allInputPathsUnderSharedOpaques.Add(path);
-
-            // The containing directories up to the shared opaque root need timestamp faking as well
-            AddDirectoryAncestorsToManifest(path, allInputPathsUnderSharedOpaques, sharedOpaqueRoot);
+            m_fileAccessManifest.AddPaths(
+                inputDirectories,
+                values: FileAccessPolicy.AllowRead | FileAccessPolicy.AllowReadIfNonexistent,
+                mask: DefaultMask);
         }
 
-        private void AddDirectoryAncestorsToManifest(AbsolutePath path, HashSet<AbsolutePath> allInputPathsUnderSharedOpaques, AbsolutePath sharedOpaqueRoot)
+        private void CollectDirectoryAncestorsForManifest(
+            AbsolutePath path,
+            HashSet<AbsolutePath> allInputPathsUnderSharedOpaques,
+            AbsolutePath sharedOpaqueRoot,
+            List<AbsolutePath> inputDirectories)
         {
             // Fake the timestamp of all directories that are ancestors of the path, but inside the shared opaque root
             // Rationale: probes may be performed on those directories (directory probes don't need declarations)
@@ -2855,11 +2868,35 @@ namespace BuildXL.ProcessPipExecutor
 
             while (currentPath.IsValid && !allInputPathsUnderSharedOpaques.Contains(currentPath))
             {
-                // We want to set a policy for the directory without affecting the scope for the underlying artifacts
+                inputDirectories.Add(currentPath);
+                allInputPathsUnderSharedOpaques.Add(currentPath);
+
+                if (currentPath == sharedOpaqueRoot)
+                {
+                    break;
+                }
+
+                currentPath = currentPath.GetParent(m_pathTable);
+            }
+        }
+
+        private void AddDirectoryAncestorsToManifest(AbsolutePath path, HashSet<AbsolutePath> allInputPathsUnderSharedOpaques, AbsolutePath sharedOpaqueRoot)
+        {
+            // Fake the timestamp of all directories that are ancestors of the path, but inside the shared opaque root.
+            var currentPath = path.GetParent(m_pathTable);
+
+            if (!currentPath.IsValid || !currentPath.IsWithin(m_pathTable, sharedOpaqueRoot))
+            {
+                return;
+            }
+
+            while (currentPath.IsValid && !allInputPathsUnderSharedOpaques.Contains(currentPath))
+            {
+                // We want to set a policy for the directory without affecting the scope for the underlying artifacts.
                 m_fileAccessManifest.AddPath(
-                        currentPath,
-                        values: FileAccessPolicy.AllowRead | FileAccessPolicy.AllowReadIfNonexistent, // we don't need access reporting here
-                        mask: DefaultMask); // but block real timestamps
+                    currentPath,
+                    values: FileAccessPolicy.AllowRead | FileAccessPolicy.AllowReadIfNonexistent,
+                    mask: DefaultMask);
 
                 allInputPathsUnderSharedOpaques.Add(currentPath);
 

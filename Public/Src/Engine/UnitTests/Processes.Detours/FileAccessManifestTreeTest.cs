@@ -145,6 +145,73 @@ namespace Test.BuildXL.Processes.Detours
         }
 
         [Fact]
+        public void AddPathsMatchesRepeatedAddPath()
+        {
+            var pathTable = new PathTable();
+            var baseline = new FileAccessManifest(pathTable);
+            var bulk = new FileAccessManifest(pathTable);
+            var scope = AbsolutePath.Create(pathTable, @"C:\repo");
+            var paths = new[]
+            {
+                AbsolutePath.Create(pathTable, @"C:\repo\src\projectA\obj\one.dll"),
+                AbsolutePath.Create(pathTable, @"C:\repo\src\projectB\obj\two.dll"),
+                AbsolutePath.Create(pathTable, @"C:\repo\src\projectA\obj\three.dll"),
+                AbsolutePath.Create(pathTable, @"D:\other\four.dll"),
+                AbsolutePath.Create(pathTable, @"C:\repo\src\projectA\obj\one.dll"),
+            };
+
+            baseline.AddScope(scope, FileAccessPolicy.MaskNothing, FileAccessPolicy.AllowRead);
+            bulk.AddScope(scope, FileAccessPolicy.MaskNothing, FileAccessPolicy.AllowRead);
+
+            foreach (AbsolutePath path in paths)
+            {
+                baseline.AddPath(path, FileAccessPolicy.MaskNothing, FileAccessPolicy.ReportAccess);
+            }
+
+            bulk.AddPaths(paths, FileAccessPolicy.MaskNothing, FileAccessPolicy.ReportAccess);
+
+            XAssert.IsTrue(baseline.GetManifestTreeBytes().SequenceEqual(bulk.GetManifestTreeBytes()));
+            XAssert.IsTrue(baseline.Describe().SequenceEqual(bulk.Describe()));
+        }
+
+        [Fact]
+        public void AddPathsMatchesInterleavedFileAndDirectoryPolicies()
+        {
+            var pathTable = new PathTable();
+            var baseline = new FileAccessManifest(pathTable);
+            var bulk = new FileAccessManifest(pathTable);
+            var files = new[]
+            {
+                AbsolutePath.Create(pathTable, @"C:\repo\out\projectA\obj\one.dll"),
+                AbsolutePath.Create(pathTable, @"C:\repo\out\projectA\obj\two.dll"),
+                AbsolutePath.Create(pathTable, @"C:\repo\out\projectB\obj\three.dll"),
+            };
+            var directories = new[]
+            {
+                AbsolutePath.Create(pathTable, @"C:\repo\out\projectA\obj"),
+                AbsolutePath.Create(pathTable, @"C:\repo\out\projectA"),
+                AbsolutePath.Create(pathTable, @"C:\repo\out"),
+                AbsolutePath.Create(pathTable, @"C:\repo\out\projectB\obj"),
+                AbsolutePath.Create(pathTable, @"C:\repo\out\projectB"),
+            };
+
+            baseline.AddPath(files[0], FileAccessPolicy.MaskNothing, FileAccessPolicy.ReportAccess);
+            baseline.AddPath(directories[0], FileAccessPolicy.MaskNothing, FileAccessPolicy.AllowRead);
+            baseline.AddPath(directories[1], FileAccessPolicy.MaskNothing, FileAccessPolicy.AllowRead);
+            baseline.AddPath(directories[2], FileAccessPolicy.MaskNothing, FileAccessPolicy.AllowRead);
+            baseline.AddPath(files[1], FileAccessPolicy.MaskNothing, FileAccessPolicy.ReportAccess);
+            baseline.AddPath(files[2], FileAccessPolicy.MaskNothing, FileAccessPolicy.ReportAccess);
+            baseline.AddPath(directories[3], FileAccessPolicy.MaskNothing, FileAccessPolicy.AllowRead);
+            baseline.AddPath(directories[4], FileAccessPolicy.MaskNothing, FileAccessPolicy.AllowRead);
+
+            bulk.AddPaths(files, FileAccessPolicy.MaskNothing, FileAccessPolicy.ReportAccess);
+            bulk.AddPaths(directories, FileAccessPolicy.MaskNothing, FileAccessPolicy.AllowRead);
+
+            XAssert.IsTrue(baseline.GetManifestTreeBytes().SequenceEqual(bulk.GetManifestTreeBytes()));
+            XAssert.IsTrue(baseline.Describe().SequenceEqual(bulk.Describe()));
+        }
+
+        [Fact]
         public void NormalizedFragmentsAreReleasedDuringMemoryConservation()
         {
             var memoryConservation = new MemoryConservation();

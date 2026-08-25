@@ -26,6 +26,7 @@ namespace BuildXL.Processes
     public sealed class FileAccessManifest : IMemoryConservationTarget
     {
         private Dictionary<StringId, NormalizedPathString>? m_normalizedFragments = new();
+        private BulkPathAdderState? m_bulkPathAdderState;
         private readonly MemoryConservation? m_memoryConservation;
         private int m_memoryConservationRegistered;
 
@@ -726,6 +727,47 @@ namespace BuildXL.Processes
             m_rootNode.AddNodeWithScope(this, path, new FileAccessScope(mask, values), expectedUsn ?? ReportedFileAccess.NoUsn);
         }
 
+        /// <summary>
+        /// Adds the same policy to multiple individual paths.
+        /// </summary>
+        /// <remarks>
+        /// This is more efficient than repeated <see cref="AddPath"/> calls for paths with common ancestors because
+        /// each path node located or created by this operation is reused for subsequent paths.
+        /// </remarks>
+        public void AddPaths(IReadOnlyList<AbsolutePath> paths, FileAccessPolicy mask, FileAccessPolicy values)
+        {
+            Contract.Requires(!IsManifestTreeBlockSealed);
+            Contract.RequiresNotNull(paths);
+
+            if (paths.Count == 0)
+            {
+                return;
+            }
+
+            var state = m_bulkPathAdderState ??= new BulkPathAdderState();
+            state.EnsureCapacity(state.NodesByPath.Count + paths.Count);
+            m_rootNode.AddNodesWithScope(
+                this,
+                paths,
+                new FileAccessScope(mask, values),
+                state.NodesByPath,
+                state.MissingPaths);
+        }
+
+        private sealed class BulkPathAdderState
+        {
+            public Dictionary<AbsolutePath, Node> NodesByPath { get; } = new();
+
+            public Stack<AbsolutePath> MissingPaths { get; } = new();
+
+            public void EnsureCapacity(int capacity)
+            {
+#if NETCOREAPP
+                NodesByPath.EnsureCapacity(capacity);
+#endif
+            }
+        }
+
         /// <summary> 
         /// Looking up a policy for a path is not allowed before this property becomes true
         /// (which happens once the FAM is serialized)
@@ -1183,6 +1225,7 @@ namespace BuildXL.Processes
                 WriteDllBlock(writer, setup);
                 WriteSubstituteProcessShimBlock(writer);
                 WriteManifestTreeBlock(writer);
+                ReleaseBulkPathAdderState();
 
                 return new ArraySegment<byte>(stream.GetBuffer(), 0, (int)stream.Position);
             }
@@ -1194,6 +1237,7 @@ namespace BuildXL.Processes
         internal void Release()
         {
             ReleaseNormalizedFragments();
+            ReleaseBulkPathAdderState();
             var workList = new Stack<Node>();
             workList.Push(m_rootNode);
             while (workList.Count > 0)
@@ -1235,6 +1279,7 @@ namespace BuildXL.Processes
 
             // The manifest tree block has to be serialized the last.
             WriteManifestTreeBlock(writer);
+            ReleaseBulkPathAdderState();
 
             if (m_memoryConservation is not null && Interlocked.Exchange(ref m_memoryConservationRegistered, 1) == 0)
             {
@@ -1353,6 +1398,11 @@ namespace BuildXL.Processes
             Interlocked.Exchange(ref m_normalizedFragments, null);
         }
 
+        private void ReleaseBulkPathAdderState()
+        {
+            m_bulkPathAdderState = null;
+        }
+
         internal int NormalizedFragmentCount => Volatile.Read(ref m_normalizedFragments)?.Count ?? 0;
 
         internal bool IsNormalizedFragmentCacheAllocated => Volatile.Read(ref m_normalizedFragments) is not null;
@@ -1362,6 +1412,7 @@ namespace BuildXL.Processes
             if (isActive)
             {
                 ReleaseNormalizedFragments();
+                ReleaseBulkPathAdderState();
             }
         }
 
@@ -1735,6 +1786,26 @@ namespace BuildXL.Processes
             }
 
             /// <summary>
+            /// Adds multiple file paths to the tree with the same file access policy.
+            /// </summary>
+            public void AddNodesWithScope(
+                FileAccessManifest owner,
+                IReadOnlyList<AbsolutePath> paths,
+                FileAccessScope scope,
+                Dictionary<AbsolutePath, Node> nodesByPath,
+                Stack<AbsolutePath> missingPaths)
+            {
+                for (int i = 0; i < paths.Count; i++)
+                {
+                    AbsolutePath path = paths[i];
+                    Contract.Requires(path.IsValid);
+
+                    Node leaf = AddPath(owner, path, nodesByPath, missingPaths);
+                    leaf.ApplyNodeFileAccess(scope, ReportedFileAccess.NoUsn);
+                }
+            }
+
+            /// <summary>
             /// Returns the lowest node in the node tree that contains the given path
             /// </summary>
             public Node FindNodeFor(FileAccessManifest owner, AbsolutePath pathToLookUp)
@@ -1826,6 +1897,45 @@ namespace BuildXL.Processes
                 var container = path.GetParent(owner.PathTable);
                 var node = container.IsValid ? AddPath(owner, container) : this;
                 return node.GetOrCreateChild(owner, path);
+            }
+
+            /// <summary>
+            /// Adds a path by finding its nearest cached ancestor and creating only the missing descendants.
+            /// </summary>
+            /// <remarks>
+            /// Newly resolved nodes are added to <paramref name="nodesByPath"/> so subsequent paths can reuse
+            /// their common prefixes. <paramref name="missingPaths"/> is scratch storage and must be empty on entry.
+            /// </remarks>
+            /// <param name="owner">The owning manifest.</param>
+            /// <param name="path">The path to add to the tree.</param>
+            /// <param name="nodesByPath">A cache mapping previously resolved paths to nodes in this manifest.</param>
+            /// <param name="missingPaths">A stack used to reverse the missing ancestor chain before creating nodes.</param>
+            /// <returns>The node corresponding to <paramref name="path"/>.</returns>
+            private Node AddPath(
+                FileAccessManifest owner,
+                AbsolutePath path,
+                Dictionary<AbsolutePath, Node> nodesByPath,
+                Stack<AbsolutePath> missingPaths)
+            {
+                Contract.Requires(path.IsValid);
+                Contract.Assert(missingPaths.Count == 0);
+
+                AbsolutePath currentPath = path;
+                while (currentPath.IsValid && !nodesByPath.TryGetValue(currentPath, out _))
+                {
+                    missingPaths.Push(currentPath);
+                    currentPath = currentPath.GetParent(owner.PathTable);
+                }
+
+                Node node = currentPath.IsValid ? nodesByPath[currentPath] : this;
+                while (missingPaths.Count != 0)
+                {
+                    currentPath = missingPaths.Pop();
+                    node = node.GetOrCreateChild(owner, currentPath);
+                    nodesByPath.Add(currentPath, node);
+                }
+
+                return node;
             }
 
             /// <summary>

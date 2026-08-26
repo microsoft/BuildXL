@@ -1921,13 +1921,19 @@ namespace BuildXL.Processes
                 Contract.Assert(missingPaths.Count == 0);
 
                 AbsolutePath currentPath = path;
-                while (currentPath.IsValid && !nodesByPath.TryGetValue(currentPath, out _))
+                Node node = this;
+                while (currentPath.IsValid)
                 {
+                    if (nodesByPath.TryGetValue(currentPath, out var cachedNode))
+                    {
+                        node = cachedNode;
+                        break;
+                    }
+
                     missingPaths.Push(currentPath);
                     currentPath = currentPath.GetParent(owner.PathTable);
                 }
 
-                Node node = currentPath.IsValid ? nodesByPath[currentPath] : this;
                 while (missingPaths.Count != 0)
                 {
                     currentPath = missingPaths.Pop();

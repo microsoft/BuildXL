@@ -1011,13 +1011,13 @@ namespace BuildXL.Pips.Operations
                 standardDirectory: reader.ReadAbsolutePath(),
                 warningTimeout: reader.ReadNullableStruct(reader1 => reader1.ReadTimeSpan()),
                 timeout: reader.ReadNullableStruct(reader1 => reader1.ReadTimeSpan()),
-                dependencies: reader.ReadReadOnlyArray(reader1 => reader1.ReadFileArtifact()),
-                outputs: reader.ReadReadOnlyArray(reader1 => reader1.ReadFileArtifactWithAttributes()),
-                directoryDependencies: reader.ReadReadOnlyArray(reader1 => reader1.ReadDirectoryArtifact()),
-                directoryOutputs: reader.ReadReadOnlyArray(reader1 => reader1.ReadDirectoryArtifact()),
+                dependencies: reader.ReadDeltaEncodedFileArtifactArray(),
+                outputs: reader.ReadDeltaEncodedFileArtifactWithAttributesArray(),
+                directoryDependencies: reader.ReadDeltaEncodedDirectoryArtifactArray(),
+                directoryOutputs: reader.ReadDeltaEncodedDirectoryArtifactArray(),
                 orderDependencies: reader.ReadReadOnlyArray(reader1 => ((PipReader)reader1).ReadPipId()),
-                untrackedPaths: reader.ReadReadOnlyArray(reader1 => reader1.ReadAbsolutePath()),
-                untrackedScopes: reader.ReadReadOnlyArray(reader1 => reader1.ReadAbsolutePath()),
+                untrackedPaths: reader.ReadDeltaEncodedAbsolutePathArray(),
+                untrackedScopes: reader.ReadDeltaEncodedAbsolutePathArray(),
                 tags: reader.ReadReadOnlyArray(reader1 => reader1.ReadStringId()),
                 successExitCodes: reader.ReadReadOnlyArray(reader1 => reader1.ReadInt32()),
                 semaphores: reader.ReadReadOnlyArray(reader1 => ((PipReader)reader1).ReadProcessSemaphoreInfo()),
@@ -1069,13 +1069,13 @@ namespace BuildXL.Pips.Operations
             writer.Write(StandardDirectory);
             writer.Write(WarningTimeout, (w, value) => w.Write(value));
             writer.Write(Timeout, (w, value) => w.Write(value));
-            writer.Write(Dependencies, (w, v) => w.Write(v));
-            writer.Write(FileOutputs, (w, v) => w.Write(v));
-            writer.Write(DirectoryDependencies, (w, v) => w.Write(v));
-            writer.Write(DirectoryOutputs, (w, v) => w.Write(v));
+            writer.WriteDeltaEncodedFileArtifactArray(Dependencies);
+            writer.WriteDeltaEncodedFileArtifactWithAttributesArray(FileOutputs);
+            writer.WriteDeltaEncodedDirectoryArtifactArray(DirectoryDependencies);
+            writer.WriteDeltaEncodedDirectoryArtifactArray(DirectoryOutputs);
             writer.Write(OrderDependencies, (w, v) => ((PipWriter)w).Write(v));
-            writer.Write(UntrackedPaths, (w, v) => w.Write(v));
-            writer.Write(UntrackedScopes, (w, v) => w.Write(v));
+            writer.WriteDeltaEncodedAbsolutePathArray(UntrackedPaths);
+            writer.WriteDeltaEncodedAbsolutePathArray(UntrackedScopes);
             writer.Write(Tags, (w, v) => w.Write(v));
             writer.Write(SuccessExitCodes, (w, v) => w.Write(v));
             writer.Write(Semaphores, (w, v) => ((PipWriter)w).Write(v));

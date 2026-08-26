@@ -3,6 +3,7 @@
 
 using System.Diagnostics.ContractsLight;
 using System.IO;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Serialization;
 
@@ -48,6 +49,25 @@ namespace BuildXL.Pips.Operations
 
         /// <inheritdoc />
         public override void Write(StringId value) => m_inliningWriter.Write(value);
+
+        #region Delta-encoded arrays
+
+        // Table-local path IDs cannot be used in portable graph fragments, so these overrides use regular
+        // inline array encoding instead. PipRemapReader reads this corresponding non-delta format.
+
+        /// <inheritdoc />
+        public override void WriteDeltaEncodedAbsolutePathArray(ReadOnlyArray<AbsolutePath> value) => Write(value, (writer, path) => writer.Write(path));
+
+        /// <inheritdoc />
+        public override void WriteDeltaEncodedFileArtifactArray(ReadOnlyArray<FileArtifact> value) => Write(value, (writer, artifact) => writer.Write(artifact));
+
+        /// <inheritdoc />
+        public override void WriteDeltaEncodedFileArtifactWithAttributesArray(ReadOnlyArray<FileArtifactWithAttributes> value) => Write(value, (writer, artifact) => writer.Write(artifact));
+
+        /// <inheritdoc />
+        public override void WriteDeltaEncodedDirectoryArtifactArray(ReadOnlyArray<DirectoryArtifact> value) => Write(value, (writer, artifact) => writer.Write(artifact));
+
+        #endregion
 
         /// <inheritdoc />
         public override void WritePipDataEntriesPointer(in StringId value) => m_pipDataEntriesPointerInlineWriter.Write(value);

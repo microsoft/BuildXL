@@ -98,19 +98,30 @@ namespace Test.BuildXL.Utilities
         }
 
         [Theory]
-        [InlineData(FileExistence.Temporary)]
-        [InlineData(FileExistence.Required)]
-        [InlineData(FileExistence.Optional)]
-        public void TestSerialization(FileExistence fileExistence)
+        [InlineData(0, (int)FileExistence.Required, false)]
+        [InlineData(1, (int)FileExistence.Temporary, false)]
+        [InlineData(1, (int)FileExistence.Optional, true)]
+        [InlineData(15, (int)FileExistence.Required, true)]
+        [InlineData(16, (int)FileExistence.Optional, false)]
+        [InlineData(1, 3, false)]
+        [InlineData(FileArtifactWithAttributes.MaxRewriteCount, FileArtifactWithAttributes.MaxFileExistence, true)]
+        public void SerializationRoundTripsAllFields(int rewriteCount, int fileExistenceValue, bool isUndeclaredFileRewrite)
         {
             var pathTable = new PathTable();
-            var fileArtifact = FileArtifactWithAttributes.Create(FileArtifact.CreateSourceFile(AbsolutePath.Create(pathTable, 
-                A("c","foo.txt"))), fileExistence);
+            var path = AbsolutePath.Create(pathTable, A("c", "foo.txt"));
+            var fileArtifact = new FileArtifactWithAttributes(
+                path,
+                rewriteCount,
+                (FileExistence)fileExistenceValue,
+                isUndeclaredFileRewrite);
 
-            HasTheSamePathAndExistence(fileArtifact, CloneViaSerialization(fileArtifact));
+            var deserialized = CloneViaSerialization(fileArtifact);
 
-            // Write count is not affected by serialization/deserialization
-            HasTheSamePathAndExistence(fileArtifact, CloneViaSerialization(fileArtifact.CreateNextWrittenVersion()));
+            XAssert.AreEqual(fileArtifact, deserialized);
+            XAssert.AreEqual(fileArtifact.Path, deserialized.Path);
+            XAssert.AreEqual(fileArtifact.RewriteCount, deserialized.RewriteCount);
+            XAssert.AreEqual(fileArtifact.FileExistence, deserialized.FileExistence);
+            XAssert.AreEqual(fileArtifact.IsUndeclaredFileRewrite, deserialized.IsUndeclaredFileRewrite);
         }
 
         private FileArtifactWithAttributes CloneViaSerialization(FileArtifactWithAttributes fileArtifact)
@@ -125,12 +136,6 @@ namespace Test.BuildXL.Utilities
                 var reader = new BuildXLReader(false, memoryStream, false);
                 return FileArtifactWithAttributes.Deserialize(reader);
             }
-        }
-
-        private static void HasTheSamePathAndExistence(FileArtifactWithAttributes left, FileArtifactWithAttributes right)
-        {
-            XAssert.AreEqual(left.Path, right.Path);
-            XAssert.AreEqual(left.FileExistence, right.FileExistence);
         }
     }
 }

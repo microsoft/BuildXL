@@ -96,6 +96,114 @@ namespace BuildXL.Pips.Operations
             End();
         }
 
+        // Perf: we may get better compression by sorting paths by RawValue when collection order is not semantically significant.
+        public virtual void WriteDeltaEncodedAbsolutePathArray(ReadOnlyArray<AbsolutePath> value)
+        {
+            Contract.Requires(value.IsValid);
+            Start<ReadOnlyArray<AbsolutePath>>();
+            WriteCompact(value.Length);
+
+            int previousPathValue = 0;
+            for (int i = 0; i < value.Length; i++)
+            {
+                WritePathDelta(value[i], ref previousPathValue);
+            }
+
+            End();
+        }
+
+        public virtual void WriteDeltaEncodedFileArtifactArray(ReadOnlyArray<FileArtifact> value)
+        {
+            Contract.Requires(value.IsValid);
+            Start<ReadOnlyArray<FileArtifact>>();
+            WriteCompact(value.Length);
+
+            int previousPathValue = 0;
+            for (int i = 0; i < value.Length; i++)
+            {
+                Start<FileArtifact>();
+                WritePathDelta(value[i].Path, ref previousPathValue);
+                WriteCompact(value[i].RewriteCount);
+                End();
+            }
+
+            End();
+        }
+
+        public void WriteDeltaEncodedFileArtifactArray(SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer> value)
+        {
+            Contract.Requires(value.IsValid);
+            Start<SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer>>();
+            WriteDeltaEncodedFileArtifactArray(value.BaseArray);
+            End();
+        }
+
+        public virtual void WriteDeltaEncodedFileArtifactWithAttributesArray(ReadOnlyArray<FileArtifactWithAttributes> value)
+        {
+            Contract.Requires(value.IsValid);
+            Start<ReadOnlyArray<FileArtifactWithAttributes>>();
+            WriteCompact(value.Length);
+
+            int previousPathValue = 0;
+            for (int i = 0; i < value.Length; i++)
+            {
+                Start<FileArtifactWithAttributes>();
+                WritePathDelta(value[i].Path, ref previousPathValue);
+                value[i].SerializeMetadata(this);
+                End();
+            }
+
+            End();
+        }
+
+        public virtual void WriteDeltaEncodedDirectoryArtifactArray(ReadOnlyArray<DirectoryArtifact> value)
+        {
+            Contract.Requires(value.IsValid);
+            Start<ReadOnlyArray<DirectoryArtifact>>();
+            WriteCompact(value.Length);
+
+            int previousPathValue = 0;
+            for (int i = 0; i < value.Length; i++)
+            {
+                Start<DirectoryArtifact>();
+                WritePathDelta(value[i].Path, ref previousPathValue);
+                Write(value[i].IsSharedOpaquePlusPartialSealId);
+                End();
+            }
+
+            End();
+        }
+
+        public void WriteDeltaEncodedDirectoryArtifactArray(SortedReadOnlyArray<DirectoryArtifact, OrdinalDirectoryArtifactComparer> value)
+        {
+            Contract.Requires(value.IsValid);
+            Start<SortedReadOnlyArray<DirectoryArtifact, OrdinalDirectoryArtifactComparer>>();
+            WriteDeltaEncodedDirectoryArtifactArray(value.BaseArray);
+            End();
+        }
+
+        private void WritePathDelta(AbsolutePath path, ref int previousPathValue)
+        {
+            Contract.Requires(path.IsValid);
+            Start<AbsolutePath>();
+
+            int pathValue = path.RawValue;
+            if (previousPathValue == AbsolutePath.Invalid.RawValue)
+            {
+                base.Write(pathValue);
+            }
+            else
+            {
+                int delta = checked(pathValue - previousPathValue);
+                uint zigZagDelta = unchecked((uint)((delta << 1) ^ (delta >> 31)));
+                WriteCompact(zigZagDelta);
+            }
+
+            previousPathValue = pathValue;
+
+            End();
+        }
+
         /// <summary>
         /// Writes a ReadOnlyArray
         /// </summary>

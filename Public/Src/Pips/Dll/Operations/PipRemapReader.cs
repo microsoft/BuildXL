@@ -3,6 +3,7 @@
 
 using System.Diagnostics.ContractsLight;
 using System.IO;
+using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Serialization;
 
@@ -50,6 +51,25 @@ namespace BuildXL.Pips.Operations
 
         /// <inheritdoc />
         public override AbsolutePath ReadAbsolutePath() => m_inliningReader.ReadAbsolutePath();
+
+        #region Delta-encoded arrays
+
+        // PipRemapWriter uses regular inline array encoding for these collections because table-local path IDs
+        // cannot be used in portable graph fragments. These overrides read that corresponding non-delta format.
+
+        /// <inheritdoc />
+        public override ReadOnlyArray<AbsolutePath> ReadDeltaEncodedAbsolutePathArray() => ReadReadOnlyArray(reader => reader.ReadAbsolutePath());
+
+        /// <inheritdoc />
+        public override ReadOnlyArray<FileArtifact> ReadDeltaEncodedFileArtifactArray() => ReadReadOnlyArray(reader => reader.ReadFileArtifact());
+
+        /// <inheritdoc />
+        public override ReadOnlyArray<FileArtifactWithAttributes> ReadDeltaEncodedFileArtifactWithAttributesArray() => ReadReadOnlyArray(reader => reader.ReadFileArtifactWithAttributes());
+
+        /// <inheritdoc />
+        public override ReadOnlyArray<DirectoryArtifact> ReadDeltaEncodedDirectoryArtifactArray() => ReadReadOnlyArray(reader => reader.ReadDirectoryArtifact());
+
+        #endregion
 
         /// <inheritdoc />
         public override StringId ReadStringId() => m_inliningReader.ReadStringId();

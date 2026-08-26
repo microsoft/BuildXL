@@ -193,8 +193,8 @@ namespace BuildXL.Pips.Operations
             DirectoryArtifact artifact = reader.ReadDirectoryArtifact();
             var directory = new SealDirectory(
                 artifact.Path,
-                reader.ReadSortedReadOnlyArray(reader1 => reader1.ReadFileArtifact(), OrdinalFileArtifactComparer.Instance),
-                reader.ReadSortedReadOnlyArray(reader1 => reader1.ReadDirectoryArtifact(), OrdinalDirectoryArtifactComparer.Instance),
+                reader.ReadDeltaEncodedSortedFileArtifactArray(),
+                reader.ReadDeltaEncodedSortedDirectoryArtifactArray(),
                 (SealDirectoryKind)reader.ReadByte(),
                 reader.ReadPipProvenance(),
                 reader.ReadReadOnlyArray(reader1 => reader1.ReadStringId()),
@@ -213,8 +213,8 @@ namespace BuildXL.Pips.Operations
             Contract.Assume(IsInitialized, "SealDirectory pip construction must be completed by calling SetPartialSealId");
             writer.Write((byte)SealDirectoryType.SealDirectory);
             writer.Write(Directory);
-            writer.Write(Contents, (w, v) => w.Write(v));
-            writer.Write(OutputDirectoryContents, (w, v) => w.Write(v));
+            writer.WriteDeltaEncodedFileArtifactArray(Contents);
+            writer.WriteDeltaEncodedDirectoryArtifactArray(OutputDirectoryContents);
             writer.Write((byte)Kind);
             writer.Write(Provenance);
             writer.Write(Tags, (w, v) => w.Write(v));

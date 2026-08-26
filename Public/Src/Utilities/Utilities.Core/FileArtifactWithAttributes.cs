@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.ContractsLight;
 using System.Globalization;
+using System.IO;
 
 namespace BuildXL.Utilities.Core
 {
@@ -50,6 +51,11 @@ namespace BuildXL.Utilities.Core
         /// Max value for <see cref="FileExistence"/> property.
         /// </summary>
         public const int MaxFileExistence = 127;
+
+        private const int SerializedRewriteCountShift = 3;
+        private const uint SerializedUndeclaredFileRewriteMask = 0x1;
+        private const uint SerializedFileExistenceMask = 0x6;
+        private const uint SerializedFileExistenceEscape = 0x3;
 
         private readonly AbsolutePath m_path;
 
@@ -330,9 +336,33 @@ namespace BuildXL.Utilities.Core
         {
             Contract.RequiresNotNull(reader);
 
-            return new FileArtifactWithAttributes(
-                reader.ReadAbsolutePath(),
-                reader.ReadUInt32());
+            AbsolutePath path = reader.ReadAbsolutePath();
+            return DeserializeMetadata(reader, path);
+        }
+
+        internal static FileArtifactWithAttributes DeserializeMetadata(BuildXLReader reader, AbsolutePath path)
+        {
+            Contract.RequiresNotNull(reader);
+
+            uint serializedMetadata = reader.ReadUInt32Compact();
+            uint rewriteCount = serializedMetadata >> SerializedRewriteCountShift;
+            if (rewriteCount > MaxRewriteCount)
+            {
+                throw new InvalidDataException($"Invalid file artifact rewrite count: {rewriteCount}.");
+            }
+
+            uint serializedFileExistence = (serializedMetadata & SerializedFileExistenceMask) >> 1;
+            uint fileExistenceValue = serializedFileExistence == SerializedFileExistenceEscape
+                ? reader.ReadUInt32Compact()
+                : serializedFileExistence;
+            if (fileExistenceValue > MaxFileExistence)
+            {
+                throw new InvalidDataException($"Invalid file artifact existence: {fileExistenceValue}.");
+            }
+
+            var fileExistence = (FileExistence)fileExistenceValue;
+            bool isUndeclaredFileRewrite = (serializedMetadata & SerializedUndeclaredFileRewriteMask) != 0;
+            return new FileArtifactWithAttributes(path, (int)rewriteCount, fileExistence, isUndeclaredFileRewrite);
         }
 
         internal void Serialize(BuildXLWriter writer)
@@ -340,7 +370,27 @@ namespace BuildXL.Utilities.Core
             Contract.RequiresNotNull(writer);
 
             writer.Write(m_path);
-            writer.Write(m_rewriteCountAndFileExistenceAndFileRewrite);
+            SerializeMetadata(writer);
+        }
+
+        internal void SerializeMetadata(BuildXLWriter writer)
+        {
+            Contract.RequiresNotNull(writer);
+
+            uint fileExistenceValue = (uint)FileExistence;
+            uint serializedFileExistence = fileExistenceValue < SerializedFileExistenceEscape
+                ? fileExistenceValue
+                : SerializedFileExistenceEscape;
+            uint serializedMetadata =
+                ((uint)RewriteCount << SerializedRewriteCountShift)
+                | (serializedFileExistence << 1)
+                | (IsUndeclaredFileRewrite ? SerializedUndeclaredFileRewriteMask : 0);
+            writer.WriteCompact(serializedMetadata);
+
+            if (serializedFileExistence == SerializedFileExistenceEscape)
+            {
+                writer.WriteCompact(fileExistenceValue);
+            }
         }
     }
 }

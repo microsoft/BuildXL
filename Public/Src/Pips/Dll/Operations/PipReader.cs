@@ -109,6 +109,133 @@ namespace BuildXL.Pips.Operations
             return new BreakawayChildProcess() { ProcessName = processName, RequiredArguments = requiredArgs, RequiredArgumentsIgnoreCase = ignoreCase };
         }
 
+        public virtual ReadOnlyArray<AbsolutePath> ReadDeltaEncodedAbsolutePathArray()
+        {
+            int length = ReadDeltaEncodedArrayLength<AbsolutePath>();
+            var array = CollectionUtilities.NewOrEmptyArray<AbsolutePath>(length);
+            int previousPathValue = 0;
+            for (int i = 0; i < length; i++)
+            {
+                var path = ReadPathDelta(previousPathValue);
+                array[i] = path;
+                previousPathValue = path.RawValue;
+            }
+
+            End();
+            return ReadOnlyArray<AbsolutePath>.FromWithoutCopy(array);
+        }
+
+        public virtual ReadOnlyArray<FileArtifact> ReadDeltaEncodedFileArtifactArray()
+        {
+            int length = ReadDeltaEncodedArrayLength<FileArtifact>();
+            var array = CollectionUtilities.NewOrEmptyArray<FileArtifact>(length);
+            int previousPathValue = 0;
+            for (int i = 0; i < length; i++)
+            {
+                Start<FileArtifact>();
+                var path = ReadPathDelta(previousPathValue);
+                array[i] = new FileArtifact(path, ReadInt32Compact());
+                previousPathValue = path.RawValue;
+                End();
+            }
+
+            End();
+            return ReadOnlyArray<FileArtifact>.FromWithoutCopy(array);
+        }
+
+        public SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer> ReadDeltaEncodedSortedFileArtifactArray()
+        {
+            Start<SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer>>();
+            var array = ReadDeltaEncodedFileArtifactArray();
+            End();
+            return SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer>.FromSortedArrayUnsafe(array, OrdinalFileArtifactComparer.Instance);
+        }
+
+        public virtual ReadOnlyArray<FileArtifactWithAttributes> ReadDeltaEncodedFileArtifactWithAttributesArray()
+        {
+            int length = ReadDeltaEncodedArrayLength<FileArtifactWithAttributes>();
+            var array = CollectionUtilities.NewOrEmptyArray<FileArtifactWithAttributes>(length);
+            int previousPathValue = 0;
+            for (int i = 0; i < length; i++)
+            {
+                Start<FileArtifactWithAttributes>();
+                var path = ReadPathDelta(previousPathValue);
+                array[i] = FileArtifactWithAttributes.DeserializeMetadata(this, path);
+                previousPathValue = path.RawValue;
+                End();
+            }
+
+            End();
+            return ReadOnlyArray<FileArtifactWithAttributes>.FromWithoutCopy(array);
+        }
+
+        public virtual ReadOnlyArray<DirectoryArtifact> ReadDeltaEncodedDirectoryArtifactArray()
+        {
+            int length = ReadDeltaEncodedArrayLength<DirectoryArtifact>();
+            var array = CollectionUtilities.NewOrEmptyArray<DirectoryArtifact>(length);
+            int previousPathValue = 0;
+            for (int i = 0; i < length; i++)
+            {
+                Start<DirectoryArtifact>();
+                var path = ReadPathDelta(previousPathValue);
+                array[i] = new DirectoryArtifact(path, ReadUInt32());
+                previousPathValue = path.RawValue;
+                End();
+            }
+
+            End();
+            return ReadOnlyArray<DirectoryArtifact>.FromWithoutCopy(array);
+        }
+
+        public SortedReadOnlyArray<DirectoryArtifact, OrdinalDirectoryArtifactComparer> ReadDeltaEncodedSortedDirectoryArtifactArray()
+        {
+            Start<SortedReadOnlyArray<DirectoryArtifact, OrdinalDirectoryArtifactComparer>>();
+            var array = ReadDeltaEncodedDirectoryArtifactArray();
+            End();
+            return SortedReadOnlyArray<DirectoryArtifact, OrdinalDirectoryArtifactComparer>.FromSortedArrayUnsafe(array, OrdinalDirectoryArtifactComparer.Instance);
+        }
+
+        private int ReadDeltaEncodedArrayLength<T>()
+        {
+            Start<ReadOnlyArray<T>>();
+            int length = ReadInt32Compact();
+            if (length < 0)
+            {
+                throw new InvalidDataException($"Invalid delta-encoded array length: {length}.");
+            }
+
+            return length;
+        }
+
+        private AbsolutePath ReadPathDelta(int previousPathValue)
+        {
+            Start<AbsolutePath>();
+
+            long pathValue;
+            if (previousPathValue == AbsolutePath.Invalid.RawValue)
+            {
+                pathValue = ReadInt32();
+            }
+            else
+            {
+                uint zigZagDelta = ReadUInt32Compact();
+                int delta = unchecked((int)(zigZagDelta >> 1) ^ -((int)zigZagDelta & 1));
+                pathValue = (long)previousPathValue + delta;
+                if (pathValue < int.MinValue || pathValue > int.MaxValue)
+                {
+                    throw new InvalidDataException("Delta-encoded path overflowed the valid AbsolutePath range.");
+                }
+            }
+
+            if (pathValue == AbsolutePath.Invalid.RawValue)
+            {
+                throw new InvalidDataException($"Delta-encoded path produced invalid AbsolutePath value {pathValue}.");
+            }
+
+            End();
+            return new AbsolutePath((int)pathValue);
+        }
+
         /// <summary>
         /// Reads a ReadOnlyArray
         /// </summary>

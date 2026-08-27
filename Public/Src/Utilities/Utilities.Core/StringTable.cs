@@ -143,7 +143,8 @@ namespace BuildXL.Utilities.Core
         private int m_count;
 
         // Cache string expansions to avoid redundant allocations.
-        private readonly ObjectCache<StringId, string> m_expansionCache = new ObjectCache<StringId, string>(HashCodeHelper.GetGreaterOrEqualPrime(4000));
+        private readonly LockFreeObjectCache<StringId, string> m_expansionCache =
+            new LockFreeObjectCache<StringId, string>(HashCodeHelper.GetGreaterOrEqualPrime(4000));
 
         // this block of fields is used as the table is built up and then ignored once the table is frozen
         private ConcurrentBigSet<StringId> m_stringSet;
@@ -922,27 +923,27 @@ namespace BuildXL.Utilities.Core
             Contract.RequiresDebug(id.IsValid);
             Contract.RequiresDebug(IsValid());
 
-            if (!m_expansionCache.TryGetValue(id, out string result))
-            {
-#if NETCOREAPP
-                BinaryStringSegment source = GetBinaryString(id);
-                result = string.Create(
-                    source.Length,
-                    source,
-                    static (destination, state) => CopyString(state, destination));
-#else
-                int len = GetLength(id);
-                using (var wrapper = Pools.GetCharArray(len))
+            return m_expansionCache.GetOrAdd(
+                id,
+                this,
+                static (stringId, stringTable) =>
                 {
-                    char[] buffer = wrapper.Instance;
-                    CopyString(id, buffer, 0);
-                    result = new string(buffer, 0, len);
-                }
+#if NETCOREAPP
+                    BinaryStringSegment source = stringTable.GetBinaryString(stringId);
+                    return string.Create(
+                        source.Length,
+                        source,
+                        static (destination, state) => CopyString(state, destination));
+#else
+                    int len = stringTable.GetLength(stringId);
+                    using (var wrapper = Pools.GetCharArray(len))
+                    {
+                        char[] buffer = wrapper.Instance;
+                        stringTable.CopyString(stringId, buffer, 0);
+                        return new string(buffer, 0, len);
+                    }
 #endif
-                m_expansionCache.AddItem(id, result);
-            }
-
-            return result;
+                });
         }
 
         /// <summary>
@@ -1312,12 +1313,12 @@ namespace BuildXL.Utilities.Core
         }
 
         /// <summary>
-        /// Gets the number of cache misses on the name expansion cache.
+        /// Gets the approximate number of cache hits on the name expansion cache.
         /// </summary>
         public long CacheHits => m_expansionCache.Hits;
 
         /// <summary>
-        /// Gets the number of cache hits on the name expansion cache.
+        /// Gets the approximate number of cache misses on the name expansion cache.
         /// </summary>
         public long CacheMisses => m_expansionCache.Misses;
 

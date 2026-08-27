@@ -257,7 +257,7 @@ namespace BuildXL.Utilities.Core
             // Using lossy cache to cache path expansions. The same paths are commonly expanded multiple times
             // in a row for a number of reasons. This gives a high probability of avoiding an allocation
             // when redundant path expansion requests come in.
-            internal readonly ObjectCache<HierarchicalNameId, string> ExpansionCache;
+            internal readonly LockFreeObjectCache<HierarchicalNameId, string> ExpansionCache;
 
             internal readonly char ExpansionCacheChar;
 
@@ -267,7 +267,9 @@ namespace BuildXL.Utilities.Core
             /// <param name="expansionCacheSize">the size of the expansion cache</param>
             public NameExpander(int expansionCacheSize = 7013)
             {
-                ExpansionCache = expansionCacheSize <= 0 ? null : new ObjectCache<HierarchicalNameId, string>(expansionCacheSize);
+                ExpansionCache = expansionCacheSize <= 0
+                    ? null
+                    : new LockFreeObjectCache<HierarchicalNameId, string>(expansionCacheSize);
                 ExpansionCacheChar = PathFormatter.GetPathSeparator(PathFormat.HostOs);
             }
 
@@ -1731,21 +1733,26 @@ namespace BuildXL.Utilities.Core
             separator = separator == char.MinValue ? m_separator : separator;
             expander = expander ?? DefaultExpander;
 
-            // see if we've got this expansion cached
-            if (expander.ExpansionCacheChar == separator && expander.ExpansionCache.TryGetValue(name, out string result))
-            {
-                return result;
-            }
-
-            bool succeeded = TryExpandNameRelativeToAnother(s_nullNode, name, out result, expander, separator);
-            Contract.Assume(succeeded);
-
             if (expander.ExpansionCacheChar == separator)
             {
-                // add to the cache
-                expander.ExpansionCache.AddItem(name, result);
+                return expander.ExpansionCache.GetOrAdd(
+                    name,
+                    (Table: this, Expander: expander, Separator: separator),
+                    static (key, state) =>
+                    {
+                        bool expanded = state.Table.TryExpandNameRelativeToAnother(
+                            s_nullNode,
+                            key,
+                            out string expansion,
+                            state.Expander,
+                            state.Separator);
+                        Contract.Assume(expanded);
+                        return expansion;
+                    });
             }
 
+            bool succeeded = TryExpandNameRelativeToAnother(s_nullNode, name, out string result, expander, separator);
+            Contract.Assume(succeeded);
             return result;
         }
         

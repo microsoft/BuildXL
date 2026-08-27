@@ -119,6 +119,13 @@ bxl IntegrationTest.BuildXL.Scheduler.dsc -TestMethod IntegrationTest.BuildXL.Sc
 bxl "/f:tag='test'"
 ```
 
+### Manually Invoked Benchmarks
+Keep benchmark projects as `BuildXLSdk.test` projects so xUnit provides the runner, but gate the entire test run with `skipTestRun` and an `Environment.getFlag` build parameter. This compiles benchmarks in normal builds without scheduling them in automation. Run the utilities benchmarks manually with:
+
+```bash
+bxl Test.BuildXL.Utilities.Benchmarks.dsc /p:[Sdk.BuildXL]runBenchmarks=1 /q:ReleaseNet8 /server-
+```
+
 ### Useful Flags
 | Flag | Purpose |
 |------|---------|

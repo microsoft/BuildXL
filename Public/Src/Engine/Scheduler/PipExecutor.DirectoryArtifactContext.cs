@@ -2,13 +2,10 @@
 // Licensed under the MIT License.
 
 using System.Diagnostics.ContractsLight;
-using System.Linq;
 using BuildXL.Pips.Operations;
 using BuildXL.ProcessPipExecutor;
-using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
-using System.Collections.Generic;
 
 namespace BuildXL.Scheduler
 {
@@ -36,24 +33,19 @@ namespace BuildXL.Scheduler
             }
 
             /// <inheritdoc/>
-            public SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer> ListSealDirectoryContents(DirectoryArtifact directory, out IReadOnlySet<AbsolutePath> temporaryFiles)
+            public SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer> ListSealDirectoryContents(DirectoryArtifact directory)
             {
-                var dirContent = m_pipExecutionEnvironment.State.FileContentManager.ListSealedDirectoryContents(directory);
+                return m_pipExecutionEnvironment.State.FileContentManager.ListSealedDirectoryContents(directory);
+            }
 
-                using (var pooledSet = Pools.GetAbsolutePathSet())
-                {
-                    var instance = pooledSet.Instance;
-                    instance.UnionWith(dirContent
-                        .Where(file => m_pipExecutionEnvironment.State.FileContentManager.TryGetInputContent(file, out var materializationInfo)
-                            && materializationInfo.Hash == WellKnownContentHashes.AbsentFile)
-                        .Select(file => file.Path));
-
-                    temporaryFiles = instance.Count > 0
-                        ? new ReadOnlyHashSet<AbsolutePath>(instance)
-                        : CollectionUtilities.EmptySet<AbsolutePath>();
-                }
-
-                return dirContent;
+            /// <inheritdoc/>
+            public SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer> ListSharedOpaqueDirectoryContents(
+                DirectoryArtifact directory,
+                out ReadOnlyArray<int> temporaryMemberIndexes)
+            {
+                return m_pipExecutionEnvironment.State.SharedOpaqueManifestTemporaryMemberCache.ListSharedOpaqueDirectoryContents(
+                    directory,
+                    out temporaryMemberIndexes);
             }
         }
     }

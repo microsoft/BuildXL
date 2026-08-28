@@ -16,6 +16,7 @@ using BuildXL.Scheduler;
 using BuildXL.Scheduler.Artifacts;
 using BuildXL.Scheduler.Tracing;
 using BuildXL.Storage;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Configuration.Mutable;
@@ -41,6 +42,110 @@ namespace Test.BuildXL.Scheduler
                 TryGetSubstSourceAndTarget(out var substSource, out var substTarget) 
                 ? (substSource, substTarget) 
                 : default((string, string)?));
+        }
+
+        [Fact]
+        public void SharedOpaqueManifestTemporaryMemberCacheIsUpdatedWhenContentIsReportedAfterDirectory()
+        {
+            var harness = CreateDefaultHarness();
+            harness.Seal();
+            var directory = CreateDirectory();
+            var temporaryFile = CreateOutputFile(rootPath: directory.Path, fileName: "temporary.txt");
+
+            harness.Environment.RegisterDynamicOutputDirectory(directory);
+            harness.FileContentManager.ReportDynamicDirectoryContents(
+                directory,
+                new[] { FileArtifactWithAttributes.Create(temporaryFile, FileExistence.Temporary) },
+                PipOutputOrigin.NotMaterialized);
+
+            var cache = new SharedOpaqueManifestTemporaryMemberCache(harness.FileContentManager);
+            cache.ListSharedOpaqueDirectoryContents(directory, out var initialTemporaryMemberIndexes);
+            Assert.Empty(initialTemporaryMemberIndexes);
+
+            harness.FileContentManager.ReportOutputContent(
+                harness.UntrackedOpContext,
+                0,
+                temporaryFile,
+                FileMaterializationInfo.CreateWithUnknownLength(WellKnownContentHashes.AbsentFile),
+                PipOutputOrigin.NotMaterialized);
+
+            cache.ListSharedOpaqueDirectoryContents(directory, out var updatedTemporaryMemberIndexes);
+            Assert.Single(updatedTemporaryMemberIndexes);
+            Assert.Equal(0, updatedTemporaryMemberIndexes[0]);
+            Assert.Empty(initialTemporaryMemberIndexes);
+        }
+
+        [Fact]
+        public void SharedOpaqueManifestTemporaryMemberCacheIsSeededWhenContentIsReportedBeforeDirectory()
+        {
+            var harness = CreateDefaultHarness();
+            harness.Seal();
+            var directory = CreateDirectory();
+            var existingFile = CreateOutputFile(rootPath: directory.Path, fileName: "existing.txt");
+            var temporaryFile = CreateOutputFile(rootPath: directory.Path, fileName: "temporary.txt");
+
+            harness.FileContentManager.ReportOutputContent(
+                harness.UntrackedOpContext,
+                0,
+                existingFile,
+                FileMaterializationInfo.CreateWithUnknownLength(ContentHashingUtilities.HashBytes(Encoding.UTF8.GetBytes("content"))),
+                PipOutputOrigin.NotMaterialized);
+            harness.FileContentManager.ReportOutputContent(
+                harness.UntrackedOpContext,
+                0,
+                temporaryFile,
+                FileMaterializationInfo.CreateWithUnknownLength(WellKnownContentHashes.AbsentFile),
+                PipOutputOrigin.NotMaterialized);
+
+            harness.Environment.RegisterDynamicOutputDirectory(directory);
+            harness.FileContentManager.ReportDynamicDirectoryContents(
+                directory,
+                new[]
+                {
+                    FileArtifactWithAttributes.Create(existingFile, FileExistence.Required),
+                    FileArtifactWithAttributes.Create(temporaryFile, FileExistence.Temporary),
+                },
+                PipOutputOrigin.NotMaterialized);
+
+            var cache = new SharedOpaqueManifestTemporaryMemberCache(harness.FileContentManager);
+            var contents = cache.ListSharedOpaqueDirectoryContents(directory, out var temporaryMemberIndexes);
+            cache.ListSharedOpaqueDirectoryContents(directory, out var cachedTemporaryMemberIndexes);
+
+            Assert.Single(temporaryMemberIndexes);
+            Assert.Equal(temporaryFile, contents[temporaryMemberIndexes[0]]);
+            Assert.DoesNotContain(existingFile, temporaryMemberIndexes.Select(index => contents[index]));
+            Assert.True(temporaryMemberIndexes == cachedTemporaryMemberIndexes);
+        }
+
+        [Fact]
+        public void SharedOpaqueManifestTemporaryMemberCacheDoesNotCacheUnreportedDirectoryAsEmpty()
+        {
+            var harness = CreateDefaultHarness();
+            harness.Seal();
+            var directory = CreateDirectory();
+            var temporaryFile = CreateOutputFile(rootPath: directory.Path, fileName: "temporary.txt");
+            var cache = new SharedOpaqueManifestTemporaryMemberCache(harness.FileContentManager);
+
+            harness.Environment.RegisterDynamicOutputDirectory(directory);
+            var initialContents = cache.ListSharedOpaqueDirectoryContents(directory, out var initialTemporaryMemberIndexes);
+            Assert.Empty(initialContents);
+            Assert.Empty(initialTemporaryMemberIndexes);
+
+            harness.FileContentManager.ReportOutputContent(
+                harness.UntrackedOpContext,
+                0,
+                temporaryFile,
+                FileMaterializationInfo.CreateWithUnknownLength(WellKnownContentHashes.AbsentFile),
+                PipOutputOrigin.NotMaterialized);
+            harness.FileContentManager.ReportDynamicDirectoryContents(
+                directory,
+                new[] { FileArtifactWithAttributes.Create(temporaryFile, FileExistence.Temporary) },
+                PipOutputOrigin.NotMaterialized);
+
+            var contents = cache.ListSharedOpaqueDirectoryContents(directory, out var temporaryMemberIndexes);
+            Assert.Single(contents);
+            Assert.Single(temporaryMemberIndexes);
+            Assert.Equal(temporaryFile, contents[temporaryMemberIndexes[0]]);
         }
 
         [Fact]

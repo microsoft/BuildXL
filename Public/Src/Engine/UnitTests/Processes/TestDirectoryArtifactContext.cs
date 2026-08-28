@@ -44,10 +44,18 @@ namespace Test.BuildXL.Processes
         }
 
         /// <inheritdoc/>
-        public SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer> ListSealDirectoryContents(DirectoryArtifact directory, out IReadOnlySet<AbsolutePath> temporaryFiles)
+        public SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer> ListSealDirectoryContents(DirectoryArtifact directory)
         {
-            temporaryFiles = CollectionUtilities.EmptySet<AbsolutePath>();
             return SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer>.CloneAndSort(m_inputContent, OrdinalFileArtifactComparer.Instance);
+        }
+
+        /// <inheritdoc/>
+        public SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer> ListSharedOpaqueDirectoryContents(
+            DirectoryArtifact directory,
+            out ReadOnlyArray<int> temporaryMemberIndexes)
+        {
+            temporaryMemberIndexes = ReadOnlyArray<int>.Empty;
+            return ListSealDirectoryContents(directory);
         }
     }
 }

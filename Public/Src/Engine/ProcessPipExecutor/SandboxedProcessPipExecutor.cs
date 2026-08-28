@@ -1446,7 +1446,7 @@ namespace BuildXL.ProcessPipExecutor
                 // could be a way to do it in the future. This is enforced by the process builder.
                 Contract.Assert(!directoryContext.GetSealDirectoryKind(inputDirectory).IsSourceSeal());
 
-                var directoryContent = directoryContext.ListSealDirectoryContents(inputDirectory, out _);
+                var directoryContent = directoryContext.ListSealDirectoryContents(inputDirectory);
 
                 foreach (var inputArtifact in directoryContent)
                 {
@@ -2802,21 +2802,28 @@ namespace BuildXL.ProcessPipExecutor
             HashSet<AbsolutePath> untrackedPaths,
             AbsolutePathAncestorChecker untrackedScopeChecker)
         {
-            var content = m_directoryArtifactContext.ListSealDirectoryContents(directory, out var temporaryFiles);
+            var content = m_directoryArtifactContext.ListSharedOpaqueDirectoryContents(directory, out var temporaryMemberIndexes);
             using var inputFilesWrapper = Pools.GetAbsolutePathList();
             using var inputDirectoriesWrapper = Pools.GetAbsolutePathList();
             var inputFiles = inputFilesWrapper.Instance;
             var inputDirectories = inputDirectoriesWrapper.Instance;
             inputFiles.Capacity = Math.Max(inputFiles.Capacity, content.Length);
 
-            foreach (var fileArtifact in content)
+            int temporaryMemberIndex = 0;
+            for (int contentIndex = 0; contentIndex < content.Length; contentIndex++)
             {
-                // A shared opaque might contain files that are marked as 'absent'. Essentially these are "temp" files produced by a pip in the cone
-                // of that shared opaque. We do not add these paths to the manifest, so detours would not block write accesses.
-                if (!temporaryFiles.Contains(fileArtifact.Path)
-                    // If the shared opaque input is an untracked path of this pip, or is under an untracked scope, then we don't add it
-                    // since we already added untracked artifacts and this operation will change the appropriate untracked masks & values
-                    && !untrackedPaths.Contains(fileArtifact.Path)
+                if (temporaryMemberIndex < temporaryMemberIndexes.Length
+                    && temporaryMemberIndexes[temporaryMemberIndex] == contentIndex)
+                {
+                    temporaryMemberIndex++;
+                    continue;
+                }
+
+                var fileArtifact = content[contentIndex];
+
+                // If the shared opaque input is an untracked path of this pip, or is under an untracked scope, then we don't add it
+                // since we already added untracked artifacts and this operation will change the appropriate untracked masks & values
+                if (!untrackedPaths.Contains(fileArtifact.Path)
                     && !untrackedScopeChecker.HasKnownAncestor(m_pathTable, fileArtifact.Path))
                 {
                     inputFiles.Add(fileArtifact.Path);

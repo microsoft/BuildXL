@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft Corporation.
+﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
 using System;
@@ -6,6 +6,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -70,6 +71,32 @@ namespace Tool.DropDaemon
         private const string BuildManifestDirectoryName = "_manifest";
         private const string SbomDirectoryName = "spdx_2.2"; // CODESYNC: SbomSpecification object created during build manifest generation
         private const string SbomFileName = "manifest.spdx.json";
+
+        // CloudBuild normally supplies this timeout through ComponentGovernanceCompletionTimeoutMinutes.
+        // Keep a fallback for mixed-version rollouts where GBR publishes status but does not yet supply the timeout.
+        // CODESYNC: BuildXLComponentGovernanceHelper.ComponentGovernanceCompletionTimeoutMinutes in https://dev.azure.com/mseng/Domino/_git/CloudBuild?path=/private/Tools/GenericBuildRunner/shared/BuildXLComponentGovernanceHelper.cs&version=GBmain
+        private static readonly TimeSpan s_componentGovernanceCompletionTimeoutFallback = TimeSpan.FromMinutes(30);
+
+        // CODESYNC: BuildXLComponentGovernanceHelper.ComponentGovernanceStatusFileSuffix in https://dev.azure.com/mseng/Domino/_git/CloudBuild?path=/private/Tools/GenericBuildRunner/shared/BuildXLComponentGovernanceHelper.cs&version=GBmain
+        private const string ComponentGovernanceStatusFileSuffix = ".status";
+
+        // CODESYNC: BuildXLComponentGovernanceHelper.ComponentGovernanceCompletionTimeoutMinutes in https://dev.azure.com/mseng/Domino/_git/CloudBuild?path=/private/Tools/GenericBuildRunner/shared/BuildXLComponentGovernanceHelper.cs&version=GBmain
+        private const string ComponentGovernanceCompletionTimeoutMinutes = "__COMPONENT_GOVERNANCE_COMPLETION_TIMEOUT_MINUTES";
+
+        internal static string ComponentGovernanceBCDEOutputFilePath =>
+            BuildXL.Utilities.SBOMUtilities.Constants.ComponentGovernanceBCDEOutputFilePath;
+
+        // CODESYNC: BuildXLComponentGovernanceHelper.ComponentGovernanceStatus in https://dev.azure.com/mseng/Domino/_git/CloudBuild?path=/private/Tools/GenericBuildRunner/shared/BuildXLComponentGovernanceHelper.cs&version=GBmain
+        private enum ComponentGovernanceStatus
+        {
+            NotPublished,
+            Running,
+            Succeeded,
+            Failed,
+        }
+
+        private static readonly TimeSpan s_componentGovernanceCompletionPollInterval = TimeSpan.FromSeconds(1);
+
         private static readonly int s_minIoThreadsForDrop = Environment.ProcessorCount * 10;
 
         private static readonly int s_minWorkerThreadsForDrop = Environment.ProcessorCount * 10;
@@ -90,6 +117,11 @@ namespace Tool.DropDaemon
         /// Cached content of sealed directories.
         /// </summary>
         private readonly BuildXL.Utilities.Collections.ConcurrentBigMap<DirectoryArtifact, AsyncLazy<Possible<List<SealedDirectoryFile>>>> m_directoryArtifactContent = new();
+
+        /// <summary>
+        /// Shared completion monitor for the ComponentDetection output consumed by SBOM generation and BCDE upload.
+        /// </summary>
+        private AsyncLazy<Possible<Unit>> m_componentGovernanceCompletion;
 
         /// <summary>
         /// A mapping between a fully-qualified drop name and a corresponding dropConfig/VsoClient
@@ -921,12 +953,15 @@ namespace Tool.DropDaemon
         {
             Contract.Requires(dropConfig.UploadBcdeFileToDrop, "UploadBcdeFileToDrop API called even though this feature is disabled in DropConfig");
 
-            // Read Path for bcde output from environment, this should already be set by Cloudbuild
-            var bcdeOutputJsonPath = Environment.GetEnvironmentVariable(BuildXL.Utilities.SBOMUtilities.Constants.ComponentGovernanceBCDEOutputFilePath);
+            var bcdeOutputJsonPath = Environment.GetEnvironmentVariable(ComponentGovernanceBCDEOutputFilePath);
+            var completionResult = await WaitForComponentGovernanceOutputAsync();
+            if (!completionResult.Succeeded)
+            {
+                return new IpcResult(IpcResultStatus.ExecutionError, completionResult.Failure.Describe());
+            }
 
             if (string.IsNullOrWhiteSpace(bcdeOutputJsonPath))
             {
-                // This should only happen if CG didn't run before the build.
                 return new IpcResult(IpcResultStatus.ExecutionError, "UploadBcdeFileToDrop parameter is not set. This indicates that component detection did not run before the build.");
             }
             else if (!System.IO.File.Exists(bcdeOutputJsonPath))
@@ -1132,15 +1167,19 @@ namespace Tool.DropDaemon
         /// </returns>
         private async Task<Possible<IEnumerable<SbomPackage>>> GetSbomPackagesAsync(IIpcLogger logger)
         {
-            // Read Path for bcde output from environment, this should already be set by Cloudbuild
-            var bcdeOutputJsonPath = Environment.GetEnvironmentVariable(BuildXL.Utilities.SBOMUtilities.Constants.ComponentGovernanceBCDEOutputFilePath);
+            var bcdeOutputJsonPath = Environment.GetEnvironmentVariable(ComponentGovernanceBCDEOutputFilePath);
+            var completionResult = await WaitForComponentGovernanceOutputAsync();
+            if (!completionResult.Succeeded)
+            {
+                return completionResult.Failure;
+            }
 
             if (string.IsNullOrWhiteSpace(bcdeOutputJsonPath))
             {
                 // This should only happen if CG didn't run before the build. This should be the exception, but CG can be disabled (via configuration) 
                 // and the SBOM creation here can still happen without a set of packages.
                 // Log a message on the ApiServer it and return an empty set.
-                Analysis.IgnoreResult(await ApiClient.LogMessage($"[GetSbomPackages] The '{BuildXL.Utilities.SBOMUtilities.Constants.ComponentGovernanceBCDEOutputFilePath}' environment variable was not found. This happens when component governance on the build runner is disabled. Component detection data will not be included in build manifest.", isWarning: false));
+                Analysis.IgnoreResult(await ApiClient.LogMessage($"[GetSbomPackages] The '{ComponentGovernanceBCDEOutputFilePath}' environment variable was not found. This happens when component governance on the build runner is disabled. Component detection data will not be included in build manifest.", isWarning: false));
                 return new List<SbomPackage>();
             }
             else if (!System.IO.File.Exists(bcdeOutputJsonPath))
@@ -1214,6 +1253,143 @@ namespace Tool.DropDaemon
 
             logger.Verbose($"[GetSbomPackages] Retrieved {packages.Count()} packages");
             return Possible.Create(packages);
+        }
+
+        internal Task<Possible<Unit>> WaitForComponentGovernanceOutputAsync()
+        {
+            var completion = LazyInitializer.EnsureInitialized(
+                ref m_componentGovernanceCompletion,
+                () => new AsyncLazy<Possible<Unit>>(() => WaitForComponentGovernanceOutputAsync(
+                    Environment.GetEnvironmentVariable(ComponentGovernanceBCDEOutputFilePath),
+                    GetComponentGovernanceCompletionTimeout(),
+                    s_componentGovernanceCompletionPollInterval,
+                    logMessage: message => m_logger.Info(message))));
+            return completion.GetValueAsync();
+        }
+
+        /// <summary>
+        /// Waits for CloudBuild ComponentDetection to finish before consuming its output.
+        /// </summary>
+        /// <remarks>
+        /// CODESYNC: BuildXLComponentGovernanceHelper.GetComponentGovernanceStatusFilePath in
+        /// https://dev.azure.com/mseng/Domino/_git/CloudBuild?path=/private/Tools/GenericBuildRunner/shared/BuildXLComponentGovernanceHelper.cs&amp;version=GBmain
+        /// The status file is <paramref name="outputFilePath"/> plus <see cref="ComponentGovernanceStatusFileSuffix"/>. CloudBuild
+        /// atomically publishes Running before detection, then Succeeded or Failed. If the output exists without a status file,
+        /// it came from an older synchronous runner and is accepted as the legacy producer contract.
+        /// </remarks>
+        internal static async Task<Possible<Unit>> WaitForComponentGovernanceOutputAsync(
+            string outputFilePath,
+            TimeSpan timeout,
+            TimeSpan pollInterval,
+            Action<string> logMessage = null)
+        {
+            if (string.IsNullOrWhiteSpace(outputFilePath))
+            {
+                // No output path means there is no ComponentDetection status to monitor. Return to the caller,
+                // which applies its own missing-output policy.
+                return Unit.Void;
+            }
+
+            var statusFilePath = outputFilePath + ComponentGovernanceStatusFileSuffix;
+            var stopwatch = Stopwatch.StartNew();
+            logMessage?.Invoke($"Waiting for ComponentDetection completion status in '{statusFilePath}'.");
+
+            Possible<ComponentGovernanceStatus> readResult = ReadComponentGovernanceStatus(statusFilePath);
+            if (!readResult.Succeeded)
+            {
+                return readResult.Failure;
+            }
+
+            ComponentGovernanceStatus status = readResult.Result;
+            while (status == ComponentGovernanceStatus.NotPublished || status == ComponentGovernanceStatus.Running)
+            {
+                if (status == ComponentGovernanceStatus.NotPublished && System.IO.File.Exists(outputFilePath))
+                {
+                    // Older GenericBuildRunner versions publish the output without the sibling status file.
+                    logMessage?.Invoke($"ComponentDetection status file '{statusFilePath}' was not found; using existing legacy output file '{outputFilePath}'.");
+                    return Unit.Void;
+                }
+
+                // Before the status file exists, bound the wait by the stopwatch. Once CloudBuild reports Running,
+                // bound CD's runtime by the status file's creation time so the timeout is measured from when CD actually started.
+                TimeSpan elapsed = stopwatch.Elapsed;
+                if (status == ComponentGovernanceStatus.Running)
+                {
+                    TimeSpan statusAge = DateTime.UtcNow - System.IO.File.GetCreationTimeUtc(statusFilePath);
+                    if (statusAge >= TimeSpan.Zero)
+                    {
+                        elapsed = statusAge;
+                    }
+                }
+
+                if (elapsed >= timeout)
+                {
+                    return new Failure<string>($"Timed out after {timeout.TotalMinutes} minutes waiting for ComponentDetection to finish. Status file: '{statusFilePath}'.");
+                }
+
+                await Task.Delay(pollInterval);
+
+                readResult = ReadComponentGovernanceStatus(statusFilePath);
+                if (!readResult.Succeeded)
+                {
+                    return readResult.Failure;
+                }
+
+                status = readResult.Result;
+            }
+
+            if (status == ComponentGovernanceStatus.Failed)
+            {
+                return new Failure<string>($"ComponentDetection failed. See status file '{statusFilePath}'.");
+            }
+
+            if (!System.IO.File.Exists(outputFilePath))
+            {
+                return new Failure<string>($"ComponentDetection reported success, but output file '{outputFilePath}' was not found.");
+            }
+
+            logMessage?.Invoke($"ComponentDetection output file '{outputFilePath}' found after {stopwatch.Elapsed}.");
+            return Unit.Void;
+        }
+
+        private static TimeSpan GetComponentGovernanceCompletionTimeout()
+        {
+            string configuredTimeout = Environment.GetEnvironmentVariable(ComponentGovernanceCompletionTimeoutMinutes);
+            return double.TryParse(configuredTimeout, NumberStyles.Float, CultureInfo.InvariantCulture, out double timeoutMinutes) && timeoutMinutes >= 0
+                ? TimeSpan.FromMinutes(timeoutMinutes)
+                : s_componentGovernanceCompletionTimeoutFallback;
+        }
+
+        private static Possible<ComponentGovernanceStatus> ReadComponentGovernanceStatus(string statusFilePath)
+        {
+            if (!System.IO.File.Exists(statusFilePath))
+            {
+                return ComponentGovernanceStatus.NotPublished;
+            }
+
+            try
+            {
+                string[] statusLines = System.IO.File.ReadAllLines(statusFilePath);
+                if (statusLines.Length == 0)
+                {
+                    return new Failure<string>($"ComponentDetection status file '{statusFilePath}' is empty.");
+                }
+
+                string statusValue = statusLines[0];
+                if (!Enum.TryParse(statusValue, ignoreCase: false, out ComponentGovernanceStatus status)
+                    || status == ComponentGovernanceStatus.NotPublished
+                    || !Enum.IsDefined(typeof(ComponentGovernanceStatus), status)
+                    || !string.Equals(statusValue, status.ToString(), StringComparison.Ordinal))
+                {
+                    return new Failure<string>($"ComponentDetection published unknown status '{statusValue}' in '{statusFilePath}'.");
+                }
+
+                return status;
+            }
+            catch (IOException exception)
+            {
+                return new Failure<string>($"Failed to read ComponentDetection status file '{statusFilePath}': {exception.Message}");
+            }
         }
 
         /// <summary>

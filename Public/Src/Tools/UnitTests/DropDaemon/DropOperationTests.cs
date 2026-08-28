@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft Corporation.
+﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
 using System;
@@ -37,6 +37,256 @@ namespace Test.Tool.DropDaemon
         public DropOperationTests(ITestOutputHelper output)
             : base(output)
         {
+        }
+
+        // Allocates unique component-governance output/status paths and removes both on dispose.
+        private sealed class ComponentGovernanceTempFiles : IDisposable
+        {
+            public string OutputFilePath { get; }
+
+            public string StatusFilePath { get; }
+
+            public ComponentGovernanceTempFiles()
+            {
+                OutputFilePath = Path.GetTempFileName();
+                StatusFilePath = OutputFilePath + ".status";
+                File.Delete(OutputFilePath);
+            }
+
+            public void Dispose()
+            {
+                File.Delete(OutputFilePath);
+                File.Delete(StatusFilePath);
+            }
+        }
+
+        [Fact]
+        public async Task ComponentGovernanceOutputIsOptional()
+        {
+            var result = await global::Tool.DropDaemon.DropDaemon.WaitForComponentGovernanceOutputAsync(outputFilePath: null, timeout: TimeSpan.Zero, pollInterval: TimeSpan.Zero);
+
+            XAssert.IsTrue(result.Succeeded);
+        }
+
+        [Fact]
+        public void ComponentGovernanceCompletionIsMonitoredOncePerDaemon()
+        {
+            using var temp = new ComponentGovernanceTempFiles();
+            File.WriteAllText(temp.OutputFilePath, "{}");
+            File.WriteAllText(temp.StatusFilePath, "Succeeded");
+            string variableName = global::Tool.DropDaemon.DropDaemon.ComponentGovernanceBCDEOutputFilePath;
+            string originalValue = Environment.GetEnvironmentVariable(variableName);
+
+            try
+            {
+                Environment.SetEnvironmentVariable(variableName, temp.OutputFilePath);
+                WithSetup(new MockDropClient(createSucceeds: true), (daemon, _, _) =>
+                {
+                    var firstWait = daemon.WaitForComponentGovernanceOutputAsync();
+                    var secondWait = daemon.WaitForComponentGovernanceOutputAsync();
+
+                    XAssert.AreSame(firstWait, secondWait);
+                    XAssert.IsTrue(firstWait.GetAwaiter().GetResult().Succeeded);
+                });
+            }
+            finally
+            {
+                Environment.SetEnvironmentVariable(variableName, originalValue);
+            }
+        }
+
+        [Theory]
+        [InlineData(true, "Succeeded", true, null)]
+        [InlineData(false, "Failed", false, "ComponentDetection failed")]
+        [InlineData(false, "Succeeded", false, "reported success")]
+        [InlineData(false, "Unexpected", false, "unknown status")]
+        [InlineData(false, "NotPublished", false, "unknown status")]
+        [InlineData(false, "0", false, "unknown status")]
+        public async Task ComponentGovernanceSettledStatusProducesExpectedResult(bool outputPresent, string status, bool expectedSuccess, string expectedFailureSubstring)
+        {
+            using var temp = new ComponentGovernanceTempFiles();
+            if (outputPresent)
+            {
+                await File.WriteAllTextAsync(temp.OutputFilePath, "{}");
+            }
+
+            await File.WriteAllTextAsync(temp.StatusFilePath, status);
+
+            // A generous timeout that must never be hit: an already-settled status resolves on the first read.
+            var result = await global::Tool.DropDaemon.DropDaemon.WaitForComponentGovernanceOutputAsync(
+                temp.OutputFilePath,
+                timeout: TimeSpan.FromMinutes(1),
+                pollInterval: TimeSpan.Zero);
+
+            XAssert.AreEqual(expectedSuccess, result.Succeeded);
+            if (!expectedSuccess)
+            {
+                XAssert.IsTrue(result.Failure.Describe().Contains(expectedFailureSubstring));
+            }
+        }
+
+        [Fact]
+        public async Task ComponentGovernanceEmptyStatusFileFails()
+        {
+            using var temp = new ComponentGovernanceTempFiles();
+            await File.WriteAllTextAsync(temp.StatusFilePath, string.Empty);
+
+            var result = await global::Tool.DropDaemon.DropDaemon.WaitForComponentGovernanceOutputAsync(
+                temp.OutputFilePath,
+                timeout: TimeSpan.FromMinutes(1),
+                pollInterval: TimeSpan.Zero);
+
+            XAssert.IsFalse(result.Succeeded);
+            XAssert.IsTrue(result.Failure.Describe().Contains("is empty"));
+        }
+
+        public static IEnumerable<object[]> ComponentGovernanceStatusSequences => new[]
+        {
+            // First observed status is already terminal (never goes through Running).
+            new object[] { new[] { "Succeeded" }, true },
+            new object[] { new[] { "Failed" }, false },
+            new object[] { new[] { "Running", "Succeeded" }, true },
+            new object[] { new[] { "Running", "Failed" }, false },
+            new object[] { new[] { "Running", "Running", "Succeeded" }, true },
+            new object[] { new[] { "Running", "Running", "Failed" }, false },
+        };
+
+        [Theory]
+        [MemberData(nameof(ComponentGovernanceStatusSequences))]
+        public async Task ComponentGovernanceWaitsThroughValidStatusSequence(string[] statuses, bool shouldSucceed)
+        {
+            using var temp = new ComponentGovernanceTempFiles();
+            Task publishStatusTask = Task.Run(async () =>
+            {
+                await Task.Delay(TimeSpan.FromMilliseconds(50));
+                for (int i = 0; i < statuses.Length; i++)
+                {
+                    string status = statuses[i];
+                    if (status == "Succeeded")
+                    {
+                        await File.WriteAllTextAsync(temp.OutputFilePath, "{}");
+                    }
+
+                    string temporaryStatusFilePath = temp.StatusFilePath + $".{Guid.NewGuid():N}.tmp";
+                    await File.WriteAllTextAsync(temporaryStatusFilePath, status);
+                    if (File.Exists(temp.StatusFilePath))
+                    {
+                        File.Replace(temporaryStatusFilePath, temp.StatusFilePath, destinationBackupFileName: null);
+                    }
+                    else
+                    {
+                        File.Move(temporaryStatusFilePath, temp.StatusFilePath);
+                    }
+
+                    if (i < statuses.Length - 1)
+                    {
+                        await Task.Delay(TimeSpan.FromMilliseconds(50));
+                    }
+                }
+            });
+
+            try
+            {
+                var result = await global::Tool.DropDaemon.DropDaemon.WaitForComponentGovernanceOutputAsync(
+                    temp.OutputFilePath,
+                    timeout: TimeSpan.FromSeconds(5),
+                    pollInterval: TimeSpan.FromMilliseconds(10));
+                await publishStatusTask;
+
+                XAssert.AreEqual(shouldSucceed, result.Succeeded);
+                if (!shouldSucceed)
+                {
+                    XAssert.IsTrue(result.Failure.Describe().Contains("ComponentDetection failed"));
+                }
+            }
+            finally
+            {
+                await publishStatusTask;
+            }
+        }
+
+        [Fact]
+        public async Task ComponentGovernanceLegacyOutputWithoutStatusSucceeds()
+        {
+            using var temp = new ComponentGovernanceTempFiles();
+            await File.WriteAllTextAsync(temp.OutputFilePath, "{}");
+
+            var result = await global::Tool.DropDaemon.DropDaemon.WaitForComponentGovernanceOutputAsync(
+                temp.OutputFilePath,
+                timeout: TimeSpan.Zero,
+                pollInterval: TimeSpan.Zero);
+
+            XAssert.IsTrue(result.Succeeded);
+        }
+
+        [Fact]
+        public async Task ComponentGovernanceLegacyOutputAppearingLaterWithoutStatusSucceeds()
+        {
+            using var temp = new ComponentGovernanceTempFiles();
+            // Legacy producer: writes only the output file, never a status file, after the wait has started.
+            Task publishOutputTask = Task.Run(async () =>
+            {
+                await Task.Delay(TimeSpan.FromMilliseconds(50));
+                await File.WriteAllTextAsync(temp.OutputFilePath, "{}");
+            });
+
+            try
+            {
+                var result = await global::Tool.DropDaemon.DropDaemon.WaitForComponentGovernanceOutputAsync(
+                    temp.OutputFilePath,
+                    timeout: TimeSpan.FromSeconds(5),
+                    pollInterval: TimeSpan.FromMilliseconds(10));
+                await publishOutputTask;
+
+                XAssert.IsTrue(result.Succeeded);
+                XAssert.IsFalse(File.Exists(temp.StatusFilePath));
+            }
+            finally
+            {
+                await publishOutputTask;
+            }
+        }
+
+        [Theory]
+        [InlineData(false, null)]      // status file never appears
+        [InlineData(false, "Running")] // status stuck on Running
+        [InlineData(true, "Running")]  // output present but a Running status must not trigger the legacy fallback
+        public async Task ComponentGovernanceTimesOutWithoutTerminalStatus(bool outputPresent, string status)
+        {
+            using var temp = new ComponentGovernanceTempFiles();
+            if (outputPresent)
+            {
+                await File.WriteAllTextAsync(temp.OutputFilePath, "{}");
+            }
+
+            if (status != null)
+            {
+                await File.WriteAllTextAsync(temp.StatusFilePath, status);
+            }
+
+            var result = await global::Tool.DropDaemon.DropDaemon.WaitForComponentGovernanceOutputAsync(
+                temp.OutputFilePath,
+                timeout: TimeSpan.FromMilliseconds(50),
+                pollInterval: TimeSpan.FromMilliseconds(10));
+
+            XAssert.IsFalse(result.Succeeded);
+            XAssert.IsTrue(result.Failure.Describe().Contains("Timed out"));
+        }
+
+        [Fact]
+        public async Task ComponentGovernanceTimeoutIncludesTimeBeforeStatusWasObserved()
+        {
+            using var temp = new ComponentGovernanceTempFiles();
+            await File.WriteAllTextAsync(temp.StatusFilePath, "Running");
+            File.SetCreationTimeUtc(temp.StatusFilePath, DateTime.UtcNow - TimeSpan.FromMinutes(5));
+
+            var result = await global::Tool.DropDaemon.DropDaemon.WaitForComponentGovernanceOutputAsync(
+                temp.OutputFilePath,
+                timeout: TimeSpan.FromMinutes(1),
+                pollInterval: TimeSpan.Zero);
+
+            XAssert.IsFalse(result.Succeeded);
+            XAssert.IsTrue(result.Failure.Describe().Contains("Timed out"));
         }
 
         [Theory]

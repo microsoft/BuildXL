@@ -76,8 +76,15 @@ extern _locale_t g_invariantLocale;
 inline PathChar NormalizePathChar(PathChar c) noexcept
 {
 #if _WIN32
-    const PathChar pc{ towupper(c) };
-    return pc;
+    // Avoid the CRT's locale machinery for the overwhelmingly common ASCII path characters.
+    if (c <= 0x7f)
+    {
+        return c >= L'a' && c <= L'z'
+            ? static_cast<PathChar>(c - (L'a' - L'A'))
+            : c;
+    }
+
+    return towupper(c);
 #elif __linux__
     return c;
 #elif __APPLE__

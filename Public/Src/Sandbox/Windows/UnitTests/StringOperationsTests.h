@@ -5,6 +5,20 @@
 
 BOOST_AUTO_TEST_SUITE(StringOperationsTests)
 
+BOOST_AUTO_TEST_CASE(NormalizePathCharMatchesTowupper)
+{
+    for (PathChar c = 1; c <= 0x7f; c++)
+    {
+        BOOST_CHECK_EQUAL(towupper(c), NormalizePathChar(c));
+    }
+
+    const PathChar nonAsciiCharacters[] = { L'\u00e9', L'\u03c9', L'\u0436' };
+    for (const PathChar c : nonAsciiCharacters)
+    {
+        BOOST_CHECK_EQUAL(towupper(c), NormalizePathChar(c));
+    }
+}
+
 BOOST_AUTO_TEST_CASE(NormalizeRelativePath)
 {
     std::wstring input(L"A\\B\\C");

@@ -63,6 +63,8 @@ namespace BuildXL.Cache.ContentStore.Service.Grpc
         private readonly static SocketsHttpHandler SocketsHttpHandler = new SocketsHttpHandler
         {
             EnableMultipleHttp2Connections = true,
+            // Cache gRPC connections target specific machines and should not use an ambient HTTP proxy.
+            UseProxy = false,
 
             AutomaticDecompression = DecompressionMethods.All,
             MaxConnectionsPerServer = 100,

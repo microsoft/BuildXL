@@ -64,7 +64,9 @@ namespace BuildXL.Ipc.GrpcBasedIpc
                     UseCookies = false,
                     Expect100ContinueTimeout = TimeSpan.Zero,
                     PooledConnectionIdleTimeout = Timeout.InfiniteTimeSpan,
-                    EnableMultipleHttp2Connections = true
+                    EnableMultipleHttp2Connections = true,
+                    // gRPC IPC connections are direct loopback connections and should not use an ambient HTTP proxy.
+                    UseProxy = false
                 },
             };
 

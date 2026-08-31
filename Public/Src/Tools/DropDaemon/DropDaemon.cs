@@ -1277,11 +1277,17 @@ namespace Tool.DropDaemon
         /// atomically publishes Running before detection, then Succeeded or Failed. If the output exists without a status file,
         /// it came from an older synchronous runner and is accepted as the legacy producer contract.
         /// </remarks>
+        /// <param name="outputFilePath">The path to the ComponentDetection output file.</param>
+        /// <param name="timeout">The maximum time to wait for ComponentDetection to finish.</param>
+        /// <param name="pollInterval">The delay between status checks.</param>
+        /// <param name="logMessage">An optional callback for status messages.</param>
+        /// <param name="delayAsync">An optional delay implementation used by tests to advance polling deterministically.</param>
         internal static async Task<Possible<Unit>> WaitForComponentGovernanceOutputAsync(
             string outputFilePath,
             TimeSpan timeout,
             TimeSpan pollInterval,
-            Action<string> logMessage = null)
+            Action<string> logMessage = null,
+            Func<TimeSpan, Task> delayAsync = null)
         {
             if (string.IsNullOrWhiteSpace(outputFilePath))
             {
@@ -1327,7 +1333,14 @@ namespace Tool.DropDaemon
                     return new Failure<string>($"Timed out after {timeout.TotalMinutes} minutes waiting for ComponentDetection to finish. Status file: '{statusFilePath}'.");
                 }
 
-                await Task.Delay(pollInterval);
+                if (delayAsync == null)
+                {
+                    await Task.Delay(pollInterval);
+                }
+                else
+                {
+                    await delayAsync(pollInterval);
+                }
 
                 readResult = ReadComponentGovernanceStatus(statusFilePath);
                 if (!readResult.Succeeded)

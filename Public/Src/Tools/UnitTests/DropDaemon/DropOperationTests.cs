@@ -60,6 +60,32 @@ namespace Test.Tool.DropDaemon
             }
         }
 
+        private static async Task PublishComponentGovernanceStatusAsync(ComponentGovernanceTempFiles temp, string status)
+        {
+            if (status == "Succeeded")
+            {
+                await File.WriteAllTextAsync(temp.OutputFilePath, "{}");
+            }
+
+            string temporaryStatusFilePath = temp.StatusFilePath + $".{Guid.NewGuid():N}.tmp";
+            try
+            {
+                await File.WriteAllTextAsync(temporaryStatusFilePath, status);
+                if (File.Exists(temp.StatusFilePath))
+                {
+                    File.Replace(temporaryStatusFilePath, temp.StatusFilePath, destinationBackupFileName: null);
+                }
+                else
+                {
+                    File.Move(temporaryStatusFilePath, temp.StatusFilePath);
+                }
+            }
+            finally
+            {
+                File.Delete(temporaryStatusFilePath);
+            }
+        }
+
         [Fact]
         public async Task ComponentGovernanceOutputIsOptional()
         {
@@ -156,52 +182,25 @@ namespace Test.Tool.DropDaemon
         public async Task ComponentGovernanceWaitsThroughValidStatusSequence(string[] statuses, bool shouldSucceed)
         {
             using var temp = new ComponentGovernanceTempFiles();
-            Task publishStatusTask = Task.Run(async () =>
-            {
-                await Task.Delay(TimeSpan.FromMilliseconds(50));
-                for (int i = 0; i < statuses.Length; i++)
+            int statusIndex = 0;
+            await PublishComponentGovernanceStatusAsync(temp, statuses[statusIndex]);
+
+            var result = await global::Tool.DropDaemon.DropDaemon.WaitForComponentGovernanceOutputAsync(
+                temp.OutputFilePath,
+                timeout: TimeSpan.MaxValue,
+                pollInterval: TimeSpan.Zero,
+                delayAsync: async _ =>
                 {
-                    string status = statuses[i];
-                    if (status == "Succeeded")
-                    {
-                        await File.WriteAllTextAsync(temp.OutputFilePath, "{}");
-                    }
+                    statusIndex++;
+                    XAssert.IsTrue(statusIndex < statuses.Length, "ComponentGovernance polling continued after observing the terminal status.");
+                    await PublishComponentGovernanceStatusAsync(temp, statuses[statusIndex]);
+                });
 
-                    string temporaryStatusFilePath = temp.StatusFilePath + $".{Guid.NewGuid():N}.tmp";
-                    await File.WriteAllTextAsync(temporaryStatusFilePath, status);
-                    if (File.Exists(temp.StatusFilePath))
-                    {
-                        File.Replace(temporaryStatusFilePath, temp.StatusFilePath, destinationBackupFileName: null);
-                    }
-                    else
-                    {
-                        File.Move(temporaryStatusFilePath, temp.StatusFilePath);
-                    }
-
-                    if (i < statuses.Length - 1)
-                    {
-                        await Task.Delay(TimeSpan.FromMilliseconds(50));
-                    }
-                }
-            });
-
-            try
+            XAssert.AreEqual(statuses.Length - 1, statusIndex);
+            XAssert.AreEqual(shouldSucceed, result.Succeeded);
+            if (!shouldSucceed)
             {
-                var result = await global::Tool.DropDaemon.DropDaemon.WaitForComponentGovernanceOutputAsync(
-                    temp.OutputFilePath,
-                    timeout: TimeSpan.FromSeconds(5),
-                    pollInterval: TimeSpan.FromMilliseconds(10));
-                await publishStatusTask;
-
-                XAssert.AreEqual(shouldSucceed, result.Succeeded);
-                if (!shouldSucceed)
-                {
-                    XAssert.IsTrue(result.Failure.Describe().Contains("ComponentDetection failed"));
-                }
-            }
-            finally
-            {
-                await publishStatusTask;
+                XAssert.IsTrue(result.Failure.Describe().Contains("ComponentDetection failed"));
             }
         }
 
@@ -223,28 +222,22 @@ namespace Test.Tool.DropDaemon
         public async Task ComponentGovernanceLegacyOutputAppearingLaterWithoutStatusSucceeds()
         {
             using var temp = new ComponentGovernanceTempFiles();
-            // Legacy producer: writes only the output file, never a status file, after the wait has started.
-            Task publishOutputTask = Task.Run(async () =>
-            {
-                await Task.Delay(TimeSpan.FromMilliseconds(50));
-                await File.WriteAllTextAsync(temp.OutputFilePath, "{}");
-            });
+            bool delayed = false;
 
-            try
-            {
-                var result = await global::Tool.DropDaemon.DropDaemon.WaitForComponentGovernanceOutputAsync(
-                    temp.OutputFilePath,
-                    timeout: TimeSpan.FromSeconds(5),
-                    pollInterval: TimeSpan.FromMilliseconds(10));
-                await publishOutputTask;
+            var result = await global::Tool.DropDaemon.DropDaemon.WaitForComponentGovernanceOutputAsync(
+                temp.OutputFilePath,
+                timeout: TimeSpan.MaxValue,
+                pollInterval: TimeSpan.Zero,
+                delayAsync: async _ =>
+                {
+                    XAssert.IsFalse(delayed, "Legacy output should be observed on the first poll.");
+                    delayed = true;
+                    await File.WriteAllTextAsync(temp.OutputFilePath, "{}");
+                });
 
-                XAssert.IsTrue(result.Succeeded);
-                XAssert.IsFalse(File.Exists(temp.StatusFilePath));
-            }
-            finally
-            {
-                await publishOutputTask;
-            }
+            XAssert.IsTrue(delayed);
+            XAssert.IsTrue(result.Succeeded);
+            XAssert.IsFalse(File.Exists(temp.StatusFilePath));
         }
 
         [Theory]
@@ -266,8 +259,8 @@ namespace Test.Tool.DropDaemon
 
             var result = await global::Tool.DropDaemon.DropDaemon.WaitForComponentGovernanceOutputAsync(
                 temp.OutputFilePath,
-                timeout: TimeSpan.FromMilliseconds(50),
-                pollInterval: TimeSpan.FromMilliseconds(10));
+                timeout: TimeSpan.Zero,
+                pollInterval: TimeSpan.Zero);
 
             XAssert.IsFalse(result.Succeeded);
             XAssert.IsTrue(result.Failure.Describe().Contains("Timed out"));

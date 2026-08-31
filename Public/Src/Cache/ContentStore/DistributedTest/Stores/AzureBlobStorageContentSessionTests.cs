@@ -372,6 +372,99 @@ public class AzureBlobStorageContentSessionTests : ContentSessionTests
             });
     }
 
+    [Fact]
+    public async Task CanceledDownloadCannotOverwriteSuccessfulRetry()
+    {
+        using var fileSystem = new PassThroughFileSystem();
+        using var disposableDirectory = new DisposableDirectory(fileSystem);
+
+        AbsolutePath destinationPath = disposableDirectory.Path / "content";
+        byte[] firstAttemptContent = { 1 };
+        byte[] secondAttemptContent = { 2 };
+        var temporaryPaths = new List<AbsolutePath>();
+        var firstAttemptDownloaded = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseFirstAttempt = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var firstAttemptCancellation = new CancellationTokenSource();
+
+        Task<Result<RemoteDownloadResult>> firstAttempt = AzureBlobStorageContentSession.DownloadToTemporaryFileAndPlaceAsync(
+            fileSystem,
+            destinationPath,
+            replaceExisting: true,
+            async (temporaryPath, cancellationToken) =>
+            {
+                temporaryPaths.Add(temporaryPath);
+                fileSystem.WriteAllBytes(temporaryPath, firstAttemptContent);
+                firstAttemptDownloaded.SetResult(true);
+                await releaseFirstAttempt.Task;
+                return Result.Success(CreateRemoteDownloadResult());
+            },
+            firstAttemptCancellation.Token);
+
+        await firstAttemptDownloaded.Task;
+#pragma warning disable AsyncFixer02 // CancelAsync is unavailable on .NET Framework.
+        firstAttemptCancellation.Cancel();
+#pragma warning restore AsyncFixer02
+
+        Result<RemoteDownloadResult> secondAttempt = await AzureBlobStorageContentSession.DownloadToTemporaryFileAndPlaceAsync(
+            fileSystem,
+            destinationPath,
+            replaceExisting: true,
+            (temporaryPath, cancellationToken) =>
+            {
+                temporaryPaths.Add(temporaryPath);
+                fileSystem.WriteAllBytes(temporaryPath, secondAttemptContent);
+                return Task.FromResult(Result.Success(CreateRemoteDownloadResult()));
+            },
+            CancellationToken.None);
+
+        secondAttempt.ShouldBeSuccess();
+        releaseFirstAttempt.SetResult(true);
+        await Assert.ThrowsAsync<OperationCanceledException>(() => firstAttempt);
+
+        fileSystem.ReadAllBytes(destinationPath).Should().Equal(secondAttemptContent);
+        temporaryPaths.Should().HaveCount(2);
+        temporaryPaths[0].Should().NotBe(temporaryPaths[1]);
+        temporaryPaths.Should().OnlyContain(
+            temporaryPath =>
+                temporaryPath.Parent == destinationPath.Parent &&
+                temporaryPath.FileName.StartsWith($"tmp1-{destinationPath.FileName}-", StringComparison.Ordinal));
+        temporaryPaths.Should().OnlyContain(temporaryPath => !fileSystem.FileExists(temporaryPath));
+    }
+
+    [Fact]
+    public async Task DestinationCreatedDuringDownloadReturnsAlreadyExists()
+    {
+        using var fileSystem = new PassThroughFileSystem();
+        using var disposableDirectory = new DisposableDirectory(fileSystem);
+
+        AbsolutePath destinationPath = disposableDirectory.Path / "content";
+        Result<RemoteDownloadResult> result = await AzureBlobStorageContentSession.DownloadToTemporaryFileAndPlaceAsync(
+            fileSystem,
+            destinationPath,
+            replaceExisting: false,
+            (temporaryPath, cancellationToken) =>
+            {
+                fileSystem.WriteAllBytes(temporaryPath, new byte[] { 2 });
+                fileSystem.WriteAllBytes(destinationPath, new byte[] { 1 });
+                return Task.FromResult(Result.Success(CreateRemoteDownloadResult()));
+            },
+            CancellationToken.None);
+
+        result.ShouldBeSuccess();
+        result.Value.ResultCode.Should().Be(PlaceFileResult.ResultCode.NotPlacedAlreadyExists);
+        fileSystem.ReadAllBytes(destinationPath).Should().Equal(1);
+    }
+
+    private static RemoteDownloadResult CreateRemoteDownloadResult()
+    {
+        return new RemoteDownloadResult
+        {
+            ResultCode = PlaceFileResult.ResultCode.PlacedWithCopy,
+            FileSize = 1,
+            DownloadResult = new DownloadStatistics(),
+        };
+    }
+
     internal string? OverrideFolderName { get; set; }
 
     private IDisposable? CreateBlobContentStore(out AzureBlobStorageContentStore store)
@@ -561,4 +654,3 @@ public class AzureBlobStorageContentSessionBuildCacheSasUriTests : AzureBlobStor
     {
     }
 }
-

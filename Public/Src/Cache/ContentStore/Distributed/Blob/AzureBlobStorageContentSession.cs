@@ -49,6 +49,9 @@ namespace BuildXL.Cache.ContentStore.Distributed.Blob;
 /// </summary>
 public sealed class AzureBlobStorageContentSession : RecoverableContentSessionBase, ITrustedContentSession, IBlobContentSession
 {
+    private const int ErrorFileExists = 80;
+    private const int ErrorAlreadyExists = 183;
+
     public record Configuration(
         string Name,
         ImplicitPin ImplicitPin,
@@ -256,10 +259,19 @@ public sealed class AzureBlobStorageContentSession : RecoverableContentSessionBa
             Tracer,
             async context =>
             {
-                return await _conflictRetryPolicy.ExecuteAsync((pollyContext) =>
-                {
-                    return TryDownloadToFileAsync(context, contentHash, path, blobPath, client);
-                }, context.Token);
+                return await DownloadToTemporaryFileAndPlaceAsync(
+                    _fileSystem,
+                    path,
+                    replaceExisting: replacementMode == FileReplacementMode.ReplaceExisting,
+                    async (temporaryPath, cancellationToken) =>
+                    {
+                        OperationContext downloadContext = new OperationContext(context.TracingContext, cancellationToken);
+                        return await _conflictRetryPolicy.ExecuteAsync(
+                            _ => TryDownloadToFileAsync(downloadContext, contentHash, temporaryPath, blobPath, client),
+                            cancellationToken);
+                    },
+                    context.Token,
+                    (temporaryPath, exception) => Tracer.Warning(context, $"Error deleting temporary download at {temporaryPath}: {exception}"));
             },
             traceOperationStarted: false,
             timeout: _configuration.StorageInteractionTimeout,
@@ -276,22 +288,66 @@ public sealed class AzureBlobStorageContentSession : RecoverableContentSessionBa
                                  return $"{baseline} {r.Value}";
                              });
 
-        if (result.Succeeded)
-        {
-            return result;
-        }
+        return result;
+    }
 
-        // If the above failed, then it's likely there's a leftover partial download at the target path. Deleting it preemptively.
+    internal static async Task<Result<RemoteDownloadResult>> DownloadToTemporaryFileAndPlaceAsync(
+        IAbsFileSystem fileSystem,
+        AbsolutePath destinationPath,
+        bool replaceExisting,
+        Func<AbsolutePath, CancellationToken, Task<Result<RemoteDownloadResult>>> downloadAsync,
+        CancellationToken cancellationToken,
+        Action<AbsolutePath, Exception>? cleanupFailureHandler = null)
+    {
+        AbsolutePath temporaryPath = destinationPath.Parent! / $"tmp1-{destinationPath.FileName}-{AbsolutePath.CreateRandomName()}";
+        bool temporaryFileMoved = false;
+
         try
         {
-            _fileSystem.DeleteFile(path);
-        }
-        catch (Exception e)
-        {
-            return new Result<RemoteDownloadResult>(e, $"Failed to delete {path} containing partial download results for content {contentHash}");
-        }
+            Result<RemoteDownloadResult> result = await downloadAsync(temporaryPath, cancellationToken);
+            if (!result.Succeeded || result.Value.ResultCode != PlaceFileResult.ResultCode.PlacedWithCopy)
+            {
+                return result;
+            }
 
-        return result;
+            cancellationToken.ThrowIfCancellationRequested();
+
+            try
+            {
+                fileSystem.MoveFile(temporaryPath, destinationPath, replaceExisting);
+                temporaryFileMoved = true;
+            }
+            catch (IOException exception) when (!replaceExisting && IsErrorFileExists(exception))
+            {
+                return Result.Success(result.Value with
+                {
+                    ResultCode = PlaceFileResult.ResultCode.NotPlacedAlreadyExists,
+                    FileSize = null,
+                });
+            }
+
+            return result;
+        }
+        finally
+        {
+            if (!temporaryFileMoved)
+            {
+                try
+                {
+                    fileSystem.DeleteFile(temporaryPath);
+                }
+                catch (Exception exception)
+                {
+                    cleanupFailureHandler?.Invoke(temporaryPath, exception);
+                }
+            }
+        }
+    }
+
+    private static bool IsErrorFileExists(Exception exception)
+    {
+        int errorCode = Marshal.GetHRForException(exception) & ((1 << 16) - 1);
+        return errorCode is ErrorFileExists or ErrorAlreadyExists;
     }
 
     private async Task<Result<RemoteDownloadResult>> TryDownloadToFileAsync(OperationContext context, ContentHash contentHash, AbsolutePath path, AbsoluteBlobPath blobPath, BlobClient client)

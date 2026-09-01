@@ -181,6 +181,7 @@ namespace BuildXL.Engine
                     AddText(topLevelHasher, "substTarget", logging.SubstTarget.IsValid ? logging.SubstTarget.ToString(pathTable) : "::null::");
                     AddText(topLevelHasher, "IsCompressed", config.Engine.CompressGraphFiles ? "true" : "false");
                     AddText(topLevelHasher, "IsSkipHashSourceFile", config.Schedule.SkipHashSourceFile ? "true" : "false");
+                    AddText(topLevelHasher, "GraphSemistableFingerprint", config.Schedule.GraphSemistableFingerprint ?? string.Empty);
 
                     // Pip static fingerprints are not always computed because computing them slows down the graph construction by 10%-13%. 
                     // Thus, the pip graph may and may not contain pip static fingerprints. To avoid unexpected result due to graph cache hit, 

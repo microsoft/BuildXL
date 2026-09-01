@@ -518,6 +518,9 @@ namespace BuildXL
                             "generateCgManifestForNugets",
                             opt => frontEndConfiguration.GenerateCgManifestForNugets = CommandLineUtilities.ParsePathOption(opt, pathTable)),
                         OptionHandlerFactory.CreateOption(
+                            "graphSemistableFingerprint",
+                            opt => schedulingConfiguration.GraphSemistableFingerprint = CommandLineUtilities.ParseStringOption(opt)),
+                        OptionHandlerFactory.CreateOption(
                             "grpcCertificateSubjectName",
                             opt => distributionConfiguration.GrpcCertificateSubjectName = opt.Value),
                         OptionHandlerFactory.CreateBoolOption(

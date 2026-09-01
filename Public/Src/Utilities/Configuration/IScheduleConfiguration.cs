@@ -194,6 +194,11 @@ namespace BuildXL.Utilities.Configuration
         string EnvironmentFingerprint { get; }
 
         /// <summary>
+        /// Optional externally supplied graph semistable fingerprint that overrides the value computed from the pip graph.
+        /// </summary>
+        string GraphSemistableFingerprint { get; }
+
+        /// <summary>
         /// Verifies pins for cache lookup output content by attempting to materialize the content.
         /// </summary>
         bool VerifyCacheLookupPin { get; }

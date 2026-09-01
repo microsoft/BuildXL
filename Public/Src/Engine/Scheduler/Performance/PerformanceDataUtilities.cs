@@ -34,7 +34,7 @@ namespace BuildXL.Scheduler.Performance
 
         /// <summary>
         /// Computes based a stable fingerprint for performance data based on the graph semistable fingerprint.
-        /// <see cref="BuildXL.Pips.Graph.PipGraph.Builder.ComputeGraphSemistableFingerprint(LoggingContext, PipTable, PathTable)"/> and <see cref="BuildXL.Pips.Graph.PipGraph.SemistableFingerprint"/>
+        /// <see cref="BuildXL.Pips.Graph.PipGraph.Builder.ComputeGraphSemistableFingerprint(LoggingContext, PipTable, PathTable, string)"/> and <see cref="BuildXL.Pips.Graph.PipGraph.SemistableFingerprint"/>
         /// </summary>
         [SuppressMessage("Microsoft.Naming", "CA2204:Literals should be spelled correctly")]
         public static ContentFingerprint ComputePerformanceDataFingerprint(

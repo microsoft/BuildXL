@@ -10,6 +10,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Cache.ContentStore.Hashing;
+using BuildXL.Cache.MemoizationStore.Interfaces.Sessions;
 using BuildXL.Ipc.Common;
 using BuildXL.Pips.Builders;
 using BuildXL.Pips.DirectedGraph;
@@ -302,8 +303,11 @@ namespace BuildXL.Pips.Graph
                                 ? StringId.Create(Context.StringTable, m_lazyApiServerMoniker.Value.Id)
                                 : StringId.Invalid;
 
-                            var semistableProcessFingerprint =
-                                ComputeGraphSemistableFingerprint(LoggingContext, PipTable, Context.PathTable);
+                            var semistableProcessFingerprint = ComputeGraphSemistableFingerprint(
+                                LoggingContext,
+                                PipTable,
+                                Context.PathTable,
+                                ScheduleConfiguration.GraphSemistableFingerprint);
 
                             var pipGraphState = new SerializedState(
                                 values: Values,
@@ -360,7 +364,8 @@ namespace BuildXL.Pips.Graph
             /// the same or nearly the sames sets of process pips for performance data
             /// </summary>
             /// <remarks>
-            /// This is calculated by taking the first N (randomly chosen as 16) process semistable hashes after sorting.
+            /// This is calculated from the configured value when provided. Otherwise, it takes the first N
+            /// (randomly chosen as 16) process semistable hashes after sorting.
             /// This provides a stable fingerprint because it is unlikely that modifications to this pip graph
             /// will change those semistable hashes. Further, it is unlikely that pip graphs of different codebases
             /// will share these values.
@@ -369,31 +374,41 @@ namespace BuildXL.Pips.Graph
             public static ContentFingerprint ComputeGraphSemistableFingerprint(
                 LoggingContext loggingContext,
                 PipTable pipTable,
-                PathTable pathTable)
+                PathTable pathTable,
+                string configuredFingerprint = null)
             {
-                var processSemistableHashes = pipTable.StableKeys
-                    .Select(pipId => pipTable.GetMutable(pipId))
-                    .Where(info => info.PipType == PipType.Process)
-                    .Select(info => info.SemiStableHash)
-                    .ToList();
-
-                processSemistableHashes.Sort();
-
-                var indicatorHashes = processSemistableHashes.Take(16).ToArray();
-
-                using (var hasher = new HashingHelper(pathTable, recordFingerprintString: false))
+                ContentFingerprint fingerprint;
+                if (!string.IsNullOrEmpty(configuredFingerprint))
                 {
-                    hasher.Add("Type", "GraphSemistableFingerprint");
-
-                    foreach (var indicatorHash in indicatorHashes)
-                    {
-                        hasher.Add("IndicatorPipSemistableHash", indicatorHash);
-                    }
-
-                    var fingerprint = new ContentFingerprint(hasher.GenerateHash());
-                    Logger.Log.PerformanceDataCacheTrace(loggingContext, I($"Computed graph semistable fingerprint: {fingerprint}"));
-                    return fingerprint;
+                    fingerprint = new ContentFingerprint(FingerprintUtilities.Hash(configuredFingerprint));
                 }
+                else
+                {
+                    var processSemistableHashes = pipTable.StableKeys
+                        .Select(pipId => pipTable.GetMutable(pipId))
+                        .Where(info => info.PipType == PipType.Process)
+                        .Select(info => info.SemiStableHash)
+                        .ToList();
+
+                    processSemistableHashes.Sort();
+
+                    var indicatorHashes = processSemistableHashes.Take(16).ToArray();
+
+                    using (var hasher = new HashingHelper(pathTable, recordFingerprintString: false))
+                    {
+                        hasher.Add("Type", "GraphSemistableFingerprint");
+
+                        foreach (var indicatorHash in indicatorHashes)
+                        {
+                            hasher.Add("IndicatorPipSemistableHash", indicatorHash);
+                        }
+
+                        fingerprint = new ContentFingerprint(hasher.GenerateHash());
+                    }
+                }
+
+                Logger.Log.PerformanceDataCacheTrace(loggingContext, I($"Computed graph semistable fingerprint: {fingerprint}"));
+                return fingerprint;
             }
 
 

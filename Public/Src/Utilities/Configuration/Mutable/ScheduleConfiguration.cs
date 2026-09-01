@@ -137,6 +137,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             MaxCacheLookup = template.MaxCacheLookup;
             MaxMaterialize = template.MaxMaterialize;
             EnvironmentFingerprint = template.EnvironmentFingerprint;
+            GraphSemistableFingerprint = template.GraphSemistableFingerprint;
 
             DisableProcessRetryOnResourceExhaustion = template.DisableProcessRetryOnResourceExhaustion;
             StopOnFirstError = template.StopOnFirstError;
@@ -343,6 +344,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public string EnvironmentFingerprint { get; set; }
+
+        /// <inheritdoc />
+        public string GraphSemistableFingerprint { get; set; }
 
         /// <inheritdoc />
         public bool CanonicalizeFilterOutputs { get; set; }

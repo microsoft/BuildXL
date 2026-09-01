@@ -489,6 +489,11 @@ namespace BuildXL
                 HelpLevel.Verbose);
 
             hw.WriteOption(
+                "/graphSemistableFingerprint:<value>",
+                Strings.HelpText_DisplayHelp_GraphSemistableFingerprint,
+                HelpLevel.Verbose);
+
+            hw.WriteOption(
                 "/reuseEngineState[+|-]",
                 Strings.HelpText_DisplayHelp_ReuseEngineState,
                 HelpLevel.Verbose);

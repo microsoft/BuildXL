@@ -1057,6 +1057,9 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   <data name="HelpText_DisplayHelp_FingerprintSalt" xml:space="preserve">
     <value>Salts fingerprints used for caching. May be specified multiple times and values concatenate with delimiter. Empty value clears previous values. '*' is unique each run.</value>
   </data>
+  <data name="HelpText_DisplayHelp_GraphSemistableFingerprint" xml:space="preserve">
+    <value>Overrides the graph semistable fingerprint computed from the pip graph. The supplied value is deterministically hashed into a fingerprint.</value>
+  </data>
   <data name="Args_EnginePhases_UnsupportedPhase" xml:space="preserve">
     <value>phase:Evaluate is not supported, please use /phase:Schedule</value>
   </data>

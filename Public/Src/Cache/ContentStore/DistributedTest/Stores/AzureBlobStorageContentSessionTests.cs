@@ -427,8 +427,38 @@ public class AzureBlobStorageContentSessionTests : ContentSessionTests
         temporaryPaths.Should().OnlyContain(
             temporaryPath =>
                 temporaryPath.Parent == destinationPath.Parent &&
-                temporaryPath.FileName.StartsWith($"tmp1-{destinationPath.FileName}-", StringComparison.Ordinal));
+                temporaryPath.FileName.StartsWith("tmp1-", StringComparison.Ordinal));
         temporaryPaths.Should().OnlyContain(temporaryPath => !fileSystem.FileExists(temporaryPath));
+    }
+
+    [Fact]
+    public async Task LongDestinationFileNameUsesShortTemporaryName()
+    {
+        using var fileSystem = new PassThroughFileSystem();
+        using var disposableDirectory = new DisposableDirectory(fileSystem);
+
+        AbsolutePath destinationPath = disposableDirectory.Path / new string('d', 241);
+        AbsolutePath? observedTemporaryPath = null;
+        byte[] content = { 1, 2, 3 };
+
+        Result<RemoteDownloadResult> result = await AzureBlobStorageContentSession.DownloadToTemporaryFileAndPlaceAsync(
+            fileSystem,
+            destinationPath,
+            replaceExisting: true,
+            (temporaryPath, cancellationToken) =>
+            {
+                observedTemporaryPath = temporaryPath;
+                fileSystem.WriteAllBytes(temporaryPath, content);
+                return Task.FromResult(Result.Success(CreateRemoteDownloadResult()));
+            },
+            CancellationToken.None);
+
+        result.ShouldBeSuccess();
+        observedTemporaryPath.Should().NotBeNull();
+        observedTemporaryPath!.Parent.Should().Be(destinationPath.Parent);
+        observedTemporaryPath.FileName.Should().StartWith("tmp1-");
+        observedTemporaryPath.FileName.Should().NotContain(destinationPath.FileName);
+        fileSystem.ReadAllBytes(destinationPath).Should().Equal(content);
     }
 
     [Fact]

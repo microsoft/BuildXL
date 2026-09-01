@@ -299,7 +299,9 @@ public sealed class AzureBlobStorageContentSession : RecoverableContentSessionBa
         CancellationToken cancellationToken,
         Action<AbsolutePath, Exception>? cleanupFailureHandler = null)
     {
-        AbsolutePath temporaryPath = destinationPath.Parent! / $"tmp1-{destinationPath.FileName}-{AbsolutePath.CreateRandomName()}";
+        // Keep the temporary file in the destination directory for an atomic move, but do not include the
+        // destination name because it may already be near the filesystem's component-length limit.
+        AbsolutePath temporaryPath = destinationPath.Parent! / $"tmp1-{AbsolutePath.CreateRandomName()}";
         bool temporaryFileMoved = false;
 
         try

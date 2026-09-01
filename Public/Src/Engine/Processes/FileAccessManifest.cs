@@ -1944,47 +1944,6 @@ namespace BuildXL.Processes
                 return node;
             }
 
-            /// <summary>
-            /// Visit all nodes in the tree and finalize their respective policies using the parent policy
-            /// as a reference.
-            /// </summary>
-            /// <remarks>
-            /// If it is a leaf node and the policy is valid, use the policy that is specified for that node,
-            /// otherwise recursively compute the policy from the root down to the leaves.
-            /// </remarks>
-            /// <param name="parentPolicy">
-            /// The finalized policy from a parent.
-            /// The default value is FileAccessPolicy.Deny because we need to start with nothing to get
-            /// accurate results.
-            /// </param>
-            internal void FinalizePolicies(FileAccessPolicy parentPolicy = FileAccessPolicy.Deny)
-            {
-                if (IsPolicyFinalized)
-                {
-                    return; // don't repeat work
-                }
-
-                FinalizeConePolicy((parentPolicy & ConeScope.Mask) | ConeScope.Values);
-
-                // The node policy is computed by composing the cone scope with the node scope
-                FinalizeNodePolicy((ConePolicy & NodeScope.Mask) | NodeScope.Values);
-
-                if (m_children is not null)
-                {
-                    foreach (var child in m_children)
-                    {
-                        child.Value.FinalizePolicies(ConePolicy);
-                    }
-                }
-                else if (m_deserializedChildren is not null)
-                {
-                    foreach (var child in m_deserializedChildren)
-                    {
-                        child.Value.FinalizePolicies(ConePolicy);
-                    }
-                }
-            }
-
             private void ApplyConeFileAccess(FileAccessScope apply)
             {
                 ConeScope = new FileAccessScope(mask: apply.Mask & ConeScope.Mask, values: apply.Values | ConeScope.Values);
@@ -2048,7 +2007,22 @@ namespace BuildXL.Processes
                 }
             }
 
-            public void InternalSerialize(FileAccessManifest owner, NormalizedPathString normalizedFragment, BinaryWriter writer)
+            /// <summary>
+            /// Serializes this node and its descendants, finalizing policies as they are visited.
+            /// </summary>
+            /// <param name="owner">The owning manifest.</param>
+            /// <param name="normalizedFragment">The normalized path fragment for this node.</param>
+            /// <param name="writer">The writer receiving the serialized tree.</param>
+            /// <param name="parentPolicy">
+            /// The finalized policy from a parent.
+            /// The default value is FileAccessPolicy.Deny because we need to start with nothing to get
+            /// accurate results.
+            /// </param>
+            public void InternalSerialize(
+                FileAccessManifest owner,
+                NormalizedPathString normalizedFragment,
+                BinaryWriter writer,
+                FileAccessPolicy parentPolicy = FileAccessPolicy.Deny)
             {
                 // Deserialized manifests replay their original serialized tree.
                 // Hydrated children support managed lookups only and must not reach this path.
@@ -2058,7 +2032,8 @@ namespace BuildXL.Processes
                 // always finalize when serializing -- note that this prevents adding additional scopes as before
                 if (!IsPolicyFinalized)
                 {
-                    FinalizePolicies();
+                    FinalizeConePolicy((parentPolicy & ConeScope.Mask) | ConeScope.Values);
+                    FinalizeNodePolicy((ConePolicy & NodeScope.Mask) | NodeScope.Values);
                 }
 
                 unchecked
@@ -2130,7 +2105,7 @@ namespace BuildXL.Processes
                             var offset = checked((uint)(writer.BaseStream.Position - start));
                             Contract.Assume((offset & (uint)FileAccessBucketOffsetFlag.ChainMask) == 0);
                             offsets[index] = offset;
-                            child.Value.InternalSerialize(owner, childNormalizedFragment, writer);
+                            child.Value.InternalSerialize(owner, childNormalizedFragment, writer, ConePolicy);
                         }
 
                         long endPosition = writer.BaseStream.Position;
@@ -2147,12 +2122,6 @@ namespace BuildXL.Processes
 
             public void Serialize(FileAccessManifest owner, BinaryWriter writer)
             {
-                // always finalize when serializing -- note that this prevents adding additional scopes as before
-                if (!IsPolicyFinalized)
-                {
-                    FinalizePolicies();
-                }
-
                 InternalSerialize(owner, default(NormalizedPathString), writer);
             }
 

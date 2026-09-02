@@ -59,6 +59,9 @@ namespace BuildXL.Processes
 
         private readonly TaskCompletionSource<Unit> m_rootProcessFinishedTask = new TaskCompletionSource<Unit>(); // No real result needed, but net472 does not support a completion source without a type parameter.
 
+        // Avoid relying on ProcessId during startup by storing the id carried by the first process start report.
+        private uint? m_reportedRootProcessId;
+
         /// <summary>
         /// Id of the underlying pip.
         /// </summary>
@@ -830,8 +833,16 @@ namespace BuildXL.Processes
                             StartPTraceRunner((int)report.ProcessId, reportPath, forceAddExecutionPermission);
                         }
 
+                        // The first process report identifies the report stream's root. For eBPF this is the runner,
+                        // which emits a synthetic exit report when the actual pip root exits.
+                        if (report.FileOperation == ReportedFileOperation.Process && !m_reportedRootProcessId.HasValue)
+                        {
+                            m_reportedRootProcessId = report.ProcessId;
+                        }
+
                         // Set the process exit time once we receive it from the native side
-                        if (report.FileOperation == ReportedFileOperation.ProcessExit && report.ProcessId == ProcessId)
+                        // ProcessId may not be published yet if the process exited too fast, so use the reported one
+                        if (report.FileOperation == ReportedFileOperation.ProcessExit && report.ProcessId == m_reportedRootProcessId)
                         {
                             LogDebug($"Process exit report received for root process {report.ProcessId}");
                             m_processExitReceived = true;

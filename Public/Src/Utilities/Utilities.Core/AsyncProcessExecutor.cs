@@ -5,6 +5,7 @@ using System;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Diagnostics.ContractsLight;
+using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Interop;
 using BuildXL.Utilities.Core.Tasks;
@@ -113,7 +114,31 @@ namespace BuildXL.Utilities.Core
         /// <summary>
         /// Process id.
         /// </summary>
-        public int ProcessId => m_processId != -1 ? m_processId : (m_processId = GetProcessIdSafe());
+        /// <remarks>
+        /// Returns -1 if the process has not started yet or its id is not available.
+        /// </remarks>
+        public int ProcessId
+        {
+            get
+            {
+                int processId = Volatile.Read(ref m_processId);
+                if (processId == -1)
+                {
+                    int observedProcessId = GetProcessIdSafe();
+                    if (observedProcessId != -1)
+                    {
+                        // Start() is the authoritative publisher, but a concurrent reader may observe the id first.
+                        // Publish only while the field is unset so neither publisher overwrites the other.
+                        Interlocked.CompareExchange(ref m_processId, observedProcessId, comparand: -1);
+                    }
+
+                    // Start() may have published the id while GetProcessIdSafe() was running.
+                    processId = Volatile.Read(ref m_processId);
+                }
+
+                return processId;
+            }
+        }
 
         /// <summary>
         /// Gets memory counters of the process
@@ -236,6 +261,7 @@ namespace BuildXL.Utilities.Core
                 }
 
                 Process.Start();
+                Volatile.Write(ref m_processId, Process.Id);
                 // The process just started. Let's start measuring the time to timeout here.
                 m_timeoutTask = Task.Delay(m_timeout);
             }
@@ -253,9 +279,7 @@ namespace BuildXL.Utilities.Core
             {
                 Process.BeginErrorReadLine();
             }
-
             StartTime = DateTime.UtcNow;
-            m_processId = Process.Id;
             Log($"started at {StartTime}");
         }
 

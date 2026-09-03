@@ -1316,18 +1316,7 @@ namespace Tool.DropDaemon
                     return Unit.Void;
                 }
 
-                // Before the status file exists, bound the wait by the stopwatch. Once CloudBuild reports Running,
-                // bound CD's runtime by the status file's creation time so the timeout is measured from when CD actually started.
                 TimeSpan elapsed = stopwatch.Elapsed;
-                if (status == ComponentGovernanceStatus.Running)
-                {
-                    TimeSpan statusAge = DateTime.UtcNow - System.IO.File.GetCreationTimeUtc(statusFilePath);
-                    if (statusAge >= TimeSpan.Zero)
-                    {
-                        elapsed = statusAge;
-                    }
-                }
-
                 if (elapsed >= timeout)
                 {
                     return new Failure<string>($"Timed out after {timeout.TotalMinutes} minutes waiting for ComponentDetection to finish. Status file: '{statusFilePath}'.");

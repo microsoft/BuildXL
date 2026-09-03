@@ -266,22 +266,6 @@ namespace Test.Tool.DropDaemon
             XAssert.IsTrue(result.Failure.Describe().Contains("Timed out"));
         }
 
-        [Fact]
-        public async Task ComponentGovernanceTimeoutIncludesTimeBeforeStatusWasObserved()
-        {
-            using var temp = new ComponentGovernanceTempFiles();
-            await File.WriteAllTextAsync(temp.StatusFilePath, "Running");
-            File.SetCreationTimeUtc(temp.StatusFilePath, DateTime.UtcNow - TimeSpan.FromMinutes(5));
-
-            var result = await global::Tool.DropDaemon.DropDaemon.WaitForComponentGovernanceOutputAsync(
-                temp.OutputFilePath,
-                timeout: TimeSpan.FromMinutes(1),
-                pollInterval: TimeSpan.Zero);
-
-            XAssert.IsFalse(result.Succeeded);
-            XAssert.IsTrue(result.Failure.Describe().Contains("Timed out"));
-        }
-
         [Theory]
         [InlineData(true)]
         [InlineData(false)]

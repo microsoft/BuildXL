@@ -280,7 +280,11 @@ namespace Test.Tool.CloudTestClient
                       "collectionUri": "https://dev.azure.com/mseng/",
                       "buildId": "31922607",
                       "stageName": "BuildXL",
-                      "jobName": "build",
+                      "stageAttempt": "2",
+                      "phaseName": "build",
+                      "phaseAttempt": "3",
+                      "jobName": "build_linux",
+                      "jobAttempt": "4",
                       "sourceBranch": "refs/pull/123/merge",
                       "sourceVersion": "0123456789abcdef",
                       "repositoryName": "BuildXL",
@@ -300,7 +304,11 @@ namespace Test.Tool.CloudTestClient
 
                 Assert.Equal("31922607", buildProperties.GetProperty("buildId").GetString());
                 Assert.Equal("BuildXL", buildProperties.GetProperty("stageName").GetString());
-                Assert.Equal("build", buildProperties.GetProperty("jobName").GetString());
+                Assert.Equal(2, buildProperties.GetProperty("stageAttempt").GetInt32());
+                Assert.Equal("build", buildProperties.GetProperty("phaseName").GetString());
+                Assert.Equal(3, buildProperties.GetProperty("phaseAttempt").GetInt32());
+                Assert.Equal("build_linux", buildProperties.GetProperty("jobName").GetString());
+                Assert.Equal(4, buildProperties.GetProperty("jobAttempt").GetInt32());
                 Assert.Equal("refs/pull/123/merge", buildProperties.GetProperty("sourceBranch").GetString());
                 Assert.Equal("0123456789abcdef", buildProperties.GetProperty("sourceVersion").GetString());
                 Assert.Equal("BuildXL", buildProperties.GetProperty("repositoryName").GetString());

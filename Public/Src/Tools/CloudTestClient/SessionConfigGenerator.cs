@@ -294,7 +294,11 @@ namespace Tool.CloudTestClient
                 BuildProperties: new VstsBuildProperties(
                     BuildId: ado.BuildId,
                     StageName: ado.StageName,
+                    StageAttempt: ParseAdoAttempt(ado.StageAttempt),
+                    PhaseName: ado.PhaseName,
+                    PhaseAttempt: ParseAdoAttempt(ado.PhaseAttempt),
                     JobName: ado.JobName,
+                    JobAttempt: ParseAdoAttempt(ado.JobAttempt),
                     SourceBranch: ado.SourceBranch,
                     SourceVersion: ado.SourceVersion,
                     RepositoryName: ado.RepositoryName),
@@ -306,6 +310,11 @@ namespace Tool.CloudTestClient
             };
 
             return JsonSerializer.Serialize(vstsContext, options);
+        }
+
+        private static int ParseAdoAttempt(string attempt)
+        {
+            return int.TryParse(attempt, out int parsedAttempt) ? parsedAttempt : 0;
         }
 
         /// <summary>
@@ -400,7 +409,11 @@ namespace Tool.CloudTestClient
             string CollectionUri,
             string BuildId,
             string StageName,
+            string StageAttempt,
+            string PhaseName,
+            string PhaseAttempt,
             string JobName,
+            string JobAttempt,
             string SourceBranch,
             string SourceVersion,
             string RepositoryName,
@@ -476,7 +489,11 @@ namespace Tool.CloudTestClient
         private sealed record VstsBuildProperties(
             string BuildId,
             string StageName,
+            int StageAttempt,
+            string PhaseName,
+            int PhaseAttempt,
             string JobName,
+            int JobAttempt,
             string SourceBranch,
             string SourceVersion,
             string RepositoryName);

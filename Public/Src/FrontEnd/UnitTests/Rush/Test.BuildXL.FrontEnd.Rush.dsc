@@ -47,18 +47,11 @@ namespace Test.Rush {
                  "RushExecuteCommandGroupTests",
                  "RushExportsTests",
                  "RushIntegrationTests",
-                 "RushLibLocationTests",
-                 "RushSchedulingTests",
                  "RushCustomSchedulingTests",
-                 "RushCustomScriptsTests",
-                 "RushAdditionalDependenciesTests",
-                 "RushBuildGraphPluginTests"
+                 "RushAdditionalDependenciesTests"
             ],
             tools: {
                 exec: {
-                    // Rush tests are IO heavy. Let's limit the concurrency for them to avoid timeouts (default
-                    // concurrency for xunit tests is 8).
-                    acquireSemaphores: [{name: "BuildXL.rush_xunit_semaphore", incrementBy: 1, limit: 4}],
                     environmentVariables: [
                         ...(BuildXLSdk.NpmRc.getUserNpmRc() !== undefined ? [ { name: "UserProfileNpmRcLocation", value: BuildXLSdk.NpmRc.getUserNpmRc() } ] : [])
                     ],

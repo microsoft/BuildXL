@@ -211,12 +211,68 @@ namespace Test.BuildXL.Processes.Detours
             XAssert.IsTrue(baseline.Describe().SequenceEqual(bulk.Describe()));
         }
 
-        [Fact]
-        public void NormalizedFragmentsAreReleasedDuringMemoryConservation()
+        [Theory]
+        [InlineData(0)]
+        [InlineData(1)]
+        [InlineData(2)]
+        [InlineData(7)]
+        [InlineData(128)]
+        public void ExactSizeSerializationMatchesLegacySerialization(int pathCount)
         {
-            var memoryConservation = new MemoryConservation();
             var pathTable = new PathTable();
-            var manifest = new FileAccessManifest(pathTable, memoryConservation: memoryConservation);
+            var manifest = new FileAccessManifest(pathTable);
+
+            for (int i = 0; i < pathCount; i++)
+            {
+                var path = AbsolutePath.Create(pathTable, $@"C:\repo\prójéct{i}\日本語\obj\résumé{i}-Журнал.dll");
+                manifest.AddPath(path, FileAccessPolicy.MaskNothing, FileAccessPolicy.ReportAccess);
+            }
+
+            byte[] expected = manifest.GetManifestTreeBytes();
+
+            using var stream = new MemoryStream();
+            manifest.Serialize(stream);
+
+            byte[] actual = manifest.GetManifestTreeBytes();
+            XAssert.AreEqual(expected.Length, actual.Length);
+            XAssert.IsTrue(expected.SequenceEqual(actual));
+        }
+
+        [Theory]
+        [InlineData(@"C:\repo\source\日本語\obj\Журнал.dll", @"c:\REPO\SOURCE\日本語\OBJ\Журнал.DLL")]
+        [InlineData(@"C:\repo\source\Ā\obj\output.dll", @"c:\REPO\SOURCE\Ā\OBJ\OUTPUT.DLL")]
+        [InlineData(@"C:\repo\source\😀\obj\output.dll", @"c:\REPO\SOURCE\😀\OBJ\OUTPUT.DLL")]
+        public void Utf16PathLookupMatchesAcrossSerialization(string pathValue, string caseVariantValue)
+        {
+            var pathTable = new PathTable();
+            var manifest = new FileAccessManifest(pathTable);
+            var scope = AbsolutePath.Create(pathTable, @"C:\repo\source");
+            var path = AbsolutePath.Create(pathTable, pathValue);
+            var caseVariant = AbsolutePath.Create(pathTable, caseVariantValue);
+
+            manifest.AddScope(scope, FileAccessPolicy.Deny, FileAccessPolicy.AllowRead);
+            manifest.AddPath(path, FileAccessPolicy.MaskNothing, FileAccessPolicy.ReportAccess);
+            _ = manifest.GetManifestTreeBytes();
+
+            XAssert.IsTrue(manifest.TryFindManifestPathFor(caseVariant, out AbsolutePath mutablePath, out FileAccessPolicy mutablePolicy));
+
+            using (var stream = new MemoryStream())
+            {
+                manifest.Serialize(stream);
+            }
+
+            XAssert.IsTrue(manifest.TryFindManifestPathFor(caseVariant, out AbsolutePath sealedPath, out FileAccessPolicy sealedPolicy));
+            XAssert.AreEqual(mutablePath, sealedPath);
+            XAssert.AreEqual(mutablePolicy, sealedPolicy);
+            XAssert.AreEqual(path, sealedPath);
+            XAssert.AreEqual(FileAccessPolicy.AllowRead | FileAccessPolicy.ReportAccess, sealedPolicy);
+        }
+
+        [Fact]
+        public void SerializationReleasesMutableStateOnNetCore()
+        {
+            var pathTable = new PathTable();
+            var manifest = new FileAccessManifest(pathTable);
             var scope = AbsolutePath.Create(pathTable, @"C:\repo\source");
             var path = AbsolutePath.Create(pathTable, @"C:\repo\source\hotFile.cs");
 
@@ -226,25 +282,96 @@ namespace Test.BuildXL.Processes.Detours
 
             XAssert.IsTrue(manifest.NormalizedFragmentCount > 0);
 
-            memoryConservation.Enter();
-            XAssert.IsTrue(manifest.IsNormalizedFragmentCacheAllocated);
-
             using (var stream = new MemoryStream())
             {
                 manifest.Serialize(stream);
             }
 
+            XAssert.IsTrue(manifest.IsManifestTreeBlockSealed);
+#if NETCOREAPP
+            XAssert.IsFalse(manifest.IsManifestTreeHydrated);
             XAssert.IsFalse(manifest.IsNormalizedFragmentCacheAllocated);
+            XAssert.IsTrue(manifest.IsSealedPathIndexAllocated);
+#else
+            XAssert.IsTrue(manifest.IsManifestTreeHydrated);
+            XAssert.IsTrue(manifest.IsNormalizedFragmentCacheAllocated);
+            XAssert.IsFalse(manifest.IsSealedPathIndexAllocated);
+#endif
+
             AbsolutePath caseVariant = AbsolutePath.Create(pathTable, @"c:\REPO\SOURCE\HOTFILE.CS");
             XAssert.IsTrue(manifest.TryFindManifestPathFor(caseVariant, out AbsolutePath manifestPath, out FileAccessPolicy policy));
             XAssert.AreEqual(path, manifestPath);
             XAssert.AreEqual(FileAccessPolicy.AllowRead | FileAccessPolicy.AllowWrite, policy);
             XAssert.IsTrue(originalTreeBytes.SequenceEqual(manifest.GetManifestTreeBytes()));
-            XAssert.IsTrue(manifest.IsNormalizedFragmentCacheAllocated);
+        }
 
-            memoryConservation.Exit(force: true);
-            memoryConservation.Enter();
-            XAssert.IsFalse(manifest.IsNormalizedFragmentCacheAllocated);
+        [Fact]
+        public void SealedTreeLookupMatchesMutableTreeLookup()
+        {
+            var pathTable = new PathTable();
+            var manifest = new FileAccessManifest(pathTable);
+            var root = AbsolutePath.Create(pathTable, @"C:\repo\source");
+            manifest.AddScope(root, FileAccessPolicy.Deny, FileAccessPolicy.AllowRead);
+
+            var queries = new List<AbsolutePath>();
+            for (int i = 0; i < 128; i++)
+            {
+                AbsolutePath path = AbsolutePath.Create(pathTable, $@"C:\repo\source\project{i}\obj\output{i}.dll");
+                manifest.AddPath(path, FileAccessPolicy.MaskNothing, FileAccessPolicy.ReportAccess);
+                queries.Add(path);
+                queries.Add(AbsolutePath.Create(pathTable, $@"c:\REPO\SOURCE\PROJECT{i}\OBJ\OUTPUT{i}.DLL"));
+                queries.Add(AbsolutePath.Create(pathTable, $@"C:\repo\source\project{i}\obj\missing{i}.dll"));
+                queries.Add(AbsolutePath.Create(pathTable, $@"C:\repo\source\project{i}\obj\output{i}.dll\descendant"));
+            }
+
+            AbsolutePath unicodePath = AbsolutePath.Create(pathTable, @"C:\repo\source\prójéct\obj\résumé.dll");
+            manifest.AddPath(unicodePath, FileAccessPolicy.MaskNothing, FileAccessPolicy.ReportAccess);
+            queries.Add(unicodePath);
+            queries.Add(AbsolutePath.Create(pathTable, @"c:\REPO\SOURCE\PRÓJÉCT\OBJ\RÉSUMÉ.DLL"));
+            queries.Add(AbsolutePath.Create(pathTable, @"D:\outside\missing.dll"));
+            _ = manifest.GetManifestTreeBytes();
+
+            var expected = queries
+                .Select(path =>
+                {
+                    bool found = manifest.TryFindManifestPathFor(path, out AbsolutePath manifestPath, out FileAccessPolicy policy);
+                    return (found, manifestPath, policy);
+                })
+                .ToArray();
+
+            using (var stream = new MemoryStream())
+            {
+#if NETCOREAPP
+                long createdCount = SandboxedProcessFactory.Counters.GetCounterValue(
+                    SandboxedProcessFactory.SandboxedProcessCounters.FileAccessManifestPathIndexCreatedCount);
+#endif
+                manifest.Serialize(stream);
+#if NETCOREAPP
+                XAssert.IsTrue(
+                    SandboxedProcessFactory.Counters.GetCounterValue(
+                        SandboxedProcessFactory.SandboxedProcessCounters.FileAccessManifestPathIndexCreatedCount)
+                    >= createdCount + 1);
+#endif
+            }
+
+#if NETCOREAPP
+            XAssert.IsTrue(manifest.IsSealedPathIndexAllocated);
+#else
+            XAssert.IsFalse(manifest.IsSealedPathIndexAllocated);
+#endif
+            for (int i = 0; i < queries.Count; i++)
+            {
+                bool found = manifest.TryFindManifestPathFor(queries[i], out AbsolutePath manifestPath, out FileAccessPolicy policy);
+                XAssert.AreEqual(expected[i].found, found);
+                XAssert.AreEqual(expected[i].manifestPath, manifestPath);
+                XAssert.AreEqual(expected[i].policy, policy);
+            }
+
+#if NETCOREAPP
+            XAssert.IsFalse(manifest.IsManifestTreeHydrated);
+#else
+            XAssert.IsTrue(manifest.IsManifestTreeHydrated);
+#endif
         }
 
         [Fact(Skip = "This is a benchmark.")]

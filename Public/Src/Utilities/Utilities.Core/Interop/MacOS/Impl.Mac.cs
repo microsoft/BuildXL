@@ -203,7 +203,7 @@ namespace BuildXL.Interop.Unix
 
         #region Sandbox
         [DllImport(Libraries.BuildXLInteropLibMacOS)]
-        internal static extern unsafe int NormalizePathAndReturnHash(byte[] pPath, byte* buffer, int bufferLength);
+        internal static extern unsafe int NormalizePathAndReturnHash(byte* pPath, byte* buffer, int bufferLength);
         #endregion
 
         [DllImport(Libraries.LibC, SetLastError = true)]

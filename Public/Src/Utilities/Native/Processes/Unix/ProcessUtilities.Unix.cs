@@ -40,11 +40,43 @@ namespace BuildXL.Native.Processes.Unix
         /// <inheritdoc />
         public int NormalizeAndHashPath(string path, out byte[] normalizedPathBytes)
         {
-            // in the native Unix world strings are represented as UTF8-encoded null-terminated chars (1 char == 1 byte)
             byte[] pathBytes = Encoding.UTF8.GetBytes((path + '\0').ToCharArray());
             normalizedPathBytes = new byte[pathBytes.Length];
             return Sandbox.NormalizePathAndReturnHash(pathBytes, normalizedPathBytes);
         }
+
+        /// <inheritdoc />
+        public int GetNormalizedPathByteCount(string path) => checked(Encoding.UTF8.GetByteCount(path) + 1);
+
+#if NETCOREAPP
+        /// <inheritdoc />
+        public int GetNormalizedPathByteCount(ReadOnlySpan<char> path, int pathLength)
+        {
+            Contract.Requires(pathLength >= 0 && pathLength < path.Length);
+            return checked(Encoding.UTF8.GetByteCount(path.Slice(0, pathLength)) + 1);
+        }
+
+        /// <inheritdoc />
+        public unsafe int NormalizeAndHashPath(ReadOnlySpan<char> path, int pathLength, Span<byte> normalizedPathBytes)
+        {
+            Contract.Requires(normalizedPathBytes.Length == GetNormalizedPathByteCount(path, pathLength));
+
+            int bytesWritten;
+            fixed (char* pathBuffer = path)
+            fixed (byte* normalizedBuffer = normalizedPathBytes)
+            {
+                bytesWritten = Encoding.UTF8.GetBytes(
+                    pathBuffer,
+                    pathLength,
+                    normalizedBuffer,
+                    normalizedPathBytes.Length - 1);
+            }
+
+            Contract.Assert(bytesWritten == normalizedPathBytes.Length - 1);
+            normalizedPathBytes[bytesWritten] = 0;
+            return Sandbox.NormalizePathAndReturnHash(normalizedPathBytes, normalizedPathBytes);
+        }
+#endif
 
         /// <inheritdoc />
         public bool AreBuffersEqual(byte[] buffer1, byte[] buffer2)

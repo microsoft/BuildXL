@@ -200,6 +200,42 @@ namespace BuildXL.Processes
             /// </summary>
             [CounterType(CounterType.Stopwatch)]
             SandboxedPipExecutorPhaseBuildObservedFileAccesses,
+
+            /// <summary>
+            /// Number of sealed file access manifest path indexes that were created.
+            /// </summary>
+            [CounterType(CounterType.Numeric)]
+            FileAccessManifestPathIndexCreatedCount,
+
+            /// <summary>
+            /// Number of sealed file access manifest path indexes that could not be constructed.
+            /// </summary>
+            [CounterType(CounterType.Numeric)]
+            FileAccessManifestPathIndexConstructionFailureCount,
+
+            /// <summary>
+            /// Total bytes allocated for sealed file access manifest path indexes.
+            /// </summary>
+            [CounterType(CounterType.Numeric)]
+            FileAccessManifestPathIndexBytes,
+
+            /// <summary>
+            /// Total paths stored in sealed file access manifest path indexes.
+            /// </summary>
+            [CounterType(CounterType.Numeric)]
+            FileAccessManifestPathIndexPathCount,
+
+            /// <summary>
+            /// Total slots allocated in sealed file access manifest path indexes.
+            /// </summary>
+            [CounterType(CounterType.Numeric)]
+            FileAccessManifestPathIndexSlotCount,
+
+            /// <summary>
+            /// Aggregate time spent constructing sealed file access manifest path indexes.
+            /// </summary>
+            [CounterType(CounterType.Stopwatch)]
+            FileAccessManifestPathIndexConstructionDuration,
         }
 
         /// <summary>

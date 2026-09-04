@@ -510,6 +510,30 @@ namespace BuildXL.Interop.Unix
 
         internal static int NormalizePathAndReturnHash(byte[] pPath, byte[] normalizedPath)
         {
+#if NETCOREAPP
+            return NormalizePathAndReturnHash(pPath.AsSpan(), normalizedPath.AsSpan());
+#else
+            Contract.Requires(pPath.Length == normalizedPath.Length);
+            unchecked
+            {
+                uint hash = Fnv1Basis32;
+                int i = 0;
+                for (; i < pPath.Length && pPath[i] != 0; i++)
+                {
+                    normalizedPath[i] = pPath[i];
+                    hash = Fold(hash, normalizedPath[i]);
+                }
+
+                Contract.Assert(i < normalizedPath.Length);
+                normalizedPath[i] = 0;
+                return (int)hash;
+            }
+#endif
+        }
+
+#if NETCOREAPP
+        internal static int NormalizePathAndReturnHash(ReadOnlySpan<byte> pPath, Span<byte> normalizedPath)
+        {
             Contract.Requires(pPath.Length == normalizedPath.Length);
             unchecked
             {
@@ -526,6 +550,7 @@ namespace BuildXL.Interop.Unix
                 return (int)hash;
             }
         }
+#endif
 
         internal static string GetMountNameForPath(string path)
         {

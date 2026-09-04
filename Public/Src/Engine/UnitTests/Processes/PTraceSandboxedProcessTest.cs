@@ -199,13 +199,15 @@ namespace Test.BuildXL.Processes
 
             var dummyFile = CreateSourceFileWithPrefix(prefix: "dummy");
 
-            var fam = new FileAccessManifest(Context.PathTable);
-            fam.ReportFileAccesses = true;
-            fam.FailUnexpectedFileAccesses = false;
-            fam.ReportUnexpectedFileAccesses = true;
+            FileAccessManifest CreateManifest() => new FileAccessManifest(Context.PathTable)
+            {
+                ReportFileAccesses = true,
+                FailUnexpectedFileAccesses = false,
+                ReportUnexpectedFileAccesses = true,
+                UnconditionallyEnableLinuxPTraceSandbox = true,
+            };
 
-            // Turn on the ptrace sandbox unconditionally
-            fam.UnconditionallyEnableLinuxPTraceSandbox = true;
+            var fam = CreateManifest();
 
             // Create a directory but make sure we perform it on an existing file
             var info = ToProcessInfo(
@@ -231,6 +233,7 @@ namespace Test.BuildXL.Processes
                 fa.Error != 0);
 
             // Now perform the same operation but in a way it should succeed
+            fam = CreateManifest();
             info = ToProcessInfo(
                 ToProcess(
                     // This is a unique file, and therefore the create dir should succeed
@@ -352,13 +355,15 @@ namespace Test.BuildXL.Processes
 
             var dummyFile = CreateSourceFileWithPrefix(prefix: "dummy");
 
-            var fam = new FileAccessManifest(Context.PathTable);
-            fam.ReportFileAccesses = true;
-            fam.FailUnexpectedFileAccesses = false;
-            fam.ReportUnexpectedFileAccesses = true;
+            FileAccessManifest CreateManifest() => new FileAccessManifest(Context.PathTable)
+            {
+                ReportFileAccesses = true,
+                FailUnexpectedFileAccesses = false,
+                ReportUnexpectedFileAccesses = true,
+                UnconditionallyEnableLinuxPTraceSandbox = true,
+            };
 
-            // Turn on the ptrace sandbox unconditionally
-            fam.UnconditionallyEnableLinuxPTraceSandbox = true;
+            var fam = CreateManifest();
 
             // Create a directory but make sure we perform it on an existing file
             var info = ToProcessInfo(
@@ -385,6 +390,7 @@ namespace Test.BuildXL.Processes
             // Now perform the same operation but in a way it should succeed
             FileUtilities.CreateDirectory(directory.Path.ToString(Context.PathTable));
 
+            fam = CreateManifest();
             info = ToProcessInfo(
                 ToProcess(
                     Operation.DeleteDir(directory)

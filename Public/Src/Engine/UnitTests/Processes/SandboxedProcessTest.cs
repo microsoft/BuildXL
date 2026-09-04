@@ -1250,10 +1250,14 @@ namespace Test.BuildXL.Processes
         {
             var existentFile = CreateSourceFile();
 
-            var fam = new FileAccessManifest(Context.PathTable);
-            fam.ReportFileAccesses = true;
-            fam.FailUnexpectedFileAccesses = false;
-            fam.ExplicitlyReportDirectoryProbes = true;
+            FileAccessManifest CreateManifest() => new FileAccessManifest(Context.PathTable)
+            {
+                ReportFileAccesses = true,
+                FailUnexpectedFileAccesses = false,
+                ExplicitlyReportDirectoryProbes = true,
+            };
+
+            var fam = CreateManifest();
 
             // Pick a random operation (create directory) and make sure we perform it on an 
             // existing file
@@ -1282,6 +1286,7 @@ namespace Test.BuildXL.Processes
             }
 
             // Now perform the same operation but in a way it should succeed
+            fam = CreateManifest();
             info = ToProcessInfo(
                 ToProcess(
                     Operation.CreateDir(FileArtifact.CreateSourceFile(CreateUniqueSourcePath()))

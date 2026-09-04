@@ -26,8 +26,19 @@ namespace BuildXL.Native.Processes
     /// </summary>
     internal interface IProcessUtilities
     {
-        /// <summary><see cref="ProcessUtilities.NormalizeAndHashPath"/></summary>
+        /// <summary><see cref="ProcessUtilities.NormalizeAndHashPath(string, out byte[])"/></summary>
         int NormalizeAndHashPath(string path, out byte[] normalizedPathBytes);
+
+        /// <summary><see cref="ProcessUtilities.GetNormalizedPathByteCount(string)"/></summary>
+        int GetNormalizedPathByteCount(string path);
+
+#if NETCOREAPP
+        /// <summary><see cref="ProcessUtilities.GetNormalizedPathByteCount(ReadOnlySpan{char}, int)"/></summary>
+        int GetNormalizedPathByteCount(ReadOnlySpan<char> path, int pathLength);
+
+        /// <summary><see cref="ProcessUtilities.NormalizeAndHashPath(ReadOnlySpan{char}, int, Span{byte})"/></summary>
+        int NormalizeAndHashPath(ReadOnlySpan<char> path, int pathLength, Span<byte> normalizedPathBytes);
+#endif
 
         /// <summary><see cref="ProcessUtilities.AreBuffersEqual"/></summary>
         bool AreBuffersEqual(byte[] buffer1, byte[] buffer2);

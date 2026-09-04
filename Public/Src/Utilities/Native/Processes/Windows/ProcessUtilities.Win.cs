@@ -33,16 +33,39 @@ namespace BuildXL.Native.Processes.Windows
         /// <inheritdoc />
         public int NormalizeAndHashPath(string path, out byte[] normalizedPathBytes)
         {
+            normalizedPathBytes = new byte[GetNormalizedPathByteCount(path)];
             Assert64Process();
-
-            // in the native Windows world strings are represented as null-terminated words, hence the length is (path.Length + 1) * 2
-            normalizedPathBytes = new byte[(path.Length + 1) * sizeof(char)];
-
-            fixed (byte* p = normalizedPathBytes)
+            fixed (byte* normalizedBuffer = normalizedPathBytes)
             {
-                return ExternNormalizeAndHashPath(path, p, normalizedPathBytes.Length);
+                return ExternNormalizeAndHashPath(path, normalizedBuffer, normalizedPathBytes.Length);
             }
         }
+
+        /// <inheritdoc />
+        public int GetNormalizedPathByteCount(string path) => checked((path.Length + 1) * sizeof(char));
+
+#if NETCOREAPP
+        /// <inheritdoc />
+        public int GetNormalizedPathByteCount(ReadOnlySpan<char> path, int pathLength)
+        {
+            Contract.Requires(pathLength >= 0 && pathLength < path.Length);
+            return checked((pathLength + 1) * sizeof(char));
+        }
+
+        /// <inheritdoc />
+        public int NormalizeAndHashPath(ReadOnlySpan<char> path, int pathLength, Span<byte> normalizedPathBytes)
+        {
+            Contract.Requires(normalizedPathBytes.Length == GetNormalizedPathByteCount(path, pathLength));
+            Contract.Requires(path[pathLength] == '\0');
+            Assert64Process();
+
+            fixed (char* pathBuffer = path)
+            fixed (byte* normalizedBuffer = normalizedPathBytes)
+            {
+                return ExternNormalizeAndHashPath(pathBuffer, normalizedBuffer, normalizedPathBytes.Length);
+            }
+        }
+#endif
 
         /// <inheritdoc />
         /// <remarks>
@@ -268,6 +291,12 @@ namespace BuildXL.Native.Processes.Windows
         private static extern unsafe int ExternNormalizeAndHashPath(
             [MarshalAs(UnmanagedType.LPWStr)] string path,
             byte* buffer, int bufferLength);
+
+        [DllImport(ExternDll.BuildXLNatives64, EntryPoint = "NormalizeAndHashPath")]
+        private static extern unsafe int ExternNormalizeAndHashPath(
+            char* path,
+            byte* buffer,
+            int bufferLength);
 
         [DllImport(ExternDll.BuildXLNatives64, EntryPoint = "AreBuffersEqual")]
         [return: MarshalAs(UnmanagedType.Bool)]

@@ -510,7 +510,7 @@ namespace BuildXL.Utilities.Core
         /// <remarks>
         /// This method is thread-safe.
         /// </remarks>
-        internal int GetLength(StringId id)
+        public int GetLength(StringId id)
         {
             Contract.RequiresDebug(id.IsValid);
             Contract.RequiresDebug(IsValid());
@@ -772,7 +772,7 @@ namespace BuildXL.Utilities.Core
         }
 
         /// <summary>
-        /// Copies a string from this table into a char[].
+        /// Copies a string from this table into a char[]. 
         /// </summary>
         internal int CopyString(StringId id, ref char[] destination, int destinationIndex, bool isEndIndex = false, bool allowResizeBuffer = true)
         {
@@ -860,7 +860,10 @@ namespace BuildXL.Utilities.Core
         }
 
 #if NETCOREAPP
-        internal static void CopyString(BinaryStringSegment source, Span<char> destination)
+        /// <summary>
+        /// Copies a binary string segment into a caller-provided span.
+        /// </summary>
+        public static void CopyString(BinaryStringSegment source, Span<char> destination)
         {
             ReadOnlySpan<byte> bytes = source.AsSpan();
             if (source.OnlyContains8BitChars)

@@ -72,6 +72,26 @@ namespace BuildXL.Native.Processes
             => s_nativeMethods.NormalizeAndHashPath(path, out bytes);
 
         /// <summary>
+        /// Returns the buffer size required for the normalized native path representation.
+        /// </summary>
+        public static int GetNormalizedPathByteCount(string path)
+            => s_nativeMethods.GetNormalizedPathByteCount(path);
+
+#if NETCOREAPP
+        /// <summary>
+        /// Returns the normalized buffer size for a path held in a caller-provided character span.
+        /// </summary>
+        public static int GetNormalizedPathByteCount(ReadOnlySpan<char> path, int pathLength)
+            => s_nativeMethods.GetNormalizedPathByteCount(path, pathLength);
+
+        /// <summary>
+        /// Normalizes and hashes a path held in a caller-provided character span.
+        /// </summary>
+        public static int NormalizeAndHashPath(ReadOnlySpan<char> path, int pathLength, Span<byte> normalizedPathBytes)
+            => s_nativeMethods.NormalizeAndHashPath(path, pathLength, normalizedPathBytes);
+#endif
+
+        /// <summary>
         /// Returns whether two native buffers are equal.
         /// </summary>
         public static bool AreBuffersEqual(byte[] buffer1, byte[] buffer2)

@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
+using System.Diagnostics.ContractsLight;
 using static BuildXL.Interop.Dispatch;
 
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
@@ -14,11 +16,31 @@ namespace BuildXL.Interop.Unix
     {
         public static unsafe int NormalizePathAndReturnHash(byte[] pPath, byte[] normalizedPath)
         {
+            Contract.Requires(pPath.Length == normalizedPath.Length);
+
             if (IsMacOS)
             {
-                fixed (byte* outBuffer = &normalizedPath[0])
+                fixed (byte* pathBuffer = pPath)
+                fixed (byte* outBuffer = normalizedPath)
                 {
-                    return Impl_Mac.NormalizePathAndReturnHash(pPath, outBuffer, normalizedPath.Length);
+                    return Impl_Mac.NormalizePathAndReturnHash(pathBuffer, outBuffer, normalizedPath.Length);
+                }
+            }
+
+            return Impl_Linux.NormalizePathAndReturnHash(pPath, normalizedPath);
+        }
+
+#if NETCOREAPP
+        public static unsafe int NormalizePathAndReturnHash(ReadOnlySpan<byte> pPath, Span<byte> normalizedPath)
+        {
+            Contract.Requires(pPath.Length == normalizedPath.Length);
+
+            if (IsMacOS)
+            {
+                fixed (byte* pathBuffer = pPath)
+                fixed (byte* outBuffer = normalizedPath)
+                {
+                    return Impl_Mac.NormalizePathAndReturnHash(pathBuffer, outBuffer, normalizedPath.Length);
                 }
             }
             else
@@ -26,6 +48,7 @@ namespace BuildXL.Interop.Unix
                 return Impl_Linux.NormalizePathAndReturnHash(pPath, normalizedPath);
             }
         }
+#endif
 
         /// <summary>
         /// Callback the SandboxConnection uses to report any unrecoverable failure back to

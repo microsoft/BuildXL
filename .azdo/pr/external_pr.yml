@@ -36,7 +36,7 @@ extends:
         enabled: true     # AutoVhd
 
     settings:
-      networkIsolationPolicy: Permissive,CFSClean,CFSClean2,CFSClean3
+      networkIsolationPolicy: CFSClean,CFSClean2,CFSClean3
 
     stages:
     - stage: ExternalPR

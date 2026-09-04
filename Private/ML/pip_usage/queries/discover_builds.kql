@@ -1,0 +1,18 @@
+// @cluster: cbuild
+// @database: CloudBuildProd
+// WHY: Select bounded Pip Usage training builds with their latest orchestrator metadata.
+// WHAT: One row per build, capped per codebase, with pip volume and split dimensions.
+// CODESYNC: Public/Src/Engine/Scheduler/Tracing/Log.cs (ProcessPipExecutionInfo, DX5071).
+cluster('cbuild').database('CloudBuildProd').DominoMessage
+| where PreciseTimeStamp >= datetime($chunk_start) and PreciseTimeStamp < datetime($chunk_end)
+| where eventNumber == 5071 and message has "ExpectedProcessorUseInPercents:"
+| summarize PipRows=count(), FirstPipEvent=min(PreciseTimeStamp), LastPipEvent=max(PreciseTimeStamp) by BuildId=tostring(RelatedActivityId)
+| join kind=leftouter (cluster('cbuild').database('Domino').dominoinvocation
+| where EventInfo_Time between (datetime($window_start) .. datetime($window_end)) and Role == "Orchestrator"
+| extend BuildId=tostring(RelatedSessionId)
+| project BuildId, EventInfo_Time, Environment
+| parse-kv Environment as (codebase:string, stageid:string, cloudBuildQueue:string, Tenant:string) with (pair_delimiter=";", kv_delimiter="=")
+| project-away Environment) on BuildId
+| summarize arg_max(EventInfo_Time, PipRows, FirstPipEvent, LastPipEvent, codebase, stageid, cloudBuildQueue, Tenant) by BuildId
+| project BuildId, PipRows, FirstPipEvent, LastPipEvent, Codebase=coalesce(codebase,"unknown"), StageId=coalesce(stageid,"unknown"), Queue=coalesce(cloudBuildQueue,"unknown"), Tenant=coalesce(Tenant,"unknown")
+| partition hint.strategy=native by Codebase (top $builds_per_codebase by LastPipEvent desc)

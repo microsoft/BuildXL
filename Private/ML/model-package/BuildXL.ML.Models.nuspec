@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<package>
+  <metadata>
+    <id>BuildXL.ML.Models</id>
+    <version>$version$</version>
+    <authors>Microsoft</authors>
+    <owners>Microsoft</owners>
+    <license type="expression">MIT</license>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>Versioned BuildXL machine-learning model data.</description>
+    <tags>BuildXL ML LightGBM</tags>
+  </metadata>
+  <files>
+    <file src="model_spec.json" target="models/pipUsage" />
+    <file src="pip_usage_cpu.json" target="models/pipUsage" />
+    <file src="pip_usage_memory.json" target="models/pipUsage" />
+    <file src="pip_usage_average_memory.json" target="models/pipUsage" />
+    <file src="pip_usage_duration.json" target="models/pipUsage" />
+    <file src="test_cases.json" target="models/pipUsage" />
+  </files>
+</package>

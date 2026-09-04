@@ -1,0 +1,179 @@
+# BuildXL ML Models — real Pip Usage training, validation, packaging, and optional publication.
+#
+# This pipeline has exactly one model source: a cbuild/Domino download from the requested window followed by direct calls to
+# pip_usage.dataset and pip_usage.training. It never packages checked-in, synthetic, or fallback weights.
+
+parameters:
+  - name: publish
+    displayName: "Push the validated package to the feed"
+    type: boolean
+    default: true
+  - name: trainingEndDate
+    displayName: "Training end date (UTC, replace 2026-MM-DD for a backfill)"
+    type: string
+    default: "2026-MM-DD"
+  - name: trainingLookbackDays
+    displayName: "Lookback days"
+    type: number
+    default: 7
+  - name: tuningTrials
+    displayName: "Tuning trials per target"
+    type: number
+    default: 10
+  - name: buildsPerCodebase
+    displayName: "Maximum builds per codebase"
+    type: number
+    default: 500
+
+trigger: none
+pr: none
+
+schedules:
+  - cron: "0 0 * * 6"
+    displayName: "Weekly Pip Usage model training"
+    branches:
+      include:
+        - main
+    always: true
+
+resources:
+  repositories:
+    - repository: 1esPipelines
+      type: git
+      name: 1ESPipelineTemplates/1ESPipelineTemplates
+      ref: refs/tags/release
+
+variables:
+  toolRoot: "Private/ML"
+  pythonVersion: "3.11"
+  packageVersion: "0.0.$(Build.BuildId)-dev"
+  datasetName: "pip-usage-$(Build.BuildId)"
+  workRoot: "$(Agent.TempDirectory)/pip-usage-training"
+  modelDir: "$(Agent.TempDirectory)/pip-usage-model"
+  exportArtifactDir: "$(Build.ArtifactStagingDirectory)/model-export"
+  qualityReport: "$(Build.ArtifactStagingDirectory)/quality_report.json"
+  maxNormalizedMae: 1.0
+
+extends:
+  template: v1/1ES.Official.PipelineTemplate.yml@1esPipelines
+  parameters:
+    pool:
+      name: BuildXL-DevOpsAgents-Selfhost-BuildCache
+      os: windows
+      image: 1ESPT-Win2022-PME-3
+    settings:
+      networkIsolationMode: Enforce
+    sdl:
+      sourceAnalysisPool:
+        name: Windows-SDL-Agents
+        os: windows
+      codeql:
+        compiled:
+          enabled: false
+          justificationForDisabling: "CodeQL runs in BuildXL's dedicated validation pipeline."
+    stages:
+      - stage: Train
+        displayName: Train Pip Usage model
+        jobs:
+          - job: TrainAndPublish
+            displayName: "Train and publish Pip Usage model"
+            timeoutInMinutes: 2160
+            templateContext:
+              outputs:
+                - output: pipelineArtifact
+                  displayName: "Publish trained Pip Usage artifacts"
+                  condition: always()
+                  artifactName: pip-usage-training
+                  targetPath: $(Build.ArtifactStagingDirectory)
+            steps:
+              - checkout: self
+
+              - task: UsePythonVersion@0
+                displayName: "Use Python $(pythonVersion)"
+                inputs:
+                  versionSpec: "$(pythonVersion)"
+
+              - task: PipAuthenticate@1
+                displayName: "Authenticate pip to CloudBuild-Repo"
+                inputs:
+                  artifactFeeds: "CloudBuild-Repo"
+                  onlyAddExtraIndex: false
+
+              - script: |
+                  python -m pip install --no-input --disable-pip-version-check -c constraints.txt -e .
+                displayName: "Install model dependencies"
+                workingDirectory: "$(toolRoot)"
+
+              - script: |
+                  python -m unittest discover -s tests -p "test_*.py" -v
+                displayName: "Run Pip Usage Python tests"
+                workingDirectory: "$(toolRoot)"
+
+              - task: PowerShell@2
+                displayName: "Validate Pip Usage training"
+                inputs:
+                  targetType: inline
+                  pwsh: true
+                  workingDirectory: "$(Build.SourcesDirectory)"
+                  script: |
+                    Invoke-Pester -Path .\Private\ML\scripts\Invoke-PipUsageTraining.Tests.ps1 -CI -Output Detailed
+
+              - task: NuGetToolInstaller@1
+                displayName: "Install NuGet"
+
+              # AzureCLI holds the selected service-connection identity while the direct data download executes.
+              # AzureCliCredential inside pip_usage.dataset consumes that login; no credential is written to disk.
+              - task: AzureCLI@2
+                displayName: "Prepare Pip Usage dataset"
+                retryCountOnTaskFailure: 2
+                inputs:
+                  azureSubscription: "BUILDXL-ML-Read-Kusto"
+                  scriptType: pscore
+                  scriptLocation: scriptPath
+                  scriptPath: "$(Build.SourcesDirectory)/$(toolRoot)/scripts/Invoke-PipUsageTraining.ps1"
+                  workingDirectory: "$(toolRoot)"
+                  arguments: >-
+                    -Operation Prepare
+                    -TrainingEndDate '${{ parameters.trainingEndDate }}'
+                    -TrainingLookbackDays '${{ parameters.trainingLookbackDays }}'
+                    -DatasetName '$(datasetName)'
+                    -DataRoot '$(workRoot)'
+                    -BuildsPerCodebase '${{ parameters.buildsPerCodebase }}'
+
+              - task: PowerShell@2
+                displayName: "Train and export Pip Usage payload"
+                inputs:
+                  targetType: filePath
+                  filePath: "$(Build.SourcesDirectory)/$(toolRoot)/scripts/Invoke-PipUsageTraining.ps1"
+                  pwsh: true
+                  workingDirectory: "$(toolRoot)"
+                  arguments: >-
+                    -Operation Train
+                    -DatasetName '$(datasetName)'
+                    -DataRoot '$(workRoot)'
+                    -ModelDir '$(modelDir)'
+                    -ExportArtifactDir '$(exportArtifactDir)'
+                    -QualityReport '$(qualityReport)'
+                    -TuningTrials '${{ parameters.tuningTrials }}'
+                    -MaxNormalizedMae '$(maxNormalizedMae)'
+                    -PackageVersion '$(packageVersion)'
+
+              - ${{ if eq(parameters.publish, true) }}:
+                  - template: /.azdo/common/generate-access-token.yml@self
+                    parameters:
+                      AccessTokenVariable: BuildXL-Pipeline-AccessToken
+
+                  - template: /.azdo/common/set-nuget-endpoint.yml@self
+                    parameters:
+                      NuGetServiceConnectionId: "15735478-03ea-4f29-ab6f-04026188ebc8"
+                      NuGetServiceConnectionName: "mseng-Domino-BuildXL-CloudBuild_BuildXL.Selfhost"
+                      AccessToken: $(BuildXL-Pipeline-AccessToken)
+
+                  - task: 1ES.PublishNuget@1
+                    displayName: "Push validated BuildXL.ML.Models NuGet"
+                    inputs:
+                      packagesToPush: "$(Build.SourcesDirectory)/$(toolRoot)/artifacts/BuildXL.ML.Models.*.nupkg"
+                      packageParentPath: "$(Build.SourcesDirectory)/$(toolRoot)/artifacts"
+                      nuGetFeedType: external
+                      publishPackageMetadata: true
+                      publishFeedCredentials: "mseng-Domino-BuildXL-CloudBuild_BuildXL.Selfhost"

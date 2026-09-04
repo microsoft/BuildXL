@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools==83.0.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "buildxl-pip-usage-training"
+version = "0.1.0"
+description = "Internal BuildXL Pip Usage model training, validation, export, and packaging tools."
+requires-python = ">=3.11"
+readme = "README.md"
+license = "MIT"
+dependencies = [
+    "pandas>=2.0",
+    "numpy>=1.24",
+    "lightgbm>=4.0",
+    "bayesian-optimization>=3.3",
+    "azure-kusto-data>=4.0",
+    "azure-identity>=1.15",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["pip_usage*"]
+
+[tool.setuptools.package-data]
+pip_usage = ["queries/*.kql"]

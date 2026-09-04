@@ -1,0 +1,20 @@
+// @cluster: cbuild
+// @database: CloudBuildProd
+// WHY: Download bounded DX5071 Pip Usage telemetry for selected training builds.
+// WHAT: Parsed per-pip targets, priors, graph features, and stable split assignments.
+// CODESYNC: Public/Src/Engine/Scheduler/Tracing/Log.cs (ProcessPipExecutionInfo, DX5071).
+set notruncation;
+let ids = dynamic([$ids]);
+let buildMetadata = datatable(BuildId:string, Codebase:string, Split:string)[$build_metadata];
+cluster('cbuild').database('CloudBuildProd').DominoMessage
+| where PreciseTimeStamp between (datetime($batch_start) .. datetime($batch_end)) and eventNumber == 5071
+| extend BuildId=tostring(RelatedActivityId)
+| where BuildId in (ids)
+| project BuildId=tostring(RelatedActivityId), PreciseTimeStamp, message
+| parse message with * "DX5071: [Pip" PipHash:string ", " PipDescription:string "] NumProcesses: " * ", ExpectedDurationSec: " ExpectedDurationSec:real ", ActualDurationSec: " ActualDurationSec:real ", MaxExpectedDurationSec: " * ", ExpectedProcessorUseInPercents: " ExpectedProcessorUseInPercents:long ", ProcessorUseInPercents: " ProcessorUseInPercents:long ", Weight: " Weight:long ", DefaultWorkingSetMb: " * ", ExpectedPeakWorkingSetMb: " ExpectedPeakWorkingSetMb:long ", PeakWorkingSetMb: " PeakWorkingSetMb:long ", ExpectedAverageWorkingSetMb: " ExpectedAverageWorkingSetMb:long ", AverageWorkingSetMb: " AverageWorkingSetMb:long ", ExpectedDiskIOInMB: " * ", ActualDiskIOInMB: " * ", NumFileDependencies: " NumFileDependencies:long ", NumDirectoryDependencies: " NumDirectoryDependencies:long ", NumFileOutputs: " NumFileOutputs:long ", NumDirectoryOutputs: " NumDirectoryOutputs:long ", Machine: " * ", HasHistoricPerfData: " HasHistoricPerfDataText:string "," *
+| where isnotempty(PipHash)
+| parse message with * ", ExpectedPipUsageSource: " ExpectedPipUsageSource:string "," *
+| extend HasHistoricPerfData=tobool(HasHistoricPerfDataText)
+| project-away message, HasHistoricPerfDataText
+| join kind=inner buildMetadata on BuildId
+| project-away Codebase, Split, BuildId1

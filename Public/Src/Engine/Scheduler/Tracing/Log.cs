@@ -3799,6 +3799,8 @@ namespace BuildXL.Scheduler.Tracing
             Message = "[{pipDescription}] Source dependency for file at path: {filePath} could not be hashed while processing pip. Is it a source file? {isSourceFile}")]
         public abstract void PipSourceDependencyCannotBeHashed(LoggingContext context, string filePath, string pipDescription, bool isSourceFile);
 
+        // CODESYNC: Private/ML/pip_usage/queries/discover_builds.kql
+        // CODESYNC: Private/ML/pip_usage/queries/download_pip_usage.kql
         [GeneratedEvent(
             (ushort)LogEventId.ProcessPipExecutionInfo,
             EventGenerators = EventGenerators.LocalOnly,

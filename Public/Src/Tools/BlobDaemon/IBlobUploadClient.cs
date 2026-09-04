@@ -14,10 +14,14 @@ namespace Tool.BlobDaemon
     {
         /// <summary>
         /// Attempts a server-side copy of <paramref name="sourceUri"/> into the destination blob, bounded by
-        /// <paramref name="timeout"/>. Returns true iff the copy ended in CopyStatus.Success. Encapsulates the
-        /// start/wait/status-check/best-effort-abort-on-timeout mechanics and logs failures.
+        /// <paramref name="timeout"/>. Returns true iff the copy succeeded.
         /// </summary>
-        Task<bool> TryServerSideCopyAsync(Uri sourceUri, TimeSpan timeout);
+        /// <remarks>
+        /// <paramref name="sourceSizeBytes"/> selects the API: sources within the synchronous size limit are
+        /// copied in a single request, larger ones use the asynchronous copy. Pass a negative value if the size
+        /// is unknown, which forces the asynchronous path.
+        /// </remarks>
+        Task<bool> TryServerSideCopyAsync(Uri sourceUri, long sourceSizeBytes, TimeSpan timeout);
 
         /// <summary>
         /// Uploads a local file into the destination blob, overwriting any existing blob.

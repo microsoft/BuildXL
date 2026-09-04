@@ -12,6 +12,8 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using Azure.Core;
+using Azure.Core.Pipeline;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using BuildXL.Ipc.Common;
@@ -41,9 +43,9 @@ namespace Tool.BlobDaemon
         private const string LogFileName = "BlobDaemon";
 
 #if NET9_0_OR_GREATER
-        private readonly System.Threading.Lock s_lock = new();
+        private readonly System.Threading.Lock m_lock = new();
 #else
-        private static readonly object s_lock = new();
+        private readonly object m_lock = new();
 #endif
 
         // Upper bound for a single server-side copy; on timeout we cancel and fall back to local upload.
@@ -54,6 +56,8 @@ namespace Tool.BlobDaemon
         private readonly ActionQueue m_actionQueue;
         private readonly CounterCollection<BlobDaemonCounter> m_counters;
         private readonly ConcurrentDictionary<string, BlobContainerClient> m_containerClients = new();
+        private readonly ThrottleObserverPolicy m_throttleObserver;
+        private readonly BlobClientOptions m_blobClientOptions;
 
         #region Options and commands
 
@@ -243,6 +247,8 @@ namespace Tool.BlobDaemon
             m_contentTypeResolver = contentTypeResolver ?? new ContentTypeResolver(new Dictionary<string, string>());
             m_actionQueue = new ActionQueue(m_config.MaxDegreeOfParallelism);
             m_counters = new();
+            m_throttleObserver = new ThrottleObserverPolicy();
+            m_blobClientOptions = CreateBlobClientOptions(m_throttleObserver);
 
             var configJson = JsonSerializer.Serialize(m_config, new JsonSerializerOptions { WriteIndented = true });
             m_logger.Info($"BlobDaemon config: {configJson}");
@@ -453,14 +459,24 @@ namespace Tool.BlobDaemon
             // If it's an output artifact, we first try to copy it from the cache storage.
             if (file.FileArtifact.IsOutputFile)
             {
-                var possibleSourceUri = await ApiClient.GetContentLocationInBlobStorage(file.FileContentInfo.Hash);
+                Possible<Uri> possibleSourceUri;
+                using (m_counters.StartStopwatch(BlobDaemonCounter.GetContentLocationDuration))
+                {
+                    possibleSourceUri = await ApiClient.GetContentLocationInBlobStorage(file.FileContentInfo.Hash);
+                }
+
                 if (possibleSourceUri.Succeeded && possibleSourceUri.Result != null)
                 {
                     bool copied;
-                    using (m_counters.StartStopwatch(BlobDaemonCounter.ServerSideCopyDuration))
-                    {
-                        copied = await uploadClient.TryServerSideCopyAsync(possibleSourceUri.Result, s_serverSideCopyTimeout);
-                    }
+                    // Timed explicitly rather than with StartStopwatch so the elapsed time can also be
+                    // attributed to ServerSideCopyFailedDuration when the attempt does not succeed.
+                    var copyStopwatch = System.Diagnostics.Stopwatch.StartNew();
+                    // Length reports 0 when unknown, which would look like a tiny file and route an arbitrarily
+                    // large blob down the size-limited synchronous path.
+                    long sourceSizeBytes = file.FileContentInfo.HasKnownLength ? file.FileContentInfo.Length : -1;
+                    copied = await uploadClient.TryServerSideCopyAsync(possibleSourceUri.Result, sourceSizeBytes, s_serverSideCopyTimeout);
+                    var copyElapsed = copyStopwatch.Elapsed;
+                    m_counters.AddToCounter(BlobDaemonCounter.ServerSideCopyDuration, copyElapsed);
 
                     if (copied)
                     {
@@ -470,13 +486,20 @@ namespace Tool.BlobDaemon
                     }
 
                     // The copy did not succeed - fall through to the materialize + local-upload fallback.
+                    // Note the time already spent is not refunded; record it so it can be accounted for.
                     m_counters.IncrementCounter(BlobDaemonCounter.ServerSideCopyFailedCount);
+                    m_counters.AddToCounter(BlobDaemonCounter.ServerSideCopyFailedDuration, copyElapsed);
                 }
             }
 
             // We either failed to copy the file from the cache storage, or it's not an output artifact (i.e., it won't be in the cache storage).
             // First we need to ensure that the file is on disk.
-            var possibleMaterialization = await ApiClient.MaterializeFile(file.FileArtifact, file.FilePath);
+            Possible<bool> possibleMaterialization;
+            using (m_counters.StartStopwatch(BlobDaemonCounter.MaterializeFileDuration))
+            {
+                possibleMaterialization = await ApiClient.MaterializeFile(file.FileArtifact, file.FilePath);
+            }
+
             if (!possibleMaterialization.Succeeded)
             {
                 throw new InvalidOperationException($"Failed to materialize file '{file.FilePath}' ({file.FileId}): {possibleMaterialization.Failure.Describe()}");
@@ -498,12 +521,39 @@ namespace Tool.BlobDaemon
         protected virtual IBlobUploadClient CreateBlobUploadClient(BlobClient blobClient, string logContext, string contentType)
             => new AzureBlobUploadClient(blobClient, m_logger, logContext, contentType);
 
+        /// <summary>
+        /// Options shared by every blob client this daemon creates.
+        /// </summary>
+        private static BlobClientOptions CreateBlobClientOptions(ThrottleObserverPolicy throttleObserver)
+        {
+            var options = new BlobClientOptions();
+
+            // Retry settings match AzCopy (azure-storage-azcopy, ste/xfer.go:35-37). The SDK defaults to 5
+            // retries, which is not enough when 503 throttling is routine: exhausting them on the local-upload
+            // fallback fails the pip, and the build with it, because that call is the last line of defence.
+            options.Retry.MaxRetries = 20;
+            options.Retry.Mode = RetryMode.Exponential;
+            options.Retry.Delay = TimeSpan.FromSeconds(1);
+            options.Retry.MaxDelay = TimeSpan.FromSeconds(60);
+
+            // NetworkTimeout applies per attempt and defaults to 100 seconds, which is less than the ceiling the
+            // synchronous copy sets for itself. Left alone, a copy that legitimately needs longer would be
+            // cancelled and re-issued from the start rather than being allowed to finish.
+            options.Retry.NetworkTimeout = AzureBlobUploadClient.SyncUploadTimeout;
+
+            // Registered per-retry so every throttled attempt is counted. At the default (per-call) position we
+            // would only see the final outcome, by which point the SDK has already absorbed - and hidden - all
+            // of the throttling.
+            options.AddPolicy(throttleObserver, HttpPipelinePosition.PerRetry);
+            return options;
+        }
+
         private BlobClient GetBlobClient(UploadLocation uploadLocation, string accessTokenVar)
         {
             if (uploadLocation.LocationKind == UploadLocationKind.UriBased)
             {
                 // If it's URI based, just use the URI. We cannot reliably determine the account and container from the URI.
-                BlobClient blobClient = new BlobClient(new Uri(uploadLocation.Uri), new StaticTokenCredential(Environment.GetEnvironmentVariable(accessTokenVar)));
+                BlobClient blobClient = new BlobClient(new Uri(uploadLocation.Uri), new StaticTokenCredential(Environment.GetEnvironmentVariable(accessTokenVar)), m_blobClientOptions);
                 return blobClient;
             }
             else if (uploadLocation.LocationKind == UploadLocationKind.ContainerBased)
@@ -520,7 +570,7 @@ namespace Tool.BlobDaemon
                     return containerClient.GetBlobClient(blobName);
                 }
 
-                lock (s_lock)
+                lock (m_lock)
                 {
                     if (m_containerClients.TryGetValue(key, out var innerContainerClient))
                     {
@@ -529,7 +579,7 @@ namespace Tool.BlobDaemon
                     }
 
                     var credential = new StaticTokenCredential(Environment.GetEnvironmentVariable(accessTokenVar));
-                    var serviceClient = new BlobServiceClient(new Uri(uploadLocation.Account), credential);
+                    var serviceClient = new BlobServiceClient(new Uri(uploadLocation.Account), credential, m_blobClientOptions);
                     innerContainerClient = serviceClient.GetBlobContainerClient(uploadLocation.Container);
                     m_containerClients.TryAdd(key, innerContainerClient);
 
@@ -677,6 +727,10 @@ namespace Tool.BlobDaemon
 
         private async Task ReportStatisticsAsync()
         {
+            // Snapshot the observed throttling into a counter so it shows up in the daemon's statistics block
+            // and in BuildXL's stats, alongside everything else.
+            m_counters.AddToCounter(BlobDaemonCounter.ThrottleSignalCount, m_throttleObserver.ThrottleSignals);
+
             var stats = m_counters.AsStatistics("BlobDaemon");
             stats.AddRange(GetDaemonStats("BlobDaemon"));
             m_logger.Info($"Statistics:{string.Join(string.Empty, stats.Select(s => $"{Environment.NewLine}{s.Key}={s.Value}"))}");
@@ -713,12 +767,41 @@ namespace Tool.BlobDaemon
             [CounterType(CounterType.Stopwatch)]
             ServerSideCopyDuration,
 
+            /// <summary>
+            /// The portion of <see cref="ServerSideCopyDuration"/> spent on attempts that ultimately failed
+            /// and fell back to a local upload. <see cref="ServerSideCopyDuration"/> covers every attempt while
+            /// <see cref="ServerSideCopyCount"/> counts only successes, so without this the naive
+            /// duration/count mean is wrong whenever failures are common.
+            /// </summary>
+            [CounterType(CounterType.Stopwatch)]
+            ServerSideCopyFailedDuration,
+
             [CounterType(CounterType.Stopwatch)]
             LocalUploadDuration,
 
             ServerSideCopyBytes,
 
             LocalUploadBytes,
+
+            /// <summary>
+            /// Time spent asking the engine where a file's content lives in blob storage. One round trip per
+            /// output file, so this is a per-file cost that competes with the upload itself.
+            /// </summary>
+            [CounterType(CounterType.Stopwatch)]
+            GetContentLocationDuration,
+
+            /// <summary>
+            /// Time spent materialising content to local disk before a fallback upload. Previously unmeasured,
+            /// which made the true cost of the fallback path invisible.
+            /// </summary>
+            [CounterType(CounterType.Stopwatch)]
+            MaterializeFileDuration,
+
+            /// <summary>
+            /// Throttling responses (503/429) observed by the pipeline policy. Counts every attempt, including
+            /// those the SDK absorbed via its own retries and never surfaced to the caller.
+            /// </summary>
+            ThrottleSignalCount,
         }
     }
 }

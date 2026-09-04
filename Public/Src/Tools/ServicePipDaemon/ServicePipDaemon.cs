@@ -520,6 +520,7 @@ namespace Tool.ServicePipDaemon
 
         private async Task<IIpcResult> ParseAndExecuteCommandAsync(int id, IIpcOperation operation)
         {
+            var executionStopwatch = System.Diagnostics.Stopwatch.StartNew();
             string cmdLine = operation.Payload;
             m_logger.Verbose($"Command received. Request #{id}, CommandLine: {cmdLine}");
             ConfiguredCommand conf;
@@ -538,7 +539,11 @@ namespace Tool.ServicePipDaemon
             TimeSpan queueDuration = operation.Timestamp.Daemon_BeforeExecuteTime - operation.Timestamp.Daemon_AfterReceivedTime;
             m_counters.AddToCounter(DaemonCounter.QueueDurationMs, (long)queueDuration.TotalMilliseconds);
 
-            m_logger.Verbose($"Request #{id} processed in {queueDuration}, Result: {result.ExitCode}");
+            // Report both numbers explicitly. This line used to read "processed in {queueDuration}", which is
+            // the time the request waited to start, not the time it took - and it is ~0 whenever the daemon is
+            // keeping up, so it looked like every request completed instantly. That cost real time during a
+            // performance investigation before anyone noticed the label did not match the value.
+            m_logger.Verbose($"Request #{id} completed in {executionStopwatch.Elapsed} (queued for {queueDuration}), Result: {result.ExitCode}");
             return result;
         }
 

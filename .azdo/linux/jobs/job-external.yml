@@ -22,6 +22,7 @@ jobs:
     validationName: ExternalRelease
     cacheUniverse: bxlselfhostpublic
     internal: false
+    usePublicDepsOnlyFeed: true
     publishTestResults: true
     pool: ${{ parameters.pool }}
     sdkVersion: ${{ parameters.sdkVersion }}
@@ -37,6 +38,7 @@ jobs:
     # TODO: Move the logToKustoIngestUri to a common location once the feature becomes part of the LKG
     buildXLArguments: >-
       --use-dev 
+      --use-public-deps-only-feed
       ${{ parameters.BxlCommonArgs }}
       /q:ReleaseLinux
       "/logToKustoIngestUri:https://buildxl.eastus2.kusto.windows.net/BuildXLProd?clientId=1fbd9009-2b6d-4363-9e4c-c4f677961c92&tenantId=72f988bf-86f1-41af-91ab-2d7cd011db47&serviceConnectionId=861f8f3b-77a2-497a-a955-fbd921dc48de"
@@ -45,6 +47,8 @@ jobs:
     preBuildSteps:
     - ${{ each step in parameters.preBuildSteps }}:
       - ${{ step }}
+
+    - template: /.azdo/common/set-variable-pats.yml@self
 
       # 1. Bootstrap external bits manually - note this is a pre-build step for the actual "build" (which is running tests) 
       # We temporarily disable the EBPFSandbox when building with the LKG, until we produce official bits that can run EBPF
@@ -55,6 +59,7 @@ jobs:
         
         timeout --signal 9 60m bash bxl.sh 
         --use-adobuildrunner 
+        --use-public-deps-only-feed
         --minimal
         --deploy-dev --release
         --runner-arg /cacheConfigLogGeneratedConfiguration:true 
@@ -66,3 +71,6 @@ jobs:
         AdoBuildRunnerInvocationKey: BuildExternal${{ parameters.suffix }}
         SYSTEM_ACCESSTOKEN: $(System.AccessToken)
         workingDirectory: /home/subst
+        1ESSHAREDASSETS_BUILDXL_FEED_PAT: $(1ESSHAREDASSETS_BUILDXL_FEED_PAT)
+        1ESSHAREDASSETS_BUILDXL_FEED_PAT_B64: $(1ESSHAREDASSETS_BUILDXL_FEED_PAT_B64)
+        VSS_NUGET_EXTERNAL_FEED_ENDPOINTS: $(VSS_NUGET_EXTERNAL_FEED_ENDPOINTS)

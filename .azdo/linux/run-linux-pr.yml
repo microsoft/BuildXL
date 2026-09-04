@@ -20,6 +20,8 @@ extends:
       name: BuildXL-DevOpsAgents-Selfhost-BuildCache
       image: ubuntu-22.04-PME-GPT
       os: linux
+    settings:
+      networkIsolationPolicy: CFSClean,CFSClean2,CFSClean3
     sdl:
       sourceAnalysisPool:
         name: Windows-SDL-Agents

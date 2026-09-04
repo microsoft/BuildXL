@@ -32,6 +32,11 @@ parameters:
   type: boolean
   default: false
 
+# Whether this external build consumes dependencies from the public-dependencies-only feed
+- name: usePublicDepsOnlyFeed
+  type: boolean
+  default: false
+
 - name: publishTestResults
   type: boolean
   default: false
@@ -109,6 +114,10 @@ jobs:
         ${{ if eq(parameters.internal, true) }}:
           PAT1esSharedAssets: $(BuildXL-Pipeline-AccessToken)
           PATCloudBuild: $(BuildXL-Pipeline-AccessToken)
+        ${{ if eq(parameters.usePublicDepsOnlyFeed, true) }}:
+          1ESSHAREDASSETS_BUILDXL_FEED_PAT: $(1ESSHAREDASSETS_BUILDXL_FEED_PAT)
+          1ESSHAREDASSETS_BUILDXL_FEED_PAT_B64: $(1ESSHAREDASSETS_BUILDXL_FEED_PAT_B64)
+          VSS_NUGET_EXTERNAL_FEED_ENDPOINTS: $(VSS_NUGET_EXTERNAL_FEED_ENDPOINTS)
 
     ${{ if parameters.publishTestResults }}:
       postBuildSteps:

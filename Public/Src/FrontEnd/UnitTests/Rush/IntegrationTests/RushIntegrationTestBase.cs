@@ -56,6 +56,12 @@ namespace Test.BuildXL.FrontEnd.Rush
         /// </summary>
         protected string OutDir { get; }
 
+        // Rush installs pnpm under the user profile. BuildXL sets TEMP to the owning test pip's temporary
+        // directory, so this remains pip-scoped while allowing tests in the same xUnit worker to reuse pnpm.
+        private static readonly string s_rushUserProfile = Path.Combine(
+            Path.GetTempPath(),
+            $"BuildXL-RushUserProfile-{Environment.ProcessId}").Replace("\\", "/");
+
         /// <summary>
         /// Root to the source enlistment root
         /// </summary>
@@ -64,7 +70,7 @@ namespace Test.BuildXL.FrontEnd.Rush
         // By default the engine runs e2e
         protected virtual EnginePhases Phase => EnginePhases.Execute;
 
-        private string RushUserProfile => Path.Combine(TestRoot, OperatingSystemHelper.IsWindowsOS ? "USERPROFILE" : "HOME").Replace("\\", "/");
+        private string RushUserProfile => s_rushUserProfile;
 
         protected string RushTempFolder => Path.Combine(TestRoot, "RUSH_TEMP_FOLDER").Replace("\\", "/");
 

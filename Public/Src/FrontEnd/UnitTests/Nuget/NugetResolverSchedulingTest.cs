@@ -69,12 +69,15 @@ namespace Test.BuildXL.FrontEnd.Nuget
 
 
                 IReadOnlyList<Pip> processes = new List<Pip>(engineResult.EngineState.PipGraph.RetrievePipsOfType(PipType.Process));
-                // Pip graph should have 2 Process pips, one is for downloading nuget package and the other one is for esrp signing
+                // All binaries from the package should be signed by one process.
                 Assert.Equal(2, processes.Count);
-                // One Process pip has tool name 'NugetDownloader.exe'
-                Assert.Equal("NugetDownloader.exe", ((Process)processes[0]).GetToolName(FrontEndContext.PathTable).ToString(FrontEndContext.StringTable));
-                // The other Process pip has tool name 'invalid' since this test uses a invalid path for esrp sign
-                Assert.Equal("invalid", ((Process)processes[1]).GetToolName(FrontEndContext.PathTable).ToString(FrontEndContext.StringTable));
+                Assert.Single(processes.Cast<Process>().Where(process =>
+                    process.GetToolName(FrontEndContext.PathTable).ToString(FrontEndContext.StringTable) == "NugetDownloader.exe"));
+                var signingProcess = Assert.Single(processes.Cast<Process>().Where(process =>
+                    process.GetToolName(FrontEndContext.PathTable).ToString(FrontEndContext.StringTable) == "invalid"));
+
+                Assert.True(signingProcess.FileOutputs.Count(output =>
+                    output.Path.ToString(FrontEndContext.PathTable).Contains("Microsoft.Net.Compilers.4.0.1.signed")) > 1);
             }
         }
 
@@ -121,6 +124,7 @@ namespace Test.BuildXL.FrontEnd.Nuget
 
         private string NugetResolverConfigurationWithEsrpSign()
         {
+            // This package contains multiple signable binaries, so the test proves they share one signing process.
             return $@"
 config({{
     resolvers: [
@@ -130,7 +134,7 @@ config({{
                   'packageFeed': '{NuSpecGeneratorTests.RetrieveTestPackageFeed()}',
             }},
             packages: [
-                {{id: 'ILRepack', version: '2.0.16'}},
+                {{id: 'Microsoft.Net.Compilers', version: '4.0.1'}},
             ],
             esrpSignConfiguration: {{
                 signToolPath: p`invalid`,

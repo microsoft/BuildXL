@@ -17,8 +17,14 @@ export interface ESRPSignArguments extends EsrpSignConfiguration{
     outputDir?: Path;
 }
 
+interface ESRPSignRequest {
+    source: File;
+    destination: File;
+}
+
 /**
- * Given a sealed directory, sign the dll adn exe binary files and copy other files into signed directory.
+ * Signs all dll and exe files from one coherently produced sealed directory in a single ESRP invocation,
+ * and copies the remaining files into the signed directory without combining files from unrelated producers.
  */
 @@public
 export function signDirectory(esrpSignConfiguration: EsrpSignConfiguration, sealedDir: StaticContentDirectory, signedDir: Directory) : File[] {
@@ -34,30 +40,38 @@ export function signDirectory(esrpSignConfiguration: EsrpSignConfiguration, seal
 
     const sealedDirPath = sealedDir.path;
     // Deduplicate the files. Nuget packages may contain duplicate entries for the same file if their zip central directory was not built properly.
-    const fileList = sealedDir.contents.toSet();
-    // Sign the dll and exe binary files and copy other files into signed directory.
-    let signedFiles : File[] = fileList.map(originalFile => {
-        let filePath = originalFile.path;
-        let relativePath = sealedDirPath.getRelative(filePath);
-        let f : File = sealedDir.getFile(filePath);
-        let outputFilePath= p`${signedDir.path}/${relativePath}`;
-        if (f.extension === a`.dll` || f.extension === a`.exe`) {
-            let newSignArgs = esrpSignConfiguration.merge<ESRPSignArguments>({
-                file: f,
-                outputDir: d`${outputFilePath.parent}`,
-            });
+    // Sort by path so directory enumeration order does not affect the ESRP request JSON or the signing pip fingerprint.
+    const fileList = sealedDir.contents.toSet().sort((left, right) => left.path.toString().localeCompare(right.path.toString()));
+    const signRequests = fileList
+        .filter(file => file.extension === a`.dll` || file.extension === a`.exe`)
+        .map(file => {
+            const source = sealedDir.getFile(file.path);
+            const relativePath = sealedDirPath.getRelative(file.path);
+            return {
+                source: source,
+                destination: f`${signedDir.path}/${relativePath}`,
+            };
+        });
+    const copiedFiles = fileList
+        .filter(file => file.extension !== a`.dll` && file.extension !== a`.exe`)
+        .map(file => {
+            const relativePath = sealedDirPath.getRelative(file.path);
+            return Transformer.copyFile(sealedDir.getFile(file.path), p`${signedDir.path}/${relativePath}`);
+        });
+    const signedFiles = signRequests.length === 0
+        ? []
+        : signFiles(
+            esrpSignConfiguration,
+            signRequests,
+            sealedDir.path,
+            signedDir.path,
+            `ESRP Signing ${signRequests.length} files to ${signedDir.path}`);
 
-            return signBinary(newSignArgs);
-        }
-
-        return Transformer.copyFile(f, outputFilePath);
-    });
-
-    return signedFiles;
+    return [...signedFiles, ...copiedFiles];
 }
 
 /**
- * Returns a new file for given binary file
+ * Signs one independently produced binary and returns the signed output.
  */
 @@public
 export function signBinary(args: ESRPSignArguments): File {
@@ -70,18 +84,31 @@ export function signBinary(args: ESRPSignArguments): File {
         args.signToolPath !== undefined,
         `Binary Signing was called for an undefied tool. ESRPSignArguments: ${args}`
     );
-    
-    let outputDirectory = args.outputDir === undefined ? Context.getNewOutputDirectory("esrpSignOutput") : args.outputDir;
-    let consoleOutputDirectory = Context.getNewOutputDirectory("esrpSignConsoleOutput");
-    let fileListJson = p`${consoleOutputDirectory}/bxlEsrpBinarySignerSdk.json`;
+    const outputDirectory = args.outputDir === undefined ? Context.getNewOutputDirectory("esrpSignOutput") : args.outputDir;
+    const signedFile = f`${outputDirectory.path}/${args.file.name}`;
+    return signFiles(
+        args,
+        [{source: args.file, destination: signedFile}],
+        args.file.parent,
+        outputDirectory.path,
+        `ESRP Signing ${args.file.name}`)[0];
+}
 
-    let signedFile = f`${outputDirectory.path}/${args.file.name}`;   // Final Output: Signed version of given file
-
-    let jsonFile = createFileListJsonForSigning(args.file, signedFile, fileListJson);
-
+/**
+ * Schedules one ESRP process whose declared dependencies and outputs cover every request in the batch.
+ */
+function signFiles(
+    esrpSignConfiguration: EsrpSignConfiguration,
+    signRequests: ESRPSignRequest[],
+    sourceRoot: Path,
+    destinationRoot: Path,
+    description: string): File[] {
+    const consoleOutputDirectory = Context.getNewOutputDirectory("esrpSignConsoleOutput");
+    const fileListJson = p`${consoleOutputDirectory}/bxlEsrpBinarySignerSdk.json`;
+    const jsonFile = createFileListJsonForSigning(signRequests, sourceRoot, destinationRoot, fileListJson);
     const exeArgs : Transformer.ExecuteArguments = {
-            tool: { 
-                exe: f`${args.signToolPath}`,
+            tool: {
+                exe: f`${esrpSignConfiguration.signToolPath}`,
                 untrackedDirectoryScopes: [
                         ...(Context.getCurrentHost().os === "win" ? [
                             d`${Context.getMount("ProgramData").path}`,
@@ -89,56 +116,54 @@ export function signBinary(args: ESRPSignArguments): File {
                             d`${Context.getMount("UserProfile").path}`
                         ] : [])
                     ],
-                runtimeDependencies: globR(d`${args.signToolPath.parent.path}`, "*"),
+                runtimeDependencies: globR(d`${esrpSignConfiguration.signToolPath.parent.path}`, "*"),
                 prepareTempDirectory: true,
                 dependsOnAppDataDirectory: true,
                 dependsOnCurrentHostOSDirectories: true,
             },
-            description: `ESRP Signing ${args.file.name}`,
+            description: description,
             arguments: [
                 Cmd.argument("sign"),
                 Cmd.option("-i ", Artifact.input(jsonFile)),
-                Cmd.option("-c ", Artifact.input(f`${args.signToolConfiguration}`)),
-                Cmd.option("-p ", Artifact.input(f`${args.signToolEsrpPolicy}`)),
+                Cmd.option("-c ", Artifact.input(f`${esrpSignConfiguration.signToolConfiguration}`)),
+                Cmd.option("-p ", Artifact.input(f`${esrpSignConfiguration.signToolEsrpPolicy}`)),
                 Cmd.option("-l ", "Error")
             ],
             dependencies: [
-                args.file,
-                f`${args.signToolAadAuth}`,
-                f`${args.signToolEsrpPolicy}`,
-                f`${args.signToolConfiguration}`
+                ...signRequests.map(request => request.source),
+                f`${esrpSignConfiguration.signToolAadAuth}`,
+                f`${esrpSignConfiguration.signToolEsrpPolicy}`,
+                f`${esrpSignConfiguration.signToolConfiguration}`
             ],
-            outputs: [
-                signedFile
-            ],
+            outputs: signRequests.map(request => request.destination),
             consoleOutput: p`${consoleOutputDirectory}/prssSign.log`,
             tempDirectory: Context.getTempDirectory("esrpSignTemp"),
             workingDirectory: consoleOutputDirectory
     };
 
-    let result = Transformer.execute(exeArgs);
-    return <File>result.getOutputFile(signedFile.path);
+    const result = Transformer.execute(exeArgs);
+    return signRequests.map(request => <File>result.getOutputFile(request.destination.path));
 }
 
-function createFileListJsonForSigning(input: File, output: File, fileListJsonPath: Path): File {   
-    let jsonText = {
+function createFileListJsonForSigning(signRequests: ESRPSignRequest[], sourceRoot: Path, destinationRoot: Path, fileListJsonPath: Path): File {
+    const jsonText = {
         "Version": "1.0.0",
         "SignBatches" : [
             {
-                "SourceLocationType": "UNC", 
-                "SourceRootDirectory": p`${input.parent.path}`,
+                "SourceLocationType": "UNC",
+                "SourceRootDirectory": sourceRoot,
                 "DestinationLocationType": "UNC",
-                "DestinationRootDirectory": p`${output.parent.path}`,
-                "SignRequestFiles": [{
-                    "SourceLocation": p`${input.path}`,
-                    "DestinationLocation": p`${output.path}`
-                }],
+                "DestinationRootDirectory": destinationRoot,
+                "SignRequestFiles": signRequests.map(request => ({
+                    "SourceLocation": request.source.path,
+                    "DestinationLocation": request.destination.path
+                })),
                 "SigningInfo": {
                     "Operations": [
                         {
                             "KeyCode": "CP-230856",
                             "OperationCode": "SigntoolSign",
-                            "Parameters": 
+                            "Parameters":
                             {
                                 "OpusName": "Microsoft",
                                 "OpusInfo": "http://www.microsoft.com",

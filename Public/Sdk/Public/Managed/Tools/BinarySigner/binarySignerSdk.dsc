@@ -39,9 +39,13 @@ export function signDirectory(esrpSignConfiguration: EsrpSignConfiguration, seal
     );
 
     const sealedDirPath = sealedDir.path;
+    // Generated Nuget specs may represent sealed directory contents as relative paths, so normalize them to files.
     // Deduplicate the files. Nuget packages may contain duplicate entries for the same file if their zip central directory was not built properly.
     // Sort by path so directory enumeration order does not affect the ESRP request JSON or the signing pip fingerprint.
-    const fileList = sealedDir.contents.toSet().sort((left, right) => left.path.toString().localeCompare(right.path.toString()));
+    const fileList = (<(File | RelativePath)[]>sealedDir.contents)
+        .map(content => typeof content === "File" ? <File>content : sealedDir.getFile(<RelativePath>content))
+        .toSet()
+        .sort();
     const signRequests = fileList
         .filter(file => file.extension === a`.dll` || file.extension === a`.exe`)
         .map(file => {

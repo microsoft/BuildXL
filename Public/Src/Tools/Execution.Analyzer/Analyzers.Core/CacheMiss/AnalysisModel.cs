@@ -45,7 +45,7 @@ namespace BuildXL.Execution.Analyzer.Analyzers.CacheMiss
         /// <summary>
         /// The loaded pip table
         /// </summary>
-        public PipTable PipTable
+        public IPipTable PipTable
         {
             get
             {

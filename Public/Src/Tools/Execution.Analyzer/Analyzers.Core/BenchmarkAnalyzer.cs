@@ -10,6 +10,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using BuildXL.Engine;
 using BuildXL.Engine.Cache;
+using BuildXL.Engine.Serialization;
+using BuildXL.Native.IO;
 using BuildXL.Pips;
 using BuildXL.Pips.DirectedGraph;
 using BuildXL.Pips.Filter;
@@ -19,6 +21,7 @@ using BuildXL.ToolSupport;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Core;
 using static BuildXL.ToolSupport.CommandLineUtilities;
+using BuildXL.Utilities;
 using BuildXL.Utilities.Instrumentation.Common;
 
 namespace BuildXL.Execution.Analyzer
@@ -32,6 +35,17 @@ namespace BuildXL.Execution.Analyzer
         FilterGraph,
         ConvertPipTable,
         HydratePipTable,
+        PipTable,
+    }
+
+    /// <summary>
+    /// PipTable storage implementation to benchmark.
+    /// </summary>
+    internal enum PipTableBenchmarkMode
+    {
+        Eager,
+        FileBacked,
+        ConvertToFileBacked,
     }
 
     internal partial class Args
@@ -85,6 +99,17 @@ namespace BuildXL.Execution.Analyzer
             writer.WriteOption("pipTableFile", "Required. Path to the PipTable to hydrate.", shortName: "pt");
             writer.WriteOption("iterations", "Number of hydration iterations. Defaults to 3.", shortName: "i");
             writer.WriteOption("degreeOfParallelism", "Maximum parallel pip hydration workers. Defaults to the processor count.", shortName: "dop");
+            writer.WriteBanner("  PipTable options:");
+            writer.WriteOption("graphDir", "Required. Path to a directory containing serialized graph files.", shortName: "gd");
+            writer.WriteOption("storageMode", "Storage mode: Eager (default), FileBacked, or ConvertToFileBacked.", shortName: "sm");
+            writer.WriteOption("outputGraphDir", "Output directory for ConvertToFileBacked mode.", shortName: "ogd");
+            writer.WriteOption("hydrateCount", "Number of randomly selected pips to hydrate and rehydrate. Default: 100000.", shortName: "hc");
+            writer.WriteOption("iterations", "Number of benchmark iterations. Default: 1.", shortName: "i");
+            writer.WriteOption("seed", "Random seed used to select pips. Default: 12345.", shortName: "s");
+            writer.WriteOption("parallelHydration", "Hydrate pips in parallel using the default task scheduler.", shortName: "ph");
+            writer.WriteOption("skipRehydration", "Skip the second hydration pass.", shortName: "sr");
+            writer.WriteOption("serialize", "Serialize the loaded PipTable to a temporary file.", shortName: "ser");
+            writer.WriteOption("processOnly", "Hydrate only Process pips.", shortName: "po");
         }
     }
 
@@ -144,6 +169,8 @@ namespace BuildXL.Execution.Analyzer
                     return RunConvertPipTable();
                 case BenchmarkOperation.HydratePipTable:
                     return RunHydratePipTable();
+                case BenchmarkOperation.PipTable:
+                    return RunPipTable();
                 default:
                     throw CommandLineUtilities.Error("Unknown benchmark operation: {0}", m_operation);
             }
@@ -325,6 +352,436 @@ namespace BuildXL.Execution.Analyzer
             Console.WriteLine($"Load time: {sw.ElapsedMilliseconds:N0} ms");
 
             return 0;
+        }
+
+        private int RunPipTable()
+        {
+            string graphDir = null;
+            var mode = PipTableBenchmarkMode.Eager;
+            int hydrateCount = 100000;
+            int iterations = 1;
+            int seed = 12345;
+            bool parallelHydration = false;
+            bool rehydrate = true;
+            bool serialize = false;
+            bool processOnly = false;
+            string outputGraphDir = null;
+
+            foreach (var opt in m_options)
+            {
+                if (opt.Name.Equals("graphDir", StringComparison.OrdinalIgnoreCase) ||
+                    opt.Name.Equals("gd", StringComparison.OrdinalIgnoreCase))
+                {
+                    graphDir = opt.Value;
+                }
+                else if (opt.Name.Equals("storageMode", StringComparison.OrdinalIgnoreCase) ||
+                         opt.Name.Equals("sm", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!Enum.TryParse(ParseStringOption(opt), ignoreCase: true, out mode))
+                    {
+                        throw CommandLineUtilities.Error(
+                            "Unknown PipTable benchmark mode '{0}'. Available modes: {1}",
+                            opt.Value,
+                            string.Join(", ", Enum.GetNames(typeof(PipTableBenchmarkMode))));
+                    }
+                }
+                else if (opt.Name.Equals("hydrateCount", StringComparison.OrdinalIgnoreCase) ||
+                         opt.Name.Equals("hc", StringComparison.OrdinalIgnoreCase))
+                {
+                    hydrateCount = ParseInt32Option(opt, 0, int.MaxValue);
+                }
+                else if (opt.Name.Equals("iterations", StringComparison.OrdinalIgnoreCase) ||
+                         opt.Name.Equals("i", StringComparison.OrdinalIgnoreCase))
+                {
+                    iterations = ParseInt32Option(opt, 1, 100);
+                }
+                else if (opt.Name.Equals("seed", StringComparison.OrdinalIgnoreCase) ||
+                         opt.Name.Equals("s", StringComparison.OrdinalIgnoreCase))
+                {
+                    seed = ParseInt32Option(opt, 0, int.MaxValue);
+                }
+                else if (opt.Name.Equals("parallelHydration", StringComparison.OrdinalIgnoreCase) ||
+                         opt.Name.Equals("ph", StringComparison.OrdinalIgnoreCase))
+                {
+                    parallelHydration = ParseBooleanOption(opt);
+                }
+                else if (opt.Name.Equals("skipRehydration", StringComparison.OrdinalIgnoreCase) ||
+                         opt.Name.Equals("sr", StringComparison.OrdinalIgnoreCase))
+                {
+                    rehydrate = !ParseBooleanOption(opt);
+                }
+                else if (opt.Name.Equals("serialize", StringComparison.OrdinalIgnoreCase) ||
+                         opt.Name.Equals("ser", StringComparison.OrdinalIgnoreCase))
+                {
+                    serialize = ParseBooleanOption(opt);
+                }
+                else if (opt.Name.Equals("processOnly", StringComparison.OrdinalIgnoreCase) ||
+                         opt.Name.Equals("po", StringComparison.OrdinalIgnoreCase))
+                {
+                    processOnly = ParseBooleanOption(opt);
+                }
+                else if (opt.Name.Equals("outputGraphDir", StringComparison.OrdinalIgnoreCase) ||
+                         opt.Name.Equals("ogd", StringComparison.OrdinalIgnoreCase))
+                {
+                    outputGraphDir = opt.Value;
+                }
+                else
+                {
+                    throw CommandLineUtilities.Error("Unknown option for PipTable benchmark: {0}", opt.Name);
+                }
+            }
+
+            if (string.IsNullOrEmpty(graphDir))
+            {
+                throw CommandLineUtilities.Error("/graphDir is a required parameter for PipTable benchmark.");
+            }
+
+            if (!Directory.Exists(graphDir))
+            {
+                throw CommandLineUtilities.Error("Graph directory does not exist: {0}", graphDir);
+            }
+
+            string pipTablePath = Path.Combine(graphDir, nameof(GraphCacheFile.PipTable));
+            if (!File.Exists(pipTablePath))
+            {
+                throw CommandLineUtilities.Error("PipTable file does not exist: {0}", pipTablePath);
+            }
+
+            if (mode == PipTableBenchmarkMode.ConvertToFileBacked)
+            {
+                if (string.IsNullOrEmpty(outputGraphDir))
+                {
+                    throw CommandLineUtilities.Error("/outputGraphDir is required for ConvertToFileBacked mode.");
+                }
+
+                return ConvertPipTableToFileBacked(graphDir, outputGraphDir);
+            }
+
+            Console.WriteLine($"PipTable file: {pipTablePath}");
+            Console.WriteLine($"PipTable file size: {FormatBytes(new FileInfo(pipTablePath).Length)}");
+            Console.WriteLine($"Mode: {mode}, iterations: {iterations:N0}, hydrate count: {hydrateCount:N0}, seed: {seed:N0}, parallel hydration: {parallelHydration}");
+            var results = new List<PipTableBenchmarkResult>();
+            for (int iteration = 0; iteration < iterations; iteration++)
+            {
+                switch (mode)
+                {
+                    case PipTableBenchmarkMode.Eager:
+                        results.Add(RunPipTableBenchmarkCase(graphDir, PipTableBenchmarkMode.Eager, hydrateCount, seed, iteration + 1, parallelHydration, rehydrate, serialize, processOnly));
+                        break;
+                    case PipTableBenchmarkMode.FileBacked:
+                        results.Add(RunPipTableBenchmarkCase(graphDir, PipTableBenchmarkMode.FileBacked, hydrateCount, seed, iteration + 1, parallelHydration, rehydrate, serialize, processOnly));
+                        break;
+                    default:
+                        throw CommandLineUtilities.Error("Unhandled PipTable benchmark mode: {0}", mode);
+                }
+            }
+
+            Console.WriteLine();
+            Console.WriteLine("--- PipTable benchmark results ---");
+            Console.WriteLine("Storage       Iter       Load   Managed delta      Private set      Working set    Resident pages    Hydrate  Rehydrate  Serialize");
+            foreach (var result in results)
+            {
+                Console.WriteLine(
+                    $"{result.Storage,-12} {result.Iteration,4:N0} {result.LoadMilliseconds,10:N0} ms {FormatBytes(result.ManagedBytesDelta),14} " +
+                    $"{FormatBytes(result.PrivateBytes),16} {FormatBytes(result.WorkingSetBytes),16} {FormatBytes(result.ResidentPageBytes),16} " +
+                    $"{result.HydrateMilliseconds,8:N0} ms {result.RehydrateMilliseconds,8:N0} ms {result.SerializeMilliseconds,8:N0} ms");
+            }
+
+            Console.WriteLine();
+            foreach (var group in results.GroupBy(result => result.Storage))
+            {
+                Console.WriteLine(
+                    $"{group.Key} average: load {group.Average(result => result.LoadMilliseconds):N1} ms, " +
+                    $"managed delta {FormatBytes((long)group.Average(result => result.ManagedBytesDelta))}, " +
+                    $"hydrate {group.Average(result => result.HydrateMilliseconds):N1} ms, " +
+                    $"rehydrate {group.Average(result => result.RehydrateMilliseconds):N1} ms, " +
+                    $"serialize {group.Average(result => result.SerializeMilliseconds):N1} ms");
+            }
+
+            return 0;
+        }
+
+        private static PipTableBenchmarkResult RunPipTableBenchmarkCase(
+            string graphDir,
+            PipTableBenchmarkMode mode,
+            int requestedHydrateCount,
+            int seed,
+            int iteration,
+            bool parallelHydration,
+            bool rehydrate,
+            bool serialize,
+            bool processOnly)
+        {
+            ForceGarbageCollection();
+            long managedBefore = GC.GetTotalMemory(forceFullCollection: false);
+
+            string storage = mode.ToString();
+            Console.WriteLine();
+            Console.WriteLine($"Running {storage} iteration {iteration:N0}...");
+
+            var loggingContext = new LoggingContext($"Benchmark.PipTable.{storage}");
+            var loader = CachedGraphLoader.CreateFromDisk(
+                CancellationToken.None,
+                graphDir,
+                loggingContext);
+
+            var loadStopwatch = Stopwatch.StartNew();
+            IPipTable pipTable = loader.GetOrLoadPipTableAsync().GetAwaiter().GetResult();
+            loadStopwatch.Stop();
+            if (pipTable == null)
+            {
+                throw CommandLineUtilities.Error("Failed to load PipTable from: {0}", graphDir);
+            }
+
+            try
+            {
+                long managedAfterLoad = GC.GetTotalMemory(forceFullCollection: false);
+                var process = System.Diagnostics.Process.GetCurrentProcess();
+                process.Refresh();
+
+                var pipIds = CreatePipSample(pipTable, requestedHydrateCount, seed, processOnly);
+                var hydrateStopwatch = Stopwatch.StartNew();
+                long checksum = HydratePips(pipTable, pipIds, parallelHydration);
+                hydrateStopwatch.Stop();
+
+                var rehydrateStopwatch = new Stopwatch();
+                if (rehydrate)
+                {
+                    ForceGarbageCollection();
+                    rehydrateStopwatch.Start();
+                    checksum += HydratePips(pipTable, pipIds, parallelHydration);
+                    rehydrateStopwatch.Stop();
+                }
+
+                GC.KeepAlive(checksum);
+
+                long serializeMilliseconds = 0;
+                if (serialize)
+                {
+                    string serializedPath = Path.GetTempFileName();
+                    try
+                    {
+                        var serializeStopwatch = Stopwatch.StartNew();
+                        using (var stream = File.Open(serializedPath, FileMode.Create, FileAccess.Write, FileShare.None))
+                        using (var writer = new BuildXLWriter(debug: false, stream, leaveOpen: false, logStats: false))
+                        {
+                            pipTable.Serialize(writer, maxDegreeOfParallelism: -1);
+                        }
+
+                        serializeStopwatch.Stop();
+                        serializeMilliseconds = serializeStopwatch.ElapsedMilliseconds;
+                    }
+                    finally
+                    {
+                        File.Delete(serializedPath);
+                    }
+                }
+
+                if (mode == PipTableBenchmarkMode.FileBacked && !(pipTable is FileBackedPipTable))
+                {
+                    throw CommandLineUtilities.Error("The PipTable file is not in the file-backed format: {0}", graphDir);
+                }
+
+                Console.WriteLine(
+                    $"Loaded {pipTable.Count:N0} pips across {pipTable.PageStreamsCount:N0} pages in {loadStopwatch.ElapsedMilliseconds:N0} ms; " +
+                    $"hydrated {pipIds.Length:N0} pips in {hydrateStopwatch.ElapsedMilliseconds:N0} ms" +
+                    (rehydrate ? $" and rehydrated them in {rehydrateStopwatch.ElapsedMilliseconds:N0} ms." : "."));
+
+                return new PipTableBenchmarkResult
+                {
+                    Storage = storage,
+                    Iteration = iteration,
+                    LoadMilliseconds = loadStopwatch.ElapsedMilliseconds,
+                    ManagedBytesDelta = managedAfterLoad - managedBefore,
+                    PrivateBytes = process.PrivateMemorySize64,
+                    WorkingSetBytes = process.WorkingSet64,
+                    ResidentPageBytes = pipTable.Size,
+                    HydrateMilliseconds = hydrateStopwatch.ElapsedMilliseconds,
+                    RehydrateMilliseconds = rehydrateStopwatch.ElapsedMilliseconds,
+                    SerializeMilliseconds = serializeMilliseconds,
+                };
+            }
+            finally
+            {
+                pipTable.Dispose();
+            }
+        }
+
+        private static int ConvertPipTableToFileBacked(string graphDir, string outputGraphDir)
+        {
+            string sourceDirectory = Path.GetFullPath(graphDir);
+            string targetDirectory = Path.GetFullPath(outputGraphDir);
+            if (string.Equals(sourceDirectory.TrimEnd(Path.DirectorySeparatorChar), targetDirectory.TrimEnd(Path.DirectorySeparatorChar), OperatingSystemHelper.PathComparison))
+            {
+                throw CommandLineUtilities.Error("The output graph directory must differ from the source graph directory.");
+            }
+
+            Directory.CreateDirectory(targetDirectory);
+            var loggingContext = new LoggingContext("Benchmark.PipTable.ConvertToFileBacked");
+            var loader = CachedGraphLoader.CreateFromDisk(
+                CancellationToken.None,
+                sourceDirectory,
+                loggingContext);
+
+            var loadStopwatch = Stopwatch.StartNew();
+            var pipTable = loader.GetOrLoadPipTableAsync().GetAwaiter().GetResult();
+            var pathTable = loader.GetOrLoadPathTableAsync().GetAwaiter().GetResult();
+            var symbolTable = loader.GetOrLoadSymbolTableAsync().GetAwaiter().GetResult();
+            loadStopwatch.Stop();
+            if (pipTable == null || pathTable == null || symbolTable == null)
+            {
+                pipTable?.Dispose();
+                throw CommandLineUtilities.Error("Failed to load the source PipTable and its supporting tables.");
+            }
+
+            try
+            {
+                foreach (GraphCacheFile file in new[] { GraphCacheFile.StringTable, GraphCacheFile.PathTable, GraphCacheFile.SymbolTable })
+                {
+                    CreateHardLinkOrCopy(
+                        Path.Combine(sourceDirectory, file.ToString()),
+                        Path.Combine(targetDirectory, file.ToString()));
+                }
+
+                FileEnvelopeId correlationId;
+                using (var stream = File.OpenRead(Path.Combine(sourceDirectory, nameof(GraphCacheFile.PipTable))))
+                {
+                    correlationId = PipTable.FileEnvelope.ReadHeader(stream);
+                }
+
+                var conversionStopwatch = Stopwatch.StartNew();
+                using (var converted = FileBackedPipTable.ConvertAsync(
+                    pipTable,
+                    pathTable,
+                    symbolTable,
+                    EngineSchedule.PipTableInitialBufferSize,
+                    maxDegreeOfParallelism: Environment.ProcessorCount,
+                    storageDirectory: targetDirectory).GetAwaiter().GetResult())
+                {
+                    conversionStopwatch.Stop();
+                    var serializer = new EngineSerializer(
+                        loggingContext,
+                        targetDirectory,
+                        correlationId,
+                        useCompression: false);
+                    var serializationStopwatch = Stopwatch.StartNew();
+                    var result = serializer.SerializeToFileAsync(
+                        GraphCacheFile.PipTable,
+                        writer => converted.Serialize(writer, maxDegreeOfParallelism: -1)).GetAwaiter().GetResult();
+                    serializationStopwatch.Stop();
+                    if (!result.Success)
+                    {
+                        throw CommandLineUtilities.Error("Failed to serialize the converted PipTable to: {0}", targetDirectory);
+                    }
+
+                    Console.WriteLine($"Loaded source PipTable in {loadStopwatch.ElapsedMilliseconds:N0} ms.");
+                    Console.WriteLine($"Converted {converted.Count:N0} pips in {conversionStopwatch.ElapsedMilliseconds:N0} ms.");
+                    Console.WriteLine($"Serialized file-backed PipTable in {serializationStopwatch.ElapsedMilliseconds:N0} ms.");
+                    Console.WriteLine($"Output size: {FormatBytes(new FileInfo(Path.Combine(targetDirectory, nameof(GraphCacheFile.PipTable))).Length)}");
+                }
+            }
+            finally
+            {
+                pipTable.Dispose();
+            }
+
+            return 0;
+        }
+
+        private static void CreateHardLinkOrCopy(string source, string destination)
+        {
+            FileUtilities.DeleteFile(destination);
+            if (FileUtilities.TryCreateHardLink(destination, source) != CreateHardLinkStatus.Success)
+            {
+                File.Copy(source, destination);
+            }
+        }
+
+        private static PipId[] CreatePipSample(IPipTable pipTable, int requestedCount, int seed, bool processOnly)
+        {
+            var keys = pipTable.StableKeys;
+            PipId[] eligiblePips = processOnly
+                ? keys.Where(pipId => pipTable.GetPipType(pipId) == PipType.Process).ToArray()
+                : null;
+            int eligibleCount = eligiblePips?.Length ?? keys.Count;
+            int count = Math.Min(requestedCount, eligibleCount);
+            if (count == 0)
+            {
+                return Array.Empty<PipId>();
+            }
+
+            if (count == eligibleCount)
+            {
+                return eligiblePips ?? keys.ToArray();
+            }
+
+            var selectedIndices = new HashSet<int>();
+            var random = new Random(seed);
+            while (selectedIndices.Count < count)
+            {
+                selectedIndices.Add(random.Next(eligibleCount));
+            }
+
+            return selectedIndices.Select(index => eligiblePips?[index] ?? keys[index]).ToArray();
+        }
+
+        private static long HydratePips(IPipTable pipTable, PipId[] pipIds, bool parallel)
+        {
+            if (parallel)
+            {
+                long parallelChecksum = 0;
+                Parallel.For(
+                    0,
+                    pipIds.Length,
+                    () => 0L,
+                    (index, _, localChecksum) =>
+                        localChecksum + (int)pipTable.HydratePip(pipIds[index], PipQueryContext.ViewerAnalyzer).PipType,
+                    localChecksum => Interlocked.Add(ref parallelChecksum, localChecksum));
+
+                return parallelChecksum;
+            }
+
+            long checksum = 0;
+            foreach (var pipId in pipIds)
+            {
+                checksum += (int)pipTable.HydratePip(pipId, PipQueryContext.ViewerAnalyzer).PipType;
+            }
+
+            return checksum;
+        }
+
+        private static void ForceGarbageCollection()
+        {
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+        }
+
+        private static string FormatBytes(long bytes)
+        {
+            const double Megabyte = 1024 * 1024;
+            const double Gigabyte = 1024 * Megabyte;
+            long absoluteBytes = Math.Abs(bytes);
+            if (absoluteBytes >= Gigabyte)
+            {
+                return $"{bytes / Gigabyte:N2} GB";
+            }
+
+            return $"{bytes / Megabyte:N1} MB";
+        }
+
+        private sealed class PipTableBenchmarkResult
+        {
+            public string Storage;
+            public int Iteration;
+            public long LoadMilliseconds;
+            public long ManagedBytesDelta;
+            public long PrivateBytes;
+            public long WorkingSetBytes;
+            public long ResidentPageBytes;
+            public long HydrateMilliseconds;
+            public long RehydrateMilliseconds;
+            public long SerializeMilliseconds;
         }
 
         private int RunFilterGraph()

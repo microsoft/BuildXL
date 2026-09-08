@@ -31,6 +31,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             DirectoriesToTranslate = new List<TranslateDirectoryData>();
             ScrubDirectories = new List<AbsolutePath>();
             CompressGraphFiles = false;
+            MemoryMappedPipTable = true;
             CompressExecutionLog = true;
             FileChangeTrackerInitializationMode = FileChangeTrackerInitializationMode.ResumeExisting;
             LogStatistics = true;
@@ -78,6 +79,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
                     d => new TranslateDirectoryData(d.RawUserOption, pathRemapper.Remap(d.FromPath), pathRemapper.Remap(d.ToPath))).ToList();
             ScrubDirectories = pathRemapper.Remap(template.ScrubDirectories);
             CompressGraphFiles = template.CompressGraphFiles;
+            MemoryMappedPipTable = template.MemoryMappedPipTable;
             CompressExecutionLog = template.CompressExecutionLog;
             FileChangeTrackerInitializationMode = template.FileChangeTrackerInitializationMode;
             LogStatistics = template.LogStatistics;
@@ -175,6 +177,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public bool CompressGraphFiles { get; set; }
+
+        /// <inheritdoc />
+        public bool MemoryMappedPipTable { get; set; }
 
         /// <inheritdoc />
         public bool CompressExecutionLog { get; set; }        

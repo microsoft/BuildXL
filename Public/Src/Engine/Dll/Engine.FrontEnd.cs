@@ -139,7 +139,10 @@ namespace BuildXL.Engine
             var searchPathToolsHash = new Scheduler.DirectoryMembershipFingerprinterRuleSet(Configuration, Context.StringTable).ComputeSearchPathToolsHash();
             ContentHash? observationReclassificationRulesHash = ObservationReclassifier.ComputeObservationReclassificationRulesHash(Configuration);
             var builder = new PipGraph.Builder(
-                EngineSchedule.CreateEmptyPipTable(Context),
+                EngineSchedule.CreateEmptyPipTable(
+                    Context,
+                    Configuration.Engine.MemoryMappedPipTable,
+                    Configuration.Layout.EngineCacheDirectory.ToString(Context.PathTable)),
                 Context,
                 BuildXL.Pips.Tracing.Logger.Log,
                 loggingContext,

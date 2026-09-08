@@ -87,7 +87,7 @@ namespace BuildXL.Pips.Graph
         private PipGraph(
             SerializedState serializedState,
             DirectedGraph directedGraph,
-            PipTable pipTable,
+            IPipTable pipTable,
             PipExecutionContext context,
             SemanticPathExpander semanticPathExpander)
             : base(
@@ -1028,7 +1028,7 @@ namespace BuildXL.Pips.Graph
             PipId pipId = TryGetProducer(artifact);
             Contract.Assert(pipId.IsValid);
 
-            return PipTable.GetMutable(pipId).MustOutputsRemainWritable();
+            return PipTable.MustOutputsRemainWritable(pipId);
         }
 
         /// <summary>
@@ -1048,18 +1048,17 @@ namespace BuildXL.Pips.Graph
             Contract.Assert(pipId.IsValid);
 
 
-            MutablePipState mutablePipState = PipTable.GetMutable(pipId);
-            if (!mutablePipState.IsPreservedOutputsPip())
+            if (!PipTable.IsPreservedOutputsPip(pipId))
             {
                 return false;
             }
 
-            if (mutablePipState.GetProcessPreserveOutputsTrustLevel() < sandBoxPreserveOutputTrustLevel)
+            if (PipTable.GetProcessPreserveOutputsTrustLevel(pipId) < sandBoxPreserveOutputTrustLevel)
             {
                 return false;
             }
 
-            if (!mutablePipState.HasPreserveOutputAllowlist())
+            if (!PipTable.HasPreserveOutputAllowlist(pipId))
             {
                 // If allowlist is not given, we preserve all outputs of the given pip.
                 // This is shortcut to avoid hydrating pip in order to get the allowlist.

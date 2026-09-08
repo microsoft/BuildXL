@@ -171,7 +171,7 @@ namespace BuildXL.Pips.Graph
             /// Class constructor
             /// </summary>
             public Builder(
-                PipTable pipTable,
+                IPipTable pipTable,
                 PipExecutionContext context,
                 Logger logger,
                 LoggingContext loggingContext,
@@ -373,7 +373,7 @@ namespace BuildXL.Pips.Graph
             [SuppressMessage("Microsoft.Naming", "CA2204:Literals should be spelled correctly")]
             public static ContentFingerprint ComputeGraphSemistableFingerprint(
                 LoggingContext loggingContext,
-                PipTable pipTable,
+                IPipTable pipTable,
                 PathTable pathTable,
                 string configuredFingerprint = null)
             {
@@ -385,9 +385,8 @@ namespace BuildXL.Pips.Graph
                 else
                 {
                     var processSemistableHashes = pipTable.StableKeys
-                        .Select(pipId => pipTable.GetMutable(pipId))
-                        .Where(info => info.PipType == PipType.Process)
-                        .Select(info => info.SemiStableHash)
+                        .Where(pipId => pipTable.GetPipType(pipId) == PipType.Process)
+                        .Select(pipId => pipTable.GetPipSemiStableHash(pipId))
                         .ToList();
 
                     processSemistableHashes.Sort();

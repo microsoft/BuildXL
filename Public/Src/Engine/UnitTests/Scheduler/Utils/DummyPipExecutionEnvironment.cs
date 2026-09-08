@@ -106,7 +106,7 @@ namespace Test.BuildXL.Scheduler.Utils
             PipContentFingerprinter.PipDataLookup pipDataLookup = null,
             FileAccessAllowlist fileAccessAllowlist = null,
             bool allowUnspecifiedSealedDirectories = false,
-            PipTable pipTable = null,
+            IPipTable pipTable = null,
             IIpcProvider ipcProvider = null,
             (string substSource, string substTarget)? subst = default,
             ISandboxConnection sandboxConnection = null)
@@ -313,7 +313,7 @@ namespace Test.BuildXL.Scheduler.Utils
         /// <summary>
         /// The pip table
         /// </summary>
-        public PipTable PipTable { get; }
+        public IPipTable PipTable { get; }
 
         /// <summary>
         /// The pip execution state

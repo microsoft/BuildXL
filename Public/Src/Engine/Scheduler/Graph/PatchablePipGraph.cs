@@ -37,7 +37,7 @@ namespace BuildXL.Scheduler.Graph
         };
 
         private readonly IReadonlyDirectedGraph m_oldPipGraph;
-        private readonly PipTable m_oldPipTable;
+        private readonly IPipTable m_oldPipTable;
         private readonly PipGraph.Builder m_builder;
         private readonly int m_maxDegreeOfParallelism;
         private readonly ConcurrentBigMap<long, DirectoryArtifact> m_reloadedSealDirectories;
@@ -54,7 +54,7 @@ namespace BuildXL.Scheduler.Graph
         /// <param name="maxDegreeOfParallelism">Max concurrency for graph reloading (<see cref="PartiallyReloadGraph"/>).</param>
         public PatchablePipGraph(
             IReadonlyDirectedGraph oldPipGraph,
-            PipTable oldPipTable,
+            IPipTable oldPipTable,
             PipGraph.Builder graphBuilder,
             int maxDegreeOfParallelism)
         {

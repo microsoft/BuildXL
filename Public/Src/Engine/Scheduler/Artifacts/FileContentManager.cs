@@ -915,7 +915,7 @@ namespace BuildXL.Scheduler.Artifacts
         /// Gets the pip inputs including all direct file dependencies and output file seal directory file dependencies.
         /// </summary>
         public void CollectPipInputsToMaterialize(
-            PipTable pipTable,
+            IPipTable pipTable,
             Pip pip,
             HashSet<FileArtifact> files,
             MultiValueDictionary<FileArtifact, DirectoryArtifact> dynamicInputs = null,
@@ -938,7 +938,7 @@ namespace BuildXL.Scheduler.Artifacts
         /// Gets the pip outputs
         /// </summary>
         public void CollectPipOutputsToMaterialize(
-            PipTable pipTable,
+            IPipTable pipTable,
             Pip pip,
             HashSet<FileArtifact> files,
             MultiValueDictionary<FileArtifact, DirectoryArtifact> dynamicOutputs = null,
@@ -958,7 +958,7 @@ namespace BuildXL.Scheduler.Artifacts
         /// </summary>
         public void CollectPipFilesToMaterialize(
             bool isMaterializingInputs,
-            PipTable pipTable,
+            IPipTable pipTable,
             Pip pip,
             HashSet<FileArtifact> files = null,
             MultiValueDictionary<FileArtifact, DirectoryArtifact> dynamicFileMap = null,

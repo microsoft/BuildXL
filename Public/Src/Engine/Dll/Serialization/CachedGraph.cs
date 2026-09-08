@@ -38,7 +38,7 @@ namespace BuildXL.Engine
         /// <summary>
         /// The pip table for the graph
         /// </summary>
-        public readonly PipTable PipTable;
+        public readonly IPipTable PipTable;
 
         /// <summary>
         /// The mount path expander for the graph
@@ -116,7 +116,7 @@ namespace BuildXL.Engine
         private readonly Lazy<Task<PathTable>> m_pathTableTask;
         private readonly Lazy<Task<SymbolTable>> m_symbolTableTask;
         private readonly Lazy<Task<QualifierTable>> m_qualifierTableTask;
-        private readonly Lazy<Task<PipTable>> m_pipTableTask;
+        private readonly Lazy<Task<IPipTable>> m_pipTableTask;
         private readonly Lazy<Task<MountPathExpander>> m_mountPathExpanderTask;
         private readonly Lazy<Task<PipExecutionContext>> m_pipExecutionContextTask;
         private readonly Lazy<Task<HistoricTableSizes>> m_historicDataTask;
@@ -189,7 +189,7 @@ namespace BuildXL.Engine
             m_pipTableTask = CreateLazyFileDeserialization(
                 serializer,
                 GraphCacheFile.PipTable,
-                (reader) => PipTable.DeserializeAsync(
+                (reader) => PipTableFactory.DeserializeAsync(
                     reader,
                     m_pathTableTask.Value,
                     m_symbolTableTask.Value,
@@ -252,7 +252,7 @@ namespace BuildXL.Engine
             m_cachedGraphTask = CreateAsyncLazyFromResult(new CachedGraph(pipGraph, pipGraph.DirectedGraph, m_pipExecutionContextTask.Value.Result, engineState.MountPathExpander));
         }
 
-        private async Task<CachedGraph> CreateCachedGraph(Task<PipTable> pipTableTask, Task<PipGraph> pipGraphTask, Task<DeserializedDirectedGraph> directedGraphTask, Task<PipExecutionContext> contextTask, Task<MountPathExpander> mountPathExpanderTask)
+        private async Task<CachedGraph> CreateCachedGraph(Task<IPipTable> pipTableTask, Task<PipGraph> pipGraphTask, Task<DeserializedDirectedGraph> directedGraphTask, Task<PipExecutionContext> contextTask, Task<MountPathExpander> mountPathExpanderTask)
         {
             var pipGraph = await pipGraphTask;
             var directedGraph = await directedGraphTask;
@@ -305,7 +305,7 @@ namespace BuildXL.Engine
             return m_symbolTableTask.Value;
         }
 
-        internal Task<PipTable> GetOrLoadPipTableAsync()
+        internal Task<IPipTable> GetOrLoadPipTableAsync()
         {
             return m_pipTableTask.Value;
         }

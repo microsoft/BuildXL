@@ -97,7 +97,7 @@ namespace BuildXL.Engine
         /// <summary>
         /// Pip table
         /// </summary>
-        public PipTable PipTable
+        public IPipTable PipTable
         {
             get
             {
@@ -106,7 +106,7 @@ namespace BuildXL.Engine
             }
         }
 
-        private PipTable m_pipTable;
+        private IPipTable m_pipTable;
 
         /// <summary>
         /// Pip graph
@@ -175,7 +175,7 @@ namespace BuildXL.Engine
             PathTable pathTable,
             SymbolTable symbolTable,
             QualifierTable qualifierTable,
-            PipTable pipTable,
+            IPipTable pipTable,
             PipGraph pipGraph,
             MountPathExpander mountPathExpander,
             SchedulerState schedulerState,

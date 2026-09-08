@@ -82,13 +82,13 @@ namespace BuildXL.Scheduler
 
             foreach (var servicePipId in m_pipGraph.GetServicePipIds())
             {
-                var serviceMutable = (ProcessMutablePipState)m_pipGraph.PipTable.GetMutable(servicePipId);
-                foreach (var finalizationPipId in serviceMutable.ServiceInfo.FinalizationPipIds)
+                var serviceInfo = m_pipGraph.PipTable.GetServiceInfo(servicePipId);
+                foreach (var finalizationPipId in serviceInfo.FinalizationPipIds)
                 {
                     m_finalizationPipToServicePipMap[finalizationPipId] = servicePipId;
                 }
 
-                m_servicePipToItsMonikerId[servicePipId] = serviceMutable.ServiceInfo.MonikerId;
+                m_servicePipToItsMonikerId[servicePipId] = serviceInfo.MonikerId;
             }
 
             IsStarted = true;

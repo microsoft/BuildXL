@@ -118,7 +118,7 @@ namespace BuildXL.Execution.Analyzer
         private readonly Dictionary<PipId, ProcessExecutionMonitoringReportedEventData> m_pipProcessExecutionMonitoringReported = new Dictionary<PipId,ProcessExecutionMonitoringReportedEventData>();
         private readonly Dictionary<PipId, ReadOnlyArray<ObservedInput>> m_failedPipsObservedInputs = new Dictionary<PipId, ReadOnlyArray<ObservedInput>>();
 
-        private readonly PipTable m_pipTable;
+        private readonly IPipTable m_pipTable;
         private bool m_performSingleLogAnalysis = true;
 
         private readonly ConcurrentBigMap<AbsolutePath, FileArtifactContentDecidedEventData> m_fileContentMap = new ConcurrentBigMap<AbsolutePath, FileArtifactContentDecidedEventData>();
@@ -833,7 +833,7 @@ namespace BuildXL.Execution.Analyzer
             private readonly List<AbsolutePath> inputBuffer = new List<AbsolutePath>();
             private readonly VisitationTracker m_failedPipsClosure;
             private readonly NodeVisitor nodeVisitor;
-            private readonly PipTable m_pipTable;
+            private readonly IPipTable m_pipTable;
             private MountPathExpander m_mountPathExpander = null;
 
             // This analyzer will allow query of file artifacts by name

@@ -146,7 +146,7 @@ namespace Test.BuildXL.Scheduler
         /// <summary>
         /// Adds extra constraints such that <paramref name="after"/> will run after all presently-queued (not 'lazy') source hashing pips.
         /// </summary>
-        public void ConstrainExecutionOrderAfterSourceFileHashing(PipTable pipTable, PipGraph pipGraph, Pip after)
+        public void ConstrainExecutionOrderAfterSourceFileHashing(IPipTable pipTable, PipGraph pipGraph, Pip after)
         {
             Contract.Requires(Paused, "Queue must be initially paused, since pips must be added to the schedule to get an ID for constraints");
 

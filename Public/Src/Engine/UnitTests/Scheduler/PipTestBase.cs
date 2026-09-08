@@ -81,7 +81,7 @@ namespace Test.BuildXL.Scheduler
 
         protected MountPathExpander Expander { get; set; }
 
-        protected PipTable PipTable { get; private set; }
+        protected IPipTable PipTable { get; private set; }
 
         /// <summary>
         /// The pip graph builder.
@@ -243,7 +243,7 @@ namespace Test.BuildXL.Scheduler
 
         public class PipTestBaseSetupData
         {
-            private readonly PipTable m_pipTable;
+            private readonly IPipTable m_pipTable;
             private readonly QualifierTable m_qualifierTable;
             private readonly MountPathExpander m_mountPathExpander;
             private readonly PipTestBase m_pipTestBase;
@@ -266,7 +266,7 @@ namespace Test.BuildXL.Scheduler
             }
         }
 
-        protected void BaseSetup(IConfiguration configuration = null, bool disablePipSerialization = false)
+        protected void BaseSetup(IConfiguration configuration = null, bool disablePipSerialization = false, bool useMemoryMappedPipTable = false)
         {
             Directory.CreateDirectory(SourceRoot);
             Directory.CreateDirectory(ObjectRoot);
@@ -274,12 +274,25 @@ namespace Test.BuildXL.Scheduler
             var pathTable = Context.PathTable;
             var stringTable = Context.StringTable;
 
-            PipTable = new PipTable(
-                pathTable,
-                Context.SymbolTable,
-                initialBufferSize: 16,
-                maxDegreeOfParallelism: disablePipSerialization ? 0 : Environment.ProcessorCount,
-                debug: true);
+            if (useMemoryMappedPipTable)
+            {
+                PipTable = new FileBackedPipTable(
+                    pathTable,
+                    Context.SymbolTable,
+                    initialBufferSize: 16,
+                    maxDegreeOfParallelism: Environment.ProcessorCount,
+                    debug: true,
+                    storageDirectory: TemporaryDirectory);
+            }
+            else
+            {
+                PipTable = new PipTable(
+                    pathTable,
+                    Context.SymbolTable,
+                    initialBufferSize: 16,
+                    maxDegreeOfParallelism: disablePipSerialization ? 0 : Environment.ProcessorCount,
+                    debug: true);
+            }
 
             QualifierTable = new QualifierTable(Context.StringTable);
             Expander = new MountPathExpander(pathTable);

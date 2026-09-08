@@ -402,6 +402,9 @@ namespace BuildXL
                                 // if it's not NETCOREAPP - do nothing
                             }),
                         OptionHandlerFactory.CreateBoolOption(
+                            "memoryMappedPipTable",
+                            sign => engineConfiguration.MemoryMappedPipTable = sign),
+                        OptionHandlerFactory.CreateBoolOption(
                             "enableSetupCostWhenChoosingWorker",
                             sign => schedulingConfiguration.EnableSetupCostWhenChoosingWorker = sign),
                         OptionHandlerFactory.CreateBoolOption(

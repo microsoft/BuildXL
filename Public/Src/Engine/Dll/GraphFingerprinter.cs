@@ -180,6 +180,7 @@ namespace BuildXL.Engine
                     // All paths in the graph are relative to 'substTarget' (hence, 'substTarget' must be a part of the fingerprint, but 'substSource' need not be).
                     AddText(topLevelHasher, "substTarget", logging.SubstTarget.IsValid ? logging.SubstTarget.ToString(pathTable) : "::null::");
                     AddText(topLevelHasher, "IsCompressed", config.Engine.CompressGraphFiles ? "true" : "false");
+                    AddText(topLevelHasher, "MemoryMappedPipTable", config.Engine.MemoryMappedPipTable ? "true" : "false");
                     AddText(topLevelHasher, "IsSkipHashSourceFile", config.Schedule.SkipHashSourceFile ? "true" : "false");
                     AddText(topLevelHasher, "GraphSemistableFingerprint", config.Schedule.GraphSemistableFingerprint ?? string.Empty);
 

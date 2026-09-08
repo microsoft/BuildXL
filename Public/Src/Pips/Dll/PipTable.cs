@@ -28,7 +28,7 @@ namespace BuildXL.Pips
     /// Only weak references are held on pip values.
     /// If a pip value is requested that has been garbage collected, it is re-created by deserialization.
     /// </remarks>
-    public sealed class PipTable : IDisposable
+    public sealed class PipTable : IPipTable
     {
         /// <summary>
         /// Envelope for serialization
@@ -111,6 +111,9 @@ namespace BuildXL.Pips
         /// Whether this instance got disposed.
         /// </summary>
         public bool IsDisposed { get; private set; }
+
+        /// <inheritdoc />
+        public bool RequiresUncompressedSerialization => false;
 
         /// <summary>
         /// Base constructor that every other constructor should call.
@@ -217,61 +220,6 @@ namespace BuildXL.Pips
         }
 
         /// <summary>
-        /// The purpose of this class is to facilitate efficient enumeration in <code>Parallel.ForEach</code>.
-        /// </summary>
-        private sealed class KeyList : IList<PipId>
-        {
-            private readonly int m_lastId;
-
-            public KeyList(int lastId)
-            {
-                m_lastId = lastId;
-            }
-
-            public int IndexOf(PipId item) => (int)item.Value - 1;
-
-            public void Insert(int index, PipId item) => throw new NotImplementedException();
-
-            public void RemoveAt(int index) => throw new NotImplementedException();
-
-            public PipId this[int index]
-            {
-                get => new PipId((uint)index + 1);
-                set => throw new NotImplementedException();
-            }
-
-            public void Add(PipId item) => throw new NotImplementedException();
-
-            public void Clear() => throw new NotImplementedException();
-
-            public bool Contains(PipId item) => item.Value > 0 && item.Value <= (uint)m_lastId;
-
-            public void CopyTo(PipId[] array, int arrayIndex)
-            {
-                for (int i = 1; i <= m_lastId; i++)
-                {
-                    array[i + arrayIndex - 1] = new PipId((uint)i);
-                }
-            }
-
-            public int Count => m_lastId;
-
-            public bool IsReadOnly => true;
-
-            public bool Remove(PipId item) => throw new NotImplementedException();
-
-            public IEnumerator<PipId> GetEnumerator()
-            {
-                for (uint i = 1; i <= m_lastId; i++)
-                {
-                    yield return new PipId(i);
-                }
-            }
-
-            System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
-        }
-
-        /// <summary>
         /// All <code>PipId</code> values issued so far.
         /// </summary>
         /// <remarks>
@@ -286,7 +234,7 @@ namespace BuildXL.Pips
                 var count = Volatile.Read(ref m_count);
                 var max = Volatile.Read(ref m_lastId);
                 Contract.Assume(count == max);
-                return new KeyList(max);
+                return new PipIdRangeList(max);
             }
         }
 
@@ -308,7 +256,7 @@ namespace BuildXL.Pips
                 {
                     // There are no holes (which could happen temporarily during concurrent pip additions),
                     // so we can return a nice list
-                    return new KeyList(max);
+                    return new PipIdRangeList(max);
                 }
 
                 return GetValidKeys(max);
@@ -436,7 +384,10 @@ namespace BuildXL.Pips
             return (pipId.Value > 0 && pipId.Value <= m_lastId && m_mutables[pipId.Value] != null) || pipId == PipId.DummyHashSourceFilePipId;
         }
 
-        internal ServiceInfo GetServiceInfo(PipId pipId)
+        #region Pip metadata
+
+        /// <inheritdoc />
+        public ServiceInfo GetServiceInfo(PipId pipId)
         {
             Contract.Requires(IsValid(pipId));
 
@@ -535,6 +486,16 @@ namespace BuildXL.Pips
         }
 
         /// <summary>
+        /// Gets the seal directory root without hydrating the pip.
+        /// </summary>
+        public AbsolutePath GetSealDirectoryRoot(PipId pipId)
+        {
+            var mutable = GetMutable(pipId) as SealDirectoryMutablePipState;
+            Contract.Assert(mutable != null);
+            return mutable.DirectoryRoot;
+        }
+
+        /// <summary>
         /// Should the seal directory be scrubbed before seal. 
         /// </summary>
         public bool ShouldScrubFullSealDirectory(PipId pipId)
@@ -548,7 +509,6 @@ namespace BuildXL.Pips
 
             return false;
         }
-
 
         /// <summary>
         /// Get whether the seal directory is a composite one without the need to hydrate the pip
@@ -608,6 +568,58 @@ namespace BuildXL.Pips
         {
             return Pip.FormatSemiStableHash(GetPipSemiStableHash(pipId));
         }
+
+        /// <summary>
+        /// Gets the owning process module without hydrating the pip.
+        /// </summary>
+        public ModuleId GetProcessModuleId(PipId pipId)
+        {
+            var mutable = GetMutable(pipId) as ProcessMutablePipState;
+            Contract.Assert(mutable != null);
+            return mutable.ModuleId;
+        }
+
+        /// <summary>
+        /// Gets whether the process should fail the build immediately.
+        /// </summary>
+        public bool IsSucceedFast(PipId pipId) => (GetMutable(pipId) as ProcessMutablePipState)?.IsSucceedFast == true;
+
+        /// <summary>
+        /// Gets whether outputs must remain writable.
+        /// </summary>
+        public bool MustOutputsRemainWritable(PipId pipId) => GetMutable(pipId).MustOutputsRemainWritable();
+
+        /// <summary>
+        /// Gets whether the pip has preserve-outputs semantics.
+        /// </summary>
+        public bool IsPreservedOutputsPip(PipId pipId) => GetMutable(pipId).IsPreservedOutputsPip();
+
+        /// <summary>
+        /// Gets whether the pip is an incremental tool.
+        /// </summary>
+        public bool IsIncrementalTool(PipId pipId) => GetMutable(pipId).IsIncrementalTool();
+
+        /// <summary>
+        /// Gets whether the process has a preserve-output allowlist.
+        /// </summary>
+        public bool HasPreserveOutputAllowlist(PipId pipId)
+        {
+            var mutable = GetMutable(pipId) as ProcessMutablePipState;
+            Contract.Assert(mutable != null);
+            return mutable.HasPreserveOutputAllowlist();
+        }
+
+        /// <summary>
+        /// Gets the process preserve-output trust level.
+        /// </summary>
+        public int GetProcessPreserveOutputsTrustLevel(PipId pipId)
+        {
+            var mutable = GetMutable(pipId) as ProcessMutablePipState;
+            Contract.Assert(mutable != null);
+            return mutable.PreserveOutputTrustLevel;
+        }
+
+        #endregion Pip metadata
 
         /// <summary>
         /// Re-creates a pip that was added earlier.
@@ -725,6 +737,7 @@ namespace BuildXL.Pips
             m_serializationScheduler.IncreaseConcurrencyTo(maxDegreeOfParallelism);
 
             // Wait for all serialization tasks to finish.
+            StopBackgroundSerialization();
             WhenDone().GetAwaiter().GetResult();
 
             m_store.Serialize(writer);

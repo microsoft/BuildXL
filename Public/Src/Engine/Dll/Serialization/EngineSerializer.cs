@@ -252,10 +252,14 @@ namespace BuildXL.Engine
                             }
 
                             var isCompressed = fileStream.ReadByte() == 1;
+                            bool memoryMapPipTable =
+                                !isCompressed &&
+                                file == GraphCacheFile.PipTable &&
+                                FileBackedPipTable.IsFileBackedFormat(fileStream);
 
                             using (Stream readStream = isCompressed ? new TrackedStream(new BufferedStream(new DecompressionStream(fileStream), 64 << 10)) : fileStream)
                             // When the stream is compressed, we don't need to buffer again in the BuildXLReader
-                            using (BuildXLReader reader = new BuildXLReader(m_debug, readStream, leaveOpen: false, bufferSize: isCompressed ? 0 : BuildXLReader.RecommendedBufferBytesForFileStream))
+                            using (BuildXLReader reader = new BuildXLReader(m_debug, readStream, leaveOpen: false, bufferSize: isCompressed || memoryMapPipTable ? 0 : BuildXLReader.RecommendedBufferBytesForFileStream))
                             {
                                 result = await deserializer(reader);
                             }
@@ -313,18 +317,23 @@ namespace BuildXL.Engine
         /// <param name="fileType">Type for the object to serialize. This will become the filename</param>
         /// <param name="serializer">Serialization action to perform</param>
         /// <param name="overrideName">Overrides the default file name for the file type. This is used to atomically write some files (via renames)</param>
+        /// <param name="disableCompression">
+        /// Whether this file's format requires uncompressed output, overriding the serializer-wide compression setting.
+        /// This is used for formats such as file-backed PipTables that access the persisted bytes through a memory map.
+        /// </param>
         /// <returns>whether serialization was successful</returns>
         public Task<SerializationResult> SerializeToFileAsync(
             GraphCacheFile fileType,
             Action<BuildXLWriter> serializer,
-            string overrideName = null)
+            string overrideName = null,
+            bool disableCompression = false)
         {
-            var task = SerializeToFileInternalAsync(fileType, serializer, overrideName);
+            var task = SerializeToFileInternalAsync(fileType, serializer, overrideName, disableCompression);
             SerializationTasks.Add(task);
             return task;
         }
 
-        private async Task<SerializationResult> SerializeToFileInternalAsync(GraphCacheFile fileType, Action<BuildXLWriter> serializer, string overrideName)
+        private async Task<SerializationResult> SerializeToFileInternalAsync(GraphCacheFile fileType, Action<BuildXLWriter> serializer, string overrideName, bool disableCompression)
         {
             // Unblock the caller
             await Task.Yield();
@@ -362,12 +371,14 @@ namespace BuildXL.Engine
 
                     fileEnvelope.WriteHeader(fileStream, correlationId);
 
-                    // Write whether the file is compressed or not.
-                    fileStream.WriteByte(m_useCompression ? (byte)1 : (byte)0);
+                    // Compression is configured for the graph as a whole, but an individual file format may require
+                    // byte-addressable persisted content and therefore override that setting.
+                    bool useCompression = m_useCompression && !disableCompression;
+                    fileStream.WriteByte(useCompression ? (byte)1 : (byte)0);
 
                     long uncompressedLength = 0;
 
-                    if (m_useCompression)
+                    if (useCompression)
                     {
 
                         

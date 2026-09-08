@@ -121,7 +121,7 @@ namespace BuildXL.Execution.Analyzer
         private ActionBlockSlim<Action> m_block = ActionBlockSlim.Create<Action>(12, a => a());
 
         private MutableDirectedGraph m_mutableGraph = new MutableDirectedGraph();
-        private PipTable m_pipTable;
+        private IPipTable m_pipTable;
 
         public RequiredDependencyAnalyzer(AnalysisInput input)
             : base(input)
@@ -281,7 +281,8 @@ namespace BuildXL.Execution.Analyzer
             CachedGraph.Serializer.SerializeToFileAsync(
                     GraphCacheFile.PipTable,
                     w => m_pipTable.Serialize(w, Environment.ProcessorCount),
-                    Path.Combine(OutputFilePath, nameof(GraphCacheFile.PipTable)))
+                    Path.Combine(OutputFilePath, nameof(GraphCacheFile.PipTable)),
+                    disableCompression: m_pipTable.RequiresUncompressedSerialization)
                 .GetAwaiter().GetResult();
 
             CachedGraph.Serializer.SerializeToFileAsync(

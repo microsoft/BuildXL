@@ -202,6 +202,11 @@ namespace BuildXL.Utilities.Configuration
         bool CompressGraphFiles { get; }
 
         /// <summary>
+        /// Whether newly constructed PipTables write serialized pip bodies directly to a file-backed store.
+        /// </summary>
+        bool MemoryMappedPipTable { get; }
+
+        /// <summary>
         /// Compresses the execution log. Enabled by default.
         /// </summary>
         bool CompressExecutionLog { get; }

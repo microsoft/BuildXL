@@ -75,7 +75,7 @@ namespace BuildXL.Pips.Graph
         /// This implementation returns the smallest matching seal. This will hopefully
         /// be the most specific (handy for diagnostics).
         /// </remarks>
-        public DirectoryArtifact TryFindSealDirectoryContainingFileArtifact(PipTable pipTable, FileArtifact artifact)
+        public DirectoryArtifact TryFindSealDirectoryContainingFileArtifact(IPipTable pipTable, FileArtifact artifact)
         {
             Contract.Requires(pipTable != null);
 
@@ -91,14 +91,14 @@ namespace BuildXL.Pips.Graph
         /// This implementation returns the smallest matching seal. This will hopefully
         /// be the most specific (handy for diagnostics).
         /// </remarks>
-        public PipId TryFindSealDirectoryPipContainingFileArtifact(PipTable pipTable, FileArtifact artifact)
+        public PipId TryFindSealDirectoryPipContainingFileArtifact(IPipTable pipTable, FileArtifact artifact)
         {
             Contract.Requires(pipTable != null);
 
             return TryFindSealDirectoryEntryContainingFileArtifact(pipTable, artifact).Value.PipId;
         }
 
-        private KeyValuePair<DirectoryArtifact, Node> TryFindSealDirectoryEntryContainingFileArtifact(PipTable pipTable, FileArtifact artifact)
+        private KeyValuePair<DirectoryArtifact, Node> TryFindSealDirectoryEntryContainingFileArtifact(IPipTable pipTable, FileArtifact artifact)
         {
             KeyValuePair<DirectoryArtifact, Node> smallestMatchingSeal = default(KeyValuePair<DirectoryArtifact, Node>);
             int smallestMatchingSealSize = int.MaxValue;

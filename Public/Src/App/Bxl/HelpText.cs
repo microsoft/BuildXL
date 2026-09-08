@@ -479,6 +479,11 @@ namespace BuildXL
                 HelpLevel.Verbose);
 
             hw.WriteOption(
+                "/memoryMappedPipTable[+|-]",
+                Strings.HelpText_DisplayHelp_MemoryMappedPipTable,
+                HelpLevel.Verbose);
+
+            hw.WriteOption(
                 "/engineCacheDirectory:<engine cache directory>",
                 Strings.HelpText_DisplayHelp_EngineCacheDirectory,
                 HelpLevel.Verbose);

@@ -20,10 +20,10 @@ namespace BuildXL.Execution.Analyzer
         private readonly PathTable m_pathTable;
         private readonly StringTable m_stringTable;
         private readonly SymbolTable m_symbolTable;
-        private readonly PipTable m_pipTable;
+        private readonly IPipTable m_pipTable;
 
         /// <nodoc />
-        public HtmlHelper(PathTable pathTable, StringTable stringTable, SymbolTable symbolTable, PipTable pipTable)
+        public HtmlHelper(PathTable pathTable, StringTable stringTable, SymbolTable symbolTable, IPipTable pipTable)
         {
             m_pathTable = pathTable;
             m_stringTable = stringTable;

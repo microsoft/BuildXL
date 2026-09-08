@@ -33,7 +33,7 @@ namespace BuildXL.Scheduler.Tracing
         /// <summary>
         /// The loaded pip table
         /// </summary>
-        public PipTable PipTable => PipGraph.PipTable;
+        public IPipTable PipTable => PipGraph.PipTable;
 
         /// <summary>
         /// The loaded path table

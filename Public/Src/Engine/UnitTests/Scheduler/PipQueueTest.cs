@@ -301,7 +301,7 @@ namespace Test.BuildXL.Scheduler
             public PipQueueTestExecutionEnvironment(
                 BuildXLContext context,
                 IConfiguration configuration,
-                PipTable pipTable,
+                IPipTable pipTable,
                 string tempDirectory,
                 (string substSource, string substTarget)? subst = default,
                 ISandboxConnection sandboxConnection = null)
@@ -404,7 +404,7 @@ namespace Test.BuildXL.Scheduler
 
             public PipExecutionState State { get; }
 
-            public PipTable PipTable { get; }
+            public IPipTable PipTable { get; }
 
             public PipExecutionContext Context { get; }
 

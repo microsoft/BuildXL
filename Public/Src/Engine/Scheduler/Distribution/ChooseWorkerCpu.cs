@@ -57,7 +57,7 @@ namespace BuildXL.Scheduler.Distribution
             (m_moduleAffinityEnabled ? m_scheduleConfig.ModuleAffinityLoadFactor.Value : EngineEnvironmentSettings.MaxLoadFactor.Value));
 
         private readonly FileContentManager m_fileContentManager;
-        private readonly PipTable m_pipTable;
+        private readonly IPipTable m_pipTable;
         private readonly ObjectPool<PipSetupCosts> m_pipSetupCostPool;
         private RunnablePip m_lastIterationBlockedPip;
         private readonly ConcurrentDictionary<WorkerResource, BoxRef<ulong>> m_limitingResourceCounts = new ConcurrentDictionary<WorkerResource, BoxRef<ulong>>();

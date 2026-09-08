@@ -630,7 +630,7 @@ namespace BuildXL.Scheduler
         /// <summary>
         /// Pip table holding all known pips.
         /// </summary>
-        private readonly PipTable m_pipTable;
+        private readonly IPipTable m_pipTable;
 
         /// <summary>
         /// Set to true when the scheduler should stop scheduling further pips.
@@ -4256,15 +4256,15 @@ namespace BuildXL.Scheduler
                     return;
                 }
 
-                var pipState = m_pipTable.GetMutable(pipId);
+                var pipType = m_pipTable.GetPipType(pipId);
 
                 if (currentState != PipState.Skipped)
                 {
                     // If the pip is not skipped, then transition its state to Ready.
-                    pipRuntimeInfo.Transition(m_pipStateCounters, pipState.PipType, PipState.Ready);
+                    pipRuntimeInfo.Transition(m_pipStateCounters, pipType, PipState.Ready);
                 }
 
-                await SchedulePip(pipId, pipState.PipType);
+                await SchedulePip(pipId, pipType);
             }
         }
 
@@ -5734,7 +5734,7 @@ namespace BuildXL.Scheduler
 
         /// <inheritdoc />
         [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
-        PipTable IPipExecutionEnvironment.PipTable => m_pipTable;
+        IPipTable IPipExecutionEnvironment.PipTable => m_pipTable;
 
         /// <inheritdoc />
         [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
@@ -5797,9 +5797,7 @@ namespace BuildXL.Scheduler
             Contract.Requires(pipId.IsValid);
             Contract.Assert(IsInitialized);
 
-            var pipState = m_pipTable.GetMutable(pipId);
-
-            if (pipState.PipType.IsMetaPip())
+            if (m_pipTable.GetPipType(pipId).IsMetaPip())
             {
                 // Meta pips are used for reporting and should run ASAP
                 // Give them a maximum priority.
@@ -6072,9 +6070,8 @@ namespace BuildXL.Scheduler
             IEnumerable<AbsolutePath> allDirSourceSealedDirs = nodesToSchedule
                 .Select(n => n.ToPipId())
                 .Where(p => m_pipTable.GetPipType(p) == PipType.SealDirectory)
-                .Select(p => (SealDirectoryMutablePipState)m_pipTable.GetMutable(p))
-                .Where(s => s.SealDirectoryKind == SealDirectoryKind.SourceAllDirectories)
-                .Select(s => s.DirectoryRoot)
+                .Where(p => m_pipTable.GetSealDirectoryKind(p) == SealDirectoryKind.SourceAllDirectories)
+                .Select(pipId => m_pipTable.GetSealDirectoryRoot(pipId))
                 .Where(d => !d.IsWithin(Context.PathTable, readOnlyAll));
 
             RemoteProcessManager.RegisterStaticDirectories(readOnlyAll.Concat(allDirSourceSealedDirs).Distinct());
@@ -6087,14 +6084,14 @@ namespace BuildXL.Scheduler
                 var pipId = node.ToPipId();
                 if (m_pipTable.GetPipType(pipId) == PipType.Process || m_pipTable.GetPipType(pipId) == PipType.Ipc)
                 {
-                    var pipState = (ProcessMutablePipState)m_pipTable.GetMutable(pipId);
                     (int NumPips, bool[] Workers) tuple;
-                    if (!m_moduleWorkerMapping.TryGetValue(pipState.ModuleId, out tuple))
+                    var moduleId = m_pipTable.GetProcessModuleId(pipId);
+                    if (!m_moduleWorkerMapping.TryGetValue(moduleId, out tuple))
                     {
                         tuple = (0, new bool[m_configuration.Distribution.RemoteWorkerCount + 1]);
                     }
 
-                    m_moduleWorkerMapping[pipState.ModuleId] = (tuple.NumPips + 1, tuple.Workers);
+                    m_moduleWorkerMapping[moduleId] = (tuple.NumPips + 1, tuple.Workers);
                 }
             }
 
@@ -6497,8 +6494,7 @@ namespace BuildXL.Scheduler
                         {
                             var pipId = node.ToPipId();
                             var pipRuntimeInfo = GetPipRuntimeInfo(pipId);
-                            var pipState = m_pipTable.GetMutable(pipId);
-                            var pipType = pipState.PipType;
+                            var pipType = m_pipTable.GetPipType(pipId);
 
                             // Below, we add one or more quanitites in the uint range.
                             // We use a long here to trivially avoid any overflow, and saturate to uint.MaxValue if needed as the last step.
@@ -6602,7 +6598,7 @@ namespace BuildXL.Scheduler
                             Contract.Assert(pipType != PipType.HashSourceFile);
                             pipRuntimeInfo.Transition(m_pipStateCounters, pipType, PipState.Waiting);
 
-                            if (pipType == PipType.Process && ((ProcessMutablePipState)pipState).IsStartOrShutdown)
+                            if (pipType == PipType.Process && m_pipTable.GetServiceInfo(pipId).Kind.IsStartOrShutdown())
                             {
                                 Interlocked.Increment(ref m_numServicePipsScheduled);
                             }
@@ -7473,7 +7469,7 @@ namespace BuildXL.Scheduler
             LoggingContext loggingContext,
             IConfiguration configuration,
             PipExecutionContext context,
-            PipTable pipTable,
+            IPipTable pipTable,
             PipContentFingerprinter fingerprinter,
             EngineCache cache,
             IReadonlyDirectedGraph graph,
@@ -7629,12 +7625,10 @@ namespace BuildXL.Scheduler
             var scheduledServices = new HashSet<PipId>();
             foreach (var node in calculatedNodes)
             {
-                var mutable = m_pipTable.GetMutable(node.ToPipId());
-                if (mutable.PipType == PipType.Ipc || mutable.PipType == PipType.Process)
+                var pipId = node.ToPipId();
+                if (m_pipTable.GetPipType(pipId) == PipType.Ipc || m_pipTable.GetPipType(pipId) == PipType.Process)
                 {
-                    ProcessMutablePipState processMutable = mutable as ProcessMutablePipState;
-                    Contract.Assert(mutable != null, "Unexpected mutable pip type");
-                    var nodeServiceInfo = processMutable.ServiceInfo;
+                    var nodeServiceInfo = m_pipTable.GetServiceInfo(pipId);
                     if (nodeServiceInfo != null && nodeServiceInfo.Kind == ServicePipKind.ServiceClient)
                     {
                         scheduledServices.UnionWith(nodeServiceInfo.ServicePipDependencies);
@@ -7652,9 +7646,7 @@ namespace BuildXL.Scheduler
             var union = new HashSet<NodeId>(calculatedNodes);
             foreach (var servicePipId in scheduledServices)
             {
-                ProcessMutablePipState processMutable = m_pipTable.GetMutable(servicePipId) as ProcessMutablePipState;
-                Contract.Assert(processMutable != null, "Unexpected mutable pip type");
-                var servicePipServiceInfo = processMutable.ServiceInfo;
+                var servicePipServiceInfo = m_pipTable.GetServiceInfo(servicePipId);
                 if (servicePipServiceInfo != null)
                 {
                     foreach (var serviceFinalizationPipId in servicePipServiceInfo.FinalizationPipIds)
@@ -7920,7 +7912,7 @@ namespace BuildXL.Scheduler
 
             protected override bool IsRewrittenPip(NodeId node) => m_scheduler.PipGraph.IsRewrittenPip(node.ToPipId());
 
-            protected override bool IsSucceedFast(NodeId node) => m_scheduler.m_pipTable.GetMutable(node.ToPipId()) is ProcessMutablePipState ps && ps.IsSucceedFast;
+            protected override bool IsSucceedFast(NodeId node) => m_scheduler.m_pipTable.IsSucceedFast(node.ToPipId());
         }
 
         /// <summary>

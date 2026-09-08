@@ -43,7 +43,7 @@ namespace BuildXL.Scheduler.Tracing
         /// <summary>
         /// Used to hydrate pips from <see cref="PipId"/>s.
         /// </summary>
-        private readonly PipTable m_pipTable;
+        private readonly IPipTable m_pipTable;
 
         /// <summary>
         /// Used to collect the inputs used during weak fingerprint computation.
@@ -173,7 +173,7 @@ namespace BuildXL.Scheduler.Tracing
         /// </returns>
         public static FingerprintStoreExecutionLogTarget Create(
             PipExecutionContext context,
-            PipTable pipTable,
+            IPipTable pipTable,
             PipContentFingerprinter pipContentFingerprinter,
             LoggingContext loggingContext,
             IConfiguration configuration,
@@ -270,7 +270,7 @@ namespace BuildXL.Scheduler.Tracing
         private FingerprintStoreExecutionLogTarget(
             LoggingContext loggingContext,
             PipExecutionContext context,
-            PipTable pipTable,
+            IPipTable pipTable,
             PipContentFingerprinter pipContentFingerprinter,
             FingerprintStore fingerprintStore,
             FingerprintStore cacheLookupFingerprintStore,

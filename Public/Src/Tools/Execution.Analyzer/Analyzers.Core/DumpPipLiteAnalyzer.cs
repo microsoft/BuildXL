@@ -70,7 +70,7 @@ namespace BuildXL.Execution.Analyzer
     internal sealed class DumpPipLiteAnalyzer : Analyzer
     {
         private readonly Pip m_pip;
-        private readonly PipTable m_pipTable;
+        private readonly IPipTable m_pipTable;
         private readonly PipGraph m_pipGraph;
         private readonly string m_logPath;
         private readonly bool m_dumpObservedFileAccesses;

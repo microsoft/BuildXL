@@ -14,7 +14,7 @@ namespace BuildXL.Pips
         /// <summary>
         /// The pip table containing the pip
         /// </summary>
-        public readonly PipTable PipTable;
+        public readonly IPipTable PipTable;
 
         /// <summary>
         /// The pip id for the pip
@@ -63,7 +63,7 @@ namespace BuildXL.Pips
         /// <summary>
         /// Class constructor
         /// </summary>
-        public PipReference(PipTable pipTable, PipId pipId, PipQueryContext pipQueryContext)
+        public PipReference(IPipTable pipTable, PipId pipId, PipQueryContext pipQueryContext)
         {
             Contract.Requires(pipTable != null);
 

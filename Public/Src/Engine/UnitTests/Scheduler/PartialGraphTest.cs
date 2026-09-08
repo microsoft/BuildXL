@@ -201,12 +201,12 @@ namespace Test.BuildXL.Scheduler
             Assert.Equal(expectedPipIndexes.Length, reloadResult.Stats.NumPipsReloaded);
         }
 
-        private IEnumerable<Pip> HydrateAllPips(PipTable pipTable)
+        private IEnumerable<Pip> HydrateAllPips(IPipTable pipTable)
         {
             return pipTable.Keys.Select(pipId => pipTable.HydratePip(pipId, PipQueryContext.Test)).ToList(); 
         }
 
-        private IEnumerable<Pip> HydratePipsByType(PipTable pipTable, IEnumerable<PipType> relevantTypes)
+        private IEnumerable<Pip> HydratePipsByType(IPipTable pipTable, IEnumerable<PipType> relevantTypes)
         {
             return pipTable
                 .Keys
@@ -251,7 +251,7 @@ namespace Test.BuildXL.Scheduler
                 Expander);
         }
 
-        private PipTable CreatePipTable()
+        private IPipTable CreatePipTable()
         {
             return new PipTable(
                 Context.PathTable,

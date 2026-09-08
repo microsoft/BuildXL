@@ -91,7 +91,7 @@ namespace Test.BuildXL.TestUtilities
         public ObjectPool<PipDataBuilder> PipDataBuilderPool { get; }
 
         /// <nodoc />
-        public PipTable PipTable { get; private set; }
+        public IPipTable PipTable { get; private set; }
 
         /// <nodoc />
         public FrontEndContext FrontEndContext => FrontEndContext.CreateInstanceForTesting();

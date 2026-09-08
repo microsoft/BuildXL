@@ -33,7 +33,7 @@ namespace BuildXL.Pips.Graph
         /// <summary>
         /// Pip table holding all known pips.
         /// </summary>
-        public readonly PipTable PipTable;
+        public readonly IPipTable PipTable;
 
         /// <summary>
         /// Expander used when a path string should be machine / configuration independent.
@@ -174,7 +174,7 @@ namespace BuildXL.Pips.Graph
         #region Constructors
 
         protected PipGraphBase(
-                PipTable pipTable,
+                IPipTable pipTable,
                 PipExecutionContext context,
                 SemanticPathExpander semanticPathExpander,
                 DirectedGraph dataflowGraph)
@@ -211,7 +211,7 @@ namespace BuildXL.Pips.Graph
         /// Initialize state from deserializing
         /// </summary>
         protected PipGraphBase(
-                PipTable pipTable,
+                IPipTable pipTable,
                 PipExecutionContext context,
                 SemanticPathExpander semanticPathExpander,
                 DirectedGraph dataflowGraph,
@@ -650,7 +650,7 @@ namespace BuildXL.Pips.Graph
         /// <summary>
         /// Checks if a pip id belongs to a pip with succeed-fast property.
         /// </summary>
-        public bool IsSucceedFast(PipId pipId) => PipTable.GetMutable(pipId) is ProcessMutablePipState mps && mps.IsSucceedFast;
+        public bool IsSucceedFast(PipId pipId) => PipTable.IsSucceedFast(pipId);
 
         #endregion Queries
 

@@ -95,7 +95,7 @@ namespace BuildXL.Engine.Distribution
 
             // Scheduler & engine state
             private IConfiguration Config => m_workerService.m_config;
-            private PipTable m_pipTable;
+            private IPipTable m_pipTable;
             private PipQueue m_pipQueue;
             private Scheduler.Scheduler m_scheduler;
             private IPipExecutionEnvironment m_environment;

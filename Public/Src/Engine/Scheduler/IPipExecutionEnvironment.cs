@@ -41,7 +41,7 @@ namespace BuildXL.Scheduler
         /// Pip table holding all known pips.
         /// </summary>
         [NotNull]
-        PipTable PipTable { get; }
+        IPipTable PipTable { get; }
 
         /// <summary>
         /// Gets the state/context required for pip execution

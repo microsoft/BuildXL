@@ -70,7 +70,7 @@ namespace BuildXL.Engine
         /// <summary>
         /// Pip table that holds all pips.
         /// </summary>
-        public PipTable PipTable { get; private set; }
+        public IPipTable PipTable { get; private set; }
 
         /// <summary>
         /// Implementation of <see cref="EngineCache" /> facets as provided by e.g. BuildCache.
@@ -136,7 +136,7 @@ namespace BuildXL.Engine
             FileContentTable fileContentTable,
             Scheduler.Scheduler scheduler,
             EngineCache cache,
-            PipTable pipTable,
+            IPipTable pipTable,
             PipQueue schedulingQueue,
             MountPathExpander mountPathExpander,
             TempCleaner tempCleaner,
@@ -169,9 +169,20 @@ namespace BuildXL.Engine
         /// Creates a pip table suitable for backing a new, empty pip graph.
         /// </summary>
         [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope")]
-        public static PipTable CreateEmptyPipTable(PipExecutionContext context)
+        public static IPipTable CreateEmptyPipTable(PipExecutionContext context, bool useMemoryMappedPipTable = false, string storageDirectory = null)
         {
             Contract.Requires(context != null);
+            if (useMemoryMappedPipTable)
+            {
+                return new FileBackedPipTable(
+                    context.PathTable,
+                    context.SymbolTable,
+                    initialBufferSize: PipTableInitialBufferSize,
+                    maxDegreeOfParallelism: PipTableMaxDegreeOfParallelismDuringConstruction,
+                    debug: false,
+                    storageDirectory: storageDirectory);
+            }
+
             return new PipTable(
                        context.PathTable,
                        context.SymbolTable,
@@ -351,7 +362,7 @@ namespace BuildXL.Engine
             LoggingContext loggingContext,
             EngineContext context,
             FileContentTable fileContentTable,
-            PipTable pipTable,
+            IPipTable pipTable,
             Scheduler.Scheduler scheduler,
             EngineCache cache,
             MountPathExpander mountPathExpander,
@@ -1923,7 +1934,7 @@ namespace BuildXL.Engine
         /// <returns>True if the ownership was transfered either in this call or if the <see cref="EngineSchedule"/>
         /// no longer owns a <see cref="PipTable"/>. It may no longer own the object due to a prior successful
         /// transfer or due to never having owned a reference.</returns>
-        public bool TransferPipTableOwnership(PipTable table)
+        public bool TransferPipTableOwnership(IPipTable table)
         {
             if (PipTable != null && PipTable != table)
             {
@@ -1962,7 +1973,7 @@ namespace BuildXL.Engine
         internal static async Task<bool> SaveExecutionStateToDiskAsync(
             EngineSerializer serializer,
             BuildXLContext context,
-            PipTable pipTable,
+            IPipTable pipTable,
             PipGraph pipGraph,
             MountPathExpander mountPathExpander,
             HistoricTableSizes historicTableSizes)
@@ -1973,7 +1984,12 @@ namespace BuildXL.Engine
                     serializer.SerializeToFileAsync(GraphCacheFile.StringTable, context.StringTable.Serialize),
                     serializer.SerializeToFileAsync(GraphCacheFile.SymbolTable, context.SymbolTable.Serialize),
                     serializer.SerializeToFileAsync(GraphCacheFile.QualifierTable, context.QualifierTable.Serialize),
-                    serializer.SerializeToFileAsync(GraphCacheFile.PipTable, writer => pipTable.Serialize(writer, PipTableMaxDegreeOfParallelismDuringSerialization)),
+                    serializer.SerializeToFileAsync(
+                        GraphCacheFile.PipTable,
+                        writer => pipTable.Serialize(writer, PipTableMaxDegreeOfParallelismDuringSerialization),
+                        // A file-backed PipTable maps its persisted pip payload directly and therefore requires
+                        // byte-addressable, uncompressed content.
+                        disableCompression: pipTable.RequiresUncompressedSerialization),
                     serializer.SerializeToFileAsync(GraphCacheFile.PipGraph, pipGraph.Serialize),
                     serializer.SerializeToFileAsync(GraphCacheFile.PipGraphId, pipGraph.SerializeGraphId),
                     serializer.SerializeToFileAsync(GraphCacheFile.DirectedGraph, pipGraph.DirectedGraph.Serialize),

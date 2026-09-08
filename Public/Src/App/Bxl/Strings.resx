@@ -748,6 +748,9 @@ Example: ad2d42d2ec5d2ca0c0b7ad65402d07c7ef40b91e</value>
   <data name="HelpText_DisplayHelp_CompressGraphFiles" xml:space="preserve">
     <value>When enabled, graph files are compressed.</value>
   </data>
+  <data name="HelpText_DisplayHelp_MemoryMappedPipTable" xml:space="preserve">
+    <value>When enabled, newly constructed PipTables store serialized pip bodies in a temporary memory-mapped file. Enabled by default.</value>
+  </data>
   <data name="HelpText_DisplayHelp_ProcessRetries" xml:space="preserve">
     <value>Number of retries for process execution if the process exits with exit codes that allow for retries. Defaults to 0.</value>
   </data>

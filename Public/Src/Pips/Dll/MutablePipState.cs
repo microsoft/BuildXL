@@ -200,7 +200,7 @@ namespace BuildXL.Pips
             }
         }
 
-        internal Pip InternalGetOrSetPip(PipTable table, PipId pipId, PipQueryContext context, Func<PipTable, PipId, PageableStoreId, PipQueryContext, Pip> creator)
+        internal Pip InternalGetOrSetPip<TTable>(TTable table, PipId pipId, PipQueryContext context, Func<TTable, PipId, PageableStoreId, PipQueryContext, Pip> creator)
         {
             lock (this)
             {

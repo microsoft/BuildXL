@@ -91,7 +91,8 @@ namespace Test.BuildXL.Scheduler
             int maxProcesses = 1,
             bool enableJournal = false,
             bool enableIncrementalScheduling = false,
-            bool stopDirtyOnSucceedFastPips = false)
+            bool stopDirtyOnSucceedFastPips = false,
+            bool useMemoryMappedPipTable = false)
         {
             m_fileContentTable = FileContentTable.CreateNew(LoggingContext);
 
@@ -123,7 +124,7 @@ namespace Test.BuildXL.Scheduler
                 m_configuration.Schedule.SkipHashSourceFile = false;
             }
 
-            BaseSetup(m_configuration, disablePipSerialization: disablePipSerialization);
+            BaseSetup(m_configuration, disablePipSerialization: disablePipSerialization, useMemoryMappedPipTable: useMemoryMappedPipTable);
             m_pipQueue = new PipQueue(LoggingContext, m_configuration);
             m_testQueue = new TestPipQueue(m_pipQueue, LoggingContext, initiallyPaused: pauseQueue);
 
@@ -156,10 +157,12 @@ namespace Test.BuildXL.Scheduler
         }
 
         [Feature(Features.CopyFilePip)]
-        [Fact]
-        public Task TestSchedulerAddCopyFile()
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public Task TestSchedulerAddCopyFile(bool useMemoryMappedPipTable)
         {
-            Setup();
+            Setup(useMemoryMappedPipTable: useMemoryMappedPipTable);
             FileArtifact sourceArtifact = CreateSourceFile();
             FileArtifact destinationArtifact = CreateOutputFileArtifact();
             CopyFile copyFile = CreateCopyFile(sourceArtifact, destinationArtifact);
@@ -1326,6 +1329,7 @@ namespace Test.BuildXL.Scheduler
             m_scheduler.Start(LoggingContext);
             success = await m_scheduler.WhenDone();
 
+            PipTable.StopBackgroundSerialization();
             await PipTable.WhenDone();
             m_scheduler.UpdateStatus(overwriteable: false);
 
@@ -2862,7 +2866,7 @@ namespace Test.BuildXL.Scheduler
         {
             stream.Position = 0;
             BuildXLReader reader = new BuildXLReader(true, stream, true);
-            PipTable m_pipTable = await PipTable.DeserializeAsync(reader, Task.FromResult<PathTable>(Context.PathTable),
+            IPipTable m_pipTable = await PipTableFactory.DeserializeAsync(reader, Task.FromResult<PathTable>(Context.PathTable),
                 Task.FromResult<SymbolTable>(Context.SymbolTable),
                 10,
                 10,

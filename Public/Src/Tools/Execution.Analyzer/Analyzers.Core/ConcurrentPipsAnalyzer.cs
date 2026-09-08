@@ -66,7 +66,7 @@ namespace BuildXL.Execution.Analyzer
     /// </summary>
     public class ConcurrentPipsAnalyzer : Analyzer
     {
-        private readonly PipTable m_pipTable;
+        private readonly IPipTable m_pipTable;
         private readonly PipExecutionContext m_context;
         private readonly string m_outputFilePath;
         private readonly long m_pipSemiStableHash;

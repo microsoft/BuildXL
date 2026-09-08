@@ -22,7 +22,7 @@ namespace BuildXL.Scheduler.Tracing
         /// <summary>
         /// Used to hydrate pips from <see cref="PipId"/>s.
         /// </summary>
-        private readonly PipTable m_pipTable;
+        private readonly IPipTable m_pipTable;
 
         /// <summary>
         /// Execution context pointer for path table, symbol table, and string table.
@@ -98,7 +98,7 @@ namespace BuildXL.Scheduler.Tracing
         /// If log directory creation fails, then runtime failed pip analysis will be disabled for this build.
         /// </remarks>
         public DumpPipLiteExecutionLogTarget(PipExecutionContext context, 
-                                             PipTable pipTable, 
+                                             IPipTable pipTable,
                                              LoggingContext loggingContext,
                                              IConfiguration configuration,
                                              PipGraph graph)

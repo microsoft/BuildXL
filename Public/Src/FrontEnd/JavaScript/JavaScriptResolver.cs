@@ -672,6 +672,22 @@ namespace BuildXL.FrontEnd.JavaScript
                 .Select(name => new EvaluationResult(name))
                 .ToArray();
 
+            var allowedUndeclaredSourceReadScopes = process.AllowedUndeclaredSourceReadScopes
+                .Select(scope => new EvaluationResult(scope))
+                .ToArray();
+
+            var allowedUndeclaredSourceReadPaths = process.AllowedUndeclaredSourceReadPaths
+                .Select(path => new EvaluationResult(path))
+                .ToArray();
+
+            // The potential roundtrip to string and back to a regex might look wasteful, but on the one hand,
+            // there is no DSCript type to represent a regex, but more importantly, this is not compiling the regex,
+            // a RegexDescriptor is just a string pattern, and the actual compilation of the regex uses a shared regex factory,
+            // so we should hit the factory cache when that happens.
+            var allowedUndeclaredSourceReadRegexes = process.AllowedUndeclaredSourceReadRegexes
+                .Select(regex => new EvaluationResult(regex.Pattern.ToString(Context.StringTable)))
+                .ToArray();
+
             // CODESYNC: Public\Sdk\Public\Prelude\Prelude.Configuration.Resolvers.dsc (JavaScriptProject)
             var bindings = new List<Binding>
             {
@@ -686,6 +702,9 @@ namespace BuildXL.FrontEnd.JavaScript
                 new Binding(StringId.Create(Context.StringTable, "tempDirectory"), new EvaluationResult(DirectoryArtifact.CreateWithZeroPartialSealId(process.TempDirectory)), location: default),
                 new Binding(StringId.Create(Context.StringTable, "timeoutInMilliseconds"), new EvaluationResult(project.TimeoutInMilliseconds), location: default),
                 new Binding(StringId.Create(Context.StringTable, "warningTimeoutInMilliseconds"), new EvaluationResult(project.WarningTimeoutInMilliseconds), location: default),
+                new Binding(StringId.Create(Context.StringTable, "allowedUndeclaredSourceReadScopes"), new EvaluationResult(new EvaluatedArrayLiteral(allowedUndeclaredSourceReadScopes, default, m_javaScriptWorkspaceResolver.ExportsFile)), location: default),
+                new Binding(StringId.Create(Context.StringTable, "allowedUndeclaredSourceReadPaths"), new EvaluationResult(new EvaluatedArrayLiteral(allowedUndeclaredSourceReadPaths, default, m_javaScriptWorkspaceResolver.ExportsFile)), location: default),
+                new Binding(StringId.Create(Context.StringTable, "allowedUndeclaredSourceReadRegexes"), new EvaluationResult(new EvaluatedArrayLiteral(allowedUndeclaredSourceReadRegexes, default, m_javaScriptWorkspaceResolver.ExportsFile)), location: default),
             };
 
             return new EvaluationResult(ObjectLiteral.Create(bindings, default, m_resolverSettings.File));

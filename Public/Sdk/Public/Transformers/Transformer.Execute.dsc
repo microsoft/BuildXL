@@ -203,6 +203,15 @@ namespace Transformer {
          * sources if possible, and only use this option for the sources where static predictions are not available. */
         allowUndeclaredSourceReads?: boolean;
 
+        /** Directory scopes under which this process may perform undeclared source reads. */
+        allowedUndeclaredSourceReadScopes?: Path[];
+
+        /** Exact paths from which this process may perform undeclared source reads. */
+        allowedUndeclaredSourceReadPaths?: Path[];
+
+        /** Regular expressions matching paths from which this process may perform undeclared source reads. */
+        allowedUndeclaredSourceReadRegexes?: string[];
+
         /** The process names, e.g. "mspdbsrv.exe", allowed to be cleaned up by a process pip sandbox job object
          * without throwing a build error DX0041. */
         allowedSurvivingChildProcessNames?: (PathAtom | string)[];

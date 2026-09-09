@@ -2,9 +2,12 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
+using System.IO;
+using BuildXL.Native.IO;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Configuration;
 using Test.BuildXL.FrontEnd.Core;
+using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using LogEventId = global::BuildXL.FrontEnd.Core.Tracing.LogEventId;
 
@@ -99,13 +102,27 @@ export function custom(project: JavaScriptProject) : TransformerExecuteResult {
             AssertErrorEventLogged(global::BuildXL.FrontEnd.Script.Tracing.LogEventId.ContractFail);
         }
 
-        [Fact]
+        /// <summary>
+        /// There is nothing Linux-specific with this test, but under CloudBuild we run with additional directory
+        /// translations (e.g. Out folder is usually a reparse point) that this test infra is not aware of, so paths
+        /// are not properly translated.
+        /// </summary>
+        [FactIfSupported(requiresSymlinkPermission: true, requiresLinuxBasedOperatingSystem: true)]
         public void JavaScriptProjectArgumentIsWellFormed()
         {
+            var projectFolderTarget = Path.Combine(SourceRoot, "src", "A-target");
+            Directory.CreateDirectory(projectFolderTarget);
+            var projectFolder = Path.Combine(SourceRoot, "src", "A");
+            var createResult = FileUtilities.TryCreateSymbolicLink(projectFolder, projectFolderTarget, isTargetFile: false);
+            Assert.True(createResult.Succeeded, !createResult.Succeeded ? createResult.Failure.Describe() : string.Empty);
+
             var config =
                 Build(
                     schedulingCallback: "{module: 'myModule', schedulingFunction: 'custom'}",
-                    addDScriptResolver: true)
+                    addDScriptResolver: true,
+                    enableFullReparsePointResolving: true,
+                    enforceSourceReadsUnderPackageRoots: true,
+                    additionalSourceReadsScopes: "['.*additional-source-read.*']")
                .AddJavaScriptProject("@ms/project-A", "src/A", scriptCommands: new[] { ("build", "run") })
                .AddSpec("module.config.dsc", "module({name: 'myModule'});")
                .AddSpec(@"
@@ -122,6 +139,10 @@ export function custom(project: JavaScriptProject) : TransformerExecuteResult {
     Contract.requires(project.environmentVariables.some(envVar => envVar.name === 'PATH'));
     Contract.requires(project.passThroughEnvironmentVariables.length === 0);
     Contract.requires(project.tempDirectory.name === a`t`);
+    Contract.requires(project.allowedUndeclaredSourceReadScopes.some(scope => scope === p`src\A`));
+    Contract.requires(project.allowedUndeclaredSourceReadPaths.some(path => path === p`src\A`));
+    Contract.requires(project.allowedUndeclaredSourceReadRegexes.length === 1);
+    Contract.requires(project.allowedUndeclaredSourceReadRegexes[0] === '.*additional-source-read.*');
 
     return undefined;
 }
@@ -130,7 +151,7 @@ export function custom(project: JavaScriptProject) : TransformerExecuteResult {
 
             var result = RunRushProjects(config, new[] {
                 ("src/A", "@ms/project-A"),
-            });
+            }, overrideDisableReparsePointResolution: false);
 
             Assert.True(result.IsSuccess);
         }

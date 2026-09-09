@@ -105,6 +105,9 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
         private SymbolAtom m_executeDoubleWritePolicy;
         private SymbolAtom m_executeSourceRewritePolicy;
         private SymbolAtom m_executeAllowUndeclaredSourceReads;
+        private SymbolAtom m_executeAllowedUndeclaredSourceReadScopes;
+        private SymbolAtom m_executeAllowedUndeclaredSourceReadPaths;
+        private SymbolAtom m_executeAllowedUndeclaredSourceReadRegexes;
         private SymbolAtom m_preservePathSetCasing;
         private SymbolAtom m_enforceWeakFingerprintAugmentation;
         private SymbolAtom m_processRetries;
@@ -258,6 +261,9 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             m_executeDoubleWritePolicy = Symbol("doubleWritePolicy");
             m_executeSourceRewritePolicy = Symbol("sourceRewritePolicy");
             m_executeAllowUndeclaredSourceReads = Symbol("allowUndeclaredSourceReads");
+            m_executeAllowedUndeclaredSourceReadScopes = Symbol("allowedUndeclaredSourceReadScopes");
+            m_executeAllowedUndeclaredSourceReadPaths = Symbol("allowedUndeclaredSourceReadPaths");
+            m_executeAllowedUndeclaredSourceReadRegexes = Symbol("allowedUndeclaredSourceReadRegexes");
             m_preservePathSetCasing = Symbol("preservePathSetCasing");
             m_enforceWeakFingerprintAugmentation = Symbol("enforceWeakFingerprintAugmentation");
             m_processRetries = Symbol("processRetries");
@@ -695,6 +701,20 @@ namespace BuildXL.FrontEnd.Script.Ambients.Transformers
             {
                 processBuilder.Options |= Process.Options.AllowUndeclaredSourceReads;
             }
+
+            processBuilder.AllowedUndeclareSourceReadScopes = ProcessOptionalPathArray(
+                obj,
+                m_executeAllowedUndeclaredSourceReadScopes,
+                strict: false,
+                skipUndefined: false);
+            processBuilder.AllowedUndeclareSourceReadPaths = ProcessOptionalPathArray(
+                obj,
+                m_executeAllowedUndeclaredSourceReadPaths,
+                strict: false,
+                skipUndefined: false);
+            processBuilder.SetAllowedUndeclaredSourceReadRegexes(
+                ProcessOptionalStringArray(obj, m_executeAllowedUndeclaredSourceReadRegexes)
+                    .Select(regex => StringId.Create(context.StringTable, regex)));
 
             // Preserve path set casing flag
             if (Converter.ExtractOptionalBoolean(obj, m_preservePathSetCasing) == true)

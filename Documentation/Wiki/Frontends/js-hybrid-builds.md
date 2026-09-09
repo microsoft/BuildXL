@@ -155,6 +155,11 @@ interface JavaScriptProject {
     environmentVariables: {name: string, value: string}[];
     passThroughEnvironmentVariables: string[];
     tempDirectory?: Directory;
+    timeoutInMilliseconds?: number;
+    warningTimeoutInMilliseconds?: number;
+    allowedUndeclaredSourceReadScopes: Path[];
+    allowedUndeclaredSourceReadPaths: Path[];
+    allowedUndeclaredSourceReadRegexes: string[];
 }
 ```
 

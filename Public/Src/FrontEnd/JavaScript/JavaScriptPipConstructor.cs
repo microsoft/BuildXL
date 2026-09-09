@@ -554,18 +554,7 @@ namespace BuildXL.FrontEnd.JavaScript
 
                 processBuilder.AllowedUndeclareSourceReadScopes = sourceReadsScopes.ToArray();
                 processBuilder.AllowedUndeclareSourceReadPaths = sourceReadsPaths.ToArray();
-                processBuilder.AllowedUndeclareSourceReadRegexes = sourceReadsRegexes.Select(
-                    regex => new RegexDescriptor(
-                        regex,
-#if NET7_0_OR_GREATER
-                        // Let's try to keep things linear
-                        RegexOptions.NonBacktracking |
-#endif
-                        // Let's make the regex matching case insensitive on Windows (since the matching is against a path)
-                        (OperatingSystemHelper.IsWindowsOS 
-                            ? RegexOptions.IgnoreCase 
-                            : RegexOptions.None))
-                    ).ToArray();
+                processBuilder.SetAllowedUndeclaredSourceReadRegexes(sourceReadsRegexes);
             }
 
             // We want to enforce the use of weak fingerprint augmentation since input predictions could be not complete/sufficient

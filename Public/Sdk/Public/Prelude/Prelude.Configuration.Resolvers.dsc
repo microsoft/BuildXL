@@ -842,6 +842,9 @@ interface JavaScriptProject {
     tempDirectory?: Directory;
     timeoutInMilliseconds?: number;
     warningTimeoutInMilliseconds?: number;
+    allowedUndeclaredSourceReadScopes?: Path[];
+    allowedUndeclaredSourceReadPaths?: Path[];
+    allowedUndeclaredSourceReadRegexes?: string[];
 }
 
 /**

@@ -634,6 +634,9 @@ export function runQTest(args: QTestArguments): Result {
                 retryAttemptEnvironmentVariable: "QTEST_RETRIES_EXECUTED",
                 processRetries: (args.qTestAttemptCount ? args.qTestAttemptCount : 0) + 3,
                 allowUndeclaredSourceReads: isJSProject,
+                allowedUndeclaredSourceReadScopes: isJSProject ? jsProject.allowedUndeclaredSourceReadScopes : undefined,
+                allowedUndeclaredSourceReadPaths: isJSProject ? jsProject.allowedUndeclaredSourceReadPaths : undefined,
+                allowedUndeclaredSourceReadRegexes: isJSProject ? jsProject.allowedUndeclaredSourceReadRegexes : undefined,
                 enforceWeakFingerprintAugmentation: isJSProject ? true : undefined,
                 outputs: outputs,
                 sourceRewritePolicy: args.safeSourceRewritesAreAllowed ? args.safeSourceRewritesAreAllowed : "sourceRewritesAreErrors"

@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.ContractsLight;
 using System.Linq;
+using System.Text.RegularExpressions;
 using BuildXL.Cache.ContentStore.Interfaces.Results;
 using BuildXL.Ipc.Common;
 using BuildXL.Pips.Operations;
@@ -213,6 +214,23 @@ namespace BuildXL.Pips.Builders
 
         /// <nodoc/>
         public ReadOnlyArray<RegexDescriptor> AllowedUndeclareSourceReadRegexes { get; set; } = ReadOnlyArray<RegexDescriptor>.Empty;
+
+        /// <summary>
+        /// Sets the regular expressions that allow undeclared source reads using path-matching semantics.
+        /// </summary>
+        public void SetAllowedUndeclaredSourceReadRegexes(IEnumerable<StringId> regexes)
+        {
+            Contract.Requires(regexes != null);
+
+            AllowedUndeclareSourceReadRegexes = regexes
+                .Select(regex => new RegexDescriptor(
+                    regex,
+#if NET7_0_OR_GREATER
+                    RegexOptions.NonBacktracking |
+#endif
+                    (OperatingSystemHelper.IsWindowsOS ? RegexOptions.IgnoreCase : RegexOptions.None)))
+                .ToArray();
+        }
 
         // CredScan
         private readonly IBuildXLCredentialScanner m_credentialScanner;

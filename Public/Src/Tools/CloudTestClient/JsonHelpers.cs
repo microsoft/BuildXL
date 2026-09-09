@@ -233,5 +233,39 @@ namespace Tool.CloudTestClient
                 writer.WriteStringValue(value);
             }
         }
+
+        /// <summary>
+        /// Converts a string array to a comma-separated string.
+        /// </summary>
+        public sealed class StringArrayConverter : JsonConverter<string>
+        {
+            /// <inheritdoc/>
+            public override string Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+            {
+                if (reader.TokenType != JsonTokenType.StartArray)
+                {
+                    throw new JsonException($"Expected an array of strings, but found JSON token '{reader.TokenType}' (at index {reader.TokenStartIndex}).");
+                }
+
+                var labels = new List<string>();
+                while (reader.Read() && reader.TokenType != JsonTokenType.EndArray)
+                {
+                    if (reader.TokenType != JsonTokenType.String)
+                    {
+                        throw new JsonException($"Expected a string in the array, but found JSON token '{reader.TokenType}' (at index {reader.TokenStartIndex}).");
+                    }
+
+                    labels.Add(reader.GetString());
+                }
+
+                return string.Join(",", labels);
+            }
+
+            /// <inheritdoc/>
+            public override void Write(Utf8JsonWriter writer, string value, JsonSerializerOptions options)
+            {
+                writer.WriteStringValue(value);
+            }
+        }
     }
 }

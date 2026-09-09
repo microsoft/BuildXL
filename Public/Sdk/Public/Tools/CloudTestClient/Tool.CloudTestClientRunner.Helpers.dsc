@@ -62,6 +62,12 @@ namespace Helpers {
         isRecursive?: boolean;
         /** Whether zero matched files is allowed. Default: true. */
         isZeroCopiedFilesAllowed?: boolean;
+        /** Whether to skip hashing the input for caching purposes. Default: false. */
+        skipHashInput?: boolean;
+        /** Whether the destination path should be writable. Default: false. */
+        writable?: boolean;
+        /** A collection of labels that identify which labeled machines in a multi-machine group perform the copy */
+        runOnLabelsString?: string[];
     }
 
     /**
@@ -96,6 +102,8 @@ namespace Helpers {
         scriptName?: string;
         /** Per-script timeout in minutes. 0 means no per-script timeout. */
         timeoutMins?: number;
+        /** A collection of labels that identify which labeled machines in a multi-machine group run the script */
+        runOnLabelsString?: string[];
     }
 
     /**

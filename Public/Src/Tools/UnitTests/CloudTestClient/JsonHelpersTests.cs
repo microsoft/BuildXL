@@ -185,5 +185,30 @@ namespace Test.Tool.CloudTestClient
         private record ArgsHolder([property: JsonConverter(typeof(JsonHelpers.ScriptArgsConverter))] string Args);
 
         #endregion
+
+        #region StringArrayConverter
+
+        [Theory]
+        [InlineData("""{"labels":[]}""", "")]
+        [InlineData("""{"labels":["worker"]}""", "worker")]
+        [InlineData("""{"labels":["worker","coordinator"]}""", "worker,coordinator")]
+        public void StringArrayConverterJoinsValues(string json, string expected)
+        {
+            var record = JsonSerializer.Deserialize<StringArrayHolder>(json, JsonHelpers.ReadOptions);
+
+            Assert.Equal(expected, record.Labels);
+        }
+
+        [Theory]
+        [InlineData("""{"labels":"worker"}""")]
+        [InlineData("""{"labels":["worker",42]}""")]
+        public void StringArrayConverterRejectsInvalidValues(string json)
+        {
+            Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<StringArrayHolder>(json, JsonHelpers.ReadOptions));
+        }
+
+        private record StringArrayHolder([property: JsonConverter(typeof(JsonHelpers.StringArrayConverter))] string Labels);
+
+        #endregion
     }
 }

@@ -27,14 +27,19 @@ namespace Test.Tool.CloudTestClient
                     {
                         "source": {"prefix": "BuildRoot", "path": "bin/test.dll"},
                         "destination": "scripts/setup.ps1",
-                        "isRecursive": true
+                        "isRecursive": true,
+                        "isZeroCopiedFilesAllowed": false,
+                        "skipHashInput": true,
+                        "writable": true,
+                        "runOnLabelsString": ["worker", "coordinator"]
                     }
                 ],
                 "scripts": [
                     {
                         "path": {"prefix": "WorkingDirectory", "path": "tools/setup.cmd"},
                         "args": {"values": ["--config", "test.json"], "separator": " "},
-                        "timeoutMins": 10
+                        "timeoutMins": 10,
+                        "runOnLabelsString": ["worker"]
                     }
                 ],
                 "timeoutMins": 30
@@ -55,12 +60,17 @@ namespace Test.Tool.CloudTestClient
             Assert.Equal(@"[BuildRoot]\bin/test.dll", buildFile.GetProperty("source").GetString());
             Assert.Equal(@"[WorkingDirectory]\scripts/setup.ps1", buildFile.GetProperty("destination").GetString());
             Assert.True(buildFile.GetProperty("isRecursive").GetBoolean());
+            Assert.False(buildFile.GetProperty("isZeroCopiedFilesAllowed").GetBoolean());
+            Assert.True(buildFile.GetProperty("skipHashInput").GetBoolean());
+            Assert.True(buildFile.GetProperty("writable").GetBoolean());
+            Assert.Equal("worker,coordinator", buildFile.GetProperty("runOnLabelsString").GetString());
 
             // Verify script with compound args resolved to string
             var script = setup.GetProperty("scripts")[0];
             Assert.Equal(@"[WorkingDirectory]\tools/setup.cmd", script.GetProperty("path").GetString());
             Assert.Equal("--config test.json", script.GetProperty("args").GetString());
             Assert.Equal(10, script.GetProperty("timeoutMins").GetInt32());
+            Assert.Equal("worker", script.GetProperty("runOnLabelsString").GetString());
         }
 
         [Fact]
@@ -73,7 +83,8 @@ namespace Test.Tool.CloudTestClient
                 "scripts": [
                     {
                         "path": {"prefix": "WorkingDirectory", "path": "cleanup.ps1"},
-                        "args": "--force"
+                        "args": "--force",
+                        "runOnLabelsString": ["coordinator"]
                     }
                 ],
                 "timeoutMins": 5
@@ -91,6 +102,7 @@ namespace Test.Tool.CloudTestClient
             var script = cleanup.GetProperty("scripts")[0];
             Assert.Equal(@"[WorkingDirectory]\cleanup.ps1", script.GetProperty("path").GetString());
             Assert.Equal("--force", script.GetProperty("args").GetString());
+            Assert.Equal("coordinator", script.GetProperty("runOnLabelsString").GetString());
         }
 
         [Fact]

@@ -446,13 +446,15 @@ namespace Tool.CloudTestClient
             bool? IsRecursive,
             bool? IsZeroCopiedFilesAllowed,
             bool? Writable,
-            bool? SkipHashInput);
+            bool? SkipHashInput,
+            [property: JsonConverter(typeof(JsonHelpers.StringArrayConverter))] string RunOnLabelsString);
 
         private sealed record ScriptEntryConfig(
             [property: JsonConverter(typeof(JsonHelpers.CloudTestPathConverter))] string Path,
             [property: JsonConverter(typeof(JsonHelpers.ScriptArgsConverter))] string Args,
             string ScriptName,
-            int? TimeoutMins);
+            int? TimeoutMins,
+            [property: JsonConverter(typeof(JsonHelpers.StringArrayConverter))] string RunOnLabelsString);
 
         private sealed record ServiceEntryConfig(
             [property: JsonConverter(typeof(JsonHelpers.CloudTestPathConverter))] string Path,

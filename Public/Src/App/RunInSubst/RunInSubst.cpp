@@ -134,6 +134,28 @@ std::string ToUtf8(const std::wstring& s)
 }
 #pragma warning( pop )
 
+// Returns the absolute path to the currently running executable, or a diagnostic string if it cannot be determined.
+std::wstring GetCurrentExecutablePath()
+{
+    // UNICODE_STRING_MAX_CHARS is the maximum number of characters in a Windows path; add one for the null terminator.
+    constexpr DWORD MaxPathLength = UNICODE_STRING_MAX_CHARS + 1;
+    std::vector<wchar_t> path(MaxPathLength);
+    const DWORD length = GetModuleFileNameW(nullptr, path.data(), MaxPathLength);
+    if (length == 0)
+    {
+        const DWORD lastError = GetLastError();
+        return std::vformat(L"<unknown executable path, GetLastError={}>", std::make_wformat_args(lastError));
+    }
+
+    if (length < MaxPathLength)
+    {
+        return std::wstring(path.data(), length);
+    }
+
+    constexpr DWORD maxPathLength = MaxPathLength;
+    return std::vformat(L"<executable path exceeded maximum length of {}>", std::make_wformat_args(maxPathLength));
+}
+
 #pragma warning( push )
 // warning C26472: Don't use a static_cast for arithmetic conversions. Use brace initialization, gsl::narrow_cast or gsl::narrow (type.1).
 #pragma warning( disable : 26472 )
@@ -158,8 +180,8 @@ static void LogToFile(PSUBST_NODE pSubstNode, PCWSTR format, Args&&... args)
 
         if (pSubstNode->hLockFile != INVALID_HANDLE_VALUE)
         {
-            WriteFile(pSubstNode->hLockFile, timeDateString, strlen(timeDateString) * sizeof(char), nullptr, nullptr);
-            WriteFile(pSubstNode->hLockFile, asciiBuffer.c_str(), asciiBuffer.length(), nullptr, nullptr);
+            WriteFile(pSubstNode->hLockFile, timeDateString, static_cast<DWORD>(strlen(timeDateString) * sizeof(char)), nullptr, nullptr);
+            WriteFile(pSubstNode->hLockFile, asciiBuffer.c_str(), static_cast<DWORD>(asciiBuffer.length()), nullptr, nullptr);
         }
     }
 }
@@ -839,6 +861,7 @@ static int SubstDrivesAndExecute(int argc, _TCHAR* argv[], PSUBST_LIST_NODE pSub
             }
 
             LogToFile(pListNode, L"Substituting drive {} for path {}.", static_cast<char>(pListNode->szDriveLetter), pListNode->szSourceDirectory);
+            LogToFile(pListNode, L"RunInSubst process: PID={}, Path={}", GetCurrentProcessId(), GetCurrentExecutablePath());
 
             i++;
         }
@@ -868,7 +891,7 @@ static int SubstDrivesAndExecute(int argc, _TCHAR* argv[], PSUBST_LIST_NODE pSub
             // Get a hold of the file lock.
             std::basic_string<TCHAR> substFileLock;
             substFileLock.push_back(pListNode->szDriveLetter);
-            substFileLock += L':' + L'\\' + L'\0';
+            substFileLock += L":\\";
             substFileLock.append(SUBST_FILE_NAME);
 
             HANDLE substFileLockHandle = INVALID_HANDLE_VALUE;

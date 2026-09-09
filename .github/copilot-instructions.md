@@ -155,10 +155,18 @@ Place parallel worktrees under the sibling
 `../BuildXL.Internal.worktrees/<feature>` directory. Worktrees share the main
 worktree's `Out\Cache`, so builds can reuse cache entries.
 
-Builds from different worktrees also share the machine-global `B:` subst drive.
-`RunInSubst.exe` serializes builds with `.SubstLock`; start the build normally
-and let it queue behind the worktree currently using the drive. A queued build
-may appear hung. Never modify or delete `.SubstLock`, manually unmap or remap
-`B:`, or terminate processes to bypass the queue. When diagnosing which
-worktree owns the subst mapping, use the absolute path of the running
-`RunInSubst.exe`.
+On Windows, `bxl.cmd` wraps the build with `RunInSubst.exe`, which serializes
+access via `.SubstLock`: start the build normally (`bxl.cmd -minimal /server-`,
+with no extra flags) and let it queue behind the worktree currently using the
+drive. A queued build may appear hung — that is expected; wait it out or ask the
+user, do not "fix" it.
+
+On Windows, never run the `subst` command yourself, for any drive letter, for
+any reason. Do not remap, unmap, or create a subst drive; do not pass `-NoSubst`
+or any other flag to route around `RunInSubst.exe`; do not modify or delete
+`.SubstLock`; do not terminate processes to bypass the queue. This applies even
+when a build fails with a path-length, "invalid parameter", or other
+subst-looking error — that failure is a signal to stop and ask the user, not to
+invent a drive-letter or `-NoSubst` workaround. When diagnosing which worktree
+owns the subst mapping, use the absolute path of the running `RunInSubst.exe`,
+and report it rather than acting on it.

@@ -180,16 +180,6 @@ export function submitCloudTestJobs(scopeFile: ScopeFile, ctVerbs: Map<JavaScrip
         });
     });
 
-    // Wait for the cloudtest session to complete. For now we wait for this as part of the build.
-    // In the future we will have an agent-less task that just waits for the session completion and reports the result, so we don't have to use an agent for this if the CT session is the last
-    // thing that happens on a pipeline.
-    const sessionResult = CloudTestClient.Helpers.waitForCompletion({
-        configAndSessionResult: sessionCreateResult,
-        // By passing the submitted jobs, the completion-poll pip only starts after every job is submitted.
-        submittedJobs: allJobs,
-        timeoutMinutes: 10
-    });
-
     return allJobs;
 }
 

@@ -123,3 +123,19 @@ extends:
             workingDirectory: $(Build.SourcesDirectory)/Examples/CloudTest-1JS
             env:
               ${{ parameters.CloudTestTokenVariable }}: $(${{ parameters.CloudTestTokenVariable }})
+    - stage: CTMonitor
+      displayName: Monitor CloudTest Session
+      dependsOn: []  # Runs in parallel with Build
+      jobs:
+      - job: CTMonitor
+        displayName: Monitor Build JS repo + Run CloudTest 
+        pool: server  # Agentless
+        steps:
+          ## This is the PPE task, we should change it to the prod version once that's deployed
+          - task: asg-cloudtest.asg-cloudtest-servertasks-ppe.45ECAE41-4034-4F8F-9AB4-1FC5BA457462.CloudTestServerBuildTask-PPE@5
+            inputs:
+              connectedServiceName: CloudTest-INT  # The PPE service connection
+              cloudTestTenant: cloudtest  # The tenant the CloudTest session will use
+              monitorMode: true  # Should always be true for a monitoring job
+              monitorStage: BuildXL # Stage name where DJE session is created
+              monitorJob: build # Job name where DJE session is created

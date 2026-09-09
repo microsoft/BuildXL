@@ -135,6 +135,57 @@ namespace IntegrationTest.BuildXL.Scheduler
             XAssert.IsTrue(Directory.Exists(opaqueDir));
         }
 
+        [FactIfSupported(requiresWindowsBasedOperatingSystem: true)]
+        public void OpaqueDirectoryCacheHitReplacesJunctionRootWithDirectory()
+        {
+            OpaqueDirectoryCacheHitReplacesReparsePointRootWithDirectory(useJunction: true);
+        }
+
+        [FactIfSupported(requiresSymlinkPermission: true, requiresWindowsBasedOperatingSystem: true)]
+        public void OpaqueDirectoryCacheHitReplacesSymlinkRootWithDirectory()
+        {
+            OpaqueDirectoryCacheHitReplacesReparsePointRootWithDirectory(useJunction: false);
+        }
+
+        private void OpaqueDirectoryCacheHitReplacesReparsePointRootWithDirectory(bool useJunction)
+        {
+            string opaqueDir = Path.Combine(ObjectRoot, "opaquedir");
+            AbsolutePath opaqueDirPath = AbsolutePath.Create(Context.PathTable, opaqueDir);
+            FileArtifact outputInOpaque = CreateOutputFileArtifact(opaqueDir);
+
+            var builder = CreatePipBuilder(new Operation[]
+            {
+                Operation.WriteFile(outputInOpaque, doNotInfer: true),
+            });
+            builder.AddOutputDirectory(opaqueDirPath);
+            var pip = SchedulePipBuilder(builder);
+
+            RunScheduler().AssertCacheMiss(pip.Process.PipId);
+            FileUtilities.DeleteDirectoryContents(opaqueDir, deleteRootDirectory: true);
+
+            string targetDir = Path.Combine(ObjectRoot, "reparsePointTarget");
+            string targetSentinel = Path.Combine(targetDir, "sentinel");
+            Directory.CreateDirectory(targetDir);
+            File.WriteAllText(targetSentinel, "sentinel");
+
+            if (useJunction)
+            {
+                FileUtilities.CreateJunction(opaqueDir, targetDir);
+            }
+            else
+            {
+                XAssert.PossiblySucceeded(FileUtilities.TryCreateSymbolicLink(opaqueDir, targetDir, isTargetFile: false));
+            }
+
+            XAssert.IsTrue(File.GetAttributes(opaqueDir).HasFlag(FileAttributes.ReparsePoint));
+
+            RunScheduler().AssertCacheHit(pip.Process.PipId);
+
+            XAssert.IsFalse(File.GetAttributes(opaqueDir).HasFlag(FileAttributes.ReparsePoint));
+            XAssert.IsTrue(File.Exists(ArtifactToString(outputInOpaque)));
+            XAssert.IsTrue(File.Exists(targetSentinel));
+        }
+
         /// <summary>
         /// Consumes a particular file instead of the entire opaque directory. This also validates that a pip's
         /// file based output can overlap with its opaque directory output

@@ -3365,6 +3365,24 @@ namespace BuildXL.Scheduler.Tracing
         public abstract void HistoricPerfDataCacheTrace(LoggingContext context, string message);
 
         [GeneratedEvent(
+            (int)LogEventId.PipUsageMLModelLoadFailed,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Scheduler,
+            Message = "Pip Usage ML model could not be loaded; ML is disabled and normal scheduling estimates will be used. {error}")]
+        public abstract void PipUsageMLModelLoadFailed(LoggingContext context, string error);
+
+        [GeneratedEvent(
+            (int)LogEventId.PipUsageMLPredictionFailed,
+            EventGenerators = EventGenerators.LocalOnly,
+            EventLevel = Level.Verbose,
+            Keywords = (int)Keywords.UserMessage,
+            EventTask = (int)Tasks.Scheduler,
+            Message = "Pip Usage ML prediction failed for pip id {pipId}; normal scheduling estimates will be used. Further prediction failure diagnostics are suppressed for this scheduler. {error}")]
+        public abstract void PipUsageMLPredictionFailed(LoggingContext context, uint pipId, string error);
+
+        [GeneratedEvent(
             (int)LogEventId.HistoricMetadataCacheTrace,
             EventGenerators = EventGenerators.LocalOnly,
             EventLevel = Level.Verbose,
@@ -3814,7 +3832,7 @@ namespace BuildXL.Scheduler.Tracing
                 "ExpectedDiskIOInMB: {expectedDiskIOInMB}, ActualDiskIOInMB: {actualDiskIOInMB}, " +
                 "NumFileDependencies: {numFileDependencies}, NumDirectoryDependencies: {numDirectoryDependencies}, " +
                 "NumFileOutputs: {numFileOutputs}, NumDirectoryOutputs: {numDirectoryOutputs}, Machine: {machine}, " +
-                "HasHistoricPerfData: {hasHistoricPerfData}, " +
+                "HasHistoricPerfData: {hasHistoricPerfData}, ExpectedPipUsageSource: {expectedPipUsageSource}, " +
                 "EwrExpectedProcessSlots: {ewrExpectedProcessSlots}, SchedulerPriorityDurationEstimateMs: {schedulerPriorityDurationEstimateMs}, " +
                 "ColdPipIncomingEdgeCount: {coldPipIncomingEdgeCount}.")]
         internal abstract void ProcessPipExecutionInfo(
@@ -3840,6 +3858,7 @@ namespace BuildXL.Scheduler.Tracing
             int numDirectoryOutputs,
             string machine,
             bool hasHistoricPerfData,
+            string expectedPipUsageSource,
             int ewrExpectedProcessSlots,
             uint schedulerPriorityDurationEstimateMs,
             uint coldPipIncomingEdgeCount);

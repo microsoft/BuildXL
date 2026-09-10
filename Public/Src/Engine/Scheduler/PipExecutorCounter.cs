@@ -358,6 +358,30 @@ namespace BuildXL.Scheduler
         [CounterType(CounterType.Stopwatch)]
         ChooseWorkerCpuDuration,
 
+        /// <summary>
+        /// Time spent acquiring the shared embedded Pip Usage ML model in background initialization.
+        /// Includes first-load work or waiting for another scheduler to finish loading it; reused models incur only acquisition time.
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        PipUsageMLModelLoadDuration,
+
+        /// <summary>
+        /// The amount of time spent evaluating process-pip resource usage with Pip Usage ML, excluding model loading and waiting for it.
+        /// Includes competing evaluations if prediction-cache factories race.
+        /// </summary>
+        [CounterType(CounterType.Stopwatch)]
+        PipUsageMLPredictionDuration,
+
+        /// <summary>
+        /// The number of successful Pip Usage ML evaluations, including competing prediction-cache factory calls.
+        /// </summary>
+        PipUsageMLPredictionCount,
+
+        /// <summary>
+        /// The number of Pip Usage ML evaluations that failed and used normal resource estimates.
+        /// </summary>
+        PipUsageMLPredictionFailureCount,
+
         // ============================================================================================================
         // 4. These are count aggregates for how many times various operations happened
         // ============================================================================================================

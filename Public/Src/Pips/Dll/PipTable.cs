@@ -33,7 +33,7 @@ namespace BuildXL.Pips
         /// <summary>
         /// Envelope for serialization
         /// </summary>
-        public static readonly FileEnvelope FileEnvelope = new FileEnvelope(name: "PipTable", version: 0);
+        public static readonly FileEnvelope FileEnvelope = new FileEnvelope(name: "PipTable", version: 1);
 
         private sealed class PageablePipStore : PageableStore
         {
@@ -577,6 +577,34 @@ namespace BuildXL.Pips
             var mutable = GetMutable(pipId) as ProcessMutablePipState;
             Contract.Assert(mutable != null);
             return mutable.ModuleId;
+        }
+
+        /// <inheritdoc />
+        public StringId GetProcessToolDescription(PipId pipId) => GetProcessMutableState(pipId).ToolDescription;
+
+        /// <inheritdoc />
+        public QualifierId GetProcessQualifierId(PipId pipId) => GetProcessMutableState(pipId).QualifierId;
+
+        /// <inheritdoc />
+        public int GetProcessWeight(PipId pipId) => GetProcessMutableState(pipId).Weight;
+
+        /// <inheritdoc />
+        public int GetProcessFileDependencyCount(PipId pipId) => GetProcessMutableState(pipId).NumFileDependencies;
+
+        /// <inheritdoc />
+        public int GetProcessDirectoryDependencyCount(PipId pipId) => GetProcessMutableState(pipId).NumDirectoryDependencies;
+
+        /// <inheritdoc />
+        public int GetProcessFileOutputCount(PipId pipId) => GetProcessMutableState(pipId).NumFileOutputs;
+
+        /// <inheritdoc />
+        public int GetProcessDirectoryOutputCount(PipId pipId) => GetProcessMutableState(pipId).NumDirectoryOutputs;
+
+        private ProcessMutablePipState GetProcessMutableState(PipId pipId)
+        {
+            var mutable = GetMutable(pipId) as ProcessMutablePipState;
+            Contract.Assert(mutable != null);
+            return mutable;
         }
 
         /// <summary>

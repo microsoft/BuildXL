@@ -11,6 +11,9 @@ using BuildXL.Scheduler.Tracing;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Instrumentation.Common;
+#if MICROSOFT_INTERNAL
+using BuildXL.ML.PipUsage;
+#endif
 
 namespace BuildXL.Scheduler
 {
@@ -54,6 +57,13 @@ namespace BuildXL.Scheduler
         /// Historic perf data
         /// </summary>
         public ProcessPipHistoricPerfData? HistoricPerfData;
+
+    #if MICROSOFT_INTERNAL
+        /// <summary>
+        /// Cached Pip Usage prediction for an eligible process pip.
+        /// </summary>
+        internal PipUsagePrediction? MLPipUsagePrediction;
+    #endif
 
         /// <summary>
         /// SemaphoreResources

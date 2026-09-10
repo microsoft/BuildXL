@@ -567,5 +567,7 @@ namespace BuildXL.Scheduler.Tracing
         EngineDumpCollectorTriggered = 14617,
         EngineDumpCollectorCompleted = 14618,
         EngineDumpCollectorFailed = 14619,
+        PipUsageMLModelLoadFailed = 14620,
+        PipUsageMLPredictionFailed = 14621,
     }
 }

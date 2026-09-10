@@ -21,6 +21,9 @@ using BuildXL.Cache.ContentStore.Extensions;
 using BuildXL.Cache.ContentStore.Interfaces.Extensions;
 using BuildXL.Engine.Cache;
 using BuildXL.Engine.Cache.Artifacts;
+#if MICROSOFT_INTERNAL
+using BuildXL.ML.PipUsage;
+#endif
 #if PLATFORM_OSX
 using BuildXL.Interop;
 #endif
@@ -521,6 +524,18 @@ namespace BuildXL.Scheduler
         /// </summary>
         private long m_pendingProcessPipExpectedSlots;
 
+    #if MICROSOFT_INTERNAL
+        private static readonly Lazy<(PipUsageModel Model, string Error)> s_pipUsageModel = new Lazy<(PipUsageModel Model, string Error)>(() =>
+        {
+            PipUsageModel model = PipUsageModel.TryLoadEmbedded(out string error);
+            return (model, error);
+        });
+        private readonly Task<PipUsageModel> m_pipUsageModelTask;
+        private volatile PipUsageMLMode m_pipUsageMLMode;
+        private readonly ConcurrentDictionary<PipId, PipUsagePrediction?> m_mlPipUsagePredictions;
+        private int m_loggedPipUsageMLPredictionFailure;
+    #endif
+
         /// <summary>
         /// Exposes the pending process pip expected slots counter for testing.
         /// Should be 0 after the scheduler finishes successfully.
@@ -534,16 +549,38 @@ namespace BuildXL.Scheduler
         /// </summary>
         private int ComputeHistoricCpuWeight(PipId pipId)
         {
-            ushort cpuUsageInPercent = m_scheduleConfiguration.UseHistoricalCpuUsageInfo()
-                ? HistoricPerfDataTable[m_pipTable.GetPipSemiStableHash(pipId)].ProcessorsInPercents
-                : (ushort)0;
+            bool useHistoricalCpuUsage = m_scheduleConfiguration.UseHistoricalCpuUsageInfo();
+#if MICROSOFT_INTERNAL
+            if (!useHistoricalCpuUsage && m_pipUsageMLMode == PipUsageMLMode.Disabled)
+#else
+            if (!useHistoricalCpuUsage)
+#endif
+            {
+                return Process.MinWeight;
+            }
+
+            ProcessPipHistoricPerfData historicPerfData = HistoricPerfDataTable[m_pipTable.GetPipSemiStableHash(pipId)];
+            int cpuUsageInPercent = useHistoricalCpuUsage
+                ? historicPerfData.ProcessorsInPercents
+                : 0;
+
+#if MICROSOFT_INTERNAL
+            if (ShouldEvaluatePipUsageML(historicPerfData))
+            {
+                PipUsagePrediction? prediction = GetMLPipUsagePrediction(pipId, historicPerfData);
+                if (prediction.HasValue)
+                {
+                    cpuUsageInPercent = prediction.Value.CpuPercent;
+                }
+            }
+#endif
 
             // TODO(seokur): cpuUsageInPercent sometimes becomes way higher than the number of physical threads of the machine. 
             // There is an issue about getting user and kernel time for processes in some cases. It is under investigation.
             // For now, we cap the cpuUsageInPercent to 1000 (weight:10). 
             if (OperatingSystemHelper.IsLinuxOS)
             {
-                cpuUsageInPercent = Math.Min(cpuUsageInPercent, (ushort)1000); // TEMPORARY. Work item #2116515
+                cpuUsageInPercent = Math.Min(cpuUsageInPercent, 1000); // TEMPORARY. Work item #2116515
             }
 
             if (cpuUsageInPercent > 100)
@@ -554,6 +591,91 @@ namespace BuildXL.Scheduler
             // If cpu usage is less than 100%, just use the lowest possible weight.
             return Process.MinWeight;
         }
+
+#if MICROSOFT_INTERNAL
+        private PipUsageModel LoadPipUsageModel()
+        {
+            PipUsageModel model;
+            string error;
+            // Keep shared-model acquisition (including a first load or contention on it) out of inference timing.
+            using (PipExecutionCounters.StartStopwatch(PipExecutorCounter.PipUsageMLModelLoadDuration))
+            {
+                (model, error) = s_pipUsageModel.Value;
+            }
+
+            if (model == null)
+            {
+                m_pipUsageMLMode = PipUsageMLMode.Disabled;
+                Logger.Log.PipUsageMLModelLoadFailed(m_loggingContext, error ?? "No model was returned.");
+            }
+
+            return model;
+        }
+
+        private void LogPipUsageMLPredictionFailure(PipId pipId, string error)
+        {
+            // A malformed model or input can affect many pips. Log only the first failure, but count every failed evaluation.
+            if (Interlocked.CompareExchange(ref m_loggedPipUsageMLPredictionFailure, 1, 0) == 0)
+            {
+                Logger.Log.PipUsageMLPredictionFailed(m_loggingContext, pipId.Value, error);
+            }
+        }
+
+        private PipUsagePrediction? GetMLPipUsagePrediction(PipId pipId, ProcessPipHistoricPerfData historicPerfData)
+        {
+            try
+            {
+                if (m_pipTable.GetPipType(pipId) != PipType.Process)
+                {
+                    return null;
+                }
+
+                // GetOrAdd may evaluate concurrently for the same pip. Predictions are deterministic;
+                // counters record actual evaluations, including any competing factory calls.
+                return m_mlPipUsagePredictions.GetOrAdd(
+                    pipId,
+                    _ =>
+                    {
+                        // Loading starts in the constructor. Only wait when a prediction is actually needed.
+                        PipUsageModel model = m_pipUsageModelTask.GetAwaiter().GetResult();
+                        if (model == null)
+                        {
+                            return null;
+                        }
+
+                        PipUsagePrediction? prediction;
+                        string error;
+                        using (PipExecutionCounters.StartStopwatch(PipExecutorCounter.PipUsageMLPredictionDuration))
+                        {
+                            prediction = model.TryEvaluate(m_pipTable, pipId, Context, m_configuration, historicPerfData, out error);
+                        }
+
+                        if (prediction.HasValue)
+                        {
+                            PipExecutionCounters.IncrementCounter(PipExecutorCounter.PipUsageMLPredictionCount);
+                        }
+                        else
+                        {
+                            PipExecutionCounters.IncrementCounter(PipExecutorCounter.PipUsageMLPredictionFailureCount);
+                            LogPipUsageMLPredictionFailure(pipId, error ?? "No prediction was returned.");
+                        }
+
+                        return prediction;
+                    });
+            }
+            catch (Exception ex)
+            {
+                PipExecutionCounters.IncrementCounter(PipExecutorCounter.PipUsageMLPredictionFailureCount);
+                LogPipUsageMLPredictionFailure(pipId, ex.ToString());
+                return null;
+            }
+        }
+
+        private bool ShouldEvaluatePipUsageML(ProcessPipHistoricPerfData historicPerfData)
+        {
+            return PipUsageModel.ShouldEvaluate(m_pipUsageMLMode, historicPerfData);
+        }
+#endif
 
         /// <summary>
         /// The pip runtime information
@@ -1201,6 +1323,11 @@ namespace BuildXL.Scheduler
             public long NumWildGuesses;
 
             /// <summary>
+            /// Number of process nodes for which Pip Usage ML supplied the critical path duration estimate.
+            /// </summary>
+            public long NumMlPredictions;
+
+            /// <summary>
             /// Longest critical path length.
             /// </summary>
             public long LongestPath;
@@ -1620,6 +1747,14 @@ namespace BuildXL.Scheduler
             m_outputFileExtensionsForSequentialScan = new HashSet<PathAtom>(configuration.Schedule.OutputFileExtensionsForSequentialScanHandleOnHashing);
 
             m_loggingContext = loggingContext;
+#if MICROSOFT_INTERNAL
+            m_pipUsageMLMode = EngineEnvironmentSettings.UseMLForPipUsage.Value;
+            if (m_pipUsageMLMode != PipUsageMLMode.Disabled)
+            {
+                m_mlPipUsagePredictions = new ConcurrentDictionary<PipId, PipUsagePrediction?>();
+                m_pipUsageModelTask = Task.Run(LoadPipUsageModel);
+            }
+#endif
             m_groupedPipCounters = new PipCountersByGroupAggregator(loggingContext);
             m_pipRetryCountersDueToNetworkFailures = new int[configuration.Distribution.MaxRetryLimitOnRemoteWorkers + 1];
 
@@ -2279,6 +2414,7 @@ namespace BuildXL.Scheduler
             {
                 statistics.Add("HistoricalCriticalPath.NumWildGuesses", m_criticalPathStats.NumWildGuesses);
                 statistics.Add("HistoricalCriticalPath.NumHits", m_criticalPathStats.NumHits);
+                statistics.Add("HistoricalCriticalPath.NumMlPredictions", m_criticalPathStats.NumMlPredictions);
                 statistics.Add("HistoricalCriticalPath.LongestPathMs", m_criticalPathStats.LongestPath);
             }
 
@@ -3142,7 +3278,11 @@ namespace BuildXL.Scheduler
             // instead of assuming 1 pip = 1 slot. This accounts for pips that consume multiple slots.
             // m_pendingProcessPipExpectedSlots tracks the sum of estimated weights for all non-completed process pips.
             long estimatedSlotsForWaitingPips;
-            if (m_scheduleConfiguration.UseHistoricalCpuUsageInfo())
+            bool useCpuSlotEstimation = m_scheduleConfiguration.UseHistoricalCpuUsageInfo();
+#if MICROSOFT_INTERNAL
+            useCpuSlotEstimation |= m_pipUsageMLMode != PipUsageMLMode.Disabled;
+#endif
+            if (useCpuSlotEstimation)
             {
                 estimatedSlotsForWaitingPips = Volatile.Read(ref m_pendingProcessPipExpectedSlots) - Workers.Sum(a => a.AcquiredProcessSlots);
             }
@@ -5316,6 +5456,18 @@ namespace BuildXL.Scheduler
                             int numFileOutputs = pipForGraphShape.FileOutputs.Length;
                             int numDirectoryOutputs = pipForGraphShape.DirectoryOutputs.Length;
                             var processPipRuntimeInfo = GetPipRuntimeInfo(processRunnable.PipId);
+                            double expectedDurationSec = (processRunnable.HistoricPerfData?.ExeDurationInMs ?? 0) / 1000.0;
+                            int expectedProcessorUseInPercents = processRunnable.HistoricPerfData?.ProcessorsInPercents ?? 0;
+                            string expectedPipUsageSource = hasHistoricPerfData ? "Historical" : "None";
+
+#if MICROSOFT_INTERNAL
+                            if (processRunnable.MLPipUsagePrediction.HasValue)
+                            {
+                                expectedDurationSec = processRunnable.MLPipUsagePrediction.Value.DurationMilliseconds / 1000.0;
+                                expectedProcessorUseInPercents = processRunnable.MLPipUsagePrediction.Value.CpuPercent;
+                                expectedPipUsageSource = "ML";
+                            }
+#endif
 
                             try
                             {
@@ -5323,12 +5475,10 @@ namespace BuildXL.Scheduler
                                     operationContext,
                                     runnablePip.Description,
                                     executionResult.PerformanceInformation?.NumberOfProcesses ?? 0,
-                                    (processRunnable.HistoricPerfData?.ExeDurationInMs ?? 0) / 1000.0,
+                                    expectedDurationSec,
                                     executionResult.PerformanceInformation?.ProcessExecutionTime.TotalSeconds ?? 0,
                                     (processRunnable.HistoricPerfData?.MaxExeDurationInMs ?? 0) / 1000.0,
-                                    // ExpectedProcessorUseInPercents: BuildXL's historic-perf CPU prior for this pip (O(1) struct read),
-                                    // the pre-run companion to the actual ProcessorUseInPercents. 0 when there is no history.
-                                    processRunnable.HistoricPerfData?.ProcessorsInPercents ?? 0,
+                                    expectedProcessorUseInPercents,
                                     executionResult.PerformanceInformation?.ProcessorsInPercents ?? 0,
                                     processRunnable.Weight,
                                     worker.DefaultWorkingSetMbPerProcess,
@@ -5345,6 +5495,7 @@ namespace BuildXL.Scheduler
                                     // Machine: the worker that executed the pip (IP when available, else name).
                                     worker.MachineIdentifier,
                                     hasHistoricPerfData,
+                                    expectedPipUsageSource,
                                     processRunnable.HistoricCpuWeight,
                                     processPipRuntimeInfo.SchedulerPriorityDurationEstimateMs,
                                     processPipRuntimeInfo.ColdPipIncomingEdgeCount);
@@ -5696,6 +5847,13 @@ namespace BuildXL.Scheduler
                     // in the subsequent logic and we have to retry later.
                     runnablePip.HistoricPerfData = perfData;
                 }
+
+#if MICROSOFT_INTERNAL
+                if (ShouldEvaluatePipUsageML(runnablePip.HistoricPerfData.Value))
+                {
+                    runnablePip.MLPipUsagePrediction = GetMLPipUsagePrediction(runnablePip.PipId, runnablePip.HistoricPerfData.Value);
+                }
+#endif
 
                 // Find the estimated setup time for the pip on each builder.
                 return m_chooseWorkerCpu.ChooseWorker(runnablePip);
@@ -6535,11 +6693,27 @@ namespace BuildXL.Scheduler
                                     historicalMilliseconds = historicPerfData.RunDurationInMs;
                                 }
 
-                                uint schedulerPriorityDurationEstimateMs;
-                                if (historicalMilliseconds != 0)
+                                uint mlDurationMilliseconds = 0;
+#if MICROSOFT_INTERNAL
+                                if (pipType == PipType.Process && ShouldEvaluatePipUsageML(historicPerfData))
+                                {
+                                    PipUsagePrediction? prediction = GetMLPipUsagePrediction(pipId, historicPerfData);
+                                    if (prediction.HasValue)
+                                    {
+                                        mlDurationMilliseconds = prediction.Value.DurationMilliseconds;
+                                    }
+                                }
+#endif
+
+                                uint schedulerPriorityDurationEstimateMs = 0;
+                                if (mlDurationMilliseconds != 0)
+                                {
+                                    Interlocked.Increment(ref m_criticalPathStats.NumMlPredictions);
+                                    schedulerPriorityDurationEstimateMs = mlDurationMilliseconds;
+                                }
+                                else if (historicalMilliseconds != 0)
                                 {
                                     Interlocked.Increment(ref m_criticalPathStats.NumHits);
-                                    criticalPath += historicalMilliseconds;
                                     schedulerPriorityDurationEstimateMs = historicalMilliseconds;
                                 }
                                 else
@@ -6567,11 +6741,11 @@ namespace BuildXL.Scheduler
                                             break;
                                     }
 
-                                    criticalPath += estimatedMilliseconds;
                                     schedulerPriorityDurationEstimateMs = estimatedMilliseconds;
                                     pipRuntimeInfo.ColdPipIncomingEdgeCount = incomingEdgeCount;
                                 }
 
+                                criticalPath += schedulerPriorityDurationEstimateMs;
                                 pipRuntimeInfo.SchedulerPriorityDurationEstimateMs = schedulerPriorityDurationEstimateMs;
 
                                 // Track the estimated slots for all pending process pips (used by early worker release).

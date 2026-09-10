@@ -8,6 +8,7 @@ using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Core.Qualifier;
 
 namespace BuildXL.Pips
 {
@@ -67,7 +68,23 @@ namespace BuildXL.Pips
                         pipAsIpc.ServicePipDependencies.Any() ? ServicePipKind.ServiceClient :
                         ServicePipKind.None;
                     var serviceInfo = new ServiceInfo(serviceKind, pipAsIpc.ServicePipDependencies, monikerId: pipAsIpc.IpcInfo.IpcMonikerId);
-                    mutable = new ProcessMutablePipState(pip.PipType, pip.SemiStableHash, default(PageableStoreId), serviceInfo, Process.Options.IsLight, default(RewritePolicy), AbsolutePath.Invalid, Process.MinPriority, pip.Provenance.ModuleId);
+                    mutable = new ProcessMutablePipState(
+                        pip.PipType,
+                        pip.SemiStableHash,
+                        default(PageableStoreId),
+                        serviceInfo,
+                        Process.Options.IsLight,
+                        default(RewritePolicy),
+                        AbsolutePath.Invalid,
+                        Process.MinPriority,
+                        pip.Provenance.ModuleId,
+                        StringId.Invalid,
+                        pip.Provenance.QualifierId,
+                        Process.MinWeight,
+                        0,
+                        0,
+                        0,
+                        0);
                     break;
                 case PipType.Process:
                     var pipAsProcess = (Process)pip;
@@ -81,6 +98,13 @@ namespace BuildXL.Pips
                         pipAsProcess.Executable.Path, 
                         pipAsProcess.Priority,
                         pipAsProcess.Provenance.ModuleId,
+                        pipAsProcess.ToolDescription,
+                        pipAsProcess.Provenance.QualifierId,
+                        pipAsProcess.Weight,
+                        pipAsProcess.Dependencies.Length,
+                        pipAsProcess.DirectoryDependencies.Length,
+                        pipAsProcess.FileOutputs.Length,
+                        pipAsProcess.DirectoryOutputs.Length,
                         preserveOutputsTrustLevel: pipAsProcess.PreserveOutputsTrustLevel,
                         isSucceedFast: pipAsProcess.SucceedFastExitCodes.Length > 0);
                     break;
@@ -232,6 +256,13 @@ namespace BuildXL.Pips
         internal readonly RewritePolicy RewritePolicy;
         internal readonly AbsolutePath ExecutablePath;
         internal readonly ModuleId ModuleId;
+        internal readonly StringId ToolDescription;
+        internal readonly QualifierId QualifierId;
+        internal readonly int Weight;
+        internal readonly int NumFileDependencies;
+        internal readonly int NumDirectoryDependencies;
+        internal readonly int NumFileOutputs;
+        internal readonly int NumDirectoryOutputs;
         internal readonly bool IsSucceedFast;
 
         internal ProcessMutablePipState(
@@ -244,6 +275,13 @@ namespace BuildXL.Pips
             AbsolutePath executablePath,
             int priority,
             ModuleId moduleId,
+            StringId toolDescription,
+            QualifierId qualifierId,
+            int weight,
+            int numFileDependencies,
+            int numDirectoryDependencies,
+            int numFileOutputs,
+            int numDirectoryOutputs,
             int preserveOutputsTrustLevel = 0,
             bool isSucceedFast = false)
             : base(pipType, semiStableHash, storeId)
@@ -255,6 +293,13 @@ namespace BuildXL.Pips
             Priority = priority;
             PreserveOutputTrustLevel = preserveOutputsTrustLevel;
             ModuleId = moduleId;
+            ToolDescription = toolDescription;
+            QualifierId = qualifierId;
+            Weight = weight;
+            NumFileDependencies = numFileDependencies;
+            NumDirectoryDependencies = numDirectoryDependencies;
+            NumFileOutputs = numFileOutputs;
+            NumDirectoryOutputs = numDirectoryOutputs;
             IsSucceedFast = isSucceedFast;
         }
 
@@ -278,6 +323,13 @@ namespace BuildXL.Pips
             writer.Write(Priority);
             writer.Write(PreserveOutputTrustLevel);
             writer.Write(ModuleId);
+            writer.Write(ToolDescription);
+            writer.WriteCompact(QualifierId.Id);
+            writer.Write(Weight);
+            writer.Write(NumFileDependencies);
+            writer.Write(NumDirectoryDependencies);
+            writer.Write(NumFileOutputs);
+            writer.Write(NumDirectoryOutputs);
             writer.Write(IsSucceedFast);
         }
 
@@ -290,6 +342,13 @@ namespace BuildXL.Pips
             int priority = reader.ReadInt32();
             int preserveOutputTrustLevel = reader.ReadInt32();
             ModuleId moduleId = reader.ReadModuleId();
+            StringId toolDescription = reader.ReadStringId();
+            QualifierId qualifierId = new QualifierId(reader.ReadInt32Compact());
+            int weight = reader.ReadInt32();
+            int numFileDependencies = reader.ReadInt32();
+            int numDirectoryDependencies = reader.ReadInt32();
+            int numFileOutputs = reader.ReadInt32();
+            int numDirectoryOutputs = reader.ReadInt32();
             bool isSucceedFast = reader.ReadBoolean();
 
             return new ProcessMutablePipState(
@@ -302,6 +361,13 @@ namespace BuildXL.Pips
                 executablePath,
                 priority,
                 moduleId,
+                toolDescription,
+                qualifierId,
+                weight,
+                numFileDependencies,
+                numDirectoryDependencies,
+                numFileOutputs,
+                numDirectoryOutputs,
                 preserveOutputsTrustLevel: preserveOutputTrustLevel,
                 isSucceedFast: isSucceedFast);
         }

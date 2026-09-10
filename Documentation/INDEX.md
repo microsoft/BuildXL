@@ -59,6 +59,7 @@ This is the primary documentation for BuildXL (Microsoft Build Accelerator). If 
 * [Parameters (Environment Variables)](Wiki/Advanced-Features/Build-Parameters-(Environment-variables).md)
 * [Performance Tuning](Wiki/Advanced-Features/Performance-Tuning.md)
 * [Pip requested file materialization](Wiki/External-OnDemand-File-Materialization-API.md)
+* [Pip Usage ML](Wiki/Advanced-Features/Pip-Usage-ML.md)
 * [Pip Weight](Wiki/Advanced-Features/Pip-Weight.md)
 * [Preserve Outputs](Wiki/Advanced-Features/Preserving-outputs.md)
 * [Process Timeouts](Wiki/Advanced-Features/Process-Timeouts.md)

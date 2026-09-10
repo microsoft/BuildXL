@@ -825,6 +825,34 @@ namespace BuildXL.Pips
             return mutable.ModuleId;
         }
 
+        /// <inheritdoc />
+        public StringId GetProcessToolDescription(PipId pipId) => GetProcessMutableState(pipId).ToolDescription;
+
+        /// <inheritdoc />
+        public QualifierId GetProcessQualifierId(PipId pipId) => GetProcessMutableState(pipId).QualifierId;
+
+        /// <inheritdoc />
+        public int GetProcessWeight(PipId pipId) => GetProcessMutableState(pipId).Weight;
+
+        /// <inheritdoc />
+        public int GetProcessFileDependencyCount(PipId pipId) => GetProcessMutableState(pipId).NumFileDependencies;
+
+        /// <inheritdoc />
+        public int GetProcessDirectoryDependencyCount(PipId pipId) => GetProcessMutableState(pipId).NumDirectoryDependencies;
+
+        /// <inheritdoc />
+        public int GetProcessFileOutputCount(PipId pipId) => GetProcessMutableState(pipId).NumFileOutputs;
+
+        /// <inheritdoc />
+        public int GetProcessDirectoryOutputCount(PipId pipId) => GetProcessMutableState(pipId).NumDirectoryOutputs;
+
+        private ProcessMutablePipState GetProcessMutableState(PipId pipId)
+        {
+            var mutable = GetMutable(pipId) as ProcessMutablePipState;
+            Contract.Assert(mutable != null);
+            return mutable;
+        }
+
         /// <summary>Gets whether the process should fail the build immediately.</summary>
         public bool IsSucceedFast(PipId pipId) => (GetMutable(pipId) as ProcessMutablePipState)?.IsSucceedFast == true;
 

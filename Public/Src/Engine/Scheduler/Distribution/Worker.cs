@@ -19,6 +19,9 @@ using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Collections;
 using BuildXL.Utilities.Configuration;
 using BuildXL.Utilities.Instrumentation.Common;
+#if MICROSOFT_INTERNAL
+using BuildXL.ML.PipUsage;
+#endif
 using BuildXL.Utilities.Core.Tasks;
 using static BuildXL.Utilities.Core.FormattableStringEx;
 using static BuildXL.Tracing.Diagnostics;
@@ -735,6 +738,13 @@ namespace BuildXL.Scheduler.Distribution
                     // Sometimes, the historical data shows the cpu usage as 0 if the process is very lightweight and short-running. 
                     // In those cases, we use 1 as the cpu usage.
                     int cpuUsage = Math.Max(1, runnableProcess.HistoricPerfData.Value == ProcessPipHistoricPerfData.Empty ? 100 : runnableProcess.HistoricPerfData.Value.ProcessorsInPercents);
+#if MICROSOFT_INTERNAL
+                    PipUsagePrediction? prediction = runnableProcess.MLPipUsagePrediction;
+                    if (prediction.HasValue)
+                    {
+                        cpuUsage = Math.Max(1, prediction.Value.CpuPercent);
+                    }
+#endif
                     var cpuSemaphoreInfo = new ProcessSemaphoreInfo(
                         m_cpuSemaphoreNameId,
                         // When we run the pipeline on a less powerful machine in the next run, the CPU usage might exceed the current CPU max limit. 
@@ -768,20 +778,31 @@ namespace BuildXL.Scheduler.Distribution
                 return runnableProcess.ExpectedMemoryCounters.Value;
             }
 
-            // If there is a historic perf data, use it.
+            if (runnableProcess.Process.IsLight)
+            {
+                return ProcessMemoryCounters.CreateFromMb(0, 0);
+            }
+
+#if MICROSOFT_INTERNAL
+            PipUsagePrediction? prediction = runnableProcess.MLPipUsagePrediction;
+            if (prediction.HasValue)
+            {
+                return ProcessMemoryCounters.CreateFromMb(
+                    peakWorkingSetMb: prediction.Value.PeakMemoryMb,
+                    averageWorkingSetMb: prediction.Value.AverageMemoryMb);
+            }
+#endif
+
+            // If there is historic perf data and no ML prediction, use it.
             if (runnableProcess.HistoricPerfData != null && runnableProcess.HistoricPerfData.Value != ProcessPipHistoricPerfData.Empty)
             {
                 return runnableProcess.HistoricPerfData.Value.MemoryCounters;
             }
 
             // If there is no historic perf data, use the defaults for the worker.
-            // Regarding light process pips, we should use 0 as the default memory usage.
-            // Otherwise, we cannot utilize the high concurrency limit of IPC dispatcher. 
-            // When there is a historical data for light process pips, we will use the real 
-            // memory usage from previous runs, but we still expect low memory for those.
             return ProcessMemoryCounters.CreateFromMb(
-                peakWorkingSetMb: runnableProcess.Process.IsLight ? 0 : DefaultWorkingSetMbPerProcess,
-                averageWorkingSetMb: runnableProcess.Process.IsLight ? 0 : DefaultWorkingSetMbPerProcess);
+                peakWorkingSetMb: DefaultWorkingSetMbPerProcess,
+                averageWorkingSetMb: DefaultWorkingSetMbPerProcess);
         }
 
         /// <summary>

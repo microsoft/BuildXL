@@ -14,6 +14,21 @@ using BuildXL.Utilities.Core;
 namespace BuildXL.Utilities.Configuration
 {
     /// <summary>
+    /// Controls which process pips use the Pip Usage ML model.
+    /// </summary>
+    public enum PipUsageMLMode
+    {
+        /// <summary>Do not use the model.</summary>
+        Disabled = 0,
+
+        /// <summary>Use the model only when historical performance data is unavailable.</summary>
+        Cold = 1,
+
+        /// <summary>Use the model for both cold and warm pips.</summary>
+        ColdAndWarm = 2,
+    }
+
+    /// <summary>
     /// Defines settings initialized from environment variables
     /// </summary>
     public static class EngineEnvironmentSettings
@@ -240,6 +255,16 @@ namespace BuildXL.Utilities.Configuration
         /// but are otherwise small enough that the orchestrator may complete the build
         /// </remarks>
         public static readonly Setting<bool> AlwaysEnsureMinimumWorkers = CreateSetting("BuildXLAlwaysEnsureMinimumWorkers", value => value == "1");
+
+        /// <summary>
+        /// Controls Pip Usage ML evaluation: 0 disables it, 1 evaluates cold pips, and 2 evaluates cold and warm pips.
+        /// Defaults to mode 1 while Pip Usage ML is being validated.
+        /// </summary>
+        public static readonly Setting<PipUsageMLMode> UseMLForPipUsage = CreateSetting(
+            "BuildXLUseMLForPipUsage",
+            value => int.TryParse(value, out int mode) && Enum.IsDefined(typeof(PipUsageMLMode), mode)
+                ? (PipUsageMLMode)mode
+                : PipUsageMLMode.Cold);
 
         /// <summary>
         /// If true, the build will fail early with an internal error when the number of problematic workers exceeds half of the remote workers.

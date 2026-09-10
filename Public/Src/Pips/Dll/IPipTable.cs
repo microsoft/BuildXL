@@ -170,6 +170,41 @@ namespace BuildXL.Pips
         ModuleId GetProcessModuleId(PipId pipId);
 
         /// <summary>
+        /// Gets the process tool description without hydrating the pip.
+        /// </summary>
+        StringId GetProcessToolDescription(PipId pipId);
+
+        /// <summary>
+        /// Gets the process qualifier without hydrating the pip.
+        /// </summary>
+        QualifierId GetProcessQualifierId(PipId pipId);
+
+        /// <summary>
+        /// Gets the process weight without hydrating the pip.
+        /// </summary>
+        int GetProcessWeight(PipId pipId);
+
+        /// <summary>
+        /// Gets the process file dependency count without hydrating the pip.
+        /// </summary>
+        int GetProcessFileDependencyCount(PipId pipId);
+
+        /// <summary>
+        /// Gets the process directory dependency count without hydrating the pip.
+        /// </summary>
+        int GetProcessDirectoryDependencyCount(PipId pipId);
+
+        /// <summary>
+        /// Gets the process file output count without hydrating the pip.
+        /// </summary>
+        int GetProcessFileOutputCount(PipId pipId);
+
+        /// <summary>
+        /// Gets the process directory output count without hydrating the pip.
+        /// </summary>
+        int GetProcessDirectoryOutputCount(PipId pipId);
+
+        /// <summary>
         /// Gets whether the process should fail the build immediately.
         /// </summary>
         bool IsSucceedFast(PipId pipId);

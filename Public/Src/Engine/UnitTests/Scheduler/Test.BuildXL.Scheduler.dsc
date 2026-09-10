@@ -19,6 +19,14 @@ namespace Scheduler {
         // These tests require the sandbox to run itself, so we won't sandbox the test runner process itself
         assemblyName: "Test.BuildXL.Scheduler",
         sources: globR(d`.`, "*.cs"),
+        embeddedResources: [
+            ...addIfLazy(BuildXLSdk.Flags.isMicrosoftInternal, () => [{
+                logicalName: "pipUsageTest",
+                linkedContent: [
+                    importFrom("BuildXL.ML.Models").pkg.contents.getFile(r`models/pipUsage/test_cases.json`),
+                ],
+            }]),
+        ],
         runTestArgs: {
             unsafeTestRunArguments: {
                 runWithUntrackedDependencies: !BuildXLSdk.Flags.IsEBPFSandboxForTestsEnabled,

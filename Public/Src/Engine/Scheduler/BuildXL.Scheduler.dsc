@@ -10,7 +10,22 @@ namespace Scheduler {
     export const dll = BuildXLSdk.library({
         assemblyName: "BuildXL.Scheduler",
         generateLogs: true,
-        sources: globR(d`.`, "*.cs"),
+        sources: [
+            ...globR(d`.`, "*.cs"),
+            ...globR(d`../../ML/Runtime`, "*.cs"),
+        ],
+        embeddedResources: [
+            ...addIfLazy(BuildXLSdk.Flags.isMicrosoftInternal, () => [{
+                logicalName: "pipUsage",
+                linkedContent: [
+                    importFrom("BuildXL.ML.Models").pkg.contents.getFile(r`models/pipUsage/model_spec.json`),
+                    importFrom("BuildXL.ML.Models").pkg.contents.getFile(r`models/pipUsage/pip_usage_cpu.json`),
+                    importFrom("BuildXL.ML.Models").pkg.contents.getFile(r`models/pipUsage/pip_usage_memory.json`),
+                    importFrom("BuildXL.ML.Models").pkg.contents.getFile(r`models/pipUsage/pip_usage_average_memory.json`),
+                    importFrom("BuildXL.ML.Models").pkg.contents.getFile(r`models/pipUsage/pip_usage_duration.json`),
+                ],
+            }]),
+        ],
         addPolySharpAttributes: false,
         references: [
             ...addIfLazy(BuildXLSdk.isFullFramework, () => [

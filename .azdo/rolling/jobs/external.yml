@@ -323,7 +323,7 @@ jobs:
         dropServiceURI: https://mseng.artifacts.visualstudio.com/DefaultCollection
         buildNumber: buildxl/external/vscode/linux/${{ parameters.RollingBuildNumber }}/${{ parameters.RollingBuildId }}
         sourcePath: $(Build.SourcesDirectory)/Out/Bin/release/ide
-        retentionDays: 5
+        retentionDays: 14
         dropMetadataContainerName: DropMetadata-External-VsCode-Linux
     - ${{ else }}:
       - output: pipelineArtifact

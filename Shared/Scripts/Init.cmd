@@ -103,12 +103,93 @@ REM *********************************
 	%TOOLROOT%\nuget.exe install %DIRECTDOWNLOAD% -OutputDirectory %_BUILDXL_BOOTSTRAP_OUT% -Source %BUILDXL_LKG_FEED_1% %BUILDXL_LKG_NAME% -Version %BUILDXL_LKG_VERSION% %BUILDXL_NUGET_WORKAROUNDS%
 	if ERRORLEVEL 1 (
 		echo ERROR: Failed to pull nuget package
+		call :DiagnoseNugetLongPathFailure "%_BUILDXL_BOOTSTRAP_OUT%"
 		exit /b 1
 	)
 
 	ENDLOCAL
 
 	goto :EOF
+
+REM *********************************
+REM DiagnoseNugetLongPathFailure
+REM
+REM Best-effort diagnostic that runs after a nuget install failure. nuget.exe (and the .NET
+REM APIs it uses) is not long-path aware, so when this enlistment is checked out at a long
+REM path and Windows long path support (LongPathsEnabled) is not turned on, nuget's install/
+REM extract step can fail with a confusing generic error such as:
+REM     Could not find a part of the path '...\Out\BootStrap\...\some\deeply\nested\file.dll'
+REM which never mentions MAX_PATH or long paths. This routine tries to detect that risk
+REM condition and, when likely, prints a clear explanation and the exact fix. It never masks
+REM or changes the original failure/exit code; it only adds extra diagnostic output.
+REM
+REM %1 - the output/bootstrap directory path used for the nuget install (used to estimate
+REM      how much room is left before hitting the 260 character MAX_PATH limit)
+REM *********************************
+:DiagnoseNugetLongPathFailure
+	SETLOCAL ENABLEDELAYEDEXPANSION
+
+	set "_LP_PATH=%~1"
+	if "%_LP_PATH%" == "" set "_LP_PATH=%ENLISTMENTROOT%"
+
+	call :StrLen "%_LP_PATH%" _LP_PATHLEN
+
+	REM Query the registry value that controls Windows long path support. Do this defensively:
+	REM on some machines/locales 'reg query' may fail or format output unexpectedly, and that
+	REM must never be treated as a script error - just as "could not confirm long paths are on".
+	set "_LP_ENABLED="
+	for /f "tokens=3" %%A in ('reg query "HKLM\SYSTEM\CurrentControlSet\Control\FileSystem" /v LongPathsEnabled 2^>nul ^| findstr /i "LongPathsEnabled"') do set "_LP_ENABLED=%%A"
+
+	REM Treat long paths as "at risk" unless we positively confirmed the registry value is 1 (0x1).
+	set "_LP_RISK=1"
+	if "%_LP_ENABLED%" == "0x1" (
+		if %_LP_PATHLEN% LSS 150 set "_LP_RISK=0"
+	)
+
+	echo(
+	if "%_LP_RISK%" == "1" (
+		echo ERROR: This can happen when the repository is checked out at a long path and
+		echo        Windows long path support is disabled ^(or could not be confirmed as enabled^).
+		echo        The bootstrap output path is %_LP_PATHLEN% characters long:
+		echo            %_LP_PATH%
+		echo        nuget.exe and the .NET APIs it uses are not long-path aware, so instead of a
+		echo        clear MAX_PATH error you may just see a generic "Could not find a part of the
+		echo        path" error above.
+		echo(
+		echo        FIX: Run the following command as Administrator ^(in an elevated cmd.exe^),
+		echo        then re-run the build:
+		echo(
+		echo            reg add "HKLM\SYSTEM\CurrentControlSet\Control\FileSystem" /v LongPathsEnabled /t REG_DWORD /d 1 /f
+	) else (
+		echo NOTE: If the error above mentions a path that could not be found, it can still be a
+		echo       Windows MAX_PATH ^(260 character^) limitation even though long path support
+		echo       appears to be enabled. Consider checking out the repository at a shorter path,
+		echo       and double check that 'HKLM\SYSTEM\CurrentControlSet\Control\FileSystem\LongPathsEnabled'
+		echo       is set to 1.
+	)
+	echo(
+
+	ENDLOCAL
+	exit /b 0
+
+REM *********************************
+REM StrLen
+REM
+REM Sets the variable named by %2 to the length of the string passed as %1.
+REM Usage: call :StrLen "some string" ResultVarName
+REM *********************************
+:StrLen
+	SETLOCAL ENABLEDELAYEDEXPANSION
+	set "_SL_STR=%~1"
+	set /a _SL_LEN=0
+	:StrLenLoop
+	if defined _SL_STR (
+		set "_SL_STR=%_SL_STR:~1%"
+		set /a _SL_LEN+=1
+		goto :StrLenLoop
+	)
+	ENDLOCAL & set "%~2=%_SL_LEN%"
+	exit /b 0
 
 REM *********************************
 REM SetExportedVariables

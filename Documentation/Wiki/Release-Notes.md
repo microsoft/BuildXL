@@ -2,6 +2,15 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20260904.13 (Release [32019093](https://dev.azure.com/mseng/Domino/_build/results?buildId=32019093&view=results))
+- [Performance] Reduce `FileAccessManifest` memory, avoid a second traversal pass when finalizing policies, and speed up ASCII path normalization.
+- Add `/graphSemistableFingerprint` to externally configure the graph semistable fingerprint.
+- [Cache] Fix BlobL3 temporary paths for long filenames and stop download retries from reusing timed-out files.
+- [gRPC] Disable HTTP proxy for IPC and cache gRPC connections.
+- [Linux Sandbox] Fix root process exit race for short-lived pips.
+- [BlobDaemon] Use a synchronous server-side copy for uploads.
+- Various bug fixes and improvements.
+
 # 0.1.0-20260828.2 (Release [31984211](https://dev.azure.com/mseng/Domino/_build/results?buildId=31984211&view=results))
 - [Performance] Reduce memory for shared opaque temporary-file classification, PipTable path collections, and operation tracking. <!-- fdbd2122 368774d6 bcc72955 -->
 - [Performance] Speed up StringTable expansion and FileAccessManifest construction and lookup. <!-- 3e39b056 c2f18916 a9a595bf ef2c8ac2 -->

@@ -345,6 +345,23 @@ namespace Test.BuildXL.Utilities.ParallelAlgorithmsTests
         }
 
         [Fact]
+        public async Task CompleteIsIdempotentWhileDraining()
+        {
+            var callbackCompletion = new TaskCompletionSource<object>();
+            var actionBlock = ActionBlockSlim.CreateWithAsyncAction<int>(1, _ => callbackCompletion.Task);
+            actionBlock.Post(42);
+            actionBlock.Post(43);
+
+            await WaitUntilOrFailAsync(() => actionBlock.ProcessingWorkItems == 1 && actionBlock.PendingWorkItems == 1);
+
+            actionBlock.Complete();
+            actionBlock.Complete();
+
+            callbackCompletion.SetResult(null);
+            await actionBlock.Completion;
+        }
+
+        [Fact]
         public async Task Completion_Is_Awaitable_Before_Completed_Is_Called()
         {
             var actionBlock = ActionBlockSlim.Create<int>(0, n => { });

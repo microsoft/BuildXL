@@ -513,10 +513,8 @@ internal
                     m_internalCancellation.Cancel();
                 }
 
-                if (!m_channel.Reader.Completion.IsCompleted)
+                if (m_channel.Writer.TryComplete())
                 {
-                    m_channel.Writer.Complete();
-
                     Task.WhenAll(m_tasks.ToArray()).ContinueWith(
                         t =>
                         {

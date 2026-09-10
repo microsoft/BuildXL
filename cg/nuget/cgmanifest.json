@@ -1005,7 +1005,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.ComponentDetection.Contracts",
-          "Version": "7.1.12"
+          "Version": "7.1.13"
         }
       }
     },
@@ -2202,7 +2202,7 @@
         "Type": "NuGet",
         "NuGet": {
           "Name": "Microsoft.VisualStudio.Services.Governance.ComponentDetection",
-          "Version": "2026.8.20.2301"
+          "Version": "2026.8.27.1757"
         }
       }
     },

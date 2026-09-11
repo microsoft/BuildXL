@@ -258,13 +258,13 @@ namespace BuildXL.Utilities.Configuration
 
         /// <summary>
         /// Controls Pip Usage ML evaluation: 0 disables it, 1 evaluates cold pips, and 2 evaluates cold and warm pips.
-        /// Defaults to mode 1 while Pip Usage ML is being validated.
+        /// Defaults to disabled when the setting is absent or invalid.
         /// </summary>
         public static readonly Setting<PipUsageMLMode> UseMLForPipUsage = CreateSetting(
             "BuildXLUseMLForPipUsage",
             value => int.TryParse(value, out int mode) && Enum.IsDefined(typeof(PipUsageMLMode), mode)
                 ? (PipUsageMLMode)mode
-                : PipUsageMLMode.Cold);
+                : PipUsageMLMode.Disabled);
 
         /// <summary>
         /// If true, the build will fail early with an internal error when the number of problematic workers exceeds half of the remote workers.

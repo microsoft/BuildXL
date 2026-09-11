@@ -19,8 +19,8 @@ Missing resources or an incompatible manifest set the runtime mode to `Disabled`
 
 | Value | Mode | Current behavior |
 | --- | --- | --- |
-| `0` | Disabled | Never evaluate the model. |
-| `1` | Cold | Evaluate cold process pips. This is the current default while the feature is being validated. |
+| `0` | Disabled | Never evaluate the model. This is the default when the setting is absent or invalid. |
+| `1` | Cold | Evaluate cold process pips. |
 | `2` | ColdAndWarm | Evaluate cold and warm process pips; warm predictions use historical resource values as model inputs. |
 
 The setting is internal and initialized through `EngineEnvironmentSettings.UseMLForPipUsage`.

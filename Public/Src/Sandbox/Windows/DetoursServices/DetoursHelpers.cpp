@@ -1080,26 +1080,20 @@ bool ParseFileAccessManifest(
         }
 
         std::wstring newPolicyPath = std::wstring(newPolicyResult.GetCanonicalizedPath().GetPathString());
-        size_t newLen = newPolicyPath.length();
-        std::wstring oldPolicyPath = std::wstring(policyResult.GetCanonicalizedPath().GetPathString());
-        size_t oldLen = oldPolicyPath.length();
 
-        Dbg(L"Resolved reparse point from:\t'%ws' to '%ws'\ttranslated to:\t%ws\tcanonicalized to:\t%ws\twithout prefix: %ws\tnew policy path:\t%ws %zu [%wc]\told policy result path:\t%ws %zu [%wc] [%wc] [%wc] [%wc] [%wc]",
+#if SUPER_VERBOSE
+        std::wstring oldPolicyPath = std::wstring(policyResult.GetCanonicalizedPath().GetPathString());
+
+        Dbg(L"Resolved reparse point from:\t'%ws' to '%ws'\ttranslated to:\t%ws\tcanonicalized to:\t%ws\twithout prefix: %ws\tnew policy path:\t%ws\told policy result path:\t%ws",
             wszFileName,
             fullyResolvedPath.c_str(),
             translatedName.c_str(),
             canonicalizedPath.c_str(),
             canonicalizedPathNoPrefix.c_str(),
             newPolicyPath.c_str(),
-            newLen,
-            newPolicyPath[newLen - 1],
-            oldPolicyPath.c_str(),
-            oldLen,
-            oldPolicyPath[0],
-            oldPolicyPath[1],
-            oldPolicyPath[10],
-            oldPolicyPath[50],
-            oldPolicyPath[oldLen - 1]);
+            oldPolicyPath.c_str());
+#endif
+
         fileOperationContext.AdjustPath(newPolicyPath.c_str());
         policyResult = newPolicyResult;
     }

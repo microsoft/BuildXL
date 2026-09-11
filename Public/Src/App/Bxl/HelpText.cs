@@ -862,6 +862,10 @@ namespace BuildXL
                 HelpLevel.Verbose);
 
             hw.WriteOption(
+                "/pipUsageMLMode:<Disabled|Cold|ColdAndWarm>",
+                Strings.HelpText_DisplayHelp_PipUsageMLMode);
+
+            hw.WriteOption(
                 "/fileChangeTrackerInitializationMode:<mode>",
                 Strings.HelpText_DisplayHelp_FileChangeTrackerInitializationMode,
                 HelpLevel.Verbose);

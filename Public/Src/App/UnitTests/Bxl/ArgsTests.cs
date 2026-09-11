@@ -8,6 +8,7 @@ using BuildXL.Engine;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Core;
 using BuildXL.Utilities.Configuration;
+using BuildXL.Utilities.Configuration.Mutable;
 using System.Collections.Generic;
 using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
@@ -66,6 +67,41 @@ namespace Test.BuildXL
                 + XAssert.SetToString(unsafeOptions)
                 + Environment.NewLine
                 + "Add an associated logger function in CreateUnsafeOptionLoggers()");
+        }
+
+        [Theory]
+        [InlineData("Disabled", PipUsageMLMode.Disabled)]
+        [InlineData("Cold", PipUsageMLMode.Cold)]
+        [InlineData("ColdAndWarm", PipUsageMLMode.ColdAndWarm)]
+        [InlineData("cOlDaNdWaRm", PipUsageMLMode.ColdAndWarm)]
+        public void PipUsageMLModeOption(string value, PipUsageMLMode expected)
+        {
+            var argsParser = new Args();
+            var pathTable = new PathTable();
+            XAssert.IsTrue(argsParser.TryParse(new[] { "/c:" + m_specFilePath, "/pipUsageMLMode:" + value }, pathTable, out var config));
+            Assert.Equal(expected, config.Schedule.PipUsageMLMode);
+            var copy = new ScheduleConfiguration(config.Schedule, new PathRemapper());
+            Assert.Equal(expected, copy.PipUsageMLMode);
+        }
+
+        [Theory]
+        [InlineData("")]
+        [InlineData("unknown")]
+        [InlineData("-1")]
+        [InlineData("3")]
+        [InlineData("Cold,ColdAndWarm")]
+        public void PipUsageMLModeOptionRejectsInvalidValues(string value)
+        {
+            var argsParser = new Args();
+            XAssert.IsFalse(argsParser.TryParse(new[] { "/c:" + m_specFilePath, "/pipUsageMLMode:" + value }, new PathTable(), out var config));
+        }
+
+        [Fact]
+        public void PipUsageMLModeOptionDefaultsToDisabled()
+        {
+            var argsParser = new Args();
+            XAssert.IsTrue(argsParser.TryParse(new[] { "/c:" + m_specFilePath }, new PathTable(), out var config));
+            Assert.Equal(PipUsageMLMode.Disabled, config.Schedule.PipUsageMLMode);
         }
 
         [Fact]

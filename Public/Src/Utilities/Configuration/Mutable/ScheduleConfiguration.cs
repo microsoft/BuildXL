@@ -63,6 +63,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             UnsafeLazySODeletion = false;
 
             ProcessRetries = 0;
+            PipUsageMLMode = PipUsageMLMode.Disabled;
 
             StoreOutputsToCache = true;
 
@@ -162,6 +163,7 @@ namespace BuildXL.Utilities.Configuration.Mutable
             UnsafeDisableGraphPostValidation = template.UnsafeDisableGraphPostValidation;
 
             ProcessRetries = template.ProcessRetries;
+            PipUsageMLMode = template.PipUsageMLMode;
             StoreOutputsToCache = template.StoreOutputsToCache;
 
             EnableLazyWriteFileMaterialization = template.EnableLazyWriteFileMaterialization;
@@ -356,6 +358,9 @@ namespace BuildXL.Utilities.Configuration.Mutable
 
         /// <inheritdoc />
         public int ProcessRetries { get; set; }
+
+        /// <inheritdoc />
+        public PipUsageMLMode PipUsageMLMode { get; set; }
 
         /// <inheritdoc />
         public bool EnableLazyWriteFileMaterialization { get; set; }

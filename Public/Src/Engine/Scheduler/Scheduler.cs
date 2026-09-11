@@ -1748,7 +1748,7 @@ namespace BuildXL.Scheduler
 
             m_loggingContext = loggingContext;
 #if MICROSOFT_INTERNAL
-            m_pipUsageMLMode = EngineEnvironmentSettings.UseMLForPipUsage.Value;
+            m_pipUsageMLMode = configuration.Schedule.PipUsageMLMode;
             if (m_pipUsageMLMode != PipUsageMLMode.Disabled)
             {
                 m_mlPipUsagePredictions = new ConcurrentDictionary<PipId, PipUsagePrediction?>();

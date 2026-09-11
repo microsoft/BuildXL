@@ -227,6 +227,11 @@ namespace BuildXL.Utilities.Configuration
         int ProcessRetries { get; }
 
         /// <summary>
+        /// Pip Usage ML evaluation mode. Defaults to Disabled.
+        /// </summary>
+        PipUsageMLMode PipUsageMLMode { get; }
+
+        /// <summary>
         /// Enables lazy materialization of write file outputs. Defaults to off (on for CloudBuild)
         /// </summary>
         /// <remarks>

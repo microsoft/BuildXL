@@ -1,6 +1,6 @@
 # Pip Usage ML
 
-Pip Usage ML supplies CPU, memory, and duration estimates for process pips. The scheduler uses the CPU and memory estimates for CPU weight, CPU throttling, and RAM projection. Mode `1` predicts cold pips without requiring historical data; mode `2` predicts cold and warm pips and lets the prediction override historical values.
+Pip Usage ML supplies CPU, memory, and duration estimates for process pips. The scheduler uses the CPU and memory estimates for CPU weight, CPU throttling, and RAM projection. `Cold` predicts cold pips without requiring historical data; `ColdAndWarm` predicts cold and warm pips and lets the prediction override historical values.
 
 ## Runtime scope
 
@@ -8,22 +8,22 @@ The model is evaluated only when all of the following are true:
 
 - The pip is a process pip, not an IPC pip.
 - The executable path is valid.
-- `BuildXLUseMLForPipUsage` enables the pip: mode `1` requires a cold pip, while mode `2` also permits warm pips.
+- The selected mode enables the pip: `Cold` requires a cold pip, while `ColdAndWarm` also permits warm pips.
 - The Microsoft-internal scheduler assembly contains a valid embedded model payload.
 
 Missing resources or an incompatible manifest set the runtime mode to `Disabled` for the remainder of the build. An evaluation exception, malformed pip metadata, or a rejected non-finite prediction falls back to existing historical/default resource behavior for that pip. None of these cases fail the build.
 
 ## Configuration
 
-`BuildXLUseMLForPipUsage` accepts these integer values:
+Use `/pipUsageMLMode:<Disabled|Cold|ColdAndWarm>` to select a mode. Names are case-insensitive. ML is disabled by default.
 
-| Value | Mode | Current behavior |
-| --- | --- | --- |
-| `0` | Disabled | Never evaluate the model. This is the default when the setting is absent or invalid. |
-| `1` | Cold | Evaluate cold process pips. |
-| `2` | ColdAndWarm | Evaluate cold and warm process pips; warm predictions use historical resource values as model inputs. |
+| Mode | Current behavior |
+| --- | --- |
+| `Disabled` | Never evaluate the model. This is the default. |
+| `Cold` | Evaluate cold process pips. |
+| `ColdAndWarm` | Evaluate cold and warm process pips; warm predictions use historical resource values as model inputs. |
 
-The setting is internal and initialized through `EngineEnvironmentSettings.UseMLForPipUsage`.
+The command-line option is the only control. When omitted, the mode is `Disabled`. Invalid command-line values produce an argument error. The former `BuildXLUseMLForPipUsage` environment variable is no longer read.
 
 ## Predictions
 
@@ -130,8 +130,8 @@ Public/Src/Engine/UnitTests/Scheduler/Test.BuildXL.Scheduler.dsc
 RUNTIME EVALUATION AND CONSUMERS
 ================================
 
-EngineEnvironmentSettings.UseMLForPipUsage
-  0 = Disabled | 1 = Cold | 2 = ColdAndWarm
+Schedule.PipUsageMLMode
+	Disabled | Cold | ColdAndWarm
   |
   +-- PipUsageModel.ShouldEvaluate(mode, historical data)
 	  |

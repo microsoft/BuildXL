@@ -869,6 +869,9 @@ namespace BuildXL
                             opt =>
                             sandboxConfiguration.WarningTimeoutMultiplier = (int)CommandLineUtilities.ParseDoubleOption(opt, 0.000001, 1000000)),
                         OptionHandlerFactory.CreateOption(
+                            "pipUsageMLMode",
+                            opt => schedulingConfiguration.PipUsageMLMode = CommandLineUtilities.ParseEnumOption<PipUsageMLMode>(opt)),
+                        OptionHandlerFactory.CreateOption(
                             "pipProperty",
                             opt =>
                             CapturePipSpecificPropertyArguments.ParsePipPropertyArg(opt, engineConfiguration)),

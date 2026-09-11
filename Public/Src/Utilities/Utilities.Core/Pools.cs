@@ -59,6 +59,18 @@ namespace BuildXL.Utilities.Core
         }
 
         /// <summary>
+        /// Gets the number of entries allocated in a hash set's backing storage when supported by the target framework.
+        /// </summary>
+        public static int GetSetCapacity<T>(HashSet<T> set)
+        {
+#if NETCOREAPP
+            return set.EnsureCapacity(0);
+#else
+            return set.Count;
+#endif
+        }
+
+        /// <summary>
         /// Global pool of HashSet&lt;PathAtom&gt; instances.
         /// </summary>
         public static readonly ObjectPool<HashSet<PathAtom>> PathAtomSetPool = CreateSetPool<PathAtom>();
@@ -170,7 +182,8 @@ namespace BuildXL.Utilities.Core
         /// </summary>
         public static ObjectPool<AbsolutePathAncestorChecker> AbsolutePathAncestorCheckerPool { get; } = new ObjectPool<AbsolutePathAncestorChecker>(
             () => new AbsolutePathAncestorChecker(),
-            checker => checker.Clear());
+            checker => checker.Clear(),
+            sizeProvider: checker => checker.RetainedEntryCapacity);
 
         /// <summary>
         /// Global pool of List&lt;string&gt; instances.

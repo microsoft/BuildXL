@@ -5469,6 +5469,13 @@ namespace BuildXL.Scheduler
                             }
 #endif
 
+                            // Only meaningful for a "cold" pip (no historic perf data), where the scheduler's
+                            // priority-assignment fallback used the pip's incoming-edge count as part of its
+                            // duration estimate (see PrioritizeAndSchedule).
+                            uint coldPipIncomingEdgeCount = hasHistoricPerfData
+                                ? 0
+                                : (uint)DirectedGraph.GetIncomingEdgesCount(processRunnable.PipId.ToNodeId());
+
                             try
                             {
                                 Logger.Log.ProcessPipExecutionInfo(
@@ -5498,7 +5505,7 @@ namespace BuildXL.Scheduler
                                     expectedPipUsageSource,
                                     processRunnable.HistoricCpuWeight,
                                     processPipRuntimeInfo.SchedulerPriorityDurationEstimateMs,
-                                    processPipRuntimeInfo.ColdPipIncomingEdgeCount);
+                                    coldPipIncomingEdgeCount);
 
                                 if (expectedMemoryCounters.AverageWorkingSetMb > 0)
                                 {
@@ -6742,7 +6749,6 @@ namespace BuildXL.Scheduler
                                     }
 
                                     schedulerPriorityDurationEstimateMs = estimatedMilliseconds;
-                                    pipRuntimeInfo.ColdPipIncomingEdgeCount = incomingEdgeCount;
                                 }
 
                                 criticalPath += schedulerPriorityDurationEstimateMs;

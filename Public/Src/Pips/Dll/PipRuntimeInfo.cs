@@ -25,6 +25,12 @@ namespace BuildXL.Pips
         /// </summary>
         private const int CommittedStateMask = ~PreCommitStateBit;
 
+        /// <summary>
+        /// Sentinel value for <see cref="m_originalProcessExecuteTimeMs"/> indicating that no value has been injected
+        /// (i.e., <see cref="ProcessExecuteTimeMs"/> was measured rather than supplied via a <c>##bxl[runtimeSecs]</c> hint).
+        /// </summary>
+        private const int NoOriginalProcessExecuteTimeMs = -1;
+
         #region Fields
 
         /// <summary>
@@ -83,26 +89,31 @@ namespace BuildXL.Pips
         internal uint SchedulerPriorityDurationEstimateMs { get; set; }
 
         /// <summary>
-        /// The scheduled incoming-edge count used by the no-history scheduler-priority fallback.
-        /// This is zero when the scheduler used a historic duration.
-        /// </summary>
-        internal uint ColdPipIncomingEdgeCount { get; set; }
-
-        /// <summary>
         /// The execution time of the external process. This will be lower than the e2e time of the pip itself. It should be 0 for a cache hit
         /// </summary>
         internal int ProcessExecuteTimeMs { get; set; }
 
         /// <summary>
+        /// Backing field for <see cref="OriginalProcessExecuteTimeMs"/>; holds <see cref="NoOriginalProcessExecuteTimeMs"/>
+        /// when no value has been injected. A plain sentinel-valued <see cref="int"/> is used instead of <see cref="Nullable{Int32}"/>
+        /// to avoid the extra 4 bytes <c>Nullable&lt;int&gt;</c> incurs per pip.
+        /// </summary>
+        private int m_originalProcessExecuteTimeMs = NoOriginalProcessExecuteTimeMs;
+
+        /// <summary>
         /// When <see cref="ProcessExecuteTimeMs"/> was injected via a <c>##bxl[runtimeSecs]</c> hint, holds the original locally-measured
         /// execution time in milliseconds; <c>null</c> when the value was measured. See <see cref="IsInjectedProcessExecuteTime"/>.
         /// </summary>
-        internal int? OriginalProcessExecuteTimeMs { get; set; }
+        internal int? OriginalProcessExecuteTimeMs
+        {
+            get => m_originalProcessExecuteTimeMs == NoOriginalProcessExecuteTimeMs ? (int?)null : m_originalProcessExecuteTimeMs;
+            set => m_originalProcessExecuteTimeMs = value ?? NoOriginalProcessExecuteTimeMs;
+        }
 
         /// <summary>
         /// Indicates that <see cref="ProcessExecuteTimeMs"/> was injected via a <c>##bxl[runtimeSecs]</c> hint rather than measured.
         /// </summary>
-        internal bool IsInjectedProcessExecuteTime => OriginalProcessExecuteTimeMs.HasValue;
+        internal bool IsInjectedProcessExecuteTime => m_originalProcessExecuteTimeMs != NoOriginalProcessExecuteTimeMs;
 
         /// <summary>
         /// The pip result
@@ -295,20 +306,52 @@ namespace BuildXL.Pips
         #endregion
 
 
+        #region Packed flags
+
+        /// <summary>
+        /// Bit flags backing <see cref="IsUncacheableImpacted"/>, <see cref="IsFrontierMissCandidate"/>, and
+        /// <see cref="IsMissingContentImpacted"/>. Packed into a single byte instead of three separate
+        /// <see cref="bool"/> fields to reduce the per-pip memory footprint.
+        /// </summary>
+        [Flags]
+        private enum Flags : byte
+        {
+            None = 0,
+            UncacheableImpacted = 1 << 0,
+            FrontierMissCandidate = 1 << 1,
+            MissingContentImpacted = 1 << 2,
+        }
+
+        private Flags m_flags = Flags.FrontierMissCandidate;
+
         /// <summary>
         /// Whether the pip is impacted by uncacheability
         /// </summary>
-        public bool IsUncacheableImpacted { get; set; }
+        public bool IsUncacheableImpacted
+        {
+            get => (m_flags & Flags.UncacheableImpacted) != 0;
+            set => m_flags = value ? (m_flags | Flags.UncacheableImpacted) : (m_flags & ~Flags.UncacheableImpacted);
+        }
 
         /// <summary>
         /// Whether the pip is a frontier miss candidate.
         /// All pips start as candidates.
         /// </summary>
-        public bool IsFrontierMissCandidate { get; set; } = true;
+        public bool IsFrontierMissCandidate
+        {
+            get => (m_flags & Flags.FrontierMissCandidate) != 0;
+            set => m_flags = value ? (m_flags | Flags.FrontierMissCandidate) : (m_flags & ~Flags.FrontierMissCandidate);
+        }
 
         /// <summary>
         /// Whether the pip is potentially impacted by a cache miss caused by missing content.
         /// </summary>
-        public bool IsMissingContentImpacted { get; set; }
+        public bool IsMissingContentImpacted
+        {
+            get => (m_flags & Flags.MissingContentImpacted) != 0;
+            set => m_flags = value ? (m_flags | Flags.MissingContentImpacted) : (m_flags & ~Flags.MissingContentImpacted);
+        }
+
+        #endregion
     }
 }

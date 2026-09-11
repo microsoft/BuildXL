@@ -138,7 +138,12 @@ namespace BuildXL.Pips
     /// <summary>
     /// Indicates the manner in which a pip executed.
     /// </summary>
-    public enum PipExecutionLevel
+    /// <remarks>
+    /// Explicitly backed by <see cref="byte"/> since this is already serialized as a single byte
+    /// (see <see cref="PipExecutionPerformance.Deserialize"/>) and is stored in <see cref="PipRuntimeInfo"/>
+    /// where the smaller footprint matters for in-memory size.
+    /// </remarks>
+    public enum PipExecutionLevel : byte
     {
         /// <summary>
         /// The pip's full work was performed.

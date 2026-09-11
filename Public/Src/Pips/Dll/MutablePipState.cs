@@ -317,11 +317,11 @@ namespace BuildXL.Pips
         protected override void SpecializedSerialize(BuildXLWriter writer)
         {
             writer.Write(ServiceInfo, ServiceInfo.InternalSerialize);
-            writer.Write((int)ProcessOptions);
+            writer.WriteCompact((int)ProcessOptions);
             writer.Write((byte)RewritePolicy);
             writer.Write(ExecutablePath);
-            writer.Write(Priority);
-            writer.Write(PreserveOutputTrustLevel);
+            writer.WriteCompact(Priority);
+            writer.WriteCompact(PreserveOutputTrustLevel);
             writer.Write(ModuleId);
             writer.Write(ToolDescription);
             writer.WriteCompact(QualifierId.Id);
@@ -336,11 +336,11 @@ namespace BuildXL.Pips
         internal static MutablePipState Deserialize(BuildXLReader reader, PipType pipType, long semiStableHash, PageableStoreId storeId)
         {
             ServiceInfo serviceInfo = reader.ReadNullable(ServiceInfo.InternalDeserialize);
-            int options = reader.ReadInt32();
+            int options = reader.ReadInt32Compact();
             RewritePolicy rewritePolicy = (RewritePolicy) reader.ReadByte();
             AbsolutePath executablePath = reader.ReadAbsolutePath();
-            int priority = reader.ReadInt32();
-            int preserveOutputTrustLevel = reader.ReadInt32();
+            int priority = reader.ReadInt32Compact();
+            int preserveOutputTrustLevel = reader.ReadInt32Compact();
             ModuleId moduleId = reader.ReadModuleId();
             StringId toolDescription = reader.ReadStringId();
             QualifierId qualifierId = new QualifierId(reader.ReadInt32Compact());
@@ -417,12 +417,51 @@ namespace BuildXL.Pips
     /// </summary>
     internal sealed class SealDirectoryMutablePipState : MutablePipState
     {
+        /// <summary>
+        /// Bit flags packed alongside <see cref="SealDirectoryKind"/> (see <see cref="SealDirectoryKindShift"/>)
+        /// into <see cref="m_packedState"/>, replacing what used to be 3 separate fields (byte + 2 bools).
+        /// </summary>
+        [Flags]
+        private enum SealFlags : byte
+        {
+            None = 0,
+            IsComposite = 1 << 0,
+            Scrub = 1 << 1,
+            HasContentFilter = 1 << 2,
+            ContentFilterExclude = 1 << 3,
+        }
+
+        // SealDirectoryKind (0-5) only needs 3 bits, so it is packed into the top bits of the same byte
+        // that holds the SealFlags above.
+        private const int SealDirectoryKindShift = 4;
+
         internal readonly AbsolutePath DirectoryRoot;
-        internal readonly SealDirectoryKind SealDirectoryKind;
         internal readonly ReadOnlyArray<StringId> Patterns;
-        internal readonly bool IsComposite;
-        internal readonly bool Scrub;
-        internal readonly SealDirectoryContentFilter? ContentFilter;
+
+        private readonly byte m_packedState;
+
+        /// <summary>
+        /// Regex for <see cref="ContentFilter"/>, or <c>null</c> when there is no filter (the common case).
+        /// Using a plain nullable reference here (instead of a <see cref="Nullable{T}"/>-wrapped struct) avoids
+        /// the extra HasValue/padding overhead that a rarely-populated field would otherwise cost on every
+        /// SealDirectory pip.
+        /// </summary>
+        private readonly string m_contentFilterRegex;
+
+        internal SealDirectoryKind SealDirectoryKind => (SealDirectoryKind)(m_packedState >> SealDirectoryKindShift);
+
+        internal bool IsComposite => (m_packedState & (byte)SealFlags.IsComposite) != 0;
+
+        internal bool Scrub => (m_packedState & (byte)SealFlags.Scrub) != 0;
+
+        internal SealDirectoryContentFilter? ContentFilter =>
+            m_contentFilterRegex == null
+                ? (SealDirectoryContentFilter?)null
+                : new SealDirectoryContentFilter(
+                    (m_packedState & (byte)SealFlags.ContentFilterExclude) != 0
+                        ? SealDirectoryContentFilter.ContentFilterKind.Exclude
+                        : SealDirectoryContentFilter.ContentFilterKind.Include,
+                    m_contentFilterRegex);
 
         public SealDirectoryMutablePipState(
             PipType piptype,
@@ -437,44 +476,54 @@ namespace BuildXL.Pips
             : base(piptype, semiStableHash, storeId)
         {
             DirectoryRoot = directoryRoot;
-            SealDirectoryKind = sealDirectoryKind;
             Patterns = patterns;
-            IsComposite = isComposite;
-            Scrub = scrub;
-            ContentFilter = contentFilter;
+
+            byte packed = (byte)((byte)sealDirectoryKind << SealDirectoryKindShift);
+            packed |= isComposite ? (byte)SealFlags.IsComposite : (byte)0;
+            packed |= scrub ? (byte)SealFlags.Scrub : (byte)0;
+
+            if (contentFilter != null)
+            {
+                packed |= (byte)SealFlags.HasContentFilter;
+                m_contentFilterRegex = contentFilter.Value.Regex;
+                packed |= contentFilter.Value.Kind == SealDirectoryContentFilter.ContentFilterKind.Exclude ? (byte)SealFlags.ContentFilterExclude : (byte)0;
+            }
+
+            m_packedState = packed;
         }
 
         protected override void SpecializedSerialize(BuildXLWriter writer)
         {
             writer.Write(DirectoryRoot);
-            writer.Write((byte)SealDirectoryKind);
+            writer.Write(m_packedState);
             writer.Write(Patterns, (w, v) => w.Write(v));
-            writer.Write(IsComposite);
-            writer.Write(Scrub);
-            if (ContentFilter != null)
+            if ((m_packedState & (byte)SealFlags.HasContentFilter) != 0)
             {
-                writer.Write(true);
-                writer.Write((byte)ContentFilter.Value.Kind);
-                writer.Write(ContentFilter.Value.Regex);
+                // Write unconditionally on the same HasContentFilter bit that Deserialize checks, so the two
+                // can never disagree about whether a regex string follows on the stream (m_contentFilterRegex
+                // is expected to be non-null whenever this bit is set, but guard with ?? to avoid corrupting/
+                // misaligning the stream if that invariant is ever violated).
+                writer.Write(m_contentFilterRegex ?? string.Empty);
             }
-            else
-            {
-                writer.Write(false);
-            }
-
         }
 
         internal static MutablePipState Deserialize(BuildXLReader reader, PipType pipType, long semiStableHash, PageableStoreId storeId)
         {
             var directoryRoot = reader.ReadAbsolutePath();
-            var sealDirectoryKind = (SealDirectoryKind)reader.ReadByte();
+            var packed = reader.ReadByte();
             var patterns = reader.ReadReadOnlyArray(reader1 => reader1.ReadStringId());
-            var isComposite = reader.ReadBoolean();
-            var scrub = reader.ReadBoolean();
+
+            var sealDirectoryKind = (SealDirectoryKind)(packed >> SealDirectoryKindShift);
+            var isComposite = (packed & (byte)SealFlags.IsComposite) != 0;
+            var scrub = (packed & (byte)SealFlags.Scrub) != 0;
+
             SealDirectoryContentFilter? contentFilter = null;
-            if (reader.ReadBoolean())
+            if ((packed & (byte)SealFlags.HasContentFilter) != 0)
             {
-                contentFilter = new SealDirectoryContentFilter((SealDirectoryContentFilter.ContentFilterKind)reader.ReadByte(), reader.ReadString());
+                var kind = (packed & (byte)SealFlags.ContentFilterExclude) != 0
+                    ? SealDirectoryContentFilter.ContentFilterKind.Exclude
+                    : SealDirectoryContentFilter.ContentFilterKind.Include;
+                contentFilter = new SealDirectoryContentFilter(kind, reader.ReadString());
             }
 
             return new SealDirectoryMutablePipState(

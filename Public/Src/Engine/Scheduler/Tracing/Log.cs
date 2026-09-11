@@ -3753,14 +3753,19 @@ namespace BuildXL.Scheduler.Tracing
             EventLevel = Level.Verbose,
             Keywords = (int)(Keywords.UserMessage | Keywords.UserError),
             EventTask = (int)Tasks.Scheduler,
-            Message = "File '{fileArtifact}' was reported multiple times with different content hashes (old hash: {existingHash}, new hash: {newHash}). " +
+            Message = "File '{fileArtifact}:{rewriteCount}' was reported multiple times with different content hashes (old hash: {existingHash}, origin: {existingOutputOrigin}; new hash: {newHash}, origin: {newOutputOrigin}). " +
+            "The conflicting report came from Pip{pipSemiStableHash:X16}. " +
             "This indicates a double write violation that can lead to an unreliable build because consumers of this file may see different contents of the file during the build. " +
             "This violation is potentially caused by /unsafe_UnexpectedFileAccessesAreErrors-.")]
         public abstract void FileArtifactContentMismatch(
             LoggingContext context,
             string fileArtifact,
+            int rewriteCount,
             string existingHash,
-            string newHash);
+            string newHash,
+            string existingOutputOrigin,
+            long pipSemiStableHash,
+            string newOutputOrigin);
 
         [GeneratedEvent(
             (int)LogEventId.DeleteFullySealDirectoryUnsealedContents,

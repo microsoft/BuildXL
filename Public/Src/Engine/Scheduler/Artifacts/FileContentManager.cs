@@ -384,7 +384,7 @@ namespace BuildXL.Scheduler.Artifacts
                 m_allowedFileRewriteOutputs.Add(artifact.Path);
             }
 
-            if (ReportContent(artifact, info, origin, doubleWriteErrorsAreWarnings))
+            if (ReportContent(artifact, info, origin, doubleWriteErrorsAreWarnings, pipSemiStableHash))
             {
                 if (origin != PipOutputOrigin.NotMaterialized && artifact.IsOutputFile)
                 {
@@ -3756,7 +3756,8 @@ namespace BuildXL.Scheduler.Artifacts
             FileArtifact fileArtifact,
             in FileMaterializationInfo fileMaterializationInfo,
             PipOutputOrigin origin,
-            bool contentMismatchErrorsAreWarnings = false)
+            bool contentMismatchErrorsAreWarnings = false,
+            long pipSemiStableHash = 0)
         {
             SetFileArtifactContentHashResult result = SetFileArtifactContentHash(
                 fileArtifact,
@@ -3779,6 +3780,7 @@ namespace BuildXL.Scheduler.Artifacts
             Contract.Equals(SetFileArtifactContentHashResult.HasConflictingExistingEntry, result);
 
             var existingInfo = m_fileArtifactContentHashes[fileArtifact];
+            var existingOrigin = GetPipOutputOrigin(fileArtifact);
             if (!Configuration.Sandbox.UnsafeSandboxConfiguration.UnexpectedFileAccessesAreErrors || contentMismatchErrorsAreWarnings)
             {
                 // If we reached this case and UnexpectedFileAccessesAreErrors is false or
@@ -3788,13 +3790,18 @@ namespace BuildXL.Scheduler.Artifacts
                 Logger.Log.FileArtifactContentMismatch(
                     m_host.LoggingContext,
                     fileArtifact.Path.ToString(Context.PathTable),
+                    fileArtifact.RewriteCount,
                     existingInfo.Hash.ToHex(),
-                    fileMaterializationInfo.Hash.ToHex());
+                    fileMaterializationInfo.Hash.ToHex(),
+                    existingOrigin.ToString(),
+                    pipSemiStableHash,
+                    origin.ToString());
 
                 return false;
             }
 
-            throw Contract.AssertFailure(I($"Content hash of file artifact '{fileArtifact.Path.ToString(Context.PathTable)}:{fileArtifact.RewriteCount}' can be set multiple times, but only with the same content hash (old hash: {existingInfo.Hash.ToHex()}, new hash: {fileMaterializationInfo.Hash.ToHex()})"));
+            var associatedPipDescription = GetAssociatedPipDescription(fileArtifact);
+            throw Contract.AssertFailure(I($"Content hash of file artifact '{fileArtifact.Path.ToString(Context.PathTable)}:{fileArtifact.RewriteCount}' can be set multiple times, but only with the same content hash (old hash: {existingInfo.Hash.ToHex()}, origin: {existingOrigin}; new hash: {fileMaterializationInfo.Hash.ToHex()}, origin: {origin}). Conflicting report: Pip{pipSemiStableHash:X16}; associated pip: '{associatedPipDescription}'"));
         }
 
         private enum VirtualizationState

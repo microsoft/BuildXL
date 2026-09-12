@@ -770,22 +770,22 @@ namespace BuildXL.FrontEnd.Script.Ambients
             bool hasErrors = false;
             var closure = Converter.ExpectClosure(arg, new ConversionContext(allowUndefined: true, pos: 1));
 
-            IEnumerable<EvaluationResult> sortedArray;
+            EvaluationResult[] sortedArrayMaterialized;
             if (closure == null)
             {
                 EvaluationResult firstElem = receiver.Values.First();
                 object firstValue = firstElem.Value;
                 if (firstValue is int)
                 {
-                    sortedArray = receiver.Values.OrderBy(e => Converter.ExpectNumber(e, context: new ConversionContext(objectCtx: e)), Comparer<int>.Default);
+                    sortedArrayMaterialized = receiver.Values.OrderBy(e => Converter.ExpectNumber(e, context: new ConversionContext(objectCtx: e)), Comparer<int>.Default).ToArray();
                 }
                 else if (firstValue is string)
                 {
-                    sortedArray = receiver.Values.OrderBy(e => Converter.ExpectString(e, context: new ConversionContext(objectCtx: e)), Comparer<string>.Default);
+                    sortedArrayMaterialized = receiver.Values.OrderBy(e => Converter.ExpectString(e, context: new ConversionContext(objectCtx: e)), Comparer<string>.Default).ToArray();
                 }
                 else if (firstValue is AbsolutePath || firstValue is FileArtifact || firstValue is DirectoryArtifact || firstValue is StaticDirectory) 
                 {
-                    sortedArray = receiver.Values.OrderBy(e => Converter.ExpectPath(e, strict: false, context: new ConversionContext(objectCtx: e)), context.PathTable.ExpandedPathComparer);
+                    sortedArrayMaterialized = receiver.Values.OrderBy(e => Converter.ExpectPath(e, strict: false, context: new ConversionContext(objectCtx: e)), context.PathTable.ExpandedPathComparer).ToArray();
                 }
                 else
                 {
@@ -799,7 +799,7 @@ namespace BuildXL.FrontEnd.Script.Ambients
             {
                 using (var frame = EvaluationStackFrame.Create(closure.Function, captures.Frame))
                 {
-                    sortedArray = receiver.Values.OrderBy(e => e, Comparer<EvaluationResult>.Create((lhs, rhs) =>
+                    sortedArrayMaterialized = receiver.Values.OrderBy(e => e, Comparer<EvaluationResult>.Create((lhs, rhs) =>
                     {
                         if (lhs.IsErrorValue || rhs.IsErrorValue)
                         {
@@ -817,12 +817,11 @@ namespace BuildXL.FrontEnd.Script.Ambients
                         }
 
                         return Converter.ExpectNumber(compareResult, context: new ConversionContext(objectCtx: closure));
-                    }));
+                    })).ToArray();
                 }
             }
 
             var entry = context.TopStack;
-            var sortedArrayMaterialized = sortedArray.ToArray();
             var result = hasErrors 
                 ? (object)ErrorValue.Instance
                 : ArrayLiteral.CreateWithoutCopy(sortedArrayMaterialized, entry.InvocationLocation, entry.Path);

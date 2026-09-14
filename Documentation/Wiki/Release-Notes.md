@@ -12,11 +12,12 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Various bug fixes and improvements.
 
 # 0.1.0-20260828.2 (Release [31984211](https://dev.azure.com/mseng/Domino/_build/results?buildId=31984211&view=results))
-- [Performance] Reduce memory for shared opaque temporary-file classification, PipTable path collections, and operation tracking. <!-- fdbd2122 368774d6 bcc72955 -->
-- [Performance] Speed up StringTable expansion and FileAccessManifest construction and lookup. <!-- 3e39b056 c2f18916 a9a595bf ef2c8ac2 -->
-- [Drop] Avoid unused drop-service clients and fix daemon ActionDuration telemetry. <!-- afc4a420 720bb252 -->
-- [Drop] Synchronize DropDaemon with component detection. <!-- c73b56a4 -->
+- [Performance] Reduce memory for shared opaque temporary-file classification, PipTable path collections, and operation tracking.
+- [Performance] Speed up StringTable expansion and FileAccessManifest construction and lookup.
+- [Drop] Avoid unused drop-service clients and fix daemon ActionDuration telemetry.
+- [Drop] Synchronize DropDaemon with component detection.
 - Various bug fixes and improvements.
+
 # 0.1.0-20260814.1 (Release [31915642](https://dev.azure.com/mseng/Domino/_build/results?buildId=31915642&view=results))
 - Fix eBPF cancellation report hang.
 - Move selected net9 components to net10 and update .NET runtime dependencies.
@@ -53,7 +54,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - Various bug fixes and improvements.
 
 # 0.1.0-20260716.2 (Release [31785580](https://dev.azure.com/mseng/Domino/_build/results?buildId=31785580&view=results))
-- [Detours] Compatibility fix for CopyFile2 source-read behavior change (CreateFile vs NtCreateFile). <!-- f76bfe6c653720cfbfe2e4d642fdb2a132305516 -->
+- [Detours] Compatibility fix for CopyFile2 source-read behavior change (CreateFile vs NtCreateFile).
 
 # 0.1.0-20260710.4 (Release [31777990](https://dev.azure.com/mseng/Domino/_build/results?buildId=31777990&view=results))
 - [Perf] Improve startup time in dev builds.
@@ -62,6 +63,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - [CloudTest SDK] Expose `legacyModuleIdConfigPath` to support flaky test management under Dynamic Job Execution mode.
 - [CloudTest SDK] Add a debug option to print all JSON payloads to the console; always upload logs in samples.
 - Various bug fixes and improvements.
+
 # 0.1.0-20260701.4 (Release [31726132](https://dev.azure.com/mseng/Domino/_build/results?buildId=31726132&view=results))
 - [Perf] Speed up `ObservedInputProcessor.TryProbeForExistence` to reduce observed-input processing overhead.
 - [Perf] Improve `TryQueryDirectoryFingerprint` performance for faster directory fingerprint computation.
@@ -69,6 +71,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - [CloudTest SDK] Add support for multi-group sessions.
 - [CloudTest Client] Consider group name when computing stable IDs.
 - [Docs] Improve the 1JS-oriented example.
+
 # 0.1.0-20260626.3 (Release [31706468](https://dev.azure.com/mseng/Domino/_build/results?buildId=31706468&view=results))
 - [Critical Path] Default critical path now excludes queue time; a secondary critical path including queue time was added.
 - [BlobDaemon] Fix over-reporting of failed server-side copies as successful.
@@ -82,9 +85,10 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - [CloudTest SDK] Fixed a DScript `json.write` bug affecting the SDK.
 - Added config-based container name overrides for Blob cache.
 - Various bug fixes and improvements.
+
 # 0.1.0-20260612.4 (Release [31645803](https://dev.azure.com/mseng/Domino/_build/results?buildId=31645803&view=results))
-- [Cache] Extended content-recovery-on-place-failure handling to cover PipMaterialize dependencies, improving resilience for cache materialization failures. <!-- 41c3f161 -->
-- [DScript] Added a safer API to create sanitized path atoms from DScript, reducing script-side path hygiene issues. <!-- d359f7db -->
+- [Cache] Extended content-recovery-on-place-failure handling to cover PipMaterialize dependencies, improving resilience for cache materialization failures.
+- [DScript] Added a safer API to create sanitized path atoms from DScript, reducing script-side path hygiene issues.
 - Various bug fixes and improvements.
 
 # 0.1.0-20260605.2 (Release [31608990](https://dev.azure.com/mseng/Domino/_build/results?buildId=31608990&view=results))
@@ -93,6 +97,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - [DependencyAnalyzer] Add `ProjectTag` property to DependencyAnalyzer output
 - Add `EnableDistributedSourceHashing` command-line flag
 - [Cache] Distinguish between remote and local cache hits in dev cache stats
+
 # 0.1.0-20260529.7 (Release [31574182](https://dev.azure.com/mseng/Domino/_build/results?buildId=31574182&view=results))
 - [Packages] Remove net472 target from `AriaCommon`, `Pips`, and `Engine.Cache` packages
 - [Packages] Add new `BuildXL.Cache.VerticalStore.Interfaces` NuGet package and include it in the publish list
@@ -102,6 +107,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 - [Detours] Add `EnumeratePattern` to `IDetoursEventListener.FileAccessData`
 - [AdoBuildRunner] Fast-fail workers when the orchestrator build has failed
 - [macOS] Change native package layout to indicate universal binary
+
 # 0.1.0-20260522.4 (Release [31544310](https://dev.azure.com/mseng/Domino/_build/results?buildId=31544310&view=results))
 - [JavaScript] Fix qualifier coercion race in top-level JS module evaluation that could cause exports to be unfindable
 - [Cache] Only delete blobs on hash mismatch after retries are exhausted in AzureBlobStorageContentSession, avoiding spurious cache evictions on transient errors
@@ -218,6 +224,7 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 -	Add Yarn strict awareness tracking to the Lage resolver
 -	Allow JS projects to specify additional dependencies on files or directories
 -	Bug fixes
+
 # 0.1.0-20251124.3.2 (Release [30777415](https://dev.azure.com/mseng/Domino/_build/results?buildId=30777415&view=results))
 - Add additional logging around Scheduler shutdown
 - Bring back console hyperlink support

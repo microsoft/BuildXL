@@ -5,7 +5,9 @@
 using System.Diagnostics.ContractsLight;
 using BuildXL.Cache.ContentStore.Service.Grpc;
 using BuildXL.Native.IO;
+using BuildXL.Pips.Operations;
 using BuildXL.Storage;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities.Core;
 using static BuildXL.Distribution.Grpc.FileArtifactKeyedHash.Types;
 
@@ -87,6 +89,17 @@ namespace BuildXL.Distribution.Grpc
                 ReparsePointInfo.Create(f.ReparsePointType.ToReparsePointType(), f.ReparsePointTarget),
                 f.IsAllowedFileRewrite,
                 f.IsExecutable);
+        }
+
+        /// <summary>
+        /// Gets the existence attribute for a dynamic directory member from its transferred content hash.
+        /// </summary>
+        public static FileExistence GetDynamicDirectoryMemberExistence(this FileArtifactKeyedHash f)
+        {
+            var hash = ContentHashingUtilities.FromSpan(f.ContentHash.Span);
+            return WellKnownContentHashUtilities.IsAbsentFileHash(hash)
+                ? FileExistence.Temporary
+                : FileExistence.Required;
         }
 
 

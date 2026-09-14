@@ -141,10 +141,10 @@ namespace BuildXL.Scheduler.Artifacts
             new ConcurrentBigMap<FileArtifact, Task<FileMaterializationInfo?>>();
 
         /// <summary>
-        /// The contents of dynamic output directories
+        /// The contents of sealed directories together with the indexes of temporary members in the sorted member list.
         /// </summary>
-        private readonly ConcurrentBigMap<DirectoryArtifact, SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer>> m_sealContents =
-            new ConcurrentBigMap<DirectoryArtifact, SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer>>();
+        private readonly ConcurrentBigMap<DirectoryArtifact, SealDirectoryContentsInfo> m_sealContents =
+            new ConcurrentBigMap<DirectoryArtifact, SealDirectoryContentsInfo>();
 
         /// <summary>
         /// Current materializations for files by their path. Allows ensuring that latest rewrite count is the only file materialized
@@ -252,9 +252,6 @@ namespace BuildXL.Scheduler.Artifacts
         /// when hashing source files
         /// </summary>
         internal bool TrackFilesUnderInvalidMountsForTests = false;
-
-        private static readonly SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer> s_emptySealContents =
-            SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer>.CloneAndSort(new FileArtifact[0], OrdinalFileArtifactComparer.Instance);
 
         /// <summary>
         /// Holds change affected artifacts of the build
@@ -760,14 +757,14 @@ namespace BuildXL.Scheduler.Artifacts
         /// </summary>
         public void ReportDynamicDirectoryContents(DirectoryArtifact directoryArtifact, IEnumerable<FileArtifactWithAttributes> contents, PipOutputOrigin outputOrigin)
         {
-            using (var artifactsWrapper = Pools.FileArtifactListPool.GetInstance())
+            using (var artifactsWrapper = Pools.GetFileArtifactWithAttributesList())
             {
                 var artifacts = artifactsWrapper.Instance;
 
                 foreach (FileArtifactWithAttributes faa in contents)
                 {
                     var fileArtifact = faa.ToFileArtifact();
-                    artifacts.Add(fileArtifact);
+                    artifacts.Add(faa);
 
                     if (faa.IsUndeclaredFileRewrite)
                     {
@@ -781,12 +778,12 @@ namespace BuildXL.Scheduler.Artifacts
                 }
 
                 var result = m_sealContents.GetOrAdd(directoryArtifact, artifacts, (key, contents2) =>
-                    SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer>.CloneAndSort(contents2, OrdinalFileArtifactComparer.Instance));
+                    SealDirectoryContentsInfo.Create(contents2));
 
                 m_host?.ExecutionLog?.DynamicDirectoryContentsDecided(new DynamicDirectoryContentsDecidedEventData()
                 {
                     Directory = directoryArtifact.Path,
-                    Contents = result.Item.Value.BaseArray,
+                    Contents = result.Item.Value.Contents.BaseArray,
                     OutputOrigin = outputOrigin
                 });
             }
@@ -892,19 +889,33 @@ namespace BuildXL.Scheduler.Artifacts
         /// </summary>
         public SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer> ListSealedDirectoryContents(DirectoryArtifact directoryArtifact)
         {
-            SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer> contents;
+            return GetSealDirectoryContentsInfo(directoryArtifact).Contents;
+        }
 
+        internal SortedReadOnlyArray<FileArtifact, OrdinalFileArtifactComparer> ListSharedOpaqueDirectoryContents(
+            DirectoryArtifact directoryArtifact,
+            out ReadOnlyArray<int> temporaryMemberIndexes)
+        {
+            var contentsInfo = GetSealDirectoryContentsInfo(directoryArtifact);
+            temporaryMemberIndexes = contentsInfo.TemporaryMemberIndexes;
+            return contentsInfo.Contents;
+        }
+
+        internal SealDirectoryContentsInfo GetSealDirectoryContentsInfo(DirectoryArtifact directoryArtifact)
+        {
             var sealDirectoryKind = m_host.GetSealDirectoryKind(directoryArtifact);
             if (sealDirectoryKind.IsDynamicKind())
             {
                 // If sealContents does not have the dynamic directory, then the dynamic directory has no content and it is produced by another worker.
-                return m_sealContents.TryGetValue(directoryArtifact, out contents) ? contents : s_emptySealContents;
+                return m_sealContents.TryGetValue(directoryArtifact, out var dynamicContents)
+                    ? dynamicContents
+                    : SealDirectoryContentsInfo.Empty;
             }
 
-            if (!m_sealContents.TryGetValue(directoryArtifact, out contents))
+            if (!m_sealContents.TryGetValue(directoryArtifact, out var contents))
             {
                 // Load and cache contents from host
-                contents = m_host.ListSealDirectoryContents(directoryArtifact);
+                contents = SealDirectoryContentsInfo.Create(m_host.ListSealDirectoryContents(directoryArtifact));
                 m_sealContents.TryAdd(directoryArtifact, contents);
             }
 
@@ -4152,7 +4163,7 @@ namespace BuildXL.Scheduler.Artifacts
             long numFileArtifacts = 0;
             foreach (var kvp in m_sealContents)
             {
-                numFileArtifacts += kvp.Value.Length;
+                numFileArtifacts += kvp.Value.Contents.Length;
             }
 
             statistics.Add("FileContentManager_SealContents_NumDirectoryArtifacts", numDirectoryArtifacts);

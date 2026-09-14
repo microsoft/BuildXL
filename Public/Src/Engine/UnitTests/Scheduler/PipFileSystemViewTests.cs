@@ -12,9 +12,6 @@ using Test.BuildXL.TestUtilities.Xunit;
 using Xunit;
 using System.IO;
 using BuildXL.Scheduler;
-using BuildXL.Storage;
-using BuildXL.Storage.Fingerprints;
-using BuildXL.Utilities.Instrumentation.Common;
 
 namespace Test.BuildXL.Scheduler
 {
@@ -113,33 +110,26 @@ namespace Test.BuildXL.Scheduler
         }
 
         [Fact]
-        public void NonExistingMemberOfDynamicDirectoryExcludedFromEnumeration()
+        public void TemporaryMemberOfDynamicDirectoryExcludedFromEnumerationWithoutContentLookups()
         {
             var harness  = CreateHarness();
             var outputDirectory = Path.Combine(TestOutputDirectory, "outputDir");
             var existingMember = Path.Combine(outputDirectory, "existing");
-            var nonExistingMember = Path.Combine(outputDirectory, "nonExisting");
+            var temporaryMember = Path.Combine(outputDirectory, "temporary");
 
             Directory.CreateDirectory(outputDirectory);
             File.WriteAllText(existingMember, "existing");
-
-            var existingHash = ContentHashingUtilities.HashFile(existingMember);
-            var existingInfo = FileMaterializationInfo.CreateWithUnknownLength(existingHash);
-            var nonExistingInfo = FileMaterializationInfo.CreateWithUnknownLength(WellKnownContentHashes.AbsentFile);
-
-            var outputDirectoryArtifact = harness.SealDir(root: outputDirectory, outputDir: true, existingMember, nonExistingMember);
-            var opContext = OperationContext.CreateUntracked(new LoggingContext("Test"));
             var existingArtifact = FileArtifact.CreateOutputFile(harness.Path(existingMember));
-            var nonExistingArtifact = FileArtifact.CreateOutputFile(harness.Path(nonExistingMember));
-            harness.Env.State.FileContentManager.ReportOutputContent(opContext, 0, existingArtifact, existingInfo, PipOutputOrigin.Produced);
-            harness.Env.State.FileContentManager.ReportOutputContent(opContext, 0, nonExistingArtifact, nonExistingInfo, PipOutputOrigin.Produced);
+            var temporaryArtifact = FileArtifact.CreateOutputFile(harness.Path(temporaryMember));
+
+            var outputDirectoryArtifact = harness.SealDir(root: outputDirectory, outputDir: true, existingMember, temporaryMember);
             harness.Env.RegisterDynamicOutputDirectory(outputDirectoryArtifact);
             harness.Env.State.FileContentManager.ReportDynamicDirectoryContents(
                 outputDirectoryArtifact,
                 new[]
                 {
                     FileArtifactWithAttributes.Create(existingArtifact, FileExistence.Required),
-                    FileArtifactWithAttributes.Create(nonExistingArtifact, FileExistence.Temporary)
+                    FileArtifactWithAttributes.Create(temporaryArtifact, FileExistence.Temporary)
                 },
                 PipOutputOrigin.Produced);
 

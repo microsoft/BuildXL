@@ -6902,17 +6902,24 @@ namespace BuildXL.Scheduler
                         // Regardless whether directoryElement is a non-composite or composite directory, it was
                         // produced by an upstream pip (ProcessPip/SealDirectoryPip respectively). At this point,
                         // FileContentManager knows the content of this directory artifact.
-                        IEnumerable<FileArtifact> memberContents = m_fileContentManager.ListSealedDirectoryContents(directoryElement);
-
-                        // If the seal pip is creating a sub directory out of a sod, take only those files that are
-                        // under the root of the directory.
-                        if (pip.CompositionActionKind == SealDirectoryCompositionActionKind.NarrowDirectoryCone)
+                        var memberContents = m_fileContentManager.GetSealDirectoryContentsInfo(directoryElement);
+                        foreach (var memberWithAttributes in memberContents)
                         {
-                            memberContents = memberContents.Where(file => file.Path.IsWithin(Context.PathTable, pip.DirectoryRoot));
-                        }
+                            var member = memberWithAttributes.Artifact;
 
-                        aggregatedContent.AddRange(memberContents.Select(member =>
-                            FileArtifactWithAttributes.Create(member, FileExistence.Required, m_fileContentManager.IsAllowedFileRewriteOutput(member.Path))));
+                            // If the seal pip is creating a sub directory out of a sod, take only those files that are
+                            // under the root of the directory.
+                            if (pip.CompositionActionKind == SealDirectoryCompositionActionKind.NarrowDirectoryCone
+                                && !member.Path.IsWithin(Context.PathTable, pip.DirectoryRoot))
+                            {
+                                continue;
+                            }
+
+                            aggregatedContent.Add(FileArtifactWithAttributes.Create(
+                                member,
+                                memberWithAttributes.IsTemporary ? FileExistence.Temporary : FileExistence.Required,
+                                m_fileContentManager.IsAllowedFileRewriteOutput(member.Path)));
+                        }
                     }
 
                     // if the filter is specified, restrict the final content

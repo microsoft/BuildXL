@@ -201,6 +201,11 @@ namespace BuildXL.Utilities.Core
         public static ObjectPool<List<StringId>> StringIdListPool { get; } = CreateListPool<StringId>();
 
         /// <summary>
+        /// Global pool of List&lt;int&gt; instances.
+        /// </summary>
+        public static ObjectPool<List<int>> IntListPool { get; } = CreateListPool<int>();
+
+        /// <summary>
         /// Global pool of List&lt;FileArtifact&gt; instances.
         /// </summary>
         public static ObjectPool<List<FileArtifact>> FileArtifactListPool { get; } = CreateListPool<FileArtifact>();
@@ -308,6 +313,7 @@ namespace BuildXL.Utilities.Core
             memoryConservation.Register(StringListPool);
             memoryConservation.Register(StringSetPool);
             memoryConservation.Register(StringIdListPool);
+            memoryConservation.Register(IntListPool);
             memoryConservation.Register(FileArtifactListPool);
             memoryConservation.Register(FileArtifactWithAttributesListPool);
             memoryConservation.Register(DirectoryArtifactListPool);
@@ -411,6 +417,19 @@ namespace BuildXL.Utilities.Core
         public static PooledObjectWrapper<List<StringId>> GetStringIdList()
         {
             return StringIdListPool.GetInstance();
+        }
+
+        /// <summary>
+        /// Gets a List&lt;int&gt; instance from a common object pool.
+        /// </summary>
+        /// <remarks>
+        /// You are expected to call the Dispose method on the returned PooledObjectWrapper instance
+        /// when you are done with the list. Calling Dispose returns the list to the
+        /// pool.
+        /// </remarks>
+        public static PooledObjectWrapper<List<int>> GetIntList()
+        {
+            return IntListPool.GetInstance();
         }
 
         /// <summary>

@@ -12,6 +12,7 @@ namespace Distribution {
         sources: globR(d`.`, "*.cs"),
         references: [
             ...importFrom("BuildXL.Cache.ContentStore").getGrpcPackages(true),
+            importFrom("BuildXL.Cache.ContentStore").Hashing.dll,
             importFrom("BuildXL.Utilities").Storage.dll,
             importFrom("BuildXL.Engine").Cache.dll,
             importFrom("BuildXL.Engine").Engine.dll,

@@ -88,16 +88,10 @@ namespace BuildXL.Scheduler
                 Contract.Requires(value != null);
 
                 m_fileContentManager = value;
-                SharedOpaqueManifestTemporaryMemberCache = new SharedOpaqueManifestTemporaryMemberCache(value);
             }
         }
 
         private FileContentManager m_fileContentManager;
-
-        /// <summary>
-        /// Caches the manifest-specific view of shared opaque directory contents.
-        /// </summary>
-        internal SharedOpaqueManifestTemporaryMemberCache SharedOpaqueManifestTemporaryMemberCache { get; private set; }
 
         /// <summary>
         /// Directory membership fingerprinter.

@@ -308,7 +308,7 @@ namespace BuildXL.Engine.Distribution
                     {
                         var fileWithAttributes = FileArtifactWithAttributes.Create(
                             fileArtifactKeyedHash.GetFileArtifact(),
-                            FileExistence.Required,
+                            fileArtifactKeyedHash.GetDynamicDirectoryMemberExistence(),
                             isUndeclaredFileRewrite: fileArtifactKeyedHash.IsAllowedFileRewrite);
 
                         foreach (var directoryArtifact in fileArtifactKeyedHash.AssociatedDirectories)

@@ -29,8 +29,8 @@ namespace BuildXL.ProcessPipExecutor
         /// Lists shared opaque directory contents and the indexes of temporary members that must be excluded from the file access manifest.
         /// </summary>
         /// <remarks>
-        /// <paramref name="temporaryMemberIndexes"/> contains indexes of FileArtifacts inside of a sealed directory that do not exist on disk. The main example here
-        /// are temp files under shared opaque directories -- such files were created/deleted by a pip while it was running, the files are associated
+        /// <paramref name="temporaryMemberIndexes"/> contains indexes of FileArtifacts inside of a sealed directory that are tracked as temporary directory members.
+        /// The main example here are temp files under shared opaque directories -- such files were created/deleted by a pip while it was running, the files are associated
         /// with a particular DirectoryArtifact but they do not actually exist on disk.
         ///
         /// These members are omitted from explicit input entries so they do not mask write permission inherited from a shared opaque output scope.

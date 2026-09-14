@@ -43,7 +43,7 @@ namespace BuildXL.Scheduler
                 DirectoryArtifact directory,
                 out ReadOnlyArray<int> temporaryMemberIndexes)
             {
-                return m_pipExecutionEnvironment.State.SharedOpaqueManifestTemporaryMemberCache.ListSharedOpaqueDirectoryContents(
+                return m_pipExecutionEnvironment.State.FileContentManager.ListSharedOpaqueDirectoryContents(
                     directory,
                     out temporaryMemberIndexes);
             }

@@ -6,11 +6,15 @@ using System.IO;
 using System.IO.Pipes;
 using System.Threading;
 using System.Threading.Tasks;
-using Xunit;
+using BuildXL.Distribution.Grpc;
 using BuildXL.Engine.Tracing;
+using BuildXL.Pips.Operations;
 using BuildXL.Scheduler;
+using BuildXL.Storage;
+using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities.Configuration;
-using System.Collections.Generic;
+using BuildXL.Utilities.Core;
+using Xunit;
 
 namespace Test.BuildXL.Distribution
 {
@@ -18,6 +22,23 @@ namespace Test.BuildXL.Distribution
     {
         public WorkerServiceTests(ITestOutputHelper output) : base(output)
         {
+        }
+
+        [Fact]
+        public void DynamicDirectoryMemberExistenceIsDerivedFromTransferredHash()
+        {
+            var pathTable = new PathTable();
+            var keyedHash = new FileArtifactKeyedHash();
+
+            keyedHash.SetFileMaterializationInfo(
+                pathTable,
+                FileMaterializationInfo.CreateWithUnknownLength(WellKnownContentHashes.AbsentFile));
+            Assert.Equal(FileExistence.Temporary, keyedHash.GetDynamicDirectoryMemberExistence());
+
+            keyedHash.SetFileMaterializationInfo(
+                pathTable,
+                FileMaterializationInfo.CreateWithUnknownLength(WellKnownContentHashes.UntrackedFile));
+            Assert.Equal(FileExistence.Required, keyedHash.GetDynamicDirectoryMemberExistence());
         }
 
         [Fact]

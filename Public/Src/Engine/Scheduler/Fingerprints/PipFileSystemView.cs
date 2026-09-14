@@ -5,7 +5,6 @@ using System;
 using System.Diagnostics.ContractsLight;
 using BuildXL.Native.IO;
 using BuildXL.Utilities.Core;
-using BuildXL.Storage.Fingerprints;
 using BuildXL.Utilities;
 using BuildXL.Utilities.Collections;
 using BuildXL.Pips.Operations;
@@ -85,23 +84,18 @@ namespace BuildXL.Scheduler.Fingerprints
         {
             SealDirectoryKind kind = env.GetSealDirectoryKind(directoryDependency);
             bool isDynamic = kind.IsDynamicKind();
+            var directoryContents = env.State.FileContentManager.GetSealDirectoryContentsInfo(directoryDependency);
 
-            foreach (var fileArtifact in env.State.FileContentManager.ListSealedDirectoryContents(directoryDependency))
+            foreach (var member in directoryContents)
             {
-                bool skipAdding = false;
-                if (isDynamic)
+                // Shared opaque output can include absent files as its contents (e.g., temporary files created during pip run).
+                // Such files should not be included when in the file system view, particularly when the view is used for computing directory members.
+                if (isDynamic && member.IsTemporary)
                 {
-                    bool getContentInfo = env.State.FileContentManager.TryGetInputContent(fileArtifact, out Storage.FileMaterializationInfo info);
-
-                    // Shared opaque output can include absent files as its contents (e.g., temporary files created during pip run).
-                    // Such files should not be included when in the file system view, particularly when the view is used for computing directory members.
-                    skipAdding = getContentInfo && info.FileContentInfo.Existence == PathExistence.Nonexistent || info.FileContentInfo.Hash == WellKnownContentHashes.AbsentFile;
+                    continue;
                 }
 
-                if (!skipAdding)
-                {
-                    AddPath(env.Context.PathTable, fileArtifact);
-                }
+                AddPath(env.Context.PathTable, member.Artifact);
             }
         }
 

@@ -2044,7 +2044,9 @@ namespace BuildXL.ProcessPipExecutor
 
             if (MonitorFileAccesses && (m_sandboxConfig.LogObservedFileAccesses || m_verboseProcessLoggingEnabled))
             {
-                allFileAccesses = new List<ReportedFileAccess>(result.FileAccesses);
+                allFileAccesses = new List<ReportedFileAccess>(
+                    result.FileAccesses.Count + result.AllUnexpectedFileAccesses.Count);
+                allFileAccesses.AddRange(result.FileAccesses);
                 allFileAccesses.AddRange(result.AllUnexpectedFileAccesses);
             }
 

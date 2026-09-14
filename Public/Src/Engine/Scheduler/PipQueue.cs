@@ -188,7 +188,7 @@ namespace BuildXL.Scheduler
                                  {DispatcherKind.IpcPips, new DispatcherQueue(this, m_scheduleConfig.MaxIpc)}
                              };
 
-            m_hasAnyChange = new ManualResetEventSlim(initialState: true /* signaled */);
+            m_hasAnyChange = new ManualResetEventSlim(initialState: true /* signaled */, spinCount: 0);
 
             BuildXL.Tracing.Logger.Log.BulkStatistic(loggingContext, m_queuesByKind.ToDictionary(kvp => $"DispatcherKind.{kvp.Key}.Max", kvp => (long)kvp.Value.MaxParallelDegree));
             Tracing.Logger.Log.PipQueueConcurrency(

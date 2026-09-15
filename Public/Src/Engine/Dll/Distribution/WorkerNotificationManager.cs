@@ -75,8 +75,8 @@ namespace BuildXL.Engine.Distribution
         private NotifyOrchestratorExecutionLogTarget m_executionLogTarget;
         private NotifyOrchestratorExecutionLogTarget m_manifestExecutionLog;
 
-        private readonly MemoryStream m_flushedManifestEvents = new MemoryStream();
-        private readonly MemoryStream m_flushedExecutionLog = new MemoryStream();
+        private MemoryStream m_flushedManifestEvents = new MemoryStream();
+        private MemoryStream m_flushedExecutionLog = new MemoryStream();
 
         /// Notification sending
         private IOrchestratorClient m_orchestratorClient;
@@ -110,13 +110,17 @@ namespace BuildXL.Engine.Distribution
             m_executionLogTarget = new NotifyOrchestratorExecutionLogTarget(
                 notifyAction: ReportExecutionLog,
                 flushIfNeeded: true,
-                engineSchedule: schedule);
+                engineSchedule: schedule,
+                counters: DistributionService.Counters,
+                bufferKind: DistributionBufferKind.ExecutionLogEvents);
             schedule.Scheduler.AddReportExecutionLogTargetForWorker(m_executionLogTarget);
 
             m_manifestExecutionLog = new NotifyOrchestratorExecutionLogTarget(
                 notifyAction: FlushManifestEvents,
                 flushIfNeeded: false,
-                engineSchedule: schedule);
+                engineSchedule: schedule,
+                counters: DistributionService.Counters,
+                bufferKind: DistributionBufferKind.ManifestEvents);
             schedule.Scheduler.SetManifestExecutionLogForWorker(m_manifestExecutionLog);
 
             m_forwardingEventListener = new ForwardingEventListener(this, loggingConfig.ForwardableWorkerEvents);
@@ -250,7 +254,10 @@ namespace BuildXL.Engine.Distribution
                     GetPipResultsDescription(message, null),
                     m_sendCancellationSource.Token).GetAwaiter().GetResult();
 
-                m_flushedManifestEvents.SetLength(0);
+                DistributionBufferUtilities.Reset(
+                    ref m_flushedManifestEvents,
+                    DistributionService.Counters,
+                    DistributionBufferKind.FlushedManifestEvents);
             }
         }
 
@@ -476,7 +483,10 @@ namespace BuildXL.Engine.Distribution
                     break;
                 }
 
-                m_flushedManifestEvents.SetLength(0);
+                DistributionBufferUtilities.Reset(
+                    ref m_flushedManifestEvents,
+                    DistributionService.Counters,
+                    DistributionBufferKind.FlushedManifestEvents);
             }
 
             m_finishedSendingPipResults = true;
@@ -552,7 +562,10 @@ namespace BuildXL.Engine.Distribution
                     }
                 }
 
-                m_flushedExecutionLog.SetLength(0);
+                DistributionBufferUtilities.Reset(
+                    ref m_flushedExecutionLog,
+                    DistributionService.Counters,
+                    DistributionBufferKind.FlushedExecutionLog);
             }
         }
 

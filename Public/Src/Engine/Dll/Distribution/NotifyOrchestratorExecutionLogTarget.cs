@@ -20,8 +20,13 @@ namespace BuildXL.Engine.Distribution
         private readonly BinaryLogger m_logger;
         private readonly Scheduler.Scheduler m_scheduler;
 
-        internal NotifyOrchestratorExecutionLogTarget(Action<MemoryStream> notifyAction, EngineSchedule engineSchedule, bool flushIfNeeded)
-            : this(new NotifyStream(notifyAction), flushIfNeeded, engineSchedule.Context, engineSchedule.Scheduler.PipGraph.GraphId, engineSchedule.Scheduler.PipGraph.MaxAbsolutePathIndex)
+        internal NotifyOrchestratorExecutionLogTarget(
+            Action<MemoryStream> notifyAction,
+            EngineSchedule engineSchedule,
+            bool flushIfNeeded,
+            CounterCollection<DistributionCounter> counters,
+            DistributionBufferKind bufferKind)
+            : this(new NotifyStream(notifyAction, counters, bufferKind), flushIfNeeded, engineSchedule.Context, engineSchedule.Scheduler.PipGraph.GraphId, engineSchedule.Scheduler.PipGraph.MaxAbsolutePathIndex)
         {
             m_scheduler = engineSchedule?.Scheduler;
         }
@@ -116,13 +121,15 @@ namespace BuildXL.Engine.Distribution
         private class NotifyStream : Stream
         {
             /// <summary>
-            /// Threshold over which events are sent to orchestrator. 32MB limit
+            /// Flush threshold for buffered execution-log events sent to the orchestrator.
+            /// Events are batched until the buffer reaches 64 KiB.
             /// </summary>
-            internal const int EventDataSizeThreshold = 1 << 16; //64kb
-                //1 << 25;
+            internal const int EventDataSizeThreshold = 1 << 16;
 
             private MemoryStream m_eventDataBuffer = new MemoryStream();
             private readonly Action<MemoryStream> m_notifyAction;
+            private readonly CounterCollection<DistributionCounter> m_counters;
+            private readonly DistributionBufferKind m_bufferKind;
 
             /// <summary>
             /// If deactivated, functions stop writing or flushing <see cref="m_eventDataBuffer"/>.
@@ -141,9 +148,14 @@ namespace BuildXL.Engine.Distribution
 
             public override long Position { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
 
-            public NotifyStream(Action<MemoryStream> notifyAction)
+            public NotifyStream(
+                Action<MemoryStream> notifyAction,
+                CounterCollection<DistributionCounter> counters,
+                DistributionBufferKind bufferKind)
             {
                 m_notifyAction = notifyAction;
+                m_counters = counters;
+                m_bufferKind = bufferKind;
             }
 
             public void FlushIfNeeded()
@@ -166,7 +178,7 @@ namespace BuildXL.Engine.Distribution
                 }
 
                 m_notifyAction(m_eventDataBuffer);
-                m_eventDataBuffer.SetLength(0);
+                DistributionBufferUtilities.Reset(ref m_eventDataBuffer, m_counters, m_bufferKind);
             }
 
             public override void Close()

@@ -181,6 +181,81 @@ namespace BuildXL.Engine.Distribution
         /// <nodoc/>
         ExecutionLogSentSize,
 
+        /// <summary>
+        /// Number of reusable distribution buffers reset with a capacity of at most 64 KiB.
+        /// </summary>
+        DistributionBufferResetCapacity64KBOrLess,
+
+        /// <summary>
+        /// Number of reusable distribution buffers reset with a capacity greater than 64 KiB and at most 256 KiB.
+        /// </summary>
+        DistributionBufferResetCapacity256KBOrLess,
+
+        /// <summary>
+        /// Number of reusable distribution buffers reset with a capacity greater than 256 KiB and at most 1 MiB.
+        /// </summary>
+        DistributionBufferResetCapacity1MBOrLess,
+
+        /// <summary>
+        /// Number of reusable distribution buffers reset with a capacity greater than 1 MiB and at most 4 MiB.
+        /// </summary>
+        DistributionBufferResetCapacity4MBOrLess,
+
+        /// <summary>
+        /// Number of reusable distribution buffers reset with a capacity greater than 4 MiB.
+        /// </summary>
+        DistributionBufferResetCapacityGreaterThan4MB,
+
+        /// <summary>
+        /// Number of reusable distribution buffers replaced because their capacity exceeded the retention limit.
+        /// </summary>
+        DistributionBufferReplacementCount,
+
+        /// <summary>
+        /// Total backing-array capacity discarded when oversized distribution buffers were replaced.
+        /// </summary>
+        DistributionBufferDiscardedCapacityBytes,
+
+        /// <summary>
+        /// Number of oversized execution-log event buffers replaced.
+        /// </summary>
+        ExecutionLogEventBufferReplacementCount,
+
+        /// <summary>
+        /// Total capacity discarded from oversized execution-log event buffers.
+        /// </summary>
+        ExecutionLogEventBufferDiscardedCapacityBytes,
+
+        /// <summary>
+        /// Number of oversized manifest event buffers replaced.
+        /// </summary>
+        ManifestEventBufferReplacementCount,
+
+        /// <summary>
+        /// Total capacity discarded from oversized manifest event buffers.
+        /// </summary>
+        ManifestEventBufferDiscardedCapacityBytes,
+
+        /// <summary>
+        /// Number of oversized flushed manifest event buffers replaced.
+        /// </summary>
+        FlushedManifestEventBufferReplacementCount,
+
+        /// <summary>
+        /// Total capacity discarded from oversized flushed manifest event buffers.
+        /// </summary>
+        FlushedManifestEventBufferDiscardedCapacityBytes,
+
+        /// <summary>
+        /// Number of oversized flushed execution-log buffers replaced.
+        /// </summary>
+        FlushedExecutionLogBufferReplacementCount,
+
+        /// <summary>
+        /// Total capacity discarded from oversized flushed execution-log buffers.
+        /// </summary>
+        FlushedExecutionLogBufferDiscardedCapacityBytes,
+
         /// <nodoc/>
         ConnectionManagerTimeout,
 

@@ -131,8 +131,7 @@ extends:
         displayName: Monitor Build JS repo + Run CloudTest 
         pool: server  # Agentless
         steps:
-          ## This is the PPE task, we should change it to the prod version once that's deployed
-          - task: asg-cloudtest.asg-cloudtest-servertasks-ppe.45ECAE41-4034-4F8F-9AB4-1FC5BA457462.CloudTestServerBuildTask-PPE@5
+          - task:  asg-cloudtest.asg-cloudtest-servertasks.1ED2E272-8122-4964-9A8B-E1112FC306AA.CloudTestServerBuildTask@2
             inputs:
               connectedServiceName: CloudTest-INT  # The PPE service connection
               cloudTestTenant: cloudtest  # The tenant the CloudTest session will use

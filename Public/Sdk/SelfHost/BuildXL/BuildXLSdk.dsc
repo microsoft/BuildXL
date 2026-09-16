@@ -163,6 +163,9 @@ export const isFullFramework : boolean = qualifier.targetFramework === "net472";
 export const isTargetRuntimeOsx : boolean = qualifier.targetRuntime === "osx-x64";
 
 @@public
+export const isTargetRuntimeWin : boolean = qualifier.targetRuntime === "win-x64";
+
+@@public
 export const isTargetRuntimeLinux : boolean = qualifier.targetRuntime === "linux-x64";
 
 @@public

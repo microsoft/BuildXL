@@ -44,6 +44,21 @@ namespace Native {
         ])
     ];
 
+    /**
+     * Unlike the Windows and Linux natives, the macOS interop library is consumed as a prebuilt NuGet
+     * package rather than built from source, so it does not require a macOS host and can be deployed
+     * when cross-compiling for osx-x64 from any host OS.
+    *
+     * This will likely be undone in the future to build the macos package top to bottom from source
+     * on macOS and align with the Windows and Linux paths. But that's why there's no BuildXLSdk.isHostOsOsx condition below.
+     */
+    @@public
+    export const nativeOsx = [
+        ...addIfLazy(BuildXLSdk.isTargetRuntimeOsx, () => [
+            importFrom("BuildXL.Sandbox.MacOS").Deployment.natives
+        ])
+    ];
+
     @@public
     export const dll = BuildXLSdk.library({
         assemblyName: "BuildXL.Native",
@@ -61,6 +76,7 @@ namespace Native {
         runtimeContent: [
             ...nativeWin,
             ...nativeLinux,
+            ...nativeOsx,
         ],
         internalsVisibleTo: [
             "BuildXL.Native.Extensions",

@@ -8,6 +8,24 @@ namespace Engine {
     // Engine.dll is only used by bxl.exe (net8+). No net472 needed.
     export declare const qualifier: BuildXLSdk.DefaultQualifier;
 
+    /**
+     * The dotnet-gcdump and dotnet-stack tool packages carry native Windows dependencies (the TraceEvent ETW
+     * and DIA libraries under amd64/, x86/ and arm64/) as well as a native launcher shim per RID under shims/.
+     * BuildXL always invokes these tools as 'dotnet <tool>.dll' (see EngineDumpCollector.TryCaptureEngineDump
+     * and ProcessDumper.TryDumpManagedStacksLinux), so the shims are never used, and the native dependencies
+     * can only be loaded on Windows. Strip both when the target runtime is not win-x64 to keep roughly 29MB of
+     * unusable binaries out of the linux-x64 and osx-x64 deployments.
+     */
+    function sealDiagnosticTool(pkgContents: StaticDirectory) : StaticDirectory {
+        const root = d`${pkgContents.root}/tools/net8.0/any`;
+        const windowsOnlyFolders = [ a`amd64`, a`x86`, a`arm64`, a`shims` ];
+        return Transformer.sealPartialDirectory(
+            root,
+            pkgContents.contents.filter(f =>
+                f.isWithin(root) &&
+                (BuildXLSdk.isTargetRuntimeWin || !windowsOnlyFolders.some(folder => f.isWithin(d`${root}/${folder}`)))));
+    }
+
     @@public
     export const dll = BuildXLSdk.library({
         assemblyName: "BuildXL.Engine",
@@ -84,13 +102,13 @@ namespace Engine {
                             // CodeSync: path must match EngineDumpCollector.TryCaptureEngineDump (tools/dotnet-gcdump)
                             subfolder: r`dotnet-gcdump`,
                             contents: [
-                                Transformer.reSealPartialDirectory(importFrom("dotnet-gcdump").pkg.contents, r`tools/net8.0/any/`)
+                                sealDiagnosticTool(importFrom("dotnet-gcdump").pkg.contents)
                             ]
                         },
                         {
                             subfolder: r`dotnet-stack`,
                             contents: [
-                                Transformer.reSealPartialDirectory(importFrom("dotnet-stack").pkg.contents, r`tools/net8.0/any/`)
+                                sealDiagnosticTool(importFrom("dotnet-stack").pkg.contents)
                             ]
                         }
                     ]

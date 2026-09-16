@@ -31,10 +31,20 @@ namespace BuildXL {
                 subfolder: "tools/NinjaGraphBuilder",
                 contents: [ importFrom("BuildXL.Tools").NinjaGraphBuilder.exe ]
             },
-            {
-                subfolder: "tools/Ninjson",
-                contents: [ importFrom("BuildXL.Tools.Ninjson").pkg.contents ]
-            }
+            // The ninjson package ships a binary per target runtime (win-x64, linux-x64). Deploy only the
+            // one matching the target runtime instead of all of them. There is no macOS build of ninjson
+            // (see the 'osSkip' on the package in config.dsc), so nothing is deployed for osx-x64.
+            // CODESYNC: the layout below must match NinjsonPath in Public/Src/Tools/Tool.NinjaGraphBuilder/Program.cs
+            ...addIfLazy(!BuildXLSdk.isTargetRuntimeOsx, () => [
+                {
+                    subfolder: r`tools/Ninjson/${qualifier.targetRuntime}`,
+                    contents: [
+                        Deployment.createFromFilteredStaticDirectory(
+                            importFrom("BuildXL.Tools.Ninjson").pkg.contents,
+                            r`${qualifier.targetRuntime}`)
+                    ]
+                }
+            ])
         ]
     };
 
@@ -46,6 +56,10 @@ namespace BuildXL {
      *
      * This is NOT used for NuGet packaging to avoid exceeding package size limits.
      *
+     * The component detection tool and the Python runtime it needs are Windows binaries, so they are only
+     * deployed when the target runtime is win-x64. Including them in the linux-x64/osx-x64 deployments
+     * would add ~140MB of unusable content.
+     *
      * //codesync: The layout below (tools/ComponentDetection/Tool/ and tools/ComponentDetection/Python/)
      * must match the paths in CloudBuild's BuildXLComponentGovernanceHelper.cs
      * (private/Tools/GenericBuildRunner/shared/BuildXLComponentGovernanceHelper.cs).
@@ -56,7 +70,7 @@ namespace BuildXL {
     export const cloudBuildDeployment : Deployment.Definition = {
         contents: [
             deployment,
-            ...addIfLazy(BuildXLSdk.Flags.isMicrosoftInternal && BuildXLSdk.isHostOsWin, () => [
+            ...addIfLazy(BuildXLSdk.Flags.isMicrosoftInternal && BuildXLSdk.isHostOsWin && BuildXLSdk.isTargetRuntimeWin, () => [
                 {
                     subfolder: r`tools/ComponentDetection/Tool`,
                     contents: [

@@ -28,7 +28,9 @@ namespace Hashing {
             importFrom("System.Threading.Tasks.Extensions").pkg,
             ...BuildXLSdk.bclAsyncPackages,
         ],
-        runtimeContent: (!BuildXLSdk.Flags.isMicrosoftInternal || Context.getCurrentHost().os !== "win") ? [] : [
+        // ddpchunk/ddptrace are native Windows binaries, so they are only deployed when both the host and
+        // the target runtime are Windows.
+        runtimeContent: (!BuildXLSdk.Flags.isMicrosoftInternal || Context.getCurrentHost().os !== "win" || !BuildXLSdk.isTargetRuntimeWin) ? [] : [
             {
                 subfolder: "x64",
                 contents: [

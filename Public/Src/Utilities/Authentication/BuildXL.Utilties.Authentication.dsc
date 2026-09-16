@@ -29,7 +29,10 @@ namespace Authentication {
             "Test.BuildXL.Utilities.Authentication"
         ],
         runtimeContent: [
-            importFrom("Microsoft.Identity.Client.NativeInterop").Contents.all.getFile(r`runtimes/win-x64/native/msalruntime.dll`),,
+            // msalruntime.dll is a native Windows binary, so it is only useful when targeting win-x64.
+            ...addIfLazy(BuildXLSdk.isTargetRuntimeWin, () => [
+                importFrom("Microsoft.Identity.Client.NativeInterop").Contents.all.getFile(r`runtimes/win-x64/native/msalruntime.dll`)
+            ]),
         ]
     });
 }

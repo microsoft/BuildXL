@@ -2,6 +2,18 @@ This page is a curated list of the release notes for releases after 0.20170619.4
 
 ---
 ---
+# 0.1.0-20260914.6 (Release [32063656](https://dev.azure.com/mseng/Domino/_build/results?buildId=32063656&view=results))
+- [Cache] Revert blob-download sibling temporary files that could cause exclusive-opaque cleanup sharing violations.
+- [DScript] Fix array sorting on disposed evaluation frames.
+- [Performance] Reduce scheduler memory with a memory-mapped PipTable and smaller mutable pip state.
+- [Performance] Memoize absolute path ancestor checks.
+- [Diagnostics] Improve file content conflict diagnostics and `RunInSubst` lock-path diagnostics.
+- [Detours] Fix an out-of-bounds error when parsing the manifest.
+- [Scheduler] Add opt-in Pip Usage ML predictions for CPU, memory, and duration.
+- [CloudTest SDK] Add missing `CopyEntry` and `ScriptEntry` settings, including `skipHashInput`.
+- Expose JavaScript source-read enforcement settings to custom schedulers and QTest.
+- Various bug fixes and improvements.
+
 # 0.1.0-20260904.13 (Release [32019093](https://dev.azure.com/mseng/Domino/_build/results?buildId=32019093&view=results))
 - [Performance] Reduce `FileAccessManifest` memory, avoid a second traversal pass when finalizing policies, and speed up ASCII path normalization.
 - Add `/graphSemistableFingerprint` to externally configure the graph semistable fingerprint.

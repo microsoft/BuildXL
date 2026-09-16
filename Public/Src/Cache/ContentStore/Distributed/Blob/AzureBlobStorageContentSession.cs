@@ -203,27 +203,29 @@ public sealed class AzureBlobStorageContentSession : RecoverableContentSessionBa
         return result;
     }
 
-    private FileStream OpenFileStream(AbsolutePath path)
+    internal static FileStream OpenFileStreamForDownload(IAbsFileSystem fileSystem, AbsolutePath path)
     {
+        // A timed-out Azure operation may continue using this stream after the caller has returned. Delete
+        // sharing lets timeout cleanup unlink the partial file so a retry can safely recreate the same path.
         Stream stream;
         try
         {
-            stream = _fileSystem.OpenForWrite(
+            stream = fileSystem.OpenForWrite(
                 path,
                 expectingLength: null,
                 FileMode.Create,
-                FileShare.None,
+                FileShare.Delete,
                 FileOptions.Asynchronous | FileOptions.SequentialScan).Stream;
         }
         catch (DirectoryNotFoundException)
         {
-            _fileSystem.CreateDirectory(path.Parent!);
+            fileSystem.CreateDirectory(path.Parent!);
 
-            stream = _fileSystem.OpenForWrite(
+            stream = fileSystem.OpenForWrite(
                 path,
                 expectingLength: null,
                 FileMode.Create,
-                FileShare.None,
+                FileShare.Delete,
                 FileOptions.Asynchronous | FileOptions.SequentialScan).Stream;
         }
 
@@ -305,7 +307,7 @@ public sealed class AzureBlobStorageContentSession : RecoverableContentSessionBa
         {
             stopwatch.ElapsedAndReset();
 
-            using var fileStream = OpenFileStream(path);
+            using var fileStream = OpenFileStreamForDownload(_fileSystem, path);
             statistics.OpenFileStreamDuration = stopwatch.ElapsedAndReset();
 
             await using (var hashingStream = HashInfoLookup
@@ -330,6 +332,7 @@ public sealed class AzureBlobStorageContentSession : RecoverableContentSessionBa
                     hashingStream,
                     blobDownloadToOptions,
                     cancellationToken: context.Token);
+                context.Token.ThrowIfCancellationRequested();
                 statistics.DownloadDuration = stopwatch.ElapsedAndReset();
 
                 observedContentHash = await hashingStream.GetContentHashAsync();

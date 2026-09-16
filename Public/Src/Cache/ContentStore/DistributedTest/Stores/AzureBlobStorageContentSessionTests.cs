@@ -372,6 +372,33 @@ public class AzureBlobStorageContentSessionTests : ContentSessionTests
             });
     }
 
+    [Fact]
+    public void TimedOutDownloadDoesNotBlockOrOverwriteRetry()
+    {
+        using var fileSystem = new PassThroughFileSystem();
+        using var disposableDirectory = new DisposableDirectory(fileSystem);
+        AbsolutePath destinationPath = disposableDirectory.Path / "content";
+
+        using var timedOutDownload = AzureBlobStorageContentSession.OpenFileStreamForDownload(fileSystem, destinationPath);
+        timedOutDownload.WriteByte(1);
+        timedOutDownload.Flush();
+
+        // Timeout cleanup must be able to unlink the partial destination even while the Azure operation
+        // still owns its stream.
+        fileSystem.DeleteFile(destinationPath);
+
+        using (var retry = AzureBlobStorageContentSession.OpenFileStreamForDownload(fileSystem, destinationPath))
+        {
+            retry.WriteByte(2);
+        }
+
+        // A late write targets the unlinked file identity, not the retry's file at the same path.
+        timedOutDownload.WriteByte(3);
+        timedOutDownload.Flush();
+
+        fileSystem.ReadAllBytes(destinationPath).Should().Equal(2);
+    }
+
     internal string? OverrideFolderName { get; set; }
 
     private IDisposable? CreateBlobContentStore(out AzureBlobStorageContentStore store)
@@ -561,4 +588,3 @@ public class AzureBlobStorageContentSessionBuildCacheSasUriTests : AzureBlobStor
     {
     }
 }
-

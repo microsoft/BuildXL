@@ -29,6 +29,7 @@ namespace BuildXL.Utilities.Configuration
 
         /// <summary>
         /// Caches the build graph between runs, avoiding the parse and evaluation phases when no graph inputs have changed. Defaults to on.
+        /// Distributed orchestrators still publish the graph for workers when disabled, but do not reuse a previous graph.
         /// </summary>
         bool CacheGraph { get; }
 

@@ -591,6 +591,51 @@ const y = Debug.writeLine(T.testValue); ";
             AssertErrorEventLogged(FrontEndCoreLogEventId.CannotBuildWorkspace); // One or more error occurred during workspace analysis
         }
 
+        [Theory]
+        [InlineData(false, Infra.Developer)]
+        [InlineData(true, Infra.Developer)]
+        [InlineData(false, Infra.CloudBuild)]
+        [InlineData(true, Infra.CloudBuild)]
+        public void DistributedGraphCachingHonorsCacheGraph(bool cacheGraph, Infra infra)
+        {
+            var cache = new TestCache();
+
+            for (int build = 0; build < 2; build++)
+            {
+                RestartEngine();
+                SetupTestData();
+                ConfigureInMemoryCache(cache);
+
+                Configuration.Infra = infra;
+                Configuration.Cache.CacheGraph = cacheGraph;
+                Configuration.Cache.AllowFetchingCachedGraphFromContentCache = true;
+                Configuration.Distribution.BuildRole = DistributedBuildRoles.Orchestrator;
+                Configuration.Distribution.DynamicBuildWorkerSlots = 1;
+                Configuration.Distribution.GrpcEncryptionEnabled = false;
+
+                // Exercise graph construction and publication on the orchestrator without requiring worker execution.
+                Configuration.Engine.Phase = EnginePhases.Schedule;
+
+                RunEngine($"Distributed build {build + 1}");
+
+                XAssert.AreEqual(DistributedBuildRoles.Orchestrator, Configuration.Distribution.BuildRole);
+                XAssert.AreEqual(cacheGraph, Configuration.Cache.CacheGraph);
+
+                bool shouldReuseGraph = cacheGraph && build == 1;
+                AssertVerboseEventLogged(LogEventId.StartCheckingForPipGraphReuse, cacheGraph ? 1 : 0);
+                AssertInformationalEventLogged(FrontEndEventId.FrontEndStartEvaluateValues, shouldReuseGraph ? 0 : 1);
+                AssertInformationalEventLogged(LogEventId.FetchedSerializedGraphFromCache, shouldReuseGraph ? 1 : 0);
+                AssertVerboseEventLogged(LogEventId.EndSerializingPipGraph, shouldReuseGraph ? 0 : 1);
+                AssertVerboseEventLogged(LogEventId.PipGraphIdentfier, shouldReuseGraph ? 0 : 1);
+                XAssert.AreEqual(shouldReuseGraph, TestHooks.GraphReuseResult?.IsFullReuse ?? false);
+
+                if (!cacheGraph)
+                {
+                    XAssert.IsNull(TestHooks.GraphReuseResult);
+                }
+            }
+        }
+
         /// <summary>
         /// Test the environment variable case sensitivity in graph cache
         /// On windows, a value contains path is case insensitive.

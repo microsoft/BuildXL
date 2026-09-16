@@ -376,7 +376,7 @@
     <value>Enables an experimental feature (short form: /exp). Available experimental features: {0}</value>
   </data>
   <data name="HelpText_DisplayHelp_CacheGraph" xml:space="preserve">
-    <value>Caches the build graph between runs, avoiding the parse and evaluation phases when no graph inputs have changed. Defaults to on.</value>
+    <value>When enabled, attempts to retrieve a matching build graph from the cache to avoid expensive parse and evaluation phases when no input graphs have changed. When disabled, the build graph is always recomputed. When the graph is recomputed, it is stored in the cache regardless of the value of this flag. Defaults to on.</value>
   </data>
   <data name="Args_Environment_UnsupportedValue" xml:space="preserve">
     <value>Unsupported value for environment '{0}'. Supported values are '{1}'.</value>

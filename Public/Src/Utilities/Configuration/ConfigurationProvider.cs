@@ -159,8 +159,6 @@ namespace BuildXL.Utilities.Configuration
             // can be reused for multiple locations
             mutableConfig.Schedule.ForceUseEngineInfoFromCache = true;
 
-            mutableConfig.Cache.CacheGraph = true;
-
             mutableConfig.Schedule.ScheduleMetaPips = false;
 
             // Add additional context to environment fingerprint

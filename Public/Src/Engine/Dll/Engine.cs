@@ -941,9 +941,6 @@ namespace BuildXL.Engine
                     {
                         mutableConfig.Distribution.LowWorkersWarningThreshold = Math.Min(remoteWorkerCount + 1, mutableConfig.Distribution.LowWorkersWarningThreshold.Value);
                     }
-
-                    // Force graph caching because the orchestrator needs to communicate it to the worker.
-                    mutableConfig.Cache.CacheGraph = true;
                 }
             }
             else
@@ -3542,7 +3539,8 @@ namespace BuildXL.Engine
                     {
                         Context.EngineCounters.AddToCounter(EngineCounter.BytesSavedDueToCompression, serializer.BytesSavedDueToCompression);
 
-                        if (Configuration.Cache.CacheGraph)
+                        // Workers need the graph in the content cache even when the orchestrator disables graph reuse.
+                        if (Configuration.Cache.CacheGraph || IsDistributedOrchestrator)
                         {
                             AsyncOut<PipGraphCacheDescriptor> cachedGraphDescriptor = new AsyncOut<PipGraphCacheDescriptor>();
                             AsyncOut<ContentFingerprint> identifierFingerprint = new AsyncOut<ContentFingerprint>();

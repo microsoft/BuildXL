@@ -19,7 +19,7 @@ This page lists flags that can be used to configure BuildXL.
 | BuildTimeoutMins | The time elapsed (in minutes) since BuildXL is launched when an external entity will terminate the build. BuildXL will fail the build and shutdown gracefully an epsilon before the specified timeout to avoid an ungraceful exit. The epsilon is variable and is computed as a small percentage of the length of the specified timeout. |
 | CacheConfigFilePath | Path to cache config file. |
 | CacheDirectory | Specifies the root directory for the incremental artifact cache (short form: /cd) |
-| CacheGraph | Caches the build graph between runs, avoiding the parse and evaluation phases when no graph inputs have changed. Defaults to on. |
+| CacheGraph | When enabled, attempts to retrieve a matching build graph from the cache to avoid expensive parse and evaluation phases when no input graphs have changed. When disabled, the build graph is always recomputed. When the graph is recomputed, it is stored in the cache regardless of the value of this flag. Defaults to on. |
 | CacheMiss | When enabled, {ShortProductName} performs the on-the-fly cache miss analysis during the execute phase. If no value is given (/cacheMiss+),  the local FingerprintStore is used for comparison. The user can pass the list of changesets if they want to compare the build to a remote FingerprintStore: /cacheMiss:[<sha>:<sha>:...]. Defaults to off. |
 | CacheMissDiffFormat | Diff format for cache miss analysis. Allowed values are CustomJsonDiff and JsonPatchDiff. Defaults to CustomJsonDiff |
 | CacheOnly | Only processes cache hits. Any pips that are cache misses will skip execution. Skipped pips will not cause the build session to fail. |

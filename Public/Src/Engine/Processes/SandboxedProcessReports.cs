@@ -111,7 +111,9 @@ namespace BuildXL.Processes
         /// </remarks>
         private readonly Dictionary<uint, HashSet<ReportedProcess>> m_unknownProcessesByParent = new();
 
-        private readonly Dictionary<string, string> m_pathCache = new(OperatingSystemHelper.PathComparer);
+        private readonly HashSet<string> m_pathCache = new(OperatingSystemHelper.PathComparer);
+        private long m_exactPathCount;
+        private long m_pathCacheHitCount;
         private readonly Dictionary<AbsolutePath, bool> m_overrideAllowedWritePaths = new();
 
         private readonly Dictionary<AbsolutePath, RequestedAccess> m_fileAccessesBeforeFirstUndeclaredReWrite = new();
@@ -284,6 +286,16 @@ namespace BuildXL.Processes
         internal void Freeze()
         {
             Volatile.Write(ref m_isFrozen, true);
+
+            SandboxedProcessFactory.Counters.AddToCounter(
+                SandboxedProcessFactory.SandboxedProcessCounters.AccessReportExactPathCount,
+                m_exactPathCount);
+            SandboxedProcessFactory.Counters.AddToCounter(
+                SandboxedProcessFactory.SandboxedProcessCounters.AccessReportPathCacheHitCount,
+                m_pathCacheHitCount);
+            SandboxedProcessFactory.Counters.AddToCounter(
+                SandboxedProcessFactory.SandboxedProcessCounters.AccessReportPathCacheMissCount,
+                m_pathCache.Count);
 
             // Dump any detected processes requiring ptrace for this pip
             if (m_processesRequiringPTrace?.Any() == true)
@@ -1238,21 +1250,17 @@ namespace BuildXL.Processes
             // For exact matches (i.e., not a scope rule), the manifest path is the same as the full path.
             // In that case we don't want to keep carrying around the giant string.
             //
-            // The two AbsolutePath calls below intern path components into the shared StringTable and can
+            // The AbsolutePath call below interns path components into the shared StringTable and can
             // throw a StringTableExhaustedException when the StringTable runs out of space. We catch that
             // here, dump the most-recently-interned paths and raw strings to the log directory (so the
             // offending pattern can be analyzed post-mortem), and rethrow to preserve the existing
             // fatal-failure behavior.
             try
             {
-                if (AbsolutePath.TryGet(m_pathTable, path, out finalPath) && finalPath == manifestPath)
+                if (AbsolutePath.TryCreate(m_pathTable, path, out finalPath) && finalPath == manifestPath)
                 {
                     path = null;
-                }
-
-                if (!finalPath.IsValid)
-                {
-                    AbsolutePath.TryCreate(m_pathTable, path, out finalPath);
+                    m_exactPathCount++;
                 }
             }
             catch (StringTableExhaustedException ex)
@@ -1275,10 +1283,11 @@ namespace BuildXL.Processes
                 if (m_pathCache.TryGetValue(path, out var cachedPath))
                 {
                     path = cachedPath;
+                    m_pathCacheHitCount++;
                 }
                 else
                 {
-                    m_pathCache[path] = path;
+                    m_pathCache.Add(path);
                 }
             }
 

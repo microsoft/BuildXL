@@ -38,6 +38,24 @@ namespace BuildXL.Processes
             AccessReportCount,
 
             /// <summary>
+            /// Number of access reports whose reported path exactly matched the manifest path.
+            /// </summary>
+            [CounterType(CounterType.Numeric)]
+            AccessReportExactPathCount,
+
+            /// <summary>
+            /// Number of non-exact access report paths reused from a previous report for the same pip.
+            /// </summary>
+            [CounterType(CounterType.Numeric)]
+            AccessReportPathCacheHitCount,
+
+            /// <summary>
+            /// Number of unique non-exact access report paths retained for a pip.
+            /// </summary>
+            [CounterType(CounterType.Numeric)]
+            AccessReportPathCacheMissCount,
+
+            /// <summary>
             /// Total number of executed sandboxed processes.
             /// </summary>
             [CounterType(CounterType.Numeric)]

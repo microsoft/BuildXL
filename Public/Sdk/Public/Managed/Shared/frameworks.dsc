@@ -71,7 +71,7 @@ export type RuntimeConfigStyle = "appConfig" | "runtimeJson" | "none";
 export type ApplicationDeploymentStyle = "frameworkDependent" | "selfContained";
 
 @@public
-export type RuntimeVersion = "win-x64" | "osx-x64" | "linux-x64";
+export type RuntimeVersion = "win-x64" | "osx-x64" | "osx-arm64" | "linux-x64";
 
 @@public
 export type DotNetCoreVersion = "net8.0" | "net9.0" | "net10.0";

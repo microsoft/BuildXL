@@ -46,21 +46,39 @@ namespace BuildXL.Engine.Distribution
         /// </param>
         /// <param name="counters">Distribution counters that receive capacity and replacement telemetry.</param>
         /// <param name="bufferKind">The role of the buffer being reset.</param>
+        /// <param name="maximumRetainedCapacity">Maximum backing-buffer capacity retained for reuse.</param>
         internal static void Reset(
             ref MemoryStream buffer,
             CounterCollection<DistributionCounter> counters,
-            DistributionBufferKind bufferKind)
+            DistributionBufferKind bufferKind,
+            int maximumRetainedCapacity = MaximumRetainedCapacity)
         {
             int capacity = buffer.Capacity;
             counters.IncrementCounter(GetResetCapacityCounter(capacity));
 
-            if (capacity > MaximumRetainedCapacity)
+            if (capacity > maximumRetainedCapacity)
             {
                 counters.IncrementCounter(DistributionCounter.DistributionBufferReplacementCount);
                 counters.AddToCounter(DistributionCounter.DistributionBufferDiscardedCapacityBytes, capacity);
                 counters.IncrementCounter(GetReplacementCountCounter(bufferKind));
                 counters.AddToCounter(GetDiscardedCapacityCounter(bufferKind), capacity);
 
+                buffer.Dispose();
+                buffer = new MemoryStream();
+            }
+            else
+            {
+                buffer.SetLength(0);
+            }
+        }
+
+        /// <summary>
+        /// Resets a buffer without recording distribution telemetry.
+        /// </summary>
+        internal static void Reset(ref MemoryStream buffer, int maximumRetainedCapacity)
+        {
+            if (buffer.Capacity > maximumRetainedCapacity)
+            {
                 buffer.Dispose();
                 buffer = new MemoryStream();
             }

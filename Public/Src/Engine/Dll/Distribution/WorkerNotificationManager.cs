@@ -117,6 +117,8 @@ namespace BuildXL.Engine.Distribution
 
             m_manifestExecutionLog = new NotifyOrchestratorExecutionLogTarget(
                 notifyAction: FlushManifestEvents,
+                // Manifest events carry content hashes used for SBOM generation. Keep their existing flush behavior
+                // separate from execution-log batching until that protocol is benchmarked and validated independently.
                 flushIfNeeded: false,
                 engineSchedule: schedule,
                 counters: DistributionService.Counters,
@@ -565,7 +567,8 @@ namespace BuildXL.Engine.Distribution
                 DistributionBufferUtilities.Reset(
                     ref m_flushedExecutionLog,
                     DistributionService.Counters,
-                    DistributionBufferKind.FlushedExecutionLog);
+                    DistributionBufferKind.FlushedExecutionLog,
+                    NotifyOrchestratorExecutionLogTarget.NotifyStream.MaximumRetainedBatchCapacity);
             }
         }
 

@@ -118,16 +118,26 @@ namespace BuildXL.Engine.Distribution
             Counters.AddToCounter(ExecutionLogCounters.RemaingPendingEvents, m_logger.PendingEventCount);
         }
 
-        private class NotifyStream : Stream
+        internal sealed class NotifyStream : Stream
         {
             /// <summary>
-            /// Flush threshold for buffered execution-log events sent to the orchestrator.
-            /// Events are batched until the buffer reaches 64 KiB.
+            /// Batch size threshold at which events are sent to the orchestrator.
             /// </summary>
-            internal const int EventDataSizeThreshold = 1 << 16;
+            internal const int BatchSizeThreshold = DistributionBufferUtilities.MaximumRetainedCapacity;
+
+            /// <summary>
+            /// Maximum backing-buffer capacity retained after a batch is sent.
+            /// </summary>
+            /// <remarks>
+            /// A worker owns only one stream for each execution-log connection, so retaining up to 8 MiB per stream
+            /// is negligible compared with the worker footprint and avoids reallocating buffers after routine
+            /// multi-megabyte capacity growth.
+            /// </remarks>
+            internal const int MaximumRetainedBatchCapacity = BatchSizeThreshold << 3;
 
             private MemoryStream m_eventDataBuffer = new MemoryStream();
             private readonly Action<MemoryStream> m_notifyAction;
+            private readonly int m_batchSizeThreshold;
             private readonly CounterCollection<DistributionCounter> m_counters;
             private readonly DistributionBufferKind m_bufferKind;
 
@@ -137,6 +147,10 @@ namespace BuildXL.Engine.Distribution
             private bool m_isDeactivated = false;
 
             internal int NumFlushes;
+
+            internal long BufferedLength => m_eventDataBuffer?.Length ?? 0;
+
+            internal int BufferedCapacity => m_eventDataBuffer?.Capacity ?? 0;
 
             public override bool CanRead => false;
 
@@ -151,22 +165,34 @@ namespace BuildXL.Engine.Distribution
             public NotifyStream(
                 Action<MemoryStream> notifyAction,
                 CounterCollection<DistributionCounter> counters,
-                DistributionBufferKind bufferKind)
+                DistributionBufferKind bufferKind,
+                int batchSizeThreshold = BatchSizeThreshold)
             {
-                m_notifyAction = notifyAction;
+                m_notifyAction = notifyAction ?? throw new ArgumentNullException(nameof(notifyAction));
                 m_counters = counters;
                 m_bufferKind = bufferKind;
+                m_batchSizeThreshold = batchSizeThreshold > 0
+                    ? batchSizeThreshold
+                    : throw new ArgumentOutOfRangeException(nameof(batchSizeThreshold));
+            }
+
+            public NotifyStream(Action<MemoryStream> notifyAction, int batchSizeThreshold = BatchSizeThreshold)
+            {
+                m_notifyAction = notifyAction ?? throw new ArgumentNullException(nameof(notifyAction));
+                m_batchSizeThreshold = batchSizeThreshold > 0
+                    ? batchSizeThreshold
+                    : throw new ArgumentOutOfRangeException(nameof(batchSizeThreshold));
             }
 
             public void FlushIfNeeded()
             {
-                if (m_eventDataBuffer.Length >= EventDataSizeThreshold)
+                if (m_eventDataBuffer.Length >= m_batchSizeThreshold)
                 {
                     Flush();
                     NumFlushes++;
                 }
             }
-            
+
             public override void Flush()
             {
                 if (m_eventDataBuffer == null || m_eventDataBuffer.Length == 0)
@@ -178,7 +204,18 @@ namespace BuildXL.Engine.Distribution
                 }
 
                 m_notifyAction(m_eventDataBuffer);
-                DistributionBufferUtilities.Reset(ref m_eventDataBuffer, m_counters, m_bufferKind);
+                if (m_counters == null)
+                {
+                    DistributionBufferUtilities.Reset(ref m_eventDataBuffer, MaximumRetainedBatchCapacity);
+                }
+                else
+                {
+                    DistributionBufferUtilities.Reset(
+                        ref m_eventDataBuffer,
+                        m_counters,
+                        m_bufferKind,
+                        MaximumRetainedBatchCapacity);
+                }
             }
 
             public override void Close()
